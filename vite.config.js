@@ -9,8 +9,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'src/modeler/index.html'),
-        nested: resolve(__dirname, 'src/about/index.html'),
+        main: resolve(__dirname, 'modeler/index.html'),
+        nested: resolve(__dirname, 'about/index.html'),
       }
     },
   },
