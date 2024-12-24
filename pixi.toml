@@ -1,0 +1,12 @@
+[project]
+authors = ["Morteza Ansarinia <ansarinia@me.com>"]
+channels = ["conda-forge"]
+description = "BFlow Modeler"
+name = "bflow"
+platforms = ["osx-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+nodejs = ">=22.12.0,<22.13"
