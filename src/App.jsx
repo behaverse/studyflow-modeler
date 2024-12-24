@@ -1,21 +1,18 @@
-import { useState } from 'react'
 import './App.css'
+import BFlowModeler from './BFlowModeler'
 
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
       <div>
         <a href="https://behaverse.org/bflow" target="_blank">
-          <img src="logo.png" className="logo" alt="BFlow logo" />
+          <img src="/logo_purple.png" className="logo" alt="BFlow logo" />
         </a>
       </div>
       <h1>BFlow Modeler</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
+      <div>
+      <BFlowModeler />
       </div>
     </>
   )
