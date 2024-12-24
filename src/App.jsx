@@ -11,7 +11,7 @@ function App() {
           <img src="logo.png" className="logo" alt="BFlow logo" />
         </a>
       </div>
-      <h1>Vite + React</h1>
+      <h1>BFlow Modeler</h1>
       <div className="card">
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
