@@ -11,7 +11,7 @@ import {
 import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
 import TokenSimulationModule from 'bpmn-js-token-simulation';
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
-import new_diagram from '/src/assets/new_diagram.bpmn';
+import new_diagram from './assets/new_diagram.bpmn';
 
 function BFlowModeler() {
 

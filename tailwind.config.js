@@ -2,7 +2,8 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,jsx}",
+    "./modeler/**/*.{js,jsx}",
+    "./about/**/*.{js,jsx}",
   ],
   theme: {
     extend: {},
