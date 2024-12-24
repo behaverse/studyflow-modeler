@@ -4,38 +4,63 @@ import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
+import {
+    BpmnPropertiesPanelModule,
+    BpmnPropertiesProviderModule,
+} from 'bpmn-js-properties-panel';  
+import TokenSimulationModule from 'bpmn-js-token-simulation';
+import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from '/src/assets/new_diagram.bpmn';
 
 function BFlowModeler() {
 
-    const [container, setContainer] = useState(null);
+    const [canvas, setCanvas] = useState(null);
+    const [propertiesPanel, setPropertiesPanel] = useState(null);
 
     useEffect(() => {
         const modeler = new BpmnModeler({
-            container: container,
+            container: canvas,
+            propertiesPanel: {
+                parent: propertiesPanel,
+              },
+            additionalModules: [
+                TokenSimulationModule,
+                BpmnPropertiesPanelModule,
+                BpmnPropertiesProviderModule,
+            ],
         });
 
         fetch(new_diagram)
             .then(r => r.text())
             .then(content => {
-                modeler.importXML(content);
+                modeler.importXML(content)
+                    .then(({ warnings }) => {
+                        if (warnings.length) {
+                          console.warn(warnings);
+                        }
+                  
+                        modeler.get('canvas').zoom('fit-viewport');
+                      })
+                      .catch(err => {
+                        console.error(err);
+                      });
             });
-        modeler.get('canvas').zoom('fit-viewport');
 
         return () => {
             modeler.destroy();
         }
-    }, [container]);
+    }, [canvas, propertiesPanel]);
 
     return (
-        <div
-            className="diagram-container"
-            ref={setContainer}
-            style={{
+        <div className="modeler">
+            <div id="canvas" ref={setCanvas}
+                style={{
                 border: "2px solid purple",
                 height: "90vh",
                 width: "90vw"
               }}></div>
+            <div id="properties" ref={setPropertiesPanel}></div>
+        </div>
     );
 }
 

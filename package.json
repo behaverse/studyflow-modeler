@@ -10,7 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bpmn-io/properties-panel": "^3.25.1",
     "bpmn-js": "^18.1.2",
+    "bpmn-js-properties-panel": "^5.30.0",
+    "bpmn-js-token-simulation": "^0.36.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
