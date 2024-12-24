@@ -8,6 +8,7 @@ import {
     BpmnPropertiesPanelModule,
     BpmnPropertiesProviderModule,
 } from 'bpmn-js-properties-panel';  
+import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
 import TokenSimulationModule from 'bpmn-js-token-simulation';
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from '/src/assets/new_diagram.bpmn';
@@ -52,14 +53,12 @@ function BFlowModeler() {
     }, [canvas, propertiesPanel]);
 
     return (
-        <div className="modeler">
-            <div id="canvas" ref={setCanvas}
+        <div className="flex flex-row h-full">
+            <div className="grow" ref={setCanvas}
                 style={{
                 border: "2px solid purple",
-                height: "90vh",
-                width: "90vw"
               }}></div>
-            <div id="properties" ref={setPropertiesPanel}></div>
+            <div className="basis-1/4" ref={setPropertiesPanel}></div>
         </div>
     );
 }
