@@ -14,6 +14,16 @@ import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from './assets/new_diagram.bpmn';
 import BFlowExtension from './assets/bflow';
 import BFlowModule from './bflow';
+import {
+    CreateAppendAnythingModule,
+    CreateAppendElementTemplatesModule
+  } from 'bpmn-js-create-append-anything';
+import {
+  CloudElementTemplatesPropertiesProviderModule
+} from 'bpmn-js-element-templates';
+
+import elementTemplates from './assets/bflow_templates';
+import BFlowPaletteProvider from './bflow/PaletteProvider';
 
 function BFlowModeler() {
 
@@ -33,8 +43,14 @@ function BFlowModeler() {
                 TokenSimulationModule,
                 BpmnPropertiesPanelModule,
                 BpmnPropertiesProviderModule,
-                BFlowModule
+                BFlowModule,
+                BFlowPaletteProvider,
+                CloudElementTemplatesPropertiesProviderModule,
+                CreateAppendAnythingModule,
+                CreateAppendElementTemplatesModule,
+
             ],
+            elementTemplates,
         });
 
         fetch(new_diagram)
