@@ -1,4 +1,9 @@
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
 import BFlowModeler from './BFlowModeler'
+import 'bootstrap-icons/font/bootstrap-icons.css'
+import './index.css'
+
 
 function App() {
 
@@ -10,7 +15,10 @@ function App() {
         <div className="flex flex-wrap">
         <a href="/" className="flex space-x-1">
           <img src="/logo_purple.png" className="h-16 p-1" alt="BFlow Logo" />
-          <span className="self-center text-2xl font-semibold">Behaverse Flow Modeler</span>
+          <span className="self-center text-2xl">
+            Behaverse Flow
+            <span className="font-semibold"> Modeler</span>
+          </span>
         </a>
         </div>
       </nav>
@@ -24,3 +32,9 @@ function App() {
 }
 
 export default App
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)

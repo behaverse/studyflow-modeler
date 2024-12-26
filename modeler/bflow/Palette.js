@@ -16,22 +16,65 @@ export default class BFlowPalette {
       elementFactory
     } = this;
 
-    function createBFlowActivity(event) {
+    function createActivity(event) {
       const shape = elementFactory.createShape({ type: 'bflow:Activity' });
+      create.start(event, shape);
+    }
 
+    function createRandomAssignment(event) {
+      const shape = elementFactory.createShape({ type: 'bflow:RandomAssignment' });
       create.start(event, shape);
     }
 
     return {
-      'create.bflow-activity': {
+      'sep': {
+        separator: true
+      },
+      'create.bflow-cognitive-test': {
         group: 'bflow',
-        className: 'bpmn-icon-user-task',
-        title: 'Create BFlow Activity',
+        className: 'bi bi-puzzle',
+        title: 'Create Cognitive Test',
         action: {
-          dragstart: createBFlowActivity,
-          click: createBFlowActivity
+          dragstart: createActivity,
+          click: createActivity
         }
-      }
+      },
+      'create.bflow-game': {
+        group: 'bflow',
+        className: 'bi bi-controller',
+        title: 'Create Video Game',
+        action: {
+          dragstart: createActivity,
+          click: createActivity
+        }
+      },
+      'create.bflow-questionnaire': {
+        group: 'bflow',
+        className: 'bi bi-pencil',
+        title: 'Create Questionnaire',
+        action: {
+          dragstart: createActivity,
+          click: createActivity
+        }
+      },
+      'create.bflow-instruction': {
+        group: 'bflow',
+        className: 'bi bi-chat-square-text',
+        title: 'Create Instruction',
+        action: {
+          dragstart: createActivity,
+          click: createActivity
+        }
+      },
+      'create.bflow-random-assignment': {
+        group: 'bflow',
+        className: 'bi bi-dice-6',
+        title: 'Create Random Assignment Gateway',
+        action: {
+          dragstart: createRandomAssignment,
+          click: createRandomAssignment
+        }
+      },
     }
   }
 }

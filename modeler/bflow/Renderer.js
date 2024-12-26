@@ -12,7 +12,7 @@ export default class BFlowRenderer extends BaseRenderer {
   }
 
   canRender(element) {
-    return element.type === "bflow:Activity"
+    return element.type === "bflow:Activity" || element.type === "bflow:RandomAssignment";
   }
 
   drawShape(parentNode, element) {
@@ -28,6 +28,19 @@ export default class BFlowRenderer extends BaseRenderer {
       svgAppend(parentNode, rect);
 
       return rect;
+    }
+
+    if (element.type === "bflow:RandomAssignment") {
+      const polygon = svgCreate("polygon");
+
+      polygon.setAttribute("points", "0,0 20,0 10,20");
+      polygon.setAttribute("stroke", "black");
+      polygon.setAttribute("fill", "lightgray");
+      polygon.setAttribute("stroke-width", 1);
+
+      svgAppend(parentNode, polygon);
+
+      return polygon;
     }
   }
 

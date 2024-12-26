@@ -18,7 +18,18 @@
         ]
       },
       {
-        "name": "CognitiveTask",
+        "name": "CognitiveTest",
+        "superClass": [ "Activity" ],
+        "properties": [
+          {
+            "name": "instrument",
+            "isAttr": true,
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "Game",
         "superClass": [ "Activity" ],
         "properties": [
           {
@@ -40,8 +51,19 @@
         ]
       },
       {
-        "name": "Randomizer",
-        "superClass": [ "bpmn:Gateway" ],
+        "name": "Instruction",
+        "superClass": [ "Activity" ],
+        "properties": [
+          {
+            "name": "MessageId",
+            "isAttr": true,
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "RandomAssignment",
+        "superClass": [ "bpmn:ExclusiveGateway" ],
         "properties": [
           {
             "name": "distribution",

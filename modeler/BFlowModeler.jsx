@@ -53,6 +53,9 @@ function BFlowModeler() {
             elementTemplates,
         });
 
+        // TODO wait for the modeler to be ready before importing the diagram
+
+
         fetch(new_diagram)
             .then(r => r.text())
             .then(content => {
@@ -61,11 +64,10 @@ function BFlowModeler() {
                         if (warnings.length) {
                           console.warn(warnings);
                         }
-                  
                         modeler.get('canvas').zoom('fit-viewport');
                       })
                       .catch(err => {
-                        console.error(err);
+                        console.log(err);
                       });
             });
 

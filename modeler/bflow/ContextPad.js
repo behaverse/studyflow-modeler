@@ -20,11 +20,11 @@ export default class BFlowContextPad {
     } = this;
 
     function appendActivity(event, element) {
+      const shape = elementFactory.createShape({ type: 'bflow:Activity' });
       if (autoPlace) {
-        const shape = elementFactory.createShape({ type: 'bflow:Activity' });
         autoPlace.append(element, shape);
       } else {
-        createActivity(event, element);
+        create.start(event, shape, element);
       }
     }
 
@@ -33,14 +33,33 @@ export default class BFlowContextPad {
       create.start(event, shape, element);
     }
 
+    function appendRandomAssignment(event, element) {
+      const shape = elementFactory.createShape({
+        type: 'bflow:RandomAssignment'
+      });
+      if (autoPlace) {
+        autoPlace.append(element, shape);
+      } else {
+        create.start(event, shape, element);
+      }
+    }
+
     return {
       'append.bflow-activity': {
         group: 'bflow',
-        className: 'bpmn-icon-user-task',
-        title: translate('Append BFlow Activity'),
+        className: 'bi bi-puzzle',
+        title: translate('Append Cognitive Test'),
         action: {
           click: appendActivity,
           dragstart: createActivity
+        }
+      },
+      'append.bflow-random-assignment': {
+        group: 'bflow',
+        className: 'bi bi-dice-6',
+        title: translate('Append BFlow Random Assignment Gateway'),
+        action: {
+          click: appendRandomAssignment
         }
       }
     };

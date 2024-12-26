@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@bpmn-io/properties-panel": "^3.25.1",
+    "bootstrap-icons": "^1.11.3",
     "bpmn-js": "^18.1.2",
     "bpmn-js-create-append-anything": "^0.5.2",
     "bpmn-js-element-templates": "^2.4.0",
