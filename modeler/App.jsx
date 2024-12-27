@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import StudyFlowModeler from './StudyFlowModeler'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './index.css'
-
+import logo_image from './assets/logo_purple.png'
 
 function App() {
 
@@ -14,7 +14,7 @@ function App() {
       <nav className="bg-gray-50">
         <div className="flex flex-wrap">
         <a href="/" className="flex space-x-1">
-          <img src="/logo_purple.png" className="h-16 p-1" alt="StudyFlow Logo" />
+          <img src={logo_image} className="h-16 p-1" alt="StudyFlow Logo" />
           <span className="self-center text-2xl">
             Behaverse StudyFlow
             <span className="font-semibold"> Modeler</span>
