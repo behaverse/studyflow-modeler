@@ -9,7 +9,7 @@ import {
     BpmnPropertiesProviderModule,
 } from 'bpmn-js-properties-panel';  
 import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
-import TokenSimulationModule from 'bpmn-js-token-simulation';
+import StudyFlowSimulationModule from './studyflow/simulation';
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
@@ -40,7 +40,7 @@ export default function StudyFlowModeler() {
                 studyflow: StudyFlowModdleExtension,
             },
             additionalModules: [
-                TokenSimulationModule,
+                StudyFlowSimulationModule,
                 BpmnPropertiesPanelModule,
                 BpmnPropertiesProviderModule,
                 StudyFlowModule,
