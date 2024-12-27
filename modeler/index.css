@@ -17,3 +17,7 @@
     top: unset !important;
     bottom: 20px;
 }
+
+svg text.bi {
+    font-family: bootstrap-icons !important;
+}
