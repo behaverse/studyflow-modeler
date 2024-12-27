@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import BFlowModeler from './BFlowModeler'
+import StudyFlowModeler from './StudyFlowModeler'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './index.css'
 
@@ -14,9 +14,9 @@ function App() {
       <nav className="bg-gray-50">
         <div className="flex flex-wrap">
         <a href="/" className="flex space-x-1">
-          <img src="/logo_purple.png" className="h-16 p-1" alt="BFlow Logo" />
+          <img src="/logo_purple.png" className="h-16 p-1" alt="StudyFlow Logo" />
           <span className="self-center text-2xl">
-            Behaverse Flow
+            Behaverse StudyFlow
             <span className="font-semibold"> Modeler</span>
           </span>
         </a>
@@ -25,7 +25,7 @@ function App() {
   
       {/* the modeler */}
       <div className="w-full h-full">
-        <BFlowModeler />
+        <StudyFlowModeler />
       </div>
     </div>
   )

@@ -2,24 +2,24 @@
   {
     "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
     "name": "Activity",
-    "id": "org.behaverse.bflow",
-    "description": "BFlow Activity",
+    "id": "org.behaverse.studyflow",
+    "description": "Behaverse StudyFlow Activity",
     "version": 1,
     "appliesTo": [
       "bpmn:Task"
     ],
     "elementType": {
-      "value": "bflow:Activity"
+      "value": "studyflow:Activity"
     },
     "properties": []
   }, {
     "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
     "name": "RandomAssignmentTemplate",
     "appliesTo": [
-      "bflow:RandomAssignment"
+      "studyflow:RandomAssignment"
     ],
     "elementType": {
-      "value": "bflow:RandomAssignment"
+      "value": "studyflow:RandomAssignment"
     }
   }
 ]

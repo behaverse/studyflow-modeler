@@ -1,8 +1,8 @@
 [project]
 authors = ["Morteza Ansarinia <ansarinia@me.com>"]
 channels = ["conda-forge"]
-description = "BFlow Modeler"
-name = "bflow"
+description = "StudyFlow Modeler"
+name = "studyflow"
 platforms = ["osx-64"]
 version = "0.1.0"
 

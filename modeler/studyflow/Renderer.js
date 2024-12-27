@@ -1,10 +1,21 @@
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
+import { is } from "bpmn-js/lib/util/ModelUtil";
 import {
-  append as svgAppend, create as svgCreate,
-  classes as svgClasses, attr as svgAttr
+  append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-export default class BFlowRenderer extends BaseRenderer {
+const STUDYFLOW_ICONS = {
+  'studyflow:RandomAssignment': "\uF2FD",
+  'studyflow:VideoGame': "\uF2D4",
+  'studyflow:CognitiveTest': "\uF503",
+  'studyflow:Questionnaire': "\uF4CB",
+  'studyflow:Instruction': "\uF25F",
+}
+
+const STUDYFLOW_DEFAULT_ICON = "\uF8A7"; // person-gear
+
+
+export default class StudyFlowRenderer extends BaseRenderer {
 
   static $inject = ["eventBus", "styles", "bpmnRenderer"];
 
@@ -13,11 +24,10 @@ export default class BFlowRenderer extends BaseRenderer {
     super(eventBus, HIGH_PRIORITY);
     this.styles = styles;
     this.bpmnRenderer = bpmnRenderer;
-    console.log(this.bpmnRenderer)
   }
 
   canRender(element) {
-    return element.type === "bflow:Activity" || element.type === "bflow:RandomAssignment";
+    return is(element, "studyflow:Element");
   }
 
   drawDiamond(parentGfx, width, height, attrs) {
@@ -53,7 +63,9 @@ export default class BFlowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, icon, x, y) {
+  drawIcon(parentNode, element, x, y) {
+
+    const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
     var text = svgCreate('text', {
       x: x,
       y: y,
@@ -70,18 +82,18 @@ export default class BFlowRenderer extends BaseRenderer {
   }
 
   drawShape(parentNode, element) {
-    if (element.type === "bflow:Activity") {
-      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
-      this.drawIcon(parentNode, element, "\uF502", 5, 29);
+    if (is(element, "studyflow:Activity")) {
+      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'purple'});
+      this.drawIcon(parentNode, element, 5, 29);
       return el;
     }
 
-    if (element.type === "bflow:RandomAssignment") {
+    if (is(element, "studyflow:RandomAssignment")) {
       var diamond = this.drawDiamond(
         parentNode, element.width, element.height, {
-          stroke: 'black'
+          stroke: 'purple'
       });
-      this.drawIcon(parentNode, element, "\uF2FD",
+      this.drawIcon(parentNode, element,
         element.width / 2 - 12,
         element.height / 2 + 12);
       return diamond;

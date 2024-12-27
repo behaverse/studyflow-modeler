@@ -12,8 +12,8 @@ import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
 import TokenSimulationModule from 'bpmn-js-token-simulation';
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from './assets/new_diagram.bpmn';
-import BFlowExtension from './assets/bflow';
-import BFlowModule from './bflow';
+import StudyFlowModdleExtension from './assets/studyflow';
+import StudyFlowModule from './studyflow';
 import {
     CreateAppendAnythingModule,
     CreateAppendElementTemplatesModule
@@ -22,10 +22,10 @@ import {
   CloudElementTemplatesPropertiesProviderModule
 } from 'bpmn-js-element-templates';
 
-import elementTemplates from './assets/bflow_templates';
-import BFlowPaletteProvider from './bflow/PaletteProvider';
+import studyFlowElementTemplates from './assets/studyflow_templates';
+import StudyFlowPaletteProvider from './studyflow/PaletteProvider';
 
-function BFlowModeler() {
+export default function StudyFlowModeler() {
 
     const [canvas, setCanvas] = useState(null);
     const [propertiesPanel, setPropertiesPanel] = useState(null);
@@ -37,20 +37,20 @@ function BFlowModeler() {
                 parent: propertiesPanel,
             },
             moddleExtensions: {
-                bflow: BFlowExtension,
+                studyflow: StudyFlowModdleExtension,
             },
             additionalModules: [
                 TokenSimulationModule,
                 BpmnPropertiesPanelModule,
                 BpmnPropertiesProviderModule,
-                BFlowModule,
-                BFlowPaletteProvider,
+                StudyFlowModule,
+                StudyFlowPaletteProvider,
                 CloudElementTemplatesPropertiesProviderModule,
                 CreateAppendAnythingModule,
                 CreateAppendElementTemplatesModule,
 
             ],
-            elementTemplates,
+            studyFlowElementTemplates,
         });
 
         // TODO wait for the modeler to be ready before importing the diagram
@@ -86,5 +86,3 @@ function BFlowModeler() {
         </div>
     );
 }
-
-export default BFlowModeler;

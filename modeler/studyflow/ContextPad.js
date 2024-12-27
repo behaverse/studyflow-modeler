@@ -1,4 +1,4 @@
-export default class BFlowContextPad {
+export default class StudyFlowContextPad {
 
   static $inject = ['config', 'contextPad', 'create', 'elementFactory', 'injector', 'translate'];
 
@@ -20,7 +20,7 @@ export default class BFlowContextPad {
     } = this;
 
     function appendActivity(event, element) {
-      const shape = elementFactory.createShape({ type: 'bflow:Activity' });
+      const shape = elementFactory.createShape({ type: 'studyflow:Activity' });
       if (autoPlace) {
         autoPlace.append(element, shape);
       } else {
@@ -29,13 +29,13 @@ export default class BFlowContextPad {
     }
 
     function createActivity(event) {
-      const shape = elementFactory.createShape({ type: 'bflow:Activity' });
+      const shape = elementFactory.createShape({ type: 'studyflow:Activity' });
       create.start(event, shape, element);
     }
 
     function appendRandomAssignment(event, element) {
       const shape = elementFactory.createShape({
-        type: 'bflow:RandomAssignment'
+        type: 'studyflow:RandomAssignment'
       });
       if (autoPlace) {
         autoPlace.append(element, shape);
@@ -45,19 +45,19 @@ export default class BFlowContextPad {
     }
 
     return {
-      'append.bflow-activity': {
-        group: 'bflow',
-        className: 'bi bi-puzzle',
-        title: translate('Append Cognitive Test'),
+      'append.studyflow-activity': {
+        group: 'studyflow',
+        className: 'bi bi-person-gear',
+        title: translate('Append StudyFlow Activity'),
         action: {
           click: appendActivity,
           dragstart: createActivity
         }
       },
-      'append.bflow-random-assignment': {
-        group: 'bflow',
+      'append.studyflow-random-assignment': {
+        group: 'studyflow',
         className: 'bi bi-dice-6',
-        title: translate('Append BFlow Random Assignment Gateway'),
+        title: translate('Append Random Assignment'),
         action: {
           click: appendRandomAssignment
         }

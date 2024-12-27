@@ -1,4 +1,4 @@
-class BFlowPaletteProvider {
+class StudyFlowPaletteProvider {
   static $inject = ['eventBus', 'palette', 'translate'];
   
   constructor(eventBus, palette, translate) {
@@ -10,8 +10,10 @@ class BFlowPaletteProvider {
   
     getPaletteEntries(element) {  // eslint-disable-line no-unused-vars
       return function(entries) {
-        console.log(entries);
         delete entries['space-tool'];
+        delete entries['create.exclusive-gateway'];
+        delete entries['create.data-store'];
+        delete entries['create.task'];
         delete entries['create.subprocess-expanded'];
         delete entries['create.group'];
         delete entries['create.data-object'];
@@ -23,6 +25,6 @@ class BFlowPaletteProvider {
   }
 
 export default {
-    __init__: ["bFlowPaletteProvider"],
-    bFlowPaletteProvider: ["type", BFlowPaletteProvider]
+    __init__: ["studyFlowPaletteProvider"],
+    studyFlowPaletteProvider: ["type", StudyFlowPaletteProvider]
 };

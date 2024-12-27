@@ -1,0 +1,59 @@
+{
+    "name": "Behaverse StudyFlow BPMN Extension",
+    "uri": "http://behaverse.org/schema/bpmn/studyflow",
+    "prefix": "studyflow",
+    "xml": {
+      "tagAlias": "lowerCase"
+    },
+    "types": [
+      {
+        "name": "Element",
+        "superClass": [ "bpmn:BaseElement" ],
+        "properties": []
+      },
+      {
+        "name": "Activity",
+        "superClass": [ "bpmn:Task", "studyflow:Element" ],
+        "properties": [
+          {
+            "name": "instrument",
+            "isAttr": true,
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "CognitiveTest",
+        "superClass": [ "Activity" ],
+        "properties": []
+      },
+      {
+        "name": "VideoGame",
+        "superClass": [ "CognitiveTest" ],
+        "properties": []
+      },
+      {
+        "name": "Questionnaire",
+        "superClass": [ "CognitiveTest" ],
+        "properties": []
+      },
+      {
+        "name": "Instruction",
+        "superClass": [ "Questionnaire" ],
+        "properties": []
+      },
+      {
+        "name": "RandomAssignment",
+        "superClass": [ "bpmn:ExclusiveGateway", "studyflow:Element" ],
+        "properties": [
+          {
+            "name": "distribution",
+            "isAttr": true,
+            "type": "String"
+          }
+        ]
+      }
+    ],
+    "enumerations": [],
+    "associations": []
+  }
