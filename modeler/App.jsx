@@ -11,15 +11,19 @@ function App() {
     <div className="App flex flex-col h-screen">
   
         {/* top navbar */}
-      <nav className="bg-gray-50">
-        <div className="flex flex-wrap">
+      <nav className="w-full flow-root bg-gray-50 border-b-2 border-fuchsia-700">
+        <div className="float-left flex flex-wrap">
         <a href="/" className="flex space-x-2">
           <img src={logo_image} className="h-16 p-1" alt="Logo" />
-          <span className="self-center text-2xl text-fuchsia-900">
-            StudyFlow
+          <span className="self-center font-light text-2xl text-fuchsia-900">
+            StudyFlow<span className="font-bold">Modeler</span>
           </span>
-          <span className="self-center text-2xl font-bold rounded text-fuchsia-900"> Modeler</span>
-        </a>
+          </a>
+          </div>
+        <div className="flex flex-wrap float-end h-full items-center">
+          <a href="#" className="flex p-2 text-gray-600 hover:text-gray-900">Docs</a>
+          <span className="text-gray-300">&bull;</span>
+          <a href="/about/" className="flex p-2 text-gray-600 hover:text-gray-900">About</a>    
         </div>
       </nav>
   

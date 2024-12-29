@@ -72,7 +72,8 @@ export default class StudyFlowRenderer extends BaseRenderer {
       width: element.width,
       height: element.height,
       fontSize: 24,
-      fill: '##a31caf',
+      fill: '#a21caf',
+      strokeWidth: 0,
       class: classes
     });
     text.textContent = icon
@@ -83,19 +84,19 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
     if (is(element, "studyflow:Activity")) {
-      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: '#a31caf'});
-      this.drawIcon(parentNode, element, 5, 29, 'bi');
+      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'black'});
+      this.drawIcon(parentNode, element, 5, 29, 'bi text-fuchsia-100');
       return el;
     }
 
     if (is(element, "studyflow:RandomAssignment")) {
       var diamond = this.drawDiamond(
         parentNode, element.width, element.height, {
-          stroke: '#a31caf'
+          stroke: 'black'
       });
       this.drawIcon(parentNode, element,
         element.width / 2 - 12,
-        element.height / 2 + 12, 'bi');
+        element.height / 2 + 12, 'bi text-fuchsia-100 bg-blue');
       return diamond;
     }
   }

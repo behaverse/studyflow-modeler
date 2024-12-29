@@ -83,11 +83,8 @@ export default function StudyFlowModeler() {
 
     return (
         <div className="flex flex-row h-full">
-            <div className="grow" ref={setCanvas}
-                style={{
-                border: "2px solid #a31caf",
-              }}></div>
-            <div className="basis-1/4" ref={setPropertiesPanel}></div>
+            <div className="grow border-gray-100 border-r-2" ref={setCanvas}></div>
+            <div className="basis-1/5" ref={setPropertiesPanel}></div>
         </div>
     );
 }
