@@ -1,19 +1,19 @@
-import BaseModule from './base';
-import DisableModelingModule from 'bpmn-js-token-simulation/lib/features/disable-modeling';
+import TokenSimulationModule from 'bpmn-js-token-simulation';
 
-import ToggleMode from './ToggleMode';
-import TokenSimulationEditorActionsModule from 'bpmn-js-token-simulation/lib/features/editor-actions';
-import TokenSimulationKeyboardBindingsModule from 'bpmn-js-token-simulation/lib/features/keyboard-bindings';
+import ToggleMode from './toggle_mode';
+import StudyFlowActivityBehavior from './activity_behavior';
+import StudyFlowRandomAssignmentBehavior from './random_assignment_behavior';
 
 export default {
   __depends__: [
-    BaseModule,
-    DisableModelingModule,
-    TokenSimulationEditorActionsModule,
-    TokenSimulationKeyboardBindingsModule
+    TokenSimulationModule,
   ],
   __init__: [
     'toggleMode',
-  ],
-  toggleMode: [ 'type', ToggleMode ]
+    'studyFlowActivityBehavior',
+    'studyFlowRandomAssignmentBehavior'],
+  toggleMode: ['type', ToggleMode],
+  studyFlowActivityBehavior: ['type', StudyFlowActivityBehavior],
+  studyFlowRandomAssignmentBehavior: [
+    'type', StudyFlowRandomAssignmentBehavior],
 };
