@@ -54,7 +54,7 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-instruction': {
         group: 'studyflow',
-        className: 'bi bi-chat-square-text',
+        className: 'bi bi-chat-square-dots',
         title: 'Create Instruction',
         action: {
           dragstart: createElement.bind(null, 'studyflow:Instruction'),
