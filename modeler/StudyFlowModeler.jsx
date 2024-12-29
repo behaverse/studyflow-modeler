@@ -9,7 +9,6 @@ import {
     BpmnPropertiesProviderModule,
 } from 'bpmn-js-properties-panel';  
 import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
-import StudyFlowSimulationModule from './studyflow/simulation';
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
@@ -23,7 +22,6 @@ import {
 } from 'bpmn-js-element-templates';
 
 import studyFlowElementTemplates from './assets/studyflow_templates';
-import StudyFlowPaletteProvider from './studyflow/PaletteProvider';
 
 export default function StudyFlowModeler() {
 
@@ -45,15 +43,12 @@ export default function StudyFlowModeler() {
                 studyflow: StudyFlowModdleExtension,
             },
             additionalModules: [
-                StudyFlowSimulationModule,
-                BpmnPropertiesPanelModule,
-                BpmnPropertiesProviderModule,
-                StudyFlowModule,
-                StudyFlowPaletteProvider,
-                CloudElementTemplatesPropertiesProviderModule,
-                CreateAppendAnythingModule,
-                CreateAppendElementTemplatesModule,
-
+              BpmnPropertiesPanelModule,
+              BpmnPropertiesProviderModule,
+              CloudElementTemplatesPropertiesProviderModule,
+              CreateAppendAnythingModule,
+              CreateAppendElementTemplatesModule,
+              StudyFlowModule
             ],
             studyFlowElementTemplates,
         });

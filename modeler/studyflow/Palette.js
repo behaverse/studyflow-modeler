@@ -21,7 +21,7 @@ export default class StudyFlowPalette {
       create.start(event, shape);
     }
 
-    return {
+    const commands = {
       'sep': {
         separator: true
       },
@@ -72,5 +72,18 @@ export default class StudyFlowPalette {
         }
       },
     }
+
+    return function (entries) {
+      delete entries['space-tool'];
+      delete entries['create.exclusive-gateway'];
+      delete entries['create.data-store'];
+      delete entries['create.task'];
+      delete entries['create.subprocess-expanded'];
+      delete entries['create.group'];
+      delete entries['create.data-object'];
+      delete entries['create.intermediate-event'];
+      delete entries['create.participant-expanded'];
+      return { ...entries, ...commands };
+    };
   }
 }

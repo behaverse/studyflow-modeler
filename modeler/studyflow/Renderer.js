@@ -85,7 +85,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
   drawShape(parentNode, element) {
     if (is(element, "studyflow:Activity")) {
       const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'black'});
-      this.drawIcon(parentNode, element, 5, 29, 'bi text-fuchsia-100');
+      this.drawIcon(parentNode, element, 5, 29, 'bi');
       return el;
     }
 
@@ -96,7 +96,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
       });
       this.drawIcon(parentNode, element,
         element.width / 2 - 12,
-        element.height / 2 + 12, 'bi text-fuchsia-100 bg-blue');
+        element.height / 2 + 12, 'bi');
       return diamond;
     }
   }
