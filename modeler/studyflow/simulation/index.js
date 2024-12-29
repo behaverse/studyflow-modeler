@@ -1,6 +1,6 @@
 import TokenSimulationModule from 'bpmn-js-token-simulation';
 
-import ToggleMode from './toggle_mode';
+import ToggleMode from './ToggleMode';
 import StudyFlowActivityBehavior from './activity_behavior';
 import StudyFlowRandomAssignmentBehavior from './random_assignment_behavior';
 

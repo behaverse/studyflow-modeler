@@ -16,8 +16,8 @@
 } */
 
 .bts-toggle-mode {
-    top: unset !important;
-    bottom: 20px;
+    top: 10px !important;
+    /* bottom: 20px; */
 }
 
 svg text.bi {

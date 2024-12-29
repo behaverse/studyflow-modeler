@@ -23,7 +23,9 @@ function App() {
         <div className="flex flex-wrap float-end h-full items-center">
           <a href="#" className="flex p-2 text-gray-600 hover:text-gray-900">Docs</a>
           <span className="text-gray-300">&bull;</span>
-          <a href="/about/" className="flex p-2 text-gray-600 hover:text-gray-900">About</a>    
+          <a href="#" className="flex p-2 text-gray-600 hover:text-gray-900">GitHub</a>
+          <span className="text-gray-300">&bull;</span>
+          <a href="/about/" className="flex p-2 pr-4 text-gray-600 hover:text-gray-900">About</a>    
         </div>
       </nav>
   

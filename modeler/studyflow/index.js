@@ -3,6 +3,7 @@ import StudyFlowPalette from './Palette';
 import StudyFlowRenderer from './Renderer';
 import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
+import ExportButton from './ExportButton';
 
 const StudyFlowModule = {
   __init__: [
@@ -12,7 +13,8 @@ const StudyFlowModule = {
     'resizableTasks'
   ],
   __depends__: [
-    SimulationModule
+    SimulationModule,
+    ExportButton
   ],
   studyFlowContextPad: ['type', StudyFlowContextPad],
   studyFlowPalette: ['type', StudyFlowPalette],
