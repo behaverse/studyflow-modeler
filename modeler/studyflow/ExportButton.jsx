@@ -19,9 +19,9 @@ export default function ExportButton() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4">
+    <div className="fixed top-20 left-5">
       <button
-        className="bg-fuchsia-700 hover:bg-fuchsia-900 text-white font-bold py-2 px-4 rounded"
+        className="bg-fuchsia-700 hover:bg-fuchsia-900 text-white font-bold py-1 px-4 rounded"
         onClick={downloadDiagram}>Export</button>
     </div>
   );

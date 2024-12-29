@@ -14,6 +14,7 @@ import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
 import StudyFlowModule from './studyflow';
 import ExportButton from './studyflow/ExportButton';
+import SimulateButton from './studyflow/SimulateButton';
 import {
     CreateAppendAnythingModule,
     CreateAppendElementTemplatesModule
@@ -86,6 +87,7 @@ export default function StudyFlowModeler() {
         <div className="flex flex-row h-full">
         <div className="grow border-gray-100 border-r-2" ref={setCanvas}>
         </div>
+        <SimulateButton />
         <ExportButton />
         <div className="basis-1/5" ref={setPropertiesPanel}></div>
         </div>
