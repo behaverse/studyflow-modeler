@@ -63,7 +63,8 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-random-assignment': {
         group: 'studyflow',
-        className: 'bi bi-dice-6',
+        className: 'bi bi-dice-6 palette-dice rotate-45',
+        style: 'width:41px',
         title: 'Create Random Assignment Gateway',
         action: {
           dragstart: createElement.bind(null, 'studyflow:RandomAssignment'),

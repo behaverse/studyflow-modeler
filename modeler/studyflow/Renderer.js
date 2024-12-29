@@ -63,7 +63,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, x, y) {
+  drawIcon(parentNode, element, x, y, classes) {
 
     const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
     var text = svgCreate('text', {
@@ -72,8 +72,8 @@ export default class StudyFlowRenderer extends BaseRenderer {
       width: element.width,
       height: element.height,
       fontSize: 24,
-      fill: 'purple',
-      class: 'bi'
+      fill: '##a31caf',
+      class: classes
     });
     text.textContent = icon
     svgAppend(parentNode, text);
@@ -83,19 +83,19 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
     if (is(element, "studyflow:Activity")) {
-      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'purple'});
-      this.drawIcon(parentNode, element, 5, 29);
+      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: '#a31caf'});
+      this.drawIcon(parentNode, element, 5, 29, 'bi');
       return el;
     }
 
     if (is(element, "studyflow:RandomAssignment")) {
       var diamond = this.drawDiamond(
         parentNode, element.width, element.height, {
-          stroke: 'purple'
+          stroke: '#a31caf'
       });
       this.drawIcon(parentNode, element,
         element.width / 2 - 12,
-        element.height / 2 + 12);
+        element.height / 2 + 12, 'bi');
       return diamond;
     }
   }

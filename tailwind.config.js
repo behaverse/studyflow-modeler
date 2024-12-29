@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+import defaultTheme from 'tailwindcss/defaultTheme'
 export default {
   content: [
     "./index.html",
@@ -6,7 +7,15 @@ export default {
     "./about/**/*.{js,jsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['IBM Plex Sans', ...defaultTheme.fontFamily.sans]
+      }
+    },
+    fontFamily: {
+      'display': ['IBM Plex Sans'],
+      'body': ['IBM Plex Sans'],
+    }
   },
   plugins: [],
 }

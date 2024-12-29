@@ -1,4 +1,4 @@
-import BaseModule from 'bpmn-js-token-simulation/lib/base';
+import BaseModule from './base';
 import DisableModelingModule from 'bpmn-js-token-simulation/lib/features/disable-modeling';
 
 import ToggleMode from './ToggleMode';

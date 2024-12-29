@@ -33,6 +33,11 @@ export default function StudyFlowModeler() {
     useEffect(() => {
         const modeler = new BpmnModeler({
             container: canvas,
+            textRenderer: {
+              defaultStyle: {
+                fontFamily: '"IBM Plex Sans", Helvetica, sans-serif',
+              }
+            },
             propertiesPanel: {
                 parent: propertiesPanel,
             },
@@ -80,7 +85,7 @@ export default function StudyFlowModeler() {
         <div className="flex flex-row h-full">
             <div className="grow" ref={setCanvas}
                 style={{
-                border: "2px solid purple",
+                border: "2px solid #a31caf",
               }}></div>
             <div className="basis-1/4" ref={setPropertiesPanel}></div>
         </div>
