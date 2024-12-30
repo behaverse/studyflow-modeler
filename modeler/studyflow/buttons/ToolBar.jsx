@@ -1,0 +1,14 @@
+import PublishButton from './PublishButton';
+import SimulateButton from './SimulateButton';
+import DownloadButton from './DownloadButton';
+
+export function ToolBar() {
+  return (
+    <div className="fixed top-20 left-5 inline-flex rounded-md shadow-sm" role="group">
+      <SimulateButton />
+      <DownloadButton />
+      <PublishButton />
+    </div>
+  );
+
+}

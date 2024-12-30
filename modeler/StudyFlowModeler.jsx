@@ -13,8 +13,8 @@ import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
 import StudyFlowModule from './studyflow';
-import ExportButton from './studyflow/ExportButton';
-import SimulateButton from './studyflow/SimulateButton';
+import {ModelerContext} from './studyflow/ModelerContext';
+import {ToolBar} from './studyflow/buttons/ToolBar';
 import {
     CreateAppendAnythingModule,
     CreateAppendElementTemplatesModule
@@ -23,7 +23,6 @@ import {
   CloudElementTemplatesPropertiesProviderModule
 } from 'bpmn-js-element-templates';
 
-import { StudyFlowContext } from './StudyFlowContext';
 import studyFlowElementTemplates from './assets/studyflow_templates';
 
 
@@ -83,14 +82,13 @@ export default function StudyFlowModeler() {
     }, [canvas, propertiesPanel]);
 
     return (
-      <StudyFlowContext.Provider value={studyFlowModeler}>
-        <div className="flex flex-row h-full">
+      <ModelerContext.Provider value={studyFlowModeler}>
+      <div className="flex flex-row h-full">
         <div className="grow border-gray-100 border-r-2" ref={setCanvas}>
         </div>
-        <SimulateButton />
-        <ExportButton />
         <div className="basis-1/5" ref={setPropertiesPanel}></div>
-        </div>
-      </StudyFlowContext.Provider>
+        <ToolBar />
+      </div>
+      </ModelerContext.Provider>
     );
 }
