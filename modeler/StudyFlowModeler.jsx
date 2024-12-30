@@ -5,9 +5,10 @@ import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import {
-    BpmnPropertiesPanelModule,
-    BpmnPropertiesProviderModule,
+  BpmnPropertiesPanelModule,
+  BpmnPropertiesProviderModule,
 } from 'bpmn-js-properties-panel';  
+import StudyFlowPropertiesProviderModule from './studyflow/properties';
 import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import new_diagram from './assets/new_diagram.bpmn';
@@ -50,6 +51,7 @@ export default function StudyFlowModeler() {
             additionalModules: [
               BpmnPropertiesPanelModule,
               BpmnPropertiesProviderModule,
+              StudyFlowPropertiesProviderModule,
               CloudElementTemplatesPropertiesProviderModule,
               CreateAppendAnythingModule,
               CreateAppendElementTemplatesModule,
