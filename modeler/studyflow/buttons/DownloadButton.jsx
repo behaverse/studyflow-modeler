@@ -19,10 +19,10 @@ export default function DownloadButton() {
 
   return (
       <button
-        className="bg-fuchsia-700 hover:bg-fuchsia-900 text-sm font-small text-white py-1 px-4"
+        title="Download"
+        className="bg-gray-200 hover:bg-gray-300 border-y border-s border-gray-300  text-black py-1 px-3 rounded-s"
         onClick={downloadDiagram}>
-          <i className="bi bi-download w-3 h-3 me-2"></i>
-          Download
+          <i className="bi bi-download w-3 h-3"></i>
         </button>
   );
 

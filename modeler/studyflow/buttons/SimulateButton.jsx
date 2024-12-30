@@ -12,7 +12,7 @@ export default function SimulateButton() {
   const [active, setActive] = useState(true);
   const [label, setLabel] = useState('Simulate');
   const [classNames, setClassNames] = useState(
-    'bg-fuchsia-700 hover:bg-fuchsia-900 border-fuchsia-800');
+    'bg-green-600 hover:bg-green-700 border-green-700');
 
   useEffect(() => {
     // print all  the injected dependencies to the console
@@ -28,18 +28,19 @@ export default function SimulateButton() {
       setLabel('Stop Simulation');
       classes(modeler._container).add('simulation');
       classes(palette._container).add('hidden');
-      setClassNames('bg-green-700 hover:bg-green-900 border-green-800');
+      setClassNames('bg-red-600 hover:bg-red-700 border-red-700');
     } else {
       setLabel('Simulate');
       classes(modeler._container).remove('simulation');
       classes(palette._container).remove('hidden');
-      setClassNames('bg-fuchsia-700 hover:bg-fuchsia-900 border-fuchsia-800');
+      setClassNames('bg-green-600 hover:bg-green-700 border-green-700');
     }
   }
 
   return (
       <button
-        className={"text-white font-semibold py-1 px-4 rounded-s border " + classNames}
+        title="Simulate the study flow"
+        className={"text-white font-semibold py-1 px-3 rounded border " + classNames}
         onClick={toggleSimulation}>
           <i className="bi bi-camera-reels w-3 h-3 me-2"></i>
           {label}</button>

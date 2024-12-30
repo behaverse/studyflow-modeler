@@ -6,6 +6,7 @@ export function ToolBar() {
   return (
     <div className="fixed top-20 left-5 inline-flex rounded-md shadow-sm" role="group">
       <SimulateButton />
+      <span className="w-1"></span>
       <DownloadButton />
       <PublishButton />
     </div>
