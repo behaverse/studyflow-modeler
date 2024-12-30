@@ -14,7 +14,7 @@ import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
 import StudyFlowModule from './studyflow';
 import {ModelerContext} from './studyflow/ModelerContext';
-import {ToolBar} from './studyflow/buttons/ToolBar';
+import { Toolbar } from './studyflow/toolbar';
 import {
     CreateAppendAnythingModule,
     CreateAppendElementTemplatesModule
@@ -87,7 +87,7 @@ export default function StudyFlowModeler() {
         <div className="grow border-gray-100 border-r-2" ref={setCanvas}>
         </div>
         <div className="basis-1/5" ref={setPropertiesPanel}></div>
-        <ToolBar />
+        <Toolbar />
       </div>
       </ModelerContext.Provider>
     );
