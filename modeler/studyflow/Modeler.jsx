@@ -8,14 +8,8 @@ import {
   BpmnPropertiesPanelModule,
   BpmnPropertiesProviderModule,
 } from 'bpmn-js-properties-panel';  
-import StudyFlowPropertiesProviderModule from './studyflow/properties';
 import '@bpmn-io/properties-panel/dist/assets/properties-panel.css'
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
-import new_diagram from './assets/new_diagram.bpmn';
-import StudyFlowModdleExtension from './assets/studyflow';
-import StudyFlowModule from './studyflow';
-import {ModelerContext} from './studyflow/ModelerContext';
-import { Toolbar } from './studyflow/toolbar';
 import {
     CreateAppendAnythingModule,
     CreateAppendElementTemplatesModule
@@ -24,11 +18,13 @@ import {
   CloudElementTemplatesPropertiesProviderModule
 } from 'bpmn-js-element-templates';
 
-import studyFlowElementTemplates from './assets/studyflow_templates';
+import studyFlowElementTemplates from '../assets/studyflow_templates';
+import new_diagram from '../assets/new_diagram.bpmn';
+import StudyFlowModdleExtension from '../assets/studyflow';
+import {StudyFlowModule, ModelerContext, Toolbar} from '.';
 
 
-
-export default function StudyFlowModeler() {
+export function Modeler() {
 
     const [canvas, setCanvas] = useState(null);
     const [propertiesPanel, setPropertiesPanel] = useState(null);
@@ -51,7 +47,6 @@ export default function StudyFlowModeler() {
             additionalModules: [
               BpmnPropertiesPanelModule,
               BpmnPropertiesProviderModule,
-              StudyFlowPropertiesProviderModule,
               CloudElementTemplatesPropertiesProviderModule,
               CreateAppendAnythingModule,
               CreateAppendElementTemplatesModule,

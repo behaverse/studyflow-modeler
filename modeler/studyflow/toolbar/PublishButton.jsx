@@ -7,7 +7,6 @@ export default function ExportButton() {
   const modeler = useContext(ModelerContext);
 
   useEffect(() => {
-    console.log('modeler:', modeler);
   }, [modeler]);
 
   function publishDiagram() {

@@ -1,9 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import StudyFlowModeler from './StudyFlowModeler'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './index.css'
 import logo_image from './assets/behaverse_logo.png'
+import {Modeler} from './studyflow'
 
 function App() {
 
@@ -31,7 +31,7 @@ function App() {
   
       {/* the modeler */}
       <div className="w-full h-full">
-        <StudyFlowModeler />
+        <Modeler />
       </div>
     </div>
   )

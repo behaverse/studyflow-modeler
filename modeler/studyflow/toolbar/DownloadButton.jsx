@@ -7,8 +7,6 @@ export default function DownloadButton() {
   const modeler = useContext(ModelerContext);
 
   useEffect(() => {
-    // print all  the injected dependencies to the console
-    console.log('modeler:', modeler);
   }, [modeler]);
 
   function downloadDiagram() {

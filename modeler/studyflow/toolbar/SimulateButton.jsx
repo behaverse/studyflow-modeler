@@ -15,8 +15,6 @@ export default function SimulateButton() {
     'bg-green-600 hover:bg-green-700 border-green-700');
 
   useEffect(() => {
-    // print all  the injected dependencies to the console
-    console.log('modeler:', modeler);
   }, [modeler]);
 
   function toggleSimulation() {
