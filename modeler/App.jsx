@@ -15,8 +15,8 @@ function App() {
         <div className="float-left flex flex-wrap">
         <a href="/" className="flex space-x-2">
           <img src={logo_image} className="h-16 p-1" alt="Logo" />
-          <span className="self-center font-light text-2xl text-fuchsia-700">
-            StudyFlow<span className="font-semibold text-fuchsia-900">Modeler</span>
+          <span className="self-center font-light text-2xl text-[#C400A7]">
+            StudyFlow<span className="font-semibold">Modeler</span>
           </span>
           </a>
           </div>
