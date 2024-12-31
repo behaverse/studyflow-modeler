@@ -14,18 +14,23 @@
       {
         "name": "Activity",
         "superClass": [ "bpmn:Task", "studyflow:Element" ],
+        "properties": []
+      },
+      {
+        "name": "CognitiveTest",
+        "superClass": [ "Activity" ],
         "properties": [
           {
             "name": "instrument",
             "isAttr": true,
             "type": "String"
+          },
+          {
+            "name": "url",
+            "isAttr": true,
+            "type": "String"
           }
         ]
-      },
-      {
-        "name": "CognitiveTest",
-        "superClass": [ "Activity" ],
-        "properties": []
       },
       {
         "name": "VideoGame",
@@ -40,7 +45,13 @@
       {
         "name": "Instruction",
         "superClass": [ "Questionnaire" ],
-        "properties": []
+        "properties": [
+          {
+            "name": "text",
+            "isAttr": true,
+            "type": "String"
+          }
+        ]
       },
       {
         "name": "RandomAssignment",

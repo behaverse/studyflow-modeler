@@ -1,4 +1,4 @@
-import PropertiesProvider from './provider';
+import PropertiesProvider from './Provider';
 
 export default {
   __init__: [ 'studyFlowPropertiesProvider' ],
