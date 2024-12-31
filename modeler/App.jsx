@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-import logo_image from './assets/behaverse_logo.png'
+import logo_image from './assets/logo.png'
 import {Modeler} from './studyflow'
 import './index.css'
 
