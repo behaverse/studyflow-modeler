@@ -17,6 +17,7 @@ import {
 import {
   CloudElementTemplatesPropertiesProviderModule
 } from 'bpmn-js-element-templates';
+import GridModule from 'diagram-js-grid';
 
 import studyFlowElementTemplates from '../assets/studyflow_templates';
 import new_diagram from '../assets/new_diagram.bpmn';
@@ -50,6 +51,7 @@ export function Modeler() {
               CloudElementTemplatesPropertiesProviderModule,
               CreateAppendAnythingModule,
               CreateAppendElementTemplatesModule,
+              GridModule,
               StudyFlowModule
             ],
             studyFlowElementTemplates,

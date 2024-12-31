@@ -1,6 +1,6 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
-import { TextFieldEntry, isTextFieldEntryEdited } from '@bpmn-io/properties-panel';
+import { SelectEntry, isSelectEntryEdited } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { useCallback } from '@bpmn-io/properties-panel/preact/hooks';
 
@@ -10,7 +10,7 @@ export function InstrumentProps(element) {
     {
       id: 'studyflow.instrument_id',
       component: InstrumentId,
-      isEdited: isTextFieldEntryEdited
+      isEdited: isSelectEntryEdited
     }
   ];
 }
@@ -42,15 +42,24 @@ function InstrumentId(props) {
     // return true;
   }, [element]);
 
-  return TextFieldEntry({
+  const getOptions = (element) => {
+    return [
+      { value: 'NB', label: 'N-Back (NB)' },
+      { value: 'DS', label: 'Digit Span (DS)' },
+      { value: 'MOT', label: 'Multiple Object Tracking (MOT)' }
+    ];
+  }
+
+  return SelectEntry({
     element,
     id: 'instrument_id',
-    label: 'Instrument ID',
+    label: 'Instrument',
     getValue,
     setValue,
     debounce,
+    getOptions: getOptions,
+    'validate': validate,
     tooltip: translate('The name of the Behaverse instrument'),
-    'validate': validate
   });
 
 }
