@@ -3,7 +3,7 @@ import defaultTheme from 'tailwindcss/defaultTheme'
 export default {
   content: [
     "./index.html",
-    "./modeler/**/*.{js,jsx}",
+    "./app/**/*.{js,jsx}",
     "./about/**/*.{js,jsx}",
   ],
   theme: {

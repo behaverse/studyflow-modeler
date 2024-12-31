@@ -5,7 +5,7 @@ import logo_image from './assets/logo.png'
 import {Modeler} from './studyflow'
 import './index.css'
 
-function App() {
+export default function App() {
 
   return (
     <div className="App flex flex-col h-screen">
@@ -36,8 +36,6 @@ function App() {
     </div>
   )
 }
-
-export default App
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
