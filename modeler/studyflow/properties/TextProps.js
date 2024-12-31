@@ -29,7 +29,7 @@ function Text(props) {
     }
 
     modeling.updateProperties(element, {
-      instrument: value
+      text: value
     });
   };
 

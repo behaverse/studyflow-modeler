@@ -9,13 +9,13 @@ export function UrlProps(element) {
   return [
     {
       id: 'studyflow.url',
-      component: URL,
+      component: Url,
       isEdited: isTextAreaEntryEdited
     }
   ];
 }
 
-function URL(props) {
+function Url(props) {
 
   const { element } = props;
 
