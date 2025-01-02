@@ -5,7 +5,7 @@
 
 # Behaverse StudyFlow Modeler
 
-StudyFlow Modeler is a tool to model the [study flow of a behavioral study](https://behaverse.org/studyflow). It extends BPMN 2.0 with additional elements to model a behavioral study.
+StudyFlow Modeler is a tool to model and run cognitive experiments using [Behaverse StudyFlow](https://behaverse.org/studyflow).
 
 ## Development
 
