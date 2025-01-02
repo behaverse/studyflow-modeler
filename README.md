@@ -1,6 +1,6 @@
 
 > [!WARNING]
-> This is a work in progress. The tool is not yet ready for use and the documentation is incomplete. It's only available for internal demonstration.
+> **This is a work in progress. The tool is not yet ready for use and the documentation is incomplete. It's only available for internal demonstration.**
 
 
 # Behaverse StudyFlow Modeler
