@@ -1,6 +1,8 @@
-import StudyFlowPropertiesProvider from './Provider';
+import PropertiesPanelProvider from './Provider';
 
 export default {
   __init__: [ 'studyFlowPropertiesProvider' ],
-  studyFlowPropertiesProvider: [ 'type', StudyFlowPropertiesProvider ]
+  studyFlowPropertiesProvider: [ 'type', PropertiesPanelProvider ]
 };
+
+export { PropertiesPanelProvider };

@@ -2,11 +2,11 @@ import { useEffect, useContext, useState } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 
-import {ModelerContext} from '../ModelerContext';
+import {ModelerContext} from '../Contexts';
 
 import xmldom from 'xmldom';
 
-export default function ExportButton() {
+export default function ExportButton(props) {
 
   const modeler = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)

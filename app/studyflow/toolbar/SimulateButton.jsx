@@ -1,12 +1,12 @@
 import {classes} from 'min-dom';
 import { useEffect, useContext, useState } from "react";
-import {ModelerContext} from '../ModelerContext';
+import {ModelerContext} from '../Contexts';
 
 import {
   TOGGLE_MODE_EVENT
 } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 
-export default function SimulateButton() {
+export default function SimulateButton(props) {
 
   const modeler = useContext(ModelerContext);
   const [active, setActive] = useState(true);
@@ -14,13 +14,10 @@ export default function SimulateButton() {
   const [classNames, setClassNames] = useState(
     'bg-green-600 hover:bg-green-700 border-green-700');
 
-  useEffect(() => {
-  }, [modeler]);
-
   function toggleSimulation() {
     setActive(!active);
-    const eventBus = modeler._injector._instances.eventBus;
-    const palette = modeler._injector._instances.palette;
+    const eventBus = modeler.get('eventBus');
+    const palette = modeler.get('palette');
     eventBus.fire(TOGGLE_MODE_EVENT, { active });
     if (active) {
       setLabel('Stop Simulation');

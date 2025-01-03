@@ -14,7 +14,7 @@ export const StudyFlowModule = {
   ],
   __depends__: [
     SimulationModule,
-    StudyFlowPropertiesProviderModule
+    // StudyFlowPropertiesProviderModule
   ],
   studyFlowContextPad: ['type', StudyFlowContextPad],
   studyFlowPalette: ['type', StudyFlowPalette],
@@ -23,5 +23,5 @@ export const StudyFlowModule = {
 };
 
 export {Modeler} from './Modeler';
-export { ModelerContext } from './ModelerContext';
+export { ModelerContext } from './Contexts';
 export { Toolbar } from './toolbar';

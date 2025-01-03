@@ -23,14 +23,15 @@ import studyFlowElementTemplates from '../assets/studyflow_templates';
 import new_diagram from '../assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from '../assets/studyflow';
 import {StudyFlowModule, ModelerContext, Toolbar} from '.';
-
+import { PropertiesPanelProvider } from './properties';
 
 export function Modeler() {
 
     const [canvas, setCanvas] = useState(null);
     const [propertiesPanel, setPropertiesPanel] = useState(null);
     const [studyFlowModeler, setStudyFlowModeler] = useState(null);
-
+    const [isLoading, setLoading] = useState(true);
+  
     useEffect(() => {
         const modeler = new BpmnModeler({
             container: canvas,
@@ -56,9 +57,8 @@ export function Modeler() {
             ],
             studyFlowElementTemplates,
         });
-
-        // TODO wait for the modeler to be ready before importing the diagram
         setStudyFlowModeler(modeler);
+        setLoading(false);
 
         fetch(new_diagram)
             .then(r => r.text())
@@ -80,6 +80,16 @@ export function Modeler() {
         }
     }, [canvas, propertiesPanel]);
 
+  if (isLoading) {
+    return (<div className="flex h-full text-center">
+      <div role="status" className="m-auto animate-spin">
+        <span className="bi bi-arrow-repeat text-fuchsia-600 text-[3rem]"></span>
+        <span className="sr-only">Loading...</span>
+      </div>
+  </div>
+    )
+  }
+  
     return (
       <ModelerContext.Provider value={studyFlowModeler}>
       <div className="flex flex-row h-full">
@@ -87,7 +97,8 @@ export function Modeler() {
         </div>
         <div className="basis-1/5" ref={setPropertiesPanel}></div>
         <Toolbar />
-      </div>
+        </div>
+        <PropertiesPanelProvider />
       </ModelerContext.Provider>
     );
 }

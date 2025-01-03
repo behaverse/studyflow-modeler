@@ -3,6 +3,9 @@ import { UrlProps } from './UrlProps';
 import { TextProps } from './TextProps';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
+import { useContext, useEffect, useCallback } from 'react';
+import { ModelerContext } from '../Contexts';
+
 const PROPERTIES = {
   'studyflow:instrument': InstrumentProps,
   'studyflow:url': UrlProps,
@@ -30,21 +33,22 @@ function getStudyFlowGroup(element, injector) {
   };
 }
 
-export default class PropertiesProvider {
+export default function PropertiesProvider() {
 
-  static $inject = ['propertiesPanel', 'injector'];
-
-  constructor(propertiesPanel, injector) {
-    propertiesPanel.registerProvider(this);
-    this._injector = injector;
-  }
-
-  getGroups(element) {
+  const modeler = useContext(ModelerContext);
+  const injector = modeler.get('injector');
+  const getGroups = useCallback((element) => {
     return (groups) => {
       if (element.type.startsWith('studyflow:')) {
-        groups.push(getStudyFlowGroup(element, this._injector));
+        groups.push(getStudyFlowGroup(element, injector));
       }
       return groups;
     };
-  }
+  }, [injector]);
+
+  useEffect(() => {
+    const propertiesPanel = modeler.get('propertiesPanel');
+    propertiesPanel.registerProvider({'getGroups': getGroups});
+  }, [modeler, getGroups]);
+
 }
