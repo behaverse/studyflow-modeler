@@ -9,8 +9,11 @@ export default function ExportButton(props) {
   const modeler = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)
   let [status, setStatus] = useState(undefined)
+  let [isLoading, setLoading] = useState(false)
 
   function open() {
+    setLoading(false)
+    setStatus(undefined)
     setIsOpen(true)
   }
 
@@ -21,11 +24,11 @@ export default function ExportButton(props) {
   }, [modeler]);
 
   const handlePublish = (formData) => {
+    setLoading(true);
     const study_name = formData.get('study_name');
     const api_key = formData.get('api_key');
     console.log('Publishing...', study_name, api_key);
     modeler.saveXML({ format: true }).then(({ xml }) => {
-      console.log(xml);
       fetch(`https://api.behaverse.org/v1/studies/${study_name}/flow`, {
         method: 'POST',
         headers: {
@@ -33,6 +36,7 @@ export default function ExportButton(props) {
         },
         body: xml
       }).then((response) => response.json()).then((data) => {
+        setLoading(false);
         setStatus(data.status);
       })
     }).catch((error) => {
@@ -57,7 +61,7 @@ export default function ExportButton(props) {
               className="w-full bg-stone-100 max-w-md rounded-xl p-6 backdrop-blur-2xl duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]"
             >
               <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-8">
-                Publish this StudyFlow
+                Publish
                 <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
                   <i className="bi bi-x-lg"></i>
                 </span>
