@@ -23,7 +23,7 @@ import studyFlowElementTemplates from '../assets/studyflow_templates';
 import new_diagram from '../assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from '../assets/studyflow';
 import {StudyFlowModule, ModelerContext, Toolbar} from '.';
-import { PropertiesPanelProvider } from './properties';
+import { PropertiesProvider } from './properties';
 
 export function Modeler() {
 
@@ -98,7 +98,7 @@ export function Modeler() {
         <div className="basis-1/5" ref={setPropertiesPanel}></div>
         <Toolbar />
         </div>
-        <PropertiesPanelProvider />
+        <PropertiesProvider />
       </ModelerContext.Provider>
     );
 }

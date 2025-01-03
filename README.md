@@ -10,9 +10,8 @@ StudyFlow Modeler is a tool to model and run cognitive experiments using [Behave
 ## Development
 
 ```bash
-pixi shell
-npm install
-npm run dev
+pixi r npm install
+pixi r npm run dev
 ```
 
 ## License

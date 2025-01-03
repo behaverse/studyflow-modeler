@@ -12,22 +12,19 @@ const PROPERTIES = {
   'studyflow:text': TextProps
 };
 
-function getStudyFlowGroup(element, injector) {
-  const translate = injector.get('translate');
-
-  var entries = Object.entries(PROPERTIES).map(function ([k, f], i) {
-    const obj = getBusinessObject(element);
-    const objProps = obj['$descriptor']['propertiesByName'];
-    if (k in objProps) {
+function getStudyFlowGroup(element) {
+  var entries = Object.entries(PROPERTIES).map(function ([k, f]) {
+    const bObj = getBusinessObject(element);
+    if (k in bObj.$descriptor.propertiesByName) {
       return f(element);
     }
   });
-    
+
   entries = entries.flat().filter(ent => ent !== undefined);
 
   return {
     id: 'studyflow',
-    label: translate('StudyFlow'),
+    label: 'StudyFlow',
     entries: entries,
     // tooltip: '...'
   };
