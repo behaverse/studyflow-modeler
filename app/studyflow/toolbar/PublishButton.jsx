@@ -4,12 +4,11 @@ import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description,
 
 import {ModelerContext} from '../Contexts';
 
-import xmldom from 'xmldom';
-
 export default function ExportButton(props) {
 
   const modeler = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)
+  let [status, setStatus] = useState(undefined)
 
   function open() {
     setIsOpen(true)
@@ -21,27 +20,23 @@ export default function ExportButton(props) {
   useEffect(() => {
   }, [modeler]);
 
-  function xml2json(xml, {ignoreTags = []} = {}) {
-    var el = xml.nodeType === 9 ? xml.documentElement : xml
-    if (ignoreTags.includes(el.nodeName)) return el
-  
-    var h  = {_name: el.nodeName}
-    h.content    = Array.from(el.childNodes || []).filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join('')
-    h.attributes = Array.from(el.attributes || []).filter(a => a).reduce((h, a) => { h[a.name] = a.value; return h }, {})
-    h.children   = Array.from(el.childNodes || []).filter(n => n.nodeType === 1).map(c => {
-      var r = xml2json(c, {ignoreTags: ignoreTags})
-      h[c.nodeName] = h[c.nodeName] || r
-      return r
-    })
-    return h
-  }
-
-  function publishDiagram() {
+  const handlePublish = (formData) => {
+    const study_name = formData.get('study_name');
+    const api_key = formData.get('api_key');
+    console.log('Publishing...', study_name, api_key);
     modeler.saveXML({ format: true }).then(({ xml }) => {
-      const parsedXml = new xmldom.DOMParser().parseFromString(xml, 'text/xml')
-      const diagramJson = xml2json(parsedXml);
-      console.log(diagramJson);
-      alert('Diagram published!');
+      console.log(xml);
+      fetch(`https://api.behaverse.org/v1/studies/${study_name}/flow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml'
+        },
+        body: xml
+      }).then((response) => response.json()).then((data) => {
+        setStatus(data.status);
+      })
+    }).catch((error) => {
+      console.error(error);
     });
   }
 
@@ -67,10 +62,12 @@ export default function ExportButton(props) {
                   <i className="bi bi-x-lg"></i>
                 </span>
               </DialogTitle>
+              <form action={handlePublish}>
               <Fieldset className="space-y-6">
                 <Field>
                   <Label className="text-sm font-medium">Study Name</Label>
                   <Input
+                    name="study_name"
                     className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
                     placeholder="Example: my-study"
                   />
@@ -81,6 +78,7 @@ export default function ExportButton(props) {
                 <Field>
                   <Label className="text-sm font-medium">Behaverse API Key</Label>
                   <Input
+                    name="api_key"
                     className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
                     placeholder="Example: 12345jdcj33kllk67890"
                   />
@@ -88,13 +86,23 @@ export default function ExportButton(props) {
                     See the <a className="text-sky-500 hover:text-sky-600" href="https://api.behaverse.org/docs" target="_blank">API docs</a> for more information
                   </Description>
                 </Field>
-                <Button
-                  className="float-end inline-flex items-center gap-2 rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-sky-700"
-                  onClick={close}
-                >
-                  Publish
-                </Button>
+                  {status &&
+                    <div className="float-start inline-flex items-center py-1.5">
+                      <span className="text-sm m-auto">
+                        Study Flow published successfully!
+                      </span>
+                    </div>
+                  }
+                  {!status &&
+                    <Button
+                      type="submit"
+                      className="float-end inline-flex items-center gap-2 rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-sky-700"
+                    >
+                      Publish
+                    </Button>
+                  }
               </Fieldset>
+              </form>
             </DialogPanel>
           </div>
         </div>
