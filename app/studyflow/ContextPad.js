@@ -28,6 +28,7 @@ export default class StudyFlowContextPad {
   constructor(config, contextPad, create, elementFactory, injector, translate) {
     this.create = create;
     this.elementFactory = elementFactory;
+    this.bpmnFactory = elementFactory._bpmnFactory;
     this.translate = translate;
 
     if (config.autoPlace !== false) {
@@ -39,12 +40,28 @@ export default class StudyFlowContextPad {
 
   getContextPadEntries(element) {
     const {
-      autoPlace, create, elementFactory, translate
+      autoPlace, create, elementFactory, translate, bpmnFactory
     } = this;
 
 
+    function createShape(element_type) {
+      const prefix = element_type.replace('studyflow:', '');
+      const el = bpmnFactory._model.create(element_type, {type: element_type});
+      el.id = bpmnFactory._model.ids.nextPrefixed(prefix + '_', el)
+      const shape = elementFactory.createShape({
+        businessObject: el, type: element_type
+      });
+      return shape;
+    }
+
     function appendElement(type, event, element) {
-      const shape = elementFactory.createShape({ type: type });
+      // TODO: refactor as StudyFlowFactory.js
+      const shape = createShape(type);
+      if (event.type.includes('dragstart')) {
+        create.start(event, shape, element);
+        return
+      }
+
       if (autoPlace) {
         autoPlace.append(element, shape);
       } else {
@@ -52,22 +69,17 @@ export default class StudyFlowContextPad {
       }
     }
 
-    function createElement(type, event) {
-      const shape = elementFactory.createShape({ type: type });
-      create.start(event, shape, element);
-    }
-
     var commands = {};
     for (var studyFlowElement in STUDYFLOW_ELEMENTS) {
-      const command_name = 'append.' + studyFlowElement.replace(':', '.');
+      const commandName = 'append.' + studyFlowElement.replace(':', '.');
       const elementInfo = STUDYFLOW_ELEMENTS[studyFlowElement];
-      commands[command_name] = {
+      commands[commandName] = {
         group: 'studyflow',
         className: elementInfo.className,
-        title: translate('Append ' + name),
+        title: translate('Append ' + elementInfo.title),
         action: {
           click: appendElement.bind(null, studyFlowElement),
-          dragstart: createElement.bind(null, studyFlowElement)
+          dragstart: appendElement.bind(null, studyFlowElement)
         }
       }
     }

@@ -26,6 +26,7 @@ function getStudyFlowGroup(element) {
     id: 'studyflow',
     label: 'StudyFlow',
     entries: entries,
+    collapsed: false,
     // tooltip: '...'
   };
 }

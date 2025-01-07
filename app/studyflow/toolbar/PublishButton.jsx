@@ -27,7 +27,6 @@ export default function ExportButton(props) {
     setLoading(true);
     const study_name = formData.get('study_name');
     const api_key = formData.get('api_key');
-    console.log('Publishing...', study_name, api_key);
     modeler.saveXML({ format: true }).then(({ xml }) => {
       fetch(`https://api.behaverse.org/v1/studies/${study_name}/flow`, {
         method: 'POST',

@@ -6,6 +6,7 @@ export default class StudyFlowPalette {
     this.create = create;
     this.elementFactory = elementFactory;
     this.translate = translate;
+    this.bpmnFactory = elementFactory._bpmnFactory;
 
     palette.registerProvider(this);
   }
@@ -13,14 +14,26 @@ export default class StudyFlowPalette {
   getPaletteEntries(element) {  // eslint-disable-line no-unused-vars
     const {
       create,
-      elementFactory
+      elementFactory,
+      bpmnFactory
     } = this;
 
+    function createShape(element_type) {
+      const prefix = element_type.replace('studyflow:', '');
+      const el = bpmnFactory._model.create(element_type, {type: element_type});
+      el.id = bpmnFactory._model.ids.nextPrefixed(prefix + '_', el)
+      const shape = elementFactory.createShape({
+        businessObject: el, type: element_type
+      });
+      return shape;
+    }
+
     function createElement(type, event) {
-      const shape = elementFactory.createShape({ type: type });
+      const shape = createShape(type);
       create.start(event, shape);
     }
 
+    //TODO: use the same reusable pattern asin ContextPad.js to create commands
     const commands = {
       'sep': {
         separator: true

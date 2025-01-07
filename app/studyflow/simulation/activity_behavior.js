@@ -50,8 +50,6 @@ StudyFlowActivityBehavior.prototype.enter = function(context) {
   const {
     element
   } = context;
-
-  console.log('entering element', element);
     
   const continueEvent = this.waitAtElement(element);
 
