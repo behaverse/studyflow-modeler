@@ -9,6 +9,7 @@ export default function ExportButton(props) {
   const modeler = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)
   let [status, setStatus] = useState(undefined)
+  let [previewUrl, setPreviewUrl] = useState(undefined)
   let [isLoading, setLoading] = useState(false)
 
   function open() {
@@ -37,6 +38,8 @@ export default function ExportButton(props) {
       }).then((response) => response.json()).then((data) => {
         setLoading(false);
         setStatus(data.status);
+        console.log(data);
+        setPreviewUrl(data.preview_url);
       })
     }).catch((error) => {
       console.error(error);
@@ -92,9 +95,14 @@ export default function ExportButton(props) {
                   {status &&
                     <div className="float-start inline-flex items-center py-1.5">
                       <span className="text-sm m-auto">
-                        Study Flow published successfully!
+                        Study Flow published successfully.
                       </span>
                     </div>
+                  }
+                  {previewUrl &&
+                    <a href={previewUrl} target="_blank"
+                    className="float-end inline-flex items-center gap-2 rounded-md bg-green-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-green-700"
+                  >Preview</a>
                   }
                   {!status &&
                     <Button
