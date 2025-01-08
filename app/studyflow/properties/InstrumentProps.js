@@ -103,12 +103,12 @@ function BehaverseInstrumentId(props) {
     }
 
     modeling.updateProperties(element, {
-      behaverse_instrument: value
+      behaverseInstrument: value
     });
   };
 
   const getValue = useCallback((element) => {
-    return getBusinessObject(element).behaverse_instrument;
+    return getBusinessObject(element).behaverseInstrument;
   }, []);
 
   const validate = useCallback((value) => {

@@ -26,12 +26,88 @@
       "name": "BehaverseInstrumentType",
       "literalValues": [
         {
-          "name": "N-Back (NB)",
-          "value": "NB"
+          "name": "Belval Card Sorting (BCS)",
+          "value": "BCS"
+        },
+        {
+          "name": "Belval Matrices (BM)",
+          "value": "BM"
+        },
+        {
+          "name": "Button Spatial Attention Cueing (BSAC)",
+          "value": "BSAC"
+        },
+        {
+          "name": "Digit Span (DS)",
+          "value": "DS"
+        },
+        {
+          "name": "Monkey Ladder (ML)",
+          "value": "ML"
         },
         {
           "name": "Multiple Object Tracking (MOT)",
           "value": "MOT"
+        },
+        {
+          "name": "N-Back (NB)",
+          "value": "NB"
+        },
+        {
+          "name": "Ordered Click (OC)",
+          "value": "OC"
+        },
+        {
+          "name": "Odd One Out (OOO)",
+          "value": "OOO"
+        },
+        {
+          "name": "Polygon Comparison (PC)",
+          "value": "PC"
+        },
+        {
+          "name": "Regular Expression (RE)",
+          "value": "RE"
+        },
+        {
+          "name": "Sustained Attention to Response Task (SART)",
+          "value": "SART"
+        },
+        {
+          "name": "Symbolic Matrix Comparison (SMC)",
+          "value": "SMC"
+        },
+        {
+          "name": "Self-Ordered Search (SOS)",
+          "value": "SOS"
+        },
+        {
+          "name": "Stimulus-Response Mapping (SRM)",
+          "value": "SRM"
+        },
+        {
+          "name": "Serial Reaction Time (SRT)",
+          "value": "SRT"
+        },
+        {
+          "name": "Spatial Span (SS)",
+          "value": "SS"
+        },
+        {
+          "name": "Target Hit (TH)",
+          "value": "TH"
+        },
+        {
+          "name": "Test of Variable Attention (TOVA)",
+          "value": "TOVA"
+        },
+        {
+          "name": "Useful Field of View (UFOV)",
+          "value": "UFOV"
+        },
+        {
+          "name": "Which One (WO)",
+          "value": "WO"
         }
       ]
     },
@@ -60,6 +136,11 @@
           "name": "instrument",
           "isAttr": true,
           "type": "InstrumentType"
+        },
+        {
+          "name": "behaverseInstrument",
+          "isAttr": true,
+          "type": "BehaverseInstrumentType"
         },
         {
           "name": "url",
