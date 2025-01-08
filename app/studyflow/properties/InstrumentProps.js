@@ -7,6 +7,14 @@ import { useCallback } from '@bpmn-io/properties-panel/preact/hooks';
 
 export function InstrumentProps(element) {
 
+  const bObj = getBusinessObject(element);
+
+  if (bObj.$type !== 'studyflow:CognitiveTest'
+    && bObj.$type !== 'studyflow:Questionnaire'
+  ) {
+    return [];
+  }
+
   let components = [
     {
       id: 'studyflow.instrument_id',
@@ -14,8 +22,6 @@ export function InstrumentProps(element) {
       isEdited: isSelectEntryEdited
     }
   ];
-
-  const bObj = getBusinessObject(element);
 
   if (bObj.instrument == 'behaverse') {
     components.push({
