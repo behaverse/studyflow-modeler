@@ -1,70 +1,113 @@
 {
-    "name": "Behaverse StudyFlow BPMN Extension",
-    "uri": "http://behaverse.org/schema/bpmn/studyflow",
-    "prefix": "studyflow",
-    "xml": {
-      "tagAlias": "lowerCase"
+  "name": "Behaverse StudyFlow BPMN Extension",
+  "uri": "http://behaverse.org/schema/studyflow",
+  "prefix": "studyflow",
+  "xml": {
+    "tagAlias": "lowerCase"
+  },
+  "enumerations": [
+  ],
+  "associations": [],
+  "types": [
+    {
+      "name": "InstrumentType",
+      "literalValues": [
+        {
+          "name": "Custom",
+          "value": "custom"
+        },
+        {
+          "name": "Behaverse",
+          "value": "behaverse"
+        }
+      ]
     },
-    "types": [
-      {
-        "name": "Element",
-        "superClass": [ "bpmn:BaseElement" ],
-        "properties": []
-      },
-      {
-        "name": "Activity",
-        "superClass": [ "bpmn:Task", "studyflow:Element" ],
-        "properties": []
-      },
-      {
-        "name": "CognitiveTest",
-        "superClass": [ "Activity" ],
-        "properties": [
-          {
-            "name": "instrument",
-            "isAttr": true,
-            "type": "String"
-          },
-          {
-            "name": "url",
-            "isAttr": true,
-            "type": "String"
-          }
-        ]
-      },
-      {
-        "name": "VideoGame",
-        "superClass": [ "CognitiveTest" ],
-        "properties": []
-      },
-      {
-        "name": "Questionnaire",
-        "superClass": [ "CognitiveTest" ],
-        "properties": []
-      },
-      {
-        "name": "Instruction",
-        "superClass": [ "Questionnaire" ],
-        "properties": [
-          {
-            "name": "text",
-            "isAttr": true,
-            "type": "String"
-          }
-        ]
-      },
-      {
-        "name": "RandomAssignment",
-        "superClass": [ "bpmn:ExclusiveGateway", "studyflow:Element" ],
-        "properties": [
-          {
-            "name": "distribution",
-            "isAttr": true,
-            "type": "String"
-          }
-        ]
-      }
-    ],
-    "enumerations": [],
-    "associations": []
-  }
+    {
+      "name": "BehaverseInstrumentType",
+      "literalValues": [
+        {
+          "name": "N-Back (NB)",
+          "value": "NB"
+        },
+        {
+          "name": "Multiple Object Tracking (MOT)",
+          "value": "MOT"
+        }
+      ]
+    },
+    {
+      "name": "Element",
+      "superClass": [
+        "bpmn:BaseElement"
+      ],
+      "properties": []
+    },
+    {
+      "name": "Activity",
+      "superClass": [
+        "bpmn:Task",
+        "studyflow:Element"
+      ],
+      "properties": []
+    },
+    {
+      "name": "CognitiveTest",
+      "superClass": [
+        "Activity"
+      ],
+      "properties": [
+        {
+          "name": "instrument",
+          "isAttr": true,
+          "type": "InstrumentType"
+        },
+        {
+          "name": "url",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "VideoGame",
+      "superClass": [
+        "CognitiveTest"
+      ],
+      "properties": []
+    },
+    {
+      "name": "Questionnaire",
+      "superClass": [
+        "CognitiveTest"
+      ],
+      "properties": []
+    },
+    {
+      "name": "Instruction",
+      "superClass": [
+        "Questionnaire"
+      ],
+      "properties": [
+        {
+          "name": "text",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "RandomAssignment",
+      "superClass": [
+        "bpmn:ExclusiveGateway",
+        "studyflow:Element"
+      ],
+      "properties": [
+        {
+          "name": "distribution",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    }
+  ]
+}
