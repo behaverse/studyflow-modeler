@@ -27,6 +27,9 @@ export default class StudyFlowRenderer extends BaseRenderer {
   }
 
   canRender(element) {
+    if (element.type === "label") {
+      return false;  // fixes #15
+    }
     return is(element, "studyflow:Element");
   }
 
@@ -94,7 +97,8 @@ export default class StudyFlowRenderer extends BaseRenderer {
         parentNode, element.width, element.height, {
           stroke: 'black'
       });
-      this.drawIcon(parentNode, element,
+      this.drawIcon(
+        parentNode, element,
         element.width / 2 - 12,
         element.height / 2 + 12, 'bi');
       return diamond;

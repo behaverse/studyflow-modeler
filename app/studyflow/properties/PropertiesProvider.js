@@ -4,7 +4,7 @@ import { TextProps } from './TextProps';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
 import { useContext, useEffect, useCallback } from 'react';
-import { ModelerContext } from '../Contexts';
+import { ModelerContext } from '../contexts';
 
 const PROPERTIES = {
   'studyflow:instrument': InstrumentProps,

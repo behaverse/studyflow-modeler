@@ -2,7 +2,7 @@ import { useEffect, useContext, useState } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
-import {ModelerContext} from '../Contexts';
+import {ModelerContext} from '../contexts';
 
 export default function ExportButton(props) {
 

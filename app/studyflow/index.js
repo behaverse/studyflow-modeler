@@ -21,5 +21,5 @@ export const StudyFlowModule = {
 };
 
 export {Modeler} from './Modeler';
-export { ModelerContext } from './Contexts';
+export { ModelerContext } from './contexts';
 export { Toolbar } from './toolbar';
