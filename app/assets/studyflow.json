@@ -6,11 +6,11 @@
     "tagAlias": "lowerCase"
   },
   "enumerations": [
-  ],
-  "associations": [],
-  "types": [
     {
       "name": "InstrumentType",
+      "isAbstract": true,
+      "description": "The type of instrument used to measure cognitive performance. This should be moved to the enumerations.",
+      "meta": {},
       "literalValues": [
         {
           "name": "Custom",
@@ -24,6 +24,7 @@
     },
     {
       "name": "BehaverseInstrumentType",
+      "isAbstract": true,
       "literalValues": [
         {
           "name": "Belval Card Sorting (BCS)",
@@ -110,9 +111,13 @@
           "value": "WO"
         }
       ]
-    },
+    }
+  ],
+  "associations": [],
+  "types": [
     {
       "name": "Element",
+      "isAbstract": true,
       "superClass": [
         "bpmn:BaseElement"
       ],
@@ -120,6 +125,7 @@
     },
     {
       "name": "Activity",
+      "isAbstract": true,
       "superClass": [
         "bpmn:Task",
         "studyflow:Element"
@@ -135,7 +141,8 @@
         {
           "name": "instrument",
           "isAttr": true,
-          "type": "InstrumentType"
+          "type": "InstrumentType",
+          "default": "custom"
         },
         {
           "name": "behaverseInstrument",

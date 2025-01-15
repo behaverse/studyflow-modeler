@@ -64,7 +64,9 @@ function InstrumentId(props) {
 
   const getOptions = (element) => {
     //TODO: hardcoded! read from enumerations rather than types
-    const opts = moddle.registry.typeMap['studyflow:InstrumentType'].literalValues;
+    const bObj = getBusinessObject(element);
+    const enums = bObj.$model.registry.packageMap['studyflow'].enumerations;
+    const opts = enums.find((e) => e.name == 'InstrumentType').literalValues;
     return opts.map((opt) => {
       return {
         value: opt.value,
@@ -117,8 +119,9 @@ function BehaverseInstrumentId(props) {
   }, [element]);
 
   const getOptions = (element) => {
-    //TODO: hardcoded! read from enumerations rather than types
-    const opts = moddle.registry.typeMap['studyflow:BehaverseInstrumentType'].literalValues;
+    const bObj = getBusinessObject(element);
+    const enums = bObj.$model.registry.packageMap['studyflow'].enumerations;
+    const opts = enums.find((e) => e.name == 'BehaverseInstrumentType').literalValues;
     return opts.map((opt) => {
       return {
         value: opt.value,
