@@ -1,13 +1,30 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import logo_image from './assets/logo.png'
 import {Modeler} from './studyflow'
 import './index.css'
+import StartUpModal from './StartUpModal'
+import { APIKeyContext } from './studyflow/contexts';
 
 export default function App() {
 
+  const [apiKey, setApiKey] = useState(null);
+
+  console.log(setApiKey);
+
+  if (apiKey === null) {
+    return (
+      <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
+        <div className="App flex flex-col h-screen">
+          <StartUpModal />
+        </div>
+      </APIKeyContext.Provider>
+    )
+  }
+
   return (
+    <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
     <div className="App flex flex-col h-screen">
   
         {/* top navbar */}
@@ -33,7 +50,8 @@ export default function App() {
       <div className="w-full h-full">
         <Modeler />
       </div>
-    </div>
+      </div>
+    </APIKeyContext.Provider>
   )
 }
 
