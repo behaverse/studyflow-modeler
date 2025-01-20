@@ -2,18 +2,18 @@ import {
   filterSequenceFlows
 } from 'bpmn-js-token-simulation/lib/simulator/util/ModelUtil';
 
-export default function RandomAssignmentGatewayBehavior(simulator, scopeBehavior) {
+export default function RandomGatewayBehavior(simulator, scopeBehavior) {
   this._scopeBehavior = scopeBehavior;
   this._simulator = simulator;
 
-  simulator.registerBehavior('studyflow:RandomAssignment', this);
+  simulator.registerBehavior('studyflow:RandomGateway', this);
 }
 
-RandomAssignmentGatewayBehavior.prototype.enter = function(context) {
+RandomGatewayBehavior.prototype.enter = function(context) {
   this._simulator.exit(context);
 };
 
-RandomAssignmentGatewayBehavior.prototype.exit = function(context) {
+RandomGatewayBehavior.prototype.exit = function(context) {
 
   const {
     element,
@@ -49,7 +49,7 @@ RandomAssignmentGatewayBehavior.prototype.exit = function(context) {
   });
 };
 
-RandomAssignmentGatewayBehavior.$inject = [
+RandomGatewayBehavior.$inject = [
   'simulator',
   'scopeBehavior'
 ];

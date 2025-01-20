@@ -3,7 +3,7 @@ authors = ["Morteza Ansarinia <ansarinia@me.com>"]
 channels = ["conda-forge"]
 description = "StudyFlow Modeler"
 name = "studyflow"
-platforms = ["osx-64"]
+platforms = [ "osx-arm64" ]
 version = "0.1.0"
 
 [tasks]

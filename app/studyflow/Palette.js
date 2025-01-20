@@ -74,14 +74,14 @@ export default class StudyFlowPalette {
           click: createElement.bind(null, 'studyflow:Instruction'),
         }
       },
-      'create.studyflow-random-assignment': {
+      'create.studyflow-random-gateway': {
         group: 'studyflow',
-        className: 'bi bi-dice-6 palette-dice rotate-45',
+        className: 'bi bi-shuffle',
         style: 'width:41px',
-        title: 'Create Random Assignment Gateway',
+        title: 'Create Random Exclusive Gateway',
         action: {
-          dragstart: createElement.bind(null, 'studyflow:RandomAssignment'),
-          click: createElement.bind(null, 'studyflow:RandomAssignment'),
+          dragstart: createElement.bind(null, 'studyflow:RandomGateway'),
+          click: createElement.bind(null, 'studyflow:RandomGateway'),
         }
       },
     }

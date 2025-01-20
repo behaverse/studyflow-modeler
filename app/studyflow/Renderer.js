@@ -5,7 +5,7 @@ import {
 } from "tiny-svg";
 
 const STUDYFLOW_ICONS = {
-  'studyflow:RandomAssignment': "\uF2FD",
+  'studyflow:RandomGateway': "\uF544",
   'studyflow:VideoGame': "\uF2D4",
   'studyflow:CognitiveTest': "\uF503",
   'studyflow:Questionnaire': "\uF4CB",
@@ -92,7 +92,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
       return el;
     }
 
-    if (is(element, "studyflow:RandomAssignment")) {
+    if (is(element, "studyflow:RandomGateway")) {
       var diamond = this.drawDiamond(
         parentNode, element.width, element.height, {
           stroke: 'black'

@@ -12,18 +12,6 @@ svg text.bi {
     font-family: bootstrap-icons !important;
 }
 
-.palette-dice {
-    width: 40px !important;
-    font-size: 26px !important;
-}
-
-.context-pad-dice {
-    font-size: 18px !important;
-    width: 18px !important;
-    margin: 1px !important;
-    margin-left: 2px !important;
-    margin-right: 4px !important;
-}
 
 .djs-palette, .bts-palette {
     top: 4rem !important;

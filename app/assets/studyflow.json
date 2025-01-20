@@ -184,7 +184,7 @@
       ]
     },
     {
-      "name": "RandomAssignment",
+      "name": "RandomGateway",
       "superClass": [
         "bpmn:ExclusiveGateway",
         "studyflow:Element"

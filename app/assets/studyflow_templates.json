@@ -14,12 +14,12 @@
     "properties": []
   }, {
     "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
-    "name": "RandomAssignmentTemplate",
+    "name": "RandomGatewayTemplate",
     "appliesTo": [
-      "studyflow:RandomAssignment"
+      "studyflow:RandomGateway"
     ],
     "elementType": {
-      "value": "studyflow:RandomAssignment"
+      "value": "studyflow:RandomGateway"
     }
   }
 ]

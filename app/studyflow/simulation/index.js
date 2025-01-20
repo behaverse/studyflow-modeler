@@ -1,7 +1,7 @@
 import TokenSimulationModule from 'bpmn-js-token-simulation';
 
 import StudyFlowActivityBehavior from './activity_behavior';
-import StudyFlowRandomAssignmentBehavior from './random_assignment_behavior';
+import StudyFlowRandomGatewayBehavior from './random_gateway_behavior';
 
 export default {
   __depends__: [
@@ -10,9 +10,9 @@ export default {
   __init__: [
     'toggleMode',
     'studyFlowActivityBehavior',
-    'studyFlowRandomAssignmentBehavior'],
+    'studyFlowRandomGatewayBehavior'],
   toggleMode: ['type', function(){}],
   studyFlowActivityBehavior: ['type', StudyFlowActivityBehavior],
-  studyFlowRandomAssignmentBehavior: [
-    'type', StudyFlowRandomAssignmentBehavior],
+  studyFlowRandomGatewayBehavior: [
+    'type', StudyFlowRandomGatewayBehavior],
 };

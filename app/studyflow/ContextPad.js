@@ -15,9 +15,9 @@ const STUDYFLOW_ELEMENTS = {
     className: 'bi bi-chat-square-dots',
     title: 'Instruction'
   },
-  'studyflow:RandomAssignment': {
-    className: 'bi bi-dice-6 rotate-45 context-pad-dice',
-    title: 'Random Assignment Gateway'
+  'studyflow:RandomGateway': {
+    className: 'bi bi-shuffle',
+    title: 'Random Exclusive Gateway'
   },
 }
 
