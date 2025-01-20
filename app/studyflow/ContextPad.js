@@ -17,7 +17,7 @@ const STUDYFLOW_ELEMENTS = {
   },
   'studyflow:RandomGateway': {
     className: 'bi bi-shuffle',
-    title: 'Random Exclusive Gateway'
+    title: 'Random Gateway'
   },
 }
 

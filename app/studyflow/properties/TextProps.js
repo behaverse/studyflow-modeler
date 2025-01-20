@@ -38,8 +38,7 @@ function Text(props) {
   }, []);
 
   const validate = useCallback((value) => {
-    const obj = getBusinessObject(element);
-    // return true;
+    const bObj = getBusinessObject(element);
   }, [element]);
 
   return TextAreaEntry({

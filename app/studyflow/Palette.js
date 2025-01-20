@@ -78,7 +78,7 @@ export default class StudyFlowPalette {
         group: 'studyflow',
         className: 'bi bi-shuffle',
         style: 'width:41px',
-        title: 'Create Random Exclusive Gateway',
+        title: 'Create Random Gateway',
         action: {
           dragstart: createElement.bind(null, 'studyflow:RandomGateway'),
           click: createElement.bind(null, 'studyflow:RandomGateway'),

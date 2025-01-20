@@ -41,7 +41,6 @@ function InstrumentId(props) {
   const modeling = useService('modeling');
   const debounce = useService('debounceInput');
   const translate = useService('translate');
-  const moddle = useService('moddle');
 
   const setValue = (value, error) => {
     if (error) {
