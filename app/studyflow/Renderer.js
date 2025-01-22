@@ -5,6 +5,7 @@ import {
 } from "tiny-svg";
 
 const STUDYFLOW_ICONS = {
+  'studyflow:StartEventWithConsent': "\uF53F",
   'studyflow:RandomGateway': "\uF544",
   'studyflow:VideoGame': "\uF2D4",
   'studyflow:CognitiveTest': "\uF503",
@@ -30,7 +31,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
     if (element.type === "label") {
       return false;  // fixes #15
     }
-    return is(element, "studyflow:Element");
+    return is(element, "studyflow:Element") | is (element, "studyflow:StartEventWithConsent");
   }
 
   drawDiamond(parentGfx, width, height, attrs) {
@@ -66,9 +67,8 @@ export default class StudyFlowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, x, y, classes) {
+  drawIcon(parentNode, element, icon, x, y, classes) {
 
-    const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
     var text = svgCreate('text', {
       x: x,
       y: y,
@@ -86,9 +86,20 @@ export default class StudyFlowRenderer extends BaseRenderer {
   }
 
   drawShape(parentNode, element) {
+
+    const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
+
+    if (is(element, "studyflow:StartEventWithConsent")) {
+      const el = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element, {stroke: 'black'});
+      this.drawIcon(parentNode, element, icon,
+        element.width / 2 - 12,
+        element.height / 2 + 13, 'bi');
+      return el;
+    }
+
     if (is(element, "studyflow:Activity")) {
       const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'black'});
-      this.drawIcon(parentNode, element, 5, 29, 'bi');
+      this.drawIcon(parentNode, element, icon, 5, 29, 'bi');
       return el;
     }
 
@@ -99,6 +110,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
       });
       this.drawIcon(
         parentNode, element,
+        icon,
         element.width / 2 - 12,
         element.height / 2 + 12, 'bi');
       return diamond;

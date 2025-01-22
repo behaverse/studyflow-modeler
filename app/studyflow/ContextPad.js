@@ -1,4 +1,8 @@
 const STUDYFLOW_ELEMENTS = {
+  'studyflow:StartEventWithConsent': {
+    className: 'bi bi-shield',
+    title: 'Start Event With Consent'
+  },
   'studyflow:CognitiveTest': {
     className: 'bi bi-puzzle',
     title: 'Cognitive Test'
@@ -85,6 +89,7 @@ export default class StudyFlowContextPad {
     }
 
     return function (entries) {
+      delete entries['append.start-event'];
       delete entries['append.append-task'];
       delete entries['append.gateway'];
       delete entries['append.intermediate-event'];

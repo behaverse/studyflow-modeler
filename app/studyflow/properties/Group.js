@@ -1,6 +1,6 @@
-import { InstrumentProps } from './InstrumentProps';
-import { UrlProps } from './UrlProps';
-import { TextProps } from './TextProps';
+import { InstrumentProps } from './InstrumentProp';
+import { UrlProps } from './UrlProp';
+import { TextProps } from './TextProp';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
 const PROPERTIES = {

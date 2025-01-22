@@ -116,6 +116,20 @@
   "associations": [],
   "types": [
     {
+      "name": "StartEventWithConsent",
+      "superClass": [
+        "bpmn:StartEvent"
+      ],
+      "properties": [
+        {
+          "name": "requiresConsent",
+          "default": true,
+          "isAttr": true,
+          "type": "Boolean"
+        }
+      ]
+    },
+    {
       "name": "Element",
       "isAbstract": true,
       "superClass": [
