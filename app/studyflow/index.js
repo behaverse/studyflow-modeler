@@ -20,6 +20,5 @@ export const StudyFlowModule = {
   resizableTasks: ['type', ResizableTasks], 
 };
 
-export {Modeler} from './Modeler';
-export { ModelerContext } from './contexts';
+export { ModelerContext } from '../contexts';
 export { Toolbar } from './toolbar';

@@ -1,7 +1,7 @@
 
 import StudyFlowPropertiesGroup from './Group';
 import { useContext, useEffect, useCallback } from 'react';
-import { ModelerContext } from '../contexts';
+import { ModelerContext } from '../../contexts';
 
 export default function PropertiesProvider() {
 

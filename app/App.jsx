@@ -2,10 +2,10 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import logo_image from './assets/logo.png'
-import {Modeler} from './studyflow'
+import {Modeler} from './Modeler'
 import './index.css'
 import StartUpModal from './StartUpModal'
-import { APIKeyContext } from './studyflow/contexts';
+import { APIKeyContext } from './contexts';
 
 export default function App() {
 
