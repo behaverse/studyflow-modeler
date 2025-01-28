@@ -5,7 +5,7 @@ import { ModelerContext } from '../../contexts';
 import { Input, Field, Label, Description } from '@headlessui/react';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
-export default function PropertiesProvider() {
+export function PropertiesPanel() {
 
     const modeler = useContext(ModelerContext);
     const injector = modeler.get('injector');
@@ -23,6 +23,14 @@ export default function PropertiesProvider() {
         return objProperties;
     }
 
+    function handleChange(property, event) {
+        const value = event.target.value;
+        const modeling = injector.get('modeling');
+        modeling.updateProperties(selectedElement, {
+            [property.ns.localName]: value
+        });
+    }
+
     useEffect(() => {
         eventBus.on('selection.changed', 1500, (event) => {
             const selections = event.newSelection;
@@ -31,7 +39,6 @@ export default function PropertiesProvider() {
                 console.log('Nothing selected');
             } else if (selections.length === 1) {
                 setSelectedElement(selections[0]);
-                console.log(selections[0]);
             } else {
                 setSelectedElement(null);
                 console.log('multiple elements selected');
@@ -49,8 +56,12 @@ export default function PropertiesProvider() {
                     <Field key={p.ns.localName} className="mx-2 pb-4">
                         <Label>{p.ns.localName}</Label>
                         <Input name={p.ns.localName} type="text"
+                            onChange={(e) => {
+                                handleChange(p, e);
+                            }}
+                            defaultValue={getBusinessObject(selectedElement).get(p.ns.localName)}
                             className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
-                            value={getBusinessObject(selectedElement).get(p.ns.localName) } />
+                        />
                         <Description className="text-xs/4 text-stone-400">Use your real name so people will recognize you.</Description>
                     </Field>
                 ))}

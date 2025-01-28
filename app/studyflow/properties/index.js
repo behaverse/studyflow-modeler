@@ -1,3 +1,1 @@
-import PropertiesProvider from './PropertiesProvider';
-
-export { PropertiesProvider };
+export { PropertiesPanel } from './panel';

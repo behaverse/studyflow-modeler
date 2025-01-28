@@ -7,15 +7,15 @@ import BpmnModeler from 'bpmn-js/lib/Modeler';
 import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
 import {
     CreateAppendAnythingModule,
-    CreateAppendElementTemplatesModule
+    // CreateAppendElementTemplatesModule
   } from 'bpmn-js-create-append-anything';
 import GridModule from 'diagram-js-grid';
 
-import studyFlowElementTemplates from './assets/studyflow_templates';
+// import studyFlowElementTemplates from './assets/studyflow_templates';
 import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
 import {StudyFlowModule, ModelerContext, Toolbar} from './studyflow';
-import PropertiesProvider2 from './studyflow/properties2/provider';
+import { PropertiesPanel } from './studyflow/properties';
 
 export function Modeler() {
 
@@ -80,7 +80,7 @@ export function Modeler() {
       <div className="flex flex-row h-full overflow-hidden">
         <div className="grow border-gray-100 border-r-2" ref={setCanvas}></div>
         <Toolbar />
-        <PropertiesProvider2 />
+        <PropertiesPanel />
       </div>
       </ModelerContext.Provider>
     );
