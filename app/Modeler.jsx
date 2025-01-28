@@ -77,15 +77,11 @@ export function Modeler() {
   
     return (
       <ModelerContext.Provider value={studyFlowModeler}>
-      <div className="flex flex-row h-full">
-        <div className="grow border-gray-100 border-r-2" ref={setCanvas}>
-        </div>
-          <div className="basis-1/5">
-          <PropertiesProvider2 />
-          </div>
+      <div className="flex flex-row h-full overflow-hidden">
+        <div className="grow border-gray-100 border-r-2" ref={setCanvas}></div>
         <Toolbar />
-        </div>
-        {/* <PropertiesProvider /> */}
+        <PropertiesProvider2 />
+      </div>
       </ModelerContext.Provider>
     );
 }

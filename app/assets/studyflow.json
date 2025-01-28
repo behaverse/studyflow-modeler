@@ -192,6 +192,7 @@
       "properties": [
         {
           "name": "text",
+          "label": "Text",
           "isAttr": true,
           "type": "String"
         }

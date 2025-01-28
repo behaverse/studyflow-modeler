@@ -11,8 +11,6 @@ export default function App() {
 
   const [apiKey, setApiKey] = useState(null);
 
-  console.log(setApiKey);
-
   if (apiKey === null) {
     return (
       <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
@@ -47,7 +45,7 @@ export default function App() {
       </nav>
   
       {/* the modeler */}
-      <div className="w-full h-full">
+      <div className="w-screen h-full">
         <Modeler />
       </div>
       </div>
