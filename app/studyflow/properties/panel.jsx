@@ -13,10 +13,19 @@ export function PropertiesPanel() {
     const [selectedElement, setSelectedElement] = useState(null);
 
     const getProperties = (element) => {
-        var defaultProps = ['type', 'name', 'id', 'documentation'];
+        const defaultProps = {
+            type: "Type of the element",
+            name: "Human-readable label",
+            id: "Unique identifier of the element",
+            documentation: "Short description or URL to a description",
+        };
         var objProperties = [];
         getBusinessObject(element).$descriptor.properties.forEach((prop) => {
-            if (prop.ns.prefix === 'studyflow' | defaultProps.includes(prop.ns.localName)) {
+            if (prop.ns.prefix === 'studyflow') {
+                objProperties.push(prop);
+            }
+            if (Object.keys(defaultProps).includes(prop.ns.localName)) {
+                prop.description = defaultProps[prop.ns.localName];
                 objProperties.push(prop);
             }
         });
@@ -45,12 +54,15 @@ export function PropertiesPanel() {
             }
 
         });
-    }, [eventBus]);
+    }, [eventBus, selectedElement]);
 
     return (
-        <div className="basis-1/5 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
-        <h1 className="text-lg p-2 bg-stone-100 sticky top-0">Properties</h1>
+        <div className="bg-stone-50 basis-1/5 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
             {selectedElement &&
+                <>
+                <h1 className="text-md font-semibold p-2 bg-stone-100 sticky top-0">
+                    {selectedElement.type.split(':')[1]}
+                </h1>
                 <div className="w-full">
                 {getProperties(selectedElement).map((p) => (
                     <Field key={p.ns.localName} className="mx-2 pb-4">
@@ -59,13 +71,17 @@ export function PropertiesPanel() {
                             onChange={(e) => {
                                 handleChange(p, e);
                             }}
-                            defaultValue={getBusinessObject(selectedElement).get(p.ns.localName)}
+                            value={getBusinessObject(selectedElement).get(p.ns.name)}
                             className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
                         />
-                        <Description className="text-xs/4 text-stone-400">Use your real name so people will recognize you.</Description>
+                        <Description className="text-xs/4 text-stone-400">
+                            {p?.description}
+                            {console.log(p)}
+                        </Description>
                     </Field>
                 ))}
                 </div>
+                </>
             }
         </div>
     )

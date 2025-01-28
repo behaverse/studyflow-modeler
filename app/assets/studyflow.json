@@ -7,6 +7,32 @@
   },
   "enumerations": [
     {
+      "name": "Distribution",
+      "isAbstract": true,
+      "literalValues": [
+        {
+          "name": "Uniform",
+          "value": "uniform"
+        },
+        {
+          "name": "Normal",
+          "value": "normal"
+        },
+        {
+          "name": "Exponential",
+          "value": "exponential"
+        },
+        {
+          "name": "Poisson",
+          "value": "poisson"
+        },
+        {
+          "name": "Custom",
+          "value": "custom"
+        }
+      ]
+    },
+    {
       "name": "InstrumentType",
       "isAbstract": true,
       "description": "The type of instrument used to measure cognitive performance. This should be moved to the enumerations.",
@@ -117,12 +143,14 @@
   "types": [
     {
       "name": "StartEventWithConsent",
+      "description": "Consent is required to start",
       "superClass": [
         "bpmn:StartEvent"
       ],
       "properties": [
         {
           "name": "requiresConsent",
+          "description": "Requires consent",
           "default": true,
           "isAttr": true,
           "type": "Boolean"
@@ -154,17 +182,20 @@
       "properties": [
         {
           "name": "instrument",
+          "description": "Instrument used for the test",
           "isAttr": true,
           "type": "InstrumentType",
           "default": "custom"
         },
         {
           "name": "behaverseInstrument",
+          "description": "Behaverse instrument used for the test",
           "isAttr": true,
           "type": "BehaverseInstrumentType"
         },
         {
           "name": "url",
+          "description": "URL of the test",
           "isAttr": true,
           "type": "String"
         }
@@ -191,8 +222,8 @@
       ],
       "properties": [
         {
-          "name": "text",
-          "label": "Text",
+          "name": "content",
+          "description": "Instruction content",
           "isAttr": true,
           "type": "String"
         }
@@ -207,8 +238,9 @@
       "properties": [
         {
           "name": "distribution",
+          "description": "Distribution of the random assignment",
           "isAttr": true,
-          "type": "String"
+          "type": "Distribution"
         }
       ]
     }
