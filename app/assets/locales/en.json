@@ -1,0 +1,12 @@
+{
+    "general": "General",
+    "studyflow": "StudyFlow",
+    "bpmn:id": "ID",
+    "bpmn:name": "Name",
+    "bpmn:documentation": "Documentation",
+    "studyflow:url": "URL",
+    "studyflow:instrument": "Instrument",
+    "studyflow:behaverseInstrument": "Behaverse Task",
+    "studyflow:content": "Content",
+    "studyflow:requiresConsent": "Requires consent"
+}

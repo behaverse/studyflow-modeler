@@ -3,7 +3,7 @@ import { Input, Field, Label, Description } from '@headlessui/react';
 import { useContext, useState } from 'react';
 import { ModelerContext } from '../../contexts';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-
+import { t } from '../../i18n';
 
 export function PropertyField(props) {
     const { element, bpmnProperty } = props;
@@ -24,7 +24,7 @@ export function PropertyField(props) {
 
     return (
             <Field className="mx-2 pb-2">
-                <Label>{name}</Label>
+                <Label>{t(name)}</Label>
                 <Input name={name}
                     type="text"
                     onChange={handleChange}
