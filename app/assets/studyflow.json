@@ -142,6 +142,12 @@
   "associations": [],
   "types": [
     {
+      "name": "MarkdownString",
+      "superClass": [
+        "String"
+      ]
+    },
+    {
       "name": "StartEvent",
       "extends": [
         "bpmn:StartEvent"
@@ -224,7 +230,7 @@
           "name": "content",
           "description": "Instruction content",
           "isAttr": true,
-          "type": "String"
+          "type": "MarkdownString"
         }
       ]
     },

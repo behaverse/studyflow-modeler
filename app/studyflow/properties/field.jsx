@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { Field, Description } from '@headlessui/react';
 import { TextInput } from './TextInput';
+import { MarkdownInput} from './MarkdownInput';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 
@@ -17,6 +18,8 @@ export function PropertyField(props) {
             case 'studyflow:BehaverseInstrumentType':
             case 'studyflow:Distribution':
                 return <EnumInput {...props} />;
+            case 'studyflow:MarkdownString':
+                return <MarkdownInput {...props} />;
             default:
                 return <TextInput {...props} />;
         }
