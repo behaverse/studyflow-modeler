@@ -9,3 +9,10 @@ export const APIKeyContext = createContext({
     apiKey: undefined,
     setApiKey: undefined,
 });
+
+
+
+export const PropertiesPanelContext = createContext({
+    element: undefined,
+    businessObject: undefined,
+});

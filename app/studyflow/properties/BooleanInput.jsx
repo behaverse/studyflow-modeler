@@ -1,15 +1,15 @@
 import PropTypes from 'prop-types';
-import { Checkbox, Label, Field } from '@headlessui/react';
+import { Checkbox, Label } from '@headlessui/react';
 import { useContext, useState } from 'react';
-import { ModelerContext } from '../../contexts';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 import { t } from '../../i18n';
 
 
 export function BooleanInput(props) {
-    const { element, bpmnProperty } = props;
+    const { bpmnProperty } = props;
+    const { element, businessObject } = useContext(PropertiesPanelContext);
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(getBusinessObject(element).get(name) || false);
+    const [value, setValue] = useState(businessObject.get(name) || false);
 
     const modeling = useContext(ModelerContext).get('injector').get('modeling');
 
@@ -19,7 +19,6 @@ export function BooleanInput(props) {
             [name]: checked
         });
     }
-    
 
     return (
         <div className="flex items-center gap-2">
@@ -39,6 +38,5 @@ export function BooleanInput(props) {
 }
 
 BooleanInput.propTypes = {
-    element: PropTypes.node.isRequired,
     bpmnProperty: PropTypes.node.isRequired,
 }

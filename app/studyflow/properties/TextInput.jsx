@@ -1,15 +1,16 @@
-import PropTypes from 'prop-types';
+import PropTypes, { element } from 'prop-types';
 import { Input, Label } from '@headlessui/react';
 import { useContext, useState } from 'react';
-import { ModelerContext } from '../../contexts';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 import { t } from '../../i18n';
 
 export function TextInput(props) {
 
-    const { element, bpmnProperty } = props;
+    const { bpmnProperty } = props;
+    const { element, businessObject } = useContext(PropertiesPanelContext);
+
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(getBusinessObject(element).get(name) || '');
+    const [value, setValue] = useState(businessObject.get(name) || '');
 
     const modeling = useContext(ModelerContext).get('injector').get('modeling');
 
@@ -36,6 +37,5 @@ export function TextInput(props) {
 }
 
 TextInput.propTypes = {
-    element: PropTypes.node.isRequired,
     bpmnProperty: PropTypes.node.isRequired,
 }

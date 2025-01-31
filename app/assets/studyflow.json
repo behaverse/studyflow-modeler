@@ -194,9 +194,18 @@
         },
         {
           "name": "behaverseInstrument",
+          "type": "BehaverseInstrumentType",
           "description": "Behaverse instrument used for the test",
           "isAttr": true,
-          "type": "BehaverseInstrumentType"
+          "superClass": [
+            "bpmn:ComplexBehaviorDefinition"
+          ],
+          "condition": {
+            "language": "json",
+            "body": {
+              "studyflow:instrument": "behaverse"
+            }
+          }
         },
         {
           "name": "url",
@@ -227,7 +236,7 @@
       ],
       "properties": [
         {
-          "name": "content",
+          "name": "text",
           "description": "Instruction content",
           "isAttr": true,
           "type": "MarkdownString"

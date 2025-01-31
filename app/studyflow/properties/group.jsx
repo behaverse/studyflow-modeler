@@ -2,11 +2,15 @@ import PropTypes from 'prop-types';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react'
 import { PropertyField } from './field';
 
+import { useContext } from 'react';
+import { PropertiesPanelContext } from '../../contexts';
+
 import { t } from '../../i18n';
 
 
 export function PropertiesGroup(props) {
-    const { element, name, bpmnProperties } = props;
+    const { name, bpmnProperties } = props;
+    const { businessObject } = useContext(PropertiesPanelContext);
 
     if (bpmnProperties.length === 0) {
         return <></>;
@@ -24,7 +28,9 @@ export function PropertiesGroup(props) {
                     className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0"
                 >
                     {bpmnProperties.map((p) => (
-                        <PropertyField key={`${element.id} + ${p.ns.name}`} element={element} bpmnProperty={p} />
+                        <PropertyField
+                            key={`${businessObject.id}${p.ns.name}`}
+                            bpmnProperty={p} />
                     ))}
                 </DisclosurePanel>
         </Disclosure>
@@ -33,7 +39,6 @@ export function PropertiesGroup(props) {
 }
 
 PropertiesGroup.propTypes = {
-    element: PropTypes.node.isRequired,
     name: PropTypes.string.isRequired,
     bpmnProperties: PropTypes.array.isRequired
 }

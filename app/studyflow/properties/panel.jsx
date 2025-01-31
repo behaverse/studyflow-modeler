@@ -1,6 +1,6 @@
 
-import { useContext, useEffect, useState } from 'react';
-import { ModelerContext } from '../../contexts';
+import { useContext, useEffect, useState, useReducer } from 'react';
+import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { PropertiesGroup } from './group';
@@ -18,6 +18,7 @@ export function PropertiesPanel() {
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
     const [element, setElement] = useState(null);
+    const [, forceUpdate] = useReducer(x => x + 1, 0);
 
     const getProperties = (element) => {
         // TODO automatically populate group names
@@ -38,16 +39,28 @@ export function PropertiesPanel() {
     }
 
     useEffect(() => {
-        eventBus.on('selection.changed', 1500, (event) => {
+        eventBus.on('selection.changed', 1200, (event) => {
             const selections = event.newSelection;
             setElement(null);
             if (selections.length === 1) {
                 setElement(selections[0]);
             }
         });
+
+        eventBus.on('element.changed', 1500, (event) => {
+            if (element && element.id === event.element.id) {
+                event.preventDefault();
+                const newElement = event.element;
+                console.log('element changed', Object.is(element, newElement));
+                setElement(newElement);
+                forceUpdate();
+            }
+        });
     }, [eventBus, element]);
 
     return (
+        <PropertiesPanelContext.Provider
+            value={{ element: element, businessObject: getBusinessObject(element) }}>
         <div className="bg-stone-50 basis-1/4 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
             {element &&
                 <>
@@ -59,14 +72,14 @@ export function PropertiesPanel() {
                         ([group_name, grpBpmnProperties]) => 
                             <PropertiesGroup
                                 key={group_name}
-                                element={element}
                                 name={group_name}
                                 bpmnProperties={grpBpmnProperties} />
                     )}
                 </div>
                 </>
             }
-        </div>
+            </div>
+        </PropertiesPanelContext.Provider>
     )
 
 }

@@ -1,15 +1,15 @@
 import PropTypes from 'prop-types';
 import { Textarea, Label } from '@headlessui/react';
 import { useContext, useState } from 'react';
-import { ModelerContext } from '../../contexts';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 import { t } from '../../i18n';
 
 export function MarkdownInput(props) {
 
-    const { element, bpmnProperty } = props;
+    const { bpmnProperty } = props;
+    const { element, businessObject } = useContext(PropertiesPanelContext);
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(getBusinessObject(element).get(name) || '');
+    const [value, setValue] = useState(businessObject.get(name) || '');
 
     const modeling = useContext(ModelerContext).get('injector').get('modeling');
 
@@ -36,6 +36,5 @@ export function MarkdownInput(props) {
 }
 
 MarkdownInput.propTypes = {
-    element: PropTypes.node.isRequired,
     bpmnProperty: PropTypes.node.isRequired,
 }
