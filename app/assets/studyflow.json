@@ -141,15 +141,14 @@
   "associations": [],
   "types": [
     {
-      "name": "StartEventWithConsent",
-      "description": "Consent is required to start",
-      "superClass": [
+      "name": "StartEvent",
+      "extends": [
         "bpmn:StartEvent"
       ],
       "properties": [
         {
           "name": "requiresConsent",
-          "description": "Requires consent",
+          "description": "Requires user consent to start this process",
           "default": true,
           "isAttr": true,
           "type": "Boolean"

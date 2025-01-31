@@ -37,7 +37,7 @@ export function EnumInput(props) {
                     <option key={l.value} value={l.value}>{l.name}</option>
                 ))}
             </Select>
-            <i className="group bi bi-caret-down-fill pointer-events-none absolute top-1.5 right-2.5" aria-hidden="true"></i>
+            <i className="group bi bi-caret-down pointer-events-none absolute top-1.5 right-2.5" aria-hidden="true"></i>
             </div>
         </>
     );

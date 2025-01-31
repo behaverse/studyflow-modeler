@@ -35,15 +35,6 @@ export default class StudyFlowPalette {
 
     //TODO: use the same reusable pattern asin ContextPad.js to create commands
     const commands = {
-      'create.studyflow-start-event-with-consent': {
-        group: 'studyflow',
-        className: 'bi bi-shield',
-        title: 'Create Start Event with Consent',
-        action: {
-          dragstart: createElement.bind(null, 'studyflow:StartEventWithConsent'),
-          click: createElement.bind(null, 'studyflow:StartEventWithConsent'),
-        }
-      },
       'sep': {
         separator: true
       },
