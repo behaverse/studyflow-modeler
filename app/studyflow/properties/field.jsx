@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { Field, Description } from '@headlessui/react';
+import { Field, Description, Popover, PopoverButton, PopoverPanel} from '@headlessui/react';
 import { TextInput } from './TextInput';
 import { MarkdownInput} from './MarkdownInput';
 import { BooleanInput } from './BooleanInput';
@@ -49,10 +49,14 @@ export function PropertyField(props) {
         <>
         {isVisible &&
             <Field className="mx-2 pb-2">
-                {renderInput()}
-                <Description className="text-xs/4 text-stone-400">
-                    {bpmnProperty?.description}
-                </Description>
+                    {renderInput()}
+                    <Popover className="relative group">
+      <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
+
+      <PopoverPanel anchor="bottom start" className="bg-stone-700 text-xs text-white p-2 rounded-lg shadow-lg">
+      {bpmnProperty?.description}
+                        </PopoverPanel>
+    </Popover>
             </Field>
         }
         </>
