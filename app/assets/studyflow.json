@@ -7,8 +7,9 @@
   },
   "enumerations": [
     {
-      "name": "Distribution",
+      "name": "ProbabilityDistribution",
       "isAbstract": true,
+      "description": "The random statistical distribution used for the assignment.",
       "literalValues": [
         {
           "name": "Uniform",
@@ -235,10 +236,10 @@
       ],
       "properties": [
         {
-          "name": "distribution",
-          "description": "Distribution of the random assignment",
+          "name": "probabilityFunction",
+          "description": "Probability mass function that defines the discrete distribution of the random assignment",
           "isAttr": true,
-          "type": "Distribution"
+          "type": "String"
         }
       ]
     }

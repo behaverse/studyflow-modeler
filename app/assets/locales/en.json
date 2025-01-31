@@ -8,5 +8,6 @@
     "studyflow:instrument": "Instrument",
     "studyflow:behaverseInstrument": "Behaverse Task",
     "studyflow:content": "Content",
-    "studyflow:requiresConsent": "Requires consent"
+    "studyflow:requiresConsent": "Requires consent",
+    "studyflow:probabilityFunction": "Probability Function"
 }

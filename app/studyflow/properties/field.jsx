@@ -9,11 +9,13 @@ export function PropertyField(props) {
     const propertyType = bpmnProperty.type || 'String';
 
     function renderInput() {
+        //TODO use enumerations in the moddle file to determine if it's enum
         switch (propertyType) {
             case 'Boolean':
                 return <BooleanInput {...props} />;
             case 'studyflow:InstrumentType':
             case 'studyflow:BehaverseInstrumentType':
+            case 'studyflow:Distribution':
                 return <EnumInput {...props} />;
             default:
                 return <TextInput {...props} />;
