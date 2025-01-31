@@ -6,7 +6,7 @@ import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { PropertiesGroup } from './group';
 
 const defaultPropsDescriptions = {
-    'bpmn:type': "Type of the element",
+    // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
     'bpmn:id': "Unique identifier of the element",
     'bpmn:documentation': "Short description or URL to a description",
