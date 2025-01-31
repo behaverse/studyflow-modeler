@@ -14,16 +14,12 @@ export function PropertiesGroup(props) {
 
     return (
         <Disclosure defaultOpen={name==="general"}>
-        {({ open }) => (
-            <>
                 <DisclosureButton
-                    className="p-2 text-left w-full text-md font-semibold text-stone-700"
+                    className="group p-2 text-left w-full text-md font-semibold text-stone-700"
                 >
                     {t(name)}
-                    {open ? (
-                        <i className="bi bi-chevron-up float-end"></i>
-                    ) : (<i className="bi bi-chevron-down float-end"></i>)}
-                </DisclosureButton>
+                    <i className="bi bi-chevron-down group-data-[open]:rotate-180 float-end"></i>
+                    </DisclosureButton>
                 <DisclosurePanel transition
                     className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0"
                 >
@@ -31,8 +27,6 @@ export function PropertiesGroup(props) {
                         <PropertyField key={`${element.id} + ${p.ns.name}`} element={element} bpmnProperty={p} />
                     ))}
                 </DisclosurePanel>
-            </>
-        )}
         </Disclosure>
 
     );

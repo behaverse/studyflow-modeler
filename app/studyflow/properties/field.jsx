@@ -1,36 +1,24 @@
 import PropTypes from 'prop-types';
-import { Input, Field, Label, Description } from '@headlessui/react';
-import { useContext, useState } from 'react';
-import { ModelerContext } from '../../contexts';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { t } from '../../i18n';
+import { Field, Description } from '@headlessui/react';
+import { TextInput } from './TextInput';
+import { BooleanInput } from './BooleanInput';
 
 export function PropertyField(props) {
-    const { element, bpmnProperty } = props;
-    const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(getBusinessObject(element).get(name) || '');
+    const { bpmnProperty } = props;
+    const propertyType = bpmnProperty.type || 'String';
 
-    const modeler = useContext(ModelerContext);
-    const injector = modeler.get('injector');
-    const modeling = injector.get('modeling');
-
-    function handleChange(event) {
-        const newValue = event.target.value;
-        setValue(newValue);
-        modeling.updateProperties(element, {
-            [name]: newValue
-        });
+    function renderInput() {
+        switch (propertyType) {
+            case 'Boolean':
+                return <BooleanInput {...props}  />;
+            default:
+                return <TextInput {...props} />;
+        }
     }
 
     return (
             <Field className="mx-2 pb-2">
-                <Label>{t(name)}</Label>
-                <Input name={name}
-                    type="text"
-                    onChange={handleChange}
-                    value={value}
-                    className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
-                />
+                {renderInput()}
                 <Description className="text-xs/4 text-stone-400">
                     {bpmnProperty?.description}
                 </Description>
@@ -40,6 +28,5 @@ export function PropertyField(props) {
 
 PropertyField.propTypes = {
     element: PropTypes.node.isRequired,
-    name: PropTypes.string.isRequired,
     bpmnProperty: PropTypes.node.isRequired
 }

@@ -36,7 +36,6 @@
       "name": "InstrumentType",
       "isAbstract": true,
       "description": "The type of instrument used to measure cognitive performance. This should be moved to the enumerations.",
-      "meta": {},
       "literalValues": [
         {
           "name": "Custom",
