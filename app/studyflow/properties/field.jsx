@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { Field, Description } from '@headlessui/react';
 import { TextInput } from './TextInput';
 import { BooleanInput } from './BooleanInput';
+import { EnumInput } from './EnumInput';
 
 export function PropertyField(props) {
     const { bpmnProperty } = props;
@@ -10,7 +11,10 @@ export function PropertyField(props) {
     function renderInput() {
         switch (propertyType) {
             case 'Boolean':
-                return <BooleanInput {...props}  />;
+                return <BooleanInput {...props} />;
+            case 'studyflow:InstrumentType':
+            case 'studyflow:BehaverseInstrumentType':
+                return <EnumInput {...props} />;
             default:
                 return <TextInput {...props} />;
         }
