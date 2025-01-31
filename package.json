@@ -18,6 +18,7 @@
     "bpmn-js-element-templates": "^2.4.0",
     "bpmn-js-properties-panel": "^5.30.0",
     "bpmn-js-token-simulation": "^0.36.0",
+    "canvg": "^4.0.2",
     "diagram-js-grid": "^1.1.0",
     "downloadjs": "^1.4.7",
     "react": "^19.0.0",

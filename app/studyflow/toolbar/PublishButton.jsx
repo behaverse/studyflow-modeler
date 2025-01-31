@@ -50,7 +50,7 @@ export default function ExportButton(props) {
     <>
       <Button
         title="Publish"
-        className="bg-stone-200 hover:bg-stone-300 border border-stone-300 text-black py-1 px-3 rounded-e"
+        className="bg-stone-200 hover:bg-stone-300 border-y border-e border-stone-300 text-black py-1 px-3 rounded-e"
         onClick={open}>
           <i className="bi bi-broadcast-pin w-3 h-3"></i>
       </Button>
