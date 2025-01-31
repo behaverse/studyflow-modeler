@@ -13,7 +13,7 @@ export default function StartUpModal() {
   const handleConnect = (formData) => {
     const api_key = formData.get('api_key');
     if ((api_key !== 'xcit-demo') && (api_key !== '')) {
-      setError('Invalid API Key');
+      setError('Invalid key');
       return;
     }
     setApiKey(api_key);
