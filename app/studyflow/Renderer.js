@@ -4,15 +4,22 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
+import PuzzleIcon from "bootstrap-icons/icons/puzzle.svg";
+import ControllerIcon from "bootstrap-icons/icons/controller.svg";
+import PencilIcon from "bootstrap-icons/icons/pencil.svg";
+import ChatSquareDotsIcon from "bootstrap-icons/icons/chat-square-dots.svg";
+import ShuffleIcon from "bootstrap-icons/icons/shuffle.svg";
+import PersonGearIcon from "bootstrap-icons/icons/person-gear.svg";
+
 const STUDYFLOW_ICONS = {
-  'studyflow:RandomGateway': "\uF544",
-  'studyflow:VideoGame': "\uF2D4",
-  'studyflow:CognitiveTest': "\uF503",
-  'studyflow:Questionnaire': "\uF4CB",
-  'studyflow:Instruction': "\uF25F",
+  'studyflow:RandomGateway': ShuffleIcon,
+  'studyflow:VideoGame': ControllerIcon,
+  'studyflow:CognitiveTest': PuzzleIcon,
+  'studyflow:Questionnaire': PencilIcon,
+  'studyflow:Instruction': ChatSquareDotsIcon
 }
 
-const STUDYFLOW_DEFAULT_ICON = "\uF8A7"; // person-gear
+const STUDYFLOW_DEFAULT_ICON = PersonGearIcon;
 
 
 export default class StudyFlowRenderer extends BaseRenderer {
@@ -66,20 +73,19 @@ export default class StudyFlowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, icon, x, y, classes) {
+  drawIcon(parentNode, element, icon, x, y) {
 
-    var text = svgCreate('text', {
+    var image = svgCreate('image', {
       x: x,
       y: y,
-      width: element.width,
-      height: element.height,
-      fontSize: 24,
+      width: 26,
+      height: 26,
       fill: '#a21caf',
       strokeWidth: 0,
-      class: classes
+      href: icon
     });
-    text.textContent = icon
-    svgAppend(parentNode, text);
+
+    svgAppend(parentNode, image);
 
     return icon;
   }
@@ -90,7 +96,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
     if (is(element, "studyflow:Activity")) {
       const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'black'});
-      this.drawIcon(parentNode, element, icon, 5, 29, 'bi');
+      this.drawIcon(parentNode, element, icon, 4, 4);
       return el;
     }
 
@@ -102,8 +108,8 @@ export default class StudyFlowRenderer extends BaseRenderer {
       this.drawIcon(
         parentNode, element,
         icon,
-        element.width / 2 - 12,
-        element.height / 2 + 12, 'bi');
+        12,
+        12);
       return diamond;
     }
   }
