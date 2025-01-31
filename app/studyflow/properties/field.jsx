@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
-import { Field, Description, Popover, PopoverButton, PopoverPanel} from '@headlessui/react';
-import { TextInput } from './TextInput';
-import { MarkdownInput} from './MarkdownInput';
+import { Field } from '@headlessui/react';
+import { StringInput } from './StringInput';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext } from 'react';
@@ -13,7 +12,7 @@ export function PropertyField(props) {
     const { element, businessObject } = useContext(PropertiesPanelContext);
 
     const propertyType = bpmnProperty.type || 'String';
-    const [ isVisible, setVisible ] = useState(true);
+    const [isVisible, setVisible] = useState(true);
 
     // conditional visibility
     useEffect(() => {
@@ -39,26 +38,19 @@ export function PropertyField(props) {
             case 'studyflow:Distribution':
                 return <EnumInput {...props} />;
             case 'studyflow:MarkdownString':
-                return <MarkdownInput {...props} />;
+                return <StringInput {...props} isMarkdown={true} />;
             default:
-                return <TextInput {...props} />;
+                return <StringInput {...props} />;
         }
     }
 
     return (
         <>
-        {isVisible &&
-            <Field className="mx-2 pb-2">
+            {isVisible &&
+                <Field className="mx-2 pb-2">
                     {renderInput()}
-                    <Popover className="relative group">
-      <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
-
-      <PopoverPanel anchor="bottom start" className="bg-stone-700 text-xs text-white p-2 rounded-lg shadow-lg">
-      {bpmnProperty?.description}
-                        </PopoverPanel>
-    </Popover>
-            </Field>
-        }
+                </Field>
+            }
         </>
     );
 }

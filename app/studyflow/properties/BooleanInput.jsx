@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { Checkbox, Label } from '@headlessui/react';
+import { Checkbox, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useContext, useState } from 'react';
 import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 import { t } from '../../i18n';
@@ -21,18 +21,29 @@ export function BooleanInput(props) {
     }
 
     return (
-        <div className="flex items-center gap-2">
-        <Checkbox
-        checked={value}
-        onChange={handleChange}
-        className="group block size-4 rounded border bg-white data-[checked]:bg-blue-500"
-        >
-      {/* Checkmark icon */}
-      <svg className="stroke-white opacity-0 group-data-[checked]:opacity-100" viewBox="0 0 14 14" fill="none">
-        <path d="M3 8L6 11L11 3.5" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-        </Checkbox>
-            <Label>{t(name)}</Label>
+        <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+            <Checkbox
+                checked={value}
+                onChange={handleChange}
+                className="group block size-4 rounded border bg-white data-[checked]:bg-blue-500"
+            >
+                {/* Checkmark icon */}
+                <svg className="stroke-white opacity-0 group-data-[checked]:opacity-100" viewBox="0 0 14 14" fill="none">
+                    <path d="M3 8L6 11L11 3.5" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            </Checkbox>
+            <Label className="flex items-center justify-between">
+                {t(name)}
+                </Label>
+                </span>
+            <Popover className="float-end">
+                <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
+                <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-white p-2 rounded-lg shadow-lg">
+                    {bpmnProperty?.description}
+                </PopoverPanel>
+            </Popover>
+
         </div>
     );
 }

@@ -1,18 +1,15 @@
 import PropTypes from 'prop-types';
-import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useContext, useState } from 'react';
 import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 import { t } from '../../i18n';
 
-export function EnumInput(props) {
+export function StringInput(props) {
 
-    const { bpmnProperty } = props;
+    const { bpmnProperty, isMarkdown } = props;
     const { element, businessObject } = useContext(PropertiesPanelContext);
 
     const name = bpmnProperty.ns.name;
-    const propertyType = bpmnProperty.type.split(':')[1];
-    const pkg = bpmnProperty.definedBy.$pkg;
-    const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
     const [value, setValue] = useState(businessObject.get(name) || '');
 
     const modeling = useContext(ModelerContext).get('injector').get('modeling');
@@ -36,22 +33,29 @@ export function EnumInput(props) {
                     </PopoverPanel>
                 </Popover>
             </Label>
-            <div className="relative">
-                <Select name={name} aria-label={t(name)}
+            {isMarkdown &&
+                <Textarea
+                    name={name}
                     onChange={handleChange}
                     value={value}
-                    className="appearance-none px-2 py-1 pr-8 w-full rounded-md border-none bg-stone-200 text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
-                >
-                    {literalValues.map((l) => (
-                        <option key={l.value} value={l.value}>{l.name}</option>
-                    ))}
-                </Select>
-                <i className="group bi bi-caret-down pointer-events-none absolute top-1.5 right-2.5" aria-hidden="true"></i>
-            </div>
+                    rows={4}
+                    className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/4 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                />
+            }
+            {!isMarkdown &&
+                <Input
+                    name={name}
+                    type="text"
+                    onChange={handleChange}
+                    value={value}
+                    className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                />}
         </>
     );
+
 }
 
-EnumInput.propTypes = {
+StringInput.propTypes = {
     bpmnProperty: PropTypes.node.isRequired,
+    isMarkdown: PropTypes.bool
 }
