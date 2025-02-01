@@ -32,14 +32,14 @@ export default function App() {
     <div className="App flex flex-col h-screen">
   
         {/* top navbar */}
-      <nav className="w-full flow-root bg-stone-100 border-b border-gray-200">
+      <nav className="w-full flow-root bg-stone-100 border-b border-stone-200">
         <div className="float-left flex flex-wrap">
         <a href="/" className="flex space-x-2">
           <img src={logo_image} className="h-16 p-1" alt="Logo" />
-          <span className="self-center font-light text-2xl text-stone-700">
+          </a>
+          <span className="self-center font-light text-2xl text-stone-700 px-3">
             StudyFlow<span className="font-semibold">Modeler</span>
           </span>
-              </a>
           </div>
         {/* <div className="flex flex-wrap float-start h-full items-center ms-4">
           <span className="text-stone-300"></span>
@@ -51,18 +51,18 @@ export default function App() {
         </div> */}
         <div className="flex flex-wrap float-end h-full items-center p-3">
               {modeler && <Toolbar />}    
-              <Menu as="div">
-              <MenuButton className="h-9 bg-stone-200 hover:bg-stone-300 border border-gray-300 text-black rounded py-1 px-3 ms-1">
+              <Menu as="div" title="More info">
+              <MenuButton className="h-9 bg-stone-200 hover:bg-stone-300 border border-stone-300 text-black rounded py-1 px-3 ms-1">
                 <i className="bi bi-three-dots text-stone-500"></i></MenuButton>
-          <MenuItems anchor="bottom end" className="w-52 bg-stone-100 border rounded-lg [--anchor-gap:4px]">
+          <MenuItems anchor="bottom end" className="w-52 bg-stone-200 border border-stone-300 rounded-lg [--anchor-gap:4px]">
             <MenuItem>
-              <a href="/docs" target="_blank" className="p-2 block data-[focus]:bg-stone-200">Docs</a>
+              <a href="/docs" target="_blank" className="p-2 block data-[focus]:bg-stone-300">Docs</a>
             </MenuItem>
             <MenuItem>
-              <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="p-2 block data-[focus]:bg-stone-200">GitHub</a>
+              <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="p-2 block data-[focus]:bg-stone-300">GitHub</a>
                 </MenuItem>
                 <MenuItem>
-              <a href="/about" target="_blank" className="p-2 block data-[focus]:bg-stone-200">About</a>
+              <a href="/about" target="_blank" className="p-2 block data-[focus]:bg-stone-300">About</a>
             </MenuItem>
           </MenuItems>
               </Menu>

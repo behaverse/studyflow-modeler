@@ -58,10 +58,7 @@ export function PropertiesPanel() {
 
         // remove empty groups using filter and Object.fromEntries
         groups = Object.entries(groups).filter(([k, v]) => v.length > 0);
-        console.log(groups);
-        groups = Object.fromEntries(
-            groups
-        );
+        groups = Object.fromEntries(groups);
         return groups;
     }, []);
 
@@ -114,7 +111,7 @@ export function PropertiesPanel() {
                                         <DisclosureButton
                                             className="group p-2 text-left w-full text-md font-semibold text-stone-700">
                                             {t(groupName)}
-                                            <i className="bi bi-chevron-down group-data-[open]:rotate-180 float-end"></i>
+                                            <i className="bi bi-caret-right-fill group-data-[open]:rotate-90 pe-1 group-data-[open]:pt-1 float-start"></i>
                                         </DisclosureButton>
                                         <DisclosurePanel transition
                                             className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
