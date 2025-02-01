@@ -99,7 +99,7 @@ export function PropertiesPanel() {
             <div className="bg-stone-50 basis-1/4 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
                 {element &&
                     <>
-                        <h1 className="text-md font-bold p-2 bg-stone-100 sticky top-0">
+                        <h1 className="text-lg font-bold p-2 bg-stone-100 border-b border-dashed  border-stone-300 sticky top-0 text-stone-700">
                             {element.type.split(':')[1]}
                         </h1>
                         <div className="w-full">

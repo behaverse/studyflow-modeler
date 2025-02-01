@@ -15,6 +15,6 @@ svg text.bi {
     border-radius: 16px;
 }
 
-.bts-set-animation-speed {
+.bts-palette, .bts-set-animation-speed {
     display: none;
 }
