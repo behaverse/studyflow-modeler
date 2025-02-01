@@ -6,7 +6,7 @@ import ExportButton from './ExportButton';
 export function Toolbar() {
 
   return (
-    <div className="fixed top-20 left-4 h-9 inline-flex rounded-md shadow-sm" role="group">
+    <div className="h-9 inline-flex rounded-md shadow-sm" role="group">
       <SimulateButton />
       <span className="w-1"></span>
       <DownloadButton />

@@ -4,7 +4,7 @@ import download from 'downloadjs';
 
 export default function DownloadButton() {
 
-  const modeler = useContext(ModelerContext);
+  const {modeler} = useContext(ModelerContext);
 
   useEffect(() => {
   }, [modeler]);

@@ -25,7 +25,7 @@ async function exportoToImage(svg) {
 
 export default function ExportButton() {
 
-    const modeler = useContext(ModelerContext);
+    const {modeler} = useContext(ModelerContext);
 
     useEffect(() => {
     }, [modeler]);

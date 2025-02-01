@@ -11,7 +11,7 @@ export function BooleanInput(props) {
     const name = bpmnProperty.ns.name;
     const [value, setValue] = useState(businessObject.get(name) || false);
 
-    const modeling = useContext(ModelerContext).get('injector').get('modeling');
+    const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
 
     function handleChange(checked) {
         setValue(checked);

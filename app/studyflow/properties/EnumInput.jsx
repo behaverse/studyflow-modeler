@@ -15,7 +15,7 @@ export function EnumInput(props) {
     const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
     const [value, setValue] = useState(businessObject.get(name) || '');
 
-    const modeling = useContext(ModelerContext).get('injector').get('modeling');
+    const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
 
     function handleChange(event) {
         const newValue = event.target.value;

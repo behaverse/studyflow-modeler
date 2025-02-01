@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
@@ -16,17 +16,17 @@ import GridModule from 'diagram-js-grid';
 // import studyFlowElementTemplates from './assets/studyflow_templates';
 import new_diagram from './assets/new_diagram.bpmn';
 import StudyFlowModdleExtension from './assets/studyflow';
-import {StudyFlowModule, ModelerContext, Toolbar} from './studyflow';
-import { PropertiesPanel } from './studyflow/properties';
+import { StudyFlowModule } from './studyflow';
+import { ModelerContext } from './contexts';
 
 export function Modeler() {
 
     const [canvas, setCanvas] = useState(null);
-    const [studyFlowModeler, setStudyFlowModeler] = useState(null);
+    const { setModeler } = useContext(ModelerContext);
     const [isLoading, setLoading] = useState(true);
   
     useEffect(() => {
-        const modeler = new BpmnModeler({
+        const _modeler = new BpmnModeler({
             container: canvas,
             textRenderer: {
               defaultStyle: {
@@ -45,18 +45,18 @@ export function Modeler() {
             ],
             // studyFlowElementTemplates,
         });
-        setStudyFlowModeler(modeler);
+        setModeler(_modeler);
         setLoading(false);
 
         fetch(new_diagram)
             .then(r => r.text())
             .then(content => {
-                modeler.importXML(content)
+                _modeler.importXML(content)
                     .then(({ warnings }) => {
                         if (warnings.length) {
                           console.warn(warnings);
                         }
-                        modeler.get('canvas').zoom('fit-viewport');
+                        _modeler.get('canvas').zoom('fit-viewport');
                       })
                       .catch(err => {
                         console.log(err);
@@ -64,9 +64,9 @@ export function Modeler() {
             });
 
         return () => {
-            modeler.destroy();
+            _modeler.destroy();
         }
-    }, [canvas]);
+    }, [canvas, setModeler]);
 
   if (isLoading) {
     return (<div className="flex h-full text-center">
@@ -79,12 +79,6 @@ export function Modeler() {
   }
   
     return (
-      <ModelerContext.Provider value={studyFlowModeler}>
-      <div className="flex flex-row h-full overflow-hidden">
         <div className="grow border-gray-100 border-r-2" ref={setCanvas}></div>
-        <Toolbar />
-        <PropertiesPanel />
-      </div>
-      </ModelerContext.Provider>
     );
 }

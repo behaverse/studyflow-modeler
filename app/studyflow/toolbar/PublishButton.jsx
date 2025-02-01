@@ -6,7 +6,7 @@ import {ModelerContext} from '../../contexts';
 
 export default function ExportButton(props) {
 
-  const modeler = useContext(ModelerContext);
+  const {modeler} = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)
   let [status, setStatus] = useState(undefined)
   let [previewUrl, setPreviewUrl] = useState(undefined)

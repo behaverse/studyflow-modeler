@@ -9,7 +9,7 @@ svg text.bi {
 }
 
 .djs-palette, .bts-palette {
-    top: 4rem !important;
+    top: 1rem !important;
     left: 1rem !important;
     background-color: white !important;
     border-radius: 16px;

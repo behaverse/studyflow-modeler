@@ -17,7 +17,7 @@ const defaultPropsDescriptions = {
 
 export function PropertiesPanel() {
 
-    const modeler = useContext(ModelerContext);
+    const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
     const moddle = injector.get('moddle');
@@ -42,7 +42,7 @@ export function PropertiesPanel() {
 
     const getProperties = useCallback((element) => {
         // TODO automatically populate group names
-        const groups = {
+        var groups = {
             "general": [],
             "studyflow": []
         }
@@ -55,6 +55,13 @@ export function PropertiesPanel() {
                 groups["general"].push(prop);
             }
         });
+
+        // remove empty groups using filter and Object.fromEntries
+        groups = Object.entries(groups).filter(([k, v]) => v.length > 0);
+        console.log(groups);
+        groups = Object.fromEntries(
+            groups
+        );
         return groups;
     }, []);
 

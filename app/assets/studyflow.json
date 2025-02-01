@@ -177,7 +177,14 @@
         "bpmn:Task",
         "studyflow:Element"
       ],
-      "properties": []
+      "properties": [
+        {
+          "name": "url",
+          "description": "URL of the activity",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
     },
     {
       "name": "CognitiveTest",
@@ -206,12 +213,6 @@
               "studyflow:instrument": "behaverse"
             }
           }
-        },
-        {
-          "name": "url",
-          "description": "URL of the test",
-          "isAttr": true,
-          "type": "String"
         }
       ]
     },

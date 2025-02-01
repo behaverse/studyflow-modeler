@@ -8,7 +8,7 @@ import {
 
 export default function SimulateButton(props) {
 
-  const modeler = useContext(ModelerContext);
+  const {modeler} = useContext(ModelerContext);
   const [active, setActive] = useState(true);
   const [label, setLabel] = useState('Simulate');
   const [classNames, setClassNames] = useState(
