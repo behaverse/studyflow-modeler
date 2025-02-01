@@ -39,7 +39,8 @@ export function BooleanInput(props) {
                 </span>
             <Popover className="float-end">
                 <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
-                <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-white p-2 rounded-lg shadow-lg">
+                <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-lg">
+                    <pre className="font-mono text-xs font-bold text-white">{name}</pre>
                     {bpmnProperty?.description}
                 </PopoverPanel>
             </Popover>
