@@ -24,31 +24,20 @@ const COLORS = [ {
     stroke: '#9174A3'
   } ];
   
+export default class ColorPickerProvider {
+  static $inject = ["config.colorPicker", "popupMenu", "modeling"];
+
+  constructor(config, popupMenu, modeling) {
+    this.modeling = modeling;
   
-  export default function ColorPopupProvider(config, bpmnRendererConfig, popupMenu, modeling, translate) {
-    this._popupMenu = popupMenu;
-    this._modeling = modeling;
-    this._translate = translate;
+    this._defaultFillColor = 'white';
+    this._defaultStrokeColor = 'rgb(34, 36, 42)';
   
-    this._colors = config && config.colors || COLORS;
-    this._defaultFillColor = bpmnRendererConfig && bpmnRendererConfig.defaultFillColor || 'white';
-    this._defaultStrokeColor = bpmnRendererConfig && bpmnRendererConfig.defaultStrokeColor || 'rgb(34, 36, 42)';
-  
-    this._popupMenu.registerProvider('color-picker', this);
+    popupMenu.registerProvider('color-picker', this);
   }
   
-  
-  ColorPopupProvider.$inject = [
-    'config.colorPicker',
-    'config.bpmnRenderer',
-    'popupMenu',
-    'modeling',
-    'translate'
-  ];
-  
-  
-  ColorPopupProvider.prototype.getEntries = function(elements) {
-    var self = this;
+  getEntries(elements) {
+    const self = this;
   
     var colorIconHtml = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25" height="100%" width="100%">
@@ -56,25 +45,23 @@ const COLORS = [ {
       </svg>
     `;
   
-    var entries = this._colors.map(function(color) {
+    var entries = COLORS.map(function (color) {
   
-      var entryColorIconHtml = colorIconHtml.replace('var(--fill-color)', color.fill || self._defaultFillColor)
-        .replace('var(--stroke-color)', color.stroke || self._defaultStrokeColor);
-  
+      var entryColorIconHtml = colorIconHtml.replace(
+        'var(--fill-color)', color.fill || self._defaultFillColor
+      ).replace(
+        'var(--stroke-color)', color.stroke || self._defaultStrokeColor
+      );
+
       return {
-        title: self._translate(color.label),
+        title: color.label,
         id: color.label.toLowerCase() + '-color',
         imageHtml: entryColorIconHtml,
-        action: createAction(self._modeling, elements, color)
+        action: () => self.modeling.setColor(elements, color)
       };
     });
   
     return entries;
-  };
-  
-  
-  function createAction(modeling, element, color) {
-    return function() {
-      modeling.setColor(element, color);
-    };
   }
+
+}

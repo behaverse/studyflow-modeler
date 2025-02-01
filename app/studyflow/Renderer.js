@@ -1,5 +1,6 @@
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
+import {getFillColor, getStrokeColor} from "bpmn-js/lib/draw/BpmnRenderUtil";
 import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
@@ -40,7 +41,17 @@ export default class StudyFlowRenderer extends BaseRenderer {
     return is(element, "studyflow:Element");
   }
 
-  drawDiamond(parentGfx, width, height, attrs) {
+  colorToHex(color) {
+    var context = document.createElement('canvas').getContext('2d');
+    context.fillStyle = 'transparent';
+    context.fillStyle = color;
+    return /^#[0-9a-fA-F]{6}$/.test(context.fillStyle) ? context.fillStyle : null;
+  }
+
+  drawDiamond(parentGfx, element, attrs) {
+
+    const width = element.width;
+    const height = element.height;
 
     var x_2 = width / 2;
     var y_2 = height / 2;
@@ -57,10 +68,11 @@ export default class StudyFlowRenderer extends BaseRenderer {
     }).join(' ');
 
     attrs = this.styles.computeStyle(attrs, {
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
-          strokeWidth: 2,
-          fill: 'white'
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      strokeWidth: 2,
+      stroke: getStrokeColor(element),
+      fill: getFillColor(element)
     });
 
     var polygon = svgCreate('polygon', {
@@ -80,9 +92,12 @@ export default class StudyFlowRenderer extends BaseRenderer {
       y: y,
       width: 26,
       height: 26,
-      href: icon
+      href: icon.replace(/currentColor/g,
+                         this.colorToHex(getStrokeColor(element)).replaceAll('#', '%23')),
+      fill: getFillColor(element),
     });
 
+    console.log(getStrokeColor(element));
     svgAppend(parentNode, image);
 
     return icon;
@@ -93,21 +108,14 @@ export default class StudyFlowRenderer extends BaseRenderer {
     const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
 
     if (is(element, "studyflow:Activity")) {
-      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
+      const box = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
       this.drawIcon(parentNode, element, icon, 4, 4);
-      return el;
+      return box;
     }
 
     if (is(element, "studyflow:RandomGateway")) {
-      var diamond = this.drawDiamond(
-        parentNode, element.width, element.height, {
-          stroke: 'black'
-      });
-      this.drawIcon(
-        parentNode, element,
-        icon,
-        12,
-        12);
+      var diamond = this.drawDiamond(parentNode, element);
+      this.drawIcon(parentNode, element, icon, 12, 12);
       return diamond;
     }
   }

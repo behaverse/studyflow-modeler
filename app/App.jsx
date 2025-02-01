@@ -34,7 +34,7 @@ export default function App() {
         {/* top navbar */}
       <nav className="w-full flow-root bg-stone-100 border-b border-stone-200">
         <div className="float-left flex flex-wrap">
-        <a href="/" className="flex space-x-2">
+        <a href="../" className="flex space-x-2">
           <img src={logo_image} className="h-16 p-1" alt="Logo" />
           </a>
           <span className="self-center font-light text-2xl text-stone-700 px-3">
@@ -56,13 +56,13 @@ export default function App() {
                 <i className="bi bi-three-dots text-black"></i></MenuButton>
           <MenuItems anchor="bottom end" className="w-52 bg-stone-200 border border-stone-300 rounded-lg [--anchor-gap:4px]">
             <MenuItem>
-              <a href="/docs" target="_blank" className="p-2 block data-[focus]:bg-stone-300">Docs</a>
+              <a href="../docs" target="_blank" className="p-2 block data-[focus]:bg-stone-300">Docs</a>
             </MenuItem>
             <MenuItem>
               <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="p-2 block data-[focus]:bg-stone-300">GitHub</a>
                 </MenuItem>
                 <MenuItem>
-              <a href="/about" target="_blank" className="p-2 block data-[focus]:bg-stone-300">About</a>
+              <a href="../about/" target="_blank" className="p-2 block data-[focus]:bg-stone-300">About</a>
             </MenuItem>
           </MenuItems>
               </Menu>
