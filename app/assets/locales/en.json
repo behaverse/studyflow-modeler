@@ -6,8 +6,8 @@
     "bpmn:documentation": "Documentation",
     "studyflow:url": "URL",
     "studyflow:instrument": "Instrument",
-    "studyflow:behaverseInstrument": "Behaverse Task",
-    "studyflow:content": "Content",
+    "studyflow:behaverseTask": "Behaverse Task",
+    "studyflow:text": "Content",
     "studyflow:requiresConsent": "Requires consent",
     "studyflow:probabilityFunction": "Probability Function"
 }

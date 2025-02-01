@@ -1,9 +1,12 @@
 
-import { useContext, useEffect, useState, useReducer } from 'react';
+import { useContext, useEffect, useState, useReducer, useCallback } from 'react';
 import { ModelerContext, PropertiesPanelContext } from '../../contexts';
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { PropertiesGroup } from './group';
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
+import { PropertyField } from './field';
+import { t } from '../../i18n';
+
 
 const defaultPropsDescriptions = {
     // 'bpmn:type': "Type of the element",
@@ -17,10 +20,27 @@ export function PropertiesPanel() {
     const modeler = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
+    const moddle = injector.get('moddle');
     const [element, setElement] = useState(null);
-    const [, forceUpdate] = useReducer(x => x + 1, 0);
+    const [forceUpdated, forceUpdate] = useReducer(x => x + 1, 0);
 
-    const getProperties = (element) => {
+    const getConditionalProperties = useCallback(() => {
+        // this allows to re-render only the conditional properties
+        const typeMap = moddle.registry.typeMap;
+        var conditionals = Object.entries(typeMap).map(([key, value]) => {
+            if (key.startsWith("studyflow:") && value.properties) {
+                for (const p of value.properties) {
+                    if (p.condition) {
+                        return p.ns.name;
+                    }
+                }
+            }
+        });
+        conditionals = conditionals.filter((c) => c);
+        return conditionals;
+    }, [moddle]);
+
+    const getProperties = useCallback((element) => {
         // TODO automatically populate group names
         const groups = {
             "general": [],
@@ -36,48 +56,73 @@ export function PropertiesPanel() {
             }
         });
         return groups;
-    }
+    }, []);
 
     useEffect(() => {
-        eventBus.on('selection.changed', 1200, (event) => {
-            const selections = event.newSelection;
-            setElement(null);
-            if (selections.length === 1) {
-                setElement(selections[0]);
-            }
-        });
+        function onSelectionChanged(e) {
+            const selections = e.newSelection;
+            var newElement = selections.length === 1 ? selections[0] : null;
+            setElement(newElement);
+        }
 
-        eventBus.on('element.changed', 1500, (event) => {
-            if (element && element.id === event.element.id) {
-                event.preventDefault();
-                const newElement = event.element;
-                console.log('element changed', Object.is(element, newElement));
+        eventBus.on('selection.changed', onSelectionChanged);
+        return () => {
+            eventBus.off('selection.changed', onSelectionChanged);
+        };
+    }, [eventBus, element]);
+
+    useEffect(() => {
+        function onElementsChanged(e) {
+            if (!element) {
+                return;
+            }
+            const newElements = e.elements;
+            const newElement = newElements.find((el) => el.id === element.id);
+            if (newElement) {
                 setElement(newElement);
                 forceUpdate();
             }
-        });
-    }, [eventBus, element]);
+        }
+        eventBus.on('elements.changed', onElementsChanged);
+        return () => {
+            eventBus.off('elements.changed', onElementsChanged);
+        };
+    }, [eventBus, element, forceUpdated]);
 
     return (
         <PropertiesPanelContext.Provider
-            value={{ element: element, businessObject: getBusinessObject(element) }}>
-        <div className="bg-stone-50 basis-1/4 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
-            {element &&
-                <>
-                <h1 className="text-md font-bold p-2 bg-stone-100 sticky top-0">
-                    {element.type.split(':')[1]}
-                </h1>
-                <div className="w-full">
-                    {Object.entries(getProperties(element)).map(
-                        ([group_name, grpBpmnProperties]) => 
-                            <PropertiesGroup
-                                key={group_name}
-                                name={group_name}
-                                bpmnProperties={grpBpmnProperties} />
-                    )}
-                </div>
-                </>
-            }
+            value={{ element: element, businessObject: getBusinessObject(element), forceUpdate: forceUpdate }}>
+            <div className="bg-stone-50 basis-1/4 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
+                {element &&
+                    <>
+                        <h1 className="text-md font-bold p-2 bg-stone-100 sticky top-0">
+                            {element.type.split(':')[1]}
+                        </h1>
+                        <div className="w-full">
+                            {Object.entries(getProperties(element)).map(
+                                ([groupName, grpBpmnProperties]) =>
+                                    <Disclosure
+                                        defaultOpen={groupName === "general"}
+                                        key={groupName}>
+                                        <DisclosureButton
+                                            className="group p-2 text-left w-full text-md font-semibold text-stone-700">
+                                            {t(groupName)}
+                                            <i className="bi bi-chevron-down group-data-[open]:rotate-180 float-end"></i>
+                                        </DisclosureButton>
+                                        <DisclosurePanel transition
+                                            className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
+                                            {grpBpmnProperties.map((p) => (
+                                                // this key renders the conditional property if needed 
+                                                <PropertyField
+                                                    key={p.ns.name + (getConditionalProperties().includes(p.ns.name) ? forceUpdated : '')}
+                                                        bpmnProperty={p} />
+                                            ))}
+                                        </DisclosurePanel>
+                                    </Disclosure>
+                            )}
+                        </div>
+                    </>
+                }
             </div>
         </PropertiesPanelContext.Provider>
     )

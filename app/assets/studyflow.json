@@ -34,7 +34,7 @@
       ]
     },
     {
-      "name": "InstrumentType",
+      "name": "InstrumentEnum",
       "isAbstract": true,
       "description": "The type of instrument used to measure cognitive performance. This should be moved to the enumerations.",
       "literalValues": [
@@ -49,7 +49,7 @@
       ]
     },
     {
-      "name": "BehaverseInstrumentType",
+      "name": "BehaverseTaskEnum",
       "isAbstract": true,
       "literalValues": [
         {
@@ -189,12 +189,12 @@
           "name": "instrument",
           "description": "Instrument used for the test",
           "isAttr": true,
-          "type": "InstrumentType",
+          "type": "InstrumentEnum",
           "default": "custom"
         },
         {
-          "name": "behaverseInstrument",
-          "type": "BehaverseInstrumentType",
+          "name": "behaverseTask",
+          "type": "BehaverseTaskEnum",
           "description": "Behaverse instrument used for the test",
           "isAttr": true,
           "superClass": [
@@ -218,14 +218,14 @@
     {
       "name": "VideoGame",
       "superClass": [
-        "CognitiveTest"
+        "Activity"
       ],
       "properties": []
     },
     {
       "name": "Questionnaire",
       "superClass": [
-        "CognitiveTest"
+        "Activity"
       ],
       "properties": []
     },
