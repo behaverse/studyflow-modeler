@@ -80,8 +80,6 @@ export default class StudyFlowRenderer extends BaseRenderer {
       y: y,
       width: 26,
       height: 26,
-      fill: '#a21caf',
-      strokeWidth: 0,
       href: icon
     });
 
@@ -95,7 +93,7 @@ export default class StudyFlowRenderer extends BaseRenderer {
     const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
 
     if (is(element, "studyflow:Activity")) {
-      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element, {stroke: 'black'});
+      const el = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
       this.drawIcon(parentNode, element, icon, 4, 4);
       return el;
     }
