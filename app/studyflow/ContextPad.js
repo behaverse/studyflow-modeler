@@ -94,7 +94,15 @@ export default class StudyFlowContextPad {
         { append: { ...entries['append'], group: 'studyflow' } });
       const defaultAppend = entries['append'];
       delete entries['append'];
-      return {...entries, ...commands, append: defaultAppend};
+
+      if (element.type === 'bpmn:SequenceFlow') {
+        entries = {...entries};
+      } else {
+        entries = {...entries, ...commands, append: defaultAppend};
+      }
+
+      return entries;
+
     };
   }
 }
