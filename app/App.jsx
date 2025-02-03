@@ -32,7 +32,7 @@ export default function App() {
     <div className="App flex flex-col h-screen">
   
         {/* top navbar */}
-      <nav className="w-full flow-root bg-stone-100 border-b border-stone-200">
+      <nav className="w-full flow-root bg-stone-100 border-b border-dashed border-stone-300">
         <div className="float-left flex flex-wrap">
         <a href="../" className="flex space-x-2">
           <img src={logo_image} className="h-16 p-1" alt="Logo" />
