@@ -4,7 +4,7 @@
     "bpmn:id": "ID",
     "bpmn:name": "Name",
     "bpmn:documentation": "Documentation",
-    "studyflow:url": "URL",
+    "studyflow:link": "Link (URL)",
     "studyflow:instrument": "Instrument",
     "studyflow:behaverseTask": "Behaverse Task",
     "studyflow:text": "Content",

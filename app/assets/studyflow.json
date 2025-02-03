@@ -43,6 +43,10 @@
           "value": "custom"
         },
         {
+          "name": "Video Game",
+          "value": "videoGame"
+        },
+        {
           "name": "Behaverse",
           "value": "behaverse"
         }
@@ -179,7 +183,7 @@
       ],
       "properties": [
         {
-          "name": "url",
+          "name": "link",
           "description": "URL of the activity",
           "isAttr": true,
           "type": "String"

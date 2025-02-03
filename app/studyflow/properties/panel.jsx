@@ -12,7 +12,7 @@ const defaultPropsDescriptions = {
     // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
     'bpmn:id': "Unique identifier of the element",
-    'bpmn:documentation': "Short description or URL to a description",
+    'bpmn:documentation': "Short description or link to a description",
 };
 
 export function PropertiesPanel() {
