@@ -1,7 +1,7 @@
 import { Canvg } from 'canvg';
 
 import { useEffect, useContext } from "react";
-import { ModelerContext } from '../../contexts';
+import { ModelerContext } from '../contexts';
 import download from 'downloadjs';
 
 async function exportoToImage(svg) {

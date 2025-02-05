@@ -2,12 +2,12 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import logo_image from './assets/logo.png'
-import {Modeler} from './Modeler'
+import {Modeler} from './modeler/Modeler'
 import './index.css'
-import StartUpModal from './StartUpModal'
-import { APIKeyContext, ModelerContext } from './contexts';
-import { Toolbar } from './studyflow';
-import { PropertiesPanel } from './studyflow/properties';
+import StartUpModal from './modeler/StartUpModal'
+import { APIKeyContext, ModelerContext } from './modeler/contexts';
+import { Toolbar } from './modeler';
+import { PropertiesPanel } from './modeler/properties';
 
 import { Menu, MenuItem, MenuItems, MenuButton } from '@headlessui/react';
 

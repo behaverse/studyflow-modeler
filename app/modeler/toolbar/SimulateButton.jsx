@@ -1,6 +1,6 @@
 import {classes} from 'min-dom';
 import { useEffect, useContext, useState } from "react";
-import {ModelerContext} from '../../contexts';
+import {ModelerContext} from '../contexts';
 
 import {
   TOGGLE_MODE_EVENT

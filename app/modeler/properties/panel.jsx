@@ -1,6 +1,6 @@
 
 import { useContext, useEffect, useState, useReducer, useCallback } from 'react';
-import { ModelerContext, PropertiesPanelContext } from '../../contexts';
+import { ModelerContext, PropertiesPanelContext } from '../contexts';
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
@@ -118,7 +118,7 @@ export function PropertiesPanel() {
                                             {grpBpmnProperties.map((p) => (
                                                 // this key renders the conditional property if needed 
                                                 <PropertyField
-                                                    key={p.ns.name + (getConditionalProperties().includes(p.ns.name) ? forceUpdated : '')}
+                                                    key={element.id + p.ns.name + (getConditionalProperties().includes(p.ns.name) ? forceUpdated : '')}
                                                         bpmnProperty={p} />
                                             ))}
                                         </DisclosurePanel>

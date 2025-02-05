@@ -5,7 +5,7 @@ import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext } from 'react';
 
-import { PropertiesPanelContext } from '../../contexts';
+import { PropertiesPanelContext } from '../contexts';
 
 export function PropertyField(props) {
     const { bpmnProperty } = props;

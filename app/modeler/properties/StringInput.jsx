@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useContext, useState } from 'react';
-import { ModelerContext, PropertiesPanelContext } from '../../contexts';
+import { ModelerContext, PropertiesPanelContext } from '../contexts';
 import { t } from '../../i18n';
 
 export function StringInput(props) {

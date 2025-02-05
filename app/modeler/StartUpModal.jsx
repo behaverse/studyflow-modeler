@@ -1,6 +1,6 @@
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import { useState, useContext } from 'react';
-import { Description, Dialog, DialogTitle, DialogPanel, Field, Fieldset, Label, Input, Button } from '@headlessui/react'
+import { Description, Dialog, DialogPanel, Field, Fieldset, Label, Input, Button } from '@headlessui/react'
 
 import { APIKeyContext } from './contexts';
 
