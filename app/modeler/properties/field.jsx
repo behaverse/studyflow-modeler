@@ -16,7 +16,7 @@ export function PropertyField(props) {
 
     // conditional visibility
     useEffect(() => {
-        if (bpmnProperty['superClass']?.includes("bpmn:ComplexBehaviorDefinition")) {
+        if ("condition" in bpmnProperty) {
             const conditions = bpmnProperty["condition"]?.body || {};
             const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
                 // TODO make sure the language of conditions is set to "json"
@@ -40,7 +40,7 @@ export function PropertyField(props) {
                 return <BooleanInput {...props} />;
             case 'studyflow:InstrumentEnum':
             case 'studyflow:BehaverseTaskEnum':
-            case 'studyflow:Distribution':
+            case 'studyflow:ProbabilityDistributionEnum':
                 return <EnumInput {...props} />;
             case 'studyflow:MarkdownString':
                 return <StringInput {...props} isMarkdown={true} />;

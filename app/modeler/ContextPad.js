@@ -1,12 +1,12 @@
 const STUDYFLOW_ELEMENTS = {
   'studyflow:CognitiveTest': {
     className: 'bi bi-puzzle',
-    title: 'Cognitive Test'
+    title: 'Cognitive Test or Video Game'
   },
-  'studyflow:VideoGame': {
-    className: 'bi bi-controller',
-    title: 'Video Game'
-  },
+  // 'studyflow:VideoGame': {
+  //   className: 'bi bi-controller',
+  //   title: 'Video Game'
+  // },
   'studyflow:Questionnaire': {
     className: 'bi bi-pencil',
     title: 'Questionnaire'

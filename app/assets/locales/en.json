@@ -4,10 +4,13 @@
     "bpmn:id": "ID",
     "bpmn:name": "Name",
     "bpmn:documentation": "Documentation",
-    "studyflow:link": "Link (URL)",
+    "studyflow:url": "URL",
     "studyflow:instrument": "Instrument",
-    "studyflow:behaverseTask": "Behaverse Task",
+    "studyflow:behaverseTask": "Behaverse task",
     "studyflow:text": "Content",
     "studyflow:requiresConsent": "Requires consent",
-    "studyflow:probabilityFunction": "Probability Function"
+    "studyflow:hasRedirectUrl": "Redirect after completion",
+    "studyflow:redirectUrl": "Redirect URL",
+    "studyflow:consentFormUrl": "Consent form URL",
+    "studyflow:probabilityFunction": "Probability function"
 }

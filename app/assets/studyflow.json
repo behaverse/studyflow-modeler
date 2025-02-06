@@ -5,9 +5,10 @@
   "xml": {
     "tagAlias": "lowerCase"
   },
+  "associations": [],
   "enumerations": [
     {
-      "name": "ProbabilityDistribution",
+      "name": "ProbabilityDistributionEnum",
       "isAbstract": true,
       "description": "The random statistical distribution used for the assignment.",
       "literalValues": [
@@ -143,7 +144,6 @@
       ]
     }
   ],
-  "associations": [],
   "types": [
     {
       "name": "MarkdownString",
@@ -159,15 +159,54 @@
       "properties": [
         {
           "name": "requiresConsent",
-          "description": "Requires user consent to start this process",
+          "description": "User requires to give consent before participating",
           "default": true,
           "isAttr": true,
           "type": "Boolean"
+        },
+        {
+          "name": "consentFormUrl",
+          "description": "Link to the consent form. Leave empty if you want to use the default consent form.",
+          "isAttr": true,
+          "type": "String",
+          "condition": {
+            "language": "json",
+            "body": {
+              "studyflow:requiresConsent": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "EndEvent",
+      "extends": [
+        "bpmn:EndEvent"
+      ],
+      "properties": [
+        {
+          "name": "hasRedirectUrl",
+          "description": "Redirect the user to the given URL after completion",
+          "isAttr": true,
+          "type": "Boolean"
+        },
+        {
+          "name": "redirectUrl",
+          "description": "Link to redirect the user upon completion",
+          "isAttr": true,
+          "type": "String",
+          "condition": {
+            "language": "json",
+            "body": {
+              "studyflow:hasRedirectUrl": true
+            }
+          }
         }
       ]
     },
     {
       "name": "Element",
+      "description": "Base class for all elements in the StudyFlow",
       "isAbstract": true,
       "superClass": [
         "bpmn:BaseElement"
@@ -176,6 +215,7 @@
     },
     {
       "name": "Activity",
+      "description": "Base class for all activities in the StudyFlow",
       "isAbstract": true,
       "superClass": [
         "bpmn:Task",
@@ -183,8 +223,8 @@
       ],
       "properties": [
         {
-          "name": "link",
-          "description": "URL of the activity",
+          "name": "url",
+          "description": "Link to the activity",
           "isAttr": true,
           "type": "String"
         }
@@ -208,9 +248,6 @@
           "type": "BehaverseTaskEnum",
           "description": "Behaverse instrument used for the test",
           "isAttr": true,
-          "superClass": [
-            "bpmn:ComplexBehaviorDefinition"
-          ],
           "condition": {
             "language": "json",
             "body": {
@@ -219,13 +256,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "VideoGame",
-      "superClass": [
-        "Activity"
-      ],
-      "properties": []
     },
     {
       "name": "Questionnaire",
@@ -242,7 +272,7 @@
       "properties": [
         {
           "name": "text",
-          "description": "Instruction content",
+          "description": "Instruction text in markdown format",
           "isAttr": true,
           "type": "MarkdownString"
         }

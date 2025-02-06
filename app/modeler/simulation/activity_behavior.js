@@ -18,7 +18,6 @@ export default function StudyFlowActivityBehavior(
     'studyflow:Activity',
     'studyflow:CognitiveTest',
     'studyflow:Questionnaire',
-    'studyflow:VideoGame',
     'studyflow:Instruction'
   ];
 

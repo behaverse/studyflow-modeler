@@ -41,19 +41,10 @@ export default class StudyFlowPalette {
       'create.studyflow-cognitive-test': {
         group: 'studyflow',
         className: 'bi bi-puzzle',
-        title: 'Create Cognitive Test',
+        title: 'Create Cognitive Test or Video Game',
         action: {
           dragstart: createElement.bind(null, 'studyflow:CognitiveTest'),
           click: createElement.bind(null, 'studyflow:CognitiveTest'),
-        }
-      },
-      'create.studyflow-video-game': {
-        group: 'studyflow',
-        className: 'bi bi-controller',
-        title: 'Create Video Game',
-        action: {
-          dragstart: createElement.bind(null, 'studyflow:VideoGame'),
-          click: createElement.bind(null, 'studyflow:VideoGame'),
         }
       },
       'create.studyflow-questionnaire': {

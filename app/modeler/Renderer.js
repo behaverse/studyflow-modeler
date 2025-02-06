@@ -14,7 +14,7 @@ import PersonGearIcon from "bootstrap-icons/icons/person-gear.svg";
 
 const STUDYFLOW_ICONS = {
   'studyflow:RandomGateway': ShuffleIcon,
-  'studyflow:VideoGame': ControllerIcon,
+  // 'studyflow:VideoGame': ControllerIcon,
   'studyflow:CognitiveTest': PuzzleIcon,
   'studyflow:Questionnaire': PencilIcon,
   'studyflow:Instruction': ChatSquareDotsIcon
@@ -97,7 +97,6 @@ export default class StudyFlowRenderer extends BaseRenderer {
       fill: getFillColor(element),
     });
 
-    console.log(getStrokeColor(element));
     svgAppend(parentNode, image);
 
     return icon;
