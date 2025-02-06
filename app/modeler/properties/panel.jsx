@@ -1,5 +1,5 @@
 
-import { useContext, useEffect, useState, useReducer, useCallback } from 'react';
+import { useContext, useEffect, useState, useCallback } from 'react';
 import { ModelerContext, PropertiesPanelContext } from '../contexts';
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
@@ -20,25 +20,8 @@ export function PropertiesPanel() {
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
-    const moddle = injector.get('moddle');
     const [element, setElement] = useState(null);
-    const [forceUpdated, forceUpdate] = useReducer(x => x + 1, 0);
 
-    const getConditionalProperties = useCallback(() => {
-        // this allows to re-render only the conditional properties
-        const typeMap = moddle.registry.typeMap;
-        var conditionals = Object.entries(typeMap).map(([key, value]) => {
-            if (key.startsWith("studyflow:") && value.properties) {
-                for (const p of value.properties) {
-                    if (p.condition) {
-                        return p.ns.name;
-                    }
-                }
-            }
-        });
-        conditionals = conditionals.filter((c) => c);
-        return conditionals;
-    }, [moddle]);
 
     const getProperties = useCallback((element) => {
         // TODO automatically populate group names
@@ -57,7 +40,7 @@ export function PropertiesPanel() {
         });
 
         // remove empty groups using filter and Object.fromEntries
-        groups = Object.entries(groups).filter(([k, v]) => v.length > 0);
+        groups = Object.entries(groups).filter(([, v]) => v.length > 0);
         groups = Object.fromEntries(groups);
         return groups;
     }, []);
@@ -75,27 +58,9 @@ export function PropertiesPanel() {
         };
     }, [eventBus, element]);
 
-    useEffect(() => {
-        function onElementsChanged(e) {
-            if (!element) {
-                return;
-            }
-            const newElements = e.elements;
-            const newElement = newElements.find((el) => el.id === element.id);
-            if (newElement) {
-                setElement(newElement);
-                forceUpdate();
-            }
-        }
-        eventBus.on('elements.changed', onElementsChanged);
-        return () => {
-            eventBus.off('elements.changed', onElementsChanged);
-        };
-    }, [eventBus, element, forceUpdated]);
-
     return (
         <PropertiesPanelContext.Provider
-            value={{ element: element, businessObject: getBusinessObject(element), forceUpdate: forceUpdate }}>
+            value={{ element: element, businessObject: getBusinessObject(element) }}>
             <div className="bg-stone-50 basis-1/4 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
                 {element &&
                     <>
@@ -117,9 +82,7 @@ export function PropertiesPanel() {
                                             className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
                                             {grpBpmnProperties.map((p) => (
                                                 // this key renders the conditional property if needed 
-                                                <PropertyField
-                                                    key={element.id + p.ns.name + (getConditionalProperties().includes(p.ns.name) ? forceUpdated : '')}
-                                                        bpmnProperty={p} />
+                                                <PropertyField key={element.id + p.ns.name} bpmnProperty={p} />
                                             ))}
                                         </DisclosurePanel>
                                     </Disclosure>
