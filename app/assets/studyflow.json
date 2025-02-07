@@ -167,9 +167,9 @@
         {
           "name": "requiresConsent",
           "description": "User requires to give consent before participating",
-          "default": true,
           "isAttr": true,
-          "type": "Boolean"
+          "type": "Boolean",
+          "default": false
         },
         {
           "name": "consentFormUrl",
