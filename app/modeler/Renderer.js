@@ -14,7 +14,7 @@ import PersonGearIcon from "bootstrap-icons/icons/person-gear.svg";
 import BehaverseInstrumentIcon from "bootstrap-icons/icons/hexagon.svg";
 import RestInstrumentIcon from "bootstrap-icons/icons/moon.svg";
 import StartEventConsentIcon from "bootstrap-icons/icons/person-lock.svg";
-import RedirectEndEventIcon from "bootstrap-icons/icons/box-arrow-up-right.svg";
+import RedirectEndEventIcon from "bootstrap-icons/icons/box-arrow-right.svg";
 
 export default class StudyFlowRenderer extends BaseRenderer {
 
@@ -169,13 +169,13 @@ export default class StudyFlowRenderer extends BaseRenderer {
     // StartEvent
     if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, StartEventConsentIcon, 6, 6, 24, 24);
+      this.drawIcon(parentNode, element, StartEventConsentIcon, 5, 5, 24, 24);
       return circle
     }
 
     if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
       const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, RedirectEndEventIcon, 9, 8, 20, 20);
+      this.drawIcon(parentNode, element, RedirectEndEventIcon, 8, 7, 22, 22);
       return circle
     }
 
