@@ -32,12 +32,7 @@ RandomGatewayBehavior.prototype.exit = function(context) {
     });
   }
 
-//   const {
-//     activeOutgoing
-    //   } = this._simulator.getConfig(element);
-  const activeOutgoing = outgoings[Math.floor(Math.random() * outgoings.length)];
-
-  const outgoing = outgoings.find(o => o === activeOutgoing);
+  const outgoing = outgoings[Math.floor(Math.random() * outgoings.length)];
 
   if (!outgoing) {
     return this._scopeBehavior.tryExit(scope.parent, scope);
