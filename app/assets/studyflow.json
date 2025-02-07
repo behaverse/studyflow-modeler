@@ -144,6 +144,10 @@
         {
           "name": "Which One (WO)",
           "value": "WO"
+        },
+        {
+          "name": "Undefined",
+          "value": "undefined"
         }
       ]
     }
@@ -255,8 +259,9 @@
         },
         {
           "name": "behaverseTask",
-          "type": "BehaverseTaskEnum",
           "description": "Behaverse instrument used for the test",
+          "type": "BehaverseTaskEnum",
+          "default": "undefined",
           "isAttr": true,
           "condition": {
             "language": "json",

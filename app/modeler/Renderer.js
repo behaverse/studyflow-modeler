@@ -106,15 +106,58 @@ export default class StudyFlowRenderer extends BaseRenderer {
     return icon;
   }
 
+  drawBehaverseTaskMarker(parentNode, element, task, x=9, y=21, fontSize=12) {
+
+    switch (task.length) {
+      case 2:
+        x = 10;
+        y = 21;
+        fontSize = 11;
+        break;
+      case 3:
+        x = 8;
+        y = 22;
+        fontSize = 11;
+        break;
+      default:
+        task = task.substring(0, 4);
+        x = 8.5;
+        y = 21;
+        fontSize = 8;
+        break;
+    }
+
+    var text = svgCreate('text', {
+      x: x,
+      y: y,
+      fontSize: fontSize,
+      fontFamily: 'ui-monospace, monospace',
+      fill: getStrokeColor(element),
+      fontWeight: 'bold',
+      strokeWidth: 0
+    });
+
+    text.textContent = task;
+    
+    svgAppend(parentNode, text);
+    return text;
+  }
+
   drawShape(parentNode, element) {
 
     // draw icon
     var icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
+    var textMarker = undefined;
 
     // change instrument icon
     switch (element.businessObject.get("instrument")) {
       case "behaverse":
         icon = HexagonIcon;
+        textMarker = element.businessObject.get("behaverseTask")?.toUpperCase();
+        if (textMarker === "UNDEFINED") {
+          // HACK to handle undefined values.
+          textMarker = undefined;
+        }
         break;
       case "videoGame":
         icon = ControllerIcon;
@@ -138,15 +181,28 @@ export default class StudyFlowRenderer extends BaseRenderer {
     }
 
     if (is(element, "studyflow:Activity")) {
-      const box = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
-      this.drawIcon(parentNode, element, icon);
-      return box;
+      const activity = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
+      var iconSize = 26;
+      if (textMarker !== undefined) {
+        this.drawBehaverseTaskMarker(parentNode, element, textMarker);
+        switch (textMarker.length) {
+          case 2:
+            iconSize = 26;
+            break;
+          default:
+            iconSize = 28;
+            break;
+        }
+      }
+      this.drawIcon(parentNode, element, icon, 4, 4, iconSize, iconSize);
+
+      return activity;
     }
 
     if (is(element, "bpmn:Gateway")) {
-      var diamond = this.drawDiamond(parentNode, element);
+      var gateway = this.drawDiamond(parentNode, element);
       this.drawIcon(parentNode, element, icon, 12, 12);
-      return diamond;
+      return gateway;
     }
   }
 }
