@@ -104,8 +104,13 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
 
-    const icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
+    var icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
 
+    if (is(element, "studyflow:CognitiveTest") &&
+      (element.businessObject.get("instrument") === "videoGame")) {
+      icon = ControllerIcon;
+    }
+    
     if (is(element, "studyflow:Activity")) {
       const box = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
       this.drawIcon(parentNode, element, icon, 4, 4);
