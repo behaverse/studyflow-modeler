@@ -8,6 +8,22 @@
   "associations": [],
   "enumerations": [
     {
+      "name": "AssignmentAlgorithmEnum",
+      "isAbstract": true,
+      "description": "The scheduling algorithm used for the assignment.",
+      "literalValues": [
+        {
+          "name": "Probabilistic",
+          "value": "probabilistic"
+        },
+        {
+          "name": "Round Robin",
+          "value": "round-robin"
+        }
+      ]
+    },
+
+    {
       "name": "ProbabilityDistributionEnum",
       "isAbstract": true,
       "description": "The random statistical distribution used for the assignment.",
@@ -301,10 +317,24 @@
       ],
       "properties": [
         {
+          "name": "algorithm",
+          "description": "Algorithm used for the assignment",
+          "isAttr": true,
+          "type": "AssignmentAlgorithmEnum",
+          "default": "probabilistic"
+        },
+        {
           "name": "probabilityFunction",
           "description": "Probability mass function that defines the discrete distribution of the random assignment",
           "isAttr": true,
-          "type": "String"
+          "type": "String",
+          "default": "uniform",
+          "condition": {
+            "language": "json",
+            "body": {
+              "studyflow:algorithm": "probabilistic"
+            }
+          }
         }
       ]
     }

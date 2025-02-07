@@ -51,12 +51,14 @@ export function PropertyField(props) {
 
     function renderInput() {
         //TODO use enumerations in the moddle file to determine if it's enum
-        switch (propertyType) {
+        var genericPropertyType = propertyType;
+        if (propertyType?.includes('Enum')) {
+            genericPropertyType = 'Enum';
+        }
+        switch (genericPropertyType) {
             case 'Boolean':
                 return <BooleanInput {...props} />;
-            case 'studyflow:InstrumentEnum':
-            case 'studyflow:BehaverseTaskEnum':
-            case 'studyflow:ProbabilityDistributionEnum':
+            case 'Enum':
                 return <EnumInput {...props} />;
             case 'studyflow:MarkdownString':
                 return <StringInput {...props} isMarkdown={true} />;

@@ -27,16 +27,16 @@ export function PropertiesPanel() {
     const getProperties = useCallback((element) => {
         // TODO automatically populate group names
         var groups = {
-            "general": [],
-            "studyflow": []
+            "general-panel": [],
+            "studyflow-design-panel": []
         }
         getBusinessObject(element).$descriptor.properties.forEach((prop) => {
             if (prop.ns.prefix === 'studyflow') {
-                groups["studyflow"].push(prop);
+                groups["studyflow-design-panel"].push(prop);
             }
             if (Object.keys(defaultPropsDescriptions).includes(prop.ns.name)) {
                 prop.description = defaultPropsDescriptions[prop.ns.name];
-                groups["general"].push(prop);
+                groups["general-panel"].push(prop);
             }
         });
 
@@ -62,16 +62,16 @@ export function PropertiesPanel() {
     function renderGroupTabs(el) {
         return (
             <>
-            <h1 className="text-lg text-center font-bold p-2 bg-stone-100 sticky top-0 text-black">{el.type.split(':')[1]}</h1>
+            <h1 className="text-lg text-left font-bold p-2 bg-stone-100 sticky top-0 text-black border-stone-300">{el.type.split(':')[1]}</h1>
         <div className="w-full">
             <TabGroup defaultIndex={0}>
-                <TabList className="flex flex-row bg-stone-100 py-1 p-2 text-md font-semibold  justify-center border-b border-dashed border-stone-300 space-x-1">
+                <TabList className="flex flex-row bg-stone-100 px-2 text-sm justify-left space-x-0">
                 {Object.entries(getProperties(el)).map(
                     ([groupName,]) =>
-                        <Tab key={groupName} className="bg-stone-200 px-2 text-stone-700 data-[selected]:text-white data-[selected]:bg-stone-800 data-[hover]:bg-stone-300 border-s rounded-md">{t(groupName)}</Tab>
+                        <Tab key={groupName} className="bg-stone-100 py-1 px-2 data-[selected]:font-bold data-[selected]:border-b-2 border-black data-[hover]:bg-stone-300">{t(groupName)}</Tab>
                 )}
               </TabList>
-                <TabPanels className="pt-2">
+                <TabPanels className="pt-3">
                 {Object.entries(getProperties(el)).map(
                     ([groupName, grpBpmnProperties]) =>
                         <TabPanel key={groupName}>
@@ -127,7 +127,7 @@ export function PropertiesPanel() {
         <PropertiesPanelContext.Provider
             value={{ element: element, businessObject: getBusinessObject(element) }}>
             <div className="bg-stone-50 md:basis-1/4 basis-1/2 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
-                {element && renderGroups(element, "default") }
+                {element && renderGroups(element, "tab") }
             </div>
         </PropertiesPanelContext.Provider>
     )

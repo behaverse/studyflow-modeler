@@ -1,6 +1,6 @@
 {
-    "general": "General",
-    "studyflow": "StudyFlow",
+    "general-panel": "General",
+    "studyflow-design-panel": "Data Collection",
     "bpmn:id": "ID",
     "bpmn:name": "Name",
     "bpmn:documentation": "Documentation",
@@ -12,5 +12,6 @@
     "studyflow:hasRedirectUrl": "Redirect after completion",
     "studyflow:redirectUrl": "Redirect URL",
     "studyflow:consentFormUrl": "Consent form URL",
-    "studyflow:probabilityFunction": "Probability function"
+    "studyflow:probabilityFunction": "Probability function",
+    "studyflow:algorithm": "Algorithm"
 }
