@@ -63,7 +63,7 @@ export function PropertiesPanel() {
         return (
             <>
                 <h1 className="text-lg text-left font-bold px-2 pt-2 bg-stone-200 sticky top-0 text-black border-stone-300">{el.type.split(':')[1]}</h1>
-                <h2 className="text-sm text-left font-mono px-2 pb-2 bg-stone-200 text-stone-700 sticky">{el.type}</h2>
+                <h2 className="text-xs text-left italic font-mono px-2 pb-2 bg-stone-200 text-stone-600 sticky">{el.type}</h2>
         <div className="w-full">
             <TabGroup defaultIndex={0}>
                 <TabList className="flex flex-row bg-stone-200 px-2 text-sm justify-left space-x-0">
