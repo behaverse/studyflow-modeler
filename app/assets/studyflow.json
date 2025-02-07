@@ -37,19 +37,23 @@
     {
       "name": "InstrumentEnum",
       "isAbstract": true,
-      "description": "The type of instrument used to measure cognitive performance. This should be moved to the enumerations.",
+      "description": "The type of instrument used to measure cognitive performance.",
       "literalValues": [
         {
-          "name": "Custom",
-          "value": "custom"
+          "name": "Behaverse",
+          "value": "behaverse"
         },
         {
           "name": "Video Game",
           "value": "videoGame"
         },
         {
-          "name": "Behaverse",
-          "value": "behaverse"
+          "name": "Rest",
+          "value": "rest"
+        },
+        {
+          "name": "Custom",
+          "value": "custom"
         }
       ]
     },
@@ -156,6 +160,9 @@
       "extends": [
         "bpmn:StartEvent"
       ],
+      "superClass": [
+        "studyflow:Element"
+      ],
       "properties": [
         {
           "name": "requiresConsent",
@@ -182,6 +189,9 @@
       "name": "EndEvent",
       "extends": [
         "bpmn:EndEvent"
+      ],
+      "superClass": [
+        "studyflow:Element"
       ],
       "properties": [
         {

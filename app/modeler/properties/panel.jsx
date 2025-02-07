@@ -4,6 +4,7 @@ import { ModelerContext, PropertiesPanelContext } from '../contexts';
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
+import { Tab, TabList, TabPanel, TabPanels, TabGroup } from '@headlessui/react';
 import { PropertyField } from './field';
 import { t } from '../../i18n';
 
@@ -58,38 +59,75 @@ export function PropertiesPanel() {
         };
     }, [eventBus, element]);
 
+    function renderGroupTabs(el) {
+        return (
+            <>
+            <h1 className="text-lg text-center font-bold p-2 bg-stone-100 sticky top-0 text-black">{el.type.split(':')[1]}</h1>
+        <div className="w-full">
+            <TabGroup defaultIndex={0}>
+                <TabList className="flex flex-row bg-stone-100 py-1 p-2 text-md font-semibold  justify-center border-b border-dashed border-stone-300 space-x-1">
+                {Object.entries(getProperties(el)).map(
+                    ([groupName,]) =>
+                        <Tab key={groupName} className="bg-stone-200 px-2 text-stone-700 data-[selected]:text-white data-[selected]:bg-stone-800 data-[hover]:bg-stone-300 border-s rounded-md">{t(groupName)}</Tab>
+                )}
+              </TabList>
+                <TabPanels className="pt-2">
+                {Object.entries(getProperties(el)).map(
+                    ([groupName, grpBpmnProperties]) =>
+                        <TabPanel key={groupName}>
+                            {grpBpmnProperties.map((p) => (
+                                // this key renders the conditional property if needed 
+                                <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
+                            ))}
+                        </TabPanel>
+                )}
+              </TabPanels>
+                    </TabGroup>
+                </div>
+                </>
+          )
+    }
+
+    function renderGroups(el, style="tab") {
+
+        if (style === "tab") {
+            return renderGroupTabs(el);
+        }
+
+        // default style
+        return (
+            <>
+            <h1 className="text-lg font-bold p-2 bg-stone-100 border-b border-dashed  border-stone-300 sticky top-0 text-stone-900">{el.type.split(':')[1]}</h1>
+        <div className="w-full">
+                {Object.entries(getProperties(el)).map(
+                    ([groupName, grpBpmnProperties]) =>
+                        <Disclosure
+                            defaultOpen={groupName === "general"}
+                            key={groupName}>
+                            <DisclosureButton
+                                className="group p-2 text-left w-full text-md font-semibold text-stone-800">
+                                {t(groupName)}
+                                <i className="bi bi-caret-right-fill group-data-[open]:rotate-90 pe-1 group-data-[open]:pt-1 float-start"></i>
+                            </DisclosureButton>
+                            <DisclosurePanel transition
+                                className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
+                                {grpBpmnProperties.map((p) => (
+                                    // this key renders the conditional property if needed 
+                                    <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
+                                ))}
+                            </DisclosurePanel>
+                        </Disclosure>
+                )}
+                </div>
+                </>
+        );
+    }
+
     return (
         <PropertiesPanelContext.Provider
             value={{ element: element, businessObject: getBusinessObject(element) }}>
-            <div className="bg-stone-50 basis-1/4 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
-                {element &&
-                    <>
-                        <h1 className="text-lg font-bold p-2 bg-stone-100 border-b border-dashed  border-stone-300 sticky top-0 text-stone-700">
-                            {element.type.split(':')[1]}
-                        </h1>
-                        <div className="w-full">
-                            {Object.entries(getProperties(element)).map(
-                                ([groupName, grpBpmnProperties]) =>
-                                    <Disclosure
-                                        defaultOpen={groupName === "general"}
-                                        key={groupName}>
-                                        <DisclosureButton
-                                            className="group p-2 text-left w-full text-md font-semibold text-stone-700">
-                                            {t(groupName)}
-                                            <i className="bi bi-caret-right-fill group-data-[open]:rotate-90 pe-1 group-data-[open]:pt-1 float-start"></i>
-                                        </DisclosureButton>
-                                        <DisclosurePanel transition
-                                            className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
-                                            {grpBpmnProperties.map((p) => (
-                                                // this key renders the conditional property if needed 
-                                                <PropertyField key={element.id + p.ns.name} bpmnProperty={p} />
-                                            ))}
-                                        </DisclosurePanel>
-                                    </Disclosure>
-                            )}
-                        </div>
-                    </>
-                }
+            <div className="bg-stone-50 md:basis-1/4 basis-1/2 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
+                {element && renderGroups(element, "default") }
             </div>
         </PropertiesPanelContext.Provider>
     )

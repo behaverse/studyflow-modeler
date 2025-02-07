@@ -11,6 +11,10 @@ import PencilIcon from "bootstrap-icons/icons/pencil.svg";
 import ChatSquareDotsIcon from "bootstrap-icons/icons/chat-square-dots.svg";
 import ShuffleIcon from "bootstrap-icons/icons/shuffle.svg";
 import PersonGearIcon from "bootstrap-icons/icons/person-gear.svg";
+import HexagonIcon from "bootstrap-icons/icons/hexagon.svg";
+import MoonIcon from "bootstrap-icons/icons/moon.svg";
+import ShieldExclamationIcon from "bootstrap-icons/icons/shield-exclamation.svg";
+import BoxArrowRightIcon from "bootstrap-icons/icons/box-arrow-right.svg";
 
 const STUDYFLOW_ICONS = {
   'studyflow:RandomGateway': ShuffleIcon,
@@ -85,13 +89,13 @@ export default class StudyFlowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, icon, x, y) {
+  drawIcon(parentNode, element, icon, x=4, y=4, w=26, h=26) {
 
     var image = svgCreate('image', {
       x: x,
       y: y,
-      width: 26,
-      height: 26,
+      width: w,
+      height: h,
       href: icon.replace(/currentColor/g,
                          this.colorToHex(getStrokeColor(element)).replaceAll('#', '%23')),
       fill: getFillColor(element),
@@ -104,24 +108,45 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
 
+    // draw icon
     var icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
 
-    if (is(element, "studyflow:CognitiveTest") &&
-      (element.businessObject.get("instrument") === "videoGame")) {
-      icon = ControllerIcon;
+    // change instrument icon
+    switch (element.businessObject.get("instrument")) {
+      case "behaverse":
+        icon = HexagonIcon;
+        break;
+      case "videoGame":
+        icon = ControllerIcon;
+        break;
+      case "rest":
+        icon = MoonIcon;
+        break;
     }
-    
+
+    // StartEvent
+    if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
+      const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
+      this.drawIcon(parentNode, element, ShieldExclamationIcon, 6, 6, 24, 24);
+      return circle
+    }
+
+    if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
+      const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
+      this.drawIcon(parentNode, element, BoxArrowRightIcon, 9, 8, 20, 20);
+      return circle
+    }
+
     if (is(element, "studyflow:Activity")) {
       const box = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
-      this.drawIcon(parentNode, element, icon, 4, 4);
+      this.drawIcon(parentNode, element, icon);
       return box;
     }
 
-    if (is(element, "studyflow:RandomGateway")) {
+    if (is(element, "bpmn:Gateway")) {
       var diamond = this.drawDiamond(parentNode, element);
       this.drawIcon(parentNode, element, icon, 12, 12);
       return diamond;
     }
   }
-
 }
