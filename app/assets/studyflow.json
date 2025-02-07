@@ -186,7 +186,7 @@
       "properties": [
         {
           "name": "requiresConsent",
-          "description": "User requires to give consent before participating",
+          "description": "User requires to give consent before participating.",
           "isAttr": true,
           "type": "Boolean",
           "default": false
@@ -216,13 +216,13 @@
       "properties": [
         {
           "name": "hasRedirectUrl",
-          "description": "Redirect the user to the given URL after completion",
+          "description": "Redirect the user to the given URL after completion.",
           "isAttr": true,
           "type": "Boolean"
         },
         {
           "name": "redirectUrl",
-          "description": "Link to redirect the user upon completion",
+          "description": "Link to redirect the user upon completion.",
           "isAttr": true,
           "type": "String",
           "condition": {
@@ -236,7 +236,7 @@
     },
     {
       "name": "Element",
-      "description": "Base class for all elements in the StudyFlow",
+      "description": "Base class for all elements in the StudyFlow.",
       "isAbstract": true,
       "superClass": [
         "bpmn:BaseElement"
@@ -245,7 +245,7 @@
     },
     {
       "name": "Activity",
-      "description": "Base class for all activities in the StudyFlow",
+      "description": "Base class for all activities in the StudyFlow.",
       "isAbstract": true,
       "superClass": [
         "bpmn:Task",
@@ -254,7 +254,7 @@
       "properties": [
         {
           "name": "url",
-          "description": "Link to the activity",
+          "description": "Link to the activity.",
           "isAttr": true,
           "type": "String"
         }
@@ -268,14 +268,14 @@
       "properties": [
         {
           "name": "instrument",
-          "description": "Instrument used for the test",
+          "description": "Instrument used for the test.",
           "isAttr": true,
           "type": "InstrumentEnum",
           "default": "custom"
         },
         {
           "name": "behaverseTask",
-          "description": "Behaverse instrument used for the test",
+          "description": "Behaverse instrument used for the test.",
           "type": "BehaverseTaskEnum",
           "default": "undefined",
           "isAttr": true,
@@ -303,7 +303,7 @@
       "properties": [
         {
           "name": "text",
-          "description": "Instruction text in markdown format",
+          "description": "Instruction text in markdown format.",
           "isAttr": true,
           "type": "MarkdownString"
         }
@@ -318,14 +318,14 @@
       "properties": [
         {
           "name": "algorithm",
-          "description": "Algorithm used for the assignment",
+          "description": "Algorithm used for the assignment.",
           "isAttr": true,
           "type": "AssignmentAlgorithmEnum",
           "default": "probabilistic"
         },
         {
           "name": "probabilityFunction",
-          "description": "Probability mass function that defines the discrete distribution of the random assignment",
+          "description": "Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.",
           "isAttr": true,
           "type": "String",
           "default": "uniform",

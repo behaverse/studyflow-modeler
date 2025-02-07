@@ -5,27 +5,16 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-import PuzzleIcon from "bootstrap-icons/icons/puzzle.svg";
-import ControllerIcon from "bootstrap-icons/icons/controller.svg";
-import PencilIcon from "bootstrap-icons/icons/pencil.svg";
-import ChatSquareDotsIcon from "bootstrap-icons/icons/chat-square-dots.svg";
-import ShuffleIcon from "bootstrap-icons/icons/shuffle.svg";
+import CognitiveTestIcon from "bootstrap-icons/icons/puzzle.svg";
+import VideoGameIcon from "bootstrap-icons/icons/controller.svg";
+import QuestionnaireIcon from "bootstrap-icons/icons/pencil.svg";
+import InstructionIcon from "bootstrap-icons/icons/chat-square-dots.svg";
+import RandomGatewayIcon from "bootstrap-icons/icons/shuffle.svg";
 import PersonGearIcon from "bootstrap-icons/icons/person-gear.svg";
-import HexagonIcon from "bootstrap-icons/icons/hexagon.svg";
-import MoonIcon from "bootstrap-icons/icons/moon.svg";
-import ShieldExclamationIcon from "bootstrap-icons/icons/shield-exclamation.svg";
-import BoxArrowRightIcon from "bootstrap-icons/icons/box-arrow-right.svg";
-
-const STUDYFLOW_ICONS = {
-  'studyflow:RandomGateway': ShuffleIcon,
-  // 'studyflow:VideoGame': ControllerIcon,
-  'studyflow:CognitiveTest': PuzzleIcon,
-  'studyflow:Questionnaire': PencilIcon,
-  'studyflow:Instruction': ChatSquareDotsIcon
-}
-
-const STUDYFLOW_DEFAULT_ICON = PersonGearIcon;
-
+import BehaverseInstrumentIcon from "bootstrap-icons/icons/hexagon.svg";
+import RestInstrumentIcon from "bootstrap-icons/icons/moon.svg";
+import StartEventConsentIcon from "bootstrap-icons/icons/person-lock.svg";
+import RedirectEndEventIcon from "bootstrap-icons/icons/box-arrow-up-right.svg";
 
 export default class StudyFlowRenderer extends BaseRenderer {
 
@@ -108,10 +97,14 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
   drawBehaverseTaskMarker(parentNode, element, task, x=9, y=21, fontSize=12) {
 
+    if (!task) {
+      return;
+    }
+
     switch (task.length) {
       case 2:
-        x = 10;
-        y = 21;
+        x = 9;
+        y = 20;
         fontSize = 11;
         break;
       case 3:
@@ -145,54 +138,61 @@ export default class StudyFlowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
 
-    // draw icon
-    var icon = STUDYFLOW_ICONS[element.type] || STUDYFLOW_DEFAULT_ICON;
-    var textMarker = undefined;
+    var icon = {
+      'studyflow:RandomGateway': RandomGatewayIcon,
+      // 'studyflow:VideoGame': ControllerIcon,
+      'studyflow:CognitiveTest': CognitiveTestIcon,
+      'studyflow:Questionnaire': QuestionnaireIcon,
+      'studyflow:Instruction': InstructionIcon
+    }[element.type] || PersonGearIcon;    
+
+    var textOnIconMarker = undefined;
 
     // change instrument icon
     switch (element.businessObject.get("instrument")) {
       case "behaverse":
-        icon = HexagonIcon;
-        textMarker = element.businessObject.get("behaverseTask")?.toUpperCase();
-        if (textMarker === "UNDEFINED") {
+        icon = BehaverseInstrumentIcon;
+        textOnIconMarker = element.businessObject.get("behaverseTask")?.toUpperCase();
+        if (textOnIconMarker === "UNDEFINED") {
           // HACK to handle undefined values.
-          textMarker = undefined;
+          textOnIconMarker = undefined;
         }
         break;
       case "videoGame":
-        icon = ControllerIcon;
+        icon = VideoGameIcon;
         break;
       case "rest":
-        icon = MoonIcon;
+        icon = RestInstrumentIcon;
         break;
     }
 
     // StartEvent
     if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, ShieldExclamationIcon, 6, 6, 24, 24);
+      this.drawIcon(parentNode, element, StartEventConsentIcon, 6, 6, 24, 24);
       return circle
     }
 
     if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
       const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, BoxArrowRightIcon, 9, 8, 20, 20);
+      this.drawIcon(parentNode, element, RedirectEndEventIcon, 9, 8, 20, 20);
       return circle
     }
 
     if (is(element, "studyflow:Activity")) {
       const activity = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
       var iconSize = 26;
-      if (textMarker !== undefined) {
-        this.drawBehaverseTaskMarker(parentNode, element, textMarker);
-        switch (textMarker.length) {
-          case 2:
-            iconSize = 26;
-            break;
-          default:
-            iconSize = 28;
-            break;
-        }
+      this.drawBehaverseTaskMarker(parentNode, element, textOnIconMarker);
+      switch (textOnIconMarker?.length) {
+        case undefined:
+          iconSize = 24;
+          break;
+        case 2:
+          iconSize = 24;
+          break;
+        default: // 3, 4, or more
+          iconSize = 28;
+          break;
       }
       this.drawIcon(parentNode, element, icon, 4, 4, iconSize, iconSize);
 

@@ -62,13 +62,14 @@ export function PropertiesPanel() {
     function renderGroupTabs(el) {
         return (
             <>
-            <h1 className="text-lg text-left font-bold p-2 bg-stone-100 sticky top-0 text-black border-stone-300">{el.type.split(':')[1]}</h1>
+                <h1 className="text-lg text-left font-bold px-2 pt-2 bg-stone-200 sticky top-0 text-black border-stone-300">{el.type.split(':')[1]}</h1>
+                <h2 className="text-sm text-left font-mono px-2 pb-2 bg-stone-200 text-stone-700 sticky">{el.type}</h2>
         <div className="w-full">
             <TabGroup defaultIndex={0}>
-                <TabList className="flex flex-row bg-stone-100 px-2 text-sm justify-left space-x-0">
+                <TabList className="flex flex-row bg-stone-200 px-2 text-sm justify-left space-x-0">
                 {Object.entries(getProperties(el)).map(
                     ([groupName,]) =>
-                        <Tab key={groupName} className="bg-stone-100 py-1 px-2 data-[selected]:font-bold data-[selected]:border-b-2 border-black data-[hover]:bg-stone-300">{t(groupName)}</Tab>
+                        <Tab key={groupName} className="bg-stone-200 py-1 px-2 data-[selected]:font-bold data-[selected]:bg-stone-50 data-[selected]:border-t-2 border-black data-[hover]:bg-stone-200">{t(groupName)}</Tab>
                 )}
               </TabList>
                 <TabPanels className="pt-3">
