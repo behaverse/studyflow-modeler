@@ -69,7 +69,7 @@ export function PropertiesPanel() {
                 <TabList className="flex flex-row bg-stone-200 px-2 text-sm justify-left space-x-0">
                 {Object.entries(getProperties(el)).map(
                     ([groupName,]) =>
-                        <Tab key={groupName} className="bg-stone-200 py-1 px-2 data-[selected]:font-bold data-[selected]:bg-stone-50 data-[selected]:border-t-2 border-black data-[hover]:bg-stone-200">{t(groupName)}</Tab>
+                        <Tab key={groupName} className="bg-stone-200 py-1 px-2 data-[selected]:font-bold data-[selected]:bg-stone-50 data-[selected]:border-t-2 border-black data-[hover]:bg-stone-200  focus:outline-none focus-visible:outline-none">{t(groupName)}</Tab>
                 )}
               </TabList>
                 <TabPanels className="pt-3">
