@@ -9,40 +9,64 @@ export default function ExportButton(props) {
   const {modeler} = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)
   let [status, setStatus] = useState(undefined)
+  let [publishButtonIsVisible, setPublishButtonIsVisible] = useState(true)
   let [previewUrl, setPreviewUrl] = useState(undefined)
   let [isLoading, setLoading] = useState(false)
 
   function open() {
-    setLoading(false)
-    setStatus(undefined)
-    setIsOpen(true)
+    setPublishButtonIsVisible(true)
+    setPreviewUrl(undefined);
+    setLoading(false);
+    setStatus(undefined);
+    setIsOpen(true);
   }
 
   function close() {
-    setIsOpen(false)
+    setPublishButtonIsVisible(true);
+    setIsOpen(false);
+    setPreviewUrl(undefined);
   }
   useEffect(() => {
   }, [modeler]);
 
   const handlePublish = (formData) => {
     setLoading(true);
+    setStatus("Publishing...");
+    setPublishButtonIsVisible(false);
     const study_name = formData.get('study_name');
     const api_key = formData.get('api_key');
     modeler.saveXML({ format: true }).then(({ xml }) => {
       fetch(`https://api.behaverse.org/v1/studies/${study_name}/flow`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/xml'
+          'Content-Type': 'text/xml',
+          'Authorization': `Bearer ${api_key}`
         },
         body: xml
-      }).then((response) => response.json()).then((data) => {
-        setLoading(false);
-        setStatus(data.status);
-        console.log(data);
-        setPreviewUrl(data.preview_url);
+      }).then((response) => {
+        if (response.status === 403 || response.status === 401) {
+          console.log(response);
+          throw new Error("Invalid API key");
+        }
+  
+        if (!response.ok) {
+          throw new Error("Failed to publish [error code: " + response.status + "]");
+        }
+
+        return response.json()
       })
-    }).catch((error) => {
-      console.error(error);
+        .then((data) => {
+          setLoading(false);
+          setStatus("Published successfully.");
+          setPreviewUrl(data.preview_url);
+        })
+        .catch((error) => {
+          setPublishButtonIsVisible(true);
+          console.error(error);
+          setPreviewUrl(undefined);
+          setLoading(false);
+          setStatus(<div className="text-red-500">{error.message}</div>);
+        });
     });
   }
 
@@ -95,7 +119,7 @@ export default function ExportButton(props) {
                   {status &&
                     <div className="float-start inline-flex items-center py-1.5">
                       <span className="text-sm m-auto">
-                        Study Flow published successfully.
+                        {status}
                       </span>
                     </div>
                   }
@@ -104,7 +128,7 @@ export default function ExportButton(props) {
                     className="float-end inline-flex items-center gap-2 rounded-md bg-green-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-green-700"
                   >Preview</a>
                   }
-                  {!status &&
+                  {publishButtonIsVisible &&
                     <Button
                       type="submit"
                       className="float-end inline-flex items-center gap-2 rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-sky-700"
