@@ -26,3 +26,4 @@ dist-ssr
 # pixi environments
 .pixi
 *.egg-info
+*.drawio.bkp

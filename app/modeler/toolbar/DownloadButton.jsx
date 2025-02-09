@@ -11,16 +11,16 @@ export default function DownloadButton() {
 
   function downloadDiagram() {
     modeler.saveXML({ format: true }).then(({ xml }) => {
-      download(xml, 'diagram.bpmn', 'application/xml');
+      download(xml, 'StudyFlow Diagram.bpmn', 'application/xml');
     });
   }
 
   return (
       <button
         title="Download"
-        className="bg-stone-200 hover:bg-stone-300 border-y border-s border-gray-300 text-black py-1 px-3 rounded-s"
+        className="bg-stone-200 hover:bg-stone-300 border border-gray-300 text-black py-1 px-3"
         onClick={downloadDiagram}>
-          <i className="bi bi-download w-3 h-3"></i>
+          <i className="bi bi-cloud-download"></i>
         </button>
   );
 

@@ -37,7 +37,7 @@ export default function SimulateButton(props) {
         title="Simulate the study flow"
         className={"font-semibold py-1 px-3 rounded border " + classNames}
         onClick={toggleSimulation}>
-          <i className="bi bi-camera-reels w-3 h-3 me-2"></i>
+          <i className="bi bi-camera-reels me-2"></i>
           {label}</button>
   );
 
