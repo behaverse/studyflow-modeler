@@ -1,9 +1,9 @@
 
 const ICONS = {
-    "studyflow:RandomGateway": "bi bi-shuffle",
-    "studyflow:Questionnaire": "bi bi-pencil",
-    "studyflow:CognitiveTest": "bi bi-puzzle",
-    "studyflow:Instruction": "bi bi-chat-square-dots"
+    "studyflow:RandomGateway": "icon sfi-RandomGateway",
+    "studyflow:Questionnaire": "icon sfi-Questionnaire",
+    "studyflow:CognitiveTest": "icon sfi-CognitiveTest",
+    "studyflow:Instruction": "icon sfi-Instruction"
 }
 
 export default class CreateMenuProvider {

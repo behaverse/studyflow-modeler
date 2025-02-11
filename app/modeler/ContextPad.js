@@ -1,19 +1,15 @@
 // TODO refactor to use elementFactory to list elements
 const STUDYFLOW_ELEMENTS = {
   'studyflow:CognitiveTest': {
-    className: 'studyflow-icon CognitiveTest',
     title: 'Cognitive Test or Video Game'
   },
   'studyflow:Questionnaire': {
-    className: 'studyflow-icon Questionnaire',
     title: 'Questionnaire'
   },
   'studyflow:Instruction': {
-    className: 'studyflow-icon Instruction',
     title: 'Instruction'
   },
   'studyflow:RandomGateway': {
-    className: 'studyflow-icon RandomGateway',
     title: 'Random Gateway'
   },
 }
@@ -73,7 +69,7 @@ export default class StudyFlowContextPad {
       const elementInfo = STUDYFLOW_ELEMENTS[studyFlowElement];
       commands[commandName] = {
         group: 'studyflow',
-        className: 'studyflow-icon ' + studyFlowElement.split(':')[1],
+        className: 'sfi-' + studyFlowElement.split(':')[1],
         title: translate('Append ' + elementInfo.title),
         action: {
           click: appendElement.bind(null, studyFlowElement),

@@ -5,16 +5,16 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-import CognitiveTestIcon from "../assets/icons/CognitiveTest.svg";
-import VideoGameIcon from "../assets/icons/VideoGame.svg";
-import QuestionnaireIcon from "../assets/icons/Questionnaire.svg";
-import InstructionIcon from "../assets/icons/Instruction.svg";
-import RandomGatewayIcon from "../assets/icons/RandomGateway.svg";
-import ActivityIcon from "../assets/icons/Activity.svg";
-import BehaverseTaskIcon from "../assets/icons/behaverseTask.svg";
-import RestInstrumentIcon from "../assets/icons/Rest.svg";
-import StartEventConsentIcon from "../assets/icons/Consent.svg";
-import RedirectEndEventIcon from "../assets/icons/Redirect.svg";
+import CognitiveTestIcon from "../assets/icons/svg/CognitiveTest.svg";
+import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
+import QuestionnaireIcon from "../assets/icons/svg/Questionnaire.svg";
+import InstructionIcon from "../assets/icons/svg/Instruction.svg";
+import RandomGatewayIcon from "../assets/icons/svg/RandomGateway.svg";
+import ActivityIcon from "../assets/icons/svg/Activity.svg";
+import BehaverseTaskIcon from "../assets/icons/svg/BehaverseTask.svg";
+import RestInstrumentIcon from "../assets/icons/svg/Rest.svg";
+import StartEventConsentIcon from "../assets/icons/svg/Consent.svg";
+import RedirectEndEventIcon from "../assets/icons/svg/Redirect.svg";
 
 export default class StudyFlowRenderer extends BaseRenderer {
 
