@@ -4,6 +4,7 @@ import StudyFlowRenderer from './Renderer';
 import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
 import ColorPopupProvider from './ColorPopup';
+import CreateMenuProvider from './CreateMenuProvider';
 
 export const StudyFlowModule = {
   __init__: [
@@ -11,11 +12,13 @@ export const StudyFlowModule = {
     'studyFlowPalette',
     'studyFlowRenderer',
     'colorPopupProvider',
-    'resizableTasks'
+    'resizableTasks',
+    'studyFlowCreateMenuProvider'
   ],
   __depends__: [
     SimulationModule,
   ],
+  studyFlowCreateMenuProvider: ['type', CreateMenuProvider],
   studyFlowContextPad: ['type', StudyFlowContextPad],
   studyFlowPalette: ['type', StudyFlowPalette],
   studyFlowRenderer: ['type', StudyFlowRenderer],

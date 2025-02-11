@@ -9,8 +9,6 @@ import { APIKeyContext, ModelerContext } from './modeler/contexts';
 import { Toolbar } from './modeler';
 import { PropertiesPanel } from './modeler/properties';
 
-import { Menu, MenuItem, MenuItems, MenuButton } from '@headlessui/react';
-
 export default function App() {
 
   const [apiKey, setApiKey] = useState(null);
