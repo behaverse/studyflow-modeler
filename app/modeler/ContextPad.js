@@ -69,7 +69,8 @@ export default class StudyFlowContextPad {
       const elementInfo = STUDYFLOW_ELEMENTS[studyFlowElement];
       commands[commandName] = {
         group: 'studyflow',
-        className: 'sfi-' + studyFlowElement.split(':')[1],
+        className: 'sfi-' + studyFlowElement.split(':')[1] + (
+          studyFlowElement.split(':')[1]==="RandomGateway"? 'Diamond': ''),
         title: translate('Append ' + elementInfo.title),
         action: {
           click: appendElement.bind(null, studyFlowElement),

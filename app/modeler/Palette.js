@@ -67,8 +67,7 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-random-gateway': {
         group: 'studyflow',
-        className: 'sfi-RandomGateway',
-        style: 'background-size:2rem !important',
+        className: 'sfi-RandomGatewayDiamond',
         title: 'Create Random Gateway',
         action: {
           dragstart: createElement.bind(null, 'studyflow:RandomGateway'),

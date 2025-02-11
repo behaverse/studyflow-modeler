@@ -18,12 +18,14 @@
    -webkit-font-smoothing: antialiased;
    -moz-osx-font-smoothing: grayscale
 }
-.sfi-BehaverseTask:before{content:'\0041';}
-.sfi-CognitiveTest:before{content:'\0042';}
-.sfi-Consent:before{content:'\0043';}
-.sfi-Instruction:before{content:'\0044';}
-.sfi-Questionnaire:before{content:'\0045';}
-.sfi-RandomGateway:before{content:'\0046';}
-.sfi-Redirect:before{content:'\0047';}
-.sfi-Rest:before{content:'\0048';}
-.sfi-VideoGame:before{content:'\0049';}
+.sfi-Activity:before{content:'\0041';}
+.sfi-BehaverseTask:before{content:'\0042';}
+.sfi-CognitiveTest:before{content:'\0043';}
+.sfi-Consent:before{content:'\0044';}
+.sfi-Instruction:before{content:'\0045';}
+.sfi-Questionnaire:before{content:'\0046';}
+.sfi-RandomGateway:before{content:'\0047';}
+.sfi-RandomGatewayDiamond:before{content:'\0048';}
+.sfi-Redirect:before{content:'\0049';}
+.sfi-Rest:before{content:'\004a';}
+.sfi-VideoGame:before{content:'\004b';}
