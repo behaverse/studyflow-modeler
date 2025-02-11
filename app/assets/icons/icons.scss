@@ -1,0 +1,106 @@
+// $CognitiveTestImage: url('CognitiveTest.svg');
+
+@mixin CognitiveTestIcon {
+    background-image: url('CognitiveTest.svg');
+}
+
+@mixin QuestionnaireIcon {
+    background-image: url('Questionnaire.svg');
+}
+
+
+@mixin InstructionIcon {
+    background-image: url('Instruction.svg');
+}
+
+@mixin RandomGatewayIcon {
+    background-image: url('RandomGateway.svg');
+}
+
+@mixin ActivityIcon {
+    background-image: url('Activity.svg');
+}
+
+
+.studyflow-icon {
+    background-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    color: red;
+    // TODO: align icons to the center and add padding
+
+    &.CognitiveTest {
+        @include CognitiveTestIcon;
+    }
+
+    &.Questionnaire {
+        @include QuestionnaireIcon;
+    }
+
+    &.Instruction {
+        @include InstructionIcon;
+    }
+
+    &.RandomGateway {
+        @include RandomGatewayIcon;
+    }
+
+    &.Activity {
+        @include ActivityIcon;
+    }
+}
+
+.djs-palette .entry {
+    &:hover {
+        background-color: var(--palette-hover-background-color);
+    }
+    &.studyflow-icon {
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 1.7rem;
+        &:hover {
+            background-image: none;
+            mask-repeat: no-repeat;
+            mask-size: 1.7rem;
+            mask-position: center;
+            background-color: var(--palette-entry-hover-color);
+            &.studyflow-icon.CognitiveTest {
+                mask-image: url('CognitiveTest.svg');
+            }
+            &.studyflow-icon.Instruction {
+                mask-image: url('Instruction.svg');
+            }
+            &.studyflow-icon.Questionnaire {
+                mask-image: url('Questionnaire.svg');
+            }
+            &.studyflow-icon.RandomGateway {
+                mask-image: url('RandomGateway.svg');
+            }
+            
+        }
+        // fill: red;
+        // background: red !important;
+        // margin-left: 0.5rem;
+    }
+}
+
+.djs-context-pad .entry {
+    background-size: 1.25rem;
+    background-position: center;
+    &:hover {
+        background-size: 1.25rem;
+        background-position: center;
+        background-color: var(--context-pad-entry-hover-background-color);
+        &.studyflow-icon.CognitiveTest {
+            @extend .studyflow-icon, .CognitiveTest;
+        }
+        &.studyflow-icon.Instruction {
+            @extend .studyflow-icon, .Instruction;
+        }
+        &.studyflow-icon.Questionnaire {
+            @extend .studyflow-icon, .Questionnaire;
+        }
+        &.studyflow-icon.RandomGateway {
+            @extend .studyflow-icon, .RandomGateway;
+        }
+    }
+}

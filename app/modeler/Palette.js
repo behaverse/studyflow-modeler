@@ -40,7 +40,7 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-cognitive-test': {
         group: 'studyflow',
-        className: 'bi bi-puzzle',
+        className: 'studyflow-icon CognitiveTest',
         title: 'Create Cognitive Test or Video Game',
         action: {
           dragstart: createElement.bind(null, 'studyflow:CognitiveTest'),
@@ -49,7 +49,7 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-questionnaire': {
         group: 'studyflow',
-        className: 'bi bi-pencil',
+        className: 'studyflow-icon Questionnaire',
         title: 'Create Questionnaire',
         action: {
           dragstart: createElement.bind(null, 'studyflow:Questionnaire'),
@@ -58,7 +58,7 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-instruction': {
         group: 'studyflow',
-        className: 'bi bi-chat-square-dots',
+        className: 'studyflow-icon Instruction',
         title: 'Create Instruction',
         action: {
           dragstart: createElement.bind(null, 'studyflow:Instruction'),
@@ -67,8 +67,8 @@ export default class StudyFlowPalette {
       },
       'create.studyflow-random-gateway': {
         group: 'studyflow',
-        className: 'bi bi-shuffle',
-        style: 'width:41px',
+        className: 'studyflow-icon RandomGateway',
+        style: 'background-size:2rem !important',
         title: 'Create Random Gateway',
         action: {
           dragstart: createElement.bind(null, 'studyflow:RandomGateway'),

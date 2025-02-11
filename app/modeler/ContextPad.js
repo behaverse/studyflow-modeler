@@ -1,22 +1,19 @@
+// TODO refactor to use elementFactory to list elements
 const STUDYFLOW_ELEMENTS = {
   'studyflow:CognitiveTest': {
-    className: 'bi bi-puzzle',
+    className: 'studyflow-icon CognitiveTest',
     title: 'Cognitive Test or Video Game'
   },
-  // 'studyflow:VideoGame': {
-  //   className: 'bi bi-controller',
-  //   title: 'Video Game'
-  // },
   'studyflow:Questionnaire': {
-    className: 'bi bi-pencil',
+    className: 'studyflow-icon Questionnaire',
     title: 'Questionnaire'
   },
   'studyflow:Instruction': {
-    className: 'bi bi-chat-square-dots',
+    className: 'studyflow-icon Instruction',
     title: 'Instruction'
   },
   'studyflow:RandomGateway': {
-    className: 'bi bi-shuffle',
+    className: 'studyflow-icon RandomGateway',
     title: 'Random Gateway'
   },
 }
@@ -69,13 +66,14 @@ export default class StudyFlowContextPad {
       }
     }
 
+    // TODO rewrite and use elementFactory to list elements
     var commands = {};
     for (var studyFlowElement in STUDYFLOW_ELEMENTS) {
       const commandName = 'append.' + studyFlowElement.replace(':', '.');
       const elementInfo = STUDYFLOW_ELEMENTS[studyFlowElement];
       commands[commandName] = {
         group: 'studyflow',
-        className: elementInfo.className,
+        className: 'studyflow-icon ' + studyFlowElement.split(':')[1],
         title: translate('Append ' + elementInfo.title),
         action: {
           click: appendElement.bind(null, studyFlowElement),

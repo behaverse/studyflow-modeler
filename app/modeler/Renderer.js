@@ -5,16 +5,16 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-import CognitiveTestIcon from "bootstrap-icons/icons/puzzle.svg";
-import VideoGameIcon from "bootstrap-icons/icons/controller.svg";
-import QuestionnaireIcon from "bootstrap-icons/icons/pencil.svg";
-import InstructionIcon from "bootstrap-icons/icons/chat-square-dots.svg";
-import RandomGatewayIcon from "bootstrap-icons/icons/shuffle.svg";
-import PersonGearIcon from "bootstrap-icons/icons/person-gear.svg";
-import BehaverseInstrumentIcon from "bootstrap-icons/icons/hexagon.svg";
-import RestInstrumentIcon from "bootstrap-icons/icons/moon.svg";
-import StartEventConsentIcon from "bootstrap-icons/icons/person-lock.svg";
-import RedirectEndEventIcon from "bootstrap-icons/icons/box-arrow-right.svg";
+import CognitiveTestIcon from "../assets/icons/CognitiveTest.svg";
+import VideoGameIcon from "../assets/icons/VideoGame.svg";
+import QuestionnaireIcon from "../assets/icons/Questionnaire.svg";
+import InstructionIcon from "../assets/icons/Instruction.svg";
+import RandomGatewayIcon from "../assets/icons/RandomGateway.svg";
+import ActivityIcon from "../assets/icons/Activity.svg";
+import BehaverseTaskIcon from "../assets/icons/behaverseTask.svg";
+import RestInstrumentIcon from "../assets/icons/Rest.svg";
+import StartEventConsentIcon from "../assets/icons/Consent.svg";
+import RedirectEndEventIcon from "../assets/icons/Redirect.svg";
 
 export default class StudyFlowRenderer extends BaseRenderer {
 
@@ -144,14 +144,14 @@ export default class StudyFlowRenderer extends BaseRenderer {
       'studyflow:CognitiveTest': CognitiveTestIcon,
       'studyflow:Questionnaire': QuestionnaireIcon,
       'studyflow:Instruction': InstructionIcon
-    }[element.type] || PersonGearIcon;    
+    }[element.type] || ActivityIcon;    
 
     var textOnIconMarker = undefined;
 
     // change instrument icon
     switch (element.businessObject.get("instrument")) {
       case "behaverse":
-        icon = BehaverseInstrumentIcon;
+        icon = BehaverseTaskIcon;
         textOnIconMarker = element.businessObject.get("behaverseTask")?.toUpperCase();
         if (textOnIconMarker === "UNDEFINED") {
           // HACK to handle undefined values.

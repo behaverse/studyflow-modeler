@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import logo_image from './assets/logo.png'
 import {Modeler} from './modeler/Modeler'
-import './index.css'
+import './index.scss'
 import StartUpModal from './modeler/StartUpModal'
 import { APIKeyContext, ModelerContext } from './modeler/contexts';
 import { Toolbar } from './modeler';
