@@ -6,21 +6,23 @@ const ICONS = {
     "studyflow:Instruction": "icon sfi-Instruction"
 }
 
-export default class CreateMenuProvider {
+export default class AppendMenuProvider {
 
     static $inject = [
         'elementFactory',
         'popupMenu',
         'create',
         'autoPlace',
-        'moddle'
+        'moddle',
+        'rules'
     ];
 
-    constructor(elementFactory, popupMenu, create, autoPlace, moddle) {
+    constructor(elementFactory, popupMenu, create, autoPlace, moddle, rules) {
         this._elementFactory = elementFactory;
         this._popupMenu = popupMenu;
         this._create = create;
         this._autoPlace = autoPlace;
+        this._rules = rules;
 
         var entries = Object.entries(moddle.registry.typeMap).filter(([k,v]) => 
             k.startsWith("studyflow:")
@@ -46,12 +48,17 @@ export default class CreateMenuProvider {
         this.register();
     }
 
-    register = function () {
-        this._popupMenu.registerProvider('bpmn-create', this);
+    register() {
+        this._popupMenu.registerProvider('bpmn-append', this);
     }
 
-    getPopupMenuEntries() {
+    getPopupMenuEntries(element) {
 
+        const rules = this._rules;
+            
+        if (!rules.allowed('shape.append', { element: element })) {
+          return [];
+        }
         const entries = {};
 
         // map options to menu entries
@@ -66,9 +73,7 @@ export default class CreateMenuProvider {
                 rank
             } = option;
 
-            const targetAction = this._createEntryAction(target);
-
-            entries[`create-${actionName}`] = {
+            entries[`append-${actionName}`] = {
                 label: label,
                 className,
                 description,
@@ -78,35 +83,60 @@ export default class CreateMenuProvider {
                 },
                 search,
                 rank,
-                action: {
-                    click: targetAction,
-                    dragstart: targetAction
-                }
+                action: this._createEntryAction(element, target)
             };
         });
 
         return entries;
     };
 
-    _createEntryAction(target) {
+    _createEntryAction(element, target) {
 
+        const elementFactory = this._elementFactory;
+        const autoPlace = this._autoPlace;
         const create = this._create;
         const mouse = this._mouse;
-        const popupMenu = this._popupMenu;
-        const elementFactory = this._elementFactory;
-
-        let newElement;
-
-        return (event) => {
-            popupMenu.close();
-            newElement = elementFactory.create('shape', target);
-
-            // use last mouse event if triggered via keyboard
-            if (event instanceof KeyboardEvent) {
-                event = mouse.getLastMoveEvent();
-            }
-
-            return create.start(event, newElement);
+      
+      
+        const autoPlaceElement = () => {
+          const newElement = elementFactory.create('shape', target);
+          autoPlace.append(element, newElement);
+        };
+      
+        const manualPlaceElement = (event) => {
+          const newElement = elementFactory.create('shape', target);
+      
+          if (event instanceof KeyboardEvent) {
+            event = mouse.getLastMoveEvent();
+          }
+      
+          return create.start(event, newElement, {
+            source: element
+          });
+        };
+      
+        return {
+          click: this._canAutoPlaceElement(target) ? autoPlaceElement : manualPlaceElement,
+          dragstart: manualPlaceElement
         };
     };
+
+    _canAutoPlaceElement(target) {
+        const { type } = target;
+      
+        if (type === 'bpmn:BoundaryEvent') {
+          return false;
+        }
+      
+        if (type === 'bpmn:SubProcess' && target.triggeredByEvent) {
+          return false;
+        }
+      
+        if (type === 'bpmn:IntermediateCatchEvent' && target.eventDefinitionType === 'bpmn:LinkEventDefinition') {
+          return false;
+        }
+      
+        return true;
+      };
 }
+
