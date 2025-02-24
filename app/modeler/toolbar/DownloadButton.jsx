@@ -18,7 +18,7 @@ export default function DownloadButton() {
   return (
       <button
         title="Download"
-        className="bg-stone-200 hover:bg-stone-300 border border-gray-300 text-black py-1 px-3"
+        className="shadow-sm bg-stone-200 hover:bg-stone-300 border border-stone-300 text-black py-1 px-3"
         onClick={downloadDiagram}>
           <i className="bi bi-cloud-download"></i>
         </button>

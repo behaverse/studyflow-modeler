@@ -41,7 +41,7 @@ export default function ExportButton() {
     return (
         <button
             title="Export to Image"
-            className="bg-stone-200 hover:bg-stone-300 border-y border-e rounded-e border-gray-300 text-black py-1 px-3"
+            className="shadow-sm bg-stone-200 hover:bg-stone-300 border-y border-e rounded-e border-stone-300 text-black py-1 px-3"
             onClick={exportDiagram}>
             <i className="bi bi-image"></i>
         </button>

@@ -42,7 +42,7 @@ export default function OpenButton() {
         <>
             <button
                 title="Upload"
-                className="bg-stone-200 hover:bg-stone-300 border-y border-s border-gray-300 text-black py-1 px-3 rounded-s"
+                className="shadow-sm bg-stone-200 hover:bg-stone-300 border-y border-s border-stone-300 text-black py-1 px-3 rounded-s"
                 onClick={() => fileInputRef.current.click()}>
                 <i className="bi bi-cloud-upload w-3 h-3"></i>
             </button>

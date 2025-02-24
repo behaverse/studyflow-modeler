@@ -34,8 +34,8 @@ export default function SimulateButton(props) {
 
   return (
       <button
-        title="Simulate the study flow"
-        className={"font-semibold py-1 px-3 rounded border " + classNames}
+        title="Simulate the studyflow"
+        className={"shadow-sm font-semibold py-1 px-3 rounded border " + classNames}
         onClick={toggleSimulation}>
           <i className="bi bi-camera-reels me-2"></i>
           {label}</button>

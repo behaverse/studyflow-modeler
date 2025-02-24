@@ -8,7 +8,7 @@ import ExtraMenuButton from './ExtraMenuButton';
 export function Toolbar() {
 
   return (
-    <div className="h-9 inline-flex rounded-md shadow-sm" role="group">
+    <div className="h-9 inline-flex rounded-md" role="group">
       <SimulateButton />
       <span className="w-1"></span>
       <OpenButton />
