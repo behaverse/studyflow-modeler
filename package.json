@@ -12,6 +12,8 @@
   "dependencies": {
     "@bpmn-io/properties-panel": "^3.25.1",
     "@headlessui/react": "^2.2.0",
+    "@mdx-js/react": "^3.1.0",
+    "@mdx-js/rollup": "^3.1.0",
     "bootstrap-icons": "^1.11.3",
     "bpmn-js": "^18.1.2",
     "bpmn-js-color-picker": "^0.7.1",
@@ -21,7 +23,9 @@
     "diagram-js-grid": "^1.1.0",
     "downloadjs": "^1.4.7",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

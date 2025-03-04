@@ -2,11 +2,21 @@ import { resolve } from 'path'
 import { defineConfig } from 'vite'
 import tailwindcss from 'tailwindcss'
 import react from '@vitejs/plugin-react-swc'
+import mdx from '@mdx-js/rollup'
+import remarkFrontmatter from 'remark-frontmatter'
+import remarkGfm from 'remark-gfm'
 
 // https://vite.dev/config/
 export default defineConfig({
   base: '',  // relative base
-  plugins: [react()],
+  plugins: [
+    {
+      enforce: 'pre', ...mdx(
+        {
+          remarkPlugins: [remarkFrontmatter, remarkGfm],
+        }
+    ) },
+    react({include: /\.(jsx|js|mdx|md)$/})],
   css: {
     postcss: {
       plugins: [tailwindcss()],

@@ -4,7 +4,7 @@ export default {
   content: [
     "./index.html",
     "./app/**/*.{js,jsx}",
-    "./about/**/*.{js,jsx}",
+    "./about/**/*.{js,jsx,mdx}",
   ],
   theme: {
     extend: {
