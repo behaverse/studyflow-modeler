@@ -1,0 +1,25 @@
+id: https://w3id.org/bdm/studyflow
+name: studyflow
+prefixes:
+  linkml: https://w3id.org/linkml/
+  studyflow: https://w3id.org/bdm/studyflow
+imports:
+  - linkml:types
+default_range: string
+default_prefix: studyflow
+
+classes:
+  StartEvent:
+    attributes:
+      id:
+        identifier: true     ## unique key for an activity
+        description: Unique identifier for the activity
+      name:
+        description: Human-readable name of the activity
+  EndEvent:
+  Element:
+  Activity:
+  CognitiveTest:
+  Questionnaire:
+  Instruction:
+  RandomGateway:

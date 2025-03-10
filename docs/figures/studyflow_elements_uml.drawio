@@ -1,6 +1,6 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.0.9 Chrome/128.0.6613.186 Electron/32.2.5 Safari/537.36" version="26.0.9">
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.0.16 Chrome/132.0.6834.196 Electron/34.2.0 Safari/537.36" version="26.0.16">
   <diagram name="Page-1" id="l7o2JloaW-Vr8Yl9ksHm">
-    <mxGraphModel dx="781" dy="642" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1114" dy="854" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -241,16 +241,16 @@
         <mxCell id="9ASu4l0TENPKFkWyeJPx-29" value="README" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" parent="1" vertex="1">
           <mxGeometry x="920" y="750" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-1" value="Recruitment" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" vertex="1" parent="1">
+        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-1" value="Recruitment" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" parent="1" vertex="1">
           <mxGeometry x="275" y="900" width="190" height="104" as="geometry" />
         </mxCell>
-        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-2" value="+ platform&lt;br&gt;+ etc (e.g., # of participants)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" vertex="1" parent="Hdxl8LjoL_5z9NiHRkgh-1">
+        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-2" value="+ platform&lt;br&gt;+ etc (e.g., # of participants)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" parent="Hdxl8LjoL_5z9NiHRkgh-1" vertex="1">
           <mxGeometry y="26" width="190" height="44" as="geometry" />
         </mxCell>
-        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-3" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;fontFamily=Helvetica Neue;" vertex="1" parent="Hdxl8LjoL_5z9NiHRkgh-1">
+        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-3" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;fontFamily=Helvetica Neue;" parent="Hdxl8LjoL_5z9NiHRkgh-1" vertex="1">
           <mxGeometry y="70" width="190" height="8" as="geometry" />
         </mxCell>
-        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-4" value="+ method(type): type" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" vertex="1" parent="Hdxl8LjoL_5z9NiHRkgh-1">
+        <mxCell id="Hdxl8LjoL_5z9NiHRkgh-4" value="+ method(type): type" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica Neue;" parent="Hdxl8LjoL_5z9NiHRkgh-1" vertex="1">
           <mxGeometry y="78" width="190" height="26" as="geometry" />
         </mxCell>
       </root>
