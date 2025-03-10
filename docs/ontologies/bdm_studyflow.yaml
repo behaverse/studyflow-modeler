@@ -8,18 +8,122 @@ imports:
 default_range: string
 default_prefix: studyflow
 
+enums:
+  AssignmentAlgorithmEnum:
+    permissible_values:
+      probabilistic:
+      round-robin:
+  ProbabilityDistributionEnum:
+    permissible_values:
+      uniform:
+      normal:
+      exponential:
+      poisson:
+      custom:
+  InstrumentEnum:
+    behaverse:
+    videoGame:
+    rest:
+    custom:
+  BehaverseTaskEnum:
+    bcs:
+    bm:
+    bsac:
+    ds:
+    ml:
+    mot:
+    nb:
+    oc:
+    ooo:
+    pc:
+    re:
+    sart:
+    smc:
+    sos:
+    srm:
+    srt:
+    ss:
+    th:
+    tova:
+    ufov:
+    wo:
+    undefined:
+
+types:
+  MarkdownString:
+    uri: xsd:string
+    base: str
+    description: A string that contains markdown formatting
+
 classes:
-  StartEvent:
+  Element:
+    abstract: true
+    is_a:
+      bpmn:BaseElement
     attributes:
       id:
-        identifier: true     ## unique key for an activity
-        description: Unique identifier for the activity
+        type: xsd:string
+        identifier: true
+        description: Unique identifier for the element.
       name:
-        description: Human-readable name of the activity
+        description: Human-readable name of the activity.
+  StartEvent:
+    is_a:
+      - bpmn:StartEvent
+      - Element
+    attributes:
+      requiresConsent:
+        type: xsd:boolean
+        description: Unique identifier for the activity
+      consentFormUrl:
+        type: xsd:string
+        description: Link to the consent form. Leave empty if you want to use the default consent form.
   EndEvent:
-  Element:
+    is_a:
+      - bpmn:EndEvent
+      - Element
+    attributes:
+      hasRedirectUrl:
+        type: xsd:boolean
+        description: Redirects the user to the given URL after completion.
+      redirectUrl:
+        type: xsd:string
+        description: Link to redirect the user upon completion.
   Activity:
+    abstract: true
+    is_a:
+      - bpmn:Task
+      - Element
+    attributes:
+      url:
+        type: xsd:string
+        base: str
+        description: URL to the activity
   CognitiveTest:
+    is_a: Activity
+    attributes:
+      instrument:
+        type: InstrumentEnum
+        description: The instrument used for the test.
+      behaverseTask:
+        type: BehaverseTaskEnum
+        description: Behaverse instrument used for the test.
   Questionnaire:
+    is_a: Activity
   Instruction:
+    is_a: Questionnaire
+    attributes:
+      text:
+        type: MarkdownString
+        description: Instruction text in markdown format.
   RandomGateway:
+    is_a:
+      - bpmn:ExclusiveGateway
+      - Element
+    attributes:
+      algorithm:
+        type: AssignmentAlgorithmEnum
+        description: Algorithm used for the assignment.
+      probabilityFunction:
+        type: ProbabilityDistributionEnum
+        description: Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
