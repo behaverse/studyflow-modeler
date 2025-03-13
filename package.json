@@ -19,7 +19,7 @@
     "bpmn-js-color-picker": "^0.7.1",
     "bpmn-js-create-append-anything": "^0.5.2",
     "bpmn-js-token-simulation": "^0.36.0",
-    "canvg": "^4.0.2",
+    "canvg": "^4",
     "diagram-js-grid": "^1.1.0",
     "downloadjs": "^1.4.7",
     "react": "^19.0.0",

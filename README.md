@@ -19,7 +19,6 @@ npm run dev
 Otherwise, you can use [Pixi](https://pixi.sh) to run the app:
 
 ```bash
-pixi install
 pixi r npm install
 pixi r npm run dev
 ```
