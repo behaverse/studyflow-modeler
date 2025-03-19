@@ -4,7 +4,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css'
 import './assets/icons/studyflow-icons.scss';
 import logo_image from './assets/logo.png'
 import {Modeler} from './modeler/Modeler'
-import './index.scss'
+import './styles.scss'
 import StartUpModal from './modeler/StartUpModal'
 import { APIKeyContext, ModelerContext } from './modeler/contexts';
 import { Toolbar } from './modeler';
@@ -37,7 +37,7 @@ export default function App() {
           <img src={logo_image} className="h-16 p-1" alt="Logo" />
           </a>
           <span className="self-center font-light text-2xl text-stone-700 px-3">
-            StudyFlow<span className="font-semibold">Modeler</span>
+            Studyflow<span className="font-semibold">Modeler</span>
           </span>
           </div>
         {/* <div className="flex flex-wrap float-start h-full items-center ms-4">
