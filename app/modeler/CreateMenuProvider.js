@@ -74,7 +74,7 @@ export default class CreateMenuProvider {
                 description,
                 group: {
                     id: 'studyflow',
-                    name: 'StudyFlow'
+                    name: 'Studyflow'
                 },
                 search,
                 rank,

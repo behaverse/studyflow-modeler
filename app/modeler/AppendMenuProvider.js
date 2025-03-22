@@ -79,7 +79,7 @@ export default class AppendMenuProvider {
                 description,
                 group: {
                     id: 'studyflow',
-                    name: 'StudyFlow'
+                    name: 'Studyflow'
                 },
                 search,
                 rank,

@@ -16,7 +16,7 @@ import RestInstrumentIcon from "../assets/icons/svg/Rest.svg";
 import StartEventConsentIcon from "../assets/icons/svg/Consent.svg";
 import RedirectEndEventIcon from "../assets/icons/svg/Redirect.svg";
 
-export default class StudyFlowRenderer extends BaseRenderer {
+export default class StudyflowRenderer extends BaseRenderer {
 
   static $inject = ["eventBus", "styles", "bpmnRenderer"];
 

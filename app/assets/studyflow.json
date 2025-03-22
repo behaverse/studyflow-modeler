@@ -1,5 +1,5 @@
 {
-  "name": "Behaverse StudyFlow BPMN Extension",
+  "name": "Behaverse Studyflow BPMN Extension",
   "uri": "http://behaverse.org/schema/studyflow",
   "prefix": "studyflow",
   "xml": {
@@ -236,7 +236,7 @@
     },
     {
       "name": "Element",
-      "description": "Base class for all elements in the StudyFlow.",
+      "description": "Base class for all elements in the Studyflow.",
       "isAbstract": true,
       "superClass": [
         "bpmn:BaseElement"
@@ -245,7 +245,7 @@
     },
     {
       "name": "Activity",
-      "description": "Base class for all activities in the StudyFlow.",
+      "description": "Base class for all activities in the Studyflow.",
       "isAbstract": true,
       "superClass": [
         "bpmn:Task",

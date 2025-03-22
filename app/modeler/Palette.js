@@ -1,4 +1,4 @@
-export default class StudyFlowPalette {
+export default class StudyflowPalette {
 
   static $inject = ['create', 'elementFactory', 'palette', 'translate'];
 

@@ -15,9 +15,9 @@ import GridModule from 'diagram-js-grid';
 
 // import studyFlowElementTemplates from './assets/studyflow_templates';
 import new_diagram from '../assets/new_diagram.bpmn';
-import StudyFlowModdleExtension from '../assets/studyflow';
+import StudyflowModdleExtension from '../assets/studyflow';
 import { ModelerContext } from './contexts';
-import { StudyFlowModule } from '.';
+import { StudyflowModule } from '.';
 
 export function Modeler() {
 
@@ -34,14 +34,14 @@ export function Modeler() {
               }
             },
             moddleExtensions: {
-                studyflow: StudyFlowModdleExtension,
+                studyflow: StudyflowModdleExtension,
             },
           additionalModules: [
             CreateAppendAnythingModule,
             BpmnColorPickerModule,
               // CreateAppendElementTemplatesModule,
               GridModule,
-              StudyFlowModule
+              StudyflowModule
             ],
             // studyFlowElementTemplates,
         });

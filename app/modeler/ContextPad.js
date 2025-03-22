@@ -14,7 +14,7 @@ const STUDYFLOW_ELEMENTS = {
   },
 }
 
-export default class StudyFlowContextPad {
+export default class StudyflowContextPad {
 
   static $inject = ['config', 'contextPad', 'create', 'elementFactory', 'injector', 'translate'];
 
@@ -48,7 +48,7 @@ export default class StudyFlowContextPad {
     }
 
     function appendElement(type, event, element) {
-      // TODO: refactor as StudyFlowFactory.js
+      // TODO: refactor as StudyflowFactory.js
       const shape = createShape(type);
       if (event.type.includes('dragstart')) {
         create.start(event, shape, element);

@@ -1,13 +1,13 @@
-import StudyFlowContextPad from './ContextPad';
-import StudyFlowPalette from './Palette';
-import StudyFlowRenderer from './Renderer';
+import StudyflowContextPad from './ContextPad';
+import StudyflowPalette from './Palette';
+import StudyflowRenderer from './Renderer';
 import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
 import ColorPopupProvider from './ColorPopup';
 import CreateMenuProvider from './CreateMenuProvider';
 import AppendMenuProvider from './AppendMenuProvider';
 
-export const StudyFlowModule = {
+export const StudyflowModule = {
   __init__: [
     'studyFlowContextPad',
     'studyFlowPalette',
@@ -22,9 +22,9 @@ export const StudyFlowModule = {
   ],
   studyFlowCreateMenuProvider: ['type', CreateMenuProvider],
   studyFlowAppendMenuProvider: ['type', AppendMenuProvider],
-  studyFlowContextPad: ['type', StudyFlowContextPad],
-  studyFlowPalette: ['type', StudyFlowPalette],
-  studyFlowRenderer: ['type', StudyFlowRenderer],
+  studyFlowContextPad: ['type', StudyflowContextPad],
+  studyFlowPalette: ['type', StudyflowPalette],
+  studyFlowRenderer: ['type', StudyflowRenderer],
   colorPopupProvider: [ 'type', ColorPopupProvider ],
   resizableTasks: ['type', ResizableTasks], 
 };

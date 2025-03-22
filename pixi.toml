@@ -1,7 +1,7 @@
 [project]
 authors = ["Morteza Ansarinia <ansarinia@me.com>"]
 channels = ["conda-forge"]
-description = "StudyFlow Modeler"
+description = "Studyflow Modeler"
 name = "studyflow"
 platforms = [ "osx-arm64" ]
 version = "0.1.0"

@@ -11,7 +11,7 @@ export default function DownloadButton() {
 
   function downloadDiagram() {
     modeler.saveXML({ format: true }).then(({ xml }) => {
-      download(xml, 'StudyFlow Diagram.bpmn', 'application/xml');
+      download(xml, 'Diagram.studyflow.xml', 'application/xml');
     });
   }
 

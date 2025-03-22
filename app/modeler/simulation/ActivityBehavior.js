@@ -5,7 +5,7 @@ import {
 } from 'bpmn-js-token-simulation/lib/simulator/util/ModelUtil';
 
 
-export default function StudyFlowActivityBehavior(
+export default function StudyflowActivityBehavior(
     simulator,
     scopeBehavior,
     transactionBehavior
@@ -26,13 +26,13 @@ export default function StudyFlowActivityBehavior(
   }
 }
 
-StudyFlowActivityBehavior.$inject = [
+StudyflowActivityBehavior.$inject = [
   'simulator',
   'scopeBehavior',
   'transactionBehavior'
 ];
 
-StudyFlowActivityBehavior.prototype.signal = function(context) {
+StudyflowActivityBehavior.prototype.signal = function(context) {
 
   // trigger messages that are pending send
   const event = this._triggerMessages(context);
@@ -44,7 +44,7 @@ StudyFlowActivityBehavior.prototype.signal = function(context) {
   this._simulator.exit(context);
 };
 
-StudyFlowActivityBehavior.prototype.enter = function(context) {
+StudyflowActivityBehavior.prototype.enter = function(context) {
 
   const {
     element
@@ -66,7 +66,7 @@ StudyFlowActivityBehavior.prototype.enter = function(context) {
   this._simulator.exit(context);
 };
 
-StudyFlowActivityBehavior.prototype.exit = function(context) {
+StudyflowActivityBehavior.prototype.exit = function(context) {
 
   const {
     element,
@@ -108,7 +108,7 @@ StudyFlowActivityBehavior.prototype.exit = function(context) {
   }
 };
 
-StudyFlowActivityBehavior.prototype.signalOnEvent = function(context, event) {
+StudyflowActivityBehavior.prototype.signalOnEvent = function(context, event) {
 
   const {
     scope,
@@ -134,7 +134,7 @@ StudyFlowActivityBehavior.prototype.signalOnEvent = function(context, event) {
  *
  * @return {Object|null} event
  */
-StudyFlowActivityBehavior.prototype.waitAtElement = function(element) {
+StudyflowActivityBehavior.prototype.waitAtElement = function(element) {
   const wait = this._simulator.getConfig(element).wait;
 
   return wait && {
@@ -145,7 +145,7 @@ StudyFlowActivityBehavior.prototype.waitAtElement = function(element) {
   };
 };
 
-StudyFlowActivityBehavior.prototype._getMessageContexts = function(element, after = null) {
+StudyflowActivityBehavior.prototype._getMessageContexts = function(element, after = null) {
 
   const filterAfter = after ? ctx => ctx.referencePoint.x > after.x : () => true;
   const sortByReference = (a, b) => a.referencePoint.x - b.referencePoint.x;
@@ -167,7 +167,7 @@ StudyFlowActivityBehavior.prototype._getMessageContexts = function(element, afte
  *
  * @return {Object} event to subscribe to proceed
  */
-StudyFlowActivityBehavior.prototype._triggerMessages = function(context) {
+StudyflowActivityBehavior.prototype._triggerMessages = function(context) {
 
   // check for the next message flows to either
   // trigger or wait for; this implements intuitive,
