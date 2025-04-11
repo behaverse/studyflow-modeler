@@ -12,7 +12,7 @@ import EndRedirectIcon from "../assets/icons/svg/EndRedirect.svg";
 import InstructionIcon from "../assets/icons/svg/Instruction.svg";
 import QuestionnaireIcon from "../assets/icons/svg/Questionnaire.svg";
 import RandomGatewayIcon from "../assets/icons/svg/_RandomGateway.svg";
-import RestIcon from "../assets/icons/svg/RestDuoTone.svg";
+import RestIcon from "../assets/icons/svg/Rest.svg";
 import StartConsentIcon from "../assets/icons/svg/StartConsent.svg";
 import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
 
