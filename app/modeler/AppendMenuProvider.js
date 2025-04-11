@@ -1,6 +1,6 @@
 
 const ICONS = {
-    "studyflow:RandomGateway": "icon sfi-RandomGatewayDiamond",
+    "studyflow:RandomGateway": "icon sfi-DiamondRandomGateway",
     "studyflow:Questionnaire": "icon sfi-Questionnaire",
     "studyflow:CognitiveTest": "icon sfi-CognitiveTest",
     "studyflow:Instruction": "icon sfi-Instruction"

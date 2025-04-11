@@ -5,16 +5,16 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-import CognitiveTestIcon from "../assets/icons/svg/CognitiveTest.svg";
-import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
-import QuestionnaireIcon from "../assets/icons/svg/Questionnaire.svg";
-import InstructionIcon from "../assets/icons/svg/Instruction.svg";
-import RandomGatewayIcon from "../assets/icons/svg/RandomGateway.svg";
 import ActivityIcon from "../assets/icons/svg/Activity.svg";
 import BehaverseTaskIcon from "../assets/icons/svg/BehaverseTask.svg";
-import RestInstrumentIcon from "../assets/icons/svg/Rest.svg";
-import StartEventConsentIcon from "../assets/icons/svg/Consent.svg";
-import RedirectEndEventIcon from "../assets/icons/svg/Redirect.svg";
+import CognitiveTestIcon from "../assets/icons/svg/CognitiveTest.svg";
+import EndRedirectIcon from "../assets/icons/svg/EndRedirect.svg";
+import InstructionIcon from "../assets/icons/svg/Instruction.svg";
+import QuestionnaireIcon from "../assets/icons/svg/Questionnaire.svg";
+import RandomGatewayIcon from "../assets/icons/svg/RandomGateway.svg";
+import RestIcon from "../assets/icons/svg/RestDuoTone.svg";
+import StartConsentIcon from "../assets/icons/svg/StartConsent.svg";
+import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
 
 export default class StudyflowRenderer extends BaseRenderer {
 
@@ -162,20 +162,20 @@ export default class StudyflowRenderer extends BaseRenderer {
         icon = VideoGameIcon;
         break;
       case "rest":
-        icon = RestInstrumentIcon;
+        icon = RestIcon;
         break;
     }
 
     // StartEvent
     if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, StartEventConsentIcon, 5, 5, 24, 24);
+      this.drawIcon(parentNode, element, StartConsentIcon, 5, 5, 24, 24);
       return circle
     }
 
     if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
       const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, RedirectEndEventIcon, 8, 7, 22, 22);
+      this.drawIcon(parentNode, element, EndRedirectIcon, 8, 7, 22, 22);
       return circle
     }
 
