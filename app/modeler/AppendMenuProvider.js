@@ -37,7 +37,7 @@ export default class AppendMenuProvider {
             elements.push({
                 label: v.name.split(":")[1],
                 actionName: k.split(":")[1],
-                className: "icon sfi-" + k.split(":")[1] + (k.includes("Gateway") ? "Diamond" : ""),
+                className: "icon sfi-" + (k.includes("Gateway") ? "Diamond" : "") + k.split(":")[1],
                 target: {
                     type: v.name
                 }
