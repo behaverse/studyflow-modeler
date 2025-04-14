@@ -16,6 +16,7 @@ import RestIcon from "../assets/icons/svg/Rest.svg";
 import StartConsentIcon from "../assets/icons/svg/StartConsent.svg";
 import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
 
+
 export default class StudyflowRenderer extends BaseRenderer {
 
   static $inject = ["eventBus", "styles", "bpmnRenderer"];
@@ -138,13 +139,35 @@ export default class StudyflowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
 
+    // StartEvent
+    if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
+      const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
+      this.drawIcon(parentNode, element, StartConsentIcon, 5, 5, 24, 24);
+      return circle
+    }
+
+    // EndEvent
+    if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
+      const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
+      this.drawIcon(parentNode, element, EndRedirectIcon, 8, 7, 22, 22);
+      return circle
+    }
+
+    // Dataset
+    // if (is(element, "bpmn:DataStoreReference")) {
+    //   const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
+    //   //TODO: draw bdm icon
+    //   return dataset
+    // }
+
+
     var icon = {
       'studyflow:RandomGateway': RandomGatewayIcon,
       // 'studyflow:VideoGame': ControllerIcon,
       'studyflow:CognitiveTest': CognitiveTestIcon,
       'studyflow:Questionnaire': QuestionnaireIcon,
-      'studyflow:Instruction': InstructionIcon
-    }[element.type] || ActivityIcon;    
+      'studyflow:Instruction': InstructionIcon,
+    }[element.type] || ActivityIcon;
 
     var textOnIconMarker = undefined;
 
@@ -166,19 +189,7 @@ export default class StudyflowRenderer extends BaseRenderer {
         break;
     }
 
-    // StartEvent
-    if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
-      const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, StartConsentIcon, 5, 5, 24, 24);
-      return circle
-    }
-
-    if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
-      const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, EndRedirectIcon, 8, 7, 22, 22);
-      return circle
-    }
-
+    // Generic Activity
     if (is(element, "studyflow:Activity")) {
       const activity = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
       var iconSize = 26;
@@ -199,6 +210,7 @@ export default class StudyflowRenderer extends BaseRenderer {
       return activity;
     }
 
+    // Gateway
     if (is(element, "bpmn:Gateway")) {
       var gateway = this.drawDiamond(parentNode, element);
       this.drawIcon(parentNode, element, icon, 9, 9, 52, 52);

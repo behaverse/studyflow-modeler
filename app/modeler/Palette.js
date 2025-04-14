@@ -34,7 +34,7 @@ export default class StudyflowPalette {
     }
 
     //TODO: use the same reusable pattern asin ContextPad.js to create commands
-    const commands = {
+    const studyflowEntries = {
       'sep': {
         separator: true
       },
@@ -73,20 +73,22 @@ export default class StudyflowPalette {
           dragstart: createElement.bind(null, 'studyflow:RandomGateway'),
           click: createElement.bind(null, 'studyflow:RandomGateway'),
         }
-      },
+      }
     }
 
     return function (entries) {
       delete entries['space-tool'];
       delete entries['create.exclusive-gateway'];
-      delete entries['create.data-store'];
+      // delete entries['create.data-store'];
+      entries['create.data-store'].group = 'studyflow';
+      entries['create.data-store'].className = 'bi bi-database';
       delete entries['create.task'];
       delete entries['create.subprocess-expanded'];
-      delete entries['create.group'];
+      // delete entries['create.group'];
       delete entries['create.data-object'];
       delete entries['create.intermediate-event'];
       delete entries['create.participant-expanded'];
-      return { ...entries, ...commands };
+      return { ...entries, ...studyflowEntries };
     };
   }
 }

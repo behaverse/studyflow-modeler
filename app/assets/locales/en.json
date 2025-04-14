@@ -13,5 +13,8 @@
     "studyflow:redirectUrl": "Redirect URL",
     "studyflow:consentFormUrl": "Consent form URL",
     "studyflow:probabilityFunction": "Probability function",
-    "studyflow:algorithm": "Algorithm"
+    "studyflow:algorithm": "Algorithm",
+    "studyflow:datasetFormat": "Dataset format",
+    "studyflow:bdmDataLevel": "Data level",
+    "studyflow:bidsDataType": "Data type"
 }

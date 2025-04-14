@@ -1,10 +1,4 @@
 
-const ICONS = {
-    "studyflow:RandomGateway": "icon sfi-DiamondRandomGateway",
-    "studyflow:Questionnaire": "icon sfi-Questionnaire",
-    "studyflow:CognitiveTest": "icon sfi-CognitiveTest",
-    "studyflow:Instruction": "icon sfi-Instruction"
-}
 
 export default class AppendMenuProvider {
 
@@ -30,6 +24,7 @@ export default class AppendMenuProvider {
             && !(v?.superClass.length === 1 && v.superClass.includes("String"))
             && !v.extends?.includes("bpmn:StartEvent")
             && !v.extends?.includes("bpmn:EndEvent")
+            && !k.includes("studyflow:Dataset")
         );
         
         var elements = [];

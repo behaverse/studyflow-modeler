@@ -1,0 +1,46 @@
+id: https://w3id.org/bdm/trials/
+name: bdmt
+prefixes:
+  linkml: https://w3id.org/linkml/
+  bdmt: https://w3id.org/bdm/trials/
+  studyflow: https://w3id.org/bdm/studyflow/
+imports:
+  - linkml:types
+default_range: string
+default_prefix: bdmt
+
+types:
+  Trial:
+    attributes:
+      id: string
+      study_name: string
+      subject_id: string
+      session_id: int
+      activity_index: index
+      language: string
+      instrument_id: string
+      instrument_repetition: int
+      timeline_id: string
+      timeline_repetition: int
+      mltitask_type: string
+      task_index: index
+      job_type: string
+      job_description: string
+      job_repeat: int
+      block_index: index
+      block_name: string
+      block_type: enum
+      projection_name: string
+      name: string
+      description: string
+      study: Study
+      arm: Arm
+      intervention: Intervention
+      outcome: Outcome
+      population: Population
+  Stimulus:
+  Option:
+  Input:
+  StimulusComponent:
+  OptionComponent:
+  Instrument:

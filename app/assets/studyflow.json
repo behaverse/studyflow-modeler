@@ -8,6 +8,107 @@
   "associations": [],
   "enumerations": [
     {
+      "name": "DatasetFormatEnum",
+      "isAbstract": true,
+      "description": "Format of the dataset (BDM, BIDS, Psych-DS, etc).",
+      "literalValues": [
+        {
+          "name": "BDM (Behaverse Data Model)",
+          "value": "bdm"
+        },
+        {
+          "name": "BIDS (Brain Imaging Data Structure)",
+          "value": "bids"
+        },
+        {
+          "name": "Psych-DS",
+          "value": "psych-ds"
+        },
+        {
+          "name": "Other",
+          "value": "other"
+        }
+      ]
+    },
+    {
+      "name": "BDMDataLevelEnum",
+      "isAbstract": true,
+      "description": "BDM level of the data (events, trials, models).",
+      "literalValues": [
+        {
+          "name": "Events",
+          "value": "events"
+        },
+        {
+          "name": "Trials",
+          "value": "trials"
+        },
+        {
+          "name": "Models",
+          "value": "models"
+        }
+      ]
+    },
+    {
+      "name": "BIDSDataTypeEnum",
+      "isAbstract": true,
+      "description": "BIDS data type (e.g., anat, func, etc).",
+      "literalValues": [
+        {
+          "name": "anat (anatomical MRI data)",
+          "value": "anat"
+        },
+        {
+          "name": "beh (behavioral data)",
+          "value": "beh"
+        },
+        {
+          "name": "dwi (diffusion MRI data)",
+          "value": "dwi"
+        },
+        {
+          "name": "eeg (electroencephalography data)",
+          "value": "eeg"
+        },
+        {
+          "name": "func (functional MRI data)",
+          "value": "func"
+        },
+        {
+          "name": "ieeg (intracranial EEG data)",
+          "value": "ieeg"
+        },
+        {
+          "name": "meg (magnetoencephalography data)",
+          "value": "meg"
+        },
+        {
+          "name": "micr (microscopy data)",
+          "value": "micr"
+        },
+        {
+          "name": "motion (motion capture data)",
+          "value": "motion"
+        },
+        {
+          "name": "mrs (magnetic resonance spectroscopy data)",
+          "value": "mrs"
+        },
+        {
+          "name": "nirs (near-infrared spectroscopy data)",
+          "value": "nirs"
+        },
+        {
+          "name": "perf (arterial spin labeling data)",
+          "value": "perf"
+        },
+        {
+          "name": "pet (positron emission tomography data)",
+          "value": "pet"
+        }
+      ]
+        },
+        {
       "name": "AssignmentAlgorithmEnum",
       "isAbstract": true,
       "description": "The scheduling algorithm used for the assignment.",
@@ -333,6 +434,52 @@
             "language": "json",
             "body": {
               "studyflow:algorithm": "probabilistic"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dataset",
+      "description": "Base class for all datasets in the Studyflow.",
+      "isAbstract": false,
+      "extends": [
+        "bpmn:DataStoreReference"
+      ],
+      "superClass": [
+        "studyflow:Element"
+      ],
+      "properties": [
+        {
+          "name": "datasetFormat",
+          "description": "Format of the dataset (BDM, BIDS, PsychDS, etc).",
+          "isAttr": true,
+          "type": "DatasetFormatEnum",
+          "default": "other"
+        },
+        {
+          "name": "bdmDataLevel",
+          "description": "Level of the data (events, trials, summary, models).",
+          "isAttr": true,
+          "type": "BDMDataLevelEnum",
+          "default": "events",
+          "condition": {
+            "language": "json",
+            "body": {
+              "studyflow:datasetFormat": "bdm"
+            }
+          }
+        },
+        {
+          "name": "bidsDataType",
+          "description": "BIDS data type.",
+          "isAttr": true,
+          "type": "BIDSDataTypeEnum",
+          "default": "events",
+          "condition": {
+            "language": "json",
+            "body": {
+              "studyflow:datasetFormat": "bids"
             }
           }
         }

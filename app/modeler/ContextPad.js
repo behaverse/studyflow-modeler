@@ -11,7 +11,7 @@ const STUDYFLOW_ELEMENTS = {
   },
   'studyflow:RandomGateway': {
     title: 'Random Gateway'
-  },
+  }
 }
 
 export default class StudyflowContextPad {
@@ -86,12 +86,12 @@ export default class StudyflowContextPad {
       delete entries['append.gateway'];
       delete entries['append.intermediate-event'];
       // move append-anything to the last position
-      entries = Object.assign({}, entries,
-        { append: { ...entries['append'], group: 'studyflow' } });
+
+      entries = Object.assign({}, entries, { append: { ...entries['append'], group: 'studyflow' } });
       const defaultAppend = entries['append'];
       delete entries['append'];
 
-      if (element.type === 'bpmn:SequenceFlow') {
+      if (element.type === 'bpmn:SequenceFlow' || element.type === 'bpmn:DataStoreReference') {
         entries = {...entries};
       } else {
         entries = {...entries, ...commands, append: defaultAppend};
