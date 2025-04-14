@@ -455,7 +455,7 @@
           "description": "Format of the dataset (BDM, BIDS, PsychDS, etc).",
           "isAttr": true,
           "type": "DatasetFormatEnum",
-          "default": "other"
+          "default": "bdm"
         },
         {
           "name": "bdmDataLevel",
@@ -475,7 +475,7 @@
           "description": "BIDS data type.",
           "isAttr": true,
           "type": "BIDSDataTypeEnum",
-          "default": "events",
+          "default": "trials",
           "condition": {
             "language": "json",
             "body": {

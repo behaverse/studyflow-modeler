@@ -15,7 +15,9 @@ import RandomGatewayIcon from "../assets/icons/svg/_RandomGateway.svg";
 import RestIcon from "../assets/icons/svg/Rest.svg";
 import StartConsentIcon from "../assets/icons/svg/StartConsent.svg";
 import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
-
+import EventDataIcon from "../assets/icons/svg/EventData.svg";
+import TrialDataIcon from "../assets/icons/svg/TrialData.svg";
+import ModelDataIcon from "../assets/icons/svg/ModelData.svg";
 
 export default class StudyflowRenderer extends BaseRenderer {
 
@@ -154,11 +156,21 @@ export default class StudyflowRenderer extends BaseRenderer {
     }
 
     // Dataset
-    // if (is(element, "bpmn:DataStoreReference")) {
-    //   const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-    //   //TODO: draw bdm icon
-    //   return dataset
-    // }
+    if (is(element, "bpmn:DataStoreReference"))
+      if (element.businessObject.get("bdmDataLevel") === "events") {
+        const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
+        this.drawIcon(parentNode, element, EventDataIcon, 14, 26, 22, 22);
+        return dataset
+      } else if (element.businessObject.get("bdmDataLevel") === "trials") {
+        const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
+        this.drawIcon(parentNode, element, TrialDataIcon, 16, 28, 18, 18);
+        return dataset
+      } else if (element.businessObject.get("bdmDataLevel") === "models") {
+        const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
+        this.drawIcon(parentNode, element, ModelDataIcon, 16, 28, 18, 18);
+        return dataset
+      }
+
 
 
     var icon = {
