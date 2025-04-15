@@ -163,11 +163,11 @@ export default class StudyflowRenderer extends BaseRenderer {
         return dataset
       } else if (element.businessObject.get("bdmDataLevel") === "trials") {
         const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-        this.drawIcon(parentNode, element, TrialDataIcon, 16, 28, 18, 18);
+        this.drawIcon(parentNode, element, TrialDataIcon, 14, 26, 22, 22);
         return dataset
       } else if (element.businessObject.get("bdmDataLevel") === "models") {
         const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-        this.drawIcon(parentNode, element, ModelDataIcon, 16, 28, 18, 18);
+        this.drawIcon(parentNode, element, ModelDataIcon, 14, 26, 22, 22);
         return dataset
       }
 
