@@ -87,7 +87,7 @@ export default class StudyflowPalette {
 
       // delete entries['create.group'];
       entries['create.group'].group = 'tools';
-      entries['create.group'].title = 'Create BPMN Group';
+      entries['create.group'].title = 'Create BPMN group';
 
       delete entries['create.data-object'];
       delete entries['create.intermediate-event'];
