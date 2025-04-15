@@ -18,6 +18,8 @@ import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
 import EventDataIcon from "../assets/icons/svg/EventData.svg";
 import TrialDataIcon from "../assets/icons/svg/TrialData.svg";
 import ModelDataIcon from "../assets/icons/svg/ModelData.svg";
+import BIDSDataIcon from "../assets/icons/svg/BIDSData.svg";
+import PsychDSDataIcon from "../assets/icons/svg/PsychDSData.svg";
 
 export default class StudyflowRenderer extends BaseRenderer {
 
@@ -156,20 +158,35 @@ export default class StudyflowRenderer extends BaseRenderer {
     }
 
     // Dataset
-    if (is(element, "bpmn:DataStoreReference"))
-      if (element.businessObject.get("bdmDataLevel") === "events") {
-        const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-        this.drawIcon(parentNode, element, EventDataIcon, 14, 26, 22, 22);
-        return dataset
-      } else if (element.businessObject.get("bdmDataLevel") === "trials") {
-        const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-        this.drawIcon(parentNode, element, TrialDataIcon, 14, 26, 22, 22);
-        return dataset
-      } else if (element.businessObject.get("bdmDataLevel") === "models") {
-        const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-        this.drawIcon(parentNode, element, ModelDataIcon, 14, 26, 22, 22);
+    if (is(element, "bpmn:DataStoreReference")) {
+      const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
+
+      if (element.businessObject.get("datasetFormat") === "bids") {
+        this.drawIcon(parentNode, element, BIDSDataIcon, 7, 18, 36, 36);
         return dataset
       }
+
+      if (element.businessObject.get("datasetFormat") === "psych-ds") {
+        this.drawIcon(parentNode, element, PsychDSDataIcon, 14, 26, 22, 22);
+        return dataset
+      }
+
+      if (element.businessObject.get("datasetFormat") === "bdm") {
+        switch (element.businessObject.get("bdmDataLevel")) {
+          case "events":
+            this.drawIcon(parentNode, element, EventDataIcon, 14, 26, 22, 22);
+            break;
+          case "trials":
+            this.drawIcon(parentNode, element, TrialDataIcon, 14, 26, 22, 22);
+            break;
+          case "models":
+            this.drawIcon(parentNode, element, ModelDataIcon, 15, 27, 20, 20);
+            break;
+        }
+        
+        return dataset
+      }
+    }
 
 
 

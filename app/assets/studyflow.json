@@ -452,10 +452,10 @@
       "properties": [
         {
           "name": "datasetFormat",
-          "description": "Format of the dataset (BDM, BIDS, PsychDS, etc).",
+          "description": "Format of the dataset (BDM, BIDS, Psych-DS, etc).",
           "isAttr": true,
           "type": "DatasetFormatEnum",
-          "default": "bdm"
+          "default": "other"
         },
         {
           "name": "bdmDataLevel",
