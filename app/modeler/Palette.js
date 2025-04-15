@@ -35,13 +35,13 @@ export default class StudyflowPalette {
 
     //TODO: use the same reusable pattern asin ContextPad.js to create commands
     const studyflowEntries = {
-      'sep': {
+      'sep-studyflow': {
         separator: true
       },
       'create.studyflow-cognitive-test': {
         group: 'studyflow',
         className: 'sfi-CognitiveTest',
-        title: 'Create Cognitive Test or Video Game',
+        title: 'Create cognitive test (or video game)',
         action: {
           dragstart: createElement.bind(null, 'studyflow:CognitiveTest'),
           click: createElement.bind(null, 'studyflow:CognitiveTest'),
@@ -50,7 +50,7 @@ export default class StudyflowPalette {
       'create.studyflow-questionnaire': {
         group: 'studyflow',
         className: 'sfi-Questionnaire',
-        title: 'Create Questionnaire',
+        title: 'Create questionnaire',
         action: {
           dragstart: createElement.bind(null, 'studyflow:Questionnaire'),
           click: createElement.bind(null, 'studyflow:Questionnaire'),
@@ -59,7 +59,7 @@ export default class StudyflowPalette {
       'create.studyflow-instruction': {
         group: 'studyflow',
         className: 'sfi-Instruction',
-        title: 'Create Instruction',
+        title: 'Create instruction',
         action: {
           dragstart: createElement.bind(null, 'studyflow:Instruction'),
           click: createElement.bind(null, 'studyflow:Instruction'),
@@ -68,7 +68,7 @@ export default class StudyflowPalette {
       'create.studyflow-random-gateway': {
         group: 'studyflow',
         className: 'sfi-DiamondRandomGateway',
-        title: 'Create Random Gateway',
+        title: 'Create random gateway',
         action: {
           dragstart: createElement.bind(null, 'studyflow:RandomGateway'),
           click: createElement.bind(null, 'studyflow:RandomGateway'),
@@ -84,11 +84,27 @@ export default class StudyflowPalette {
       entries['create.data-store'].className = 'bi bi-database';
       delete entries['create.task'];
       delete entries['create.subprocess-expanded'];
+
       // delete entries['create.group'];
+      entries['create.group'].group = 'tools';
+      entries['create.group'].title = 'Create BPMN Group';
+
       delete entries['create.data-object'];
       delete entries['create.intermediate-event'];
       delete entries['create.participant-expanded'];
-      return { ...entries, ...studyflowEntries };
+
+      // HACK move create.group to the top of the palette
+      const keys = Object.keys(entries);
+      const sortedEntries = keys.reduce((acc, key) => {
+        if (key === "tool-separator") {
+          acc["create.group"] = entries["create.group"];
+        }
+        acc[key] = entries[key];
+        return acc;
+      }, {});
+      //
+
+      return { ...sortedEntries, ...studyflowEntries };
     };
   }
 }
