@@ -1,0 +1,19 @@
+[project]
+authors = [{name = "Morteza Ansarinia", email = "ansarinia@me.com"}]
+name = "studyflow-modeler"
+requires-python = ">= 3.11"
+version = "0.1.0"
+dependencies = ["linkml>=1.8.7,<2"]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+nodejs = ">=22.13.0,<22.14"
