@@ -9,6 +9,16 @@ imports:
 default_range: string
 default_prefix: bdmt
 
+enums:
+  MultiTaskType:
+    permissible_values:
+      - none:
+          description: No multitasking, i.e., single-tasking.
+      - concurrent:
+          description: There are two independent tasks that need to be completed in parallel.
+      - compound:
+          description: The task requires multiple successive stages or involves tasks that are dependent/coupled.
+
 classes:
   Trial:
     slots:
@@ -86,7 +96,42 @@ classes:
       - adaptive_parameter_name
       - adaptive_parameter_value
       - adaptive_parameter_value_next
+
   Stimulus:
+    attributes:
+      index:
+        is_a: stimulus_index
+      stimulus_id:
+        is_a: id
+      type:
+        is_a: stimulus_type
+      stimulus_onset:
+        range: datetime
+      panel_count:
+        is_a: stimulus_panel_count
+      structure:
+        is_a: stimulus_structure
+      structure_source_type:
+        is_a: stimulus_structure_source_type
+      structure_source:
+        is_a: stimulus_structure_source
+      set_size:
+        is_a: stimulus_set_size
+        range: integer
+      count:
+        is_a: stimulus_count
+      source_type:
+        is_a: stimulus_source_type
+      source:
+        is_a: stimulus_source
+      index_in_source:
+        is_a: stimulus_index_in_source
+      position_index:
+        range: integer
+        minimum_value: 1
+      description:
+        range: string
+
   Option:
   Input:
   StimulusComponent:
@@ -94,200 +139,223 @@ classes:
   Instrument:
 
 slots:
-  variable_category:
-  key_category:
-    is_a: variable_category
-  context_category:
-    is_a: variable_category
-  task_category:
-    is_a: variable_category
-  stimulus_category:
-    is_a: variable_category
-  option_category:
-    is_a: variable_category
-  input_category:
-    is_a: variable_category
-  expectation_category:
-    is_a: variable_category
-  response_category:
-    is_a: variable_category
-  evaluation_category:
-    is_a: variable_category
-  feedback_category:
-    is_a: variable_category
-  outcome_category:
-    is_a: variable_category
-  accessory_category:
-    is_a: variable_category
-  experimental_design_category:
-    is_a: variable_category
+  variable:
+    is_grouping_slot: true
+  key_variable:
+    is_a: variable
+  context_variable:
+    is_a: variable
+  task_variable:
+    is_a: variable
+  stimulus_variable:
+    is_a: variable
+  option_variable:
+    is_a: variable
+  input_variable:
+    is_a: variable
+  expectation_variable:
+    is_a: variable
+  response_variable:
+    is_a: variable
+  evaluation_variable:
+    is_a: variable
+  feedback_variable:
+    is_a: variable
+  outcome_variable:
+    is_a: variable
+  accessory_variable:
+    is_a: variable
+  experimental_design_variable:
+    is_a: variable
 
   id:
     identifier: true
-    mixins: variable_category
+    slot_group: key_variable
     description: A unique identifier assigned to responses in temporal order.
+
   study_name:
-    mixins: context_category
+    slot_group: context_variable
     description: The name of the study or experiment.
   group_name:
-    mixins: context_category
+    slot_group: context_variable
     description: Subjects may be assigned to different groups. Typically, different groups will have different experiences within a study.
   agent_id:
-    mixins: context_category
+    slot_group: context_variable
     description: A unique identifier assigned to the agent (typically person) generating the responses.
   session_id:
-    mixins: context_category
+    slot_group: context_variable
     description: When there are multiple sessions, this variable indicates the order of each session. Even if the second session is an exact repetition of the first one.
   activity_index:
-    mixins: context_category
+    slot_group: context_variable
     description: Order of the activity within a session. Even if the second activity is an exact repetition of the first one.
+
   language:
-    mixins: task_category
+    slot_group: task_variable
     description: The language used in the task, expressed as a two-letter code in the ISO_639-1 standard.
   instrument_id:
-    mixins: task_category
+    slot_group: task_variable
     description: The unique identifier of the instrument used for collecting data (e.g., the name of the computer script used to run the test). Indicates corresponding file in the `instruments/` folder.
   instrument_repetition:
-    mixins: task_category
+    slot_group: task_variable
     description: The number of times this particular instrument has been completed in the past by this particular agent in this study. This variable has a value 0 the first time an instrument is used.
     range: integer
     minimum_value: 0
   timeline_id:
-    mixins: task_category
+    slot_group: task_variable
     description: Timelines are specific parameterization of an instrument.
   timeline_repetition:
-    mixins: task_category
+    slot_group: task_variable
     description: The number of times this particular timeline has been completed in the past by this particular agent in this study. 0-index.
     range: integer
     minimum_value: 0
   multitask_type:
-    mixins: task_category
+    slot_group: task_variable
     description: The type of multitasking required, if any.
     range: MultiTaskType
   task_index:
-    mixins: task_category
+    slot_group: task_variable
     description: When multitasking is required, `task_index` refers to each of the individual tasks. For example, for auditoy-visual dual N-back, `task_index=1` is the auditory task and `task_index=2` is the visual task.
     range: integer
     minimum_value: 1
   job_type:
-    mixins: task_category
+    slot_group: task_variable
   job_description:
-    is_a: task_category
+    slot_group: task_variable
   job_repeat:
-    is_a: task_category
+    slot_group: task_variable
   block_index:
-    is_a: task_category
+    slot_group: task_variable
   block_name:
-    is_a: task_category
+    slot_group: task_variable
   block_type:
-    is_a: task_category
+    slot_group: task_variable
   transformation_name:
-    is_a: task_category
+    slot_group: task_variable
   trial_id:
-    is_a: task_category
+    slot_group: task_variable
   trial_start_datetime:
-    is_a: task_category
+    slot_group: task_variable
   trial_seed:
-    is_a: task_category
+    slot_group: task_variable
+    recommended: true
+
   stimulus_index:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
+    range: integer
+    minimum_value: 1
+    # TODO this is a list
   stimulus_id:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_type:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_onset:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_panel_count:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_structure:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_structure_source_type:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_structure_source:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_set_size:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_count:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_source_type:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_source:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_index_in_source:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_position_index:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_description:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
   stimulus_role:
-    is_a: stimulus_category
+    slot_group: stimulus_variable
+
   option_source_type:
-    is_a: option_category
+    slot_group: option_variable
   option_source:
-    is_a: option_category
+    slot_group: option_variable
   option_count:
-    is_a: option_category
+    slot_group: option_variable
   option_id:
-    is_a: option_category
+    slot_group: option_variable
   option_data_type:
-    is_a: option_category
+    slot_group: option_variable
   measurement_type:
-    is_a: option_category
+    slot_group: option_variable
+
   input_interface_type:
-    is_a: input_category
+    slot_group: input_variable
   input_action_type:
-    is_a: input_category
+    slot_group: input_variable
   input_count:
-    is_a: input_category
+    slot_group: input_variable
+
   expected_response_option_index:
-    is_a: expectation_category
+    slot_group: expectation_variable
   expected_response_description:
-    is_a: expectation_category
+    slot_group: expectation_variable
+
   response_structure:
-    is_a: response_category
+    slot_group: response_variable
   response_count:
-    is_a: response_category
+    slot_group: response_variable
   response_option_index:
-    is_a: response_category
+    slot_group: response_variable
   response_description:
-    is_a: response_category
+    slot_group: response_variable
   response_numeric:
-    is_a: response_category
+    slot_group: response_variable
   response_time:
-    is_a: response_category
+    slot_group: response_variable
   response_datetime:
-    is_a: response_category
+    slot_group: response_variable
   response_validation_time:
-    is_a: response_category
+    slot_group: response_variable
   response_initiation_time:
-    is_a: response_category
+    slot_group: response_variable
   response_skipped:
-    is_a: response_category
+    slot_group: response_variable
   timed_out:
-    is_a: response_category
+    slot_group: response_variable
+
   accuracy:
-    is_a: evaluation_category
+    slot_group: evaluation_variable
+    range: float
+    minimum_value: 0
+    maximum_value: 1
   correct:
-    is_a: evaluation_category
+    slot_group: evaluation_variable
+    range: boolean
   score:
-    is_a: evaluation_category
+    slot_group: evaluation_variable
+    description:  a numeric score that represents the performance or quality of the response.
+    range: float
   evaluation_label:
-    is_a: evaluation_category
+    slot_group: evaluation_variable
+    description: A label assigned to the evaluation of the response, typically a string that describes the evaluation in a human-readable format.
+
   feedback_description:
-    is_a: feedback_category
+    slot_group: feedback_variable
   outcome_description:
-    is_a: outcome_category
+    slot_group: outcome_variable
   outcome_numeric:
-    is_a: outcome_category
-  additional_measures:
-    is_a: accessory_category
+    slot_group: outcome_variable
+
   adaptive_method_name:
-    is_a: experimental_design_category
+    slot_group: experimental_design_variable
   adaptive_method_config:
-    is_a: experimental_design_category
+    slot_group: experimental_design_variable
   adaptive_parameter_name:
-    is_a: experimental_design_category
+    slot_group: experimental_design_variable
   adaptive_parameter_value:
-    is_a: experimental_design_category
+    slot_group: experimental_design_variable
   adaptive_parameter_value_next:
-    is_a: experimental_design_category
+    slot_group: experimental_design_variable
+
+  additional_measures:
+    slot_group: accessory_variable
