@@ -1,9 +1,9 @@
-id: https://w3id.org/bdm/studyflow
+id: https://w3id.org/studyflow
 name: studyflow
 prefixes:
   linkml: https://w3id.org/linkml/
-  studyflow: https://w3id.org/bdm/studyflow
-  bpmn: https://w3id.org/bdm/bpmn/
+  studyflow: https://w3id.org/studyflow
+  bpmn: https://w3id.org/bpmn/
 imports:
   - linkml:types
 default_range: string

@@ -3,7 +3,7 @@ name: bdmt
 prefixes:
   linkml: https://w3id.org/linkml/
   bdmt: https://w3id.org/bdm/trials/
-  studyflow: https://w3id.org/bdm/studyflow/
+  studyflow: https://w3id.org/studyflow/
 imports:
   - linkml:types
 default_range: string
@@ -11,36 +11,55 @@ default_prefix: bdmt
 
 types:
   Trial:
-    attributes:
-      id: string
-      study_name: string
-      subject_id: string
-      session_id: int
-      activity_index: index
-      language: string
-      instrument_id: string
-      instrument_repetition: int
-      timeline_id: string
-      timeline_repetition: int
-      mltitask_type: string
-      task_index: index
-      job_type: string
-      job_description: string
-      job_repeat: int
-      block_index: index
-      block_name: string
-      block_type: enum
-      projection_name: string
-      name: string
-      description: string
-      study: Study
-      arm: Arm
-      intervention: Intervention
-      outcome: Outcome
-      population: Population
+    slots:
+      - id
+      - study_name
+      - subject_id
+      - session_id
+      - activity_index
+      - language
+      - instrument_id
+      - instrument_repetition
+      - timeline_id
+      - timeline_repetition
+      - mltitask_type
+      - task_index
+      - job_type
+      - job_description
+      - job_repeat
+      - block_index
+      - block_name
+      - block_type
+      - transformation_name
   Stimulus:
   Option:
   Input:
   StimulusComponent:
   OptionComponent:
   Instrument:
+
+
+slots:
+  id:
+    identifier: true
+  study_name: string
+  subject_id: string
+  session_id: int
+  activity_index: index
+  language: string
+  instrument_id: string
+  instrument_repetition: int
+  timeline_id: string
+  timeline_repetition: int
+  mltitask_type: string
+  task_index: index
+  job_type: string
+  job_description: string
+  job_repeat: int
+  block_index: index
+  block_name: string
+  block_type: enum
+  transformation_name: string
+  name: string
+  description: string
+  outcome: Outcome
