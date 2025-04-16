@@ -155,6 +155,22 @@ classes:
     is_a: StudyStep
     description: Transform the data into a different format.
     attributes:
+
+  # MapReduce paradigm
+  MapData:
+    is_a: TransformData
+    description: Apply a function to each element in a data stream.
+    attributes:
+  ReduceData:
+    is_a: TransformData
+    description: Reduce a data stream to a single value.
+    attributes:
+  FilterData:
+    is_a: TransformData
+    description: Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
+    attributes:
+
+  # relational paradigm
   TransformTable:
     is_a: TransformData
     description: Specific type of data transformation for a 2D table.
@@ -178,11 +194,15 @@ classes:
     description: Keep only distinct (unique) rows from a table.
     attributes:
   FilterRows:
-    is_a: TransformTable
+    is_a:
+      - TransformTable
+      - FilterData
     description: Keep rows where conditions are true.
     attributes:
   MutateTable:
-    is_a: TransformTable
+    is_a:
+       - TransformTable
+       - MapData
     description: Assign new variables to a DataFrame, while keeping existing ones.
     attributes:
   TransmuteTable:
@@ -197,11 +217,15 @@ classes:
     description: Select columns of a table to keep or drop (and optionally rename).
     attributes:
   SummarizeTable:
-    is_a: TransformTable
+    is_a:
+      - TransformTable
+      - ReduceData
     description: Assign variables that are single number summaries of a DataFrame. Grouped DataFrames will produce one row for each group. Otherwise, summarize produces a DataFrame with a single row.
     attributes:
   GroupByTable:
-    is_a: TransformTable
+    is_a:
+      - TransformTable
+      - MapData
     description: Return a grouped table, using columns or expressions to define groups.
     attributes:
   UngroupTable:
