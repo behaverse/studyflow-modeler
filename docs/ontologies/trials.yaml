@@ -96,41 +96,43 @@ classes:
       - adaptive_parameter_name
       - adaptive_parameter_value
       - adaptive_parameter_value_next
-
+  Attempt:  # container for multiple trials
+    tree_root: true
+    description: A collection of trial responses for a single agent in a single session.
+    attributes:
+      trials:
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        array:
+        range: Trial
+  
   Stimulus:
     attributes:
-      index:
-        is_a: stimulus_index
-      stimulus_id:
-        is_a: id
-      type:
-        is_a: stimulus_type
-      stimulus_onset:
-        range: datetime
-      panel_count:
-        is_a: stimulus_panel_count
-      structure:
-        is_a: stimulus_structure
-      structure_source_type:
-        is_a: stimulus_structure_source_type
-      structure_source:
-        is_a: stimulus_structure_source
-      set_size:
-        is_a: stimulus_set_size
-        range: integer
-      count:
-        is_a: stimulus_count
-      source_type:
-        is_a: stimulus_source_type
-      source:
-        is_a: stimulus_source
-      index_in_source:
-        is_a: stimulus_index_in_source
-      position_index:
+      id:
+      trial_id:
+      object_id:
+      presentation_id:
+      index_in_trial:
         range: integer
         minimum_value: 1
+      onset:
+        range: float
+        minimum_value: 0
+      duration:
+        range: float
+        minimum_value: 0
+      panel_id:
+      x_screen:
+      y_screen:
+      x_viewport:
+      y_viewport:
       description:
-        range: string
+      source:
+      source_type:
+      index_in_source:
+      role:
+      animation:
 
   Option:
   Input:
@@ -246,6 +248,10 @@ slots:
     # TODO this is a list
   stimulus_id:
     slot_group: stimulus_variable
+    range: Stimulus
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
   stimulus_type:
     slot_group: stimulus_variable
   stimulus_onset:
