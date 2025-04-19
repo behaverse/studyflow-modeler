@@ -32,9 +32,11 @@ export default function ExportButton() {
 
     function exportDiagram() {
         modeler.saveSVG().then(({ svg }) => {
-            exportoToImage(svg).then((dataURL) => {
-                download(dataURL, 'diagram.png', 'image/png');
-            });
+            download(svg, 'diagram.svg', 'image/svg+xml');
+            // TODO if png is needed, uncomment the following lines
+            // exportoToImage(svg).then((dataURL) => {
+            //     download(dataURL, 'diagram.png', 'image/png');
+            // });
         });
     }
 
