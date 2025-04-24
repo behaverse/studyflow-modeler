@@ -1,5 +1,17 @@
 # Conclusion
 
+- We propose a new visual language for the formal definition of scientific workflows, aiming to make cognitive research more rigorous, transparent, and accessible.
+
+- studyflow is a domain-specific language (DSL) that allows users to define all the steps of the scientific studies in a more intuitive way.
+
+- studyflow diagrams are defined as a graph, with nodes representing processes, events, activities, decisions, and data, and with edges representing sequence flows.
+
+- we implemented a prototype of a designer app to model studyflow diagrams.
+
+- we also implemented a prototype of a runtime engine to execute studyflow diagrams.
 
 # Future Works
 
+We will extend elements to support more complex processes, such as data normalization, data augmentation, multi-modal data processing, and data fusion.
+
+We will also extend the prototype modeler and runtime engine to support recent MLOps and more complex workflows, such as parallel execution, error handling, and logging.
