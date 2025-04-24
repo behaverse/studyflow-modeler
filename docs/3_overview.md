@@ -2,6 +2,22 @@
 
 In addition to the elements specified in BPMN2.1, the studyflow language introduces several new elements and processes that are specifically designed to support the unique requirements of scientific research. These elements aim to facilitate the design, execution, and analysis of experiments, ensuring that researchers can effectively manage their workflows and data.
 
+
+# Formulation
+
+A basic workflow is a (G, F, C, A) tuple, where G is a directed graph, F is a set of flow objects (e.g., nodes, decision branching), C is a set of connecting objects (e.g., edges, messages), and A is a set of artifacts (e.g., data, annotations). The nodes in the graph represent the different elements of the study, such as tasks, events, and processes. The edges in the graph represent the flow of control and data between these elements.
+
+
+TODO: 
+- properties of the elements
+- input/outputs
+- gateways -> branches
+- grouping mechanisms:
+    - subprocesses (can be another graph G)
+    - groups of flow objects (paths in the G)
+    - bpmn2:group -> visual annotation
+
+
 ### Studyflow elements
 
 
