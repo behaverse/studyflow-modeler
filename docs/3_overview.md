@@ -1,2 +1,53 @@
 ## Language Overview
 
+In addition to the elements specified in BPMN2.1, the studyflow language introduces several new elements and processes that are specifically designed to support the unique requirements of scientific research. These elements aim to facilitate the design, execution, and analysis of experiments, ensuring that researchers can effectively manage their workflows and data.
+
+### Studyflow elements
+
+
+See [studyflow.yaml schema](https://behaverse.org/data-model/assets/schemas/studyflow.yaml) for a complete list of elements and their properties.
+
+
+The basic elements of the studyflow are tailored to the specific needs scientific research and include:
+
+- **Start Event**: Defines the beginning of the workflow. It can be conditioned on human participants giving informed consent, supporting the ethical and legal requirements.
+- **Instructions**: Define and deliver instructions to the participants.
+- **Questionnaires**: Surveys and questionnaires for gathering self-reported data.
+- **Cognitive Tests**: Various cognitive assessment tasks within the study design, including [cognitive assessment tests](https://behaverse.org/projects/cognitive-tests.html).
+- **Video Games**: Interactive games as part of the experimental paradigm.
+- **Datasets**: TO describe how data is stored and formatted. It supports various dataset formats, including BDM, BIDS, Psych-DS, and others. It can also be used to describe levels of the data in [Behaverse Data Model (BDM)](https://behaverse.org/data-model): events, trials, or models.
+    - Events: represent the raw data collected during an activity. In BDM, Events are stored in the events.csv file within the activity folder of a BDM dataset.
+    - Trials: represent a single attempt at an activity accompanied by the participant's response and experimenter's interpretation of the response. Trials are stored in the trials.csv file within the activity folder of a BDM dataset.
+    - Models: the most abstract level of data that represent the data analysis and interpretation of the data, like a checkpoint for a deep learning model that predicts performance.
+
+- **End Event**: Defines the end of the workflow, typically after all the data has been collected. It can redirect to a different workflow or terminate the study.
+
+
+Processes:
+
+- StudyStep: a generic step in the study workflow.
+- DesignExperiment
+- CollectData
+- ValidateData
+- TransformData
+
+# Data Processing
+- MapData
+- ReduceData
+- FilterData
+
+# Tabular data cleaning/transformation
+- TransformTable
+- TransformTables
+
+
+# MLOps
+- TrainModel
+- FineTuneModel
+- EvaluateModel
+- BenchmarkModel
+- VersionData
+- VersionModel
+- DeployModel
+- PublishModel
+- MonitorModel
