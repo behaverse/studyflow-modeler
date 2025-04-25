@@ -27,8 +27,9 @@ export default function OpenButton() {
             return;
         }
 
-        if (!file.name.endsWith('bpmn')) {
-            alert("Please select a valid BPMN/XML file.");
+        if (!file.name.endsWith('xml') && !file.name.endsWith('bpmn')
+            && !file.name.endsWith('studyflow')) {
+            alert("Please select a valid XML/BPMN/Studyflow file.");
             return;
         }
 
@@ -50,7 +51,7 @@ export default function OpenButton() {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".bpmn"
+                accept=".xml,.bpmn,.studyflow"
                 onChange={handleFileChange} />
         </>
     );
