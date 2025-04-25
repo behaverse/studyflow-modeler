@@ -1,3 +1,7 @@
+---
+order: 5
+---
+
 # Conclusion
 
 - We propose a new visual language for the formal definition of scientific workflows, aiming to make cognitive research more rigorous, transparent, and accessible.

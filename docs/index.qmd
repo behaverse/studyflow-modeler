@@ -1,0 +1,19 @@
+---
+title: "Studyflow: Technical Paper"
+authors:
+  - name: Author 1
+    affiliation: University of Luxembourg
+    roles: writing
+    corresponding: true
+  - name: Author 2
+    affiliation: University of Luxembourg
+    roles: writing
+    corresponding: true
+bibliography: references.bib
+---
+
+{{< include 1_introduction.qmd >}}
+{{< include 2_related_works.qmd >}}
+{{< include 3_overview.qmd >}}
+{{< include 4_use_case.qmd >}}
+{{< include 5_conclusion.qmd >}}

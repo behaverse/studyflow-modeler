@@ -1,3 +1,7 @@
+---
+order: 3
+---
+
 ## Language Overview
 
 In addition to the elements specified in BPMN2.1, the studyflow language introduces several new elements and processes that are specifically designed to support the unique requirements of scientific research. These elements aim to facilitate the design, execution, and analysis of experiments, ensuring that researchers can effectively manage their workflows and data.
