@@ -14,18 +14,20 @@
       <bpmn2:outgoing>Flow_1d4ayr4</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_18h7ilb</bpmn2:outgoing>
     </studyflow:randomGateway>
-    <bpmn2:sequenceFlow id="Flow_08opnol" sourceRef="Activity_1i8p7zp" targetRef="RandomGateway_02vvte4" />
-    <bpmn2:task id="Activity_1kku0um" name="Allocate to intervention">
+    <bpmn2:sequenceFlow id="Flow_08opnol" sourceRef="Activity_1i8p7zp" targetRef="RandomGateway_02vvte4">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"></bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:task id="Activity_1kku0um" name="Allocate to intervention" default="Flow_0q97c6j">
       <bpmn2:incoming>Flow_1d4ayr4</bpmn2:incoming>
       <bpmn2:outgoing>Flow_0q97c6j</bpmn2:outgoing>
     </bpmn2:task>
-    <bpmn2:sequenceFlow id="Flow_1d4ayr4" name="group 1" sourceRef="RandomGateway_02vvte4" targetRef="Activity_1kku0um" />
+    <bpmn2:sequenceFlow id="Flow_1d4ayr4" name="group 1&#10;&#10;n=..." sourceRef="RandomGateway_02vvte4" targetRef="Activity_1kku0um" />
     <bpmn2:task id="Activity_13m9s5e" name="Allocate to intervention (n=...):&#10;received allocated intervention (n=...)&#10;did not receive allocated intervention (give reasons) (n=...)">
       <bpmn2:incoming>Flow_18h7ilb</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1fozhqm</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:sequenceFlow id="Flow_18h7ilb" name="group2" sourceRef="RandomGateway_02vvte4" targetRef="Activity_13m9s5e" />
-    <bpmn2:task id="Activity_0ui1cau" name="Follow-up">
+    <bpmn2:task id="Activity_0ui1cau" name="Follow-up" default="Flow_1gq0d7f">
       <bpmn2:incoming>Flow_0q97c6j</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1gq0d7f</bpmn2:outgoing>
     </bpmn2:task>
@@ -33,7 +35,7 @@
       <bpmn2:incoming>Flow_1fozhqm</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1pcgb5h</bpmn2:outgoing>
     </bpmn2:task>
-    <bpmn2:task id="Activity_0fnr437" name="Analysis">
+    <bpmn2:task id="Activity_0fnr437" name="Analysis" default="Flow_0q7dsmb">
       <bpmn2:incoming>Flow_1gq0d7f</bpmn2:incoming>
       <bpmn2:outgoing>Flow_0q7dsmb</bpmn2:outgoing>
     </bpmn2:task>
@@ -53,7 +55,7 @@
       <bpmn2:incoming>Flow_1f13ghy</bpmn2:incoming>
       <bpmn2:errorEventDefinition id="ErrorEventDefinition_03e2tmh" />
     </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_1f13ghy" name="n=..." sourceRef="Event_1pnl6rp" targetRef="Event_1perv4i" />
+    <bpmn2:sequenceFlow id="Flow_1f13ghy" name="n=..." sourceRef="Event_1dm6hlt" targetRef="Event_1perv4i" />
     <bpmn2:endEvent id="Event_1jaq45z" name="excluded from analysis">
       <bpmn2:incoming>Flow_1jih38m</bpmn2:incoming>
       <bpmn2:errorEventDefinition id="ErrorEventDefinition_12c237e" />
@@ -92,24 +94,24 @@
       <bpmn2:outgoing>Flow_02th6ve</bpmn2:outgoing>
       <bpmn2:errorEventDefinition id="ErrorEventDefinition_08pb1wj" />
     </bpmn2:boundaryEvent>
-    <bpmn2:intermediateCatchEvent id="Event_1pnl6rp">
+    <bpmn2:boundaryEvent id="Event_1dm6hlt" attachedToRef="Activity_0ui1cau">
       <bpmn2:outgoing>Flow_1f13ghy</bpmn2:outgoing>
-      <bpmn2:errorEventDefinition id="ErrorEventDefinition_1fugryj" />
-    </bpmn2:intermediateCatchEvent>
+      <bpmn2:errorEventDefinition id="ErrorEventDefinition_1iz1dcp" />
+    </bpmn2:boundaryEvent>
     <bpmn2:group id="Group_1nspys6" categoryValueRef="CategoryValue_0xvqtuq" />
     <bpmn2:group id="Group_0l733h7" categoryValueRef="CategoryValue_0q9d5ep" />
     <bpmn2:group id="Group_1gbia71" categoryValueRef="CategoryValue_0o615fz" />
     <bpmn2:textAnnotation id="TextAnnotation_1neh62m">
       <bpmn2:text>This path is CONSORT, but more visual, and probably more concise than regular text descriptions in CONSORT flow</bpmn2:text>
     </bpmn2:textAnnotation>
-    <bpmn2:association id="Association_0k57ck2" associationDirection="None" sourceRef="Activity_1kku0um" targetRef="TextAnnotation_1neh62m" />
+    <bpmn2:association id="Association_0k57ck2" associationDirection="None" sourceRef="Flow_1d4ayr4" targetRef="TextAnnotation_1neh62m" />
     <bpmn2:textAnnotation id="TextAnnotation_1n8dkjm">
       <bpmn2:text>more generic alternative:
 This path is regular CONSORT flow reporting</bpmn2:text>
     </bpmn2:textAnnotation>
-    <bpmn2:association id="Association_17u599d" associationDirection="None" sourceRef="Activity_13m9s5e" targetRef="TextAnnotation_1n8dkjm" />
+    <bpmn2:association id="Association_17u599d" associationDirection="None" sourceRef="Flow_18h7ilb" targetRef="TextAnnotation_1n8dkjm" />
     <bpmn2:textAnnotation id="TextAnnotation_09xqtgo">
-      <bpmn2:text>This is a bpmn:group, not to be confused with RCT participant grouping. If multiple grouping techniques are used in a single diagram, it must be made clear.</bpmn2:text>
+      <bpmn2:text>This boundary is a bpmn:group, not to be confused with RCT participant grouping in CONSORT. If multiple grouping techniques are used in a single diagram, it must be made clear.</bpmn2:text>
     </bpmn2:textAnnotation>
     <bpmn2:association id="Association_1t3rgni" associationDirection="None" sourceRef="Group_1nspys6" targetRef="TextAnnotation_09xqtgo" />
     <bpmn2:textAnnotation id="TextAnnotation_1nomriv">
@@ -124,6 +126,10 @@ This path is regular CONSORT flow reporting</bpmn2:text>
       <bpmn2:text>This is boundary event, meaning the activity terminated because of an error, redirecting the flow to the error handling</bpmn2:text>
     </bpmn2:textAnnotation>
     <bpmn2:association id="Association_0yjtpw7" associationDirection="None" sourceRef="Event_0nkx0sc" targetRef="TextAnnotation_0ygxj1o" />
+    <bpmn2:textAnnotation id="TextAnnotation_0fmgfja">
+      <bpmn2:text>These are error end events: The CONSORT process stops here</bpmn2:text>
+    </bpmn2:textAnnotation>
+    <bpmn2:association id="Association_05csesr" associationDirection="None" sourceRef="Event_1uomwkd" targetRef="TextAnnotation_0fmgfja" />
   </bpmn2:process>
   <bpmn2:category id="Category_0wnhu6w">
     <bpmn2:categoryValue id="CategoryValue_0xvqtuq" value="Allocation" />
@@ -176,28 +182,10 @@ This path is regular CONSORT flow reporting</bpmn2:text>
         <dc:Bounds x="470" y="830" width="320" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_15t1xhi_di" bpmnElement="Event_15t1xhi" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="692" y="342" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="667" y="385" width="86" height="80" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1uomwkd_di" bpmnElement="Event_1uomwkd" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
         <dc:Bounds x="32" y="592" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="14" y="635" width="73" height="40" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_1tnitdy" bpmnElement="Event_1xzg7ir" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="32" y="702" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="10" y="745" width="81" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_1jaq45z_di" bpmnElement="Event_1jaq45z" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="32" y="852" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="14" y="898" width="71" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1perv4i_di" bpmnElement="Event_1perv4i" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
@@ -206,76 +194,91 @@ This path is regular CONSORT flow reporting</bpmn2:text>
           <dc:Bounds x="14" y="815" width="73" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1jaq45z_di" bpmnElement="Event_1jaq45z">
+        <dc:Bounds x="32" y="852" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="14" y="898" width="71" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1f0xc32_di" bpmnElement="Event_1f0xc32">
         <dc:Bounds x="412" y="1002" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="420" y="1045" width="20" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0t8tizz_di" bpmnElement="Event_1pnl6rp" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="182" y="772" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Association_1t3rgni_di" bpmnElement="Association_1t3rgni" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
-        <di:waypoint x="810" y="610" />
-        <di:waypoint x="880" y="610" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Association_0e5dh8b_di" bpmnElement="Association_0e5dh8b" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
-        <di:waypoint x="444" y="247" />
-        <di:waypoint x="530" y="176" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Association_18j9mi7_di" bpmnElement="Association_18j9mi7">
-        <di:waypoint x="725" y="351" />
-        <di:waypoint x="790" y="314" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Association_0yjtpw7_di" bpmnElement="Association_0yjtpw7">
-        <di:waypoint x="491" y="346" />
-        <di:waypoint x="532" y="293" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Association_0k57ck2_di" bpmnElement="Association_0k57ck2" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
-        <di:waypoint x="310" y="570" />
-        <di:waypoint x="240" y="430" />
-        <di:waypoint x="110" y="405" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="Event_18hn9f0_di" bpmnElement="Event_18hn9f0" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="262" y="592" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0smgywa_di" bpmnElement="Event_0smgywa" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="262" y="852" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0nkx0sc_di" bpmnElement="Event_0nkx0sc" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="462" y="342" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_1efbbud_di" bpmnElement="Event_1efbbud" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="262" y="702" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0n58p23_di" bpmnElement="Flow_0n58p23" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
-        <di:waypoint x="262" y="610" />
-        <di:waypoint x="68" y="610" />
+      <bpmndi:BPMNShape id="BPMNShape_1tnitdy" bpmnElement="Event_1xzg7ir" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="32" y="702" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="154" y="592" width="22" height="14" />
+          <dc:Bounds x="10" y="745" width="81" height="14" />
         </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_15t1xhi_di" bpmnElement="Event_15t1xhi" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="692" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="667" y="385" width="86" height="80" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_05csesr_di" bpmnElement="Association_05csesr" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="32" y="610" />
+        <di:waypoint x="-130" y="610" />
+        <di:waypoint x="-180" y="640" />
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Event_1dm6hlt_di" bpmnElement="Event_1dm6hlt" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="262" y="742" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Group_1nspys6_di" bpmnElement="Group_1nspys6">
         <dc:Bounds x="240" y="550" width="570" height="120" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="395" y="557" width="50" height="14" />
+          <dc:Bounds x="405" y="603" width="50" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_0ys5fdx" bpmnElement="Group_0l733h7">
         <dc:Bounds x="240" y="808" width="570" height="122" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="409" y="815" width="41" height="14" />
+          <dc:Bounds x="409" y="863" width="41" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_11qj2za" bpmnElement="Group_1gbia71">
         <dc:Bounds x="240" y="680" width="570" height="120" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="395" y="687" width="50" height="14" />
+          <dc:Bounds x="405" y="733" width="50" height="14" />
         </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1neh62m_di" bpmnElement="TextAnnotation_1neh62m" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
+        <dc:Bounds x="-80" y="380" width="189.9980095541401" height="70.06369426751591" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="TextAnnotation_1n8dkjm_di" bpmnElement="TextAnnotation_1n8dkjm" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
         <dc:Bounds x="850" y="459" width="239.9980095541401" height="54.77707006369427" />
         <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_09xqtgo_di" bpmnElement="TextAnnotation_09xqtgo" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
+        <dc:Bounds x="880" y="595" width="229.9995782726046" height="83.9975539811066" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1nomriv_di" bpmnElement="TextAnnotation_1nomriv" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
+        <dc:Bounds x="530" y="120" width="280" height="60" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0uie7oq_di" bpmnElement="TextAnnotation_0uie7oq" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
+        <dc:Bounds x="790" y="270" width="209.9920382165605" height="59.99203821656051" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0ygxj1o_di" bpmnElement="TextAnnotation_0ygxj1o" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
+        <dc:Bounds x="525" y="223" width="209.9920382165605" height="70.06369426751591" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0nkx0sc_di" bpmnElement="Event_0nkx0sc" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="462" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0smgywa_di" bpmnElement="Event_0smgywa">
+        <dc:Bounds x="262" y="852" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1efbbud_di" bpmnElement="Event_1efbbud" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="262" y="702" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_18hn9f0_di" bpmnElement="Event_18hn9f0" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="262" y="592" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1ijusqh_di" bpmnElement="Flow_1ijusqh">
         <di:waypoint x="430" y="276" />
@@ -290,7 +293,7 @@ This path is regular CONSORT flow reporting</bpmn2:text>
         <di:waypoint x="330" y="480" />
         <di:waypoint x="330" y="570" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="349" y="462" width="38" height="14" />
+          <dc:Bounds x="349" y="460" width="38" height="40" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_18h7ilb_di" bpmnElement="Flow_18h7ilb">
@@ -312,14 +315,14 @@ This path is regular CONSORT flow reporting</bpmn2:text>
         <di:waypoint x="330" y="650" />
         <di:waypoint x="330" y="700" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="334" y="652" width="22" height="14" />
+          <dc:Bounds x="344" y="651" width="22" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1gq0d7f_di" bpmnElement="Flow_1gq0d7f">
         <di:waypoint x="330" y="780" />
         <di:waypoint x="330" y="830" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="334" y="783" width="22" height="14" />
+          <dc:Bounds x="345" y="783" width="22" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1pcgb5h_di" bpmnElement="Flow_1pcgb5h">
@@ -327,10 +330,12 @@ This path is regular CONSORT flow reporting</bpmn2:text>
         <di:waypoint x="630" y="830" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1f13ghy_di" bpmnElement="Flow_1f13ghy" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
-        <di:waypoint x="182" y="790" />
+        <di:waypoint x="262" y="760" />
+        <di:waypoint x="125" y="760" />
+        <di:waypoint x="125" y="790" />
         <di:waypoint x="68" y="790" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="115" y="772" width="22" height="14" />
+          <dc:Bounds x="149" y="745" width="22" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0q7dsmb_di" bpmnElement="Flow_0q7dsmb">
@@ -351,7 +356,7 @@ This path is regular CONSORT flow reporting</bpmn2:text>
           <dc:Bounds x="479" y="952" width="22" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1jih38m_di" bpmnElement="Flow_1jih38m" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+      <bpmndi:BPMNEdge id="Flow_1jih38m_di" bpmnElement="Flow_1jih38m">
         <di:waypoint x="262" y="870" />
         <di:waypoint x="68" y="870" />
         <bpmndi:BPMNLabel color:color="#ac5a54">
@@ -372,29 +377,45 @@ This path is regular CONSORT flow reporting</bpmn2:text>
           <dc:Bounds x="584" y="342" width="22" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Association_17u599d_di" bpmnElement="Association_17u599d" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
-        <di:waypoint x="687" y="570" />
-        <di:waypoint x="800" y="490" />
-        <di:waypoint x="850" y="477" />
+      <bpmndi:BPMNEdge id="Flow_0n58p23_di" bpmnElement="Flow_0n58p23" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="262" y="610" />
+        <di:waypoint x="68" y="610" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="154" y="592" width="22" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="TextAnnotation_09xqtgo_di" bpmnElement="TextAnnotation_09xqtgo" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
-        <dc:Bounds x="880" y="595" width="229.99601910828025" height="84.07643312101911" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="TextAnnotation_1nomriv_di" bpmnElement="TextAnnotation_1nomriv" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
-        <dc:Bounds x="530" y="120" width="280" height="60" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="TextAnnotation_0uie7oq_di" bpmnElement="TextAnnotation_0uie7oq" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
-        <dc:Bounds x="790" y="270" width="209.9920382165605" height="59.99203821656051" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="TextAnnotation_0ygxj1o_di" bpmnElement="TextAnnotation_0ygxj1o" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
-        <dc:Bounds x="525" y="223" width="209.9920382165605" height="70.06369426751591" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="TextAnnotation_1neh62m_di" bpmnElement="TextAnnotation_1neh62m" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
-        <dc:Bounds x="-80" y="380" width="189.9980095541401" height="70.06369426751591" />
+      <bpmndi:BPMNEdge id="Association_0k57ck2_di" bpmnElement="Association_0k57ck2" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="330" y="510" />
+        <di:waypoint x="160" y="415" />
+        <di:waypoint x="110" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_17u599d_di" bpmnElement="Association_17u599d" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="630" y="520" />
+        <di:waypoint x="760" y="520" />
+        <di:waypoint x="850" y="488" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1t3rgni_di" bpmnElement="Association_1t3rgni" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="810" y="610" />
+        <di:waypoint x="880" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0e5dh8b_di" bpmnElement="Association_0e5dh8b" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="444" y="247" />
+        <di:waypoint x="490" y="210" />
+        <di:waypoint x="490" y="150" />
+        <di:waypoint x="530" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_18j9mi7_di" bpmnElement="Association_18j9mi7" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="725" y="351" />
+        <di:waypoint x="790" y="314" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0yjtpw7_di" bpmnElement="Association_0yjtpw7" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+        <di:waypoint x="491" y="346" />
+        <di:waypoint x="510" y="320" />
+        <di:waypoint x="510" y="258" />
+        <di:waypoint x="525" y="258" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_0fmgfja_di" bpmnElement="TextAnnotation_0fmgfja" bioc:stroke="#ce9d35" bioc:fill="#fbe7cf" color:background-color="#fbe7cf" color:border-color="#ce9d35">
+        <dc:Bounds x="-340" y="640" width="169.99831309041835" height="55.33063427800269" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
