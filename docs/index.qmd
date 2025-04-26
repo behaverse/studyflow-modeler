@@ -12,6 +12,11 @@ authors:
 bibliography: references.bib
 ---
 
+Abstract: 
+  - Despite many standards and tools for defining scientific studies, many manuscripts rely on either convoluted textual descriptions of the protocols and methods (along simple box-and-arrow diagrams) or custom softwares that are difficult to comprehend and reproduce.
+  - In this paper, we present studyflow, a formal diagram for describing scientific studies. Studyflow is based on the BPMN standard, and allows to define many steps of a scientific study, including the experimental design, data collection, data processing, and analysis. The studyflow diagrams are designed to be easy to share and understand, even for non-experts. They are stand-alone and machine-readable, allowing for automatic execution of studies, enabling reproducible research workflows and precise communication of the protocols and methods without the need for custom software that depends on external packages.
+  - As a proof of concept, a modeler software is developed for creating, editing, and visualizing these diagrams. The studyflow modeler allows to create and edit studyflow diagrams, and to export them in different formats (including XML, SVG, PNG).
+
 {{< include 1_introduction.qmd >}}
 {{< include 2_related_works.qmd >}}
 {{< include 3_overview.qmd >}}
