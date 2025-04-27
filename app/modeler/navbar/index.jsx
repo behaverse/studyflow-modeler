@@ -21,9 +21,10 @@ export function NavBar(props) {
         {modeler && <MenuBar />}
       </div>
     </div>
-      <div className="flex flex-wrap float-end h-full items-center p-3">
-      <span className="self-center font-light text-2xl text-stone-700">Studyflow<span className="font-semibold">Modeler</span></span>
-    </div>
+      <a className="grid grid-flow-row auto-rows-max float-end px-2 text-end py-1" href="https://behaverse.org/studyflow-modeler" target="_blank" >
+        <span className="font-light text-xl text-stone-700">Studyflow</span>
+        <span className="font-semibold text-xl text-stone-800">Modeler</span>
+    </a>
   </nav>
 );
 }
