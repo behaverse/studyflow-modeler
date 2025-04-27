@@ -2,7 +2,7 @@ import { useEffect, useContext, useRef } from "react";
 import { ModelerContext } from '../contexts';
 
 
-export default function OpenButton() {
+export default function OpenMenuItem() {
 
     const { modeler } = useContext(ModelerContext);
     const fileInputRef = useRef(null);

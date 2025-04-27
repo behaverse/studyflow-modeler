@@ -4,7 +4,7 @@ import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description,
 
 import {ModelerContext} from '../contexts';
 
-export default function ExportButton(props) {
+export function PublishMenuItem(props) {
 
   const {modeler} = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)

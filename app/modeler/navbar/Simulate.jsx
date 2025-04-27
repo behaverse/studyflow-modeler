@@ -6,7 +6,7 @@ import {
   TOGGLE_MODE_EVENT
 } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 
-export default function SimulateButton(props) {
+export default function SimulateMenuItem(props) {
 
   const {modeler} = useContext(ModelerContext);
   const [active, setActive] = useState(true);

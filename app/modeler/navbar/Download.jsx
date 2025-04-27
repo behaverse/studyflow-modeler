@@ -2,7 +2,7 @@ import { useEffect, useContext } from "react";
 import {ModelerContext} from '../contexts';
 import download from 'downloadjs';
 
-export default function DownloadButton() {
+export default function DownloadMenuItem() {
 
   const {modeler} = useContext(ModelerContext);
 

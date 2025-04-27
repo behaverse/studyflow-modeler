@@ -6,7 +6,7 @@ import {Modeler} from './modeler/Modeler'
 import './styles.scss'
 import StartUpModal from './modeler/StartUpModal'
 import { APIKeyContext, ModelerContext } from './modeler/contexts';
-import { Navbar } from './modeler';
+import { NavBar } from './modeler';
 import { PropertiesPanel } from './modeler/properties';
 
 export default function App() {
@@ -29,8 +29,7 @@ export default function App() {
     <ModelerContext.Provider value={{modeler: modeler, setModeler: setModeler}}>
     <div className="App flex flex-col h-screen">
   
-      {/* the navbar */}
-      <Navbar />
+      <NavBar />
   
       {/* the modeler */}
           <div className="w-screen h-full">

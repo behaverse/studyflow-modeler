@@ -1,6 +1,6 @@
 import { Menu, MenuItems, MenuButton, MenuItem } from '@headlessui/react'
 
-export default function ExportButton() {
+export default function ExtraMenuItem() {
 
     return (
         <>

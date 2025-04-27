@@ -3,6 +3,7 @@ import { Canvg } from 'canvg';
 import { useEffect, useContext } from "react";
 import { ModelerContext } from '../contexts';
 import download from 'downloadjs';
+import { MenuItem } from '@headlessui/react'
 
 async function exportoToImage(svg) {
 
@@ -23,7 +24,7 @@ async function exportoToImage(svg) {
 
 }
 
-export default function ExportButton() {
+export function ExportMenuItem() {
 
     const {modeler} = useContext(ModelerContext);
 
@@ -41,12 +42,14 @@ export default function ExportButton() {
     }
 
     return (
+        <MenuItem className="py-1 px-4 hover:bg-stone-300">
         <button
-            title="Export to Image"
-            className="shadow-sm bg-stone-200 hover:bg-stone-300 border-y border-e rounded-e border-stone-300 text-black py-1 px-3"
+            title="Export to SVG"
+            className=""
             onClick={exportDiagram}>
-            <i className="bi bi-image"></i>
-        </button>
+            <i className="bi bi-image"></i> Export to SVG
+            </button>
+        </MenuItem>
     );
 
 }
