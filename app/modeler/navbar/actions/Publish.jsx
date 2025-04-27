@@ -51,7 +51,7 @@ export function PublishButton({ className, ...props }) {
         }
   
         if (!response.ok) {
-          throw new Error("Failed to publish [error code: " + response.status + "]");
+          throw new Error("Failed to publish (error " + response.status + ")");
         }
 
         return response.json()
