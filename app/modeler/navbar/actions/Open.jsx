@@ -1,5 +1,5 @@
 import { useEffect, useContext, useRef } from "react";
-import { ModelerContext } from '../contexts';
+import { ModelerContext } from '../../contexts';
 
 
 export function OpenButton({ className, ...props }) {
@@ -45,7 +45,7 @@ export function OpenButton({ className, ...props }) {
                 title="Upload"
                 className={`w-full text-left ${className}`}
                 onClick={() => fileInputRef.current.click()}>
-                <i className="bi bi-cloud-upload pe-2"></i> Open
+                <i className="bi bi-folder2-open pe-2"></i> Open File...
             </button>
             <input
                 type="file"

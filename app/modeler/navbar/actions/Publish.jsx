@@ -2,7 +2,7 @@ import { useEffect, useContext, useState } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
-import { ModelerContext } from '../contexts';
+import { ModelerContext } from '../../contexts';
 
 export function PublishButton({ className, ...props }) {
 
@@ -147,7 +147,7 @@ export function PublishButton({ className, ...props }) {
         id="publish-button"
         className={`w-full text-left ${className}`}
         onClick={open}>
-        <i className="bi bi-broadcast-pin pe-2"></i> Publish
+        <i className="bi bi-broadcast-pin pe-2"></i> Publish...
           </Button>
       {renderPublishDialog()}
     </>

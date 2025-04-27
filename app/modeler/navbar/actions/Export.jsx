@@ -1,7 +1,7 @@
 import { Canvg } from 'canvg';
 
 import { useEffect, useContext } from "react";
-import { ModelerContext } from '../contexts';
+import { ModelerContext } from '../../contexts';
 import download from 'downloadjs';
 import PropTypes from 'prop-types';
 
@@ -27,6 +27,10 @@ async function exportoToPng(svg) {
 export function ExportButton({ className, fileType, ...props }) {
 
   const { modeler } = useContext(ModelerContext);
+  const fileTypeIcon = {
+    png: 'bi bi-file-png',
+    svg: 'bi bi-file-svg',
+  }[fileType];
 
   useEffect(() => {
   }, [modeler]);
@@ -48,7 +52,7 @@ export function ExportButton({ className, fileType, ...props }) {
       title="Export to SVG"
       className={`w-full text-left ${className}`}
       onClick={exportDiagram}>
-      <i className="bi bi-image pe-2"></i> Export to {fileType.toUpperCase()}
+      <i className={`bi bi-filetype-${fileType.toLowerCase()} pe-2`}></i> Export to {fileType.toUpperCase()}...
     </button>
   );
 

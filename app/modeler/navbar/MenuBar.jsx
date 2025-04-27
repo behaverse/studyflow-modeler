@@ -1,15 +1,10 @@
-// import PublishButton from './PublishButton';
-// import SimulateButton from './SimulateButton';
-// import DownloadButton from './DownloadButton';
-import { ExportButton } from './Export';
-// import OpenButton from './OpenButton';
-// import ExtraMenuButton from './ExtraMenuButton';
 import { Menu, MenuItems, MenuButton, MenuItem, MenuSeparator } from '@headlessui/react'
-import { PublishButton } from './Publish';
-import { SaveButton } from './Save';
-import { OpenButton } from './Open';
-import { SimulateButton } from './Simulate';
-import { NewDiagramButton } from './NewDiagram';
+import { ExportButton } from './actions/Export';
+import { PublishButton } from './actions/Publish';
+import { SaveButton } from './actions/Save';
+import { OpenButton } from './actions/Open';
+import { SimulateButton } from './actions/Simulate';
+import { NewDiagramButton } from './actions/NewDiagram';
 
 export default function MenuBar(props) {
 

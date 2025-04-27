@@ -31,6 +31,10 @@ See [studyflow.yaml schema](https://behaverse.org/data-model/assets/schemas/stud
 The basic elements of the studyflow are tailored to the specific needs scientific research and include:
 
 - **Start Event**: Defines the beginning of the workflow. It can be conditioned on human participants giving informed consent, supporting the ethical and legal requirements.
+
+![Studyflow Start Event](figures/elements/start_event.svg)
+
+
 - **Instructions**: Define and deliver instructions to the participants.
 - **Questionnaires**: Surveys and questionnaires for gathering self-reported data.
 - **Cognitive Tests**: Various cognitive assessment tasks within the study design, including [cognitive assessment tests](https://behaverse.org/projects/cognitive-tests.html).

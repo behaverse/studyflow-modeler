@@ -1,5 +1,5 @@
 import { useEffect, useContext } from "react";
-import {ModelerContext} from '../contexts';
+import {ModelerContext} from '../../contexts';
 import download from 'downloadjs';
 
 export function SaveButton({ className, ...props }) {
@@ -20,7 +20,7 @@ export function SaveButton({ className, ...props }) {
         title="Download"
         className={`w-full text-left ${className}`}
         onClick={downloadDiagram}>
-          <i className="bi bi-cloud-download pe-2"></i> Save
+          <i className="bi bi-download pe-2"></i> Save As...
         </button>
   );
 

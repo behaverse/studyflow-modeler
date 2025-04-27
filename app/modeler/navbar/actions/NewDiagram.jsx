@@ -1,6 +1,6 @@
 import { useEffect, useContext } from "react";
-import { ModelerContext } from '../contexts';
-import new_diagram from '../../assets/new_diagram.bpmn';
+import { ModelerContext } from '../../contexts';
+import new_diagram from '../../../assets/new_diagram.bpmn';
 
 export function NewDiagramButton({ className, ...props }) {
 
