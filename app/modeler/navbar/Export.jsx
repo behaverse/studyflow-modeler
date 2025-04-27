@@ -3,53 +3,58 @@ import { Canvg } from 'canvg';
 import { useEffect, useContext } from "react";
 import { ModelerContext } from '../contexts';
 import download from 'downloadjs';
-import { MenuItem } from '@headlessui/react'
+import PropTypes from 'prop-types';
 
-async function exportoToImage(svg) {
+async function exportoToPng(svg) {
 
-    let canvas = document.createElement('canvas');
+  let canvas = document.createElement('canvas');
 
-    const context = canvas.getContext('2d');
+  const context = canvas.getContext('2d');
 
-    const canvg = Canvg.fromString(context, svg);
-    await canvg.render();
+  const canvg = Canvg.fromString(context, svg);
+  await canvg.render();
 
-    context.globalCompositeOperation = 'destination-over';
-    context.fillStyle = 'white';
+  context.globalCompositeOperation = 'destination-over';
+  context.fillStyle = 'white';
 
-    context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillRect(0, 0, canvas.width, canvas.height);
 
-    const dataURL = canvas.toDataURL('image/png');
-    return dataURL;
+  const dataURL = canvas.toDataURL('image/png');
+  return dataURL;
 
 }
 
-export function ExportMenuItem() {
+export function ExportButton({ className, fileType, ...props }) {
 
-    const {modeler} = useContext(ModelerContext);
+  const { modeler } = useContext(ModelerContext);
 
-    useEffect(() => {
-    }, [modeler]);
+  useEffect(() => {
+  }, [modeler]);
 
-    function exportDiagram() {
-        modeler.saveSVG().then(({ svg }) => {
-            download(svg, 'diagram.svg', 'image/svg+xml');
-            // TODO if png is needed, uncomment the following lines
-            // exportoToImage(svg).then((dataURL) => {
-            //     download(dataURL, 'diagram.png', 'image/png');
-            // });
+  function exportDiagram() {
+    modeler.saveSVG().then(({ svg }) => {
+      if (fileType === 'png') {
+        exportoToPng(svg).then((dataURL) => {
+          download(dataURL, 'diagram.png', 'image/png');
         });
-    }
+      } else if (fileType === 'svg') {
+        download(svg, 'diagram.svg', 'image/svg+xml');
+      }
+    });
+  }
 
-    return (
-        <MenuItem className="py-1 px-4 hover:bg-stone-300">
-        <button
-            title="Export to SVG"
-            className=""
-            onClick={exportDiagram}>
-            <i className="bi bi-image"></i> Export to SVG
-            </button>
-        </MenuItem>
-    );
+  return (
+    <button
+      title="Export to SVG"
+      className={`w-full text-left ${className}`}
+      onClick={exportDiagram}>
+      <i className="bi bi-image pe-2"></i> Export to {fileType.toUpperCase()}
+    </button>
+  );
 
 }
+
+ExportButton.propTypes = {
+  className: PropTypes.string,
+  fileType: PropTypes.string.isRequired
+};

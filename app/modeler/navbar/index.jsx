@@ -14,7 +14,7 @@ export function NavBar(props) {
         <img src={logo_image} className="h-16 p-1" alt="Logo" />
       </a>
       <div className="grid grid-flow-row auto-rows-max px-2 h-full self-center gap-1">
-          <span className="font-light text-lg text-stone-700 border border-dashed px-2">
+          <span className="italic text-lg text-stone-500 border border-dashed rounded-sm px-2 border-stone-300">
             Untitled diagram
             <i className="bi bi-pencil text-stone-500 ps-2"></i>
           </span>

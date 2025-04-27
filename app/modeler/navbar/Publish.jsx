@@ -2,9 +2,9 @@ import { useEffect, useContext, useState } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
-import {ModelerContext} from '../contexts';
+import { ModelerContext } from '../contexts';
 
-export function PublishMenuItem(props) {
+export function PublishButton({ className, ...props }) {
 
   const {modeler} = useContext(ModelerContext);
   let [isOpen, setIsOpen] = useState(false)
@@ -19,6 +19,7 @@ export function PublishMenuItem(props) {
     setLoading(false);
     setStatus(undefined);
     setIsOpen(true);
+    console.log("open publish dialog", isOpen)
   }
 
   function close() {
@@ -70,16 +71,10 @@ export function PublishMenuItem(props) {
     });
   }
 
-  return (
-    <>
-      <Button
-        title="Publish"
-        className="shadow-sm bg-stone-200 hover:bg-stone-300 border-y border border-stone-300 text-black py-1 px-3 rounded"
-        onClick={open}>
-          <i className="bi bi-broadcast-pin"></i>
-      </Button>
+  function renderPublishDialog() {
+    return (
 
-      <Dialog open={isOpen} as="div" className="relative z-[101] focus:outline-none" onClose={close}>
+      <Dialog open={isOpen} className="relative z-[101] focus:outline-none" onClose={close}>
         <div className="fixed backdrop-blur	inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4">
             <DialogPanel
@@ -93,29 +88,29 @@ export function PublishMenuItem(props) {
                 </span>
               </DialogTitle>
               <form action={handlePublish}>
-              <Fieldset className="space-y-6">
-                <Field>
-                  <Label className="text-sm font-medium">Study Name</Label>
-                  <Input
-                    name="study_name"
-                    className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
-                    placeholder="Example: my-study"
-                  />
-                  <Description className="text-xs text-stone-400 mt-1">
-                    Use only lower-case letters, numbers, and hyphens
-                  </Description>
-                </Field>
-                <Field>
-                  <Label className="text-sm font-medium">Behaverse API Key</Label>
-                  <Input
-                    name="api_key"
-                    className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
-                    placeholder="Example: 12345jdcj33kllk67890"
-                  />
-                  <Description className="text-xs text-black/50 mt-1">
-                    See the <a className="text-sky-500 hover:text-sky-600" href="https://api.behaverse.org/docs" target="_blank">API docs</a> for more information
-                  </Description>
-                </Field>
+                <Fieldset className="space-y-6">
+                  <Field>
+                    <Label className="text-sm font-medium">Study Name</Label>
+                    <Input
+                      name="study_name"
+                      className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                      placeholder="Example: my-study"
+                    />
+                    <Description className="text-xs text-stone-400 mt-1">
+                      Use only lower-case letters, numbers, and hyphens
+                    </Description>
+                  </Field>
+                  <Field>
+                    <Label className="text-sm font-medium">Behaverse API Key</Label>
+                    <Input
+                      name="api_key"
+                      className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                      placeholder="Example: 12345jdcj33kllk67890"
+                    />
+                    <Description className="text-xs text-black/50 mt-1">
+                      See the <a className="text-sky-500 hover:text-sky-600" href="https://api.behaverse.org/docs" target="_blank">API docs</a> for more information
+                    </Description>
+                  </Field>
                   {status &&
                     <div className="float-start inline-flex items-center py-1.5">
                       <span className="text-sm m-auto">
@@ -125,8 +120,8 @@ export function PublishMenuItem(props) {
                   }
                   {previewUrl &&
                     <a href={previewUrl} target="_blank"
-                    className="float-end inline-flex items-center gap-2 rounded-md bg-green-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-green-700"
-                  >Preview</a>
+                      className="float-end inline-flex items-center gap-2 rounded-md bg-green-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-green-700"
+                    >Preview</a>
                   }
                   {publishButtonIsVisible &&
                     <Button
@@ -136,12 +131,25 @@ export function PublishMenuItem(props) {
                       Publish
                     </Button>
                   }
-              </Fieldset>
+                </Fieldset>
               </form>
             </DialogPanel>
           </div>
         </div>
       </Dialog>
+    );
+  }
+
+  return (
+    <>
+      <Button
+        title="Publish"
+        id="publish-button"
+        className={`w-full text-left ${className}`}
+        onClick={open}>
+        <i className="bi bi-broadcast-pin pe-2"></i> Publish
+          </Button>
+      {renderPublishDialog()}
     </>
   );
 

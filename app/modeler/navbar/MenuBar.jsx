@@ -1,10 +1,15 @@
 // import PublishButton from './PublishButton';
 // import SimulateButton from './SimulateButton';
 // import DownloadButton from './DownloadButton';
-import {ExportMenuItem} from './Export';
+import { ExportButton } from './Export';
 // import OpenButton from './OpenButton';
 // import ExtraMenuButton from './ExtraMenuButton';
-import { Menu, MenuItems, MenuButton, MenuItem } from '@headlessui/react'
+import { Menu, MenuItems, MenuButton, MenuItem, MenuSeparator } from '@headlessui/react'
+import { PublishButton } from './Publish';
+import { SaveButton } from './Save';
+import { OpenButton } from './Open';
+import { SimulateButton } from './Simulate';
+import { NewDiagramButton } from './NewDiagram';
 
 export default function MenuBar(props) {
 
@@ -23,24 +28,35 @@ export default function MenuBar(props) {
     <div className="grid auto-cols-max grid-flow-col">
       <Menu as="div" title="FileMenu" className="">
         <MenuButton className="hover:bg-stone-300 rounded px-2">File</MenuButton>
-        <MenuItems anchor="bottom start" className="min-w-32 bg-stone-100 border border-stone-300 rounded-md">
-          <ExportMenuItem />
+        <MenuItems anchor="bottom start" className="min-w-48 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={NewDiagramButton} />
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={OpenButton} />
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={SaveButton} />
+          <MenuSeparator className="h-px bg-stone-300" />
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={ExportButton} fileType="svg" />
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={ExportButton} fileType="png" />
+          <MenuSeparator className="h-px bg-stone-300" />
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={PublishButton} />
         </MenuItems>
       </Menu>
-      <Menu as="div" title="HelpMenu">
+      <Menu as="div" title="SimulateMeu" className="">
+        <SimulateButton className="" />
+      </Menu>
+      <Menu as="div" title="HelpMenu" className="">
         <MenuButton className="hover:bg-stone-300 rounded px-2">Help</MenuButton>
-        <MenuItems anchor="bottom start" className="min-w-32 bg-white border border-stone-300 rounded-sm">
+        <MenuItems anchor="bottom start" className="w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
           <MenuItem>
-            <a href="../docs" target="_blank" className="p-2 block data-[focus]:bg-stone-300">Docs</a>
+            <a href="../docs" target="_blank" className="px-3 py-1 hover:bg-stone-300">Docs</a>
           </MenuItem>
           <MenuItem>
-            <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="p-2 block data-[focus]:bg-stone-300">GitHub</a>
+            <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="px-3 py-1 hover:bg-stone-300">GitHub</a>
           </MenuItem>
           <MenuItem>
-            <a href="../about/" target="_blank" className="p-2 block data-[focus]:bg-stone-300">About</a>
+            <a href="../about/" target="_blank" className="px-3 py-1 hover:bg-stone-300">About</a>
           </MenuItem>
         </MenuItems>
       </Menu>
+
     </div>
   );
 

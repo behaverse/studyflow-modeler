@@ -2,7 +2,7 @@ import { useEffect, useContext } from "react";
 import {ModelerContext} from '../contexts';
 import download from 'downloadjs';
 
-export default function DownloadMenuItem() {
+export function SaveButton({ className, ...props }) {
 
   const {modeler} = useContext(ModelerContext);
 
@@ -11,16 +11,16 @@ export default function DownloadMenuItem() {
 
   function downloadDiagram() {
     modeler.saveXML({ format: true }).then(({ xml }) => {
-      download(xml, 'Diagram.studyflow.xml', 'application/xml');
+      download(xml, 'Diagram.studyflow', 'application/xml');
     });
   }
 
   return (
       <button
         title="Download"
-        className="shadow-sm bg-stone-200 hover:bg-stone-300 border border-stone-300 text-black py-1 px-3"
+        className={`w-full text-left ${className}`}
         onClick={downloadDiagram}>
-          <i className="bi bi-cloud-download"></i>
+          <i className="bi bi-cloud-download pe-2"></i> Save
         </button>
   );
 

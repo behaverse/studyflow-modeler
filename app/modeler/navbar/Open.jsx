@@ -2,7 +2,7 @@ import { useEffect, useContext, useRef } from "react";
 import { ModelerContext } from '../contexts';
 
 
-export default function OpenMenuItem() {
+export function OpenButton({ className, ...props }) {
 
     const { modeler } = useContext(ModelerContext);
     const fileInputRef = useRef(null);
@@ -43,9 +43,9 @@ export default function OpenMenuItem() {
         <>
             <button
                 title="Upload"
-                className="shadow-sm bg-stone-200 hover:bg-stone-300 border-y border-s border-stone-300 text-black py-1 px-3 rounded-s"
+                className={`w-full text-left ${className}`}
                 onClick={() => fileInputRef.current.click()}>
-                <i className="bi bi-cloud-upload w-3 h-3"></i>
+                <i className="bi bi-cloud-upload pe-2"></i> Open
             </button>
             <input
                 type="file"
