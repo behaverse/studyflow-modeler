@@ -5,7 +5,7 @@ import ExportButton from './ExportButton';
 import OpenButton from './OpenButton';
 import ExtraMenuButton from './ExtraMenuButton';
 
-export function Toolbar() {
+export default function Menu(props) {
 
   return (
     <div className="h-9 inline-flex rounded-md" role="group">

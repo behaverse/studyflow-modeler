@@ -30,5 +30,5 @@ export const StudyflowModule = {
 };
 
 export { ModelerContext } from './contexts';
-export { Toolbar } from './toolbar';
+export { Navbar } from './navbar';
 // export { Modeler } from './Modeler';
