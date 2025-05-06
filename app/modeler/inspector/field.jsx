@@ -6,11 +6,11 @@ import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext, useCallback } from 'react';
 
-import { PropertiesPanelContext, ModelerContext } from '../contexts';
+import { InspectorContext, ModelerContext } from '../contexts';
 
 export function PropertyField(props) {
     const { bpmnProperty } = props;
-    const { element, businessObject } = useContext(PropertiesPanelContext);
+    const { element, businessObject } = useContext(InspectorContext);
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');

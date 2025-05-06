@@ -13,7 +13,7 @@ export const APIKeyContext = createContext({
 
 
 
-export const PropertiesPanelContext = createContext({
+export const InspectorContext = createContext({
     element: undefined,
     businessObject: undefined,
 });

@@ -7,7 +7,7 @@ import './styles.scss'
 import StartUpModal from './modeler/StartUpModal'
 import { APIKeyContext, ModelerContext } from './modeler/contexts';
 import { NavBar } from './modeler';
-import { PropertiesPanel } from './modeler/properties';
+import { InspectorPanel } from './modeler/inspector';
 
 export default function App() {
 
@@ -35,7 +35,7 @@ export default function App() {
           <div className="w-screen h-full">
           <div className="flex flex-row h-full overflow-hidden">
               <Modeler />
-              {modeler && <PropertiesPanel />}
+              {modeler && <InspectorPanel />}
           </div>
       </div>
       </div>

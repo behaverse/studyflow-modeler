@@ -1,6 +1,6 @@
 
 import { useContext, useEffect, useState, useCallback } from 'react';
-import { ModelerContext, PropertiesPanelContext } from '../contexts';
+import { ModelerContext, InspectorContext } from '../contexts';
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
@@ -16,7 +16,7 @@ const defaultPropsDescriptions = {
     'bpmn:documentation': "Short description or link to a description",
 };
 
-export function PropertiesPanel() {
+export function InspectorPanel() {
 
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
@@ -125,12 +125,12 @@ export function PropertiesPanel() {
     }
 
     return (
-        <PropertiesPanelContext.Provider
+        <InspectorContext.Provider
             value={{ element: element, businessObject: getBusinessObject(element) }}>
             <div className="bg-stone-50 md:basis-1/4 basis-1/2 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
                 {element && renderGroups(element, "tab") }
             </div>
-        </PropertiesPanelContext.Provider>
+        </InspectorContext.Provider>
     )
 
 }

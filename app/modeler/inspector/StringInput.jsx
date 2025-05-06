@@ -1,13 +1,13 @@
 import PropTypes from 'prop-types';
 import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useContext, useState } from 'react';
-import { ModelerContext, PropertiesPanelContext } from '../contexts';
+import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 
 export function StringInput(props) {
 
     const { bpmnProperty, isMarkdown } = props;
-    const { element, businessObject } = useContext(PropertiesPanelContext);
+    const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
     const [value, setValue] = useState(businessObject.get(name) || '');

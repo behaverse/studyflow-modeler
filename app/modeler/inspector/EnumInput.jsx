@@ -1,13 +1,13 @@
 import PropTypes from 'prop-types';
 import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useContext, useState } from 'react';
-import { ModelerContext, PropertiesPanelContext } from '../contexts';
+import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 
 export function EnumInput(props) {
 
     const { bpmnProperty } = props;
-    const { element, businessObject } = useContext(PropertiesPanelContext);
+    const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
     const propertyType = bpmnProperty.type.split(':')[1];
