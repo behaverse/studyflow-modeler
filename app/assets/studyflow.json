@@ -271,6 +271,21 @@
   ],
   "types": [
     {
+      "name": "Study",
+      "description": "Process definition for a Studyflow study.",
+      "superClass": [
+        "bpmn:Process"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "description": "Human-readable name of the study.",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
       "name": "MarkdownString",
       "superClass": [
         "String"
