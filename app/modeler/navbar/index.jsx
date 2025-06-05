@@ -13,9 +13,9 @@ export function NavBar(props) {
       <a href="../" className="flex space-x-2">
         <img src={logo_image} className="h-16 p-1" alt="Logo" />
       </a>
-      <div className="grid grid-flow-row auto-rows-max px-2 h-full self-center gap-1">
+      <div className="px-2 self-center gap-1">
           <span className="italic text-lg text-stone-500 border border-dashed rounded-sm px-2 border-stone-300">
-            Untitled diagram
+            Untitled Study
             <i className="bi bi-pencil text-stone-500 ps-2"></i>
           </span>
         {modeler && <MenuBar />}

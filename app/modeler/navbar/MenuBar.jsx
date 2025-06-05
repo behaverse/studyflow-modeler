@@ -34,6 +34,19 @@ export default function MenuBar(props) {
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={PublishButton} />
         </MenuItems>
       </Menu>
+      <Menu as="div" title="ViewMenu" className="">
+        <MenuButton className="hover:bg-stone-300 rounded px-2">View</MenuButton>
+        <MenuItems anchor="bottom start" className="min-w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
+          <MenuItem>
+            <a href="#" className="px-3 py-1 hover:bg-stone-300"><i className="bi bi-check-circle-fill pe-2"></i> Study</a>
+          </MenuItem>
+          <MenuItem disabled>
+            <button disabled href="#" className="disabled:text-stone-500 px-3 py-1">
+              <i className="bi bi-circle pe-2"></i> Trial Timeline
+            </button>
+          </MenuItem>
+        </MenuItems>
+      </Menu>
       <Menu as="div" title="SimulateMeu" className="">
         <SimulateButton className="" />
       </Menu>
