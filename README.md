@@ -5,7 +5,7 @@
 
 # Behaverse Studyflow Modeler
 
-Studyflow Modeler is a tool to model and run cognitive experiments using [Behaverse Studyflow](https://behaverse.org/standards/studyflow).
+Studyflow Modeler is a tool to model and run cognitive experiments using [Behaverse Studyflow](https://behaverse.org/projects/studyflows).
 
 ## Development
 
