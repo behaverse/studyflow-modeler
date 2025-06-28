@@ -42,7 +42,7 @@ export default function MenuBar(props) {
           </MenuItem>
           <MenuItem disabled>
             <button disabled href="#" className="disabled:text-stone-500 px-3 py-1">
-              <i className="bi bi-circle pe-2"></i> Trial Timeline
+              <i className="bi bi-circle pe-2"></i> Timeline
             </button>
           </MenuItem>
         </MenuItems>
