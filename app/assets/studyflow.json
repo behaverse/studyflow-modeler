@@ -274,7 +274,8 @@
       "name": "Study",
       "description": "Process definition for a Studyflow study.",
       "superClass": [
-        "bpmn:Process"
+        "bpmn:Process",
+        "studyflow:Element"
       ],
       "attributes": [
         {
@@ -289,6 +290,21 @@
       "name": "MarkdownString",
       "superClass": [
         "String"
+      ]
+    },
+    {
+      "name": "Checklist",
+      "description": "A checklist for the element.",
+      "superClass": [
+        "studyflow:Element"
+      ],
+      "properties": [
+        {
+          "name": "content",
+          "description": "Checklist content in markdown format.",
+          "isAttr": true,
+          "type": "MarkdownString"
+        }
       ]
     },
     {
@@ -357,7 +373,14 @@
       "superClass": [
         "bpmn:BaseElement"
       ],
-      "properties": []
+      "properties": [
+        {
+          "name": "checklist",
+          "description": "Checklist for the element.",
+          "isAttr": true,
+          "type": "Checklist"
+        }
+      ]
     },
     {
       "name": "Activity",
