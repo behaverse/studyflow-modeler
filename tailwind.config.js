@@ -2,9 +2,7 @@
 import defaultTheme from 'tailwindcss/defaultTheme'
 export default {
   content: [
-    "./index.html",
-    "./app/**/*.{js,jsx}",
-    "./about/**/*.{js,jsx,mdx}",
+    './src/**/*.{html,js,jsx,ts,tsx,mdx}'
   ],
   theme: {
     extend: {

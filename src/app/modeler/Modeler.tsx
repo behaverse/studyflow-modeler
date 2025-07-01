@@ -14,14 +14,14 @@ import {
 import GridModule from 'diagram-js-grid';
 
 // import studyFlowElementTemplates from './assets/studyflow_templates';
-import new_diagram from '../assets/new_diagram.bpmn';
-import StudyflowModdleExtension from '../assets/studyflow';
+import new_diagram from '@/assets/new_diagram.bpmn';
+import StudyflowModdleExtension from '@/assets/studyflow.json';
 import { ModelerContext } from './contexts';
-import { StudyflowModule } from '.';
+import { StudyflowModelerModule } from '.';
 
 export function Modeler() {
 
-    const [canvas, setCanvas] = useState(null);
+    const [canvas, setCanvas] = useState(undefined);
     const { setModeler } = useContext(ModelerContext);
     const [isLoading, setLoading] = useState(true);
   
@@ -41,7 +41,7 @@ export function Modeler() {
             BpmnColorPickerModule,
               // CreateAppendElementTemplatesModule,
               GridModule,
-              StudyflowModule
+              StudyflowModelerModule
             ],
             // studyFlowElementTemplates,
         });

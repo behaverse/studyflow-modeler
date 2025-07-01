@@ -1,7 +1,7 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-import './assets/icons/studyflow-icons.scss';
+import '@/assets/icons/studyflow-icons.scss';
 import {Modeler} from './modeler/Modeler'
 import './styles.scss'
 import StartUpModal from './modeler/StartUpModal'
@@ -44,7 +44,8 @@ export default function App() {
   )
 }
 
-createRoot(document.getElementById('root')).render(
+
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>

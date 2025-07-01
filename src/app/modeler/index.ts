@@ -7,7 +7,7 @@ import ColorPopupProvider from './ColorPopup';
 import CreateMenuProvider from './CreateMenuProvider';
 import AppendMenuProvider from './AppendMenuProvider';
 
-export const StudyflowModule = {
+export const StudyflowModelerModule = {
   __init__: [
     'studyFlowContextPad',
     'studyFlowPalette',

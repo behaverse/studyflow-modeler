@@ -5,21 +5,21 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-import ActivityIcon from "../assets/icons/svg/Activity.svg";
-import BehaverseTaskIcon from "../assets/icons/svg/BehaverseTask.svg";
-import CognitiveTestIcon from "../assets/icons/svg/CognitiveTest.svg";
-import EndRedirectIcon from "../assets/icons/svg/EndRedirect.svg";
-import InstructionIcon from "../assets/icons/svg/Instruction.svg";
-import QuestionnaireIcon from "../assets/icons/svg/Questionnaire.svg";
-import RandomGatewayIcon from "../assets/icons/svg/_RandomGateway.svg";
-import RestIcon from "../assets/icons/svg/Rest.svg";
-import StartConsentIcon from "../assets/icons/svg/StartConsent.svg";
-import VideoGameIcon from "../assets/icons/svg/VideoGame.svg";
-import EventDataIcon from "../assets/icons/svg/EventData.svg";
-import TrialDataIcon from "../assets/icons/svg/TrialData.svg";
-import ModelDataIcon from "../assets/icons/svg/ModelData.svg";
-import BIDSDataIcon from "../assets/icons/svg/BIDSData.svg";
-import PsychDSDataIcon from "../assets/icons/svg/PsychDSData.svg";
+import ActivityIcon from "@/assets/icons/svg/Activity.svg";
+import BehaverseTaskIcon from "@/assets/icons/svg/BehaverseTask.svg";
+import CognitiveTestIcon from "@/assets/icons/svg/CognitiveTest.svg";
+import EndRedirectIcon from "@/assets/icons/svg/EndRedirect.svg";
+import InstructionIcon from "@/assets/icons/svg/Instruction.svg";
+import QuestionnaireIcon from "@/assets/icons/svg/Questionnaire.svg";
+import RandomGatewayIcon from "@/assets/icons/svg/_RandomGateway.svg";
+import RestIcon from "@/assets/icons/svg/Rest.svg";
+import StartConsentIcon from "@/assets/icons/svg/StartConsent.svg";
+import VideoGameIcon from "@/assets/icons/svg/VideoGame.svg";
+import EventDataIcon from "@/assets/icons/svg/EventData.svg";
+import TrialDataIcon from "@/assets/icons/svg/TrialData.svg";
+import ModelDataIcon from "@/assets/icons/svg/ModelData.svg";
+import BIDSDataIcon from "@/assets/icons/svg/BIDSData.svg";
+import PsychDSDataIcon from "@/assets/icons/svg/PsychDSData.svg";
 
 export default class StudyflowRenderer extends BaseRenderer {
 

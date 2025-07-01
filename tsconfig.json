@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "types": ["node", "react", "mdx", "json-schema", "./src/declarations"],
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    "paths": {
+        "@/*": ["./src/*"],
+        "#root/*": ["./*"]
+    },
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}
