@@ -300,9 +300,10 @@
       ],
       "properties": [
         {
-          "name": "content",
-          "description": "Checklist content in markdown format.",
+          "name": "items",
+          "description": "Checklist items.",
           "isAttr": true,
+          "isMany": true,
           "type": "MarkdownString"
         }
       ]
