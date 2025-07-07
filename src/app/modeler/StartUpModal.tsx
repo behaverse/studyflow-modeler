@@ -6,7 +6,7 @@ import { APIKeyContext } from './contexts';
 export default function StartUpModal() {
 
   const [isOpen, setIsOpen] = useState(true);
-  const [error, setError] = useState(undefined);
+  const [error, setError] = useState<string | undefined>(undefined);
   const { apiKey, setApiKey } = useContext(APIKeyContext);
 
   const handleConnect = (formData) => {

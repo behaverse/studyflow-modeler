@@ -1,4 +1,4 @@
-import { useEffect, useContext, useState } from "react";
+import { useEffect, useContext, useState, ReactElement } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
@@ -7,8 +7,8 @@ import { ModelerContext } from '../../contexts';
 export function PublishButton({ className, ...props }) {
 
   const {modeler} = useContext(ModelerContext);
-  let [isOpen, setIsOpen] = useState(false)
-  let [status, setStatus] = useState(undefined)
+  let [isOpen, setIsOpen] = useState<boolean>(false)
+  let [status, setStatus] = useState<string | ReactElement | undefined>(undefined)
   let [publishButtonIsVisible, setPublishButtonIsVisible] = useState(true)
   let [previewUrl, setPreviewUrl] = useState(undefined)
   let [isLoading, setLoading] = useState(false)
@@ -19,7 +19,6 @@ export function PublishButton({ className, ...props }) {
     setLoading(false);
     setStatus(undefined);
     setIsOpen(true);
-    console.log("open publish dialog", isOpen)
   }
 
   function close() {
@@ -30,7 +29,9 @@ export function PublishButton({ className, ...props }) {
   useEffect(() => {
   }, [modeler]);
 
-  const handlePublish = (formData) => {
+  const handlePublish = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
     setLoading(true);
     setStatus("Publishing...");
     setPublishButtonIsVisible(false);
@@ -72,8 +73,10 @@ export function PublishButton({ className, ...props }) {
   }
 
   function renderPublishDialog() {
+    if (isOpen) {
+      console.log("Publish dialog is open", isOpen);
+    }
     return (
-
       <Dialog open={isOpen} className="relative z-[101] focus:outline-none" onClose={close}>
         <div className="fixed backdrop-blur	inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4">
@@ -87,7 +90,7 @@ export function PublishButton({ className, ...props }) {
                   <i className="bi bi-x-lg"></i>
                 </span>
               </DialogTitle>
-              <form action={handlePublish}>
+              <form onSubmit={handlePublish}>
                 <Fieldset className="space-y-6">
                   <Field>
                     <Label className="text-sm font-medium">Study Name</Label>
@@ -142,13 +145,13 @@ export function PublishButton({ className, ...props }) {
 
   return (
     <>
-      <Button
+      <div
         title="Publish"
         id="publish-button"
         className={`w-full text-left ${className}`}
         onClick={open}>
         <i className="bi bi-broadcast-pin pe-2"></i> Publish...
-          </Button>
+      </div>
       {renderPublishDialog()}
     </>
   );

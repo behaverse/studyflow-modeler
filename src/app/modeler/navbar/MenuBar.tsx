@@ -41,10 +41,10 @@ export default function MenuBar(props) {
             <a href="#" className="px-3 py-1 hover:bg-stone-300"><i className="bi bi-check-circle-fill pe-2"></i> Study</a>
           </MenuItem>
           <MenuItem>
-            <a disabled href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Timeline</a>
+            <a href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Timeline</a>
           </MenuItem>
           <MenuItem>
-            <a disabled href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Checklist</a>
+            <a href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Checklist</a>
           </MenuItem>
         </MenuItems>
       </Menu>
