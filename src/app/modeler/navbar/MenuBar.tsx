@@ -1,12 +1,15 @@
 import { Menu, MenuItems, MenuButton, MenuItem, MenuSeparator } from '@headlessui/react'
 import { ExportButton } from './actions/Export';
-import { PublishButton } from './actions/Publish';
+import { PublishButton, PublishDialog } from './actions/Publish';
 import { SaveButton } from './actions/Save';
 import { OpenButton } from './actions/Open';
 import { SimulateButton } from './actions/Simulate';
 import { NewDiagramButton } from './actions/NewDiagram';
+import React, { useRef } from 'react';
 
 export default function MenuBar(props) {
+
+    const publishDialogRef = useRef(null);
 
   // <div className="h-9 inline-flex rounded-md" role="group">
   // <SimulateButton />
@@ -21,9 +24,10 @@ export default function MenuBar(props) {
 
   return (
     <div className="grid auto-cols-max grid-flow-col">
+      <PublishDialog ref={publishDialogRef}  />
       <Menu as="div" title="FileMenu" className="">
         <MenuButton className="hover:bg-stone-300 rounded px-2">File</MenuButton>
-        <MenuItems anchor="bottom start" className="min-w-48 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
+        <MenuItems  unmount={false} anchor="bottom start" className="min-w-48 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={NewDiagramButton} />
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={OpenButton} />
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={SaveButton} />
@@ -31,7 +35,7 @@ export default function MenuBar(props) {
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={ExportButton} fileType="svg" />
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={ExportButton} fileType="png" />
           <MenuSeparator className="h-px bg-stone-300" />
-          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={PublishButton} />
+          <MenuItem className="px-3 py-1 hover:bg-stone-300" as={PublishButton} dialog={publishDialogRef}  />
         </MenuItems>
       </Menu>
       <Menu as="div" title="ViewMenu" className="">
