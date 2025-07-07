@@ -1,4 +1,4 @@
-import { useImperativeHandle, useContext, useState, ReactElement } from "react";
+import { useImperativeHandle, useContext, useState, ReactElement, useEffect } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
@@ -17,22 +17,28 @@ export function PublishDialog({ref, ...props}) {
   useImperativeHandle(ref, () => {
     return {
       open() {
-        console.log("Opening publish dialog");
         setPublishButtonIsVisible(true)
         setPreviewUrl(undefined);
         setLoading(false);
         setStatus(undefined);
         setIsOpen(true);
       },
-      close() {
-        setPublishButtonIsVisible(true);
-        setIsOpen(false);
-        setPreviewUrl(undefined);
-      },
+
     };
   }, [modeler]);
 
-  const handlePublish = (formData) => {
+  function close() {
+    setPublishButtonIsVisible(true);
+    setIsOpen(false);
+    setPreviewUrl(undefined);
+  }
+  useEffect(() => {
+
+  }, [modeler]);
+
+  const handlePublish = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
     setLoading(true);
     setStatus("Publishing...");
     setPublishButtonIsVisible(false);
