@@ -29,7 +29,7 @@ export default function App() {
     <ModelerContext.Provider value={{modeler: modeler, setModeler: setModeler}}>
     <div className="App flex flex-col h-screen">
   
-      <NavBar />
+      {modeler && <NavBar />}
   
       {/* the modeler */}
           <div className="w-screen h-full">

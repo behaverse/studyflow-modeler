@@ -16,5 +16,6 @@
     "studyflow:algorithm": "Algorithm",
     "studyflow:datasetFormat": "Dataset format",
     "studyflow:bdmDataLevel": "Data level",
-    "studyflow:bidsDataType": "Data type"
+    "studyflow:bidsDataType": "Data type",
+    "studyflow:checklist": "Checklist"
 }

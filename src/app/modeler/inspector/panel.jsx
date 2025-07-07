@@ -21,7 +21,9 @@ export function InspectorPanel() {
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
+    const canvas = modeler.get('canvas')
     const [element, setElement] = useState(null);
+    const [rootElement, setRootElement] = useState(null);
 
 
     const getProperties = useCallback((element) => {
@@ -47,17 +49,26 @@ export function InspectorPanel() {
     }, []);
 
     useEffect(() => {
+        function onRootChanged(e) {
+            var newRootElement = canvas.getRootElement();
+            setRootElement(newRootElement);
+        }
+
         function onSelectionChanged(e) {
             const selections = e.newSelection;
-            var newElement = selections.length === 1 ? selections[0] : null;
+            var newElement = selections.length === 1 ? selections[0] : rootElement;
             setElement(newElement);
         }
 
         eventBus.on('selection.changed', onSelectionChanged);
+        eventBus.on('root.set', onRootChanged);
+
         return () => {
             eventBus.off('selection.changed', onSelectionChanged);
+            eventBus.off('root.set', onRootChanged);
         };
-    }, [eventBus, element]);
+
+    }, [modeler, eventBus, canvas, rootElement, element]);
 
     function renderGroupTabs(el) {
         return (
