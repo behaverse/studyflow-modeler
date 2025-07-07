@@ -50,6 +50,7 @@ export function InspectorPanel() {
 
     useEffect(() => {
         function onRootChanged(e) {
+            // FIXME when root id is changed from the default the breadcrumb is not shown, use modeling DI to change the root element
             var newRootElement = canvas.getRootElement();
             setRootElement(newRootElement);
         }
