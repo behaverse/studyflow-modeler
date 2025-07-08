@@ -4,6 +4,7 @@ import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 
+
 export function StringInput(props) {
 
     const { bpmnProperty, isMarkdown } = props;
@@ -13,10 +14,35 @@ export function StringInput(props) {
     const [value, setValue] = useState(businessObject.get(name) || '');
 
     const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
+    const elementRegistry = useContext(ModelerContext).modeler.get('elementRegistry');
+    const canvas = useContext(ModelerContext).modeler.get('canvas');
 
     function handleChange(event) {
         const newValue = event.target.value;
         setValue(newValue);
+        if (name === "bpmn:id") {
+            const oldId = element.id;
+            elementRegistry.updateId(element, newValue);
+            modeling.unclaimId(oldId, element);
+
+            // also check if <oldId>_plane exists and update it to <newValue>_plane
+            const oldPlaneId = `${oldId}_plane`;
+            const newPlaneId = `${newValue}_plane`;
+            const planeElement = elementRegistry.get(oldPlaneId);
+            if (planeElement) {
+                elementRegistry.updateId(planeElement, newPlaneId);
+            }
+            // find oldId in canvas.getRootElements() and update it to newValue
+            const rootElements = canvas.getRootElements();
+            console.log("Roots (before)", rootElements);
+            rootElements.forEach((r) => {
+                if (oldPlaneId.endsWith('_plane') && r.id === oldPlaneId) {
+                    r.id = newPlaneId;
+                }
+            });
+            console.log("Roots (after)", canvas.getRootElements());
+
+        }
         modeling.updateProperties(element, {
             [name]: newValue
         });

@@ -2,13 +2,16 @@
 import { useContext, useEffect, useState, useCallback } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { getBusinessObject, getDi } from 'bpmn-js/lib/util/ModelUtil';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
 import { Tab, TabList, TabPanel, TabPanels, TabGroup } from '@headlessui/react';
 import { PropertyField } from './field';
 import { t } from '../../i18n';
+import { planeSuffix } from 'bpmn-js/lib/util/DrilldownUtil';
 
-
+function removePlaneSuffix(id) {
+  return id.replace(new RegExp(planeSuffix + '$'), '');
+}
 const defaultPropsDescriptions = {
     // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
@@ -53,6 +56,7 @@ export function InspectorPanel() {
             // BUG when root id is changed from the default the breadcrumb is not shown, use modeling DI to change the root element
             var newRootElement = canvas.getRootElement();
             setRootElement(newRootElement);
+            setElement(newRootElement);
         }
 
         function onSelectionChanged(e) {
