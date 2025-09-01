@@ -2,6 +2,28 @@
 title: "Studyflow Modeler"
 ---
 
-A visual tool to create and execute studyflow diagrams.
+*Studyflow Modeler* is an app to describe scientific studies using [Behaverse Studyflow](https://behaverse.org/data-model/spec/general/studyflows), a visual language specifically designed to describe all the steps of a research project in a more formal way than texts or graphics. To provide a familiar foundation for modeling complex research workflows, Studyflow relies on the widely recognized [BPMN](https://www.bpmn.org/) (Business Process Model and Notation).
 
-Studyflow diagrs
+With modeler, you can visually define every step of your study, from initial conception to subject recruitment, data collection, analysis pipelines, and final reporting.
+
+
+## Elements
+
+The basic elements of the language are tailored to the specific needs of cognitive sciences and include:
+
+- **Study**: The overarching entity that encapsulates the entire research project. It's the top-level container for all components and workflows and extends BPMN:Process class.
+- **Start Event** (with consent): Defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.
+- **Instructions**: Define and deliver instructions to the participants.
+- **Cognitive Tests**: Various cognitive assessment tasks within the study design, including [Behaverse cognitive tests](https://behaverse.org/projects/cognitive-tests.html).
+- **Questionnaires**: Surveys and questions for gathering self-reported data.
+- **Video Games**: Interactive games as part of the experimental paradigm.
+- **Datasets**: Seamless integration with cognitive data models ([BDM](https://behaverse.org/data-model), [BIDS](https://bids.neuroimaging.io/), [Psych-DS](https://psych-ds.github.io/), etc) to persist events, trials, statistics, and models.
+- **End Event**: Defines the end of the workflow, typically after all the data has been collected. It can redirect to a different workflow or terminate the study.
+
+<h2 className="m-8 mx-auto text-2xl font-extrabold text-red-800">Views</h2>
+
+The same studyflow diagram can be viewed in different ways depending on the stakeholder's needs:
+
+- **Study View**: A high-level BPMN-like overview of the study, showing all the components, their relationships, and properties.
+- **Timeline View**: A Gantt-like chronological representation of the time-sensitive elements, showing the sequence of tasks and milestones. This view automatically identifies temporal patterns of the workflow, making it easier to manage and report the timeline of the study.
+- **Checklist View**: A task-oriented view that lists all the tasks, their corresponding checklist items and status.
