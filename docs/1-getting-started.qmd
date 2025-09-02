@@ -1,5 +1,5 @@
 ---
-title: Getting started
+title: Getting Started
 output-file: getting-started
 order: 1
 ---

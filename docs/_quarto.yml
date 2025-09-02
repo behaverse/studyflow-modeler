@@ -30,7 +30,7 @@ format:
   html:
     theme:
       - brand
-    css: assets/styles.css
+    css: assets/css/styles.css
     toc: false
     grid:
       sidebar-width: 300px
