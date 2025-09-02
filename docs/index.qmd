@@ -1,7 +1,5 @@
 ---
 title: "Introduction"
-aliases: 
-  - introduction.html
 order: 0
 ---
 
