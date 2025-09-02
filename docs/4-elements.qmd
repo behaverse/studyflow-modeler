@@ -1,0 +1,16 @@
+---
+title: Elements
+output-file: elements
+order: 4
+---
+
+The basic elements of the language are tailored to the specific needs of cognitive sciences and include:
+
+- **Study**: The overarching entity that encapsulates the entire research project. It's the top-level container for all components and workflows and extends BPMN:Process class.
+- **Start Event** (with consent): Defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.
+- **Instructions**: Define and deliver instructions to the participants.
+- **Cognitive Tests**: Various cognitive assessment tasks within the study design, including [Behaverse cognitive tests](https://behaverse.org/projects/cognitive-tests.html).
+- **Questionnaires**: Surveys and questions for gathering self-reported data.
+- **Video Games**: Interactive games as part of the experimental paradigm.
+- **Datasets**: Seamless integration with cognitive data models ([BDM](https://behaverse.org/data-model), [BIDS](https://bids.neuroimaging.io/), [Psych-DS](https://psych-ds.github.io/), etc) to persist events, trials, statistics, and models.
+- **End Event**: Defines the end of the workflow, typically after all the data has been collected. It can redirect to a different workflow or terminate the study.

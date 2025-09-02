@@ -1,13 +1,29 @@
 project:
   type: website
   output-dir: ../dist/docs/
+  preview:
+    port: 4321
+  resources:
+    - "assets/**/*"
+
+language: 
+  search-text-placeholder: Search
 
 website:
-  title: "Studyflow"
+  title: "Studyflow Documentations"
+  navbar: false
   sidebar:
-    style: "docked"
+    style: docked
+    logo-alt: "Studyflow Modeler - Documentations"
+    align: center
+    pinned: true
     search: true
-    contents: auto
+    footer: |
+      <span style='font-size: .7rem; color:gray'>&copy; 2025 xCIT</span>
+    contents:
+      - file: index.qmd
+        title: Introduction
+      - auto: "*.qmd"
 
 format:
   html:
@@ -15,4 +31,5 @@ format:
       - brand
     css: assets/styles.css
     toc: false
-
+    grid:
+      sidebar-width: 300px

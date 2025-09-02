@@ -1,17 +1,22 @@
-color:
-  palette:
-    dark-grey: "#222222"
-    blue: "#ddeaf1"
-  foreground: dark-grey
-  link: red
-  primary: white
+meta:
+  name: Behaverse Data Model (BDM)
+  link: https://behaverse.org/data-model
 
-# logo: 
-#   medium: logo.png
+logo:
+  large: "assets/img/logo.png"
+
+color:
+  palette: 
+    behaverse-purple: "#4700BA"
 
 typography:
   fonts:
-    - family: IBM Plex Sans
+    - family: "IBM Plex Sans"
       source: google
-  base: IBM Plex Sans
-  headings: IBM Plex Sans
+  base: "IBM Plex Sans"
+  headings:
+    family: "IBM Plex Sans"
+    weight: bold
+  link: 
+   decoration: none
+   color: behaverse-purple
