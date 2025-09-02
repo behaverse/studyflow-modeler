@@ -1,1 +1,17 @@
 /* css styles */
+
+
+.sidebar-navigation .quarto-navigation-tool {
+  font-size: 1.1em;
+}
+
+.sidebar-logo {
+  max-width: 70%;
+  padding-bottom: 1rem !important;
+}
+
+.sidebar-divider {
+  margin-top: .5em !important;
+  margin-bottom: .5em !important;
+  border-top: 1px solid lightgray;
+}

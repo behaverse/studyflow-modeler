@@ -15,6 +15,7 @@ website:
   sidebar:
     style: docked
     logo-alt: "Studyflow Modeler - Documentations"
+    title: "Studyflow Documentations"
     align: center
     pinned: true
     search: true
