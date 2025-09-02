@@ -1,8 +1,8 @@
 project:
   type: website
-  output-dir: ../dist/docs/
   preview:
     port: 4321
+    watch-inputs: true
   resources:
     - "assets/**/*"
 

@@ -38,6 +38,8 @@ jobs:
 
       - name: Render docs
         uses: quarto-dev/quarto-actions/render@v2
+        env:
+          QUARTO_PROFILE: ci
         with:
           to: html
           path: docs/
