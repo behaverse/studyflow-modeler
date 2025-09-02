@@ -15,7 +15,7 @@ export default function ExtraMenuItem() {
                         <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="p-2 block data-[focus]:bg-stone-300">GitHub</a>
                     </MenuItem>
                     <MenuItem>
-                        <a href="../about/" target="_blank" className="p-2 block data-[focus]:bg-stone-300">About</a>
+                        <a href="../docs/" target="_blank" className="p-2 block data-[focus]:bg-stone-300">Docs</a>
                     </MenuItem>
                 </MenuItems>
             </Menu>

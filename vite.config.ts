@@ -32,7 +32,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, '/index.html'),
-        // about: resolve(__dirname, '/about/index.html'),
         modeler: resolve(__dirname, '/app/index.html'),
       }
     },

@@ -4,12 +4,10 @@ project:
 
 website:
   title: "Studyflow"
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home
-      - studyflow.qmd
-      - modeler.qmd
+  sidebar:
+    style: "docked"
+    search: true
+    contents: auto
 
 format:
   html:

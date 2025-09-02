@@ -1,4 +1,8 @@
-# Studyflow
+---
+title: Language
+output-file: language
+order: 2
+---
 
 Studyflow diagrams are visual representations of scientific workflows, designed to enhance clarity, rigor, and reproducibility in research processes. They serve as a bridge between human understanding and machine execution. It facilitates better communication among researchers and enabling automated workflows.
 
