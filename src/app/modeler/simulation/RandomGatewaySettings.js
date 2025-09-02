@@ -1,4 +1,7 @@
-import { is } from 'bpmn-js-token-simulation/lib/util/ElementHelper';
+import {
+  is,
+} from 'bpmn-js/lib/util/ModelUtil';
+
 
 import { TOGGLE_MODE_EVENT } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 

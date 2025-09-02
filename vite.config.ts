@@ -1,12 +1,8 @@
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
-import tailwindcss from 'tailwindcss'
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import mdx from '@mdx-js/rollup'
-import remarkFrontmatter from 'remark-frontmatter'
-import remarkGfm from 'remark-gfm'
-
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -16,16 +12,11 @@ export default defineConfig({
   publicDir: false, // disable public directory
   base: '',  // relative base
   plugins: [
-    {
-      enforce: 'pre', ...mdx(
-        {
-          remarkPlugins: [remarkFrontmatter, remarkGfm],
-        }
-    ) },
+    tailwindcss(),
     react()],
   css: {
     postcss: {
-      plugins: [tailwindcss()],
+      plugins: [],
     }
   },
   resolve: {
@@ -41,7 +32,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, '/index.html'),
-        about: resolve(__dirname, '/about/index.html'),
+        // about: resolve(__dirname, '/about/index.html'),
         modeler: resolve(__dirname, '/app/index.html'),
       }
     },

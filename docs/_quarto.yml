@@ -1,5 +1,6 @@
 project:
   type: website
+  output-dir: ../dist/docs/
 
 website:
   title: "Studyflow"
@@ -14,8 +15,6 @@ format:
   html:
     theme:
       - brand
-    css: styles.css
+    css: assets/styles.css
     toc: false
-
-
 
