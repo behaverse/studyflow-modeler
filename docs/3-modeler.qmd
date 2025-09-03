@@ -4,7 +4,6 @@ order: 3
 output-file: modeler
 ---
 
-*Studyflow Modeler* is an app to describe scientific studies using [Behaverse Studyflow](https://behaverse.org/data-model/spec/general/studyflows), a visual language specifically designed to describe all the steps of a research project in a more formal way than texts or graphics. To provide a familiar foundation for modeling complex research workflows, Studyflow relies on the widely recognized [BPMN](https://www.bpmn.org/) (Business Process Model and Notation).
+*Studyflow Modeler* is an app to describe and execute scientific studies using [Behaverse Studyflow](https://behaverse.org/data-model/spec/general/studyflows), a visual language specifically designed to describe all the steps of a research project.
 
 With modeler, you can visually define every step of your study, from initial conception to subject recruitment, data collection, analysis pipelines, and final reporting.
-

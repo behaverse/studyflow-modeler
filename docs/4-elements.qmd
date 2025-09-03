@@ -10,13 +10,12 @@ toc: false
 
 The main element of a studyflow diagram is the *Study*, which serves as a container for all other elements:
 
-:::{#study layout="[[-1,5,-1]]" fig-align="center"}
+:::{#study layout="[[-3,6,-3]]" fig-align="center"}
 
 ![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows.](assets/img/elements/study.svg){fig-align="center"}
 :::
 
-Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, studyflow introduces specialized elements for research workflows in cognitive sciences:
-
+Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*.
 
 :::{#events layout-ncol=2}
 
@@ -56,7 +55,7 @@ Within a *Study* element, you can define various elements. In addition to the st
 
 ---
 
-:::{#data layout="[[1,-1],[1,1,1,1,1]]" fig-align="center"}
+:::{#data layout="[[1,-1],[1,1,1,1,1,-1]]" fig-align="center"}
 
 ![**Datasets** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models such as [BDM](https://behaverse.org/data-model), [BIDS](https://bids.neuroimaging.io/), and [Psych-DS](https://psych-ds.github.io/).](assets/img/elements/dataset.svg)
 
