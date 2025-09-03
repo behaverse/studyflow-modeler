@@ -1,0 +1,1872 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"  width="2900" style="max-height: 1113px;" viewBox="0 0 2900 1113">
+    <g transform="translate(.5 .5)">
+        <g>
+            <path d="M20 165v20m0 -10h20"></path>
+        </g>
+        <g>
+            <path d="M40 175h0"></path>
+            <path d="M2860 175h0"></path>
+            <path d="M40 175a10 10 0 0 0 10 -10v-135a10 10 0 0 1 10 -10"></path>
+            <g>
+                <path d="M60 20h2780"></path>
+            </g>
+            <path d="M2840 20a10 10 0 0 1 10 10v135a10 10 0 0 0 10 10"></path>
+            <path d="M40 175h20"></path>
+            <g>
+                <path d="M60 175h0"></path>
+                <path d="M2840 175h0"></path>
+                <path d="M60 175h10"></path>
+                <g>
+                    <path d="M70 175h0"></path>
+                    <path d="M2830 175h0"></path>
+                    <rect x="70" y="50" width="2760" height="1035" rx="10" ry="10" class="group-box"></rect>
+                    <g>
+                        <path d="M70 175h10"></path>
+                        <path d="M2820 175h10"></path>
+                        <g class="terminal">
+                            <path d="M80 175h0"></path>
+                            <path d="M142.5 175h0"></path>
+                            <rect x="80" y="164" width="62.5" height="22" rx="10" ry="10"></rect>
+                            <text x="111.25" y="179">Study</text>
+                        </g>
+                        <path d="M142.5 175h10"></path>
+                        <path d="M152.5 175h10"></path>
+                        <g>
+                            <path d="M162.5 175h0"></path>
+                            <path d="M434.5 175h0"></path>
+                            <rect x="162.5" y="148" width="272" height="114" rx="10" ry="10"
+                                class="group-box"></rect>
+                            <g>
+                                <path d="M162.5 175h10"></path>
+                                <path d="M424.5 175h10"></path>
+                                <g class="non-terminal">
+                                    <path d="M172.5 175h0"></path>
+                                    <path d="M243.5 175h0"></path>
+                                    <rect x="172.5" y="164" width="71" height="22"></rect>
+                                    <a xlink:href="#letter">
+                                        <text x="208" y="179">letter</text>
+                                    </a>
+                                </g>
+                                <path d="M243.5 175h10"></path>
+                                <g>
+                                    <path d="M253.5 175h0"></path>
+                                    <path d="M424.5 175h0"></path>
+                                    <path d="M253.5 175a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                    <g>
+                                        <path d="M273.5 155h131"></path>
+                                    </g>
+                                    <path d="M404.5 155a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                    <path d="M253.5 175h20"></path>
+                                    <g>
+                                        <path d="M273.5 175h0"></path>
+                                        <path d="M404.5 175h0"></path>
+                                        <path d="M273.5 175h10"></path>
+                                        <g>
+                                            <path d="M283.5 175h0"></path>
+                                            <path d="M394.5 175h0"></path>
+                                            <path d="M283.5 175h20"></path>
+                                            <g class="non-terminal">
+                                                <path d="M303.5 175h0"></path>
+                                                <path d="M374.5 175h0"></path>
+                                                <rect x="303.5" y="164" width="71" height="22"></rect>
+                                                <a xlink:href="#letter">
+                                                    <text x="339" y="179">letter</text>
+                                                </a>
+                                            </g>
+                                            <path d="M374.5 175h20"></path>
+                                            <path
+                                                d="M283.5 175a10 10 0 0 1 10 10v10a10 10 0 0 0 10 10"></path>
+                                            <g class="non-terminal">
+                                                <path d="M303.5 205h4.25"></path>
+                                                <path d="M370.25 205h4.25"></path>
+                                                <rect x="307.75" y="194" width="62.5" height="22"></rect>
+                                                <a xlink:href="#digit">
+                                                    <text x="339" y="209">digit</text>
+                                                </a>
+                                            </g>
+                                            <path
+                                                d="M374.5 205a10 10 0 0 0 10 -10v-10a10 10 0 0 1 10 -10"></path>
+                                            <path
+                                                d="M283.5 175a10 10 0 0 1 10 10v40a10 10 0 0 0 10 10"></path>
+                                            <g class="terminal">
+                                                <path d="M303.5 235h21.25"></path>
+                                                <path d="M353.25 235h21.25"></path>
+                                                <rect x="324.75" y="224" width="28.5" height="22"
+                                                    rx="10" ry="10"></rect>
+                                                <text x="339" y="239">_</text>
+                                            </g>
+                                            <path
+                                                d="M374.5 235a10 10 0 0 0 10 -10v-40a10 10 0 0 1 10 -10"></path>
+                                        </g>
+                                        <path d="M394.5 175h10"></path>
+                                        <path d="M283.5 175a10 10 0 0 0 -10 10v59a10 10 0 0 0 10 10"></path>
+                                        <g>
+                                            <path d="M283.5 254h111"></path>
+                                        </g>
+                                        <path
+                                            d="M394.5 254a10 10 0 0 0 10 -10v-59a10 10 0 0 0 -10 -10"></path>
+                                    </g>
+                                    <path d="M404.5 175h20"></path>
+                                </g>
+                            </g>
+                            <g>
+                                <path d="M162.5 137h0"></path>
+                                <path d="M242.5 137h0"></path>
+                                <a xlink:href="#identifier">
+                                    <text x="202.5" y="142" class="comment">identifier</text>
+                                </a>
+                            </g>
+                        </g>
+                        <path d="M434.5 175h10"></path>
+                        <g>
+                            <path d="M444.5 175h0"></path>
+                            <path d="M1399.5 175h0"></path>
+                            <path d="M444.5 175a10 10 0 0 0 10 -10v-97a10 10 0 0 1 10 -10"></path>
+                            <g>
+                                <path d="M464.5 58h915"></path>
+                            </g>
+                            <path d="M1379.5 58a10 10 0 0 1 10 10v97a10 10 0 0 0 10 10"></path>
+                            <path d="M444.5 175h20"></path>
+                            <g>
+                                <path d="M464.5 175h0"></path>
+                                <path d="M1379.5 175h0"></path>
+                                <path d="M464.5 175h10"></path>
+                                <g>
+                                    <path d="M474.5 175h0"></path>
+                                    <path d="M1369.5 175h0"></path>
+                                    <rect x="474.5" y="88" width="895" height="591" rx="10" ry="10"
+                                        class="group-box"></rect>
+                                    <g>
+                                        <path d="M474.5 175h10"></path>
+                                        <path d="M1359.5 175h10"></path>
+                                        <g class="non-terminal">
+                                            <path d="M484.5 175h0"></path>
+                                            <path d="M589.5 175h0"></path>
+                                            <rect x="484.5" y="164" width="105" height="22"></rect>
+                                            <a xlink:href="#identifier">
+                                                <text x="537" y="179">identifier</text>
+                                            </a>
+                                        </g>
+                                        <path d="M589.5 175h10"></path>
+                                        <path d="M599.5 175h10"></path>
+                                        <g>
+                                            <path d="M609.5 175h0"></path>
+                                            <path d="M1359.5 175h0"></path>
+                                            <rect x="609.5" y="118" width="750" height="553" rx="10"
+                                                ry="10" class="group-box"></rect>
+                                            <g>
+                                                <path d="M609.5 175h0"></path>
+                                                <path d="M1359.5 175h0"></path>
+                                                <path d="M609.5 175h20"></path>
+                                                <g>
+                                                    <path d="M629.5 175h0"></path>
+                                                    <path d="M1339.5 175h0"></path>
+                                                    <rect x="629.5" y="148" width="710" height="370"
+                                                        rx="10" ry="10" class="group-box"></rect>
+                                                    <g>
+                                                        <path d="M629.5 175h10"></path>
+                                                        <path d="M1329.5 175h10"></path>
+                                                        <g class="terminal">
+                                                            <path d="M639.5 175h0"></path>
+                                                            <path d="M668 175h0"></path>
+                                                            <rect x="639.5" y="164" width="28.5"
+                                                                height="22" rx="10" ry="10"></rect>
+                                                            <text x="653.75" y="179">"</text>
+                                                        </g>
+                                                        <path d="M668 175h10"></path>
+                                                        <g>
+                                                            <path d="M678 175h0"></path>
+                                                            <path d="M1291 175h0"></path>
+                                                            <path
+                                                                d="M678 175a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                            <g>
+                                                                <path d="M698 155h573"></path>
+                                                            </g>
+                                                            <path
+                                                                d="M1271 155a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                            <path d="M678 175h20"></path>
+                                                            <g>
+                                                                <path d="M698 175h0"></path>
+                                                                <path d="M1271 175h0"></path>
+                                                                <path d="M698 175h10"></path>
+                                                                <g>
+                                                                    <path d="M708 175h0"></path>
+                                                                    <path d="M1261 175h0"></path>
+                                                                    <path d="M708 175h20"></path>
+                                                                    <g class="special-sequence">
+                                                                        <path d="M728 175h0"></path>
+                                                                        <path d="M1241 175h0"></path>
+                                                                        <rect x="728" y="164"
+                                                                            width="513" height="22"></rect>
+                                                                        <text x="984.5" y="179"> Any
+                                                                            unicode character except
+                                                                            " or \ or control
+                                                                            character </text>
+                                                                    </g>
+                                                                    <path d="M1241 175h20"></path>
+                                                                    <path
+                                                                        d="M708 175a10 10 0 0 1 10 10v12a10 10 0 0 0 10 10"></path>
+                                                                    <g>
+                                                                        <path d="M728 207h92.25"></path>
+                                                                        <path d="M1148.75 207h92.25"></path>
+                                                                        <g class="terminal">
+                                                                            <path d="M820.25 207h0"></path>
+                                                                            <path d="M848.75 207h0"></path>
+                                                                            <rect x="820.25" y="196"
+                                                                                width="28.5"
+                                                                                height="22" rx="10"
+                                                                                ry="10"></rect>
+                                                                            <text x="834.5" y="211">
+                                                                                \</text>
+                                                                        </g>
+                                                                        <path d="M848.75 207h10"></path>
+                                                                        <g>
+                                                                            <path d="M858.75 207h0"></path>
+                                                                            <path d="M1148.75 207h0"></path>
+                                                                            <path d="M858.75 207h20"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 207h39.75"></path>
+                                                                                <path
+                                                                                    d="M1089 207h39.75"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M918.5 207h0"></path>
+                                                                                    <path
+                                                                                        d="M947 207h0"></path>
+                                                                                    <rect x="918.5"
+                                                                                        y="196"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="932.75"
+                                                                                        y="211">"</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M947 207h10"></path>
+                                                                                <path
+                                                                                    d="M957 207h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M967 207h0"></path>
+                                                                                    <path
+                                                                                        d="M967 207h122"></path>
+                                                                                    <path
+                                                                                        d="M1089 207h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="202"
+                                                                                        class="comment">
+                                                                                        quotation
+                                                                                        mark </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 207h20"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v12a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 239h36.25"></path>
+                                                                                <path
+                                                                                    d="M1092.5 239h36.25"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M915 239h0"></path>
+                                                                                    <path
+                                                                                        d="M943.5 239h0"></path>
+                                                                                    <rect x="915"
+                                                                                        y="228"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="929.25"
+                                                                                        y="243">\</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M943.5 239h10"></path>
+                                                                                <path
+                                                                                    d="M953.5 239h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M963.5 239h0"></path>
+                                                                                    <path
+                                                                                        d="M963.5 239h129"></path>
+                                                                                    <path
+                                                                                        d="M1092.5 239h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="234"
+                                                                                        class="comment">
+                                                                                        reverse
+                                                                                        solidus </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 239a10 10 0 0 0 10 -10v-12a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v44a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 271h64.25"></path>
+                                                                                <path
+                                                                                    d="M1064.5 271h64.25"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M943 271h0"></path>
+                                                                                    <path
+                                                                                        d="M971.5 271h0"></path>
+                                                                                    <rect x="943"
+                                                                                        y="260"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="957.25"
+                                                                                        y="275">/</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M971.5 271h10"></path>
+                                                                                <path
+                                                                                    d="M981.5 271h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M991.5 271h0"></path>
+                                                                                    <path
+                                                                                        d="M991.5 271h73"></path>
+                                                                                    <path
+                                                                                        d="M1064.5 271h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="266"
+                                                                                        class="comment">
+                                                                                        solidus </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 271a10 10 0 0 0 10 -10v-44a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v76a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 303h57.25"></path>
+                                                                                <path
+                                                                                    d="M1071.5 303h57.25"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M936 303h0"></path>
+                                                                                    <path
+                                                                                        d="M964.5 303h0"></path>
+                                                                                    <rect x="936"
+                                                                                        y="292"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="950.25"
+                                                                                        y="307">b</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M964.5 303h10"></path>
+                                                                                <path
+                                                                                    d="M974.5 303h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M984.5 303h0"></path>
+                                                                                    <path
+                                                                                        d="M984.5 303h87"></path>
+                                                                                    <path
+                                                                                        d="M1071.5 303h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="298"
+                                                                                        class="comment">
+                                                                                        backspace </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 303a10 10 0 0 0 10 -10v-76a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v108a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 335h60.75"></path>
+                                                                                <path
+                                                                                    d="M1068 335h60.75"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M939.5 335h0"></path>
+                                                                                    <path
+                                                                                        d="M968 335h0"></path>
+                                                                                    <rect x="939.5"
+                                                                                        y="324"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="953.75"
+                                                                                        y="339">f</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M968 335h10"></path>
+                                                                                <path
+                                                                                    d="M978 335h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M988 335h0"></path>
+                                                                                    <path
+                                                                                        d="M988 335h80"></path>
+                                                                                    <path
+                                                                                        d="M1068 335h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="330"
+                                                                                        class="comment">
+                                                                                        formfeed </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 335a10 10 0 0 0 10 -10v-108a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v140a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 367h64.25"></path>
+                                                                                <path
+                                                                                    d="M1064.5 367h64.25"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M943 367h0"></path>
+                                                                                    <path
+                                                                                        d="M971.5 367h0"></path>
+                                                                                    <rect x="943"
+                                                                                        y="356"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="957.25"
+                                                                                        y="371">n</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M971.5 367h10"></path>
+                                                                                <path
+                                                                                    d="M981.5 367h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M991.5 367h0"></path>
+                                                                                    <path
+                                                                                        d="M991.5 367h73"></path>
+                                                                                    <path
+                                                                                        d="M1064.5 367h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="362"
+                                                                                        class="comment">
+                                                                                        newline </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 367a10 10 0 0 0 10 -10v-140a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v172a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 399h36.25"></path>
+                                                                                <path
+                                                                                    d="M1092.5 399h36.25"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M915 399h0"></path>
+                                                                                    <path
+                                                                                        d="M943.5 399h0"></path>
+                                                                                    <rect x="915"
+                                                                                        y="388"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="929.25"
+                                                                                        y="403">r</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M943.5 399h10"></path>
+                                                                                <path
+                                                                                    d="M953.5 399h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M963.5 399h0"></path>
+                                                                                    <path
+                                                                                        d="M963.5 399h129"></path>
+                                                                                    <path
+                                                                                        d="M1092.5 399h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="394"
+                                                                                        class="comment">
+                                                                                        carriage
+                                                                                        return </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 399a10 10 0 0 0 10 -10v-172a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v204a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 431h39.75"></path>
+                                                                                <path
+                                                                                    d="M1089 431h39.75"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M918.5 431h0"></path>
+                                                                                    <path
+                                                                                        d="M947 431h0"></path>
+                                                                                    <rect x="918.5"
+                                                                                        y="420"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="932.75"
+                                                                                        y="435">t</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M947 431h10"></path>
+                                                                                <path
+                                                                                    d="M957 431h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M967 431h0"></path>
+                                                                                    <path
+                                                                                        d="M967 431h122"></path>
+                                                                                    <path
+                                                                                        d="M1089 431h0"></path>
+                                                                                    <text x="1028"
+                                                                                        y="426"
+                                                                                        class="comment">
+                                                                                        horizontal
+                                                                                        tab </text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 431a10 10 0 0 0 10 -10v-204a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M858.75 207a10 10 0 0 1 10 10v234a10 10 0 0 0 10 10"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M878.75 461h0"></path>
+                                                                                <path
+                                                                                    d="M1128.75 461h0"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M878.75 461h0"></path>
+                                                                                    <path
+                                                                                        d="M907.25 461h0"></path>
+                                                                                    <rect x="878.75"
+                                                                                        y="450"
+                                                                                        width="28.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="893"
+                                                                                        y="465">u</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M907.25 461h10"></path>
+                                                                                <path
+                                                                                    d="M917.25 461h10"></path>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M927.25 461h0"></path>
+                                                                                    <path
+                                                                                        d="M1128.75 461h0"></path>
+                                                                                    <path
+                                                                                        d="M927.25 461h10"></path>
+                                                                                    <g
+                                                                                        class="special-sequence">
+                                                                                        <path
+                                                                                            d="M937.25 461h0"></path>
+                                                                                        <path
+                                                                                            d="M1118.75 461h0"></path>
+                                                                                        <rect
+                                                                                            x="937.25"
+                                                                                            y="450"
+                                                                                            width="181.5"
+                                                                                            height="22"></rect>
+                                                                                        <text
+                                                                                            x="1028"
+                                                                                            y="465">
+                                                                                            hexadeximal
+                                                                                            digit </text>
+                                                                                    </g>
+                                                                                    <path
+                                                                                        d="M1118.75 461h10"></path>
+                                                                                    <path
+                                                                                        d="M937.25 461a10 10 0 0 0 -10 10v10a10 10 0 0 0 10 10"></path>
+                                                                                    <g>
+                                                                                        <path
+                                                                                            d="M937.25 491h75.25"></path>
+                                                                                        <path
+                                                                                            d="M1043.5 491h75.25"></path>
+                                                                                        <text
+                                                                                            x="1028"
+                                                                                            y="496"
+                                                                                            class="comment">4
+                                                                                            ×</text>
+                                                                                    </g>
+                                                                                    <path
+                                                                                        d="M1118.75 491a10 10 0 0 0 10 -10v-10a10 10 0 0 0 -10 -10"></path>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1128.75 461a10 10 0 0 0 10 -10v-234a10 10 0 0 1 10 -10"></path>
+                                                                        </g>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M1241 207a10 10 0 0 0 10 -10v-12a10 10 0 0 1 10 -10"></path>
+                                                                </g>
+                                                                <path d="M1261 175h10"></path>
+                                                                <path
+                                                                    d="M708 175a10 10 0 0 0 -10 10v315a10 10 0 0 0 10 10"></path>
+                                                                <g>
+                                                                    <path d="M708 510h553"></path>
+                                                                </g>
+                                                                <path
+                                                                    d="M1261 510a10 10 0 0 0 10 -10v-315a10 10 0 0 0 -10 -10"></path>
+                                                            </g>
+                                                            <path d="M1271 175h20"></path>
+                                                        </g>
+                                                        <path d="M1291 175h10"></path>
+                                                        <g class="terminal">
+                                                            <path d="M1301 175h0"></path>
+                                                            <path d="M1329.5 175h0"></path>
+                                                            <rect x="1301" y="164" width="28.5"
+                                                                height="22" rx="10" ry="10"></rect>
+                                                            <text x="1315.25" y="179">"</text>
+                                                        </g>
+                                                    </g>
+                                                    <g>
+                                                        <path d="M629.5 137h0"></path>
+                                                        <path d="M681.5 137h0"></path>
+                                                        <a xlink:href="#string">
+                                                            <text x="655.5" y="142" class="comment">
+                                                                string</text>
+                                                        </a>
+                                                    </g>
+                                                </g>
+                                                <path d="M1339.5 175h20"></path>
+                                                <path
+                                                    d="M609.5 175a10 10 0 0 1 10 10v380a10 10 0 0 0 10 10"></path>
+                                                <g>
+                                                    <path d="M629.5 575h174"></path>
+                                                    <path d="M1165.5 575h174"></path>
+                                                    <rect x="803.5" y="548" width="362" height="55"
+                                                        rx="10" ry="10" class="group-box"></rect>
+                                                    <g>
+                                                        <path d="M803.5 575h10"></path>
+                                                        <path d="M1155.5 575h10"></path>
+                                                        <g>
+                                                            <path d="M813.5 575h0"></path>
+                                                            <path d="M882 575h0"></path>
+                                                            <path
+                                                                d="M813.5 575a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                            <g>
+                                                                <path d="M833.5 555h28.5"></path>
+                                                            </g>
+                                                            <path
+                                                                d="M862 555a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                            <path d="M813.5 575h20"></path>
+                                                            <g class="terminal">
+                                                                <path d="M833.5 575h0"></path>
+                                                                <path d="M862 575h0"></path>
+                                                                <rect x="833.5" y="564" width="28.5"
+                                                                    height="22" rx="10" ry="10"></rect>
+                                                                <text x="847.75" y="579">-</text>
+                                                            </g>
+                                                            <path d="M862 575h20"></path>
+                                                        </g>
+                                                        <path d="M882 575h10"></path>
+                                                        <g>
+                                                            <path d="M892 575h0"></path>
+                                                            <path d="M974.5 575h0"></path>
+                                                            <path d="M892 575h10"></path>
+                                                            <g class="non-terminal">
+                                                                <path d="M902 575h0"></path>
+                                                                <path d="M964.5 575h0"></path>
+                                                                <rect x="902" y="564" width="62.5"
+                                                                    height="22"></rect>
+                                                                <a xlink:href="#digit">
+                                                                    <text x="933.25" y="579">digit</text>
+                                                                </a>
+                                                            </g>
+                                                            <path d="M964.5 575h10"></path>
+                                                            <path
+                                                                d="M902 575a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                            <g>
+                                                                <path d="M902 595h62.5"></path>
+                                                            </g>
+                                                            <path
+                                                                d="M964.5 595a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                        </g>
+                                                        <path d="M974.5 575h10"></path>
+                                                        <g>
+                                                            <path d="M984.5 575h0"></path>
+                                                            <path d="M1155.5 575h0"></path>
+                                                            <path
+                                                                d="M984.5 575a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                            <g>
+                                                                <path d="M1004.5 555h131"></path>
+                                                            </g>
+                                                            <path
+                                                                d="M1135.5 555a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                            <path d="M984.5 575h20"></path>
+                                                            <g>
+                                                                <path d="M1004.5 575h0"></path>
+                                                                <path d="M1135.5 575h0"></path>
+                                                                <g class="terminal">
+                                                                    <path d="M1004.5 575h0"></path>
+                                                                    <path d="M1033 575h0"></path>
+                                                                    <rect x="1004.5" y="564"
+                                                                        width="28.5" height="22"
+                                                                        rx="10" ry="10"></rect>
+                                                                    <text x="1018.75" y="579">.</text>
+                                                                </g>
+                                                                <path d="M1033 575h10"></path>
+                                                                <path d="M1043 575h10"></path>
+                                                                <g>
+                                                                    <path d="M1053 575h0"></path>
+                                                                    <path d="M1135.5 575h0"></path>
+                                                                    <path d="M1053 575h10"></path>
+                                                                    <g class="non-terminal">
+                                                                        <path d="M1063 575h0"></path>
+                                                                        <path d="M1125.5 575h0"></path>
+                                                                        <rect x="1063" y="564"
+                                                                            width="62.5" height="22"></rect>
+                                                                        <a xlink:href="#digit">
+                                                                            <text x="1094.25"
+                                                                                y="579">digit</text>
+                                                                        </a>
+                                                                    </g>
+                                                                    <path d="M1125.5 575h10"></path>
+                                                                    <path
+                                                                        d="M1063 575a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                                    <g>
+                                                                        <path d="M1063 595h62.5"></path>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M1125.5 595a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                                </g>
+                                                            </g>
+                                                            <path d="M1135.5 575h20"></path>
+                                                        </g>
+                                                    </g>
+                                                    <g>
+                                                        <path d="M803.5 537h0"></path>
+                                                        <path d="M855.5 537h0"></path>
+                                                        <a xlink:href="#number">
+                                                            <text x="829.5" y="542" class="comment">
+                                                                number</text>
+                                                        </a>
+                                                    </g>
+                                                </g>
+                                                <path
+                                                    d="M1339.5 575a10 10 0 0 0 10 -10v-380a10 10 0 0 1 10 -10"></path>
+                                                <path
+                                                    d="M609.5 175a10 10 0 0 1 10 10v427a10 10 0 0 0 10 10"></path>
+                                                <g class="non-terminal">
+                                                    <path d="M629.5 622h315.25"></path>
+                                                    <path d="M1024.25 622h315.25"></path>
+                                                    <rect x="944.75" y="611" width="79.5"
+                                                        height="22"></rect>
+                                                    <a xlink:href="#boolean">
+                                                        <text x="984.5" y="626">boolean</text>
+                                                    </a>
+                                                </g>
+                                                <path
+                                                    d="M1339.5 622a10 10 0 0 0 10 -10v-427a10 10 0 0 1 10 -10"></path>
+                                                <path
+                                                    d="M609.5 175a10 10 0 0 1 10 10v457a10 10 0 0 0 10 10"></path>
+                                                <g class="non-terminal">
+                                                    <path d="M629.5 652h302.5"></path>
+                                                    <path d="M1037 652h302.5"></path>
+                                                    <rect x="932" y="641" width="105" height="22"></rect>
+                                                    <a xlink:href="#identifier">
+                                                        <text x="984.5" y="656">identifier</text>
+                                                    </a>
+                                                </g>
+                                                <path
+                                                    d="M1339.5 652a10 10 0 0 0 10 -10v-457a10 10 0 0 1 10 -10"></path>
+                                            </g>
+                                            <g>
+                                                <path d="M609.5 107h0"></path>
+                                                <path d="M654.5 107h0"></path>
+                                                <a xlink:href="#value">
+                                                    <text x="632" y="112" class="comment">value</text>
+                                                </a>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g>
+                                        <path d="M474.5 77h0"></path>
+                                        <path d="M547.5 77h0"></path>
+                                        <a xlink:href="#Attribute">
+                                            <text x="511" y="82" class="comment">Attribute</text>
+                                        </a>
+                                    </g>
+                                </g>
+                                <path d="M1369.5 175h10"></path>
+                                <path d="M474.5 175a10 10 0 0 0 -10 10v492a10 10 0 0 0 10 10"></path>
+                                <g>
+                                    <path d="M474.5 687h895"></path>
+                                </g>
+                                <path d="M1369.5 687a10 10 0 0 0 10 -10v-492a10 10 0 0 0 -10 -10"></path>
+                            </g>
+                            <path d="M1379.5 175h20"></path>
+                        </g>
+                        <g>
+                            <path d="M1399.5 175h0"></path>
+                            <path d="M2820 175h0"></path>
+                            <path d="M1399.5 175a10 10 0 0 0 10 -10v-97a10 10 0 0 1 10 -10"></path>
+                            <g>
+                                <path d="M1419.5 58h1380.5"></path>
+                            </g>
+                            <path d="M2800 58a10 10 0 0 1 10 10v97a10 10 0 0 0 10 10"></path>
+                            <path d="M1399.5 175h20"></path>
+                            <g>
+                                <path d="M1419.5 175h0"></path>
+                                <path d="M2800 175h0"></path>
+                                <path d="M1419.5 175h10"></path>
+                                <g>
+                                    <path d="M1429.5 175h0"></path>
+                                    <path d="M2790 175h0"></path>
+                                    <path d="M1429.5 175h20"></path>
+                                    <g>
+                                        <path d="M1449.5 175h0"></path>
+                                        <path d="M2770 175h0"></path>
+                                        <rect x="1449.5" y="88" width="1320.5" height="874" rx="10"
+                                            ry="10" class="group-box"></rect>
+                                        <g>
+                                            <path d="M1449.5 175h0"></path>
+                                            <path d="M2770 175h0"></path>
+                                            <path d="M1449.5 175h20"></path>
+                                            <g>
+                                                <path d="M1469.5 175h412"></path>
+                                                <path d="M2338 175h412"></path>
+                                                <rect x="1881.5" y="118" width="456.5" height="178"
+                                                    rx="10" ry="10" class="group-box"></rect>
+                                                <g>
+                                                    <path d="M1881.5 175h0"></path>
+                                                    <path d="M2338 175h0"></path>
+                                                    <path d="M1881.5 175h20"></path>
+                                                    <g>
+                                                        <path d="M1901.5 175h0"></path>
+                                                        <path d="M2318 175h0"></path>
+                                                        <rect x="1901.5" y="148" width="416.5"
+                                                            height="55" rx="10" ry="10"
+                                                            class="group-box"></rect>
+                                                        <g>
+                                                            <path d="M1901.5 175h10"></path>
+                                                            <path d="M2308 175h10"></path>
+                                                            <g class="terminal">
+                                                                <path d="M1911.5 175h0"></path>
+                                                                <path d="M2016.5 175h0"></path>
+                                                                <rect x="1911.5" y="164" width="105"
+                                                                    height="22" rx="10" ry="10"></rect>
+                                                                <text x="1964" y="179">StartEvent</text>
+                                                            </g>
+                                                            <path d="M2016.5 175h10"></path>
+                                                            <path d="M2026.5 175h10"></path>
+                                                            <g class="non-terminal">
+                                                                <path d="M2036.5 175h0"></path>
+                                                                <path d="M2141.5 175h0"></path>
+                                                                <rect x="2036.5" y="164" width="105"
+                                                                    height="22"></rect>
+                                                                <a xlink:href="#identifier">
+                                                                    <text x="2089" y="179">
+                                                                        identifier</text>
+                                                                </a>
+                                                            </g>
+                                                            <path d="M2141.5 175h10"></path>
+                                                            <g>
+                                                                <path d="M2151.5 175h0"></path>
+                                                                <path d="M2308 175h0"></path>
+                                                                <path
+                                                                    d="M2151.5 175a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                                <g>
+                                                                    <path d="M2171.5 155h116.5"></path>
+                                                                </g>
+                                                                <path
+                                                                    d="M2288 155a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                                <path d="M2151.5 175h20"></path>
+                                                                <g>
+                                                                    <path d="M2171.5 175h0"></path>
+                                                                    <path d="M2288 175h0"></path>
+                                                                    <path d="M2171.5 175h10"></path>
+                                                                    <g class="non-terminal">
+                                                                        <path d="M2181.5 175h0"></path>
+                                                                        <path d="M2278 175h0"></path>
+                                                                        <rect x="2181.5" y="164"
+                                                                            width="96.5" height="22"></rect>
+                                                                        <a xlink:href="#Attribute">
+                                                                            <text x="2229.75"
+                                                                                y="179">Attribute</text>
+                                                                        </a>
+                                                                    </g>
+                                                                    <path d="M2278 175h10"></path>
+                                                                    <path
+                                                                        d="M2181.5 175a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                                    <g>
+                                                                        <path d="M2181.5 195h96.5"></path>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M2278 195a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                                </g>
+                                                                <path d="M2288 175h20"></path>
+                                                            </g>
+                                                        </g>
+                                                        <g>
+                                                            <path d="M1901.5 137h0"></path>
+                                                            <path d="M1981.5 137h0"></path>
+                                                            <a xlink:href="#StartEvent">
+                                                                <text x="1941.5" y="142"
+                                                                    class="comment">StartEvent</text>
+                                                            </a>
+                                                        </g>
+                                                    </g>
+                                                    <path d="M2318 175h20"></path>
+                                                    <path
+                                                        d="M1881.5 175a10 10 0 0 1 10 10v65a10 10 0 0 0 10 10"></path>
+                                                    <g>
+                                                        <path d="M1901.5 260h8.5"></path>
+                                                        <path d="M2309.5 260h8.5"></path>
+                                                        <rect x="1910" y="233" width="399.5"
+                                                            height="55" rx="10" ry="10"
+                                                            class="group-box"></rect>
+                                                        <g>
+                                                            <path d="M1910 260h10"></path>
+                                                            <path d="M2299.5 260h10"></path>
+                                                            <g class="terminal">
+                                                                <path d="M1920 260h0"></path>
+                                                                <path d="M2008 260h0"></path>
+                                                                <rect x="1920" y="249" width="88"
+                                                                    height="22" rx="10" ry="10"></rect>
+                                                                <text x="1964" y="264">EndEvent</text>
+                                                            </g>
+                                                            <path d="M2008 260h10"></path>
+                                                            <path d="M2018 260h10"></path>
+                                                            <g class="non-terminal">
+                                                                <path d="M2028 260h0"></path>
+                                                                <path d="M2133 260h0"></path>
+                                                                <rect x="2028" y="249" width="105"
+                                                                    height="22"></rect>
+                                                                <a xlink:href="#identifier">
+                                                                    <text x="2080.5" y="264">
+                                                                        identifier</text>
+                                                                </a>
+                                                            </g>
+                                                            <path d="M2133 260h10"></path>
+                                                            <g>
+                                                                <path d="M2143 260h0"></path>
+                                                                <path d="M2299.5 260h0"></path>
+                                                                <path
+                                                                    d="M2143 260a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                                <g>
+                                                                    <path d="M2163 240h116.5"></path>
+                                                                </g>
+                                                                <path
+                                                                    d="M2279.5 240a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                                <path d="M2143 260h20"></path>
+                                                                <g>
+                                                                    <path d="M2163 260h0"></path>
+                                                                    <path d="M2279.5 260h0"></path>
+                                                                    <path d="M2163 260h10"></path>
+                                                                    <g class="non-terminal">
+                                                                        <path d="M2173 260h0"></path>
+                                                                        <path d="M2269.5 260h0"></path>
+                                                                        <rect x="2173" y="249"
+                                                                            width="96.5" height="22"></rect>
+                                                                        <a xlink:href="#Attribute">
+                                                                            <text x="2221.25"
+                                                                                y="264">Attribute</text>
+                                                                        </a>
+                                                                    </g>
+                                                                    <path d="M2269.5 260h10"></path>
+                                                                    <path
+                                                                        d="M2173 260a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                                    <g>
+                                                                        <path d="M2173 280h96.5"></path>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M2269.5 280a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                                </g>
+                                                                <path d="M2279.5 260h20"></path>
+                                                            </g>
+                                                        </g>
+                                                        <g>
+                                                            <path d="M1910 222h0"></path>
+                                                            <path d="M1976 222h0"></path>
+                                                            <a xlink:href="#EndEvent">
+                                                                <text x="1943" y="227"
+                                                                    class="comment">EndEvent</text>
+                                                            </a>
+                                                        </g>
+                                                    </g>
+                                                    <path
+                                                        d="M2318 260a10 10 0 0 0 10 -10v-65a10 10 0 0 1 10 -10"></path>
+                                                </g>
+                                                <g>
+                                                    <path d="M1881.5 107h0"></path>
+                                                    <path d="M1926.5 107h0"></path>
+                                                    <a xlink:href="#Event">
+                                                        <text x="1904" y="112" class="comment">Event</text>
+                                                    </a>
+                                                </g>
+                                            </g>
+                                            <path d="M2750 175h20"></path>
+                                            <path
+                                                d="M1449.5 175a10 10 0 0 1 10 10v286a10 10 0 0 0 10 10"></path>
+                                            <g>
+                                                <path d="M1469.5 481h0"></path>
+                                                <path d="M2750 481h0"></path>
+                                                <rect x="1469.5" y="326" width="1280.5" height="378"
+                                                    rx="10" ry="10" class="group-box"></rect>
+                                                <g>
+                                                    <path d="M1469.5 481h10"></path>
+                                                    <path d="M2740 481h10"></path>
+                                                    <g class="terminal">
+                                                        <path d="M1479.5 481h0"></path>
+                                                        <path d="M1533.5 481h0"></path>
+                                                        <rect x="1479.5" y="470" width="54"
+                                                            height="22" rx="10" ry="10"></rect>
+                                                        <text x="1506.5" y="485">Task</text>
+                                                    </g>
+                                                    <path d="M1533.5 481h10"></path>
+                                                    <path d="M1543.5 481h10"></path>
+                                                    <g class="non-terminal">
+                                                        <path d="M1553.5 481h0"></path>
+                                                        <path d="M1658.5 481h0"></path>
+                                                        <rect x="1553.5" y="470" width="105"
+                                                            height="22"></rect>
+                                                        <a xlink:href="#identifier">
+                                                            <text x="1606" y="485">identifier</text>
+                                                        </a>
+                                                    </g>
+                                                    <path d="M1658.5 481h10"></path>
+                                                    <g>
+                                                        <path d="M1668.5 481h0"></path>
+                                                        <path d="M2021.5 481h0"></path>
+                                                        <path
+                                                            d="M1668.5 481a10 10 0 0 0 10 -10v-59a10 10 0 0 1 10 -10"></path>
+                                                        <g>
+                                                            <path d="M1688.5 402h313"></path>
+                                                        </g>
+                                                        <path
+                                                            d="M2001.5 402a10 10 0 0 1 10 10v59a10 10 0 0 0 10 10"></path>
+                                                        <path d="M1668.5 481h20"></path>
+                                                        <g>
+                                                            <path d="M1688.5 481h0"></path>
+                                                            <path d="M2001.5 481h0"></path>
+                                                            <path d="M1688.5 481h10"></path>
+                                                            <g>
+                                                                <path d="M1698.5 481h0"></path>
+                                                                <path d="M1991.5 481h0"></path>
+                                                                <rect x="1698.5" y="432" width="293"
+                                                                    height="256" rx="10" ry="10"
+                                                                    class="group-box"></rect>
+                                                                <g>
+                                                                    <path d="M1698.5 481h0"></path>
+                                                                    <path d="M1991.5 481h0"></path>
+                                                                    <path d="M1698.5 481h20"></path>
+                                                                    <g>
+                                                                        <path d="M1718.5 481h0"></path>
+                                                                        <path d="M1971.5 481h0"></path>
+                                                                        <rect x="1718.5" y="462"
+                                                                            width="253" height="188"
+                                                                            rx="10" ry="10"
+                                                                            class="group-box"></rect>
+                                                                        <g>
+                                                                            <path d="M1718.5 481h0"></path>
+                                                                            <path d="M1971.5 481h0"></path>
+                                                                            <path d="M1718.5 481h20"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M1738.5 481h0"></path>
+                                                                                <path
+                                                                                    d="M1951.5 481h0"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M1738.5 481h0"></path>
+                                                                                    <path
+                                                                                        d="M1801 481h0"></path>
+                                                                                    <rect x="1738.5"
+                                                                                        y="470"
+                                                                                        width="62.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text
+                                                                                        x="1769.75"
+                                                                                        y="485">
+                                                                                        @type</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M1801 481h10"></path>
+                                                                                <path
+                                                                                    d="M1811 481h10"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M1821 481h0"></path>
+                                                                                    <path
+                                                                                        d="M1951.5 481h0"></path>
+                                                                                    <rect x="1821"
+                                                                                        y="470"
+                                                                                        width="130.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text
+                                                                                        x="1886.25"
+                                                                                        y="485">
+                                                                                        CognitiveTest</text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path d="M1951.5 481h20"></path>
+                                                                            <path
+                                                                                d="M1718.5 481a10 10 0 0 1 10 10v10a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M1738.5 511h41.25"></path>
+                                                                                <path
+                                                                                    d="M1910.25 511h41.25"></path>
+                                                                                <rect x="1779.75"
+                                                                                    y="500"
+                                                                                    width="130.5"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="1845"
+                                                                                    y="515">
+                                                                                    Questionnaire</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1951.5 511a10 10 0 0 0 10 -10v-10a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M1718.5 481a10 10 0 0 1 10 10v40a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M1738.5 541h49.75"></path>
+                                                                                <path
+                                                                                    d="M1901.75 541h49.75"></path>
+                                                                                <rect x="1788.25"
+                                                                                    y="530"
+                                                                                    width="113.5"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="1845"
+                                                                                    y="545">
+                                                                                    Instruction</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1951.5 541a10 10 0 0 0 10 -10v-40a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M1718.5 481a10 10 0 0 1 10 10v70a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M1738.5 571h79.5"></path>
+                                                                                <path
+                                                                                    d="M1872 571h79.5"></path>
+                                                                                <rect x="1818"
+                                                                                    y="560"
+                                                                                    width="54"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="1845"
+                                                                                    y="575">Rest</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1951.5 571a10 10 0 0 0 10 -10v-70a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M1718.5 481a10 10 0 0 1 10 10v100a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M1738.5 601h71"></path>
+                                                                                <path
+                                                                                    d="M1880.5 601h71"></path>
+                                                                                <rect x="1809.5"
+                                                                                    y="590"
+                                                                                    width="71"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="1845"
+                                                                                    y="605">Script</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1951.5 601a10 10 0 0 0 10 -10v-100a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M1718.5 481a10 10 0 0 1 10 10v130a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M1738.5 631h71"></path>
+                                                                                <path
+                                                                                    d="M1880.5 631h71"></path>
+                                                                                <rect x="1809.5"
+                                                                                    y="620"
+                                                                                    width="71"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="1845"
+                                                                                    y="635">Manual</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M1951.5 631a10 10 0 0 0 10 -10v-130a10 10 0 0 1 10 -10"></path>
+                                                                        </g>
+                                                                        <g>
+                                                                            <path d="M1718.5 451h0"></path>
+                                                                            <path d="M1784.5 451h0"></path>
+                                                                            <a
+                                                                                xlink:href="#TaskType">
+                                                                                <text x="1751.5"
+                                                                                    y="456"
+                                                                                    class="comment">
+                                                                                    TaskType</text>
+                                                                            </a>
+                                                                        </g>
+                                                                    </g>
+                                                                    <path d="M1971.5 481h20"></path>
+                                                                    <path
+                                                                        d="M1698.5 481a10 10 0 0 1 10 10v168a10 10 0 0 0 10 10"></path>
+                                                                    <g class="non-terminal">
+                                                                        <path d="M1718.5 669h78.25"></path>
+                                                                        <path d="M1893.25 669h78.25"></path>
+                                                                        <rect x="1796.75" y="658"
+                                                                            width="96.5" height="22"></rect>
+                                                                        <a xlink:href="#Attribute">
+                                                                            <text x="1845" y="673">
+                                                                                Attribute</text>
+                                                                        </a>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M1971.5 669a10 10 0 0 0 10 -10v-168a10 10 0 0 1 10 -10"></path>
+                                                                </g>
+                                                                <g>
+                                                                    <path d="M1698.5 421h0"></path>
+                                                                    <path d="M1799.5 421h0"></path>
+                                                                    <a xlink:href="#TaskAttribute">
+                                                                        <text x="1749" y="426"
+                                                                            class="comment">
+                                                                            TaskAttribute</text>
+                                                                    </a>
+                                                                </g>
+                                                            </g>
+                                                            <path d="M1991.5 481h10"></path>
+                                                            <path
+                                                                d="M1698.5 481a10 10 0 0 0 -10 10v195a10 10 0 0 0 10 10"></path>
+                                                            <g>
+                                                                <path d="M1698.5 696h293"></path>
+                                                            </g>
+                                                            <path
+                                                                d="M1991.5 696a10 10 0 0 0 10 -10v-195a10 10 0 0 0 -10 -10"></path>
+                                                        </g>
+                                                        <path d="M2001.5 481h20"></path>
+                                                    </g>
+                                                    <g>
+                                                        <path d="M2021.5 481h0"></path>
+                                                        <path d="M2740 481h0"></path>
+                                                        <path
+                                                            d="M2021.5 481a10 10 0 0 0 10 -10v-127a10 10 0 0 1 10 -10"></path>
+                                                        <g>
+                                                            <path d="M2041.5 334h678.5"></path>
+                                                        </g>
+                                                        <path
+                                                            d="M2720 334a10 10 0 0 1 10 10v127a10 10 0 0 0 10 10"></path>
+                                                        <path d="M2021.5 481h20"></path>
+                                                        <g>
+                                                            <path d="M2041.5 481h0"></path>
+                                                            <path d="M2720 481h0"></path>
+                                                            <rect x="2041.5" y="364" width="678.5"
+                                                                height="160" rx="10" ry="10"
+                                                                class="group-box"></rect>
+                                                            <g>
+                                                                <path d="M2041.5 481h10"></path>
+                                                                <path d="M2710 481h10"></path>
+                                                                <g class="terminal">
+                                                                    <path d="M2051.5 481h0"></path>
+                                                                    <path d="M2173.5 481h0"></path>
+                                                                    <rect x="2051.5" y="470"
+                                                                        width="122" height="22"
+                                                                        rx="10" ry="10"></rect>
+                                                                    <text x="2112.5" y="485">
+                                                                        choreography</text>
+                                                                </g>
+                                                                <path d="M2173.5 481h10"></path>
+                                                                <g>
+                                                                    <path d="M2183.5 481h0"></path>
+                                                                    <path d="M2340 481h0"></path>
+                                                                    <path
+                                                                        d="M2183.5 481a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                                    <g>
+                                                                        <path d="M2203.5 461h116.5"></path>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M2320 461a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                                    <path d="M2183.5 481h20"></path>
+                                                                    <g>
+                                                                        <path d="M2203.5 481h0"></path>
+                                                                        <path d="M2320 481h0"></path>
+                                                                        <path d="M2203.5 481h10"></path>
+                                                                        <g class="non-terminal">
+                                                                            <path d="M2213.5 481h0"></path>
+                                                                            <path d="M2310 481h0"></path>
+                                                                            <rect x="2213.5" y="470"
+                                                                                width="96.5"
+                                                                                height="22"></rect>
+                                                                            <a
+                                                                                xlink:href="#Attribute">
+                                                                                <text x="2261.75"
+                                                                                    y="485">
+                                                                                    Attribute</text>
+                                                                            </a>
+                                                                        </g>
+                                                                        <path d="M2310 481h10"></path>
+                                                                        <path
+                                                                            d="M2213.5 481a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                                        <g>
+                                                                            <path
+                                                                                d="M2213.5 501h96.5"></path>
+                                                                        </g>
+                                                                        <path
+                                                                            d="M2310 501a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                                    </g>
+                                                                    <path d="M2320 481h20"></path>
+                                                                </g>
+                                                                <path d="M2340 481h10"></path>
+                                                                <g>
+                                                                    <path d="M2350 481h0"></path>
+                                                                    <path d="M2495 481h0"></path>
+                                                                    <rect x="2350" y="462"
+                                                                        width="145" height="47"
+                                                                        rx="10" ry="10"
+                                                                        class="group-box"></rect>
+                                                                    <g>
+                                                                        <path d="M2350 481h10"></path>
+                                                                        <path d="M2485 481h10"></path>
+                                                                        <path d="M2360 481h10"></path>
+                                                                        <g class="non-terminal">
+                                                                            <path d="M2370 481h0"></path>
+                                                                            <path d="M2475 481h0"></path>
+                                                                            <rect x="2370" y="470"
+                                                                                width="105"
+                                                                                height="22"></rect>
+                                                                            <a
+                                                                                xlink:href="#identifier">
+                                                                                <text x="2422.5"
+                                                                                    y="485">
+                                                                                    identifier</text>
+                                                                            </a>
+                                                                        </g>
+                                                                        <path d="M2475 481h10"></path>
+                                                                        <path
+                                                                            d="M2370 481a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                                        <g>
+                                                                            <path d="M2370 501h105"></path>
+                                                                        </g>
+                                                                        <path
+                                                                            d="M2475 501a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                                    </g>
+                                                                    <g>
+                                                                        <path d="M2350 451h0"></path>
+                                                                        <path d="M2465 451h0"></path>
+                                                                        <a
+                                                                            xlink:href="#ParticipantList">
+                                                                            <text x="2407.5" y="456"
+                                                                                class="comment">
+                                                                                ParticipantList</text>
+                                                                        </a>
+                                                                    </g>
+                                                                </g>
+                                                                <path d="M2495 481h10"></path>
+                                                                <g>
+                                                                    <path d="M2505 481h0"></path>
+                                                                    <path d="M2710 481h0"></path>
+                                                                    <path
+                                                                        d="M2505 481a10 10 0 0 0 10 -10v-89a10 10 0 0 1 10 -10"></path>
+                                                                    <g>
+                                                                        <path d="M2525 372h165"></path>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M2690 372a10 10 0 0 1 10 10v89a10 10 0 0 0 10 10"></path>
+                                                                    <path d="M2505 481h20"></path>
+                                                                    <g>
+                                                                        <path d="M2525 481h0"></path>
+                                                                        <path d="M2690 481h0"></path>
+                                                                        <rect x="2525" y="402"
+                                                                            width="165" height="114"
+                                                                            rx="10" ry="10"
+                                                                            class="group-box"></rect>
+                                                                        <g>
+                                                                            <path d="M2525 481h10"></path>
+                                                                            <path d="M2680 481h10"></path>
+                                                                            <rect x="2535" y="432"
+                                                                                width="145"
+                                                                                height="76" rx="10"
+                                                                                ry="10"
+                                                                                class="group-box"></rect>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M2535 481h10"></path>
+                                                                                <path
+                                                                                    d="M2670 481h10"></path>
+                                                                                <rect x="2545"
+                                                                                    y="462"
+                                                                                    width="125"
+                                                                                    height="38"
+                                                                                    rx="10" ry="10"
+                                                                                    class="group-box"></rect>
+                                                                                <g
+                                                                                    class="non-terminal">
+                                                                                    <path
+                                                                                        d="M2545 481h10"></path>
+                                                                                    <path
+                                                                                        d="M2660 481h10"></path>
+                                                                                    <rect x="2555"
+                                                                                        y="470"
+                                                                                        width="105"
+                                                                                        height="22"></rect>
+                                                                                    <a
+                                                                                        xlink:href="#identifier">
+                                                                                        <text
+                                                                                            x="2607.5"
+                                                                                            y="485">
+                                                                                            identifier</text>
+                                                                                    </a>
+                                                                                </g>
+                                                                                <g>
+                                                                                    <path
+                                                                                        d="M2545 451h0"></path>
+                                                                                    <path
+                                                                                        d="M2625 451h0"></path>
+                                                                                    <a
+                                                                                        xlink:href="#ProcessRef">
+                                                                                        <text
+                                                                                            x="2585"
+                                                                                            y="456"
+                                                                                            class="comment">
+                                                                                            ProcessRef</text>
+                                                                                    </a>
+                                                                                </g>
+                                                                            </g>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M2535 421h0"></path>
+                                                                                <path
+                                                                                    d="M2643 421h0"></path>
+                                                                                <a
+                                                                                    xlink:href="#ParticipantRef">
+                                                                                    <text x="2589"
+                                                                                        y="426"
+                                                                                        class="comment">
+                                                                                        ParticipantRef</text>
+                                                                                </a>
+                                                                            </g>
+                                                                        </g>
+                                                                        <g>
+                                                                            <path d="M2525 391h0"></path>
+                                                                            <path d="M2682 391h0"></path>
+                                                                            <a
+                                                                                xlink:href="#InitiatingParticipant">
+                                                                                <text x="2603.5"
+                                                                                    y="396"
+                                                                                    class="comment">
+                                                                                    InitiatingParticipant</text>
+                                                                            </a>
+                                                                        </g>
+                                                                    </g>
+                                                                    <path d="M2690 481h20"></path>
+                                                                </g>
+                                                            </g>
+                                                            <g>
+                                                                <path d="M2041.5 353h0"></path>
+                                                                <path d="M2135.5 353h0"></path>
+                                                                <a xlink:href="#Choreography">
+                                                                    <text x="2088.5" y="358"
+                                                                        class="comment">Choreography</text>
+                                                                </a>
+                                                            </g>
+                                                        </g>
+                                                        <path d="M2720 481h20"></path>
+                                                    </g>
+                                                </g>
+                                                <g>
+                                                    <path d="M1469.5 315h0"></path>
+                                                    <path d="M1507.5 315h0"></path>
+                                                    <a xlink:href="#Task">
+                                                        <text x="1488.5" y="320" class="comment">
+                                                            Task</text>
+                                                    </a>
+                                                </g>
+                                            </g>
+                                            <path
+                                                d="M2750 481a10 10 0 0 0 10 -10v-286a10 10 0 0 1 10 -10"></path>
+                                            <path
+                                                d="M1449.5 175a10 10 0 0 1 10 10v626a10 10 0 0 0 10 10"></path>
+                                            <g>
+                                                <path d="M1469.5 821h376.25"></path>
+                                                <path d="M2373.75 821h376.25"></path>
+                                                <rect x="1845.75" y="734" width="528" height="220"
+                                                    rx="10" ry="10" class="group-box"></rect>
+                                                <g>
+                                                    <path d="M1845.75 821h10"></path>
+                                                    <path d="M2363.75 821h10"></path>
+                                                    <g class="terminal">
+                                                        <path d="M1855.75 821h0"></path>
+                                                        <path d="M1935.25 821h0"></path>
+                                                        <rect x="1855.75" y="810" width="79.5"
+                                                            height="22" rx="10" ry="10"></rect>
+                                                        <text x="1895.5" y="825">Gateway</text>
+                                                    </g>
+                                                    <path d="M1935.25 821h10"></path>
+                                                    <path d="M1945.25 821h10"></path>
+                                                    <g class="non-terminal">
+                                                        <path d="M1955.25 821h0"></path>
+                                                        <path d="M2060.25 821h0"></path>
+                                                        <rect x="1955.25" y="810" width="105"
+                                                            height="22"></rect>
+                                                        <a xlink:href="#identifier">
+                                                            <text x="2007.75" y="825">identifier</text>
+                                                        </a>
+                                                    </g>
+                                                    <path d="M2060.25 821h10"></path>
+                                                    <g>
+                                                        <path d="M2070.25 821h0"></path>
+                                                        <path d="M2363.75 821h0"></path>
+                                                        <path
+                                                            d="M2070.25 821a10 10 0 0 0 10 -10v-59a10 10 0 0 1 10 -10"></path>
+                                                        <g>
+                                                            <path d="M2090.25 742h253.5"></path>
+                                                        </g>
+                                                        <path
+                                                            d="M2343.75 742a10 10 0 0 1 10 10v59a10 10 0 0 0 10 10"></path>
+                                                        <path d="M2070.25 821h20"></path>
+                                                        <g>
+                                                            <path d="M2090.25 821h0"></path>
+                                                            <path d="M2343.75 821h0"></path>
+                                                            <path d="M2090.25 821h10"></path>
+                                                            <g>
+                                                                <path d="M2100.25 821h0"></path>
+                                                                <path d="M2333.75 821h0"></path>
+                                                                <rect x="2100.25" y="772"
+                                                                    width="233.5" height="166"
+                                                                    rx="10" ry="10"
+                                                                    class="group-box"></rect>
+                                                                <g>
+                                                                    <path d="M2100.25 821h0"></path>
+                                                                    <path d="M2333.75 821h0"></path>
+                                                                    <path d="M2100.25 821h20"></path>
+                                                                    <g>
+                                                                        <path d="M2120.25 821h0"></path>
+                                                                        <path d="M2313.75 821h0"></path>
+                                                                        <rect x="2120.25" y="802"
+                                                                            width="193.5"
+                                                                            height="98" rx="10"
+                                                                            ry="10"
+                                                                            class="group-box"></rect>
+                                                                        <g>
+                                                                            <path d="M2120.25 821h0"></path>
+                                                                            <path d="M2313.75 821h0"></path>
+                                                                            <path
+                                                                                d="M2120.25 821h20"></path>
+                                                                            <g>
+                                                                                <path
+                                                                                    d="M2140.25 821h0"></path>
+                                                                                <path
+                                                                                    d="M2293.75 821h0"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M2140.25 821h0"></path>
+                                                                                    <path
+                                                                                        d="M2202.75 821h0"></path>
+                                                                                    <rect
+                                                                                        x="2140.25"
+                                                                                        y="810"
+                                                                                        width="62.5"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text x="2171.5"
+                                                                                        y="825">
+                                                                                        @type</text>
+                                                                                </g>
+                                                                                <path
+                                                                                    d="M2202.75 821h10"></path>
+                                                                                <path
+                                                                                    d="M2212.75 821h10"></path>
+                                                                                <g class="terminal">
+                                                                                    <path
+                                                                                        d="M2222.75 821h0"></path>
+                                                                                    <path
+                                                                                        d="M2293.75 821h0"></path>
+                                                                                    <rect
+                                                                                        x="2222.75"
+                                                                                        y="810"
+                                                                                        width="71"
+                                                                                        height="22"
+                                                                                        rx="10"
+                                                                                        ry="10"></rect>
+                                                                                    <text
+                                                                                        x="2258.25"
+                                                                                        y="825">
+                                                                                        Random</text>
+                                                                                </g>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M2293.75 821h20"></path>
+                                                                            <path
+                                                                                d="M2120.25 821a10 10 0 0 1 10 10v10a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M2140.25 851h28.5"></path>
+                                                                                <path
+                                                                                    d="M2265.25 851h28.5"></path>
+                                                                                <rect x="2168.75"
+                                                                                    y="840"
+                                                                                    width="96.5"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="2217"
+                                                                                    y="855">
+                                                                                    Exclusive</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M2293.75 851a10 10 0 0 0 10 -10v-10a10 10 0 0 1 10 -10"></path>
+                                                                            <path
+                                                                                d="M2120.25 821a10 10 0 0 1 10 10v40a10 10 0 0 0 10 10"></path>
+                                                                            <g class="terminal">
+                                                                                <path
+                                                                                    d="M2140.25 881h37"></path>
+                                                                                <path
+                                                                                    d="M2256.75 881h37"></path>
+                                                                                <rect x="2177.25"
+                                                                                    y="870"
+                                                                                    width="79.5"
+                                                                                    height="22"
+                                                                                    rx="10" ry="10"></rect>
+                                                                                <text x="2217"
+                                                                                    y="885">Complex</text>
+                                                                            </g>
+                                                                            <path
+                                                                                d="M2293.75 881a10 10 0 0 0 10 -10v-40a10 10 0 0 1 10 -10"></path>
+                                                                        </g>
+                                                                        <g>
+                                                                            <path d="M2120.25 791h0"></path>
+                                                                            <path d="M2207.25 791h0"></path>
+                                                                            <a
+                                                                                xlink:href="#GatewayType">
+                                                                                <text x="2163.75"
+                                                                                    y="796"
+                                                                                    class="comment">
+                                                                                    GatewayType</text>
+                                                                            </a>
+                                                                        </g>
+                                                                    </g>
+                                                                    <path d="M2313.75 821h20"></path>
+                                                                    <path
+                                                                        d="M2100.25 821a10 10 0 0 1 10 10v78a10 10 0 0 0 10 10"></path>
+                                                                    <g class="non-terminal">
+                                                                        <path d="M2120.25 919h48.5"></path>
+                                                                        <path d="M2265.25 919h48.5"></path>
+                                                                        <rect x="2168.75" y="908"
+                                                                            width="96.5" height="22"></rect>
+                                                                        <a xlink:href="#Attribute">
+                                                                            <text x="2217" y="923">
+                                                                                Attribute</text>
+                                                                        </a>
+                                                                    </g>
+                                                                    <path
+                                                                        d="M2313.75 919a10 10 0 0 0 10 -10v-78a10 10 0 0 1 10 -10"></path>
+                                                                </g>
+                                                                <g>
+                                                                    <path d="M2100.25 761h0"></path>
+                                                                    <path d="M2222.25 761h0"></path>
+                                                                    <a
+                                                                        xlink:href="#GatewayAttribute">
+                                                                        <text x="2161.25" y="766"
+                                                                            class="comment">
+                                                                            GatewayAttribute</text>
+                                                                    </a>
+                                                                </g>
+                                                            </g>
+                                                            <path d="M2333.75 821h10"></path>
+                                                            <path
+                                                                d="M2100.25 821a10 10 0 0 0 -10 10v105a10 10 0 0 0 10 10"></path>
+                                                            <g>
+                                                                <path d="M2100.25 946h233.5"></path>
+                                                            </g>
+                                                            <path
+                                                                d="M2333.75 946a10 10 0 0 0 10 -10v-105a10 10 0 0 0 -10 -10"></path>
+                                                        </g>
+                                                        <path d="M2343.75 821h20"></path>
+                                                    </g>
+                                                </g>
+                                                <g>
+                                                    <path d="M1845.75 723h0"></path>
+                                                    <path d="M1904.75 723h0"></path>
+                                                    <a xlink:href="#Gateway">
+                                                        <text x="1875.25" y="728" class="comment">
+                                                            Gateway</text>
+                                                    </a>
+                                                </g>
+                                            </g>
+                                            <path
+                                                d="M2750 821a10 10 0 0 0 10 -10v-626a10 10 0 0 1 10 -10"></path>
+                                        </g>
+                                        <g>
+                                            <path d="M1449.5 77h0"></path>
+                                            <path d="M1508.5 77h0"></path>
+                                            <a xlink:href="#Element">
+                                                <text x="1479" y="82" class="comment">Element</text>
+                                            </a>
+                                        </g>
+                                    </g>
+                                    <path d="M2770 175h20"></path>
+                                    <path d="M1429.5 175a10 10 0 0 1 10 10v846a10 10 0 0 0 10 10"></path>
+                                    <g>
+                                        <path d="M1449.5 1041h302"></path>
+                                        <path d="M2468 1041h302"></path>
+                                        <rect x="1751.5" y="992" width="716.5" height="77" rx="10"
+                                            ry="10" class="group-box"></rect>
+                                        <g>
+                                            <path d="M1751.5 1041h10"></path>
+                                            <path d="M2458 1041h10"></path>
+                                            <g class="terminal">
+                                                <path d="M1761.5 1041h0"></path>
+                                                <path d="M1883.5 1041h0"></path>
+                                                <rect x="1761.5" y="1030" width="122" height="22"
+                                                    rx="10" ry="10"></rect>
+                                                <text x="1822.5" y="1045">SequenceFlow</text>
+                                            </g>
+                                            <path d="M1883.5 1041h10"></path>
+                                            <path d="M1893.5 1041h10"></path>
+                                            <g class="non-terminal">
+                                                <path d="M1903.5 1041h0"></path>
+                                                <path d="M2008.5 1041h0"></path>
+                                                <rect x="1903.5" y="1030" width="105" height="22"></rect>
+                                                <a xlink:href="#identifier">
+                                                    <text x="1956" y="1045">identifier</text>
+                                                </a>
+                                            </g>
+                                            <path d="M2008.5 1041h10"></path>
+                                            <g>
+                                                <path d="M2018.5 1041h0"></path>
+                                                <path d="M2175 1041h0"></path>
+                                                <path
+                                                    d="M2018.5 1041a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+                                                <g>
+                                                    <path d="M2038.5 1021h116.5"></path>
+                                                </g>
+                                                <path
+                                                    d="M2155 1021a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+                                                <path d="M2018.5 1041h20"></path>
+                                                <g>
+                                                    <path d="M2038.5 1041h0"></path>
+                                                    <path d="M2155 1041h0"></path>
+                                                    <path d="M2038.5 1041h10"></path>
+                                                    <g class="non-terminal">
+                                                        <path d="M2048.5 1041h0"></path>
+                                                        <path d="M2145 1041h0"></path>
+                                                        <rect x="2048.5" y="1030" width="96.5"
+                                                            height="22"></rect>
+                                                        <a xlink:href="#Attribute">
+                                                            <text x="2096.75" y="1045">Attribute</text>
+                                                        </a>
+                                                    </g>
+                                                    <path d="M2145 1041h10"></path>
+                                                    <path
+                                                        d="M2048.5 1041a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10"></path>
+                                                    <g>
+                                                        <path d="M2048.5 1061h96.5"></path>
+                                                    </g>
+                                                    <path
+                                                        d="M2145 1061a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10"></path>
+                                                </g>
+                                                <path d="M2155 1041h20"></path>
+                                            </g>
+                                            <path d="M2175 1041h10"></path>
+                                            <g>
+                                                <path d="M2185 1041h0"></path>
+                                                <path d="M2310 1041h0"></path>
+                                                <rect x="2185" y="1022" width="125" height="38"
+                                                    rx="10" ry="10" class="group-box"></rect>
+                                                <g class="non-terminal">
+                                                    <path d="M2185 1041h10"></path>
+                                                    <path d="M2300 1041h10"></path>
+                                                    <rect x="2195" y="1030" width="105" height="22"></rect>
+                                                    <a xlink:href="#identifier">
+                                                        <text x="2247.5" y="1045">identifier</text>
+                                                    </a>
+                                                </g>
+                                                <g>
+                                                    <path d="M2185 1011h0"></path>
+                                                    <path d="M2244 1011h0"></path>
+                                                    <a xlink:href="#NodeRef">
+                                                        <text x="2214.5" y="1016" class="comment">
+                                                            NodeRef</text>
+                                                    </a>
+                                                </g>
+                                            </g>
+                                            <path d="M2310 1041h10"></path>
+                                            <path d="M2320 1041h10"></path>
+                                            <g class="terminal">
+                                                <path d="M2330 1041h0"></path>
+                                                <path d="M2358.5 1041h0"></path>
+                                                <rect x="2330" y="1030" width="28.5" height="22"
+                                                    rx="10" ry="10"></rect>
+                                                <text x="2344.25" y="1045">→</text>
+                                            </g>
+                                            <path d="M2358.5 1041h10"></path>
+                                            <path d="M2368.5 1041h10"></path>
+                                            <g class="non-terminal">
+                                                <path d="M2378.5 1041h0"></path>
+                                                <path d="M2458 1041h0"></path>
+                                                <rect x="2378.5" y="1030" width="79.5" height="22"></rect>
+                                                <a xlink:href="#NodeRef">
+                                                    <text x="2418.25" y="1045">NodeRef</text>
+                                                </a>
+                                            </g>
+                                        </g>
+                                        <g>
+                                            <path d="M1751.5 981h0"></path>
+                                            <path d="M1845.5 981h0"></path>
+                                            <a xlink:href="#SequenceFlow">
+                                                <text x="1798.5" y="986" class="comment">
+                                                    SequenceFlow</text>
+                                            </a>
+                                        </g>
+                                    </g>
+                                    <path d="M2770 1041a10 10 0 0 0 10 -10v-846a10 10 0 0 1 10 -10"></path>
+                                </g>
+                                <path d="M2790 175h10"></path>
+                                <path d="M1429.5 175a10 10 0 0 0 -10 10v882a10 10 0 0 0 10 10"></path>
+                                <g>
+                                    <path d="M1429.5 1077h1360.5"></path>
+                                </g>
+                                <path d="M2790 1077a10 10 0 0 0 10 -10v-882a10 10 0 0 0 -10 -10"></path>
+                            </g>
+                            <path d="M2800 175h20"></path>
+                        </g>
+                    </g>
+                    <g>
+                        <path d="M70 39h0"></path>
+                        <path d="M115 39h0"></path>
+                        <a xlink:href="#Study">
+                            <text x="92.5" y="44" class="comment">Study</text>
+                        </a>
+                    </g>
+                </g>
+                <path d="M2830 175h10"></path>
+                <path d="M70 175a10 10 0 0 0 -10 10v898a10 10 0 0 0 10 10"></path>
+                <g>
+                    <path d="M70 1093h2760"></path>
+                </g>
+                <path d="M2830 1093a10 10 0 0 0 10 -10v-898a10 10 0 0 0 -10 -10"></path>
+            </g>
+            <path d="M2840 175h20"></path>
+        </g>
+        <path d="M 2860 175 h 20 m 0 -10 v 20"></path>
+    </g>
+</svg>

@@ -2,6 +2,9 @@
 title: Language
 output-file: language
 order: 2
+code-block-bg: true
+code-copy: false
+code-line-numbers: false
 ---
 
 Studyflow diagrams are visual representations of scientific workflows, designed to enhance clarity, rigor, and reproducibility in research processes. They serve as a bridge between human understanding and machine execution. It facilitates better communication among researchers and enabling automated workflows.
@@ -22,46 +25,97 @@ The context of studyflow is how scientific workflows and everything related to t
 
 Studyflow diagrams can be described as a domain-specific language to model processes along with data produced or needed by those processes. Studyflow extends the BPMN 2.1 specification (including the addition of the choreography tasks) to fit the needs of specific use cases.
 
-The following grammar describes the structure of a studyflow diagram:
+The following EBNF grammar describes the structure of a studyflow diagram:
 
-Note: use https://matthijsgroen.github.io/ebnf2railroad/try-yourself.html to visualize the EBNF grammar.
-
-```{.ini code-fold="false" code-line-numbers="true" }
+```ini
 Definitions       = { Study } ;
 
-Study           = "study", Identifier, {Attribute}, { Node | SequenceFlow } ;
+Study             = "Study", identifier, { Attribute }, { Element | SequenceFlow } ;
 
-Node              = StartEvent | Task  | Gateway | EndEvent;
+Element           = Event | Task | Gateway ;
 
-StartEvent        = "startEvent", Identifier, {Attribute} ;
-EndEvent          = "endEvent", Identifier, {Attribute} ;
+Event             = StartEvent | EndEvent ;
 
-Task             = "task", Identifier, , {TaskAttribute}, [ Choreography ] ;
-TaskAttribute    = TaskType, { Attribute } ;
-TaskType          = "cognitive-test" | "questionnaire" | "instruction" | "rest" | "script" | "manual" ;
+StartEvent        = "StartEvent", identifier, { Attribute } ;
+EndEvent          = "EndEvent", identifier, { Attribute } ;
+
+Task              = "Task", identifier, { TaskAttribute }, [ Choreography ] ;
+TaskAttribute     = TaskType | Attribute ;
+TaskType          = "@type", "CognitiveTest" | "Questionnaire" | "Instruction" | "Rest" | "Script" | "Manual" ;
 
 Choreography      = "choreography", { Attribute }, ParticipantList, [ InitiatingParticipant ] ;
 
-Gateway           = "gateway", Identifier, { GatewayAttribute };
-GatewayAttribute = GatewayType, { Attribute } ;
-GatewayType       = "random" | "exclusive" | "complex";
+Gateway           = "Gateway", identifier, { GatewayAttribute } ;
+GatewayAttribute  = GatewayType | Attribute ;
+GatewayType       = "@type", "Random" | "Exclusive" | "Complex" ;
 
-SequenceFlow      = "sequenceFlow", Identifier, { Attribute }, NodeRef, "→", NodeRef ;
+SequenceFlow      = "SequenceFlow", identifier, { Attribute }, NodeRef, "→", NodeRef ;
 
-MessageFlowList   = { "messageFlow", Identifier, { Attribute }, ParticipantRef, "→", ParticipantRef } ;
+MessageFlowList   = { "messageFlow", identifier, { Attribute }, ParticipantRef, "→", ParticipantRef } ;
 
-
-Attribute         = "attribute", Identifier, "=", Value ;
-ProcessRef            = Identifier ;
-NodeRef               = Identifier ;
+Attribute             = identifier, value ;
+ProcessRef            = identifier ;
+NodeRef               = identifier ;
 ParticipantRef        = ProcessRef ;
 InitiatingParticipant = ParticipantRef ;
-ParticipantList  = Identifier, { Identifier } ;
+ParticipantList       = identifier, { identifier } ;
 
-Identifier       = Letter, { Letter | Digit | "_" } ;
-Letter           = [A-Za-z] | "_" ;
-Digit            = [0-9];
+(* low-level components *)
+identifier            = letter, { letter | digit | "_" } ;
+value                 = string | number | boolean | identifier ;
+number                = [ "-" ], digit, { digit }, [ ".", digit, { digit } ] ;
+boolean               = "true" | "false" ;
+string = '"', { ? Any unicode character except ?
+  | "\", (
+  '"' (* quotation mark *) |
+  "\" (* reverse solidus *) |
+  "/" (* solidus *) |
+  "b" (* backspace *) |
+  "f" (* formfeed *) |
+  "n" (* newline *) |
+  "r" (* carriage return *) |
+  "t" (* horizontal tab *) |
+  "u", 4 * ? hex digit ?
+  ) }, '"';
 
+letter = [A-Za-z] ;
+digit = [0-9] ;
 ```
 
 
+An example of a studyflow diagram in this formalism is shown below:
+
+```ini
+Study exampleStudy
+  StartEvent s
+
+  Task qs
+    @type Questionnaire
+    language "en"
+    text "What is your age?"
+
+  Gateway gw
+    @type Random
+    condition "ageGroup"
+
+  Task instr
+    @type Instruction
+    text "Follow carefully"
+
+  Task rest
+    @type Rest
+    duration 5
+
+  EndEvent e
+
+  SequenceFlow f1 s → qs
+  SequenceFlow f2 qs → gw
+  SequenceFlow f3 gw → instr
+  SequenceFlow f4 gw → e
+  SequenceFlow f5 instr → rest
+  SequenceFlow f6 rest → e
+```
+
+Which can be visualized as a studyflow diagram (colors and layout may vary):
+
+![](assets/img/grammar_example.svg)
