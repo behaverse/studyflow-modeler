@@ -3,27 +3,73 @@ title: Elements
 output-file: elements
 order: 4
 css: ./assets/css/elements.css
+fig-align: center
+toc: true
 ---
 
-The basic elements of the language are tailored to the specific needs of cognitive sciences and include:
 
-![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends BPMN:Process class and is the top-level container for all components and workflows.](assets/img/elements/study.svg)
+The main element of a studyflow diagram is the *Study*, which serves as a container for all other elements:
 
+:::{#study}
+
+![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all components and workflows.](assets/img/elements/study.svg){fig-align="center"}
+
+:::
+
+Within a *Study* element, you can define various elements of the research process. In addition to the standard BPMN elements, studyflow introduces specialized elements for research workflows in cognitive sciences:
+
+
+:::{#events layout-ncol=2}
 
 ![**Start Event** defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.](assets/img/elements/start_event.svg)
 
 ![**End Event** marks the conclusion of the workflow, indicating the completion of all tasks and processes within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.](assets/img/elements/end_event.svg)
 
-![**Instructions** provide detailed guidelines and information to participants about the study procedures.](assets/img/elements/instruction.svg)
+:::
 
+---
+
+:::{#activities layout-ncol=2}
+
+![**Instructions** provide detailed guidelines and information to participants about the study procedures.](assets/img/elements/instruction.svg)
 
 ![**Questionnaires** are used to gather self-reported data from participants.](assets/img/elements/questionnaire.svg)
 
-
-![**Cognitive Tests** represent various cognitive assessment tasks within the experiment, including [Behaverse cognitive tests](https://behaverse.org/projects/cognitive-tests.html).](assets/img/elements/cognitive_test.svg)
+![**Cognitive Tests** represent various cognitive assessment tasks within the experiment.](assets/img/elements/cognitive_test.svg)
 
 ![**Video Games** are interactive games as part of the experimental paradigm.](assets/img/elements/video_game.svg)
 
+
+![**Behaverse Tasks** are standardized cognitive tests covering a range of attentional, perceptual, cognitive and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for a list.](assets/img/elements/behaverse_task.svg)
+
 ![**Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between tasks. This element can also be used to record resting-state signals.](assets/img/elements/rest.svg)
+:::
+
+
+---
+
+
+:::{#gateways layout-ncol=2}
+![**Randomizer Gateway** represents a random decision point in the workflow where only one of several possible paths can be taken.](assets/img/elements/random_gateway.svg)
+
+![Example use of *Randomizer Gateway* to branch the flow (click to enlarge).](assets/img/elements/random_gateway_pattern.svg){.lightbox}
+:::
+
+
+---
+
+:::{#data layout="[[1],[1,1,1,1,1]]" fig-align="center"}
 
 ![**Datasets** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models such as [BDM](https://behaverse.org/data-model), [BIDS](https://bids.neuroimaging.io/), and [Psych-DS](https://psych-ds.github.io/).](assets/img/elements/dataset.svg)
+
+
+![&zwnj;](assets/img/elements/bdm_events.svg)
+
+![&zwnj;](assets/img/elements/bdm_trials.svg)
+
+![&zwnj;](assets/img/elements/bdm_models.svg)
+
+![&zwnj;](assets/img/elements/bids.svg)
+
+![&zwnj;](assets/img/elements/psych-ds.svg)
+:::
