@@ -4,7 +4,7 @@ output-file: elements
 order: 4
 css: ./assets/css/elements.css
 fig-align: center
-toc: true
+toc: false
 ---
 
 
