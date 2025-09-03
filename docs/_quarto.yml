@@ -14,13 +14,15 @@ website:
   navbar: false
   sidebar:
     style: docked
+    background: "#f8f8f8"
+    border: true
     logo-alt: "Studyflow Modeler - Documentations"
     title: "Studyflow Documentations"
     align: center
     pinned: true
     search: true
     footer: |
-      <span style='font-size: .7rem; color:gray'>&copy; 2025 xCIT</span>
+      <p style='font-size: .75rem; color:gray' class="text-center fw-lighter fst-italic">&copy; 2025 xCIT</p>
     contents:
       - file: index.qmd
         title: Introduction
