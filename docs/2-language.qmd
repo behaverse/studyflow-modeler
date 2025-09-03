@@ -6,7 +6,7 @@ order: 2
 
 Studyflow diagrams are visual representations of scientific workflows, designed to enhance clarity, rigor, and reproducibility in research processes. They serve as a bridge between human understanding and machine execution. It facilitates better communication among researchers and enabling automated workflows.
 
-# Why?
+## Why?
 
 Trusting science requires rigor and reproducibility, hence clear communication of the experiments has become one of the cornerstones of good scientific practices.
 
@@ -15,4 +15,53 @@ Following the need for clear communication, many scientific projects rely on det
 In parallel, as we increasingly rely on machines to facilitate research, trust in code and data are becoming more and more critical. The need for reproducibility of science has become essential for building trust in automated processes, especially at scale using various large models.
 
 The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, etc) can be communicated for rigor and reproducibility in modern days. It is a formal language to represent research processes and data for various stakeholders in a single cohesive visual diagram.
+
+
+## Grammar
+
+
+Studyflow diagrams can be described as a domain-specific language to model processes along with data produced or needed by those processes. Studyflow extends the BPMN 2.1 specification (including the addition of the choreography tasks) to fit the needs of specific use cases.
+
+The following grammar describes the structure of a studyflow diagram:
+
+Note: use https://matthijsgroen.github.io/ebnf2railroad/try-yourself.html to visualize the EBNF grammar.
+
+```{.ini code-fold="false" code-line-numbers="true" }
+Definitions       = { Study } ;
+
+Study           = "study", Identifier, {Attribute}, { Node | SequenceFlow } ;
+
+Node              = StartEvent | Task  | Gateway | EndEvent;
+
+StartEvent        = "startEvent", Identifier, {Attribute} ;
+EndEvent          = "endEvent", Identifier, {Attribute} ;
+
+Task             = "task", Identifier, , {TaskAttribute}, [ Choreography ] ;
+TaskAttribute    = TaskType, { Attribute } ;
+TaskType          = "cognitive-test" | "questionnaire" | "instruction" | "rest" | "script" | "manual" ;
+
+Choreography      = "choreography", { Attribute }, ParticipantList, [ InitiatingParticipant ] ;
+
+Gateway           = "gateway", Identifier, { GatewayAttribute };
+GatewayAttribute = GatewayType, { Attribute } ;
+GatewayType       = "random" | "exclusive" | "complex";
+
+SequenceFlow      = "sequenceFlow", Identifier, { Attribute }, NodeRef, "→", NodeRef ;
+
+MessageFlowList   = { "messageFlow", Identifier, { Attribute }, ParticipantRef, "→", ParticipantRef } ;
+
+
+Attribute         = "attribute", Identifier, "=", Value ;
+ProcessRef            = Identifier ;
+NodeRef               = Identifier ;
+ParticipantRef        = ProcessRef ;
+InitiatingParticipant = ParticipantRef ;
+ParticipantList  = Identifier, { Identifier } ;
+
+Identifier       = Letter, { Letter | Digit | "_" } ;
+Letter           = [A-Za-z] | "_" ;
+Digit            = [0-9];
+
+```
+
 

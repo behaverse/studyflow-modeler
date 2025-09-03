@@ -47,26 +47,35 @@ Within a *Study* element, you can define various elements. In addition to the st
 
 
 :::{#gateways layout-ncol=2}
-![**Randomizer Gateway** represents a random decision point in the workflow where only one of several possible paths can be taken.](assets/img/elements/random_gateway.svg)
+![**Random Gateway** represents a randomizer at a decision point in the workflow where only one of several possible paths can be taken.](assets/img/elements/random_gateway.svg)
 
-![Example use of *Randomizer Gateway* to branch the flow (click to enlarge).](assets/img/elements/random_gateway_pattern.svg){.lightbox}
+![Example use of *Random Gateway* to branch the flow.](assets/img/elements/random_gateway_pattern.svg){.lightbox}
 :::
 
 
 ---
 
-:::{#data layout="[[1,-1],[1,1,1,1,1,-1]]" fig-align="center"}
+:::{#data layout="[[1,1]]" fig-align="center"}
 
 ![**Datasets** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models such as [BDM](https://behaverse.org/data-model), [BIDS](https://bids.neuroimaging.io/), and [Psych-DS](https://psych-ds.github.io/).](assets/img/elements/dataset.svg)
 
+![**Data object** represents any data entity within the workflow, such as files, data, or data streams. It can be used to model inputs and outputs of activities and data transformations.](assets/img/elements/data_object.svg)
 
-![&zwnj;](assets/img/elements/bdm_events.svg)
+:::
 
-![&zwnj;](assets/img/elements/bdm_trials.svg)
+The initial release of studyflow includes built-in support for several data models commonly used in cognitive sciences, including:
 
-![&zwnj;](assets/img/elements/bdm_models.svg)
+:::{#data layout="[[1,1,1,1,1,1]]" fig-align="center"}
 
-![&zwnj;](assets/img/elements/bids.svg)
+![Behaverse Data Model - [Events](https://behaverse.org/data-model/spec/events/index.html)](assets/img/elements/bdm_events.svg)
 
-![&zwnj;](assets/img/elements/psych-ds.svg)
+![Behaverse Data Model - Trials](assets/img/elements/bdm_trials.svg)
+
+![Behaverse Data Model - Statistics & Models](assets/img/elements/bdm_models.svg)
+
+![Brain Imaging Data Structure](assets/img/elements/bids.svg)
+
+![Psych-DS dataset standard](assets/img/elements/psych-ds.svg)
+
+![[Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/)](assets/img/elements/dataset.svg)
 :::
