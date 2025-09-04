@@ -1,7 +1,7 @@
 ---
-title: "Modeler"
-order: 3
-output-file: modeler
+title: "Using Modeler App"
+order: 1
+output-file: using-modeler
 ---
 
 *Studyflow Modeler* is an app to describe and execute scientific studies using [Behaverse Studyflow](https://behaverse.org/data-model/spec/general/studyflows), a visual language specifically designed to describe all the steps of a research project.

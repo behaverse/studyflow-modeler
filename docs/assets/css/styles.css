@@ -15,3 +15,7 @@
   margin-bottom: .5em !important;
   border-top: 1px solid lightgray;
 }
+
+.caption-center figcaption {
+  text-align: center;
+}

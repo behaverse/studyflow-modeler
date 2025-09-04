@@ -1,5 +1,6 @@
 project:
   type: website
+  title: Studyflow Documentations
   preview:
     port: 4321
     watch-inputs: true
@@ -10,29 +11,42 @@ language:
   search-text-placeholder: Search
 
 website:
-  title: "Studyflow Documentations"
   navbar: false
   sidebar:
     style: docked
-    background: "#f8f8f8"
+    # background: "#f8f8f8"
     border: true
     logo-alt: "Studyflow Modeler - Documentations"
-    title: "Studyflow Documentations"
+    title: Studyflow Documentations
     align: center
     pinned: true
     search: true
+    collapse-level: 1
     footer: |
       <p style='font-size: .75rem' class="text-secondary fst-italic">&copy; 2025 [xCIT](https://xcit.org)</p>
     contents:
       - file: index.qmd
-        title: Introduction
-      - auto: "*.qmd"
+      - file: getting-started.qmd
+      - text: "---"
+      - section: Guides
+        contents:
+          - auto: "guides/**/*.qmd"
+      - text: "---"
+      - section: Specifications
+        contents:
+          - auto: "specs/**/*.qmd"
+      - text: "---"
+      - file: changelog.qmd
 
 format:
   html:
-    theme:
-      - brand
+    theme: 
+      light: brand
     css: assets/css/styles.css
+    respect-user-color-scheme: true
     toc: false
+    toc-title: " "
+    # link-external-icon: true
+    link-external-newwindow: true
     grid:
       sidebar-width: 300px

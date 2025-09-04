@@ -1,6 +1,6 @@
 ---
 title: "Introduction"
-order: 0
+order: 1
 ---
 
 [Behaverse Studyflow](https://behaverse.org/data-model/spec/general/studyflows) is a visual language to describe scientific research in a more formal way than texts or static graphics. You can use [Studyflow Modeler](https://behaverse.org/studyflow-modeler) app to create and execute studyflow diagrams.

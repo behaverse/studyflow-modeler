@@ -1,18 +1,18 @@
 ---
-title: Language
-output-file: language
-order: 2
+title: Formal Language
+output-file: formal-language
+order: 1
 code-block-bg: true
 code-copy: false
 code-line-numbers: false
 code-fold: true
-css: ./assets/css/elements.css
+toc: true
 fig-align: center
 ---
 
 Studyflow diagrams are visual representations of scientific workflows, designed to enhance clarity, rigor, and reproducibility in research processes. They serve as a bridge between human understanding and machine execution. It facilitates better communication among researchers and enabling automated workflows.
 
-## Why?
+## Why studyflow?
 
 Trusting science requires rigor and reproducibility, hence clear communication of the experiments has become one of the cornerstones of good scientific practices.
 
@@ -21,6 +21,10 @@ Following the need for clear communication, many scientific projects rely on det
 In parallel, as we increasingly rely on machines to facilitate research, trust in code and data are becoming more and more critical. The need for reproducibility of science has become essential for building trust in automated processes, especially at scale using various large models.
 
 The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, etc) can be communicated for rigor and reproducibility in modern days. It is a formal language to represent research processes and data for various stakeholders in a single cohesive visual diagram.
+
+## Formulation
+
+A studyflow is a $(N, E, T, \tau, \lambda)$ tuple, where N is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
 
 
 ## Grammar
@@ -132,7 +136,7 @@ Which can be visualized as a studyflow diagram:
 
 :::{#example layout="[[1]]" fig-align="center" .caption-center}
 
-![The same studyflow visualized as an annotated diagram using [*modeler app*](https://behaverse.org/studyflow-modeler)](assets/img/grammar_example.svg){.lightbox}
+![The same studyflow visualized as an annotated diagram using [*modeler app*](https://behaverse.org/studyflow-modeler)](../assets/img/grammar_example.svg){.lightbox}
 :::
 
 This diagram can also be represented in machine-readable formats:
