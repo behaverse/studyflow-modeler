@@ -2,6 +2,14 @@
 title: Getting Started
 output-file: getting-started
 order: 2
+fig-align: center
 ---
 
+Studyflow is a visual language for defining research workflows and scientific experiments. It builds on [BPMN]() and adds research-focused components to make it accessible to researchers.
 
+
+Here is an example studyflow diagram:
+
+:::{#example layout=[[-1,10,-1]] .caption-center}
+![](assets/img/studyflow_example_1.svg){.lightbox}
+:::
