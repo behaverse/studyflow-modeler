@@ -63,19 +63,19 @@ Within a *Study* element, you can define various elements. In addition to the st
 
 :::
 
-The initial release of studyflow includes built-in support for several data models commonly used in cognitive sciences, including:
+The initial release of the studyflow includes built-in support for several data models commonly used in cognitive sciences, including:
 
-:::{#data layout="[[1,1,1,1,1,1]]" fig-align="center"}
+:::{#data layout="[[1,1,1,1,1,1]]" fig-align="center" .caption-center}
 
 ![Behaverse Data Model - [Events](https://behaverse.org/data-model/spec/events/index.html)](assets/img/elements/bdm_events.svg)
 
-![Behaverse Data Model - Trials](assets/img/elements/bdm_trials.svg)
+![Behaverse Data Model - [Trials](https://behaverse.org/data-model/spec/trials/index.html)](assets/img/elements/bdm_trials.svg)
 
-![Behaverse Data Model - Statistics & Models](assets/img/elements/bdm_models.svg)
+![Behaverse Data Model - [Statistics & Models](https://behaverse.org/data-model/spec/#)](assets/img/elements/bdm_models.svg)
 
-![Brain Imaging Data Structure](assets/img/elements/bids.svg)
+![[Brain Imaging Data Structure](https://bids.neuroimaging.io/)](assets/img/elements/bids.svg)
 
-![Psych-DS dataset standard](assets/img/elements/psych-ds.svg)
+![[Psych-DS](https://psych-ds.github.io/) dataset standard](assets/img/elements/psych-ds.svg)
 
 ![[Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/)](assets/img/elements/dataset.svg)
 :::

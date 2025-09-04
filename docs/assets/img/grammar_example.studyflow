@@ -1,84 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:studyflow="http://behaverse.org/schema/studyflow" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
-  <studyflow:study id="Study_1" isExecutable="false">
-    <bpmn2:startEvent id="StartEvent_1" name="s">
-      <bpmn2:outgoing>Flow_1s4nn09</bpmn2:outgoing>
+  <studyflow:study id="exampleStudy" isExecutable="false">
+    <bpmn2:startEvent id="s" name="s">
+      <bpmn2:outgoing>f1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <studyflow:questionnaire id="Questionnaire_1on3sr1" name="qs" type="studyflow:Questionnaire">
-      <bpmn2:incoming>Flow_1s4nn09</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_0iy6xvw</bpmn2:outgoing>
+    <studyflow:questionnaire id="qs" name="qs" type="studyflow:Questionnaire">
+      <bpmn2:incoming>f1</bpmn2:incoming>
+      <bpmn2:outgoing>f2</bpmn2:outgoing>
     </studyflow:questionnaire>
-    <bpmn2:sequenceFlow id="Flow_1s4nn09" name="f1" sourceRef="StartEvent_1" targetRef="Questionnaire_1on3sr1" />
-    <studyflow:randomGateway id="RandomGateway_0s3lumu" name="gw" type="studyflow:RandomGateway">
-      <bpmn2:incoming>Flow_0iy6xvw</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_19xgvvh</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_0qol54l</bpmn2:outgoing>
+    <bpmn2:sequenceFlow id="f1" name="f1" sourceRef="s" targetRef="qs" />
+    <studyflow:randomGateway id="gw" name="gw" type="studyflow:RandomGateway">
+      <bpmn2:incoming>f2</bpmn2:incoming>
+      <bpmn2:outgoing>f3</bpmn2:outgoing>
+      <bpmn2:outgoing>f4</bpmn2:outgoing>
     </studyflow:randomGateway>
-    <bpmn2:sequenceFlow id="Flow_0iy6xvw" name="f2" sourceRef="Questionnaire_1on3sr1" targetRef="RandomGateway_0s3lumu" />
-    <studyflow:instruction id="Instruction_1o83jqv" name="instr" type="studyflow:Instruction">
-      <bpmn2:incoming>Flow_19xgvvh</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_1cl5nkc</bpmn2:outgoing>
+    <bpmn2:sequenceFlow id="f2" name="f2" sourceRef="qs" targetRef="gw" />
+    <studyflow:instruction id="instr" name="instr" type="studyflow:Instruction">
+      <bpmn2:incoming>f3</bpmn2:incoming>
+      <bpmn2:outgoing>f5</bpmn2:outgoing>
     </studyflow:instruction>
-    <bpmn2:sequenceFlow id="Flow_19xgvvh" name="f3" sourceRef="RandomGateway_0s3lumu" targetRef="Instruction_1o83jqv" />
-    <studyflow:cognitiveTest id="CognitiveTest_0zhobgw" name="rest" instrument="rest" type="studyflow:CognitiveTest">
-      <bpmn2:incoming>Flow_1cl5nkc</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_1j1xgng</bpmn2:outgoing>
+    <bpmn2:sequenceFlow id="f3" name="f3" sourceRef="gw" targetRef="instr" />
+    <studyflow:cognitiveTest id="rest" name="rest" instrument="rest" type="studyflow:CognitiveTest">
+      <bpmn2:incoming>f5</bpmn2:incoming>
+      <bpmn2:outgoing>f6</bpmn2:outgoing>
     </studyflow:cognitiveTest>
-    <bpmn2:sequenceFlow id="Flow_1cl5nkc" name="f5" sourceRef="Instruction_1o83jqv" targetRef="CognitiveTest_0zhobgw" />
-    <bpmn2:endEvent id="Event_0yk0fhn" name="e">
-      <bpmn2:incoming>Flow_1j1xgng</bpmn2:incoming>
-      <bpmn2:incoming>Flow_0qol54l</bpmn2:incoming>
+    <bpmn2:sequenceFlow id="f5" name="f5" sourceRef="instr" targetRef="rest" />
+    <bpmn2:endEvent id="e" name="e">
+      <bpmn2:incoming>f6</bpmn2:incoming>
+      <bpmn2:incoming>f4</bpmn2:incoming>
     </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_1j1xgng" name="f6" sourceRef="CognitiveTest_0zhobgw" targetRef="Event_0yk0fhn" />
-    <bpmn2:sequenceFlow id="Flow_0qol54l" name="f4" sourceRef="RandomGateway_0s3lumu" targetRef="Event_0yk0fhn" />
+    <bpmn2:sequenceFlow id="f6" name="f6" sourceRef="rest" targetRef="e" />
+    <bpmn2:sequenceFlow id="f4" name="f4" sourceRef="gw" targetRef="e" />
   </studyflow:study>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
-      <bpmndi:BPMNShape id="RandomGateway_0s3lumu_di" bpmnElement="RandomGateway_0s3lumu" isMarkerVisible="true">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="exampleStudy">
+      <bpmndi:BPMNShape id="gw_di" bpmnElement="gw" isMarkerVisible="true">
         <dc:Bounds x="605" y="233" width="50" height="50" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="622" y="293" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Questionnaire_1on3sr1_di" bpmnElement="Questionnaire_1on3sr1">
+      <bpmndi:BPMNShape id="qs_di" bpmnElement="qs">
         <dc:Bounds x="480" y="229" width="80" height="58" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_1" bpmnElement="StartEvent_1">
+      <bpmndi:BPMNShape id="_BPMNShape_s" bpmnElement="s">
         <dc:Bounds x="402" y="240" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="417" y="251" width="6" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0yk0fhn_di" bpmnElement="Event_0yk0fhn">
+      <bpmndi:BPMNShape id="e_di" bpmnElement="e">
         <dc:Bounds x="942" y="240" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="956" y="251" width="7" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Instruction_1o83jqv_di" bpmnElement="Instruction_1o83jqv">
+      <bpmndi:BPMNShape id="instr_di" bpmnElement="instr">
         <dc:Bounds x="710" y="250" width="80" height="69" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="CognitiveTest_0zhobgw_di" bpmnElement="CognitiveTest_0zhobgw">
+      <bpmndi:BPMNShape id="rest_di" bpmnElement="rest">
         <dc:Bounds x="820" y="250" width="80" height="69" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1s4nn09_di" bpmnElement="Flow_1s4nn09" bioc:stroke="#728cb9" color:border-color="#728cb9">
+      <bpmndi:BPMNEdge id="f1_di" bpmnElement="f1" bioc:stroke="#728cb9" color:border-color="#728cb9">
         <di:waypoint x="438" y="258" />
         <di:waypoint x="480" y="258" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="450" y="240" width="11" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0iy6xvw_di" bpmnElement="Flow_0iy6xvw" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
+      <bpmndi:BPMNEdge id="f2_di" bpmnElement="f2" bioc:stroke="#ce9d35" color:border-color="#ce9d35">
         <di:waypoint x="560" y="258" />
         <di:waypoint x="605" y="258" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="574" y="240" width="11" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_19xgvvh_di" bpmnElement="Flow_19xgvvh" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+      <bpmndi:BPMNEdge id="f3_di" bpmnElement="f3" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
         <di:waypoint x="655" y="258" />
         <di:waypoint x="680" y="258" />
         <di:waypoint x="680" y="285" />
@@ -87,7 +87,7 @@
           <dc:Bounds x="679" y="290" width="11" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1j1xgng_di" bpmnElement="Flow_1j1xgng" bioc:stroke="#8cb26e" color:border-color="#8cb26e">
+      <bpmndi:BPMNEdge id="f6_di" bpmnElement="f6" bioc:stroke="#8cb26e" color:border-color="#8cb26e">
         <di:waypoint x="900" y="285" />
         <di:waypoint x="920" y="285" />
         <di:waypoint x="920" y="258" />
@@ -96,7 +96,7 @@
           <dc:Bounds x="912" y="290" width="11" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0qol54l_di" bpmnElement="Flow_0qol54l" bioc:stroke="#8cb26e" color:border-color="#8cb26e">
+      <bpmndi:BPMNEdge id="f4_di" bpmnElement="f4" bioc:stroke="#8cb26e" color:border-color="#8cb26e">
         <di:waypoint x="655" y="258" />
         <di:waypoint x="680" y="258" />
         <di:waypoint x="680" y="230" />
@@ -107,7 +107,7 @@
           <dc:Bounds x="684" y="212" width="11" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1cl5nkc_di" bpmnElement="Flow_1cl5nkc" bioc:stroke="#9174a3" color:border-color="#9174a3">
+      <bpmndi:BPMNEdge id="f5_di" bpmnElement="f5" bioc:stroke="#9174a3" color:border-color="#9174a3">
         <di:waypoint x="790" y="285" />
         <di:waypoint x="820" y="285" />
         <bpmndi:BPMNLabel>

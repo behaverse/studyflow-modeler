@@ -5,6 +5,9 @@ order: 2
 code-block-bg: true
 code-copy: false
 code-line-numbers: false
+code-fold: true
+css: ./assets/css/elements.css
+fig-align: center
 ---
 
 Studyflow diagrams are visual representations of scientific workflows, designed to enhance clarity, rigor, and reproducibility in research processes. They serve as a bridge between human understanding and machine execution. It facilitates better communication among researchers and enabling automated workflows.
@@ -23,9 +26,13 @@ The context of studyflow is how scientific workflows and everything related to t
 ## Grammar
 
 
-Studyflow diagrams can be described as a domain-specific language to model processes along with data produced or needed by those processes. Studyflow extends the BPMN 2.1 specification (including the addition of the choreography tasks) to fit the needs of specific use cases.
+Studyflow diagrams can be described as a domain-specific language that models processes along with data produced or needed by those processes. Overall, studyflow extends the BPMN 2.1 specification (including the addition of the choreography tasks) to fit the specific use cases in cognitive sciences.
 
-The following EBNF grammar describes the structure of a studyflow diagram:
+The following grammar describes the structure of a studyflow diagram:
+
+
+<details>
+<summary>**Studyflow EBNF grammar** (click to expand)</summary>
 
 ```ini
 Definitions       = { Study } ;
@@ -81,9 +88,13 @@ string = '"', { ? Any unicode character except ?
 letter = [A-Za-z] ;
 digit = [0-9] ;
 ```
+</details>
 
 
 An example of a studyflow diagram in this formalism is shown below:
+
+<details>
+<summary>Example studyflow (click to expand)</summary>
 
 ```ini
 Study exampleStudy
@@ -115,7 +126,101 @@ Study exampleStudy
   SequenceFlow f5 instr → rest
   SequenceFlow f6 rest → e
 ```
+</details>
 
-Which can be visualized as a studyflow diagram (colors and layout may vary):
+Which can be visualized as a studyflow diagram:
 
-![](assets/img/grammar_example.svg)
+:::{#example layout="[[1]]" fig-align="center" .caption-center}
+
+![The same studyflow visualized as an annotated diagram using [*modeler app*](https://behaverse.org/studyflow-modeler)](assets/img/grammar_example.svg){.lightbox}
+:::
+
+This diagram can also be represented in machine-readable formats:
+
+<details>
+<summary>**XML/BPMN** serialization (click to expand)</summary>
+
+```{.xml}
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions
+  xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:studyflow="http://behaverse.org/schema/studyflow"
+  id="example-diagram">
+  <studyflow:study id="exampleStudy" isExecutable="false">
+    <bpmn2:startEvent id="s" name="s">
+      <bpmn2:outgoing>f1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <studyflow:questionnaire id="qs" name="qs" type="studyflow:Questionnaire">
+      <bpmn2:incoming>f1</bpmn2:incoming>
+      <bpmn2:outgoing>f2</bpmn2:outgoing>
+    </studyflow:questionnaire>
+    <bpmn2:sequenceFlow id="f1" name="f1" sourceRef="s" targetRef="qs" />
+    <studyflow:randomGateway id="gw" name="gw" type="studyflow:RandomGateway">
+      <bpmn2:incoming>f2</bpmn2:incoming>
+      <bpmn2:outgoing>f3</bpmn2:outgoing>
+      <bpmn2:outgoing>f4</bpmn2:outgoing>
+    </studyflow:randomGateway>
+    <bpmn2:sequenceFlow id="f2" name="f2" sourceRef="qs" targetRef="gw" />
+    <studyflow:instruction id="instr" name="instr" type="studyflow:Instruction">
+      <bpmn2:incoming>f3</bpmn2:incoming>
+      <bpmn2:outgoing>f5</bpmn2:outgoing>
+    </studyflow:instruction>
+    <bpmn2:sequenceFlow id="f3" name="f3" sourceRef="gw" targetRef="instr" />
+    <studyflow:cognitiveTest id="rest" name="rest" instrument="rest" type="studyflow:CognitiveTest">
+      <bpmn2:incoming>f5</bpmn2:incoming>
+      <bpmn2:outgoing>f6</bpmn2:outgoing>
+    </studyflow:cognitiveTest>
+    <bpmn2:sequenceFlow id="f5" name="f5" sourceRef="instr" targetRef="rest" />
+    <bpmn2:endEvent id="e" name="e">
+      <bpmn2:incoming>f6</bpmn2:incoming>
+      <bpmn2:incoming>f4</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="f6" name="f6" sourceRef="rest" targetRef="e" />
+    <bpmn2:sequenceFlow id="f4" name="f4" sourceRef="gw" targetRef="e" />
+  </studyflow:study>
+</bpmn2:definitions>
+```
+
+</details>
+
+
+<details>
+<summary>**YAML** serialization (click to expand)</summary>
+
+```{.yaml}
+study:
+  @id: exampleStudy
+  elements:
+    - @type: bpmn2:StartEvent
+      @id: s
+      outgoing: [f1]
+    - @type: studyflow:Questionnaire
+      id: qs
+      attributes:
+        - language: en
+        - text: What is your age?
+      incoming: [f1]
+      outgoing: [f2]
+    - type: studyflow:RandomGateway
+      id: gw
+      attributes:
+        - condition: ageGroup
+      incoming: [f2]
+      outgoing: [f3, f4]
+    - @type: studyflow:Instruction
+      id: instr
+      attributes:
+        - text: Follow carefully
+      incoming: [f3]
+      outgoing: [f5]
+    - @type: studyflow:Rest
+      @id: rest
+      attributes:
+        - duration: 5
+      incoming: [f5]
+      outgoing: [f6]
+    - @type: bpmn2:EndEvent
+      @id: e
+      incoming: [f4, f6]
+```
+</details>

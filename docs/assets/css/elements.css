@@ -15,3 +15,7 @@ figcaption {
   font-size: 0.9em;
   color: var(--bs-gray-800);
 }
+
+.caption-center figcaption {
+  text-align: center;
+}

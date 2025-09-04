@@ -22,7 +22,7 @@ website:
     pinned: true
     search: true
     footer: |
-      <p style='font-size: .75rem; color:gray' class="text-center fw-lighter fst-italic">&copy; 2025 xCIT</p>
+      <p style='font-size: .75rem' class="text-secondary fst-italic">&copy; 2025 [xCIT](https://xcit.org)</p>
     contents:
       - file: index.qmd
         title: Introduction
