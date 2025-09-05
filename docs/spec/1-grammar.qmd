@@ -1,6 +1,6 @@
 ---
-title: Formal Language
-output-file: formal-language
+title: Grammar
+output-file: grammar
 order: 1
 code-block-bg: true
 code-copy: false
@@ -10,27 +10,10 @@ toc: true
 fig-align: center
 ---
 
-Studyflow diagrams are visual representations of scientific workflows, designed to enhance clarity, rigor, and reproducibility in research processes. They serve as a bridge between human understanding and machine execution. It facilitates better communication among researchers and enabling automated workflows.
+Studyflow is a domain-specific language for specifying scientific processes and their associated data. It extends the BPMN 2.1 standard to fit the specific needs of experimental sciences.
 
-## Why studyflow?
+A studyflow diagram is a $(N, E, T, \tau, \lambda)$ tuple, where N is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
 
-Trusting science requires rigor and reproducibility, hence clear communication of the experiments has become one of the cornerstones of good scientific practices.
-
-Following the need for clear communication, many scientific projects rely on detailed description of data and protocols in manuscripts, visual diagrams, reporting guidelines, checklists, and more-or-less standard softwares; all to provide enough details to reproduce the findings.
-
-In parallel, as we increasingly rely on machines to facilitate research, trust in code and data are becoming more and more critical. The need for reproducibility of science has become essential for building trust in automated processes, especially at scale using various large models.
-
-The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, etc) can be communicated for rigor and reproducibility in modern days. It is a formal language to represent research processes and data for various stakeholders in a single cohesive visual diagram.
-
-## Formulation
-
-A studyflow is a $(N, E, T, \tau, \lambda)$ tuple, where N is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
-
-
-## Grammar
-
-
-Studyflow diagrams can be described as a domain-specific language that models processes along with data produced or needed by those processes. Overall, studyflow extends the BPMN 2.1 specification (including the addition of the choreography tasks) to fit the specific use cases in cognitive sciences.
 
 The following grammar describes the structure of a studyflow diagram:
 
@@ -95,7 +78,7 @@ digit = [0-9] ;
 </details>
 
 
-An example of a studyflow diagram in this formalism is shown below:
+An example studyflow in this formalism is shown below:
 
 <details>
 <summary>Example studyflow (click to expand)</summary>
@@ -132,11 +115,11 @@ Study exampleStudy
 ```
 </details>
 
-Which can be visualized as a studyflow diagram:
+Which can be visualized as an extended BPMN diagram:
 
 :::{#example layout="[[1]]" fig-align="center" .caption-center}
 
-![The same studyflow visualized as an annotated diagram using [*modeler app*](https://behaverse.org/studyflow-modeler)](../assets/img/grammar_example.svg){.lightbox}
+![The same studyflow visualized and annotated using the [*Modeler app*](https://behaverse.org/studyflow-modeler)](../assets/img/grammar_example.svg){.lightbox}
 :::
 
 This diagram can also be represented in machine-readable formats:

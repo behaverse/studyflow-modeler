@@ -1,17 +1,45 @@
 ---
 title: "Introduction"
 order: 1
+footnotes-hover: true
 ---
 
-[Behaverse Studyflow](https://behaverse.org/data-model/spec/general/studyflows) is a visual language to describe scientific research in a more formal way than texts or static graphics. It's a format to describe and communicate your research workflow in a clear and unambiguous way.
+Describing experimental research can be complex and ambiguous.
+
+*Behaverse Studyflow* is a visual language to describe scientific research in a more concise way than texts or static graphics. Extending <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside}, it is a format to communicate your experiments in an unambiguous, reusable way. Studyflow diagrams are machine-readable, human-friendly, and executable.
+
+Here is an example:
+
+::: {#example layout="[[1]]" fig-align="center" .caption-center}
+![A simple studyflow diagram showing the experimental design of a study as a series of tasks and events.](assets/img/studyflow_example_1.svg){.lightbox}
+:::
+
+## Why Studyflow?
+
+Trusting science requires rigor and reproducibility, hence clear communication of the scientific experiments has become one of the cornerstones of good scientific practices.
+
+Following the need for clear communication, many scientists rely on detailed description of data and protocols in manuscripts, diagrams, reporting guidelines, checklists, and more-or-less standard softwares; all to provide enough details to reproduce the findings.
+
+In parallel, as we increasingly rely on machines to facilitate research, trust in code and data are becoming more and more critical. The need for reproducibility has become essential for building trust in automated processes, especially at scale when using various large models.
+
+The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, etc) can be communicated for rigor and reproducibility in modern days. It is a formal language to represent research processes (and data) for various stakeholders using a single cohesive diagram. Studyflow diagrams facilitate communication with participants (e.g., by automatically running a study), researchers (e.g., by reproducible protocols and analyses), systems (e.g., by automated data processing), and other stakeholders.
+
+## How to use this website
+
+The Getting Started page is a good place to start if you are new to studyflow. It provides an overview of the main concepts and available tools.
+
+The remaining documentation is structured as follows:
+
+- **Guides**: tutorials and how-tos for creating studyflow diagrams.
+- **Specifications**: fundamental concepts and design decisions for effective communication of scientific experiments.
+- **Use cases**: examples of studyflow diagrams for different scenarios.
+
+You can also find information about:
+
+- **Modeler**: webapp to create and simulate studyflow diagrams.
+- **Runner** (experimental): deploy and execute studyflow diagrams.
 
 
-To get started, check out the [*Getting Started*](getting-started.qmd) page. You can also find information about:
+## Get in touch
 
-- **Modeler app**: you can use the [*Studyflow Modeler*](https://behaverse.org/studyflow-modeler) app to create and simulate studyflow diagrams.
-- **Formal specifications**: main elements of the studyflow for formalizing experimental research.
-- **Visual diagrams specifications**: communicate and publish research workflows for better understanding.
-- **Execution engine** (experimental): deploy and execute the diagrams.
-- **Examples**: some example use cases of studyflow in different scenarios.
-
-If you have any questions or need help, feel free to [contact us via GitHub](https://github.com/behaverse).
+Studyflow is an open source project, and everyone is welcome to contribute. If you have any questions or suggestions, please [visit our GitHub](https://github.com/behaverse). You can also reach out to us by email at [contact@xcit.org](mailto:contact@xcit.org).

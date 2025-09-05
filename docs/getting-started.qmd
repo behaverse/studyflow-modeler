@@ -3,13 +3,36 @@ title: Getting Started
 output-file: getting-started
 order: 2
 fig-align: center
+toc: true
+toc-title: Contents
 ---
 
-Studyflow is a visual language for defining research workflows and scientific experiments. It builds on [BPMN]() and adds research-focused components to make it accessible to researchers.
+Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} and adds research-focused components to make it accessible to researchers.
 
 
-Here is an example studyflow diagram:
+# Understanding the basics
 
-:::{#example layout=[[-1,10,-1]] .caption-center}
-![](assets/img/studyflow_example_1.svg){.lightbox}
+To get started, it's important to understand its core elements:
+[For a detailed overview of the studyflow language, please refer to the [specifications](spec/1-grammar).]{.aside}
+
+:::{.m-4}
+
+**<i class="bi bi-circle"></i>&nbsp; Event**: circles represent the start and end of a study, as well as intermediate events that can trigger actions.
+
+**<i class="bi bi-square"></i>&nbsp; Task**: rectangles represent activities or steps in the study, such as cognitive tests, questionnaires, or instructions.
+
+**<i class="bi bi-diamond"></i>&nbsp; Gateway**: diamonds represent decision points that can alter the flow of the study based on conditions or randomization.
+
+**<i class="bi bi-file-earmark"></i>&nbsp; DataObject**: file-like shapes represent transient data produced or consumed by tasks.
+
+**<i class="bi bi-database"></i>&nbsp; DataStore**: cylinders represent persistent data storage, such as databases. Unlike data objects, data stores retain information beyond the scope of a single study instance.
+
+**<i class="bi bi-arrow-return-right"></i>&nbsp; SequenceFlow**: arrows connect events, tasks, and gateways to define the order of elements.
+
 :::
+
+Here is an example diagram:
+
+::: {#example layout="[[-2,8,-2]]" fig-align="center" .caption-center}
+![A simple studyflow diagram showing the experimental design of a study as a series of tasks, events, and gateways.](assets/img/studyflow_example_2.svg){.lightbox}
+::: 

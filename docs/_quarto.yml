@@ -34,7 +34,7 @@ website:
       - text: "---"
       - section: Specifications
         contents:
-          - auto: "specs/**/*.qmd"
+          - auto: "spec/**/*.qmd"
       - text: "---"
       - file: changelog.qmd
 
@@ -44,6 +44,7 @@ format:
       light: brand
     css: assets/css/styles.css
     respect-user-color-scheme: true
+    email-obfuscation: javascript
     toc: false
     toc-title: " "
     # link-external-icon: true
