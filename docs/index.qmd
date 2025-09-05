@@ -22,7 +22,7 @@ Following the need for clear communication, many scientists rely on detailed des
 
 In parallel, as we increasingly rely on machines to facilitate research, trust in code and data are becoming more and more critical. The need for reproducibility has become essential for building trust in automated processes, especially at scale when using various large models.
 
-The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, etc) can be communicated for rigor and reproducibility in modern days. It is a formal language to represent research processes (and data) for various stakeholders using a single cohesive diagram. Studyflow diagrams facilitate communication with participants (e.g., by automatically running a study), researchers (e.g., by reproducible protocols and analyses), systems (e.g., by automated data processing), and other stakeholders.
+The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, etc) can be communicated for rigor and reproducibility. Studyflow is a formal domain-specific language to represent research processes (and data) for various stakeholders using a single cohesive diagram. Studyflow diagrams facilitate communication with participants (e.g., by automatically running a study), researchers (e.g., by reproducible protocols and analyses), systems (e.g., by automated data processing), and other stakeholders.
 
 ## How to use this website
 
