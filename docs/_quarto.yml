@@ -46,7 +46,8 @@ format:
     respect-user-color-scheme: true
     email-obfuscation: javascript
     toc: false
-    toc-title: " "
+    toc-location: right
+    toc-title: "Contents"
     # link-external-icon: true
     link-external-newwindow: true
     grid:
