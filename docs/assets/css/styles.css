@@ -19,3 +19,7 @@
 .caption-center figcaption {
   text-align: center;
 }
+
+.breadcrumb-item+.breadcrumb-item::before {
+  content: "/";
+}

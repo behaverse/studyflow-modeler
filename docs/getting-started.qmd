@@ -10,7 +10,7 @@ toc-title: Contents
 Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} and adds research-focused components to make it accessible to researchers.
 
 
-# Understanding the basics
+# Basic elements
 
 To get started, it's important to understand its core elements:
 [For a detailed overview of the studyflow language, please refer to the [specifications](spec/1-grammar).]{.aside}
@@ -19,20 +19,33 @@ To get started, it's important to understand its core elements:
 
 **<i class="bi bi-circle"></i>&nbsp; Event**: circles represent the start and end of a study, as well as intermediate events that can trigger actions.
 
-**<i class="bi bi-square"></i>&nbsp; Task**: rectangles represent activities or steps in the study, such as cognitive tests, questionnaires, or instructions.
+**<i class="bi bi-square"></i>&nbsp; activities**: rectangles represent activities or steps in the study, such as cognitive tests, questionnaires, or instructions.
 
 **<i class="bi bi-diamond"></i>&nbsp; Gateway**: diamonds represent decision points that can alter the flow of the study based on conditions or randomization.
 
-**<i class="bi bi-file-earmark"></i>&nbsp; DataObject**: file-like shapes represent transient data produced or consumed by tasks.
+**<i class="bi bi-file-earmark"></i>&nbsp; DataObject**: file-like shapes represent transient data produced or consumed by other elements.
 
 **<i class="bi bi-database"></i>&nbsp; DataStore**: cylinders represent persistent data storage, such as databases. Unlike data objects, data stores retain information beyond the scope of a single study instance.
 
-**<i class="bi bi-arrow-return-right"></i>&nbsp; SequenceFlow**: arrows connect events, tasks, and gateways to define the order of elements.
+**<i class="bi bi-arrow-return-right"></i>&nbsp; SequenceFlow**: arrows connect events, activities, and gateways to define the order of elements.
 
 :::
 
 Here is an example diagram:
 
 ::: {#example layout="[[-2,8,-2]]" fig-align="center" .caption-center}
-![A simple studyflow diagram showing the experimental design of a study as a series of tasks, events, and gateways.](assets/img/studyflow_example_2.svg){.lightbox}
+![A simple studyflow diagram showing the experimental design of a study as a series of activities, events, and gateways.](assets/img/studyflow_example_2.svg){.lightbox}
 ::: 
+
+
+## Graphical notation
+
+Studyflow uses a specific graphical notation to convey the semantics of each element. Different types of activities, for example, can have different icons to indicate their type:
+
+::: {#example layout="[[-1,10,-1]]" fig-align="center" .caption-center}
+
+![Icons representing different types of activities](assets/img/core_activity_types.svg){.lightbox}
+
+:::
+
+These icons extends the standard BPMN icons. For a complete list, see [*Specifications / Elements*](spec/2-elements.qmd).

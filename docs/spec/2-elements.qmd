@@ -23,7 +23,7 @@ Within a *Study* element, you can define various elements. In addition to the st
 
 ![**Start Event** defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.](../assets/img/elements/start_event.svg)
 
-![**End Event** marks the conclusion of the workflow, indicating the completion of all tasks and processes within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.](../assets/img/elements/end_event.svg)
+![**End Event** marks the conclusion of the workflow, indicating the completion of all steps within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.](../assets/img/elements/end_event.svg)
 :::
 
 
@@ -35,14 +35,14 @@ Within a *Study* element, you can define various elements. In addition to the st
 
 ![**Questionnaires** are used to gather self-reported data from participants.](../assets/img/elements/questionnaire.svg)
 
-![**Cognitive Tests** represent various cognitive assessment tasks within the experiment.](../assets/img/elements/cognitive_test.svg)
+![**Cognitive Tests** represent various cognitive assessment tests within the experiment.](../assets/img/elements/cognitive_test.svg)
 
 ![**Video Games** are interactive games as part of the experimental paradigm.](../assets/img/elements/video_game.svg)
 
 
 ![**Behaverse Tasks** are standardized cognitive tests covering a range of attentional, perceptual, cognitive and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for a list.](../assets/img/elements/behaverse_task.svg)
 
-![**Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between tasks. This element can also be used to record resting-state signals.](../assets/img/elements/rest.svg)
+![**Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between activities. This element can also be used to record resting-state signals.](../assets/img/elements/rest.svg)
 :::
 
 

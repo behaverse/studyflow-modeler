@@ -8,7 +8,7 @@ Describing experimental research can be complex and ambiguous.
 
 *Studyflow* is a visual language to communicate research experiments in an unambiguous way. It extends <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} to describe scientific research in a more concise way than texts or static graphics.
 
-At studyflow's core is the idea that scientific experiments can be represented as a series of basic elements (events, tasks, decisions, and data). These elements can be organized into a flowchart-like diagram, which can be easily understood by humans (because it is visual) and machines (because it is formal and serializable).
+At studyflow's core is the idea that scientific experiments can be represented as a series of basic elements (events, activities, decisions, and data). These elements can be organized into a flowchart-like diagram, which can be easily understood by humans (because it is visual) and machines (because it is formal and serializable).
 
 Studyflow diagrams are human-friendly, machine-readable, and executable. Here is an example:
 

@@ -26,16 +26,16 @@ Definitions       = { Study } ;
 
 Study             = "Study", identifier, { Attribute }, { Element | SequenceFlow } ;
 
-Element           = Event | Task | Gateway ;
+Element           = Event | Activity | Gateway ;
 
 Event             = StartEvent | EndEvent ;
 
 StartEvent        = "StartEvent", identifier, { Attribute } ;
 EndEvent          = "EndEvent", identifier, { Attribute } ;
 
-Task              = "Task", identifier, { TaskAttribute }, [ Choreography ] ;
-TaskAttribute     = TaskType | Attribute ;
-TaskType          = "@type", "CognitiveTest" | "Questionnaire" | "Instruction" | "Rest" | "Script" | "Manual" ;
+Activity          = "Activity", identifier, { ActivityAttribute }, [ Choreography ] ;
+ActivityAttribute = ActivityType | Attribute ;
+ActivityType      = "@type", "CognitiveTest" | "Questionnaire" | "Instruction" | "Rest" | "Script" | "Manual" ;
 
 Choreography      = "choreography", { Attribute }, ParticipantList, [ InitiatingParticipant ] ;
 
@@ -87,7 +87,7 @@ An example studyflow in this formalism is shown below:
 Study exampleStudy
   StartEvent s
 
-  Task qs
+  Activity qs
     @type Questionnaire
     language "en"
     text "What is your age?"
@@ -96,11 +96,11 @@ Study exampleStudy
     @type Random
     condition "ageGroup"
 
-  Task instr
+  Activity instr
     @type Instruction
     text "Follow carefully"
 
-  Task rest
+  Activity rest
     @type Rest
     duration 5
 

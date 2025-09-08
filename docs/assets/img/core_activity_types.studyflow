@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:studyflow="http://behaverse.org/schema/studyflow" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <studyflow:study id="Study_1" isExecutable="false">
+    <studyflow:cognitiveTest id="CognitiveTest_0k2858u" name="Cognitive Task" type="studyflow:CognitiveTest" />
+    <bpmn2:task id="Activity_14mf9tv" name="Activity&#10;(Generic)" />
+    <studyflow:questionnaire id="Questionnaire_16vna6a" name="Questionnaire" type="studyflow:Questionnaire" />
+    <studyflow:instruction id="Instruction_0qsgtk1" name="Instruction" type="studyflow:Instruction" />
+    <studyflow:cognitiveTest id="Activity_0xznast" name="Rest" instrument="rest" />
+    <studyflow:cognitiveTest id="Activity_1k4787k" name="Video Game" instrument="videoGame" />
+  </studyflow:study>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
+      <bpmndi:BPMNShape id="CognitiveTest_0k2858u_di" bpmnElement="CognitiveTest_0k2858u">
+        <dc:Bounds x="470" y="230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_14mf9tv_di" bpmnElement="Activity_14mf9tv">
+        <dc:Bounds x="140" y="230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Questionnaire_16vna6a_di" bpmnElement="Questionnaire_16vna6a">
+        <dc:Bounds x="360" y="230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Instruction_0qsgtk1_di" bpmnElement="Instruction_0qsgtk1">
+        <dc:Bounds x="250" y="230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0lbulir" bpmnElement="Activity_0xznast">
+        <dc:Bounds x="580" y="230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1vw4l0m" bpmnElement="Activity_1k4787k">
+        <dc:Bounds x="690" y="230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

@@ -12,6 +12,7 @@ language:
 
 website:
   navbar: false
+  bread-crumbs: true
   sidebar:
     style: docked
     # background: "#f8f8f8"

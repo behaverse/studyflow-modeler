@@ -43,7 +43,7 @@ export default function StartUpModal() {
                 </Field>
                 <div className="flex justify-between items-center">
                   <div>{error && <p className="text-red-500 text-sm">{error}</p>}</div>
-                  <Button type="submit" className="float-end rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold hover:bg-sky-700">Enter</Button>
+                  <Button type="submit" className="float-end rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold hover:bg-sky-700">Login</Button>
                 </div>
               </Fieldset>
             </form>
