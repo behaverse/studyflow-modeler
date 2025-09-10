@@ -23,3 +23,8 @@
 .breadcrumb-item+.breadcrumb-item::before {
   content: "\00203A";
 }
+
+ul.simple-listing {
+  list-style-type: none;
+  padding-left: 0;
+}

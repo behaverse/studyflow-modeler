@@ -33,13 +33,12 @@ website:
       - file: getting-started.qmd
       - text: "---"
       - section: Guides
-        contents:
-          - auto: "guides/**/*.qmd"
+        auto: guides/
       - text: "---"
       - section: Reference
         auto: reference/
       - text: "---"
-      - file: changelog.qmd
+      - file: roadmap.qmd
 
 format:
   html:
