@@ -1,6 +1,6 @@
 ---
-title: Grammar
-output-file: grammar
+title: Specification
+output-file: spec
 order: 1
 code-block-bg: true
 code-copy: false
@@ -12,8 +12,12 @@ fig-align: center
 
 Studyflow is a domain-specific language for specifying scientific processes and their associated data. It extends the BPMN 2.1 standard to fit the specific needs of experimental sciences.
 
-A studyflow diagram is a $(N, E, T, \tau, \lambda)$ tuple, where N is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
+## Formal definition
 
+A studyflow diagram is a $(N, E, T, \tau, \lambda)$ tuple, where $N$ is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
+
+
+## Grammar
 
 The following grammar describes the structure of a studyflow diagram:
 

@@ -1,0 +1,17 @@
+---
+title: Reference
+order: 0
+toc: true
+fig-align: center
+listing:
+  id: "reference-list"
+  contents: "**/*.qmd"
+  type: custom
+  template: ../assets/ejs/reference-list.ejs
+---
+
+This reference manual documents the core components of the studyflow language, describing what they are and how they work. See the [*getting started*](../getting-started.qmd) and [*how-to guides*](guides/) for more in-depth documentation on usage.
+
+
+::: {#reference-list}
+:::

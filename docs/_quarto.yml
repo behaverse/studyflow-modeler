@@ -13,6 +13,7 @@ language:
 website:
   navbar: false
   bread-crumbs: true
+  page-navigation: true
   sidebar:
     style: docked
     # background: "#f8f8f8"
@@ -27,15 +28,16 @@ website:
       <p style='font-size: .75rem' class="text-secondary fst-italic">&copy; 2025 [xCIT](https://xcit.org)</p>
     contents:
       - file: index.qmd
+        text: Introduction
+      - text: "---"
       - file: getting-started.qmd
       - text: "---"
       - section: Guides
         contents:
           - auto: "guides/**/*.qmd"
       - text: "---"
-      - section: Specifications
-        contents:
-          - auto: "spec/**/*.qmd"
+      - section: Reference
+        auto: reference/
       - text: "---"
       - file: changelog.qmd
 

@@ -7,13 +7,18 @@ toc: true
 toc-title: Contents
 ---
 
-Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} and adds research-focused components to make it accessible to researchers.
+Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} and adds research-focused components to make it accessible to scientists.
 
+Here is a quick, streamlined path to creating your first studyflow diagram. Once you've completed this, you can explore more advanced features in the [reference](reference/) section.
 
-# Basic elements
+## Requirements
+
+- Studyflow Modeler (available as a webapp)
+
+## Basic elements
 
 To get started, it's important to understand its core elements:
-[For a detailed overview of the studyflow language, please refer to the [specifications](spec/1-grammar).]{.aside}
+[For a detailed overview of the studyflow language, please refer to the [specification](spec/1-specification).]{.aside}
 
 :::{.m-4}
 
@@ -48,4 +53,4 @@ Studyflow uses a specific graphical notation to convey the semantics of each ele
 
 :::
 
-These icons extends the standard BPMN icons. For a complete list, see [*Specifications / Elements*](spec/2-elements.qmd).
+These icons extends the standard BPMN icons. For a complete list, see [*Reference &rsaquo; Elements*](reference/2-elements.qmd).
