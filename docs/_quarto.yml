@@ -35,6 +35,9 @@ website:
       - section: Guides
         auto: guides/
       - text: "---"
+      - section: Examples
+        auto: examples/
+      - text: "---"
       - section: Reference
         auto: reference/
       - text: "---"

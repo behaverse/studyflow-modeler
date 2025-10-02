@@ -1,0 +1,24 @@
+---
+title: "CONSORT"
+order: 1
+output-file: consort
+---
+
+Reporting specific types of research (e.g., in science and health) requires structured formats to ensure the quality and transparency of research studies, and to guide authors while writing manuscripts.
+
+CONSORT is a reporting guideline for randomized controlled trials (RCTs), consisting of a checklist and a flow diagram. It is designed to improve the quality of reporting in RCTs and to help readers understand the design of experiments. Studyflow diagrams can be used to create a CONSORT flow in a more concise and readable format than traditional box-and-arrow figures. Additionally, since the studyflow diagrams are machine-readable, they can also be used to simulate the RCTs (see supplementary materials for a simulation video).
+
+
+@fig-consort compares traditional CONSORT diagrams against the same CONSORT created in studyflow language. The studyflow diagram (Panel B) reads from top to bottom and uses similar text format as in the original CONSORT. On Panel C, the diagram uses more concise elements accompanied with iconography and events to describe the the same flow using BPMN error handling events. Boundary error events are used to describe the flow of participants through the trial, and the diagram is more compact and easier to read than the original CONSORT diagram. The studyflow diagram can also include additional metadata such as colors, checklists, and other elements to enhance readability and understanding. Since the metadata is machine-readable, the diagram can be used to generate reports or simulate the flow of participants through the experiment.
+
+::: {#fig-consort layout="[[1,1],[1,1]]" fig-align="top" .caption-center fig-cap-location="top"}
+
+![CONSORT 2025 diagram](../assets/img/consort2025.jpg)
+
+![Revised CONSORT using studyflow elements](../assets/img/consort2025.studyflow.png)
+
+:::
+
+And the following studyflow diagram describes each element used in the diagram. The left path (group 1) is regular CONSORT, and the right path (group 2) is enriched with studyflow elements.
+
+![](../assets/img/consort.studyflow.png)
