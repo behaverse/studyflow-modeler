@@ -2,28 +2,43 @@
 
 @import "tailwindcss";
 
-
-
-
-.radial-gradient {
-background: linear-gradient(to top, #7933d0  0%, hsl(312, 100%, 98%) 100%);
-  /* circle at top center,
-  rgba(255, 255, 255, 1) 0%,
-  rgba(120, 120, 120, 1) 80%,
-  rgba(20, 20, 20, 1) 100% */
-/* ); */
-  /* background: radial-gradient(circle, rgba(255, 255, 255) 0%, rgba(120, 120, 120) 150%); */
+body {
+    background-color: #eee;
 }
 
-.logo-spin {
-    animation: spin 1s linear infinite;
+svg.background-image {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: -1;
+    opacity: 20%;
+}
 
-    @keyframes spin {
-    from {
+.out-top {
+    animation: wave 30s linear infinite;
+    transform-origin: 13px 25px;
+}
+.in-top {
+    animation: wave 20s linear infinite;
+    transform-origin: 13px 25px;
+}
+.out-bottom {
+    animation: wave 35s linear infinite;
+    transform-origin: 84px 93px;
+}
+.in-bottom {
+    animation: wave 25s linear infinite;
+    transform-origin: 84px 93px;
+}
+
+
+@keyframes wave {
+0% {
         transform: rotate(0deg);
     }
-    to {
+    100% {
         transform: rotate(360deg);
-    }
     }
 }
