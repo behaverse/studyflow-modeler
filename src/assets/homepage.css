@@ -3,7 +3,7 @@
 @import "tailwindcss";
 
 body {
-    background-color: #fffbec;
+    background-color: #f6e19832; /* ~20% opacity */
 }
 
 svg.background-image {
