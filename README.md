@@ -23,6 +23,12 @@ pixi r npm install
 pixi r npm run dev
 ```
 
+If you want to run the documentation website, install [Quarto](https://quarto.org/) and then run:
+
+```bash
+npm run docs
+```
+
 ## License
 
 MIT

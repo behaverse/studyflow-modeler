@@ -3,10 +3,10 @@
 @import "tailwindcss";
 
 body {
-    background-color: #f6e19832; /* ~20% opacity */
+    background-color: #5113c350; /* ~20% opacity */
 }
 
-svg.background-image {
+svg.background-animation {
     position: fixed;
     top: 0;
     left: 0;
@@ -19,18 +19,22 @@ svg.background-image {
 .out-top {
     animation: wave 30s linear infinite;
     transform-origin: 13px 25px;
+    fill: #5113c3;
 }
 .in-top {
     animation: wave 20s linear infinite;
     transform-origin: 13px 25px;
+    fill: #C02EB2;
 }
 .out-bottom {
     animation: wave 35s linear infinite;
     transform-origin: 84px 93px;
+    fill: #5113c3;
 }
 .in-bottom {
     animation: wave 25s linear infinite;
     transform-origin: 84px 93px;
+    fill: #C02EB2;
 }
 
 
