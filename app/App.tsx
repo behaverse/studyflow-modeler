@@ -11,36 +11,36 @@ import { InspectorPanel } from './modeler/inspector';
 
 export default function App() {
 
-  const [apiKey, setApiKey] = useState(null);
-  const [modeler, setModeler] = useState(null);
+  const [apiKey, setApiKey] = useState<string | undefined>(undefined);
+  const [modeler, setModeler] = useState(undefined);
 
-  if (apiKey === null) {
+  if (apiKey === undefined) {
     return (
       <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
         <div className="App flex flex-col h-screen">
           <StartUpModal />
         </div>
-        </APIKeyContext.Provider>
+      </APIKeyContext.Provider>
     )
   }
 
   return (
     <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
-    <ModelerContext.Provider value={{modeler: modeler, setModeler: setModeler}}>
-    <div className="App flex flex-col h-screen">
-  
-      {modeler && <NavBar />}
-  
-      {/* the modeler */}
+      <ModelerContext.Provider value={{modeler: modeler, setModeler: setModeler}}>
+        <div className="App flex flex-col h-screen">
+    
+          {modeler && <NavBar />}
+    
+          {/* the modeler */}
           <div className="w-screen h-full">
-          <div className="flex flex-row h-full overflow-hidden">
+            <div className="flex flex-row h-full overflow-hidden">
               <Modeler />
               {modeler && <InspectorPanel />}
+            </div>
           </div>
-      </div>
-      </div>
+        </div>
       </ModelerContext.Provider>
-      </APIKeyContext.Provider>
+    </APIKeyContext.Provider>
   )
 }
 
