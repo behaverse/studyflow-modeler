@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "types": ["node", "react", "mdx", "json-schema", "./src/declarations"],
+    "types": ["node", "react", "mdx", "json-schema", "./app/declarations"],
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",
     "skipLibCheck": true,
 
     "paths": {
-        "@/*": ["./src/*"],
+        "@/*": ["./app/*"],
         "#root/*": ["./*"]
     },
     /* Bundler mode */

@@ -1,4 +1,4 @@
-import en from '../assets/locales/en.json';
+import en from './assets/locales/en.json';
 
 
 export function t(key) {

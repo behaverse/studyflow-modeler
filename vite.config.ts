@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
-  root: './src',
+  root: './app',
   publicDir: false, // disable public directory
   base: '',  // relative base
   plugins: [
@@ -21,7 +21,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(__dirname, 'app'),
       '#root': resolve(__dirname)
     },
   },
@@ -31,8 +31,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000, // increase chunk size warning limit
     rollupOptions: {
       input: {
-        main: resolve(__dirname, '/index.html'),
-        modeler: resolve(__dirname, '/app/index.html'),
+        main: resolve(__dirname, './app/index.html'),
+        modeler: resolve(__dirname, './app/app.html'),
       }
     },
 
