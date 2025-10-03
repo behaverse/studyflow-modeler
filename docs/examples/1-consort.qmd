@@ -5,7 +5,7 @@ output-file: consort
 lightbox: true
 ---
 
-Reporting specific types of research (e.g., in science and health) requires structured formats to ensure the quality and transparency of research studies, and to guide authors while writing manuscripts.
+Reporting specific types of research (e.g., in science and health) requires structured formats to ensure the quality and transparency of research studies. Those structured formats also guide the authors while writing manuscripts.
 
 CONSORT is a reporting guideline, consisting of a checklists and a flow diagram, for randomized controlled trials (RCTs). It is designed to improve the quality of reporting in RCTs and to help readers understand the design of experiments.
 
