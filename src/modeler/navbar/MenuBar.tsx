@@ -59,7 +59,7 @@ export default function MenuBar(props) {
         <MenuButton className="hover:bg-stone-300 rounded px-2">Help</MenuButton>
         <MenuItems anchor="bottom start" className="w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
           <MenuItem>
-            <a href="../docs" target="_blank" className="px-3 py-1 hover:bg-stone-300">Docs</a>
+            <a href="./docs" target="_blank" className="px-3 py-1 hover:bg-stone-300">Docs</a>
           </MenuItem>
           <MenuItem>
             <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="px-3 py-1 hover:bg-stone-300">GitHub</a>
