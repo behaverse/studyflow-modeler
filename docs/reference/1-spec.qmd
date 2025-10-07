@@ -14,7 +14,18 @@ Studyflow is a domain-specific language for specifying scientific processes and 
 
 ## Formal definition
 
-A studyflow diagram is a $(N, E, T, \tau, \lambda)$ tuple, where $N$ is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
+A studyflow diagram is a $S = (N, E, T, \tau, \lambda)$ tuple, where $N$ is a finite set of elements, $E\subseteq N\times N$ represents sequence flows (edges), $T$ is a set of pre-defined node types (events, activities, gateways, data), $\tau: N \rightarrow T$ is a typing function that assigned types (events, activities, gateways, data) to the nodes, and $\lambda$ is a labeling function that assigns additional attributes to the nodes (e.g., metadata, triggers, gateway logic, implementation). The elements, $N$, are connected by directed edges, $E$, forming a directed graph that represents the flow of the study.
+
+$N$ can be further divided into subsets based on the type of elements ($T$). For example, $N_{E} \subseteq N$ represents the set of events (e.g., start and end events), $N_{A} \subseteq N$ represents the set of activities (e.g., tasks, sub-processes), and $N_{G} \subseteq N$ represents the set of gateways (e.g., randomizer, decision points, parallel splits). $N_{D} \subseteq N$ represents data objects that can be used to store and manipulate data within the studyflow. Each subset has its own specific attributes and behaviors defined by the $\lambda$ function.
+
+The main components of the $S$ tuple are described in the BPMN 2.1 specification, and studyflow extends them with additional types and attributes to better suit the needs of experimental studies. More specifically:
+
+- $N_A$ (activities) is extended with specific activity types relevant to experimental studies, such as cognitive tests, questionnaires, instructions, rest periods, and video games.
+- $N_G$ (gateways) is extended with a random gateway type, which allows for random assignment of participants to different branches of the study based on specified probabilities or conditions.
+- $N_D$ (data objects) can be used to represent data collected during the study, such as participant responses, physiological measurements, or other relevant data. It also support standard data formats (e.g., BIDS, BDM, Psych-DS) and can include attributes for data validation and preprocessing.
+- $\lambda$ (attributes) is extended to include attributes specific to experimental studies or data analysis, such as metadata (e.g., study name, version), event triggers (e.g., temporal, errors), gateway logic (e.g., randomization probabilities, conditional logics), and implementation details (e.g., links to external scripts or software).
+- $E$ (edges) can include group assignments, indicating which paths participants should follow based on their assigned group.
+- $S$ can also include design patterns commonly used in experimental studies, such as counterbalancing, recruitment, exception handling, and data quality checks.
 
 
 ## Grammar
