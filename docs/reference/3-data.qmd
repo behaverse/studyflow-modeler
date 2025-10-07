@@ -1,0 +1,26 @@
+---
+title: Data
+output-file: data
+order: 3
+toc: true
+fig-align: center
+---
+
+### Data
+
+BPMN uses *Data Object* and *Data Store* to represent elements that contain or manage data. These elements can be connected to other processes as inputs or outputs using data association. Studyflow extends this by introducing several attributes and templates designed for the modeling of processing experimental data. These include the Data Catalog and elements such as MapData, ReduceData, FilterData, and TransformData. While experimental data is generally assumed to be in a tabular format, these elements also support other data types, including images, videos, brain imaging, and raw sensor recordings.
+
+The following data-related elements are supported in Studyflow diagrams as of version 1.0:
+
+- DataCatalog
+- DataStore and DataStoreReference
+- DataObject: Available for the duration of a process instance. Multiple data objects can be used within a single process instance to simplify associations—for example, “trial data [raw]”, “trial data [processed]”, etc. Supported annotations include input, output, and multiple (e.g., a list).
+- DataAssociation: Defines a link between data and other workflow elements, such as tasks or events. Note that it is not part of the process flow itself.
+
+The following additional task types are available for data processing within Studyflow:
+
+- MapData
+- ReduceData
+- FilterData
+- TransformTable
+- TransformTables
