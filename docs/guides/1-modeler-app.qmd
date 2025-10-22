@@ -20,12 +20,12 @@ output-file: modeler-app
 
 1. Open the [Modeler app](https://behaverse.org/studyflow-modeler/app){.external target="_blank"} in your web browser.
 2. Enter your Behaverse API key to access additional features, or just click "Login" to use the app in guest mode.
-3. Use the left sidebar to drag and drop nodes onto the canvas.
-4. Select a node to configure its properties in the right sidebar.
-5. Connect nodes by selecting the connect tools in the left sidebar. Then select the source and target nodes.
-6. Add additional nodes and connections to complete your studyflow diagram.
-7. Save your diagram using the "Save As..." option in the "File" menu. The diagram will be saved as an XML file (`*.studyflow`).
-8. Export your diagram to an image using the export options in the "File" menu.
+3. Use the left palette to drag and drop elements onto the canvas.
+4. Select an element to configure its properties in the right sidebar.
+5. Connect elements by selecting the connect tools in the left palette. First select the source element and then target element. The type of the connection will depend on the selected elements.
+6. Add additional elements and connections to complete your diagram.
+7. Save your diagram using the "Save As..." option in the "File" menu. The diagram will be saved as XML file (`*.studyflow`).
+8. Alternatively, you can export the diagram as an image using the export options in the "File" menu.
 
 ## Simulation Mode
 
