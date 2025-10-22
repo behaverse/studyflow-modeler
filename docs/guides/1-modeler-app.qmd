@@ -6,8 +6,6 @@ output-file: modeler-app
 
 [*Studyflow Modeler*](https://behaverse.org/studyflow-modeler/){.external target="_blank"} is an app to design and execute studyflow diagrams. With modeler, you can visually define every step of your study, from initial conception to subject recruitment, data collection, analysis pipelines, and final reporting.
 
-[^1]: The Studyflow Modeler app is available at [https://behaverse.org/studyflow-modeler/](https://behaverse.org/studyflow-modeler/)
-
 ## Key Features
 
 - Drag-and-drop interface to create studyflow diagrams with nodes representing different studyflow elements.

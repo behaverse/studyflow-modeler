@@ -20,21 +20,21 @@ Here is a quick, streamlined path to creating your first studyflow diagram. Once
 ## Basic elements
 
 A studyflow diagram is composed of a set of elements that define the structure and flow of the study. To get started, it's important to understand the core elements of the studyflow language:
-[For a detailed overview of the studyflow language, please refer to the [specification](spec/1-specification).]{.aside}
+[For a detailed overview of the studyflow language, please refer to the [reference docs](reference/index.qmd).]{.aside}
 
 :::{.m-4}
 
 **<i class="bi bi-circle"></i>&nbsp; Event**: circles represent the start and end of a study, as well as intermediate events that can trigger actions.
 
-**<i class="bi bi-square"></i>&nbsp; activities**: rectangles represent activities or steps in the study, such as cognitive tests, questionnaires, or instructions.
+**<i class="bi bi-square"></i>&nbsp; Activity**: rectangles represent activities or steps in the study, such as cognitive tests, questionnaires, or instructions.
 
 **<i class="bi bi-diamond"></i>&nbsp; Gateway**: diamonds represent decision points that can alter the flow of the study based on conditions or randomization.
 
-**<i class="bi bi-file-earmark"></i>&nbsp; DataObject**: file-like shapes represent transient data produced or consumed by other elements.
+**<i class="bi bi-file-earmark"></i>&nbsp; Data Object**: file-like shapes represent transient data produced or consumed by other elements.
 
-**<i class="bi bi-database"></i>&nbsp; DataStore**: cylinders represent persistent data storage, such as databases. Unlike data objects, data stores retain information beyond the scope of a single study instance.
+**<i class="bi bi-database"></i>&nbsp; Data Store**: cylinders represent persistent data storage, such as databases. Unlike data objects, data stores retain information beyond the scope of a single study instance.
 
-**<i class="bi bi-arrow-return-right"></i>&nbsp; SequenceFlow**: arrows connect events, activities, and gateways to define the order of elements.
+**<i class="bi bi-arrow-return-right"></i>&nbsp; Sequence Flow**: arrows connect events, activities, and gateways to define the order of elements.
 
 :::
 
