@@ -5,10 +5,10 @@
 }
 
 figure {
-  background-color: var(--bs-gray-100);
+  /* background-color: var(--bs-gray-100); */
   padding: .5rem .5rem;
   border-radius: .5rem;
-  box-shadow: 2px 2px 3px var(--bs-gray-300)
+  /* box-shadow: 2px 2px 3px var(--bs-gray-300) */
 }
 
 figcaption {

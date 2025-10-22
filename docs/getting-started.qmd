@@ -13,11 +13,13 @@ Here is a quick, streamlined path to creating your first studyflow diagram. Once
 
 ## Requirements
 
-- Studyflow Modeler (available as a webapp)
+- [Studyflow Modeler](https://behaverse.org/studyflow-modeler/){.external target="_blank"} (web-based, no installation required)
+- [List of Studyflow elements](reference/2-elements.qmd)
+- A BPMN cheat sheet (optional, but helpful)
 
 ## Basic elements
 
-To get started, it's important to understand its core elements:
+A studyflow diagram is composed of a set of elements that define the structure and flow of the study. To get started, it's important to understand the core elements of the studyflow language:
 [For a detailed overview of the studyflow language, please refer to the [specification](spec/1-specification).]{.aside}
 
 :::{.m-4}
