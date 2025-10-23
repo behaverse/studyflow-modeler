@@ -11,7 +11,7 @@ export default function StartUpModal() {
 
   const login = (formData) => {
     const api_key = formData.get('api_key');
-    if ((api_key !== 'xcit-demo') && (api_key !== '')) {
+    if (api_key !== '') {
       setError('Invalid key');
       return;
     }
@@ -20,7 +20,7 @@ export default function StartUpModal() {
   }
 
   const guestLogin = () => {
-    setApiKey('xcit-demo');
+    setApiKey('guest');
     setIsOpen(false);
   }
 
