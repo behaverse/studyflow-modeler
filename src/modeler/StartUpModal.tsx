@@ -9,13 +9,18 @@ export default function StartUpModal() {
   const [error, setError] = useState<string | undefined>(undefined);
   const { apiKey, setApiKey } = useContext(APIKeyContext);
 
-  const handleConnect = (formData) => {
+  const login = (formData) => {
     const api_key = formData.get('api_key');
     if ((api_key !== 'xcit-demo') && (api_key !== '')) {
       setError('Invalid key');
       return;
     }
     setApiKey(api_key);
+    setIsOpen(false);
+  }
+
+  const guestLogin = () => {
+    setApiKey('xcit-demo');
     setIsOpen(false);
   }
 
@@ -27,7 +32,7 @@ export default function StartUpModal() {
             <p className="text-base/7 text-stone-900 pb-8">
               Welcome! To access this demo, you need a valid key. If you don&apos;t have one, please <a className="text-sky-500 hover:text-sky-600" href="https://github.com/behaverse" target="_blank">contact us</a>.
             </p>
-            <form action={handleConnect}>
+            <form action={login}>
               <Fieldset className="space-y-6">
                 <Field>
                   <Label className="text-sm font-medium">Behaverse API Key</Label>
@@ -42,8 +47,11 @@ export default function StartUpModal() {
                   </Description>
                 </Field>
                 <div className="flex justify-between items-center">
-                  <div>{error && <p className="text-red-500 text-sm">{error}</p>}</div>
-                  <Button type="submit" className="float-end rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold hover:bg-sky-700">Login</Button>
+                  <div className="float-start">{error && <p className="text-red-500 text-sm">{error}</p>}</div>
+                  <div className="float-end space-x-2">
+                    <Button type="button" onClick={guestLogin} className="rounded-md bg-stone-300 py-1.5 px-3 text-sm/6 text-black hover:bg-stone-400 cursor-pointer">Continue as Guest</Button>
+                    <Button type="submit" className="float-end rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold hover:bg-sky-700 cursor-pointer">Login</Button>
+                  </div>
                 </div>
               </Fieldset>
             </form>
