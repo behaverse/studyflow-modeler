@@ -1,4 +1,4 @@
-import logo_image from '@/assets/logo.png';
+import logo_image from '@/assets/img/logo.png';
 import { useState, useContext, useEffect } from 'react';
 import { ModelerContext } from '../contexts';
 import MenuBar from './MenuBar';

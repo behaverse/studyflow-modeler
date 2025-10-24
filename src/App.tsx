@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import '@/assets/icons/studyflow-icons.scss';
 import {Modeler} from './modeler/Modeler'
-import './styles.css'
+import '@/assets/css/app.css'
 import StartUpModal from './modeler/StartUpModal'
 import { APIKeyContext, ModelerContext } from './modeler/contexts';
 import { NavBar } from './modeler';

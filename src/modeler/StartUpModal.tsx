@@ -12,6 +12,7 @@ export default function StartUpModal() {
   const login = (formData) => {
     const api_key = formData.get('api_key');
     if (api_key !== '') {
+      // TODO check with behaverse data server
       setError('Invalid key');
       return;
     }
