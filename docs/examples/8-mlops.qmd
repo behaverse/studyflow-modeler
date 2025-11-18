@@ -1,5 +1,5 @@
 ---
-title: <i class="bi bi-cone text-warning"></i> MLOps
+title: MLOps
 order: 8
 output-file: mlops
 lightbox: true

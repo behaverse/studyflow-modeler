@@ -1,5 +1,6 @@
 ---
 title: "Modeler App"
+subtitle: Design and execute studyflow diagrams using the Modeler webapp
 order: 1
 output-file: modeler-app
 lightbox: true

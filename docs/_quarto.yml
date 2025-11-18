@@ -36,7 +36,7 @@ website:
         auto: guides/
       - text: "---"
       - section: <i class="bi bi-cone text-warning"></i> Examples
-        auto: examples/
+        contents: "examples/*"
       - text: "---"
       - section: Reference
         auto: reference/
