@@ -4,11 +4,21 @@ output-file: roadmap
 order: 100
 ---
 
+## Ongoing
 
-...
+### November 2025
 
+- Add examples for common use cases
+- Add data analysis elements to the specs
+- Login via Google
 
 ## Changelog
+
+### October 2025
+
+- Change modeler login method.
+- Modeler tutorial.
+- Improved specs documentation.
 
 ### September 2025
 

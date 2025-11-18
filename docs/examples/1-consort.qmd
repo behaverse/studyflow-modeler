@@ -1,5 +1,5 @@
 ---
-title: "CONSORT"
+title: CONSORT
 order: 1
 output-file: consort
 lightbox: true
