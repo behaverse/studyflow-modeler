@@ -30,65 +30,51 @@ The main components of the $S$ tuple are described in the BPMN 2.1 specification
 
 ## Grammar
 
-The following grammar describes the structure of a studyflow diagram:
-
+The grammar below defines the structure of a studyflow diagram using the EBNF notation (included for reference only).
 
 <details>
 <summary>**Studyflow EBNF grammar** (click to expand)</summary>
 
-```ini
-Definitions       = { Study } ;
+```ebnf
+Definitions       ::= Study*
+Study             ::= 'Study' Identifier Attribute* (Element | SequenceFlow)*
+Element           ::= Event | Activity | Gateway
 
-Study             = "Study", identifier, { Attribute }, { Element | SequenceFlow } ;
+Event             ::= StartEvent | EndEvent
+StartEvent        ::= 'StartEvent' Identifier Attribute*
+EndEvent          ::= 'EndEvent' Identifier Attribute*
 
-Element           = Event | Activity | Gateway ;
+Activity          ::= 'Activity' Identifier ActivityAttribute* Choreography?
+ActivityAttribute ::= ActivityType | Attribute | DataTransformation
+ActivityType      ::= '@type' ('CognitiveTest' | 'Questionnaire' | 'Instruction' | 'Rest' | 'VideoGame' | 'Script' | 'Manual' | 'DataTransformation')
 
-Event             = StartEvent | EndEvent ;
+Choreography     ::= 'choreography' Attribute* ParticipantList InitiatingParticipant?
 
-StartEvent        = "StartEvent", identifier, { Attribute } ;
-EndEvent          = "EndEvent", identifier, { Attribute } ;
+Gateway          ::= 'Gateway' Identifier GatewayAttribute*
+GatewayAttribute ::= GatewayType | Attribute
+GatewayType      ::= '@type' ('Random' | 'Exclusive' | 'Complex')
+SequenceFlow     ::= 'SequenceFlow' Identifier Attribute* NodeRef '→' NodeRef
+MessageFlowList  ::= ('messageFlow' Identifier Attribute* ParticipantRef '→' ParticipantRef)*
 
-Activity          = "Activity", identifier, { ActivityAttribute }, [ Choreography ] ;
-ActivityAttribute = ActivityType | Attribute ;
-ActivityType      = "@type", "CognitiveTest" | "Questionnaire" | "Instruction" | "Rest" | "Script" | "Manual" ;
+Attribute             ::= Identifier Value
+ProcessRef            ::= Identifier
+NodeRef               ::= Identifier
+ParticipantRef        ::= ProcessRef
+InitiatingParticipant ::= ParticipantRef
+ParticipantList       ::= Identifier (Identifier)*
+Identifier ::= Letter (Letter | Digit | '_')*
+Value      ::= String | Number | Boolean | Identifier
+Number     ::= '-'? Digit+ ('.' Digit+)?
+Boolean    ::= 'true' | 'false'
+String     ::= '"' /* ... any character except " ... */ '"'
+Letter     ::= [A-Za-z]
+Digit      ::= [0-9]
 
-Choreography      = "choreography", { Attribute }, ParticipantList, [ InitiatingParticipant ] ;
-
-Gateway           = "Gateway", identifier, { GatewayAttribute } ;
-GatewayAttribute  = GatewayType | Attribute ;
-GatewayType       = "@type", "Random" | "Exclusive" | "Complex" ;
-
-SequenceFlow      = "SequenceFlow", identifier, { Attribute }, NodeRef, "→", NodeRef ;
-
-MessageFlowList   = { "messageFlow", identifier, { Attribute }, ParticipantRef, "→", ParticipantRef } ;
-
-Attribute             = identifier, value ;
-ProcessRef            = identifier ;
-NodeRef               = identifier ;
-ParticipantRef        = ProcessRef ;
-InitiatingParticipant = ParticipantRef ;
-ParticipantList       = identifier, { identifier } ;
-
-(* low-level components *)
-identifier            = letter, { letter | digit | "_" } ;
-value                 = string | number | boolean | identifier ;
-number                = [ "-" ], digit, { digit }, [ ".", digit, { digit } ] ;
-boolean               = "true" | "false" ;
-string = '"', { ? Any unicode character except ?
-  | "\", (
-  '"' (* quotation mark *) |
-  "\" (* reverse solidus *) |
-  "/" (* solidus *) |
-  "b" (* backspace *) |
-  "f" (* formfeed *) |
-  "n" (* newline *) |
-  "r" (* carriage return *) |
-  "t" (* horizontal tab *) |
-  "u", 4 * ? hex digit ?
-  ) }, '"';
-
-letter = [A-Za-z] ;
-digit = [0-9] ;
+/* WIP: data transformation subset  */
+DataTransformation       ::= (DataOp DataInput DataOutput)+
+DataOp               ::= '@op' ('Map' | 'Filter' | 'FlatMap' | 'Reduce' | 'Aggregate')
+DataInput            ::= '@in' Identifier
+DataOutput           ::= '@out' Identifier
 ```
 </details>
 
