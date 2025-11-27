@@ -32,22 +32,22 @@ svg.background-animation {
 }
 
 .out-top {
-    animation: wave 30s linear infinite;
+    animation: wave 15s linear infinite;
     transform-origin: 13px 25px;
     fill: #5113c3;
 }
 .in-top {
-    animation: wave 20s linear infinite;
+    animation: wave 5s linear infinite;
     transform-origin: 13px 25px;
     fill: #972c94;
 }
 .out-bottom {
-    animation: wave 35s linear infinite;
+    animation: wave 20s linear infinite;
     transform-origin: 84px 93px;
     fill: #972c94;
 }
 .in-bottom {
-    animation: wave 25s linear infinite;
+    animation: wave 10s linear infinite;
     transform-origin: 84px 93px;
     fill: #5113c3;
 }
@@ -112,5 +112,5 @@ svg.background-animation {
 }
 
 .footer-link:hover {
-    border-color: var(--accent);
+    border-color: var(--text);
 }
