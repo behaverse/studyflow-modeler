@@ -2,8 +2,21 @@
 
 @import "tailwindcss";
 
+:root {
+    --bg: #05070f;
+    --bg-secondary: #0c0f1d;
+    --panel: rgba(20, 24, 40, 0.7);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --accent: #e45bff;
+    --accent-soft: #6de5ff;
+    --text: #e5e7eb;
+}
+
 body {
-    background-color: #FAF7FFFF;  /* #5113c350; ~20% opacity */
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at 20% 20%, rgba(228, 91, 255, 0.16), transparent 15%), radial-gradient(circle at 80% 30%, rgba(109, 229, 255, 0.12), transparent 10%), linear-gradient(135deg, var(--bg), #0a0d19 45%, var(--bg-secondary));
+    color: var(--text);
+    overflow: hidden;
 }
 
 svg.background-animation {
@@ -13,7 +26,9 @@ svg.background-animation {
     width: 100vw;
     height: 100vh;
     z-index: -1;
-    opacity: 20%;
+    opacity: 66%;
+    filter: blur(50px) saturate(130%);
+    mix-blend-mode: screen;
 }
 
 .out-top {
@@ -24,12 +39,12 @@ svg.background-animation {
 .in-top {
     animation: wave 20s linear infinite;
     transform-origin: 13px 25px;
-    fill: #C02EB2;
+    fill: #972c94;
 }
 .out-bottom {
     animation: wave 35s linear infinite;
     transform-origin: 84px 93px;
-    fill: #C02EB2;
+    fill: #972c94;
 }
 .in-bottom {
     animation: wave 25s linear infinite;
@@ -45,4 +60,57 @@ svg.background-animation {
     100% {
         transform: rotate(360deg);
     }
+}
+
+.hero-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--panel-border);
+    border-radius: 28px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(18px) saturate(140%);
+    padding: 2.5rem;
+    margin-top: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    padding: 0.8rem 1.2rem;
+    font-weight: 500;
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.cta.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+    color: #05070f;
+    box-shadow: 0 12px 30px rgba(228, 91, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+.cta.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px rgba(228, 91, 255, 0.4);
+}
+
+.cta.ghost {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--panel-border);
+}
+
+.cta.ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+
+.footer-link {
+    color: var(--text);
+    border-bottom: 1px solid transparent;
+    transition: border-color 160ms ease;
+}
+
+.footer-link:hover {
+    border-color: var(--accent);
 }
