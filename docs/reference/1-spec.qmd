@@ -36,18 +36,46 @@ The grammar below defines the structure of a studyflow diagram using the EBNF no
 <summary>**Studyflow EBNF grammar** (click to expand)</summary>
 
 ```ebnf
+
+/* ========== Top level ========== */
+
 Definitions       ::= Study*
 Study             ::= 'Study' Identifier Attribute* (Element | SequenceFlow)*
-Element           ::= Event | Activity | Gateway
+SubProcess        ::= 'SubProcess' Identifier Attribute* (Element | SequenceFlow | DataAssociation)*
+Element           ::= Event | Activity | Gateway | SubProcess | DataObject | Dataset | DataCatalog | Table
+
+/* ========== Events ========== */
 
 Event             ::= StartEvent | EndEvent
 StartEvent        ::= 'StartEvent' Identifier Attribute*
 EndEvent          ::= 'EndEvent' Identifier Attribute*
 
-Activity          ::= 'Activity' Identifier ActivityAttributeList Choreography?
+/* ========== Activities ========== */
+
+Activity              ::= 'Activity' Identifier ActivityAttributeList Choreography?
 ActivityAttributeList ::= ActivityType ActivityAttribute*
-ActivityType      ::= '@type' ('CognitiveTest' | 'Questionnaire' | 'Instruction' | 'Rest' | 'VideoGame' | 'Script' | 'Manual')
-ActivityAttribute ::= Attribute | DataOperation
+ActivityType          ::= '@type' ('CognitiveTest' | 'Questionnaire' | 'Instruction' |
+                                   'Rest' | 'VideoGame' | 'Script' | 'Manual')
+ActivityAttribute     ::= Attribute | DataInput | DataOutput | DataOperation
+
+/* ========== Data transformations ========== */
+
+DataOperation      ::= OpClause+
+OpClause           ::= '@op' (PrimitiveOp | CompositeOp) DataInput+ DataOutput+
+PrimitiveOp        ::= 'Transform' | 'Map' | 'Filter' | 'FlatMap' | 'Reduce' | 'Group'
+CompositeOp        ::= 'Compose' PrimitiveOp+
+
+/* ========== Data elements ========== */
+
+DataCatalog        ::= 'DataCatalog' Identifier Attribute*
+Dataset            ::= 'Dataset' Identifier Attribute* DataCatalog
+Table              ::= 'Table' Identifier Attribute* DatasetRef SchemaRef
+DataObject         ::= 'DataObject' Identifier Attribute*
+DataStore          ::= 'DataStore' Identifier Attribute*
+DataInput          ::= '@in' NodeRef
+DataOutput         ::= '@out' NodeRef
+
+/* ========== Choreography ========== */
 
 Choreography     ::= 'Choreography' Attribute* ParticipantRef+ InitiatingParticipant? MessageFlowList
 ParticipantRef   ::= ProcessRef
@@ -72,15 +100,6 @@ Value      ::= String | Number | Boolean | Identifier
 Number     ::= '-'? ( [0-9]+ ('.' [0-9]*)? | '.' [0-9]+ )
 String     ::= '"' [^"]* '"'
 Identifier ::= [A-Za-z] [A-Za-z0-9_]*
-
-/* data transformations */
-DataOperation ::= DataOpClause+
-DataOpClause       ::= DataOperator DataInput+ DataOutput+
-DataOperator             ::= '@op' ('Transform' | 'TransformTables'
-                             | 'Map' | 'Filter' | 'FlatMap'
-                             | 'Reduce' | 'Group')
-DataInput          ::= '@in' NodeRef
-DataOutput         ::= '@out' NodeRef
 ```
 </details>
 

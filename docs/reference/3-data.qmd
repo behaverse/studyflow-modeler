@@ -113,21 +113,20 @@ Study RTAnalysis
       sourceRef trials_out          # internal name
       targetRef trials_summary      # external
 
-
-    Task t1 @op TransformTables @in trials_in @out trials_in
-    Task t2 @op Filter          @in trials_in @out trials_in
-    Task t3 @op Map             @in trials_in @out trials_in
-    Task t4 @op Group           @in trials_in @out trials_in
-    Task t5 @op Reduce          @in trials_in @out trials_out
+    Task t1
+      @in trials_in
+      @out trials_out
+      @op Compose
+        TransformTables
+        Filter
+        Map
+        Group
+        Reduce
 
     SequenceFlow sf1 sub_s → t1
-    SequenceFlow sf2 t1    → t2
-    SequenceFlow sf3 t2    → t3
-    SequenceFlow sf4 t3    → t4
-    SequenceFlow sf5 t4    → t5
-    SequenceFlow sf6 t5    → sub_e
+    SequenceFlow sf2 t1    → sub_e
 
   SequenceFlow f1 s                    → CollectTrials
-  SequenceFlow f3 CollectTrials        → RTAnalysisPipeline
-  SequenceFlow f6 RTAnalysisPipeline   → e
+  SequenceFlow f2 CollectTrials        → RTAnalysisPipeline
+  SequenceFlow f3 RTAnalysisPipeline   → e
   ```
