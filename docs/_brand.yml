@@ -20,3 +20,6 @@ typography:
   link: 
    decoration: none
    color: behaverse-purple
+  monospace-inline:
+    color: var(--bs-gray-dark)
+    background-color: var(--bs-gray-200)

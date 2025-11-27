@@ -44,37 +44,43 @@ Event             ::= StartEvent | EndEvent
 StartEvent        ::= 'StartEvent' Identifier Attribute*
 EndEvent          ::= 'EndEvent' Identifier Attribute*
 
-Activity          ::= 'Activity' Identifier ActivityAttribute* Choreography?
-ActivityAttribute ::= ActivityType | Attribute | DataTransformation
-ActivityType      ::= '@type' ('CognitiveTest' | 'Questionnaire' | 'Instruction' | 'Rest' | 'VideoGame' | 'Script' | 'Manual' | 'DataTransformation')
+Activity          ::= 'Activity' Identifier ActivityAttributeList Choreography?
+ActivityAttributeList ::= ActivityType ActivityAttribute*
+ActivityType      ::= '@type' ('CognitiveTest' | 'Questionnaire' | 'Instruction' | 'Rest' | 'VideoGame' | 'Script' | 'Manual')
+ActivityAttribute ::= Attribute | DataOperation
 
-Choreography     ::= 'choreography' Attribute* ParticipantList InitiatingParticipant?
+Choreography     ::= 'Choreography' Attribute* ParticipantRef+ InitiatingParticipant? MessageFlowList
+ParticipantRef   ::= ProcessRef
+InitiatingParticipant ::= ParticipantRef
+MessageFlowList  ::= MessageFlow*
+MessageFlow      ::= 'MessageFlow' Identifier Attribute* ParticipantRef '→' ParticipantRef
 
+/* Gateway definitions */
 Gateway          ::= 'Gateway' Identifier GatewayAttribute*
 GatewayAttribute ::= GatewayType | Attribute
 GatewayType      ::= '@type' ('Random' | 'Exclusive' | 'Complex')
 SequenceFlow     ::= 'SequenceFlow' Identifier Attribute* NodeRef '→' NodeRef
-MessageFlowList  ::= ('messageFlow' Identifier Attribute* ParticipantRef '→' ParticipantRef)*
 
+/* Common definitions */
 Attribute             ::= Identifier Value
 ProcessRef            ::= Identifier
 NodeRef               ::= Identifier
-ParticipantRef        ::= ProcessRef
-InitiatingParticipant ::= ParticipantRef
-ParticipantList       ::= Identifier (Identifier)*
-Identifier ::= Letter (Letter | Digit | '_')*
-Value      ::= String | Number | Boolean | Identifier
-Number     ::= '-'? Digit+ ('.' Digit+)?
-Boolean    ::= 'true' | 'false'
-String     ::= '"' /* ... any character except " ... */ '"'
-Letter     ::= [A-Za-z]
-Digit      ::= [0-9]
 
-/* WIP: data transformation subset  */
-DataTransformation       ::= (DataOp DataInput DataOutput)+
-DataOp               ::= '@op' ('Map' | 'Filter' | 'FlatMap' | 'Reduce' | 'Aggregate')
-DataInput            ::= '@in' Identifier
-DataOutput           ::= '@out' Identifier
+/* Basic value types */
+Boolean    ::= 'true' | 'false'
+Value      ::= String | Number | Boolean | Identifier
+Number     ::= '-'? ( [0-9]+ ('.' [0-9]*)? | '.' [0-9]+ )
+String     ::= '"' [^"]* '"'
+Identifier ::= [A-Za-z] [A-Za-z0-9_]*
+
+/* data transformations */
+DataOperation ::= DataOpClause+
+DataOpClause       ::= DataOperator DataInput+ DataOutput+
+DataOperator             ::= '@op' ('Transform' | 'TransformTables'
+                             | 'Map' | 'Filter' | 'FlatMap'
+                             | 'Reduce' | 'Group')
+DataInput          ::= '@in' NodeRef
+DataOutput         ::= '@out' NodeRef
 ```
 </details>
 
@@ -138,26 +144,43 @@ This diagram can also be represented in machine-readable formats:
     <bpmn2:startEvent id="s" name="s">
       <bpmn2:outgoing>f1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <studyflow:questionnaire id="qs" name="qs" type="studyflow:Questionnaire">
+    <studyflow:questionnaire
+        id="qs"
+        name="qs"
+        type="studyflow:Questionnaire"
+        language="en"
+        text="What is your age?">
       <bpmn2:incoming>f1</bpmn2:incoming>
       <bpmn2:outgoing>f2</bpmn2:outgoing>
     </studyflow:questionnaire>
     <bpmn2:sequenceFlow id="f1" name="f1" sourceRef="s" targetRef="qs" />
-    <studyflow:randomGateway id="gw" name="gw" type="studyflow:RandomGateway">
+    <studyflow:randomGateway
+        id="gw"
+        name="gw"
+        type="studyflow:RandomGateway"
+        condition="ageGroup">
       <bpmn2:incoming>f2</bpmn2:incoming>
       <bpmn2:outgoing>f3</bpmn2:outgoing>
       <bpmn2:outgoing>f4</bpmn2:outgoing>
     </studyflow:randomGateway>
     <bpmn2:sequenceFlow id="f2" name="f2" sourceRef="qs" targetRef="gw" />
-    <studyflow:instruction id="instr" name="instr" type="studyflow:Instruction">
+    <studyflow:instruction
+        id="instr"
+        name="instr"
+        type="studyflow:Instruction"
+        text="Follow carefully">
       <bpmn2:incoming>f3</bpmn2:incoming>
       <bpmn2:outgoing>f5</bpmn2:outgoing>
     </studyflow:instruction>
     <bpmn2:sequenceFlow id="f3" name="f3" sourceRef="gw" targetRef="instr" />
-    <studyflow:cognitiveTest id="rest" name="rest" instrument="rest" type="studyflow:CognitiveTest">
+    <studyflow:rest
+        id="rest"
+        name="rest"
+        type="studyflow:Rest"
+        duration="5">
       <bpmn2:incoming>f5</bpmn2:incoming>
       <bpmn2:outgoing>f6</bpmn2:outgoing>
-    </studyflow:cognitiveTest>
+    </studyflow:rest>
     <bpmn2:sequenceFlow id="f5" name="f5" sourceRef="instr" targetRef="rest" />
     <bpmn2:endEvent id="e" name="e">
       <bpmn2:incoming>f6</bpmn2:incoming>
@@ -183,20 +206,20 @@ study:
       @id: s
       outgoing: [f1]
     - @type: studyflow:Questionnaire
-      id: qs
+      @id: qs
       attributes:
         - language: en
         - text: What is your age?
       incoming: [f1]
       outgoing: [f2]
-    - type: studyflow:RandomGateway
-      id: gw
+    - @type: studyflow:RandomGateway
+      @id: gw
       attributes:
         - condition: ageGroup
       incoming: [f2]
       outgoing: [f3, f4]
     - @type: studyflow:Instruction
-      id: instr
+      @id: instr
       attributes:
         - text: Follow carefully
       incoming: [f3]
