@@ -17,13 +17,13 @@ While experimental data is generally assumed to be in a tabular format, these el
 Below is a summary of the data-related elements available in BPMN and Studyflow extensions.
 
 
-## Data elements (BPMN)
+## BPMN data elements
 
 - `DataStore`: Persistent storage of data that can be accessed across multiple process instances. For example, a database or file system. `DataStoreReference` can be used as a pointer to a `DataStore`.
 - `DataObject`: Available for the duration of a process instance. Multiple data objects can be used within a single process instance to simplify associations. BPMN data state annotations can be used to show the condition of a data object at a specific point in a process; for example, "trial data [raw]", "trial data [processed]".
 - `DataAssociation`: Defines a link between data and other workflow elements, such as tasks or events. Note that it is not part of the process flow itself.
 
-## Data elements (Studyflow extensions)
+## Studyflow elements
 
 - `DataCatalog`: A persistent repository of datasets that can be referenced across multiple process instances. For example, `openneuro` or `behaverse` catalogs.
 - `Dataset`: A named logical collection (possibly multi-table, multi-modal).  Additional attributes include a schema (column names, types, units) and optional ontology to connect elements to standard vocabularies.
@@ -48,17 +48,86 @@ data operators are rendered as specialized tasks in BPMN diagrams.
 
 More complex operations (e.g., join, concatenate, window, resample, pivot) can be constructed by combining these basic functional elements within a workflow, allowing for more sophisticated data pipelines.
 
-:::{.callout-tip}
+:::{.callout-tip appearance="simple"}
 Note that data operations are treated as immutable. Each operation yields one or more new datasets.
 :::
 
 
-:::{.callout-warning}
+:::{.callout-warning appearance="simple"}
 Some operators are stateless (Map, Filter) and works best for batch processing, while others are inherently stateful (Reduce, Group) and may require special handling for streaming data.
 :::
 
 
-### Planned data-related elements
+### Planned elements
 - `LoadData`, `SaveData`, `ExportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
 - `AnonymizeData`, `ValidateData`, `ControlAccess`: data governance and regulatory compliance operations (de-identification, validation, data cleaning, and access control).
 - stochastic operations, data split, `CleanData`, join/merge as canonical data operations.
+
+
+## Example
+
+The following example illustrates the use of data elements and operators within a research workflow to collect and analyze response times from a 2AFC cognitive task. The data analysis pipeline includes several data processing steps, all encapsulated within a subprocess for clarity.
+
+```
+Study RTAnalysis
+
+  StartEvent s
+  EndEvent e
+
+  DataCatalog behaverse
+    url "https://behaverse.org/catalog"
+
+  DataStore ducklake
+    kind "duckdb+parquet"
+    url "s3://behaverse/rt/ducklake"
+
+  Dataset study_dataset
+    catalog behaverse
+    store ducklake
+
+  Table trials_raw
+    dataset study_dataset
+    schema "schema/trials_raw.csvw"
+
+  Table trials_summary
+    dataset study_dataset
+    schema "schema/trials_summary.csvw"
+
+  Activity CollectTrials
+    @type CognitiveTest
+    description "Run 2AFC task"
+
+  SubProcess RTAnalysisPipeline
+    StartEvent sub_s
+    EndEvent sub_e
+
+    # internal data objects (scoped to subprocess)
+    DataObject trials_in
+    DataObject trials_out
+
+    # outer data associations: connect external tables to internal nodes
+    dataInputAssociation
+      sourceRef trials_raw          # external
+      targetRef trials_in           # internal name
+    dataOutputAssociation
+      sourceRef trials_out          # internal name
+      targetRef trials_summary      # external
+
+
+    Task t1 @op TransformTables @in trials_in @out trials_in
+    Task t2 @op Filter          @in trials_in @out trials_in
+    Task t3 @op Map             @in trials_in @out trials_in
+    Task t4 @op Group           @in trials_in @out trials_in
+    Task t5 @op Reduce          @in trials_in @out trials_out
+
+    SequenceFlow sf1 sub_s → t1
+    SequenceFlow sf2 t1    → t2
+    SequenceFlow sf3 t2    → t3
+    SequenceFlow sf4 t3    → t4
+    SequenceFlow sf5 t4    → t5
+    SequenceFlow sf6 t5    → sub_e
+
+  SequenceFlow f1 s                    → CollectTrials
+  SequenceFlow f3 CollectTrials        → RTAnalysisPipeline
+  SequenceFlow f6 RTAnalysisPipeline   → e
+  ```
