@@ -18,7 +18,7 @@ BPMN is primarily designed for modeling business processes, but it also includes
 
 Studyflow refines BPMN to better match common practices in data-centric workflows. This includes specific data structures and operations commonly used in data processing.
 
-### Data elements
+### Elements
 
 - `DataCatalog`: A persistent repository of datasets that can be referenced across multiple process instances. For example, `openneuro` or `behaverse` catalogs.
 - `Dataset`: A named logical collection (possibly multi-table, multi-modal). Dataset attributes may include a schema (column names, types, units) and optional ontology to connect elements to standard vocabularies.
@@ -31,18 +31,18 @@ In summary, `DataStore` is a physical/persistent store (database, filesystem, S3
 While experimental data is generally assumed to be in a tabular format, `Dataset` also support other data types (i.e., `DataObject`), including images, videos, brain imaging, and raw sensor recordings.
 :::
 
-### Data operators
+### Operators
 
-The data operators are inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming and are designed to facilitate data processing within workflows. They can be used to define how data is manipulated as it flows through the process. Visually, data operators are rendered as specialized tasks in BPMN diagrams.
+Data operators are inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming and are designed to facilitate data processing within workflows. They can be used to define how data is manipulated as it flows through the process. Visually, data operators are rendered as specialized tasks in BPMN diagrams.
 
-- `Transform`: Applies a specified transformation to the input data, producing a new dataset as output. This is the generic form of data operations. Each `Transform` node produces a new dataset with explicit references to its inputs for reproducible lineage tracking.
-    - `TransformTables`: Special case of `Transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables -> 1+ tables).
-- `Map`: Applies a specified operation to each item in a dataset, producing a new dataset with the results. Extends `Transform` for element-wise operations (row-wise 1 -> 1).
-- `Filter`: Selects a subset of data based on specified criteria, producing a new dataset containing only the items that meet those criteria. Extends `Transform` for conditional selection (1 -> subset(1)). `Filter` changes the dataset, but BPMN data-driven gateways change the control flow. They are complementary.
-- `Reduce`: Aggregates data by applying a function that combines multiple input values into a single output value. Extends `Transform` for summarization or joining operations (N -> 1 per group or for the entire dataset).
-- `FlatMap`: Similar to Map, but flattens the resulting datasets into a single dataset. Extends `Transform` for one-to-many mappings (1 -> N).
-- `Group`: Organizes data into groups based on specified attributes. Extends `Transform` for categorization (1 -> N).
-- `Compose`: Combines multiple data operations into a single operation for complex data processing pipelines. This operator can encapsulate a sequence of other data operators (e.g., `Map`, `Filter`, `Reduce`) into a single reusable composite operation.
+- `transform`: Applies a specified transformation to the input data, producing a new dataset as output. This is the generic form of data operations. Each `transform` node produces a new dataset with explicit references to its inputs for reproducible lineage tracking.
+    - `transformTables`: Special case of `transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables -> 1+ tables).
+- `map`: Applies a specified operation to each item in a dataset, producing a new dataset with the results. Extends `transform` for element-wise operations (row-wise 1 -> 1).
+- `filter`: Selects a subset of data based on specified criteria, producing a new dataset containing only the items that meet those criteria. Extends `transform` for conditional selection (1 -> subset(1)). `filter` changes the dataset, but BPMN data-driven gateways change the control flow. They are complementary.
+- `reduce`: Aggregates data by applying a function that combines multiple input values into a single output value. Extends `transform` for summarization or joining operations (N -> 1 per group or for the entire dataset).
+- `flatMap`: Similar to Map, but flattens the resulting datasets into a single dataset. Extends `transform` for one-to-many mappings (1 -> N).
+- `group`: Organizes data into groups based on specified attributes. Extends `transform` for categorization (1 -> N).
+- `compose`: Combines multiple data operations into a single operation for complex data processing pipelines. This operator can encapsulate a sequence of other data operators (e.g., `map`, `filter`, `reduce`) into a single reusable composite operation.
 
 :::{.callout-warning appearance="simple"}
 Some operators are stateless (Map, Filter) and works best for batch processing, while others are inherently stateful (Reduce, Group) and may require special handling for streaming data.
@@ -101,12 +101,12 @@ Study RTAnalysis
     Task t1
       @in trials_in
       @out trials_out
-      @op Compose
-        TransformTables
-        Filter
-        Map
-        Group
-        Reduce
+      @op compose
+        transformTables
+        filter
+        map
+        group
+        reduce
 
     SequenceFlow sf1 sub_s → t1
     SequenceFlow sf2 t1    → sub_e
@@ -136,12 +136,12 @@ trials_summary <- trials_raw |>
 
 ### Planned updates
 
-- `LoadData`, `SaveData`, `ExportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
+- `loadData`, `saveData`, `exportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
 
-- `AnonymizeData`, `ValidateData`, `ControlAccess`: data governance and regulatory compliance operations (de-identification, validation, data cleaning, and access control).
+- `anonymizeData`, `validateData`, `controlAccess`: data governance and regulatory compliance operations (de-identification, validation, data cleaning, and access control).
 - Stochastic operations (e.g., sampling, bootstrapping).
 - Canonical data-wrangling operations (mirroring tidyverse functionality but expressed at workflow level):
-  - `SplitData` (e.g., train/validation/test splits).
-  - `CleanData` (e.g., handling missing values, outliers).
+  - `splitData` (e.g., train/validation/test splits).
+  - `cleanData` (e.g., handling missing values, outliers).
   - Join/merge operators for relational integration.
-  - `Sort`, `Arrange`, `SelectColumns`, `RenameColumns`, `Pivot`, `Select`, `Mutate`, `Summarize` as specialized `TransformTables` variants.
+  - `sort`, `arrange`, `selectColumns`, `renameColumns`, `pivot`, `select`, `mutate`, `summarize` as specialized `transformTables` variants.
