@@ -39,13 +39,14 @@ jobs:
         run: |
           npm ci
           npm run build
+          cp -r ./build ../dist/docs/
 
       - name: Setup github pages
         uses: actions/configure-pages@v5
       - name: Upload artifact to github pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './docs/build'
+          path: './dist'
       - name: Deploy to github pages
         id: deployment
         uses: actions/deploy-pages@v4
