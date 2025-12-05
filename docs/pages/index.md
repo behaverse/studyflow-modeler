@@ -52,3 +52,6 @@ You can also find information about:
 ## Get in touch
 
 Studyflow is an open source project, and everyone is welcome to contribute. If you have any questions or suggestions, please [visit our GitHub](https://github.com/behaverse). You can also reach out to us by email at [contact@xcit.org](mailto:contact@xcit.org).
+
+
+<div class="bg-linear-45 from-indigo-500 via-purple-500 to-pink-500"></div>

@@ -16,6 +16,8 @@ const config: Config = {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
+  // plugins: ["./docs/plugins/tailwind.ts"],
+
   // Set the production url of your site here
   url: 'https://behaverse.org',
   // Set the /<baseUrl>/ pathname under which your site is served
@@ -50,7 +52,7 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          // customCss: './src/css/custom.css',
+          // customCss: require.resolve("./docs/assets/css/custom.css")
         },
       } satisfies Preset.Options,
     ],
