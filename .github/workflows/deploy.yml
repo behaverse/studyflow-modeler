@@ -28,13 +28,13 @@ jobs:
         with:
           node-version: latest
           cache: 'npm'
-      - name: Install deps
-        run: npm ci
-      - name: Build app
-        run: npm run build
 
-      - name: Render docs
-        # change to the docs directory and run npm build
+      - name: Build app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build docs
         working-directory: ./docs
         run: |
           npm ci
