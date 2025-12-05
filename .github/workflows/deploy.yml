@@ -33,23 +33,19 @@ jobs:
       - name: Build app
         run: npm run build
 
-      - name: Setup docs
-        uses: quarto-dev/quarto-actions/setup@v2
-
       - name: Render docs
-        uses: quarto-dev/quarto-actions/render@v2
-        env:
-          QUARTO_PROFILE: ci
-        with:
-          to: html
-          path: docs/
+        # change to the docs directory and run npm build
+        working-directory: ./docs
+        run: |
+          npm ci
+          npm run build
 
       - name: Setup github pages
         uses: actions/configure-pages@v5
       - name: Upload artifact to github pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './build'
       - name: Deploy to github pages
         id: deployment
         uses: actions/deploy-pages@v4

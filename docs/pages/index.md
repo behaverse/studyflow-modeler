@@ -1,21 +1,17 @@
 ---
 title: "Introduction"
-order: 1
-footnotes-hover: true
+sidebar_position: 1
 ---
 
 Describing experimental research can be complex and ambiguous.
 
-*Studyflow* is a visual language to communicate research experiments in an unambiguous way. It extends <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} to describe scientific research in a more concise way than texts or static graphics.
+*Studyflow* is a visual language to communicate research experiments in an unambiguous way. It extends <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>**BPMN**: Business Process Model and Notation. [https://en.wikipedia.org/wiki/BPMN](https://en.wikipedia.org/wiki/BPMN) to describe scientific research in a more concise way than texts or static graphics.
 
 At studyflow's core is the idea that scientific experiments can be represented as a series of basic elements (events, activities, decisions, and data). These elements can be organized into a flowchart-like diagram, which can be easily understood by humans (because it is visual) and machines (because it is formal and serializable).
 
 Studyflow diagrams are human-friendly, machine-readable, and executable. Here is an example:
 
-::: {#example layout="[[1]]" fig-align="center" .caption-center}
-![A simple studyflow diagram showing the experimental design of a study as a series of tasks and events.](assets/img/studyflow_example_1.svg){.lightbox}
-:::
-
+![A simple studyflow diagram showing the experimental design of a study as a series of tasks and events.](../assets/img/studyflow_example_1.svg)
 ## What can I do with studyflow?
 
 Studyflow diagrams can be used for various purposes, including:
@@ -39,7 +35,7 @@ The context of studyflow is how scientific workflows and everything related to t
 
 ## Next steps
 
-The [*Getting Started*](getting-started.qmd) page is a good place to start if you are new to studyflow. It provides an overview of the main concepts and available tools.
+The [*Getting Started*](getting-started.md) page is a good place to start if you are new to studyflow. It provides an overview of the main concepts and available tools.
 
 The remaining documentation is structured as follows:
 

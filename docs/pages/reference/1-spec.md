@@ -1,13 +1,5 @@
 ---
 title: Specification
-output-file: spec
-order: 1
-code-block-bg: true
-code-copy: false
-code-line-numbers: false
-code-fold: true
-toc: true
-fig-align: center
 ---
 
 Studyflow is a domain-specific language for specifying scientific processes and their associated data. It extends the BPMN 2.1 standard to fit the specific needs of experimental sciences.
@@ -143,17 +135,14 @@ Study exampleStudy
 
 Which can be visualized as an extended BPMN diagram:
 
-:::{#example layout="[[1]]" fig-align="center" .caption-center}
-
-![The same studyflow visualized and annotated using the [*Modeler app*](https://behaverse.org/studyflow-modeler)](../assets/img/grammar_example.svg){.lightbox}
-:::
+![The same studyflow visualized and annotated using the [*Modeler app*](https://behaverse.org/studyflow-modeler)](../../assets/img/grammar_example.svg)
 
 This diagram can also be represented in machine-readable formats:
 
 <details>
 <summary>**XML/BPMN** serialization (click to expand)</summary>
 
-```{.xml}
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions
   xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -217,7 +206,7 @@ This diagram can also be represented in machine-readable formats:
 <details>
 <summary>**YAML** serialization (click to expand)</summary>
 
-```{.yaml}
+```yaml
 study:
   @id: exampleStudy
   elements:

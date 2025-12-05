@@ -1,9 +1,5 @@
 ---
 title: Views
-output-file: views
-order: 4
-toc: true
-fig-align: center
 ---
 
 The same studyflow diagram can be viewed in different ways depending on the stakeholder's needs:
@@ -26,13 +22,8 @@ To address this, Studyflow extends BPMN elements with properties that allow mode
 - Progress: The current status of an activity, indicating how much of the activity has been completed. Progress can be represented as a percentage (e.g., 50%) or as a label (e.g., "In Progress", "Completed", etc.).
 - Resource allocation: The resources assigned to an activity, such as personnel, equipment, or budget. This is represented as lanes or pools in BPMN.
 
-:::{#timeline-patterns layout="[[-1,1,-1]]" fig-align="center" .caption-center}
-
-![Temporal patterns and corresponding Gantt representations](../assets/img/timeline_patterns.png){.lightbox}
-:::
+![Temporal patterns and corresponding Gantt representations](../../assets/img/timeline_patterns.png)
 
 Here is an example of a Gantt task using BPMN or Studyflow:
 
-:::{#timeline-patterns-2 layout="[[-1,1,-1]]" fig-align="center" .caption-center}
-![&zwnj;](../assets/img/gantt_task.studyflow.png)
-:::
+![&zwnj;](../../assets/img/gantt_task.studyflow.png)

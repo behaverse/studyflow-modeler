@@ -1,28 +1,23 @@
 ---
 title: Getting Started
-output-file: getting-started
-order: 2
-fig-align: center
-toc: true
-toc-title: Contents
+sidebar_position: 2
 ---
 
-Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation. <https://en.wikipedia.org/wiki/BPMN>]{.aside} and adds research-focused components to make it accessible to scientists.
+Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation] and adds research-focused components to make it accessible to scientists.
 
-Here is a quick, streamlined path to creating your first studyflow diagram. Once you've completed this, you can explore more advanced features in the [reference](reference/) section.
+Here is a quick, streamlined path to creating your first studyflow diagram. Once you've completed this, you can explore more advanced features in the [reference](./category/reference/) section.
 
 ## Requirements
 
-- [Studyflow Modeler](https://behaverse.org/studyflow-modeler/){.external target="_blank"} (web-based, no installation required)
-- [List of Studyflow elements](reference/2-elements.qmd)
+- [Studyflow Modeler](https://behaverse.org/studyflow-modeler/) (web-based, no installation required)
+- [List of Studyflow elements](reference/2-elements.md)
 - A BPMN cheat sheet (optional, but helpful)
 
 ## Basic elements
 
 A studyflow diagram is composed of a set of elements that define the structure and flow of the study. To get started, it's important to understand the core elements of the studyflow language:
-[For a detailed overview of the studyflow language, please refer to the [reference docs](reference/index.qmd).]{.aside}
+[For a detailed overview of the studyflow language, please refer to the [reference](./category/reference/).]
 
-:::{.m-4}
 
 **<i class="bi bi-circle"></i>&nbsp; Event**: circles represent the start and end of a study, as well as intermediate events that can trigger actions.
 
@@ -36,23 +31,17 @@ A studyflow diagram is composed of a set of elements that define the structure a
 
 **<i class="bi bi-arrow-return-right"></i>&nbsp; Sequence Flow**: arrows connect events, activities, and gateways to define the order of elements.
 
-:::
 
 Here is an example diagram:
 
-::: {#example layout="[[-2,8,-2]]" fig-align="center" .caption-center}
-![A simple studyflow diagram showing the experimental design of a study as a series of activities, events, and gateways.](assets/img/studyflow_example_2.svg){.lightbox}
-::: 
+![A simple studyflow diagram showing the experimental design of a study as a series of activities, events, and gateways.](../assets/img/studyflow_example_2.svg)
 
 
 ## Graphical notation
 
 Studyflow uses a specific graphical notation to convey the semantics of each element. Different types of activities, for example, can have different icons to indicate their type:
 
-::: {#example layout="[[-1,10,-1]]" fig-align="center" .caption-center}
 
-![Icons representing different types of activities](assets/img/core_activity_types.svg){.lightbox}
+![Icons representing different types of activities](../assets/img/core_activity_types.svg)
 
-:::
-
-These icons extends the standard BPMN icons. For a complete list, see [*Reference &rsaquo; Elements*](reference/2-elements.qmd).
+These icons extends the standard BPMN icons. For a complete list, see [*Reference &rsaquo; Elements*](reference/2-elements.md).

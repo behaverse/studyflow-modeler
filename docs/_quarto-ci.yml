@@ -1,5 +1,0 @@
-# this contains specific parameters for CI/CD deployment
-# use this profile in CI/CD pipelines, or `quarto render --profile ci`
-
-project:
-  output-dir: ../dist/docs/

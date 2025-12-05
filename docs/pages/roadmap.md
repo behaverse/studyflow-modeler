@@ -1,7 +1,6 @@
 ---
 title: Roadmap
-output-file: roadmap
-order: 100
+sidebar_position: 6
 ---
 
 ## Ongoing

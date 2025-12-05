@@ -1,7 +1,6 @@
 ---
 title: CONSORT
 order: 1
-output-file: consort
 lightbox: true
 ---
 
@@ -13,21 +12,16 @@ Studyflow diagrams can be used to create a full CONSORT report in a more concise
 
 The following figure compares traditional CONSORT diagrams against the same CONSORT described in studyflow language. The studyflow diagram (Right) reads from top to bottom and uses similar content as in the original CONSORT.
 
-::: {layout="[[-1,5,5,-1]]" fig-align="top" .caption-center fig-cap-location="top"}
 
-![CONSORT 2025 diagram](../assets/img/consort2025.jpg)
+![CONSORT 2025 diagram](../../assets/img/consort2025.jpg)
 
-![Enhanced CONSORT using studyflow](../assets/img/consort2025.studyflow.png)
+![Enhanced CONSORT using studyflow](../../assets/img/consort2025.studyflow.png)
 
-:::
 
 The following annotated studyflow uses even more concise elements and iconography to describe the the same flow using error handling feature. The left path (group 1) is enhanced with studyflow elements. The right path (group 2) uses a more traditional approach with texts, boxes, and arrows.
 
-::: {layout="[[-1,10,-1]]" fig-align="top" .caption-center fig-cap-location="top"}
 
-![Annotated studyflow diagram showing two representations of CONSORT (left path: Studyflow, right path: traditional)](../assets/img/consort.studyflow.png)
-
-:::
+![Annotated studyflow diagram showing two representations of CONSORT (left path: Studyflow, right path: traditional)](../../assets/img/consort.studyflow.png)
 
 
 Note how *boundary error events* describe the flow of participants through the trial. Because of that, the diagram is more compact and easier to read than the original format.

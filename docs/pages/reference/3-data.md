@@ -1,9 +1,5 @@
 ---
 title: Data
-output-file: data
-order: 3
-toc: true
-fig-align: center
 ---
 
 ## Data in BPMN
@@ -28,19 +24,15 @@ Studyflow refines BPMN to better match common practices in data-centric workflow
 
 In summary, `DataStore` is a physical/persistent store (database, filesystem, S3 bucket, etc.), `DataCatalog` is a registry of datasets (potentially across multiple stores), `Dataset` is a logical collection, and `Table`/`Tensor` are concrete components of a dataset.
 
-::::{.callout-note appearance="simple"}
 While experimental data is generally assumed to be in a tabular format, `Dataset` also support other data types (i.e., `DataObject`), including images, videos, brain imaging, and raw sensor recordings.
-:::
 
 ### Operators
 
 Data operators define how data is manipulated as it flows through the process. They are designed to facilitate data processing within workflows and inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming.
 
-:::{#data-operator fig-align="center" layout="[[-1,2,-1]]"}
 
-![Data operators are rendered as small markers/icons on standard tasks. The task remains a normal BPMN task and the operator marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through operators.](../assets/img/elements/data_operator.png){width="150px"}
+![Data operators are rendered as small markers/icons on standard tasks. The task remains a normal BPMN task and the operator marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through operators.](../../assets/img/elements/data_operator.png)
 
-:::
 
 
 Here are the core data operators currently supported:
@@ -53,11 +45,9 @@ Here are the core data operators currently supported:
 - `group`: Organizes data into groups based on specified attributes. Used for categorization and clustering (1 -> G groups). It changes the data structure to a grouped format.
 - `compose`: Combines multiple data operations into a single complex pipeline. Used for modularity and reusability.
 
-:::{.callout-note appearance="simple" }
 
 ## Batch vs. Streaming
 Some operators are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
-:::
 
 
 ## Example

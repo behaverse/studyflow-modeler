@@ -33,13 +33,9 @@ Studyflow can be used to create checklists that adhere to these guidelines, maki
  
 
 
-::: {layout="[[-1,5,5,-1]]" fig-align="top" .caption-center fig-cap-location="top"}
+![SPIRIT timeline](../../assets/img/spirit2025.jpg)
 
-![SPIRIT timeline](/assets/img/spirit2025.jpg)
+<!-- ![SPIRIT timeline using studyflow](../../static/img/spirit2025.studyflow.png) -->
 
-![SPIRIT timeline using studyflow](/assets/img/spirit2025.studyflow.png)
-
-
-:::
 
 
