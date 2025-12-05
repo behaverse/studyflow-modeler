@@ -27,3 +27,4 @@ dist-ssr
 .pixi
 *.egg-info
 *.drawio.bkp
+.docusaurus/

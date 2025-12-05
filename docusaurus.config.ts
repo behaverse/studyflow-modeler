@@ -44,7 +44,7 @@ const config: Config = {
         docs: {
           sidebarPath: undefined,
           routeBasePath: '/',
-          path: './pages',
+          path: './docs/pages',
           remarkPlugins: [remarkMath],
           rehypePlugins: [rehypeKatex],
         },

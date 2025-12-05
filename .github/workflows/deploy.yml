@@ -33,13 +33,7 @@ jobs:
         run: |
           npm ci
           npm run build
-
-      - name: Build docs
-        working-directory: ./docs
-        run: |
-          npm ci
-          npm run build
-          cp -r ./build ../dist/docs/
+          npm run docs:build
 
       - name: Setup github pages
         uses: actions/configure-pages@v5
