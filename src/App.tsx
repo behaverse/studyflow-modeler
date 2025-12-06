@@ -2,12 +2,12 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import '@/assets/icons/studyflow-icons.scss';
-import {Modeler} from './modeler/Modeler'
+import {Modeler} from './v1/Modeler'
 import '@/assets/css/app.css'
-import StartUpModal from './modeler/StartUpModal'
-import { APIKeyContext, ModelerContext } from './modeler/contexts';
-import { NavBar } from './modeler';
-import { InspectorPanel } from './modeler/inspector';
+import StartUpModal from './v1/StartUpModal'
+import { APIKeyContext, ModelerContext } from './v1/contexts';
+import { NavBar } from './v1';
+import { InspectorPanel } from './v1/inspector';
 
 export default function App() {
 
