@@ -1,5 +1,6 @@
 ---
 title: Specification
+description: Formal definition and grammar
 ---
 
 Studyflow is a domain-specific language for specifying scientific processes and their associated data. It extends the BPMN 2.1 standard to fit the specific needs of experimental sciences.

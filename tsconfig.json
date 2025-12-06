@@ -1,4 +1,5 @@
 {
+  "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
     "types": ["node", "react", "mdx", "json-schema", "./src/declarations"],
     "target": "ES2023",
@@ -26,5 +27,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["vite.config.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", ".docusaurus", "build"],
 }

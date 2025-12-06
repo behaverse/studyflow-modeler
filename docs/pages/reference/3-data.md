@@ -1,5 +1,6 @@
 ---
 title: Data
+description: Elements for data-centric workflows
 ---
 
 ## Data in BPMN

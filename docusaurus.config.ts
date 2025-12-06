@@ -7,9 +7,9 @@ import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
   title: 'Studyflow Modeler',
-  staticDirectories: ['assets'],
+  staticDirectories: ['./docs/assets'],
   tagline: 'Dinosaurs are cool',
-  favicon: 'assets/img/favicon.ico',
+  favicon: 'docs/assets/img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -67,7 +67,6 @@ const config: Config = {
     navbar: {
       title: 'Studyflow Docs',
       logo: {
-        alt: 'Studyflow',
         src: 'img/logo.png',
       },
       items: [

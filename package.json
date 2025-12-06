@@ -1,12 +1,13 @@
 {
   "name": "studyflow-modeler",
   "private": true,
-  "version": "0.0.1",
+  "version": "25.1205.dev2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "docs": "docusaurus start --config docusaurus.config.ts",
     "docs:build": "docusaurus build --out-dir dist/docs --config docusaurus.config.ts",
     "docs:serve": "docusaurus serve --build --dir dist/docs --config docusaurus.config.ts"
   },

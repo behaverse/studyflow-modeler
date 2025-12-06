@@ -1,5 +1,6 @@
 ---
 title: Views
+description: Different ways to visualize studyflows
 ---
 
 The same studyflow diagram can be viewed in different ways depending on the stakeholder's needs:

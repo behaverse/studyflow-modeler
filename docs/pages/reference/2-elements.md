@@ -1,5 +1,6 @@
 ---
 title: Elements
+description: Overview of Studyflow elements
 ---
 
 
