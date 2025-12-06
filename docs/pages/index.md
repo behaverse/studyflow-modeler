@@ -35,7 +35,7 @@ The context of studyflow is how scientific workflows and everything related to t
 
 ## Next steps
 
-The [*Getting Started*](getting-started.md) page is a good place to start if you are new to studyflow. It provides an overview of the main concepts and available tools.
+The [*Getting Started*](./guides/1-getting-started.md) page is a good place to start if you are new to studyflow. It provides an overview of the main concepts and available tools.
 
 The remaining documentation is structured as follows:
 

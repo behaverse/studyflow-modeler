@@ -1,11 +1,11 @@
 ---
 title: Getting Started
-sidebar_position: 2
+sidebar_position: 1
 ---
 
-Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr>[**BPMN**: Business Process Model and Notation] and adds research-focused components to make it accessible to scientists.
+Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation" class="initialism">BPMN</abbr> and adds research-focused components to make it accessible to scientists.
 
-Here is a quick, streamlined path to creating your first studyflow diagram. Once you've completed this, you can explore more advanced features in the [reference](./category/reference/) section.
+Here is a quick, streamlined path to creating your first studyflow diagram. Once you've completed this, you can explore more advanced features in the [reference](../category/reference/) section.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ A studyflow diagram is composed of a set of elements that define the structure a
 
 Here is an example diagram:
 
-![A simple studyflow diagram showing the experimental design of a study as a series of activities, events, and gateways.](../assets/img/studyflow_example_2.svg)
+![A simple studyflow diagram showing the experimental design of a study as a series of activities, events, and gateways.](../../assets/img/studyflow_example_2.svg)
 
 
 ## Graphical notation
@@ -42,6 +42,6 @@ Here is an example diagram:
 Studyflow uses a specific graphical notation to convey the semantics of each element. Different types of activities, for example, can have different icons to indicate their type:
 
 
-![Icons representing different types of activities](../assets/img/core_activity_types.svg)
+![Icons representing different types of activities](../../assets/img/core_activity_types.svg)
 
 These icons extends the standard BPMN icons. For a complete list, see [*Reference &rsaquo; Elements*](reference/2-elements.md).
