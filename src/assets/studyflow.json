@@ -1,6 +1,6 @@
 {
   "name": "Behaverse Studyflow BPMN Extension",
-  "uri": "http://behaverse.org/schema/studyflow",
+  "uri": "http://behaverse.org/schemas/studyflow",
   "prefix": "studyflow",
   "xml": {
     "tagAlias": "lowerCase"

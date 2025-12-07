@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, use } from 'react';
 
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
@@ -49,7 +49,7 @@ export function Modeler() {
         }
       },
       moddleExtensions: {
-        studyflow: studyflowSchema,
+        studyflow: schema,
       },
       additionalModules: [
         CreateAppendAnythingModule,
@@ -60,42 +60,36 @@ export function Modeler() {
       ],
       // studyFlowElementTemplates,
     }
-    const _modeler = new BpmnModeler(options);
-    setModeler(_modeler);
-    setLoading(false);
-    return _modeler;
+
+    const modeler = new BpmnModeler(options);
+    const diagramXML = await fetch(new_diagram).then(r => r.text());
+    await modeler.importXML(diagramXML);
+    return modeler;
   }
 
   useEffect(() => {
-    downloadSchema().then(schema => {
-      createModeler(schema).then((modeler) => {
-        fetch(new_diagram).then(r => r.text()).then(content => {
-            modeler.importXML(content).then(({ warnings }) => {
-                if (warnings.length) {
-                  console.warn(warnings);
-                }
-                modeler.get('canvas').zoom('fit-viewport');
-              });
-          });
-
-        return () => {
-          // modeler.destroy();
-        };
+    downloadSchema()
+      .then(schema => createModeler(schema))
+      .then(modeler => {
+        setModeler(modeler);
+        setLoading(false);
       })
-        .catch(err => {
-          console.log('Error creating modeler:', err);
-        });
-    });
+      .catch(err => console.log('Error creating modeler:', err));
+
+    return () => {
+      // modeler.destroy();
+    }
   }, [canvas, setModeler]);
 
   if (isLoading) {
-    return (<div className="flex h-full text-center">
-      <div role="status" className="m-auto animate-spin">
-        <span className="bi bi-arrow-repeat text-fuchsia-600 text-[3rem]"></span>
-        <span className="sr-only">Loading...</span>
+    return (
+      <div className="flex h-full text-center">
+        <div role="status" className="m-auto animate-spin">
+          <span className="bi bi-arrow-repeat text-fuchsia-600 text-[3rem]"></span>
+          <span className="sr-only">Loading...</span>
+        </div>
       </div>
-  </div>
-    )
+    );
   }
   
     return (
