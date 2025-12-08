@@ -7,16 +7,26 @@ import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
   title: 'Studyflow Modeler',
-  staticDirectories: ['./docs/assets'],
-  tagline: 'Dinosaurs are cool',
-  favicon: 'docs/assets/img/favicon.ico',
+  staticDirectories: ['./assets'],
+  tagline: 'Documentation for Studyflow and Studyflow Modeler',
+  favicon: './assets/img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
-  // plugins: ["./docs/plugins/tailwind.ts"],
+  plugins: [
+    "./src/plugins/tailwind.ts",
+    ["@cmfcmf/docusaurus-search-local",
+      {
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: true,
+        style: "none",
+      }
+    ]
+  ],
 
   // Set the production url of your site here
   url: 'https://behaverse.org',
@@ -25,9 +35,8 @@ const config: Config = {
   baseUrl: '/studyflow-modeler/docs/',
 
   // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'behaverse', // GitHub org/user name.
+  projectName: 'studyflow-modeler', // Usually your repo name.
 
   onBrokenLinks: 'throw',
 
@@ -46,13 +55,13 @@ const config: Config = {
         docs: {
           sidebarPath: undefined,
           routeBasePath: '/',
-          path: './docs/pages',
+          path: './pages',
           remarkPlugins: [remarkMath],
           rehypePlugins: [rehypeKatex],
         },
         blog: false,
         theme: {
-          // customCss: require.resolve("./docs/assets/css/custom.css")
+          customCss: require.resolve("./assets/css/custom.css")
         },
       } satisfies Preset.Options,
     ],
@@ -64,6 +73,12 @@ const config: Config = {
     colorMode: {
       respectPrefersColorScheme: true,
     },
+    docs: {
+      sidebar: {
+        hideable: false,
+        autoCollapseCategories: true,
+      },
+    },
     navbar: {
       title: 'Studyflow Docs',
       logo: {
@@ -72,13 +87,17 @@ const config: Config = {
       items: [
         {
           href: 'https://github.com/behaverse/studyflow-modeler',
-          label: 'GitHub',
+          html: '<i class="bi bi-github"></i>',
+          position: 'right',
+        },
+        {
+          type: 'search',
           position: 'right',
         },
       ],
     },
     footer: {
-      style: 'dark',
+      style: 'light',
       links: [],
       copyright: `Copyright © ${new Date().getFullYear()} xCIT`,
     },

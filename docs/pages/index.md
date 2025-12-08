@@ -11,7 +11,14 @@ At studyflow's core is the idea that scientific experiments can be represented a
 
 Studyflow diagrams are human-friendly, machine-readable, and executable. Here is an example:
 
-![A simple studyflow diagram showing the experimental design of a study as a series of tasks and events.](../assets/img/studyflow_example_1.svg)
+<figure class="mb-1 inline-block max-w-full">
+  <img src="img/studyflow_example_1.svg" class="bg-white align-middle leading-none" />
+  <figcaption class="italic text-sm text-center mt-1 text-neutral-700 dark:text-neutral-400">
+    A simple studyflow diagram can show the experimental design of a study as a series of tasks and events.
+  </figcaption>
+</figure>
+
+
 ## What can I do with studyflow?
 
 Studyflow diagrams can be used for various purposes, including:

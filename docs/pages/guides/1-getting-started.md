@@ -16,7 +16,8 @@ Here is a quick, streamlined path to creating your first studyflow diagram. Once
 ## Basic elements
 
 A studyflow diagram is composed of a set of elements that define the structure and flow of the study. To get started, it's important to understand the core elements of the studyflow language:
-[For a detailed overview of the studyflow language, please refer to the [reference](./category/reference/).]
+
+For a detailed overview of the studyflow language, please refer to the [reference](../category/reference/) section.
 
 
 **<i class="bi bi-circle"></i>&nbsp; Event**: circles represent the start and end of a study, as well as intermediate events that can trigger actions.

@@ -1,1 +1,17 @@
-/* @import "tailwindcss"; */
+@import "tailwindcss";
+
+/* :root {
+  --aa-primary-color-rgb: 255, 0, 0 !important;
+  --aa-muted-color-rgb: 255, 0, 0 !important;
+} */
+
+.aa-DetachedSearchButtonPlaceholder {
+  display: none !important;
+}
+
+.aa-DetachedSearchButton {
+    border: unset !important;
+    /* height: unset !important; */
+    background-color: unset !important;
+    color: unset !important;
+}

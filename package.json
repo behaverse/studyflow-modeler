@@ -7,15 +7,18 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "docs": "docusaurus start --config docusaurus.config.ts",
-    "docs:build": "docusaurus build --out-dir dist/docs --config docusaurus.config.ts",
-    "docs:serve": "docusaurus serve --build --dir dist/docs --config docusaurus.config.ts"
+    "docs": "docusaurus start docs",
+    "docs:build": "docusaurus build --out-dir ../dist/docs docs",
+    "docs:serve": "docusaurus serve --build --dir ../dist/docs docs",
+    "docs:sizzle": "docusaurus swizzle @docusaurus/theme-classic MDXComponents docs --list"
   },
   "dependencies": {
     "@bpmn-io/properties-panel": "^3.34.0",
+    "@cmfcmf/docusaurus-search-local": "^2.0.1",
     "@docusaurus/core": "3.9.2",
     "@docusaurus/preset-classic": "3.9.2",
     "@headlessui/react": "^2.2.9",
+    "@iconify/react": "^6.0.2",
     "@mdx-js/react": "^3.1.1",
     "@mdx-js/rollup": "^3.1.1",
     "@tailwindcss/postcss": "^4.1.17",
