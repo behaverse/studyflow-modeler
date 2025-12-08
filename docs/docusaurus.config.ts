@@ -70,8 +70,14 @@ const config: Config = {
   themeConfig: {
     // Replace with your project's social card
     // image: 'img/docusaurus-social-card.jpg',
+    metadata: [
+      { name: 'keywords', content: 'studyflow, studyflow modeler, reproducibility, bpmn, scientific experiments, workflows' },
+      {name: 'algolia-site-verification', content: '5FD091E36567538E'},
+    ],
     colorMode: {
-      respectPrefersColorScheme: true,
+      respectPrefersColorScheme: false,
+      defaultMode: 'light',
+      disableSwitch: true,
     },
     docs: {
       sidebar: {
@@ -87,7 +93,7 @@ const config: Config = {
       items: [
         {
           href: 'https://github.com/behaverse/studyflow-modeler',
-          html: '<i class="bi bi-github"></i>',
+          html: '<i class="icon-[brandico--github]"></i>',
           position: 'right',
         },
         {

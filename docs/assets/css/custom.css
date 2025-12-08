@@ -1,9 +1,15 @@
-@import "tailwindcss";
 
-/* :root {
-  --aa-primary-color-rgb: 255, 0, 0 !important;
-  --aa-muted-color-rgb: 255, 0, 0 !important;
-} */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@plugin "@iconify/tailwind4";
+
+:root {
+  /* --aa-primary-color-rgb: 255, 0, 0 !important;
+  --aa-muted-color-rgb: 255, 0, 0 !important; */
+  --ifm-font-family-base: 'IBM Plex Sans', sans-serif !important;
+}
 
 .aa-DetachedSearchButtonPlaceholder {
   display: none !important;
@@ -11,7 +17,8 @@
 
 .aa-DetachedSearchButton {
     border: unset !important;
-    /* height: unset !important; */
+    height: unset !important;
     background-color: unset !important;
     color: unset !important;
+    cursor: pointer !important;
 }
