@@ -17,15 +17,7 @@ const config: Config = {
   },
 
   plugins: [
-    "./src/plugins/tailwind.ts",
-    ["@cmfcmf/docusaurus-search-local",
-      {
-        indexDocs: true,
-        indexBlog: false,
-        indexPages: true,
-        style: "none",
-      }
-    ]
+    "./src/plugins/tailwind.ts"
   ],
 
   // Set the production url of your site here
@@ -74,6 +66,24 @@ const config: Config = {
       { name: 'keywords', content: 'studyflow, studyflow modeler, reproducibility, bpmn, scientific experiments, workflows' },
       {name: 'algolia-site-verification', content: '5FD091E36567538E'},
     ],
+    algolia: {
+      // The application ID provided by Algolia
+      appId: 'A1WH8SQBT0',
+
+      // Public API key: it is safe to commit it
+      apiKey: '1a41354ba86e2b4b36c5aa28d1c75c3d',
+
+      indexName: 'Studyflow Modeler Docs',
+
+      // Optional: see doc section below
+      contextualSearch: true,
+
+      // Optional: path for search page that enabled by default (`false` to disable it)
+      searchPagePath: 'search',
+
+      // Optional: whether the insights feature is enabled or not on Docsearch (`false` by default)
+      insights: false,
+    },
     colorMode: {
       respectPrefersColorScheme: false,
       defaultMode: 'light',
@@ -95,11 +105,7 @@ const config: Config = {
           href: 'https://github.com/behaverse/studyflow-modeler',
           html: '<i class="icon-[brandico--github]"></i>',
           position: 'right',
-        },
-        {
-          type: 'search',
-          position: 'right',
-        },
+        }
       ],
     },
     footer: {
