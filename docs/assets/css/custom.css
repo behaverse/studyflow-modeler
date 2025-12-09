@@ -14,10 +14,6 @@
   h4 { @apply text-xl font-semibold }
   h5 { @apply text-lg font-semibold }
   h6 { @apply text-base font-semibold }
-}
-
-/* Restore list defaults */
-@layer base {
   ul, ol {
     list-style: revert;
     margin: revert;
@@ -27,6 +23,11 @@
   li {
     display: list-item;
   }
+  a {
+    color: var(--ifm-link-color);
+  }
+
+  .pagination-nav__sublabel { @apply text-neutral-400 }
 }
 
 :root {
@@ -42,4 +43,8 @@
 
 .breadcrumbs > li:nth-child(1) > a > svg {
   display: inline !important;
+}
+
+.katex-html {
+  display: none !important;
 }
