@@ -16,8 +16,30 @@
   h6 { @apply text-base font-semibold }
 }
 
+/* Restore list defaults */
+@layer base {
+  ul, ol {
+    list-style: revert;
+    margin: revert;
+    padding: revert;
+  }
+
+  li {
+    display: list-item;
+  }
+}
+
 :root {
   /* --aa-primary-color-rgb: 255, 0, 0 !important;
   --aa-muted-color-rgb: 255, 0, 0 !important; */
   --ifm-font-family-base: var (--font-sans);
+}
+
+
+.pagination-nav__link {
+  border-width: 0px !important;
+}
+
+.breadcrumbs > li:nth-child(1) > a > svg {
+  display: inline !important;
 }

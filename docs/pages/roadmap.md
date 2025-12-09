@@ -5,6 +5,11 @@ sidebar_position: 5
 
 ## Ongoing
 
+### December 2025
+
+- Migrate docs to Docusaurus
+- Use external schemas
+
 ### November 2025
 
 - Add examples for common use cases

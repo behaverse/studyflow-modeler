@@ -3,13 +3,11 @@ title: "Introduction"
 sidebar_position: 1
 ---
 
-Describing experimental research can be complex and ambiguous.
+Describing experimental research can be complex and ambiguous. *Studyflow* is a visual language to communicate research experiments in an unambiguous way. It extends [<abbr title="Business Process Model and Notation" className="initialism">BPMN</abbr>](https://en.wikipedia.org/wiki/BPMN) to describe scientific research in a more concise way than texts or static graphics.
 
-*Studyflow* is a visual language to communicate research experiments in an unambiguous way. It extends <abbr title="Business Process Model and Notation" className="initialism">BPMN</abbr>**BPMN**: Business Process Model and Notation. [https://en.wikipedia.org/wiki/BPMN](https://en.wikipedia.org/wiki/BPMN) to describe scientific research in a more concise way than texts or static graphics.
+The idea behind studyflow is that scientific experiments can be represented as a series of basic elements (events, activities, decisions, and data). These elements can be organized into a flowchart-like diagram, which can be easily understood by humans (because it is visual) and machines (because it is formal and serializable).
 
-At studyflow's core is the idea that scientific experiments can be represented as a series of basic elements (events, activities, decisions, and data). These elements can be organized into a flowchart-like diagram, which can be easily understood by humans (because it is visual) and machines (because it is formal and serializable).
-
-Studyflow diagrams are human-friendly, machine-readable, and executable. Here is an example:
+Here is an example:
 
 <figure className="mb-1 inline-block max-w-full">
   <img src="img/studyflow_example_1.svg" className="bg-white align-middle leading-none" />
@@ -18,10 +16,9 @@ Studyflow diagrams are human-friendly, machine-readable, and executable. Here is
   </figcaption>
 </figure>
 
-
 ## What can I do with studyflow?
 
-Studyflow diagrams can be used for various purposes, including:
+Studyflow diagrams are human-friendly, machine-readable, and executable. They can be used for various purposes, including:
 
 - **Designing experiments**: plan and visualize the steps of your study before conducting it.
 - **Documenting protocols**: create clear and detailed representations of your experimental procedures.
