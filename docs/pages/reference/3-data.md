@@ -38,31 +38,31 @@ Studyflow refines BPMN to better match common practices in data-centric workflow
 
 ### Elements
 
-<details>
+<details className="tip">
   <summary>`DataCatalog`</summary>
 
   A persistent repository of datasets that can be referenced across multiple process instances. For example, `openneuro` or `behaverse` catalogs.
 </details>
 
-<details>
+<details className="tip">
   <summary>`Dataset`</summary>
 
   A logical collection (possibly multi-table, multi-modal). Dataset attributes may include a schema (column names, types, units) and optional ontology to connect elements to standard vocabularies.
 </details>
 
-<details class="tip">
+<details className="tip">
   <summary>`Table` (or `DataFrame`)</summary>
 
   A named tabular structure within a `Dataset`. Tables are explicitly linked to a schema via the `Dataset` or individually via a CSVW schema. Extends `DataObject`.
 </details>
 
-<details>
+<details className="tip">
   <summary>`Tensor`</summary>
 
   A multi-dimensional array structure for non-tabular data (e.g., images, videos, fMRI data). Extends `DataObject` and expects a schema.
 </details>
 
-<details>
+<details className="tip">
   <summary>`Snapshot`</summary>
 
   An immutable version of a dataset, a table, or a tensor. Snapshots are typically associated with a specific point in the workflow or a version control commit.
@@ -95,9 +95,10 @@ Here are the core data operators currently supported:
 - `group`: Organizes data into groups based on specified attributes. Used for categorization and clustering (1 -> G groups). It changes the data structure to a grouped format.
 - `compose`: Combines multiple data operations into a single complex pipeline. Used for modularity and reusability.
 
-
-## Batch vs. Streaming
+:::tip[**Batch vs. Streaming**]
 Some operators are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
+
+:::
 
 
 ## Example

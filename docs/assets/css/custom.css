@@ -50,11 +50,20 @@
 }
 
 details[class^='details_'] {
+  --docusaurus-details-decoration-color: var(--color-indigo-300);
   border-width: 0px !important;
-	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5)
-
+	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5);
+  --ifm-alert-background-color: var(--color-indigo-50);
+  box-shadow: 0 1px 2px 0 var(--color-indigo-200);
 }
-  
+
+
+details.tip {
+  --docusaurus-details-decoration-color: var(--color-emerald-400);
+  --ifm-alert-background-color: var(--color-emerald-50);
+  box-shadow: 0 1px 2px 0 var(--color-emerald-200);
+}
+
 details code {
   border: none !important;
 }
