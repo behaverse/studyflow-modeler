@@ -48,3 +48,17 @@
 .katex-html {
   display: none !important;
 }
+
+details[class^='details_'] {
+  border-width: 0px !important;
+	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5)
+
+}
+  
+details code {
+  border: none !important;
+}
+
+summary code {
+  background-color: unset !important;
+}

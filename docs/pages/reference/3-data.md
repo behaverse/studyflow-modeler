@@ -7,9 +7,30 @@ description: Elements for data-centric workflows
 
 BPMN is primarily designed for modeling business processes, but it also includes generic constructs for representing data within workflows. Mainly, it uses *Data Object* and *Data Store* to represent elements that contain or manage data. These elements can be connected to other processes as inputs or outputs using data association edges.
 
-- `DataStore`: Persistent storage of data that can be accessed across multiple process instances. For example, a database or file system. `DataStoreReference` can be used as a pointer to a `DataStore`.
-- `DataObject`: Available for the duration of a process instance. Multiple data objects can be used within a single process instance to simplify associations. BPMN data state annotations can be used to show the condition of a data object at a specific point in a process; for example, "trial data [raw]", "trial data [processed]".
-- `DataAssociation`: Defines a link between data and other workflow elements, such as tasks or events. Note that it is not part of the process flow itself.
+<details>
+  <summary>`DataStore`</summary>
+
+  Persistent storage of data that can be accessed across multiple process instances. For example, a database or file system. `DataStoreReference` can be used as a pointer to a `DataStore`.
+</details>
+
+
+<details>
+  <summary>`DataObject`</summary>
+
+  Represents data that is used or produced within a process instance. It can be thought of as a document, file, or any other piece of information that flows through the process. 
+  
+  - `DataObjectReference` can be used as a pointer to a `DataObject`.
+  - The state annotations can be used to show the condition of a data object at a specific point in a process. For example, "trial data [raw]", "trial data [processed]".
+
+</details>
+
+<details>
+  <summary>`DataAssociation`</summary>
+
+  Connects data to other workflow elements, such as tasks or events. They indicate the flow of data into and out of these elements. Note that it indicated data flow, which is not part of the process flow itself.
+
+</details>
+
 
 ## Data in Studyflow
 
@@ -17,22 +38,50 @@ Studyflow refines BPMN to better match common practices in data-centric workflow
 
 ### Elements
 
-- `DataCatalog`: A persistent repository of datasets that can be referenced across multiple process instances. For example, `openneuro` or `behaverse` catalogs.
-- `Dataset`: A named logical collection (possibly multi-table, multi-modal). Dataset attributes may include a schema (column names, types, units) and optional ontology to connect elements to standard vocabularies.
-  - `Table` (or `DataFrame`): A named tabular structure within a `Dataset`. Tables are explicitly linked to a schema via the `Dataset` or individually via a CSVW schema. Extends `DataObject`.
-  - `Tensor`: special data structure for multi-dimensional arrays (e.g., images, videos, fMRI data). Extends `DataObject` and expects a schema.
-- `Snapshot`: An immutable version of a dataset, a table, or a tensor. Snapshots are typically associated with a specific point in the workflow or a version control commit.
+<details>
+  <summary>`DataCatalog`</summary>
+
+  A persistent repository of datasets that can be referenced across multiple process instances. For example, `openneuro` or `behaverse` catalogs.
+</details>
+
+<details>
+  <summary>`Dataset`</summary>
+
+  A logical collection (possibly multi-table, multi-modal). Dataset attributes may include a schema (column names, types, units) and optional ontology to connect elements to standard vocabularies.
+</details>
+
+<details class="tip">
+  <summary>`Table` (or `DataFrame`)</summary>
+
+  A named tabular structure within a `Dataset`. Tables are explicitly linked to a schema via the `Dataset` or individually via a CSVW schema. Extends `DataObject`.
+</details>
+
+<details>
+  <summary>`Tensor`</summary>
+
+  A multi-dimensional array structure for non-tabular data (e.g., images, videos, fMRI data). Extends `DataObject` and expects a schema.
+</details>
+
+<details>
+  <summary>`Snapshot`</summary>
+
+  An immutable version of a dataset, a table, or a tensor. Snapshots are typically associated with a specific point in the workflow or a version control commit.
+</details>
 
 In summary, `DataStore` is a physical/persistent store (database, filesystem, S3 bucket, etc.), `DataCatalog` is a registry of datasets (potentially across multiple stores), `Dataset` is a logical collection, and `Table`/`Tensor` are concrete components of a dataset.
 
-While experimental data is generally assumed to be in a tabular format, `Dataset` also support other data types (i.e., `DataObject`), including images, videos, brain imaging, and raw sensor recordings.
+While experimental data is generally assumed to be in a tabular format, `Dataset` also support other data types (i.e., `DataObject` or `Tensor`), including images, videos, brain imaging, and raw sensor recordings.
 
 ### Operators
 
 Data operators define how data is manipulated as it flows through the process. They are designed to facilitate data processing within workflows and inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming.
 
-
-![Data operators are rendered as small markers/icons on standard tasks. The task remains a normal BPMN task and the operator marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through operators.](../../assets/img/elements/data_operator.png)
+<figure className="mb-1 grid grid-cols-3">
+  <img src='../img/elements/data_operator.png' alt='Data Operator'  className="bg-white col-span-1 col-start-2" />
+  <figcaption className="italic text-sm mt-4 mx-4 text-neutral-500 dark:text-neutral-400 col-span-3">
+    Data operators are rendered as small markers ($f$) on tasks. The task remains a normal BPMN task and the marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through operators.
+  </figcaption>
+</figure>
 
 
 
@@ -138,7 +187,7 @@ trials_summary <- trials_raw |>
 
 ### Planned updates
 
-- `Tensor`, `Timeseries`, `Event` data structures for multi-dimensional physiological and behavioral data.
+- `Timeseries`, `Event` data structures for multi-dimensional physiological and behavioral data.
 - `transformTables`: Special case of `transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables -> 1+ tables).
 - `loadData`, `saveData`, `exportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
 
