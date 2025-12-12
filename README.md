@@ -9,21 +9,14 @@ Studyflow Modeler is a tool to model and run cognitive experiments using [Behave
 
 ## Development
 
-If you already have Node.js installed, you can start the app by running:
+If you already have Node.js installed, you can start the modeler app by running:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Otherwise, you can use [Pixi](https://pixi.sh) to run the app:
-
-```bash
-pixi r npm install
-pixi r npm run dev
-```
-
-If you want to run the documentation website, install [Quarto](https://quarto.org/) and then run:
+To run the documentations locally, use:
 
 ```bash
 npm run docs
