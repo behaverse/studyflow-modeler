@@ -19,7 +19,7 @@ const defaultPropsDescriptions = {
     'bpmn:documentation': "Short description or link to a description",
 };
 
-export function InspectorPanel() {
+export function InspectorPanel({ className = '' }) {
 
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
@@ -143,7 +143,7 @@ export function InspectorPanel() {
     return (
         <InspectorContext.Provider
             value={{ element: element, businessObject: getBusinessObject(element) }}>
-            <div className="bg-stone-50 md:basis-1/4 basis-1/2 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain">
+            <div className={`bg-stone-50 md:basis-1/4 basis-1/2 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain ${className}`}>
                 {element && renderGroups(element, "tab") }
             </div>
         </InspectorContext.Provider>
