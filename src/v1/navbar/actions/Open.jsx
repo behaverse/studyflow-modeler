@@ -1,19 +1,25 @@
 import { useEffect, useContext, useRef } from "react";
-import { ModelerContext } from '../../contexts';
+import { DiagramNameContext, ModelerContext } from '../../contexts';
 
 
 export function OpenButton({ className, ...props }) {
 
     const { modeler } = useContext(ModelerContext);
+    const { diagramName, setDiagramName } = useContext(DiagramNameContext);
     const fileInputRef = useRef(null);
 
     useEffect(() => {
     }, [modeler]);
 
-    const handleUpload = (event) => {
+    const handleUpload = (event, filename) => {
         const xml = event.target.result;
         modeler.importXML(xml).then(() => {
             modeler.get('canvas').zoom('fit-viewport');
+            if (diagramName && setDiagramName) {
+                // remove extension from filename
+                filename = filename.replace(/\.[^/.]+$/, "");
+                setDiagramName(filename);
+            }
         }).catch((error) => {
             console.error(error);
         });
@@ -34,7 +40,7 @@ export function OpenButton({ className, ...props }) {
         }
 
         let fileData = new FileReader();
-        fileData.onloadend = handleUpload;
+        fileData.onloadend = (e) => handleUpload(e, file.name);
         fileData.readAsText(file);
         // You can process the file here (e.g., read content, upload, etc.)
     };

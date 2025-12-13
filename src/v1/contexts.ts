@@ -8,6 +8,13 @@ export const ModelerContext = createContext<{
     setModeler: () => {},
 });
 
+export const DiagramNameContext = createContext<{
+    diagramName: string,
+    setDiagramName: (name: string) => void,
+}>({
+    diagramName: 'Untitled Diagram',
+    setDiagramName: () => {},
+});
 
 export const APIKeyContext = createContext<{
     apiKey: string | undefined,

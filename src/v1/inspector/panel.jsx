@@ -19,7 +19,7 @@ const defaultPropsDescriptions = {
     'bpmn:documentation': "Short description or link to a description",
 };
 
-export function InspectorPanel({ className = '' }) {
+export function InspectorPanel({ className = '', ...props }) {
 
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');

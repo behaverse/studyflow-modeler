@@ -1,6 +1,6 @@
 import logo_image from '@/assets/img/logo.png';
 import { useState, useContext, useEffect } from 'react';
-import { ModelerContext } from '../contexts';
+import { DiagramNameContext, ModelerContext } from '../contexts';
 import MenuBar from './MenuBar';
 
 export function NavBar(props) {
@@ -8,11 +8,12 @@ export function NavBar(props) {
   const { modeler } = useContext(ModelerContext);
   const injector = modeler.get('injector');
   const eventBus = injector.get('eventBus');
-  const [diagramId, setDiagramId] = useState('Untitled Diagram');
+  const [diagramName, setDiagramName] = useState('Untitled Diagram');
+  const [isEditingDiagramName, setIsEditingDiagramName] = useState(false);
 
   useEffect(() => {
     const onRootChanged = (e) => {
-      // setDiagramId(modeler._definitions.get('id') || 'Untitled Study');
+      // setDiagramName(modeler._definitions.get('id') || 'Untitled Study');
     };
 
     eventBus.on('root.set', onRootChanged);
@@ -20,9 +21,10 @@ export function NavBar(props) {
     return () => {
       eventBus.off('root.set', onRootChanged);
     };
-  }, [modeler, diagramId, eventBus]);
+  }, [modeler, diagramName, eventBus]);
 
   return (
+    <DiagramNameContext.Provider value={{ diagramName, setDiagramName }}>
     <nav className="w-full flow-root bg-stone-100 border-b border-stone-200">
       <div className="float-left flex flex-wrap">
         <a href="../" className="flex space-x-2">
@@ -30,8 +32,29 @@ export function NavBar(props) {
         </a>
         <div className="px-2 self-center gap-1">
             <span className="text-lg text-stone-500 border border-dashed rounded-sm px-2 border-stone-300">
-              <span className="font-semibold">{diagramId}</span>.studyflow
-              <i className="bi bi-pencil text-stone-500 ps-2"></i>
+              {isEditingDiagramName ? (
+                <input
+                  type="text"
+                  value={diagramName}
+                  onChange={(e) => setDiagramName(e.target.value)}
+                  onBlur={() => setIsEditingDiagramName(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditingDiagramName(false);
+                    }
+                  }}
+                  autoFocus
+                  maxLength={120}
+                  className="text-black font-semibold bg-transparent border-none focus:ring-1"
+                />
+              ) : (
+                <span className="font-semibold">{diagramName}</span>
+              )}
+              .studyflow
+              <i
+                className="bi bi-pencil text-stone-500 ps-2 cursor-pointer hover:text-stone-700"
+                onClick={() => setIsEditingDiagramName(true)}
+              ></i>
             </span>
           {modeler && <MenuBar />}
         </div>
@@ -41,5 +64,6 @@ export function NavBar(props) {
         <span className="font-semibold text-xl text-stone-800">Modeler</span>
       </a>
     </nav>
+    </DiagramNameContext.Provider>
 );
 }
