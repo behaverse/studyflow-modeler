@@ -73,7 +73,7 @@ const config: Config = {
       // Public API key: it is safe to commit it
       apiKey: '1a41354ba86e2b4b36c5aa28d1c75c3d',
 
-      indexName: 'Studyflow Modeler Docs',
+      indexName: 'SF_MODELER_DOCS',
 
       // Optional: see doc section below
       contextualSearch: true,
@@ -82,7 +82,7 @@ const config: Config = {
       searchPagePath: 'search',
 
       // Optional: whether the insights feature is enabled or not on Docsearch (`false` by default)
-      insights: false,
+      insights: true,
     },
     colorMode: {
       respectPrefersColorScheme: false,
