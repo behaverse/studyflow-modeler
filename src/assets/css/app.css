@@ -16,3 +16,12 @@ svg text.bi {
 .bts-palette, .bts-set-animation-speed {
     display: none;
 }
+
+.bts-scope, .bts-token-count {
+  color: transparent !important;
+}
+
+.bts-token .bts-text {
+  fill: transparent !important;
+  opacity: 0;
+}
