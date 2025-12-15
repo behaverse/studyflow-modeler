@@ -14,7 +14,7 @@ import {
 import GridModule from 'diagram-js-grid';
 
 // import studyFlowElementTemplates from './assets/studyflow_templates';
-import studyflowSchema from '@/assets/studyflow.json';
+import {convertLinkMLToModdleObject} from '@/v2/linkml-to-moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
 import { StudyflowModelerModule } from '.';
@@ -26,7 +26,7 @@ export function Modeler() {
     const [isLoading, setLoading] = useState(true);
 
   async function downloadSchema(): Promise<any> {
-    const _url = "https://raw.githubusercontent.com/behaverse/schemas/refs/heads/main/studyflow/schema.moddle.json"
+    const _url = "https://raw.githubusercontent.com/behaverse/schemas/refs/heads/main/studyflow/schema.linkml.yaml";
     const response = fetch(_url).catch((error) => {
       console.error('Error fetching extension schema:', error);
       throw error;
@@ -37,7 +37,7 @@ export function Modeler() {
       return response;
     });
 
-    return response.then((res) => res.json());
+    return response.then((res) => res.text()).then(convertLinkMLToModdleObject);
   }
 
   async function createModeler(schema: any, _canvas: any = canvas) {
