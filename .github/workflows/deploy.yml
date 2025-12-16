@@ -15,10 +15,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  checkout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+  setup:
+    needs: checkout
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -29,18 +33,56 @@ jobs:
           node-version: latest
           cache: 'npm'
 
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          cache: 'npm'
       - name: Build app
         run: |
           npm ci
           npm run build
           npm run docs:build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: ./dist
 
+  configure-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Setup github pages
         uses: actions/configure-pages@v5
+
+  upload-pages:
+    needs: configure-pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: ./dist
       - name: Upload artifact to github pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
+
+  deploy:
+    needs: upload-pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to github pages
         id: deployment
         uses: actions/deploy-pages@v4
