@@ -44,7 +44,7 @@ interface LinkMLAttribute {
   required?: boolean;
   multivalued?: boolean;
   ifabsent?: string | boolean;
-  annotations?: {
+  extensions?: {
     condition_language?: string;
     condition_body?: string;
   };
@@ -248,12 +248,12 @@ class LinkMLToModdleConverter {
         property.isMany = true;
       }
 
-      // Handle conditions from annotations
-      if (attrData.annotations?.condition_body) {
+      // Handle conditions from extensions
+      if (attrData.extensions?.condition_body) {
         try {
           property.condition = {
-            language: attrData.annotations.condition_language || 'json',
-            body: JSON.parse(attrData.annotations.condition_body)
+            language: attrData.extensions.condition_language || 'json',
+            body: JSON.parse(attrData.extensions.condition_body)
           };
         } catch (e) {
           // If parsing fails, skip the condition
