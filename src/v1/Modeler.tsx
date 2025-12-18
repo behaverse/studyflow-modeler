@@ -13,7 +13,7 @@ import {
   } from 'bpmn-js-create-append-anything';
 import GridModule from 'diagram-js-grid';
 
-// import studyFlowElementTemplates from './assets/studyflow_templates';
+// import studyFlowElementTemplates from './assets/templates';
 import {convertLinkMLToModdleObject} from '@/v2/linkml-to-moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
