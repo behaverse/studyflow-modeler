@@ -2,16 +2,17 @@
 import { useContext, useEffect, useState, useCallback } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 
-import { getBusinessObject, getDi } from 'bpmn-js/lib/util/ModelUtil';
+import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
 import { Tab, TabList, TabPanel, TabPanels, TabGroup } from '@headlessui/react';
 import { PropertyField } from './field';
 import { t } from '../../i18n';
 import { planeSuffix } from 'bpmn-js/lib/util/DrilldownUtil';
 
-function removePlaneSuffix(id) {
+function _removePlaneSuffix(id: string): string {
   return id.replace(new RegExp(planeSuffix + '$'), '');
 }
+
 const defaultPropsDescriptions = {
     // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
@@ -19,7 +20,7 @@ const defaultPropsDescriptions = {
     'bpmn:documentation': "Short description or link to a description",
 };
 
-export function InspectorPanel({ className = '', ...props }) {
+export function Panel({ className = '', ...props }) {
 
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
@@ -29,7 +30,7 @@ export function InspectorPanel({ className = '', ...props }) {
     const [rootElement, setRootElement] = useState(null);
 
 
-    const getProperties = useCallback((element) => {
+    const getProperties = useCallback((element: any) => {
         // TODO automatically populate group names
         var groups = {
             "general-panel": [],

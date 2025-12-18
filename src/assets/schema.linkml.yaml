@@ -1,0 +1,375 @@
+# yaml-language-server: $schema=https://linkml.io/linkml-model/linkml_model/jsonschema/meta.schema.json
+
+id: http://behaverse.org/schemas/studyflow
+name: studyflow
+title: Behaverse Studyflow BPMN Extension
+description: LinkML schema for Behaverse Studyflow
+version: 25.1217.dev2
+license: MIT
+
+prefixes:
+  studyflow: http://behaverse.org/schemas/studyflow/
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL#
+  linkml: https://w3id.org/linkml/
+
+default_prefix: studyflow
+default_range: string
+
+imports:
+  - linkml:types
+
+enums:
+  DatasetFormatEnum:
+    description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+    permissible_values:
+      bdm:
+        title: BDM (Behaverse Data Model)
+        description: BDM (Behaverse Data Model)
+      bids:
+        title: BIDS (Brain Imaging Data Structure)
+        description: BIDS (Brain Imaging Data Structure)
+      psych-ds:
+        title: Psych-DS
+        description: Psych-DS
+      other:
+        title: Other
+        description: Other
+
+  BDMDataLevelEnum:
+    description: BDM level of the data (events, trials, models).
+    permissible_values:
+      events:
+        title: Events
+        description: Events
+      trials:
+        title: Trials
+        description: Trials
+      models:
+        title: Models
+        description: Models
+
+  BIDSDataTypeEnum:
+    description: BIDS data type (e.g., anat, func, etc).
+    permissible_values:
+      anat:
+        title: anat (anatomical MRI data)
+        description: anat (anatomical MRI data)
+      beh:
+        title: beh (behavioral data)
+        description: beh (behavioral data)
+      dwi:
+        title: dwi (diffusion MRI data)
+        description: dwi (diffusion MRI data)
+      eeg:
+        title: eeg (electroencephalography data)
+        description: eeg (electroencephalography data)
+      func:
+        title: func (functional MRI data)
+        description: func (functional MRI data)
+      ieeg:
+        title: ieeg (intracranial EEG data)
+        description: ieeg (intracranial EEG data)
+      meg:
+        title: meg (magnetoencephalography data)
+        description: meg (magnetoencephalography data)
+      micr:
+        title: micr (microscopy data)
+        description: micr (microscopy data)
+      motion:
+        title: motion (motion capture data)
+        description: motion (motion capture data)
+      mrs:
+        title: mrs (magnetic resonance spectroscopy data)
+        description: mrs (magnetic resonance spectroscopy data)
+      nirs:
+        title: nirs (near-infrared spectroscopy data)
+        description: nirs (near-infrared spectroscopy data)
+      perf:
+        title: perf (arterial spin labeling data)
+        description: perf (arterial spin labeling data)
+      pet:
+        title: pet (positron emission tomography data)
+        description: pet (positron emission tomography data)
+
+  AssignmentAlgorithmEnum:
+    description: The scheduling algorithm used for the assignment.
+    permissible_values:
+      probabilistic:
+        title: Probabilistic
+        description: Probabilistic
+      round-robin:
+        title: Round Robin
+        description: Round Robin
+
+  ProbabilityDistributionEnum:
+    description: The random statistical distribution used for the assignment.
+    permissible_values:
+      uniform:
+        title: Uniform
+        description: Uniform
+      normal:
+        title: Normal
+        description: Normal
+      exponential:
+        title: Exponential
+        description: Exponential
+      poisson:
+        title: Poisson
+        description: Poisson
+      custom:
+        title: Custom
+        description: Custom
+
+  InstrumentEnum:
+    description: The type of instrument used to measure cognitive performance.
+    permissible_values:
+      behaverse:
+        title: Behaverse
+        description: Behaverse
+      videoGame:
+        title: Video Game
+        description: Video Game
+      rest:
+        title: Rest
+        description: Rest
+      custom:
+        title: Custom
+        description: Custom
+
+  BehaverseTaskEnum:
+    permissible_values:
+      BCS:
+        title: Belval Card Sorting (BCS)
+        description: Belval Card Sorting (BCS)
+      BM:
+        title: Belval Matrices (BM)
+        description: Belval Matrices (BM)
+      BSAC:
+        title: Button Spatial Attention Cueing (BSAC)
+        description: Button Spatial Attention Cueing (BSAC)
+      DS:
+        title: Digit Span (DS)
+        description: Digit Span (DS)
+      ML:
+        title: Monkey Ladder (ML)
+        description: Monkey Ladder (ML)
+      MOT:
+        title: Multiple Object Tracking (MOT)
+        description: Multiple Object Tracking (MOT)
+      NB:
+        title: N-Back (NB)
+        description: N-Back (NB)
+      OC:
+        title: Ordered Click (OC)
+        description: Ordered Click (OC)
+      OOO:
+        title: Odd One Out (OOO)
+        description: Odd One Out (OOO)
+      PC:
+        title: Polygon Comparison (PC)
+        description: Polygon Comparison (PC)
+      RE:
+        title: Regular Expression (RE)
+        description: Regular Expression (RE)
+      SART:
+        title: Sustained Attention to Response Task (SART)
+        description: Sustained Attention to Response Task (SART)
+      SMC:
+        title: Symbolic Matrix Comparison (SMC)
+        description: Symbolic Matrix Comparison (SMC)
+      SOS:
+        title: Self-Ordered Search (SOS)
+        description: Self-Ordered Search (SOS)
+      SRM:
+        title: Stimulus-Response Mapping (SRM)
+        description: Stimulus-Response Mapping (SRM)
+      SRT:
+        title: Serial Reaction Time (SRT)
+        description: Serial Reaction Time (SRT)
+      SS:
+        title: Spatial Span (SS)
+        description: Spatial Span (SS)
+      TH:
+        title: Target Hit (TH)
+        description: Target Hit (TH)
+      TOVA:
+        title: Test of Variable Attention (TOVA)
+        description: Test of Variable Attention (TOVA)
+      UFOV:
+        title: Useful Field of View (UFOV)
+        description: Useful Field of View (UFOV)
+      WO:
+        title: Which One (WO)
+        description: Which One (WO)
+      undefined:
+        title: Undefined
+        description: Undefined
+
+types:
+  MarkdownString:
+    typeof: string
+    description: A string that contains markdown formatting
+
+classes:
+  Element:
+    description: Base class for all elements in the Studyflow.
+    abstract: true
+    class_uri: bpmn:BaseElement
+    attributes:
+      id:
+        identifier: true
+        range: string
+        description: Unique identifier for the element.
+      checklist:
+        range: Checklist
+        description: Checklist for the element.
+
+  Checklist:
+    description: A checklist for the element.
+    mixins:
+      - Element
+    attributes:
+      items:
+        multivalued: true
+        range: MarkdownString
+        description: Checklist items.
+
+  Study:
+    description: Process definition for a Studyflow study.
+    mixins:
+      - Element
+    class_uri: bpmn:Process
+    attributes:
+
+  StartEvent:
+    class_uri: bpmn:StartEvent
+    mixins:
+      - Element
+    attributes:
+      requiresConsent:
+        range: boolean
+        ifabsent: false
+        description: User requires to give consent before participating.
+      consentFormUrl:
+        range: string
+        description: Link to the consent form. Leave empty if you want to use the default consent form.
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:requiresConsent": true}'
+        comments:
+          - Conditional on requiresConsent being true
+
+  EndEvent:
+    class_uri: bpmn:EndEvent
+    mixins:
+      - Element
+    attributes:
+      hasRedirectUrl:
+        range: boolean
+        description: Redirect the user to the given URL after completion.
+      redirectUrl:
+        range: string
+        description: Link to redirect the user upon completion.
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:hasRedirectUrl": true}'
+        comments:
+          - Conditional on hasRedirectUrl being true
+
+  Activity:
+    description: Base class for all activities in the Studyflow.
+    abstract: true
+    class_uri: bpmn:Task
+    mixins:
+      - Element
+    attributes:
+      url:
+        range: string
+        description: Link to the activity.
+
+  CognitiveTest:
+    is_a: Activity
+    attributes:
+      instrument:
+        range: InstrumentEnum
+        ifabsent: string(custom)
+        description: Instrument used for the test.
+      behaverseTask:
+        range: BehaverseTaskEnum
+        ifabsent: string(undefined)
+        description: Behaverse instrument used for the test.
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:instrument": "behaverse"}'
+        comments:
+          - Conditional on instrument being "behaverse"
+
+  Questionnaire:
+    is_a: Activity
+
+  Instruction:
+    is_a: Questionnaire
+    attributes:
+      text:
+        range: MarkdownString
+        description: Instruction text in markdown format.
+
+  RandomGateway:
+    class_uri: bpmn:ExclusiveGateway
+    mixins:
+      - Element
+    attributes:
+      algorithm:
+        range: AssignmentAlgorithmEnum
+        ifabsent: string(probabilistic)
+        description: Algorithm used for the assignment.
+      probabilityFunction:
+        range: string
+        ifabsent: string(uniform)
+        description: Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:algorithm": "probabilistic"}'
+        comments:
+          - Conditional on algorithm being "probabilistic"
+
+  Dataset:
+    description: Base class for all datasets in the Studyflow.
+    abstract: false
+    class_uri: bpmn:DataStoreReference
+    mixins:
+      - Element
+    attributes:
+      datasetFormat:
+        range: DatasetFormatEnum
+        ifabsent: string(other)
+        description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+      bdmDataLevel:
+        range: BDMDataLevelEnum
+        ifabsent: string(events)
+        description: Level of the data (events, trials, summary, models).
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:datasetFormat": "bdm"}'
+        comments:
+          - Conditional on datasetFormat being "bdm"
+      bidsDataType:
+        range: BIDSDataTypeEnum
+        ifabsent: string(trials)
+        description: BIDS data type.
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:datasetFormat": "bids"}'
+        comments:
+          - Conditional on datasetFormat being "bids"
+  
+  # DataCatalog:
+  # Tensor:
+  # Table:
+  # Snapshot:
+  # DataOperation:
+  #   class_uri: bpmn:Task
+  #   mixins:
+  #     - Element
+  #   attributes:
+  #     operator:
