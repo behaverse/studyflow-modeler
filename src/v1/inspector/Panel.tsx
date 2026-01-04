@@ -55,7 +55,8 @@ export function Panel({ className = '', ...props }) {
 
     useEffect(() => {
         function onRootChanged(e) {
-            // BUG when root id is changed from the default the breadcrumb is not shown, use modeling DI to change the root element
+            // The root element is now properly updated when its ID changes
+            // because the plane ID is also updated in StringInput.jsx
             var newRootElement = canvas.getRootElement();
             setRootElement(newRootElement);
             setElement(newRootElement);
@@ -67,12 +68,21 @@ export function Panel({ className = '', ...props }) {
             setElement(newElement);
         }
 
+        function onElementChanged(e: any) {
+            // Refresh the element when properties change (including ID changes)
+            if (element && e.element && e.element.id === element.id) {
+                setElement(e.element);
+            }
+        }
+
         eventBus.on('selection.changed', onSelectionChanged);
         eventBus.on('root.set', onRootChanged);
+        eventBus.on('element.changed', onElementChanged);
 
         return () => {
             eventBus.off('selection.changed', onSelectionChanged);
             eventBus.off('root.set', onRootChanged);
+            eventBus.off('element.changed', onElementChanged);
         };
 
     }, [modeler, eventBus, canvas, rootElement, element]);
