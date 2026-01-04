@@ -13,6 +13,7 @@ import {
   } from 'bpmn-js-create-append-anything';
 import GridModule from 'diagram-js-grid';
 
+import studyflowSchema from '@/assets/schema.linkml.yaml';
 // import studyFlowElementTemplates from './assets/templates';
 import {convertLinkMLToModdleObject} from '@/v2/linkml-to-moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
@@ -26,7 +27,8 @@ export function Modeler() {
     const [isLoading, setLoading] = useState(true);
 
   async function downloadSchema(): Promise<any> {
-    const _url = "https://raw.githubusercontent.com/behaverse/schemas/refs/heads/main/studyflow/schema.linkml.yaml";
+    // NOTE const _url = "https://behaverse.org/schemas/studyflow/schema.linkml.yaml";
+    const _url = studyflowSchema;
     const response = fetch(_url).catch((error) => {
       console.error('Error fetching extension schema:', error);
       throw error;

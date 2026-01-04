@@ -2,8 +2,8 @@
 
 id: http://behaverse.org/schemas/studyflow
 name: studyflow
-title: Behaverse Studyflow BPMN Extension
-description: LinkML schema for Behaverse Studyflow
+title: Behaverse Studyflow Schema
+description: LinkML schema for Behaverse Studyflow BPMN extension
 version: 25.1217.dev2
 license: MIT
 
@@ -214,7 +214,7 @@ classes:
   Element:
     description: Base class for all elements in the Studyflow.
     abstract: true
-    class_uri: bpmn:BaseElement
+    is_a: bpmn:BaseElement
     attributes:
       id:
         identifier: true
@@ -236,9 +236,9 @@ classes:
 
   Study:
     description: Process definition for a Studyflow study.
+    is_a: bpmn:Process
     mixins:
       - Element
-    class_uri: bpmn:Process
     attributes:
 
   StartEvent:
@@ -279,7 +279,7 @@ classes:
   Activity:
     description: Base class for all activities in the Studyflow.
     abstract: true
-    class_uri: bpmn:Task
+    is_a: bpmn:Task
     mixins:
       - Element
     attributes:
@@ -315,7 +315,7 @@ classes:
         description: Instruction text in markdown format.
 
   RandomGateway:
-    class_uri: bpmn:ExclusiveGateway
+    is_a: bpmn:ExclusiveGateway
     mixins:
       - Element
     attributes:
@@ -336,7 +336,7 @@ classes:
   Dataset:
     description: Base class for all datasets in the Studyflow.
     abstract: false
-    class_uri: bpmn:DataStoreReference
+    is_a: bpmn:DataStoreReference
     mixins:
       - Element
     attributes:
@@ -368,7 +368,7 @@ classes:
   # Table:
   # Snapshot:
   # DataOperation:
-  #   class_uri: bpmn:Task
+  #   is_a: bpmn:Task
   #   mixins:
   #     - Element
   #   attributes:

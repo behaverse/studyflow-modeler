@@ -37,5 +37,7 @@ export default defineConfig({
     },
 
   },
-  assetsInclude: ['**/*.png', '**/*.bpmn', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp'],
+  assetsInclude: [
+    '**/*.png', '**/*.bpmn', '**/*.jpeg', '**/*.gif',
+    '**/*.svg', '**/*.ico', '**/*.webp', '**/*.yaml'],
 })

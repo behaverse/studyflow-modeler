@@ -3,6 +3,7 @@ import * as yaml from 'js-yaml';
 interface LinkMLSchema {
   id: string;
   name: string;
+  title?: string;
   prefixes: Record<string, string>;
   imports?: string[];
   default_range?: string;
@@ -105,7 +106,7 @@ class LinkMLToModdleConverter {
     this.linkmlSchema = yaml.load(linkmlSchemaContent) as LinkMLSchema;
 
     this.moddleSchema = {
-      name: 'Behaverse Studyflow BPMN Extension',
+      name: this.linkmlSchema.title || this.linkmlSchema.name || 'studyflow', 
       uri: this.linkmlSchema.id || 'http://behaverse.org/schemas/studyflow',
       prefix: this.linkmlSchema.default_prefix || 'studyflow',
       xml: {
@@ -180,7 +181,7 @@ class LinkMLToModdleConverter {
   private getSuperClasses(classData: LinkMLClass, className: string): string[] {
     const superClasses: string[] = [];
 
-    // Check for BPMN mappings from class_uri
+    // Check for BPMN mappings from class_uri/exact_mappings
     const bpmnMapping = this.bpmnMappings.get(className);
     if (bpmnMapping) {
       superClasses.push(bpmnMapping);
@@ -284,8 +285,8 @@ class LinkMLToModdleConverter {
       // Handle superClass and extends
       const superClasses = this.getSuperClasses(classData, className);
       if (superClasses.length > 0) {
-        // Special handling: StartEvent, EndEvent, and Dataset use extends for BPMN types
-        const usesExtends = ['StartEvent', 'EndEvent', 'Dataset'].includes(className);
+        // Special handling: StartEvent, EndEvent use extends for BPMN types
+        const usesExtends = ['StartEvent', 'EndEvent'].includes(className);
 
         if (usesExtends) {
           const bpmnTypes = superClasses.filter(sc => sc.startsWith('bpmn:'));
