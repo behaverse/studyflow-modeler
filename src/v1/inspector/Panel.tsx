@@ -1,4 +1,5 @@
 
+import { useResize } from './useResize';
 import { useContext, useEffect, useState, useCallback } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 
@@ -22,6 +23,7 @@ const defaultPropsDescriptions = {
 
 export function Panel({ className = '', ...props }) {
 
+    const { width, isResizing, handleResizeMouseDown } = useResize();
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
@@ -173,7 +175,13 @@ export function Panel({ className = '', ...props }) {
     return (
         <InspectorContext.Provider
             value={{ element: element, businessObject: getBusinessObject(element) }}>
-            <div className={`bg-stone-50 md:basis-1/4 basis-1/2 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain ${className}`}>
+            {/* Resize handle */}
+            <div
+                onMouseDown={handleResizeMouseDown}
+                className="ms-[-2px] w-[2px] bg-stone-200 hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors"
+                style={{ userSelect: 'none' }}
+            />
+            <div className={`bg-stone-50 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain ${className}`} style={{ width: `${width}px`, flexShrink: 0, cursor: isResizing ? 'col-resize' : 'auto' }}>
                 {element && renderGroups(element, "tab") }
             </div>
         </InspectorContext.Provider>
