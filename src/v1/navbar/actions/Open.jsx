@@ -1,8 +1,10 @@
 import { useEffect, useContext, useRef } from "react";
 import { DiagramNameContext, ModelerContext } from '../../contexts';
+import PropTypes from 'prop-types';
+import { on } from "events";
 
 
-export function OpenButton({ className, ...props }) {
+export function OpenButton({ className, onClick, ...props }) {
 
     const { modeler } = useContext(ModelerContext);
     const { diagramName, setDiagramName } = useContext(DiagramNameContext);
@@ -27,14 +29,13 @@ export function OpenButton({ className, ...props }) {
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
-        console.log(event.target.files);
 
         if (!file) {
             return;
         }
 
-        if (!file.name.endsWith('xml') && !file.name.endsWith('bpmn')
-            && !file.name.endsWith('studyflow')) {
+        const hasValidExtension = ['xml', 'bpmn', 'studyflow'].some(ext => file.name.endsWith(ext));
+        if (!hasValidExtension) {
             alert("Please select a valid XML/BPMN/Studyflow file.");
             return;
         }
@@ -45,12 +46,17 @@ export function OpenButton({ className, ...props }) {
         // You can process the file here (e.g., read content, upload, etc.)
     };
 
+    const onButtonClick = () => {
+        if (onClick) onClick();
+        fileInputRef.current.click();
+    }
+
     return (
         <>
             <button
                 title="Upload"
                 className={`w-full text-left ${className}`}
-                onClick={() => fileInputRef.current.click()}>
+                onClick={onButtonClick}>
                 <i className="bi bi-folder2-open pe-2"></i> Open File...
             </button>
             <input
@@ -63,3 +69,8 @@ export function OpenButton({ className, ...props }) {
     );
 
 }
+
+OpenButton.propTypes = {
+  className: PropTypes.string,
+  onClick: PropTypes.func
+};

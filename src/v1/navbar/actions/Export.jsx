@@ -24,7 +24,7 @@ async function exportoToPng(svg) {
 
 }
 
-export function ExportButton({ className, fileType, ...props }) {
+export function ExportButton({ className, fileType, onClick, ...props }) {
 
   const { modeler } = useContext(ModelerContext);
   const fileTypeIcon = {
@@ -35,7 +35,7 @@ export function ExportButton({ className, fileType, ...props }) {
   useEffect(() => {
   }, [modeler]);
 
-  function exportDiagram() {
+  function exportDiagram(e) {
     modeler.saveSVG().then(({ svg }) => {
       if (fileType === 'png') {
         exportoToPng(svg).then((dataURL) => {
@@ -45,12 +45,14 @@ export function ExportButton({ className, fileType, ...props }) {
         download(svg, 'diagram.svg', 'image/svg+xml');
       }
     });
+    if (onClick) onClick(e);
   }
 
   return (
     <button
       title="Export to SVG"
       className={`w-full text-left ${className}`}
+      {...props}
       onClick={exportDiagram}>
       <i className={`bi bi-filetype-${fileType.toLowerCase()} pe-2`}></i> Export to {fileType.toUpperCase()}...
     </button>
@@ -60,5 +62,6 @@ export function ExportButton({ className, fileType, ...props }) {
 
 ExportButton.propTypes = {
   className: PropTypes.string,
-  fileType: PropTypes.string.isRequired
+  fileType: PropTypes.string.isRequired,
+  onClick: PropTypes.func
 };
