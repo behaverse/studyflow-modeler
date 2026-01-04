@@ -5,6 +5,11 @@ sidebar_position: 5
 
 ## Ongoing
 
+- Improve modeler UX/UI
+- Specifications for the data elements
+- Schema editor for data stores
+- More examples and tutorials
+
 ### December 2025
 
 - Migrate docs to Docusaurus
