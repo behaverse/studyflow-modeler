@@ -45,6 +45,7 @@ interface LinkMLAttribute {
   required?: boolean;
   multivalued?: boolean;
   ifabsent?: string | boolean;
+  categories?: string[];
   extensions?: {
     condition_language?: string;
     condition_body?: string;
@@ -91,6 +92,7 @@ interface ModdleProperty {
   type?: string;
   default?: any;
   isMany?: boolean;
+  categories?: string[];
   condition?: {
     language: string;
     body: Record<string, any>;
@@ -247,6 +249,11 @@ class LinkMLToModdleConverter {
       // Handle multivalued (isMany)
       if (attrData.multivalued) {
         property.isMany = true;
+      }
+
+      // Handle categories
+      if (attrData.categories && attrData.categories.length > 0) {
+        property.categories = attrData.categories;
       }
 
       // Handle conditions from extensions

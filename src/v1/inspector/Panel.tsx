@@ -14,7 +14,7 @@ function _removePlaneSuffix(id: string): string {
   return id.replace(new RegExp(planeSuffix + '$'), '');
 }
 
-const defaultPropsDescriptions = {
+const editableBPMNProps = {
     // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
     'bpmn:id': "Unique identifier of the element",
@@ -34,25 +34,27 @@ export function Panel({ className = '', ...props }) {
 
     const getProperties = useCallback((element: any) => {
         // TODO automatically populate group names
-        var groups = {
-            "general-panel": [],
-            "studyflow-panel": [],
-            "data-panel": [],
-        }
-        getBusinessObject(element).$descriptor.properties.forEach((prop) => {
-            if (prop.ns.prefix === 'studyflow') {
-                groups["studyflow-panel"].push(prop);
+        var propCategories = {};
+        getBusinessObject(element).$descriptor.properties.forEach((prop: any) => {
+            if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.hasOwnProperty(prop.ns.name)) {
+                return;
             }
-            if (Object.keys(defaultPropsDescriptions).includes(prop.ns.name)) {
-                prop.description = defaultPropsDescriptions[prop.ns.name];
-                groups["general-panel"].push(prop);
+            var categories = prop.categories || ["General"];
+            if (prop.ns.name === "bpmn:documentation") {
+                categories = ["Documentation"];
             }
+            categories.forEach((cat) => {
+                if (!propCategories[cat]) {
+                    propCategories[cat] = [];
+                }
+                propCategories[cat].push(prop);
+            });
         });
 
         // remove empty groups using filter and Object.fromEntries
-        groups = Object.entries(groups).filter(([, v]) => v.length > 0);
-        groups = Object.fromEntries(groups);
-        return groups;
+        propCategories = Object.entries(propCategories).filter(([, v]) => v.length > 0);
+        propCategories = Object.fromEntries(propCategories);
+        return propCategories;
     }, []);
 
     useEffect(() => {
@@ -89,7 +91,7 @@ export function Panel({ className = '', ...props }) {
 
     }, [modeler, eventBus, canvas, rootElement, element]);
 
-    function renderGroupTabs(el) {
+    function renderTabs(el) {
         return (
             <>
                 <h1 className="text-lg text-left font-bold px-2 pt-2 bg-stone-200 sticky top-0 text-black border-stone-300">{el.type.split(':')[1]}</h1>
@@ -100,22 +102,22 @@ export function Panel({ className = '', ...props }) {
               {Object.entries(getProperties(el)).map(([groupName,]) =>
                     <Tab key={groupName} className="bg-stone-200 py-1 px-2 data-[selected]:font-bold data-[selected]:bg-stone-50 data-[selected]:border-t-2 border-black data-[hover]:bg-stone-200  focus:outline-none focus-visible:outline-none">{t(groupName)}</Tab>
                             )}
-                <Tab key={"data-panel"} className="bg-stone-200 py-1 px-2 data-[selected]:font-bold data-[selected]:bg-stone-50 data-[selected]:border-t-2 border-black data-[hover]:bg-stone-200  focus:outline-none focus-visible:outline-none">{t("data-panel")}</Tab>
+                {/* <Tab key={"data-panel"} className="bg-stone-200 py-1 px-2 data-[selected]:font-bold data-[selected]:bg-stone-50 data-[selected]:border-t-2 border-black data-[hover]:bg-stone-200  focus:outline-none focus-visible:outline-none">{t("Data")}</Tab> */}
               </TabList>
               <TabPanels className="pt-3">
-              {Object.entries(getProperties(el)).map(([groupName, grpBpmnProperties]) =>
-                    <TabPanel key={groupName}>
-                        {grpBpmnProperties.map((p) => (
+              {Object.entries(getProperties(el)).map(([catName, catProperties]) =>
+                    <TabPanel key={catName}>
+                        {catProperties.map((p: any) => (
                             // this key renders the conditional property if needed 
                             <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
                         ))}
                     </TabPanel>
                             )}
-                            {/* Data Panel */}
-                    <TabPanel key="data-panel">
+                    {/* Data Panel */}
+                    {/* <TabPanel key="data-panel">
                                 <div className="py-1 text-center mx-8 text-stone-900 bg-stone-200 hover:bg-stone-300 rounded shadow-xs rounded-base text-sm cursor-pointer active:bg-stone-400
                         ">Edit Schema</div>
-                    </TabPanel>
+                    </TabPanel> */}
               </TabPanels>
             </TabGroup>
                 </div>
@@ -123,10 +125,10 @@ export function Panel({ className = '', ...props }) {
           )
     }
 
-    function renderGroups(el, style="tab") {
+    function renderCategories(el, style="tab") {
 
         if (style === "tab") {
-            return renderGroupTabs(el);
+            return renderTabs(el);
         }
 
         // default style
@@ -134,27 +136,27 @@ export function Panel({ className = '', ...props }) {
             <>
             <h1 className="text-lg font-bold p-2 bg-stone-100 border-b border-dashed  border-stone-300 sticky top-0 text-stone-900">{el.type.split(':')[1]}</h1>
             <div className="w-full">
-            {Object.entries(getProperties(el)).map(([groupName, grpBpmnProperties]) =>
+            {Object.entries(getProperties(el)).map(([catName, catProperties]) =>
                 <Disclosure
-                    defaultOpen={groupName === "general"}
-                    key={groupName}>
+                    defaultOpen={catName === "General"}
+                    key={catName}>
                     <DisclosureButton
                         className="group p-2 text-left w-full text-md font-semibold text-stone-800">
-                        {t(groupName)}
+                        {t(catName)}
                         <i className="bi bi-caret-right-fill group-data-[open]:rotate-90 pe-1 group-data-[open]:pt-1 float-start"></i>
                     </DisclosureButton>
                     <DisclosurePanel transition
                         className="p-1 origin-top transition duration-200 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
-                        {grpBpmnProperties.map((p) => (
+                        {catProperties.map((p: any) => (
                             // this key renders the conditional property if needed 
                             <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
                         ))}
                     </DisclosurePanel>
                 </Disclosure>
             )}
-                <Disclosure
+                {/* <Disclosure
                     defaultOpen={false}
-                    key={"data-panel"}>
+                    key={"Data"}>
                     <DisclosureButton
                         className="group p-2 text-left w-full text-md font-semibold text-stone-800">
                         {t('data-panel')}
@@ -166,7 +168,7 @@ export function Panel({ className = '', ...props }) {
                         Edit Schema
                     </div>
                     </DisclosurePanel>
-                </Disclosure>
+                </Disclosure> */}
             </div>
             </>
         );
@@ -182,7 +184,7 @@ export function Panel({ className = '', ...props }) {
                 style={{ userSelect: 'none' }}
             />
             <div className={`bg-stone-50 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain ${className}`} style={{ width: `${width}px`, flexShrink: 0, cursor: isResizing ? 'col-resize' : 'auto' }}>
-                {element && renderGroups(element, "tab") }
+                {element && renderCategories(element, "tab") }
             </div>
         </InspectorContext.Provider>
     )

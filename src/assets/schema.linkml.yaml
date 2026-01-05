@@ -31,6 +31,9 @@ enums:
       psych-ds:
         title: Psych-DS
         description: Psych-DS
+      kedro:
+        title: Kedro
+        description: Kedro
       other:
         title: Other
         description: Other
@@ -220,9 +223,14 @@ classes:
         identifier: true
         range: string
         description: Unique identifier for the element.
+        categories: 
+          - General
       checklist:
         range: Checklist
         description: Checklist for the element.
+        categories:
+          - Documentation
+
 
   Checklist:
     description: A checklist for the element.
@@ -233,6 +241,8 @@ classes:
         multivalued: true
         range: MarkdownString
         description: Checklist items.
+        categories:
+          - Documentation
 
   Study:
     description: Process definition for a Studyflow study.
@@ -248,11 +258,15 @@ classes:
     attributes:
       requiresConsent:
         range: boolean
-        ifabsent: false
+        ifabsent: "false"
         description: User requires to give consent before participating.
+        categories:
+          - Consent
       consentFormUrl:
         range: string
         description: Link to the consent form. Leave empty if you want to use the default consent form.
+        categories:
+          - Consent
         extensions:
           condition_language: json
           condition_body: '{"studyflow:requiresConsent": true}'
@@ -267,9 +281,13 @@ classes:
       hasRedirectUrl:
         range: boolean
         description: Redirect the user to the given URL after completion.
+        categories:
+          - Completion
       redirectUrl:
         range: string
         description: Link to redirect the user upon completion.
+        categories:
+          - Completion
         extensions:
           condition_language: json
           condition_body: '{"studyflow:hasRedirectUrl": true}'
@@ -286,6 +304,8 @@ classes:
       url:
         range: string
         description: Link to the activity.
+        categories:
+          - General
 
   CognitiveTest:
     is_a: Activity
@@ -294,10 +314,14 @@ classes:
         range: InstrumentEnum
         ifabsent: string(custom)
         description: Instrument used for the test.
+        categories:
+          - Instrument
       behaverseTask:
         range: BehaverseTaskEnum
         ifabsent: string(undefined)
         description: Behaverse instrument used for the test.
+        categories:
+          - Instrument
         extensions:
           condition_language: json
           condition_body: '{"studyflow:instrument": "behaverse"}'
@@ -306,13 +330,23 @@ classes:
 
   Questionnaire:
     is_a: Activity
+    attributes:
+      instrument:
+        range: string
+        description: |
+          Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g., PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
+        categories:
+          - Instrument
 
   Instruction:
-    is_a: Questionnaire
+    is_a: Activity
+    description: A passive information display.
     attributes:
-      text:
+      content:
         range: MarkdownString
-        description: Instruction text in markdown format.
+        description: Instruction content in markdown format.
+        categories:
+          - Content
 
   RandomGateway:
     is_a: bpmn:ExclusiveGateway
@@ -323,10 +357,14 @@ classes:
         range: AssignmentAlgorithmEnum
         ifabsent: string(probabilistic)
         description: Algorithm used for the assignment.
+        categories:
+          - Assignment
       probabilityFunction:
         range: string
         ifabsent: string(uniform)
         description: Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
+        categories:
+          - Assignment
         extensions:
           condition_language: json
           condition_body: '{"studyflow:algorithm": "probabilistic"}'
@@ -344,10 +382,14 @@ classes:
         range: DatasetFormatEnum
         ifabsent: string(other)
         description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+        categories:
+          - Data
       bdmDataLevel:
         range: BDMDataLevelEnum
         ifabsent: string(events)
         description: Level of the data (events, trials, summary, models).
+        categories:
+          - Data
         extensions:
           condition_language: json
           condition_body: '{"studyflow:datasetFormat": "bdm"}'
@@ -357,6 +399,8 @@ classes:
         range: BIDSDataTypeEnum
         ifabsent: string(trials)
         description: BIDS data type.
+        categories:
+          - Data
         extensions:
           condition_language: json
           condition_body: '{"studyflow:datasetFormat": "bids"}'
