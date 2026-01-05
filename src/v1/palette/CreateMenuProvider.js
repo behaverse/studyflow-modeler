@@ -21,7 +21,6 @@ export default class CreateMenuProvider {
             && !(v?.superClass.length === 1 && v.superClass.includes("String"))
             && !v.extends?.includes("bpmn:StartEvent")
             && !v.extends?.includes("bpmn:EndEvent")
-            && !k.includes("studyflow:Dataset")
         );
         
         var elements = [];
@@ -29,7 +28,7 @@ export default class CreateMenuProvider {
             elements.push({
                 label: v.name.split(":")[1],
                 actionName: k.split(":")[1],
-                className: "icon sfi-" + (k.includes("Gateway") ? "Diamond" : "") + k.split(":")[1],
+                className: "icon " + v.icon,
                 target: {
                     type: v.name
                 }
@@ -37,10 +36,7 @@ export default class CreateMenuProvider {
         });
         this._elements = elements;
 
-        this.register();
-    }
-
-    register = function () {
+        // register self as provider
         this._popupMenu.registerProvider('bpmn-create', this);
     }
 

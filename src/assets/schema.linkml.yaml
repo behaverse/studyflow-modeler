@@ -249,7 +249,7 @@ classes:
     description: Process definition for a Studyflow study.
     is_a: bpmn:Process
     annotations:
-      icon: sfi-Instruction
+      icon: bi bi-journal-text
     mixins:
       - Element
     attributes:

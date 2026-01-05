@@ -1,34 +1,23 @@
-import StudyflowContextPad from './ContextPad';
-import StudyflowPalette from './Palette';
 import StudyflowRenderer from './Renderer';
 import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
-import ColorPopupProvider from './ColorPopup';
-import CreateMenuProvider from './CreateMenuProvider';
-import AppendMenuProvider from './AppendMenuProvider';
-import PaletteMenuProvider from './PaletteMenuProvider';
+import PaletteModule from './palette';
+import ContextPadModule from './contextpad';
 
 export const StudyflowModelerModule = {
   __init__: [
     'studyFlowContextPad',
-    'studyFlowPalette',
     'studyFlowRenderer',
     'colorPopupProvider',
     'resizableTasks',
-    'studyFlowCreateMenuProvider',
     'studyFlowAppendMenuProvider',
-    // 'paletteMenuProvider',
   ],
   __depends__: [
     SimulationModule,
+    PaletteModule,
+    ContextPadModule,
   ],
-  studyFlowCreateMenuProvider: ['type', CreateMenuProvider],
-  studyFlowAppendMenuProvider: ['type', AppendMenuProvider],
-  studyFlowContextPad: ['type', StudyflowContextPad],
-  studyFlowPalette: ['type', StudyflowPalette],
   studyFlowRenderer: ['type', StudyflowRenderer],
-  colorPopupProvider: [ 'type', ColorPopupProvider ],
-  // paletteMenuProvider: ['type', PaletteMenuProvider],
   resizableTasks: ['type', ResizableTasks],
 };
 
