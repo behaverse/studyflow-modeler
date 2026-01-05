@@ -50,15 +50,26 @@
 }
 
 details[class^='details_'] {
+  border-width: 0px !important;
+	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5);
+}
+
+/* 
+details[class^='details_'].alert--info {
   --docusaurus-details-decoration-color: var(--color-indigo-300);
   border-width: 0px !important;
 	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5);
   --ifm-alert-background-color: var(--color-indigo-50);
   box-shadow: 0 1px 2px 0 var(--color-indigo-200);
+} */
+
+details.indigo {
+  --docusaurus-details-decoration-color: var(--color-indigo-300);
+  --ifm-alert-background-color: var(--color-indigo-50);
+  box-shadow: 0 1px 2px 0 var(--color-indigo-200);
 }
 
-
-details.tip {
+details.green {
   --docusaurus-details-decoration-color: var(--color-emerald-400);
   --ifm-alert-background-color: var(--color-emerald-50);
   box-shadow: 0 1px 2px 0 var(--color-emerald-200);
@@ -66,6 +77,15 @@ details.tip {
 
 details code {
   border: none !important;
+}
+
+
+.green .badge {
+  @apply inline-flex items-center rounded-2xl bg-emerald-100 px-2 text-xs text-emerald-600 ring-1 ring-inset ring-emerald-700/10;
+}
+
+.indigo .badge {
+  @apply inline-flex items-center rounded-2xl bg-indigo-100 px-2 text-xs text-indigo-600 ring-1 ring-inset ring-indigo-700/10;
 }
 
 summary code {

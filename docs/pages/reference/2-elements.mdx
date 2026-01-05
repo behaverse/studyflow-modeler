@@ -1,0 +1,173 @@
+---
+title: Elements
+description: Overview of Studyflow elements
+---
+
+
+The main element of a studyflow diagram is the *Study*, which serves as a container for all other elements:
+
+
+<figure className="centered max-w-md">
+  ![Study](../../assets/img/elements/study.svg)
+  <figcaption className="text-left">
+    **Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows.
+  </figcaption>
+</figure>
+
+Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*.
+
+## Events
+
+
+<div className="grid grid-cols-2 gap-4">
+  <figure className="centered">
+    ![Start Event](../../assets/img/elements/start_event.svg)
+    <figcaption className="text-left">
+      **Start Event** defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![End Event](../../assets/img/elements/end_event.svg)
+    <figcaption className="text-left">
+      **End Event** marks the conclusion of the workflow, indicating the completion of all steps within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.
+    </figcaption>
+  </figure>
+</div>
+
+
+
+## Activities
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+  <figure className="centered">
+    ![Instructions](../../assets/img/elements/instruction.svg)
+    <figcaption>
+      **Instructions** provide detailed guidelines and information to participants about the study procedures.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Questionnaires](../../assets/img/elements/questionnaire.svg)
+    <figcaption>
+      **Questionnaires** are used to gather self-reported data from participants.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Cognitive Tests](../../assets/img/elements/cognitive_test.svg)
+    <figcaption>
+      **Cognitive Tests** represent various cognitive assessment tests within the experiment.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Video Games](../../assets/img/elements/video_game.svg)
+    <figcaption>
+      **Video Games** are interactive games as part of the experimental paradigm.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Behaverse Tasks](../../assets/img/elements/behaverse_task.svg)
+    <figcaption>
+      **Behaverse Tasks** are standardized cognitive tests covering a range of attentional, perceptual, cognitive and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for a list.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Rest](../../assets/img/elements/rest.svg)
+    <figcaption>
+      **Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between activities. This element can also be used to record resting-state signals.
+    </figcaption>
+  </figure>
+</div>
+
+
+## Gateways
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <figure className="centered">
+    ![Random Gateway](../../assets/img/elements/random_gateway.svg)
+    <figcaption className="text-left">
+      **Random Gateway** represents a randomizer at a decision point in the workflow where only one of several possible paths can be taken.
+    </figcaption>
+  </figure>
+
+  <figure className="centered max-w-[240px]">
+    ![Random Gateway Pattern](../../assets/img/elements/random_gateway_pattern.svg)
+    <figcaption>
+      Example use of *Random Gateway* to branch a flow.
+    </figcaption>
+  </figure>
+</div>
+
+
+## Data
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <figure className="centered">
+    ![Datasets](../../assets/img/elements/dataset.svg)
+    <figcaption>
+      **Data Store** and **Dataset** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models. See [the **Data** reference page](../reference/3-data.mdx) for more details.
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Data Object](../../assets/img/elements/data_object.svg)
+    <figcaption>
+      **Data Object** represents any data entity within the workflow, such as files, data, or data streams. It can be used to model inputs and outputs of activities and data transformations.
+    </figcaption>
+  </figure>
+</div>
+
+
+The current version studyflow includes built-in support for several data models commonly used in cognitive sciences, including:
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+  <figure className="centered">
+    ![BDM Events](../../assets/img/elements/bdm_events.svg)
+    <figcaption>
+      Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) data model
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![BDM Trials](../../assets/img/elements/bdm_trials.svg)
+    <figcaption>
+      Behaverse [Trials](https://behaverse.org/data-model/spec/trials/index.html) data model
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![BDM Models](../../assets/img/elements/bdm_models.svg)
+    <figcaption>
+      BDM [Statistics & Models](https://behaverse.org/data-model/spec/#)
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![BIDS](../../assets/img/elements/bids.svg)
+    <figcaption>
+      [Brain Imaging Data Structure](https://bids.neuroimaging.io/)
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Psych-DS](../../assets/img/elements/psych-ds.svg)
+    <figcaption>
+      [Psych-DS](https://psych-ds.github.io/) dataset standard
+    </figcaption>
+  </figure>
+
+  <figure className="centered">
+    ![Kedro](../../assets/img/elements/dataset.svg)
+    <figcaption>
+      [Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/)
+    </figcaption>
+  </figure>
+</div>

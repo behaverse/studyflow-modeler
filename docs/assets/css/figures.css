@@ -1,18 +1,18 @@
 
-figure.centered {
-  margin-left: auto !important;
-  margin-right: auto !important;
-}
-
-figure > p {
-  margin: 0 !important;
-}
 
 figure {
   /* background-color: var(--bs-gray-100); */
   padding: .5rem .5rem;
   border-radius: .5rem;
   /* box-shadow: 2px 2px 3px var(--bs-gray-300) */
+}
+
+figure.centered {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 figcaption {
@@ -22,3 +22,7 @@ figcaption {
   text-align: center;
 }
 
+figcaption code {
+  border: 0px !important;
+  font-size: 0.7rem !important;
+}
