@@ -1,4 +1,4 @@
-export default class StudyflowPalette {
+export default class Palette {
 
   static $inject = ['create', 'elementFactory', 'palette', 'translate'];
 
@@ -35,9 +35,6 @@ export default class StudyflowPalette {
 
     // Get studyflow types from the moddle schema
     const studyflowEntries = {
-      'sep-studyflow': {
-        separator: true
-      }
     };
 
     // Access the moddle packages - the schema is stored in the moddle instance

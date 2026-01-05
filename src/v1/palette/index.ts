@@ -1,14 +1,14 @@
-import StudyflowPalette from './Palette';
-import CreateMenuProvider from './CreateMenuProvider';
-import PaletteMenuProvider from './PaletteMenuProvider';
+import Palette from './Palette';
+import MorePopupMenu from './MorePopupMenu';
+// import StudyflowPopupMenu from './StudyflowPopupMenu';
 
 export default {
   __init__: [
-    'studyFlowPalette',
-    'studyFlowCreateMenuProvider',
-    // 'paletteMenuProvider',
+    'mainPalette',
+    // 'studyflowPopupMenu',
+    'morePopupMenu',
   ],
-  studyFlowCreateMenuProvider: ['type', CreateMenuProvider],
-  studyFlowPalette: ['type', StudyflowPalette],
-  // paletteMenuProvider: ['type', PaletteMenuProvider],
+  mainPalette: ['type', Palette],
+  // studyflowPopupMenu: ['type', StudyflowPopupMenu],
+  morePopupMenu: ['type', MorePopupMenu],
 };

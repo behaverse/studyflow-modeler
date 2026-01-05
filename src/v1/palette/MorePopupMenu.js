@@ -1,5 +1,5 @@
 
-export default class CreateMenuProvider {
+export default class MorePopupMenu {
 
     static $inject = [
         'elementFactory',
@@ -11,7 +11,7 @@ export default class CreateMenuProvider {
 
     constructor(elementFactory, popupMenu, create, autoPlace, moddle) {
         this._elementFactory = elementFactory;
-        this._popupMenu = popupMenu;
+        this.popupMenu = popupMenu;
         this._create = create;
         this._autoPlace = autoPlace;
 
@@ -37,7 +37,7 @@ export default class CreateMenuProvider {
         this._elements = elements;
 
         // register self as provider
-        this._popupMenu.registerProvider('bpmn-create', this);
+        this.popupMenu.registerProvider('bpmn-create', this);
     }
 
     getPopupMenuEntries() {

@@ -25,3 +25,20 @@ svg text.bi {
   fill: transparent !important;
   opacity: 0;
 }
+
+.entry.more-palette {
+  position: relative;
+}
+
+.entry.more-palette::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  right: 4px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-top: 4px solid transparent;
+  border-right: 4px solid currentColor;
+  border-bottom: 4px solid currentColor;
+}

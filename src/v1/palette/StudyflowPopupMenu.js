@@ -1,4 +1,4 @@
-export default class PaletteMenuProvider {
+export default class StudyflowPopupMenu {
   static $inject = ['popupMenu', 'elementFactory', 'create', 'moddle'];
 
   constructor(popupMenu, elementFactory, create, moddle) {
@@ -8,7 +8,7 @@ export default class PaletteMenuProvider {
     this.popupMenu = popupMenu;
     this.bpmnFactory = elementFactory._bpmnFactory;
 
-    popupMenu.registerProvider('studyflow-palette-menu', this);
+    this.popupMenu.registerProvider("studyflow-create", this);
   }
 
   getPopupMenuEntries(event) {
