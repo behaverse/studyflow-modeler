@@ -36,6 +36,10 @@ interface LinkMLClass {
   class_uri?: string;
   attributes?: Record<string, LinkMLAttribute>;
   description?: string;
+  annotations?: {
+    icon?: string;
+    [key: string]: any;
+  };
 }
 
 interface LinkMLAttribute {
@@ -83,6 +87,7 @@ interface ModdleType {
   extends?: string[];
   properties?: ModdleProperty[];
   attributes?: ModdleProperty[];
+  icon?: string;
 }
 
 interface ModdleProperty {
@@ -327,6 +332,11 @@ class LinkMLToModdleConverter {
       // Convert attributes to properties
       if (classData.attributes && Object.keys(classData.attributes).length > 0) {
         moddleType.properties = this.convertAttributes(classData.attributes);
+      }
+
+      // Handle icon annotation
+      if (classData.annotations?.icon) {
+        moddleType.icon = classData.annotations.icon;
       }
 
       this.moddleSchema.types.push(moddleType);

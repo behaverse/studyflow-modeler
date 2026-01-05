@@ -33,47 +33,51 @@ export default class StudyflowPalette {
       create.start(event, shape);
     }
 
-    //TODO: use the same reusable pattern asin ContextPad.js to create commands
+    // Get studyflow types from the moddle schema
     const studyflowEntries = {
       'sep-studyflow': {
         separator: true
-      },
-      'create.studyflow-cognitive-test': {
-        group: 'studyflow',
-        className: 'sfi-CognitiveTest',
-        title: 'Create cognitive test (or video game)',
-        action: {
-          dragstart: createElement.bind(null, 'studyflow:CognitiveTest'),
-          click: createElement.bind(null, 'studyflow:CognitiveTest'),
-        }
-      },
-      'create.studyflow-questionnaire': {
-        group: 'studyflow',
-        className: 'sfi-Questionnaire',
-        title: 'Create questionnaire',
-        action: {
-          dragstart: createElement.bind(null, 'studyflow:Questionnaire'),
-          click: createElement.bind(null, 'studyflow:Questionnaire'),
-        }
-      },
-      'create.studyflow-instruction': {
-        group: 'studyflow',
-        className: 'sfi-Instruction',
-        title: 'Create instruction',
-        action: {
-          dragstart: createElement.bind(null, 'studyflow:Instruction'),
-          click: createElement.bind(null, 'studyflow:Instruction'),
-        }
-      },
-      'create.studyflow-random-gateway': {
-        group: 'studyflow',
-        className: 'sfi-DiamondRandomGateway',
-        title: 'Create random gateway',
-        action: {
-          dragstart: createElement.bind(null, 'studyflow:RandomGateway'),
-          click: createElement.bind(null, 'studyflow:RandomGateway'),
-        }
       }
+    };
+
+    // Access the moddle packages - the schema is stored in the moddle instance
+    const moddle = bpmnFactory._model;
+    let studyflowPackage = moddle.getPackage('studyflow');
+
+    if (studyflowPackage && studyflowPackage.types) {
+      studyflowPackage.types.forEach(type => {
+
+        // Skip abstract classes and those that extend other classes but not sub-class them
+        if (type.isAbstract || type.extends?.length > 0) {
+          return;
+        }
+        
+        // Skip the base Study type
+        if (type.name === 'Study') {
+          return;
+        }
+
+        // Skip types that extend from primitive types (like String, Boolean, etc.)
+        const primitiveTypes = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
+        if (type.superClass && type.superClass.some(sc => primitiveTypes.includes(sc))) {
+          return;
+        }
+
+        const elementType = `studyflow:${type.name}`;
+        const kebabName = type.name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+        const icon = type.icon || `sfi-${type.name}`;
+        const title = type.description || `Create ${type.name}`;
+
+        studyflowEntries[`create.studyflow-${kebabName}`] = {
+          group: 'studyflow',
+          className: icon,
+          title: title,
+          action: {
+            dragstart: createElement.bind(null, elementType),
+            click: createElement.bind(null, elementType),
+          }
+        };
+      });
     }
 
     return function (entries) {
