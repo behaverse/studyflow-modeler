@@ -41,51 +41,54 @@ export default class StudyflowPalette {
     };
 
     // Access the moddle packages - the schema is stored in the moddle instance
-    const moddle = bpmnFactory._model;
-    let studyflowPackage = moddle.getPackage('studyflow');
+    try {
+      const moddle = bpmnFactory._model;
+      let studyflowPackage = moddle.getPackage('studyflow');
+      if (studyflowPackage && studyflowPackage.types) {
+        studyflowPackage.types.forEach(type => {
 
-    if (studyflowPackage && studyflowPackage.types) {
-      studyflowPackage.types.forEach(type => {
-
-        // Skip abstract classes and those that extend other classes but not sub-class them
-        if (type.isAbstract || type.extends?.length > 0) {
-          return;
-        }
-        
-        // Skip the base Study type
-        if (type.name === 'Study') {
-          return;
-        }
-
-        // Skip types that extend from primitive types (like String, Boolean, etc.)
-        const primitiveTypes = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
-        if (type.superClass && type.superClass.some(sc => primitiveTypes.includes(sc))) {
-          return;
-        }
-
-        const elementType = `studyflow:${type.name}`;
-        const kebabName = type.name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-        const icon = type.icon || `sfi-${type.name}`;
-        const title = type.description || `Create ${type.name}`;
-
-        studyflowEntries[`create.studyflow-${kebabName}`] = {
-          group: 'studyflow',
-          className: icon,
-          title: title,
-          action: {
-            dragstart: createElement.bind(null, elementType),
-            click: createElement.bind(null, elementType),
+          // Skip abstract classes and those that extend other classes but not sub-class them
+          if (type.isAbstract || type.extends?.length > 0) {
+            return;
           }
-        };
-      });
+          
+          // Skip the base Study type
+          if (type.name === 'Study') {
+            return;
+          }
+
+          // Skip types that extend from primitive types (like String, Boolean, etc.)
+          const primitiveTypes = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
+          if (type.superClass && type.superClass.some(sc => primitiveTypes.includes(sc))) {
+            return;
+          }
+
+          const elementType = `studyflow:${type.name}`;
+          const kebabName = type.name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+          const icon = type.icon || `sfi-${type.name}`;
+          const title = type.description || `Create ${type.name}`;
+
+          studyflowEntries[`create.studyflow-${kebabName}`] = {
+            group: 'studyflow',
+            className: icon,
+            title: title,
+            action: {
+              dragstart: createElement.bind(null, elementType),
+              click: createElement.bind(null, elementType),
+            }
+          };
+        });
+      }
+    } catch (e) {
+      console.warn('Could not load studyflow types dynamically from schema:', e);
     }
 
     return function (entries) {
       delete entries['space-tool'];
       delete entries['create.exclusive-gateway'];
-      // delete entries['create.data-store'];
       entries['create.data-store'].group = 'studyflow';
       entries['create.data-store'].className = 'bi bi-database';
+      // delete entries['create.data-store'];
       delete entries['create.task'];
       delete entries['create.subprocess-expanded'];
 

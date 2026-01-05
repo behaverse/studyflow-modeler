@@ -6,6 +6,7 @@ import SimulationModule from './simulation';
 import ColorPopupProvider from './ColorPopup';
 import CreateMenuProvider from './CreateMenuProvider';
 import AppendMenuProvider from './AppendMenuProvider';
+import PaletteMenuProvider from './PaletteMenuProvider';
 
 export const StudyflowModelerModule = {
   __init__: [
@@ -16,6 +17,7 @@ export const StudyflowModelerModule = {
     'resizableTasks',
     'studyFlowCreateMenuProvider',
     'studyFlowAppendMenuProvider',
+    // 'paletteMenuProvider',
   ],
   __depends__: [
     SimulationModule,
@@ -26,7 +28,8 @@ export const StudyflowModelerModule = {
   studyFlowPalette: ['type', StudyflowPalette],
   studyFlowRenderer: ['type', StudyflowRenderer],
   colorPopupProvider: [ 'type', ColorPopupProvider ],
-  resizableTasks: ['type', ResizableTasks], 
+  // paletteMenuProvider: ['type', PaletteMenuProvider],
+  resizableTasks: ['type', ResizableTasks],
 };
 
 export { ModelerContext } from './contexts';
