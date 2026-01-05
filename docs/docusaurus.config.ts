@@ -40,6 +40,10 @@ const config: Config = {
     locales: ['en'],
   },
 
+  markdown: {
+    format: 'detect'
+  },
+
   presets: [
     [
       'classic',
@@ -53,7 +57,10 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          customCss: require.resolve("./assets/css/custom.css")
+          customCss: [
+            require.resolve("./assets/css/custom.css"),
+            require.resolve("./assets/css/figures.css"),
+          ],
         },
       } satisfies Preset.Options,
     ],
