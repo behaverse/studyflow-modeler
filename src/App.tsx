@@ -42,7 +42,7 @@ export default function App() {
                     isInspectorVisible={inspectorVisible}
                     onClick={() => setInspectorVisible(!inspectorVisible)}
                   />
-                  {inspectorVisible && <InspectorPanel />}
+                  <InspectorPanel className={inspectorVisible ? '' : 'hidden'} />
                 </>
               )}
             </div>
