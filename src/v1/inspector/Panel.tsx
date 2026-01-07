@@ -183,7 +183,7 @@ export function Panel({ className = '', ...props }) {
                 className="ms-[-2px] w-[2px] bg-stone-200 hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors"
                 style={{ userSelect: 'none' }}
             />
-            <div className={`bg-stone-50 overflow-y-auto h-[calc(100vh-4rem)] overscroll-contain ${className}`} style={{ width: `${width}px`, flexShrink: 0, cursor: isResizing ? 'col-resize' : 'auto' }}>
+            <div className={`bg-stone-50 overflow-y-auto overscroll-contain ${className}`} style={{ width: `${width}px`, flexShrink: 0, cursor: isResizing ? 'col-resize' : 'auto' }}>
                 {element && renderCategories(element, "tab") }
             </div>
         </InspectorContext.Provider>

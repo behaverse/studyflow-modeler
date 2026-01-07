@@ -7,10 +7,11 @@ svg text.bi {
 }
 
 .djs-palette, .bts-palette {
-    top: 1rem !important;
-    left: 1rem !important;
-    background-color: white !important;
-    border-radius: 16px;
+  @apply bg-stone-100 border rounded-lg border-stone-200 shadow-lg left-4;
+}
+
+.bjs-container .djs-palette {
+  @apply top-18;
 }
 
 .bts-palette, .bts-set-animation-speed {

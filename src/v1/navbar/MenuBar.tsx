@@ -27,7 +27,7 @@ export default function MenuBar(props) {
       <PublishDialog ref={publishDialogRef}  />
       <Menu as="div" title="FileMenu" className="">
         <MenuButton className="hover:bg-stone-300 rounded px-2">File</MenuButton>
-        <MenuItems  unmount={false} anchor="bottom start" className="min-w-48 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
+        <MenuItems  unmount={false} anchor="bottom start" className="min-w-48 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row z-50">
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={NewDiagramButton} />
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={OpenButton} />
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={SaveButton} />
@@ -38,9 +38,9 @@ export default function MenuBar(props) {
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={PublishButton} dialog={publishDialogRef}  />
         </MenuItems>
       </Menu>
-      <Menu as="div" title="ViewMenu" className="">
+      {/* <Menu as="div" title="ViewMenu" className="">
         <MenuButton className="hover:bg-stone-300 rounded px-2">View</MenuButton>
-        <MenuItems anchor="bottom start" className="min-w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
+        <MenuItems anchor="bottom start" className="min-w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row z-50">
           <MenuItem>
             <a href="#" className="px-3 py-1 hover:bg-stone-300"><i className="bi bi-check-circle-fill pe-2"></i> Study</a>
           </MenuItem>
@@ -51,13 +51,13 @@ export default function MenuBar(props) {
             <a href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Checklist</a>
           </MenuItem>
         </MenuItems>
-      </Menu>
+      </Menu> */}
       <Menu as="div" title="SimulateMeu" className="">
         <SimulateButton className="" />
       </Menu>
       <Menu as="div" title="HelpMenu" className="">
         <MenuButton className="hover:bg-stone-300 rounded px-2">Help</MenuButton>
-        <MenuItems anchor="bottom start" className="w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row">
+        <MenuItems anchor="bottom start" className="w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row z-50">
           <MenuItem>
             <a href="./docs" target="_blank" className="px-3 py-1 hover:bg-stone-300">Docs</a>
           </MenuItem>

@@ -25,45 +25,44 @@ export function NavBar(props) {
 
   return (
     <DiagramNameContext.Provider value={{ diagramName, setDiagramName }}>
-    <nav className="w-full flow-root bg-stone-100 border-b border-stone-200">
-      <div className="float-left flex flex-wrap">
-        <a href="../" className="flex space-x-2">
-          <img src={logo_image} className="h-16 p-1" alt="Logo" />
-        </a>
-        <div className="px-2 self-center gap-1">
-            <span className="text-lg text-stone-500 border border-dashed rounded-sm px-2 border-stone-300">
-              {isEditingDiagramName ? (
-                <input
-                  type="text"
-                  value={diagramName}
-                  onChange={(e) => setDiagramName(e.target.value)}
-                  onBlur={() => setIsEditingDiagramName(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setIsEditingDiagramName(false);
+    <div className="flow-root fixed top-4 left-4 z-2">
+      <nav className="bg-stone-100 border border-stone-200 rounded-lg overflow-x-auto">
+        <div className="flex flex-nowrap whitespace-nowrap">
+          <a href="../" className="flex space-x-2 flex-shrink-0">
+            <img src={logo_image} className="h-10 w-10 p-1" alt="Studyflow Modeler" title="Studyflow Modeler" />
+          </a>
+          <div className="px-2 self-center flex items-center gap-1">
+              <span className="text-lg text-stone-500 border border-dashed rounded-sm px-2 border-stone-300">
+                {isEditingDiagramName ? (
+                  <input
+                    type="text"
+                    value={diagramName}
+                    onChange={(e) =>
+                      (e.target.value.length > 0)?
+                        setDiagramName(e.target.value):undefined
                     }
-                  }}
-                  autoFocus
-                  maxLength={120}
-                  className="text-black font-semibold bg-transparent border-none focus:ring-1"
-                />
-              ) : (
-                <span className="font-semibold">{diagramName}</span>
-              )}
-              .studyflow
-              <i
-                className="bi bi-pencil text-stone-500 ps-2 cursor-pointer hover:text-stone-700"
-                onClick={() => setIsEditingDiagramName(true)}
-              ></i>
-            </span>
-          {modeler && <MenuBar />}
+                    onBlur={() => setIsEditingDiagramName(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setIsEditingDiagramName(false);
+                      }
+                    }}
+                    autoFocus
+                    maxLength={120}
+                    minLength={1}
+                    className="text-black font-semibold bg-transparent border-none focus:ring-1"
+                  />
+                ) : (
+                    <span className="font-semibold cursor-pointer"
+                      onClick={() => setIsEditingDiagramName(true)}
+>{diagramName}</span>
+                )}
+              </span>
+            {modeler && <MenuBar />}
+          </div>
         </div>
-      </div>
-      <a className="grid grid-flow-row auto-rows-max float-end px-2 text-end py-1" href="https://behaverse.org/studyflow-modeler" target="_blank" >
-        <span className="font-light text-xl text-stone-700">Studyflow</span>
-        <span className="font-semibold text-xl text-stone-800">Modeler</span>
-      </a>
-    </nav>
+      </nav>
+    </div>
     </DiagramNameContext.Provider>
 );
 }
