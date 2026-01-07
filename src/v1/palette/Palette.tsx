@@ -128,7 +128,7 @@ export function Palette({ className = '' }: { className?: string }) {
           <button
             type="button"
             title={entry.title}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-stone-300 bg-stone-200 text-stone-800 hover:border-stone-400 hover:bg-stone-300 shadow-sm cursor-grab"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-stone-300 bg-stone-100 text-stone-800 hover:border-stone-400 hover:bg-stone-300 shadow-sm cursor-grab"
             onMouseDown={(e) => handleMouseDown(entry, e)}
             onMouseMove={(e) => handleMouseMove(entry, e)}
             onMouseUp={handleMouseUp}

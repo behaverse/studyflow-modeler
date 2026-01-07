@@ -2,6 +2,10 @@
 
 @import "tailwindcss";
 
+@plugin "@iconify/tailwind4" {
+ prefixes: bi, ri, material-symbols, flat-color-icons;
+}
+
 svg text.bi {
     font-family: bootstrap-icons !important;
 }

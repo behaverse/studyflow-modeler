@@ -319,7 +319,7 @@ classes:
   CognitiveTest:
     is_a: Activity
     annotations:
-      icon: bi bi-puzzle
+      icon: iconify bi--puzzle
     attributes:
       instrument:
         range: InstrumentEnum
@@ -342,7 +342,7 @@ classes:
   Questionnaire:
     is_a: Activity
     annotations:
-      icon: sfi-Questionnaire
+      icon: iconify-color flat-color-icons--survey
     attributes:
       instrument:
         range: string
@@ -355,7 +355,7 @@ classes:
     is_a: Activity
     description: A passive information display.
     annotations:
-      icon: bi bi-info-circle
+      icon: iconify material-symbols--info-outline-rounded
     attributes:
       content:
         range: MarkdownString
@@ -366,7 +366,7 @@ classes:
   RandomGateway:
     is_a: bpmn:ExclusiveGateway
     annotations:
-      icon: sfi-DiamondRandomGateway
+      icon: iconify ri--dice-line
     mixins:
       - Element
     attributes:
