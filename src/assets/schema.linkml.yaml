@@ -319,7 +319,7 @@ classes:
   CognitiveTest:
     is_a: Activity
     annotations:
-      icon: sfi-CognitiveTest
+      icon: bi bi-puzzle
     attributes:
       instrument:
         range: InstrumentEnum
@@ -355,7 +355,7 @@ classes:
     is_a: Activity
     description: A passive information display.
     annotations:
-      icon: sfi-Instruction
+      icon: bi bi-info-circle
     attributes:
       content:
         range: MarkdownString

@@ -6,14 +6,9 @@ svg text.bi {
     font-family: bootstrap-icons !important;
 }
 
-.djs-palette, .bts-palette {
-  @apply bg-stone-100 border rounded-lg border-stone-200 shadow-lg left-4;
+.djs-palette {
+  @apply hidden;
 }
-
-.bjs-container .djs-palette {
-  @apply top-18;
-}
-
 .djs-popup {
   @apply bg-stone-100 border rounded-lg border-stone-200 shadow-lg;
 }

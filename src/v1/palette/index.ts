@@ -1,14 +1,7 @@
-import Palette from './Palette';
-import MorePopupMenu from './MorePopupMenu';
-// import StudyflowPopupMenu from './StudyflowPopupMenu';
+export { Palette as Palette } from './Palette';
 
 export default {
   __init__: [
-    'mainPalette',
-    // 'studyflowPopupMenu',
-    'morePopupMenu',
   ],
-  mainPalette: ['type', Palette],
-  // studyflowPopupMenu: ['type', StudyflowPopupMenu],
-  morePopupMenu: ['type', MorePopupMenu],
+  paletteProvider: ['value', null],  // disable default palette
 };

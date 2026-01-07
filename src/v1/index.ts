@@ -1,8 +1,8 @@
 import StudyflowRenderer from './Renderer';
 import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
-import PaletteModule from './palette';
 import ContextPadModule from './contextpad';
+import PaletteModule from './palette';
 
 export const StudyflowModelerModule = {
   __init__: [
@@ -22,5 +22,3 @@ export const StudyflowModelerModule = {
 };
 
 export { ModelerContext } from './contexts';
-export { NavBar } from './navbar';
-// export { Modeler } from './Modeler';

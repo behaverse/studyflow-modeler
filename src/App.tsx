@@ -6,8 +6,9 @@ import {Modeler} from './v1/Modeler'
 import '@/assets/css/app.css'
 import StartUpModal from './v1/StartUpModal'
 import { APIKeyContext, ModelerContext } from './v1/contexts';
-import { NavBar } from './v1';
+import { NavBar } from './v1/navbar';
 import { InspectorPanel, InspectorToggleButton } from './v1/inspector';
+import { Palette } from './v1/palette';
 
 export default function App() {
 
@@ -35,6 +36,7 @@ export default function App() {
           {/* the modeler */}
           <div className="w-screen h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
+              {modeler && <Palette className="hidden md:flex" />}
               <Modeler />
               {modeler && (
                 <>
