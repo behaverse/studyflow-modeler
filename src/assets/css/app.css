@@ -14,6 +14,19 @@ svg text.bi {
   @apply top-18;
 }
 
+.djs-popup {
+  @apply bg-stone-100 border rounded-lg border-stone-200 shadow-lg;
+}
+
+.djs-popup .entry.selected {
+  @apply bg-stone-300;
+}
+
+.djs-popup-search input {
+  @apply border border-stone-300 rounded-lg;
+  @apply focus:border-stone-500 focus:ring-stone-500 focus:bg-stone-300;
+}
+
 .bts-palette, .bts-set-animation-speed {
     display: none;
 }

@@ -1,16 +1,8 @@
 export default class StudyflowContextPad {
 
-  static $inject = ['config', 'contextPad', 'create', 'elementFactory', 'injector'];
+  static $inject = ['contextPad'];
 
-  constructor(config, contextPad, create, elementFactory, injector) {
-    this.create = create;
-    this.elementFactory = elementFactory;
-    this.bpmnFactory = elementFactory._bpmnFactory;
-
-    if (config.autoPlace !== false) {
-      this.autoPlace = injector.get('autoPlace', false);
-    }
-
+  constructor(contextPad) {
     contextPad.registerProvider(this);
   }
 
