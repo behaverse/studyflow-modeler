@@ -342,7 +342,7 @@ classes:
   Questionnaire:
     is_a: Activity
     annotations:
-      icon: iconify-color flat-color-icons--survey
+      icon: iconify-color fluent--clipboard-text-edit-32-regular
     attributes:
       instrument:
         range: string

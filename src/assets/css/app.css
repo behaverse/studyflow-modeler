@@ -3,11 +3,21 @@
 @import "tailwindcss";
 
 @plugin "@iconify/tailwind4" {
- prefixes: bi, ri, material-symbols, flat-color-icons;
+ prefixes: bi, ri, fluent, bpmn, material-symbols, flat-color-icons;
 }
 
 svg text.bi {
     font-family: bootstrap-icons !important;
+}
+
+.palette-button {
+  @apply font-bold text-black bg-white px-3 py-1;
+  @apply cursor-grab shadow-xl rounded-2xl;
+  @apply hover:bg-amber-500;
+  @apply active:bg-amber-600 active:inset-ring-amber-600;
+  @apply inset-ring-2 inset-ring-amber-500;
+  @apply h-12 w-12 items-center justify-center;
+
 }
 
 .djs-palette {

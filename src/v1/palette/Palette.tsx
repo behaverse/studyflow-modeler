@@ -49,21 +49,21 @@ function loadBpmnEntries(): PaletteEntry[] {
       key: 'bpmn:StartEvent',
       label: 'bpmn:StartEvent',
       type: 'bpmn:StartEvent',
-      icon: 'bpmn-icon-start-event-none',
+      icon: 'iconify bpmn--start-event-none',
       title: 'Create Start Event',
     },
     {
       key: 'bpmn:EndEvent',
       label: 'bpmn:EndEvent',
       type: 'bpmn:EndEvent',
-      icon: 'bpmn-icon-end-event-none',
+      icon: 'iconify bpmn--end-event-none',
       title: 'Create End Event',
     },
     {
       key: 'bpmn:Task',
       label: 'bpmn:Task',
       type: 'bpmn:Task',
-      icon: 'bpmn-icon-task-none',
+      icon: 'iconify bpmn--task-none',
       title: 'Create Task',
     },
   ];
@@ -115,7 +115,7 @@ export function Palette({ className = '' }: { className?: string }) {
   const paletteEntries = useMemo(() => entries, [entries]);
 
   return (
-    <div className={`flow-root fixed top-20 left-4 z-2 flex flex-col ${className}`}>
+    <div className={`fixed top-20 left-4 z-2 flex flex-col ${className}`}>
       {!modeler && <div className="text-xs text-gray-500">Modeler not ready…</div>}
       {modeler && paletteEntries.length === 0 && (
         <div className="text-xs text-gray-500">No studyflow elements available.</div>
@@ -128,7 +128,7 @@ export function Palette({ className = '' }: { className?: string }) {
           <button
             type="button"
             title={entry.title}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-stone-300 bg-stone-100 text-stone-800 hover:border-stone-400 hover:bg-stone-300 shadow-sm cursor-grab"
+            className="flex palette-button"
             onMouseDown={(e) => handleMouseDown(entry, e)}
             onMouseMove={(e) => handleMouseMove(entry, e)}
             onMouseUp={handleMouseUp}
