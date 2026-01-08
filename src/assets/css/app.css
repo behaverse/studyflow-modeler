@@ -3,7 +3,7 @@
 @import "tailwindcss";
 
 @plugin "@iconify/tailwind4" {
- prefixes: bi, ri, fluent, bpmn, material-symbols, flat-color-icons;
+ prefixes: bi, ri, fluent, bpmn, material-symbols, flat-color-icons, tabler;
 }
 
 svg text.bi {

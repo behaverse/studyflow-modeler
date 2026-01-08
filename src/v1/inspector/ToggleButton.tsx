@@ -8,15 +8,15 @@ export function ToggleButton({ isInspectorVisible, onClick }: ToggleButtonProps)
 
   const position = isInspectorVisible ? 'right-4' : 'right-4';
   const title = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
-  const icon = isInspectorVisible ? 'iconify bi--arrow-bar-right' : 'iconify bi--layout-sidebar-inset-reverse';
+  const icon = isInspectorVisible ? 'iconify tabler--layout-sidebar-right-collapse-filled' : 'iconify tabler--layout-sidebar-right-expand-filled';
 
   return (
     <button
       onClick={onClick}
-      className={`absolute ${position} top-4 hover:text-violet-600 m-2 text-stone-700 rounded-xl z-50`}
+      className={`absolute ${position} top-4 m-2 hover:text-violet-500 text-stone-400 active:text-violet-700 rounded-xl z-50`}
       title={title}
     >
-      <i className={`${icon} text-[24px]`}></i>
+      <i className={`${icon} text-[32px]`}></i>
     </button>
   );
 }
