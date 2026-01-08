@@ -140,7 +140,7 @@ enums:
         title: Rest
         description: Rest
         annotations:
-          icon: iconify material-symbols--chair-outline
+          icon: iconify solar--armchair-2-linear
       undefined:
         title: Undefined
         description: Undefined
@@ -255,7 +255,7 @@ classes:
     description: Process definition for a Studyflow study.
     is_a: bpmn:Process
     annotations:
-      icon: bi bi-journal-text
+      icon: iconify bi--journal-text
     mixins:
       - Element
     attributes:
@@ -348,7 +348,7 @@ classes:
   Questionnaire:
     is_a: Activity
     annotations:
-      icon: iconify-color fluent--clipboard-text-edit-32-regular
+      icon: iconify fluent--clipboard-text-edit-32-regular
     attributes:
       instrument:
         range: string

@@ -74,7 +74,7 @@ export default class StudyflowRenderer extends BaseRenderer {
   }
 
   drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26) {
-    
+
     if (!iconClass) {
       return;
     }
@@ -86,26 +86,19 @@ export default class StudyflowRenderer extends BaseRenderer {
       y,
       width: size,
       height: size,
+      class: 'icon-container',
+      color: color,
     });
 
-    const container = document.createElement('div');
-    container.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    container.style.display = 'flex';
-    container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
-    container.style.width = `${size}px`;
-    container.style.height = `${size}px`;
-    if (color && !iconClass.includes('iconify-color')) {
-      container.style.color = color;
-    }
-
-    const iconElement = document.createElement('i');
-    iconElement.setAttribute('class', iconClass);
-    iconElement.style.fontSize = `${size}px`;
-    iconElement.style.lineHeight = '1';
-
-    container.appendChild(iconElement);
-    foreignObject.appendChild(container);
+    const iconDiv = document.createElement('div');
+    iconDiv.className = iconClass;
+    iconDiv.style.width = size + 'px';
+    iconDiv.style.height = size + 'px';
+    iconDiv.style.fontSize = size + 'px';
+    iconDiv.style.color = color || 'currentColor';
+    iconDiv.setAttribute('data-icon-class', iconClass);
+    iconDiv.setAttribute('data-icon-color', color || '');
+    foreignObject.appendChild(iconDiv);
     svgAppend(parentNode, foreignObject);
 
     return foreignObject;
@@ -158,7 +151,7 @@ export default class StudyflowRenderer extends BaseRenderer {
     // StartEvent
     if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      iconClass = "iconify material-symbols--shield-lock";
+      iconClass = "iconify tabler--shield-lock";
       this.drawIcon(parentNode, element, iconClass, 3, 3, 30);
       return circle;
     }
@@ -166,8 +159,8 @@ export default class StudyflowRenderer extends BaseRenderer {
     // EndEvent
     if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
       const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      iconClass = "iconify bi--puzzle-fill";
-      this.drawIcon(parentNode, element, iconClass, 8, 8, 22);
+      iconClass = "iconify tabler--external-link";
+      this.drawIcon(parentNode, element, iconClass, 4, 4, 28);
       return circle;
     }
 
