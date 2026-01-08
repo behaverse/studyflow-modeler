@@ -25,14 +25,13 @@ export function NavBar(props) {
 
   return (
     <DiagramNameContext.Provider value={{ diagramName, setDiagramName }}>
-    <div className="flow-root fixed top-4 left-4 z-2">
-      <nav className="bg-stone-100 border border-stone-200 rounded-lg overflow-x-auto">
-        <div className="flex flex-nowrap whitespace-nowrap">
-          <a href="../" className="flex space-x-2 flex-shrink-0">
-            <img src={logo_image} className="h-10 w-10 p-1" alt="Studyflow Modeler" title="Studyflow Modeler" />
-          </a>
-          <div className="px-2 self-center flex items-center gap-1">
-              <span className="text-lg text-stone-500 border border-dashed rounded-sm px-2 border-stone-300">
+    <div className="fixed top-4 left-4 z-2 flex items-center gap-3">
+        <a href="../" className="flex items-center gap-2 flex-shrink-0">
+          <img src={logo_image} className="h-12 w-12" alt="Studyflow Modeler" title="Studyflow Modeler" />
+        </a>
+        <nav className="inline-flex items-center p-2 h-12 bg-stone-100 border-1 border-stone-200 rounded-2xl overflow-x-auto">
+          <div className="flex items-center gap-1">
+              <span className="text-lg text-stone-500 border border-dashed rounded-lg px-2 border-stone-300">
                 {isEditingDiagramName ? (
                   <input
                     type="text"
@@ -50,17 +49,15 @@ export function NavBar(props) {
                     autoFocus
                     maxLength={120}
                     minLength={1}
-                    className="text-black font-semibold bg-transparent border-none focus:ring-1"
+                    className="text-black font-semibold bg-transparent  rounded-lg"
                   />
                 ) : (
                     <span className="font-semibold cursor-pointer"
-                      onClick={() => setIsEditingDiagramName(true)}
->{diagramName}</span>
+                      onClick={() => setIsEditingDiagramName(true)}>{diagramName}</span>
                 )}
               </span>
             {modeler && <MenuBar />}
           </div>
-        </div>
       </nav>
     </div>
     </DiagramNameContext.Provider>

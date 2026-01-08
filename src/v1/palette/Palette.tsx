@@ -47,21 +47,21 @@ function loadBpmnEntries(): PaletteEntry[] {
   return [
     {
       key: 'bpmn:StartEvent',
-      label: 'bpmn:StartEvent',
+      label: 'Start',
       type: 'bpmn:StartEvent',
       icon: 'iconify bpmn--start-event-none',
       title: 'Create Start Event',
     },
     {
       key: 'bpmn:EndEvent',
-      label: 'bpmn:EndEvent',
+      label: 'End',
       type: 'bpmn:EndEvent',
       icon: 'iconify bpmn--end-event-none',
       title: 'Create End Event',
     },
     {
       key: 'bpmn:Task',
-      label: 'bpmn:Task',
+      label: 'Task',
       type: 'bpmn:Task',
       icon: 'iconify bpmn--task-none',
       title: 'Create Task',
@@ -72,6 +72,7 @@ function loadBpmnEntries(): PaletteEntry[] {
 export function Palette({ className = '' }: { className?: string }) {
   const { modeler } = useContext(ModelerContext);
   const [entries, setEntries] = useState<PaletteEntry[]>([]);
+  const [pressedEntryKey, setPressedEntryKey] = useState<string | null>(null);
   const mouseDownRef = useRef(false);
   const startedRef = useRef(false);
 
@@ -80,6 +81,12 @@ export function Palette({ className = '' }: { className?: string }) {
     setEntries([...loadBpmnEntries(), ...loadStudyflowEntries(modeler)]);
   }, [modeler]);
 
+  useEffect(() => {
+    const handleWindowMouseUp = () => setPressedEntryKey(null);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => window.removeEventListener('mouseup', handleWindowMouseUp);
+  }, []);
+
   const handleClick = (entry: PaletteEntry, event: ReactMouseEvent) => {
     if (!modeler) return;
     event.preventDefault();
@@ -87,15 +94,18 @@ export function Palette({ className = '' }: { className?: string }) {
     if (startedRef.current) {
       startedRef.current = false;
       mouseDownRef.current = false;
+      setPressedEntryKey(null);
       return;
     }
     // Click-to-pick: start create; user will click canvas to drop.
     startCreate(modeler, entry.type, event.nativeEvent);
+    setPressedEntryKey(null);
   };
 
   const handleMouseDown = (entry: PaletteEntry, event: ReactMouseEvent) => {
     mouseDownRef.current = true;
     startedRef.current = false;
+    setPressedEntryKey(entry.key);
     event.preventDefault();
   };
 
@@ -110,20 +120,17 @@ export function Palette({ className = '' }: { className?: string }) {
 
   const handleMouseUp = () => {
     mouseDownRef.current = false;
+    setPressedEntryKey(null);
   };
 
   const paletteEntries = useMemo(() => entries, [entries]);
 
   return (
-    <div className={`fixed top-20 left-4 z-2 flex flex-col ${className}`}>
-      {!modeler && <div className="text-xs text-gray-500">Modeler not ready…</div>}
-      {modeler && paletteEntries.length === 0 && (
-        <div className="text-xs text-gray-500">No studyflow elements available.</div>
-      )}
+    <div className={`fixed top-32 left-4 z-2 flex flex-col ${className}`}>
       {paletteEntries.map((entry) => (
         <div
           key={entry.key}
-          className="group mb-2 flex items-center gap-1"
+          className="group mb-2 flex items-center gap-2"
         >
           <button
             type="button"
@@ -135,9 +142,15 @@ export function Palette({ className = '' }: { className?: string }) {
             onMouseLeave={handleMouseUp}
             onClick={(e) => handleClick(entry, e)}
           >
-            <i className={`text-[24px] leading-none ${entry.icon ?? ''}`}></i>
+            <i className={`text-[32px] leading-none ${entry.icon ?? ''}`}></i>
           </button>
-          <span className="hidden text-sm text-stone-500 whitespace-nowrap group-hover:inline-block">{entry.label}</span>
+          <span
+            className={`text-sm text-violet-700 whitespace-nowrap ${
+              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+            }`}
+          >
+            {entry.label}
+          </span>
         </div>
       ))}
     </div>

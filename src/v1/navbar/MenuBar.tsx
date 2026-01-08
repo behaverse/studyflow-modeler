@@ -26,7 +26,7 @@ export default function MenuBar(props) {
     <div className="grid auto-cols-max grid-flow-col">
       <PublishDialog ref={publishDialogRef}  />
       <Menu as="div" title="FileMenu" className="">
-        <MenuButton className="hover:bg-stone-300 rounded px-2">File</MenuButton>
+        <MenuButton className="hover:bg-stone-300 rounded-lg h-8 px-2">File</MenuButton>
         <MenuItems  unmount={false} anchor="bottom start" className="min-w-48 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row z-50">
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={NewDiagramButton} />
           <MenuItem className="px-3 py-1 hover:bg-stone-300" as={OpenButton} />
@@ -52,11 +52,11 @@ export default function MenuBar(props) {
           </MenuItem>
         </MenuItems>
       </Menu> */}
-      <Menu as="div" title="SimulateMeu" className="">
-        <SimulateButton className="" />
+      <Menu as="div" title="SimulateMenu" className="">
+        <SimulateButton className=" rounded-lg h-8 px-2" />
       </Menu>
       <Menu as="div" title="HelpMenu" className="">
-        <MenuButton className="hover:bg-stone-300 rounded px-2">Help</MenuButton>
+        <MenuButton className="hover:bg-stone-300 px-2 rounded-lg h-8">Help</MenuButton>
         <MenuItems anchor="bottom start" className="w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row z-50">
           <MenuItem>
             <a href="./docs" target="_blank" className="px-3 py-1 hover:bg-stone-300">Docs</a>

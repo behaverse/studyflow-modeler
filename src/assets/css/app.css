@@ -13,9 +13,9 @@ svg text.bi {
 .palette-button {
   @apply font-bold text-black bg-white px-3 py-1;
   @apply cursor-grab shadow-xl rounded-2xl;
-  @apply hover:bg-amber-500;
-  @apply active:bg-amber-600 active:inset-ring-amber-600;
-  @apply inset-ring-2 inset-ring-amber-500;
+  @apply hover:bg-amber-300;
+  @apply active:bg-amber-400;
+  @apply border-2 border-dashed border-violet-700;
   @apply h-12 w-12 items-center justify-center;
 
 }
