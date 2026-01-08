@@ -153,6 +153,30 @@ export function Palette({ className = '' }: { className?: string }) {
           </span>
         </div>
       ))}
+      <div
+        key="more"
+        className="group mb-2 flex items-center gap-2"
+      >
+        <button
+          type="button"
+          title="More elements..."
+          className="flex palette-button-more"
+          onMouseDown={(e) => { }}
+          onMouseMove={(e) => { }}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onClick={(e) => { }}
+        >
+          <i className={`text-[32px] iconify bi--three-dots`}></i>
+        </button>
+        <span
+          className={`text-sm text-violet-700 whitespace-nowrap ${
+            pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+          }`}
+        >
+          More elements...
+        </span>
+      </div>
     </div>
   );
 }

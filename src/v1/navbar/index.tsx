@@ -29,7 +29,7 @@ export function NavBar(props) {
         <a href="../" className="flex items-center gap-2 flex-shrink-0" target="_blank" >
           <img src={logo_image} className="h-12 w-12" alt="Studyflow Modeler" title="Studyflow Modeler" />
         </a>
-          <span className="text-md leading-none select-none mr-8 text-violet-700">
+          <span className="text-md leading-none select-none mr-10 text-violet-800">
             <span className="font-light">Studyflow</span><br />
             <span className="font-semibold">Modeler</span>
           </span>

@@ -42,6 +42,14 @@ svg text.bi {
 
 }
 
+.palette-button-more {
+  @apply font-bold text-black bg-transparent p-1;
+  @apply cursor-grab rounded-2xl;
+  @apply hover:bg-stone-200;
+  @apply active:bg-stone-300;
+  @apply h-12 w-12 items-center justify-center;
+}
+
 .djs-palette-shown .bjs-breadcrumbs, .bjs-breadcrumbs {
   @apply top-20 left-20;
   @apply font-bold;
