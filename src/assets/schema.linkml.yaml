@@ -119,9 +119,9 @@ enums:
       poisson:
         title: Poisson
         description: Poisson
-      custom:
-        title: Custom
-        description: Custom
+      undefined:
+        title: Undefined
+        description: Undefined
 
   InstrumentEnum:
     description: The type of instrument used to measure cognitive performance.
@@ -129,15 +129,21 @@ enums:
       behaverse:
         title: Behaverse
         description: Behaverse
+        annotations:
+          icon: iconify bi--hexagon
       videoGame:
         title: Video Game
         description: Video Game
+        annotations:
+          icon: iconify bi--controller
       rest:
         title: Rest
         description: Rest
-      custom:
-        title: Custom
-        description: Custom
+        annotations:
+          icon: iconify material-symbols--chair-outline
+      undefined:
+        title: Undefined
+        description: Undefined
 
   BehaverseTaskEnum:
     permissible_values:
@@ -259,19 +265,19 @@ classes:
     mixins:
       - Element
     annotations:
-      icon: sfi-StartEvent
+      icon: iconify bpmn--start-event
     attributes:
       requiresConsent:
         range: boolean
         ifabsent: "false"
         description: User requires to give consent before participating.
         categories:
-          - Consent
+          - Privacy
       consentFormUrl:
         range: string
         description: Link to the consent form. Leave empty if you want to use the default consent form.
         categories:
-          - Consent
+          - Privacy
         extensions:
           condition_language: json
           condition_body: '{"studyflow:requiresConsent": true}'
@@ -283,7 +289,7 @@ classes:
     mixins:
       - Element
     annotations:
-      icon: sfi-EndEvent
+      icon: iconify bpmn--end-event
     attributes:
       hasRedirectUrl:
         range: boolean
@@ -306,7 +312,7 @@ classes:
     abstract: true
     is_a: bpmn:Task
     annotations:
-      icon: sfi-Activity
+      icon: iconify bpmn--task-none
     mixins:
       - Element
     attributes:
@@ -323,8 +329,8 @@ classes:
     attributes:
       instrument:
         range: InstrumentEnum
-        ifabsent: string(custom)
         description: Instrument used for the test.
+        ifabsent: string(undefined)
         categories:
           - Instrument
       behaverseTask:

@@ -37,7 +37,7 @@ function loadStudyflowEntries(modeler: any): PaletteEntry[] {
         key: elementType,
         label: type.name,
         type: elementType,
-        icon: type.icon || `sfi-${type.name}`,
+        icon: type.icon,
         title: type.description || `Create ${type.name}`,
       };
     });

@@ -1,7 +1,6 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-import '@/assets/icons/studyflow-icons.scss';
 import {Modeler} from './v1/Modeler'
 import '@/assets/css/app.css'
 import StartUpModal from './v1/StartUpModal'

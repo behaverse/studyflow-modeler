@@ -18,6 +18,10 @@ interface LinkMLEnum {
   permissible_values: Record<string, {
     title?: string;
     description?: string;
+    annotations?: {
+      icon?: string;
+      [key: string]: any;
+    };
   }>;
 }
 
@@ -73,6 +77,7 @@ interface ModdleEnumeration {
   name: string;
   isAbstract: boolean;
   description?: string;
+  icon?: string;
   literalValues: Array<{
     name: string;
     value: string;
@@ -153,7 +158,8 @@ class LinkMLToModdleConverter {
     for (const [enumName, enumData] of Object.entries(this.linkmlSchema.enums)) {
       const literalValues = Object.entries(enumData.permissible_values).map(([value, valueData]) => ({
         name: valueData.title || this.formatEnumValueName(value),
-        value: value
+        value: value,
+        icon: valueData.annotations?.icon
       }));
 
       this.moddleSchema.enumerations.push({

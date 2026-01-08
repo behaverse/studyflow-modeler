@@ -5,31 +5,21 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
-import ActivityIcon from "@/assets/icons/svg/Activity.svg";
-import BehaverseTaskIcon from "@/assets/icons/svg/BehaverseTask.svg";
-import CognitiveTestIcon from "@/assets/icons/svg/CognitiveTest.svg";
-import EndRedirectIcon from "@/assets/icons/svg/EndRedirect.svg";
-import InstructionIcon from "@/assets/icons/svg/Instruction.svg";
-import QuestionnaireIcon from "@/assets/icons/svg/Questionnaire.svg";
-import RandomGatewayIcon from "@/assets/icons/svg/_RandomGateway.svg";
-import RestIcon from "@/assets/icons/svg/Rest.svg";
-import StartConsentIcon from "@/assets/icons/svg/StartConsent.svg";
-import VideoGameIcon from "@/assets/icons/svg/VideoGame.svg";
-import EventDataIcon from "@/assets/icons/svg/EventData.svg";
-import TrialDataIcon from "@/assets/icons/svg/TrialData.svg";
-import ModelDataIcon from "@/assets/icons/svg/ModelData.svg";
-import BIDSDataIcon from "@/assets/icons/svg/BIDSData.svg";
-import PsychDSDataIcon from "@/assets/icons/svg/PsychDSData.svg";
-
 export default class StudyflowRenderer extends BaseRenderer {
 
-  static $inject = ["eventBus", "styles", "bpmnRenderer"];
+  static $inject = ["eventBus", "styles", "bpmnRenderer", "bpmnFactory", "moddle"];
 
-  constructor(eventBus, styles, bpmnRenderer) {
+  constructor(eventBus, styles, bpmnRenderer, bpmnFactory, moddle) {
     const HIGH_PRIORITY = 1500;
     super(eventBus, HIGH_PRIORITY);
     this.styles = styles;
     this.bpmnRenderer = bpmnRenderer;
+    this.bpmnFactory = bpmnFactory;
+
+    this.pkgTypeMap = moddle.registry.typeMap;
+    this.pkgEnums = moddle.registry.packageMap["studyflow"]["enumerations"];
+    console.log("Renderer:", this.pkgEnums);
+
   }
 
   canRender(element) {
@@ -83,30 +73,51 @@ export default class StudyflowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, icon, x=4, y=4, w=26, h=26) {
-
-    var image = svgCreate('image', {
-      x: x,
-      y: y,
-      width: w,
-      height: h,
-      href: icon.replace(/currentColor/g,
-                         this.colorToHex(getStrokeColor(element)).replaceAll('#', '%23')),
-      fill: getFillColor(element),
-    });
-
-    svgAppend(parentNode, image);
-
-    return icon;
-  }
-
-  drawBehaverseTaskMarker(parentNode, element, task, x=9, y=21, fontSize=12) {
-
-    if (!task) {
+  drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26) {
+    
+    if (!iconClass) {
       return;
     }
 
-    switch (task.length) {
+    const color = this.colorToHex(getStrokeColor(element));
+
+    const foreignObject = svgCreate('foreignObject', {
+      x,
+      y,
+      width: size,
+      height: size,
+    });
+
+    const container = document.createElement('div');
+    container.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    if (color && !iconClass.includes('iconify-color')) {
+      container.style.color = color;
+    }
+
+    const iconElement = document.createElement('i');
+    iconElement.setAttribute('class', iconClass);
+    iconElement.style.fontSize = `${size}px`;
+    iconElement.style.lineHeight = '1';
+
+    container.appendChild(iconElement);
+    foreignObject.appendChild(container);
+    svgAppend(parentNode, foreignObject);
+
+    return foreignObject;
+  }
+
+  drawIconMarker(parentNode, element, marker, x=9, y=21, fontSize=12) {
+
+    if (!marker) {
+      return;
+    }
+
+    switch (marker.length) {
       case 2:
         x = 9;
         y = 20;
@@ -118,7 +129,7 @@ export default class StudyflowRenderer extends BaseRenderer {
         fontSize = 11;
         break;
       default:
-        task = task.substring(0, 4);
+        marker = marker.substring(0, 4);
         x = 8.5;
         y = 21;
         fontSize = 8;
@@ -135,114 +146,75 @@ export default class StudyflowRenderer extends BaseRenderer {
       strokeWidth: 0
     });
 
-    text.textContent = task;
+    text.textContent = marker;
     
     svgAppend(parentNode, text);
     return text;
   }
 
   drawShape(parentNode, element) {
+    let iconClass = this.pkgTypeMap[element.type].icon || undefined;
 
     // StartEvent
     if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, StartConsentIcon, 5, 5, 24, 24);
-      return circle
+      iconClass = "iconify material-symbols--shield-lock";
+      this.drawIcon(parentNode, element, iconClass, 3, 3, 30);
+      return circle;
     }
 
     // EndEvent
     if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
       const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      this.drawIcon(parentNode, element, EndRedirectIcon, 8, 7, 22, 22);
-      return circle
+      iconClass = "iconify bi--puzzle-fill";
+      this.drawIcon(parentNode, element, iconClass, 8, 8, 22);
+      return circle;
     }
 
     // Dataset
     if (is(element, "bpmn:DataStoreReference")) {
       const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-
-      if (element.businessObject.get("datasetFormat") === "bids") {
-        this.drawIcon(parentNode, element, BIDSDataIcon, 7, 18, 36, 36);
-        return dataset
-      }
-
-      if (element.businessObject.get("datasetFormat") === "psych-ds") {
-        this.drawIcon(parentNode, element, PsychDSDataIcon, 14, 26, 22, 22);
-        return dataset
-      }
-
-      if (element.businessObject.get("datasetFormat") === "bdm") {
-        switch (element.businessObject.get("bdmDataLevel")) {
-          case "events":
-            this.drawIcon(parentNode, element, EventDataIcon, 14, 26, 22, 22);
-            break;
-          case "trials":
-            this.drawIcon(parentNode, element, TrialDataIcon, 14, 26, 22, 22);
-            break;
-          case "models":
-            this.drawIcon(parentNode, element, ModelDataIcon, 15, 27, 20, 20);
-            break;
-        }
-        
-        return dataset
-      }
+      this.drawIcon(parentNode, element, iconClass, 10, 12, 32);
+      return dataset;
     }
 
-
-
-    var icon = {
-      'studyflow:RandomGateway': RandomGatewayIcon,
-      // 'studyflow:VideoGame': ControllerIcon,
-      'studyflow:CognitiveTest': CognitiveTestIcon,
-      'studyflow:Questionnaire': QuestionnaireIcon,
-      'studyflow:Instruction': InstructionIcon,
-    }[element.type] || ActivityIcon;
-
-    var textOnIconMarker = undefined;
-
-    // change instrument icon
-    switch (element.businessObject.get("instrument")) {
-      case "behaverse":
-        icon = BehaverseTaskIcon;
-        textOnIconMarker = element.businessObject.get("behaverseTask")?.toUpperCase();
-        if (textOnIconMarker === "UNDEFINED") {
-          // HACK to handle undefined values.
-          textOnIconMarker = undefined;
-        }
-        break;
-      case "videoGame":
-        icon = VideoGameIcon;
-        break;
-      case "rest":
-        icon = RestIcon;
-        break;
-    }
-
-    // Generic Activity
+    // Activity with custom icons
+    const businessObject = element.businessObject;
     if (is(element, "studyflow:Activity")) {
       const activity = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
-      var iconSize = 26;
-      this.drawBehaverseTaskMarker(parentNode, element, textOnIconMarker);
-      switch (textOnIconMarker?.length) {
-        case undefined:
-          iconSize = 24;
-          break;
-        case 2:
-          iconSize = 24;
-          break;
-        default: // 3, 4, or more
-          iconSize = 28;
-          break;
-      }
-      this.drawIcon(parentNode, element, icon, 4, 4, iconSize, iconSize);
+      let instrument = businessObject?.get("instrument");
+      let iconSize = 26;
+      let iconMarker = undefined;
 
+      const instrumentEnum = this.pkgEnums.find(e => e.name === "InstrumentEnum");
+      iconClass = instrumentEnum.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
+
+      if (instrument === "behaverse") {
+        iconMarker = businessObject.get("behaverseTask")?.toUpperCase();
+        if (iconMarker === "UNDEFINED") {
+          iconMarker = undefined;
+        }
+        // adjust icon size based on marker length
+        switch (iconMarker?.length) {
+          case undefined:
+          case 2:
+            iconSize = 24;
+            break;
+          default:
+            iconSize = 28;
+            break;
+        }
+      }
+
+      this.drawIcon(parentNode, element, iconClass, 4, 4, iconSize);
+      this.drawIconMarker(parentNode, element, iconMarker);
       return activity;
     }
 
     // Gateway
     if (is(element, "bpmn:Gateway")) {
       var gateway = this.drawDiamond(parentNode, element);
-      this.drawIcon(parentNode, element, icon, 9, 9, 52, 52);
+      this.drawIcon(parentNode, element, iconClass, 11, 11, 28);
       return gateway;
     }
   }
