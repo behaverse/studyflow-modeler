@@ -10,14 +10,41 @@ svg text.bi {
     font-family: bootstrap-icons !important;
 }
 
+.bjs-powered-by {
+  @apply fixed top-19 left-4;
+  bottom: unset !important;
+  right: unset !important;
+  color: var(--color-stone-300) !important;
+  @apply w-12;
+}
+
+.bjs-powered-by:hover {
+  color: var(--color-stone-400) !important;
+}
+
+.bjs-powered-by::before {
+  content: 'Powered by';
+  @apply text-[8px];
+  display: block;
+}
+
+.bjs-powered-by svg {
+  @apply w-12 h-auto;
+}
+
 .palette-button {
-  @apply font-bold text-black bg-white px-3 py-1;
+  @apply font-bold text-black bg-white p-1;
   @apply cursor-grab shadow-xl rounded-2xl;
   @apply hover:bg-amber-300;
   @apply active:bg-amber-400;
   @apply border-2 border-dashed border-violet-700;
   @apply h-12 w-12 items-center justify-center;
 
+}
+
+.djs-palette-shown .bjs-breadcrumbs, .bjs-breadcrumbs {
+  @apply top-20 left-20;
+  @apply font-bold;
 }
 
 .djs-palette {

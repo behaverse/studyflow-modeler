@@ -142,7 +142,7 @@ export function Palette({ className = '' }: { className?: string }) {
             onMouseLeave={handleMouseUp}
             onClick={(e) => handleClick(entry, e)}
           >
-            <i className={`text-[32px] leading-none ${entry.icon ?? ''}`}></i>
+            <i className={`text-[24px] ${entry.icon}`}></i>
           </button>
           <span
             className={`text-sm text-violet-700 whitespace-nowrap ${
