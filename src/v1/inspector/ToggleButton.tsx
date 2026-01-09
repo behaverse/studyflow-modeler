@@ -13,7 +13,7 @@ export function ToggleButton({ isInspectorVisible, onClick }: ToggleButtonProps)
   return (
     <button
       onClick={onClick}
-      className={`absolute ${position} top-4 m-2 hover:text-violet-500 text-stone-400 active:text-violet-700 rounded-xl z-50`}
+      className={`absolute ${position} top-4 m-2 hover:text-stone-500 text-stone-400 active:text-stone-700 rounded-xl z-50`}
       title={title}
     >
       <i className={`${icon} text-[32px]`}></i>

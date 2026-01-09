@@ -18,6 +18,10 @@ svg text.bi {
   @apply w-12;
 }
 
+.navbar {
+  @apply inline-flex items-center p-2 h-12 bg-stone-100 border-2 border-stone-200 rounded-2xl overflow-x-auto
+}
+
 .bjs-powered-by:hover {
   color: var(--color-stone-500) !important;
 }
@@ -33,11 +37,11 @@ svg text.bi {
 }
 
 .palette-button {
-  @apply font-bold text-black bg-white p-1;
+  @apply font-bold text-black bg-stone-50 p-1;
   @apply cursor-grab shadow-xl rounded-2xl;
-  @apply hover:bg-amber-300;
-  @apply active:bg-amber-400;
-  @apply border-2 border-dashed border-violet-700;
+  @apply hover:bg-amber-200;
+  @apply active:bg-amber-300;
+  @apply border-2 border-dashed border-violet-500;
   @apply h-12 w-12 items-center justify-center;
 
 }
@@ -48,6 +52,11 @@ svg text.bi {
   @apply hover:bg-stone-200;
   @apply active:bg-stone-300;
   @apply h-12 w-12 items-center justify-center;
+}
+
+.djs-context-pad .entry {
+  @apply bg-amber-50;
+  @apply hover:bg-amber-200;
 }
 
 .djs-palette-shown .bjs-breadcrumbs, .bjs-breadcrumbs {

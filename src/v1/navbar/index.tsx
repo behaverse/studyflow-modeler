@@ -33,7 +33,7 @@ export function NavBar(props) {
             <span className="font-light">Studyflow</span><br />
             <span className="font-semibold">Modeler</span>
           </span>
-        <nav className="inline-flex items-center p-2 h-12 bg-stone-100 border-2 border-stone-200 rounded-2xl overflow-x-auto">
+        <nav className="navbar">
           <div className="flex items-center gap-1">
               <span className="text-lg text-stone-500 border border-dashed rounded-lg px-2 border-stone-300">
                 {isEditingDiagramName ? (
