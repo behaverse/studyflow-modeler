@@ -14,12 +14,12 @@ svg text.bi {
   @apply fixed top-19 left-4;
   bottom: unset !important;
   right: unset !important;
-  color: var(--color-stone-300) !important;
+  color: var(--color-stone-400) !important;
   @apply w-12;
 }
 
 .bjs-powered-by:hover {
-  color: var(--color-stone-400) !important;
+  color: var(--color-stone-500) !important;
 }
 
 .bjs-powered-by::before {

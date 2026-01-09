@@ -22,7 +22,7 @@ import { StudyflowModelerModule } from '.';
 
 export function Modeler() {
 
-    const [canvas, setCanvas] = useState(undefined);
+    const [canvas, setCanvas] = useState<HTMLDivElement | null>(null);
     const { setModeler } = useContext(ModelerContext);
     const [isLoading, setLoading] = useState(true);
 
@@ -95,6 +95,6 @@ export function Modeler() {
   }
   
     return (
-        <div className="grow border-gray-100 border-r-2" ref={setCanvas}></div>
+        <div className="grow bg-amber-50" ref={setCanvas}></div>
     );
 }
