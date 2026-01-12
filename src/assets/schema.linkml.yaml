@@ -123,6 +123,33 @@ enums:
         title: Undefined
         description: Undefined
 
+  DataOperatorEnum:
+    description: |
+      Studyflow data operator marker for tasks. Operators describe how data is manipulated
+      as it flows through the process (pure transformations).
+    permissible_values:
+      transform:
+        title: Transform
+        description: Generic pure data transformation.
+      map:
+        title: Map
+        description: Element-wise transformation.
+      filter:
+        title: Filter
+        description: Subset selection based on criteria.
+      reduce:
+        title: Reduce
+        description: Aggregation (N -> 1) per group or overall.
+      group:
+        title: Group
+        description: Grouping operation changing structure into grouped format.
+      compose:
+        title: Compose
+        description: Compose multiple operators into a pipeline.
+      flatMap:
+        title: FlatMap
+        description: Map followed by flattening (1 -> N).
+
   InstrumentEnum:
     description: The type of instrument used to measure cognitive performance.
     permissible_values:
@@ -258,7 +285,7 @@ classes:
       icon: iconify bi--journal-text
     mixins:
       - Element
-    attributes:
+    attributes: {}
 
   StartEvent:
     class_uri: bpmn:StartEvent
@@ -308,22 +335,38 @@ classes:
           - Conditional on hasRedirectUrl being true
 
   Activity:
-    description: Base class for all activities in the Studyflow.
+    class_uri: bpmn:Activity
+    description: Base class for all the activities in the Studyflow.
     abstract: true
-    is_a: bpmn:Task
-    annotations:
-      icon: iconify bpmn--task-none
     mixins:
       - Element
+    annotations:
+      icon: iconify bpmn--task-none
     attributes:
       url:
         range: string
         description: Link to the activity.
         categories:
           - General
+      operator:
+        range: DataOperatorEnum
+        description: Optional data-operator marker for a pure data transformation task.
+        categories:
+          - Data
+      operatorSteps:
+        range: string
+        multivalued: true
+        description: Operator pipeline steps when operator is `compose`.
+        categories:
+          - Data
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:operator": "compose"}'
+        comments:
+          - Conditional on operator being "compose"
 
   CognitiveTest:
-    is_a: Activity
+    is_a: bpmn:Task
     annotations:
       icon: iconify bi--puzzle
     attributes:
@@ -346,7 +389,7 @@ classes:
           - Conditional on instrument being "behaverse"
 
   Questionnaire:
-    is_a: Activity
+    is_a: bpmn:Task
     annotations:
       icon: iconify fluent--clipboard-text-edit-32-regular
     attributes:
@@ -358,7 +401,7 @@ classes:
           - Instrument
 
   Instruction:
-    is_a: Activity
+    is_a: bpmn:Task
     description: A passive information display.
     annotations:
       icon: iconify material-symbols--info-outline-rounded
@@ -403,7 +446,24 @@ classes:
     mixins:
       - Element
     attributes:
-      datasetFormat:
+      catalog:
+        range: DataCatalog
+        description: Identifier of the `DataCatalog` that registers this dataset.
+        categories:
+          - Data
+      store:
+        range: bpmn:DataStore
+        description: Identifier of the `DataStore` where this dataset is physically stored.
+        categories:
+          - Data
+      schema:
+        range: Schema
+        description: |
+          URL/path/identifier to a schema describing the dataset structure (e.g., CSVW).
+          This can also refer to an optional ontology/vocabulary reference (URL/CURIE) for semantic alignment.
+        categories:
+          - Data
+      format:
         range: DatasetFormatEnum
         ifabsent: string(other)
         description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
@@ -422,8 +482,8 @@ classes:
           - Conditional on datasetFormat being "bdm"
       bidsDataType:
         range: BIDSDataTypeEnum
-        ifabsent: string(trials)
-        description: BIDS data type.
+        ifabsent: string(beh)
+        description: BIDS data type (e.g., anat, func, eeg, beh).
         categories:
           - Data
         extensions:
@@ -431,14 +491,126 @@ classes:
           condition_body: '{"studyflow:datasetFormat": "bids"}'
         comments:
           - Conditional on datasetFormat being "bids"
-  
-  # DataCatalog:
-  # Tensor:
-  # Table:
-  # Snapshot:
-  # DataOperation:
-  #   is_a: bpmn:Task
-  #   mixins:
-  #     - Element
-  #   attributes:
-  #     operator:
+
+  DataStore:
+    description: |
+      Persistent physical storage of data (database, filesystem, object store, etc.).
+      BPMN `DataStore` can be referenced using `DataStoreReference`.
+    abstract: true
+    class_uri: bpmn:DataStore
+    mixins:
+      - Element
+    attributes:
+      kind:
+        range: string
+        description: Storage kind/driver identifier (e.g., duckdb+parquet).
+        categories:
+          - Data
+      url:
+        range: string
+        description: Connection string or URL (e.g., s3://bucket/path).
+        categories:
+          - Data
+
+  DataCatalog:
+    description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
+    abstract: true
+    mixins:
+      - Element
+    attributes:
+      url:
+        range: string
+        description: Base URL of the catalog.
+        categories:
+          - Data
+
+  DataObject:
+    description: |
+      Represents data produced/consumed within a process instance. Can be used to model
+      internal data nodes in sub-processes and annotate state (e.g., raw/processed).
+    abstract: true
+    class_uri: bpmn:DataObject
+    mixins:
+      - Element
+    attributes:
+      state:
+        range: string
+        description: Optional state annotation (e.g., raw, processed, validated).
+        categories:
+          - Data
+
+  Schema:
+    description: |
+      A formal description of the structure of a named collection of types.
+      Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
+    abstract: true
+    mixins:
+      - Element
+    attributes:
+      url:
+        range: string
+        description: URL/path/identifier to the schema definition (e.g., CSVW JSON).
+        categories:
+          - Data
+      format:
+        range: string
+        description: Schema format identifier (e.g., csvw, linkml, jsonschema).
+        categories:
+          - Data
+
+  Table:
+    description: |
+      Named tabular structure within a dataset. Extends BPMN data objects and expects a schema.
+    class_uri: bpmn:DataObjectReference
+    abstract: true
+    mixins:
+      - Element
+    attributes:
+      dataset:
+        range: string
+        description: Identifier of the parent `Dataset`.
+        categories:
+          - Data
+      schema:
+        range: string
+        description: URL/path/identifier of the table schema (typically CSVW).
+        categories:
+          - Data
+
+  Array:
+    description: |
+      Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
+    abstract: true
+    class_uri: bpmn:DataObjectReference
+    mixins:
+      - Element
+    attributes:
+      dataset:
+        range: string
+        description: Identifier of the parent `Dataset`.
+        categories:
+          - Data
+      schema:
+        range: string
+        description: URL/path/identifier of the array schema (dimensions/types/units).
+        categories:
+          - Data
+
+  Snapshot:
+    description: |
+      Immutable version of a dataset/table/array associated with a point in the workflow
+      or a version control commit.
+    abstract: true
+    mixins:
+      - Element
+    attributes:
+      source:
+        range: string
+        description: Identifier of the dataset/table/array being snapshotted.
+        categories:
+          - Data
+      version:
+        range: string
+        description: Version identifier (e.g., tag, checksum, commit hash).
+        categories:
+          - Data

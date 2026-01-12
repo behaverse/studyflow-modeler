@@ -304,7 +304,7 @@ class LinkMLToModdleConverter {
       const superClasses = this.getSuperClasses(classData, className);
       if (superClasses.length > 0) {
         // Special handling: StartEvent, EndEvent use extends for BPMN types
-        const usesExtends = ['StartEvent', 'EndEvent'].includes(className);
+        const usesExtends = ['StartEvent', 'EndEvent', 'Activity'].includes(className);
 
         if (usesExtends) {
           const bpmnTypes = superClasses.filter(sc => sc.startsWith('bpmn:'));
