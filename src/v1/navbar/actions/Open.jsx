@@ -1,15 +1,13 @@
 import { useEffect, useContext, useRef } from "react";
 import { DiagramNameContext, ModelerContext } from '../../contexts';
 import PropTypes from 'prop-types';
-import { on } from "events";
 
 
-export function OpenButton({ className, onClick, ...props }) {
+export function OpenButton({ className, onClick }) {
 
     const { modeler } = useContext(ModelerContext);
     const { diagramName, setDiagramName } = useContext(DiagramNameContext);
     const fileInputRef = useRef(null);
-
     useEffect(() => {
     }, [modeler]);
 
@@ -34,7 +32,7 @@ export function OpenButton({ className, onClick, ...props }) {
             return;
         }
 
-        const hasValidExtension = ['xml', 'bpmn', 'studyflow'].some(ext => file.name.endsWith(ext));
+        const hasValidExtension = ['.xml', '.bpmn', '.studyflow'].some(ext => file.name.toLowerCase().endsWith(ext));
         if (!hasValidExtension) {
             alert("Please select a valid XML/BPMN/Studyflow file.");
             return;
@@ -43,12 +41,16 @@ export function OpenButton({ className, onClick, ...props }) {
         let fileData = new FileReader();
         fileData.onloadend = (e) => handleUpload(e, file.name);
         fileData.readAsText(file);
-        // You can process the file here (e.g., read content, upload, etc.)
+        event.target.value = '';
+        if (onClick) onClick();
     };
 
-    const onButtonClick = () => {
-        if (onClick) onClick();
-        fileInputRef.current.click();
+    const onButtonClick = (e) => {
+        // Prevent parent menu handlers from closing/unmounting this component
+        // before the file-picker returns a selection.
+        e.preventDefault();
+        e.stopPropagation();
+        fileInputRef.current?.click();
     }
 
     return (
