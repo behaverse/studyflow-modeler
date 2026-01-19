@@ -365,8 +365,8 @@ classes:
         comments:
           - Conditional on operator being "compose"
 
-  CognitiveTest:
-    is_a: bpmn:Task
+  CognitiveTask:
+    is_a: Activity
     annotations:
       icon: iconify bi--puzzle
     attributes:
@@ -415,7 +415,7 @@ classes:
   RandomGateway:
     is_a: bpmn:ExclusiveGateway
     annotations:
-      icon: iconify ri--dice-line
+      icon: iconify streamline-flex--dice-5-remix
     mixins:
       - Element
     attributes:

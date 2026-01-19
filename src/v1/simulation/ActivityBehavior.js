@@ -16,7 +16,7 @@ export default function StudyflowActivityBehavior(
     
   const elements = [
     'studyflow:Activity',
-    'studyflow:CognitiveTest',
+    'studyflow:CognitiveTask',
     'studyflow:Questionnaire',
     'studyflow:Instruction'
   ];

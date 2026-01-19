@@ -47,7 +47,7 @@ EndEvent          ::= 'EndEvent' Identifier Attribute*
 
 Activity              ::= 'Activity' Identifier ActivityAttributeList Choreography?
 ActivityAttributeList ::= ActivityType ActivityAttribute*
-ActivityType          ::= '@type' ('CognitiveTest' | 'Questionnaire' | 'Instruction' |
+ActivityType          ::= '@type' ('CognitiveTask' | 'Questionnaire' | 'Instruction' |
                                    'Rest' | 'VideoGame' | 'Script' | 'Manual')
 ActivityAttribute     ::= Attribute | DataInput | DataOutput | DataOperation
 
