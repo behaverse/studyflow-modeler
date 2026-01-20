@@ -12,14 +12,19 @@ export function createAndPlace(
 
   const root = canvas.getRootElement();
 
-  const prefix = type.includes(':') ? type.split(':')[1] : type;
+  const ids = bpmnFactory?._model?.ids;
+  const idPrefix = `${type.replace(/[^A-Za-z0-9_]/g, '_')}_`;
+  const generatedId = (attrs as { id?: string }).id
+    ?? (ids?.nextPrefixed ? ids.nextPrefixed(idPrefix, { $type: type } as any) : undefined);
+
   const businessObject = bpmnFactory.create(type, {
     ...attrs,
+    ...(generatedId ? { id: generatedId } : {}),
   });
 
-  // Use moddle id generator
+  // Safety net: ensure we always have an id
   businessObject.id = businessObject.id
-    || bpmnFactory._model.ids.nextPrefixed(`${prefix}_`, businessObject);
+    || (ids?.nextPrefixed ? ids.nextPrefixed(idPrefix, businessObject) : undefined);
 
   const shape = elementFactory.createShape({
     type,
@@ -43,12 +48,14 @@ export function startCreate(
   const create = modeler.get('create');
 
   const prefix = type.includes(':') ? type.split(':')[1] : type;
+  const generatedId = bpmnFactory._model.ids.nextPrefixed(`${prefix}_`);
   const businessObject = bpmnFactory.create(type, {
     ...attrs,
+    ...{ id: generatedId },
   });
 
-  businessObject.id = businessObject.id
-    || bpmnFactory._model.ids.nextPrefixed(`${prefix}_`, businessObject);
+  // Safety net: ensure we always have an id
+  businessObject.id = businessObject.id || generatedId;
 
   const shape = elementFactory.createShape({
     type,

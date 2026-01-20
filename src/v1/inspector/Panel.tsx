@@ -130,7 +130,7 @@ export function Panel({ className = '', ...props }) {
                                             'focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400',
                                             selected
                                                 ? 'bg-white text-stone-900 border-stone-300 shadow-sm'
-                                                : 'bg-transparent text-stone-700 border-transparent hover:bg-stone-100/80 hover:text-stone-900'
+                                                : 'bg-stone-100/70 text-stone-700 border-stone-300/60 hover:bg-white hover:text-stone-900 hover:border-stone-300 hover:shadow-xs hover:cursor-pointer',
                                         ].join(' ')
                                     }
                                 >
