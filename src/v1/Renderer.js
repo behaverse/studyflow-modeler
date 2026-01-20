@@ -207,7 +207,7 @@ export default class StudyflowRenderer extends BaseRenderer {
     // Gateway
     if (is(element, "bpmn:Gateway")) {
       var gateway = this.drawDiamond(parentNode, element);
-      this.drawIcon(parentNode, element, iconClass, 11, 11, 28);
+      this.drawIcon(parentNode, element, iconClass, 13, 13, 24);
       return gateway;
     }
   }

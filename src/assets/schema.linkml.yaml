@@ -366,7 +366,7 @@ classes:
           - Conditional on operator being "compose"
 
   CognitiveTask:
-    is_a: Activity
+    is_a: bpmn:Task
     annotations:
       icon: iconify bi--puzzle
     attributes:

@@ -3,8 +3,7 @@ import { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
-import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
-import { Tab, TabList, TabPanel, TabPanels, TabGroup } from '@headlessui/react';
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField } from './field';
 import { t } from '../../i18n';
 import { planeSuffix } from 'bpmn-js/lib/util/DrilldownUtil';
@@ -28,8 +27,8 @@ export function Panel({ className = '', ...props }) {
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
     const canvas = modeler.get('canvas')
-    const [element, setElement] = useState(null);
-    const [rootElement, setRootElement] = useState(null);
+    const [element, setElement] = useState<any>(null);
+    const [rootElement, setRootElement] = useState<any>(null);
     const [isVisible, setIsVisible] = useState(true);
     const elementRef = useRef<any>(null);
     const rootRef = useRef<any>(null);
@@ -109,31 +108,50 @@ export function Panel({ className = '', ...props }) {
     }, [modeler, eventBus, canvas, setElementAndRef, setRootAndElement]);
 
     function renderCategories(el: any) {
+        const categories = Object.entries(getProperties(el));
+        const defaultIndex = Math.max(
+            0,
+            categories.findIndex(([catName]) => catName === 'General')
+        );
 
-        // default style
         return (
             <>
                 <h1 className="pb-0 text-lg font-bold p-2 bg-stone-100 rounded-2xl text-stone-900">{el.type.split(':')[1]}</h1>
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 bg-stone-100 text-stone-500">{el.type}</h2>
-            <div className="w-full">
-            {Object.entries(getProperties(el)).map(([catName, catProperties]) =>
-                <Disclosure
-                    defaultOpen={catName === "General"}
-                    key={catName}>
-                    <DisclosureButton
-                        className="group p-2 text-left w-full text-md font-semibold text-stone-800">
-                        {t(catName)}
-                        <i className="bi bi-caret-right-fill group-data-[open]:rotate-90 pe-1 group-data-[open]:pt-1 float-start"></i>
-                    </DisclosureButton>
-                    <DisclosurePanel transition
-                        className="p-1 origin-top transition duration-100 ease-out data-[closed]:-translate-y-6 data-[closed]:opacity-0">
-                        {catProperties.map((p: any) => (
-                            // this key renders the conditional property if needed 
-                            <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
-                        ))}
-                    </DisclosurePanel>
-                </Disclosure>
-            )}
+                <div className="w-full">
+                    <TabGroup defaultIndex={defaultIndex}>
+                        <TabList className="flex flex-wrap gap-1 px-1 pb-2 bg-stone-100 rounded-xl p-1">
+                            {categories.map(([catName]) => (
+                                <Tab
+                                    key={catName}
+                                    className={({ selected }) =>
+                                        [
+                                            'px-2 py-1 text-xs font-semibold rounded-lg border transition',
+                                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400',
+                                            selected
+                                                ? 'bg-white text-stone-900 border-stone-300 shadow-sm'
+                                                : 'bg-transparent text-stone-700 border-transparent hover:bg-stone-100/80 hover:text-stone-900'
+                                        ].join(' ')
+                                    }
+                                >
+                                    {t(catName)}
+                                </Tab>
+                            ))}
+                        </TabList>
+                        <TabPanels className="p-1">
+                            {categories.map(([catName, catProperties]) => (
+                                <TabPanel
+                                    key={catName}
+                                    className="p-1 rounded-xl bg-stone-50"
+                                >
+                                    {catProperties.map((p: any) => (
+                                        <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
+                                    ))}
+                                </TabPanel>
+                            ))}
+                        </TabPanels>
+                    </TabGroup>
+                
                 {/* <Disclosure
                     defaultOpen={false}
                     key={"Data"}>
@@ -149,7 +167,7 @@ export function Panel({ className = '', ...props }) {
                     </div>
                     </DisclosurePanel>
                 </Disclosure> */}
-            </div>
+                </div>
             </>
         );
     }
