@@ -4,15 +4,10 @@ import { ModelerContext, InspectorContext } from '../contexts';
 
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { PropertyField } from './field';
+import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
-import { planeSuffix } from 'bpmn-js/lib/util/DrilldownUtil';
 import { ToggleButton } from './ToggleButton';
 
-
-function _removePlaneSuffix(id: string): string {
-  return id.replace(new RegExp(planeSuffix + '$'), '');
-}
 
 const editableBPMNProps = {
     // 'bpmn:type': "Type of the element",
@@ -30,8 +25,10 @@ export function Panel({ className = '', ...props }) {
     const [element, setElement] = useState<any>(null);
     const [rootElement, setRootElement] = useState<any>(null);
     const [isVisible, setIsVisible] = useState(true);
+    const [, rerenderCategoryBar] = useState(0);
     const elementRef = useRef<any>(null);
     const rootRef = useRef<any>(null);
+    const categoryBarRef = useRef<string>('');
 
     const setElementAndRef = useCallback((el: any) => {
         setElement(el);
@@ -46,20 +43,23 @@ export function Panel({ className = '', ...props }) {
 
 
     const getProperties = useCallback((element: any) => {
-        // TODO automatically populate group names
         let propCategories: Record<string, any[]> = {};
-        getBusinessObject(element).$descriptor.properties.forEach((prop: any) => {
+        const businessObject = getBusinessObject(element);
+        businessObject.$descriptor.properties.forEach((prop: any) => {
             if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.hasOwnProperty(prop.ns.name)) {
+                return;
+            }
+            if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }
             let categories: string[] = prop.categories || ["General"];
             if (prop.ns.name === "bpmn:documentation") {
                 categories = ["Documentation"];
             }
+
             categories.forEach((cat: string) => {
                 if (!propCategories[cat]) {
-                    // initialize empty array
-                    propCategories[cat] = [];
+                    propCategories[cat] = [];  // initialize
                 }
                 propCategories[cat].push(prop);
             });
@@ -70,15 +70,35 @@ export function Panel({ className = '', ...props }) {
         return Object.fromEntries(filtered) as Record<string, any[]>;
     }, []);
 
+    const syncCategoriesBar = useCallback((element: any, shouldRender: boolean) => {
+        if (!element) {
+            categoryBarRef.current = '';
+            return;
+        }
+        const categories = getProperties(element);
+        const nextSignature = Object.entries(categories)
+            .map(([catName, props]) => `${catName}:${props.map((p: any) => p.ns.name).join(',')}`)
+            .join('|');
+        if (nextSignature === categoryBarRef.current) {
+            return;
+        }
+        categoryBarRef.current = nextSignature;
+        if (shouldRender) {
+            rerenderCategoryBar((v) => v + 1);
+        }
+    }, [getProperties]);
+
     useEffect(() => {
         const initialRoot = canvas.getRootElement();
         setRootAndElement(initialRoot);
+        syncCategoriesBar(initialRoot, false);
 
         function onRootChanged(e: any) {
             // The root element is now properly updated when its ID changes
             // because the plane ID is also updated in StringInput.jsx
             var newRootElement = canvas.getRootElement();
             setRootAndElement(newRootElement);
+            syncCategoriesBar(newRootElement, false);
         }
 
         function onSelectionChanged(e: any) {
@@ -86,12 +106,14 @@ export function Panel({ className = '', ...props }) {
             const root = rootRef.current || canvas.getRootElement();
             var newElement = selections.length === 1 ? selections[0] : root;
             setElementAndRef(newElement);
+            syncCategoriesBar(newElement, false);
         }
 
         function onElementChanged(e: any) {
             // Refresh the element when properties change (including ID changes)
             if (elementRef.current && e.element && e.element.id === elementRef.current.id) {
                 setElementAndRef(e.element);
+                syncCategoriesBar(e.element, true);
             }
         }
 
@@ -105,7 +127,7 @@ export function Panel({ className = '', ...props }) {
             eventBus.off('element.changed', onElementChanged);
         };
 
-    }, [modeler, eventBus, canvas, setElementAndRef, setRootAndElement]);
+    }, [modeler, eventBus, canvas, setElementAndRef, setRootAndElement, syncCategoriesBar]);
 
     function renderCategories(el: any) {
         const categories = Object.entries(getProperties(el));
@@ -120,7 +142,7 @@ export function Panel({ className = '', ...props }) {
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 bg-stone-100 text-stone-500">{el.type}</h2>
                 <div className="w-full">
                     <TabGroup defaultIndex={defaultIndex}>
-                        <TabList className="flex flex-wrap gap-1 px-1 pb-2 bg-stone-100 rounded-xl p-1">
+                        <TabList className="flex flex-wrap gap-1 px-1 pb-2 bg-stone-100 rounded-xl px-2" id="categories-bar">
                             {categories.map(([catName]) => (
                                 <Tab
                                     key={catName}
@@ -142,7 +164,7 @@ export function Panel({ className = '', ...props }) {
                             {categories.map(([catName, catProperties]) => (
                                 <TabPanel
                                     key={catName}
-                                    className="p-1 rounded-xl bg-stone-50"
+                                    className="rounded-xl bg-stone-50"
                                 >
                                     {catProperties.map((p: any) => (
                                         <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />

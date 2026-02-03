@@ -8,6 +8,23 @@ import { useEffect, useState, useContext, useCallback } from 'react';
 
 import { InspectorContext, ModelerContext } from '../contexts';
 
+export function isPropertyVisible(bProp, bObj) {
+    if (!bProp || !bObj) {
+        return true;
+    }
+    if (!("condition" in bProp)) {
+        return true;
+    }
+    const conditions = bProp["condition"]?.body || {};
+    const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
+        // TODO make sure the language of conditions is set to "json"
+        const cVal = bObj.get(cKey);
+        return cVal === cExpectedVal;
+    });
+    // visible if all conditions are met
+    return results.every((r) => r);
+}
+
 export function PropertyField(props) {
     const { bpmnProperty } = props;
     const { element, businessObject } = useContext(InspectorContext);
@@ -19,16 +36,7 @@ export function PropertyField(props) {
     const [isVisible, setVisible] = useState(true);
 
     const checkConditionalVisibility = useCallback((bProp, bObj) => {
-        if ("condition" in bProp) {
-            const conditions = bProp["condition"]?.body || {};
-            const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
-                // TODO make sure the language of conditions is set to "json"
-                const cVal = bObj.get(cKey);
-                return cVal === cExpectedVal;
-            });
-            // visible if all conditions are met
-            setVisible(results.every((r) => r));
-        }
+        setVisible(isPropertyVisible(bProp, bObj));
     }, []);
 
     // conditional visibility
@@ -50,7 +58,8 @@ export function PropertyField(props) {
     }, [eventBus, bpmnProperty, element, checkConditionalVisibility]);
 
     function renderInput() {
-        //TODO use enumerations in the moddle file to determine if it's enum
+        //TODO use enumerations in the schema file to determine if it's enum
+        //     currently we use a naming convention
         var genericPropertyType = propertyType;
         if (propertyType?.includes('Enum')) {
             genericPropertyType = 'Enum';

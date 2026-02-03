@@ -381,7 +381,7 @@ classes:
         ifabsent: string(undefined)
         description: Behaverse instrument used for the test.
         categories:
-          - Instrument
+          - Behaverse
         extensions:
           condition_language: json
           condition_body: '{"studyflow:instrument": "behaverse"}'
