@@ -68,7 +68,7 @@ svg text.bi {
   @apply hidden;
 }
 .djs-popup {
-  @apply bg-stone-100 border rounded-lg border-stone-200 shadow-lg;
+  @apply bg-stone-100 border-2 rounded-2xl border-stone-200 shadow-lg;
 }
 
 .djs-popup .entry.selected {

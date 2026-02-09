@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ModelerContext } from '../contexts';
 import { startCreate } from './createShape';
+import { t } from '../../i18n';
 
 type PaletteEntry = {
   key: string;
@@ -123,6 +124,32 @@ export function Palette({ className = '' }: { className?: string }) {
     setPressedEntryKey(null);
   };
 
+  const handleMoreElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!modeler) return;
+    event.preventDefault();
+
+    const popupMenu = modeler.get('popupMenu');
+    const canvas = modeler.get('canvas');
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const position = {
+      x: rect.left + rect.width / 2 + 35,
+      y: rect.top + rect.height / 2 + 10,
+      cursor: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+    };
+
+    const rootElement = canvas.getRootElement();
+
+    popupMenu.open(rootElement, 'bpmn-create', position, {
+      title: t('Create element'),
+      width: 300,
+      search: false,
+    });
+  };
+
   const paletteEntries = useMemo(() => entries, [entries]);
 
   return (
@@ -165,7 +192,7 @@ export function Palette({ className = '' }: { className?: string }) {
           onMouseMove={(e) => { }}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          onClick={(e) => { }}
+          onClick={handleMoreElementsClick}
         >
           <i className={`text-[32px] iconify bi--three-dots`}></i>
         </button>

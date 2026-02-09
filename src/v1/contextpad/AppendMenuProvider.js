@@ -24,19 +24,18 @@ export default class AppendMenuProvider {
             && !(v?.superClass.length === 1 && v.superClass.includes("String"))
             && !v.extends?.includes("bpmn:StartEvent")
             && !v.extends?.includes("bpmn:EndEvent")
-            && !k.includes("studyflow:Dataset")
+            && !k.includes(":Study")
         );
-        
         var elements = [];
         entries.forEach(([k, v]) => {
-            elements.push({
-                label: v.name.split(":")[1],
-                actionName: k.split(":")[1],
-                className: "iconify bpmn--" + (k.includes("Gateway") ? "Diamond" : "") + k.split(":")[1],
-                target: {
-                    type: v.name
-                }
-            });
+          elements.push({
+            label: v.name.split(":")[1],
+            actionName: k.split(":")[1],
+            imageHtml: v.icon ? `<span class="${v.icon}" style="font-size: 18px;"></span>` : '',
+            target: {
+              type: v.name
+            }
+          });
         });
         this._elements = elements;
 
@@ -60,7 +59,7 @@ export default class AppendMenuProvider {
         this._elements.forEach(option => {
             const {
                 actionName,
-                className,
+                imageHtml,
                 label,
                 target,
                 description,
@@ -70,7 +69,7 @@ export default class AppendMenuProvider {
 
             entries[`append-${actionName}`] = {
                 label: label,
-                className,
+                imageHtml: imageHtml,
                 description,
                 group: {
                     id: 'studyflow',
