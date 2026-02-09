@@ -15,7 +15,6 @@ export function StringInput(props) {
 
     const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
     const elementRegistry = useContext(ModelerContext).modeler.get('elementRegistry');
-    const canvas = useContext(ModelerContext).modeler.get('canvas');
 
     function handleChange(event) {
         const newValue = event.target.value;

@@ -9,12 +9,12 @@ import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
 
 
-const editableBPMNProps = {
+// List of BPMN properties that are editable in the inspector, otherwise they are hidden
+const editableBPMNProps = [
     // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
-    'bpmn:id': "Unique identifier of the element",
-    'bpmn:documentation': "Short description or link to a description",
-};
+    'bpmn:id'
+];
 
 export function Panel({ className = '', ...props }) {
 
@@ -46,16 +46,13 @@ export function Panel({ className = '', ...props }) {
         let propCategories: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
         businessObject.$descriptor.properties.forEach((prop: any) => {
-            if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.hasOwnProperty(prop.ns.name)) {
+            if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.includes(prop.ns.name)) {
                 return;
             }
             if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }
             let categories: string[] = prop.categories || ["General"];
-            if (prop.ns.name === "bpmn:documentation") {
-                categories = ["Documentation"];
-            }
 
             categories.forEach((cat: string) => {
                 if (!propCategories[cat]) {

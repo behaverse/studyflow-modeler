@@ -4,7 +4,7 @@
     "data-panel": "Data",
     "bpmn:id": "ID",
     "bpmn:name": "Name",
-    "bpmn:documentation": "Documentation",
+    "studyflow:documentation": "Documentation",
     "studyflow:url": "URL",
     "studyflow:instrument": "Instrument",
     "studyflow:behaverseTask": "Behaverse task",

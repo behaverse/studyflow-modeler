@@ -102,6 +102,7 @@ interface ModdleProperty {
   type?: string;
   default?: any;
   isMany?: boolean;
+  redefines?: string;
   categories?: string[];
   condition?: {
     language: string;
@@ -226,7 +227,10 @@ class LinkMLToModdleConverter {
     return typeMapping[linkmlType.toLowerCase()] || linkmlType;
   }
 
-  private convertAttributes(attributes: Record<string, LinkMLAttribute>): ModdleProperty[] {
+  private convertAttributes(
+    attributes: Record<string, LinkMLAttribute>,
+    redefinesMap: Record<string, string> = {}
+  ): ModdleProperty[] {
     const properties: ModdleProperty[] = [];
 
     for (const [attrName, attrData] of Object.entries(attributes)) {
@@ -239,6 +243,11 @@ class LinkMLToModdleConverter {
         isAttr: true,
         type: attrData.range ? this.convertLinkMLTypeToModdle(attrData.range) : 'String'
       };
+
+      // Handle redefinitions of inherited BPMN properties
+      if (redefinesMap[attrName]) {
+        property.redefines = redefinesMap[attrName];
+      }
 
       // Handle default values from ifabsent
       if (attrData.ifabsent !== undefined) {
@@ -337,7 +346,12 @@ class LinkMLToModdleConverter {
 
       // Convert attributes to properties
       if (classData.attributes && Object.keys(classData.attributes).length > 0) {
-        moddleType.properties = this.convertAttributes(classData.attributes);
+        const redefinesMap: Record<string, string> = {};
+        const hasBpmnSuper = superClasses.some(sc => sc.startsWith('bpmn:'));
+        if (hasBpmnSuper && classData.attributes.documentation) {
+          redefinesMap.documentation = 'bpmn:BaseElement#documentation';
+        }
+        moddleType.properties = this.convertAttributes(classData.attributes, redefinesMap);
       }
 
       // Handle icon annotation

@@ -258,25 +258,30 @@ classes:
         description: Unique identifier for the element.
         categories: 
           - General
-      checklist:
-        range: Checklist
-        description: Checklist for the element.
-        categories:
-          - Documentation
-
-
-  Checklist:
-    description: A checklist for the element.
-    abstract: true
-    mixins:
-      - Element
-    attributes:
-      items:
-        multivalued: true
+      documentation:
         range: MarkdownString
-        description: Checklist items.
+        description: Optional human-readable description for the element (or link to a detailed description).
         categories:
           - Documentation
+      checklist:
+        range: MarkdownString
+        description: List of items to be checked off when completing the element, formatted in markdown.
+        categories:
+          - Documentation
+
+
+  # Checklist:
+  #   description: A checklist for the element.
+  #   abstract: true
+  #   mixins:
+  #     - Element
+  #   attributes:
+  #     items:
+  #       multivalued: true
+  #       range: MarkdownString
+  #       description: Checklist items.
+  #       categories:
+  #         - Documentation
 
   Study:
     description: Process definition for a Studyflow study.

@@ -18,8 +18,6 @@ export default class StudyflowRenderer extends BaseRenderer {
 
     this.pkgTypeMap = moddle.registry.typeMap;
     this.pkgEnums = moddle.registry.packageMap["studyflow"]["enumerations"];
-    console.log("Renderer:", this.pkgEnums);
-
   }
 
   canRender(element) {
