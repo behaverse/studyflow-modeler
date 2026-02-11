@@ -46,7 +46,7 @@ svg text.bi {
 
 }
 
-.palette-button-more {
+.palette-button-tool {
   @apply font-bold text-black bg-transparent p-1;
   @apply cursor-grab rounded-2xl;
   @apply hover:bg-stone-200;

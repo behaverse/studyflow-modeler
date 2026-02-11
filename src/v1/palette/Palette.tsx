@@ -67,6 +67,13 @@ function loadBpmnEntries(): PaletteEntry[] {
       icon: 'iconify bpmn--task-none',
       title: 'Create Task',
     },
+    {
+      key: 'bpmn:Group',
+      label: 'Group',
+      type: 'bpmn:Group',
+      icon: 'iconify bpmn--group',
+      title: 'Create Group',
+    }
   ];
 }
 
@@ -124,6 +131,14 @@ export function Palette({ className = '' }: { className?: string }) {
     setPressedEntryKey(null);
   };
 
+  const handleLassoToolClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!modeler) return;
+    event.preventDefault();
+
+    const lassoTool = modeler.get('lassoTool');
+    lassoTool.activateSelection(event.nativeEvent);
+  };
+
   const handleMoreElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
     if (!modeler) return;
     event.preventDefault();
@@ -154,6 +169,26 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div className={`fixed top-32 left-4 z-2 flex flex-col ${className}`}>
+      <div
+        key="lasso"
+        className="group mb-2 flex items-center gap-2"
+      >
+        <button
+          type="button"
+          title="Select elements with lasso tool"
+          className="flex palette-button-tool"
+          onClick={handleLassoToolClick}
+        >
+          <i className={`text-[24px] iconify material-symbols--ink-selection-rounded`}></i>
+        </button>
+        <span
+          className={`text-sm text-violet-700 whitespace-nowrap ${
+            pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+          }`}
+        >
+          Select Elements (Lasso)
+        </span>
+      </div>
       {paletteEntries.map((entry) => (
         <div
           key={entry.key}
@@ -187,7 +222,7 @@ export function Palette({ className = '' }: { className?: string }) {
         <button
           type="button"
           title="More elements..."
-          className="flex palette-button-more"
+          className="flex palette-button-tool"
           onMouseDown={(e) => { }}
           onMouseMove={(e) => { }}
           onMouseUp={handleMouseUp}
