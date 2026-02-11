@@ -172,7 +172,12 @@ export default class StudyflowRenderer extends BaseRenderer {
     // Activity with custom icons
     const businessObject = element.businessObject;
     if (is(element, "studyflow:Activity")) {
-      const activity = this.bpmnRenderer.handlers["bpmn:Task"](parentNode, element);
+      let activity;
+
+      if (this.bpmnRenderer.handlers[element.type]) {
+        activity = this.bpmnRenderer.handlers[element.type](parentNode, element);
+      }
+
       let instrument = businessObject?.get("instrument");
       let iconSize = 26;
       let iconMarker = undefined;
@@ -199,6 +204,107 @@ export default class StudyflowRenderer extends BaseRenderer {
 
       this.drawIcon(parentNode, element, iconClass, 4, 4, iconSize);
       this.drawIconMarker(parentNode, element, iconMarker);
+      
+      // Draw dataOperator marker if active
+      if (businessObject.get('isOperator')) {
+        // Place on the same marker baseline as bpmn-js task markers and avoid overlapping
+        // loop / MI / ad-hoc / compensation markers when those are enabled.
+        const markerSize = 22;
+
+        const width = element.width;
+        const height = element.height;
+
+        const loopCharacteristics = businessObject.get('loopCharacteristics');
+        const isSequential = loopCharacteristics && loopCharacteristics.get('isSequential');
+
+        const isAdHocSubProcess = is(element, 'bpmn:AdHocSubProcess');
+        const isSubProcessLike = is(element, 'bpmn:SubProcess') || isAdHocSubProcess;
+        const isForCompensation = !!businessObject.get('isForCompensation');
+
+        // Offset table copied from bpmn-js (BpmnRenderer#renderTaskMarkers).
+        // We only need the relative horizontal positions.
+        let offsets = isSubProcessLike
+          ? { seq: -21, parallel: -22, compensation: -25, loop: -18, adhoc: 10 }
+          : { seq: -5, parallel: -6, compensation: -7, loop: 0, adhoc: -8 };
+
+        // bpmn-js shifts compensation when loop characteristics are present
+        if (loopCharacteristics) {
+          offsets = { ...offsets, compensation: offsets.compensation - 18 };
+
+          // special case when both ad-hoc + loop are present
+          if (isAdHocSubProcess) {
+            offsets = { ...offsets, seq: -23, loop: -18, parallel: -24 };
+          }
+        }
+
+        const occupiedCenters = [];
+
+        // Collapsed subprocess draws a "+" marker at bottom-center in bpmn-js.
+        // Reserve the center slot so our operator marker does not overlap it.
+        const isCollapsed = (isSubProcessLike && businessObject.di && businessObject.di.isExpanded === false);
+        if (isCollapsed) {
+          occupiedCenters.push(width / 2);
+        }
+
+        if (isForCompensation) {
+          occupiedCenters.push(width / 2 + offsets.compensation);
+        }
+
+        if (isAdHocSubProcess) {
+          occupiedCenters.push(width / 2 + offsets.adhoc);
+        }
+
+        if (loopCharacteristics) {
+          if (isSequential === undefined) {
+            occupiedCenters.push(width / 2 + offsets.loop);
+          } else if (isSequential === false) {
+            occupiedCenters.push(width / 2 + offsets.parallel);
+          } else if (isSequential === true) {
+            occupiedCenters.push(width / 2 + offsets.seq);
+          }
+        }
+
+        // Marker placement strategy:
+        // - If no other markers are present: center it.
+        // - Otherwise: place it in the next slot to the right of the rightmost marker.
+        // Keep the gap tight by default, but make it a bit larger when the collapsed "+" is present
+        // (the "+" marker is a 14x14 box centered at the bottom).
+        const baseGap = Math.max(10, markerSize - 2);
+        const minGap = isCollapsed ? baseGap + 6 : baseGap;
+
+        const center = width / 2;
+        const rightMostOccupied = occupiedCenters.length
+          ? Math.max(...occupiedCenters, center)
+          : undefined;
+
+        let operatorCenter = rightMostOccupied !== undefined
+          ? rightMostOccupied + minGap
+          : center;
+
+        if (isSubProcessLike && !loopCharacteristics) {
+          operatorCenter += 14; // compensate for the fact that subprocesses are drawn with a left offset in bpmn-js
+        }
+
+        // avoid overlaps with existing marker centers
+        for (let i = 0; i < 6; i++) {
+          const collides = occupiedCenters.some(c => Math.abs(c - operatorCenter) < minGap);
+          if (!collides) {
+            break;
+          }
+          operatorCenter += minGap;
+        }
+
+        const markerX = Math.max(0, Math.min(width - markerSize - 2, operatorCenter - markerSize / 2));
+
+        // Match the bpmn-js task marker baseline (≈ height - 20) while avoiding clipping.
+        let markerY = Math.max(0, height - 20);
+        if (markerY + markerSize > height) {
+          markerY = Math.max(0, height - markerSize - 2);
+        }
+
+        this.drawIcon(parentNode, element, 'data-operator-marker', markerX, markerY, markerSize);
+      }
+      
       return activity;
     }
 

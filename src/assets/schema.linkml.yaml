@@ -353,6 +353,12 @@ classes:
         description: Link to the activity.
         categories:
           - General
+      isOperator:
+        range: boolean
+        ifabsent: "false"
+        description: Toggle marker indicating the activity is a data operator.
+        categories:
+          - Data
       operator:
         range: DataOperatorEnum
         description: Optional data-operator marker for a pure data transformation task.

@@ -3,7 +3,7 @@
 @import "tailwindcss";
 
 @plugin "@iconify/tailwind4" {
- prefixes: bi, ri, fluent, fluent-color, bpmn, material-symbols, flat-color-icons, tabler, solar, streamline-flex;
+ prefixes: bi, ri, mdi, fluent, fluent-color, bpmn, material-symbols, flat-color-icons, tabler, solar, streamline-flex;
 }
 
 svg text.bi {
@@ -108,4 +108,8 @@ svg text.bi {
   border-top: 4px solid transparent;
   border-right: 4px solid currentColor;
   border-bottom: 4px solid currentColor;
+}
+
+.data-operator-marker {
+  @apply iconify mdi--function;
 }

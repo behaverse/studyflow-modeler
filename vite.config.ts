@@ -20,10 +20,12 @@ export default defineConfig({
     }
   },
   resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-      '#root': resolve(__dirname)
-    },
+    alias: [
+      { find: '@', replacement: resolve(__dirname, 'src') },
+      { find: /^ids-raw$/, replacement: resolve(__dirname, 'node_modules/ids/dist/index.js') },
+      { find: /^ids$/, replacement: resolve(__dirname, 'src/shims/ids-default.ts') },
+      { find: '#root', replacement: resolve(__dirname) }
+    ],
   },
   build: {
     outDir: '../dist',
