@@ -176,6 +176,8 @@ export default class StudyflowRenderer extends BaseRenderer {
 
       if (this.bpmnRenderer.handlers[element.type]) {
         activity = this.bpmnRenderer.handlers[element.type](parentNode, element);
+      } else {
+        activity = this.bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
       }
 
       let instrument = businessObject?.get("instrument");
@@ -209,6 +211,11 @@ export default class StudyflowRenderer extends BaseRenderer {
       if (businessObject.get('isOperator')) {
         // Place on the same marker baseline as bpmn-js task markers and avoid overlapping
         // loop / MI / ad-hoc / compensation markers when those are enabled.
+
+
+        const isSubProcess = is(element, 'bpmn:SubProcess') || is(element, 'bpmn:AdHocSubProcess');
+        const isForCompensation = !!businessObject.get('isForCompensation');
+
         const markerSize = 22;
 
         const width = element.width;
@@ -217,13 +224,9 @@ export default class StudyflowRenderer extends BaseRenderer {
         const loopCharacteristics = businessObject.get('loopCharacteristics');
         const isSequential = loopCharacteristics && loopCharacteristics.get('isSequential');
 
-        const isAdHocSubProcess = is(element, 'bpmn:AdHocSubProcess');
-        const isSubProcessLike = is(element, 'bpmn:SubProcess') || isAdHocSubProcess;
-        const isForCompensation = !!businessObject.get('isForCompensation');
-
         // Offset table copied from bpmn-js (BpmnRenderer#renderTaskMarkers).
         // We only need the relative horizontal positions.
-        let offsets = isSubProcessLike
+        let offsets = isSubProcess
           ? { seq: -21, parallel: -22, compensation: -25, loop: -18, adhoc: 10 }
           : { seq: -5, parallel: -6, compensation: -7, loop: 0, adhoc: -8 };
 
@@ -232,7 +235,7 @@ export default class StudyflowRenderer extends BaseRenderer {
           offsets = { ...offsets, compensation: offsets.compensation - 18 };
 
           // special case when both ad-hoc + loop are present
-          if (isAdHocSubProcess) {
+          if (isSubProcess) {
             offsets = { ...offsets, seq: -23, loop: -18, parallel: -24 };
           }
         }
@@ -241,7 +244,7 @@ export default class StudyflowRenderer extends BaseRenderer {
 
         // Collapsed subprocess draws a "+" marker at bottom-center in bpmn-js.
         // Reserve the center slot so our operator marker does not overlap it.
-        const isCollapsed = (isSubProcessLike && businessObject.di && businessObject.di.isExpanded === false);
+        const isCollapsed = (isSubProcess && businessObject.di && businessObject.di.isExpanded === false);
         if (isCollapsed) {
           occupiedCenters.push(width / 2);
         }
@@ -250,7 +253,7 @@ export default class StudyflowRenderer extends BaseRenderer {
           occupiedCenters.push(width / 2 + offsets.compensation);
         }
 
-        if (isAdHocSubProcess) {
+        if (isSubProcess) {
           occupiedCenters.push(width / 2 + offsets.adhoc);
         }
 
@@ -281,7 +284,7 @@ export default class StudyflowRenderer extends BaseRenderer {
           ? rightMostOccupied + minGap
           : center;
 
-        if (isSubProcessLike && !loopCharacteristics) {
+        if (isSubProcess && !loopCharacteristics) {
           operatorCenter += 14; // compensate for the fact that subprocesses are drawn with a left offset in bpmn-js
         }
 
