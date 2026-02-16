@@ -10,7 +10,7 @@
     "docs": "docusaurus start docs",
     "docs:build": "docusaurus build --out-dir ../dist/docs docs",
     "docs:serve": "docusaurus serve --build --dir ../dist/docs docs",
-    "docs:sizzle": "docusaurus swizzle @docusaurus/theme-classic MDXComponents docs --list"
+    "docs:swizzle": "docusaurus swizzle @docusaurus/theme-classic SearchBar docs"
   },
   "dependencies": {
     "@docusaurus/core": "3.9.2",
@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "diagram-js-grid": "^1.1.0",
     "downloadjs": "^1.4.7",
+    "fuse.js": "^7.1.0",
     "postcss": "^8.5.6",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.4",

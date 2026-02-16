@@ -17,7 +17,8 @@ const config: Config = {
   },
 
   plugins: [
-    "./src/plugins/tailwind.ts"
+    "./src/plugins/tailwind.ts",
+    "./src/plugins/search-local.ts"
   ],
 
   // Set the production url of your site here
@@ -71,26 +72,7 @@ const config: Config = {
     // image: 'img/docusaurus-social-card.jpg',
     metadata: [
       { name: 'keywords', content: 'studyflow, studyflow modeler, reproducibility, bpmn, scientific experiments, workflows' },
-      {name: 'algolia-site-verification', content: '5FD091E36567538E'},
     ],
-    algolia: {
-      // The application ID provided by Algolia
-      appId: 'A1WH8SQBT0',
-
-      // Public API key: it is safe to commit it
-      apiKey: '1a41354ba86e2b4b36c5aa28d1c75c3d',
-
-      indexName: 'SF_MODELER_DOCS',
-
-      // Optional: see doc section below
-      contextualSearch: true,
-
-      // Optional: path for search page that enabled by default (`false` to disable it)
-      searchPagePath: 'search',
-
-      // Optional: whether the insights feature is enabled or not on Docsearch (`false` by default)
-      insights: true,
-    },
     colorMode: {
       respectPrefersColorScheme: false,
       defaultMode: 'light',
