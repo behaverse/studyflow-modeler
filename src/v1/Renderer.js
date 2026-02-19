@@ -5,6 +5,22 @@ import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 
+/**
+ * Custom icon overrides for standard BPMN task types.
+ * Maps BPMN element type to an iconify class string.
+ * Add new entries here to override more task type icons.
+ */
+const BPMN_TASK_ICON_OVERRIDES = {
+  'bpmn:ManualTask':        'iconify mdi--hand-back-right-outline rotate-90',
+  'bpmn:UserTask':          'iconify bi--person',
+  'bpmn:ServiceTask':       'iconify mdi--cog',
+  'bpmn:ScriptTask':        'iconify mdi--script-text',
+  'bpmn:SendTask':          'iconify mdi--send',
+  'bpmn:ReceiveTask':       'iconify mdi--email-open',
+  'bpmn:BusinessRuleTask':  'iconify mdi--table',
+  'bpmn:CallActivity':      'iconify mdi--arrow-right-bold-box',
+};
+
 export default class StudyflowRenderer extends BaseRenderer {
 
   static $inject = ["eventBus", "styles", "bpmnRenderer", "bpmnFactory", "moddle"];
@@ -18,6 +34,9 @@ export default class StudyflowRenderer extends BaseRenderer {
 
     this.pkgTypeMap = moddle.registry.typeMap;
     this.pkgEnums = moddle.registry.packageMap["studyflow"]["enumerations"];
+
+    /** @type {Record<string, string>} */
+    this.bpmnTaskIconOverrides = { ...BPMN_TASK_ICON_OVERRIDES };
   }
 
   canRender(element) {
@@ -188,13 +207,18 @@ export default class StudyflowRenderer extends BaseRenderer {
     if (is(element, "studyflow:Activity")) {
       let activity;
 
-      if (this.bpmnRenderer.handlers[element.type]) {
+      if (element.type in this.bpmnTaskIconOverrides) {
+        // If this task type has a custom icon override, draw a clean rectangle
+        // Otherwise, use the default bpmn-js handler (with its built-in icon)
+        activity = this.bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
+        iconClass = this.bpmnTaskIconOverrides[element.type];
+      } else if (this.bpmnRenderer.handlers[element.type]) {
         activity = this.bpmnRenderer.handlers[element.type](parentNode, element);
       } else {
         activity = this.bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
       }
 
-      let iconSize = 26;
+      let iconSize = 24;
       let iconMarker = undefined;
 
       let instrument = businessObject?.get("instrument");

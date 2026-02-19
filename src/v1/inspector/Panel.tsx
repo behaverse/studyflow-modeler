@@ -135,21 +135,21 @@ export function Panel({ className = '', ...props }) {
 
         return (
             <>
-                <h1 className="pb-0 text-lg font-bold p-2 bg-stone-100 rounded-2xl text-stone-900">{el.type.split(':')[1]}</h1>
-                <h2 className="text-xs text-left italic font-mono px-2 pb-2 bg-stone-100 text-stone-500">{el.type}</h2>
+                <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{el.type.split(':')[1]}</h1>
+                <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{el.type}</h2>
                 <div className="w-full">
                     <TabGroup defaultIndex={defaultIndex}>
-                        <TabList className="flex flex-wrap gap-1 px-1 pb-2 bg-stone-100 rounded-xl px-2" id="categories-bar">
+                        <TabList className="flex flex-wrap gap-1 px-1 pb-2 rounded-xl px-2" id="categories-bar">
                             {categories.map(([catName]) => (
                                 <Tab
                                     key={catName}
                                     className={({ selected }) =>
                                         [
                                             'px-2 py-1 text-xs font-semibold rounded-lg border transition',
-                                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400',
+                                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30',
                                             selected
-                                                ? 'bg-white text-stone-900 border-stone-300 shadow-sm'
-                                                : 'bg-stone-100/70 text-stone-700 border-stone-300/60 hover:bg-white hover:text-stone-900 hover:border-stone-300 hover:shadow-xs hover:cursor-pointer',
+                                                ? 'bg-white/20 text-white  shadow-sm'
+                                                : 'bg-transparent text-stone-400  hover:bg-white/10 hover:text-stone-200 hover:border-white/20 hover:shadow-xs hover:cursor-pointer',
                                         ].join(' ')
                                     }
                                 >
@@ -161,7 +161,7 @@ export function Panel({ className = '', ...props }) {
                             {categories.map(([catName, catProperties]) => (
                                 <TabPanel
                                     key={catName}
-                                    className="rounded-xl bg-stone-50"
+                                    className="rounded-xl"
                                 >
                                     {catProperties.map((p: any) => (
                                         <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
@@ -200,7 +200,7 @@ export function Panel({ className = '', ...props }) {
                     onClick={() => setIsVisible(!isVisible)}
                 />
             }
-            <div className={`fixed w-80 top-4 right-4 border-2 border-stone-200 bg-stone-100 rounded-2xl `
+            <div className={`fixed w-80 px-1 top-4 right-4 bg-black/50 backdrop-blur-xs rounded-2xl text-stone-200 `
                 + (isVisible ? '' : 'hidden')}>
                 {element && renderCategories(element) }
             </div>

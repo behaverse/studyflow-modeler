@@ -5,9 +5,14 @@ import { APIKeyContext } from './contexts';
 
 export default function StartUpModal() {
 
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const { apiKey, setApiKey } = useContext(APIKeyContext);
+
+  // FIXME Auto-login as guest on mount
+  useState(() => {
+    setApiKey('guest');
+  });
 
   const login = (formData) => {
     const api_key = formData.get('api_key');

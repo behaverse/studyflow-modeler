@@ -19,7 +19,7 @@ svg text.bi {
 }
 
 .navbar {
-  @apply inline-flex items-center p-2 h-12 bg-stone-100 border-2 border-stone-200 rounded-2xl overflow-x-auto
+  @apply inline-flex items-center p-1 h-10 bg-black/50 backdrop-blur-xs rounded-xl overflow-x-auto text-stone-100
 }
 
 .bjs-powered-by:hover {

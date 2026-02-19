@@ -35,7 +35,7 @@ export function NavBar(props) {
           </span>
         <nav className="navbar">
           <div className="flex items-center gap-1">
-              <span className="text-lg text-stone-500 border border-dashed rounded-lg px-2 border-stone-300">
+              <span className="text-lg text-stone-300 border border-dashed rounded-lg px-2 border-stone-500">
                 {isEditingDiagramName ? (
                   <input
                     type="text"
@@ -53,7 +53,7 @@ export function NavBar(props) {
                     autoFocus
                     maxLength={120}
                     minLength={1}
-                    className="text-black font-semibold bg-transparent rounded-lg"
+                    className="text-stone-200 font-semibold bg-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-white/30"
                   />
                 ) : (
                   <span className="font-semibold cursor-pointer"

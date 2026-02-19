@@ -55,7 +55,7 @@ export function StringInput(props) {
                     onChange={handleChange}
                     value={value}
                     rows={4}
-                    className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/4 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                    className="px-2 py-1 w-full rounded-md border-none bg-white/10 font-mono text-sm/4 text-stone-200 placeholder-stone-500 focus:outline-2 focus:-outline-offset-2 focus:outline-white/30"
                 />
             }
             {!isMarkdown &&
@@ -64,7 +64,7 @@ export function StringInput(props) {
                     type="text"
                     onChange={handleChange}
                     value={value}
-                    className="px-2 py-1 w-full rounded-md border-none bg-stone-200 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                    className="px-2 py-1 w-full rounded-md border-none bg-white/10 font-mono text-sm/6 text-stone-200 placeholder-stone-500 focus:outline-2 focus:-outline-offset-2 focus:outline-white/30"
                 />}
         </>
     );

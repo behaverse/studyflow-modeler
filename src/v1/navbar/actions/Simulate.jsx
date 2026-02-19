@@ -12,7 +12,7 @@ export function SimulateButton({ className }) {
   const [active, setActive] = useState(true);
   const [label, setLabel] = useState('Simulate');
   const [internalClassNames, setInternalClassNames] = useState(
-    'text-stone-900 hover:bg-stone-300 rounded px-2');
+    'text-stone-200 hover:bg-white/20 rounded px-2');
 
   function toggleSimulation() {
     setActive(!active);
@@ -28,7 +28,7 @@ export function SimulateButton({ className }) {
       setLabel('Simulate');
       classes(modeler._container).remove('simulation');
       classes(palette._container).remove('hidden');
-      setInternalClassNames('text-stone-900 hover:bg-stone-300 rounded px-2');
+      setInternalClassNames('text-stone-200 hover:bg-white/20 rounded px-2');
     }
   }
 

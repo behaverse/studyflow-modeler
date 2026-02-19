@@ -41,7 +41,7 @@ export function EnumInput(props) {
                 <Select name={name} aria-label={t(name)}
                     onChange={handleChange}
                     value={value}
-                    className="appearance-none px-2 py-1 pr-8 w-full rounded-md border-none bg-stone-200 text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                    className="appearance-none px-2 py-1 pr-8 w-full rounded-md border-none bg-white/10 text-sm/6 text-stone-200 focus:outline-2 focus:-outline-offset-2 focus:outline-white/30"
                 >
                     {literalValues.map((l) => (
                         <option key={l.value} value={l.value}>{l.name}</option>
