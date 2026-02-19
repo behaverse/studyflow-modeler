@@ -185,9 +185,7 @@ export function Palette({ className = '' }: { className?: string }) {
           className={`text-sm text-violet-700 whitespace-nowrap ${
             pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
           }`}
-        >
-          Select Elements (Lasso)
-        </span>
+        >Select Elements (Lasso)</span>
       </div>
       {paletteEntries.map((entry) => (
         <div

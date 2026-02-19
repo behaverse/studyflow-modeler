@@ -123,7 +123,7 @@ enums:
         title: Undefined
         description: Undefined
 
-  DataOperatorEnum:
+  DataOperationEnum:
     description: |
       Studyflow data operator marker for tasks. Operators describe how data is manipulated
       as it flows through the process (pure transformations).
@@ -353,26 +353,31 @@ classes:
         description: Link to the activity.
         categories:
           - General
-      isOperator:
+      isDataOperation:
         range: boolean
         ifabsent: "false"
-        description: Toggle marker indicating the activity is a data operator.
+        description: Toggle marker indicating the activity is a data operation.
         categories:
           - Data
-      operator:
-        range: DataOperatorEnum
-        description: Optional data-operator marker for a pure data transformation task.
+      operation:
+        range: DataOperationEnum
+        description: Optional data operation marker for a data transformation task.
         categories:
           - Data
-      operatorSteps:
-        range: string
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:isDataOperation": true}'
+        comments:
+          - Conditional on isDataOperation being true
+      operationSteps:
+        range: MarkdownString
         multivalued: true
         description: Operator pipeline steps when operator is `compose`.
         categories:
           - Data
         extensions:
           condition_language: json
-          condition_body: '{"studyflow:operator": "compose"}'
+          condition_body: '{"studyflow:operation": "compose"}'
         comments:
           - Conditional on operator being "compose"
 

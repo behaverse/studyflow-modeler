@@ -74,28 +74,28 @@ In summary, `DataStore` is a physical/persistent store (database, filesystem, S3
 
 Also note that, while experimental data is generally assumed to be tabular, `Dataset` supports other data types (i.e., `DataObject` or `Array`, including images, videos, brain imaging, and raw sensor recordings).
 
-## Data operators
+## Data operations
 
-Data operators are studyflow-specific markers to describe how data is manipulated as it flows through the process. They are designed to facilitate data processing within workflows and inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming. An operator could be implemented as usual BPMN tasks, such as script task or service task, and the operator marker serves as a semantic annotation to indicate that the task is performing a specific type of data transformation.
+Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. They are designed to facilitate data processing within workflows and inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming. An operator could be implemented as usual BPMN tasks, such as script task or service task, and the operator marker serves as a semantic annotation to indicate that the task is performing a specific type of data transformation.
 
 <figure className="centered max-w-2xl">
 <div class="max-w-[160px]">
   ![Data Operator](../../assets/img/elements/data_operator.png)
 </div>
   <figcaption className="italic">
-    Data operators are rendered as small markers ($f$) on tasks. The task remains a normal BPMN task and the marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through operators.
+    Data operation annotations are rendered as small markers ($f$) on tasks. The task remains a normal BPMN task and the marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through data operation marker.
   </figcaption>
 </figure>
 
 
 
-Here are the core data operators currently supported:
+Here are the core data operations currently supported:
 
 
 <details className="green">
   <summary>`transform` <span class="badge float-right">$f$</span></summary>
 
-  Applies a specified transformation to the input data, producing a new dataset as output. This is the generic form of data operations and can be specialized into more specific operators (see below). A transform represents a pure function that takes one or more data as input and produces a data output.
+  Applies a specified transformation to the input data, producing a new dataset as output. This is the generic form of data operations and can be specialized into more specific operations (see below). A transform represents a pure function that takes one or more data as input and produces a data output.
 </details>
 
 <details className="green">
@@ -137,14 +137,14 @@ Here are the core data operators currently supported:
 
 :::info[**Batch vs. Streaming**]
 
-Some operators are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
+Some operations are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
 
 :::
 
 
 ## Example
 
-The following example illustrates the use of data elements and operators within a research workflow to collect and analyze response times from a 2AFC cognitive task. The data analysis pipeline is encapsulated within a subprocess for clarity.
+The following example illustrates the use of data elements and operations within a research workflow to collect and analyze response times from a 2AFC cognitive task. The data analysis pipeline is encapsulated within a subprocess for clarity.
 
 <details class="note">
   <summary>View example code</summary>
@@ -243,5 +243,5 @@ trials_summary <- trials_raw |>
 - Canonical data-wrangling operations (mirroring tidyverse functionality but expressed at workflow level):
   - `splitData` (e.g., train/validation/test splits).
   - `cleanData` (e.g., handling missing values, outliers).
-  - Join/merge operators for relational integration.
+  - Join/merge operations for relational integration.
   - `sort`, `arrange`, `selectColumns`, `renameColumns`, `pivot`, `select`, `mutate`, `summarize` as specialized `transformTables` variants.
