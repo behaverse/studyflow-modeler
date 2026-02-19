@@ -265,6 +265,10 @@ export default class StudyflowRenderer extends BaseRenderer {
       markers.push("operation");
     }
 
+    if (businessObject.get("checklist")?.length > 0) {
+      markers.push("checklist");
+    }
+
     if (is(element, 'bpmn:SubProcess')) {
       if (!element.di.isExpanded) {
         markers.push("subprocess");
@@ -295,12 +299,13 @@ export default class StudyflowRenderer extends BaseRenderer {
 
     // TODO show subprocess marker always in the center, and other markers on the lef/right side of it
 
-    const gap = 1;
+    const gapX = 0;
+    const gapY = 4;
     const markerSize = 20;
-    const markerY = element.height - markerSize - gap;
-    const offsetX = (element.width - (markers.length * (markerSize + gap))) / 2;
+    const markerY = element.height - markerSize - gapY;
+    const offsetX = (element.width - (markers.length * (markerSize + gapX))) / 2;
     markers.forEach((marker, index) => {
-      const markerX = offsetX + index * (markerSize + gap);
+      const markerX = offsetX + index * (markerSize + gapX);
       this.drawIcon(parentNode, element, `data-marker-${marker}`, markerX, markerY, markerSize);
     });
 

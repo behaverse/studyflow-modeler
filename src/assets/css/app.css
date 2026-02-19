@@ -115,7 +115,7 @@ svg text.bi {
 }
 
 .data-marker-subprocess {
-  @apply iconify bpmn--sub-process-marker;
+  @apply iconify mdi--plus-box-outline;
 }
 
 .data-marker-adhoc {
@@ -123,17 +123,21 @@ svg text.bi {
 }
 
 .data-marker-parallel {
-  @apply iconify bpmn--parallel-mi-marker;
+  @apply iconify mdi--view-parallel;
 }
 
 .data-marker-sequential {
-  @apply iconify bpmn--sequential-mi-marker;
+  @apply iconify mdi--view-sequential;
 }
 
 .data-marker-loop {
-  @apply iconify bpmn--loop-marker;
+  @apply iconify mdi--loop;
 }
 
 .data-marker-compensation {
   @apply iconify bpmn--compensation-marker;
+}
+
+.data-marker-checklist {
+  @apply iconify mdi--checkbox-outline;
 }

@@ -9,7 +9,10 @@ export default class ResizableTasks extends RuleProvider {
 
   init() {
     this.addRule('shape.resize', Infinity, ({ shape, newBounds }) => {
-      return is(shape, 'bpmn:Task') || this._bpmnRules.canResize(shape, newBounds);
+      return is(shape, 'bpmn:Task') ||
+             is(shape, 'bpmn:SubProcess') ||
+             is(shape, 'bpmn:CallActivity') ||
+             this._bpmnRules.canResize(shape, newBounds);
     });
   }
 }
