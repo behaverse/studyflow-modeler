@@ -110,6 +110,30 @@ svg text.bi {
   border-bottom: 4px solid currentColor;
 }
 
-.data-operator-marker {
+.data-marker-operation {
   @apply iconify mdi--function;
+}
+
+.data-marker-subprocess {
+  @apply iconify bpmn--sub-process-marker;
+}
+
+.data-marker-adhoc {
+  @apply iconify bpmn--ad-hoc-marker;
+}
+
+.data-marker-parallel {
+  @apply iconify bpmn--parallel-mi-marker;
+}
+
+.data-marker-sequential {
+  @apply iconify bpmn--sequential-mi-marker;
+}
+
+.data-marker-loop {
+  @apply iconify bpmn--loop-marker;
+}
+
+.data-marker-compensation {
+  @apply iconify bpmn--compensation-marker;
 }

@@ -44,7 +44,7 @@
     "@docusaurus/tsconfig": "3.9.2",
     "@docusaurus/types": "3.9.2",
     "@eslint/js": "^9.17.0",
-    "@iconify/json": "^2.2.440",
+    "@iconify/json": "^2.2.441",
     "@iconify/tailwind4": "^1.2.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.10.13",

@@ -102,7 +102,7 @@ export default class StudyflowRenderer extends BaseRenderer {
     return foreignObject;
   }
 
-  drawIconMarker(parentNode, element, marker, x=9, y=21, fontSize=12) {
+  drawIconText(parentNode, element, marker, x=9, y=21, fontSize=12) {
 
     if (!marker) {
       return;
@@ -143,6 +143,20 @@ export default class StudyflowRenderer extends BaseRenderer {
     return text;
   }
 
+  removeDefaultMarkers(parentGfx) {
+    const markerPaths = parentGfx.querySelectorAll('[data-marker]');
+    markerPaths.forEach(path => {
+      // For SubProcessMarker, also remove the associated rect that precedes the "+" path
+      if (path.getAttribute('data-marker') === 'sub-process') {
+        const prevSibling = path.previousElementSibling;
+        if (prevSibling && prevSibling.tagName.toLowerCase() === 'rect') {
+          prevSibling.remove();
+        }
+      }
+      path.remove();
+    });
+  }
+
   drawShape(parentNode, element) {
     let iconClass = this.pkgTypeMap[element.type].icon || undefined;
 
@@ -180,10 +194,10 @@ export default class StudyflowRenderer extends BaseRenderer {
         activity = this.bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
       }
 
-      let instrument = businessObject?.get("instrument");
       let iconSize = 26;
       let iconMarker = undefined;
 
+      let instrument = businessObject?.get("instrument");
       const instrumentEnum = this.pkgEnums.find(e => e.name === "InstrumentEnum");
       iconClass = instrumentEnum.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
 
@@ -195,119 +209,18 @@ export default class StudyflowRenderer extends BaseRenderer {
         // adjust icon size based on marker length
         switch (iconMarker?.length) {
           case undefined:
-          case 2:
+          case 2: // 2 characters fit well within the icon
             iconSize = 24;
             break;
-          default:
+          default:  // for longer markers, reduce icon size to make room
             iconSize = 28;
             break;
         }
       }
 
       this.drawIcon(parentNode, element, iconClass, 4, 4, iconSize);
-      this.drawIconMarker(parentNode, element, iconMarker);
-      
-      // Draw dataOperator marker if active
-      if (businessObject.get('isOperator')) {
-        // Place on the same marker baseline as bpmn-js task markers and avoid overlapping
-        // loop / MI / ad-hoc / compensation markers when those are enabled.
-
-
-        const isSubProcess = is(element, 'bpmn:SubProcess') || is(element, 'bpmn:AdHocSubProcess');
-        const isForCompensation = !!businessObject.get('isForCompensation');
-
-        const markerSize = 22;
-
-        const width = element.width;
-        const height = element.height;
-
-        const loopCharacteristics = businessObject.get('loopCharacteristics');
-        const isSequential = loopCharacteristics && loopCharacteristics.get('isSequential');
-
-        // Offset table copied from bpmn-js (BpmnRenderer#renderTaskMarkers).
-        // We only need the relative horizontal positions.
-        let offsets = isSubProcess
-          ? { seq: -21, parallel: -22, compensation: -25, loop: -18, adhoc: 10 }
-          : { seq: -5, parallel: -6, compensation: -7, loop: 0, adhoc: -8 };
-
-        // bpmn-js shifts compensation when loop characteristics are present
-        if (loopCharacteristics) {
-          offsets = { ...offsets, compensation: offsets.compensation - 18 };
-
-          // special case when both ad-hoc + loop are present
-          if (isSubProcess) {
-            offsets = { ...offsets, seq: -23, loop: -18, parallel: -24 };
-          }
-        }
-
-        const occupiedCenters = [];
-
-        // Collapsed subprocess draws a "+" marker at bottom-center in bpmn-js.
-        // Reserve the center slot so our operator marker does not overlap it.
-        const isCollapsed = (isSubProcess && businessObject.di && businessObject.di.isExpanded === false);
-        if (isCollapsed) {
-          occupiedCenters.push(width / 2);
-        }
-
-        if (isForCompensation) {
-          occupiedCenters.push(width / 2 + offsets.compensation);
-        }
-
-        if (isSubProcess) {
-          occupiedCenters.push(width / 2 + offsets.adhoc);
-        }
-
-        if (loopCharacteristics) {
-          if (isSequential === undefined) {
-            occupiedCenters.push(width / 2 + offsets.loop);
-          } else if (isSequential === false) {
-            occupiedCenters.push(width / 2 + offsets.parallel);
-          } else if (isSequential === true) {
-            occupiedCenters.push(width / 2 + offsets.seq);
-          }
-        }
-
-        // Marker placement strategy:
-        // - If no other markers are present: center it.
-        // - Otherwise: place it in the next slot to the right of the rightmost marker.
-        // Keep the gap tight by default, but make it a bit larger when the collapsed "+" is present
-        // (the "+" marker is a 14x14 box centered at the bottom).
-        const baseGap = Math.max(10, markerSize - 2);
-        const minGap = isCollapsed ? baseGap + 6 : baseGap;
-
-        const center = width / 2;
-        const rightMostOccupied = occupiedCenters.length
-          ? Math.max(...occupiedCenters, center)
-          : undefined;
-
-        let operatorCenter = rightMostOccupied !== undefined
-          ? rightMostOccupied + minGap
-          : center;
-
-        if (isSubProcess && !loopCharacteristics) {
-          operatorCenter += 14; // compensate for the fact that subprocesses are drawn with a left offset in bpmn-js
-        }
-
-        // avoid overlaps with existing marker centers
-        for (let i = 0; i < 6; i++) {
-          const collides = occupiedCenters.some(c => Math.abs(c - operatorCenter) < minGap);
-          if (!collides) {
-            break;
-          }
-          operatorCenter += minGap;
-        }
-
-        const markerX = Math.max(0, Math.min(width - markerSize - 2, operatorCenter - markerSize / 2));
-
-        // Match the bpmn-js task marker baseline (≈ height - 20) while avoiding clipping.
-        let markerY = Math.max(0, height - 20);
-        if (markerY + markerSize > height) {
-          markerY = Math.max(0, height - markerSize - 2);
-        }
-
-        this.drawIcon(parentNode, element, 'data-operator-marker', markerX, markerY, markerSize);
-      }
-      
+      this.drawIconText(parentNode, element, iconMarker);      
+      this.drawMarkers(parentNode, element);
       return activity;
     }
 
@@ -317,5 +230,55 @@ export default class StudyflowRenderer extends BaseRenderer {
       this.drawIcon(parentNode, element, iconClass, 13, 13, 24);
       return gateway;
     }
+  }
+
+  drawMarkers(parentNode, element) {
+    const businessObject = element.businessObject;
+    let markers = [];
+    this.removeDefaultMarkers(parentNode);
+
+    if (businessObject.get("isDataOperation")) {
+      markers.push("operation");
+    }
+
+    if (is(element, 'bpmn:SubProcess')) {
+      if (!element.di.isExpanded) {
+        markers.push("subprocess");
+      }
+    }
+
+    if (is(element, 'bpmn:AdHocSubProcess')) {
+      markers.push("adhoc");
+    }
+
+    if (businessObject.get('isForCompensation')) {
+      markers.push("compensation");
+    }
+
+    const loopCharacteristics = businessObject.get('loopCharacteristics');
+    if (loopCharacteristics) {
+      if (loopCharacteristics.get('isSequential') === true) {
+        markers.push("sequential");
+      } else if (loopCharacteristics.get('isSequential') === false) {
+        markers.push("parallel");
+      } else if (loopCharacteristics.get('isSequential') === undefined) {
+        markers.push("loop");
+      }
+    }
+
+    // sort
+    markers = markers.sort((a, b) => a.localeCompare(b));
+
+    // TODO show subprocess marker always in the center, and other markers on the lef/right side of it
+
+    const gap = 1;
+    const markerSize = 20;
+    const markerY = element.height - markerSize - gap;
+    const offsetX = (element.width - (markers.length * (markerSize + gap))) / 2;
+    markers.forEach((marker, index) => {
+      const markerX = offsetX + index * (markerSize + gap);
+      this.drawIcon(parentNode, element, `data-marker-${marker}`, markerX, markerY, markerSize);
+    });
+
   }
 }
