@@ -15,7 +15,7 @@ import GridModule from 'diagram-js-grid';
 
 import studyflowSchema from '@/assets/schema.linkml.yaml';
 // import studyFlowElementTemplates from './assets/templates';
-import {convertLinkMLToModdleObject} from '@/v2/linkml-to-moddle';
+import {convertLinkMLToModdleObject} from '@/v1/linkml2moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
 import { StudyflowModelerModule } from '.';
