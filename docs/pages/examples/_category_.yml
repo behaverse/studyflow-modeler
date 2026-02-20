@@ -3,4 +3,5 @@ position: 5
 link:
   type: generated-index
   title: Examples
-  description: Practical examples demonstrating various use cases.
+  description: |
+    Use cases for Studyflow is only limited by your imagination, just like other modeling notations (e.g., BPMN or UML). Here are some examples to get you started.
