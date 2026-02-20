@@ -10,8 +10,8 @@ export function SimulateButton({ className }) {
     'text-stone-200 hover:bg-white/20 rounded px-2');
 
   function toggleSimulation() {
-    const tokenSimulation = modeler.get('tokenSimulation');
-    tokenSimulation.toggle();
+    const simulator = modeler.get('tokenSimulator');
+    simulator.toggle();
     const next = !active;
     setActive(next);
 

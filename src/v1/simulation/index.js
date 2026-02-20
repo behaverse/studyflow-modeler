@@ -1,10 +1,10 @@
-import TokenSimulation from './TokenSimulation';
+import TokenSimulator from './TokenSimulator';
 
-export { TOGGLE_SIMULATION_EVENT } from './TokenSimulation';
+export { TOGGLE_SIMULATION_EVENT } from './TokenSimulator';
 
 export default {
   __init__: [
-    'tokenSimulation',
+    'tokenSimulator',
   ],
-  tokenSimulation: ['type', TokenSimulation],
+  tokenSimulator: ['type', TokenSimulator],
 };
