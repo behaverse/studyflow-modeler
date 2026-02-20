@@ -24,6 +24,9 @@ export function isPropertyVisible(bProp, bObjOrExt) {
     const conditions = bProp["condition"]?.body || {};
     const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
         const cVal = bObjOrExt.get(cKey);
+        if (Array.isArray(cExpectedVal)) {
+            return cExpectedVal.includes(cVal);
+        }
         return cVal === cExpectedVal;
     });
     // visible if all conditions are met

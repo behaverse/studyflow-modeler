@@ -28,15 +28,17 @@ enums:
       bids:
         title: BIDS (Brain Imaging Data Structure)
         description: BIDS (Brain Imaging Data Structure)
+        annotations:
+          icon: bids-dataset-icon
       psych-ds:
         title: Psych-DS
         description: Psych-DS
       kedro:
         title: Kedro
         description: Kedro
-      other:
-        title: Other
-        description: Other
+      undefined:
+        title: Undefined
+        description: Undefined (other formats not listed here)
 
   BDMDataLevelEnum:
     description: BDM level of the data (events, trials, models).
@@ -55,44 +57,44 @@ enums:
     description: BIDS data type (e.g., anat, func, etc).
     permissible_values:
       anat:
-        title: anat (anatomical MRI data)
-        description: anat (anatomical MRI data)
+        title: anat (anatomical MRI)
+        description: anat (anatomical MRI)
       beh:
-        title: beh (behavioral data)
-        description: beh (behavioral data)
+        title: beh (behavioral)
+        description: beh (behavioral)
       dwi:
-        title: dwi (diffusion MRI data)
-        description: dwi (diffusion MRI data)
+        title: dwi (diffusion MRI)
+        description: dwi (diffusion MRI)
       eeg:
-        title: eeg (electroencephalography data)
-        description: eeg (electroencephalography data)
+        title: eeg (electroencephalography)
+        description: eeg (electroencephalography)
       func:
-        title: func (functional MRI data)
-        description: func (functional MRI data)
+        title: func (functional MRI)
+        description: func (functional MRI)
       ieeg:
-        title: ieeg (intracranial EEG data)
-        description: ieeg (intracranial EEG data)
+        title: ieeg (intracranial EEG)
+        description: ieeg (intracranial EEG)
       meg:
-        title: meg (magnetoencephalography data)
-        description: meg (magnetoencephalography data)
+        title: meg (magnetoencephalography)
+        description: meg (magnetoencephalography)
       micr:
-        title: micr (microscopy data)
-        description: micr (microscopy data)
+        title: micr (microscopy)
+        description: micr (microscopy)
       motion:
-        title: motion (motion capture data)
-        description: motion (motion capture data)
+        title: motion (motion capture)
+        description: motion (motion capture)
       mrs:
-        title: mrs (magnetic resonance spectroscopy data)
-        description: mrs (magnetic resonance spectroscopy data)
+        title: mrs (magnetic resonance spectroscopy)
+        description: mrs (magnetic resonance spectroscopy)
       nirs:
-        title: nirs (near-infrared spectroscopy data)
-        description: nirs (near-infrared spectroscopy data)
+        title: nirs (near-infrared spectroscopy)
+        description: nirs (near-infrared spectroscopy)
       perf:
-        title: perf (arterial spin labeling data)
-        description: perf (arterial spin labeling data)
+        title: perf (arterial spin labeling)
+        description: perf (arterial spin labeling)
       pet:
-        title: pet (positron emission tomography data)
-        description: pet (positron emission tomography data)
+        title: pet (positron emission tomography)
+        description: pet (positron emission tomography)
 
   AssignmentAlgorithmEnum:
     description: The scheduling algorithm used for the assignment.
@@ -247,10 +249,10 @@ types:
     description: A string that contains markdown formatting
 
 classes:
-  Element:
+  BaseElement:
     description: Base class for all elements in the Studyflow.
     abstract: true
-    is_a: bpmn:BaseElement
+    class_uri: bpmn:BaseElement
     attributes:
       id:
         identifier: true
@@ -269,33 +271,26 @@ classes:
         categories:
           - Documentation
 
-
-  # Checklist:
-  #   description: A checklist for the element.
-  #   abstract: true
-  #   mixins:
-  #     - Element
-  #   attributes:
-  #     items:
-  #       multivalued: true
-  #       range: MarkdownString
-  #       description: Checklist items.
-  #       categories:
-  #         - Documentation
+  Checklist:
+    description: A checklist for the element.
+    abstract: true
+    attributes:
+      items:
+        multivalued: true
+        range: MarkdownString
+        description: Checklist items.
+        categories:
+          - Documentation
 
   Study:
     description: Process definition for a Studyflow study.
     is_a: bpmn:Process
     annotations:
       icon: iconify bi--journal-text
-    mixins:
-      - Element
     attributes: {}
 
   StartEvent:
     class_uri: bpmn:StartEvent
-    mixins:
-      - Element
     annotations:
       icon: iconify bpmn--start-event
     attributes:
@@ -318,8 +313,6 @@ classes:
 
   EndEvent:
     class_uri: bpmn:EndEvent
-    mixins:
-      - Element
     annotations:
       icon: iconify bpmn--end-event
     attributes:
@@ -343,8 +336,6 @@ classes:
     class_uri: bpmn:Activity
     description: Base class for all the activities in the Studyflow.
     abstract: true
-    mixins:
-      - Element
     annotations:
       icon: iconify bpmn--task-none
     attributes:
@@ -432,8 +423,6 @@ classes:
     is_a: bpmn:ExclusiveGateway
     annotations:
       icon: iconify streamline-flex--dice-5-remix
-    mixins:
-      - Element
     attributes:
       algorithm:
         range: AssignmentAlgorithmEnum
@@ -455,12 +444,10 @@ classes:
 
   Dataset:
     description: Base class for all datasets in the Studyflow.
-    abstract: true
+    abstract: false
     is_a: bpmn:DataStoreReference
     annotations:
-      icon: sfi-Dataset
-    mixins:
-      - Element
+      icon: iconify bi--database
     attributes:
       catalog:
         range: DataCatalog
@@ -468,20 +455,31 @@ classes:
         categories:
           - Data
       store:
-        range: bpmn:DataStore
+        range: DataStoreReference
         description: Identifier of the `DataStore` where this dataset is physically stored.
         categories:
           - Data
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:format": "bdm"}'
       schema:
         range: Schema
         description: |
-          URL/path/identifier to a schema describing the dataset structure (e.g., CSVW).
+          Path to the schema describing the dataset structure (e.g., CSVW).
           This can also refer to an optional ontology/vocabulary reference (URL/CURIE) for semantic alignment.
         categories:
           - Data
+
+  DataStore:
+    class_uri: bpmn:DataStoreReference
+    description: |
+      Persistent physical storage of data (database, filesystem, object store, etc.).
+      BPMN `DataStore` can be referenced using `DataStoreReference`.
+    abstract: false
+    attributes:
       format:
         range: DatasetFormatEnum
-        ifabsent: string(other)
+        ifabsent: string(undefined)
         description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
         categories:
           - Data
@@ -493,9 +491,9 @@ classes:
           - Data
         extensions:
           condition_language: json
-          condition_body: '{"studyflow:datasetFormat": "bdm"}'
+          condition_body: '{"studyflow:format": "bdm"}'
         comments:
-          - Conditional on datasetFormat being "bdm"
+          - Conditional on format being "bdm"
       bidsDataType:
         range: BIDSDataTypeEnum
         ifabsent: string(beh)
@@ -504,54 +502,30 @@ classes:
           - Data
         extensions:
           condition_language: json
-          condition_body: '{"studyflow:datasetFormat": "bids"}'
+          condition_body: '{"studyflow:format": "bids"}'
         comments:
           - Conditional on datasetFormat being "bids"
 
-  DataStore:
+  DataObjectReference:
+    class_uri: bpmn:DataObjectReference
     description: |
-      Persistent physical storage of data (database, filesystem, object store, etc.).
-      BPMN `DataStore` can be referenced using `DataStoreReference`.
+      Represents data produced/consumed within a process instance. Can be used to model
+      internal data nodes in sub-processes and annotate state (e.g., raw/processed).
     abstract: true
-    class_uri: bpmn:DataStore
-    mixins:
-      - Element
     attributes:
-      kind:
+      state:
         range: string
-        description: Storage kind/driver identifier (e.g., duckdb+parquet).
-        categories:
-          - Data
-      url:
-        range: string
-        description: Connection string or URL (e.g., s3://bucket/path).
+        description: Optional state annotation (e.g., raw, processed, validated).
         categories:
           - Data
 
   DataCatalog:
     description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
     abstract: true
-    mixins:
-      - Element
     attributes:
       url:
         range: string
         description: Base URL of the catalog.
-        categories:
-          - Data
-
-  DataObject:
-    description: |
-      Represents data produced/consumed within a process instance. Can be used to model
-      internal data nodes in sub-processes and annotate state (e.g., raw/processed).
-    abstract: true
-    class_uri: bpmn:DataObject
-    mixins:
-      - Element
-    attributes:
-      state:
-        range: string
-        description: Optional state annotation (e.g., raw, processed, validated).
         categories:
           - Data
 
@@ -560,8 +534,6 @@ classes:
       A formal description of the structure of a named collection of types.
       Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
     abstract: true
-    mixins:
-      - Element
     attributes:
       url:
         range: string
@@ -577,10 +549,10 @@ classes:
   Table:
     description: |
       Named tabular structure within a dataset. Extends BPMN data objects and expects a schema.
-    class_uri: bpmn:DataObjectReference
+    is_a: bpmn:DataObjectReference
     abstract: true
-    mixins:
-      - Element
+    annotations:
+      icon: iconify bi--table
     attributes:
       dataset:
         range: string
@@ -598,8 +570,6 @@ classes:
       Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
     abstract: true
     class_uri: bpmn:DataObjectReference
-    mixins:
-      - Element
     attributes:
       dataset:
         range: string
@@ -617,8 +587,6 @@ classes:
       Immutable version of a dataset/table/array associated with a point in the workflow
       or a version control commit.
     abstract: true
-    mixins:
-      - Element
     attributes:
       source:
         range: string

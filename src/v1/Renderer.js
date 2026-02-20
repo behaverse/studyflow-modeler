@@ -7,6 +7,24 @@ import {
 import { getStudyflowExtension, hasStudyflowExtends } from './extensionElements';
 
 /**
+ * FIXME remove this and load icons as separate SVG files when needed, instead of hardcoding path data here.
+ * Inline SVG path data for icons that must survive SVG export.
+ * CSS-based icons (mask-image, background-image) are lost during export
+ * because foreignObject content is not self-contained.
+ */
+const SVG_ICON_PATHS = {
+  'bids-dataset-icon': {
+    viewBox: '0 0 135 43.461',
+    paths: [
+      'm29.99,21.107l-0.961,-0.458l0.814,-0.702a10.755,10.755 0 0 0 3.827,-8.452c0,-6.731 -4.513,-10.019 -13.782,-10.019l-18.051,0l0,40.517l17.542,0c5.843,0 15.644,-1.525 15.644,-11.747c0.013,-4.535 -1.638,-7.519 -5.032,-9.138m-11.673,-12.353c5.048,0 7.106,1.404 7.106,4.836c0,1.282 -0.616,4.231 -6.33,4.231l-9.388,0l0,-6.919l-4.993,-2.148l13.605,0zm0.116,25.961l-8.727,0l0,-9.903l9.208,0c3.872,0 7.83,0.58 7.83,4.891c0.007,4.398 -3.993,5 -8.311,5l0,0.012z',
+      'm42.724,1.476l7.875,0l0,40.506l-7.875,0l0,-40.506z',
+      'm72.676,1.476l-12.593,0l0,40.516l11.692,0c8.195,0 14.356,-1.949 18.311,-5.789s6.009,-8.866 6.009,-15.003c0.003,-7.372 -3.039,-19.725 -23.42,-19.725m-0.122,33.227l-4.59,0l0,-23.627l-5.638,-2.321l10.237,0c10.202,0 15.384,4.167 15.384,12.436c-0.019,8.971 -5.192,13.513 -15.394,13.513',
+      'm133.16,30.351a10.255,10.255 0 0 0 -1.602,-5.715c-2.144,-3.132 -5.324,-4.394 -9.58,-5.833c-1.509,-0.513 -3.007,-0.914 -4.455,-1.298c-4.128,-1.1 -7.692,-2.048 -7.692,-5.055c0,-2.122 1.211,-4.654 6.987,-4.654c4.003,0 7.465,1.548 10.577,4.734l5.227,-5.058c-3.75,-4.676 -8.817,-6.952 -15.465,-6.952c-4.596,0 -8.372,1.211 -11.218,3.606s-4.301,5.128 -4.301,8.442c0,7.138 5.375,9.766 11.18,11.539c1.417,0.477 2.734,0.836 4.007,1.186c2.414,0.664 4.487,1.234 6.116,2.311c1.308,0.872 2.058,2.134 2.058,3.465s-0.705,2.513 -1.923,3.333c-1.164,0.84 -2.904,1.253 -5.301,1.253c-5.009,0 -9.542,-2.481 -12.548,-6.843l-5.718,4.763c3.356,5.961 10.064,9.366 18.507,9.366c4.384,0 7.936,-1.199 10.862,-3.667c2.84,-2.352 4.285,-5.352 4.285,-8.923',
+    ]
+  }
+};
+
+/**
  * Custom icon overrides for standard BPMN elements.
  * Maps BPMN element/marker names to iconify class strings.
  */
@@ -97,13 +115,13 @@ export default class StudyflowRenderer extends BaseRenderer {
     return polygon;
   }
 
-  drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26) {
+  drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26, colorOverride = undefined) {
 
     if (!iconClass) {
       return;
     }
 
-    const color = this.colorToHex(getStrokeColor(element));
+    const color = colorOverride || this.colorToHex(getStrokeColor(element));
 
     const foreignObject = svgCreate('foreignObject', {
       x,
@@ -126,6 +144,34 @@ export default class StudyflowRenderer extends BaseRenderer {
     svgAppend(parentNode, foreignObject);
 
     return foreignObject;
+  }
+
+  /**
+   * Draw an icon using inline SVG paths (no foreignObject / CSS).
+   * This survives SVG export unlike CSS-based icons.
+   */
+  drawSvgPaths(parentNode, iconDef, x, y, width, height, fillColor) {
+    const [, , vbW, vbH] = iconDef.viewBox.split(/\s+/).map(Number);
+    const g = svgCreate('g');
+    g.setAttribute('transform', `translate(${x}, ${y})`);
+
+    const inner = svgCreate('g');
+    const sx = width / vbW;
+    const sy = height / vbH;
+    const scale = Math.min(sx, sy);
+    // Center within the bounding box
+    const dx = (width - vbW * scale) / 2;
+    const dy = (height - vbH * scale) / 2;
+    inner.setAttribute('transform', `translate(${dx}, ${dy}) scale(${scale})`);
+
+    for (const d of iconDef.paths) {
+      const path = svgCreate('path', { d, fill: fillColor });
+      svgAppend(inner, path);
+    }
+
+    svgAppend(g, inner);
+    svgAppend(parentNode, g);
+    return g;
   }
 
   drawIconText(parentNode, element, marker, x=9, y=21, fontSize=12) {
@@ -209,8 +255,23 @@ export default class StudyflowRenderer extends BaseRenderer {
 
     // Dataset
     if (is(element, "bpmn:DataStoreReference")) {
+      let format = element.businessObject.get("format");
+      const formatEnum = this.pkgEnums.find(e => e.name === "DatasetFormatEnum");
+      iconClass = formatEnum?.literalValues.find(lv => lv.value === format)?.icon || undefined;
       const dataset = this.bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
-      this.drawIcon(parentNode, element, iconClass, 10, 12, 32);
+      // Use the element's stroke color with transparency for the dataset icon
+      const strokeHex = this.colorToHex(getStrokeColor(element));
+      const iconColor = strokeHex ? strokeHex + 'aa' : '#000000aa';
+
+      // Use inline SVG paths for icons that need to survive SVG export;
+      // fall back to foreignObject-based drawIcon for iconify icons.
+      const svgDef = iconClass && SVG_ICON_PATHS[iconClass];
+      if (svgDef) {
+        this.drawSvgPaths(parentNode, svgDef, 4, 28, 42, 14, iconColor);
+      } else if (iconClass) {
+        this.drawIcon(parentNode, element, iconClass, 4, 28, 42, iconColor);
+      }
+      // FIXME this XY only works for BIDS, need a more robust way to position the dataset icon
       return dataset;
     }
 

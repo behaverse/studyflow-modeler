@@ -14,6 +14,7 @@ import { getStudyflowExtension, getStudyflowProperties } from '../extensionEleme
 const editableBPMNProps = [
     // 'bpmn:type': "Type of the element",
     // 'bpmn:name': "Human-readable label",
+    'bpmn:documentation',
     'bpmn:id'
 ];
 
@@ -47,6 +48,12 @@ export function Panel({ className = '', ...props }) {
         let propCategories: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
 
+        // Collect extension element property names upfront to deduplicate
+        const ext = getStudyflowExtension(element);
+        const extPropNames = new Set<string>(
+            ext?.$descriptor?.properties?.map((p: any) => p.ns.name) ?? []
+        );
+
         // Show editable BPMN properties and extends-based studyflow properties from the BO
         businessObject.$descriptor.properties.forEach((prop: any) => {
             if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.includes(prop.ns.name)) {
@@ -54,6 +61,9 @@ export function Panel({ className = '', ...props }) {
             }
             // Allow studyflow properties mixed in via extends (e.g., StartEvent, EndEvent)
             if (prop.ns.prefix !== 'bpmn' && prop.ns.prefix !== 'studyflow') return;
+            // Skip extends properties that also exist on the extension element wrapper;
+            // the extension element version is preferred for correct read/write behavior.
+            if (prop.ns.prefix === 'studyflow' && extPropNames.has(prop.ns.name)) return;
             if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }
@@ -65,7 +75,6 @@ export function Panel({ className = '', ...props }) {
         });
 
         // Show studyflow properties from the extension element wrapper
-        const ext = getStudyflowExtension(element);
         if (ext?.$descriptor) {
             ext.$descriptor.properties.forEach((prop: any) => {
                 if (!isPropertyVisible(prop, ext)) return;
@@ -190,7 +199,7 @@ export function Panel({ className = '', ...props }) {
                                     className="rounded-xl"
                                 >
                                     {catProperties.map((p: any) => (
-                                        <PropertyField key={el.id + p.ns.name} bpmnProperty={p} />
+                                        <PropertyField key={el.id + p.ns.prefix + ':' + p.ns.name} bpmnProperty={p} />
                                     ))}
                                 </TabPanel>
                             ))}

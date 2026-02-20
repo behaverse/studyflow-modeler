@@ -111,6 +111,20 @@ interface ModdleProperty {
 }
 
 /**
+ * BPMN built-in properties that already exist on base BPMN types.
+ * When a studyflow extends-type re-declares one of these, moddle requires
+ * a `redefines` pointing at the original owner.  The value is the fully-
+ * qualified `prefix:Type#property` reference that moddle expects.
+ *
+ * Properties listed here but whose names equal 'id' are already filtered
+ * by convertAttributes() so they don't need a redefines entry.
+ */
+const BPMN_REDEFINES: Record<string, string> = {
+  'documentation': 'bpmn:BaseElement#documentation',
+  'name':          'bpmn:FlowElement#name',
+};
+
+/**
  * BPMN type hierarchy — maps each BPMN type to its ancestor types.
  * Used to determine which studyflow "extends-like" abstract classes
  * propagate their properties to a given element type.
@@ -490,13 +504,27 @@ class LinkMLToModdleConverter {
       // Collect properties:
       // - For extends types, only OWN attributes (mixin/ancestor props are
       //   already on the BPMN type through its own hierarchy).
+      //   Properties that collide with BPMN built-in names are excluded to
+      //   avoid moddle "already defined" errors.
       // - For extension element types, FLATTEN everything so the wrapper
       //   is self-contained.
-      const allAttrs = useExtends
+      let allAttrs = useExtends
         ? (classData.attributes || {})
         : this.collectAllAttributes(className);
+
       if (Object.keys(allAttrs).length > 0) {
         moddleType.properties = this.convertAttributes(allAttrs);
+
+        // For extends types, add `redefines` to properties that collide
+        // with BPMN built-in property names so moddle allows the override.
+        if (useExtends && moddleType.properties) {
+          for (const prop of moddleType.properties) {
+            const redef = BPMN_REDEFINES[prop.name];
+            if (redef) {
+              prop.redefines = redef;
+            }
+          }
+        }
       }
 
       // Icon

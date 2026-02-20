@@ -110,3 +110,13 @@ svg text.bi {
   border-bottom: 4px solid currentColor;
 }
 
+.bids-dataset-icon {
+  /* Use mask so the SVG shape takes on the current text color */
+  -webkit-mask-image: url('assets/img/bids.svg');
+  mask-image: url('assets/img/bids.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background-color: currentColor;
+}
