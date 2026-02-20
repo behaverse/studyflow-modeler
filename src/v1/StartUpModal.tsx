@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Description, Dialog, DialogPanel, Field, Fieldset, Label, Input, Button } from '@headlessui/react'
 
 import { APIKeyContext } from './contexts';
@@ -9,10 +9,10 @@ export default function StartUpModal() {
   const [error, setError] = useState<string | undefined>(undefined);
   const { apiKey, setApiKey } = useContext(APIKeyContext);
 
-  // FIXME Auto-login as guest on mount
-  useState(() => {
+  // Auto-login as guest on mount
+  useEffect(() => {
     setApiKey('guest');
-  });
+  }, []);
 
   const login = (formData) => {
     const api_key = formData.get('api_key');

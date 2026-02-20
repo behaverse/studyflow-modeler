@@ -6,7 +6,8 @@ import { t } from '../../i18n';
 type PaletteEntry = {
   key: string;
   label: string;
-  type: string;
+  bpmnType: string;
+  studyflowType?: string;
   icon?: string;
   title?: string;
 };
@@ -25,19 +26,22 @@ function loadStudyflowEntries(modeler: any): PaletteEntry[] {
   return pkg.types
     .filter((type: any) => {
       if (type.isAbstract) return false;
-      if (type.extends?.length > 0) return false;
       if (type.name === 'Study') return false;
       if (type.superClass && type.superClass.some((sc: string) => primitiveTypes.includes(sc))) {
         return false;
       }
+      // Exclude extends-based types (they're in the BPMN palette, e.g., StartEvent/EndEvent)
+      if (type.extends?.length) return false;
+      // Must have a BPMN type mapping to be creatable
+      if (!type.meta?.bpmnType) return false;
       return true;
     })
     .map((type: any) => {
-      const elementType = `studyflow:${type.name}`;
       return {
-        key: elementType,
+        key: `studyflow:${type.name}`,
         label: type.name,
-        type: elementType,
+        bpmnType: type.meta.bpmnType,
+        studyflowType: `studyflow:${type.name}`,
         icon: type.icon,
         title: type.description || `Create ${type.name}`,
       };
@@ -49,28 +53,30 @@ function loadBpmnEntries(): PaletteEntry[] {
     {
       key: 'bpmn:StartEvent',
       label: 'Start',
-      type: 'bpmn:StartEvent',
+      bpmnType: 'bpmn:StartEvent',
+      studyflowType: 'studyflow:StartEvent',
       icon: 'iconify bpmn--start-event-none',
       title: 'Create Start Event',
     },
     {
       key: 'bpmn:EndEvent',
       label: 'End',
-      type: 'bpmn:EndEvent',
+      bpmnType: 'bpmn:EndEvent',
+      studyflowType: 'studyflow:EndEvent',
       icon: 'iconify bpmn--end-event-none',
       title: 'Create End Event',
     },
     {
       key: 'bpmn:Task',
       label: 'Task',
-      type: 'bpmn:Task',
+      bpmnType: 'bpmn:Task',
       icon: 'iconify bpmn--task-none',
       title: 'Create Task',
     },
     {
       key: 'bpmn:Group',
       label: 'Group',
-      type: 'bpmn:Group',
+      bpmnType: 'bpmn:Group',
       icon: 'iconify bpmn--group',
       title: 'Create Group',
     }
@@ -106,7 +112,7 @@ export function Palette({ className = '' }: { className?: string }) {
       return;
     }
     // Click-to-pick: start create; user will click canvas to drop.
-    startCreate(modeler, entry.type, event.nativeEvent);
+    startCreate(modeler, entry.bpmnType, event.nativeEvent, {}, entry.studyflowType);
     setPressedEntryKey(null);
   };
 
@@ -123,7 +129,7 @@ export function Palette({ className = '' }: { className?: string }) {
     startedRef.current = true;
     event.preventDefault();
     // Start drag-create on first move with button down.
-    startCreate(modeler, entry.type, event.nativeEvent);
+    startCreate(modeler, entry.bpmnType, event.nativeEvent, {}, entry.studyflowType);
   };
 
   const handleMouseUp = () => {

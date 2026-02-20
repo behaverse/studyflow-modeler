@@ -3,6 +3,7 @@ import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
+import { getStudyflowExtension, setExtensionProperty } from '../extensionElements';
 
 export function EnumInput(props) {
 
@@ -10,19 +11,29 @@ export function EnumInput(props) {
     const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
+    const isStudyflowProp = bpmnProperty.ns?.prefix === 'studyflow';
     const propertyType = bpmnProperty.type.split(':')[1];
     const pkg = bpmnProperty.definedBy.$pkg;
     const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
-    const [value, setValue] = useState(businessObject.get(name) || '');
+
+    const ext = isStudyflowProp ? getStudyflowExtension(element) : null;
+    const useExt = isStudyflowProp && !!ext;
+    const [value, setValue] = useState(
+        useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')
+    );
 
     const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
 
     function handleChange(event) {
         const newValue = event.target.value;
         setValue(newValue);
-        modeling.updateProperties(element, {
-            [name]: newValue
-        });
+        if (useExt) {
+            setExtensionProperty(element, name, newValue, modeling);
+        } else {
+            modeling.updateProperties(element, {
+                [name]: newValue
+            });
+        }
     }
 
     return (

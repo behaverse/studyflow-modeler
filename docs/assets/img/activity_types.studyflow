@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
-  <studyflow:study id="Study_1" isExecutable="false">
-    <studyflow:cognitiveTest id="CognitiveTest_1wfxwob" name="Cognitive Test" type="studyflow:CognitiveTest">
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="Study_1" isExecutable="false">
+    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements><studyflow:cognitiveTest id="CognitiveTest_1wfxwob" name="Cognitive Test" type="studyflow:CognitiveTest">
       <bpmn2:incoming>Flow_0t25gsx</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1uby65v</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_179ufev</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_1m4sl9n</bpmn2:outgoing>
     </studyflow:cognitiveTest>
-    <studyflow:questionnaire id="Questionnaire_07lo5v1" name="Questionnaire" type="studyflow:Questionnaire">
-      <bpmn2:incoming>Flow_0noilkj</bpmn2:incoming>
-    </studyflow:questionnaire>
-    <studyflow:instruction id="Instruction_05452k7" name="Instruction" type="studyflow:Instruction">
-      <bpmn2:incoming>Flow_0n8nnfp</bpmn2:incoming>
-    </studyflow:instruction>
+    <bpmn2:task id="Questionnaire_07lo5v1" name="Questionnaire">
+      <bpmn2:extensionElements><studyflow:questionnaire /></bpmn2:extensionElements><bpmn2:incoming>Flow_0noilkj</bpmn2:incoming>
+    </bpmn2:task>
+    <bpmn2:task id="Instruction_05452k7" name="Instruction">
+      <bpmn2:extensionElements><studyflow:instruction /></bpmn2:extensionElements><bpmn2:incoming>Flow_0n8nnfp</bpmn2:incoming>
+    </bpmn2:task>
     <studyflow:cognitiveTest id="Activity_0zctxq8" name="Video Game" instrument="videoGame">
       <bpmn2:incoming>Flow_1m4sl9n</bpmn2:incoming>
     </studyflow:cognitiveTest>
@@ -48,7 +48,7 @@
     <bpmn2:sequenceFlow id="Flow_1uby65v" sourceRef="CognitiveTest_1wfxwob" targetRef="Activity_0kov43v" />
     <bpmn2:sequenceFlow id="Flow_179ufev" sourceRef="CognitiveTest_1wfxwob" targetRef="Activity_1yrc7zh" />
     <bpmn2:sequenceFlow id="Flow_1m4sl9n" sourceRef="CognitiveTest_1wfxwob" targetRef="Activity_0zctxq8" />
-  </studyflow:study>
+  </bpmn2:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
       <bpmndi:BPMNShape id="Instruction_05452k7_di" bpmnElement="Instruction_05452k7">

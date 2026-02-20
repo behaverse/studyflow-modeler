@@ -1,5 +1,7 @@
 
 
+import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+
 export default class AppendMenuProvider {
 
     static $inject = [
@@ -16,15 +18,18 @@ export default class AppendMenuProvider {
         this._popupMenu = popupMenu;
         this._create = create;
         this._autoPlace = autoPlace;
+        this._moddle = moddle;
         this._rules = rules;
 
         var entries = Object.entries(moddle.registry.typeMap).filter(([k,v]) => 
             k.startsWith("studyflow:")
             && !v?.isAbstract
-            && !(v?.superClass.length === 1 && v.superClass.includes("String"))
-            && !v.extends?.includes("bpmn:StartEvent")
-            && !v.extends?.includes("bpmn:EndEvent")
+            && !(v?.superClass?.length === 1 && v.superClass.includes("String"))
             && !k.includes(":Study")
+            // Exclude extends-based types (handled by BPMN context pad)
+            && !v?.extends?.length
+            // Must have a BPMN type to be creatable
+            && v?.meta?.bpmnType
         );
         var elements = [];
         entries.forEach(([k, v]) => {
@@ -32,9 +37,8 @@ export default class AppendMenuProvider {
             label: v.name.split(":")[1],
             actionName: k.split(":")[1],
             imageHtml: v.icon ? `<span class="${v.icon}" style="font-size: 18px;"></span>` : '',
-            target: {
-              type: v.name
-            }
+            bpmnType: v.meta.bpmnType,
+            studyflowType: k,
           });
         });
         this._elements = elements;
@@ -61,7 +65,8 @@ export default class AppendMenuProvider {
                 actionName,
                 imageHtml,
                 label,
-                target,
+                bpmnType,
+                studyflowType,
                 description,
                 search,
                 rank
@@ -77,28 +82,48 @@ export default class AppendMenuProvider {
                 },
                 search,
                 rank,
-                action: this._createEntryAction(element, target)
+                action: this._createEntryAction(element, bpmnType, studyflowType)
             };
         });
 
         return entries;
     };
 
-    _createEntryAction(element, target) {
+    _createEntryAction(element, bpmnType, studyflowType) {
 
         const elementFactory = this._elementFactory;
         const autoPlace = this._autoPlace;
         const create = this._create;
         const mouse = this._mouse;
-      
+        const moddle = this._moddle;
+
+        const createShapeWithExtension = () => {
+          const target = { type: bpmnType };
+          const newElement = elementFactory.create('shape', target);
+
+          // Attach studyflow extension element or set extends-based defaults
+          if (studyflowType) {
+            const bo = newElement.businessObject;
+            const defaults = getStudyflowDefaults(studyflowType, moddle);
+            if (isExtendsType(studyflowType, moddle)) {
+              for (const [key, val] of Object.entries(defaults)) {
+                bo.set(key, val);
+              }
+            } else {
+              createStudyflowExtension(bo, studyflowType, moddle, defaults);
+            }
+          }
+
+          return newElement;
+        };
       
         const autoPlaceElement = () => {
-          const newElement = elementFactory.create('shape', target);
+          const newElement = createShapeWithExtension();
           autoPlace.append(element, newElement);
         };
       
         const manualPlaceElement = (event) => {
-          const newElement = elementFactory.create('shape', target);
+          const newElement = createShapeWithExtension();
       
           if (event instanceof KeyboardEvent) {
             event = mouse.getLastMoveEvent();
@@ -110,7 +135,7 @@ export default class AppendMenuProvider {
         };
       
         return {
-          click: this._canAutoPlaceElement(target) ? autoPlaceElement : manualPlaceElement,
+          click: this._canAutoPlaceElement({ type: bpmnType }) ? autoPlaceElement : manualPlaceElement,
           dragstart: manualPlaceElement
         };
     };

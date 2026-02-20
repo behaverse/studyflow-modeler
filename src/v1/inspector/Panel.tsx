@@ -7,6 +7,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
+import { getStudyflowExtension, getStudyflowProperties } from '../extensionElements';
 
 
 // List of BPMN properties that are editable in the inspector, otherwise they are hidden
@@ -45,24 +46,38 @@ export function Panel({ className = '', ...props }) {
     const getProperties = useCallback((element: any) => {
         let propCategories: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
+
+        // Show editable BPMN properties and extends-based studyflow properties from the BO
         businessObject.$descriptor.properties.forEach((prop: any) => {
             if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.includes(prop.ns.name)) {
                 return;
             }
+            // Allow studyflow properties mixed in via extends (e.g., StartEvent, EndEvent)
+            if (prop.ns.prefix !== 'bpmn' && prop.ns.prefix !== 'studyflow') return;
             if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }
             let categories: string[] = prop.categories || ["General"];
-
             categories.forEach((cat: string) => {
-                if (!propCategories[cat]) {
-                    propCategories[cat] = [];  // initialize
-                }
+                if (!propCategories[cat]) propCategories[cat] = [];
                 propCategories[cat].push(prop);
             });
         });
 
-        // remove empty groups using filter and Object.fromEntries
+        // Show studyflow properties from the extension element wrapper
+        const ext = getStudyflowExtension(element);
+        if (ext?.$descriptor) {
+            ext.$descriptor.properties.forEach((prop: any) => {
+                if (!isPropertyVisible(prop, ext)) return;
+                let categories: string[] = prop.categories || ["General"];
+                categories.forEach((cat: string) => {
+                    if (!propCategories[cat]) propCategories[cat] = [];
+                    propCategories[cat].push(prop);
+                });
+            });
+        }
+
+        // remove empty groups
         const filtered = Object.entries(propCategories).filter(([, v]) => v.length > 0);
         return Object.fromEntries(filtered) as Record<string, any[]>;
     }, []);
@@ -135,8 +150,19 @@ export function Panel({ className = '', ...props }) {
 
         return (
             <>
-                <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{el.type.split(':')[1]}</h1>
-                <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{el.type}</h2>
+                <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
+                    (() => {
+                        const ext = getStudyflowExtension(el);
+                        const sfType = ext?.$type?.split(':')[1];
+                        return sfType || el.type.split(':')[1];
+                    })()
+                }</h1>
+                <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{
+                    (() => {
+                        const ext = getStudyflowExtension(el);
+                        return ext?.$type || el.type;
+                    })()
+                }</h2>
                 <div className="w-full">
                     <TabGroup defaultIndex={defaultIndex}>
                         <TabList className="flex flex-wrap gap-1 px-1 pb-2 rounded-xl px-2" id="categories-bar">

@@ -4,6 +4,7 @@ import {getFillColor, getStrokeColor} from "bpmn-js/lib/draw/BpmnRenderUtil";
 import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
+import { getStudyflowExtension, hasStudyflowExtends } from './extensionElements';
 
 /**
  * Custom icon overrides for standard BPMN task types.
@@ -43,7 +44,9 @@ export default class StudyflowRenderer extends BaseRenderer {
     if (element.type === "label") {
       return false;  // fixes #15
     }
-    return is(element, "studyflow:Element");
+    // Render elements with studyflow extension elements (tasks, gateways)
+    // or studyflow properties mixed in via extends (start/end events)
+    return !!getStudyflowExtension(element) || hasStudyflowExtends(element);
   }
 
   colorToHex(color) {
@@ -177,21 +180,26 @@ export default class StudyflowRenderer extends BaseRenderer {
   }
 
   drawShape(parentNode, element) {
-    let iconClass = this.pkgTypeMap[element.type].icon || undefined;
+    const ext = getStudyflowExtension(element);
+    const sfType = ext?.$type;
+    const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
+    let iconClass = sfDescriptor?.icon || undefined;
 
-    // StartEvent
-    if (is(element, "bpmn:StartEvent") && element.businessObject.get("requiresConsent")) {
+    // StartEvent — studyflow properties live on the BO via extends
+    if (is(element, "bpmn:StartEvent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:StartEvent"](parentNode, element);
-      iconClass = "iconify tabler--shield-lock";
-      this.drawIcon(parentNode, element, iconClass, 3, 3, 30);
+      if (element.businessObject.get("requiresConsent")) {
+        this.drawIcon(parentNode, element, "iconify tabler--shield-lock", 3, 3, 30);
+      }
       return circle;
     }
 
-    // EndEvent
-    if (is(element, "bpmn:EndEvent") && element.businessObject.get("hasRedirectUrl")) {
+    // EndEvent — studyflow properties live on the BO via extends
+    if (is(element, "bpmn:EndEvent")) {
       const circle = this.bpmnRenderer.handlers["bpmn:EndEvent"](parentNode, element);
-      iconClass = "iconify tabler--external-link";
-      this.drawIcon(parentNode, element, iconClass, 4, 4, 28);
+      if (element.businessObject.get("hasRedirectUrl")) {
+        this.drawIcon(parentNode, element, "iconify tabler--external-link", 4, 4, 28);
+      }
       return circle;
     }
 
@@ -202,14 +210,12 @@ export default class StudyflowRenderer extends BaseRenderer {
       return dataset;
     }
 
-    // Activity with custom icons
-    const businessObject = element.businessObject;
-    if (is(element, "studyflow:Activity")) {
+    // Activity — renders with studyflow icons/markers
+    // ext may be null for plain bpmn:Task with only extends-based props (e.g., isDataOperation)
+    if (is(element, "bpmn:Activity")) {
       let activity;
 
       if (element.type in this.bpmnTaskIconOverrides) {
-        // If this task type has a custom icon override, draw a clean rectangle
-        // Otherwise, use the default bpmn-js handler (with its built-in icon)
         activity = this.bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
         iconClass = this.bpmnTaskIconOverrides[element.type];
       } else if (this.bpmnRenderer.handlers[element.type]) {
@@ -221,24 +227,25 @@ export default class StudyflowRenderer extends BaseRenderer {
       let iconSize = 24;
       let iconMarker = undefined;
 
-      let instrument = businessObject?.get("instrument");
-      const instrumentEnum = this.pkgEnums.find(e => e.name === "InstrumentEnum");
-      iconClass = instrumentEnum.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
+      if (ext) {
+        let instrument = ext.get("instrument");
+        const instrumentEnum = this.pkgEnums.find(e => e.name === "InstrumentEnum");
+        iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
 
-      if (instrument === "behaverse") {
-        iconMarker = businessObject.get("behaverseTask")?.toUpperCase();
-        if (iconMarker === "UNDEFINED") {
-          iconMarker = undefined;
-        }
-        // adjust icon size based on marker length
-        switch (iconMarker?.length) {
-          case undefined:
-          case 2: // 2 characters fit well within the icon
-            iconSize = 24;
-            break;
-          default:  // for longer markers, reduce icon size to make room
-            iconSize = 28;
-            break;
+        if (instrument === "behaverse") {
+          iconMarker = ext.get("behaverseTask")?.toUpperCase();
+          if (iconMarker === "UNDEFINED") {
+            iconMarker = undefined;
+          }
+          switch (iconMarker?.length) {
+            case undefined:
+            case 2:
+              iconSize = 24;
+              break;
+            default:
+              iconSize = 28;
+              break;
+          }
         }
       }
 
@@ -254,18 +261,27 @@ export default class StudyflowRenderer extends BaseRenderer {
       this.drawIcon(parentNode, element, iconClass, 13, 13, 24);
       return gateway;
     }
+
+    // Fallback: render using the default BPMN handler for the element type
+    if (this.bpmnRenderer.handlers[element.type]) {
+      return this.bpmnRenderer.handlers[element.type](parentNode, element);
+    }
   }
 
   drawMarkers(parentNode, element) {
     const businessObject = element.businessObject;
+    const ext = getStudyflowExtension(element);
     let markers = [];
     this.removeDefaultMarkers(parentNode);
 
+    // isDataOperation is an extends property on bpmn:Activity (lives on the BO)
     if (businessObject.get("isDataOperation")) {
       markers.push("operation");
     }
 
-    if (businessObject.get("checklist")?.length > 0) {
+    // checklist may be on the extension element or on the BO (extends)
+    const checklist = ext?.get("checklist") || businessObject.get("checklist");
+    if (checklist?.length > 0) {
       markers.push("checklist");
     }
 

@@ -91,8 +91,8 @@ interface ModdleType {
   superClass?: string[];
   extends?: string[];
   properties?: ModdleProperty[];
-  attributes?: ModdleProperty[];
   icon?: string;
+  meta?: Record<string, any>;
 }
 
 interface ModdleProperty {
@@ -110,16 +110,58 @@ interface ModdleProperty {
   };
 }
 
+/**
+ * BPMN type hierarchy — maps each BPMN type to its ancestor types.
+ * Used to determine which studyflow "extends-like" abstract classes
+ * propagate their properties to a given element type.
+ */
+const BPMN_ANCESTORS: Record<string, string[]> = {
+  'bpmn:Task': ['bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:UserTask': ['bpmn:Task', 'bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:SubProcess': ['bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:StartEvent': ['bpmn:CatchEvent', 'bpmn:Event', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:EndEvent': ['bpmn:ThrowEvent', 'bpmn:Event', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:ExclusiveGateway': ['bpmn:Gateway', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:ParallelGateway': ['bpmn:Gateway', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:InclusiveGateway': ['bpmn:Gateway', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:DataStoreReference': ['bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:DataStore': ['bpmn:RootElement', 'bpmn:BaseElement'],
+  'bpmn:DataObject': ['bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:DataObjectReference': ['bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:Process': ['bpmn:FlowElementsContainer', 'bpmn:CallableElement', 'bpmn:BaseElement'],
+  'bpmn:Activity': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:BaseElement': [],
+  'bpmn:Event': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:Gateway': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+};
+
 class LinkMLToModdleConverter {
   private linkmlSchema: LinkMLSchema;
   private moddleSchema: ModdleSchema;
+
+  /** studyflow class name → BPMN type (all mapped classes) */
   private bpmnMappings: Map<string, string> = new Map();
+
+  /**
+   * BPMN type → studyflow class name (only abstract "extends-like" classes
+   * whose properties propagate to all BPMN elements of that type).
+   * E.g., bpmn:BaseElement → Element, bpmn:Activity → Activity.
+   */
+  private bpmnExtendsClasses: Map<string, string> = new Map();
+
+  /**
+   * Classes whose BPMN mapping comes from `class_uri` (not `is_a`).
+   * These use the moddle `extends` mechanism — their properties become
+   * XML attributes on the BPMN element itself.
+   * Classes mapped via `is_a` use standalone extension elements instead.
+   */
+  private classUriClasses: Set<string> = new Set();
 
   constructor(linkmlSchemaContent: string) {
     this.linkmlSchema = yaml.load(linkmlSchemaContent) as LinkMLSchema;
 
     this.moddleSchema = {
-      name: this.linkmlSchema.title || this.linkmlSchema.name || 'studyflow', 
+      name: this.linkmlSchema.title || this.linkmlSchema.name || 'studyflow',
       uri: this.linkmlSchema.id || 'http://behaverse.org/schemas/studyflow',
       prefix: this.linkmlSchema.default_prefix || 'studyflow',
       xml: {
@@ -130,7 +172,6 @@ class LinkMLToModdleConverter {
       types: []
     };
 
-    // Initialize BPMN mappings
     this.initializeBPMNMappings();
   }
 
@@ -138,20 +179,142 @@ class LinkMLToModdleConverter {
     if (!this.linkmlSchema.classes) return;
 
     for (const [className, classData] of Object.entries(this.linkmlSchema.classes)) {
-      // Check class_uri first
-      if (classData.class_uri && classData.class_uri.startsWith('bpmn:')) {
-        this.bpmnMappings.set(className, classData.class_uri);
-      }
-      // Then check exact_mappings
-      else if (classData.exact_mappings) {
+      let bpmnType: string | null = null;
+      let fromClassUri = false;
+
+      if (classData.class_uri?.startsWith('bpmn:')) {
+        bpmnType = classData.class_uri;
+        fromClassUri = true;
+      } else if (classData.is_a?.startsWith('bpmn:')) {
+        bpmnType = classData.is_a;
+      } else if (classData.exact_mappings) {
         for (const mapping of classData.exact_mappings) {
           if (mapping.startsWith('bpmn:')) {
-            this.bpmnMappings.set(className, mapping);
+            bpmnType = mapping;
           }
+        }
+      }
+
+      if (bpmnType) {
+        this.bpmnMappings.set(className, bpmnType);
+
+        // Abstract classes mapped via is_a with own attributes propagate
+        // via BPMN hierarchy (their props get flattened into concrete types).
+        // class_uri classes are NOT added here — they use moddle `extends`
+        // and their props live on the BPMN element directly.
+        if (!fromClassUri &&
+            classData.abstract &&
+            classData.attributes &&
+            Object.keys(classData.attributes).length > 0) {
+          this.bpmnExtendsClasses.set(bpmnType, className);
+        }
+
+        // Classes mapped via class_uri use moddle `extends`
+        if (fromClassUri) {
+          this.classUriClasses.add(className);
         }
       }
     }
   }
+
+  /**
+   * Get the BPMN base type for a studyflow class, walking the is_a chain.
+   */
+  private getBpmnType(className: string): string | null {
+    if (this.bpmnMappings.has(className)) {
+      return this.bpmnMappings.get(className)!;
+    }
+    const classData = this.linkmlSchema.classes?.[className];
+    if (!classData) return null;
+    if (classData.is_a && !classData.is_a.startsWith('bpmn:')) {
+      return this.getBpmnType(classData.is_a);
+    }
+    return null;
+  }
+
+  /**
+   * Collect attributes from abstract studyflow classes that map to BPMN
+   * ancestors of the given BPMN type.
+   *
+   * For example, for bpmn:Task:
+   *   - bpmn:Activity ancestor → Activity class props (url, isDataOperation, …)
+   *   - bpmn:BaseElement ancestor → Element class props (documentation, checklist)
+   */
+  private collectBpmnAncestorAttributes(
+    bpmnType: string,
+    visited: Set<string>
+  ): Record<string, LinkMLAttribute> {
+    const ancestors = BPMN_ANCESTORS[bpmnType] || [];
+    const allBpmnTypes = [bpmnType, ...ancestors];
+    let attrs: Record<string, LinkMLAttribute> = {};
+
+    for (const bt of allBpmnTypes) {
+      const sfClass = this.bpmnExtendsClasses.get(bt);
+      if (sfClass && !visited.has(sfClass)) {
+        const ancestorAttrs = this.collectAllAttributes(sfClass, visited);
+        attrs = { ...attrs, ...ancestorAttrs };
+      }
+    }
+
+    return attrs;
+  }
+
+  /**
+   * Collect ALL attributes for a class by walking:
+   * 1. is_a chain (studyflow parent classes)
+   * 2. BPMN ancestry (for extends-like abstract classes)
+   * 3. Mixins
+   * 4. Own attributes (override inherited)
+   *
+   * This produces the FLAT set of all properties for a given class,
+   * suitable for generating self-contained extension element types.
+   */
+  private collectAllAttributes(
+    className: string,
+    visited: Set<string> = new Set()
+  ): Record<string, LinkMLAttribute> {
+    if (visited.has(className)) return {};
+    visited.add(className);
+
+    const classes = this.linkmlSchema.classes;
+    if (!classes?.[className]) return {};
+
+    const classData = classes[className];
+    let attrs: Record<string, LinkMLAttribute> = {};
+
+    // 1. Walk is_a chain — studyflow parents
+    if (classData.is_a && !classData.is_a.startsWith('bpmn:') && classes[classData.is_a]) {
+      attrs = { ...attrs, ...this.collectAllAttributes(classData.is_a, visited) };
+    }
+
+    // 2. Walk BPMN ancestry — collect from extends-like studyflow classes
+    const bpmnType = classData.class_uri?.startsWith('bpmn:')
+      ? classData.class_uri
+      : classData.is_a?.startsWith('bpmn:')
+        ? classData.is_a
+        : null;
+    if (bpmnType) {
+      attrs = { ...attrs, ...this.collectBpmnAncestorAttributes(bpmnType, visited) };
+    }
+
+    // 3. Walk mixins
+    if (classData.mixins) {
+      for (const mixin of classData.mixins) {
+        if (classes[mixin]) {
+          attrs = { ...attrs, ...this.collectAllAttributes(mixin, visited) };
+        }
+      }
+    }
+
+    // 4. Own attributes (override inherited)
+    if (classData.attributes) {
+      attrs = { ...attrs, ...classData.attributes };
+    }
+
+    return attrs;
+  }
+
+  // ─── Enum / Type conversion ────────────────────────────────────────
 
   private convertEnums(): void {
     if (!this.linkmlSchema.enums) return;
@@ -173,7 +336,6 @@ class LinkMLToModdleConverter {
   }
 
   private formatEnumValueName(value: string): string {
-    // Convert kebab-case or snake_case to Title Case
     return value
       .split(/[-_]/)
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -187,33 +349,12 @@ class LinkMLToModdleConverter {
       this.moddleSchema.types.push({
         name: typeName,
         description: typeData.description,
-        superClass: ['String'] // Default for custom types
+        superClass: ['String']
       });
     }
   }
 
-  private getSuperClasses(classData: LinkMLClass, className: string): string[] {
-    const superClasses: string[] = [];
-
-    // Check for BPMN mappings from class_uri/exact_mappings
-    const bpmnMapping = this.bpmnMappings.get(className);
-    if (bpmnMapping) {
-      superClasses.push(bpmnMapping);
-    }
-
-    // Check for is_a (inheritance) - always add parent class
-    if (classData.is_a) {
-      superClasses.push(classData.is_a);
-    }
-
-    // Add studyflow:Element for classes with mixins that include Element
-    if (classData.mixins && classData.mixins.includes('Element') && className !== 'Element') {
-      superClasses.push(`${this.moddleSchema.prefix}:Element`);
-    }
-
-    return superClasses;
-  }
-
+  // ─── Attribute conversion ──────────────────────────────────────────
 
   private convertLinkMLTypeToModdle(linkmlType: string): string {
     const typeMapping: Record<string, string> = {
@@ -223,18 +364,20 @@ class LinkMLToModdleConverter {
       'float': 'Float',
       'double': 'Double'
     };
-
     return typeMapping[linkmlType.toLowerCase()] || linkmlType;
   }
 
+  /**
+   * Convert LinkML attributes to moddle properties.
+   * All properties are isAttr:true (serialised as XML attributes on the
+   * wrapper extension element).
+   */
   private convertAttributes(
-    attributes: Record<string, LinkMLAttribute>,
-    redefinesMap: Record<string, string> = {}
+    attributes: Record<string, LinkMLAttribute>
   ): ModdleProperty[] {
     const properties: ModdleProperty[] = [];
 
     for (const [attrName, attrData] of Object.entries(attributes)) {
-      // Skip 'id' attribute as it's handled by BPMN base classes
       if (attrName === 'id') continue;
 
       const property: ModdleProperty = {
@@ -244,17 +387,11 @@ class LinkMLToModdleConverter {
         type: attrData.range ? this.convertLinkMLTypeToModdle(attrData.range) : 'String'
       };
 
-      // Handle redefinitions of inherited BPMN properties
-      if (redefinesMap[attrName]) {
-        property.redefines = redefinesMap[attrName];
-      }
-
-      // Handle default values from ifabsent
+      // Default values from ifabsent
       if (attrData.ifabsent !== undefined) {
         if (typeof attrData.ifabsent === 'boolean') {
           property.default = attrData.ifabsent;
         } else if (typeof attrData.ifabsent === 'string') {
-          // Parse ifabsent values like "string(custom)" or "false"
           const match = attrData.ifabsent.match(/^string\((.+)\)$/);
           if (match) {
             property.default = match[1];
@@ -266,17 +403,14 @@ class LinkMLToModdleConverter {
         }
       }
 
-      // Handle multivalued (isMany)
       if (attrData.multivalued) {
         property.isMany = true;
       }
 
-      // Handle categories
-      if (attrData.categories && attrData.categories.length > 0) {
+      if (attrData.categories?.length) {
         property.categories = attrData.categories;
       }
 
-      // Handle conditions from extensions
       if (attrData.extensions?.condition_body) {
         try {
           property.condition = {
@@ -284,7 +418,6 @@ class LinkMLToModdleConverter {
             body: JSON.parse(attrData.extensions.condition_body)
           };
         } catch (e) {
-          // If parsing fails, skip the condition
           console.warn(`Failed to parse condition for ${attrName}:`, e);
         }
       }
@@ -295,66 +428,78 @@ class LinkMLToModdleConverter {
     return properties;
   }
 
+  // ─── Class conversion (extension element types) ────────────────────
+
+  /**
+   * Convert LinkML classes to moddle extension element types.
+   *
+   * Each studyflow class becomes a standalone moddle type with
+   * superClass: ["Element"] (moddle base). Properties from the LinkML
+   * inheritance chain are FLATTENED into each type so that the wrapper
+   * extension element is self-contained.
+   *
+   * Abstract "extends-like" classes (Element, Activity) whose sole
+   * purpose is to propagate properties via BPMN ancestry are SKIPPED
+   * from the output to avoid naming conflicts (e.g., studyflow:Element
+   * would shadow moddle's built-in Element type).
+   *
+   * Classes mapped via `class_uri` use `extends` — their properties
+   * become XML attributes on the BPMN element (e.g.,
+   * `<bpmn2:startEvent studyflow:requiresConsent="true" />`).
+   * Classes mapped via `is_a` use standalone extension elements.
+   */
   private convertClasses(): void {
     if (!this.linkmlSchema.classes) return;
 
+    // Collect the set of class names to skip
+    const skipClasses = new Set<string>();
+    for (const sfClassName of this.bpmnExtendsClasses.values()) {
+      skipClasses.add(sfClassName);
+    }
+
     for (const [className, classData] of Object.entries(this.linkmlSchema.classes)) {
+      if (skipClasses.has(className)) continue;
+
+      const bpmnType = this.getBpmnType(className);
+
+      // class_uri → extends (attrs on BPMN element); is_a → extension element
+      const useExtends = this.classUriClasses.has(className);
+
       const moddleType: ModdleType = {
         name: className,
-        description: classData.description
+        description: classData.description,
       };
 
-      // Only set isAbstract if it's explicitly true or false in the schema
+      if (useExtends) {
+        // Properties become XML attributes on the BPMN element itself.
+        moddleType.extends = [bpmnType];
+      } else {
+        // Standalone extension element type inside <extensionElements>.
+        moddleType.superClass = ['Element'];
+      }
+
       if (classData.abstract !== undefined) {
         moddleType.isAbstract = classData.abstract;
       }
 
-      // Handle superClass and extends
-      const superClasses = this.getSuperClasses(classData, className);
-      if (superClasses.length > 0) {
-        // Special handling: StartEvent, EndEvent use extends for BPMN types
-        const usesExtends = ['StartEvent', 'EndEvent', 'Activity'].includes(className);
-
-        if (usesExtends) {
-          const bpmnTypes = superClasses.filter(sc => sc.startsWith('bpmn:'));
-          const otherTypes = superClasses.filter(sc => !sc.startsWith('bpmn:'));
-
-          if (bpmnTypes.length > 0) {
-            moddleType.extends = bpmnTypes;
-          }
-          if (otherTypes.length > 0) {
-            moddleType.superClass = otherTypes;
-          }
-        } else {
-          // All other classes: everything goes into superClass
-          moddleType.superClass = superClasses;
-        }
+      // Store BPMN type mapping in meta (only for extension element types)
+      if (bpmnType && !useExtends) {
+        moddleType.meta = { bpmnType };
       }
 
-      // Handle mixins - but don't add duplicates
-      if (classData.mixins && classData.mixins.length > 0) {
-        if (!moddleType.superClass) {
-          moddleType.superClass = [];
-        }
-        // Only add mixins that aren't already in superClass
-        for (const mixin of classData.mixins) {
-          if (!moddleType.superClass.includes(mixin) && !moddleType.superClass.includes(`${this.moddleSchema.prefix}:${mixin}`)) {
-            moddleType.superClass.push(mixin);
-          }
-        }
+      // Collect properties:
+      // - For extends types, only OWN attributes (mixin/ancestor props are
+      //   already on the BPMN type through its own hierarchy).
+      // - For extension element types, FLATTEN everything so the wrapper
+      //   is self-contained.
+      const allAttrs = useExtends
+        ? (classData.attributes || {})
+        : this.collectAllAttributes(className);
+      if (Object.keys(allAttrs).length > 0) {
+        moddleType.properties = this.convertAttributes(allAttrs);
       }
 
-      // Convert attributes to properties
-      if (classData.attributes && Object.keys(classData.attributes).length > 0) {
-        const redefinesMap: Record<string, string> = {};
-        const hasBpmnSuper = superClasses.some(sc => sc.startsWith('bpmn:'));
-        if (hasBpmnSuper && classData.attributes.documentation) {
-          redefinesMap.documentation = 'bpmn:BaseElement#documentation';
-        }
-        moddleType.properties = this.convertAttributes(classData.attributes, redefinesMap);
-      }
-
-      // Handle icon annotation
+      // Icon
       if (classData.annotations?.icon) {
         moddleType.icon = classData.annotations.icon;
       }
@@ -362,6 +507,8 @@ class LinkMLToModdleConverter {
       this.moddleSchema.types.push(moddleType);
     }
   }
+
+  // ─── Public API ────────────────────────────────────────────────────
 
   public convert(): void {
     this.convertEnums();

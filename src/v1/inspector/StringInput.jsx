@@ -3,6 +3,7 @@ import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@h
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
+import { getStudyflowExtension, setExtensionProperty } from '../extensionElements';
 
 
 export function StringInput(props) {
@@ -11,7 +12,15 @@ export function StringInput(props) {
     const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(businessObject.get(name) || '');
+    const isStudyflowProp = bpmnProperty.ns?.prefix === 'studyflow';
+
+    // Read from extension element if available, otherwise from BO
+    // (extends-based types like StartEvent/EndEvent have studyflow props on the BO)
+    const ext = isStudyflowProp ? getStudyflowExtension(element) : null;
+    const useExt = isStudyflowProp && !!ext;
+    const [value, setValue] = useState(
+        useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')
+    );
 
     const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
     const elementRegistry = useContext(ModelerContext).modeler.get('elementRegistry');
@@ -19,6 +28,16 @@ export function StringInput(props) {
     function handleChange(event) {
         const newValue = event.target.value;
         setValue(newValue);
+
+        // Studyflow properties → update the extension element or BO
+        if (isStudyflowProp) {
+            if (useExt) {
+                setExtensionProperty(element, name, newValue, modeling);
+            } else {
+                modeling.updateProperties(element, { [name]: newValue });
+            }
+            return;
+        }
 
         // For non-ID changes, update properties normally
         if (name !== "bpmn:id") {
@@ -30,7 +49,6 @@ export function StringInput(props) {
 
         // For ID changes, we need to handle them differently
         const e = elementRegistry.get(element.id);
-        // modeling.updateProperties expects the property name to be 'id', not 'bpmn:id'
         modeling.updateProperties(e, {
             id: newValue
         });

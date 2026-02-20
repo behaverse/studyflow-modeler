@@ -1,29 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
-  <studyflow:study id="Study_1" isExecutable="false">
-    <bpmn2:startEvent id="StartEvent_1" name="start">
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="Study_1" isExecutable="false">
+    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements><bpmn2:startEvent id="StartEvent_1" name="start">
       <bpmn2:outgoing>Flow_1blym28</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <studyflow:questionnaire id="Questionnaire_0aacick" name="Questionnaire" type="studyflow:Questionnaire">
-      <bpmn2:incoming>Flow_1blym28</bpmn2:incoming>
+    <bpmn2:task id="Questionnaire_0aacick" name="Questionnaire">
+      <bpmn2:extensionElements><studyflow:questionnaire /></bpmn2:extensionElements><bpmn2:incoming>Flow_1blym28</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1oan8pv</bpmn2:outgoing>
-    </studyflow:questionnaire>
+    </bpmn2:task>
     <bpmn2:sequenceFlow id="Flow_1blym28" sourceRef="StartEvent_1" targetRef="Questionnaire_0aacick" />
-    <studyflow:randomGateway id="RandomGateway_1lkg88n" type="studyflow:RandomGateway">
-      <bpmn2:incoming>Flow_1oan8pv</bpmn2:incoming>
+    <bpmn2:exclusiveGateway id="RandomGateway_1lkg88n">
+      <bpmn2:extensionElements><studyflow:randomGateway /></bpmn2:extensionElements><bpmn2:incoming>Flow_1oan8pv</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1tuihsu</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_146ougx</bpmn2:outgoing>
-    </studyflow:randomGateway>
+    </bpmn2:exclusiveGateway>
     <bpmn2:sequenceFlow id="Flow_1oan8pv" sourceRef="Questionnaire_0aacick" targetRef="RandomGateway_1lkg88n" />
-    <studyflow:cognitiveTask id="CognitiveTask_092e3ll" name="N-back Task" instrument="behaverse" behaverseTask="NB" type="studyflow:CognitiveTask">
-      <bpmn2:incoming>Flow_1tuihsu</bpmn2:incoming>
+    <bpmn2:task id="CognitiveTask_092e3ll" name="N-back Task">
+      <bpmn2:extensionElements><studyflow:cognitiveTask instrument="behaverse" behaverseTask="NB" /></bpmn2:extensionElements><bpmn2:incoming>Flow_1tuihsu</bpmn2:incoming>
       <bpmn2:outgoing>Flow_0dubxll</bpmn2:outgoing>
-    </studyflow:cognitiveTask>
+    </bpmn2:task>
     <bpmn2:sequenceFlow id="Flow_1tuihsu" name="group 1" sourceRef="RandomGateway_1lkg88n" targetRef="CognitiveTask_092e3ll" />
-    <studyflow:cognitiveTask id="CognitiveTask_1d83jwz" name="UFoV Task" instrument="behaverse" behaverseTask="UFOV" type="studyflow:CognitiveTask">
-      <bpmn2:incoming>Flow_146ougx</bpmn2:incoming>
+    <bpmn2:task id="CognitiveTask_1d83jwz" name="UFoV Task">
+      <bpmn2:extensionElements><studyflow:cognitiveTask instrument="behaverse" behaverseTask="UFOV" /></bpmn2:extensionElements><bpmn2:incoming>Flow_146ougx</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1mj9fj9</bpmn2:outgoing>
-    </studyflow:cognitiveTask>
+    </bpmn2:task>
     <bpmn2:sequenceFlow id="Flow_146ougx" name="group 2" sourceRef="RandomGateway_1lkg88n" targetRef="CognitiveTask_1d83jwz" />
     <bpmn2:endEvent id="Event_0nve2qx" name="end">
       <bpmn2:incoming>Flow_0dubxll</bpmn2:incoming>
@@ -31,7 +31,7 @@
     </bpmn2:endEvent>
     <bpmn2:sequenceFlow id="Flow_0dubxll" sourceRef="CognitiveTask_092e3ll" targetRef="Event_0nve2qx" />
     <bpmn2:sequenceFlow id="Flow_1mj9fj9" sourceRef="CognitiveTask_1d83jwz" targetRef="Event_0nve2qx" />
-  </studyflow:study>
+  </bpmn2:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
       <bpmndi:BPMNShape id="RandomGateway_1lkg88n_di" bpmnElement="RandomGateway_1lkg88n" isMarkerVisible="true">

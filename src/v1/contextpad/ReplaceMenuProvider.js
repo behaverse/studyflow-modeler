@@ -18,20 +18,19 @@ export default class ReplaceMenuProvider {
   getPopupMenuHeaderEntries(element) {
     const headerEntries = {};
 
-    if (is(element, 'studyflow:Activity')) {
-      headerEntries['toggle-marker-operation'] = this._getOperatorMarkerHeaderEntry(element);
+    // isDataOperation is an extends property on bpmn:Activity (lives on the BO)
+    if (is(element, 'bpmn:Activity')) {
+      headerEntries['toggle-marker-operation'] = this._getOperationMarkerHeaderEntry(element);
     }
 
     return headerEntries;
   }
 
-  _getOperatorMarkerHeaderEntry(element) {
+  _getOperationMarkerHeaderEntry(element) {
     const self = this;
     const businessObject = element.businessObject;
 
-    function toggleDataOperator(event, entry) {
-      // Use the businessObject as source of truth; popup header entry state may be stale
-      // until the menu re-renders on element change.
+    function toggleDataOperation(event, entry) {
       const currentState = !!businessObject.get('isDataOperation');
       const newState = !currentState;
 
@@ -46,7 +45,7 @@ export default class ReplaceMenuProvider {
       title: 'Data Operator',
       imageHtml: '<i class="data-marker-operation"></i>',
       active: !!businessObject.get('isDataOperation'),
-      action: toggleDataOperator
+      action: toggleDataOperation
     };
   }
 }

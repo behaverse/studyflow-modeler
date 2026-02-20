@@ -3,21 +3,32 @@ import { Checkbox, Label, Popover, PopoverButton, PopoverPanel } from '@headless
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
+import { getStudyflowExtension, setExtensionProperty } from '../extensionElements';
 
 
 export function BooleanInput(props) {
     const { bpmnProperty } = props;
     const { element, businessObject } = useContext(InspectorContext);
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(businessObject.get(name) || false);
+    const isStudyflowProp = bpmnProperty.ns?.prefix === 'studyflow';
+
+    const ext = isStudyflowProp ? getStudyflowExtension(element) : null;
+    const useExt = isStudyflowProp && !!ext;
+    const [value, setValue] = useState(
+        useExt ? (ext.get(name) || false) : (businessObject.get(name) || false)
+    );
 
     const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
 
     function handleChange(checked) {
         setValue(checked);
-        modeling.updateProperties(element, {
-            [name]: checked
-        });
+        if (useExt) {
+            setExtensionProperty(element, name, checked, modeling);
+        } else {
+            modeling.updateProperties(element, {
+                [name]: checked
+            });
+        }
     }
 
     return (
