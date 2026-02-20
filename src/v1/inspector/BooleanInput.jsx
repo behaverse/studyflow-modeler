@@ -12,8 +12,13 @@ export function BooleanInput(props) {
     const name = bpmnProperty.ns.name;
     const isStudyflowProp = bpmnProperty.ns?.prefix === 'studyflow';
 
-    const ext = isStudyflowProp ? getStudyflowExtension(element) : null;
-    const useExt = isStudyflowProp && !!ext;
+    // extends-based props (e.g., isDataOperation) live on the BO even though they
+    // have a studyflow: prefix – only use the extension element for wrapper-only props
+    const isExtendsProp = businessObject.$descriptor.properties.some(
+        (p) => p === bpmnProperty
+    );
+    const ext = (isStudyflowProp && !isExtendsProp) ? getStudyflowExtension(element) : null;
+    const useExt = isStudyflowProp && !isExtendsProp && !!ext;
     const [value, setValue] = useState(
         useExt ? (ext.get(name) || false) : (businessObject.get(name) || false)
     );

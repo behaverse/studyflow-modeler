@@ -41,16 +41,21 @@ export function PropertyField(props) {
     const [isVisible, setVisible] = useState(true);
 
     // Determine whether to read from the extension element or the business object.
-    // Properties defined on studyflow extension types live on the wrapper element.
+    // Properties defined on studyflow extension types live on the wrapper element,
+    // but extends-based props (e.g., isDataOperation) live on the BO itself.
     const isStudyflowProp = bpmnProperty.ns?.prefix === 'studyflow';
+    const isExtendsProp = businessObject?.$descriptor?.properties?.some(
+        (p) => p === bpmnProperty
+    );
 
     const checkConditionalVisibility = useCallback((bProp, bObj) => {
-        // For studyflow props, check conditions against the extension element
-        const dataSource = isStudyflowProp
+        // For extension-element studyflow props, check conditions against the wrapper;
+        // for extends-based props, check conditions against the BO.
+        const dataSource = (isStudyflowProp && !isExtendsProp)
             ? getStudyflowExtension(bObj) || bObj
             : bObj;
         setVisible(isPropertyVisible(bProp, dataSource));
-    }, [isStudyflowProp]);
+    }, [isStudyflowProp, isExtendsProp]);
 
     // conditional visibility
     useEffect(() => {

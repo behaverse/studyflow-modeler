@@ -16,8 +16,12 @@ export function EnumInput(props) {
     const pkg = bpmnProperty.definedBy.$pkg;
     const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
 
-    const ext = isStudyflowProp ? getStudyflowExtension(element) : null;
-    const useExt = isStudyflowProp && !!ext;
+    // extends-based props live on the BO even though they have a studyflow: prefix
+    const isExtendsProp = businessObject.$descriptor.properties.some(
+        (p) => p === bpmnProperty
+    );
+    const ext = (isStudyflowProp && !isExtendsProp) ? getStudyflowExtension(element) : null;
+    const useExt = isStudyflowProp && !isExtendsProp && !!ext;
     const [value, setValue] = useState(
         useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')
     );
