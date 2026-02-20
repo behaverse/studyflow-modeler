@@ -161,9 +161,13 @@ export function Panel({ className = '', ...props }) {
             <>
                 <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
                     (() => {
-                        const ext = getStudyflowExtension(el);
-                        const sfType = ext?.$type?.split(':')[1];
-                        return sfType || el.type.split(':')[1];
+                                                const ext = getStudyflowExtension(el);
+                                                const sfType = ext?.$type?.split(':')[1];
+                                                if (sfType) return sfType;
+                                                if (el?.type && typeof el.type === 'string' && el.type.includes(':')) {
+                                                    return el.type.split(':')[1];
+                                                }
+                                                return 'Unknown';
                     })()
                 }</h1>
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{

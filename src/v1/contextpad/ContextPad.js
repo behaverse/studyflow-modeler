@@ -1,9 +1,19 @@
 export default class StudyflowContextPad {
+  static $inject = ['contextPad', 'eventBus'];
 
-  static $inject = ['contextPad'];
-
-  constructor(contextPad) {
+  constructor(contextPad, eventBus) {
+    this._contextPad = contextPad;
+    this._eventBus = eventBus;
+    this._disabled = false;
     contextPad.registerProvider(this);
+
+    // Listen for simulation toggle event
+    eventBus.on('tokenSimulation.toggle', ({ active }) => {
+      this._disabled = !!active;
+      if (active && typeof contextPad.close === 'function') {
+        contextPad.close();
+      }
+    });
 
     // HACK Silence ContextPad#getPad deprecation warning (diagram-js 15.x vs bpmn-js 18.x compat issue). Warning is suppressed until bpmn-js ships a fix. See https://github.com/bpmn-io/diagram-js/pull/888
     if (typeof contextPad.getPad === 'function') {
@@ -24,7 +34,8 @@ export default class StudyflowContextPad {
   }
 
   getContextPadEntries(element) {
-    return function (entries) {
+    return (entries) => {
+      if (this._disabled) return {};
       delete entries['append.append-task'];
       delete entries['append.gateway'];
       delete entries['append.intermediate-event'];

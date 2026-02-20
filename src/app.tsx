@@ -34,15 +34,15 @@ export default function App() {
           {/* the modeler */}
           <div className="w-screen h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
-              {modeler && <Palette className="md:flex" />}
+              {modeler && <Palette className="md:flex studyflow-palette" />}
               <Modeler />
             </div>
           </div>
   
           {modeler && (
-              <>
+              <div className="studyflow-inspector">
                 <InspectorPanel />
-              </>
+              </div>
             )}
 
         </div>

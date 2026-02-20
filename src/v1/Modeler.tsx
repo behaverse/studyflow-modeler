@@ -6,7 +6,7 @@ import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import BpmnColorPickerModule from 'bpmn-js-color-picker';
 import 'bpmn-js-color-picker/colors/color-picker.css';
-import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
+
 import {
     CreateAppendAnythingModule,
     // CreateAppendElementTemplatesModule

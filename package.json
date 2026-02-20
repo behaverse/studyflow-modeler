@@ -24,7 +24,6 @@
     "bpmn-js": "^18.12.0",
     "bpmn-js-color-picker": "^0.7.2",
     "bpmn-js-create-append-anything": "^1.2.0",
-    "bpmn-js-token-simulation": "^0.38.2",
     "canvg": "^4.0.3",
     "clsx": "^2.1.1",
     "diagram-js-grid": "^1.1.0",

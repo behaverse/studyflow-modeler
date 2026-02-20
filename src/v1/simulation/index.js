@@ -1,25 +1,10 @@
-import TokenSimulationModule from 'bpmn-js-token-simulation';
+import TokenSimulation from './TokenSimulation';
 
-import RandomGatewaySettings from './RandomGatewaySettings';
-import StudyflowActivityBehavior from './ActivityBehavior';
-import RandomGatewayBehavior from './RandomGatewayBehavior';
-import StudyBehavior from './StudyBehavior';
+export { TOGGLE_SIMULATION_EVENT } from './TokenSimulation';
 
 export default {
-  __depends__: [
-    TokenSimulationModule,
-  ],
   __init__: [
-    'toggleMode',
-    'studyFlowActivityBehavior',
-    'randomGatewayBehavior',
-    'randomGatewaySettings',
-    'processBehavior'
+    'tokenSimulation',
   ],
-  toggleMode: ['type', function(){}],
-  studyFlowActivityBehavior: ['type', StudyflowActivityBehavior],
-  randomGatewayBehavior: ['type', RandomGatewayBehavior],
-  randomGatewaySettings: ['type', RandomGatewaySettings],
-  processBehavior: ['type', StudyBehavior]
-
+  tokenSimulation: ['type', TokenSimulation],
 };

@@ -22,8 +22,6 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: '@', replacement: resolve(__dirname, 'src') },
-      { find: /^ids-raw$/, replacement: resolve(__dirname, 'node_modules/ids/dist/index.js') },
-      { find: /^ids$/, replacement: resolve(__dirname, 'src/shims/ids-default.ts') },
       { find: '#root', replacement: resolve(__dirname) }
     ],
   },
