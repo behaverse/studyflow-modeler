@@ -110,34 +110,3 @@ svg text.bi {
   border-bottom: 4px solid currentColor;
 }
 
-.data-marker-operation {
-  @apply iconify mdi--function;
-}
-
-.data-marker-subprocess {
-  @apply iconify mdi--plus-box-outline;
-}
-
-.data-marker-adhoc {
-  @apply iconify bpmn--ad-hoc-marker;
-}
-
-.data-marker-parallel {
-  @apply iconify mdi--view-parallel;
-}
-
-.data-marker-sequential {
-  @apply iconify mdi--view-sequential;
-}
-
-.data-marker-loop {
-  @apply iconify mdi--loop;
-}
-
-.data-marker-compensation {
-  @apply iconify bpmn--compensation-marker;
-}
-
-.data-marker-checklist {
-  @apply iconify mdi--checkbox-outline;
-}

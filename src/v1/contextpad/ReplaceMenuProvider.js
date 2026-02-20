@@ -43,7 +43,7 @@ export default class ReplaceMenuProvider {
 
     return {
       title: 'Data Operator',
-      imageHtml: '<i class="data-marker-operation"></i>',
+      imageHtml: '<i class="iconify mdi--function"></i>',
       active: !!businessObject.get('isDataOperation'),
       action: toggleDataOperation
     };

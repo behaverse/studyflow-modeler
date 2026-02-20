@@ -7,12 +7,11 @@ import {
 import { getStudyflowExtension, hasStudyflowExtends } from './extensionElements';
 
 /**
- * Custom icon overrides for standard BPMN task types.
- * Maps BPMN element type to an iconify class string.
- * Add new entries here to override more task type icons.
+ * Custom icon overrides for standard BPMN elements.
+ * Maps BPMN element/marker names to iconify class strings.
  */
-const BPMN_TASK_ICON_OVERRIDES = {
-  'bpmn:ManualTask':        'iconify mdi--hand-back-right-outline rotate-90',
+const BPMN_ICON_OVERRIDES = {
+  'bpmn:ManualTask':        'iconify tabler--hand-stop rotate-90',
   'bpmn:UserTask':          'iconify bi--person',
   'bpmn:ServiceTask':       'iconify mdi--cog',
   'bpmn:ScriptTask':        'iconify mdi--script-text',
@@ -20,6 +19,14 @@ const BPMN_TASK_ICON_OVERRIDES = {
   'bpmn:ReceiveTask':       'iconify mdi--email-open',
   'bpmn:BusinessRuleTask':  'iconify mdi--table',
   'bpmn:CallActivity':      'iconify mdi--arrow-right-bold-box',
+  'operation':              'iconify mdi--function',
+  'subprocess':             'iconify mdi--plus-box-outline',
+  'adhoc':                  'iconify tabler--tilde',
+  'parallel':               'iconify solar--hamburger-menu-linear rotate-90',
+  'sequential':             'iconify solar--hamburger-menu-linear',
+  'loop':                   'iconify mdi--loop',
+  'compensation':           'iconify bpmn--compensation-marker',
+  'checklist':              'iconify mdi--checkbox-outline'
 };
 
 export default class StudyflowRenderer extends BaseRenderer {
@@ -35,9 +42,6 @@ export default class StudyflowRenderer extends BaseRenderer {
 
     this.pkgTypeMap = moddle.registry.typeMap;
     this.pkgEnums = moddle.registry.packageMap["studyflow"]["enumerations"];
-
-    /** @type {Record<string, string>} */
-    this.bpmnTaskIconOverrides = { ...BPMN_TASK_ICON_OVERRIDES };
   }
 
   canRender(element) {
@@ -183,7 +187,7 @@ export default class StudyflowRenderer extends BaseRenderer {
     const ext = getStudyflowExtension(element);
     const sfType = ext?.$type;
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
-    let iconClass = sfDescriptor?.icon || undefined;
+    let iconClass = sfDescriptor?.icon || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
     // StartEvent — studyflow properties live on the BO via extends
     if (is(element, "bpmn:StartEvent")) {
@@ -215,9 +219,8 @@ export default class StudyflowRenderer extends BaseRenderer {
     if (is(element, "bpmn:Activity")) {
       let activity;
 
-      if (element.type in this.bpmnTaskIconOverrides) {
+      if (element.type in BPMN_ICON_OVERRIDES) {
         activity = this.bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
-        iconClass = this.bpmnTaskIconOverrides[element.type];
       } else if (this.bpmnRenderer.handlers[element.type]) {
         activity = this.bpmnRenderer.handlers[element.type](parentNode, element);
       } else {
@@ -322,7 +325,8 @@ export default class StudyflowRenderer extends BaseRenderer {
     const offsetX = (element.width - (markers.length * (markerSize + gapX))) / 2;
     markers.forEach((marker, index) => {
       const markerX = offsetX + index * (markerSize + gapX);
-      this.drawIcon(parentNode, element, `data-marker-${marker}`, markerX, markerY, markerSize);
+      const markerIcon = BPMN_ICON_OVERRIDES[marker];
+      this.drawIcon(parentNode, element, markerIcon, markerX, markerY, markerSize);
     });
 
   }
