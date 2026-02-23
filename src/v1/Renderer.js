@@ -1,11 +1,11 @@
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import {getFillColor, getStrokeColor} from "bpmn-js/lib/draw/BpmnRenderUtil";
+import { getStrokeColor } from "bpmn-js/lib/draw/BpmnRenderUtil";
 import {
   append as svgAppend, create as svgCreate
 } from "tiny-svg";
 import { getStudyflowExtension, hasStudyflowExtends } from './extensionElements';
-
+import { drawGateway } from "./draw/gateways";
 /**
  * FIXME remove this and load icons as separate SVG files when needed, instead of hardcoding path data here.
  * Inline SVG path data for icons that must survive SVG export.
@@ -76,43 +76,6 @@ export default class StudyflowRenderer extends BaseRenderer {
     context.fillStyle = 'transparent';
     context.fillStyle = color;
     return /^#[0-9a-fA-F]{6}$/.test(context.fillStyle) ? context.fillStyle : null;
-  }
-
-  drawDiamond(parentGfx, element, attrs) {
-
-    const width = element.width;
-    const height = element.height;
-
-    var x_2 = width / 2;
-    var y_2 = height / 2;
-
-    var points = [
-      { x: x_2, y: 0 },
-      { x: width, y: y_2 },
-      { x: x_2, y: height },
-      { x: 0, y: y_2 }
-    ];
-
-    var pointsString = points.map(function(point) {
-      return point.x + ',' + point.y;
-    }).join(' ');
-
-    attrs = this.styles.computeStyle(attrs, {
-      strokeLinecap: 'round',
-      strokeLinejoin: 'round',
-      strokeWidth: 2,
-      stroke: getStrokeColor(element),
-      fill: getFillColor(element)
-    });
-
-    var polygon = svgCreate('polygon', {
-      ...attrs,
-      points: pointsString
-    });
-
-    svgAppend(parentGfx, polygon);
-
-    return polygon;
   }
 
   drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26, colorOverride = undefined) {
@@ -321,9 +284,7 @@ export default class StudyflowRenderer extends BaseRenderer {
 
     // Gateway
     if (is(element, "bpmn:Gateway")) {
-      var gateway = this.drawDiamond(parentNode, element);
-      this.drawIcon(parentNode, element, iconClass, 13, 13, 24);
-      return gateway;
+      return drawGateway(parentNode, element, iconClass, this.styles);
     }
 
     // Fallback: render using the default BPMN handler for the element type

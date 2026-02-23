@@ -127,10 +127,6 @@ async function exportoToPng(svg) {
 export function ExportButton({ className, fileType, onClick, ...props }) {
 
   const { modeler } = useContext(ModelerContext);
-  const fileTypeIcon = {
-    png: 'bi bi-file-png',
-    svg: 'bi bi-file-svg',
-  }[fileType];
 
   useEffect(() => {
   }, [modeler]);

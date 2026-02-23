@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useContext } from "react";
 import {DiagramNameContext, ModelerContext} from '../../contexts';
 import download from 'downloadjs';
 import PropTypes from 'prop-types';

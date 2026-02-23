@@ -33,6 +33,7 @@ export default class StudyflowContextPad {
     }
   }
 
+  // eslint-disable-next-line no-unused-vars
   getContextPadEntries(element) {
     return (entries) => {
       if (this._disabled) return {};

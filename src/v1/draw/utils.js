@@ -12,42 +12,6 @@ export function colorToHex(color) {
 }
 
 /**
- * Draw a diamond (rhombus) shape — used for gateways.
- */
-export function drawDiamond(parentGfx, element, attrs, styles) {
-  const width = element.width;
-  const height = element.height;
-
-  const x_2 = width / 2;
-  const y_2 = height / 2;
-
-  const points = [
-    { x: x_2, y: 0 },
-    { x: width, y: y_2 },
-    { x: x_2, y: height },
-    { x: 0, y: y_2 }
-  ];
-
-  const pointsString = points.map(point => point.x + ',' + point.y).join(' ');
-
-  attrs = styles.computeStyle(attrs, {
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    strokeWidth: 2,
-    stroke: getStrokeColor(element),
-    fill: 'white'
-  });
-
-  const polygon = svgCreate('polygon', {
-    ...attrs,
-    points: pointsString
-  });
-
-  svgAppend(parentGfx, polygon);
-  return polygon;
-}
-
-/**
  * Draw a foreignObject-based icon using an iconify CSS class.
  */
 export function drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26, colorOverride = undefined) {

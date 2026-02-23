@@ -11,6 +11,7 @@ export default class ReplaceMenuProvider {
     popupMenu.registerProvider('bpmn-replace', this);
   }
 
+  // eslint-disable-next-line no-unused-vars
   getPopupMenuEntries(element) {
     return {};
   }
