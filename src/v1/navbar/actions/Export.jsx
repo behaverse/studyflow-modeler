@@ -105,6 +105,27 @@ async function embedIconsInSvg(svgString) {
   return serializer.serializeToString(svgDoc);
 }
 
+function embedStudyflowIntoSvg(svgString, bpmnXml) {
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svgEl = svgDoc.querySelector('svg') || svgDoc.documentElement;
+
+  // clean
+  const xmlClean = bpmnXml.replace(/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE[\s\S]*?>\s*)?/i, '').trim();
+
+  let metadata = svgEl.querySelector('metadata');
+  if (!metadata) {
+    metadata = svgDoc.createElement('metadata');
+    // place metadata as the first child so it matches typical exporter layout
+    svgEl.insertBefore(metadata, svgEl.firstElementChild);
+  }
+
+  metadata.innerHTML = xmlClean;
+
+  const serializer = new XMLSerializer();
+  return serializer.serializeToString(svgDoc);
+}
+
 async function exportoToPng(svg) {
 
   let canvas = document.createElement('canvas');
@@ -134,8 +155,16 @@ export function ExportButton({ className, fileType, onClick, ...props }) {
   async function exportDiagram(e) {
     const { svg } = await modeler.saveSVG();
 
+    const svgClean = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
+
+    // Get the BPMN XML so we can embed it into the exported SVG metadata
+    const { xml } = await modeler.saveXML({ format: true });
+
     // Embed icons from Iconify API
-    const svgWithIcons = await embedIconsInSvg(svg);
+    let svgWithIcons = await embedIconsInSvg(svgClean);
+
+    // Insert BPMN XML into <metadata>
+    svgWithIcons = embedStudyflowIntoSvg(svgWithIcons, xml);
 
     if (fileType === 'png') {
       const dataURL = await exportoToPng(svgWithIcons);
