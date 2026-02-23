@@ -91,6 +91,7 @@ export function PropertyField(props) {
             case 'Enum':
                 return <EnumInput {...props} />;
             case 'studyflow:MarkdownString':
+            case 'studyflow:YAMLString':
                 return <StringInput {...props} isMarkdown={true} />;
             default:
                 return <StringInput {...props} />;

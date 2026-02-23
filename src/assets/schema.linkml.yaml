@@ -247,6 +247,9 @@ types:
   MarkdownString:
     typeof: string
     description: A string that contains markdown formatting
+  YAMLString:
+    typeof: string
+    description: A string that contains YAML-formatted content
 
 classes:
   BaseElement:
@@ -387,6 +390,16 @@ classes:
         range: BehaverseTaskEnum
         ifabsent: string(undefined)
         description: Behaverse instrument used for the test.
+        categories:
+          - Behaverse
+        extensions:
+          condition_language: json
+          condition_body: '{"studyflow:instrument": "behaverse"}'
+        comments:
+          - Conditional on instrument being "behaverse"
+      behaverseTaskParameters:
+        range: YAMLString
+        description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Behaverse
         extensions:

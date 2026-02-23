@@ -64,7 +64,7 @@ export function StringInput(props) {
                 {t(name)}
                 <Popover className="relative group">
                     <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
-                    <PopoverPanel anchor="top end" className="max-w-sm w-60 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadowxl">
+                    <PopoverPanel anchor="top end" className="max-w-md w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadowxl">
                         <pre className="font-mono text-xs font-bold text-white">{name}</pre>
                         {bpmnProperty?.description}
                     </PopoverPanel>

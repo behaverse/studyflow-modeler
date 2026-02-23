@@ -20,5 +20,6 @@
     "studyflow:bidsDataType": "BIDS Data Type",
     "studyflow:checklist": "Checklist",
     "studyflow:catalog": "Catalog",
-    "studyflow:format": "Format"
+    "studyflow:format": "Format",
+    "studyflow:behaverseTaskParameters": "Task Parameters"
 }
