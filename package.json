@@ -1,7 +1,6 @@
 {
   "name": "studyflow-modeler",
   "private": true,
-  "type": "module",
   "version": "25.1205.dev2",
   "scripts": {
     "dev": "vite",
