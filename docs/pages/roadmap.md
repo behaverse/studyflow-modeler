@@ -3,12 +3,15 @@ title: Roadmap
 sidebar_position: 5
 ---
 
-## Ongoing
+### February 2026
+
+- Schema editor for data stores
+- More examples
+
+### January 20226
 
 - Improve modeler UX/UI
 - Specifications for the data elements
-- Schema editor for data stores
-- More examples and tutorials
 
 ### December 2025
 
