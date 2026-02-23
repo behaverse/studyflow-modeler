@@ -5,14 +5,14 @@
     "bpmn:id": "ID",
     "bpmn:name": "Name",
     "studyflow:documentation": "Documentation",
-    "studyflow:url": "URL",
+    "studyflow:uri": "URI",
     "studyflow:instrument": "Instrument",
     "studyflow:behaverseTask": "Behaverse Task",
     "studyflow:text": "Content",
     "studyflow:requiresConsent": "Requires Consent",
     "studyflow:hasRedirectUrl": "Redirect After Completion",
-    "studyflow:redirectUrl": "Redirect URL",
-    "studyflow:consentFormUrl": "Consent Form URL",
+    "studyflow:redirectTo": "Redirect To",
+    "studyflow:consentFormUri": "Consent Form (URL)",
     "studyflow:probabilityFunction": "Probability Function",
     "studyflow:algorithm": "Algorithm",
     "studyflow:datasetFormat": "Format",
@@ -20,6 +20,9 @@
     "studyflow:bidsDataType": "BIDS Data Type",
     "studyflow:checklist": "Checklist",
     "studyflow:catalog": "Catalog",
+    "studyflow:schema": "Schema",
     "studyflow:format": "Format",
-    "studyflow:behaverseTaskParameters": "Task Parameters"
+    "studyflow:behaverseTaskParameters": "Task Parameters",
+    "studyflow:isDataOperation": "Data Operation",
+    "studyflow:operationType": "Operation Type"
 }

@@ -2,7 +2,7 @@ import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
 import { getStudyflowExtension, hasStudyflowExtends } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
-import { drawStartEvent, drawEndEvent } from './events';
+import { drawEventWithIcon} from './events';
 import { drawDataStore } from './data';
 import { drawActivity } from './activities';
 import { drawGateway } from './gateways';
@@ -35,12 +35,8 @@ export default class StudyflowRenderer extends BaseRenderer {
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
     const iconClass = sfDescriptor?.icon || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
-    if (is(element, "bpmn:StartEvent")) {
-      return drawStartEvent(parentNode, element, this.bpmnRenderer);
-    }
-
-    if (is(element, "bpmn:EndEvent")) {
-      return drawEndEvent(parentNode, element, this.bpmnRenderer);
+    if (is(element, "bpmn:Event")) {
+      return drawEventWithIcon(parentNode, element, this.bpmnRenderer);
     }
 
     if (is(element, "bpmn:DataStoreReference")) {

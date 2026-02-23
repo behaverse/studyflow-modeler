@@ -79,7 +79,7 @@ classes:
       requiresConsent:
         range: boolean
         description: Unique identifier for the activity
-      consentFormUrl:
+      consentFormUri:
         range: string
         description: Link to the consent form. Leave empty if you want to use the default consent form.
   EndEvent:
@@ -91,7 +91,7 @@ classes:
       hasRedirectUrl:
         range: boolean
         description: Redirects the user to the given URL after completion.
-      redirectUrl:
+      redirectTo:
         range: string
         description: Link to redirect the user upon completion.
   Activity:

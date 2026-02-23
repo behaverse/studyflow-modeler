@@ -1,4 +1,4 @@
-import StudyflowRenderer from './draw';
+import StudyflowRenderer from './render';
 import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
 import ContextPadModule from './contextpad';

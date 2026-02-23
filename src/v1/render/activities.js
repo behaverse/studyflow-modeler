@@ -8,18 +8,18 @@ import { drawMarkers } from './markers';
  * @param {string|undefined} sfIconClass - icon class resolved from the extension descriptor
  */
 export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIconClass) {
-  const ext = getStudyflowExtension(element);
-  let iconClass = sfIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
   let activity;
-  if (element.type in BPMN_ICON_OVERRIDES) {
+  if (element.type in BPMN_ICON_OVERRIDES || !bpmnRenderer.handlers[element.type]) {
     activity = bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
-  } else if (bpmnRenderer.handlers[element.type]) {
-    activity = bpmnRenderer.handlers[element.type](parentNode, element);
   } else {
-    activity = bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
+    // neither overridden, nor default renderer
+    activity = bpmnRenderer.handlers[element.type](parentNode, element);
   }
 
+  const ext = getStudyflowExtension(element);
+
+  let iconClass = sfIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
   let iconSize = 24;
   let iconMarker = undefined;
 

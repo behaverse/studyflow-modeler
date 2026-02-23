@@ -4,21 +4,21 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:task id="Trial1" studyflow:documentation="" name="b" studyflow:url="show_stimulus">
+    <bpmn2:task id="Trial1" studyflow:documentation="" name="b" studyflow:uri="show_stimulus">
       <bpmn2:incoming>Flow_1emyonp</bpmn2:incoming>
     </bpmn2:task>
     <bpmn2:boundaryEvent id="Event_18dyzbm" name="1s" attachedToRef="Trial1">
       <bpmn2:outgoing>Flow_1pjxu8z</bpmn2:outgoing>
       <bpmn2:timerEventDefinition id="TimerEventDefinition_0ghuupg" />
     </bpmn2:boundaryEvent>
-    <bpmn2:task id="Trial2" name="d" studyflow:url="show_stimulus">
+    <bpmn2:task id="Trial2" name="d" studyflow:uri="show_stimulus">
       <bpmn2:incoming>Flow_1pjxu8z</bpmn2:incoming>
     </bpmn2:task>
     <bpmn2:boundaryEvent id="Event_049qaqh" name="1s" attachedToRef="Trial2">
       <bpmn2:outgoing>Flow_06nxigb</bpmn2:outgoing>
       <bpmn2:timerEventDefinition id="TimerEventDefinition_0mtyepv" />
     </bpmn2:boundaryEvent>
-    <bpmn2:task id="Trial3" name="B" studyflow:url="show_stimulus">
+    <bpmn2:task id="Trial3" name="B" studyflow:uri="show_stimulus">
       <bpmn2:incoming>Flow_06nxigb</bpmn2:incoming>
     </bpmn2:task>
     <bpmn2:boundaryEvent id="Event_04bvqp1" name="1s" attachedToRef="Trial3">
@@ -27,7 +27,7 @@
     </bpmn2:boundaryEvent>
     <bpmn2:sequenceFlow id="Flow_1pjxu8z" sourceRef="Event_18dyzbm" targetRef="Trial2" />
     <bpmn2:sequenceFlow id="Flow_06nxigb" sourceRef="Event_049qaqh" targetRef="Trial3" />
-    <bpmn2:task id="Trial4" name="G" studyflow:url="show_stimulus">
+    <bpmn2:task id="Trial4" name="G" studyflow:uri="show_stimulus">
       <bpmn2:incoming>Flow_1re0wpk</bpmn2:incoming>
     </bpmn2:task>
     <bpmn2:boundaryEvent id="Event_1lx2kgs" name="1s" attachedToRef="Trial4">

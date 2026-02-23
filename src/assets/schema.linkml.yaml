@@ -125,7 +125,7 @@ enums:
         title: Undefined
         description: Undefined
 
-  DataOperationEnum:
+  DataOperationTypeEnum:
     description: |
       Studyflow data operator marker for tasks. Operators describe how data is manipulated
       as it flows through the process (pure transformations).
@@ -303,7 +303,7 @@ classes:
         description: User requires to give consent before participating.
         categories:
           - Privacy
-      consentFormUrl:
+      consentFormUri:
         range: string
         description: Link to the consent form. Leave empty if you want to use the default consent form.
         categories:
@@ -324,7 +324,7 @@ classes:
         description: Redirect the user to the given URL after completion.
         categories:
           - Completion
-      redirectUrl:
+      redirectTo:
         range: string
         description: Link to redirect the user upon completion.
         categories:
@@ -342,7 +342,7 @@ classes:
     annotations:
       icon: iconify bpmn--task-none
     attributes:
-      url:
+      uri:
         range: string
         description: Link to the activity.
         categories:
@@ -353,8 +353,8 @@ classes:
         description: Toggle marker indicating the activity is a data operation.
         categories:
           - Data
-      operation:
-        range: DataOperationEnum
+      operationType:
+        range: DataOperationTypeEnum
         description: Optional data operation marker for a data transformation task.
         categories:
           - Data
@@ -397,11 +397,11 @@ classes:
           condition_body: '{"studyflow:instrument": "behaverse"}'
         comments:
           - Conditional on instrument being "behaverse"
-      behaverseTaskParameters:
+      cognitiveTaskParameters:
         range: YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
-          - Behaverse
+          - Instrument
         extensions:
           condition_language: json
           condition_body: '{"studyflow:instrument": "behaverse"}'
