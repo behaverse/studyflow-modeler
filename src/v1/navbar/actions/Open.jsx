@@ -12,7 +12,20 @@ export function OpenButton({ className, onClick }) {
     }, [modeler]);
 
     const handleUpload = (event, filename) => {
-        const xml = event.target.result;
+        let xml = event.target.result;
+        
+        if (filename.toLowerCase().endsWith('.svg')) {
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(xml, 'image/svg+xml');
+            const studyflowEl = svgDoc.querySelector('metadata > studyflow');
+            if (studyflowEl) {
+                xml = studyflowEl.innerHTML;
+            } else {
+                alert("The selected SVG file does not contain embedded Studyflow.");
+                return;
+            }
+        }
+
         modeler.importXML(xml).then(() => {
             modeler.get('canvas').zoom('fit-viewport');
             if (diagramName && setDiagramName) {
@@ -32,9 +45,9 @@ export function OpenButton({ className, onClick }) {
             return;
         }
 
-        const hasValidExtension = ['.xml', '.bpmn', '.studyflow'].some(ext => file.name.toLowerCase().endsWith(ext));
+        const hasValidExtension = ['.xml', '.svg', '.studyflow'].some(ext => file.name.toLowerCase().endsWith(ext));
         if (!hasValidExtension) {
-            alert("Please select a valid XML/BPMN/Studyflow file.");
+            alert("Please select a valid XML, SVG, or Studyflow file.");
             return;
         }
 
@@ -65,7 +78,7 @@ export function OpenButton({ className, onClick }) {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".xml,.bpmn,.studyflow"
+                accept=".xml,.bpmn,.studyflow,.svg"
                 onChange={handleFileChange} />
         </>
     );

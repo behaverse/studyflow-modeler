@@ -1,7 +1,7 @@
 import { Canvg } from 'canvg';
 
 import { useEffect, useContext } from "react";
-import { ModelerContext } from '../../contexts';
+import { ModelerContext, DiagramNameContext } from '../../contexts';
 import download from 'downloadjs';
 import PropTypes from 'prop-types';
 
@@ -105,33 +105,29 @@ async function embedIconsInSvg(svgString) {
   return serializer.serializeToString(svgDoc);
 }
 
-function embedStudyflowIntoSvg(svgString, bpmnXml) {
+function embedStudyflowIntoSvg(svg, xml) {
   const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
   const svgEl = svgDoc.querySelector('svg') || svgDoc.documentElement;
 
-  // clean
-  const xmlClean = bpmnXml.replace(/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE[\s\S]*?>\s*)?/i, '').trim();
+  // clean xml
+  const xmlClean = xml.replace(/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE[\s\S]*?>\s*)?/i, '').trim();
 
-  let metadata = svgEl.querySelector('metadata');
-  if (!metadata) {
-    metadata = svgDoc.createElement('metadata');
-    // place metadata as the first child so it matches typical exporter layout
-    svgEl.insertBefore(metadata, svgEl.firstElementChild);
-  }
+  let metadataEl = svgDoc.createElement('metadata');
+  svgEl.insertBefore(metadataEl, svgEl.firstElementChild);
 
-  metadata.innerHTML = xmlClean;
+  let studyflowEl = svgDoc.createElement('studyflow');
+  metadataEl.appendChild(studyflowEl);
 
-  const serializer = new XMLSerializer();
-  return serializer.serializeToString(svgDoc);
+  studyflowEl.innerHTML = xmlClean;
+
+  return new XMLSerializer().serializeToString(svgDoc);
 }
 
-async function exportoToPng(svg) {
+async function exportToPng(svg) {
 
   let canvas = document.createElement('canvas');
-
   const context = canvas.getContext('2d');
-
   const canvg = Canvg.fromString(context, svg);
   await canvg.render();
 
@@ -148,29 +144,26 @@ async function exportoToPng(svg) {
 export function ExportButton({ className, fileType, onClick, ...props }) {
 
   const { modeler } = useContext(ModelerContext);
+  const { diagramName } = useContext(DiagramNameContext);
 
   useEffect(() => {
   }, [modeler]);
 
   async function exportDiagram(e) {
     const { svg } = await modeler.saveSVG();
+    const { xml } = await modeler.saveXML();
 
-    const svgClean = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
-
-    // Get the BPMN XML so we can embed it into the exported SVG metadata
-    const { xml } = await modeler.saveXML({ format: true });
-
-    // Embed icons from Iconify API
-    let svgWithIcons = await embedIconsInSvg(svgClean);
-
-    // Insert BPMN XML into <metadata>
-    svgWithIcons = embedStudyflowIntoSvg(svgWithIcons, xml);
+    let svgClean = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
+    svgClean = await embedIconsInSvg(svgClean);
+    svgClean = embedStudyflowIntoSvg(svgClean, xml);
 
     if (fileType === 'png') {
-      const dataURL = await exportoToPng(svgWithIcons);
-      download(dataURL, 'diagram.png', 'image/png');
+      const png = await exportToPng(svgClean);
+      download(png, diagramName + '.png', 'image/png');
     } else if (fileType === 'svg') {
-      download(svgWithIcons, 'diagram.svg', 'image/svg+xml');
+      download(svgClean, diagramName + '.svg', 'image/svg+xml');
+    } else if (fileType === 'studyflow') {
+      download(xml, diagramName + '.studyflow', 'application/xml');
     }
 
     if (onClick) onClick(e);
