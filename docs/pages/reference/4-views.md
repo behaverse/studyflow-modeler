@@ -27,4 +27,4 @@ To address this, Studyflow extends BPMN elements with properties that allow mode
 
 Here is an example of a Gantt task using BPMN or Studyflow:
 
-![&zwnj;](../../assets/img/gantt_task.studyflow.png)
+![&zwnj;](../../assets/img/gantt_task.studyflow.svg)

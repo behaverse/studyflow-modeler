@@ -33,6 +33,15 @@ export function drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26
   iconDiv.style.height = size + 'px';
   iconDiv.style.fontSize = size + 'px';
   iconDiv.style.color = color || 'currentColor';
+  // Prevent font/line-height/inline-gap from shifting the icon inside the
+  // SVG foreignObject. Make the icon a block-level square with no margins
+  // or extra line-height so it fills the foreignObject exactly.
+  iconDiv.style.display = 'block';
+  iconDiv.style.lineHeight = '1';
+  iconDiv.style.verticalAlign = 'top';
+  iconDiv.style.margin = '0';
+  iconDiv.style.padding = '0';
+  iconDiv.style.boxSizing = 'border-box';
   iconDiv.setAttribute('data-icon-class', iconClass);
   iconDiv.setAttribute('data-icon-color', color || '');
   foreignObject.appendChild(iconDiv);

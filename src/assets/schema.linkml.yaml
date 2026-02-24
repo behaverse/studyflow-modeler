@@ -33,6 +33,8 @@ enums:
       psych-ds:
         title: Psych-DS
         description: Psych-DS
+        annotations:
+          icon: iconify uil--flask
       kedro:
         title: Kedro
         description: Kedro

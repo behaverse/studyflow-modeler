@@ -13,15 +13,15 @@ export function drawDataStore(parentNode, element, bpmnRenderer, pkgEnums) {
   const dataset = bpmnRenderer.handlers["bpmn:DataStoreReference"](parentNode, element);
 
   const strokeHex = colorToHex(getStrokeColor(element));
-  const iconColor = strokeHex ? strokeHex + 'aa' : '#000000aa';
+  const iconColor = strokeHex ? strokeHex + 'bb' : '#000000bb';
 
   // Use inline SVG paths for icons that need to survive SVG export;
   // fall back to foreignObject-based drawIcon for iconify icons.
   const svgDef = iconClass && SVG_ICON_PATHS[iconClass];
   if (svgDef) {
     drawSvgPaths(parentNode, svgDef, 4, 28, 42, 14, iconColor);
-  } else if (iconClass) {
-    drawIcon(parentNode, element, iconClass, 4, 28, 42, iconColor);
+  } else if (iconClass) {    
+    drawIcon(parentNode, element, iconClass, 15, 27, 20, iconColor);
   }
   // FIXME this XY only works for BIDS, need a more robust way to position the dataset icon
   return dataset;
