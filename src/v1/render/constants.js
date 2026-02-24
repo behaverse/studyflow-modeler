@@ -20,14 +20,13 @@ export const SVG_ICON_PATHS = {
  * Maps BPMN element/marker names to iconify class strings.
  */
 export const BPMN_ICON_OVERRIDES = {
-  'bpmn:ManualTask':        'iconify tabler--hand-stop rotate-90',
+  'bpmn:ManualTask':        'iconify fluent--hand-left-24-regular rotate-90',
   'bpmn:UserTask':          'iconify bi--person',
   'bpmn:ServiceTask':       'iconify mdi--cog',
-  'bpmn:ScriptTask':        'iconify mdi--script-text',
-  'bpmn:SendTask':          'iconify mdi--send',
-  'bpmn:ReceiveTask':       'iconify mdi--email-open',
+  'bpmn:ScriptTask':        'iconify fluent--script-24-regular',
+  'bpmn:SendTask':          'iconify bi--envelope-fill !ms-[2px] !w-5 !h-5',
+  'bpmn:ReceiveTask':       'iconify bi--envelope-open !ms-[2px] !w-5 !h-5',
   'bpmn:BusinessRuleTask':  'iconify mdi--table',
-  'bpmn:CallActivity':      'iconify mdi--arrow-right-bold-box',
   'bpmn:ExclusiveGateway':  'iconify mdi--close',
   'bpmn:ParallelGateway':   'iconify mdi--plus',
   'bpmn:InclusiveGateway':  'iconify mdi--checkbox-blank-circle-outline',
