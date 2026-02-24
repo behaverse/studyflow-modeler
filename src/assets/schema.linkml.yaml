@@ -466,6 +466,27 @@ classes:
         comments:
           - Conditional on algorithm being "probabilistic"
 
+  # data
+
+  Schema:
+    description: |
+      A formal description of the structure of a named collection of types.
+      Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
+    abstract: false
+    attributes:
+      format:
+        range: string
+        description: Schema format identifier (e.g., csvw, linkml, jsonschema).
+        categories:
+          - Data
+      body:
+        range: string
+        any_of:
+           - range: YAMLString
+           - range: string
+        description: Schema content as a string (e.g., JSON, YAML). This can also be a URL/path to the schema definition.
+        categories:
+          - Data
   Dataset:
     description: Base class for all datasets in the Studyflow.
     abstract: false
@@ -550,23 +571,6 @@ classes:
       url:
         range: string
         description: Base URL of the catalog.
-        categories:
-          - Data
-
-  Schema:
-    description: |
-      A formal description of the structure of a named collection of types.
-      Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
-    abstract: true
-    attributes:
-      url:
-        range: string
-        description: URL/path/identifier to the schema definition (e.g., CSVW JSON).
-        categories:
-          - Data
-      format:
-        range: string
-        description: Schema format identifier (e.g., csvw, linkml, jsonschema).
         categories:
           - Data
 

@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { Field } from '@headlessui/react';
 import { StringInput } from './StringInput';
+import { SchemaEditor } from './SchemaEditor';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext, useCallback } from 'react';
@@ -90,6 +91,8 @@ export function PropertyField(props) {
                 return <BooleanInput {...props} />;
             case 'Enum':
                 return <EnumInput {...props} />;
+            case 'studyflow:Schema':
+                return <SchemaEditor {...props} />;
             case 'studyflow:MarkdownString':
             case 'studyflow:YAMLString':
                 return <StringInput {...props} isMarkdown={true} />;

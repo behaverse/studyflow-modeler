@@ -25,7 +25,7 @@ export const ResetZoomButton = forwardRef(function ResetZoomButton({ className, 
             className={`w-full text-left ${className}`}
             onClick={handleClick}
           {...rest}>
-      <i class="bi bi-fullscreen pe-2"></i> Reset Zoom
+      <i className="bi bi-fullscreen pe-2"></i> Reset Zoom
     </Button>
   );
 });
