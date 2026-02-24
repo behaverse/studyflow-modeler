@@ -76,7 +76,7 @@ Also note that, while experimental data is generally assumed to be tabular, `Dat
 
 ## Data operations
 
-Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. They are designed to facilitate data processing within workflows and inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming. An operator could be implemented as usual BPMN tasks, such as script task or service task, and the operator marker serves as a semantic annotation to indicate that the task is performing a specific type of data transformation.
+Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. An operator could be implemented as usual BPMN tasks, such as script task or service task, and the operator marker serves as a semantic annotation to indicate that the task is performing a specific type of data transformation.
 
 <figure className="centered max-w-2xl">
 <div class="max-w-[160px]">
@@ -89,8 +89,10 @@ Data operations are studyflow-specific markers to describe how data is manipulat
 
 
 
-Here are the core data operations currently supported:
+### Specialized data operations <span class="red badge">Advanced</span>
 
+
+Inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming, data operations can be further categorized based on their behavior and the type of transformation they perform. The following are some common types of operations that can be represented in Studyflow. Note that these are advanced and optional, and the generic data operation marker can be used for any data transformation without needing to specify the type.
 
 <details className="green">
   <summary>`transform` <span class="badge float-right">$f$</span></summary>
