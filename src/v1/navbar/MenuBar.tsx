@@ -5,7 +5,9 @@ import { SaveButton } from './actions/Save';
 import { OpenButton } from './actions/Open';
 import { SimulateButton } from './actions/Simulate';
 import { NewDiagramButton } from './actions/NewDiagram';
-import React, { useRef } from 'react';
+import { ResetZoomButton } from './actions/ResetZoom';
+import React, { useRef, useContext } from 'react';
+
 
 export default function MenuBar(props) {
 
@@ -38,20 +40,12 @@ export default function MenuBar(props) {
           <MenuItem className="px-3 py-1 hover:bg-white/20" as={PublishButton} dialog={publishDialogRef}  />
         </MenuItems>
       </Menu>
-      {/* <Menu as="div" title="ViewMenu" className="">
-        <MenuButton className="hover:bg-stone-300 rounded px-2">View</MenuButton>
-        <MenuItems anchor="bottom start" className="min-w-36 bg-stone-100 border border-stone-300 rounded-md grid auto-rows-max grid-flow-row z-50">
-          <MenuItem>
-            <a href="#" className="px-3 py-1 hover:bg-stone-300"><i className="bi bi-check-circle-fill pe-2"></i> Study</a>
-          </MenuItem>
-          <MenuItem>
-            <a href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Timeline</a>
-          </MenuItem>
-          <MenuItem>
-            <a href="#" className="px-3 py-1 text-stone-500 cursor-not-allowed"><i className="bi bi-circle pe-2"></i> Checklist</a>
-          </MenuItem>
+      <Menu as="div" title="ViewMenu" className="">
+        <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2">View</MenuButton>
+        <MenuItems unmount={false} anchor="bottom start" className="min-w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50">
+          <MenuItem className="px-3 py-1 hover:bg-white/20" as={ResetZoomButton}  />
         </MenuItems>
-      </Menu> */}
+      </Menu>
       <Menu as="div" title="SimulateMenu" className="">
         <SimulateButton className=" rounded-lg h-8 px-2" />
       </Menu>
