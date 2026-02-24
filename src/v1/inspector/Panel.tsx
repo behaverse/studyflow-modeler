@@ -231,7 +231,7 @@ export function Panel({ className = '', ...props }) {
                     onClick={() => setIsVisible(!isVisible)}
                 />
             }
-            <div className={`fixed w-80 px-1 top-4 right-4 bg-black/50 backdrop-blur-xs rounded-2xl text-stone-200 `
+            <div className={`fixed w-80 px-1 top-2 right-2 bg-black/50 backdrop-blur-xs rounded-2xl text-stone-200 `
                 + (isVisible ? '' : 'hidden')}>
                 {element && renderCategories(element) }
             </div>

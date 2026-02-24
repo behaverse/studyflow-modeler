@@ -6,7 +6,6 @@ interface ToggleButtonProps {
 
 export function ToggleButton({ isInspectorVisible, onClick }: ToggleButtonProps) {
 
-  const position = isInspectorVisible ? 'right-4' : 'right-4';
   const title = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
   const icon = isInspectorVisible ? 'iconify tabler--layout-sidebar-right-collapse-filled' : 'iconify tabler--layout-sidebar-right-expand-filled';
 
@@ -17,7 +16,7 @@ export function ToggleButton({ isInspectorVisible, onClick }: ToggleButtonProps)
   return (
     <button
       onClick={onClick}
-      className={`absolute ${position} top-4 m-2 ${colors} rounded-xl z-50`}
+      className={`absolute right-2 top-2 m-2 ${colors} rounded-xl z-50`}
       title={title}
     >
       <i className={`${icon} text-[32px]`}></i>

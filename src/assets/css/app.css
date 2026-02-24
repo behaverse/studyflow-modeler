@@ -11,7 +11,7 @@ svg text.bi {
 }
 
 .bjs-powered-by {
-  @apply fixed top-19 left-4;
+  @apply fixed top-14 left-2;
   bottom: unset !important;
   right: unset !important;
   color: var(--color-stone-400) !important;
@@ -19,7 +19,7 @@ svg text.bi {
 }
 
 .navbar {
-  @apply inline-flex items-center p-1 h-10 bg-black/50 backdrop-blur-xs rounded-xl overflow-x-auto text-stone-100
+  @apply inline-flex items-center px-1 h-10 bg-black/50 backdrop-blur-xs rounded-xl overflow-x-auto text-stone-100
 }
 
 .bjs-powered-by:hover {

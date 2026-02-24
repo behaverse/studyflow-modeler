@@ -25,7 +25,7 @@ export function NavBar(props) {
 
   return (
     <DiagramNameContext.Provider value={{ diagramName, setDiagramName }}>
-    <div className="fixed top-4 left-4 z-2 flex items-center gap-1">
+    <div className="fixed top-1 left-1 z-2 flex items-center gap-1">
         <a href="../" className="flex items-center gap-2 flex-shrink-0" target="_blank" >
           <img src={logo_image} className="h-12 w-12" alt="Studyflow Modeler" title="Studyflow Modeler" />
         </a>
