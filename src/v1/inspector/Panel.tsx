@@ -10,14 +10,6 @@ import { ToggleButton } from './ToggleButton';
 import { getStudyflowExtension, getStudyflowProperties } from '../extensionElements';
 
 
-// List of BPMN properties that are editable in the inspector, otherwise they are hidden
-const editableBPMNProps = [
-    // 'bpmn:type': "Type of the element",
-    // 'bpmn:name': "Human-readable label",
-    'bpmn:documentation',
-    'bpmn:id'
-];
-
 export function Panel({ className = '', ...props }) {
 
     const {modeler} = useContext(ModelerContext);
@@ -56,7 +48,7 @@ export function Panel({ className = '', ...props }) {
 
         // Show editable BPMN properties and extends-based studyflow properties from the BO
         businessObject.$descriptor.properties.forEach((prop: any) => {
-            if (prop.ns.prefix == 'bpmn' && !editableBPMNProps.includes(prop.ns.name)) {
+            if (prop.ns.prefix == 'bpmn' && prop.ns.name !== 'bpmn:id') {
                 return;
             }
             // Allow studyflow properties mixed in via extends (e.g., StartEvent, EndEvent)

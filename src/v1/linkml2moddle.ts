@@ -121,7 +121,9 @@ interface ModdleProperty {
  */
 const BPMN_REDEFINES: Record<string, string> = {
   'documentation': 'bpmn:BaseElement#documentation',
-  'name':          'bpmn:FlowElement#name',
+  'name': 'bpmn:FlowElement#name',
+  'conditionExpression': 'bpmn:SequenceFlow#conditionExpression'
+  // TODO infer this from the schema instead of hardcoding
 };
 
 /**

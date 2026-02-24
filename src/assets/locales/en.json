@@ -24,5 +24,6 @@
     "studyflow:format": "Format",
     "studyflow:behaverseTaskParameters": "Task Parameters",
     "studyflow:isDataOperation": "Data Operation",
-    "studyflow:operationType": "Operation Type"
+    "studyflow:operationType": "Operation Type",
+    "studyflow:conditionExpression": "Condition"
 }

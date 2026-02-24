@@ -263,7 +263,7 @@ classes:
         identifier: true
         range: string
         description: Unique identifier for the element.
-        categories: 
+        categories:
           - General
       documentation:
         range: MarkdownString
@@ -315,6 +315,15 @@ classes:
           condition_body: '{"studyflow:requiresConsent": true}'
         comments:
           - Conditional on requiresConsent being true
+
+  SequenceFlow:
+    class_uri: bpmn:SequenceFlow
+    attributes:
+      conditionExpression:
+        range: bpmn:Expression
+        description: Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in expression type.
+        categories:
+          - Control
 
   EndEvent:
     class_uri: bpmn:EndEvent
