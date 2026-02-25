@@ -1,0 +1,30 @@
+id: https://w3id.org/omniflow
+name: omniflow
+prefixes:
+  omniflow: https://w3id.org/omniflow/
+  studyflow: https://w3id.org/studyflow/
+  linkml: https://w3id.org/linkml/
+  bpmn: https://w3id.org/bpmn/
+imports:
+  - linkml:types
+  - studyflow:types
+default_range: string
+default_prefix: omniflow
+
+enums:
+
+types:
+
+classes:
+  MapData:
+    is_a: studyflow:Activity
+    description: Apply a function to each element in a data stream.
+    attributes:
+  ReduceData:
+    is_a: studyflow:Activity
+    description: Reduce a data stream to a single value.
+    attributes:
+  FilterData:
+    is_a: studyflow:Activity
+    description: Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
+    attributes:

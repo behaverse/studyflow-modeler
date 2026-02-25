@@ -4,7 +4,7 @@
  *
  * Studyflow data is stored as wrapper extension elements, e.g.:
  *   <bpmn2:extensionElements>
- *     <studyflow:cognitiveTask instrument="behaverse" behaverseTask="NB" />
+ *     <studyflow:...
  *   </bpmn2:extensionElements>
  */
 

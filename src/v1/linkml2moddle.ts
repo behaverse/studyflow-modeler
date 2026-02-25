@@ -456,12 +456,12 @@ class LinkMLToModdleConverter {
    *
    * Abstract "extends-like" classes (Element, Activity) whose sole
    * purpose is to propagate properties via BPMN ancestry are SKIPPED
-   * from the output to avoid naming conflicts (e.g., studyflow:Element
+   * from the output to avoid naming conflicts (e.g., sf:Element
    * would shadow moddle's built-in Element type).
    *
    * Classes mapped via `class_uri` use `extends` — their properties
    * become XML attributes on the BPMN element (e.g.,
-   * `<bpmn2:startEvent studyflow:requiresConsent="true" />`).
+   * `<bpmn2:startEvent sf:requiresConsent="true" />`).
    * Classes mapped via `is_a` use standalone extension elements.
    */
   private convertClasses(): void {

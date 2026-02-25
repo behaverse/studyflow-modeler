@@ -174,7 +174,7 @@ export function Palette({ className = '' }: { className?: string }) {
   const paletteEntries = useMemo(() => entries, [entries]);
 
   return (
-    <div className={`fixed top-32 left-2 z-2 flex flex-col ${className}`}>
+    <div className={`fixed top-20 left-2 z-2 flex flex-col ${className}`}>
       <div
         key="lasso"
         className="group mb-2 flex items-center gap-2"

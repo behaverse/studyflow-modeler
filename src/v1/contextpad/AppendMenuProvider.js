@@ -22,11 +22,10 @@ export default class AppendMenuProvider {
         this._rules = rules;
 
         var entries = Object.entries(moddle.registry.typeMap).filter(([k,v]) => 
-            k.startsWith("studyflow:")
-            && !v?.isAbstract
+            !k.includes(":Study")  // Exclude studyflow:Study
+            && !v?.isAbstract      // Exclude abstract types
             && !(v?.superClass?.length === 1 && v.superClass.includes("String"))
-            && !k.includes(":Study")
-            // Exclude extends-based types (handled by BPMN context pad)
+            // Exclude extends-based types (handled by BPMN)
             && !v?.extends?.length
             // Must have a BPMN type to be creatable
             && v?.meta?.bpmnType

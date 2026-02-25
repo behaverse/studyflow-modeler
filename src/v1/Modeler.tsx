@@ -13,12 +13,18 @@ import {
   } from 'bpmn-js-create-append-anything';
 import GridModule from 'diagram-js-grid';
 
-import studyflowSchema from '@/assets/schema.linkml.yaml';
-// import studyFlowElementTemplates from './assets/templates';
 import {convertLinkMLToModdleObject} from '@/v1/linkml2moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
 import { StudyflowModelerModule } from '.';
+
+import studyflowSchemaUrl from '@/assets/schemas/studyflow.linkml.yaml';
+import omniflowSchemaUrl from '@/assets/schemas/omniflow.linkml.yaml';
+
+const SCHEMAS = {
+  studyflow: studyflowSchemaUrl,
+  omniflow: omniflowSchemaUrl,
+}
 
 export function Modeler() {
 
@@ -26,23 +32,21 @@ export function Modeler() {
     const { setModeler } = useContext(ModelerContext);
     const [isLoading, setLoading] = useState(true);
 
-  async function downloadSchema(): Promise<any> {
+  async function downloadSchemas(schemas: any): Promise<any> {
     // NOTE const _url = "https://behaverse.org/schemas/studyflow/schema.linkml.yaml";
-    const _url = studyflowSchema;
-    const response = fetch(_url).catch((error) => {
-      console.error('Error fetching extension schema:', error);
-      throw error;
-    }).then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response;
-    });
 
-    return response.then((res) => res.text()).then(convertLinkMLToModdleObject);
+    const downloadedSchemas: any = {};
+    for (const k in schemas) {
+      const _url = schemas[k];
+      const response = await fetch(_url);
+      const text = await response.text();
+      downloadedSchemas[k] = convertLinkMLToModdleObject(text);
+    }
+    console.log('Downloaded and converted schemas:', downloadedSchemas);
+    return downloadedSchemas;
   }
 
-  async function createModeler(schema: any, _canvas: any = canvas) {
+  async function createModeler(extensionSchemas: any, _canvas: any = canvas) {
     const options = {
       container: _canvas,
       textRenderer: {
@@ -50,9 +54,7 @@ export function Modeler() {
           fontFamily: '"IBM Plex Sans", Helvetica, sans-serif',
         }
       },
-      moddleExtensions: {
-        studyflow: schema,
-      },
+      moddleExtensions: extensionSchemas,
       additionalModules: [
         CreateAppendAnythingModule,
         BpmnColorPickerModule,
@@ -70,8 +72,8 @@ export function Modeler() {
   }
 
   useEffect(() => {
-    downloadSchema()
-      .then(schema => createModeler(schema))
+    downloadSchemas(SCHEMAS)
+      .then(extensionSchemas => createModeler(extensionSchemas))
       .then(modeler => {
         setModeler(modeler);
         setLoading(false);

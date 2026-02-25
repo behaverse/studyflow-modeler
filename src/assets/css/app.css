@@ -10,16 +10,16 @@ svg text.bi {
     font-family: bootstrap-icons !important;
 }
 
+.navbar {
+  @apply inline-flex items-center px-1 h-10 bg-black/50 backdrop-blur-xs rounded-xl overflow-x-auto text-stone-100
+}
+
+
 .bjs-powered-by {
-  @apply fixed top-14 left-2;
-  bottom: unset !important;
+  @apply fixed left-2;
   right: unset !important;
   color: var(--color-stone-400) !important;
   @apply w-12;
-}
-
-.navbar {
-  @apply inline-flex items-center px-1 h-10 bg-black/50 backdrop-blur-xs rounded-xl overflow-x-auto text-stone-100
 }
 
 .bjs-powered-by:hover {
