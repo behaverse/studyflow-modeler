@@ -1,16 +1,16 @@
-import { getStudyflowDefaults, isExtendsType, createStudyflowExtension } from '../extensionElements';
+import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
 
 type MenuEntry = {
   id: string;
   label: string;
   imageHtml?: string;
   bpmnType: string;
-  studyflowType: string;
+  extensionType: string | null;
 };
 
 const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
 
-export default class StudyflowCreateMenuProvider {
+export default class SchemaCreateMenuProvider {
   static $inject = ['popupMenu', 'bpmnFactory', 'elementFactory', 'create'];
 
   private _popupMenu: any;
@@ -18,23 +18,35 @@ export default class StudyflowCreateMenuProvider {
   private _elementFactory: any;
   private _create: any;
   private _moddle: any;
+  private _schemaPrefix: string;
   private _entries: MenuEntry[];
 
-  constructor(popupMenu: any, bpmnFactory: any, elementFactory: any, create: any) {
+  constructor(
+    popupMenu: any,
+    bpmnFactory: any,
+    elementFactory: any,
+    create: any,
+    schemaPrefix: string,
+  ) {
     this._popupMenu = popupMenu;
     this._bpmnFactory = bpmnFactory;
     this._elementFactory = elementFactory;
     this._create = create;
     this._moddle = bpmnFactory._model;
+    this._schemaPrefix = schemaPrefix;
 
     this._entries = this._buildEntries();
 
-    this._popupMenu.registerProvider('studyflow-create', this);
+    this._popupMenu.registerProvider(`${schemaPrefix}-create`, this);
   }
 
   private _buildEntries(): MenuEntry[] {
-    const moddle = this._moddle;
-    const pkg = moddle.getPackage('studyflow');
+    const moddle = this._moddle as any;
+
+    const pkg =
+      typeof moddle.getPackage === 'function'
+        ? moddle.getPackage(this._schemaPrefix)
+        : (moddle.packages ? moddle.packages[this._schemaPrefix] : undefined);
 
     if (!pkg?.types) {
       return [];
@@ -52,12 +64,14 @@ export default class StudyflowCreateMenuProvider {
         return true;
       })
       .map((type: any) => {
-        const studyflowType = `studyflow:${type.name}`;
+        const extensionType =
+          this._schemaPrefix === 'studyflow' ? `${this._schemaPrefix}:${type.name}` : null;
+
         return {
-          id: `create-studyflow-${type.name}`,
+          id: `create-${this._schemaPrefix}-${type.name}`,
           label: type.name,
           bpmnType: type.meta.bpmnType as string,
-          studyflowType,
+          extensionType,
           imageHtml: type.icon
             ? `<span class="${type.icon}" style="font-size: 18px;"></span>`
             : undefined,
@@ -73,30 +87,33 @@ export default class StudyflowCreateMenuProvider {
         label: opt.label,
         imageHtml: opt.imageHtml,
         group: {
-          id: 'studyflow',
-          name: 'Studyflow',
+          id: this._schemaPrefix,
+          name: this._schemaPrefix.charAt(0).toUpperCase() + this._schemaPrefix.slice(1),
         },
-        action: this._createAction(opt.bpmnType, opt.studyflowType),
+        action: this._createAction(opt.bpmnType, opt.extensionType),
       };
     });
 
     return entries;
   }
 
-  private _createAction(bpmnType: string, studyflowType: string) {
+  private _createAction(bpmnType: string, extensionType: string | null) {
     const bpmnFactory = this._bpmnFactory;
     const elementFactory = this._elementFactory;
     const create = this._create;
     const moddle = this._moddle;
     const popupMenu = this._popupMenu;
+    const schemaPrefix = this._schemaPrefix;
 
     const createShapeWithExtension = () => {
-      const prefix = studyflowType.split(':')[1] || bpmnType.replace(/[^A-Za-z0-9_]/g, '_');
+      const prefix = extensionType
+        ? extensionType.split(':')[1]
+        : (bpmnType.includes(':') ? bpmnType.split(':')[1] : bpmnType);
       const generatedId = moddle.ids.nextPrefixed(`${prefix}_`, { $type: bpmnType } as any);
 
       let extendedDefaults: Record<string, any> = {};
-      if (studyflowType && isExtendsType(studyflowType, moddle)) {
-        extendedDefaults = getStudyflowDefaults(studyflowType, moddle);
+      if (extensionType && schemaPrefix === 'studyflow' && isExtendsType(extensionType, moddle)) {
+        extendedDefaults = getStudyflowDefaults(extensionType, moddle);
       }
 
       const businessObject = bpmnFactory.create(bpmnType, {
@@ -106,9 +123,9 @@ export default class StudyflowCreateMenuProvider {
 
       businessObject.id = businessObject.id || generatedId;
 
-      if (studyflowType && !isExtendsType(studyflowType, moddle)) {
-        const defaults = getStudyflowDefaults(studyflowType, moddle);
-        createStudyflowExtension(businessObject, studyflowType, moddle, defaults);
+      if (extensionType && schemaPrefix === 'studyflow' && !isExtendsType(extensionType, moddle)) {
+        const defaults = getStudyflowDefaults(extensionType, moddle);
+        createStudyflowExtension(businessObject, extensionType, moddle, defaults);
       }
 
       const shape = elementFactory.createShape({

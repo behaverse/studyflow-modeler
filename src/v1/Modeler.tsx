@@ -18,13 +18,12 @@ import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
 import { StudyflowModelerModule } from '.';
 
-import studyflowSchemaUrl from '@/assets/schemas/studyflow.linkml.yaml';
-import omniflowSchemaUrl from '@/assets/schemas/omniflow.linkml.yaml';
-
-const SCHEMAS = {
-  studyflow: studyflowSchemaUrl,
-  omniflow: omniflowSchemaUrl,
-}
+// FIXME should be const _url = "https://behaverse.org/schemas/studyflow/schema.linkml.yaml";
+const schemaFiles = import.meta.glob('@/assets/schemas/*.linkml.yaml', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
 
 export function Modeler() {
 
@@ -33,11 +32,12 @@ export function Modeler() {
     const [isLoading, setLoading] = useState(true);
 
   async function downloadSchemas(schemas: any): Promise<any> {
-    // NOTE const _url = "https://behaverse.org/schemas/studyflow/schema.linkml.yaml";
 
     const downloadedSchemas: any = {};
-    for (const k in schemas) {
-      const _url = schemas[k];
+    for (const k of schemas) {
+      // TODO fixme use the url instead of embedding the file in the bundle
+      const _url = schemaFiles[`/assets/schemas/${k}.linkml.yaml`];
+      console.log('Downloading schema:', k, _url, schemaFiles);
       const response = await fetch(_url);
       const text = await response.text();
       downloadedSchemas[k] = convertLinkMLToModdleObject(text);
@@ -72,8 +72,8 @@ export function Modeler() {
   }
 
   useEffect(() => {
-    downloadSchemas(SCHEMAS)
-      .then(extensionSchemas => createModeler(extensionSchemas))
+    downloadSchemas(["omniflow", "studyflow"])
+      .then(schemas => createModeler(schemas))
       .then(modeler => {
         setModeler(modeler);
         setLoading(false);

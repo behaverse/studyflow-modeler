@@ -1,5 +1,5 @@
-id: https://w3id.org/omniflow
-name: omniflow
+id: https://w3id.org/mlops
+name: mlops
 prefixes:
   omniflow: https://w3id.org/omniflow/
   studyflow: https://w3id.org/studyflow/
@@ -9,7 +9,7 @@ imports:
   - linkml:types
   - studyflow:types
 default_range: string
-default_prefix: omniflow
+default_prefix: mlops
 
 enums:
 

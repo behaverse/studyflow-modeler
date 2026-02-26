@@ -1,5 +1,6 @@
-import { useContext, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ModelerContext } from '../contexts';
+import SchemaCreateMenuProvider from './SchemaCreateMenuProvider';
 import { startCreate } from './createShape';
 import { t } from '../../i18n';
 
@@ -11,6 +12,14 @@ type PaletteEntry = {
   icon?: string;
   title?: string;
 };
+
+function getSchemaIconClass(prefix: string): string {
+  const p = prefix.toLowerCase();
+  if (p === 'studyflow') return 'iconify tabler--hexagon-letter-s';
+  if (p === 'omniflow') return 'iconify tabler--hexagon-letter-o';
+  // Fallback generic icon
+  return 'iconify bi--three-dots';
+}
 
 function loadBpmnEntries(): PaletteEntry[] {
   return [
@@ -51,13 +60,69 @@ export function Palette({ className = '' }: { className?: string }) {
   const { modeler } = useContext(ModelerContext);
   const [entries, setEntries] = useState<PaletteEntry[]>([]);
   const [pressedEntryKey, setPressedEntryKey] = useState<string | null>(null);
+  const [schemaPrefixes, setSchemaPrefixes] = useState<string[]>([]);
   const mouseDownRef = useRef(false);
   const startedRef = useRef(false);
 
+  const registeredSchemasRef = useRef<Set<string>>(new Set());
+  const lastModelerRef = useRef<any>(null);
+
   useEffect(() => {
     if (!modeler) return;
+    if (lastModelerRef.current !== modeler) {
+      // Modeler can be recreated (e.g. React dev StrictMode). Providers are
+      // registered on the modeler's popupMenu instance, so we must re-register
+      // them for each new modeler.
+      registeredSchemasRef.current = new Set();
+      lastModelerRef.current = modeler;
+    }
     // Only show core BPMN tools in the main palette.
     setEntries(loadBpmnEntries());
+
+    const bpmnFactory = modeler.get('bpmnFactory');
+    const moddle = bpmnFactory._model;
+    const popupMenu = modeler.get('popupMenu');
+    const elementFactory = modeler.get('elementFactory');
+    const create = modeler.get('create');
+
+    const prefixes: string[] = [];
+
+    const packagesArray: any[] =
+      (typeof (moddle as any).getPackages === 'function'
+        ? (moddle as any).getPackages()
+        : (Array.isArray((moddle as any).packages)
+            ? (moddle as any).packages
+            : Object.values((moddle as any).packages || {})));
+
+    packagesArray.forEach((pkg: any) => {
+      const rawPrefix = pkg.prefix || '';
+      const prefix = rawPrefix.toLowerCase();
+      if (!prefix) return;
+      // Skip core BPMN / DI packages and non-schema utility packages
+      if (['bpmn', 'bpmndi', 'di', 'dc', 'bioc', 'color'].includes(prefix)) return;
+
+      if (!registeredSchemasRef.current.has(prefix)) {
+        try {
+          // Dynamically register one popup provider per schema prefix.
+          // eslint-disable-next-line no-new
+          new (SchemaCreateMenuProvider as any)(
+            popupMenu,
+            bpmnFactory,
+            elementFactory,
+            create,
+            prefix,
+          );
+          registeredSchemasRef.current.add(prefix);
+        } catch {
+          return;
+        }
+      }
+
+      prefixes.push(prefix);
+    });
+
+    prefixes.sort();
+    setSchemaPrefixes(prefixes);
   }, [modeler]);
 
   useEffect(() => {
@@ -136,7 +201,10 @@ export function Palette({ className = '' }: { className?: string }) {
     });
   };
 
-  const handleMoreStudyflowElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+  const handleMoreSchemaElementsClick = (
+    prefix: string,
+    event: ReactMouseEvent<HTMLButtonElement>,
+  ) => {
     if (!modeler) return;
     event.preventDefault();
 
@@ -155,34 +223,8 @@ export function Palette({ className = '' }: { className?: string }) {
 
     const rootElement = canvas.getRootElement();
 
-    popupMenu.open(rootElement, 'studyflow-create', position, {
-      title: t('Create Studyflow element'),
-      width: 300,
-      search: false,
-    });
-  };
-
-  const handleMoreOmniflowElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!modeler) return;
-    event.preventDefault();
-
-    const popupMenu = modeler.get('popupMenu');
-    const canvas = modeler.get('canvas');
-
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const position = {
-      x: rect.left + rect.width / 2 + 35,
-      y: rect.top + rect.height / 2 + 10,
-      cursor: {
-        x: event.clientX,
-        y: event.clientY,
-      },
-    };
-
-    const rootElement = canvas.getRootElement();
-
-    popupMenu.open(rootElement, 'omniflow-create', position, {
-      title: t('Create Omniflow element'),
+    popupMenu.open(rootElement, `${prefix}-create`, position, {
+      title: t('Create element'),
       width: 300,
       search: false,
     });
@@ -237,54 +279,34 @@ export function Palette({ className = '' }: { className?: string }) {
             }`}
           >Select Elements (Lasso)</span>
         </div>
-        <div
-          key="more-studyflow"
-          className="group flex items-center gap-2"
-        >
-          <button
-            type="button"
-            title="More Studyflow elements..."
-            className="flex palette-button-tool"
-            onMouseDown={(e) => { }}
-            onMouseMove={(e) => { }}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onClick={handleMoreStudyflowElementsClick}
+        {schemaPrefixes.map((prefix) => (
+          <div
+            key={`more-${prefix}`}
+            className="group flex items-center gap-2"
           >
-            <i className={`text-[24px] iconify mynaui--letter-s-hexagon`}></i>
-          </button>
-          <span
-            className={`text-sm text-violet-700 whitespace-nowrap ${
-              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-            }`}
-          >
-            Studyflow elements...
-          </span>
-        </div>
-        <div
-          key="more-omniflow"
-          className="group flex items-center gap-2"
-        >
-          <button
-            type="button"
-            title="More Omniflow elements..."
-            className="flex palette-button-tool"
-            onMouseDown={(e) => { }}
-            onMouseMove={(e) => { }}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onClick={handleMoreOmniflowElementsClick}
-          >
-            <i className={`text-[24px] iconify mynaui--letter-o-hexagon`}></i>
-          </button>
-          <span
-            className={`text-sm text-violet-700 whitespace-nowrap ${
-              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-            }`}
-          >
-            Omniflow elements...
-          </span>
-        </div>
+            <button
+              type="button"
+              title={`More ${prefix} elements...`}
+              className="flex palette-button-tool"
+              onMouseDown={(e) => { }}
+              onMouseMove={(e) => { }}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onClick={(e) => handleMoreSchemaElementsClick(prefix, e)}
+            >
+              <i
+                className={`text-[24px] ${getSchemaIconClass(prefix)}`}
+              ></i>
+            </button>
+            <span
+              className={`text-sm text-violet-700 whitespace-nowrap ${
+                pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+              }`}
+            >
+              {prefix.charAt(0).toUpperCase() + prefix.slice(1)} elements...
+            </span>
+          </div>
+        ))}
         <div
           key="more-bpmn"
           className="group flex items-center gap-2"
