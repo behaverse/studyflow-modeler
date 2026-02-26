@@ -12,42 +12,6 @@ type PaletteEntry = {
   title?: string;
 };
 
-function loadStudyflowEntries(modeler: any): PaletteEntry[] {
-  const bpmnFactory = modeler.get('bpmnFactory');
-  const moddle = bpmnFactory._model;
-  const pkg = moddle.getPackage('studyflow');
-
-  if (!pkg?.types) {
-    return [];
-  }
-
-  const primitiveTypes = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
-
-  return pkg.types
-    .filter((type: any) => {
-      if (type.isAbstract) return false;
-      if (type.name === 'Study') return false;
-      if (type.superClass && type.superClass.some((sc: string) => primitiveTypes.includes(sc))) {
-        return false;
-      }
-      // Exclude extends-based types (they're in the BPMN palette, e.g., StartEvent/EndEvent)
-      if (type.extends?.length) return false;
-      // Must have a BPMN type mapping to be creatable
-      if (!type.meta?.bpmnType) return false;
-      return true;
-    })
-    .map((type: any) => {
-      return {
-        key: `studyflow:${type.name}`,
-        label: type.name,
-        bpmnType: type.meta.bpmnType,
-        studyflowType: `studyflow:${type.name}`,
-        icon: type.icon,
-        title: type.description || `Create ${type.name}`,
-      };
-    });
-}
-
 function loadBpmnEntries(): PaletteEntry[] {
   return [
     {
@@ -92,7 +56,8 @@ export function Palette({ className = '' }: { className?: string }) {
 
   useEffect(() => {
     if (!modeler) return;
-    setEntries([...loadBpmnEntries(), ...loadStudyflowEntries(modeler)]);
+    // Only show core BPMN tools in the main palette.
+    setEntries(loadBpmnEntries());
   }, [modeler]);
 
   useEffect(() => {
@@ -165,7 +130,59 @@ export function Palette({ className = '' }: { className?: string }) {
     const rootElement = canvas.getRootElement();
 
     popupMenu.open(rootElement, 'bpmn-create', position, {
-      title: t('Create element'),
+      title: t('Create BPMN element'),
+      width: 300,
+      search: false,
+    });
+  };
+
+  const handleMoreStudyflowElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!modeler) return;
+    event.preventDefault();
+
+    const popupMenu = modeler.get('popupMenu');
+    const canvas = modeler.get('canvas');
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const position = {
+      x: rect.left + rect.width / 2 + 35,
+      y: rect.top + rect.height / 2 + 10,
+      cursor: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+    };
+
+    const rootElement = canvas.getRootElement();
+
+    popupMenu.open(rootElement, 'studyflow-create', position, {
+      title: t('Create Studyflow element'),
+      width: 300,
+      search: false,
+    });
+  };
+
+  const handleMoreOmniflowElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!modeler) return;
+    event.preventDefault();
+
+    const popupMenu = modeler.get('popupMenu');
+    const canvas = modeler.get('canvas');
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const position = {
+      x: rect.left + rect.width / 2 + 35,
+      y: rect.top + rect.height / 2 + 10,
+      cursor: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+    };
+
+    const rootElement = canvas.getRootElement();
+
+    popupMenu.open(rootElement, 'omniflow-create', position, {
+      title: t('Create Omniflow element'),
       width: 300,
       search: false,
     });
@@ -175,24 +192,6 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div className={`fixed top-20 left-2 z-2 flex flex-col ${className}`}>
-      <div
-        key="lasso"
-        className="group mb-2 flex items-center gap-2"
-      >
-        <button
-          type="button"
-          title="Select elements with lasso tool"
-          className="flex palette-button-tool"
-          onClick={handleLassoToolClick}
-        >
-          <i className={`text-[24px] iconify material-symbols--ink-selection-rounded`}></i>
-        </button>
-        <span
-          className={`text-sm text-violet-700 whitespace-nowrap ${
-            pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-          }`}
-        >Select Elements (Lasso)</span>
-      </div>
       {paletteEntries.map((entry) => (
         <div
           key={entry.key}
@@ -219,29 +218,97 @@ export function Palette({ className = '' }: { className?: string }) {
           </span>
         </div>
       ))}
-      <div
-        key="more"
-        className="group mb-2 flex items-center gap-2"
-      >
-        <button
-          type="button"
-          title="More elements..."
-          className="flex palette-button-tool"
-          onMouseDown={(e) => { }}
-          onMouseMove={(e) => { }}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onClick={handleMoreElementsClick}
+      <div className="mt-3 flex flex-col gap-1">
+        <div
+          key="lasso"
+          className="group flex items-center gap-2"
         >
-          <i className={`text-[32px] iconify bi--three-dots`}></i>
-        </button>
-        <span
-          className={`text-sm text-violet-700 whitespace-nowrap ${
-            pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-          }`}
+          <button
+            type="button"
+            title="Select elements with lasso tool"
+            className="flex palette-button-tool"
+            onClick={handleLassoToolClick}
+          >
+            <i className={`text-[24px] iconify material-symbols--ink-selection-rounded`}></i>
+          </button>
+          <span
+            className={`text-sm text-violet-700 whitespace-nowrap ${
+              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+            }`}
+          >Select Elements (Lasso)</span>
+        </div>
+        <div
+          key="more-studyflow"
+          className="group flex items-center gap-2"
         >
-          More elements...
-        </span>
+          <button
+            type="button"
+            title="More Studyflow elements..."
+            className="flex palette-button-tool"
+            onMouseDown={(e) => { }}
+            onMouseMove={(e) => { }}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onClick={handleMoreStudyflowElementsClick}
+          >
+            <i className={`text-[24px] iconify mynaui--letter-s-hexagon`}></i>
+          </button>
+          <span
+            className={`text-sm text-violet-700 whitespace-nowrap ${
+              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+            }`}
+          >
+            Studyflow elements...
+          </span>
+        </div>
+        <div
+          key="more-omniflow"
+          className="group flex items-center gap-2"
+        >
+          <button
+            type="button"
+            title="More Omniflow elements..."
+            className="flex palette-button-tool"
+            onMouseDown={(e) => { }}
+            onMouseMove={(e) => { }}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onClick={handleMoreOmniflowElementsClick}
+          >
+            <i className={`text-[24px] iconify mynaui--letter-o-hexagon`}></i>
+          </button>
+          <span
+            className={`text-sm text-violet-700 whitespace-nowrap ${
+              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+            }`}
+          >
+            Omniflow elements...
+          </span>
+        </div>
+        <div
+          key="more-bpmn"
+          className="group flex items-center gap-2"
+        >
+          <button
+            type="button"
+            title="More BPMN elements..."
+            className="flex palette-button-tool"
+            onMouseDown={(e) => { }}
+            onMouseMove={(e) => { }}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onClick={handleMoreElementsClick}
+          >
+            <i className={`text-[24px] iconify bi--three-dots`}></i>
+          </button>
+          <span
+            className={`text-sm text-violet-700 whitespace-nowrap ${
+              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
+            }`}
+          >
+            More BPMN elements...
+          </span>
+        </div>
       </div>
     </div>
   );
