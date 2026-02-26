@@ -17,8 +17,15 @@ types:
 
 classes:
   MapData:
-    is_a: studyflow:Activity
+    is_a: bpmn:Task
+    annotations:
+      icon: iconify bi--puzzle
+    abstract: false
     description: Apply a function to each element in a data stream.
+    isDataOperation: true
+  PreprocessEEG:
+    is_a: MapData
+    description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     attributes:
   ReduceData:
     is_a: studyflow:Activity
