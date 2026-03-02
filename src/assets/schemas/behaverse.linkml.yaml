@@ -107,11 +107,6 @@ classes:
       icon: iconify bi--hexagon
     attributes:
       instrument:
-        range: InstrumentEnum
-        description: Instrument used for the test.
-        ifabsent: string(behaverse)
-        categories:
-          - Instrument
         extensions:
           moddle_default: behaverse
           moddle_redefines: studyflow:CognitiveTask#instrument
@@ -130,7 +125,7 @@ classes:
         range: YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
-          - Instrument
+          - Behaverse
         extensions:
           moddle_redefines: studyflow:CognitiveTask#taskParameters
           condition_language: json
