@@ -15,10 +15,15 @@ type PaletteEntry = {
 
 function getSchemaIconClass(prefix: string): string {
   const p = prefix.toLowerCase();
-  if (p === 'studyflow') return 'iconify tabler--hexagon-letter-s';
-  if (p === 'omniflow') return 'iconify tabler--hexagon-letter-o';
-  // Fallback generic icon
-  return 'iconify bi--three-dots';
+  let icon = 'iconify tabler--hexagon';
+  if (p === 'studyflow')
+    icon = 'iconify tabler--hexagon-letter-s';
+  if (p === 'omniflow')
+    icon = 'iconify tabler--hexagon-letter-o';
+  if (p === 'behaverse')
+    icon = 'iconify tabler--hexagon-letter-b';
+
+  return icon;
 }
 
 function loadBpmnEntries(): PaletteEntry[] {
@@ -95,8 +100,7 @@ export function Palette({ className = '' }: { className?: string }) {
             : Object.values((moddle as any).packages || {})));
 
     packagesArray.forEach((pkg: any) => {
-      const rawPrefix = pkg.prefix || '';
-      const prefix = rawPrefix.toLowerCase();
+      const prefix = pkg.prefix.toLowerCase();
       if (!prefix) return;
       // Skip core BPMN / DI packages and non-schema utility packages
       if (['bpmn', 'bpmndi', 'di', 'dc', 'bioc', 'color'].includes(prefix)) return;
@@ -303,7 +307,7 @@ export function Palette({ className = '' }: { className?: string }) {
                 pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
               }`}
             >
-              {prefix.charAt(0).toUpperCase() + prefix.slice(1)} elements...
+              {prefix} elements...
             </span>
           </div>
         ))}

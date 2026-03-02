@@ -72,7 +72,7 @@ export function Modeler() {
   }
 
   useEffect(() => {
-    downloadSchemas(["omniflow", "studyflow"])
+    downloadSchemas([ "studyflow", "omniflow", "behaverse"])  //TODO read from schemaFiles keys
       .then(schemas => createModeler(schemas))
       .then(modeler => {
         setModeler(modeler);

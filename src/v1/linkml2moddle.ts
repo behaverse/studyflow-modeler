@@ -151,6 +151,13 @@ const BPMN_ANCESTORS: Record<string, string[]> = {
   'bpmn:Gateway': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
 };
 
+/**
+ * Global class -> BPMN mapping cache shared across converter instances.
+ * This allows schemas converted independently (e.g., behaverse after
+ * studyflow) to still resolve `is_a: studyflow:...` chains to BPMN types.
+ */
+const GLOBAL_BPMN_MAPPINGS: Map<string, string> = new Map();
+
 class LinkMLToModdleConverter {
   private linkmlSchema: LinkMLSchema;
   private moddleSchema: ModdleSchema;
@@ -214,6 +221,12 @@ class LinkMLToModdleConverter {
       if (bpmnType) {
         this.bpmnMappings.set(className, bpmnType);
 
+        const aliases = this.getReferenceCandidates(className);
+        for (const alias of aliases) {
+          this.bpmnMappings.set(alias, bpmnType);
+          GLOBAL_BPMN_MAPPINGS.set(alias, bpmnType);
+        }
+
         // Abstract classes mapped via is_a with own attributes propagate
         // via BPMN hierarchy (their props get flattened into concrete types).
         // class_uri classes are NOT added here — they use moddle `extends`
@@ -233,19 +246,75 @@ class LinkMLToModdleConverter {
     }
   }
 
+  private stripPrefix(classRef: string): string {
+    const idx = classRef.indexOf(':');
+    return idx === -1 ? classRef : classRef.slice(idx + 1);
+  }
+
+  private getReferenceCandidates(classRef: string): string[] {
+    const localName = this.stripPrefix(classRef);
+    const candidates = [classRef, localName];
+
+    if (this.linkmlSchema.name) {
+      candidates.push(`${this.linkmlSchema.name}:${localName}`);
+    }
+
+    if (this.linkmlSchema.default_prefix) {
+      candidates.push(`${this.linkmlSchema.default_prefix}:${localName}`);
+    }
+
+    return Array.from(new Set(candidates));
+  }
+
+  private resolveClassKey(classRef: string): string | null {
+    const classes = this.linkmlSchema.classes;
+    if (!classes) return null;
+
+    for (const candidate of this.getReferenceCandidates(classRef)) {
+      if (classes[candidate]) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private resolveBpmnMapping(classRef: string): string | null {
+    for (const candidate of this.getReferenceCandidates(classRef)) {
+      if (this.bpmnMappings.has(candidate)) {
+        return this.bpmnMappings.get(candidate)!;
+      }
+      if (GLOBAL_BPMN_MAPPINGS.has(candidate)) {
+        return GLOBAL_BPMN_MAPPINGS.get(candidate)!;
+      }
+    }
+    return null;
+  }
+
   /**
    * Get the BPMN base type for a studyflow class, walking the is_a chain.
    */
-  private getBpmnType(className: string): string | null {
-    if (this.bpmnMappings.has(className)) {
-      return this.bpmnMappings.get(className)!;
+  private getBpmnType(className: string, visited: Set<string> = new Set()): string | null {
+    const resolvedFromMap = this.resolveBpmnMapping(className);
+    if (resolvedFromMap) {
+      return resolvedFromMap;
     }
-    const classData = this.linkmlSchema.classes?.[className];
-    if (!classData) return null;
-    if (classData.is_a && !classData.is_a.startsWith('bpmn:')) {
-      return this.getBpmnType(classData.is_a);
+
+    const classKey = this.resolveClassKey(className);
+    if (!classKey || visited.has(classKey)) return null;
+    visited.add(classKey);
+
+    const classData = this.linkmlSchema.classes?.[classKey];
+    if (!classData?.is_a || classData.is_a.startsWith('bpmn:')) {
+      return null;
     }
-    return null;
+
+    const fromParentMap = this.resolveBpmnMapping(classData.is_a);
+    if (fromParentMap) {
+      return fromParentMap;
+    }
+
+    return this.getBpmnType(classData.is_a, visited);
   }
 
   /**
@@ -293,14 +362,18 @@ class LinkMLToModdleConverter {
     visited.add(className);
 
     const classes = this.linkmlSchema.classes;
-    if (!classes?.[className]) return {};
+    const classKey = this.resolveClassKey(className);
+    if (!classes || !classKey) return {};
 
-    const classData = classes[className];
+    const classData = classes[classKey];
     let attrs: Record<string, LinkMLAttribute> = {};
 
     // 1. Walk is_a chain — studyflow parents
-    if (classData.is_a && !classData.is_a.startsWith('bpmn:') && classes[classData.is_a]) {
-      attrs = { ...attrs, ...this.collectAllAttributes(classData.is_a, visited) };
+    if (classData.is_a && !classData.is_a.startsWith('bpmn:')) {
+      const parentClass = this.resolveClassKey(classData.is_a);
+      if (parentClass) {
+        attrs = { ...attrs, ...this.collectAllAttributes(parentClass, visited) };
+      }
     }
 
     // 2. Walk BPMN ancestry — collect from extends-like studyflow classes
@@ -316,8 +389,9 @@ class LinkMLToModdleConverter {
     // 3. Walk mixins
     if (classData.mixins) {
       for (const mixin of classData.mixins) {
-        if (classes[mixin]) {
-          attrs = { ...attrs, ...this.collectAllAttributes(mixin, visited) };
+        const mixinClass = this.resolveClassKey(mixin);
+        if (mixinClass) {
+          attrs = { ...attrs, ...this.collectAllAttributes(mixinClass, visited) };
         }
       }
     }
