@@ -8,7 +8,7 @@ import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext, useCallback } from 'react';
 
 import { InspectorContext, ModelerContext } from '../contexts';
-import { getStudyflowExtension } from '../extensionElements';
+import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElements';
 
 /**
  * Check if a property is visible based on its condition.
@@ -47,7 +47,7 @@ export function PropertyField(props) {
     // Determine whether to read from the extension element or the business object.
     // Properties defined on studyflow extension types live on the wrapper element,
     // but extends-based props (e.g., isDataOperation) live on the BO itself.
-    const isStudyflowProp = bpmnProperty.ns?.prefix === 'studyflow';
+    const isSchemaProp = isCustomSchemaPrefix(bpmnProperty.ns?.prefix);
     const isExtendsProp = businessObject?.$descriptor?.properties?.some(
         (p) => p === bpmnProperty
     );
@@ -55,11 +55,11 @@ export function PropertyField(props) {
     const checkConditionalVisibility = useCallback((bProp, bObj) => {
         // For extension-element studyflow props, check conditions against the wrapper;
         // for extends-based props, check conditions against the BO.
-        const dataSource = (isStudyflowProp && !isExtendsProp)
+        const dataSource = (isSchemaProp && !isExtendsProp)
             ? getStudyflowExtension(bObj) || bObj
             : bObj;
         setVisible(isPropertyVisible(bProp, dataSource));
-    }, [isStudyflowProp, isExtendsProp]);
+    }, [isSchemaProp, isExtendsProp]);
 
     // conditional visibility
     useEffect(() => {

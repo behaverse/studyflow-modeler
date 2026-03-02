@@ -24,12 +24,20 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
   let iconMarker = undefined;
 
   if (ext) {
-    let instrument = ext.get("instrument");
+    const schemaPrefix = ext.$type?.split(':')?.[0];
+    const schemaName = (prop) => schemaPrefix ? `${schemaPrefix}:${prop}` : prop;
+
+    let instrument = ext.get("instrument") || ext.get(schemaName("instrument"));
     const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
     iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
 
     if (instrument === "behaverse") {
-      iconMarker = ext.get("behaverseTask")?.toUpperCase();
+      const rawMarker =
+        ext.get("behaverseTask")
+        || ext.get(schemaName("behaverseTask"))
+        || ext.get("scene")
+        || ext.get(schemaName("scene"));
+      iconMarker = rawMarker?.toUpperCase();
       if (iconMarker === "UNDEFINED") {
         iconMarker = undefined;
       }

@@ -13,7 +13,7 @@ import {
   } from 'bpmn-js-create-append-anything';
 import GridModule from 'diagram-js-grid';
 
-import {convertLinkMLToModdleObject} from '@/v1/linkml2moddle';
+import { toModelerModdleSchema } from '@/v1/moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
 import { StudyflowModelerModule } from '.';
@@ -40,7 +40,7 @@ export function Modeler() {
       console.log('Downloading schema:', k, _url, schemaFiles);
       const response = await fetch(_url);
       const text = await response.text();
-      downloadedSchemas[k] = convertLinkMLToModdleObject(text);
+      downloadedSchemas[k] = toModelerModdleSchema(text);
     }
     console.log('Downloaded and converted schemas:', downloadedSchemas);
     return downloadedSchemas;

@@ -10,6 +10,22 @@
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
+const CORE_PREFIXES = new Set([
+  'bpmn',
+  'bpmndi',
+  'dc',
+  'di',
+  'xsi',
+  'xml',
+  'camunda',
+  'zeebe',
+  'flowable'
+]);
+
+export function isCustomSchemaPrefix(prefix: string | undefined): boolean {
+  return Boolean(prefix && !CORE_PREFIXES.has(prefix));
+}
+
 /**
  * Get the studyflow extension element wrapper from a BPMN element.
  * Returns the first studyflow-namespaced extension element found, or null.
@@ -20,7 +36,7 @@ export function getStudyflowExtension(element: any): any {
   if (!values) return null;
 
   return values.find((ext: any) =>
-    ext.$type?.startsWith('studyflow:')
+    isCustomSchemaPrefix(ext.$type?.split(':')?.[0])
   ) ?? null;
 }
 
@@ -192,7 +208,7 @@ export function isConditionMet(
 export function hasStudyflowExtends(element: any): boolean {
   const bo = element?.businessObject ?? element;
   return bo?.$descriptor?.properties?.some(
-    (p: any) => p.ns?.prefix === 'studyflow'
+    (p: any) => isCustomSchemaPrefix(p.ns?.prefix)
   ) ?? false;
 }
 

@@ -27,19 +27,6 @@ enums:
         description: Behaverse
         annotations:
           icon: iconify bi--hexagon
-      videoGame:
-        title: Video Game
-        description: Video Game
-        annotations:
-          icon: iconify bi--controller
-      rest:
-        title: Rest
-        description: Rest
-        annotations:
-          icon: iconify solar--armchair-2-linear
-      undefined:
-        title: Undefined
-        description: Undefined
 
   BehaverseTaskEnum:
     permissible_values:
@@ -122,10 +109,13 @@ classes:
       instrument:
         range: InstrumentEnum
         description: Instrument used for the test.
-        ifabsent: string(undefined)
+        ifabsent: string(behaverse)
         categories:
           - Instrument
-      behaverseTask:
+        extensions:
+          moddle_default: behaverse
+          moddle_redefines: studyflow:CognitiveTask#instrument
+      scene:
         range: BehaverseTaskEnum
         ifabsent: string(undefined)
         description: Behaverse instrument used for the test.
@@ -136,12 +126,13 @@ classes:
           condition_body: '{"studyflow:instrument": "behaverse"}'
         comments:
           - Conditional on instrument being "behaverse"
-      cognitiveTaskParameters:
+      taskParameters:
         range: YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Instrument
         extensions:
+          moddle_redefines: studyflow:CognitiveTask#taskParameters
           condition_language: json
           condition_body: '{"studyflow:instrument": "behaverse"}'
         comments:

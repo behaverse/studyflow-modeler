@@ -157,11 +157,6 @@ enums:
   InstrumentEnum:
     description: The type of instrument used to measure cognitive performance.
     permissible_values:
-      behaverse:
-        title: Behaverse
-        description: Behaverse
-        annotations:
-          icon: iconify bi--hexagon
       videoGame:
         title: Video Game
         description: Video Game
@@ -270,6 +265,8 @@ classes:
         description: Optional human-readable description for the element (or link to a detailed description).
         categories:
           - Documentation
+        extensions:
+          moddle_redefines: bpmn:BaseElement#documentation
       checklist:
         range: MarkdownString
         description: List of items to be checked off when completing the element, formatted in markdown.
@@ -324,6 +321,8 @@ classes:
         description: Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in expression type.
         categories:
           - Control
+        extensions:
+          moddle_redefines: bpmn:SequenceFlow#conditionExpression
 
   EndEvent:
     class_uri: bpmn:EndEvent
@@ -397,27 +396,11 @@ classes:
         ifabsent: string(undefined)
         categories:
           - Instrument
-      behaverseTask:
-        range: BehaverseTaskEnum
-        ifabsent: string(undefined)
-        description: Behaverse instrument used for the test.
-        categories:
-          - Behaverse
-        extensions:
-          condition_language: json
-          condition_body: '{"studyflow:instrument": "behaverse"}'
-        comments:
-          - Conditional on instrument being "behaverse"
-      cognitiveTaskParameters:
+      taskParameters:
         range: YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Instrument
-        extensions:
-          condition_language: json
-          condition_body: '{"studyflow:instrument": "behaverse"}'
-        comments:
-          - Conditional on instrument being "behaverse"
 
   Questionnaire:
     is_a: bpmn:Task

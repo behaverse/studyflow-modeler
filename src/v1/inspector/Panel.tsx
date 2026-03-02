@@ -7,7 +7,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
-import { getStudyflowExtension, getStudyflowProperties } from '../extensionElements';
+import { getStudyflowExtension, getStudyflowProperties, isCustomSchemaPrefix } from '../extensionElements';
 
 
 export function Panel({ className = '', ...props }) {
@@ -51,11 +51,11 @@ export function Panel({ className = '', ...props }) {
             if (prop.ns.prefix == 'bpmn' && prop.ns.name !== 'bpmn:id') {
                 return;
             }
-            // Allow studyflow properties mixed in via extends (e.g., StartEvent, EndEvent)
-            if (prop.ns.prefix !== 'bpmn' && prop.ns.prefix !== 'studyflow') return;
-            // Skip extends properties that also exist on the extension element wrapper;
+            // Allow custom schema properties mixed in via extends.
+            if (prop.ns.prefix !== 'bpmn' && !isCustomSchemaPrefix(prop.ns.prefix)) return;
+            // Skip BO properties that also exist on the extension element wrapper;
             // the extension element version is preferred for correct read/write behavior.
-            if (prop.ns.prefix === 'studyflow' && extPropNames.has(prop.ns.name)) return;
+            if (isCustomSchemaPrefix(prop.ns.prefix) && extPropNames.has(prop.ns.name)) return;
             if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }

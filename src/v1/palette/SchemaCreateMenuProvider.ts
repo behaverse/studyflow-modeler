@@ -64,8 +64,7 @@ export default class SchemaCreateMenuProvider {
         return true;
       })
       .map((type: any) => {
-        const extensionType =
-          this._schemaPrefix === 'studyflow' ? `${this._schemaPrefix}:${type.name}` : null;
+        const extensionType = `${this._schemaPrefix}:${type.name}`;
 
         return {
           id: `create-${this._schemaPrefix}-${type.name}`,
@@ -112,7 +111,7 @@ export default class SchemaCreateMenuProvider {
       const generatedId = moddle.ids.nextPrefixed(`${prefix}_`, { $type: bpmnType } as any);
 
       let extendedDefaults: Record<string, any> = {};
-      if (extensionType && schemaPrefix === 'studyflow' && isExtendsType(extensionType, moddle)) {
+      if (extensionType && isExtendsType(extensionType, moddle)) {
         extendedDefaults = getStudyflowDefaults(extensionType, moddle);
       }
 
@@ -123,7 +122,7 @@ export default class SchemaCreateMenuProvider {
 
       businessObject.id = businessObject.id || generatedId;
 
-      if (extensionType && schemaPrefix === 'studyflow' && !isExtendsType(extensionType, moddle)) {
+      if (extensionType && !isExtendsType(extensionType, moddle)) {
         const defaults = getStudyflowDefaults(extensionType, moddle);
         createStudyflowExtension(businessObject, extensionType, moddle, defaults);
       }
