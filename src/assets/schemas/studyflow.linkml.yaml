@@ -266,7 +266,7 @@ classes:
         categories:
           - Documentation
         extensions:
-          moddle_redefines: bpmn:BaseElement#documentation
+          redefines: bpmn:BaseElement#documentation
       checklist:
         range: MarkdownString
         description: List of items to be checked off when completing the element, formatted in markdown.
@@ -322,7 +322,7 @@ classes:
         categories:
           - Control
         extensions:
-          moddle_redefines: bpmn:SequenceFlow#conditionExpression
+          redefines: bpmn:SequenceFlow#conditionExpression
 
   EndEvent:
     class_uri: bpmn:EndEvent
@@ -401,6 +401,12 @@ classes:
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Instrument
+      isDataOperation:
+        range: boolean
+        extensions:
+          default: false
+          hidden: true
+          # redefines: studyflow:Activity#isDataOperation
 
   Questionnaire:
     is_a: bpmn:Task

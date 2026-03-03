@@ -488,6 +488,15 @@ export class LinkMLToModdleConverter {
 
     this.applyExplicitPropertyOverrides(property, attrData);
 
+    const hidden = this.getAttributeExtensionValue(
+      attrData,
+      'moddle_hidden',
+      'moddle:hidden',
+      'hidden'
+    );
+
+    property.hidden = Boolean(hidden);
+
     return property;
   }
 

@@ -104,6 +104,7 @@ export interface ModdleProperty {
   redefines?: string;
   replaces?: string;
   categories?: string[];
+  hidden?: boolean;
   condition?: {
     language: string;
     body: Record<string, any>;

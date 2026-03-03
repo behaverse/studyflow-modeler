@@ -108,8 +108,8 @@ classes:
     attributes:
       instrument:
         extensions:
-          moddle_default: behaverse
-          moddle_redefines: studyflow:CognitiveTask#instrument
+          default: behaverse
+          redefines: studyflow:CognitiveTask#instrument
       scene:
         range: BehaverseTaskEnum
         ifabsent: string(undefined)
@@ -127,7 +127,7 @@ classes:
         categories:
           - Behaverse
         extensions:
-          moddle_redefines: studyflow:CognitiveTask#taskParameters
+          redefines: studyflow:CognitiveTask#taskParameters
           condition_language: json
           condition_body: '{"studyflow:instrument": "behaverse"}'
         comments:

@@ -16,7 +16,7 @@ import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElement
  * element wrapper, not the business object.
  */
 export function isPropertyVisible(bProp, bObjOrExt) {
-    if (!bProp || !bObjOrExt) {
+    if (!bProp || !bObjOrExt || bProp.hidden) {
         return true;
     }
     if (!("condition" in bProp)) {
