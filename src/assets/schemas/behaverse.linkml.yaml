@@ -132,3 +132,15 @@ classes:
           condition_body: '{"studyflow:instrument": "behaverse"}'
         comments:
           - Conditional on instrument being "behaverse"
+
+examples:
+  - object:      
+      class: BehaverseTask
+      attributes:
+        id: behaverse_task_001
+        name: Example Behaverse Task
+        instrument: behaverse
+        scene: BCS
+        taskParameters: |
+          trials: 100
+          stimulus_duration_ms: 500

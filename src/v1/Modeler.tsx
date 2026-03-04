@@ -9,7 +9,7 @@ import 'bpmn-js-color-picker/colors/color-picker.css';
 
 import {
     CreateAppendAnythingModule,
-    // CreateAppendElementTemplatesModule
+    CreateAppendElementTemplatesModule
   } from 'bpmn-js-create-append-anything';
 import GridModule from 'diagram-js-grid';
 
@@ -37,12 +37,10 @@ export function Modeler() {
     for (const k of schemas) {
       // TODO fixme use the url instead of embedding the file in the bundle
       const _url = schemaFiles[`/assets/schemas/${k}.linkml.yaml`];
-      console.log('Downloading schema:', k, _url, schemaFiles);
       const response = await fetch(_url);
       const text = await response.text();
       downloadedSchemas[k] = toModelerModdleSchema(text);
     }
-    console.log('Downloaded and converted schemas:', downloadedSchemas);
     return downloadedSchemas;
   }
 
@@ -58,11 +56,11 @@ export function Modeler() {
       additionalModules: [
         CreateAppendAnythingModule,
         BpmnColorPickerModule,
-        // CreateAppendElementTemplatesModule,
+        CreateAppendElementTemplatesModule,
         GridModule,
         StudyflowModelerModule
       ],
-      // studyFlowElementTemplates,
+      studyFlowElementTemplates,
     }
 
     const modeler = new BpmnModeler(options);
