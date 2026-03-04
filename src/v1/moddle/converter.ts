@@ -726,6 +726,11 @@ export class LinkMLToModdleConverter {
     this.convertEnums();
     this.convertTypes();
     this.convertClasses();
+
+    // Pass through schema-level examples
+    if (this.linkmlSchema.examples?.length) {
+      this.moddleSchema.examples = this.linkmlSchema.examples;
+    }
   }
 
   public getSchema(): ModdleSchema {

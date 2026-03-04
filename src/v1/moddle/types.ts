@@ -9,6 +9,7 @@ export interface LinkMLSchema {
   enums?: Record<string, LinkMLEnum>;
   types?: Record<string, LinkMLType>;
   classes?: Record<string, LinkMLClass>;
+  examples?: LinkMLExample[];
 }
 
 export interface LinkMLEnum {
@@ -26,6 +27,15 @@ export interface LinkMLEnum {
 export interface LinkMLType {
   uri?: string;
   base?: string;
+  description?: string;
+}
+
+export interface LinkMLExample {
+  /** String representation of the example */
+  value?: string;
+  /** Direct object representation of the example */
+  object?: Record<string, any>;
+  /** Description of what the example is doing */
   description?: string;
 }
 
@@ -83,6 +93,7 @@ export interface ModdleSchema {
   associations: any[];
   enumerations: ModdleEnumeration[];
   types: ModdleType[];
+  examples?: LinkMLExample[];
 }
 
 export interface ModdleEnumeration {
@@ -104,7 +115,10 @@ export interface ModdleType {
   extends?: string[];
   properties?: ModdleProperty[];
   icon?: string;
-  meta?: Record<string, any>;
+  meta?: {
+    bpmnType?: string;
+    [key: string]: any;
+  };
 }
 
 export interface ModdleProperty {

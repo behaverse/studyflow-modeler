@@ -141,3 +141,9 @@ classes:
               comments:
                 - Conditional on instrument being "behaverse"
 
+examples:
+  - description: N-back Task
+    object:
+      class: BehaverseTask
+      name: Behaverse Task
+      scene: NB
