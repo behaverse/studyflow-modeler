@@ -6,6 +6,7 @@ import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import BpmnColorPickerModule from 'bpmn-js-color-picker';
 import 'bpmn-js-color-picker/colors/color-picker.css';
+import { CloudElementTemplatesCoreModule } from 'bpmn-js-element-templates';
 
 import {
     CreateAppendAnythingModule,
@@ -17,6 +18,7 @@ import { toModelerModdleSchema } from '@/v1/moddle';
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
 import { StudyflowModelerModule } from '.';
+import elementTemplates from '@/v1/templates/elements.json';
 
 // FIXME should be const _url = "https://behaverse.org/schemas/studyflow/schema.linkml.yaml";
 const schemaFiles = import.meta.glob('@/assets/schemas/*.linkml.yaml', {
@@ -54,13 +56,14 @@ export function Modeler() {
       },
       moddleExtensions: extensionSchemas,
       additionalModules: [
+        CloudElementTemplatesCoreModule,
         CreateAppendAnythingModule,
         BpmnColorPickerModule,
-        // CreateAppendElementTemplatesModule,
+        CreateAppendElementTemplatesModule,
         GridModule,
         StudyflowModelerModule
       ],
-      // studyFlowElementTemplates,
+      elementTemplates,
     }
 
     const modeler = new BpmnModeler(options);

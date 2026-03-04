@@ -1,0 +1,52 @@
+[
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "id": "NB",
+    "name": "N-back",
+    "description": "Behaverse N-Back Task",
+    "appliesTo": ["bpmn:Task"],
+    "elementType": {
+      "value": "bpmn:Task"
+    },
+    "category": {
+      "id": "studyflow",
+      "name": "Studyflow"
+    },
+    "keywords": ["studyflow", "task"],
+    "properties": [
+      {
+        "label": "Name",
+        "type": "String",
+        "value": "Studyflow Task",
+        "binding": {
+          "type": "property",
+          "name": "name"
+        }
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "id": "studyflow-user-task",
+    "version": 1,
+    "name": "Example User Task",
+    "description": "User task template loaded from JSON.",
+    "appliesTo": ["bpmn:UserTask"],
+    "category": {
+      "id": "studyflow",
+      "name": "Studyflow"
+    },
+    "keywords": ["studyflow", "user-task"],
+    "properties": [
+      {
+        "label": "Name",
+        "type": "String",
+        "value": "Questionnaire",
+        "binding": {
+          "type": "property",
+          "name": "name"
+        }
+      }
+    ]
+  }
+]
