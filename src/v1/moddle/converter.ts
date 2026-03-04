@@ -380,64 +380,54 @@ export class LinkMLToModdleConverter {
     return undefined;
   }
 
-  private getAttributeExtensionValue(
-    attrData: LinkMLAttribute,
-    ...keys: string[]
-  ): string | boolean | number | undefined {
-    if (!attrData.extensions) return undefined;
+  private getAttributeMetadata(attrData: LinkMLAttribute): {
+    defaultValue?: string | boolean | number;
+    redefines?: string;
+    replaces?: string;
+    hidden: boolean;
+    conditionLanguage?: string;
+    conditionBody?: string;
+  } {
+    const moddleExt = attrData.extensions?.moddle;
+    const studyflowExt = attrData.extensions?.studyflow;
 
-    for (const key of keys) {
-      const value = attrData.extensions[key];
-      if (value !== undefined) {
-        return value;
-      }
-    }
+    const defaultValue =
+      typeof moddleExt?.default === 'string' ||
+      typeof moddleExt?.default === 'boolean' ||
+      typeof moddleExt?.default === 'number'
+        ? moddleExt.default
+        : undefined;
 
-    return undefined;
-  }
+    const redefines =
+      typeof moddleExt?.redefines === 'string' && moddleExt.redefines.length > 0
+        ? moddleExt.redefines
+        : undefined;
 
-  private parseExtensionDefault(
-    attrData: LinkMLAttribute
-  ): boolean | string | number | undefined {
-    const value = this.getAttributeExtensionValue(
-      attrData,
-      'moddle_default',
-      'moddle:default',
-      'default'
-    );
+    const replaces =
+      typeof moddleExt?.replaces === 'string' && moddleExt.replaces.length > 0
+        ? moddleExt.replaces
+        : undefined;
 
-    if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
-      return value;
-    }
+    const hidden = Boolean(studyflowExt?.hidden);
 
-    return undefined;
-  }
+    const conditionLanguage =
+      typeof studyflowExt?.condition?.language === 'string'
+        ? studyflowExt.condition.language
+        : undefined;
 
-  private applyExplicitPropertyOverrides(
-    property: ModdleProperty,
-    attrData: LinkMLAttribute
-  ): void {
-    const explicitRedefines = this.getAttributeExtensionValue(
-      attrData,
-      'moddle_redefines',
-      'moddle:redefines',
-      'redefines'
-    );
+    const conditionBody =
+      typeof studyflowExt?.condition?.body === 'string'
+        ? studyflowExt.condition.body
+        : undefined;
 
-    if (typeof explicitRedefines === 'string' && explicitRedefines.length > 0) {
-      property.redefines = explicitRedefines;
-    }
-
-    const explicitReplaces = this.getAttributeExtensionValue(
-      attrData,
-      'moddle_replaces',
-      'moddle:replaces',
-      'replaces'
-    );
-
-    if (typeof explicitReplaces === 'string' && explicitReplaces.length > 0) {
-      property.replaces = explicitReplaces;
-    }
+    return {
+      defaultValue,
+      redefines,
+      replaces,
+      hidden,
+      conditionLanguage,
+      conditionBody
+    };
   }
 
   private parseCondition(conditionLanguage: string | undefined, conditionBody: string): ModdleProperty['condition'] {
@@ -459,8 +449,9 @@ export class LinkMLToModdleConverter {
       type: attrData.range ? this.convertLinkMLTypeToModdle(attrData.range) : 'String'
     };
 
-    const explicitDefault = this.parseExtensionDefault(attrData);
-    const defaultValue = explicitDefault ?? this.parseDefaultValue(attrData.ifabsent);
+    const meta = this.getAttributeMetadata(attrData);
+
+    const defaultValue = meta.defaultValue ?? this.parseDefaultValue(attrData.ifabsent);
     if (defaultValue !== undefined) {
       property.default = defaultValue;
     }
@@ -473,10 +464,10 @@ export class LinkMLToModdleConverter {
       property.categories = attrData.categories;
     }
 
-    if (attrData.extensions?.condition_body) {
+    if (meta.conditionBody) {
       const condition = this.parseCondition(
-        attrData.extensions.condition_language,
-        attrData.extensions.condition_body
+        meta.conditionLanguage,
+        meta.conditionBody
       );
 
       if (condition) {
@@ -486,16 +477,15 @@ export class LinkMLToModdleConverter {
       }
     }
 
-    this.applyExplicitPropertyOverrides(property, attrData);
+    if (meta.redefines) {
+      property.redefines = meta.redefines;
+    }
 
-    const hidden = this.getAttributeExtensionValue(
-      attrData,
-      'moddle_hidden',
-      'moddle:hidden',
-      'hidden'
-    );
+    if (meta.replaces) {
+      property.replaces = meta.replaces;
+    }
 
-    property.hidden = Boolean(hidden);
+    property.hidden = meta.hidden;
 
     return property;
   }
@@ -540,6 +530,42 @@ export class LinkMLToModdleConverter {
       if (!parentAttrs[property.name]) continue;
 
       property.redefines = `${this.moddleSchema.prefix}:${parentClassKey}#${property.name}`;
+    }
+  }
+
+  private sanitizeExplicitRedefines(
+    properties: ModdleProperty[],
+    classData: { is_a?: string },
+    useExtends: boolean
+  ): void {
+    if (useExtends) return;
+
+    const parentClass = this.getParentClassReference(classData);
+    const parentClassKey = parentClass ? this.resolveClassKey(parentClass) : null;
+    const allowedOwners = new Set<string>();
+
+    if (parentClass) {
+      allowedOwners.add(parentClass);
+      allowedOwners.add(this.stripPrefix(parentClass));
+    }
+
+    if (parentClassKey) {
+      allowedOwners.add(parentClassKey);
+      allowedOwners.add(`${this.moddleSchema.prefix}:${parentClassKey}`);
+    }
+
+    for (const property of properties) {
+      if (!property.redefines) continue;
+
+      const owner = property.redefines.split('#')[0];
+      const hasAllowedOwner = owner && allowedOwners.has(owner);
+
+      if (!hasAllowedOwner) {
+        console.warn(
+          `[moddle-converter] Dropping invalid redefines '${property.redefines}' on property '${property.name}'`
+        );
+        delete property.redefines;
+      }
     }
   }
 
@@ -636,6 +662,10 @@ export class LinkMLToModdleConverter {
     const allAttrs = this.getClassAttributes(className, useExtends);
     if (Object.keys(allAttrs).length > 0) {
       moddleType.properties = this.convertAttributes(allAttrs);
+
+      if (moddleType.properties) {
+        this.sanitizeExplicitRedefines(moddleType.properties, classData, useExtends);
+      }
 
       if (useExtends && moddleType.properties) {
         this.applyRedefines(moddleType.properties);

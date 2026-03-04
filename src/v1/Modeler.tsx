@@ -56,11 +56,11 @@ export function Modeler() {
       additionalModules: [
         CreateAppendAnythingModule,
         BpmnColorPickerModule,
-        CreateAppendElementTemplatesModule,
+        // CreateAppendElementTemplatesModule,
         GridModule,
         StudyflowModelerModule
       ],
-      studyFlowElementTemplates,
+      // studyFlowElementTemplates,
     }
 
     const modeler = new BpmnModeler(options);

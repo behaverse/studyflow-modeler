@@ -16,13 +16,40 @@ enums:
 types:
 
 classes:
-  MapData:
+  TransformData:
     is_a: bpmn:Task
     annotations:
       icon: iconify bi--puzzle
-    abstract: false
     description: Apply a function to each element in a data stream.
-    isDataOperation: true
+    attributes:
+      isDataOperation:
+        extensions:
+          moddle:
+            default: true
+          studyflow:
+            hidden: true
+      operationType:
+        extensions:
+          moddle:
+            default: "transform"
+          studyflow:
+            hidden: true
+  MapData:
+    is_a: TransformData
+    description: Map a function over a data stream, producing a new data stream.
+    attributes:
+      operationType:
+        extensions:
+          moddle:
+            default: "map"
+          studyflow:
+            hidden: true
+      name:
+        type: string
+        description: Name of the mapping function (e.g., "log", "z-score", "PCA")
+        extensions:
+          moddle:
+            default: "map2"
   PreprocessEEG:
     is_a: MapData
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.

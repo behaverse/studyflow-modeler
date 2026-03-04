@@ -53,8 +53,21 @@ export interface LinkMLAttribute {
   ifabsent?: string | boolean;
   categories?: string[];
   extensions?: {
-    condition_language?: string;
-    condition_body?: string;
+    moddle?: {
+      redefines?: string;
+      replaces?: string;
+      default?: string | boolean | number;
+      [key: string]: any;
+    };
+    studyflow?: {
+      hidden?: boolean;
+      condition?: {
+        language?: string;
+        body?: string;
+        [key: string]: any;
+      };
+      [key: string]: any;
+    };
     [key: string]: any;
   };
   comments?: string[];

@@ -171,75 +171,6 @@ enums:
         title: Undefined
         description: Undefined
 
-  BehaverseTaskEnum:
-    permissible_values:
-      BCS:
-        title: Belval Card Sorting (BCS)
-        description: Belval Card Sorting (BCS)
-      BM:
-        title: Belval Matrices (BM)
-        description: Belval Matrices (BM)
-      BSAC:
-        title: Button Spatial Attention Cueing (BSAC)
-        description: Button Spatial Attention Cueing (BSAC)
-      DS:
-        title: Digit Span (DS)
-        description: Digit Span (DS)
-      ML:
-        title: Monkey Ladder (ML)
-        description: Monkey Ladder (ML)
-      MOT:
-        title: Multiple Object Tracking (MOT)
-        description: Multiple Object Tracking (MOT)
-      NB:
-        title: N-Back (NB)
-        description: N-Back (NB)
-      OC:
-        title: Ordered Click (OC)
-        description: Ordered Click (OC)
-      OOO:
-        title: Odd One Out (OOO)
-        description: Odd One Out (OOO)
-      PC:
-        title: Polygon Comparison (PC)
-        description: Polygon Comparison (PC)
-      RE:
-        title: Regular Expression (RE)
-        description: Regular Expression (RE)
-      SART:
-        title: Sustained Attention to Response Task (SART)
-        description: Sustained Attention to Response Task (SART)
-      SMC:
-        title: Symbolic Matrix Comparison (SMC)
-        description: Symbolic Matrix Comparison (SMC)
-      SOS:
-        title: Self-Ordered Search (SOS)
-        description: Self-Ordered Search (SOS)
-      SRM:
-        title: Stimulus-Response Mapping (SRM)
-        description: Stimulus-Response Mapping (SRM)
-      SRT:
-        title: Serial Reaction Time (SRT)
-        description: Serial Reaction Time (SRT)
-      SS:
-        title: Spatial Span (SS)
-        description: Spatial Span (SS)
-      TH:
-        title: Target Hit (TH)
-        description: Target Hit (TH)
-      TOVA:
-        title: Test of Variable Attention (TOVA)
-        description: Test of Variable Attention (TOVA)
-      UFOV:
-        title: Useful Field of View (UFOV)
-        description: Useful Field of View (UFOV)
-      WO:
-        title: Which One (WO)
-        description: Which One (WO)
-      undefined:
-        title: Undefined
-        description: Undefined
-
 types:
   MarkdownString:
     typeof: string
@@ -266,7 +197,8 @@ classes:
         categories:
           - Documentation
         extensions:
-          redefines: bpmn:BaseElement#documentation
+          moddle:
+            redefines: bpmn:BaseElement#documentation
       checklist:
         range: MarkdownString
         description: List of items to be checked off when completing the element, formatted in markdown.
@@ -287,6 +219,7 @@ classes:
   Study:
     description: Process definition for a Studyflow study.
     is_a: bpmn:Process
+    tree_root: true
     annotations:
       icon: iconify bi--journal-text
     attributes: {}
@@ -308,8 +241,10 @@ classes:
         categories:
           - Privacy
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:requiresConsent": true}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:requiresConsent": true}'
         comments:
           - Conditional on requiresConsent being true
 
@@ -322,7 +257,8 @@ classes:
         categories:
           - Control
         extensions:
-          redefines: bpmn:SequenceFlow#conditionExpression
+          moddle:
+            redefines: bpmn:SequenceFlow#conditionExpression
 
   EndEvent:
     class_uri: bpmn:EndEvent
@@ -340,8 +276,10 @@ classes:
         categories:
           - Completion
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:hasRedirectUrl": true}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:hasRedirectUrl": true}'
         comments:
           - Conditional on hasRedirectUrl being true
 
@@ -369,8 +307,10 @@ classes:
         categories:
           - Data
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:isDataOperation": true}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:isDataOperation": true}'
         comments:
           - Conditional on isDataOperation being true
       operationSteps:
@@ -380,8 +320,10 @@ classes:
         categories:
           - Data
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:operation": "compose"}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:operation": "compose"}'
         comments:
           - Conditional on operator being "compose"
 
@@ -396,17 +338,17 @@ classes:
         ifabsent: string(undefined)
         categories:
           - Instrument
-      taskParameters:
+      parameters:
         range: YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Instrument
       isDataOperation:
-        range: boolean
+        equals_string: "false"
+        ifabsent: "false"
         extensions:
-          default: false
-          hidden: true
-          # redefines: studyflow:Activity#isDataOperation
+          studyflow:
+            hidden: true
 
   Questionnaire:
     is_a: bpmn:Task
@@ -450,8 +392,10 @@ classes:
         categories:
           - Assignment
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:algorithm": "probabilistic"}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:algorithm": "probabilistic"}'
         comments:
           - Conditional on algorithm being "probabilistic"
 
@@ -494,8 +438,10 @@ classes:
         categories:
           - Data
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:format": "bdm"}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:format": "bdm"}'
       schema:
         range: Schema
         description: |
@@ -524,8 +470,10 @@ classes:
         categories:
           - Data
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:format": "bdm"}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:format": "bdm"}'
         comments:
           - Conditional on format being "bdm"
       bidsDataType:
@@ -535,8 +483,10 @@ classes:
         categories:
           - Data
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:format": "bids"}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:format": "bids"}'
         comments:
           - Conditional on datasetFormat being "bids"
 

@@ -22,8 +22,11 @@
     "studyflow:catalog": "Catalog",
     "studyflow:schema": "Schema",
     "studyflow:format": "Format",
-    "studyflow:behaverseTaskParameters": "Task Parameters",
+    "studyflow:parameters": "Instrument Parameters",
+    "studyflow:content": "Content",
     "studyflow:isDataOperation": "Data Operation",
     "studyflow:operationType": "Operation Type",
-    "studyflow:conditionExpression": "Condition"
+    "studyflow:conditionExpression": "Condition",
+    "behaverse:parameters": "Scene Parameters",
+    "behaverse:scene": "Scene"
 }

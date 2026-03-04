@@ -155,6 +155,37 @@ export function createStudyflowExtension(
   wrapper.$parent = extensionElements;
   extensionElements.values.push(wrapper);
 
+  // If defaults define a property that also exists as a custom extends-based
+  // prop on the BPMN business object (possibly under a different schema prefix),
+  // mirror the default onto the BO property so runtime/inspector stay consistent.
+  const boProps: any[] = businessObject?.$descriptor?.properties ?? [];
+  const toLocalName = (name: string | undefined): string | undefined => {
+    if (!name) return undefined;
+    const idx = name.indexOf(':');
+    return idx === -1 ? name : name.slice(idx + 1);
+  };
+
+  for (const [defaultKey, defaultValue] of Object.entries(defaults)) {
+    const localName = toLocalName(defaultKey);
+    if (!localName) continue;
+
+    const matchingBoProp = boProps.find((prop: any) => {
+      const nsName = prop?.ns?.name as string | undefined;
+      const nsPrefix = prop?.ns?.prefix as string | undefined;
+      if (!isCustomSchemaPrefix(nsPrefix)) return false;
+      return toLocalName(nsName) === localName;
+    });
+
+    if (!matchingBoProp) continue;
+
+    const boPropName = (matchingBoProp?.ns?.name as string | undefined) ?? localName;
+    if (typeof businessObject?.set === 'function') {
+      businessObject.set(boPropName, defaultValue);
+    } else {
+      businessObject[localName] = defaultValue;
+    }
+  }
+
   return wrapper;
 }
 

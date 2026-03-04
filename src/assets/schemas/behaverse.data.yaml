@@ -1,0 +1,226 @@
+# Sample data conforming to the Behaverse Studyflow LinkML schema
+# Schema: http://behaverse.org/schemas/studyflow/behaverse
+# Version: 25.1217.dev2
+
+study:
+  id: study-cognitive-battery-001
+  documentation: |
+    # Cognitive Battery Study
+
+    A longitudinal study measuring multiple cognitive domains using the
+    Behaverse instrument battery. Participants complete a series of tasks
+    assessing attention, memory, and executive function.
+  checklist: |
+    - [x] Ethics approval obtained
+    - [x] Consent form finalized
+    - [ ] Pilot testing completed
+    - [ ] Data collection started
+
+startEvent:
+  id: start-001
+  requiresConsent: true
+  consentFormUri: https://example.org/studies/cognitive-battery/consent
+
+endEvent:
+  id: end-001
+  hasRedirectUrl: true
+  redirectTo: https://example.org/studies/cognitive-battery/thank-you
+
+sequenceFlows:
+  - id: flow-start-to-nback
+    conditionExpression: null
+  - id: flow-nback-to-mot
+    conditionExpression: null
+  - id: flow-mot-to-gateway
+    conditionExpression: null
+  - id: flow-gateway-to-ds
+    conditionExpression: null
+  - id: flow-gateway-to-ss
+    conditionExpression: null
+  - id: flow-ds-to-end
+    conditionExpression: null
+  - id: flow-ss-to-end
+    conditionExpression: null
+
+behaverseTasks:
+  - id: task-nback-001
+    instrument: behaverse
+    scene: NB
+    parameters: |
+      nBackLevel: 2
+      numTrials: 40
+      stimulusDuration: 500
+      interStimulusInterval: 2000
+      stimulusType: digits
+    documentation: |
+      ## N-Back Task
+
+      Participants perform a 2-back task with digit stimuli.
+      Measures **working memory updating**.
+    checklist: |
+      - [ ] Verify stimulus timing
+      - [ ] Confirm response mapping
+    uri: https://behaverse.org/tasks/NB
+    isDataOperation: false
+
+  - id: task-mot-001
+    instrument: behaverse
+    scene: MOT
+    parameters: |
+      numTargets: 4
+      numDistractors: 4
+      trialDuration: 8000
+      numTrials: 20
+      speed: medium
+    documentation: |
+      ## Multiple Object Tracking
+
+      Participants track 4 target objects among 4 distractors.
+      Measures **visual attention** and **spatial tracking**.
+    uri: https://behaverse.org/tasks/MOT
+    isDataOperation: false
+
+  - id: task-ds-001
+    instrument: behaverse
+    scene: DS
+    parameters: |
+      startingSpan: 3
+      maxSpan: 9
+      numTrialsPerSpan: 2
+      direction: forward
+    documentation: |
+      ## Digit Span (Forward)
+
+      Classic digit span task measuring short-term memory capacity.
+    uri: https://behaverse.org/tasks/DS
+    isDataOperation: false
+
+  - id: task-ss-001
+    instrument: behaverse
+    scene: SS
+    parameters: |
+      startingSpan: 3
+      maxSpan: 9
+      numTrialsPerSpan: 2
+      gridSize: 4
+    documentation: |
+      ## Spatial Span
+
+      Spatial variant of the span task measuring visuospatial
+      short-term memory.
+    uri: https://behaverse.org/tasks/SS
+    isDataOperation: false
+
+  - id: task-sart-001
+    instrument: behaverse
+    scene: SART
+    parameters: |
+      numTrials: 225
+      targetDigit: 3
+      stimulusDuration: 250
+      maskDuration: 900
+    documentation: |
+      ## Sustained Attention to Response Task
+
+      Go/No-Go style task measuring sustained attention and
+      response inhibition.
+    uri: https://behaverse.org/tasks/SART
+    isDataOperation: false
+
+questionnaires:
+  - id: questionnaire-phq9-001
+    instrument: PHQ-9
+    documentation: |
+      ## Patient Health Questionnaire (PHQ-9)
+
+      A brief self-report measure of depression severity.
+
+instructions:
+  - id: instruction-welcome
+    content: |
+      # Welcome
+
+      Thank you for participating in this cognitive battery study.
+      You will complete a series of short tasks measuring different
+      aspects of cognition. Each task will take approximately 5-10 minutes.
+
+      Please ensure you are in a **quiet environment** and can give
+      your full attention to the tasks.
+  - id: instruction-break
+    content: |
+      # Break Time
+
+      You have completed the first half of the battery.
+      Please take a short break before continuing.
+
+randomGateway:
+  id: gateway-random-001
+  algorithm: probabilistic
+  probabilityFunction: uniform
+  documentation: |
+    Randomly assigns participants to either the Digit Span or
+    Spatial Span task with equal probability.
+
+dataStores:
+  - id: datastore-bdm-events
+    format: bdm
+    bdmDataLevel: events
+    documentation: |
+      Raw event-level data from all Behaverse tasks.
+  - id: datastore-bdm-trials
+    format: bdm
+    bdmDataLevel: trials
+    documentation: |
+      Trial-level aggregated data.
+  - id: datastore-bids-beh
+    format: bids
+    bidsDataType: beh
+    documentation: |
+      BIDS-formatted behavioral data.
+
+datasets:
+  - id: dataset-raw-001
+    catalog: behaverse-catalog
+    store: datastore-bdm-events
+    schema:
+      format: csvw
+      body: |
+        columns:
+          - name: participant_id
+            datatype: string
+          - name: task
+            datatype: string
+          - name: trial
+            datatype: integer
+          - name: stimulus
+            datatype: string
+          - name: response
+            datatype: string
+          - name: rt
+            datatype: float
+          - name: accuracy
+            datatype: boolean
+          - name: timestamp
+            datatype: datetime
+    documentation: |
+      Raw dataset containing event-level behavioral data from all tasks.
+
+  - id: dataset-processed-001
+    catalog: behaverse-catalog
+    store: datastore-bdm-trials
+    schema:
+      format: csvw
+      body: |
+        columns:
+          - name: participant_id
+            datatype: string
+          - name: task
+            datatype: string
+          - name: mean_rt
+            datatype: float
+          - name: accuracy_rate
+            datatype: float
+          - name: score
+            datatype: float
+    documentation: |
+      Processed trial-level summary data.

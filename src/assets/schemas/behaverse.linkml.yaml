@@ -108,8 +108,11 @@ classes:
     attributes:
       instrument:
         extensions:
-          default: behaverse
-          redefines: studyflow:CognitiveTask#instrument
+          moddle:
+            default: "behaverse"
+            redefines: studyflow:CognitiveTask#instrument
+          studyflow:
+            hidden: true
       scene:
         range: BehaverseTaskEnum
         ifabsent: string(undefined)
@@ -117,30 +120,24 @@ classes:
         categories:
           - Behaverse
         extensions:
-          condition_language: json
-          condition_body: '{"studyflow:instrument": "behaverse"}'
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:instrument": "behaverse"}'
         comments:
           - Conditional on instrument being "behaverse"
-      taskParameters:
+      parameters:
         range: YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Behaverse
         extensions:
-          redefines: studyflow:CognitiveTask#taskParameters
-          condition_language: json
-          condition_body: '{"studyflow:instrument": "behaverse"}'
-        comments:
-          - Conditional on instrument being "behaverse"
+          moddle:
+            redefines: studyflow:CognitiveTask#parameters
+          studyflow:
+            condition:
+              language: json
+              body: '{"studyflow:instrument": "behaverse"}'
+              comments:
+                - Conditional on instrument being "behaverse"
 
-examples:
-  - object:      
-      class: BehaverseTask
-      attributes:
-        id: behaverse_task_001
-        name: Example Behaverse Task
-        instrument: behaverse
-        scene: BCS
-        taskParameters: |
-          trials: 100
-          stimulus_duration_ms: 500

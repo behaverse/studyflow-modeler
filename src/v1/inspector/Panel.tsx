@@ -39,11 +39,21 @@ export function Panel({ className = '', ...props }) {
     const getProperties = useCallback((element: any) => {
         let propCategories: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
+        const toLocalName = (name: string | undefined) => {
+            if (!name) return undefined;
+            const idx = name.indexOf(':');
+            return idx === -1 ? name : name.slice(idx + 1);
+        };
 
         // Collect extension element property names upfront to deduplicate
         const ext = getStudyflowExtension(element);
         const extPropNames = new Set<string>(
             ext?.$descriptor?.properties?.map((p: any) => p.ns.name) ?? []
+        );
+        const extPropLocalNames = new Set<string>(
+            ext?.$descriptor?.properties
+                ?.map((p: any) => toLocalName(p.ns?.name))
+                ?.filter((name: string | undefined): name is string => Boolean(name)) ?? []
         );
 
         // Show editable BPMN properties and extends-based studyflow properties from the BO
@@ -55,7 +65,10 @@ export function Panel({ className = '', ...props }) {
             if (prop.ns.prefix !== 'bpmn' && !isCustomSchemaPrefix(prop.ns.prefix)) return;
             // Skip BO properties that also exist on the extension element wrapper;
             // the extension element version is preferred for correct read/write behavior.
-            if (isCustomSchemaPrefix(prop.ns.prefix) && extPropNames.has(prop.ns.name)) return;
+            if (
+                isCustomSchemaPrefix(prop.ns.prefix) &&
+                (extPropNames.has(prop.ns.name) || extPropLocalNames.has(toLocalName(prop.ns.name) || ''))
+            ) return;
             if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }
