@@ -85,6 +85,14 @@ export default class SchemaTemplateLoader {
 
         const iconUrl = iconClassToUrl(typeDescriptor.icon);
 
+        // Extract example properties (excluding metadata fields)
+        const exampleProperties: Record<string, any> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (key !== 'class' && key !== 'name' && key !== 'keywords' && value !== undefined) {
+            exampleProperties[key] = value;
+          }
+        }
+
         const template: ElementTemplate = {
           id: qualifiedName,
           name: obj.name ?? className,
@@ -100,6 +108,7 @@ export default class SchemaTemplateLoader {
           studyflowType: qualifiedName,
           bpmnType,
           iconClass: typeDescriptor.icon,
+          exampleProperties: Object.keys(exampleProperties).length > 0 ? exampleProperties : undefined,
         };
 
         templates.push(template);

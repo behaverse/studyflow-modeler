@@ -39,4 +39,6 @@ export interface ElementTemplate {
   bpmnType: string;
   /** Icon class string from the schema (e.g., "iconify bi--puzzle") */
   iconClass?: string;
+  /** Property values from the LinkML example object */
+  exampleProperties?: Record<string, any>;
 }

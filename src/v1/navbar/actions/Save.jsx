@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import {DiagramNameContext, ModelerContext} from '../../contexts';
-import download from 'downloadjs';
 import PropTypes from 'prop-types';
+import { executeCommand } from '../../commands';
 
 export function SaveButton({ className, onClick, ...props }) {
 
@@ -9,8 +9,9 @@ export function SaveButton({ className, onClick, ...props }) {
   const { diagramName } = useContext(DiagramNameContext);
 
   function downloadDiagram(e) {
-    modeler.saveXML({ format: true }).then(({ xml }) => {
-      download(xml, diagramName + '.studyflow', 'application/xml');
+    executeCommand(modeler, {
+      type: 'save-diagram',
+      diagramName,
     });
     if (onClick) onClick(e);
   }

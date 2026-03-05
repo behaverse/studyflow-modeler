@@ -3,6 +3,7 @@ import { useImperativeHandle, useContext, useState, ReactElement, useEffect } fr
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
 import { ModelerContext } from '../../contexts';
+import { executeCommand } from '../../commands';
 
 
 export function PublishDialog({ref, ...props}) {
@@ -44,39 +45,27 @@ export function PublishDialog({ref, ...props}) {
     setPublishButtonIsVisible(false);
     const study_name = formData.get('study_name');
     const api_key = formData.get('api_key');
-    modeler.saveXML({ format: true }).then(({ xml }) => {
-      fetch(`https://api.behaverse.org/v1/studies/${study_name}/flow`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml',
-          'Authorization': `Bearer ${api_key}`
-        },
-        body: xml
-      }).then((response) => {
-        if (response.status === 403 || response.status === 401) {
-          console.log(response);
-          throw new Error("Invalid API key");
-        }
-  
-        if (!response.ok) {
-          throw new Error("Failed to publish (error " + response.status + ")");
+    executeCommand(modeler, {
+      type: 'publish-diagram',
+      studyName: String(study_name || ''),
+      apiKey: String(api_key || ''),
+    })
+      .then((result: any) => {
+        if (!result?.success) {
+          throw new Error(result?.error || 'Failed to publish');
         }
 
-        return response.json()
+        setLoading(false);
+        setStatus("Published successfully.");
+        setPreviewUrl(result.data?.preview_url);
       })
-        .then((data) => {
-          setLoading(false);
-          setStatus("Published successfully.");
-          setPreviewUrl(data.preview_url);
-        })
-        .catch((error) => {
-          setPublishButtonIsVisible(true);
-          console.error(error);
-          setPreviewUrl(undefined);
-          setLoading(false);
-          setStatus(<div className="text-red-500">{error.message}</div>);
-        });
-    });
+      .catch((error: any) => {
+        setPublishButtonIsVisible(true);
+        console.error(error);
+        setPreviewUrl(undefined);
+        setLoading(false);
+        setStatus(<div className="text-red-500">{error.message}</div>);
+      });
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useContext, useState } from "react";
 import { ModelerContext } from '../../contexts';
+import { executeCommand } from '../../commands';
 
 export function SimulateButton({ className }) {
 
@@ -10,16 +11,12 @@ export function SimulateButton({ className }) {
     'text-stone-200 hover:bg-white/20 rounded px-2');
 
   function toggleSimulation() {
-    const simulator = modeler.get('tokenSimulator');
-    simulator.toggle();
     const next = !active;
+    executeCommand(modeler, {
+      type: 'toggle-simulation',
+      currentActive: active,
+    });
     setActive(next);
-
-    // toggle simulation-active on the App root
-    const appRoot = document.querySelector('.App');
-    if (appRoot) {
-      appRoot.classList.toggle('simulation-active', next);
-    }
 
     if (next) {
       setLabel('Stop Simulation');

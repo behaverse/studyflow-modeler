@@ -3,7 +3,8 @@ import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getStudyflowExtension, isCustomSchemaPrefix, setExtensionProperty } from '../extensionElements';
+import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElements';
+import { executeCommand } from '../commands';
 
 export function EnumInput(props) {
 
@@ -26,18 +27,18 @@ export function EnumInput(props) {
         useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')
     );
 
-    const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
+    const { modeler } = useContext(ModelerContext);
 
     function handleChange(event) {
         const newValue = event.target.value;
         setValue(newValue);
-        if (useExt) {
-            setExtensionProperty(element, name, newValue, modeling);
-        } else {
-            modeling.updateProperties(element, {
-                [name]: newValue
-            });
-        }
+        executeCommand(modeler, {
+            type: 'inspector-update-property',
+            element,
+            propertyName: name,
+            value: newValue,
+            useExtension: useExt,
+        });
     }
 
     return (

@@ -9,6 +9,67 @@ import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
 import { getStudyflowExtension, getStudyflowProperties, isCustomSchemaPrefix } from '../extensionElements';
 
+const toLocalName = (name: string | undefined) => {
+    if (!name) return undefined;
+    const idx = name.indexOf(':');
+    return idx === -1 ? name : name.slice(idx + 1);
+};
+
+const getSchemaOrder = (businessObject: any, ext: any): Map<string, number> => {
+    const order = new Map<string, number>();
+
+    const mergeOrderedProperty = (prop: any, idx: number) => {
+        const full = (prop?.ns?.name as string | undefined) ?? (prop?.name ? `${prop?.ns?.prefix}:${prop.name}` : undefined);
+        const local = toLocalName(full) ?? prop?.name;
+
+        if (full && order.has(full)) order.delete(full);
+        if (local && order.has(local)) order.delete(local);
+
+        if (full) order.set(full, idx);
+        if (local) order.set(local, idx);
+    };
+
+    const allTypes: any[] = ext?.$descriptor?.allTypes ?? [];
+    if (allTypes.length) {
+        let idx = 0;
+        for (const type of allTypes) {
+            const typeProps: any[] = type?.properties ?? [];
+            for (const prop of typeProps) {
+                const fullNs = (prop?.ns?.name as string | undefined) ?? (prop?.name ? `${prop?.ns?.prefix}:${prop.name}` : undefined);
+                const prefix = prop?.ns?.prefix ?? fullNs?.split(':')?.[0];
+                if (prefix && !isCustomSchemaPrefix(prefix)) continue;
+                mergeOrderedProperty(prop, idx++);
+            }
+        }
+
+        if (order.size) {
+            return order;
+        }
+    }
+
+    const descriptorProps: any[] = ext?.$descriptor?.properties?.length
+        ? ext.$descriptor.properties
+        : (businessObject?.$descriptor?.properties ?? []).filter((p: any) => isCustomSchemaPrefix(p?.ns?.prefix));
+
+    descriptorProps.forEach((prop: any, idx: number) => mergeOrderedProperty(prop, idx));
+
+    return order;
+};
+
+const sortBySchemaOrder = (properties: any[], schemaOrder: Map<string, number>) => {
+    if (!schemaOrder.size) return properties;
+
+    const getIndex = (prop: any): number => {
+        const full = prop?.ns?.name as string | undefined;
+        const local = toLocalName(full);
+        if (full && schemaOrder.has(full)) return schemaOrder.get(full)!;
+        if (local && schemaOrder.has(local)) return schemaOrder.get(local)!;
+        return Number.MAX_SAFE_INTEGER;
+    };
+
+    return [...properties].sort((a: any, b: any) => getIndex(a) - getIndex(b));
+};
+
 
 export function Panel({ className = '', ...props }) {
 
@@ -39,11 +100,6 @@ export function Panel({ className = '', ...props }) {
     const getProperties = useCallback((element: any) => {
         let propCategories: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
-        const toLocalName = (name: string | undefined) => {
-            if (!name) return undefined;
-            const idx = name.indexOf(':');
-            return idx === -1 ? name : name.slice(idx + 1);
-        };
 
         // Collect extension element property names upfront to deduplicate
         const ext = getStudyflowExtension(element);
@@ -89,6 +145,11 @@ export function Panel({ className = '', ...props }) {
                     propCategories[cat].push(prop);
                 });
             });
+        }
+
+        const schemaOrder = getSchemaOrder(businessObject, ext);
+        for (const [catName, props] of Object.entries(propCategories)) {
+            propCategories[catName] = sortBySchemaOrder(props, schemaOrder);
         }
 
         // remove empty groups

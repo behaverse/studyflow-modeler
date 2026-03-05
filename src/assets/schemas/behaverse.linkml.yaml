@@ -127,7 +127,7 @@ classes:
         comments:
           - Conditional on instrument being "behaverse"
       parameters:
-        range: YAMLString
+        range: studyflow:YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Behaverse
@@ -142,8 +142,12 @@ classes:
                 - Conditional on instrument being "behaverse"
 
 examples:
-  - description: N-back Task
+  - description: N-back task
     object:
       class: BehaverseTask
       name: Behaverse Task
+      instrument: behaverse
       scene: NB
+      parameters: |
+        trials: 20
+        stimulus_duration_ms: 500

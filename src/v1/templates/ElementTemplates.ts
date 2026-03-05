@@ -89,7 +89,7 @@ export default class ElementTemplates {
    * from bpmn-js-create-append-anything.
    */
   createElement(template: ElementTemplate): any {
-    const { bpmnType, studyflowType } = template;
+    const { bpmnType, studyflowType, exampleProperties } = template;
 
     // 1. Create the BPMN shape
     const shape = this._elementFactory.create('shape', { type: bpmnType });
@@ -99,12 +99,15 @@ export default class ElementTemplates {
       const bo = shape.businessObject;
       const defaults = getStudyflowDefaults(studyflowType, this._moddle);
 
+      // Merge defaults with example properties (example properties override defaults)
+      const properties = { ...defaults, ...exampleProperties };
+
       if (isExtendsType(studyflowType, this._moddle)) {
-        for (const [key, val] of Object.entries(defaults)) {
+        for (const [key, val] of Object.entries(properties)) {
           bo.set(key, val);
         }
       } else {
-        createStudyflowExtension(bo, studyflowType, this._moddle, defaults);
+        createStudyflowExtension(bo, studyflowType, this._moddle, properties);
       }
     }
 

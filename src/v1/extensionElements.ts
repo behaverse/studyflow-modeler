@@ -9,6 +9,7 @@
  */
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { executeCommand } from './commands';
 
 const CORE_PREFIXES = new Set([
   'bpmn',
@@ -80,11 +81,11 @@ export function setExtensionProperty(
   value: any,
   modeling: any
 ): void {
-  const ext = getStudyflowExtension(element);
-  if (!ext) return;
-
-  modeling.updateModdleProperties(element, ext, {
-    [propertyName]: value
+  executeCommand(modeling, {
+    type: 'update-extension-property',
+    element,
+    propertyName,
+    value,
   });
 }
 
@@ -126,7 +127,11 @@ export function ensureStudyflowExtension(
     extensionElements.values.push(wrapper);
 
     // Update the element to include the new extensionElements
-    modeling.updateProperties(element, { extensionElements });
+    executeCommand(modeling, {
+      type: 'update-properties',
+      element,
+      properties: { extensionElements },
+    });
   }
 
   return wrapper;

@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ModelerContext } from '../contexts';
-import SchemaCreateMenuProvider from './SchemaCreateMenuProvider';
-import { startCreate } from './createShape';
+import { executeCommand } from '../commands';
 import { t } from '../../i18n';
 
 type PaletteEntry = {
@@ -74,6 +73,8 @@ export function Palette({ className = '' }: { className?: string }) {
 
   useEffect(() => {
     if (!modeler) return;
+    let isCancelled = false;
+
     if (lastModelerRef.current !== modeler) {
       // Modeler can be recreated (e.g. React dev StrictMode). Providers are
       // registered on the modeler's popupMenu instance, so we must re-register
@@ -81,52 +82,28 @@ export function Palette({ className = '' }: { className?: string }) {
       registeredSchemasRef.current = new Set();
       lastModelerRef.current = modeler;
     }
+
     // Only show core BPMN tools in the main palette.
     setEntries(loadBpmnEntries());
 
-    const bpmnFactory = modeler.get('bpmnFactory');
-    const moddle = bpmnFactory._model;
-    const popupMenu = modeler.get('popupMenu');
-    const elementFactory = modeler.get('elementFactory');
-    const create = modeler.get('create');
-
-    const prefixes: string[] = [];
-
-    const packagesArray: any[] =
-      (typeof (moddle as any).getPackages === 'function'
-        ? (moddle as any).getPackages()
-        : (Array.isArray((moddle as any).packages)
-            ? (moddle as any).packages
-            : Object.values((moddle as any).packages || {})));
-
-    packagesArray.forEach((pkg: any) => {
-      const prefix = pkg.prefix.toLowerCase();
-      if (!prefix) return;
-      // Skip core BPMN / DI packages and non-schema utility packages
-      if (['bpmn', 'bpmndi', 'di', 'dc', 'bioc', 'color'].includes(prefix)) return;
-
-      if (!registeredSchemasRef.current.has(prefix)) {
-        try {
-          // Dynamically register one popup provider per schema prefix.
-          // eslint-disable-next-line no-new
-          new (SchemaCreateMenuProvider as any)(
-            popupMenu,
-            bpmnFactory,
-            elementFactory,
-            create,
-            prefix,
-          );
-          registeredSchemasRef.current.add(prefix);
-        } catch {
-          return;
+    executeCommand(modeler, {
+      type: 'palette-register-schema-providers',
+      registeredSchemas: registeredSchemasRef.current,
+    })
+      .then((prefixes: string[]) => {
+        if (!isCancelled) {
+          setSchemaPrefixes(prefixes);
         }
-      }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setSchemaPrefixes([]);
+        }
+      });
 
-      prefixes.push(prefix);
-    });
-
-    prefixes.sort();
-    setSchemaPrefixes(prefixes);
+    return () => {
+      isCancelled = true;
+    };
   }, [modeler]);
 
   useEffect(() => {
@@ -146,7 +123,13 @@ export function Palette({ className = '' }: { className?: string }) {
       return;
     }
     // Click-to-pick: start create; user will click canvas to drop.
-    startCreate(modeler, entry.bpmnType, event.nativeEvent, {}, entry.studyflowType);
+    executeCommand(modeler, {
+      type: 'palette-start-create',
+      bpmnType: entry.bpmnType,
+      event: event.nativeEvent,
+      attrs: {},
+      studyflowType: entry.studyflowType,
+    });
     setPressedEntryKey(null);
   };
 
@@ -163,7 +146,13 @@ export function Palette({ className = '' }: { className?: string }) {
     startedRef.current = true;
     event.preventDefault();
     // Start drag-create on first move with button down.
-    startCreate(modeler, entry.bpmnType, event.nativeEvent, {}, entry.studyflowType);
+    executeCommand(modeler, {
+      type: 'palette-start-create',
+      bpmnType: entry.bpmnType,
+      event: event.nativeEvent,
+      attrs: {},
+      studyflowType: entry.studyflowType,
+    });
   };
 
   const handleMouseUp = () => {
@@ -171,23 +160,9 @@ export function Palette({ className = '' }: { className?: string }) {
     setPressedEntryKey(null);
   };
 
-  const handleLassoToolClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!modeler) return;
-    event.preventDefault();
-
-    const lassoTool = modeler.get('lassoTool');
-    lassoTool.activateSelection(event.nativeEvent);
-  };
-
-  const handleMoreElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!modeler) return;
-    event.preventDefault();
-
-    const popupMenu = modeler.get('popupMenu');
-    const canvas = modeler.get('canvas');
-
+  const getPopupPosition = (event: ReactMouseEvent<HTMLButtonElement>) => {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const position = {
+    return {
       x: rect.left + rect.width / 2 + 35,
       y: rect.top + rect.height / 2 + 10,
       cursor: {
@@ -195,13 +170,27 @@ export function Palette({ className = '' }: { className?: string }) {
         y: event.clientY,
       },
     };
+  };
 
-    const rootElement = canvas.getRootElement();
+  const handleLassoToolClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!modeler) return;
+    event.preventDefault();
 
-    popupMenu.open(rootElement, 'bpmn-create', position, {
+    executeCommand(modeler, {
+      type: 'palette-activate-lasso',
+      event: event.nativeEvent,
+    });
+  };
+
+  const handleMoreElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!modeler) return;
+    event.preventDefault();
+
+    executeCommand(modeler, {
+      type: 'palette-open-popup',
+      popupType: 'bpmn-create',
+      position: getPopupPosition(event),
       title: t('Create BPMN element'),
-      width: 300,
-      search: false,
     });
   };
 
@@ -212,25 +201,11 @@ export function Palette({ className = '' }: { className?: string }) {
     if (!modeler) return;
     event.preventDefault();
 
-    const popupMenu = modeler.get('popupMenu');
-    const canvas = modeler.get('canvas');
-
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const position = {
-      x: rect.left + rect.width / 2 + 35,
-      y: rect.top + rect.height / 2 + 10,
-      cursor: {
-        x: event.clientX,
-        y: event.clientY,
-      },
-    };
-
-    const rootElement = canvas.getRootElement();
-
-    popupMenu.open(rootElement, `${prefix}-create`, position, {
+    executeCommand(modeler, {
+      type: 'palette-open-popup',
+      popupType: `${prefix}-create`,
+      position: getPopupPosition(event),
       title: t('Create element'),
-      width: 300,
-      search: false,
     });
   };
 

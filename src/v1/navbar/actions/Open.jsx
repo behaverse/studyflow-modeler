@@ -1,39 +1,28 @@
 import { useEffect, useContext, useRef } from "react";
 import { DiagramNameContext, ModelerContext } from '../../contexts';
 import PropTypes from 'prop-types';
+import { executeCommand } from '../../commands';
 
 
 export function OpenButton({ className, onClick }) {
 
     const { modeler } = useContext(ModelerContext);
-    const { diagramName, setDiagramName } = useContext(DiagramNameContext);
+    const { setDiagramName } = useContext(DiagramNameContext);
     const fileInputRef = useRef(null);
     useEffect(() => {
     }, [modeler]);
 
     const handleUpload = (event, filename) => {
-        let xml = event.target.result;
-        
-        if (filename.toLowerCase().endsWith('.svg')) {
-            const parser = new DOMParser();
-            const svgDoc = parser.parseFromString(xml, 'image/svg+xml');
-            const studyflowEl = svgDoc.querySelector('metadata > studyflow');
-            if (studyflowEl) {
-                xml = studyflowEl.innerHTML;
-            } else {
-                alert("The selected SVG file does not contain embedded Studyflow.");
-                return;
-            }
-        }
+        const content = event.target.result;
 
-        modeler.importXML(xml).then(() => {
-            modeler.get('canvas').zoom('fit-viewport');
-            if (diagramName && setDiagramName) {
-                // remove extension from filename
-                filename = filename.replace(/\.[^/.]+$/, "");
-                setDiagramName(filename);
-            }
+        executeCommand(modeler, {
+            type: 'open-diagram',
+            filename,
+            content,
+            setDiagramName,
+        }).then(() => {
         }).catch((error) => {
+            alert(error?.message || 'Failed to open diagram.');
             console.error(error);
         });
     }

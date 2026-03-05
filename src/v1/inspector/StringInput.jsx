@@ -3,7 +3,8 @@ import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@h
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getStudyflowExtension, isCustomSchemaPrefix, setExtensionProperty } from '../extensionElements';
+import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElements';
+import { executeCommand } from '../commands';
 
 
 export function StringInput(props) {
@@ -25,35 +26,18 @@ export function StringInput(props) {
         useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')
     );
 
-    const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
-    const elementRegistry = useContext(ModelerContext).modeler.get('elementRegistry');
+    const { modeler } = useContext(ModelerContext);
 
     function handleChange(event) {
         const newValue = event.target.value;
         setValue(newValue);
 
-        // Studyflow properties → update the extension element or BO
-        if (isSchemaProp) {
-            if (useExt) {
-                setExtensionProperty(element, name, newValue, modeling);
-            } else {
-                modeling.updateProperties(element, { [name]: newValue });
-            }
-            return;
-        }
-
-        // For non-ID changes, update properties normally
-        if (name !== "bpmn:id") {
-            modeling.updateProperties(element, {
-                [name]: newValue
-            });
-            return;
-        }
-
-        // For ID changes, we need to handle them differently
-        const e = elementRegistry.get(element.id);
-        modeling.updateProperties(e, {
-            id: newValue
+        executeCommand(modeler, {
+            type: 'inspector-update-property',
+            element,
+            propertyName: name,
+            value: newValue,
+            useExtension: isSchemaProp && useExt,
         });
 
     }

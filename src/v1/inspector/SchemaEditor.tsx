@@ -3,7 +3,8 @@ import { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionProperty, setExtensionProperty } from '../extensionElements';
+import { getExtensionProperty } from '../extensionElements';
+import { executeCommand } from '../commands';
 
 
 export function SchemaEditor(props: { bpmnProperty: any; }) {
@@ -12,7 +13,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
     const { element } = useContext(InspectorContext);
 
     const [value, setValue] = useState(getExtensionProperty(element, bpmnProperty?.ns.name) || '');
-    const modeling = useContext(ModelerContext).modeler.get('injector').get('modeling');
+    const { modeler } = useContext(ModelerContext);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [modalValue, setModalValue] = useState(value);
@@ -20,7 +21,12 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
     function handleChange(event: any) {
         const newValue = event.target.value;
         setValue(newValue);
-        setExtensionProperty(element, bpmnProperty?.ns.name, newValue, modeling);
+        executeCommand(modeler, {
+            type: 'update-extension-property',
+            element,
+            propertyName: bpmnProperty?.ns.name,
+            value: newValue,
+        });
     }
 
     function showEditorModal() {
@@ -34,7 +40,12 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
 
     function saveModal() {
         setValue(modalValue);
-        setExtensionProperty(element, bpmnProperty?.ns.name, modalValue, modeling);
+        executeCommand(modeler, {
+            type: 'update-extension-property',
+            element,
+            propertyName: bpmnProperty?.ns.name,
+            value: modalValue,
+        });
         setModalOpen(false);
     }
 

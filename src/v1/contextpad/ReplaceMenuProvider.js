@@ -1,4 +1,5 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { executeCommand } from '../commands';
 
 export default class ReplaceMenuProvider {
   static $inject = ['popupMenu', 'replace', 'modeling', 'eventBus'];
@@ -35,8 +36,12 @@ export default class ReplaceMenuProvider {
       const currentState = !!businessObject.get('isDataOperation');
       const newState = !currentState;
 
-      self._modeling.updateProperties(element, {
-        isDataOperation: newState
+      executeCommand(self._modeling, {
+        type: 'update-properties',
+        element,
+        properties: {
+          isDataOperation: newState
+        }
       });
 
       entry.active = newState;

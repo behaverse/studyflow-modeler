@@ -1,30 +1,11 @@
-import { useEffect, useState, useContext, use } from 'react';
+import { useEffect, useState, useContext } from 'react';
 
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
-import BpmnModeler from 'bpmn-js/lib/Modeler';
-import BpmnColorPickerModule from 'bpmn-js-color-picker';
 import 'bpmn-js-color-picker/colors/color-picker.css';
-
-import {
-    CreateAppendAnythingModule,
-    CreateAppendElementTemplatesModule
-  } from 'bpmn-js-create-append-anything';
-import GridModule from 'diagram-js-grid';
-
-import { toModelerModdleSchema } from '@/v1/moddle';
-import new_diagram from '@/assets/new_diagram.bpmn';
 import { ModelerContext } from './contexts';
-import { StudyflowModelerModule } from '.';
-import { StudyflowElementTemplatesCoreModule } from '@/v1/templates';
-
-// FIXME should be const _url = "https://behaverse.org/schemas/studyflow/schema.linkml.yaml";
-const schemaFiles = import.meta.glob('@/assets/schemas/*.linkml.yaml', {
-  query: '?url',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>;
+import { executeCommand } from '@/v1/commands';
 
 export function Modeler() {
 
@@ -32,52 +13,20 @@ export function Modeler() {
     const { setModeler } = useContext(ModelerContext);
     const [isLoading, setLoading] = useState(true);
 
-  async function downloadSchemas(schemas: any): Promise<any> {
-
-    const downloadedSchemas: any = {};
-    for (const k of schemas) {
-      // TODO fixme use the url instead of embedding the file in the bundle
-      const _url = schemaFiles[`/assets/schemas/${k}.linkml.yaml`];
-      const response = await fetch(_url);
-      const text = await response.text();
-      downloadedSchemas[k] = toModelerModdleSchema(text);
-    }
-    return downloadedSchemas;
-  }
-
-  async function createModeler(extensionSchemas: any, _canvas: any = canvas) {
-    const options = {
-      container: _canvas,
-      textRenderer: {
-        defaultStyle: {
-          fontFamily: '"IBM Plex Sans", Helvetica, sans-serif',
-        }
-      },
-      moddleExtensions: extensionSchemas,
-      additionalModules: [
-        StudyflowElementTemplatesCoreModule,
-        CreateAppendAnythingModule,
-        BpmnColorPickerModule,
-        CreateAppendElementTemplatesModule,
-        GridModule,
-        StudyflowModelerModule
-      ],
-    }
-
-    const modeler = new BpmnModeler(options);
-    const diagramXML = await fetch(new_diagram).then(r => r.text());
-    await modeler.importXML(diagramXML);
-    return modeler;
-  }
-
   useEffect(() => {
-    downloadSchemas([ "studyflow", "omniflow", "behaverse"])  //TODO read from schemaFiles keys
-      .then(schemas => createModeler(schemas))
-      .then(modeler => {
+    executeCommand(null, {
+      type: 'download-schemas',
+    })
+      .then((schemas: Record<string, any>) => executeCommand(null, {
+        type: 'create-modeler',
+        container: canvas,
+        extensionSchemas: schemas,
+      }))
+      .then((modeler: any) => {
         setModeler(modeler);
         setLoading(false);
       })
-      .catch(err => console.log('Error creating modeler:', err));
+      .catch((err: any) => console.log('Error creating modeler:', err));
 
     return () => {
       // modeler.destroy();

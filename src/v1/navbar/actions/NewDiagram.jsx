@@ -1,6 +1,6 @@
 import { useEffect, useContext } from "react";
 import { ModelerContext } from '../../contexts';
-import new_diagram from '@/assets/new_diagram.bpmn';
+import { executeCommand } from '../../commands';
 
 export function NewDiagramButton({ className }) {
 
@@ -13,19 +13,11 @@ export function NewDiagramButton({ className }) {
         e.preventDefault();
         alert("FIXME: this will delete the current diagram and load an empty one. It cannot be undone.");
         if (modeler) {
-            fetch(new_diagram)
-                .then(r => r.text())
-                .then(content => {
-                    modeler.importXML(content)
-                        .then(({ warnings }) => {
-                            if (warnings.length) {
-                            console.warn(warnings);
-                            }
-                            modeler.get('canvas').zoom('fit-viewport');
-                        })
-                        .catch(err => {
-                            console.log(err);
-                        });
+            executeCommand(modeler, {
+                type: 'new-diagram',
+            })
+                .catch(err => {
+                    console.log(err);
                 });
 
         }

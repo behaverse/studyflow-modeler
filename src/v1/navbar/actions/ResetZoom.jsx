@@ -1,6 +1,7 @@
-import React, { useContext, forwardRef } from "react";
+import { useContext, forwardRef } from "react";
 import { ModelerContext } from '../../contexts';
 import { Button } from '@headlessui/react'
+import { executeCommand } from '../../commands';
 
 export const ResetZoomButton = forwardRef(function ResetZoomButton({ className, onClick, ...rest }, ref) {
 
@@ -9,7 +10,7 @@ export const ResetZoomButton = forwardRef(function ResetZoomButton({ className, 
   const handleClick = (e) => {
     if (modeler) {
       try {
-        modeler.get('canvas').zoom('fit-viewport');
+        executeCommand(modeler, { type: 'reset-zoom' });
       } catch (err) {
         console.warn('Zoom to fit failed', err);
       }

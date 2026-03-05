@@ -228,7 +228,7 @@ export class LinkMLToModdleConverter {
       const sfClass = this.bpmnExtendsClasses.get(bt);
       if (sfClass && !visited.has(sfClass)) {
         const ancestorAttrs = this.collectAllAttributes(sfClass, visited);
-        attrs = { ...attrs, ...ancestorAttrs };
+        attrs = this.mergeAttributesInOrder(attrs, ancestorAttrs);
       }
     }
 
@@ -267,19 +267,25 @@ export class LinkMLToModdleConverter {
         ? classData.is_a
         : null;
     if (bpmnType) {
-      attrs = { ...attrs, ...this.collectBpmnAncestorAttributes(bpmnType, visited) };
+      attrs = this.mergeAttributesInOrder(
+        attrs,
+        this.collectBpmnAncestorAttributes(bpmnType, visited)
+      );
     }
 
     // 2. Walk mixins — additive properties only (no hierarchy propagation)
     if (classData.mixins) {
       for (const mixin of classData.mixins) {
-        attrs = { ...attrs, ...this.collectMixinAttributes(mixin, visited) };
+        attrs = this.mergeAttributesInOrder(
+          attrs,
+          this.collectMixinAttributes(mixin, visited)
+        );
       }
     }
 
     // 3. Own attributes (override inherited/additive attributes)
     if (classData.attributes) {
-      attrs = { ...attrs, ...classData.attributes };
+      attrs = this.mergeAttributesInOrder(attrs, classData.attributes);
     }
 
     return attrs;
@@ -301,12 +307,15 @@ export class LinkMLToModdleConverter {
 
     if (mixinData.mixins) {
       for (const nestedMixin of mixinData.mixins) {
-        attrs = { ...attrs, ...this.collectMixinAttributes(nestedMixin, visited) };
+        attrs = this.mergeAttributesInOrder(
+          attrs,
+          this.collectMixinAttributes(nestedMixin, visited)
+        );
       }
     }
 
     if (mixinData.attributes) {
-      attrs = { ...attrs, ...mixinData.attributes };
+      attrs = this.mergeAttributesInOrder(attrs, mixinData.attributes);
     }
 
     return attrs;
@@ -439,6 +448,24 @@ export class LinkMLToModdleConverter {
     } catch (e) {
       return undefined;
     }
+  }
+
+  /**
+   * Merge attributes while preserving source order.
+   * Existing keys are reinserted so overrides follow source position.
+   */
+  private mergeAttributesInOrder(
+    target: Record<string, LinkMLAttribute>,
+    source: Record<string, LinkMLAttribute>
+  ): Record<string, LinkMLAttribute> {
+    for (const [key, value] of Object.entries(source)) {
+      if (Object.prototype.hasOwnProperty.call(target, key)) {
+        delete target[key];
+      }
+      target[key] = value;
+    }
+
+    return target;
   }
 
   private buildModdleProperty(attrName: string, attrData: LinkMLAttribute): ModdleProperty {
@@ -592,12 +619,15 @@ export class LinkMLToModdleConverter {
       if (classData.mixins) {
         const visited = new Set<string>();
         for (const mixin of classData.mixins) {
-          attrs = { ...attrs, ...this.collectMixinAttributes(mixin, visited) };
+          attrs = this.mergeAttributesInOrder(
+            attrs,
+            this.collectMixinAttributes(mixin, visited)
+          );
         }
       }
 
       if (classData.attributes) {
-        attrs = { ...attrs, ...classData.attributes };
+        attrs = this.mergeAttributesInOrder(attrs, classData.attributes);
       }
 
       return attrs;

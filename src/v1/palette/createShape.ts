@@ -1,4 +1,5 @@
 import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { executeCommand } from '../commands';
 
 /**
  * Add a studyflow extension element wrapper to a business object with defaults.
@@ -71,7 +72,12 @@ export function createAndPlace(
     businessObject,
   });
 
-  modeling.createShape(shape, position, root);
+  executeCommand(modeling, {
+    type: 'create-shape',
+    shape,
+    position,
+    parent: root,
+  });
 
   return shape;
 }

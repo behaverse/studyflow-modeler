@@ -2,32 +2,58 @@ import { useState, useEffect, useContext } from 'react';
 import { Description, Dialog, DialogPanel, Field, Fieldset, Label, Input, Button } from '@headlessui/react'
 
 import { APIKeyContext } from './contexts';
+import { executeCommand } from './commands';
 
 export default function StartUpModal() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const { apiKey, setApiKey } = useContext(APIKeyContext);
+  const { setApiKey } = useContext(APIKeyContext);
 
   // Auto-login as guest on mount
   useEffect(() => {
-    setApiKey('guest');
+    executeCommand(null, { type: 'startup-auto-guest' })
+      .then((result: any) => {
+        if (result?.success && result?.data?.apiKey !== undefined) {
+          setApiKey(result.data.apiKey);
+        }
+      });
   }, []);
 
-  const login = (formData) => {
+  const login = async (formData: FormData) => {
     const api_key = formData.get('api_key');
-    if (api_key !== '') {
-      // TODO check with behaverse data server
-      setError('Invalid key');
+
+    const result = await executeCommand(null, {
+      type: 'startup-login',
+      apiKey: String(api_key || ''),
+    });
+
+    if (!result?.success) {
+      setError(result.error);
       return;
     }
-    setApiKey(api_key);
-    setIsOpen(false);
+
+    if (result?.data?.apiKey !== undefined) {
+      setApiKey(result.data.apiKey);
+    }
+    if (typeof result?.data?.isOpen === 'boolean') {
+      setIsOpen(result.data.isOpen);
+    }
+    setError(result?.error);
   }
 
-  const guestLogin = () => {
-    setApiKey('guest');
-    setIsOpen(false);
+  const guestLogin = async () => {
+    const result = await executeCommand(null, {
+      type: 'startup-guest-login',
+    });
+
+    if (result?.success && result?.data?.apiKey !== undefined) {
+      setApiKey(result.data.apiKey);
+    }
+    if (typeof result?.data?.isOpen === 'boolean') {
+      setIsOpen(result.data.isOpen);
+    }
+    setError(result?.error);
   }
 
   return (
