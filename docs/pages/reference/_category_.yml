@@ -4,5 +4,5 @@ link:
   type: generated-index
   title: Reference
   description: |
-    This reference manual documents the core components of the studyflow language, describing what they are and how they work.
+    This reference manual documents the core components of the studyflow language, including formal specification, elements, data structures, and schemas.
   slug: /reference

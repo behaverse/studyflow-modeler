@@ -1,0 +1,57 @@
+---
+title: Schemas
+description: Structure and conventions for Studyflow LinkML schemas
+---
+
+This page documents how Studyflow uses LinkML as the authoring format for schema definitions.
+
+## Core structure
+
+Studyflow LinkML files follow this top-level layout:
+
+```yaml
+id: http://behaverse.org/schemas/studyflow
+name: studyflow
+prefixes:
+  studyflow: http://behaverse.org/schemas/studyflow/
+default_prefix: studyflow
+enums: {}
+types: {}
+classes: {}
+```
+
+## Classes and attributes
+
+Each class defines a domain element and their attributes. For example:
+
+```yaml
+classes:
+  StartEvent:
+    class_uri: bpmn:StartEvent
+    attributes:
+      requiresConsent:
+        range: boolean
+        ifabsent: "false"
+        categories: [Privacy]
+```
+
+## Extensions
+
+`extensions.moddle` is used to control moddle-specific behavior for a property.
+
+- `redefines`
+- `replaces`
+- `default`
+
+`extensions.studyflow` is used for modeler/UI behavior.
+
+- `hidden`
+- `condition.language`
+- `condition.body`
+
+## Common mistakes
+
+- Prefix mismatch: class or type references using the wrong prefix (for example `studyflow:` vs local names).
+- Missing `range`: attributes without range default to string-like behavior and may produce unintended interfaces.
+- Invalid extension shape: malformed `extensions.studyflow.condition.body` JSON disables conditional visibility.
+- Incorrect `redefines` owner: invalid targets are dropped.
