@@ -1,8 +1,8 @@
 /**
- * Template descriptor used by the ElementTemplates service
+ * Example descriptor used by the element templates service
  * and consumed by CreateAppendElementTemplatesModule.
  */
-export interface ElementTemplate {
+export interface Example {
   /** Unique template identifier */
   id: string;
   /** Optional version number */
@@ -41,4 +41,8 @@ export interface ElementTemplate {
   iconClass?: string;
   /** Property values from the LinkML example object */
   exampleProperties?: Record<string, any>;
+  /** Source marker used to route template visibility in popup menus */
+  templateSource?: 'schema-example';
+  /** Lowercase schema prefix (e.g., "behaverse") that owns this template */
+  schemaPrefix?: string;
 }

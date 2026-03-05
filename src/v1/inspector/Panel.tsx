@@ -228,12 +228,21 @@ export function Panel({ className = '', ...props }) {
                 <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
                     (() => {
                                                 const ext = getStudyflowExtension(el);
-                                                const sfType = ext?.$type?.split(':')[1];
-                                                if (sfType) return sfType;
-                                                if (el?.type && typeof el.type === 'string' && el.type.includes(':')) {
-                                                    return el.type.split(':')[1];
+                                                const extensionName = ext?.get?.('name') ?? ext?.name;
+                                                if (typeof extensionName === 'string' && extensionName.trim()) {
+                                                    return extensionName;
                                                 }
-                                                return 'Unknown';
+                                                const bo = getBusinessObject(el);
+                                                const businessObjectName = bo?.get?.('name') ?? bo?.name;
+                                                if (typeof businessObjectName === 'string' && businessObjectName.trim()) {
+                                                    return businessObjectName;
+                                                }
+
+                                                const fallbackType = ext?.$type || el?.type;
+                                                if (typeof fallbackType === 'string' && fallbackType.includes(':')) {
+                                                    return fallbackType.split(':')[1];
+                                                }
+                                                return fallbackType || 'Unknown';
                     })()
                 }</h1>
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{

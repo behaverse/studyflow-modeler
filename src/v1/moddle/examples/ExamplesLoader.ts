@@ -1,31 +1,14 @@
 /**
  * Reads schema-level `examples` from moddle packages and builds
- * ElementTemplate descriptors by matching each example to its
+ * ElementExample descriptors by matching each example to its
  * corresponding type in the moddle registry.
  *
- * Injects the generated templates into the ElementTemplates service.
+ * Injects the generated examples into the `elementTemplates` DI service.
  */
 
-import type { ElementTemplate } from './types';
+import type { Example } from './types';
 
-/**
- * Convert an icon class string like "iconify bi--puzzle" to an
- * Iconify API SVG URL suitable for use as `imageUrl` in popup menus.
- *
- * Returns undefined if the icon class doesn't match the expected format.
- */
-function iconClassToUrl(iconClass: string | undefined): string | undefined {
-  if (!iconClass) return undefined;
-
-  // Format: "iconify {set}--{name}"
-  const match = iconClass.match(/^iconify\s+(.+?)--(.+)$/);
-  if (!match) return undefined;
-
-  const [, set, name] = match;
-  return `https://api.iconify.design/${set}/${name}.svg?height=18`;
-}
-
-export default class SchemaTemplateLoader {
+export default class ExamplesLoader {
 
   static $inject = [
     'elementTemplates',
@@ -33,7 +16,7 @@ export default class SchemaTemplateLoader {
     'eventBus'
   ];
 
-  private _elementTemplates: any;
+  private _elementExamplesService: any;
   private _moddle: any;
 
   constructor(
@@ -41,21 +24,21 @@ export default class SchemaTemplateLoader {
     moddle: any,
     eventBus: any,
   ) {
-    this._elementTemplates = elementTemplates;
+    this._elementExamplesService = elementTemplates;
     this._moddle = moddle;
 
-    // Build templates once the moddle registry is ready.
+    // Build examples once the moddle registry is ready.
     // The registry is populated synchronously during modeler construction,
     // so by the time DI resolves __init__ services the types are available.
     eventBus.on('diagram.init', () => {
-      this._loadTemplates();
+      this._loadExamples();
     });
   }
 
-  private _loadTemplates(): void {
+  private _loadExamples(): void {
     const packages: any[] = this._moddle.getPackages();
     const typeMap: Record<string, any> = this._moddle.registry.typeMap;
-    const templates: ElementTemplate[] = [];
+    const examplesOut: Example[] = [];
 
     for (const pkg of packages) {
       const examples: any[] = pkg.examples ?? [];
@@ -83,23 +66,22 @@ export default class SchemaTemplateLoader {
         const bpmnType: string | undefined = typeDescriptor.meta?.bpmnType;
         if (!bpmnType) continue;
 
-        const iconUrl = iconClassToUrl(typeDescriptor.icon);
+        const iconClass: string | undefined = obj.icon ?? typeDescriptor.icon;
 
         // Extract example properties (excluding metadata fields)
         const exampleProperties: Record<string, any> = {};
         for (const [key, value] of Object.entries(obj)) {
-          if (key !== 'class' && key !== 'name' && key !== 'keywords' && value !== undefined) {
+          if (key !== 'class' && key !== 'name' && key !== 'keywords' && key !== 'icon' && value !== undefined) {
             exampleProperties[key] = value;
           }
         }
 
-        const template: ElementTemplate = {
+        const exampleEntry: Example = {
           id: qualifiedName,
-          name: obj.name ?? className,
+          name: obj.name ?? obj['bpmn:name'] ?? className,
           description: example.description ?? typeDescriptor.description ?? '',
           appliesTo: [bpmnType],
           elementType: { value: bpmnType },
-          icon: iconUrl ? { contents: iconUrl } : undefined,
           category: {
             id: prefix,
             name: capitalize(prefix),
@@ -107,15 +89,17 @@ export default class SchemaTemplateLoader {
           keywords: obj.keywords ?? [],
           studyflowType: qualifiedName,
           bpmnType,
-          iconClass: typeDescriptor.icon,
+          iconClass,
           exampleProperties: Object.keys(exampleProperties).length > 0 ? exampleProperties : undefined,
+          templateSource: 'schema-example',
+          schemaPrefix: prefix.toLowerCase(),
         };
 
-        templates.push(template);
+        examplesOut.push(exampleEntry);
       }
     }
 
-    this._elementTemplates.set(templates);
+    this._elementExamplesService.set(examplesOut);
   }
 }
 

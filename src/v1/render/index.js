@@ -21,6 +21,38 @@ export default class StudyflowRenderer extends BaseRenderer {
     this.pkgTypeMap = moddle.registry.typeMap;
     this.pkgEnums = Object.values(moddle.registry.packageMap || {})
       .flatMap((pkg) => pkg?.enumerations || []);
+
+    this.exampleIconByType = this._buildExampleIconIndex(moddle.getPackages?.() || []);
+  }
+
+  _buildExampleIconIndex(packages) {
+    const index = new Map();
+
+    for (const pkg of packages) {
+      const examples = pkg?.examples || [];
+      const prefix = pkg?.prefix;
+      if (!prefix) {
+        continue;
+      }
+
+      for (const example of examples) {
+        const obj = example?.object;
+        const className = obj?.class;
+        const icon = obj?.icon;
+        if (!className || !icon) {
+          continue;
+        }
+
+        const qualifiedType = className.includes(':') ? className : `${prefix}:${className}`;
+
+        // Keep the first icon per type as the canonical example icon.
+        if (!index.has(qualifiedType)) {
+          index.set(qualifiedType, icon);
+        }
+      }
+    }
+
+    return index;
   }
 
   canRender(element) {
@@ -34,7 +66,9 @@ export default class StudyflowRenderer extends BaseRenderer {
     const ext = getStudyflowExtension(element);
     const sfType = ext?.$type;
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
-    const iconClass = sfDescriptor?.icon || BPMN_ICON_OVERRIDES[element.type] || undefined;
+    const exampleIconClass = sfType ? this.exampleIconByType.get(sfType) : undefined;
+    const descriptorIconClass = sfDescriptor?.icon;
+    const iconClass = exampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
     if (is(element, "bpmn:Event")) {
       return drawEventWithIcon(parentNode, element, this.bpmnRenderer);
@@ -45,7 +79,14 @@ export default class StudyflowRenderer extends BaseRenderer {
     }
 
     if (is(element, "bpmn:Activity")) {
-      return drawActivity(parentNode, element, this.bpmnRenderer, this.pkgEnums, iconClass);
+      return drawActivity(
+        parentNode,
+        element,
+        this.bpmnRenderer,
+        this.pkgEnums,
+        iconClass,
+        Boolean(exampleIconClass),
+      );
     }
 
     if (is(element, "bpmn:Gateway")) {

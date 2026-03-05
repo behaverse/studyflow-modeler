@@ -1,4 +1,5 @@
 import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import type { Example as ElementExample } from '../moddle/examples';
 
 type MenuEntry = {
   id: string;
@@ -6,6 +7,19 @@ type MenuEntry = {
   imageHtml?: string;
   bpmnType: string;
   extensionType: string | null;
+};
+
+type TemplateMenuEntry = {
+  id: string;
+  label: string;
+  description?: string;
+  imageHtml?: string;
+  template: ElementExample;
+};
+
+type ElementExamplesService = {
+  getBySchemaPrefix: (prefix: string) => ElementExample[];
+  createElement: (template: ElementExample) => any;
 };
 
 const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
@@ -20,24 +34,43 @@ export default class SchemaCreateMenuProvider {
   private _moddle: any;
   private _schemaPrefix: string;
   private _entries: MenuEntry[];
+  private _templateEntries: TemplateMenuEntry[];
+  private _elementTemplates: ElementExamplesService;
 
   constructor(
     popupMenu: any,
     bpmnFactory: any,
     elementFactory: any,
     create: any,
+    elementTemplates: ElementExamplesService,
     schemaPrefix: string,
   ) {
     this._popupMenu = popupMenu;
     this._bpmnFactory = bpmnFactory;
     this._elementFactory = elementFactory;
     this._create = create;
+    this._elementTemplates = elementTemplates;
     this._moddle = bpmnFactory._model;
     this._schemaPrefix = schemaPrefix;
 
     this._entries = this._buildEntries();
+    this._templateEntries = this._buildTemplateEntries();
 
     this._popupMenu.registerProvider(`${schemaPrefix}-create`, this);
+  }
+
+  private _buildTemplateEntries(): TemplateMenuEntry[] {
+    return this._elementTemplates
+      .getBySchemaPrefix(this._schemaPrefix)
+      .map((template) => ({
+        id: `create-template-${this._schemaPrefix}-${template.id}`,
+        label: template.name,
+        description: template.description,
+        imageHtml: template.iconClass
+          ? `<span class="${template.iconClass}" style="font-size: 18px;"></span>`
+          : undefined,
+        template,
+      }));
   }
 
   private _buildEntries(): MenuEntry[] {
@@ -80,20 +113,51 @@ export default class SchemaCreateMenuProvider {
 
   getPopupMenuEntries(_element: any) {
     const entries: Record<string, any> = {};
+    const schemaName = this._schemaPrefix.charAt(0).toUpperCase() + this._schemaPrefix.slice(1);
 
     this._entries.forEach((opt) => {
       entries[opt.id] = {
         label: opt.label,
         imageHtml: opt.imageHtml,
-        group: {
-          id: this._schemaPrefix,
-          name: this._schemaPrefix.charAt(0).toUpperCase() + this._schemaPrefix.slice(1),
-        },
+        // group: {
+        //   id: this._schemaPrefix,
+        //   name: schemaName,
+        // },
         action: this._createAction(opt.bpmnType, opt.extensionType),
       };
     });
 
+    this._templateEntries.forEach((opt) => {
+      entries[opt.id] = {
+        label: opt.label,
+        description: opt.description,
+        imageHtml: opt.imageHtml,
+        group: {
+          id: `${this._schemaPrefix}-examples`,
+          name: `Examples`,
+        },
+        action: this._createTemplateAction(opt.template),
+      };
+    });
+
     return entries;
+  }
+
+  private _createTemplateAction(template: ElementExample) {
+    const create = this._create;
+    const popupMenu = this._popupMenu;
+    const elementTemplates = this._elementTemplates;
+
+    const startCreate = (event: any) => {
+      const shape = elementTemplates.createElement(template);
+      create.start(event, shape);
+      popupMenu.close();
+    };
+
+    return {
+      click: startCreate,
+      dragstart: startCreate,
+    };
   }
 
   private _createAction(bpmnType: string, extensionType: string | null) {
@@ -102,8 +166,6 @@ export default class SchemaCreateMenuProvider {
     const create = this._create;
     const moddle = this._moddle;
     const popupMenu = this._popupMenu;
-    const schemaPrefix = this._schemaPrefix;
-
     const createShapeWithExtension = () => {
       const prefix = extensionType
         ? extensionType.split(':')[1]

@@ -6,8 +6,9 @@ import { drawMarkers } from './markers';
 /**
  * Render a bpmn:Activity (Task, SubProcess, etc.) with studyflow icons and markers.
  * @param {string|undefined} sfIconClass - icon class resolved from the extension descriptor
+ * @param {boolean} preservePrimaryIcon - when true, keep the resolved icon (e.g., schema example icon)
  */
-export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIconClass) {
+export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIconClass, preservePrimaryIcon = false) {
 
   let activity;
   if (element.type in BPMN_ICON_OVERRIDES || !bpmnRenderer.handlers[element.type]) {
@@ -28,10 +29,12 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
     const schemaName = (prop) => schemaPrefix ? `${schemaPrefix}:${prop}` : prop;
 
     let instrument = ext.get("instrument") || ext.get(schemaName("instrument"));
-    const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
-    iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
+    if (!preservePrimaryIcon) {
+      const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
+      iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
+    }
 
-    if (instrument === "behaverse") {
+    if (instrument === "behaverse" && !preservePrimaryIcon) {
       const rawMarker =
         ext.get("behaverseTask")
         || ext.get(schemaName("behaverseTask"))
@@ -54,7 +57,9 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
   }
 
   drawIcon(parentNode, element, iconClass, 4, 4, iconSize);
-  drawIconText(parentNode, element, iconMarker);
+  if (!preservePrimaryIcon) {
+    drawIconText(parentNode, element, iconMarker);
+  }
   drawMarkers(parentNode, element);
   return activity;
 }

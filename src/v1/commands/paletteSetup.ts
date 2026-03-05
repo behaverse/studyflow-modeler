@@ -1,5 +1,8 @@
 import type { CommandContext } from './types';
 import SchemaCreateMenuProvider from '../palette/SchemaCreateMenuProvider';
+import BpmnCreateTemplateFilterProvider from '../palette/BpmnCreateTemplateFilterProvider';
+
+const filteredPopupMenus = new WeakSet<object>();
 
 export type PaletteRegisterSchemaProvidersCommand = {
   type: 'palette-register-schema-providers';
@@ -19,6 +22,13 @@ export function runPaletteRegisterSchemaProviders(
   const popupMenu = context.modeler.get('popupMenu');
   const elementFactory = context.modeler.get('elementFactory');
   const create = context.modeler.get('create');
+  const elementTemplates = context.modeler.get('elementTemplates');
+
+  if (!filteredPopupMenus.has(popupMenu as object)) {
+    // eslint-disable-next-line no-new
+    new (BpmnCreateTemplateFilterProvider as any)(popupMenu);
+    filteredPopupMenus.add(popupMenu as object);
+  }
 
   const prefixes: string[] = [];
 
@@ -42,6 +52,7 @@ export function runPaletteRegisterSchemaProviders(
           bpmnFactory,
           elementFactory,
           create,
+          elementTemplates,
           prefix,
         );
         command.registeredSchemas.add(prefix);

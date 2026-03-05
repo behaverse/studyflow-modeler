@@ -28,7 +28,7 @@ enums:
         annotations:
           icon: iconify bi--hexagon
 
-  BehaverseTaskEnum:
+  BehaverseSceneEnum:
     permissible_values:
       BCS:
         title: Belval Card Sorting (BCS)
@@ -114,7 +114,7 @@ classes:
           studyflow:
             hidden: true
       scene:
-        range: BehaverseTaskEnum
+        range: BehaverseSceneEnum
         ifabsent: string(undefined)
         description: Behaverse instrument used for the test.
         categories:
@@ -142,12 +142,117 @@ classes:
                 - Conditional on instrument being "behaverse"
 
 examples:
-  - description: N-back task
+  - description: N-Back task with tutorial
     object:
       class: BehaverseTask
-      name: Behaverse Task
+      bpmn:name: N-Back Task
       instrument: behaverse
       scene: NB
       parameters: |
-        trials: 20
-        stimulus_duration_ms: 500
+        NValue: 1
+        Streams:
+          - Feature: Digits
+            StimulusValue:
+              Generate: OncePerBlock
+              Sequence:
+                Type: NBack
+                Values: [3, 1, 2, 1, 3, 2, 3, 2, 1]
+                NValue:
+                  Reference: NValue
+                StreamSize:
+                  Reference: StreamSize
+                MatchCount: 10
+                PostLureCount: 10
+                PreLureCount: 10
+                FeatureValuesCount:
+                  Reference: FeatureValuesCount
+        StreamSize: 30
+        FeatureValuesCount: 9
+        UseNonMatchButton: true
+        PlayerPaced: false
+        MaxResponseTime: 3
+        ShowAccuracyOnButtonFeedback: false
+        ShowMissedTrialFeedback: false
+        ErrorTimeOutDuration: 0
+        ShowSequenceComparison: false
+        StimulusDisplayDuration: 0.5
+        InterStimulusInterval: 2.2
+        TrialForeperiod: 0
+        StimulusMovingAnimationDuration: 0.3
+        RevealBoxContent: StimulusOnly
+        RevealNBackBoxContentFeedback: Never
+        ShowAccuracyCheckFeedback: Never
+        ShowCorrectTrialResponseFeedback: Never
+        ScoreLabel_Position: Hidden
+        TrialResults_Position: InformationPanel
+        TrialResults_Style: ColoredDiscrete
+        UserInputTimer_Position: Hidden
+        UserInputTimer_Style: Circular
+        UserInputTimer_CountUp: true
+        UserInputTimer_DisplayTime: false
+        BlockCounter_Position: StatusBarLeft
+        BlockCounter_Style: Counter
+        LevelLabel_Position: Hidden
+        TaskName_Position: StatusBarLeft
+        TrialCounter_Position: Hidden
+        TrialCounter_Style: Counter
+        Feature: Digits
+
+        timeline:
+          name: ScienceFestival2019
+          description: N-back demo timeline with tutorial and progressive feature count.
+          exitRules:
+            - action: EndTimeline
+              type: Failures
+              blocks: 3
+              successAccuracy: 0.1
+          sequence:
+            - instructions:
+                - content:
+                    - text: Tasks.NBack.Instructions.Job
+                - content:
+                    - text: Tasks.Common.Instructions.TutorialIntro
+                  ok: Common.IAmReady
+            - block: Tutorial_2Back
+            - instructions:
+                - content:
+                    - text: Tasks.Common.Instructions.TutorialOuttro
+                - content:
+                    - text: Tasks.Common.Instructions.Ready
+                  ok: Common.IAmReady
+            - block: ScienceFestival2019
+              params:
+                FeatureValuesCount: 4
+            - block: ScienceFestival2019
+              params:
+                FeatureValuesCount: 6
+            - block: ScienceFestival2019
+              params:
+                FeatureValuesCount: 8
+            - instructions:
+                - content:
+                    - text: Common.ThankYou
+                    - text: Instructions.YourScore
+                    - text: Common.Bye
+                  ok: Common.Bye
+
+        blocks:
+          Tutorial_2Back:
+            minAccuracyRequired: 1
+            exitRules:
+              - action: FailBlock
+                type: Failures
+                trials: 1
+          ScienceFestival2019:
+            params:
+              FeatureValuesCount: 4
+          XCIT_NB_01_Tutorial_A_Intro:
+            instructions:
+              - content:
+                  - text: XCIT_NB_01_Tutorial_A.Job
+                    heading: 2
+          XCIT_NB_01_Tutorial_A:
+            rules:
+              - text: XCIT_NB_01_Tutorial_A.RulesTitle
+                heading: 2
+              - text: XCIT_NB_01_Tutorial_A.GameRules

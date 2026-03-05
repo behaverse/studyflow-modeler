@@ -3,6 +3,7 @@ import ResizableTasks from './ResizableTasks';
 import SimulationModule from './simulation';
 import ContextPadModule from './contextpad';
 import PaletteModule from './palette';
+import StudyflowExamplesModule from './moddle/examples';
 
 export const StudyflowModelerModule = {
   __init__: [
@@ -16,6 +17,7 @@ export const StudyflowModelerModule = {
     SimulationModule,
     PaletteModule,
     ContextPadModule,
+    StudyflowExamplesModule
   ],
   studyFlowRenderer: ['type', StudyflowRenderer],
   resizableTasks: ['type', ResizableTasks],

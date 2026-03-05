@@ -4,10 +4,10 @@ import {
   getStudyflowDefaults,
   getStudyflowExtension,
   isExtendsType
-} from '../extensionElements';
-import type { ElementTemplate } from './types';
+} from '../../extensionElements';
+import type { Example } from './types';
 
-export default class ElementTemplates {
+export default class Examples {
 
   static $inject = [
     'elementFactory',
@@ -20,7 +20,7 @@ export default class ElementTemplates {
   private _bpmnFactory: any;
   private _moddle: any;
   private _eventBus: any;
-  private _templates: ElementTemplate[] = [];
+  private _examples: Example[] = [];
 
   constructor(
     elementFactory: any,
@@ -34,62 +34,74 @@ export default class ElementTemplates {
     this._eventBus = eventBus;
   }
 
-  // ── Template registry ──────────────────────────────────────────────
+  // ── Example registry ───────────────────────────────────────────────
 
   /**
-   * Replace the full set of templates.
-   * Called by SchemaTemplateLoader after templates are built.
+   * Replace the full set of examples.
+   * Called by ExamplesLoader after examples are built.
    */
-  set(templates: ElementTemplate[]): void {
-    this._templates = templates;
+  set(examples: Example[]): void {
+    this._examples = examples;
     this._eventBus.fire('elementTemplates.changed');
   }
 
   // ── API consumed by CreateAppendElementTemplatesModule ─────────────
 
   /**
-   * Return the latest templates.
+  * Return the latest examples.
    *
-   * When called with an `element`, returns only templates whose
+   * When called with an `element`, returns only examples whose
    * `appliesTo` match the element's BPMN type (used by the replace
    * provider).
    */
-  getLatest(element?: any): ElementTemplate[] {
+  getLatest(element?: any): Example[] {
     if (!element) {
-      return this._templates;
+      return this._examples;
     }
     const bo = getBusinessObject(element);
     const type = bo?.$type;
-    return this._templates.filter(t =>
+    return this._examples.filter(t =>
       t.appliesTo.includes(type)
     );
   }
 
   /**
-   * Get the template currently applied to `element`, or null.
+   * Get the example currently applied to `element`, or null.
    */
-  get(element: any): ElementTemplate | null {
+  get(element: any): Example | null {
     const ext = getStudyflowExtension(element);
     if (!ext) return null;
     const sfType: string | undefined = ext.$type;
-    return this._templates.find(t => t.studyflowType === sfType) ?? null;
+    return this._examples.find(t => t.studyflowType === sfType) ?? null;
   }
 
   /**
-   * Get all registered templates.
+   * Get all registered examples.
    */
-  getAll(): ElementTemplate[] {
-    return this._templates;
+  getAll(): Example[] {
+    return this._examples;
   }
 
   /**
-   * Create a new diagram shape for the given template.
+   * Get schema examples that belong to a specific schema prefix.
+   */
+  getBySchemaPrefix(prefix: string): Example[] {
+    const normalizedPrefix = prefix.toLowerCase();
+
+    return this._examples.filter((example) =>
+      example.templateSource === 'schema-example'
+      && example.schemaPrefix?.toLowerCase() === normalizedPrefix,
+    );
+  }
+
+  /**
+  * Create a new diagram shape for the given example.
    *
    * This is the main factory method used by Create/Append providers
    * from bpmn-js-create-append-anything.
    */
-  createElement(template: ElementTemplate): any {
-    const { bpmnType, studyflowType, exampleProperties } = template;
+  createElement(example: Example): any {
+    const { bpmnType, studyflowType, exampleProperties } = example;
 
     // 1. Create the BPMN shape
     const shape = this._elementFactory.create('shape', { type: bpmnType });
@@ -101,6 +113,12 @@ export default class ElementTemplates {
 
       // Merge defaults with example properties (example properties override defaults)
       const properties = { ...defaults, ...exampleProperties };
+
+      const bpmnName = properties['bpmn:name'];
+      if (bpmnName !== undefined) {
+        delete properties['bpmn:name'];
+        bo.set('name', bpmnName);
+      }
 
       if (isExtendsType(studyflowType, this._moddle)) {
         for (const [key, val] of Object.entries(properties)) {
@@ -115,15 +133,15 @@ export default class ElementTemplates {
   }
 
   /**
-   * Apply a template to an existing element (replace).
+  * Apply an example to an existing element (replace).
    * Stubbed — replace support is not implemented.
    */
-  applyTemplate(_element: any, _template: ElementTemplate): void {
+  applyTemplate(_element: any, _example: Example): void {
     // no-op
   }
 
   /**
-   * Remove a template from an element.
+  * Remove an example from an element.
    * Stubbed — remove support is not implemented.
    */
   removeTemplate(_element: any): void {

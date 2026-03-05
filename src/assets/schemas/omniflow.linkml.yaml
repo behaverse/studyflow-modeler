@@ -18,8 +18,6 @@ types:
 classes:
   TransformData:
     is_a: bpmn:Task
-    annotations:
-      icon: iconify bi--puzzle
     description: Apply a function to each element in a data stream.
     attributes:
       isDataOperation:
@@ -44,14 +42,10 @@ classes:
             default: "map"
           studyflow:
             hidden: true
-      name:
-        type: string
-        description: Name of the mapping function (e.g., "log", "z-score", "PCA")
-        extensions:
-          moddle:
-            default: "map2"
   PreprocessEEG:
     is_a: MapData
+    annotations:
+      icon: iconify mdi--brain
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     attributes:
   ReduceData:

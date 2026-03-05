@@ -8,10 +8,8 @@ import GridModule from 'diagram-js-grid';
 
 import new_diagram from '@/assets/new_diagram.bpmn';
 import { StudyflowModelerModule } from '..';
-import { StudyflowElementTemplatesCoreModule } from '../templates';
 
 const DEFAULT_ADDITIONAL_MODULES = [
-  StudyflowElementTemplatesCoreModule,
   CreateAppendAnythingModule,
   BpmnColorPickerModule,
   CreateAppendElementTemplatesModule,
