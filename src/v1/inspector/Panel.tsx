@@ -15,59 +15,17 @@ const toLocalName = (name: string | undefined) => {
     return idx === -1 ? name : name.slice(idx + 1);
 };
 
-const getSchemaOrder = (businessObject: any, ext: any): Map<string, number> => {
-    const order = new Map<string, number>();
+const sortByOrder = (properties: any[]) => {
+    return [...properties].sort((a: any, b: any) => {
+        const aOrder = a?.meta?.order;
+        const bOrder = b?.meta?.order;
+        console.log(a.ns.name, aOrder, b.ns.name, bOrder);
 
-    const mergeOrderedProperty = (prop: any, idx: number) => {
-        const full = (prop?.ns?.name as string | undefined) ?? (prop?.name ? `${prop?.ns?.prefix}:${prop.name}` : undefined);
-        const local = toLocalName(full) ?? prop?.name;
-
-        if (full && order.has(full)) order.delete(full);
-        if (local && order.has(local)) order.delete(local);
-
-        if (full) order.set(full, idx);
-        if (local) order.set(local, idx);
-    };
-
-    const allTypes: any[] = ext?.$descriptor?.allTypes ?? [];
-    if (allTypes.length) {
-        let idx = 0;
-        for (const type of allTypes) {
-            const typeProps: any[] = type?.properties ?? [];
-            for (const prop of typeProps) {
-                const fullNs = (prop?.ns?.name as string | undefined) ?? (prop?.name ? `${prop?.ns?.prefix}:${prop.name}` : undefined);
-                const prefix = prop?.ns?.prefix ?? fullNs?.split(':')?.[0];
-                if (prefix && !isCustomSchemaPrefix(prefix)) continue;
-                mergeOrderedProperty(prop, idx++);
-            }
-        }
-
-        if (order.size) {
-            return order;
-        }
-    }
-
-    const descriptorProps: any[] = ext?.$descriptor?.properties?.length
-        ? ext.$descriptor.properties
-        : (businessObject?.$descriptor?.properties ?? []).filter((p: any) => isCustomSchemaPrefix(p?.ns?.prefix));
-
-    descriptorProps.forEach((prop: any, idx: number) => mergeOrderedProperty(prop, idx));
-
-    return order;
-};
-
-const sortBySchemaOrder = (properties: any[], schemaOrder: Map<string, number>) => {
-    if (!schemaOrder.size) return properties;
-
-    const getIndex = (prop: any): number => {
-        const full = prop?.ns?.name as string | undefined;
-        const local = toLocalName(full);
-        if (full && schemaOrder.has(full)) return schemaOrder.get(full)!;
-        if (local && schemaOrder.has(local)) return schemaOrder.get(local)!;
-        return Number.MAX_SAFE_INTEGER;
-    };
-
-    return [...properties].sort((a: any, b: any) => getIndex(a) - getIndex(b));
+        if (aOrder === undefined && bOrder === undefined) return 0;
+        if (aOrder === undefined) return -1;
+        if (bOrder === undefined) return 1;
+        return aOrder - bOrder;
+    });
 };
 
 
@@ -147,9 +105,8 @@ export function Panel({ className = '', ...props }) {
             });
         }
 
-        const schemaOrder = getSchemaOrder(businessObject, ext);
         for (const [catName, props] of Object.entries(propCategories)) {
-            propCategories[catName] = sortBySchemaOrder(props, schemaOrder);
+            propCategories[catName] = sortByOrder(props);
         }
 
         // remove empty groups

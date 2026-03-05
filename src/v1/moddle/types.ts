@@ -132,6 +132,10 @@ export interface ModdleProperty {
   replaces?: string;
   categories?: string[];
   hidden?: boolean;
+  meta?: {
+    order?: number;
+    [key: string]: any;
+  };
   condition?: {
     language: string;
     body: Record<string, any>;

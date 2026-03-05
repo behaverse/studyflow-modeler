@@ -468,12 +468,19 @@ export class LinkMLToModdleConverter {
     return target;
   }
 
-  private buildModdleProperty(attrName: string, attrData: LinkMLAttribute): ModdleProperty {
+  private buildModdleProperty(
+    attrName: string,
+    attrData: LinkMLAttribute,
+    order: number
+  ): ModdleProperty {
     const property: ModdleProperty = {
       name: attrName,
       description: attrData.description,
       isAttr: true,
-      type: attrData.range ? this.convertLinkMLTypeToModdle(attrData.range) : 'String'
+      type: attrData.range ? this.convertLinkMLTypeToModdle(attrData.range) : 'String',
+      meta: {
+        order
+      }
     };
 
     const meta = this.getAttributeMetadata(attrData);
@@ -527,7 +534,7 @@ export class LinkMLToModdleConverter {
   ): ModdleProperty[] {
     return Object.entries(attributes)
       .filter(([attrName]) => attrName !== 'id')
-      .map(([attrName, attrData]) => this.buildModdleProperty(attrName, attrData));
+      .map(([attrName, attrData], index) => this.buildModdleProperty(attrName, attrData, index + 1));
   }
 
   private applyRedefines(properties: ModdleProperty[]): void {
