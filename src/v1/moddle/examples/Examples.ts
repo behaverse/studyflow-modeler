@@ -1,10 +1,7 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import {
-  createStudyflowExtension,
-  getStudyflowDefaults,
-  getStudyflowExtension,
-  isExtendsType
-} from '../../extensionElements';
+import { getStudyflowExtension } from '../../extensionElements';
+import { runCreateExampleConnection } from '../../commands/createExampleConnection';
+import { runCreateExampleShape } from '../../commands/createExampleShape';
 import type {
   Example,
   ExampleFlowConnection,
@@ -12,69 +9,6 @@ import type {
 } from './types';
 
 export const EXAMPLE_FLOW_ELEMENTS = '__studyflowExampleFlowElements';
-
-function setNamespacedAttr(target: any, attrName: string, value: any): void {
-  if (!target || value === undefined) {
-    return;
-  }
-
-  if (typeof target.set === 'function') {
-    try {
-      target.set(attrName, value);
-      return;
-    } catch {
-      // Fall through to direct $attrs mutation when supported.
-    }
-  }
-
-  const attrs = target.$attrs;
-  if (attrs && typeof attrs === 'object') {
-    attrs[attrName] = value;
-  }
-}
-
-function toFiniteNumber(value: any): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-}
-
-function extractExampleDimensions(properties: Record<string, any>): { width?: number; height?: number } {
-  const width = toFiniteNumber(properties['bpmn:width'] ?? properties.width);
-  const height = toFiniteNumber(properties['bpmn:height'] ?? properties.height);
-
-  delete properties['bpmn:width'];
-  delete properties['bpmn:height'];
-  delete properties.width;
-  delete properties.height;
-
-  return {
-    ...(width !== undefined ? { width } : {}),
-    ...(height !== undefined ? { height } : {}),
-  };
-}
-
-function createWaypoints(source: any, target: any): Array<{ x: number; y: number }> {
-  return [
-    {
-      x: source.x + source.width / 2,
-      y: source.y + source.height / 2,
-    },
-    {
-      x: target.x + target.width / 2,
-      y: target.y + target.height / 2,
-    },
-  ];
-}
 
 export default class Examples {
 
@@ -110,60 +44,18 @@ export default class Examples {
       parent?: any;
     },
   ): any {
-    const { bpmnType, studyflowType, exampleProperties, overrideIconClass, x, y, parent } = definition;
-
-    const defaults = studyflowType
-      ? getStudyflowDefaults(studyflowType, this._moddle)
-      : {};
-
-    const properties: Record<string, any> = {
-      ...defaults,
-      ...(exampleProperties || {}),
-    };
-    const size = extractExampleDimensions(properties);
-
-    const shape = this._elementFactory.create('shape', {
-      type: bpmnType,
-      ...size,
-      ...(x !== undefined ? { x } : {}),
-      ...(y !== undefined ? { y } : {}),
-      ...(parent ? { parent } : {}),
+    return runCreateExampleShape({
+      type: 'create-example-shape',
+      elementFactory: this._elementFactory,
+      moddle: this._moddle,
+      bpmnType: definition.bpmnType,
+      studyflowType: definition.studyflowType,
+      overrideIconClass: definition.overrideIconClass,
+      exampleProperties: definition.exampleProperties,
+      x: definition.x,
+      y: definition.y,
+      parent: definition.parent,
     });
-
-    if (!studyflowType) {
-      return shape;
-    }
-
-    const bo = shape.businessObject;
-    const bpmnName = properties['bpmn:name'];
-    if (bpmnName !== undefined) {
-      delete properties['bpmn:name'];
-      bo.set('name', bpmnName);
-    }
-
-    if (isExtendsType(studyflowType, this._moddle)) {
-      for (const [key, val] of Object.entries(properties)) {
-        bo.set(key, val);
-      }
-
-      if (overrideIconClass) {
-        const schemaPrefix = studyflowType.split(':')[0];
-        const iconAttrName = `${schemaPrefix}:icon`;
-        setNamespacedAttr(bo, iconAttrName, overrideIconClass);
-      }
-
-      return shape;
-    }
-
-    const ext = createStudyflowExtension(bo, studyflowType, this._moddle, properties);
-
-    if (overrideIconClass) {
-      const schemaPrefix = studyflowType.split(':')[0];
-      const iconAttrName = `${schemaPrefix}:icon`;
-      setNamespacedAttr(ext, iconAttrName, overrideIconClass);
-    }
-
-    return shape;
   }
 
   createFlowNodeShape(
@@ -187,41 +79,14 @@ export default class Examples {
     target: any,
     parent: any,
   ): any {
-    const properties: Record<string, any> = {
-      ...(definition.exampleProperties || {}),
-    };
-
-    const connection = this._elementFactory.create('connection', {
-      type: definition.bpmnType,
+    return runCreateExampleConnection({
+      type: 'create-example-connection',
+      elementFactory: this._elementFactory,
+      definition,
       source,
       target,
       parent,
-      waypoints: createWaypoints(source, target),
     });
-
-    const bo = connection.businessObject;
-
-    if (definition.id) {
-      bo.set('id', definition.id);
-      connection.id = definition.id;
-    }
-
-    const bpmnName = properties['bpmn:name'];
-    if (bpmnName !== undefined) {
-      delete properties['bpmn:name'];
-      bo.set('name', bpmnName);
-    }
-
-    for (const [key, value] of Object.entries(properties)) {
-      if (key.startsWith('bpmn:')) {
-        setNamespacedAttr(bo, key, value);
-        continue;
-      }
-
-      bo.set(key, value);
-    }
-
-    return connection;
   }
 
   private _attachNestedFlowElements(example: Example, rootShape: any): any {
