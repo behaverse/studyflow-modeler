@@ -66,8 +66,8 @@ classes:
 examples:
   - description: Preprocess EEG data for a single subject.
     object:
+      bpmn:name: EEGPrep
       type: MapData
-      bpmn:name: Preprocess EEG (subject)
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
       isDataOperation: true
       icon: iconify icon-park--eeg
@@ -109,23 +109,23 @@ examples:
           targetRef: eeg_end
   - description: Preprocess EEG data for a group of subjects.
     object:
+      bpmn:name: EEGPrep
       type: ReduceData
-      bpmn:name: Preprocess EEG (group)
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
       isDataOperation: true
       icon: iconify icon-park--eeg
   - description: Preprocess fMRI data for a single subject.
     object:
+      bpmn:name: fMRIPrep
       type: MapData
-      bpmn:name: Preprocess fMRI (subject)
       bpmn:width: 120
       bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
       isDataOperation: true
       icon: iconify hugeicons--brain-02
   - description: Preprocess fMRI data for a group of subjects.
     object:
+      bpmn:name: fMRIPrep
       type: ReduceData
-      bpmn:name: Preprocess fMRI (group)
       bpmn:width: 120
       isDataOperation: true
       bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
