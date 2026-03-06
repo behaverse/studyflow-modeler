@@ -144,7 +144,7 @@ classes:
 examples:
   - description: N-Back task with tutorial
     object:
-      class: BehaverseTask
+      type: BehaverseTask
       bpmn:name: N-Back Task
       instrument: behaverse
       scene: NB

@@ -49,6 +49,82 @@ classes:
 - `condition.language`
 - `condition.body`
 
+## Examples
+
+Schemas may define top-level `examples` entries that appear in the modeler create/append menus.
+Each entry uses `object.type` to identify the schema type to instantiate, plus any default property values to apply.
+
+```yaml
+examples:
+  - description: Preprocess EEG data for a single subject.
+    object:
+      type: MapData
+      bpmn:name: Preprocess EEG (subject)
+      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
+      isDataOperation: true
+      icon: iconify icon-park--eeg
+```
+
+### Example mixins
+
+`examples[].object.mixins` lets an example compose additional defaults from other types.
+This is useful when the example should behave like a specialized BPMN shape without changing the underlying schema class.
+
+```yaml
+examples:
+  - description: Preprocess EEG data for a single subject.
+    object:
+      type: MapData
+      bpmn:name: Preprocess EEG (subject)
+      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
+      isDataOperation: true
+      icon: iconify icon-park--eeg
+      mixins:
+        - bpmn:SubProcess
+```
+
+- Use `mixins` for example-time composition, not for defining reusable schema inheritance. Schema inheritance still belongs on classes via `is_a` and class-level `mixins`.
+
+### Nested subprocess flow elements
+
+If an example resolves to `bpmn:SubProcess`, it may also declare `examples[].object.flowElements` to create internal nodes and connections together with the root subprocess.
+
+```yaml
+examples:
+  - description: Preprocess EEG data for a single subject.
+    object:
+      type: MapData
+      bpmn:name: Preprocess EEG (subject)
+      bpmn:width: 420
+      bpmn:height: 180
+      mixins:
+        - bpmn:SubProcess
+      flowElements:
+        - id: eeg_filter
+          type: MapData
+          bpmn:name: Filter signal
+          x: 70
+          y: 65
+        - id: eeg_clean
+          type: MapData
+          bpmn:name: Remove artifacts
+          x: 240
+          y: 65
+        - bpmn:type: bpmn:SequenceFlow
+          sourceRef: eeg_filter
+          targetRef: eeg_clean
+```
+
+Behavior:
+
+- Node entries use `type` plus normal example properties, with required `id` and explicit `x` / `y` coordinates inside the subprocess.
+- Node entries may also use `mixins`, `icon`, and any schema or BPMN properties supported by normal examples.
+- Connection entries use `bpmn:type`, `sourceRef`, and `targetRef`.
+- `sourceRef` and `targetRef` must match node `id` values from the same `flowElements` list.
+- `flowElements` is only materialized when the resulting BPMN element is a subprocess. On other BPMN shapes it is ignored.
+- Flow nodes may use either a schema type such as `MapData` or a raw BPMN type such as `bpmn:StartEvent`.
+- Flow connections may be written as either `type: bpmn:SequenceFlow` or `bpmn:type: bpmn:SequenceFlow`.
+
 ## Common mistakes
 
 - Prefix mismatch: class or type references using the wrong prefix (for example `studyflow:` vs local names).

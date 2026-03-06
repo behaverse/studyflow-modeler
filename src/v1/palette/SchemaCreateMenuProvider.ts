@@ -149,8 +149,18 @@ export default class SchemaCreateMenuProvider {
     const elementTemplates = this._elementTemplates;
 
     const startCreate = (event: any) => {
-      const shape = elementTemplates.createElement(template);
-      create.start(event, shape);
+      const createdElement = elementTemplates.createElement(template);
+
+      if (Array.isArray(createdElement)) {
+        create.start(event, createdElement, {
+          hints: {
+            autoSelect: [createdElement[0]],
+          },
+        });
+      } else {
+        create.start(event, createdElement);
+      }
+
       popupMenu.close();
     };
 

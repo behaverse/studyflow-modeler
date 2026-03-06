@@ -5,7 +5,13 @@ import {
   getStudyflowExtension,
   isExtendsType
 } from '../../extensionElements';
-import type { Example } from './types';
+import type {
+  Example,
+  ExampleFlowConnection,
+  ExampleFlowNode,
+} from './types';
+
+export const EXAMPLE_FLOW_ELEMENTS = '__studyflowExampleFlowElements';
 
 function setNamespacedAttr(target: any, attrName: string, value: any): void {
   if (!target || value === undefined) {
@@ -57,6 +63,19 @@ function extractExampleDimensions(properties: Record<string, any>): { width?: nu
   };
 }
 
+function createWaypoints(source: any, target: any): Array<{ x: number; y: number }> {
+  return [
+    {
+      x: source.x + source.width / 2,
+      y: source.y + source.height / 2,
+    },
+    {
+      x: target.x + target.width / 2,
+      y: target.y + target.height / 2,
+    },
+  ];
+}
+
 export default class Examples {
 
   static $inject = [
@@ -82,6 +101,137 @@ export default class Examples {
     this._bpmnFactory = bpmnFactory;
     this._moddle = moddle;
     this._eventBus = eventBus;
+  }
+
+  private _createExampleShape(
+    definition: Pick<ExampleFlowNode, 'bpmnType' | 'studyflowType' | 'iconClass' | 'exampleProperties'> & {
+      x?: number;
+      y?: number;
+      parent?: any;
+    },
+  ): any {
+    const { bpmnType, studyflowType, exampleProperties, iconClass, x, y, parent } = definition;
+
+    const defaults = studyflowType
+      ? getStudyflowDefaults(studyflowType, this._moddle)
+      : {};
+
+    const properties: Record<string, any> = {
+      ...defaults,
+      ...(exampleProperties || {}),
+    };
+    const size = extractExampleDimensions(properties);
+
+    const shape = this._elementFactory.create('shape', {
+      type: bpmnType,
+      ...size,
+      ...(x !== undefined ? { x } : {}),
+      ...(y !== undefined ? { y } : {}),
+      ...(parent ? { parent } : {}),
+    });
+
+    if (!studyflowType) {
+      return shape;
+    }
+
+    const bo = shape.businessObject;
+    const bpmnName = properties['bpmn:name'];
+    if (bpmnName !== undefined) {
+      delete properties['bpmn:name'];
+      bo.set('name', bpmnName);
+    }
+
+    if (isExtendsType(studyflowType, this._moddle)) {
+      for (const [key, val] of Object.entries(properties)) {
+        bo.set(key, val);
+      }
+
+      if (iconClass) {
+        const schemaPrefix = studyflowType.split(':')[0];
+        const iconAttrName = `${schemaPrefix}:icon`;
+        setNamespacedAttr(bo, iconAttrName, iconClass);
+      }
+
+      return shape;
+    }
+
+    const ext = createStudyflowExtension(bo, studyflowType, this._moddle, properties);
+
+    if (iconClass) {
+      const schemaPrefix = studyflowType.split(':')[0];
+      const iconAttrName = `${schemaPrefix}:icon`;
+      setNamespacedAttr(ext, iconAttrName, iconClass);
+    }
+
+    return shape;
+  }
+
+  createFlowNodeShape(
+    definition: ExampleFlowNode,
+    parent: any,
+  ): any {
+    return this._createExampleShape({
+      bpmnType: definition.bpmnType,
+      studyflowType: definition.studyflowType,
+      iconClass: definition.iconClass,
+      exampleProperties: definition.exampleProperties,
+      x: definition.x,
+      y: definition.y,
+      parent,
+    });
+  }
+
+  createFlowConnection(
+    definition: ExampleFlowConnection,
+    source: any,
+    target: any,
+    parent: any,
+  ): any {
+    const properties: Record<string, any> = {
+      ...(definition.exampleProperties || {}),
+    };
+
+    const connection = this._elementFactory.create('connection', {
+      type: definition.bpmnType,
+      source,
+      target,
+      parent,
+      waypoints: createWaypoints(source, target),
+    });
+
+    const bo = connection.businessObject;
+
+    if (definition.id) {
+      bo.set('id', definition.id);
+      connection.id = definition.id;
+    }
+
+    const bpmnName = properties['bpmn:name'];
+    if (bpmnName !== undefined) {
+      delete properties['bpmn:name'];
+      bo.set('name', bpmnName);
+    }
+
+    for (const [key, value] of Object.entries(properties)) {
+      if (key.startsWith('bpmn:')) {
+        setNamespacedAttr(bo, key, value);
+        continue;
+      }
+
+      bo.set(key, value);
+    }
+
+    return connection;
+  }
+
+  private _attachNestedFlowElements(example: Example, rootShape: any): any {
+    if (!example.flowElements?.length || example.bpmnType !== 'bpmn:SubProcess') {
+      return rootShape;
+    }
+
+    rootShape[EXAMPLE_FLOW_ELEMENTS] = example.flowElements;
+
+    return rootShape;
   }
 
   // ── Example registry ───────────────────────────────────────────────
@@ -151,57 +301,14 @@ export default class Examples {
    * from bpmn-js-create-append-anything.
    */
   createElement(example: Example): any {
-    const { bpmnType, studyflowType, exampleProperties, iconClass } = example;
-
-    const defaults = studyflowType
-      ? getStudyflowDefaults(studyflowType, this._moddle)
-      : {};
-
-    // Merge defaults first, then example overrides.
-    const properties: Record<string, any> = {
-      ...defaults,
-      ...(exampleProperties || {}),
-    };
-    const size = extractExampleDimensions(properties);
-
-    // 1. Create the BPMN shape (optionally with example-driven dimensions)
-    const shape = this._elementFactory.create('shape', {
-      type: bpmnType,
-      ...size,
+    const shape = this._createExampleShape({
+      bpmnType: example.bpmnType,
+      studyflowType: example.studyflowType,
+      exampleProperties: example.exampleProperties,
+      iconClass: example.iconClass,
     });
 
-    // 2. Attach studyflow extension or set extends-based defaults
-    if (studyflowType) {
-      const bo = shape.businessObject;
-
-      const bpmnName = properties['bpmn:name'];
-      if (bpmnName !== undefined) {
-        delete properties['bpmn:name'];
-        bo.set('name', bpmnName);
-      }
-
-      if (isExtendsType(studyflowType, this._moddle)) {
-        for (const [key, val] of Object.entries(properties)) {
-          bo.set(key, val);
-        }
-
-        if (iconClass) {
-          const schemaPrefix = studyflowType.split(':')[0];
-          const iconAttrName = `${schemaPrefix}:icon`;
-          setNamespacedAttr(bo, iconAttrName, iconClass);
-        }
-      } else {
-        const ext = createStudyflowExtension(bo, studyflowType, this._moddle, properties);
-
-        if (iconClass) {
-          const schemaPrefix = studyflowType.split(':')[0];
-          const iconAttrName = `${schemaPrefix}:icon`;
-          setNamespacedAttr(ext, iconAttrName, iconClass);
-        }
-      }
-    }
-
-    return shape;
+    return this._attachNestedFlowElements(example, shape);
   }
 
   /**

@@ -37,13 +37,13 @@ export default class StudyflowRenderer extends BaseRenderer {
 
       for (const example of examples) {
         const obj = example?.object;
-        const className = obj?.class;
+        const typeName = obj?.type;
         const icon = obj?.icon;
-        if (!className || !icon) {
+        if (!typeName || !icon) {
           continue;
         }
 
-        const qualifiedType = className.includes(':') ? className : `${prefix}:${className}`;
+        const qualifiedType = typeName.includes(':') ? typeName : `${prefix}:${typeName}`;
 
         // Keep the first icon per type as the canonical example icon.
         if (!index.has(qualifiedType)) {

@@ -2,6 +2,28 @@
  * Example descriptor used by the element templates service
  * and consumed by CreateAppendElementTemplatesModule.
  */
+export interface ExampleFlowNode {
+  id: string;
+  kind: 'node';
+  studyflowType?: string;
+  bpmnType: string;
+  iconClass?: string;
+  exampleProperties?: Record<string, any>;
+  x?: number;
+  y?: number;
+}
+
+export interface ExampleFlowConnection {
+  id?: string;
+  kind: 'connection';
+  bpmnType: string;
+  sourceRef: string;
+  targetRef: string;
+  exampleProperties?: Record<string, any>;
+}
+
+export type ExampleFlowElement = ExampleFlowNode | ExampleFlowConnection;
+
 export interface Example {
   /** Unique template identifier */
   id: string;
@@ -41,6 +63,8 @@ export interface Example {
   iconClass?: string;
   /** Property values from the LinkML example object */
   exampleProperties?: Record<string, any>;
+  /** Optional nested subprocess content normalized from schema examples */
+  flowElements?: ExampleFlowElement[];
   /** Source marker used to route template visibility in popup menus */
   templateSource?: 'schema-example';
   /** Lowercase schema prefix (e.g., "behaverse") that owns this template */
