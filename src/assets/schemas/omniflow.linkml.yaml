@@ -42,17 +42,55 @@ classes:
             default: "map"
           studyflow:
             hidden: true
-  PreprocessEEG:
-    is_a: MapData
-    annotations:
-      icon: iconify mdi--brain
-    description: Preprocess EEG data, including filtering, artifact removal, and normalization.
-    attributes:
   ReduceData:
-    is_a: studyflow:Activity
+    is_a: TransformData
     description: Reduce a data stream to a single value.
     attributes:
+      operationType:
+        extensions:
+          moddle:
+            default: "map"
+          studyflow:
+            hidden: true
   FilterData:
-    is_a: studyflow:Activity
+    is_a: TransformData
     description: Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
     attributes:
+      operationType:
+        extensions:
+          moddle:
+            default: "filter"
+          studyflow:
+            hidden: true
+
+examples:
+  - description: Preprocess EEG data for a single subject.
+    object:
+      class: MapData
+      bpmn:name: Preprocess EEG (subject)
+      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
+      isDataOperation: true
+      icon: iconify icon-park--eeg
+  - description: Preprocess EEG data for a group of subjects.
+    object:
+      class: ReduceData
+      bpmn:name: Preprocess EEG (group)
+      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
+      isDataOperation: true
+      icon: iconify icon-park--eeg
+  - description: Preprocess fMRI data for a single subject.
+    object:
+      class: MapData
+      bpmn:name: Preprocess fMRI (subject)
+      bpmn:width: 120
+      bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
+      isDataOperation: true
+      icon: iconify hugeicons--brain-02
+  - description: Preprocess fMRI data for a group of subjects.
+    object:
+      class: ReduceData
+      bpmn:name: Preprocess fMRI (group)
+      bpmn:width: 120
+      isDataOperation: true
+      bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
+      icon: iconify hugeicons--brain-02

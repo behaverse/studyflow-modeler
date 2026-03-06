@@ -7,6 +7,56 @@ import {
 } from '../../extensionElements';
 import type { Example } from './types';
 
+function setNamespacedAttr(target: any, attrName: string, value: any): void {
+  if (!target || value === undefined) {
+    return;
+  }
+
+  if (typeof target.set === 'function') {
+    try {
+      target.set(attrName, value);
+      return;
+    } catch {
+      // Fall through to direct $attrs mutation when supported.
+    }
+  }
+
+  const attrs = target.$attrs;
+  if (attrs && typeof attrs === 'object') {
+    attrs[attrName] = value;
+  }
+}
+
+function toFiniteNumber(value: any): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function extractExampleDimensions(properties: Record<string, any>): { width?: number; height?: number } {
+  const width = toFiniteNumber(properties['bpmn:width'] ?? properties.width);
+  const height = toFiniteNumber(properties['bpmn:height'] ?? properties.height);
+
+  delete properties['bpmn:width'];
+  delete properties['bpmn:height'];
+  delete properties.width;
+  delete properties.height;
+
+  return {
+    ...(width !== undefined ? { width } : {}),
+    ...(height !== undefined ? { height } : {}),
+  };
+}
+
 export default class Examples {
 
   static $inject = [
@@ -101,18 +151,28 @@ export default class Examples {
    * from bpmn-js-create-append-anything.
    */
   createElement(example: Example): any {
-    const { bpmnType, studyflowType, exampleProperties } = example;
+    const { bpmnType, studyflowType, exampleProperties, iconClass } = example;
 
-    // 1. Create the BPMN shape
-    const shape = this._elementFactory.create('shape', { type: bpmnType });
+    const defaults = studyflowType
+      ? getStudyflowDefaults(studyflowType, this._moddle)
+      : {};
+
+    // Merge defaults first, then example overrides.
+    const properties: Record<string, any> = {
+      ...defaults,
+      ...(exampleProperties || {}),
+    };
+    const size = extractExampleDimensions(properties);
+
+    // 1. Create the BPMN shape (optionally with example-driven dimensions)
+    const shape = this._elementFactory.create('shape', {
+      type: bpmnType,
+      ...size,
+    });
 
     // 2. Attach studyflow extension or set extends-based defaults
     if (studyflowType) {
       const bo = shape.businessObject;
-      const defaults = getStudyflowDefaults(studyflowType, this._moddle);
-
-      // Merge defaults with example properties (example properties override defaults)
-      const properties = { ...defaults, ...exampleProperties };
 
       const bpmnName = properties['bpmn:name'];
       if (bpmnName !== undefined) {
@@ -124,8 +184,20 @@ export default class Examples {
         for (const [key, val] of Object.entries(properties)) {
           bo.set(key, val);
         }
+
+        if (iconClass) {
+          const schemaPrefix = studyflowType.split(':')[0];
+          const iconAttrName = `${schemaPrefix}:icon`;
+          setNamespacedAttr(bo, iconAttrName, iconClass);
+        }
       } else {
-        createStudyflowExtension(bo, studyflowType, this._moddle, properties);
+        const ext = createStudyflowExtension(bo, studyflowType, this._moddle, properties);
+
+        if (iconClass) {
+          const schemaPrefix = studyflowType.split(':')[0];
+          const iconAttrName = `${schemaPrefix}:icon`;
+          setNamespacedAttr(ext, iconAttrName, iconClass);
+        }
       }
     }
 

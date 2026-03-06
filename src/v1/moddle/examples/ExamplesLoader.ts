@@ -44,7 +44,7 @@ export default class ExamplesLoader {
       const examples: any[] = pkg.examples ?? [];
       const prefix: string = pkg.prefix;
 
-      for (const example of examples) {
+      for (const [index, example] of examples.entries()) {
         const obj = example?.object;
         if (!obj?.class) continue;
 
@@ -76,9 +76,12 @@ export default class ExamplesLoader {
           }
         }
 
+        const exampleName = obj.name ?? obj['bpmn:name'] ?? className;
         const exampleEntry: Example = {
-          id: qualifiedName,
-          name: obj.name ?? obj['bpmn:name'] ?? className,
+          // Use a per-example id so multiple examples for the same class
+          // remain distinct in popup menus and do not overwrite each other.
+          id: `${qualifiedName}::example:${index + 1}`,
+          name: exampleName,
           description: example.description ?? typeDescriptor.description ?? '',
           appliesTo: [bpmnType],
           elementType: { value: bpmnType },

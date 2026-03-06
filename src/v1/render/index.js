@@ -55,6 +55,25 @@ export default class StudyflowRenderer extends BaseRenderer {
     return index;
   }
 
+  _resolveElementExampleIcon(ext) {
+    if (!ext) {
+      return undefined;
+    }
+
+    const prefix = ext.$type?.split(':')?.[0];
+    const attrs = ext.$attrs || {};
+
+    if (prefix && attrs[`${prefix}:icon`]) {
+      return attrs[`${prefix}:icon`];
+    }
+
+    if (attrs.icon) {
+      return attrs.icon;
+    }
+
+    return undefined;
+  }
+
   canRender(element) {
     if (element.type === "label") {
       return false;  // fixes #15
@@ -66,7 +85,8 @@ export default class StudyflowRenderer extends BaseRenderer {
     const ext = getStudyflowExtension(element);
     const sfType = ext?.$type;
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
-    const exampleIconClass = sfType ? this.exampleIconByType.get(sfType) : undefined;
+    const elementExampleIconClass = this._resolveElementExampleIcon(ext);
+    const exampleIconClass = elementExampleIconClass || (sfType ? this.exampleIconByType.get(sfType) : undefined);
     const descriptorIconClass = sfDescriptor?.icon;
     const iconClass = exampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
@@ -85,7 +105,7 @@ export default class StudyflowRenderer extends BaseRenderer {
         this.bpmnRenderer,
         this.pkgEnums,
         iconClass,
-        Boolean(exampleIconClass),
+        Boolean(elementExampleIconClass || exampleIconClass),
       );
     }
 

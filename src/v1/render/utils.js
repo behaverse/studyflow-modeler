@@ -1,6 +1,9 @@
 import { getStrokeColor } from "bpmn-js/lib/draw/BpmnRenderUtil";
 import { append as svgAppend, create as svgCreate } from "tiny-svg";
 
+// Apply transparency only to custom icon/marker overlays, not BPMN borders/labels.
+const ICON_MARKER_OPACITY = 0.75;
+
 /**
  * Convert a CSS color string to a hex color code.
  */
@@ -25,6 +28,7 @@ export function drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26
     height: size,
     class: 'icon-container',
     color: color,
+    opacity: ICON_MARKER_OPACITY,
   });
 
   const iconDiv = document.createElement('div');
@@ -58,6 +62,7 @@ export function drawSvgPaths(parentNode, iconDef, x, y, width, height, fillColor
   const [, , vbW, vbH] = iconDef.viewBox.split(/\s+/).map(Number);
   const g = svgCreate('g');
   g.setAttribute('transform', `translate(${x}, ${y})`);
+  g.setAttribute('opacity', String(ICON_MARKER_OPACITY));
 
   const inner = svgCreate('g');
   const sx = width / vbW;
@@ -107,7 +112,8 @@ export function drawIconText(parentNode, element, marker, x = 9, y = 21, fontSiz
     fontFamily: 'ui-monospace, monospace',
     fill: getStrokeColor(element),
     fontWeight: 'bold',
-    strokeWidth: 0
+    strokeWidth: 0,
+    opacity: ICON_MARKER_OPACITY
   });
 
   text.textContent = marker;
