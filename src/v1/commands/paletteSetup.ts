@@ -1,4 +1,5 @@
 import type { CommandContext } from './types';
+import { SCHEMA_NAMES } from '../contexts';
 import SchemaCreateMenuProvider from '../palette/SchemaCreateMenuProvider';
 import BpmnCreateTemplateFilterProvider from '../palette/BpmnCreateTemplateFilterProvider';
 

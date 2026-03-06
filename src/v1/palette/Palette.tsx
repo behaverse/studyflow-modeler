@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { ModelerContext } from '../contexts';
+import { ModelerContext, SCHEMA_NAMES } from '../contexts';
 import { executeCommand } from '../commands';
 import { t } from '../../i18n';
 
@@ -258,7 +258,7 @@ export function Palette({ className = '' }: { className?: string }) {
             }`}
           >Select Elements (Lasso)</span>
         </div>
-        {schemaPrefixes.map((prefix) => (
+        {schemaPrefixes.sort().reverse().map((prefix) => (
           <div
             key={`more-${prefix}`}
             className="group flex items-center gap-2"

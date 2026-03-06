@@ -46,8 +46,6 @@ export function drawMarkers(parentNode, element) {
     }
   }
 
-  markers = markers.sort((a, b) => a.localeCompare(b));
-
   // TODO show subprocess marker always in the center, and other markers on the left/right side of it
 
   const gapX = 0;

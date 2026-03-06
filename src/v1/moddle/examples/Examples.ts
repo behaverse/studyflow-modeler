@@ -104,13 +104,13 @@ export default class Examples {
   }
 
   private _createExampleShape(
-    definition: Pick<ExampleFlowNode, 'bpmnType' | 'studyflowType' | 'iconClass' | 'exampleProperties'> & {
+    definition: Pick<ExampleFlowNode, 'bpmnType' | 'studyflowType' | 'overrideIconClass' | 'exampleProperties'> & {
       x?: number;
       y?: number;
       parent?: any;
     },
   ): any {
-    const { bpmnType, studyflowType, exampleProperties, iconClass, x, y, parent } = definition;
+    const { bpmnType, studyflowType, exampleProperties, overrideIconClass, x, y, parent } = definition;
 
     const defaults = studyflowType
       ? getStudyflowDefaults(studyflowType, this._moddle)
@@ -146,10 +146,10 @@ export default class Examples {
         bo.set(key, val);
       }
 
-      if (iconClass) {
+      if (overrideIconClass) {
         const schemaPrefix = studyflowType.split(':')[0];
         const iconAttrName = `${schemaPrefix}:icon`;
-        setNamespacedAttr(bo, iconAttrName, iconClass);
+        setNamespacedAttr(bo, iconAttrName, overrideIconClass);
       }
 
       return shape;
@@ -157,10 +157,10 @@ export default class Examples {
 
     const ext = createStudyflowExtension(bo, studyflowType, this._moddle, properties);
 
-    if (iconClass) {
+    if (overrideIconClass) {
       const schemaPrefix = studyflowType.split(':')[0];
       const iconAttrName = `${schemaPrefix}:icon`;
-      setNamespacedAttr(ext, iconAttrName, iconClass);
+      setNamespacedAttr(ext, iconAttrName, overrideIconClass);
     }
 
     return shape;
@@ -173,7 +173,7 @@ export default class Examples {
     return this._createExampleShape({
       bpmnType: definition.bpmnType,
       studyflowType: definition.studyflowType,
-      iconClass: definition.iconClass,
+      overrideIconClass: definition.overrideIconClass,
       exampleProperties: definition.exampleProperties,
       x: definition.x,
       y: definition.y,
@@ -305,7 +305,7 @@ export default class Examples {
       bpmnType: example.bpmnType,
       studyflowType: example.studyflowType,
       exampleProperties: example.exampleProperties,
-      iconClass: example.iconClass,
+      overrideIconClass: example.overrideIconClass,
     });
 
     return this._attachNestedFlowElements(example, shape);

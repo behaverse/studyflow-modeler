@@ -1,5 +1,7 @@
 import { createContext } from 'react';
 
+export const SCHEMA_NAMES = ['studyflow', 'omniflow', 'behaverse'];
+
 export const ModelerContext = createContext<{
     modeler: any,
     setModeler: (modeler: any) => void,

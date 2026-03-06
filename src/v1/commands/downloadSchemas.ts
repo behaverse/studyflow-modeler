@@ -1,10 +1,9 @@
 import { toModelerModdleSchema } from '../moddle';
+import { SCHEMA_NAMES } from '../contexts';
 
 export type DownloadSchemasCommand = {
   type: 'download-schemas';
 };
-
-const SCHEMA_NAMES = ['studyflow', 'omniflow', 'behaverse'];
 
 // TODO fixme use remote schema urls instead of embedding files in the bundle
 const schemaFiles = import.meta.glob('@/assets/schemas/*.linkml.yaml', {

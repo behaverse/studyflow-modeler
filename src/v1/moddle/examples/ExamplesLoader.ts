@@ -212,6 +212,7 @@ export default class ExamplesLoader {
       studyflowType,
       bpmnType,
       iconClass: mergedEntry.icon ?? typeDescriptor?.icon,
+      overrideIconClass: mergedEntry.icon,
       exampleProperties: this._extractProperties(mergedEntry, RESERVED_FLOW_NODE_KEYS),
       x: typeof mergedEntry.x === 'number' ? mergedEntry.x : undefined,
       y: typeof mergedEntry.y === 'number' ? mergedEntry.y : undefined,
@@ -322,6 +323,7 @@ export default class ExamplesLoader {
         if (!bpmnType) continue;
 
         const iconClass: string | undefined = mergedObject.icon ?? typeDescriptor.icon;
+        const overrideIconClass: string | undefined = mergedObject.icon;
 
         // Extract example properties (excluding metadata fields)
         const exampleProperties = this._extractProperties(mergedObject, RESERVED_EXAMPLE_KEYS);
@@ -344,6 +346,7 @@ export default class ExamplesLoader {
           studyflowType: qualifiedName,
           bpmnType,
           iconClass,
+          overrideIconClass,
           exampleProperties: Object.keys(exampleProperties).length > 0 ? exampleProperties : undefined,
           flowElements,
           templateSource: 'schema-example',

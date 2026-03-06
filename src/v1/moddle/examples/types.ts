@@ -8,6 +8,7 @@ export interface ExampleFlowNode {
   studyflowType?: string;
   bpmnType: string;
   iconClass?: string;
+  overrideIconClass?: string;
   exampleProperties?: Record<string, any>;
   x?: number;
   y?: number;
@@ -61,6 +62,8 @@ export interface Example {
   bpmnType: string;
   /** Icon class string from the schema (e.g., "iconify bi--puzzle") */
   iconClass?: string;
+  /** Explicit icon override declared directly on the example object */
+  overrideIconClass?: string;
   /** Property values from the LinkML example object */
   exampleProperties?: Record<string, any>;
   /** Optional nested subprocess content normalized from schema examples */
