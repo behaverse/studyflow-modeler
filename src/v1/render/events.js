@@ -9,7 +9,7 @@ export function drawEventWithIcon(parentNode, element, bpmnRenderer) {
     drawIcon(parentNode, element, "iconify tabler--external-link", 4, 4, 28);
   }
   if (element.businessObject.get("requiresConsent")) {
-    drawIcon(parentNode, element, "iconify tabler--shield-lock", 3, 3, 30);
+    drawIcon(parentNode, element, "iconify fluent--shield-task-28-regular", 4, 4, 28);
   }
   return circle;
 }
