@@ -70,34 +70,34 @@ examples:
       type: MapData
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
       isDataOperation: true
-      icon: iconify icon-park--eeg
+      icon: iconify fluent--pulse-20-filled
       mixins:
         - bpmn:SubProcess
       flowElements:
         - id: eeg_start
           type: bpmn:StartEvent
           bpmn:name: Start
-          x: 100
-          y: 122
+          x: 140
+          y: 162
         - id: eeg_filter
           type: MapData
           bpmn:name: Filter signal
           icon: iconify bi--funnel
           isDataOperation: true
-          x: 200
-          y: 100
+          x: 240
+          y: 140
         - id: eeg_clean
           type: MapData
           bpmn:name: Remove artifacts
           icon: iconify bi--eraser
           isDataOperation: true
-          x: 350
-          y: 100
+          x: 390
+          y: 140
         - id: eeg_end
           type: bpmn:EndEvent
           bpmn:name: End
-          x: 500
-          y: 122
+          x: 540
+          y: 162
         - type: bpmn:SequenceFlow
           sourceRef: eeg_start
           targetRef: eeg_filter
@@ -107,26 +107,11 @@ examples:
         - type: bpmn:SequenceFlow
           sourceRef: eeg_clean
           targetRef: eeg_end
-  - description: Preprocess EEG data for a group of subjects.
-    object:
-      bpmn:name: EEGPrep
-      type: ReduceData
-      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      isDataOperation: true
-      icon: iconify icon-park--eeg
   - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep
       type: MapData
-      bpmn:width: 120
+      # bpmn:width: 120
       bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
       isDataOperation: true
-      icon: iconify hugeicons--brain-02
-  - description: Preprocess fMRI data for a group of subjects.
-    object:
-      bpmn:name: fMRIPrep
-      type: ReduceData
-      bpmn:width: 120
-      isDataOperation: true
-      bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
-      icon: iconify hugeicons--brain-02
+      icon: iconify streamline--brain
