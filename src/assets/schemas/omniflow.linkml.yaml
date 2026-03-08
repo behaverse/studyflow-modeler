@@ -64,6 +64,50 @@ classes:
             hidden: true
 
 examples:
+  - description: clean_artifacts() is the EEGPrep function that removes artifacts from the signal.
+    object:
+      bpmn:name: EEGPrep.clean_artifacts
+      type: MapData
+      bpmn:documentation: Remove artifacts from EEG data using the clean_artifacts function from the MNE library. This function applies a combination of flatline detection, high-pass and low-pass filtering, ASR, ICA, and ICLabel classification to identify and remove artifacts from the EEG signal.
+      isDataOperation: true
+      icon: iconify fluent--pulse-20-filled
+    attributes:
+      flatline_criterion:
+        range: number
+        ifabsent: 5
+        categories:
+          - EEGPrep
+        description: Flatline detection threshold, passed to clean_artifacts
+      highpass:
+        range: number
+        ifabsent: 1
+        categories:
+          - EEGPrep
+        description: High-pass filter at 1 Hz, passed to clean_artifacts
+      lowpass:
+        range: number
+        ifabsent: 100
+        categories:
+          - EEGPrep
+        description: Low-pass filter at 100 Hz, passed to clean_artifacts
+      asr_criterion:
+        range: number
+        ifabsent: 20
+        categories:
+          - EEGPrep
+        description: ASR threshold passed to clean_artifacts
+      ica:
+        range: boolean
+        ifabsent: true
+        categories:
+          - EEGPrep
+        description: Enable ICA, passed to clean_artifacts
+      iclabel:
+        range: boolean
+        ifabsent: true
+        categories:
+          - EEGPrep
+        description: Enable ICLabel classification, passed to clean_artifacts
   - description: Preprocess EEG data for a single subject.
     object:
       bpmn:name: EEGPrep

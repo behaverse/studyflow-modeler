@@ -15,6 +15,7 @@ const RESERVED_EXAMPLE_KEYS = new Set([
   'name',
   'keywords',
   'icon',
+  'attributes',
   'mixins',
   'flowElements',
 ]);
@@ -27,6 +28,7 @@ const RESERVED_FLOW_NODE_KEYS = new Set([
   'name',
   'keywords',
   'icon',
+  'attributes',
   'mixins',
   'flowElements',
 ]);
@@ -67,7 +69,7 @@ export function runBuildExamplesRegistry(
       const typeDescriptor = typeMap[qualifiedName];
       if (!typeDescriptor) continue;
       if (typeDescriptor.isAbstract) continue;
-      if (typeDescriptor.extends?.length) continue;
+      if (typeDescriptor.extends?.length && !typeDescriptor.meta?.exampleScopedType) continue;
 
       const bpmnType: string | undefined =
         mixinData.bpmnTypeOverride ?? typeDescriptor.meta?.bpmnType;

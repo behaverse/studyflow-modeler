@@ -89,6 +89,7 @@ export default class SchemaCreateMenuProvider {
       .filter((type: any) => {
         if (type.isAbstract) return false;
         if (type.name === 'Study') return false;
+        if (type.meta?.exampleScopedType) return false;
         if (type.superClass && type.superClass.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) {
           return false;
         }

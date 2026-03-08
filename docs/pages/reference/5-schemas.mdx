@@ -115,15 +115,25 @@ examples:
           targetRef: eeg_clean
 ```
 
-Behavior:
 
-- Node entries use `type` plus normal example properties, with required `id` and explicit `x` / `y` coordinates inside the subprocess.
-- Node entries may also use `mixins`, `icon`, and any schema or BPMN properties supported by normal examples.
-- Connection entries use `bpmn:type`, `sourceRef`, and `targetRef`.
-- `sourceRef` and `targetRef` must match node `id` values from the same `flowElements` list.
-- `flowElements` is only materialized when the resulting BPMN element is a subprocess. On other BPMN shapes it is ignored.
-- Flow nodes may use either a schema type such as `MapData` or a raw BPMN type such as `bpmn:StartEvent`.
-- Flow connections may be written as either `type: bpmn:SequenceFlow` or `bpmn:type: bpmn:SequenceFlow`.
+Examples may declare promoted attributes explicitly using LinkML-style `attributes:` definitions.
+
+```yaml
+examples:
+  - description: Preprocess EEG data for a single subject.
+    attributes:
+      param1:
+        range: string
+        description: Example-specific promoted attribute.
+        ifabsent: "default_value"
+    object:
+      type: MapData
+      bpmn:name: EEGPrep
+```
+
+These attributes are not added back onto the original schema class. Instead, the modeler generates an example-scoped derived moddle type for that specific example object, so the extra attributes persist in BPMN XML without changing other `MapData` examples or the base class definition.
+
+If the same example also includes undeclared scalar properties such as `param1: value1`, those are inferred onto the same example-scoped derived type rather than onto the parent schema class.
 
 ## Common mistakes
 

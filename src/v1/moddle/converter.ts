@@ -8,14 +8,39 @@ import {
 import type {
   LinkMLAttribute,
   LinkMLSchema,
+  LinkMLExample,
   ModdleProperty,
   ModdleSchema,
   ModdleType
 } from './types';
 
+const RESERVED_EXAMPLE_KEYS = new Set([
+  'type',
+  'name',
+  'keywords',
+  'icon',
+  'attributes',
+  'mixins',
+  'flowElements'
+]);
+
+const RESERVED_FLOW_NODE_KEYS = new Set([
+  'id',
+  'x',
+  'y',
+  'type',
+  'name',
+  'keywords',
+  'icon',
+  'attributes',
+  'mixins',
+  'flowElements'
+]);
+
 export class LinkMLToModdleConverter {
   private linkmlSchema: LinkMLSchema;
   private moddleSchema: ModdleSchema;
+  private generatedExampleTypeCount = 0;
 
   /** studyflow class name → BPMN type (all mapped classes) */
   private bpmnMappings: Map<string, string> = new Map();
@@ -182,6 +207,296 @@ export class LinkMLToModdleConverter {
     return parentClass || classData.is_a;
   }
 
+  private inferAttributeRange(value: any): string | null {
+    if (typeof value === 'boolean') {
+      return 'boolean';
+    }
+
+    if (typeof value === 'number') {
+      return Number.isInteger(value) ? 'integer' : 'float';
+    }
+
+    if (typeof value === 'string') {
+      return 'string';
+    }
+
+    return null;
+  }
+
+  private inferAttributeFromExampleValue(value: any): LinkMLAttribute | null {
+    if (Array.isArray(value)) {
+      const scalarRanges = value
+        .map((entry) => this.inferAttributeRange(entry))
+        .filter((range): range is string => range !== null);
+
+      const uniqueRanges = Array.from(new Set(scalarRanges));
+      const range = uniqueRanges.length === 1 ? uniqueRanges[0] : 'string';
+
+      return {
+        range,
+        multivalued: true,
+      };
+    }
+
+    const inferredRange = this.inferAttributeRange(value);
+    if (!inferredRange) {
+      return null;
+    }
+
+    return {
+      range: inferredRange,
+    };
+  }
+
+  private mergeMissingAttributes(
+    target: Record<string, LinkMLAttribute>,
+    source: Record<string, LinkMLAttribute>
+  ): Record<string, LinkMLAttribute> {
+    for (const [key, value] of Object.entries(source)) {
+      if (!Object.prototype.hasOwnProperty.call(target, key)) {
+        target[key] = value;
+      }
+    }
+
+    return target;
+  }
+
+  private collectExampleScopedAttributes(
+    classKey: string,
+    obj: Record<string, any>,
+    exampleAttributes: Record<string, LinkMLAttribute> | undefined,
+    reservedKeys: Set<string>
+  ): Record<string, LinkMLAttribute> {
+    const scopedAttributes: Record<string, LinkMLAttribute> = {};
+    const declaredForClass = this.getClassAttributes(classKey, this.classUriClasses.has(classKey));
+
+    this.mergeMissingAttributes(scopedAttributes, exampleAttributes ?? {});
+    this.mergeMissingAttributes(
+      scopedAttributes,
+      (obj.attributes as Record<string, LinkMLAttribute> | undefined) ?? {}
+    );
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (reservedKeys.has(key) || key.includes(':') || value === undefined) {
+        continue;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(declaredForClass, key)) {
+        continue;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(scopedAttributes, key)) {
+        continue;
+      }
+
+      const inferredAttribute = this.inferAttributeFromExampleValue(value);
+      if (!inferredAttribute) {
+        continue;
+      }
+
+      scopedAttributes[key] = inferredAttribute;
+    }
+
+    return scopedAttributes;
+  }
+
+  private nextExampleScopedTypeName(baseClassKey: string): string {
+    const baseLocalName = this.stripPrefix(baseClassKey);
+
+    while (true) {
+      this.generatedExampleTypeCount += 1;
+      const candidate = `${baseLocalName}Example${this.generatedExampleTypeCount}`;
+
+      const collidesWithClasses = this.resolveClassKey(candidate) !== null;
+      const collidesWithGeneratedTypes = this.moddleSchema.types.some((type) => type.name === candidate);
+
+      if (!collidesWithClasses && !collidesWithGeneratedTypes) {
+        return candidate;
+      }
+    }
+  }
+
+  private createExampleScopedType(
+    baseClassKey: string,
+    scopedAttributes: Record<string, LinkMLAttribute>
+  ): string {
+    const scopedTypeName = this.nextExampleScopedTypeName(baseClassKey);
+    const bpmnType = this.getBpmnType(baseClassKey);
+    const baseUsesExtends = this.classUriClasses.has(baseClassKey);
+    const scopedType: ModdleType = {
+      name: scopedTypeName,
+      superClass: [baseClassKey],
+      meta: {
+        bpmnType: bpmnType ?? undefined,
+        exampleScopedType: true,
+        exampleScopedExtends: baseUsesExtends,
+        exampleScopedBaseType: `${this.moddleSchema.prefix}:${this.stripPrefix(baseClassKey)}`,
+      },
+    };
+
+    if (baseUsesExtends && bpmnType) {
+      scopedType.extends = [bpmnType];
+    }
+
+    if (Object.keys(scopedAttributes).length > 0) {
+      scopedType.properties = this.convertAttributes(scopedAttributes);
+
+      if (baseUsesExtends && scopedType.properties) {
+        this.applyRedefines(scopedType.properties);
+      }
+    }
+
+    this.moddleSchema.types.push(scopedType);
+
+    return scopedTypeName;
+  }
+
+  private rewriteExampleObject(
+    obj: Record<string, any> | undefined,
+    exampleAttributes: Record<string, LinkMLAttribute> | undefined,
+    reservedKeys: Set<string>
+  ): Record<string, any> | undefined {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+
+    const rewrittenObject: Record<string, any> = { ...obj };
+
+    if (Array.isArray(obj.flowElements)) {
+      rewrittenObject.flowElements = obj.flowElements.map((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return entry;
+        }
+
+        if (
+          typeof entry.sourceRef === 'string'
+          && typeof entry.targetRef === 'string'
+        ) {
+          return { ...entry };
+        }
+
+        return this.rewriteExampleObject(
+          entry,
+          entry.attributes as Record<string, LinkMLAttribute> | undefined,
+          RESERVED_FLOW_NODE_KEYS
+        );
+      });
+    }
+
+    const typeRef = rewrittenObject.type;
+    if (typeof typeRef !== 'string' || typeRef.startsWith('bpmn:')) {
+      return rewrittenObject;
+    }
+
+    const classKey = this.resolveClassKey(typeRef);
+    if (!classKey) {
+      return rewrittenObject;
+    }
+
+    const scopedAttributes = this.collectExampleScopedAttributes(
+      classKey,
+      rewrittenObject,
+      exampleAttributes,
+      reservedKeys
+    );
+
+    if (Object.keys(scopedAttributes).length === 0) {
+      return rewrittenObject;
+    }
+
+    rewrittenObject.type = this.createExampleScopedType(classKey, scopedAttributes);
+
+    return rewrittenObject;
+  }
+
+  private convertExamples(): void {
+    if (!this.linkmlSchema.examples?.length) {
+      return;
+    }
+
+    this.moddleSchema.examples = this.linkmlSchema.examples.map((example) => ({
+      ...example,
+      object: this.rewriteExampleObject(
+        example.object,
+        example.attributes,
+        RESERVED_EXAMPLE_KEYS
+      ),
+    }));
+  }
+
+  private getAncestorClassReferences(classData: { is_a?: string }): string[] {
+    const ancestors: string[] = [];
+    const visited = new Set<string>();
+    let currentRef = this.getParentClassReference(classData);
+
+    while (currentRef) {
+      const currentKey = this.resolveClassKey(currentRef);
+      const currentId = currentKey || currentRef;
+
+      if (visited.has(currentId)) {
+        break;
+      }
+
+      visited.add(currentId);
+      ancestors.push(currentId);
+
+      if (!currentKey) {
+        break;
+      }
+
+      const currentData = this.linkmlSchema.classes?.[currentKey];
+      if (!currentData) {
+        break;
+      }
+
+      currentRef = this.getParentClassReference(currentData);
+    }
+
+    return ancestors;
+  }
+
+  private getOwnerReferenceCandidates(classRef: string): string[] {
+    const resolvedClassKey = this.resolveClassKey(classRef);
+    const candidates = new Set<string>([
+      classRef,
+      this.stripPrefix(classRef)
+    ]);
+
+    if (resolvedClassKey) {
+      candidates.add(resolvedClassKey);
+      candidates.add(this.stripPrefix(resolvedClassKey));
+
+      if (!resolvedClassKey.includes(':')) {
+        candidates.add(`${this.moddleSchema.prefix}:${resolvedClassKey}`);
+      }
+    } else if (!classRef.includes(':')) {
+      candidates.add(`${this.moddleSchema.prefix}:${classRef}`);
+    }
+
+    return Array.from(candidates);
+  }
+
+  private findAncestorPropertyOwner(
+    classData: { is_a?: string },
+    propertyName: string
+  ): string | null {
+    for (const ancestorRef of this.getAncestorClassReferences(classData)) {
+      const ancestorClassKey = this.resolveClassKey(ancestorRef);
+      if (!ancestorClassKey) {
+        continue;
+      }
+
+      const ancestorUseExtends = this.classUriClasses.has(ancestorClassKey);
+      const ancestorAttrs = this.getClassAttributes(ancestorClassKey, ancestorUseExtends);
+
+      if (ancestorAttrs[propertyName]) {
+        return ancestorClassKey;
+      }
+    }
+
+    return null;
+  }
+
   /**
    * Get the BPMN base type for a studyflow class, walking the is_a chain.
    */
@@ -258,7 +573,17 @@ export class LinkMLToModdleConverter {
     const classData = classes[classKey];
     let attrs: Record<string, LinkMLAttribute> = {};
 
-    // 1. Walk BPMN ancestry — collect from extends-like studyflow classes
+    // 1. Walk the studyflow inheritance chain first so parent metadata
+    // such as `hidden`, `default`, and conditions survives into children.
+    const parentClassRef = this.getParentClassReference(classData);
+    if (parentClassRef) {
+      attrs = this.mergeAttributesInOrder(
+        attrs,
+        this.collectAllAttributes(parentClassRef, visited)
+      );
+    }
+
+    // 2. Walk BPMN ancestry — collect from extends-like studyflow classes
     // (This is separate from is_a hierarchy and represents BPMN-level
     // extension properties propagated via abstract mapped classes.)
     const bpmnType = classData.class_uri?.startsWith('bpmn:')
@@ -273,7 +598,7 @@ export class LinkMLToModdleConverter {
       );
     }
 
-    // 2. Walk mixins — additive properties only (no hierarchy propagation)
+    // 3. Walk mixins — additive properties only (no hierarchy propagation)
     if (classData.mixins) {
       for (const mixin of classData.mixins) {
         attrs = this.mergeAttributesInOrder(
@@ -283,7 +608,7 @@ export class LinkMLToModdleConverter {
       }
     }
 
-    // 3. Own attributes (override inherited/additive attributes)
+    // 4. Own attributes (override inherited/additive attributes)
     if (classData.attributes) {
       attrs = this.mergeAttributesInOrder(attrs, classData.attributes);
     }
@@ -377,6 +702,7 @@ export class LinkMLToModdleConverter {
   private parseDefaultValue(ifabsent: string | boolean | undefined): boolean | string | undefined {
     if (ifabsent === undefined) return undefined;
     if (typeof ifabsent === 'boolean') return ifabsent;
+    if (typeof ifabsent === 'number') return ifabsent;
 
     const match = ifabsent.match(/^string\((.+)\)$/);
     if (match) {
@@ -550,20 +876,13 @@ export class LinkMLToModdleConverter {
     properties: ModdleProperty[],
     classData: { is_a?: string }
   ): void {
-    const parentClass = this.getParentClassReference(classData);
-    if (!parentClass) return;
-
-    const parentClassKey = this.resolveClassKey(parentClass);
-    if (!parentClassKey) return;
-
-    const parentUseExtends = this.classUriClasses.has(parentClassKey);
-    const parentAttrs = this.getClassAttributes(parentClassKey, parentUseExtends);
-
     for (const property of properties) {
       if (property.redefines || property.replaces) continue;
-      if (!parentAttrs[property.name]) continue;
 
-      property.redefines = `${this.moddleSchema.prefix}:${parentClassKey}#${property.name}`;
+      const ownerClassKey = this.findAncestorPropertyOwner(classData, property.name);
+      if (!ownerClassKey) continue;
+
+      property.redefines = `${this.moddleSchema.prefix}:${ownerClassKey}#${property.name}`;
     }
   }
 
@@ -574,18 +893,12 @@ export class LinkMLToModdleConverter {
   ): void {
     if (useExtends) return;
 
-    const parentClass = this.getParentClassReference(classData);
-    const parentClassKey = parentClass ? this.resolveClassKey(parentClass) : null;
     const allowedOwners = new Set<string>();
 
-    if (parentClass) {
-      allowedOwners.add(parentClass);
-      allowedOwners.add(this.stripPrefix(parentClass));
-    }
-
-    if (parentClassKey) {
-      allowedOwners.add(parentClassKey);
-      allowedOwners.add(`${this.moddleSchema.prefix}:${parentClassKey}`);
+    for (const ancestorRef of this.getAncestorClassReferences(classData)) {
+      for (const candidate of this.getOwnerReferenceCandidates(ancestorRef)) {
+        allowedOwners.add(candidate);
+      }
     }
 
     for (const property of properties) {
@@ -763,11 +1076,7 @@ export class LinkMLToModdleConverter {
     this.convertEnums();
     this.convertTypes();
     this.convertClasses();
-
-    // Pass through schema-level examples
-    if (this.linkmlSchema.examples?.length) {
-      this.moddleSchema.examples = this.linkmlSchema.examples;
-    }
+    this.convertExamples();
   }
 
   public getSchema(): ModdleSchema {

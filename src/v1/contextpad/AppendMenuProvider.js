@@ -24,6 +24,7 @@ export default class AppendMenuProvider {
         var entries = Object.entries(moddle.registry.typeMap).filter(([k,v]) => 
             !k.includes(":Study")  // Exclude studyflow:Study
             && !v?.isAbstract      // Exclude abstract types
+          && !v?.meta?.exampleScopedType
             && !(v?.superClass?.length === 1 && v.superClass.includes("String"))
             // Exclude extends-based types (handled by BPMN)
             && !v?.extends?.length

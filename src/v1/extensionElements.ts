@@ -255,7 +255,7 @@ export function hasStudyflowExtends(element: any): boolean {
 export function isExtendsType(studyflowType: string, moddle: any): boolean {
   try {
     const descriptor = moddle.getTypeDescriptor(studyflowType);
-    return (descriptor?.extends?.length ?? 0) > 0;
+    return (descriptor?.extends?.length ?? 0) > 0 || Boolean(descriptor?.meta?.exampleScopedExtends);
   } catch {
     return false;
   }

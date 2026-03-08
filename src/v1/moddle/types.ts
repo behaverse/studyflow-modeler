@@ -33,11 +33,14 @@ export interface LinkMLType {
 export interface LinkMLExample {
   /** String representation of the example */
   value?: string;
+  /** Optional attribute definitions promoted for this example's target type */
+  attributes?: Record<string, LinkMLAttribute>;
   /** Direct object representation of the example */
   object?: Record<string, any> & {
     type?: string;
     mixins?: string[];
     flowElements?: Array<Record<string, any>>;
+    attributes?: Record<string, LinkMLAttribute>;
   };
   /** Description of what the example is doing */
   description?: string;
