@@ -79,6 +79,7 @@ export default class TokenSimulator {
   private _colorIndex = 0;
   private _lastTimestamp = 0;
   private _startEvents: any[] = [];
+  private _handleRootSetBound: () => void;
   private _tick: (timestamp: number) => void;
 
   constructor(eventBus: any, elementRegistry: any, canvas: any) {
@@ -86,7 +87,10 @@ export default class TokenSimulator {
     this._elementRegistry = elementRegistry;
     this._canvas = canvas;
 
+    this._handleRootSetBound = this._handleRootSet.bind(this);
     this._tick = this._tickImpl.bind(this);
+
+    this._eventBus.on('root.set', this._handleRootSetBound);
   }
 
   toggle() {
@@ -103,15 +107,8 @@ export default class TokenSimulator {
     this._ensureBounceKeyframes();
     this._layer = this._canvas.getLayer('token-simulation', 1000);
 
-    // find all start events
-    this._startEvents = this._elementRegistry.filter(
-      (el: any) => is(el, 'bpmn:StartEvent') && el.type !== 'label'
-    );
-
-    // spawn the first token immediately
-    for (const se of this._startEvents) {
-      this._spawnToken(se);
-    }
+    this._refreshVisibleStartEvents();
+    this._spawnStartEventTokens();
 
     // then keep spawning at a fixed interval (capped to TOKEN_COLORS tokens)
     this._spawnIntervalId = window.setInterval(() => {
@@ -143,15 +140,53 @@ export default class TokenSimulator {
       this._animFrameId = null;
     }
 
-    // remove all token SVGs
+    this._clearTokens();
+    this._startEvents = [];
+
+    this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: false });
+  }
+
+  private _handleRootSet() {
+    if (!this._active) return;
+
+    this._layer = this._canvas.getLayer('token-simulation', 1000);
+    this._refreshVisibleStartEvents();
+    this._clearTokens();
+    this._spawnStartEventTokens();
+  }
+
+  private _refreshVisibleStartEvents() {
+    this._startEvents = this._getVisibleStartEvents();
+  }
+
+  private _getVisibleStartEvents() {
+    const rootElement = this._canvas.getRootElement();
+
+    if (!rootElement) {
+      return [];
+    }
+
+    return this._elementRegistry.filter(
+      (el: any) => is(el, 'bpmn:StartEvent') && el.type !== 'label' && el.parent === rootElement
+    );
+  }
+
+  private _spawnStartEventTokens() {
+    for (const startEvent of this._startEvents) {
+      this._spawnToken(startEvent);
+    }
+  }
+
+  private _clearTokens() {
     for (const token of this._tokens) {
+      token.done = true;
+
       if (token.svg) {
         svgRemove(token.svg);
       }
     }
-    this._tokens = [];
 
-    this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: false });
+    this._tokens = [];
   }
 
   // animation loop wrapper
