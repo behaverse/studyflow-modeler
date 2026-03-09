@@ -17,7 +17,7 @@ imports:
 default_prefix: behaverse
 default_range: string
 annotations:
-  icon: https://github.com/behaverse/schemas/blob/main/assets/img/schema_B.png?raw=true
+  icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_B.png
 
 enums:
   InstrumentEnum:

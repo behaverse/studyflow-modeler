@@ -18,7 +18,7 @@ include:
 default_prefix: studyflow
 default_range: string
 annotations:
-  icon: https://github.com/behaverse/schemas/blob/main/assets/img/schema_S.png?raw=true
+  icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 
 enums:
   DatasetFormatEnum:
