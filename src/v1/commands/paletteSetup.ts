@@ -4,6 +4,12 @@ import SchemaCreateMenuProvider from '../palette/SchemaCreateMenuProvider';
 import BpmnCreateTemplateFilterProvider from '../palette/BpmnCreateTemplateFilterProvider';
 
 const filteredPopupMenus = new WeakSet<object>();
+const schemaOrder = new Map(SCHEMA_NAMES.map((schemaName, index) => [schemaName, index]));
+
+export type PaletteSchemaDescriptor = {
+  prefix: string;
+  icon?: string;
+};
 
 export type PaletteRegisterSchemaProvidersCommand = {
   type: 'palette-register-schema-providers';
@@ -13,7 +19,7 @@ export type PaletteRegisterSchemaProvidersCommand = {
 export function runPaletteRegisterSchemaProviders(
   context: CommandContext,
   command: PaletteRegisterSchemaProvidersCommand,
-): string[] {
+): PaletteSchemaDescriptor[] {
   if (!context.modeler) {
     throw new Error("Command 'palette-register-schema-providers' requires a modeler instance.");
   }
@@ -31,7 +37,7 @@ export function runPaletteRegisterSchemaProviders(
     filteredPopupMenus.add(popupMenu as object);
   }
 
-  const prefixes: string[] = [];
+  const schemas: PaletteSchemaDescriptor[] = [];
 
   const packagesArray: any[] =
     (typeof (moddle as any).getPackages === 'function'
@@ -62,9 +68,21 @@ export function runPaletteRegisterSchemaProviders(
       }
     }
 
-    prefixes.push(prefix);
+    schemas.push({
+      prefix,
+      icon: typeof pkg.icon === 'string' ? pkg.icon : undefined,
+    });
   });
 
-  prefixes.sort();
-  return prefixes;
+  schemas.sort((left, right) => {
+    const leftIndex = schemaOrder.get(left.prefix) ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = schemaOrder.get(right.prefix) ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftIndex !== rightIndex) {
+      return leftIndex - rightIndex;
+    }
+
+    return left.prefix.localeCompare(right.prefix);
+  });
+  return schemas;
 }

@@ -67,6 +67,7 @@ export class LinkMLToModdleConverter {
       name: this.linkmlSchema.title || this.linkmlSchema.name || 'studyflow',
       uri: this.linkmlSchema.id || 'http://behaverse.org/schemas/studyflow',
       prefix: this.linkmlSchema.default_prefix || 'studyflow',
+      icon: this.linkmlSchema.annotations?.icon,
       xml: {
         tagAlias: 'lowerCase'
       },

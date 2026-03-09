@@ -10,6 +10,8 @@ imports:
   - bpmn.linkml
 default_range: string
 default_prefix: omniflow
+annotations:
+  icon: iconify tabler--hexagon-letter-o
 
 enums:
 

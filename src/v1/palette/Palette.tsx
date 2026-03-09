@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { ModelerContext, SCHEMA_NAMES } from '../contexts';
+import { ModelerContext } from '../contexts';
 import { executeCommand } from '../commands';
+import type { PaletteSchemaDescriptor } from '../commands/paletteSetup';
 import { t } from '../../i18n';
 
 type PaletteEntry = {
@@ -12,17 +13,20 @@ type PaletteEntry = {
   title?: string;
 };
 
-function getSchemaIconClass(prefix: string): string {
-  const p = prefix.toLowerCase();
-  let icon = 'iconify tabler--hexagon';
-  if (p === 'studyflow')
-    icon = 'iconify tabler--hexagon-letter-s';
-  if (p === 'omniflow')
-    icon = 'iconify tabler--hexagon-letter-o';
-  if (p === 'behaverse')
-    icon = 'iconify tabler--hexagon-letter-b';
+function renderSchemaIcon(icon?: string): React.ReactNode {
+  if (icon && /^(https?:\/\/|data:image\/)/i.test(icon)) {
+    return (
+      <img
+        src={icon}
+        alt=""
+        className="h-6 w-6 object-contain"
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
 
-  return icon;
+  return <i className={`text-[24px] ${icon || 'iconify tabler--hexagon'}`}></i>;
 }
 
 function loadBpmnEntries(): PaletteEntry[] {
@@ -64,7 +68,7 @@ export function Palette({ className = '' }: { className?: string }) {
   const { modeler } = useContext(ModelerContext);
   const [entries, setEntries] = useState<PaletteEntry[]>([]);
   const [pressedEntryKey, setPressedEntryKey] = useState<string | null>(null);
-  const [schemaPrefixes, setSchemaPrefixes] = useState<string[]>([]);
+  const [schemas, setSchemas] = useState<PaletteSchemaDescriptor[]>([]);
   const mouseDownRef = useRef(false);
   const startedRef = useRef(false);
 
@@ -90,14 +94,14 @@ export function Palette({ className = '' }: { className?: string }) {
       type: 'palette-register-schema-providers',
       registeredSchemas: registeredSchemasRef.current,
     })
-      .then((prefixes: string[]) => {
+      .then((nextSchemas: PaletteSchemaDescriptor[]) => {
         if (!isCancelled) {
-          setSchemaPrefixes(prefixes);
+          setSchemas(nextSchemas);
         }
       })
       .catch(() => {
         if (!isCancelled) {
-          setSchemaPrefixes([]);
+          setSchemas([]);
         }
       });
 
@@ -258,7 +262,7 @@ export function Palette({ className = '' }: { className?: string }) {
             }`}
           >Select Elements (Lasso)</span>
         </div>
-        {schemaPrefixes.sort().reverse().map((prefix) => (
+        {schemas.map(({ prefix, icon }) => (
           <div
             key={`more-${prefix}`}
             className="group flex items-center gap-2"
@@ -273,9 +277,7 @@ export function Palette({ className = '' }: { className?: string }) {
               onMouseLeave={handleMouseUp}
               onClick={(e) => handleMoreSchemaElementsClick(prefix, e)}
             >
-              <i
-                className={`text-[24px] ${getSchemaIconClass(prefix)}`}
-              ></i>
+              {renderSchemaIcon(icon)}
             </button>
             <span
               className={`text-sm text-violet-700 whitespace-nowrap ${

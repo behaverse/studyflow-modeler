@@ -6,8 +6,6 @@ title: Behaverse Schema
 description: LinkML schema for Behaverse Studyflow
 version: 25.1217.dev2
 license: MIT
-
-
 prefixes:
   studyflow: http://w3id.org/studyflow/
   linkml: https://w3id.org/linkml/
@@ -18,6 +16,8 @@ imports:
   - studyflow.linkml
 default_prefix: behaverse
 default_range: string
+annotations:
+  icon: https://github.com/behaverse/schemas/blob/main/assets/img/schema_B.png?raw=true
 
 enums:
   InstrumentEnum:

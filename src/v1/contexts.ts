@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 
-export const SCHEMA_NAMES = ['studyflow', 'omniflow', 'behaverse'];
+export const SCHEMA_NAMES = ['studyflow', 'behaverse', 'omniflow'];
 
 export const ModelerContext = createContext<{
     modeler: any,

@@ -2,6 +2,10 @@ export interface LinkMLSchema {
   id: string;
   name: string;
   title?: string;
+  annotations?: {
+    icon?: string;
+    [key: string]: any;
+  };
   prefixes: Record<string, string>;
   imports?: string[];
   default_range?: string;
@@ -97,6 +101,7 @@ export interface ModdleSchema {
   name: string;
   uri: string;
   prefix: string;
+  icon?: string;
   xml: {
     tagAlias: string;
   };
