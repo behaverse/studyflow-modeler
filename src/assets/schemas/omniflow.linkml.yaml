@@ -4,10 +4,10 @@ prefixes:
   omniflow: https://w3id.org/omniflow/
   studyflow: https://w3id.org/studyflow/
   linkml: https://w3id.org/linkml/
-  bpmn: https://w3id.org/bpmn/
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL#
 imports:
   - linkml:types
-  - studyflow:types
+  - bpmn.linkml
 default_range: string
 default_prefix: omniflow
 
@@ -17,51 +17,41 @@ types:
 
 classes:
   TransformData:
-    is_a: bpmn:Task
+    is_a: Task
     description: Apply a function to each element in a data stream.
     attributes:
       isDataOperation:
-        extensions:
-          moddle:
-            default: true
-          studyflow:
-            hidden: true
+        annotations:
+          moddle.default: true
+          studyflow.hidden: true
       operationType:
-        extensions:
-          moddle:
-            default: "transform"
-          studyflow:
-            hidden: true
+        annotations:
+          moddle.default: transform
+          studyflow.hidden: true
   MapData:
     is_a: TransformData
     description: Map a function over a data stream, producing a new data stream.
     attributes:
       operationType:
-        extensions:
-          moddle:
-            default: "map"
-          studyflow:
-            hidden: true
+        annotations:
+          moddle.default: map
+          studyflow.hidden: true
   ReduceData:
     is_a: TransformData
     description: Reduce a data stream to a single value.
     attributes:
       operationType:
-        extensions:
-          moddle:
-            default: "map"
-          studyflow:
-            hidden: true
+        annotations:
+          moddle.default: map
+          studyflow.hidden: true
   FilterData:
     is_a: TransformData
     description: Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
     attributes:
       operationType:
-        extensions:
-          moddle:
-            default: "filter"
-          studyflow:
-            hidden: true
+        annotations:
+          moddle.default: filter
+          studyflow.hidden: true
 
 examples:
   - description: clean_artifacts() is the EEGPrep function that removes artifacts from the signal.
@@ -71,43 +61,43 @@ examples:
       bpmn:documentation: Remove artifacts from EEG data using the clean_artifacts function from the MNE library. This function applies a combination of flatline detection, high-pass and low-pass filtering, ASR, ICA, and ICLabel classification to identify and remove artifacts from the EEG signal.
       isDataOperation: true
       icon: iconify fluent--pulse-20-filled
-    attributes:
-      flatline_criterion:
-        range: number
-        ifabsent: 5
-        categories:
-          - EEGPrep
-        description: Flatline detection threshold, passed to clean_artifacts
-      highpass:
-        range: number
-        ifabsent: 1
-        categories:
-          - EEGPrep
-        description: High-pass filter at 1 Hz, passed to clean_artifacts
-      lowpass:
-        range: number
-        ifabsent: 100
-        categories:
-          - EEGPrep
-        description: Low-pass filter at 100 Hz, passed to clean_artifacts
-      asr_criterion:
-        range: number
-        ifabsent: 20
-        categories:
-          - EEGPrep
-        description: ASR threshold passed to clean_artifacts
-      ica:
-        range: boolean
-        ifabsent: true
-        categories:
-          - EEGPrep
-        description: Enable ICA, passed to clean_artifacts
-      iclabel:
-        range: boolean
-        ifabsent: true
-        categories:
-          - EEGPrep
-        description: Enable ICLabel classification, passed to clean_artifacts
+    # attributes:
+    #   flatline_criterion:
+    #     range: number
+    #     ifabsent: 5
+    #     categories:
+    #       - EEGPrep
+    #     description: Flatline detection threshold, passed to clean_artifacts
+    #   highpass:
+    #     range: number
+    #     ifabsent: 1
+    #     categories:
+    #       - EEGPrep
+    #     description: High-pass filter at 1 Hz, passed to clean_artifacts
+    #   lowpass:
+    #     range: number
+    #     ifabsent: 100
+    #     categories:
+    #       - EEGPrep
+    #     description: Low-pass filter at 100 Hz, passed to clean_artifacts
+    #   asr_criterion:
+    #     range: number
+    #     ifabsent: 20
+    #     categories:
+    #       - EEGPrep
+    #     description: ASR threshold passed to clean_artifacts
+    #   ica:
+    #     range: boolean
+    #     ifabsent: true
+    #     categories:
+    #       - EEGPrep
+    #     description: Enable ICA, passed to clean_artifacts
+    #   iclabel:
+    #     range: boolean
+    #     ifabsent: true
+    #     categories:
+    #       - EEGPrep
+    #     description: Enable ICLabel classification, passed to clean_artifacts
   - description: Preprocess EEG data for a single subject.
     object:
       bpmn:name: EEGPrep

@@ -36,3 +36,23 @@ export const BPMN_ANCESTORS: Record<string, string[]> = {
  * Global class -> BPMN mapping cache shared across converter instances.
  */
 export const GLOBAL_BPMN_MAPPINGS: Map<string, string> = new Map();
+
+const registerBuiltinBpmnAliases = () => {
+  const allBpmnTypes = new Set<string>();
+
+  for (const [bpmnType, ancestors] of Object.entries(BPMN_ANCESTORS)) {
+    allBpmnTypes.add(bpmnType);
+    for (const ancestor of ancestors) {
+      allBpmnTypes.add(ancestor);
+    }
+  }
+
+  for (const bpmnType of allBpmnTypes) {
+    GLOBAL_BPMN_MAPPINGS.set(bpmnType, bpmnType);
+
+    const localName = bpmnType.startsWith('bpmn:') ? bpmnType.slice('bpmn:'.length) : bpmnType;
+    GLOBAL_BPMN_MAPPINGS.set(localName, bpmnType);
+  }
+};
+
+registerBuiltinBpmnAliases();

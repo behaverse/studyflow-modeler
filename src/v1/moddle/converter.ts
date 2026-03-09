@@ -91,10 +91,22 @@ export class LinkMLToModdleConverter {
       return { bpmnType: classData.is_a, fromClassUri: false };
     }
 
+    if (classData.is_a) {
+      const mappedParent = this.resolveBpmnMapping(classData.is_a);
+      if (mappedParent) {
+        return { bpmnType: mappedParent, fromClassUri: false };
+      }
+    }
+
     if (classData.exact_mappings) {
       for (const mapping of classData.exact_mappings) {
         if (mapping.startsWith('bpmn:')) {
           return { bpmnType: mapping, fromClassUri: false };
+        }
+
+        const resolvedMapping = this.resolveBpmnMapping(mapping);
+        if (resolvedMapping) {
+          return { bpmnType: resolvedMapping, fromClassUri: false };
         }
       }
     }
@@ -195,16 +207,36 @@ export class LinkMLToModdleConverter {
   }
 
   private isBpmnReference(classRef: string | undefined): boolean {
-    return Boolean(classRef?.startsWith('bpmn:'));
+    if (!classRef) {
+      return false;
+    }
+
+    if (classRef.startsWith('bpmn:')) {
+      return true;
+    }
+
+    if (this.resolveClassKey(classRef)) {
+      return false;
+    }
+
+    return this.resolveBpmnMapping(classRef) !== null;
   }
 
   private getParentClassReference(classData: { is_a?: string }): string | null {
-    if (!classData.is_a || this.isBpmnReference(classData.is_a)) {
+    if (!classData.is_a) {
       return null;
     }
 
     const parentClass = this.resolveClassKey(classData.is_a);
-    return parentClass || classData.is_a;
+    if (parentClass) {
+      return parentClass;
+    }
+
+    if (this.isBpmnReference(classData.is_a)) {
+      return null;
+    }
+
+    return classData.is_a;
   }
 
   private inferAttributeRange(value: any): string | null {
@@ -588,8 +620,8 @@ export class LinkMLToModdleConverter {
     // extension properties propagated via abstract mapped classes.)
     const bpmnType = classData.class_uri?.startsWith('bpmn:')
       ? classData.class_uri
-      : classData.is_a?.startsWith('bpmn:')
-        ? classData.is_a
+      : classData.is_a
+        ? this.resolveBpmnMapping(classData.is_a)
         : null;
     if (bpmnType) {
       attrs = this.mergeAttributesInOrder(
@@ -715,6 +747,47 @@ export class LinkMLToModdleConverter {
     return undefined;
   }
 
+  private getAnnotationPrimitive(
+    annotations: LinkMLAttribute['annotations'] | undefined,
+    key: string
+  ): string | boolean | number | undefined {
+    const value = annotations?.[key];
+
+    return typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number'
+      ? value
+      : undefined;
+  }
+
+  private getAnnotationString(
+    annotations: LinkMLAttribute['annotations'] | undefined,
+    key: string
+  ): string | undefined {
+    const value = this.getAnnotationPrimitive(annotations, key);
+
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  private getAnnotationBoolean(
+    annotations: LinkMLAttribute['annotations'] | undefined,
+    key: string
+  ): boolean | undefined {
+    const value = this.getAnnotationPrimitive(annotations, key);
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    if (value === 'true') {
+      return true;
+    }
+
+    if (value === 'false') {
+      return false;
+    }
+
+    return undefined;
+  }
+
   private getAttributeMetadata(attrData: LinkMLAttribute): {
     defaultValue?: string | boolean | number;
     redefines?: string;
@@ -723,37 +796,39 @@ export class LinkMLToModdleConverter {
     conditionLanguage?: string;
     conditionBody?: string;
   } {
+    const annotations = attrData.annotations;
     const moddleExt = attrData.extensions?.moddle;
     const studyflowExt = attrData.extensions?.studyflow;
 
     const defaultValue =
-      typeof moddleExt?.default === 'string' ||
+      this.getAnnotationPrimitive(annotations, 'moddle.default') ??
+      (typeof moddleExt?.default === 'string' ||
       typeof moddleExt?.default === 'boolean' ||
       typeof moddleExt?.default === 'number'
         ? moddleExt.default
-        : undefined;
+        : undefined);
 
-    const redefines =
-      typeof moddleExt?.redefines === 'string' && moddleExt.redefines.length > 0
+    const redefines = this.getAnnotationString(annotations, 'moddle.redefines') ??
+      (typeof moddleExt?.redefines === 'string' && moddleExt.redefines.length > 0
         ? moddleExt.redefines
-        : undefined;
+        : undefined);
 
-    const replaces =
-      typeof moddleExt?.replaces === 'string' && moddleExt.replaces.length > 0
+    const replaces = this.getAnnotationString(annotations, 'moddle.replaces') ??
+      (typeof moddleExt?.replaces === 'string' && moddleExt.replaces.length > 0
         ? moddleExt.replaces
-        : undefined;
+        : undefined);
 
-    const hidden = Boolean(studyflowExt?.hidden);
+    const hidden = this.getAnnotationBoolean(annotations, 'studyflow.hidden') ?? Boolean(studyflowExt?.hidden);
 
-    const conditionLanguage =
-      typeof studyflowExt?.condition?.language === 'string'
+    const conditionLanguage = this.getAnnotationString(annotations, 'studyflow.condition.language') ??
+      (typeof studyflowExt?.condition?.language === 'string'
         ? studyflowExt.condition.language
-        : undefined;
+        : undefined);
 
-    const conditionBody =
-      typeof studyflowExt?.condition?.body === 'string'
+    const conditionBody = this.getAnnotationString(annotations, 'studyflow.condition.body') ??
+      (typeof studyflowExt?.condition?.body === 'string'
         ? studyflowExt.condition.body
-        : undefined;
+        : undefined);
 
     return {
       defaultValue,
@@ -894,10 +969,12 @@ export class LinkMLToModdleConverter {
     if (useExtends) return;
 
     const allowedOwners = new Set<string>();
+    const allowedOwnerLocalNames = new Set<string>();
 
     for (const ancestorRef of this.getAncestorClassReferences(classData)) {
       for (const candidate of this.getOwnerReferenceCandidates(ancestorRef)) {
         allowedOwners.add(candidate);
+        allowedOwnerLocalNames.add(this.stripPrefix(candidate));
       }
     }
 
@@ -905,7 +982,10 @@ export class LinkMLToModdleConverter {
       if (!property.redefines) continue;
 
       const owner = property.redefines.split('#')[0];
-      const hasAllowedOwner = owner && allowedOwners.has(owner);
+      const ownerLocalName = owner ? this.stripPrefix(owner) : '';
+      const hasAllowedOwner = Boolean(
+        owner && (allowedOwners.has(owner) || allowedOwnerLocalNames.has(ownerLocalName))
+      );
 
       if (!hasAllowedOwner) {
         console.warn(

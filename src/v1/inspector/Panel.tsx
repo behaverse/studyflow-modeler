@@ -19,7 +19,6 @@ const sortByOrder = (properties: any[]) => {
     return [...properties].sort((a: any, b: any) => {
         const aOrder = a?.meta?.order;
         const bOrder = b?.meta?.order;
-        console.log(a.ns.name, aOrder, b.ns.name, bOrder);
 
         if (aOrder === undefined && bOrder === undefined) return 0;
         if (aOrder === undefined) return -1;

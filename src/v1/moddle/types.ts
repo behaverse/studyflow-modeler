@@ -69,6 +69,9 @@ export interface LinkMLAttribute {
   multivalued?: boolean;
   ifabsent?: string | boolean;
   categories?: string[];
+  annotations?: {
+    [key: string]: any;
+  };
   extensions?: {
     moddle?: {
       redefines?: string;

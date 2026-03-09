@@ -8,15 +8,15 @@ version: 25.1217.dev2
 license: MIT
 
 prefixes:
-  studyflow: http://behaverse.org/schemas/studyflow/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL#
   linkml: https://w3id.org/linkml/
-
-default_prefix: studyflow
-default_range: string
-
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL# 
 imports:
   - linkml:types
+  - bpmn.linkml
+include:
+  - omniflow.linkml.yaml
+default_prefix: studyflow
+default_range: string
 
 enums:
   DatasetFormatEnum:
@@ -196,9 +196,8 @@ classes:
         description: Optional human-readable description for the element (or link to a detailed description).
         categories:
           - Documentation
-        extensions:
-          moddle:
-            redefines: bpmn:BaseElement#documentation
+        annotations:
+          moddle.redefines: bpmn:BaseElement#documentation
       checklist:
         range: MarkdownString
         description: List of items to be checked off when completing the element, formatted in markdown.
@@ -218,7 +217,7 @@ classes:
 
   Study:
     description: Process definition for a Studyflow study.
-    is_a: bpmn:Process
+    is_a: Process
     tree_root: true
     annotations:
       icon: iconify bi--journal-text
@@ -240,11 +239,9 @@ classes:
         description: Link to the consent form. Leave empty if you want to use the default consent form.
         categories:
           - Privacy
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:requiresConsent": true}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:requiresConsent": true}'
         comments:
           - Conditional on requiresConsent being true
 
@@ -256,9 +253,8 @@ classes:
         description: Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in expression type.
         categories:
           - Control
-        extensions:
-          moddle:
-            redefines: bpmn:SequenceFlow#conditionExpression
+        annotations:
+          moddle.redefines: bpmn:SequenceFlow#conditionExpression
 
   EndEvent:
     class_uri: bpmn:EndEvent
@@ -275,11 +271,9 @@ classes:
         description: Link to redirect the user upon completion.
         categories:
           - Completion
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:hasRedirectUrl": true}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:hasRedirectUrl": true}'
         comments:
           - Conditional on hasRedirectUrl being true
 
@@ -306,11 +300,9 @@ classes:
         description: Optional data operation marker for a data transformation task.
         categories:
           - Data
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:isDataOperation": true}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:isDataOperation": true}'
         comments:
           - Conditional on isDataOperation being true
       operationSteps:
@@ -319,16 +311,14 @@ classes:
         description: Operator pipeline steps when operator is `compose`.
         categories:
           - Data
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:operation": "compose"}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:operation": "compose"}'
         comments:
           - Conditional on operator being "compose"
 
   CognitiveTask:
-    is_a: bpmn:Task
+    is_a: Task
     annotations:
       icon: iconify bi--puzzle
     attributes:
@@ -346,12 +336,11 @@ classes:
       isDataOperation:
         equals_string: "false"
         ifabsent: "false"
-        extensions:
-          studyflow:
-            hidden: true
+        annotations:
+          studyflow.hidden: true
 
   Questionnaire:
-    is_a: bpmn:Task
+    is_a: Task
     annotations:
       icon: iconify fluent--clipboard-text-edit-32-regular
     attributes:
@@ -363,7 +352,7 @@ classes:
           - Instrument
 
   Instruction:
-    is_a: bpmn:Task
+    is_a: Task
     description: A passive information display.
     annotations:
       icon: iconify material-symbols--info-outline-rounded
@@ -375,7 +364,7 @@ classes:
           - Content
 
   RandomGateway:
-    is_a: bpmn:ExclusiveGateway
+    is_a: ExclusiveGateway
     annotations:
       icon: iconify streamline-flex--dice-5-remix
     attributes:
@@ -391,11 +380,9 @@ classes:
         description: Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
         categories:
           - Assignment
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:algorithm": "probabilistic"}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:algorithm": "probabilistic"}'
         comments:
           - Conditional on algorithm being "probabilistic"
 
@@ -423,7 +410,7 @@ classes:
   Dataset:
     description: Base class for all datasets in the Studyflow.
     abstract: false
-    is_a: bpmn:DataStoreReference
+    is_a: DataStoreReference
     annotations:
       icon: iconify bi--database
     attributes:
@@ -437,11 +424,9 @@ classes:
         description: Identifier of the `DataStore` where this dataset is physically stored.
         categories:
           - Data
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:format": "bdm"}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:format": "bdm"}'
       schema:
         range: Schema
         description: |
@@ -469,11 +454,9 @@ classes:
         description: Level of the data (events, trials, summary, models).
         categories:
           - Data
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:format": "bdm"}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:format": "bdm"}'
         comments:
           - Conditional on format being "bdm"
       bidsDataType:
@@ -482,16 +465,14 @@ classes:
         description: BIDS data type (e.g., anat, func, eeg, beh).
         categories:
           - Data
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:format": "bids"}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"studyflow:format": "bids"}'
         comments:
           - Conditional on datasetFormat being "bids"
 
   DataObjectReference:
-    class_uri: bpmn:DataObjectReference
+    class_uri: DataObjectReference
     description: |
       Represents data produced/consumed within a process instance. Can be used to model
       internal data nodes in sub-processes and annotate state (e.g., raw/processed).
@@ -516,7 +497,7 @@ classes:
   Table:
     description: |
       Named tabular structure within a dataset. Extends BPMN data objects and expects a schema.
-    is_a: bpmn:DataObjectReference
+    is_a: DataObjectReference
     abstract: true
     annotations:
       icon: iconify bi--table
@@ -536,7 +517,7 @@ classes:
     description: |
       Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
     abstract: true
-    class_uri: bpmn:DataObjectReference
+    class_uri: DataObjectReference
     attributes:
       dataset:
         range: string

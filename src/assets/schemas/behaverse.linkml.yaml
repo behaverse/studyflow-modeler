@@ -7,16 +7,17 @@ description: LinkML schema for Behaverse Studyflow
 version: 25.1217.dev2
 license: MIT
 
+
 prefixes:
-  studyflow: http://behaverse.org/schemas/studyflow/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL#
+  studyflow: http://w3id.org/studyflow/
   linkml: https://w3id.org/linkml/
-
-default_prefix: behaverse
-default_range: string
-
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL# 
 imports:
   - linkml:types
+  - bpmn.linkml
+  - studyflow.linkml
+default_prefix: behaverse
+default_range: string
 
 enums:
   InstrumentEnum:
@@ -100,30 +101,25 @@ enums:
 classes:
 
   BehaverseTask:
-    is_a: studyflow:CognitiveTask
-    abstract: false
+    is_a: CognitiveTask
     description: A cognitive task from the Behaverse battery.
     annotations:
       icon: iconify bi--hexagon
     attributes:
       instrument:
-        extensions:
-          moddle:
-            default: "behaverse"
-            redefines: studyflow:CognitiveTask#instrument
-          studyflow:
-            hidden: true
+        annotations:
+          moddle.default: behaverse
+          # moddle.redefines: studyflow:CognitiveTask#instrument
+          studyflow.hidden: true
       scene:
         range: BehaverseSceneEnum
         ifabsent: string(undefined)
         description: Behaverse instrument used for the test.
         categories:
           - Behaverse
-        extensions:
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:instrument": "behaverse"}'
+        annotations:
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"instrument": "behaverse"}'
         comments:
           - Conditional on instrument being "behaverse"
       parameters:
@@ -131,15 +127,12 @@ classes:
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         categories:
           - Behaverse
-        extensions:
-          moddle:
-            redefines: studyflow:CognitiveTask#parameters
-          studyflow:
-            condition:
-              language: json
-              body: '{"studyflow:instrument": "behaverse"}'
-              comments:
-                - Conditional on instrument being "behaverse"
+        annotations:
+          moddle.redefines: studyflow:CognitiveTask#parameters
+          studyflow.condition.language: json
+          studyflow.condition.body: '{"instrument": "behaverse"}'
+        comments:
+          - Conditional on instrument being "behaverse"
 
 examples:
   - description: N-Back task with tutorial

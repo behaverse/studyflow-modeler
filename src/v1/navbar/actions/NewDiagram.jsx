@@ -15,11 +15,9 @@ export function NewDiagramButton({ className }) {
         if (modeler) {
             executeCommand(modeler, {
                 type: 'new-diagram',
-            })
-                .catch(err => {
-                    console.log(err);
-                });
-
+            }).catch(err => {
+                console.log(err);
+            });
         }
     }
 
