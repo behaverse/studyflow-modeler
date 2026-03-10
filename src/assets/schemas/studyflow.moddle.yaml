@@ -1,0 +1,588 @@
+name: Studyflow Schema
+uri: http://behaverse.org/schemas/studyflow
+prefix: studyflow
+icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
+xml:
+  tagAlias: lowerCase
+associations: []
+enumerations:
+  - name: DatasetFormatEnum
+    isAbstract: true
+    description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+    literalValues:
+      - name: BDM (Behaverse Data Model)
+        value: bdm
+      - name: BIDS (Brain Imaging Data Structure)
+        value: bids
+        icon: bids-dataset-icon
+      - name: Psych-DS
+        value: psych-ds
+        icon: iconify uil--flask
+      - name: Kedro
+        value: kedro
+      - name: Undefined
+        value: undefined
+  - name: BDMDataLevelEnum
+    isAbstract: true
+    description: BDM level of the data (events, trials, models).
+    literalValues:
+      - name: Events
+        value: events
+      - name: Trials
+        value: trials
+      - name: Models
+        value: models
+  - name: BIDSDataTypeEnum
+    isAbstract: true
+    description: BIDS data type (e.g., anat, func, etc).
+    literalValues:
+      - name: anat (anatomical MRI)
+        value: anat
+      - name: beh (behavioral)
+        value: beh
+      - name: dwi (diffusion MRI)
+        value: dwi
+      - name: eeg (electroencephalography)
+        value: eeg
+      - name: func (functional MRI)
+        value: func
+      - name: ieeg (intracranial EEG)
+        value: ieeg
+      - name: meg (magnetoencephalography)
+        value: meg
+      - name: micr (microscopy)
+        value: micr
+      - name: motion (motion capture)
+        value: motion
+      - name: mrs (magnetic resonance spectroscopy)
+        value: mrs
+      - name: nirs (near-infrared spectroscopy)
+        value: nirs
+      - name: perf (arterial spin labeling)
+        value: perf
+      - name: pet (positron emission tomography)
+        value: pet
+  - name: AssignmentAlgorithmEnum
+    isAbstract: true
+    description: The scheduling algorithm used for the assignment.
+    literalValues:
+      - name: Probabilistic
+        value: probabilistic
+      - name: Round Robin
+        value: round-robin
+  - name: ProbabilityDistributionEnum
+    isAbstract: true
+    description: The random statistical distribution used for the assignment.
+    literalValues:
+      - name: Uniform
+        value: uniform
+      - name: Normal
+        value: normal
+      - name: Exponential
+        value: exponential
+      - name: Poisson
+        value: poisson
+      - name: Undefined
+        value: undefined
+  - name: DataOperationTypeEnum
+    isAbstract: true
+    description: |
+      Studyflow data operator marker for tasks. Operators describe how data is manipulated
+      as it flows through the process (pure transformations).
+    literalValues:
+      - name: Transform
+        value: transform
+      - name: Map
+        value: map
+      - name: Filter
+        value: filter
+      - name: Reduce
+        value: reduce
+      - name: Group
+        value: group
+      - name: Compose
+        value: compose
+      - name: FlatMap
+        value: flatMap
+  - name: InstrumentEnum
+    isAbstract: true
+    description: The type of instrument used to measure cognitive performance.
+    literalValues:
+      - name: Video Game
+        value: videoGame
+        icon: iconify bi--controller
+      - name: Rest
+        value: rest
+        icon: iconify solar--armchair-2-linear
+      - name: Undefined
+        value: undefined
+types:
+  - name: MarkdownString
+    description: A string that contains markdown formatting
+    superClass:
+      - String
+  - name: YAMLString
+    description: A string that contains YAML-formatted content
+    superClass:
+      - String
+  - name: BaseElement
+    description: Base class for all elements in the Studyflow.
+    extends:
+      - bpmn:BaseElement
+    isAbstract: true
+    properties:
+      - name: documentation
+        description: Optional human-readable description for the element (or link to a detailed description).
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        categories:
+          - Documentation
+        redefines: bpmn:BaseElement#documentation
+        hidden: false
+      - name: checklist
+        description: List of items to be checked off when completing the element, formatted in markdown.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 2
+        categories:
+          - Documentation
+        hidden: false
+  - name: Checklist
+    description: A checklist for the element.
+    superClass:
+      - Element
+    isAbstract: true
+    properties:
+      - name: items
+        description: Checklist items.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        isMany: true
+        categories:
+          - Documentation
+        hidden: false
+  - name: Study
+    description: Process definition for a Studyflow study.
+    extends:
+      - bpmn:Process
+    icon: iconify bi--journal-text
+  - name: StartEvent
+    extends:
+      - bpmn:StartEvent
+    properties:
+      - name: requiresConsent
+        description: User requires to give consent before participating.
+        isAttr: true
+        type: Boolean
+        meta:
+          order: 1
+        default: false
+        categories:
+          - Privacy
+        hidden: false
+      - name: consentFormUri
+        description: Link to the consent form. Leave empty if you want to use the default consent form.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        categories:
+          - Privacy
+        condition:
+          language: json
+          body:
+            studyflow:requiresConsent: true
+        hidden: false
+    icon: iconify bpmn--start-event
+  - name: SequenceFlow
+    extends:
+      - bpmn:SequenceFlow
+    properties:
+      - name: conditionExpression
+        description: >-
+          Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in
+          expression type.
+        isAttr: true
+        type: bpmn:Expression
+        meta:
+          order: 1
+        categories:
+          - Control
+        redefines: bpmn:SequenceFlow#conditionExpression
+        hidden: false
+  - name: EndEvent
+    extends:
+      - bpmn:EndEvent
+    properties:
+      - name: hasRedirectUrl
+        description: Redirect the user to the given URL after completion.
+        isAttr: true
+        type: Boolean
+        meta:
+          order: 1
+        categories:
+          - Completion
+        hidden: false
+      - name: redirectTo
+        description: Link to redirect the user upon completion.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        categories:
+          - Completion
+        condition:
+          language: json
+          body:
+            studyflow:hasRedirectUrl: true
+        hidden: false
+    icon: iconify bpmn--end-event
+  - name: Activity
+    description: Base class for all the activities in the Studyflow.
+    superClass:
+      - Element
+    isAbstract: true
+    properties:
+      - name: uri
+        description: Link to the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - General
+        hidden: false
+      - name: isDataOperation
+        description: Toggle marker indicating the activity is a data operation.
+        isAttr: true
+        type: Boolean
+        meta:
+          order: 2
+        default: false
+        categories:
+          - Data
+        hidden: false
+      - name: operationType
+        description: Optional data operation marker for a data transformation task.
+        isAttr: true
+        type: DataOperationTypeEnum
+        meta:
+          order: 3
+        categories:
+          - Data
+        condition:
+          language: json
+          body:
+            studyflow:isDataOperation: true
+        hidden: false
+      - name: operationSteps
+        description: Operator pipeline steps when operator is `compose`.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 4
+        isMany: true
+        categories:
+          - Data
+        condition:
+          language: json
+          body:
+            studyflow:operation: compose
+        hidden: false
+    icon: iconify bpmn--task-none
+  - name: CognitiveTask
+    superClass:
+      - Activity
+      - bpmn:Task
+    properties:
+      - name: instrument
+        description: Instrument used for the test.
+        isAttr: true
+        type: InstrumentEnum
+        meta:
+          order: 1
+        default: undefined
+        categories:
+          - Instrument
+        hidden: false
+      - name: parameters
+        description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
+        isAttr: true
+        type: YAMLString
+        meta:
+          order: 2
+        categories:
+          - Instrument
+        hidden: false
+      - name: isDataOperation
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+        default: false
+        hidden: true
+        redefines: studyflow:Activity#isDataOperation
+    icon: iconify bi--puzzle
+  - name: Questionnaire
+    superClass:
+      - Activity
+      - bpmn:Task
+    properties:
+      - name: instrument
+        description: >
+          Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g.,
+          PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - Instrument
+        hidden: false
+    icon: iconify fluent--clipboard-text-edit-32-regular
+  - name: Instruction
+    description: A passive information display.
+    superClass:
+      - Questionnaire
+    properties:
+      - name: content
+        description: Instruction content in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        categories:
+          - Content
+        hidden: false
+    icon: iconify material-symbols--info-outline-rounded
+  - name: RandomGateway
+    extends:
+      - bpmn:ExclusiveGateway
+    properties:
+      - name: algorithm
+        description: Algorithm used for the assignment.
+        isAttr: true
+        type: AssignmentAlgorithmEnum
+        meta:
+          order: 1
+        default: probabilistic
+        categories:
+          - Assignment
+        hidden: false
+      - name: probabilityFunction
+        description: >-
+          Probability mass function that defines the discrete distribution of the random assignment. Defaults to
+          `uniform`.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        default: uniform
+        categories:
+          - Assignment
+        condition:
+          language: json
+          body:
+            studyflow:algorithm: probabilistic
+        hidden: false
+    icon: iconify streamline-flex--dice-5-remix
+  - name: Schema
+    description: |
+      A formal description of the structure of a named collection of types.
+      Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
+    superClass:
+      - Element
+    isAbstract: false
+    properties:
+      - name: format
+        description: Schema format identifier (e.g., csvw, linkml, jsonschema).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - Data
+        hidden: false
+      - name: body
+        description: Schema content as a string (e.g., JSON, YAML). This can also be a URL/path to the schema definition.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        categories:
+          - Data
+        hidden: false
+  - name: Dataset
+    description: Base class for all datasets in the Studyflow.
+    extends:
+      - bpmn:DataStoreReference
+    isAbstract: false
+    properties:
+      - name: catalog
+        description: Identifier of the `DataCatalog` that registers this dataset.
+        isAttr: true
+        type: DataCatalog
+        meta:
+          order: 1
+        categories:
+          - Data
+        hidden: false
+      - name: store
+        description: Identifier of the `DataStore` where this dataset is physically stored.
+        isAttr: true
+        type: DataStoreReference
+        meta:
+          order: 2
+        categories:
+          - Data
+        condition:
+          language: json
+          body:
+            studyflow:format: bdm
+        hidden: false
+      - name: schema
+        description: |
+          Path to the schema describing the dataset structure (e.g., CSVW).
+          This can also refer to an optional ontology/vocabulary reference (URL/CURIE) for semantic alignment.
+        isAttr: true
+        type: Schema
+        meta:
+          order: 3
+        categories:
+          - Data
+        hidden: false
+    icon: iconify bi--database
+  - name: DataStore
+    description: |
+      Persistent physical storage of data (database, filesystem, object store, etc.).
+      BPMN `DataStore` can be referenced using `DataStoreReference`.
+    extends:
+      - bpmn:DataStoreReference
+    isAbstract: false
+    properties:
+      - name: format
+        description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+        isAttr: true
+        type: DatasetFormatEnum
+        meta:
+          order: 1
+        default: undefined
+        categories:
+          - Data
+        hidden: false
+      - name: bdmDataLevel
+        description: Level of the data (events, trials, summary, models).
+        isAttr: true
+        type: BDMDataLevelEnum
+        meta:
+          order: 2
+        default: events
+        categories:
+          - Data
+        condition:
+          language: json
+          body:
+            studyflow:format: bdm
+        hidden: false
+      - name: bidsDataType
+        description: BIDS data type (e.g., anat, func, eeg, beh).
+        isAttr: true
+        type: BIDSDataTypeEnum
+        meta:
+          order: 3
+        default: beh
+        categories:
+          - Data
+        condition:
+          language: json
+          body:
+            studyflow:format: bids
+        hidden: false
+  - name: DataObjectReference
+    description: |
+      Represents data produced/consumed within a process instance. Can be used to model
+      internal data nodes in sub-processes and annotate state (e.g., raw/processed).
+    extends:
+      - bpmn:DataObjectReference
+    isAbstract: true
+    properties:
+      - name: state
+        description: Optional state annotation (e.g., raw, processed, validated).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - Data
+        hidden: false
+  - name: DataCatalog
+    description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
+    superClass:
+      - Element
+    isAbstract: true
+    properties:
+      - name: url
+        description: Base URL of the catalog.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - Data
+        hidden: false
+  - name: Array
+    description: |
+      Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
+    superClass:
+      - Element
+    isAbstract: true
+    properties:
+      - name: dataset
+        description: Identifier of the parent `Dataset`.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - Data
+        hidden: false
+      - name: schema
+        description: URL/path/identifier of the array schema (dimensions/types/units).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        categories:
+          - Data
+        hidden: false
+  - name: Snapshot
+    description: |
+      Immutable version of a dataset/table/array associated with a point in the workflow
+      or a version control commit.
+    superClass:
+      - Element
+    isAbstract: true
+    properties:
+      - name: source
+        description: Identifier of the dataset/table/array being snapshotted.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        categories:
+          - Data
+        hidden: false
+      - name: version
+        description: Version identifier (e.g., tag, checksum, commit hash).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        categories:
+          - Data
+        hidden: false

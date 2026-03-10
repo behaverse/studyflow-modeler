@@ -1,5 +1,6 @@
 import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
 import type { Example as ElementExample } from '../moddle/examples';
+import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
 type MenuEntry = {
   id: string;
@@ -23,6 +24,7 @@ type ElementExamplesService = {
 };
 
 const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
+const HIDDEN_CREATE_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
 
 export default class SchemaCreateMenuProvider {
   static $inject = ['popupMenu', 'bpmnFactory', 'elementFactory', 'create'];
@@ -88,28 +90,33 @@ export default class SchemaCreateMenuProvider {
     return pkg.types
       .filter((type: any) => {
         if (type.isAbstract) return false;
-        if (type.name === 'Study') return false;
+        if (HIDDEN_CREATE_TYPES.has(type.name)) return false;
         if (type.meta?.exampleScopedType) return false;
         if (type.superClass && type.superClass.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) {
           return false;
         }
-        if (type.extends?.length) return false;
-        if (!type.meta?.bpmnType) return false;
+        if (!resolveBpmnCreateType(moddle, type)) return false;
         return true;
       })
       .map((type: any) => {
         const extensionType = `${this._schemaPrefix}:${type.name}`;
+        const bpmnType = resolveBpmnCreateType(moddle, type);
+
+        if (!bpmnType) {
+          return null;
+        }
 
         return {
           id: `create-${this._schemaPrefix}-${type.name}`,
           label: type.name,
-          bpmnType: type.meta.bpmnType as string,
+          bpmnType,
           extensionType,
           imageHtml: type.icon
             ? `<span class="${type.icon}" style="font-size: 18px;"></span>`
             : undefined,
         };
-      });
+      })
+      .filter((entry: MenuEntry | null): entry is MenuEntry => entry !== null);
   }
 
   getPopupMenuEntries(_element: any) {

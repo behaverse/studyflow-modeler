@@ -6,7 +6,7 @@ export type DownloadSchemasCommand = {
 };
 
 // TODO fixme use remote schema urls instead of embedding files in the bundle
-const schemaFiles = import.meta.glob('@/assets/schemas/*.linkml.yaml', {
+const schemaFiles = import.meta.glob('@/assets/schemas/*.moddle.yaml', {
   query: '?url',
   import: 'default',
   eager: true,
@@ -17,7 +17,7 @@ export async function runDownloadSchemas(command: DownloadSchemasCommand): Promi
   void command;
 
   for (const schemaName of SCHEMA_NAMES) {
-    const url = schemaFiles[`/assets/schemas/${schemaName}.linkml.yaml`];
+    const url = schemaFiles[`/assets/schemas/${schemaName}.moddle.yaml`];
     if (!url) {
       throw new Error(`Schema not found in bundle: ${schemaName}`);
     }

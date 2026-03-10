@@ -62,8 +62,8 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
                     </div>
                     <div className="p-4">
                         <label className="block text-sm font-medium mb-2">Language</label>
-                        <Select value="LinkML" disabled className="appearance-none p-2 w-full rounded-md border-none text-sm text-black/50 bg-stone-200">
-                            <option value="LinkML">LinkML</option>
+                        <Select value="Moddle YAML" disabled className="appearance-none p-2 w-full rounded-md border-none text-sm text-black/50 bg-stone-200">
+                            <option value="Moddle YAML">Moddle YAML</option>
                         </Select>
                     </div>
                     <div className="p-4">

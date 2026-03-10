@@ -64,7 +64,7 @@ export interface Example {
   iconClass?: string;
   /** Explicit icon override declared directly on the example object */
   overrideIconClass?: string;
-  /** Property values from the LinkML example object */
+  /** Property values from the schema example object */
   exampleProperties?: Record<string, any>;
   /** Optional nested subprocess content normalized from schema examples */
   flowElements?: ExampleFlowElement[];

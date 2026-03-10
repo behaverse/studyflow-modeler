@@ -1,6 +1,9 @@
 
 
 import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
+
+const HIDDEN_APPEND_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
 
 export default class AppendMenuProvider {
 
@@ -22,22 +25,24 @@ export default class AppendMenuProvider {
         this._rules = rules;
 
         var entries = Object.entries(moddle.registry.typeMap).filter(([k,v]) => 
-            !k.includes(":Study")  // Exclude studyflow:Study
+            !HIDDEN_APPEND_TYPES.has(v?.name)
             && !v?.isAbstract      // Exclude abstract types
           && !v?.meta?.exampleScopedType
             && !(v?.superClass?.length === 1 && v.superClass.includes("String"))
-            // Exclude extends-based types (handled by BPMN)
-            && !v?.extends?.length
-            // Must have a BPMN type to be creatable
-            && v?.meta?.bpmnType
+            && resolveBpmnCreateType(moddle, v)
         );
         var elements = [];
         entries.forEach(([k, v]) => {
+          const bpmnType = resolveBpmnCreateType(moddle, v);
+          if (!bpmnType) {
+            return;
+          }
+
           elements.push({
             label: v.name.split(":")[1],
             actionName: k.split(":")[1],
             imageHtml: v.icon ? `<span class="${v.icon}" style="font-size: 18px;"></span>` : '',
-            bpmnType: v.meta.bpmnType,
+            bpmnType,
             studyflowType: k,
           });
         });

@@ -8,7 +8,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "docs": "docusaurus start docs",
-    "docs:schema": "sh -c 'for schema in src/assets/schemas/*.linkml.yaml; do name=$(basename \"$schema\" .linkml.yaml); [ \"$name\" = \"bpmn\" ] && continue; linkml generate doc \"$schema\" -d \"docs/pages/reference/6-generated-schemas/$name/\"; done'",
     "docs:build": "docusaurus build --out-dir ../dist/docs docs",
     "docs:serve": "docusaurus serve --build --dir ../dist/docs docs",
     "docs:swizzle": "docusaurus swizzle @docusaurus/theme-classic SearchBar docs"

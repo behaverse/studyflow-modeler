@@ -1,71 +1,4 @@
-export interface LinkMLSchema {
-  id: string;
-  name: string;
-  title?: string;
-  annotations?: {
-    icon?: string;
-    [key: string]: any;
-  };
-  prefixes: Record<string, string>;
-  imports?: string[];
-  default_range?: string;
-  default_prefix?: string;
-  enums?: Record<string, LinkMLEnum>;
-  types?: Record<string, LinkMLType>;
-  classes?: Record<string, LinkMLClass>;
-  examples?: LinkMLExample[];
-}
-
-export interface LinkMLEnum {
-  description?: string;
-  permissible_values: Record<string, {
-    title?: string;
-    description?: string;
-    annotations?: {
-      icon?: string;
-      [key: string]: any;
-    };
-  }>;
-}
-
-export interface LinkMLType {
-  uri?: string;
-  base?: string;
-  description?: string;
-}
-
-export interface LinkMLExample {
-  /** String representation of the example */
-  value?: string;
-  /** Optional attribute definitions promoted for this example's target type */
-  attributes?: Record<string, LinkMLAttribute>;
-  /** Direct object representation of the example */
-  object?: Record<string, any> & {
-    type?: string;
-    mixins?: string[];
-    flowElements?: Array<Record<string, any>>;
-    attributes?: Record<string, LinkMLAttribute>;
-  };
-  /** Description of what the example is doing */
-  description?: string;
-}
-
-export interface LinkMLClass {
-  abstract?: boolean;
-  is_a?: string;
-  mixins?: string[];
-  exact_mappings?: string[];
-  close_mappings?: string[];
-  class_uri?: string;
-  attributes?: Record<string, LinkMLAttribute>;
-  description?: string;
-  annotations?: {
-    icon?: string;
-    [key: string]: any;
-  };
-}
-
-export interface LinkMLAttribute {
+export interface SchemaAttributeDefinition {
   range?: string;
   identifier?: boolean;
   description?: string;
@@ -97,6 +30,18 @@ export interface LinkMLAttribute {
   comments?: string[];
 }
 
+export interface ModdleExample {
+  value?: string;
+  attributes?: Record<string, SchemaAttributeDefinition>;
+  object?: Record<string, any> & {
+    type?: string;
+    mixins?: string[];
+    flowElements?: Array<Record<string, any>>;
+    attributes?: Record<string, SchemaAttributeDefinition>;
+  };
+  description?: string;
+}
+
 export interface ModdleSchema {
   name: string;
   uri: string;
@@ -108,7 +53,7 @@ export interface ModdleSchema {
   associations: any[];
   enumerations: ModdleEnumeration[];
   types: ModdleType[];
-  examples?: LinkMLExample[];
+  examples?: ModdleExample[];
 }
 
 export interface ModdleEnumeration {
@@ -119,6 +64,8 @@ export interface ModdleEnumeration {
   literalValues: Array<{
     name: string;
     value: string;
+    description?: string;
+    icon?: string;
   }>;
 }
 
@@ -131,7 +78,6 @@ export interface ModdleType {
   properties?: ModdleProperty[];
   icon?: string;
   meta?: {
-    bpmnType?: string;
     [key: string]: any;
   };
 }
@@ -149,6 +95,7 @@ export interface ModdleProperty {
   hidden?: boolean;
   meta?: {
     order?: number;
+    hidden?: boolean;
     [key: string]: any;
   };
   condition?: {

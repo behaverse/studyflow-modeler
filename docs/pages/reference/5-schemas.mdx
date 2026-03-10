@@ -1,49 +1,55 @@
 ---
 title: Schemas
-description: Structure and conventions for Studyflow LinkML schemas
+description: Structure and conventions for Studyflow moddle YAML schemas
 ---
 
-This page documents how Studyflow uses LinkML as the authoring format for schema definitions.
+This page documents how Studyflow uses direct moddle YAML as the authoring format for schema definitions.
 
 ## Core structure
 
-Studyflow LinkML files follow this top-level layout:
+Studyflow moddle YAML files follow this top-level layout:
 
 ```yaml
-id: http://behaverse.org/schemas/studyflow
-name: studyflow
-prefixes:
-  studyflow: http://behaverse.org/schemas/studyflow/
-default_prefix: studyflow
-enums: {}
-types: {}
-classes: {}
+name: Studyflow Schema
+uri: http://behaverse.org/schemas/studyflow
+prefix: studyflow
+xml:
+  tagAlias: lowerCase
+associations: []
+enumerations: []
+types: []
+examples: []
 ```
 
-## Classes and attributes
+## Types and properties
 
-Each class defines a domain element and their attributes. For example:
+Each moddle type defines a domain element plus the properties shown in the modeler. For example:
 
 ```yaml
-classes:
-  StartEvent:
-    class_uri: bpmn:StartEvent
-    attributes:
-      requiresConsent:
-        range: boolean
-        ifabsent: "false"
+types:
+  - name: StartEvent
+    superClass:
+      - Element
+    meta:
+      bpmnType: bpmn:StartEvent
+    properties:
+      - name: requiresConsent
+        type: Boolean
+        isAttr: true
+        default: false
         categories: [Privacy]
 ```
 
 ## Extensions
 
-`extensions.moddle` is used to control moddle-specific behavior for a property.
+Property entries carry moddle behavior directly.
 
 - `redefines`
 - `replaces`
 - `default`
+- `isMany`
 
-`extensions.studyflow` is used for modeler/UI behavior.
+Studyflow-specific modeler behavior is also stored directly on the property.
 
 - `hidden`
 - `condition.language`
@@ -83,7 +89,7 @@ examples:
         - bpmn:SubProcess
 ```
 
-- Use `mixins` for example-time composition, not for defining reusable schema inheritance. Schema inheritance still belongs on classes via `is_a` and class-level `mixins`.
+- Use `mixins` for example-time composition, not for defining reusable schema inheritance. Reusable schema inheritance belongs on `types[].superClass`.
 
 ### Nested subprocess flow elements
 
@@ -116,7 +122,7 @@ examples:
 ```
 
 
-Examples may declare promoted attributes explicitly using LinkML-style `attributes:` definitions.
+Examples may declare promoted attributes explicitly using schema `attributes:` definitions.
 
 ```yaml
 examples:
@@ -137,7 +143,8 @@ If the same example also includes undeclared scalar properties such as `param1: 
 
 ## Common mistakes
 
-- Prefix mismatch: class or type references using the wrong prefix (for example `studyflow:` vs local names).
-- Missing `range`: attributes without range default to string-like behavior and may produce unintended interfaces.
-- Invalid extension shape: malformed `extensions.studyflow.condition.body` JSON disables conditional visibility.
+- Prefix mismatch: type references using the wrong prefix (for example `studyflow:` vs local names).
+- Missing `type`: moddle properties without a type often fall back to string-like behavior and may produce unintended interfaces.
+- Incorrect BPMN mapping: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
+- Invalid condition shape: malformed `condition.body` JSON disables conditional visibility.
 - Incorrect `redefines` owner: invalid targets are dropped.

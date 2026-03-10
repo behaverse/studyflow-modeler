@@ -19,7 +19,7 @@ export function isPropertyVisible(bProp, bObjOrExt) {
     if (!bProp || !bObjOrExt) {
         return true;
     }
-    if (bProp.hidden) {
+    if (bProp.meta?.hidden ?? bProp.hidden) {
         return false;
     }
     if (!("condition" in bProp)) {

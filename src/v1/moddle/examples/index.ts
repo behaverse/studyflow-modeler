@@ -4,7 +4,7 @@
  * Provides the `elementTemplates` DI service expected by
  * CreateAppendElementTemplatesModule from bpmn-js-create-append-anything.
  *
- * Examples are built from LinkML schema `examples:` metadata.
+ * Examples are built from schema-level `examples:` metadata.
  */
 
 import Examples from './Examples';

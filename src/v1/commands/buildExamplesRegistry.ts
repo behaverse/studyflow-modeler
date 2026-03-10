@@ -4,6 +4,7 @@ import type {
   ExampleFlowElement,
   ExampleFlowNode,
 } from '../moddle/examples/types';
+import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
 export type BuildExamplesRegistryCommand = {
   type: 'build-examples-registry';
@@ -69,10 +70,9 @@ export function runBuildExamplesRegistry(
       const typeDescriptor = typeMap[qualifiedName];
       if (!typeDescriptor) continue;
       if (typeDescriptor.isAbstract) continue;
-      if (typeDescriptor.extends?.length && !typeDescriptor.meta?.exampleScopedType) continue;
 
       const bpmnType: string | undefined =
-        mixinData.bpmnTypeOverride ?? typeDescriptor.meta?.bpmnType;
+        mixinData.bpmnTypeOverride ?? resolveBpmnCreateType(moddle, typeDescriptor) ?? undefined;
       if (!bpmnType) continue;
 
       const iconClass: string | undefined = mergedObject.icon ?? typeDescriptor.icon;
@@ -199,7 +199,7 @@ function resolveSchemaTypeDescriptor(
     return null;
   }
 
-  if (typeDescriptor.isAbstract || typeDescriptor.extends?.length) {
+  if (typeDescriptor.isAbstract) {
     return null;
   }
 
@@ -241,7 +241,7 @@ function normalizeFlowNode(
 
     studyflowType = resolved.qualifiedName;
     typeDescriptor = resolved.typeDescriptor;
-    bpmnType = mixinData.bpmnTypeOverride ?? resolved.typeDescriptor.meta?.bpmnType;
+    bpmnType = mixinData.bpmnTypeOverride ?? resolveBpmnCreateType(moddle, resolved.typeDescriptor) ?? undefined;
   }
 
   if (!bpmnType) {

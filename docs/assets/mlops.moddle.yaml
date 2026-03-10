@@ -1,0 +1,945 @@
+name: mlops
+uri: https://w3id.org/mlops
+prefix: mlops
+xml:
+  tagAlias: lowerCase
+associations: []
+enumerations: []
+types:
+  - name: Element
+    superClass:
+      - Element
+    isAbstract: true
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+  - name: StartEvent
+    superClass:
+      - Element
+    meta:
+      bpmnType: bpmn:StartEvent
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+      - name: requiresConsent
+        description: Unique identifier for the activity
+        isAttr: true
+        type: Boolean
+        meta:
+          order: 2
+        hidden: false
+      - name: consentFormUri
+        description: Link to the consent form. Leave empty if you want to use the default consent form.
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+        hidden: false
+  - name: EndEvent
+    superClass:
+      - Element
+    meta:
+      bpmnType: bpmn:EndEvent
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+      - name: hasRedirectUrl
+        description: Redirects the user to the given URL after completion.
+        isAttr: true
+        type: Boolean
+        meta:
+          order: 2
+        hidden: false
+      - name: redirectTo
+        description: Link to redirect the user upon completion.
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+        hidden: false
+  - name: Activity
+    superClass:
+      - Element
+    isAbstract: true
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:Element#name
+      - name: url
+        description: URL to the activity
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        hidden: false
+  - name: CognitiveTest
+    superClass:
+      - Activity
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:Activity#name
+      - name: url
+        description: URL to the activity
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        hidden: false
+        redefines: mlops:Activity#url
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 3
+        hidden: false
+      - name: instrument
+        description: The instrument used for the test.
+        isAttr: true
+        type: InstrumentEnum
+        meta:
+          order: 4
+        hidden: false
+      - name: behaverseTask
+        description: Behaverse instrument used for the test.
+        isAttr: true
+        type: BehaverseTaskEnum
+        meta:
+          order: 5
+        hidden: false
+  - name: Questionnaire
+    superClass:
+      - Activity
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:Activity#name
+      - name: url
+        description: URL to the activity
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        hidden: false
+        redefines: mlops:Activity#url
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 3
+        hidden: false
+  - name: Instruction
+    superClass:
+      - Questionnaire
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:Questionnaire#name
+      - name: url
+        description: URL to the activity
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+        hidden: false
+        redefines: mlops:Questionnaire#url
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 3
+        hidden: false
+        redefines: mlops:Questionnaire#description
+      - name: text
+        description: Instruction text in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 4
+        hidden: false
+  - name: RandomGateway
+    superClass:
+      - Element
+    meta:
+      bpmnType: bpmn:ExclusiveGateway
+    properties:
+      - name: name
+        description: Human-readable name of the activity.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:Element#name
+      - name: algorithm
+        description: Algorithm used for the assignment.
+        isAttr: true
+        type: AssignmentAlgorithmEnum
+        meta:
+          order: 2
+        hidden: false
+      - name: probabilityFunction
+        description: >-
+          Probability mass function that defines the discrete distribution of the random assignment. Defaults to
+          `uniform`.
+        isAttr: true
+        type: ProbabilityDistributionEnum
+        meta:
+          order: 3
+        hidden: false
+  - name: DesignExperiment
+    description: Design the experiment.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: CollectData
+    description: Collect data from human or machine agents.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: ValidateData
+    description: Validate the data.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: TransformData
+    description: Transform the data into a different format.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: MapData
+    description: Apply a function to each element in a data stream.
+    superClass:
+      - TransformData
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformData#description
+  - name: ReduceData
+    description: Reduce a data stream to a single value.
+    superClass:
+      - TransformData
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformData#description
+  - name: FilterData
+    description: >-
+      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are
+      removed.
+    superClass:
+      - TransformData
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformData#description
+  - name: TransformTable
+    description: Specific type of data transformation for a 2D table.
+    superClass:
+      - TransformData
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformData#description
+  - name: TransformTables
+    description: Data transformation for two or more tables.
+    superClass:
+      - TransformData
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformData#description
+  - name: ArrangeRows
+    description: Re-order the rows of a table using the values of specified columns.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: CountRows
+    description: Summarize data with the number of rows for each grouping of data.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: DistinctRows
+    description: Keep only distinct (unique) rows from a table.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: FilterRows
+    description: Keep rows where conditions are true.
+    superClass:
+      - Element
+  - name: MutateTable
+    description: Assign new variables to a DataFrame, while keeping existing ones.
+    superClass:
+      - Element
+  - name: TransmuteTable
+    description: Assign new columns to a DataFrame, while dropping previous columns.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: RenameColumns
+    description: Rename columns of a table.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: SelectColumns
+    description: Select columns of a table to keep or drop (and optionally rename).
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: SummarizeTable
+    description: >-
+      Assign variables that are single number summaries of a DataFrame. Grouped DataFrames will produce one row for each
+      group. Otherwise, summarize produces a DataFrame with a single row.
+    superClass:
+      - Element
+  - name: GroupByTable
+    description: Return a grouped table, using columns or expressions to define groups.
+    superClass:
+      - Element
+  - name: UngroupTable
+    description: Return an ungrouped table.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: PivotTable
+    description: Pivot table from long to wide format, summarizing values.
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: JoinTables
+    description: Join two tables together, by matching on specified columns.
+    superClass:
+      - TransformTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTables#description
+  - name: LeftJoinTables
+    description: Join two tables, returns only unmatched rows from the left table, as well as matched rows in both tables.
+    superClass:
+      - TransformTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTables#description
+  - name: InnerJoinTables
+    description: Join two tables, and keep only the rows that are present in both tables.
+    superClass:
+      - TransformTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTables#description
+  - name: FullOuterJoinTables
+    description: Join two tables, and keep all rows from both tables.
+    superClass:
+      - TransformTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTables#description
+  - name: FullJoinTables
+    description: Same as FullOuterJoinTables.
+    superClass:
+      - FullOuterJoinTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:FullOuterJoinTables#description
+  - name: AntiJoinTables
+    description: Return the left table with every row that would not be kept in an inner join.
+    superClass:
+      - TransformTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTables#description
+  - name: SemiJoinTables
+    description: Return the left table with every row that would be kept in an inner join.
+    superClass:
+      - TransformTables
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTables#description
+  - name: NormalizeTable
+    description: Normalize a table to *NF (normal forms).
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: TidyTable
+    description: Transform a table to a tidy format (Codd's 3NF).
+    superClass:
+      - TransformTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TransformTable#description
+  - name: CompleteTable
+    description: Complete a table by adding rows, adding columns, and fill missing values.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: ExtractColumns
+    description: Pull out columns from character strings.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: GatherColumns
+    description: Reshape table by gathering it in to long format.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: SpreadColumns
+    description: Reshape table by spreading it out to wide format.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: PivotWideToLong
+    description: Pivot table from wide to long format, stacking columns, turning them into rows.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: PivotLongToWide
+    description: Pivot table from long to wide format.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: SeparateColumn
+    description: Split col into pieces. Return table with a column added for each piece.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: UniteColumns
+    description: Combine multiple columns into a single column. Return table that column included.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: NestColumns
+    description: Nest columns within a table.
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: UnnestColumns
+    description: Unnest a column holding nested data (e.g. Series of lists or tables).
+    superClass:
+      - TidyTable
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TidyTable#description
+  - name: TrainModel
+    description: Train a statistical or ML model using the data.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: FineTuneModel
+    description: Fine-tune a model using the data.
+    superClass:
+      - TrainModel
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:TrainModel#description
+  - name: EvaluateModel
+    description: Evaluate the model using metrics and data.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: BenchmarkModel
+    description: Benchmark the model using pre-defined metrics and evaluation data.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: VersionData
+    description: Version the data using a version control system.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: VersionModel
+    description: Version the model using a version control system.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: DeployModel
+    description: Deploy the model to a production environment.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
+  - name: DeployModelToHuggingFace
+    description: Deploy the model to HuggingFace.
+    superClass:
+      - VersionModel
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:VersionModel#description
+  - name: DeployDataToHuggingFace
+    description: Deploy the data to HuggingFace.
+    superClass:
+      - VersionData
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:VersionData#description
+  - name: MonitorModel
+    description: Monitor the model in production.
+    superClass:
+      - StudyStep
+    meta:
+      bpmnType: bpmn:Task
+    properties:
+      - name: description
+        description: Human-readable description of the study step in markdown format.
+        isAttr: true
+        type: MarkdownString
+        meta:
+          order: 1
+        hidden: false
+        redefines: mlops:StudyStep#description
