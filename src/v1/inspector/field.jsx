@@ -31,7 +31,6 @@ export function isPropertyVisible(bProp, el) {
     const conditions = bProp.meta?.condition?.body || {};
     const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
         const cVal = bo.get(cKey);
-        console.log(`Condition:`, bo, cKey, cVal);
         if (Array.isArray(cExpectedVal)) {
             return cExpectedVal.includes(cVal);
         }

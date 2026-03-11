@@ -1,4 +1,4 @@
-import { is } from "bpmn-js/lib/util/ModelUtil";
+import { getBusinessObject, is } from "bpmn-js/lib/util/ModelUtil";
 import { getExtensionElement } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
@@ -7,8 +7,7 @@ import { drawIcon, removeDefaultMarkers } from './utils';
  * Draw bottom-of-task markers (subprocess, loop, parallel, etc.).
  */
 export function drawMarkers(parentNode, element) {
-  const businessObject = element.businessObject;
-  const ext = getExtensionElement(element);
+  const ext = getExtensionElement(element) ?? getBusinessObject(element);
   let markers = [];
   removeDefaultMarkers(parentNode);
 
@@ -16,7 +15,7 @@ export function drawMarkers(parentNode, element) {
     markers.push("operation");
   }
 
-  const checklist = ext?.get("checklist") || businessObject.get("checklist");
+  const checklist = ext?.get("checklist");
   if (checklist?.length > 0) {
     markers.push("checklist");
   }
@@ -31,11 +30,11 @@ export function drawMarkers(parentNode, element) {
     markers.push("adhoc");
   }
 
-  if (businessObject.get('isForCompensation')) {
+  if (ext.get('isForCompensation')) {
     markers.push("compensation");
   }
 
-  const loopCharacteristics = businessObject.get('loopCharacteristics');
+  const loopCharacteristics = ext.get('loopCharacteristics');
   if (loopCharacteristics) {
     if (loopCharacteristics.get('isSequential') === true) {
       markers.push("sequential");
