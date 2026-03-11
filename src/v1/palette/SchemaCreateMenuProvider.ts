@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
 import type { Example as ElementExample } from '../moddle/examples';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
@@ -24,7 +25,7 @@ type ElementExamplesService = {
 };
 
 const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
-const HIDDEN_CREATE_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
+const HIDDEN_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
 
 export default class SchemaCreateMenuProvider {
   static $inject = ['popupMenu', 'bpmnFactory', 'elementFactory', 'create'];
@@ -89,13 +90,8 @@ export default class SchemaCreateMenuProvider {
 
     return pkg.types
       .filter((type: any) => {
-        if (type.isAbstract) return false;
-        if (HIDDEN_CREATE_TYPES.has(type.name)) return false;
-        if (type.meta?.exampleScopedType) return false;
-        if (type.superClass && type.superClass.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) {
-          return false;
-        }
-        if (!resolveBpmnCreateType(moddle, type)) return false;
+        if (type.isAbstract || HIDDEN_TYPES.has(type.name)) return false;
+        if (type.superClass?.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) return false;
         return true;
       })
       .map((type: any) => {
@@ -121,7 +117,6 @@ export default class SchemaCreateMenuProvider {
 
   getPopupMenuEntries(_element: any) {
     const entries: Record<string, any> = {};
-    const schemaName = this._schemaPrefix.charAt(0).toUpperCase() + this._schemaPrefix.slice(1);
 
     this._entries.forEach((opt) => {
       entries[opt.id] = {

@@ -15,35 +15,26 @@ types:
       - name: isDataOperation
         isAttr: true
         type: String
-        meta:
-          order: 1
-          hidden: true
         default: true
+        redefines: studyflow:Activity#isDataOperation
+        meta:
+          hidden: true
       - name: operationType
         isAttr: true
+        default: transform
+        redefines: studyflow:Activity#operationType
         type: String
         meta:
-          order: 2
           hidden: true
-        default: transform
   - name: MapData
     description: Map a function over a data stream, producing a new data stream.
     superClass:
       - TransformData
     properties:
-      - name: isDataOperation
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          hidden: true
-        default: true
-        redefines: omniflow:TransformData#isDataOperation
       - name: operationType
         isAttr: true
         type: String
         meta:
-          order: 2
           hidden: true
         default: map
         redefines: omniflow:TransformData#operationType

@@ -276,7 +276,7 @@ types:
           condition:
             language: json
             body:
-              operation: compose
+              operationType: compose
   - name: CognitiveTask
     superClass:
       - bpmn:Task
