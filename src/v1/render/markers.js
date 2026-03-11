@@ -12,7 +12,7 @@ export function drawMarkers(parentNode, element) {
   let markers = [];
   removeDefaultMarkers(parentNode);
 
-  if (businessObject.get("isDataOperation")) {
+  if (ext.get("studyflow:isDataOperation")) {
     markers.push("operation");
   }
 

@@ -3,28 +3,18 @@ import { Checkbox, Label, Popover, PopoverButton, PopoverPanel } from '@headless
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
+import { getExtensionElement } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 
 export function BooleanInput(props) {
     const { bpmnProperty } = props;
-    const { element, businessObject } = useContext(InspectorContext);
-    const name = bpmnProperty.ns.name;
-    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
-
-    // extends-based props (e.g., isDataOperation) live on the BO even though they
-    // have a studyflow: prefix – only use the extension element for wrapper-only props
-    const isExtendsProp = businessObject.$descriptor.properties.some(
-        (p) => p === bpmnProperty
-    );
-    const ext = (isSchemaProp && !isExtendsProp) ? getExtensionElement(element) : null;
-    const useExt = isSchemaProp && !isExtendsProp && !!ext;
-    const [value, setValue] = useState(
-        useExt ? (ext.get(name) || false) : (businessObject.get(name) || false)
-    );
-
     const { modeler } = useContext(ModelerContext);
+    const { element, businessObject } = useContext(InspectorContext);
+    const ext = getExtensionElement(element);
+
+    const name = bpmnProperty.ns.name;
+    const [value, setValue] = useState(ext.get(name) ?? businessObject.get(name) ?? false);
 
     function handleChange(checked) {
         setValue(checked);
@@ -32,8 +22,7 @@ export function BooleanInput(props) {
             type: 'inspector-update-property',
             element,
             propertyName: name,
-            value: checked,
-            useExtension: useExt,
+            value: checked
         });
     }
 

@@ -5,7 +5,6 @@ export type InspectorUpdatePropertyCommand = {
   element: any;
   propertyName: string;
   value: any;
-  useExtension: boolean;
 };
 
 export function runInspectorUpdateProperty(
@@ -16,7 +15,7 @@ export function runInspectorUpdateProperty(
     throw new Error("Command 'inspector-update-property' requires a modeler instance.");
   }
 
-  if (command.useExtension) {
+  if (command.propertyName !== 'bpmn:id') {
     const modeling = context.modeler.get('modeling');
     const bo = command.element?.businessObject ?? command.element;
     const values = bo?.extensionElements?.values ?? [];
