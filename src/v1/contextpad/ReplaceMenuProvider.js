@@ -1,4 +1,4 @@
-import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from '../commands';
 import { getExtensionElement } from '../extensionElements';
 
@@ -31,7 +31,7 @@ export default class ReplaceMenuProvider {
 
   _getOperationMarkerHeaderEntry(element) {
     const self = this;
-    const ext = getExtensionElement(element);
+    const ext = getExtensionElement(element) ?? getBusinessObject(element);
 
     function toggleDataOperation(event, entry) {
       const currentState = !!ext.get('isDataOperation');

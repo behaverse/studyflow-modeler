@@ -29,7 +29,7 @@ export function isExtensionPrefix(prefix: string | undefined): boolean {
  * Returns the first studyflow-namespaced extension element found, or null.
  */
 export function getExtensionElement(element: any): any {
-  const bo = element?.businessObject ?? element;
+  const bo = getBusinessObject(element);
   const values = bo?.extensionElements?.values;
   if (!values) return null;
 

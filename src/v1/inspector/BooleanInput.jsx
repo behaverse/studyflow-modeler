@@ -5,16 +5,17 @@ import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getExtensionElement } from '../extensionElements';
 import { executeCommand } from '../commands';
+import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
 
 export function BooleanInput(props) {
     const { bpmnProperty } = props;
     const { modeler } = useContext(ModelerContext);
-    const { element, businessObject } = useContext(InspectorContext);
-    const ext = getExtensionElement(element);
+    const { element } = useContext(InspectorContext);
+    const ext = getExtensionElement(element) ?? getBusinessObject(element);
 
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(ext.get(name) ?? businessObject.get(name) ?? false);
+    const [value, setValue] = useState(ext.get(name));
 
     function handleChange(checked) {
         setValue(checked);
