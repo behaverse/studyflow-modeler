@@ -43,10 +43,8 @@ import type { CreateModelerCommand } from './createModeler';
 import { runCreateModeler } from './createModeler';
 import type { ImportXmlCommand } from './importXml';
 import { runImportXml } from './importXml';
-import type { UpdatePropertiesCommand } from './updateProperties';
-import { runUpdateProperties } from './updateProperties';
-import type { UpdateExtensionPropertyCommand } from './updateExtensionProperty';
-import { runUpdateExtensionProperty } from './updateExtensionProperty';
+import type { UpdatePropertyCommand } from './updateProperty';
+import { runUpdateProperty } from './updateProperty';
 import type { UpdateModdlePropertiesCommand } from './updateModdleProperties';
 import { runUpdateModdleProperties } from './updateModdleProperties';
 import type { CreateShapeCommand } from './createShape';
@@ -156,12 +154,8 @@ export async function executeCommand(
     case 'import-xml':
       return runImportXml(context, command);
 
-    case 'update-properties':
-      runUpdateProperties(context, command);
-      return undefined;
-
-    case 'update-extension-property':
-      runUpdateExtensionProperty(context, command);
+    case 'update-property':
+      runUpdateProperty(context, command);
       return undefined;
 
     case 'update-moddle-properties':

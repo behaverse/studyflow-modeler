@@ -22,7 +22,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
         const newValue = event.target.value;
         setValue(newValue);
         executeCommand(modeler, {
-            type: 'update-extension-property',
+            type: 'update-property',
             element,
             propertyName: bpmnProperty?.ns.name,
             value: newValue,
@@ -41,7 +41,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
     function saveModal() {
         setValue(modalValue);
         executeCommand(modeler, {
-            type: 'update-extension-property',
+            type: 'update-property',
             element,
             propertyName: bpmnProperty?.ns.name,
             value: modalValue,

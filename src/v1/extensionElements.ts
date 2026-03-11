@@ -60,7 +60,7 @@ export function setExtensionProperty(
   modeling: any
 ): void {
   executeCommand(modeling, {
-    type: 'update-extension-property',
+    type: 'update-property',
     element,
     propertyName,
     value,
