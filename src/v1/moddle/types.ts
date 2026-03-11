@@ -1,50 +1,5 @@
-export interface SchemaAttributeDefinition {
-  range?: string;
-  identifier?: boolean;
-  description?: string;
-  required?: boolean;
-  multivalued?: boolean;
-  ifabsent?: string | boolean;
-  categories?: string[];
-  annotations?: {
-    [key: string]: any;
-  };
-  extensions?: {
-    moddle?: {
-      redefines?: string;
-      replaces?: string;
-      default?: string | boolean | number;
-      [key: string]: any;
-    };
-    studyflow?: {
-      hidden?: boolean;
-      condition?: {
-        language?: string;
-        body?: string;
-        [key: string]: any;
-      };
-      [key: string]: any;
-    };
-    [key: string]: any;
-  };
-  comments?: string[];
-}
-
-export interface ModdleExample {
-  value?: string;
-  attributes?: Record<string, SchemaAttributeDefinition>;
-  object?: Record<string, any> & {
-    type?: string;
-    mixins?: string[];
-    flowElements?: Array<Record<string, any>>;
-    attributes?: Record<string, SchemaAttributeDefinition>;
-  };
-  description?: string;
-}
-
 export interface ModdleSchema {
   name: string;
-  uri: string;
   prefix: string;
   icon?: string;
   xml: {
@@ -54,6 +9,15 @@ export interface ModdleSchema {
   enumerations: ModdleEnumeration[];
   types: ModdleType[];
   examples?: ModdleExample[];
+}
+
+export interface ModdleExample {
+  description?: string;
+  object?: Record<string, any> & {
+    type?: string;
+    mixins?: string[];
+    flowElements?: Array<Record<string, any>>;
+  };
 }
 
 export interface ModdleEnumeration {
@@ -84,16 +48,16 @@ export interface ModdleType {
 
 export interface ModdleProperty {
   name: string;
+  type?: string;
   description?: string;
   isAttr: boolean;
-  type?: string;
+  isBody?: boolean;
   default?: any;
   isMany?: boolean;
   redefines?: string;
   replaces?: string;
-  categories?: string[];
-  hidden?: boolean;
   meta?: {
+    categories?: string[];
     order?: number;
     hidden?: boolean;
     [key: string]: any;

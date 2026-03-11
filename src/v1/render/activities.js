@@ -36,11 +36,11 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
 
     if (instrument === "behaverse" && !preservePrimaryIcon) {
       const rawMarker =
-        ext.get("behaverseTask")
-        || ext.get(schemaName("behaverseTask"))
-        || ext.get("scene")
-        || ext.get(schemaName("scene"));
-      iconMarker = rawMarker?.toUpperCase();
+        ext.get("scene")
+        || ext.get(schemaName("scene"))
+        || ext.get("behaverseTask")
+        || ext.get(schemaName("behaverseTask"));
+      iconMarker = typeof rawMarker === "string" ? rawMarker.toUpperCase() : undefined;
       if (iconMarker === "UNDEFINED") {
         iconMarker = undefined;
       }

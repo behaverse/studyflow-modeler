@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
 name: Studyflow Schema
 uri: http://behaverse.org/schemas/studyflow
 prefix: studyflow
@@ -126,30 +128,26 @@ types:
     superClass:
       - String
   - name: BaseElement
-    description: Base class for all elements in the Studyflow.
+    description: Extends BPMN's BaseElement to include common properties of the Studyflow.
     extends:
       - bpmn:BaseElement
     isAbstract: true
     properties:
       - name: documentation
-        description: Optional human-readable description for the element (or link to a detailed description).
+        description: Human-readable description for the element (or link to a detailed description).
+        redefines: bpmn:BaseElement#documentation
         isAttr: true
         type: MarkdownString
         meta:
-          order: 1
-        categories:
-          - Documentation
-        redefines: bpmn:BaseElement#documentation
-        hidden: false
+          categories:
+            - Documentation
       - name: checklist
         description: List of items to be checked off when completing the element, formatted in markdown.
         isAttr: true
         type: MarkdownString
         meta:
-          order: 2
-        categories:
-          - Documentation
-        hidden: false
+          categories:
+            - Documentation
   - name: Checklist
     description: A checklist for the element.
     superClass:
@@ -170,234 +168,211 @@ types:
     description: Process definition for a Studyflow study.
     extends:
       - bpmn:Process
-    icon: iconify bi--journal-text
   - name: StartEvent
     extends:
       - bpmn:StartEvent
+    meta:
+      icon: iconify bpmn--start-event
     properties:
       - name: requiresConsent
         description: User requires to give consent before participating.
         isAttr: true
         type: Boolean
-        meta:
-          order: 1
         default: false
-        categories:
-          - Privacy
-        hidden: false
+        meta:
+          categories:
+            - Privacy
+          hidden: false
       - name: consentFormUri
         description: Link to the consent form. Leave empty if you want to use the default consent form.
         isAttr: true
         type: String
         meta:
-          order: 2
-        categories:
-          - Privacy
-        condition:
-          language: json
-          body:
-            studyflow:requiresConsent: true
-        hidden: false
-    icon: iconify bpmn--start-event
+          hidden: false
+          categories:
+            - Privacy
+          condition:
+            language: json
+            body:
+              studyflow:requiresConsent: true
   - name: SequenceFlow
     extends:
       - bpmn:SequenceFlow
     properties:
       - name: conditionExpression
-        description: >-
-          Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in
-          expression type.
+        description: |
+          Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in expression type.
         isAttr: true
         type: bpmn:Expression
-        meta:
-          order: 1
-        categories:
-          - Control
         redefines: bpmn:SequenceFlow#conditionExpression
-        hidden: false
+        meta:
+          categories:
+            - Control
+          hidden: false
   - name: EndEvent
     extends:
       - bpmn:EndEvent
+    meta:
+      icon: iconify bpmn--end-event
     properties:
       - name: hasRedirectUrl
         description: Redirect the user to the given URL after completion.
         isAttr: true
         type: Boolean
         meta:
-          order: 1
-        categories:
-          - Completion
-        hidden: false
+          categories:
+            - Completion
       - name: redirectTo
         description: Link to redirect the user upon completion.
         isAttr: true
         type: String
         meta:
-          order: 2
-        categories:
-          - Completion
-        condition:
-          language: json
-          body:
-            studyflow:hasRedirectUrl: true
-        hidden: false
-    icon: iconify bpmn--end-event
+          categories:
+            - Completion
+          condition:
+            language: json
+            body:
+              studyflow:hasRedirectUrl: true
   - name: Activity
     description: Base class for all the activities in the Studyflow.
-    superClass:
-      - Element
+    extends:
+      - bpmn:Activity
     isAbstract: true
+    meta:
+      icon: iconify bpmn--task-none
     properties:
       - name: uri
         description: Link to the activity.
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - General
-        hidden: false
+          categories:
+            - General
       - name: isDataOperation
-        description: Toggle marker indicating the activity is a data operation.
+        description: Marker indicating the activity is a data operation.
         isAttr: true
         type: Boolean
-        meta:
-          order: 2
         default: false
-        categories:
-          - Data
-        hidden: false
+        meta:
+          categories:
+            - Data
       - name: operationType
-        description: Optional data operation marker for a data transformation task.
+        description: Optional data operation marker for a data task.
         isAttr: true
         type: DataOperationTypeEnum
         meta:
-          order: 3
-        categories:
-          - Data
-        condition:
-          language: json
-          body:
-            studyflow:isDataOperation: true
-        hidden: false
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              studyflow:isDataOperation: true
       - name: operationSteps
-        description: Operator pipeline steps when operator is `compose`.
+        description: Operator pipeline steps for compose operations.
         isAttr: true
         type: MarkdownString
-        meta:
-          order: 4
         isMany: true
-        categories:
-          - Data
-        condition:
-          language: json
-          body:
-            studyflow:operation: compose
-        hidden: false
-    icon: iconify bpmn--task-none
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              studyflow:operation: compose
   - name: CognitiveTask
     superClass:
-      - Activity
       - bpmn:Task
+    meta:
+      icon: iconify bi--puzzle
     properties:
       - name: instrument
-        description: Instrument used for the test.
+        description: Instrument used for the task (e.g., video game, rest). This can be an identifier for standardized instruments or a custom name for non-standardized ones.
         isAttr: true
         type: InstrumentEnum
-        meta:
-          order: 1
         default: undefined
-        categories:
-          - Instrument
-        hidden: false
+        meta:
+          categories:
+            - Instrument
       - name: parameters
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         isAttr: true
         type: YAMLString
         meta:
-          order: 2
-        categories:
-          - Instrument
-        hidden: false
+          categories:
+            - Instrument
       - name: isDataOperation
+        redefines: Activity#isDataOperation
+        default: false
         isAttr: true
         type: String
         meta:
-          order: 3
-        default: false
-        hidden: true
-        redefines: studyflow:Activity#isDataOperation
-    icon: iconify bi--puzzle
+          comment: CognitiveTask is not a data operation.
+          hidden: true
   - name: Questionnaire
     superClass:
-      - Activity
       - bpmn:Task
+    meta:
+      icon: iconify fluent--clipboard-text-edit-32-regular
     properties:
       - name: instrument
-        description: >
-          Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g.,
-          PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
+        description: |
+          Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g., PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - Instrument
-        hidden: false
-    icon: iconify fluent--clipboard-text-edit-32-regular
+          categories:
+            - Instrument
   - name: Instruction
     description: A passive information display.
     superClass:
       - Questionnaire
+    meta:
+      icon: iconify material-symbols--info-outline-rounded
     properties:
       - name: content
         description: Instruction content in markdown format.
         isAttr: true
         type: MarkdownString
         meta:
-          order: 1
-        categories:
-          - Content
-        hidden: false
-    icon: iconify material-symbols--info-outline-rounded
+          categories:
+            - Content
   - name: RandomGateway
-    extends:
+    superClass:
       - bpmn:ExclusiveGateway
+    meta:
+      icon: iconify streamline-flex--dice-5-remix
     properties:
       - name: algorithm
         description: Algorithm used for the assignment.
         isAttr: true
         type: AssignmentAlgorithmEnum
-        meta:
-          order: 1
         default: probabilistic
-        categories:
-          - Assignment
-        hidden: false
+        meta:
+          categories:
+            - Assignment
       - name: probabilityFunction
-        description: >-
-          Probability mass function that defines the discrete distribution of the random assignment. Defaults to
-          `uniform`.
+        description: |
+          Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
         isAttr: true
         type: String
-        meta:
-          order: 2
         default: uniform
-        categories:
-          - Assignment
-        condition:
-          language: json
-          body:
-            studyflow:algorithm: probabilistic
-        hidden: false
-    icon: iconify streamline-flex--dice-5-remix
+        meta:
+          categories:
+            - Assignment
+          condition:
+            language: json
+            body:
+              studyflow:algorithm: probabilistic
+
+
+
+#/////////
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.
       Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
     superClass:
-      - Element
-    isAbstract: false
+      - bpmn:DataObjectReference
     properties:
       - name: format
         description: Schema format identifier (e.g., csvw, linkml, jsonschema).
@@ -460,10 +435,9 @@ types:
   - name: DataStore
     description: |
       Persistent physical storage of data (database, filesystem, object store, etc.).
-      BPMN `DataStore` can be referenced using `DataStoreReference`.
+      `DataStore` can be referenced using `DataStoreReference`.
     extends:
       - bpmn:DataStoreReference
-    isAbstract: false
     properties:
       - name: format
         description: Format of the dataset (BDM, BIDS, Psych-DS, etc).

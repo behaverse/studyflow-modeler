@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+<bpmn2:definitions xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
   <bpmn2:process id="Study_1" isExecutable="false">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements><studyflow:cognitiveTest id="CognitiveTest_1wfxwob" name="Cognitive Test" type="studyflow:CognitiveTest">
       <bpmn2:incoming>Flow_0t25gsx</bpmn2:incoming>
@@ -19,21 +19,21 @@
     <studyflow:cognitiveTest id="Activity_0kov43v" name="Rest" instrument="rest">
       <bpmn2:incoming>Flow_1uby65v</bpmn2:incoming>
     </studyflow:cognitiveTest>
-    <studyflow:cognitiveTest id="Activity_1yrc7zh" name="Behaverse Test&#10;(Generic)" instrument="behaverse">
+    <behaverse:behaverseTask id="Activity_1yrc7zh" name="Behaverse Test&#10;(Generic)" instrument="behaverse">
       <bpmn2:incoming>Flow_179ufev</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1h590ia</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_1m2gbjk</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_1qdmact</bpmn2:outgoing>
-    </studyflow:cognitiveTest>
-    <studyflow:cognitiveTest id="Activity_07qsdel" name="Behaverse&#10;N-Back Test" instrument="behaverse" behaverseTask="NB">
+    </behaverse:behaverseTask>
+    <behaverse:behaverseTask id="Activity_07qsdel" name="Behaverse&#10;N-Back Test" instrument="behaverse" scene="NB">
       <bpmn2:incoming>Flow_1m2gbjk</bpmn2:incoming>
-    </studyflow:cognitiveTest>
-    <studyflow:cognitiveTest id="Activity_1vjubeo" name="Behaverse&#10;Target Hit Test" instrument="behaverse" behaverseTask="TH">
+    </behaverse:behaverseTask>
+    <behaverse:behaverseTask id="Activity_1vjubeo" name="Behaverse&#10;Target Hit Test" instrument="behaverse" scene="TH">
       <bpmn2:incoming>Flow_1qdmact</bpmn2:incoming>
-    </studyflow:cognitiveTest>
-    <studyflow:cognitiveTest id="Activity_18wc4x8" name="Behaverse&#10;Digit Span" instrument="behaverse" behaverseTask="DS">
+    </behaverse:behaverseTask>
+    <behaverse:behaverseTask id="Activity_18wc4x8" name="Behaverse&#10;Digit Span" instrument="behaverse" scene="DS">
       <bpmn2:incoming>Flow_1h590ia</bpmn2:incoming>
-    </studyflow:cognitiveTest>
+    </behaverse:behaverseTask>
     <bpmn2:task id="Activity_1a2aku7" name="Activity">
       <bpmn2:outgoing>Flow_0n8nnfp</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_0t25gsx</bpmn2:outgoing>

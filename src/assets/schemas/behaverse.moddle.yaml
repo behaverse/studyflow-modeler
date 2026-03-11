@@ -1,20 +1,20 @@
-name: Behaverse Schema
-uri: http://behaverse.org/schemas/studyflow/behaverse
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: Behaverse Schema for Studyflow
 prefix: behaverse
+uri: http://behaverse.org/schemas/studyflow/behaverse
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_B.png
 xml:
   tagAlias: lowerCase
 associations: []
 enumerations:
   - name: InstrumentEnum
-    isAbstract: true
     description: The type of instrument used to measure cognitive performance.
     literalValues:
       - name: Behaverse
         value: behaverse
         icon: iconify bi--hexagon
   - name: BehaverseSceneEnum
-    isAbstract: true
     literalValues:
       - name: Belval Card Sorting (BCS)
         value: BCS
@@ -67,42 +67,40 @@ types:
       - studyflow:CognitiveTask
     properties:
       - name: instrument
-        isAttr: true
         type: String
+        default: behaverse
+        isAttr: true
         redefines: studyflow:CognitiveTask#instrument
         meta:
-          order: 1
           hidden: true
-        default: behaverse
       - name: scene
-        description: Behaverse instrument used for the test.
-        isAttr: true
         type: BehaverseSceneEnum
-        meta:
-          order: 2
-          hidden: false
         default: undefined
-        categories:
-          - Behaverse
-        condition:
-          language: json
-          body:
-            instrument: behaverse
-      - name: parameters
-        description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
+        description: Behaverse scene (e.g., N-Back, Digit Span) to be used for the task.
         isAttr: true
-        type: studyflow:YAMLString
-        redefines: studyflow:CognitiveTask#parameters
         meta:
+          hidden: false
+          categories:
+            - Behaverse
+          condition:
+            language: json
+            body:
+              instrument: behaverse
+      - name: parameters
+        type: studyflow:YAMLString
+        description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
+        isBody: true
+        replaces: studyflow:CognitiveTask#parameters
+        meta:
+          icon: iconify bi--hexagon
           order: 3
           hidden: false
-        categories:
-          - Behaverse
-        condition:
-          language: json
-          body:
-            instrument: behaverse
-    icon: iconify bi--hexagon
+          categories:
+            - Behaverse
+          condition:
+            language: json
+            body:
+              instrument: behaverse
 examples:
   - description: N-Back task with tutorial
     object:

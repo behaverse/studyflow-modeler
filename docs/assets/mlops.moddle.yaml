@@ -130,10 +130,10 @@ types:
         meta:
           order: 4
         hidden: false
-      - name: behaverseTask
-        description: Behaverse instrument used for the test.
+      - name: scene
+        description: Behaverse scene used for the test.
         isAttr: true
-        type: BehaverseTaskEnum
+        type: BehaverseSceneEnum
         meta:
           order: 5
         hidden: false

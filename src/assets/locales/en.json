@@ -27,6 +27,7 @@
     "studyflow:isDataOperation": "Data Operation",
     "studyflow:operationType": "Operation Type",
     "studyflow:conditionExpression": "Condition",
+    "behaverse:instrument": "Instrument",
     "behaverse:parameters": "Scene Parameters",
     "behaverse:scene": "Scene"
 }

@@ -55,7 +55,7 @@ export function Panel({ className = '', ...props }) {
 
 
     const getProperties = useCallback((element: any) => {
-        let propCategories: Record<string, any[]> = {};
+        let propsByCategory: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
 
         // Collect extension element property names upfront to deduplicate
@@ -69,47 +69,26 @@ export function Panel({ className = '', ...props }) {
                 ?.filter((name: string | undefined): name is string => Boolean(name)) ?? []
         );
 
-        // Show editable BPMN properties and extends-based studyflow properties from the BO
+        // Show editable properties from the BO
         businessObject.$descriptor.properties.forEach((prop: any) => {
-            if (prop.ns.prefix == 'bpmn' && prop.ns.name !== 'bpmn:id') {
-                return;
-            }
-            // Allow custom schema properties mixed in via extends.
-            if (prop.ns.prefix !== 'bpmn' && !isCustomSchemaPrefix(prop.ns.prefix)) return;
-            // Skip BO properties that also exist on the extension element wrapper;
-            // the extension element version is preferred for correct read/write behavior.
-            if (
-                isCustomSchemaPrefix(prop.ns.prefix) &&
-                (extPropNames.has(prop.ns.name) || extPropLocalNames.has(toLocalName(prop.ns.name) || ''))
-            ) return;
+            if (prop.ns.name !== 'bpmn:id' && !isCustomSchemaPrefix(prop.ns.prefix)) return;
             if (!isPropertyVisible(prop, businessObject)) {
                 return;
             }
-            let categories: string[] = prop.categories || ["General"];
+            let categories: string[] = prop.meta?.categories || ["General"];
             categories.forEach((cat: string) => {
-                if (!propCategories[cat]) propCategories[cat] = [];
-                propCategories[cat].push(prop);
+                if (!propsByCategory[cat]) propsByCategory[cat] = [];
+                propsByCategory[cat].push(prop);
             });
         });
 
-        // Show studyflow properties from the extension element wrapper
-        if (ext?.$descriptor) {
-            ext.$descriptor.properties.forEach((prop: any) => {
-                if (!isPropertyVisible(prop, ext)) return;
-                let categories: string[] = prop.categories || ["General"];
-                categories.forEach((cat: string) => {
-                    if (!propCategories[cat]) propCategories[cat] = [];
-                    propCategories[cat].push(prop);
-                });
-            });
-        }
-
-        for (const [catName, props] of Object.entries(propCategories)) {
-            propCategories[catName] = sortByOrder(props);
+        // sort
+        for (const [catName, props] of Object.entries(propsByCategory)) {
+            propsByCategory[catName] = sortByOrder(props);
         }
 
         // remove empty groups
-        const filtered = Object.entries(propCategories).filter(([, v]) => v.length > 0);
+        const filtered = Object.entries(propsByCategory).filter(([, v]) => v.length > 0);
         return Object.fromEntries(filtered) as Record<string, any[]>;
     }, []);
 
@@ -119,13 +98,13 @@ export function Panel({ className = '', ...props }) {
             return;
         }
         const categories = getProperties(element);
-        const nextSignature = Object.entries(categories)
+        const renderSignature = Object.entries(categories)
             .map(([catName, props]) => `${catName}:${props.map((p: any) => p.ns.name).join(',')}`)
             .join('|');
-        if (nextSignature === categoryBarRef.current) {
+        if (renderSignature === categoryBarRef.current) {
             return;
         }
-        categoryBarRef.current = nextSignature;
+        categoryBarRef.current = renderSignature;
         if (shouldRender) {
             rerenderCategoryBar((v) => v + 1);
         }
