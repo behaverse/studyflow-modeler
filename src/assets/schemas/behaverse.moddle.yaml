@@ -8,12 +8,6 @@ xml:
   tagAlias: lowerCase
 associations: []
 enumerations:
-  - name: InstrumentEnum
-    description: The type of instrument used to measure cognitive performance.
-    literalValues:
-      - name: Behaverse
-        value: behaverse
-        icon: iconify bi--hexagon
   - name: BehaverseSceneEnum
     literalValues:
       - name: Belval Card Sorting (BCS)
@@ -65,10 +59,12 @@ types:
     description: A cognitive task from the Behaverse battery.
     superClass:
       - studyflow:CognitiveTask
+    meta:
+      icon: iconify bi--hexagon
     properties:
       - name: instrument
-        type: String
         default: behaverse
+        type: String
         isAttr: true
         redefines: studyflow:CognitiveTask#instrument
         meta:
@@ -106,7 +102,6 @@ examples:
     object:
       type: BehaverseTask
       bpmn:name: N-Back Task
-      instrument: behaverse
       scene: NB
       parameters: |
         NValue: 1

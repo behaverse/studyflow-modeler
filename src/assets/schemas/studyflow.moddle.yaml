@@ -192,7 +192,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:requiresConsent: true
+              requiresConsent: true
   - name: SequenceFlow
     extends:
       - bpmn:SequenceFlow
@@ -230,7 +230,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:hasRedirectUrl: true
+              hasRedirectUrl: true
   - name: Activity
     description: Base class for all the activities in the Studyflow.
     extends:
@@ -264,7 +264,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:isDataOperation: true
+              isDataOperation: true
       - name: operationSteps
         description: Operator pipeline steps for compose operations.
         isAttr: true
@@ -276,7 +276,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:operation: compose
+              operation: compose
   - name: CognitiveTask
     superClass:
       - bpmn:Task
@@ -365,7 +365,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:algorithm: probabilistic
+              algorithm: probabilistic
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.
@@ -412,7 +412,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:format: bdm
+              format: bdm
       - name: schema
         description: |
           Path to the schema describing the dataset structure (e.g., CSVW).
@@ -441,7 +441,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:format: bdm
+              format: bdm
       - name: bidsDataType
         description: BIDS data type (e.g., anat, func, eeg, beh).
         isAttr: true
@@ -453,7 +453,7 @@ types:
           condition:
             language: json
             body:
-              studyflow:format: bids
+              format: bids
   - name: DataStorage
     description: |
       Persistent physical storage of data (database, filesystem, object store, etc.).

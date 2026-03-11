@@ -15,8 +15,9 @@ import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
  * For studyflow properties, conditions are checked against the extension
  * element wrapper, not the business object.
  */
-export function isPropertyVisible(bProp, bObjOrExt) {
-    if (!bProp || !bObjOrExt) {
+export function isPropertyVisible(bProp, el) {
+    const bo = getExtensionElement(el) ?? getBusinessObject(el)
+    if (!bProp || !bo) {
         return true;
     }
     if (bProp.meta?.hidden) {
@@ -25,9 +26,12 @@ export function isPropertyVisible(bProp, bObjOrExt) {
     if (!bProp.meta?.condition) {
         return true;
     }
+
+    // TODO this is only valid when condition.language is json
     const conditions = bProp.meta?.condition?.body || {};
     const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
-        const cVal = bObjOrExt.get(cKey);
+        const cVal = bo.get(cKey);
+        console.log(`Condition:`, bo, cKey, cVal);
         if (Array.isArray(cExpectedVal)) {
             return cExpectedVal.includes(cVal);
         }
@@ -55,25 +59,22 @@ export function PropertyField(props) {
         (p) => p === bpmnProperty
     );
 
-    const checkConditionalVisibility = useCallback((bProp, bObj) => {
+    const checkConditionalVisibility = useCallback((bProp, element) => {
         // For extension-element studyflow props, check conditions against the wrapper;
         // for extends-based props, check conditions against the BO.
-        const dataSource = (isSchemaProp && !isExtendsProp)
-            ? getExtensionElement(bObj) || bObj
-            : bObj;
-        setVisible(isPropertyVisible(bProp, dataSource));
+        setVisible(isPropertyVisible(bProp, element));
     }, [isSchemaProp, isExtendsProp]);
 
     // conditional visibility
     useEffect(() => {
-        checkConditionalVisibility(bpmnProperty, businessObject);
-    }, [bpmnProperty, businessObject, checkConditionalVisibility]);
+        checkConditionalVisibility(bpmnProperty, element);
+    }, [bpmnProperty, element, checkConditionalVisibility]);
 
     useEffect(() => {
         function onElementsChanged(e) {
             const newElement = e.element;
             if (newElement) {
-                checkConditionalVisibility(bpmnProperty, getBusinessObject(newElement));
+                checkConditionalVisibility(bpmnProperty, newElement);
             }
         }
         eventBus.on('element.changed', onElementsChanged);

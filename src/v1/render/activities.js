@@ -25,21 +25,16 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
   let iconMarker = undefined;
 
   if (ext) {
-    const prefix = ext.$type?.split(':')?.[0];
-    const getName = (prop) => prefix ? `${prefix}:${prop}` : prop;
-
-    let instrument = ext.get("instrument") || ext.get(getName("instrument"));
+    let instrument = ext.get("instrument");
     if (!preservePrimaryIcon) {
       const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
+      console.log(`Activity resolved icon class: ${iconClass}`);
       iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
     }
 
     if (instrument === "behaverse" && !preservePrimaryIcon) {
-      const scene = ext.get("scene") || ext.get(getName("scene"));
-      iconMarker = scene?.toUpperCase();
-      if (iconMarker === "UNDEFINED") {
-        iconMarker = undefined;
-      }
+      const scene = ext.get("scene")?.toUpperCase();
+      iconMarker = (scene === "UNDEFINED") ? undefined : scene;
       switch (iconMarker?.length) {
         case undefined:
         case 2:

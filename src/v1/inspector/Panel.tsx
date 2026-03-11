@@ -49,7 +49,7 @@ export function Panel({ className = '', ...props }) {
         // Show editable properties from the BO
         ext.$descriptor.properties.forEach((prop: any) => {
             if (prop.ns.name !== 'bpmn:id' && !isExtensionPrefix(prop.ns.prefix)) return;
-            if (!isPropertyVisible(prop, bo)) return;
+            if (!isPropertyVisible(prop, element)) return;
 
             (prop.meta?.categories ?? ["General"]).forEach((cat: string | number) => {
                 (propsByCategory[cat] ??= []).push(prop);
