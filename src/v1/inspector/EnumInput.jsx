@@ -3,7 +3,7 @@ import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
+import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 export function EnumInput(props) {
@@ -18,13 +18,13 @@ export function EnumInput(props) {
     const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
 
     // extends-based props live on the BO even though they have a studyflow: prefix
-    const isExtendsProp = businessObject.$descriptor.properties.some(
+    const usesExtension = isSchemaProp && !businessObject.$descriptor.properties.some(
         (p) => p === bpmnProperty
     );
-    const ext = (isSchemaProp && !isExtendsProp) ? getExtensionElement(element) : null;
-    const useExt = isSchemaProp && !isExtendsProp && !!ext;
+    const target = usesExtension ? getExtensionElementOrBusinessObject(businessObject) : businessObject;
+    const useExt = usesExtension && target !== businessObject;
     const [value, setValue] = useState(
-        useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')
+        target.get(name) || ''
     );
 
     const { modeler } = useContext(ModelerContext);

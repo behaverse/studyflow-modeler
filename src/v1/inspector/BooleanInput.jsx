@@ -3,19 +3,24 @@ import { Checkbox, Label, Popover, PopoverButton, PopoverPanel } from '@headless
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionElement } from '../extensionElements';
+import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
 import { executeCommand } from '../commands';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
 
 export function BooleanInput(props) {
     const { bpmnProperty } = props;
     const { modeler } = useContext(ModelerContext);
-    const { element } = useContext(InspectorContext);
-    const ext = getExtensionElement(element) ?? getBusinessObject(element);
+    const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
-    const [value, setValue] = useState(ext.get(name));
+    const usesExtension = isExtensionPrefix(bpmnProperty.ns?.prefix) && !businessObject.$descriptor.properties.some(
+        (p) => p === bpmnProperty
+    );
+    const target = usesExtension ? getExtensionElementOrBusinessObject(businessObject) : businessObject;
+    const useExt = usesExtension && target !== businessObject;
+    const [value, setValue] = useState(
+        !!target.get(name)
+    );
 
     function handleChange(checked) {
         setValue(checked);
@@ -23,7 +28,8 @@ export function BooleanInput(props) {
             type: 'inspector-update-property',
             element,
             propertyName: name,
-            value: checked
+            value: checked,
+            useExtension: useExt,
         });
     }
 

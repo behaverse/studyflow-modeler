@@ -1,6 +1,6 @@
-import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
+import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from '../commands';
-import { getExtensionElement } from '../extensionElements';
+import { getExtensionElementOrBusinessObject } from '../extensionElements';
 
 export default class ReplaceMenuProvider {
   static $inject = ['popupMenu', 'replace', 'modeling', 'eventBus'];
@@ -31,7 +31,7 @@ export default class ReplaceMenuProvider {
 
   _getOperationMarkerHeaderEntry(element) {
     const self = this;
-    const ext = getExtensionElement(element) ?? getBusinessObject(element);
+    const ext = getExtensionElementOrBusinessObject(element);
 
     function toggleDataOperation(event, entry) {
       const currentState = !!ext.get('isDataOperation');

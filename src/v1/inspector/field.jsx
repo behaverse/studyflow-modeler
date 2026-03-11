@@ -1,5 +1,4 @@
 import PropTypes from 'prop-types';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { Field } from '@headlessui/react';
 import { StringInput } from './StringInput';
 import { SchemaEditor } from './SchemaEditor';
@@ -8,7 +7,7 @@ import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext, useCallback } from 'react';
 
 import { InspectorContext, ModelerContext } from '../contexts';
-import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
+import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
 
 /**
  * Check if a property is visible based on its condition.
@@ -16,7 +15,7 @@ import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
  * element wrapper, not the business object.
  */
 export function isPropertyVisible(bProp, el) {
-    const bo = getExtensionElement(el) ?? getBusinessObject(el)
+    const bo = getExtensionElementOrBusinessObject(el)
     if (!bProp || !bo) {
         return true;
     }

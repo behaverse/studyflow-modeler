@@ -7,7 +7,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
-import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
+import { getExtensionElement, getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
 
 const toLocalName = (name: string | undefined) => {
     if (!name) return undefined;
@@ -43,8 +43,7 @@ export function Panel({ className = '', ...props }) {
 
     const getProperties = useCallback((element: any) => {
         let propsByCategory: Record<string, any[]> = {};
-        const bo = getBusinessObject(element);
-        const ext = getExtensionElement(element) || bo;
+        const ext = getExtensionElementOrBusinessObject(element);
 
         // Show editable properties from the BO
         ext.$descriptor.properties.forEach((prop: any) => {
@@ -138,18 +137,13 @@ export function Panel({ className = '', ...props }) {
             <>
                 <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
                     (() => {
-                                                const ext = getExtensionElement(el);
-                                                const extensionName = ext?.get?.('name') ?? ext?.name;
-                                                if (typeof extensionName === 'string' && extensionName.trim()) {
-                                                    return extensionName;
-                                                }
-                                                const bo = getBusinessObject(el);
-                                                const businessObjectName = bo?.get?.('name') ?? bo?.name;
-                                                if (typeof businessObjectName === 'string' && businessObjectName.trim()) {
-                                                    return businessObjectName;
+                                                const target = getExtensionElementOrBusinessObject(el);
+                                                const resolvedName = target?.get?.('name') ?? target?.name;
+                                                if (typeof resolvedName === 'string' && resolvedName.trim()) {
+                                                    return resolvedName;
                                                 }
 
-                                                const fallbackType = ext?.$type || el?.type;
+                                                const fallbackType = target?.$type || el?.type;
                                                 if (typeof fallbackType === 'string' && fallbackType.includes(':')) {
                                                     return fallbackType.split(':')[1];
                                                 }
@@ -158,8 +152,8 @@ export function Panel({ className = '', ...props }) {
                 }</h1>
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{
                     (() => {
-                        const ext = getExtensionElement(el);
-                        return ext?.$type || el.type;
+                        const target = getExtensionElementOrBusinessObject(el);
+                        return target?.$type || el.type;
                     })()
                 }</h2>
                 <div className="w-full">

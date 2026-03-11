@@ -25,17 +25,27 @@ export function isExtensionPrefix(prefix: string | undefined): boolean {
 }
 
 /**
- * Get the studyflow extension element wrapper from a BPMN element.
- * Returns the first studyflow-namespaced extension element found, or null.
+ * Get the studyflow extension element wrapper from a BPMN element
+ * or an already-resolved business object.
+ * Returns the first extension element found, or null.
  */
-export function getExtensionElement(element: any): any {
-  const bo = getBusinessObject(element);
+export function getExtensionElement(elementOrBusinessObject: any): any {
+  const bo = getBusinessObject(elementOrBusinessObject);
   const values = bo?.extensionElements?.values;
   if (!values) return null;
 
   return values.find((ext: any) =>
     isExtensionPrefix(ext.$type?.split(':')?.[0])
   ) ?? null;
+}
+
+/**
+ * Get the studyflow extension element wrapper when present,
+ * otherwise fall back to the BPMN business object itself.
+ */
+export function getExtensionElementOrBusinessObject(elementOrBusinessObject: any): any {
+  const bo = getBusinessObject(elementOrBusinessObject);
+  return getExtensionElement(bo) ?? bo;
 }
 
 /**

@@ -1,5 +1,5 @@
-import { getBusinessObject, is } from "bpmn-js/lib/util/ModelUtil";
-import { getExtensionElement } from '../extensionElements';
+import { is } from "bpmn-js/lib/util/ModelUtil";
+import { getExtensionElementOrBusinessObject } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
@@ -7,7 +7,7 @@ import { drawIcon, removeDefaultMarkers } from './utils';
  * Draw bottom-of-task markers (subprocess, loop, parallel, etc.).
  */
 export function drawMarkers(parentNode, element) {
-  const ext = getExtensionElement(element) ?? getBusinessObject(element);
+  const ext = getExtensionElementOrBusinessObject(element);
   let markers = [];
   removeDefaultMarkers(parentNode);
 

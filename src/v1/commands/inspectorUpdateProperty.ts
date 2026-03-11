@@ -5,6 +5,7 @@ export type InspectorUpdatePropertyCommand = {
   element: any;
   propertyName: string;
   value: any;
+  useExtension?: boolean;
 };
 
 export function runInspectorUpdateProperty(
@@ -20,9 +21,10 @@ export function runInspectorUpdateProperty(
     const bo = command.element?.businessObject ?? command.element;
     const values = bo?.extensionElements?.values ?? [];
     const ext = values.find((v: any) => typeof v?.$type === 'string' && v.$type.includes(':'));
-    if (!ext) return;
+    const target = command.useExtension ? ext : bo;
+    if (!target) return;
 
-    modeling.updateModdleProperties(command.element, ext, {
+    modeling.updateModdleProperties(command.element, target, {
       [command.propertyName]: command.value,
     });
     return;
