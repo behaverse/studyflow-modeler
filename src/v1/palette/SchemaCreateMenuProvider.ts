@@ -1,4 +1,4 @@
-import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
 import type { Example as ElementExample } from '../moddle/examples';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
@@ -111,8 +111,8 @@ export default class SchemaCreateMenuProvider {
           label: type.name,
           bpmnType,
           extensionType,
-          imageHtml: type.icon
-            ? `<span class="${type.icon}" style="font-size: 18px;"></span>`
+          imageHtml: type.meta?.icon
+            ? `<span class="${type.meta?.icon}" style="font-size: 18px;"></span>`
             : undefined,
         };
       })
@@ -204,7 +204,7 @@ export default class SchemaCreateMenuProvider {
 
       if (extensionType && !isExtendsType(extensionType, moddle)) {
         const defaults = getStudyflowDefaults(extensionType, moddle);
-        createStudyflowExtension(businessObject, extensionType, moddle, defaults);
+        createExtensionElement(businessObject, extensionType, moddle, defaults);
       }
 
       const shape = elementFactory.createShape({

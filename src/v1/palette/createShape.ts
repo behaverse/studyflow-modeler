@@ -1,4 +1,4 @@
-import { createStudyflowExtension, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 /**
@@ -11,7 +11,7 @@ function attachStudyflowExtension(
   moddle: any
 ): void {
   const defaults = getStudyflowDefaults(studyflowType, moddle);
-  createStudyflowExtension(businessObject, studyflowType, moddle, defaults);
+  createExtensionElement(businessObject, studyflowType, moddle, defaults);
 }
 
 /**

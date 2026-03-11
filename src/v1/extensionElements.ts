@@ -11,19 +11,16 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from './commands';
 
-const CORE_PREFIXES = new Set([
+export const CORE_PREFIXES = new Set([
   'bpmn',
   'bpmndi',
   'dc',
   'di',
   'xsi',
-  'xml',
-  'camunda',
-  'zeebe',
-  'flowable'
+  'xml'
 ]);
 
-export function isCustomSchemaPrefix(prefix: string | undefined): boolean {
+export function isExtensionPrefix(prefix: string | undefined): boolean {
   return Boolean(prefix && !CORE_PREFIXES.has(prefix));
 }
 
@@ -31,33 +28,14 @@ export function isCustomSchemaPrefix(prefix: string | undefined): boolean {
  * Get the studyflow extension element wrapper from a BPMN element.
  * Returns the first studyflow-namespaced extension element found, or null.
  */
-export function getStudyflowExtension(element: any): any {
+export function getExtensionElement(element: any): any {
   const bo = element?.businessObject ?? element;
   const values = bo?.extensionElements?.values;
   if (!values) return null;
 
   return values.find((ext: any) =>
-    isCustomSchemaPrefix(ext.$type?.split(':')?.[0])
+    isExtensionPrefix(ext.$type?.split(':')?.[0])
   ) ?? null;
-}
-
-/**
- * Get the studyflow extension type name (e.g. "studyflow:CognitiveTask").
- */
-export function getStudyflowType(element: any): string | null {
-  const ext = getStudyflowExtension(element);
-  return ext?.$type ?? null;
-}
-
-/**
- * Get the property descriptors for the studyflow extension element.
- * These are the moddle property descriptors, including inherited metadata
- * like categories, conditions, defaults, etc.
- */
-export function getStudyflowProperties(element: any): any[] {
-  const ext = getStudyflowExtension(element);
-  if (!ext?.$descriptor) return [];
-  return ext.$descriptor.properties ?? [];
 }
 
 /**
@@ -66,7 +44,7 @@ export function getStudyflowProperties(element: any): any[] {
  * @param propertyName - The property name, optionally prefixed (e.g., "instrument" or "studyflow:instrument")
  */
 export function getExtensionProperty(element: any, propertyName: string): any {
-  const ext = getStudyflowExtension(element);
+  const ext = getExtensionElement(element);
   if (!ext) return undefined;
   return ext.get(propertyName);
 }
@@ -90,59 +68,11 @@ export function setExtensionProperty(
 }
 
 /**
- * Ensure a studyflow extension element exists on the given BPMN element.
- * Creates the ExtensionElements container and wrapper if needed.
- *
- * @param element - The diagram element
- * @param studyflowType - The studyflow type (e.g., "studyflow:CognitiveTask")
- * @param moddle - The moddle instance
- * @param modeling - The modeling service
- * @param defaults - Optional default property values to set
- * @returns The studyflow extension element wrapper
- */
-export function ensureStudyflowExtension(
-  element: any,
-  studyflowType: string,
-  moddle: any,
-  modeling: any,
-  defaults: Record<string, any> = {}
-): any {
-  const bo = getBusinessObject(element);
-  let extensionElements = bo.extensionElements;
-
-  // Create ExtensionElements container if needed
-  if (!extensionElements) {
-    extensionElements = moddle.create('bpmn:ExtensionElements', { values: [] });
-    extensionElements.$parent = bo;
-  }
-
-  // Find or create the wrapper
-  let wrapper = extensionElements.values.find(
-    (ext: any) => ext.$type === studyflowType
-  );
-
-  if (!wrapper) {
-    wrapper = moddle.create(studyflowType, defaults);
-    wrapper.$parent = extensionElements;
-    extensionElements.values.push(wrapper);
-
-    // Update the element to include the new extensionElements
-    executeCommand(modeling, {
-      type: 'update-properties',
-      element,
-      properties: { extensionElements },
-    });
-  }
-
-  return wrapper;
-}
-
-/**
- * Create a studyflow extension element on a business object (for use during
+ * Create an extension element on a business object (for use during
  * element creation, before the element is added to the canvas).
  * Does NOT use modeling commands (no undo/redo needed for creation).
  */
-export function createStudyflowExtension(
+export function createExtensionElement(
   businessObject: any,
   studyflowType: string,
   moddle: any,
@@ -177,7 +107,7 @@ export function createStudyflowExtension(
     const matchingBoProp = boProps.find((prop: any) => {
       const nsName = prop?.ns?.name as string | undefined;
       const nsPrefix = prop?.ns?.prefix as string | undefined;
-      if (!isCustomSchemaPrefix(nsPrefix)) return false;
+      if (!isExtensionPrefix(nsPrefix)) return false;
       return toLocalName(nsName) === localName;
     });
 
@@ -244,7 +174,7 @@ export function isConditionMet(
 export function hasStudyflowExtends(element: any): boolean {
   const bo = element?.businessObject ?? element;
   return bo?.$descriptor?.properties?.some(
-    (p: any) => isCustomSchemaPrefix(p.ns?.prefix)
+    (p: any) => isExtensionPrefix(p.ns?.prefix)
   ) ?? false;
 }
 

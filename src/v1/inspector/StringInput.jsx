@@ -3,7 +3,7 @@ import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@h
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElements';
+import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 
@@ -13,14 +13,14 @@ export function StringInput(props) {
     const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
-    const isSchemaProp = isCustomSchemaPrefix(bpmnProperty.ns?.prefix);
+    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
 
     // extends-based props (e.g., isDataOperation) live on the BO even though they
     // have a studyflow: prefix – only use the extension element for wrapper-only props
     const isExtendsProp = businessObject.$descriptor.properties.some(
         (p) => p === bpmnProperty
     );
-    const ext = (isSchemaProp && !isExtendsProp) ? getStudyflowExtension(element) : null;
+    const ext = (isSchemaProp && !isExtendsProp) ? getExtensionElement(element) : null;
     const useExt = isSchemaProp && !isExtendsProp && !!ext;
     const [value, setValue] = useState(
         useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')

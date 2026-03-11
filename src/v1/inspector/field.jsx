@@ -8,7 +8,7 @@ import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext, useCallback } from 'react';
 
 import { InspectorContext, ModelerContext } from '../contexts';
-import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElements';
+import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
 
 /**
  * Check if a property is visible based on its condition.
@@ -19,13 +19,13 @@ export function isPropertyVisible(bProp, bObjOrExt) {
     if (!bProp || !bObjOrExt) {
         return true;
     }
-    if (bProp.meta?.hidden ?? bProp.hidden) {
+    if (bProp.meta?.hidden) {
         return false;
     }
-    if (!("condition" in bProp)) {
+    if (!bProp.meta?.condition) {
         return true;
     }
-    const conditions = bProp["condition"]?.body || {};
+    const conditions = bProp.meta?.condition?.body || {};
     const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
         const cVal = bObjOrExt.get(cKey);
         if (Array.isArray(cExpectedVal)) {
@@ -50,7 +50,7 @@ export function PropertyField(props) {
     // Determine whether to read from the extension element or the business object.
     // Properties defined on studyflow extension types live on the wrapper element,
     // but extends-based props (e.g., isDataOperation) live on the BO itself.
-    const isSchemaProp = isCustomSchemaPrefix(bpmnProperty.ns?.prefix);
+    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
     const isExtendsProp = businessObject?.$descriptor?.properties?.some(
         (p) => p === bpmnProperty
     );
@@ -59,7 +59,7 @@ export function PropertyField(props) {
         // For extension-element studyflow props, check conditions against the wrapper;
         // for extends-based props, check conditions against the BO.
         const dataSource = (isSchemaProp && !isExtendsProp)
-            ? getStudyflowExtension(bObj) || bObj
+            ? getExtensionElement(bObj) || bObj
             : bObj;
         setVisible(isPropertyVisible(bProp, dataSource));
     }, [isSchemaProp, isExtendsProp]);
@@ -86,9 +86,13 @@ export function PropertyField(props) {
         //TODO use enumerations in the schema file to determine if it's enum
         //     currently we use a naming convention
         var genericPropertyType = propertyType;
-        if (propertyType?.includes('Enum')) {
+        const [pkg, name] = propertyType.split(':');
+
+        if (modeler.get('moddle').getPackage(pkg)?.enumerations?.some(
+            e => e.name === name)) {
             genericPropertyType = 'Enum';
         }
+
         switch (genericPropertyType) {
             case 'Boolean':
                 return <BooleanInput {...props} />;

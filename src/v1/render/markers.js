@@ -1,5 +1,5 @@
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import { getStudyflowExtension } from '../extensionElements';
+import { getExtensionElement } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
@@ -8,7 +8,7 @@ import { drawIcon, removeDefaultMarkers } from './utils';
  */
 export function drawMarkers(parentNode, element) {
   const businessObject = element.businessObject;
-  const ext = getStudyflowExtension(element);
+  const ext = getExtensionElement(element);
   let markers = [];
   removeDefaultMarkers(parentNode);
 

@@ -3,7 +3,7 @@ import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getStudyflowExtension, isCustomSchemaPrefix } from '../extensionElements';
+import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 export function EnumInput(props) {
@@ -12,7 +12,7 @@ export function EnumInput(props) {
     const { element, businessObject } = useContext(InspectorContext);
 
     const name = bpmnProperty.ns.name;
-    const isSchemaProp = isCustomSchemaPrefix(bpmnProperty.ns?.prefix);
+    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
     const propertyType = bpmnProperty.type.split(':')[1];
     const pkg = bpmnProperty.definedBy.$pkg;
     const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
@@ -21,7 +21,7 @@ export function EnumInput(props) {
     const isExtendsProp = businessObject.$descriptor.properties.some(
         (p) => p === bpmnProperty
     );
-    const ext = (isSchemaProp && !isExtendsProp) ? getStudyflowExtension(element) : null;
+    const ext = (isSchemaProp && !isExtendsProp) ? getExtensionElement(element) : null;
     const useExt = isSchemaProp && !isExtendsProp && !!ext;
     const [value, setValue] = useState(
         useExt ? (ext.get(name) || '') : (businessObject.get(name) || '')

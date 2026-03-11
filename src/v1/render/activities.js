@@ -1,4 +1,4 @@
-import { getStudyflowExtension } from '../extensionElements';
+import { getExtensionElement } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, drawIconText } from './utils';
 import { drawMarkers } from './markers';
@@ -14,33 +14,29 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
   if (element.type in BPMN_ICON_OVERRIDES || !bpmnRenderer.handlers[element.type]) {
     activity = bpmnRenderer.handlers['bpmn:Task'](parentNode, element);
   } else {
-    // neither overridden, nor default renderer
+    // render as normal
     activity = bpmnRenderer.handlers[element.type](parentNode, element);
   }
 
-  const ext = getStudyflowExtension(element);
+  const ext = getExtensionElement(element);
 
   let iconClass = sfIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
   let iconSize = 24;
   let iconMarker = undefined;
 
   if (ext) {
-    const schemaPrefix = ext.$type?.split(':')?.[0];
-    const schemaName = (prop) => schemaPrefix ? `${schemaPrefix}:${prop}` : prop;
+    const prefix = ext.$type?.split(':')?.[0];
+    const getName = (prop) => prefix ? `${prefix}:${prop}` : prop;
 
-    let instrument = ext.get("instrument") || ext.get(schemaName("instrument"));
+    let instrument = ext.get("instrument") || ext.get(getName("instrument"));
     if (!preservePrimaryIcon) {
       const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
       iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
     }
 
     if (instrument === "behaverse" && !preservePrimaryIcon) {
-      const rawMarker =
-        ext.get("scene")
-        || ext.get(schemaName("scene"))
-        || ext.get("behaverseTask")
-        || ext.get(schemaName("behaverseTask"));
-      iconMarker = typeof rawMarker === "string" ? rawMarker.toUpperCase() : undefined;
+      const scene = ext.get("scene") || ext.get(getName("scene"));
+      iconMarker = scene?.toUpperCase();
       if (iconMarker === "UNDEFINED") {
         iconMarker = undefined;
       }

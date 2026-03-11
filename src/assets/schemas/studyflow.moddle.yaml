@@ -87,7 +87,6 @@ enumerations:
       - name: Undefined
         value: undefined
   - name: DataOperationTypeEnum
-    isAbstract: true
     description: |
       Studyflow data operator marker for tasks. Operators describe how data is manipulated
       as it flows through the process (pure transformations).
@@ -107,11 +106,10 @@ enumerations:
       - name: FlatMap
         value: flatMap
   - name: InstrumentEnum
-    isAbstract: true
     description: The type of instrument used to measure cognitive performance.
     literalValues:
       - name: Video Game
-        value: videoGame
+        value: video-game
         icon: iconify bi--controller
       - name: Rest
         value: rest
@@ -325,10 +323,15 @@ types:
   - name: Instruction
     description: A passive information display.
     superClass:
-      - Questionnaire
+      - studyflow:Questionnaire
     meta:
       icon: iconify material-symbols--info-outline-rounded
     properties:
+      - name: instrument
+        redefines: studyflow:Questionnaire#instrument
+        isAttr: true
+        type: String
+        default: instruction
       - name: content
         description: Instruction content in markdown format.
         isAttr: true
@@ -363,10 +366,6 @@ types:
             language: json
             body:
               studyflow:algorithm: probabilistic
-
-
-
-#/////////
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.
@@ -379,47 +378,41 @@ types:
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
       - name: body
         description: Schema content as a string (e.g., JSON, YAML). This can also be a URL/path to the schema definition.
         isAttr: true
         type: String
         meta:
-          order: 2
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
   - name: Dataset
-    description: Base class for all datasets in the Studyflow.
-    extends:
+    description: Collection of data registered in a `DataCatalog` and stored in a `DataStore`. This can represent a table, array, or any structured dataset. The structure can be defined using an optional `Schema`.
+    superClass:
       - bpmn:DataStoreReference
     isAbstract: false
+    meta:
+      icon: iconify bi--database
     properties:
       - name: catalog
         description: Identifier of the `DataCatalog` that registers this dataset.
         isAttr: true
         type: DataCatalog
         meta:
-          order: 1
-        categories:
-          - Data
-        hidden: false
-      - name: store
-        description: Identifier of the `DataStore` where this dataset is physically stored.
+          categories:
+            - Data
+      - name: storage
+        description: Identifier of the `DataStorage` where this dataset is physically stored.
         isAttr: true
-        type: DataStoreReference
+        type: DataStorage
         meta:
-          order: 2
-        categories:
-          - Data
-        condition:
-          language: json
-          body:
-            studyflow:format: bdm
-        hidden: false
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              studyflow:format: bdm
       - name: schema
         description: |
           Path to the schema describing the dataset structure (e.g., CSVW).
@@ -427,56 +420,46 @@ types:
         isAttr: true
         type: Schema
         meta:
-          order: 3
-        categories:
-          - Data
-        hidden: false
-    icon: iconify bi--database
-  - name: DataStore
-    description: |
-      Persistent physical storage of data (database, filesystem, object store, etc.).
-      `DataStore` can be referenced using `DataStoreReference`.
-    extends:
-      - bpmn:DataStoreReference
-    properties:
+          categories:
+            - Data
       - name: format
         description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
         isAttr: true
         type: DatasetFormatEnum
-        meta:
-          order: 1
         default: undefined
-        categories:
-          - Data
-        hidden: false
+        meta:
+          categories:
+            - Data
       - name: bdmDataLevel
         description: Level of the data (events, trials, summary, models).
         isAttr: true
         type: BDMDataLevelEnum
-        meta:
-          order: 2
         default: events
-        categories:
-          - Data
-        condition:
-          language: json
-          body:
-            studyflow:format: bdm
-        hidden: false
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              studyflow:format: bdm
       - name: bidsDataType
         description: BIDS data type (e.g., anat, func, eeg, beh).
         isAttr: true
         type: BIDSDataTypeEnum
-        meta:
-          order: 3
         default: beh
-        categories:
-          - Data
-        condition:
-          language: json
-          body:
-            studyflow:format: bids
-        hidden: false
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              studyflow:format: bids
+  - name: DataStorage
+    description: |
+      Persistent physical storage of data (database, filesystem, object store, etc.).
+      `DataStore` can be referenced using `DataStoreReference`.
+    superClass:
+      - bpmn:DataStoreReference
   - name: DataObjectReference
     description: |
       Represents data produced/consumed within a process instance. Can be used to model
@@ -490,73 +473,61 @@ types:
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
   - name: DataCatalog
     description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
     superClass:
       - Element
-    isAbstract: true
+    isAbstract: false
     properties:
       - name: url
         description: Base URL of the catalog.
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
   - name: Array
     description: |
       Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
     superClass:
       - Element
-    isAbstract: true
+    isAbstract: false
     properties:
       - name: dataset
         description: Identifier of the parent `Dataset`.
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
       - name: schema
         description: URL/path/identifier of the array schema (dimensions/types/units).
         isAttr: true
         type: String
         meta:
-          order: 2
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
   - name: Snapshot
     description: |
       Immutable version of a dataset/table/array associated with a point in the workflow
       or a version control commit.
     superClass:
       - Element
-    isAbstract: true
+    isAbstract: false
     properties:
       - name: source
         description: Identifier of the dataset/table/array being snapshotted.
         isAttr: true
         type: String
         meta:
-          order: 1
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data
       - name: version
         description: Version identifier (e.g., tag, checksum, commit hash).
         isAttr: true
         type: String
         meta:
-          order: 2
-        categories:
-          - Data
-        hidden: false
+          categories:
+            - Data

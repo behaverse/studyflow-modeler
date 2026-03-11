@@ -1,5 +1,5 @@
 import {
-  createStudyflowExtension,
+  createExtensionElement,
   getStudyflowDefaults,
   isExtendsType,
 } from '../extensionElements';
@@ -75,7 +75,7 @@ export function runCreateExampleShape(
     return shape;
   }
 
-  const extension = createStudyflowExtension(
+  const extension = createExtensionElement(
     businessObject,
     studyflowType,
     moddle,

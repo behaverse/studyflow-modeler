@@ -1,29 +1,14 @@
 import type { CommandContext } from './types';
 import { resolveModeling } from './types';
+import { isExtensionPrefix } from '../extensionElements';
 
-const CORE_PREFIXES = new Set([
-  'bpmn',
-  'bpmndi',
-  'dc',
-  'di',
-  'xsi',
-  'xml',
-  'camunda',
-  'zeebe',
-  'flowable',
-]);
-
-function isCustomSchemaPrefix(prefix: string | undefined): boolean {
-  return Boolean(prefix && !CORE_PREFIXES.has(prefix));
-}
-
-function getStudyflowExtension(element: any): any {
+function getExtensionElement(element: any): any {
   const bo = element?.businessObject ?? element;
   const values = bo?.extensionElements?.values;
   if (!values) return null;
 
   return values.find((ext: any) =>
-    isCustomSchemaPrefix(ext.$type?.split(':')?.[0])
+    isExtensionPrefix(ext.$type?.split(':')?.[0])
   ) ?? null;
 }
 
@@ -43,7 +28,7 @@ export function runUpdateExtensionProperty(
     throw new Error("Command 'update-extension-property' requires modeling or modeler.");
   }
 
-  const ext = getStudyflowExtension(command.element);
+  const ext = getExtensionElement(command.element);
   if (!ext) return;
 
   modeling.updateModdleProperties(command.element, ext, {

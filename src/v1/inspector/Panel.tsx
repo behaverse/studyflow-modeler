@@ -7,26 +7,13 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
-import { getStudyflowExtension, getStudyflowProperties, isCustomSchemaPrefix } from '../extensionElements';
+import { getExtensionElement, isExtensionPrefix } from '../extensionElements';
 
 const toLocalName = (name: string | undefined) => {
     if (!name) return undefined;
     const idx = name.indexOf(':');
     return idx === -1 ? name : name.slice(idx + 1);
 };
-
-const sortByOrder = (properties: any[]) => {
-    return [...properties].sort((a: any, b: any) => {
-        const aOrder = a?.meta?.order;
-        const bOrder = b?.meta?.order;
-
-        if (aOrder === undefined && bOrder === undefined) return 0;
-        if (aOrder === undefined) return -1;
-        if (bOrder === undefined) return 1;
-        return aOrder - bOrder;
-    });
-};
-
 
 export function Panel({ className = '', ...props }) {
 
@@ -56,40 +43,29 @@ export function Panel({ className = '', ...props }) {
 
     const getProperties = useCallback((element: any) => {
         let propsByCategory: Record<string, any[]> = {};
-        const businessObject = getBusinessObject(element);
-
-        // Collect extension element property names upfront to deduplicate
-        const ext = getStudyflowExtension(element);
-        const extPropNames = new Set<string>(
-            ext?.$descriptor?.properties?.map((p: any) => p.ns.name) ?? []
-        );
-        const extPropLocalNames = new Set<string>(
-            ext?.$descriptor?.properties
-                ?.map((p: any) => toLocalName(p.ns?.name))
-                ?.filter((name: string | undefined): name is string => Boolean(name)) ?? []
-        );
+        const bo = getBusinessObject(element);
+        const ext = getExtensionElement(element) || bo;
 
         // Show editable properties from the BO
-        businessObject.$descriptor.properties.forEach((prop: any) => {
-            if (prop.ns.name !== 'bpmn:id' && !isCustomSchemaPrefix(prop.ns.prefix)) return;
-            if (!isPropertyVisible(prop, businessObject)) {
-                return;
-            }
-            let categories: string[] = prop.meta?.categories || ["General"];
-            categories.forEach((cat: string) => {
-                if (!propsByCategory[cat]) propsByCategory[cat] = [];
-                propsByCategory[cat].push(prop);
+        ext.$descriptor.properties.forEach((prop: any) => {
+            if (prop.ns.name !== 'bpmn:id' && !isExtensionPrefix(prop.ns.prefix)) return;
+            if (!isPropertyVisible(prop, bo)) return;
+
+            (prop.meta?.categories ?? ["General"]).forEach((cat: string | number) => {
+                (propsByCategory[cat] ??= []).push(prop);
             });
         });
 
-        // sort
-        for (const [catName, props] of Object.entries(propsByCategory)) {
-            propsByCategory[catName] = sortByOrder(props);
-        }
+        // FIXME sort? moddle is already in order of definition, but extension are not
+        // for (const [catName, props] of Object.entries(propsByCategory)) {
+        //     propsByCategory[catName].sort(...);
+        // }
 
-        // remove empty groups
-        const filtered = Object.entries(propsByCategory).filter(([, v]) => v.length > 0);
-        return Object.fromEntries(filtered) as Record<string, any[]>;
+        // remove empty groups and return
+        return Object.fromEntries(
+            Object.entries(propsByCategory).filter(([, v]) => v.length > 0)
+        );
+
     }, []);
 
     const syncCategoriesBar = useCallback((element: any, shouldRender: boolean) => {
@@ -162,7 +138,7 @@ export function Panel({ className = '', ...props }) {
             <>
                 <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
                     (() => {
-                                                const ext = getStudyflowExtension(el);
+                                                const ext = getExtensionElement(el);
                                                 const extensionName = ext?.get?.('name') ?? ext?.name;
                                                 if (typeof extensionName === 'string' && extensionName.trim()) {
                                                     return extensionName;
@@ -182,7 +158,7 @@ export function Panel({ className = '', ...props }) {
                 }</h1>
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{
                     (() => {
-                        const ext = getStudyflowExtension(el);
+                        const ext = getExtensionElement(el);
                         return ext?.$type || el.type;
                     })()
                 }</h2>

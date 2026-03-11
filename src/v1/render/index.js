@@ -1,6 +1,6 @@
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import { getStudyflowExtension, hasStudyflowExtends } from '../extensionElements';
+import { getExtensionElement, hasStudyflowExtends } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawEventWithIcon} from './events';
 import { drawDataStore } from './data';
@@ -78,16 +78,16 @@ export default class StudyflowRenderer extends BaseRenderer {
     if (element.type === "label") {
       return false;  // fixes #15
     }
-    return !!getStudyflowExtension(element) || hasStudyflowExtends(element);
+    return !!getExtensionElement(element) || hasStudyflowExtends(element);
   }
 
   drawShape(parentNode, element) {
-    const ext = getStudyflowExtension(element);
+    const ext = getExtensionElement(element);
     const sfType = ext?.$type;
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
     const elementExampleIconClass = this._resolveElementExampleIcon(ext);
     const exampleIconClass = elementExampleIconClass || (sfType ? this.exampleIconByType.get(sfType) : undefined);
-    const descriptorIconClass = sfDescriptor?.icon;
+    const descriptorIconClass = sfDescriptor?.meta.icon;
     const iconClass = exampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
     if (is(element, "bpmn:Event")) {
