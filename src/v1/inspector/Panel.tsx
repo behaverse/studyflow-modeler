@@ -43,17 +43,32 @@ export function Panel({ className = '', ...props }) {
 
     const getProperties = useCallback((element: any) => {
         let propsByCategory: Record<string, any[]> = {};
-        const ext = getExtensionElementOrBusinessObject(element);
+        const businessObject = getBusinessObject(element);
+        const extension = getExtensionElement(element);
+        const seen = new Set<string>();
 
-        // Show editable properties from the BO
-        ext.$descriptor.properties.forEach((prop: any) => {
-            if (prop.ns.name !== 'bpmn:id' && !isExtensionPrefix(prop.ns.prefix)) return;
-            if (!isPropertyVisible(prop, element)) return;
+        const collectProperties = (properties: any[], predicate: (prop: any) => boolean) => {
+            properties.forEach((prop: any) => {
+                if (!predicate(prop)) return;
+                if (!isPropertyVisible(prop, element)) return;
 
-            (prop.meta?.categories ?? ["General"]).forEach((cat: string | number) => {
-                (propsByCategory[cat] ??= []).push(prop);
+                const propKey = prop.ns?.name ?? prop.name;
+                if (seen.has(propKey)) return;
+                seen.add(propKey);
+
+                (prop.meta?.categories ?? ["General"]).forEach((cat: string | number) => {
+                    (propsByCategory[cat] ??= []).push(prop);
+                });
             });
-        });
+        };
+
+        collectProperties(businessObject?.$descriptor?.properties ?? [], (prop: any) => (
+            prop.ns?.name === 'bpmn:id' || prop.ns?.name === 'bpmn:name'
+        ));
+
+        collectProperties(extension?.$descriptor?.properties ?? [], (prop: any) => (
+            isExtensionPrefix(prop.ns?.prefix)
+        ));
 
         // FIXME sort? moddle is already in order of definition, but extension are not
         // for (const [catName, props] of Object.entries(propsByCategory)) {
@@ -137,13 +152,17 @@ export function Panel({ className = '', ...props }) {
             <>
                 <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
                     (() => {
-                                                const target = getExtensionElementOrBusinessObject(el);
-                                                const resolvedName = target?.get?.('name') ?? target?.name;
+                                                const businessObject = getBusinessObject(el);
+                                                const extension = getExtensionElement(el);
+                                                const resolvedName = businessObject?.get?.('name')
+                                                    ?? businessObject?.name
+                                                    ?? extension?.get?.('name')
+                                                    ?? extension?.name;
                                                 if (typeof resolvedName === 'string' && resolvedName.trim()) {
                                                     return resolvedName;
                                                 }
 
-                                                const fallbackType = target?.$type || el?.type;
+                                                const fallbackType = extension?.$type || businessObject?.$type || el?.type;
                                                 if (typeof fallbackType === 'string' && fallbackType.includes(':')) {
                                                     return fallbackType.split(':')[1];
                                                 }
@@ -152,8 +171,9 @@ export function Panel({ className = '', ...props }) {
                 }</h1>
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{
                     (() => {
-                        const target = getExtensionElementOrBusinessObject(el);
-                        return target?.$type || el.type;
+                        const businessObject = getBusinessObject(el);
+                        const extension = getExtensionElement(el);
+                        return extension?.$type || businessObject?.$type || el.type;
                     })()
                 }</h2>
                 <div className="w-full">

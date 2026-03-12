@@ -7,14 +7,14 @@ xml:
 associations: []
 enumerations: []
 types:
-  - name: TransformData
+  - name: Transform
     description: Apply a function to each element in a data stream.
     superClass:
       - bpmn:Task
     properties:
       - name: isDataOperation
         isAttr: true
-        type: String
+        type: Boolean
         default: true
         redefines: studyflow:Activity#isDataOperation
         meta:
@@ -26,10 +26,10 @@ types:
         type: String
         meta:
           hidden: true
-  - name: MapData
+  - name: Map
     description: Map a function over a data stream, producing a new data stream.
     superClass:
-      - TransformData
+      - omniflow:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -37,157 +37,107 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:TransformData#operationType
-  - name: ReduceData
+        redefines: omniflow:Transform#operationType
+  - name: Reduce
     description: Reduce a data stream to a single value.
     superClass:
-      - TransformData
+      - omniflow:Transform
     properties:
-      - name: isDataOperation
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          hidden: true
-        default: true
-        redefines: omniflow:TransformData#isDataOperation
       - name: operationType
         isAttr: true
         type: String
         meta:
-          order: 2
           hidden: true
         default: map
-        redefines: omniflow:TransformData#operationType
-  - name: FilterData
-    description: >-
-      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are
-      removed.
+        redefines: omniflow:Transform#operationType
+  - name: Filter
+    description: |
+      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
     superClass:
-      - TransformData
+      - omniflow:Transform
     properties:
-      - name: isDataOperation
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          hidden: true
-        default: true
-        redefines: omniflow:TransformData#isDataOperation
       - name: operationType
         isAttr: true
         type: String
         meta:
-          order: 2
           hidden: true
         default: filter
-        redefines: omniflow:TransformData#operationType
+        redefines: omniflow:Transform#operationType
   - name: EEGPrep
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     superClass:
-      - MapData
+      - omniflow:Map
+    icon: iconify fluent--pulse-20-filled
     properties:
-      - name: isDataOperation
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          hidden: true
-        default: true
-        redefines: omniflow:MapData#isDataOperation
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          hidden: true
-        default: map
-        redefines: omniflow:MapData#operationType
       - name: name
         isAttr: true
         type: String
         meta:
-          order: 3
-          hidden: false
+          hidden: true
         default: EEGPrep.clean_artifacts
+        redefines: bpmn:Task#name
       - name: documentation
+        redefines: bpmn:Task#documentation
         isAttr: true
         type: studyflow:MarkdownString
         meta:
-          order: 4
-          hidden: false
-        default: >-
-          Remove artifacts from EEG data using the clean_artifacts function from the MNE library. This function applies
-          a combination of flatline detection, high-pass and low-pass filtering, ASR, ICA, and ICLabel classification to
-          identify and remove artifacts from the EEG signal.
-        categories:
-          - Documentation
+          categories:
+            - Documentation
+        default: |
+          Remove artifacts from EEG data using the clean_artifacts function from the MNE library. This function applies a combination of flatline detection, high-pass and low-pass filtering, ASR, ICA, and ICLabel classification to identify and remove artifacts from the EEG signal.
       - name: flatline_criterion
         description: Flatline detection threshold, passed to clean_artifacts
         isAttr: true
-        type: number
-        meta:
-          order: 5
-          hidden: false
+        type: Number
         default: 5
-        categories:
-          - EEGPrep
+        meta:
+          categories:
+            - EEGPrep
       - name: highpass
         description: High-pass filter at 1 Hz, passed to clean_artifacts
         isAttr: true
-        type: number
-        meta:
-          order: 6
-          hidden: false
+        type: Number
         default: 1
-        categories:
-          - EEGPrep
+        meta:
+          categories:
+            - EEGPrep
       - name: lowpass
         description: Low-pass filter at 100 Hz, passed to clean_artifacts
         isAttr: true
-        type: number
-        meta:
-          order: 7
-          hidden: false
+        type: Number
         default: 100
-        categories:
-          - EEGPrep
+        meta:
+          categories:
+            - EEGPrep
       - name: asr_criterion
         description: ASR threshold passed to clean_artifacts
         isAttr: true
-        type: number
-        meta:
-          order: 8
-          hidden: false
+        type: Number
         default: 20
-        categories:
-          - EEGPrep
+        meta:
+          categories:
+            - EEGPrep
       - name: ica
         description: Enable ICA, passed to clean_artifacts
         isAttr: true
         type: Boolean
-        meta:
-          order: 9
-          hidden: false
         default: true
-        categories:
-          - EEGPrep
+        meta:
+          categories:
+            - EEGPrep
       - name: iclabel
         description: Enable ICLabel classification, passed to clean_artifacts
         isAttr: true
         type: Boolean
-        meta:
-          order: 10
-          hidden: false
         default: true
-        categories:
-          - EEGPrep
-    icon: iconify fluent--pulse-20-filled
+        meta:
+          categories:
+            - EEGPrep
 examples:
   - description: Preprocess EEG data for a single subject.
     object:
       bpmn:name: EEGPrep
-      type: MapData
+      type: Map
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
       isDataOperation: true
       icon: iconify fluent--pulse-20-filled
@@ -200,14 +150,14 @@ examples:
           x: 140
           y: 162
         - id: eeg_filter
-          type: MapData
+          type: Map
           bpmn:name: Filter signal
           icon: iconify bi--funnel
           isDataOperation: true
           x: 240
           y: 140
         - id: eeg_clean
-          type: MapData
+          type: Map
           bpmn:name: Remove artifacts
           icon: iconify bi--eraser
           isDataOperation: true
@@ -230,7 +180,7 @@ examples:
   - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep
-      type: MapData
+      type: Map
       bpmn:documentation: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
       isDataOperation: true
       icon: iconify streamline--brain

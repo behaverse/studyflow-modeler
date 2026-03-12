@@ -21,38 +21,6 @@ export default class StudyflowRenderer extends BaseRenderer {
     this.pkgTypeMap = moddle.registry.typeMap;
     this.pkgEnums = Object.values(moddle.registry.packageMap || {})
       .flatMap((pkg) => pkg?.enumerations || []);
-
-    this.exampleIconByType = this._buildExampleIconIndex(moddle.getPackages?.() || []);
-  }
-
-  _buildExampleIconIndex(packages) {
-    const index = new Map();
-
-    for (const pkg of packages) {
-      const examples = pkg?.examples || [];
-      const prefix = pkg?.prefix;
-      if (!prefix) {
-        continue;
-      }
-
-      for (const example of examples) {
-        const obj = example?.object;
-        const typeName = obj?.type;
-        const icon = obj?.icon;
-        if (!typeName || !icon) {
-          continue;
-        }
-
-        const qualifiedType = typeName.includes(':') ? typeName : `${prefix}:${typeName}`;
-
-        // Keep the first icon per type as the canonical example icon.
-        if (!index.has(qualifiedType)) {
-          index.set(qualifiedType, icon);
-        }
-      }
-    }
-
-    return index;
   }
 
   _resolveElementExampleIcon(ext) {
@@ -86,9 +54,8 @@ export default class StudyflowRenderer extends BaseRenderer {
     const sfType = ext?.$type;
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
     const elementExampleIconClass = this._resolveElementExampleIcon(ext);
-    const exampleIconClass = elementExampleIconClass || (sfType ? this.exampleIconByType.get(sfType) : undefined);
     const descriptorIconClass = sfDescriptor?.meta.icon;
-    const iconClass = exampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
+    const iconClass = elementExampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
     if (is(element, "bpmn:Event")) {
       return drawEventWithIcon(parentNode, element, this.bpmnRenderer);
@@ -105,7 +72,7 @@ export default class StudyflowRenderer extends BaseRenderer {
         this.bpmnRenderer,
         this.pkgEnums,
         iconClass,
-        Boolean(elementExampleIconClass || exampleIconClass),
+        Boolean(elementExampleIconClass),
       );
     }
 

@@ -1,0 +1,109 @@
+name: datatrove
+description: A library of data transformation activities for the DataTrove ecosystem.
+uri: https://w3id.org/studyflow/datatrove
+prefix: datatrove
+icon: iconify tabler--hexagon-letter-d
+xml:
+  tagAlias: lowerCase
+associations: []
+enumerations: []
+types:
+  - name: Document
+    description:
+    superClass:
+      - bpmn:DataObjectReference
+    properties:
+      - name: text
+        type: String
+      ## NOTE same as bpmn:id
+      # - name: id
+      #   type: String
+      - name: media
+        type: String
+        isMany: true
+      - name: metadata
+        type: studyflow:YAMLString
+  - name: Reader
+    description: read data from different formats and yield Document.
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
+  - name: Writer
+    description: write Document to different formats.
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
+  - name: Extractor
+    description: extract text content from raw formats (such as webpage html).
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
+  - name: Filter
+    description: filter out (remove) some Documents based on specific rules/criteria.
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
+  - name: Stats
+    description: blocks to collect statistics on the dataset.
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
+  - name: Tokens
+    description: blocks to tokenize data or count tokens.
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
+  - name: Dedup
+    description: blocks for deduplication.
+    superClass:
+      - omniflow:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          hidden: true
+        default: map
+        redefines: omniflow:Transform#operationType
