@@ -3,28 +3,20 @@ import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
+import { getProperty } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 export function EnumInput(props) {
 
     const { bpmnProperty } = props;
-    const { element, businessObject } = useContext(InspectorContext);
+    const { element } = useContext(InspectorContext);
 
-    const name = bpmnProperty.ns.name;
-    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
+    const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
     const propertyType = bpmnProperty.type.split(':')[1];
     const pkg = bpmnProperty.definedBy.$pkg;
     const literalValues = pkg['enumerations'].find((e) => e.name === propertyType).literalValues;
-
-    // extends-based props live on the BO even though they have a studyflow: prefix
-    const usesExtension = isSchemaProp && !businessObject.$descriptor.properties.some(
-        (p) => p === bpmnProperty
-    );
-    const target = usesExtension ? getExtensionElementOrBusinessObject(businessObject) : businessObject;
-    const useExt = usesExtension && target !== businessObject;
     const [value, setValue] = useState(
-        target.get(name) || ''
+        getProperty(element, name) || ''
     );
 
     const { modeler } = useContext(ModelerContext);
@@ -33,28 +25,27 @@ export function EnumInput(props) {
         const newValue = event.target.value;
         setValue(newValue);
         executeCommand(modeler, {
-            type: 'inspector-update-property',
+            type: 'update-property',
             element,
             propertyName: name,
             value: newValue,
-            useExtension: useExt,
         });
     }
 
     return (
         <>
             <Label className="flex items-center justify-between">
-                {t(name)}
+                {t(bpmnProperty.ns.name)}
                 <Popover className="relative group">
                     <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
                     <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-lg">
-                        <pre className="font-mono text-xs font-bold text-white">{name}</pre>
+                        <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
                         {bpmnProperty?.description}
                     </PopoverPanel>
                 </Popover>
             </Label>
             <div className="relative">
-                <Select name={name} aria-label={t(name)}
+                <Select name={bpmnProperty.ns.name} aria-label={t(bpmnProperty.ns.name)}
                     onChange={handleChange}
                     value={value}
                     className="appearance-none px-2 py-1 pr-8 w-full rounded-md border-none bg-white/10 text-sm/6 text-stone-200 focus:outline-2 focus:-outline-offset-2 focus:outline-white/30"

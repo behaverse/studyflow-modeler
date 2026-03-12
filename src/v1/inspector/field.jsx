@@ -7,7 +7,7 @@ import { EnumInput } from './EnumInput';
 import { useEffect, useState, useContext, useCallback } from 'react';
 
 import { InspectorContext, ModelerContext } from '../contexts';
-import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
+import { getProperty } from '../extensionElements';
 
 /**
  * Check if a property is visible based on its condition.
@@ -15,8 +15,7 @@ import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../exten
  * element wrapper, not the business object.
  */
 export function isPropertyVisible(bProp, el) {
-    const bo = getExtensionElementOrBusinessObject(el)
-    if (!bProp || !bo) {
+    if (!bProp || !el) {
         return true;
     }
     if (bProp.meta?.hidden) {
@@ -29,7 +28,7 @@ export function isPropertyVisible(bProp, el) {
     // TODO this is only valid when condition.language is json
     const conditions = bProp.meta?.condition?.body || {};
     const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
-        const cVal = bo.get(cKey);
+        const cVal = getProperty(el, cKey);
         if (Array.isArray(cExpectedVal)) {
             return cExpectedVal.includes(cVal);
         }
@@ -41,7 +40,7 @@ export function isPropertyVisible(bProp, el) {
 
 export function PropertyField(props) {
     const { bpmnProperty } = props;
-    const { element, businessObject } = useContext(InspectorContext);
+    const { element } = useContext(InspectorContext);
     const {modeler} = useContext(ModelerContext);
     const injector = modeler.get('injector');
     const eventBus = injector.get('eventBus');
@@ -52,16 +51,9 @@ export function PropertyField(props) {
     // Determine whether to read from the extension element or the business object.
     // Properties defined on studyflow extension types live on the wrapper element,
     // but extends-based props (e.g., isDataOperation) live on the BO itself.
-    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
-    const isExtendsProp = businessObject?.$descriptor?.properties?.some(
-        (p) => p === bpmnProperty
-    );
-
     const checkConditionalVisibility = useCallback((bProp, element) => {
-        // For extension-element studyflow props, check conditions against the wrapper;
-        // for extends-based props, check conditions against the BO.
         setVisible(isPropertyVisible(bProp, element));
-    }, [isSchemaProp, isExtendsProp]);
+    }, []);
 
     // conditional visibility
     useEffect(() => {

@@ -1,6 +1,6 @@
 import type { CommandContext } from './types';
 import { resolveModeling } from './types';
-import { getExtensionElementOrBusinessObject } from '../extensionElements';
+import { setProperty } from '../extensionElements';
 
 export type UpdatePropertyCommand = {
   type: 'update-property';
@@ -18,10 +18,5 @@ export function runUpdateProperty(
     throw new Error("Command 'update-property' requires modeling or modeler.");
   }
 
-  const ext = getExtensionElementOrBusinessObject(command.element);
-  if (!ext) return;
-
-  modeling.updateModdleProperties(command.element, ext, {
-    [command.propertyName]: command.value,
-  });
+  setProperty(command.element, command.propertyName, command.value, modeling);
 }

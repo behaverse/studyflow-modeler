@@ -9,7 +9,6 @@
  */
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { executeCommand } from './commands';
 
 export const CORE_PREFIXES = new Set([
   'bpmn',
@@ -48,32 +47,269 @@ export function getExtensionElementOrBusinessObject(elementOrBusinessObject: any
   return getExtensionElement(bo) ?? bo;
 }
 
-/**
- * Get the value of a property from the studyflow extension element.
- * @param element - The diagram element or business object
- * @param propertyName - The property name, optionally prefixed (e.g., "instrument" or "studyflow:instrument")
- */
-export function getExtensionProperty(element: any, propertyName: string): any {
-  const ext = getExtensionElement(element);
-  if (!ext) return undefined;
-  return ext.get(propertyName);
+export function resolveContext(elementOrBusinessObject: any) {
+  const businessObject = getBusinessObject(elementOrBusinessObject);
+  const extensionElement = getExtensionElement(businessObject);
+
+  return {
+    element: elementOrBusinessObject?.businessObject ? elementOrBusinessObject : undefined,
+    businessObject,
+    extensionElement,
+    hasStudyflowExtends: hasStudyflowExtends(businessObject),
+    hasWrapperExtension: Boolean(extensionElement),
+  };
 }
 
-/**
- * Set a property on the studyflow extension element using proper modeling commands.
- * This fires the correct bpmn-js events for undo/redo support.
- */
-export function setExtensionProperty(
+function matchesPropertyDescriptor(prop: any, propertyName: string | undefined): boolean {
+  if (!prop || !propertyName) {
+    return false;
+  }
+
+  const names = [propertyName];
+
+  return names.some((name) => {
+    const localName = toLocalName(name);
+
+    return prop?.name === name
+      || prop?.ns?.name === name
+      || prop?.ns?.localName === name
+      || prop?.name === localName
+      || prop?.ns?.name === localName
+      || prop?.ns?.localName === localName;
+  });
+}
+
+function findPropertyDescriptor(properties: any[], propertyName: string | undefined): any {
+  return properties?.find((prop: any) => matchesPropertyDescriptor(prop, propertyName));
+}
+
+function getEffectiveDescriptor(elementOrDescriptor: any, model?: any): any {
+  const typeName = elementOrDescriptor?.$type ?? elementOrDescriptor?.ns?.name;
+  const registry = model?.registry;
+
+  if (typeName && typeof registry?.getEffectiveDescriptor === 'function') {
+    try {
+      return registry.getEffectiveDescriptor(typeName);
+    } catch {
+      // Fall back to the attached descriptor.
+    }
+  }
+
+  return elementOrDescriptor?.$descriptor ?? elementOrDescriptor;
+}
+
+function getEffectiveDescriptorProperties(elementOrDescriptor: any, model?: any): any[] {
+  const descriptor = getEffectiveDescriptor(elementOrDescriptor, model);
+
+  if (Array.isArray(descriptor?.properties) && descriptor.properties.length > 0) {
+    return descriptor.properties;
+  }
+
+  const propertiesByName = descriptor?.propertiesByName;
+  if (!propertiesByName) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return Object.values(propertiesByName).filter((prop: any) => {
+    const key = prop?.ns?.name ?? prop?.name;
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function getEffectivePropertyDescriptor(elementOrBusinessObject: any, propertyName: string | undefined): any {
+  const businessObject = getBusinessObject(elementOrBusinessObject);
+  const model = businessObject?.$model;
+
+  if (model?.getPropertyDescriptor && propertyName) {
+    return model.getPropertyDescriptor(businessObject, propertyName);
+  }
+
+  return findPropertyDescriptor(getEffectiveDescriptorProperties(businessObject, model), propertyName);
+}
+
+export function getBusinessObjectPropertyDescriptor(elementOrBusinessObject: any, propertyName: string | undefined): any {
+  return getEffectivePropertyDescriptor(elementOrBusinessObject, propertyName);
+}
+
+function getExtensionPropertyDescriptor(extensionElement: any, propertyName: string | undefined): any {
+  const model = extensionElement?.$model;
+
+  if (model?.getPropertyDescriptor && propertyName) {
+    return model.getPropertyDescriptor(extensionElement, propertyName);
+  }
+
+  return findPropertyDescriptor(getEffectiveDescriptorProperties(extensionElement, model), propertyName);
+}
+
+export function getElementProperties(elementOrBusinessObject: any): any[] {
+  const businessObject = getBusinessObject(elementOrBusinessObject);
+  return getEffectiveDescriptorProperties(businessObject, businessObject?.$model);
+}
+
+export function getExtensionElementProperties(elementOrBusinessObject: any): any[] {
+  const extensionElement = getExtensionElement(elementOrBusinessObject);
+  return getEffectiveDescriptorProperties(extensionElement, extensionElement?.$model);
+}
+
+function getResolvedPropertyName(propertyName: string | undefined, descriptor: any): string | undefined {
+  if (propertyName === 'bpmn:id') {
+    return 'id';
+  }
+
+  if (propertyName === 'bpmn:name') {
+    return 'name';
+  }
+
+  return descriptor?.name
+    ?? descriptor?.ns?.localName
+    ?? toLocalName(propertyName);
+}
+
+export function getRedefinedPropertyName(descriptor: any): string | undefined {
+  const reference = descriptor?.redefines ?? descriptor?.replaces;
+
+  if (typeof reference !== 'string') {
+    return undefined;
+  }
+
+  const match = reference.match(/^[^#]+#(.+)$/);
+  if (!match) {
+    return undefined;
+  }
+
+  return toLocalName(match[1]);
+}
+
+export function resolveProperty(elementOrBusinessObject: any, propertyName: string) {
+  const context = resolveContext(elementOrBusinessObject);
+  const businessObjectDescriptor = getEffectivePropertyDescriptor(context.businessObject, propertyName);
+  const extensionDescriptor = getExtensionPropertyDescriptor(context.extensionElement, propertyName);
+
+  if (extensionDescriptor && context.extensionElement) {
+    const redefinedPropertyName = getRedefinedPropertyName(extensionDescriptor);
+
+    if (redefinedPropertyName && (businessObjectDescriptor || context.hasStudyflowExtends)) {
+      return {
+        ...context,
+        descriptor: extensionDescriptor,
+        propertyName: redefinedPropertyName,
+        target: context.businessObject,
+        usesExtension: false,
+        updateKind: 'properties',
+      };
+    }
+  }
+
+  if (businessObjectDescriptor) {
+    return {
+      ...context,
+      descriptor: businessObjectDescriptor,
+      propertyName: getResolvedPropertyName(propertyName, businessObjectDescriptor),
+      target: context.businessObject,
+      usesExtension: false,
+      updateKind: 'properties',
+    };
+  }
+
+  if (extensionDescriptor && context.extensionElement) {
+    return {
+      ...context,
+      descriptor: extensionDescriptor,
+      propertyName: getResolvedPropertyName(propertyName, extensionDescriptor),
+      target: context.extensionElement,
+      usesExtension: true,
+      updateKind: 'moddle-properties',
+    };
+  }
+
+  if (context.hasStudyflowExtends) {
+    return {
+      ...context,
+      descriptor: undefined,
+      propertyName: getResolvedPropertyName(propertyName, undefined),
+      target: context.businessObject,
+      usesExtension: false,
+      updateKind: 'properties',
+    };
+  }
+
+  if (context.extensionElement) {
+    return {
+      ...context,
+      descriptor: undefined,
+      propertyName: getResolvedPropertyName(propertyName, undefined),
+      target: context.extensionElement,
+      usesExtension: true,
+      updateKind: 'moddle-properties',
+    };
+  }
+
+  return {
+    ...context,
+    descriptor: undefined,
+    propertyName: getResolvedPropertyName(propertyName, undefined),
+    target: context.businessObject,
+    usesExtension: false,
+    updateKind: 'properties',
+  };
+}
+
+export function resolvePropertyTarget(elementOrBusinessObject: any, propertyName: string): any {
+  return resolveProperty(elementOrBusinessObject, propertyName).target;
+}
+
+export function getProperty(elementOrBusinessObject: any, propertyName: string): any {
+  const resolution = resolveProperty(elementOrBusinessObject, propertyName);
+
+  if (!resolution.target || !resolution.propertyName) {
+    return undefined;
+  }
+
+  if (typeof resolution.target.get === 'function') {
+    return resolution.target.get(resolution.propertyName);
+  }
+
+  return resolution.target[resolution.propertyName];
+}
+
+export function setProperty(
   element: any,
   propertyName: string,
   value: any,
-  modeling: any
+  modeling?: any,
 ): void {
-  executeCommand(modeling, {
-    type: 'update-property',
-    element,
-    propertyName,
-    value,
+  const resolution = resolveProperty(element, propertyName);
+
+  if (!resolution.target || !resolution.propertyName) {
+    return;
+  }
+
+  if (!modeling) {
+    if (typeof resolution.target.set === 'function') {
+      resolution.target.set(resolution.propertyName, value);
+      return;
+    }
+
+    resolution.target[resolution.propertyName] = value;
+    return;
+  }
+
+  if (resolution.updateKind === 'properties') {
+    modeling.updateProperties(element, {
+      [resolution.propertyName]: value,
+    });
+    return;
+  }
+
+  modeling.updateModdleProperties(element, resolution.target, {
+    [resolution.propertyName]: value,
   });
 }
 
@@ -96,47 +332,15 @@ export function createExtensionElement(
     businessObject.extensionElements = extensionElements;
   }
 
-  const wrapper = moddle.create(studyflowType, defaults);
+  const wrapper = moddle.create(studyflowType, {});
   wrapper.$parent = extensionElements;
   extensionElements.values.push(wrapper);
 
-  applyDefaultsToBusinessObject(businessObject, defaults);
+  for (const [propertyName, defaultValue] of Object.entries(defaults)) {
+    setProperty(businessObject, propertyName, defaultValue);
+  }
 
   return wrapper;
-}
-
-function applyDefaultsToBusinessObject(
-  businessObject: any,
-  defaults: Record<string, any>,
-): void {
-  const boProps: any[] = businessObject?.$descriptor?.properties ?? [];
-
-  for (const [defaultKey, defaultValue] of Object.entries(defaults)) {
-    const localName = toLocalName(defaultKey);
-    if (!localName) {
-      continue;
-    }
-
-    const matchingBoProp = boProps.find((prop: any) => {
-      const propName = prop?.name as string | undefined;
-      const nsName = prop?.ns?.name as string | undefined;
-      const nsLocalName = prop?.ns?.localName as string | undefined;
-
-      return propName === defaultKey
-        || nsName === defaultKey
-        || propName === localName
-        || nsLocalName === localName;
-    });
-
-    const boPropName = matchingBoProp?.name
-      ?? (typeof defaultKey === 'string' && defaultKey.includes(':') ? localName : defaultKey);
-
-    if (typeof businessObject?.set === 'function') {
-      businessObject.set(boPropName, defaultValue);
-    } else {
-      businessObject[localName] = defaultValue;
-    }
-  }
 }
 
 function toLocalName(name: string | undefined): string | undefined {
@@ -194,7 +398,7 @@ export function isConditionMet(
  */
 export function hasStudyflowExtends(element: any): boolean {
   const bo = element?.businessObject ?? element;
-  return bo?.$descriptor?.properties?.some(
+  return getEffectiveDescriptorProperties(bo, bo?.$model).some(
     (p: any) => isExtensionPrefix(p.ns?.prefix)
   ) ?? false;
 }

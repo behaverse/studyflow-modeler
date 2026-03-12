@@ -1,6 +1,6 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from '../commands';
-import { getExtensionElementOrBusinessObject } from '../extensionElements';
+import { getProperty } from '../extensionElements';
 
 export default class ReplaceMenuProvider {
   static $inject = ['popupMenu', 'replace', 'modeling', 'eventBus'];
@@ -31,10 +31,9 @@ export default class ReplaceMenuProvider {
 
   _getOperationMarkerHeaderEntry(element) {
     const self = this;
-    const ext = getExtensionElementOrBusinessObject(element);
 
     function toggleDataOperation(event, entry) {
-      const currentState = !!ext.get('isDataOperation');
+      const currentState = !!getProperty(element, 'isDataOperation');
       const newState = !currentState;
 
       executeCommand(self._modeling, {
@@ -50,7 +49,7 @@ export default class ReplaceMenuProvider {
     return {
       title: 'Data Operator',
       imageHtml: '<i class="iconify mdi--function"></i>',
-      active: !!ext.get('isDataOperation'),
+      active: !!getProperty(element, 'isDataOperation'),
       action: toggleDataOperation
     };
   }

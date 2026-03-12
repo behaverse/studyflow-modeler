@@ -3,27 +3,18 @@ import { Input, Label, Textarea, Popover, PopoverButton, PopoverPanel } from '@h
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
+import { getProperty } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 
 export function StringInput(props) {
 
     const { bpmnProperty, isMarkdown } = props;
-    const { element, businessObject } = useContext(InspectorContext);
+    const { element } = useContext(InspectorContext);
 
-    const name = bpmnProperty.ns.name;
-    const isSchemaProp = isExtensionPrefix(bpmnProperty.ns?.prefix);
-
-    // extends-based props (e.g., isDataOperation) live on the BO even though they
-    // have a studyflow: prefix – only use the extension element for wrapper-only props
-    const usesExtension = isSchemaProp && !businessObject.$descriptor.properties.some(
-        (p) => p === bpmnProperty
-    );
-    const target = usesExtension ? getExtensionElementOrBusinessObject(businessObject) : businessObject;
-    const useExt = usesExtension && target !== businessObject;
+    const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
     const [value, setValue] = useState(
-        target.get(name) || ''
+        getProperty(element, name) || ''
     );
 
     const { modeler } = useContext(ModelerContext);
@@ -33,11 +24,10 @@ export function StringInput(props) {
         setValue(newValue);
 
         executeCommand(modeler, {
-            type: 'inspector-update-property',
+            type: 'update-property',
             element,
             propertyName: name,
             value: newValue,
-            useExtension: useExt,
         });
 
     }
@@ -45,18 +35,18 @@ export function StringInput(props) {
     return (
         <>
             <Label className="flex items-center justify-between">
-                {t(name)}
+                {t(bpmnProperty.ns.name)}
                 <Popover className="relative group">
                     <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
                     <PopoverPanel anchor="top end" className="max-w-md w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadowxl">
-                        <pre className="font-mono text-xs font-bold text-white">{name}</pre>
+                        <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
                         {bpmnProperty?.description}
                     </PopoverPanel>
                 </Popover>
             </Label>
             {isMarkdown &&
                 <Textarea
-                    name={name}
+                    name={bpmnProperty.ns.name}
                     onChange={handleChange}
                     value={value}
                     rows={4}
@@ -65,7 +55,7 @@ export function StringInput(props) {
             }
             {!isMarkdown &&
                 <Input
-                    name={name}
+                    name={bpmnProperty.ns.name}
                     type="text"
                     onChange={handleChange}
                     value={value}

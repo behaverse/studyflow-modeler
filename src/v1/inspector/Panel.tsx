@@ -7,12 +7,31 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
-import { getExtensionElement, getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
+import {
+    getBusinessObjectPropertyDescriptor,
+    getElementProperties,
+    getExtensionElement,
+    getExtensionElementProperties,
+    getRedefinedPropertyName,
+    getProperty,
+    isExtensionPrefix,
+} from '../extensionElements';
 
 const toLocalName = (name: string | undefined) => {
     if (!name) return undefined;
     const idx = name.indexOf(':');
     return idx === -1 ? name : name.slice(idx + 1);
+};
+
+const isIdentityProperty = (prop: any) => {
+    const name = prop?.ns?.name ?? prop?.name;
+    const localName = prop?.ns?.localName ?? toLocalName(name);
+
+    return prop?.isId
+        || name === 'bpmn:id'
+        || name === 'bpmn:name'
+        || localName === 'id'
+        || localName === 'name';
 };
 
 export function Panel({ className = '', ...props }) {
@@ -44,8 +63,17 @@ export function Panel({ className = '', ...props }) {
     const getProperties = useCallback((element: any) => {
         let propsByCategory: Record<string, any[]> = {};
         const businessObject = getBusinessObject(element);
-        const extension = getExtensionElement(element);
+        const extensionProperties = getExtensionElementProperties(element);
         const seen = new Set<string>();
+        const overriddenBusinessProperties = new Set(
+            extensionProperties
+                .map((prop: any) => getRedefinedPropertyName(prop) ?? prop.ns?.localName ?? prop.name)
+                .filter((name: string | undefined): name is string => Boolean(name))
+        );
+        const identityProperties = [
+            getBusinessObjectPropertyDescriptor(businessObject, 'bpmn:id'),
+            getBusinessObjectPropertyDescriptor(businessObject, 'bpmn:name'),
+        ].filter((prop: any) => Boolean(prop));
 
         const collectProperties = (properties: any[], predicate: (prop: any) => boolean) => {
             properties.forEach((prop: any) => {
@@ -62,11 +90,17 @@ export function Panel({ className = '', ...props }) {
             });
         };
 
-        collectProperties(businessObject?.$descriptor?.properties ?? [], (prop: any) => (
-            prop.ns?.name === 'bpmn:id' || prop.ns?.name === 'bpmn:name'
+        collectProperties(identityProperties, () => true);
+
+        collectProperties(getElementProperties(businessObject), (prop: any) => (
+            !overriddenBusinessProperties.has(prop.ns?.localName ?? prop.name)
+            && !isIdentityProperty(prop)
+            && (
+                isExtensionPrefix(prop.ns?.prefix)
+            )
         ));
 
-        collectProperties(extension?.$descriptor?.properties ?? [], (prop: any) => (
+        collectProperties(extensionProperties, (prop: any) => (
             isExtensionPrefix(prop.ns?.prefix)
         ));
 
@@ -154,8 +188,7 @@ export function Panel({ className = '', ...props }) {
                     (() => {
                                                 const businessObject = getBusinessObject(el);
                                                 const extension = getExtensionElement(el);
-                                                const resolvedName = businessObject?.get?.('name')
-                                                    ?? businessObject?.name
+                                                const resolvedName = getProperty(el, 'name')
                                                     ?? extension?.get?.('name')
                                                     ?? extension?.name;
                                                 if (typeof resolvedName === 'string' && resolvedName.trim()) {

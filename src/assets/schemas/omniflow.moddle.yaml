@@ -67,7 +67,8 @@ types:
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     superClass:
       - omniflow:Map
-    icon: iconify fluent--pulse-20-filled
+    meta:
+      icon: iconify fluent--pulse-20-filled
     properties:
       - name: name
         isAttr: true

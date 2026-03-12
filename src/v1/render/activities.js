@@ -1,4 +1,4 @@
-import { getExtensionElement } from '../extensionElements';
+import { getExtensionElement, getProperty } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, drawIconText } from './utils';
 import { drawMarkers } from './markers';
@@ -23,17 +23,16 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
   let iconClass = sfIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
   let iconSize = 24;
   let iconMarker = undefined;
+  const instrument = getProperty(element, 'instrument');
+  const scene = getProperty(element, 'scene')?.toUpperCase();
 
   if (ext) {
-    let instrument = ext.get("instrument");
     if (!preservePrimaryIcon) {
       const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
-      console.log(`Activity resolved icon class: ${iconClass}`);
       iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
     }
 
     if (instrument === "behaverse" && !preservePrimaryIcon) {
-      const scene = ext.get("scene")?.toUpperCase();
       iconMarker = (scene === "UNDEFINED") ? undefined : scene;
       switch (iconMarker?.length) {
         case undefined:

@@ -3,33 +3,27 @@ import { Checkbox, Label, Popover, PopoverButton, PopoverPanel } from '@headless
 import { useContext, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionElementOrBusinessObject, isExtensionPrefix } from '../extensionElements';
+import { getProperty } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 
 export function BooleanInput(props) {
     const { bpmnProperty } = props;
     const { modeler } = useContext(ModelerContext);
-    const { element, businessObject } = useContext(InspectorContext);
+    const { element } = useContext(InspectorContext);
 
-    const name = bpmnProperty.ns.name;
-    const usesExtension = isExtensionPrefix(bpmnProperty.ns?.prefix) && !businessObject.$descriptor.properties.some(
-        (p) => p === bpmnProperty
-    );
-    const target = usesExtension ? getExtensionElementOrBusinessObject(businessObject) : businessObject;
-    const useExt = usesExtension && target !== businessObject;
+    const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
     const [value, setValue] = useState(
-        !!target.get(name)
+        !!getProperty(element, name)
     );
 
     function handleChange(checked) {
         setValue(checked);
         executeCommand(modeler, {
-            type: 'inspector-update-property',
+            type: 'update-property',
             element,
             propertyName: name,
             value: checked,
-            useExtension: useExt,
         });
     }
 
@@ -47,13 +41,13 @@ export function BooleanInput(props) {
                 </svg>
             </Checkbox>
             <Label className="flex items-center justify-between">
-                {t(name)}
+                {t(bpmnProperty.ns.name)}
                 </Label>
                 </span>
             <Popover className="float-end">
                 <PopoverButton><i className="bi bi-patch-question text-stone-400"></i></PopoverButton>
                 <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-lg">
-                    <pre className="font-mono text-xs font-bold text-white">{name}</pre>
+                    <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
                     {bpmnProperty?.description}
                 </PopoverPanel>
             </Popover>

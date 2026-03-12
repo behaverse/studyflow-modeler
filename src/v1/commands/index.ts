@@ -69,8 +69,7 @@ export type DiagramCommand =
   | DownloadSchemasCommand
   | CreateModelerCommand
   | ImportXmlCommand
-  | UpdatePropertiesCommand
-  | UpdateExtensionPropertyCommand
+  | UpdatePropertyCommand
   | UpdateModdlePropertiesCommand
   | CreateShapeCommand;
 

@@ -3,7 +3,7 @@ import { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getExtensionProperty } from '../extensionElements';
+import { getProperty } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 
@@ -11,8 +11,9 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
 
     const { bpmnProperty } = props;
     const { element } = useContext(InspectorContext);
+    const propertyName = bpmnProperty?.ns?.name ?? bpmnProperty?.name;
 
-    const [value, setValue] = useState(getExtensionProperty(element, bpmnProperty?.ns.name) || '');
+    const [value, setValue] = useState(getProperty(element, propertyName) || '');
     const { modeler } = useContext(ModelerContext);
 
     const [modalOpen, setModalOpen] = useState(false);
@@ -24,7 +25,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
         executeCommand(modeler, {
             type: 'update-property',
             element,
-            propertyName: bpmnProperty?.ns.name,
+            propertyName,
             value: newValue,
         });
     }
@@ -43,7 +44,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
         executeCommand(modeler, {
             type: 'update-property',
             element,
-            propertyName: bpmnProperty?.ns.name,
+            propertyName,
             value: modalValue,
         });
         setModalOpen(false);
