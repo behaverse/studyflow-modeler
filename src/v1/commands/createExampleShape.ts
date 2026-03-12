@@ -2,6 +2,8 @@ import {
   createExtensionElement,
   getStudyflowDefaults,
   isExtendsType,
+  setAppliedStudyflowType,
+  setNamespacedAttr,
 } from '../extensionElements';
 
 export type CreateExampleShapeCommand = {
@@ -62,6 +64,8 @@ export function runCreateExampleShape(
   }
 
   if (isExtendsType(studyflowType, moddle)) {
+    setAppliedStudyflowType(businessObject, studyflowType);
+
     for (const [key, value] of Object.entries(properties)) {
       businessObject.set(key, value);
     }
@@ -89,26 +93,6 @@ export function runCreateExampleShape(
   }
 
   return shape;
-}
-
-function setNamespacedAttr(target: any, attrName: string, value: any): void {
-  if (!target || value === undefined) {
-    return;
-  }
-
-  if (typeof target.set === 'function') {
-    try {
-      target.set(attrName, value);
-      return;
-    } catch {
-      // Fall through to direct $attrs mutation when supported.
-    }
-  }
-
-  const attrs = target.$attrs;
-  if (attrs && typeof attrs === 'object') {
-    attrs[attrName] = value;
-  }
 }
 
 function toFiniteNumber(value: any): number | undefined {

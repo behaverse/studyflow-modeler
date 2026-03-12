@@ -8,6 +8,7 @@ import { PropertyField, isPropertyVisible } from './field';
 import { t } from '../../i18n';
 import { ToggleButton } from './ToggleButton';
 import {
+    getAppliedStudyflowType,
     getBusinessObjectPropertyDescriptor,
     getElementProperties,
     getExtensionElement,
@@ -195,7 +196,7 @@ export function Panel({ className = '', ...props }) {
                                                     return resolvedName;
                                                 }
 
-                                                const fallbackType = extension?.$type || businessObject?.$type || el?.type;
+                                                const fallbackType = getAppliedStudyflowType(el) || businessObject?.$type || el?.type;
                                                 if (typeof fallbackType === 'string' && fallbackType.includes(':')) {
                                                     return fallbackType.split(':')[1];
                                                 }
@@ -205,8 +206,7 @@ export function Panel({ className = '', ...props }) {
                 <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{
                     (() => {
                         const businessObject = getBusinessObject(el);
-                        const extension = getExtensionElement(el);
-                        return extension?.$type || businessObject?.$type || el.type;
+                        return getAppliedStudyflowType(el) || businessObject?.$type || el.type;
                     })()
                 }</h2>
                 <div className="w-full">

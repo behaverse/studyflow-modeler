@@ -1,6 +1,6 @@
 
 
-import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { createExtensionElement, getStudyflowDefaults, isExtendsType, setAppliedStudyflowType } from '../extensionElements';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
 const HIDDEN_APPEND_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
@@ -111,6 +111,7 @@ export default class AppendMenuProvider {
             const bo = newElement.businessObject;
             const defaults = getStudyflowDefaults(studyflowType, moddle);
             if (isExtendsType(studyflowType, moddle)) {
+              setAppliedStudyflowType(bo, studyflowType);
               for (const [key, val] of Object.entries(defaults)) {
                 bo.set(key, val);
               }

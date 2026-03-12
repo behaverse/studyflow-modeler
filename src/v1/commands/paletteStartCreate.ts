@@ -1,5 +1,5 @@
 import type { CommandContext } from './types';
-import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { createExtensionElement, getStudyflowDefaults, isExtendsType, setAppliedStudyflowType } from '../extensionElements';
 
 export type PaletteStartCreateCommand = {
   type: 'palette-start-create';
@@ -40,6 +40,10 @@ export function runPaletteStartCreate(
   });
 
   businessObject.id = businessObject.id || generatedId;
+
+  if (command.studyflowType && isExtendsType(command.studyflowType, moddle)) {
+    setAppliedStudyflowType(businessObject, command.studyflowType);
+  }
 
   if (command.studyflowType && !isExtendsType(command.studyflowType, moddle)) {
     const defaults = getStudyflowDefaults(command.studyflowType, moddle);

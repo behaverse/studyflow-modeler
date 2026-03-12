@@ -1,6 +1,6 @@
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import { getExtensionElement, hasStudyflowExtends } from '../extensionElements';
+import { getAppliedStudyflowType, getExtensionElement, getNamespacedAttrValue, hasStudyflowExtends } from '../extensionElements';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawEventWithIcon} from './events';
 import { drawDataStore } from './data';
@@ -29,17 +29,7 @@ export default class StudyflowRenderer extends BaseRenderer {
     }
 
     const prefix = ext.$type?.split(':')?.[0];
-    const attrs = ext.$attrs || {};
-
-    if (prefix && attrs[`${prefix}:icon`]) {
-      return attrs[`${prefix}:icon`];
-    }
-
-    if (attrs.icon) {
-      return attrs.icon;
-    }
-
-    return undefined;
+    return getNamespacedAttrValue(ext, 'icon', prefix);
   }
 
   canRender(element) {
@@ -51,10 +41,10 @@ export default class StudyflowRenderer extends BaseRenderer {
 
   drawShape(parentNode, element) {
     const ext = getExtensionElement(element);
-    const sfType = ext?.$type;
+    const sfType = getAppliedStudyflowType(element);
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
-    const elementExampleIconClass = this._resolveElementExampleIcon(ext);
-    const descriptorIconClass = sfDescriptor?.meta.icon;
+    const elementExampleIconClass = this._resolveElementExampleIcon(ext || element.businessObject);
+    const descriptorIconClass = sfDescriptor?.meta?.icon || sfDescriptor?.icon;
     const iconClass = elementExampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
     if (is(element, "bpmn:Event")) {

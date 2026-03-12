@@ -1,5 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getExtensionElement } from '../../extensionElements';
+import { getAppliedStudyflowType } from '../../extensionElements';
 import { runCreateExampleConnection } from '../../commands/createExampleConnection';
 import { runCreateExampleShape } from '../../commands/createExampleShape';
 import type {
@@ -134,9 +134,8 @@ export default class Examples {
    * Get the example currently applied to `element`, or null.
    */
   get(element: any): Example | null {
-    const ext = getExtensionElement(element);
-    if (!ext) return null;
-    const sfType: string | undefined = ext.$type;
+    const sfType = getAppliedStudyflowType(element);
+    if (!sfType) return null;
     return this._examples.find(t => t.studyflowType === sfType) ?? null;
   }
 

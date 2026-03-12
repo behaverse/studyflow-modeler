@@ -1,4 +1,4 @@
-import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
+import { createExtensionElement, getStudyflowDefaults, isExtendsType, setAppliedStudyflowType } from '../extensionElements';
 import { executeCommand } from '../commands';
 
 /**
@@ -59,6 +59,7 @@ export function createAndPlace(
     if (isExtendsType(studyflowType, moddle)) {
       // extends-based type: apply defaults directly to the BO
       const defaults = getStudyflowDefaults(studyflowType, moddle);
+      setAppliedStudyflowType(businessObject, studyflowType);
       for (const [key, val] of Object.entries(defaults)) {
         businessObject.set(key, val);
       }
@@ -121,6 +122,10 @@ export function startCreate(
   });
 
   businessObject.id = businessObject.id || generatedId;
+
+  if (studyflowType && isExtendsType(studyflowType, moddle)) {
+    setAppliedStudyflowType(businessObject, studyflowType);
+  }
 
   if (studyflowType && !isExtendsType(studyflowType, moddle)) {
     attachStudyflowExtension(businessObject, studyflowType, moddle);

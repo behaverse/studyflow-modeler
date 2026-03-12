@@ -9,6 +9,7 @@
  */
 
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { resolveBpmnCreateType } from './moddle/resolveBpmnType';
 
 export const CORE_PREFIXES = new Set([
   'bpmn',
@@ -19,8 +20,84 @@ export const CORE_PREFIXES = new Set([
   'xml'
 ]);
 
+const APPLIED_TYPE_ATTR_LOCAL_NAME = 'appliedType';
+const IGNORED_INFERENCE_DEFAULTS = new Set(['id', 'name', 'documentation']);
+
 export function isExtensionPrefix(prefix: string | undefined): boolean {
   return Boolean(prefix && !CORE_PREFIXES.has(prefix));
+}
+
+export function getNamespacedAttrValue(
+  target: any,
+  attrLocalName: string,
+  preferredPrefix?: string,
+): string | undefined {
+  const attrs = target?.$attrs;
+
+  if (!attrs || typeof attrs !== 'object') {
+    return undefined;
+  }
+
+  if (preferredPrefix) {
+    const preferredValue = attrs[`${preferredPrefix}:${attrLocalName}`];
+    if (typeof preferredValue === 'string' && preferredValue.trim() !== '') {
+      return preferredValue;
+    }
+  }
+
+  const exactValue = attrs[attrLocalName];
+  if (typeof exactValue === 'string' && exactValue.trim() !== '') {
+    return exactValue;
+  }
+
+  for (const [attrName, value] of Object.entries(attrs)) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      continue;
+    }
+
+    const separatorIndex = attrName.indexOf(':');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const prefix = attrName.slice(0, separatorIndex);
+    const localName = attrName.slice(separatorIndex + 1);
+
+    if (localName === attrLocalName && isExtensionPrefix(prefix)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+export function setNamespacedAttr(target: any, attrName: string, value: any): void {
+  if (!target || value === undefined) {
+    return;
+  }
+
+  if (typeof target.set === 'function') {
+    try {
+      target.set(attrName, value);
+      return;
+    } catch {
+      // Fall through to direct $attrs mutation when supported.
+    }
+  }
+
+  const attrs = target.$attrs;
+  if (attrs && typeof attrs === 'object') {
+    attrs[attrName] = value;
+  }
+}
+
+export function setAppliedStudyflowType(target: any, studyflowType: string | undefined): void {
+  if (!studyflowType) {
+    return;
+  }
+
+  const prefix = studyflowType.split(':')[0];
+  setNamespacedAttr(target, `${prefix}:${APPLIED_TYPE_ATTR_LOCAL_NAME}`, studyflowType);
 }
 
 /**
@@ -36,6 +113,114 @@ export function getExtensionElement(elementOrBusinessObject: any): any {
   return values.find((ext: any) =>
     isExtensionPrefix(ext.$type?.split(':')?.[0])
   ) ?? null;
+}
+
+function getCandidateInferenceDefaults(descriptor: any): Record<string, any> {
+  const defaults: Record<string, any> = {};
+
+  for (const property of descriptor?.properties ?? []) {
+    if (
+      property?.default !== undefined
+      && !IGNORED_INFERENCE_DEFAULTS.has(property.name)
+    ) {
+      defaults[property.name] = property.default;
+    }
+  }
+
+  return defaults;
+}
+
+function valuesMatch(left: any, right: any): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    try {
+      return JSON.stringify(left) === JSON.stringify(right);
+    } catch {
+      return false;
+    }
+  }
+
+  if (left && right && typeof left === 'object' && typeof right === 'object') {
+    try {
+      return JSON.stringify(left) === JSON.stringify(right);
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function inferAppliedStudyflowType(elementOrBusinessObject: any): string | undefined {
+  const businessObject = getBusinessObject(elementOrBusinessObject);
+  const model = businessObject?.$model;
+  const typeMap: Record<string, any> = model?.registry?.typeMap ?? {};
+  const bpmnType = businessObject?.$type;
+
+  if (!businessObject || !model || !bpmnType) {
+    return undefined;
+  }
+
+  let bestMatch: { typeName: string; score: number } | undefined;
+
+  for (const [typeName, descriptor] of Object.entries(typeMap)) {
+    if (!typeName.includes(':')) {
+      continue;
+    }
+
+    const prefix = descriptor?.ns?.prefix ?? typeName.split(':')[0];
+    if (!isExtensionPrefix(prefix) || descriptor?.isAbstract) {
+      continue;
+    }
+
+    if (!isExtendsType(typeName, model)) {
+      continue;
+    }
+
+    if (resolveBpmnCreateType(model, descriptor) !== bpmnType) {
+      continue;
+    }
+
+    const defaults = getCandidateInferenceDefaults(descriptor);
+    const entries = Object.entries(defaults);
+    if (entries.length === 0) {
+      continue;
+    }
+
+    const matchesAllDefaults = entries.every(([propertyName, defaultValue]) => {
+      const currentValue = getProperty(businessObject, propertyName);
+      return valuesMatch(currentValue, defaultValue);
+    });
+
+    if (!matchesAllDefaults) {
+      continue;
+    }
+
+    const score = entries.length;
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { typeName, score };
+    }
+  }
+
+  return bestMatch?.typeName;
+}
+
+export function getAppliedStudyflowType(elementOrBusinessObject: any): string | undefined {
+  const extensionElement = getExtensionElement(elementOrBusinessObject);
+  if (extensionElement?.$type) {
+    return extensionElement.$type;
+  }
+
+  const businessObject = getBusinessObject(elementOrBusinessObject);
+  const appliedType = getNamespacedAttrValue(businessObject, APPLIED_TYPE_ATTR_LOCAL_NAME);
+  if (appliedType) {
+    return appliedType;
+  }
+
+  return inferAppliedStudyflowType(businessObject);
 }
 
 export function resolveContext(elementOrBusinessObject: any) {
@@ -347,9 +532,10 @@ export function getStudyflowDefaults(
 
   try {
     const descriptor = moddle.getTypeDescriptor(studyflowType);
-    if (!descriptor?.properties) return defaults;
+    const properties = getEffectiveDescriptorProperties(descriptor, moddle);
+    if (!properties.length) return defaults;
 
-    for (const prop of descriptor.properties) {
+    for (const prop of properties) {
       if (prop.default !== undefined) {
         defaults[prop.name] = prop.default;
       }
