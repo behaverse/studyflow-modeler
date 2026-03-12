@@ -38,15 +38,6 @@ export function getExtensionElement(elementOrBusinessObject: any): any {
   ) ?? null;
 }
 
-/**
- * Get the studyflow extension element wrapper when present,
- * otherwise fall back to the BPMN business object itself.
- */
-export function getExtensionElementOrBusinessObject(elementOrBusinessObject: any): any {
-  const bo = getBusinessObject(elementOrBusinessObject);
-  return getExtensionElement(bo) ?? bo;
-}
-
 export function resolveContext(elementOrBusinessObject: any) {
   const businessObject = getBusinessObject(elementOrBusinessObject);
   const extensionElement = getExtensionElement(businessObject);
@@ -261,10 +252,6 @@ export function resolveProperty(elementOrBusinessObject: any, propertyName: stri
   };
 }
 
-export function resolvePropertyTarget(elementOrBusinessObject: any, propertyName: string): any {
-  return resolveProperty(elementOrBusinessObject, propertyName).target;
-}
-
 export function getProperty(elementOrBusinessObject: any, propertyName: string): any {
   const resolution = resolveProperty(elementOrBusinessObject, propertyName);
 
@@ -372,22 +359,6 @@ export function getStudyflowDefaults(
   }
 
   return defaults;
-}
-
-/**
- * Check if a property condition is met based on the studyflow extension element.
- * Conditions reference property names like "studyflow:requiresConsent".
- */
-export function isConditionMet(
-  condition: { body: Record<string, any> } | undefined,
-  extensionElement: any
-): boolean {
-  if (!condition?.body || !extensionElement) return true;
-
-  return Object.entries(condition.body).every(([key, expectedValue]) => {
-    const value = extensionElement.get(key);
-    return value === expectedValue;
-  });
 }
 
 /**
