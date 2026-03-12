@@ -1,7 +1,7 @@
 import type { CommandContext } from './types';
 import { SCHEMA_NAMES } from '../contexts';
-import SchemaCreateMenuProvider from '../palette/SchemaCreateMenuProvider';
-import BpmnCreateTemplateFilterProvider from '../palette/BpmnCreateTemplateFilterProvider';
+import SchemaPopupMenu from '../palette/SchemaPopupMenu';
+import RemoveTemplatesFromPopup from '../palette/RemoveTemplatesFromPopup';
 
 const filteredPopupMenus = new WeakSet<object>();
 const schemaOrder = new Map(SCHEMA_NAMES.map((schemaName, index) => [schemaName, index]));
@@ -33,7 +33,7 @@ export function runPaletteRegisterSchemaProviders(
 
   if (!filteredPopupMenus.has(popupMenu as object)) {
     // eslint-disable-next-line no-new
-    new (BpmnCreateTemplateFilterProvider as any)(popupMenu);
+    new (RemoveTemplatesFromPopup as any)(popupMenu);
     filteredPopupMenus.add(popupMenu as object);
   }
 
@@ -54,7 +54,7 @@ export function runPaletteRegisterSchemaProviders(
     if (!command.registeredSchemas.has(prefix)) {
       try {
         // eslint-disable-next-line no-new
-        new (SchemaCreateMenuProvider as any)(
+        new (SchemaPopupMenu as any)(
           popupMenu,
           bpmnFactory,
           elementFactory,

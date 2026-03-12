@@ -1,4 +1,3 @@
-import { t } from '../../i18n';
 import { createExtensionElement, getStudyflowDefaults, isExtendsType } from '../extensionElements';
 import type { Example as ElementExample } from '../moddle/examples';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
@@ -27,7 +26,7 @@ type ElementExamplesService = {
 const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
 const HIDDEN_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
 
-export default class SchemaCreateMenuProvider {
+export default class SchemaPopupMenu {
   static $inject = ['popupMenu', 'bpmnFactory', 'elementFactory', 'create'];
 
   private _popupMenu: any;

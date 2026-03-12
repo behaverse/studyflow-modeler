@@ -1,4 +1,4 @@
-export default class BpmnCreateTemplateFilterProvider {
+export default class RemoveTemplatesFromPopup {
   static $inject = ['popupMenu'];
 
   private _popupMenu: any;
