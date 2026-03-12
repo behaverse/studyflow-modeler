@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+test-results
 
 # Editor directories and files
 .vscode/*
@@ -30,3 +31,10 @@ dist-ssr
 .docusaurus/
 
 tmp/
+
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

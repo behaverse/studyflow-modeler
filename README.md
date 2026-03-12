@@ -18,6 +18,14 @@ To run the documentations locally, use:
 npm run docs
 ```
 
+## UI Tests
+
+To run the e2e tests:
+
+```bash
+npm run test:e2e
+```
+
 ## License
 
 MIT

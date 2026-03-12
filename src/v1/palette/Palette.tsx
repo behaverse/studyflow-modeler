@@ -216,7 +216,7 @@ export function Palette({ className = '' }: { className?: string }) {
   const paletteEntries = useMemo(() => entries, [entries]);
 
   return (
-    <div className={`fixed top-20 left-2 z-2 flex flex-col ${className}`}>
+    <div className={`fixed top-20 left-2 z-2 flex flex-col ${className}`} data-testid="palette-root">
       {paletteEntries.map((entry) => (
         <div
           key={entry.key}

@@ -26,6 +26,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts"],
+  "include": ["vite.config.ts", "playwright.config.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist", ".docusaurus", "build"],
 }

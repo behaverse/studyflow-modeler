@@ -17,7 +17,7 @@ export default function App() {
   if (apiKey === undefined) {
     return (
       <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
-        <div className="App flex flex-col h-screen">
+        <div className="App flex flex-col h-screen" data-testid="startup-shell">
           <StartUpModal />
         </div>
       </APIKeyContext.Provider>
@@ -27,7 +27,9 @@ export default function App() {
   return (
     <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
       <ModelerContext.Provider value={{modeler: modeler, setModeler: setModeler}}>
-        <div className="App flex flex-col h-screen">
+        <div className="App flex flex-col h-screen" data-testid="modeler-app" data-modeler-ready={modeler ? 'true' : 'false'}>
+
+          {modeler && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
     
           {modeler && <NavBar />}
     
@@ -40,7 +42,7 @@ export default function App() {
           </div>
   
           {modeler && (
-              <div className="studyflow-inspector">
+              <div className="studyflow-inspector" data-testid="inspector-shell">
                 <InspectorPanel />
               </div>
             )}
