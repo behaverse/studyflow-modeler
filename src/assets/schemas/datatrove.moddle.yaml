@@ -11,6 +11,8 @@ enumerations:
     isAbstract: true
     description: Specific class for the reader.
     literalValues:
+      # - name: Disk
+      #   value: BaseDiskReader
       - name: CSV
         value: CSVReader
       - name: HuggingFace Dataset
@@ -23,11 +25,25 @@ enumerations:
         value: ParquetReader
       - name: WARC
         value: WarcReader
+  - name: WriterClassEnum
+    isAbstract: true
+    description: Specific class for the writer.
+    literalValues:
+      # - name: Disk
+      #   value: DiskWriter
+      - name: HuggingFace Dataset
+        value: HuggingFaceDatasetWriter
+      - name: JSONL (JSON Lines)
+        value: JsonlWriter
+      - name: Parquet
+        value: ParquetWriter
 types:
   - name: Document
     description:
     superClass:
       - bpmn:DataObjectReference
+    meta:
+      icon: iconify mdi--file-document-outline
     properties:
       - name: text
         type: String
@@ -52,7 +68,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify tabler--folder
+      icon: iconify mdi--folder-outline
     properties:
   - name: Reader
     description: read data from different formats and yield Document.
@@ -81,6 +97,8 @@ types:
     description: write Document to different formats.
     superClass:
       - omniflow:Transform
+    meta:
+      icon: iconify mdi--output
     properties:
       - name: operationType
         isAttr: true
@@ -89,6 +107,15 @@ types:
           hidden: true
         default: map
         redefines: omniflow:Transform#operationType
+      - name: className
+        type: WriterClassEnum
+        isAttr: true
+        description: |
+          Specific writer class to use for writing data.
+          It is determined by the format of the output.
+        meta:
+          categories:
+            - DataTrove
   - name: Extractor
     description: extract text content from raw formats (such as webpage html).
     superClass:
