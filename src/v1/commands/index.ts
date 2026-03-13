@@ -14,15 +14,13 @@ import {
   runPaletteOpenPopup,
 } from './paletteUi';
 import type {
-  StartupAutoGuestCommand,
-  StartupGuestLoginCommand,
-  StartupLoginCommand,
-} from './startupAuth';
+  LoginAsGuestCommand,
+  LoginCommand,
+} from './auth';
 import {
-  runStartupAutoGuest,
-  runStartupGuestLogin,
-  runStartupLogin,
-} from './startupAuth';
+  runLoginAsGuest,
+  runLogin,
+} from './auth';
 import type { OpenDiagramCommand } from './openDiagram';
 import { runOpenDiagram } from './openDiagram';
 import type { NewDiagramCommand } from './newDiagram';
@@ -56,9 +54,8 @@ export type DiagramCommand =
   | PaletteRegisterSchemaProvidersCommand
   | PaletteActivateLassoCommand
   | PaletteOpenPopupCommand
-  | StartupAutoGuestCommand
-  | StartupLoginCommand
-  | StartupGuestLoginCommand
+  | LoginAsGuestCommand
+  | LoginCommand
   | OpenDiagramCommand
   | NewDiagramCommand
   | SaveDiagramCommand
@@ -114,14 +111,11 @@ export async function executeCommand(
     case 'palette-open-popup':
       return runPaletteOpenPopup(context, command);
 
-    case 'startup-auto-guest':
-      return runStartupAutoGuest(command);
+    case 'login-as-guest':
+      return runLoginAsGuest(command);
 
-    case 'startup-login':
-      return runStartupLogin(command);
-
-    case 'startup-guest-login':
-      return runStartupGuestLogin(command);
+    case 'login':
+      return runLogin(command);
 
     case 'open-diagram':
       return runOpenDiagram(context, command);

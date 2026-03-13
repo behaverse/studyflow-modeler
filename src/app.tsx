@@ -1,27 +1,31 @@
-import { StrictMode, useState } from 'react'
+import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import {Modeler} from './v1/Modeler'
 import '@/assets/css/app.css'
-import StartUpModal from './v1/StartUpModal'
 import { APIKeyContext, ModelerContext } from './v1/contexts';
 import { NavBar } from './v1/navbar';
 import { InspectorPanel } from './v1/inspector';
 import { Palette } from './v1/palette';
+import { executeCommand } from './v1/commands';
 
 export default function App() {
 
   const [apiKey, setApiKey] = useState<string | undefined>(undefined);
   const [modeler, setModeler] = useState(undefined);
 
+  // Auto-login as guest on mount
+  useEffect(() => {
+    executeCommand(null, { type: 'login-as-guest' })
+      .then((result: any) => {
+        if (result?.success && result?.data?.apiKey !== undefined) {
+          setApiKey(result.data.apiKey);
+        }
+      });
+  }, []);
+
   if (apiKey === undefined) {
-    return (
-      <APIKeyContext.Provider value={{apiKey: apiKey, setApiKey: setApiKey}}>
-        <div className="App flex flex-col h-screen" data-testid="startup-shell">
-          <StartUpModal />
-        </div>
-      </APIKeyContext.Provider>
-    )
+    return null;
   }
 
   return (
@@ -30,9 +34,9 @@ export default function App() {
         <div className="App flex flex-col h-screen" data-testid="modeler-app" data-modeler-ready={modeler ? 'true' : 'false'}>
 
           {modeler && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
-    
+
           {modeler && <NavBar />}
-    
+
           {/* the modeler */}
           <div className="w-screen h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
@@ -40,7 +44,7 @@ export default function App() {
               <Modeler />
             </div>
           </div>
-  
+
           {modeler && (
               <div className="studyflow-inspector" data-testid="inspector-shell">
                 <InspectorPanel />
