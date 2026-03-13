@@ -5,11 +5,11 @@ output-file: multi-agent
 lightbox: true
 ---
 
+ A choreography task is a distinct shape showing 
 
-BPMN2 introduced choreography tasks that can be used to model multi-agent collaborative experiments. The choreography task is a specialized task that represents a sequence of interactions between two or more participants. Here is an example of a BPMN2 choreography task:
+
+Rather than modeling what each participant does internally, BPMN2 introduced choreography tasks that can be used to model multi-agent collaborative experiments, i.e., the interaction between agents. A choreography task is a specialized task that represents a sequence of interactions between some participants, which one initiates, and what is sent in each direction. Here is an example of a choreography task:
 
 ![BPMN2 choreography elements not only include tasks but also interactions between multiple participants.](../../assets/img/choreography.bpmn.png)
 
-In the example above, we see choreography tasks that involve two participants: "Participant" and "Experimenter". The first task represents the "Participant" performing a task called "Give Consent". The same color is used for the task and the "Participant" to indicate that the task is initiated by the "Participant".
-
-Studyflow extends this concept to allow for the modeling of human studies and multi-agent experiments in a more intuitive way. The following example shows how to model a multi-agent experiment using studyflow.
+In the example above, we see choreography tasks that involve two participants: "Subject" and "Experimenter". In the first task, "Subject" performs an activity called "Give Consent". The same color is used for the task and the "Subject" band to indicate that the task is initiated by the "Subject".
