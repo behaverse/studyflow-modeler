@@ -105,6 +105,19 @@ enumerations:
         value: compose
       - name: FlatMap
         value: flatMap
+  - name: CompletionCodeTypeEnum
+    isAbstract: true
+    description: How the completion code is generated when the study ends.
+    literalValues:
+      - name: None
+        value: none
+        description: No completion code is issued.
+      - name: Static
+        value: static
+        description: A fixed code configured by the researcher.
+      - name: Dynamic
+        value: dynamic
+        description: A code extracted from a URL pattern at runtime (e.g. Prolific).
   - name: InstrumentEnum
     description: The type of instrument used to measure cognitive performance.
     literalValues:
@@ -221,7 +234,10 @@ types:
           categories:
             - Completion
       - name: redirectTo
-        description: Link to redirect the user upon completion.
+        description: |
+          URL to redirect the user upon completion. Use `{COMPLETION_CODE}` as a
+          placeholder that will be replaced with the actual code at runtime
+          (e.g. `https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}`).
         isAttr: true
         type: String
         meta:
@@ -231,6 +247,30 @@ types:
             language: json
             body:
               hasRedirectUrl: true
+      - name: completionCodeType
+        description: How the completion code is issued when the study ends.
+        isAttr: true
+        type: CompletionCodeTypeEnum
+        default: none
+        meta:
+          categories:
+            - Completion
+          condition:
+            language: json
+            body:
+              hasRedirectUrl: true
+      - name: completionCode
+        description: Fixed completion code to embed in the redirect URL.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Completion
+          condition:
+            language: json
+            body:
+              hasRedirectUrl: true
+              completionCodeType: static
   - name: Activity
     description: Base class for all the activities in the Studyflow.
     extends:
