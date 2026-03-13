@@ -6,7 +6,23 @@ icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
 associations: []
-enumerations: []
+enumerations:
+  - name: ReaderClassEnum
+    isAbstract: true
+    description: Specific class for the reader.
+    literalValues:
+      - name: CSV
+        value: CSVReader
+      - name: HuggingFace Dataset
+        value: HuggingFaceDatasetReader
+      - name: IPC (Apache Arrow)
+        value: IpcReader
+      - name: JSONL (JSON Lines)
+        value: JsonlReader
+      - name: Parquet
+        value: ParquetReader
+      - name: WARC
+        value: WarcReader
 types:
   - name: Document
     description:
@@ -15,18 +31,35 @@ types:
     properties:
       - name: text
         type: String
-      ## NOTE same as bpmn:id
-      # - name: id
+        meta:
+          categories:
+            - DataTrove
+      # - name: id  # NOTE same as bpmn:id
       #   type: String
       - name: media
         type: String
         isMany: true
+        meta:
+          categories:
+            - DataTrove
       - name: metadata
         type: studyflow:YAMLString
+        meta:
+          categories:
+            - DataTrove
+  - name: DataFolder
+    description: a folder that contains multiple Documents. It can be used to represent a dataset or a collection of data.
+    superClass:
+      - bpmn:DataObjectReference
+    meta:
+      icon: iconify tabler--folder
+    properties:
   - name: Reader
     description: read data from different formats and yield Document.
     superClass:
       - omniflow:Transform
+    meta:
+      icon: iconify mdi--input
     properties:
       - name: operationType
         isAttr: true
@@ -35,6 +68,15 @@ types:
           hidden: true
         default: map
         redefines: omniflow:Transform#operationType
+      - name: className
+        type: ReaderClassEnum
+        isAttr: true
+        description: |
+          Specific reader class to use for reading data.
+          It is determined by the format of the input.
+        meta:
+          categories:
+            - DataTrove
   - name: Writer
     description: write Document to different formats.
     superClass:
