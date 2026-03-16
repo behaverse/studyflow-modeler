@@ -1,0 +1,25 @@
+import { toModelerModdleSchema } from './moddle';
+import { SCHEMA_NAMES } from './constants';
+
+const schemaFiles = import.meta.glob('@/assets/schemas/*.moddle.yaml', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
+export async function downloadSchemas(): Promise<Record<string, any>> {
+  const downloadedSchemas: Record<string, any> = {};
+
+  for (const schemaName of SCHEMA_NAMES) {
+    const url = schemaFiles[`/assets/schemas/${schemaName}.moddle.yaml`];
+    if (!url) {
+      throw new Error(`Schema not found in bundle: ${schemaName}`);
+    }
+
+    const response = await fetch(url);
+    const text = await response.text();
+    downloadedSchemas[schemaName] = toModelerModdleSchema(text);
+  }
+
+  return downloadedSchemas;
+}

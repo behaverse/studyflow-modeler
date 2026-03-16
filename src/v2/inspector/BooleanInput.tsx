@@ -1,0 +1,46 @@
+import { useState } from 'react';
+import { Checkbox, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { getProperty } from '../../shared/extensionElements';
+import { useModelerStore } from '../store';
+import { t } from '../../i18n';
+
+interface BooleanInputProps {
+  bpmnProperty: any;
+  businessObject: any;
+  elementId: string;
+}
+
+export function BooleanInput({ bpmnProperty, businessObject, elementId }: BooleanInputProps) {
+  const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
+  const [value, setValue] = useState(() => !!getProperty(businessObject, name));
+  const updateProperty = useModelerStore((s) => s.updateProperty);
+
+  function handleChange(checked: boolean) {
+    setValue(checked);
+    updateProperty(elementId, name, checked);
+  }
+
+  return (
+    <div className="flex items-center justify-between">
+      <span className="flex items-center gap-2">
+        <Checkbox
+          checked={value}
+          onChange={handleChange}
+          className="group block size-4 rounded border border-white/20 bg-white/10 data-[checked]:bg-blue-500"
+        >
+          <svg className="stroke-white opacity-0 group-data-[checked]:opacity-100" viewBox="0 0 14 14" fill="none">
+            <path d="M3 8L6 11L11 3.5" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Checkbox>
+        <Label>{t(bpmnProperty.ns?.name ?? name)}</Label>
+      </span>
+      <Popover className="float-end">
+        <PopoverButton><i className="bi bi-patch-question text-stone-400" /></PopoverButton>
+        <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-lg z-50">
+          <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns?.name ?? name}</pre>
+          {bpmnProperty?.description}
+        </PopoverPanel>
+      </Popover>
+    </div>
+  );
+}
