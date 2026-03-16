@@ -82,11 +82,11 @@ types:
             language: json
             body:
               instrument: behaverse
-      - name: parameters
+      - name: sceneParameters
         type: studyflow:YAMLString
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
         isBody: true
-        replaces: studyflow:CognitiveTask#parameters
+        redefines: studyflow:CognitiveTask#parameters
         meta:
           icon: iconify bi--hexagon
           order: 3

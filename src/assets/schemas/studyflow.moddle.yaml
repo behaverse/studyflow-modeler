@@ -333,7 +333,7 @@ types:
             - Instrument
       - name: parameters
         description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
-        isAttr: true
+        isBody: true
         type: YAMLString
         meta:
           categories:
