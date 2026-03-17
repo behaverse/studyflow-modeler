@@ -15,7 +15,7 @@ function DataStoreNodeComponent({ data, selected }: NodeProps) {
   return (
     <div
       className="flex flex-col items-center"
-      style={{ width, minHeight: height }}
+      style={{ width, minHeight: height, position: 'relative' }}
     >
       {/* Cylinder shape via SVG */}
       <svg

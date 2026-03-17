@@ -3,7 +3,7 @@ import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import type { NodeChange, EdgeChange, Connection } from '@xyflow/react';
 import { BpmnDocument } from '../model/BpmnDocument';
 import { toReactFlowNodes, toReactFlowEdges } from '../model/toReactFlow';
-import { syncNodePosition } from '../model/fromReactFlow';
+import { syncNodePosition, syncNodeDimensions } from '../model/fromReactFlow';
 import {
   createExtensionElement,
   getStudyflowDefaults,
@@ -23,10 +23,20 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeIds: [],
+  selectedEdgeIds: [],
+  connectingFromId: null,
+  simActive: false,
   isReady: false,
   diagramName: 'Untitled Diagram',
   _undoStack: [] as string[],
   _redoStack: [] as string[],
+  _modelVersion: 0,
+  isDirty: false,
+  editingNodeId: null,
+  _simToggleCount: 0,
+  _resetZoomCount: 0,
+  scopeId: null,
+  scopeStack: [],
 
   // Actions
   async initialize(schemas, xml) {
@@ -53,8 +63,10 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
       nodes: toReactFlowNodes(doc),
       edges: toReactFlowEdges(doc),
       selectedNodeIds: [],
+      selectedEdgeIds: [],
       _undoStack: [],
       _redoStack: [],
+      isDirty: false,
     });
   },
 
@@ -65,12 +77,14 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
   },
 
   refreshFromModel() {
-    const { document: doc } = get();
+    const { document: doc, selectedNodeIds, scopeId } = get();
     if (!doc) return;
-    set({
-      nodes: toReactFlowNodes(doc),
-      edges: toReactFlowEdges(doc),
-    });
+    const scope = scopeId ? doc.getScope(scopeId) : undefined;
+    const selectedSet = new Set(selectedNodeIds);
+    const nodes = toReactFlowNodes(doc, scope).map((n) =>
+      selectedSet.has(n.id) ? { ...n, selected: true } : n,
+    );
+    set({ nodes, edges: toReactFlowEdges(doc, scope) });
   },
 
   /** Push current XML state onto undo stack before a mutation. */
@@ -81,7 +95,7 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
       const xml = await doc.toXML({ format: false });
       const newStack = [..._undoStack, xml];
       if (newStack.length > MAX_HISTORY) newStack.shift();
-      set({ _undoStack: newStack, _redoStack: [] });
+      set({ _undoStack: newStack, _redoStack: [], isDirty: true });
     } catch { /* ignore serialization failures */ }
   },
 
@@ -103,6 +117,10 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
         edges: toReactFlowEdges(doc),
         _undoStack: newUndoStack,
         _redoStack: newRedoStack,
+        _modelVersion: get()._modelVersion + 1,
+        isDirty: true,
+        scopeId: null,
+        scopeStack: [],
       });
     } catch { /* ignore */ }
   },
@@ -124,12 +142,16 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
         edges: toReactFlowEdges(doc),
         _undoStack: newUndoStack,
         _redoStack: newRedoStack,
+        _modelVersion: get()._modelVersion + 1,
+        isDirty: true,
+        scopeId: null,
+        scopeStack: [],
       });
     } catch { /* ignore */ }
   },
 
   addElement(bpmnType, position, studyflowType) {
-    const { document: doc } = get();
+    const { document: doc, scopeId } = get();
     if (!doc) throw new Error('No document loaded.');
 
     // Push undo before mutation
@@ -168,12 +190,12 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
     const width = isEvent ? 36 : isGateway ? 50 : 100;
     const height = isEvent ? 36 : isGateway ? 50 : 80;
 
-    doc.addFlowElement(businessObject, {
+    doc.addFlowElementToScope(businessObject, {
       x: position.x,
       y: position.y,
       width,
       height,
-    });
+    }, scopeId);
 
     get().refreshFromModel();
     return id;
@@ -221,22 +243,30 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
   },
 
   onNodesChange(changes: NodeChange[]) {
-    const { document: doc, nodes } = get();
+    // Route keyboard-delete (remove changes) through removeElements so undo is pushed
+    const removes = changes.filter((c) => c.type === 'remove') as { type: 'remove'; id: string }[];
+    const others = changes.filter((c) => c.type !== 'remove');
 
-    const updatedNodes = applyNodeChanges(changes, nodes);
+    if (removes.length > 0) {
+      get().removeElements(removes.map((c) => c.id));
+      if (others.length === 0) return;
+    }
+
+    const { document: doc, nodes } = get();
+    const updatedNodes = applyNodeChanges(others, nodes);
 
     if (doc) {
-      for (const change of changes) {
+      for (const change of others) {
         if (change.type === 'position' && change.position) {
           syncNodePosition(doc, change.id, change.position);
+        }
+        if (change.type === 'dimensions' && change.dimensions) {
+          syncNodeDimensions(doc, change.id, change.dimensions);
         }
       }
     }
 
-    const selectedIds = updatedNodes
-      .filter((n) => n.selected)
-      .map((n) => n.id);
-
+    const selectedIds = updatedNodes.filter((n) => n.selected).map((n) => n.id);
     set({ nodes: updatedNodes, selectedNodeIds: selectedIds });
   },
 
@@ -253,27 +283,29 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
       }
     }
 
-    set({ edges: applyEdgeChanges(changes, edges) });
+    const updatedEdges = applyEdgeChanges(changes, edges);
+    const selectedEdgeIds = updatedEdges.filter((e) => e.selected).map((e) => e.id);
+    set({ edges: updatedEdges, selectedEdgeIds });
   },
 
   onConnect(connection: Connection) {
-    const { document: doc } = get();
+    const { document: doc, scopeId } = get();
     if (!doc || !connection.source || !connection.target) return;
 
     get()._pushUndo();
 
-    const process = doc.getProcess();
-    if (!process?.flowElements) return;
+    const scope = doc.getScope(scopeId);
+    if (!scope?.flowElements) return;
 
-    const sourceBO = process.flowElements.find(
+    const sourceBO = scope.flowElements.find(
       (el: any) => el.id === connection.source
     );
-    const targetBO = process.flowElements.find(
+    const targetBO = scope.flowElements.find(
       (el: any) => el.id === connection.target
     );
     if (!sourceBO || !targetBO) return;
 
-    doc.addSequenceFlow(sourceBO, targetBO);
+    doc.addSequenceFlowInScope(sourceBO, targetBO, scopeId);
     get().refreshFromModel();
   },
 
@@ -283,5 +315,179 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
 
   setDiagramName(name) {
     set({ diagramName: name });
+  },
+
+  setSimActive(active) {
+    set({ simActive: active });
+  },
+
+  startConnecting(sourceId) {
+    set({ connectingFromId: sourceId });
+  },
+
+  cancelConnecting() {
+    set({ connectingFromId: null });
+  },
+
+  markClean() {
+    set({ isDirty: false });
+  },
+
+  async saveFile() {
+    const { document: doc, diagramName } = get();
+    if (!doc) return;
+    const xml = await doc.toXML({ format: true });
+    const filename = `${diagramName}.bpmn`;
+
+    if ('showSaveFilePicker' in window) {
+      try {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'BPMN files', accept: { 'text/xml': ['.bpmn', '.xml'] } }],
+        });
+        const writable = await fileHandle.createWritable();
+        await writable.write(xml);
+        await writable.close();
+        set({ isDirty: false });
+      } catch (err: any) {
+        if (err.name !== 'AbortError') throw err;
+        // User cancelled — do not mark clean
+      }
+    } else {
+      // Fallback: anchor download (no cancellation detection in older browsers)
+      const blob = new Blob([xml], { type: 'text/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      set({ isDirty: false });
+    }
+  },
+
+  setEditingNodeId(id) {
+    set({ editingNodeId: id });
+  },
+
+  morphElement(elementId, newBpmnType) {
+    const { document: doc, scopeId } = get();
+    if (!doc) return;
+
+    get()._pushUndo();
+
+    const scope = doc.getScope(scopeId);
+    if (!scope?.flowElements) return;
+
+    const oldBO = scope.flowElements.find((el: any) => el.id === elementId);
+    if (!oldBO) return;
+
+    // Collect incoming/outgoing flows
+    const incoming: any[] = (oldBO.incoming ?? []).slice();
+    const outgoing: any[] = (oldBO.outgoing ?? []).slice();
+    const name = oldBO.name;
+
+    // Get current DI bounds
+    const di = doc.findShape(elementId);
+    const bounds = di?.bounds ? { ...di.bounds } : null;
+
+    // Remove old element (this also removes its DI)
+    doc.removeFlowElement(elementId);
+
+    // Create new element of new type with same ID and name
+    const moddle = doc.getModdle();
+    const newBO = moddle.create(newBpmnType, { id: elementId, name });
+
+    // Re-add at same position (scope-aware)
+    doc.addFlowElementToScope(newBO, bounds
+      ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+      : { x: 100, y: 100, width: 100, height: 80 },
+      scopeId,
+    );
+
+    // Restore flows: update their source/target references
+    for (const flow of outgoing) {
+      flow.sourceRef = newBO;
+      if (!newBO.outgoing) newBO.outgoing = [];
+      newBO.outgoing.push(flow);
+    }
+    for (const flow of incoming) {
+      flow.targetRef = newBO;
+      if (!newBO.incoming) newBO.incoming = [];
+      newBO.incoming.push(flow);
+    }
+
+    get().refreshFromModel();
+  },
+
+  connectElements(sourceId, targetId) {
+    const { document: doc, scopeId } = get();
+    if (!doc) return;
+    const scope = doc.getScope(scopeId);
+    const sourceBO = scope?.flowElements?.find((el: any) => el.id === sourceId);
+    const targetBO = scope?.flowElements?.find((el: any) => el.id === targetId);
+    if (sourceBO && targetBO) {
+      doc.addSequenceFlowInScope(sourceBO, targetBO, scopeId);
+      get().refreshFromModel();
+    }
+  },
+
+  enterScope(subprocessId) {
+    const { document: doc, scopeStack } = get();
+    if (!doc) return;
+    const sp = doc.findFlowElement(subprocessId);
+    if (!sp) return;
+    const newStack = [...scopeStack, { id: subprocessId, name: sp.name || 'Sub-Process' }];
+    set({
+      scopeId: subprocessId,
+      scopeStack: newStack,
+      nodes: toReactFlowNodes(doc, sp),
+      edges: toReactFlowEdges(doc, sp),
+      selectedNodeIds: [],
+      selectedEdgeIds: [],
+      connectingFromId: null,
+    });
+  },
+
+  exitScope() {
+    const { document: doc, scopeStack } = get();
+    if (!doc || scopeStack.length === 0) return;
+    const newStack = scopeStack.slice(0, -1);
+    const newScopeId = newStack.length > 0 ? newStack[newStack.length - 1].id : null;
+    const scope = newScopeId ? doc.findFlowElement(newScopeId) : undefined;
+    set({
+      scopeId: newScopeId,
+      scopeStack: newStack,
+      nodes: toReactFlowNodes(doc, scope),
+      edges: toReactFlowEdges(doc, scope),
+      selectedNodeIds: [],
+      selectedEdgeIds: [],
+      connectingFromId: null,
+    });
+  },
+
+  requestToggleSim() {
+    set((s) => ({ _simToggleCount: s._simToggleCount + 1 }));
+  },
+
+  requestResetZoom() {
+    set((s) => ({ _resetZoomCount: s._resetZoomCount + 1 }));
+  },
+
+  connectTo(targetId) {
+    const { document: doc, connectingFromId, scopeId } = get();
+    if (!doc || !connectingFromId || connectingFromId === targetId) {
+      set({ connectingFromId: null });
+      return;
+    }
+    const scope = doc.getScope(scopeId);
+    const sourceBO = scope?.flowElements?.find((el: any) => el.id === connectingFromId);
+    const targetBO = scope?.flowElements?.find((el: any) => el.id === targetId);
+    if (sourceBO && targetBO) {
+      get()._pushUndo();
+      doc.addSequenceFlowInScope(sourceBO, targetBO, scopeId);
+      get().refreshFromModel();
+    }
+    set({ connectingFromId: null });
   },
 }));

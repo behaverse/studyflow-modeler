@@ -17,6 +17,12 @@ export interface ModelerState {
   /** Currently selected node IDs. */
   selectedNodeIds: string[];
 
+  /** Source node ID when the connect tool is active, otherwise null. */
+  connectingFromId: string | null;
+
+  /** Whether the token simulation is currently running. */
+  simActive: boolean;
+
   /** Whether the modeler is initialized and ready. */
   isReady: boolean;
 
@@ -28,6 +34,33 @@ export interface ModelerState {
 
   /** Redo history (XML snapshots). */
   _redoStack: string[];
+
+  /** Incremented on every undo/redo so the inspector can remount with fresh values. */
+  _modelVersion: number;
+
+  /** ID of the node currently being edited inline (double-click label edit), or null. */
+  editingNodeId: string | null;
+
+  /** IDs of currently selected edges. */
+  selectedEdgeIds: string[];
+
+  /** Whether there are unsaved changes since the last import/save. */
+  isDirty: boolean;
+
+  /** Incremented each time simulation toggle is requested. */
+  _simToggleCount: number;
+
+  /** Incremented each time reset-zoom is requested. */
+  _resetZoomCount: number;
+
+  /**
+   * ID of the subprocess currently being edited, or null for the root process.
+   * Determines which flowElements are shown in the canvas.
+   */
+  scopeId: string | null;
+
+  /** Breadcrumb trail of scopes entered. Each entry has id + display name. */
+  scopeStack: { id: string; name: string }[];
 }
 
 export interface ModelerActions {
@@ -68,8 +101,20 @@ export interface ModelerActions {
   /** Set selected node IDs. */
   setSelection(nodeIds: string[]): void;
 
+  /** Enter connect-tool mode from a source node. */
+  startConnecting(sourceId: string): void;
+
+  /** Cancel the active connect-tool mode. */
+  cancelConnecting(): void;
+
+  /** Complete a connection to the given target node and exit connect-tool mode. */
+  connectTo(targetId: string): void;
+
   /** Set diagram name. */
   setDiagramName(name: string): void;
+
+  /** Sync simulation active state (called from ModelerCanvas). */
+  setSimActive(active: boolean): void;
 
   /** Push current XML state onto undo stack. */
   _pushUndo(): Promise<void>;
@@ -79,6 +124,43 @@ export interface ModelerActions {
 
   /** Redo the last undone mutation. */
   redo(): Promise<void>;
+
+  /** Mark the diagram as clean (saved). */
+  markClean(): void;
+
+  /**
+   * Save the diagram to a file. Uses showSaveFilePicker (File System Access API)
+   * when available so markClean is only called if the user confirms the save.
+   * Falls back to a hidden anchor download for unsupported browsers.
+   */
+  saveFile(): Promise<void>;
+
+  /** Set the node currently being edited inline. */
+  setEditingNodeId(id: string | null): void;
+
+  /** Request simulation toggle (consumed by ModelerCanvas). */
+  requestToggleSim(): void;
+
+  /** Request zoom reset (consumed by ModelerCanvas). */
+  requestResetZoom(): void;
+
+  /**
+   * Change the BPMN type of an element in-place.
+   * Preserves position, dimensions, name, and sequence flow connections.
+   */
+  morphElement(elementId: string, newBpmnType: string): void;
+
+  /**
+   * Connect two existing elements by ID within the current scope.
+   * Used by ContextPad after addElement to wire up the new element.
+   */
+  connectElements(sourceId: string, targetId: string): void;
+
+  /** Enter a subprocess scope — shows only its children in the canvas. */
+  enterScope(subprocessId: string): void;
+
+  /** Exit the current scope and return to the parent scope. */
+  exitScope(): void;
 }
 
 export type ModelerStore = ModelerState & ModelerActions;

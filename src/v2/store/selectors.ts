@@ -23,3 +23,11 @@ export function useProcessBusinessObject() {
     return state.document?.getProcess() ?? null;
   });
 }
+
+/** Get the selected edge (or null if none or multiple selected). */
+export function useSelectedEdge() {
+  return useModelerStore((state) => {
+    if (state.selectedEdgeIds.length !== 1) return null;
+    return state.edges.find((e) => e.id === state.selectedEdgeIds[0]) ?? null;
+  });
+}

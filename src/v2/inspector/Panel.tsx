@@ -1,4 +1,4 @@
-import { useSelectedNode, useProcessBusinessObject } from '../store/selectors';
+import { useSelectedNode, useSelectedEdge, useProcessBusinessObject } from '../store/selectors';
 import {
   getAppliedStudyflowType,
   getProperty,
@@ -10,6 +10,7 @@ import {
 } from '../../shared/extensionElements';
 import { getBusinessObject } from '../model/businessObject';
 import { useState } from 'react';
+import { useModelerStore } from '../store';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { PropertyField } from './PropertyField';
 import { t } from '../../i18n';
@@ -93,10 +94,48 @@ function getPropertiesByCategory(element: any): Record<string, any[]> {
 
 export function InspectorPanel() {
   const selectedNode = useSelectedNode();
+  const selectedEdge = useSelectedEdge();
   const processBO = useProcessBusinessObject();
+  const modelVersion = useModelerStore((s) => s._modelVersion);
+  const selectedNodeIds = useModelerStore((s) => s.selectedNodeIds);
+  const removeElements = useModelerStore((s) => s.removeElements);
   const [isVisible, setIsVisible] = useState(true);
 
-  const inspectTarget = selectedNode?.data ?? (processBO ? { businessObject: processBO, id: processBO?.id } : null);
+  // Multi-selection: show count + bulk delete
+  if (selectedNodeIds.length > 1) {
+    return (
+      <>
+        <button
+          onClick={() => setIsVisible(!isVisible)}
+          className="absolute right-2 top-2 m-2 text-white/50 hover:text-white/80 active:text-white rounded-xl z-50"
+          title={isVisible ? 'Hide Inspector' : 'Show Inspector'}
+        >
+          <i className={`text-[32px] ${isVisible
+            ? 'iconify tabler--layout-sidebar-right-collapse-filled'
+            : 'iconify tabler--layout-sidebar-right-expand-filled'}`}
+          />
+        </button>
+        {isVisible && (
+          <div className="fixed w-80 px-4 py-4 top-2 right-2 bg-black/50 backdrop-blur-xs rounded-2xl text-stone-200">
+            <h1 className="text-lg font-bold text-stone-100 mb-1">
+              {selectedNodeIds.length} elements selected
+            </h1>
+            <button
+              className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300 text-sm"
+              onClick={() => removeElements(selectedNodeIds)}
+            >
+              <i className="bi bi-trash" /> Delete all
+            </button>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  const inspectTarget =
+    selectedNode?.data ??
+    selectedEdge?.data ??
+    (processBO ? { businessObject: processBO, id: processBO?.id } : null);
 
   if (!inspectTarget) return null;
 
@@ -123,6 +162,7 @@ export function InspectorPanel() {
       </button>
 
       <div
+        key={`${bo?.id ?? ''}-${modelVersion}`}
         data-testid="inspector-root"
         className={`fixed w-80 px-1 top-2 right-2 bg-black/50 backdrop-blur-xs rounded-2xl text-stone-200 max-h-[90vh] overflow-y-auto ${
           isVisible ? '' : 'hidden'

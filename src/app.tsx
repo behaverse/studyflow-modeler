@@ -15,6 +15,7 @@ import { executeCommand } from './v1/commands';
 import { Modeler as V2Modeler } from './v2/Modeler';
 import { Palette as V2Palette } from './v2/palette/Palette';
 import { InspectorPanel as V2InspectorPanel } from './v2/inspector/Panel';
+import { NavBar as V2NavBar } from './v2/navbar';
 import { useModelerStore } from './v2/store';
 
 /** Detect engine version from URL param or env var. */
@@ -23,8 +24,8 @@ function getEngine(): 'v1' | 'v2' {
   const urlEngine = params.get('engine');
   if (urlEngine === 'v2') return 'v2';
   if (urlEngine === 'v1') return 'v1';
-  if (import.meta.env.VITE_ENGINE === 'v1') return 'v1';
-  return 'v2';
+  if (import.meta.env.VITE_ENGINE === 'v2') return 'v2';
+  return 'v1';
 }
 
 function V1App() {
@@ -73,6 +74,7 @@ function V2App() {
   return (
     <div className="App flex flex-col h-screen" data-testid="modeler-app" data-modeler-ready={isReady ? 'true' : 'false'}>
       {isReady && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
+      {isReady && <V2NavBar />}
 
       <div className="w-screen h-full">
         <div className="flex flex-row h-full overflow-hidden relative">

@@ -1,3 +1,8 @@
+/**
+ * PerimeterHandles — renders invisible zero-size handles that satisfy
+ * ReactFlow's internal edge validation without being interactive.
+ * Actual connection is done via the context-pad arrow tool (click-to-connect).
+ */
 import { Handle, Position } from '@xyflow/react';
 
 type PerimeterHandlesProps = {
@@ -5,44 +10,15 @@ type PerimeterHandlesProps = {
   allowTarget?: boolean;
 };
 
-const HANDLE_CLASS = '!bg-transparent !border-none !rounded-none';
-
-function makeHandles(type: 'source' | 'target') {
-  return [
-    <Handle
-      key={`${type}-top`}
-      id={`${type}-top`}
-      type={type}
-      position={Position.Top}
-      className={HANDLE_CLASS}
-      style={{ width: '100%', height: 8, left: '50%', transform: 'translate(-50%, -50%)' }}
-    />,
-    <Handle
-      key={`${type}-bottom`}
-      id={`${type}-bottom`}
-      type={type}
-      position={Position.Bottom}
-      className={HANDLE_CLASS}
-      style={{ width: '100%', height: 8, left: '50%', transform: 'translate(-50%, -50%)' }}
-    />,
-    <Handle
-      key={`${type}-left`}
-      id={`${type}-left`}
-      type={type}
-      position={Position.Left}
-      className={HANDLE_CLASS}
-      style={{ width: 8, height: '100%', top: '50%', transform: 'translate(-50%, -50%)' }}
-    />,
-    <Handle
-      key={`${type}-right`}
-      id={`${type}-right`}
-      type={type}
-      position={Position.Right}
-      className={HANDLE_CLASS}
-      style={{ width: 8, height: '100%', top: '50%', transform: 'translate(-50%, -50%)' }}
-    />,
-  ];
-}
+const HIDDEN_STYLE: React.CSSProperties = {
+  width: 0,
+  height: 0,
+  minWidth: 0,
+  minHeight: 0,
+  border: 'none',
+  background: 'transparent',
+  pointerEvents: 'none',
+};
 
 export function PerimeterHandles({
   allowSource = true,
@@ -50,8 +26,24 @@ export function PerimeterHandles({
 }: PerimeterHandlesProps) {
   return (
     <>
-      {allowTarget ? makeHandles('target') : null}
-      {allowSource ? makeHandles('source') : null}
+      {allowTarget && (
+        <Handle
+          id="target"
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+          style={HIDDEN_STYLE}
+        />
+      )}
+      {allowSource && (
+        <Handle
+          id="source"
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+          style={HIDDEN_STYLE}
+        />
+      )}
     </>
   );
 }

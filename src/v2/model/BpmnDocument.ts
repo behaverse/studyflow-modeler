@@ -83,6 +83,77 @@ export class BpmnDocument {
     ) ?? null;
   }
 
+  /** Find a flow element by ID anywhere in the model (searches all scopes recursively). */
+  findFlowElement(elementId: string): any {
+    return this._findIn(elementId, this.getProcess());
+  }
+
+  private _findIn(elementId: string, scope: any): any {
+    if (!scope?.flowElements) return null;
+    for (const el of scope.flowElements) {
+      if (el.id === elementId) return el;
+      if (el.flowElements) {
+        const found = this._findIn(elementId, el);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get the scope BO for a given scope ID.
+   * Returns the root process when scopeId is null.
+   */
+  getScope(scopeId: string | null): any {
+    if (!scopeId) return this.getProcess();
+    return this.findFlowElement(scopeId);
+  }
+
+  /** Add a flow element to a specific scope (process or subprocess). DI bounds are absolute. */
+  addFlowElementToScope(
+    businessObject: any,
+    bounds: { x: number; y: number; width: number; height: number },
+    scopeId: string | null,
+  ): void {
+    const scope = this.getScope(scopeId);
+    if (!scope) throw new Error(`Scope '${scopeId}' not found.`);
+    if (!scope.flowElements) scope.flowElements = [];
+    businessObject.$parent = scope;
+    scope.flowElements.push(businessObject);
+
+    const shape = this.createElement('bpmndi:BPMNShape', { bpmnElement: businessObject });
+    shape.bounds = this.createElement('dc:Bounds', bounds);
+    shape.$parent = this.getPlane();
+    this.getPlane().planeElement.push(shape);
+  }
+
+  /** Add a sequence flow between two elements within a specific scope. */
+  addSequenceFlowInScope(
+    sourceRef: any,
+    targetRef: any,
+    scopeId: string | null,
+    attrs: Record<string, any> = {},
+  ): any {
+    const scope = this.getScope(scopeId);
+    if (!scope) throw new Error(`Scope '${scopeId}' not found.`);
+
+    const id = this.nextId('Flow');
+    const flow = this.createElement('bpmn:SequenceFlow', { id, sourceRef, targetRef, ...attrs });
+    flow.$parent = scope;
+    if (!scope.flowElements) scope.flowElements = [];
+    scope.flowElements.push(flow);
+
+    if (!sourceRef.outgoing) sourceRef.outgoing = [];
+    sourceRef.outgoing.push(flow);
+    if (!targetRef.incoming) targetRef.incoming = [];
+    targetRef.incoming.push(flow);
+
+    const edge = this.createElement('bpmndi:BPMNEdge', { bpmnElement: flow });
+    edge.$parent = this.getPlane();
+    this.getPlane().planeElement.push(edge);
+    return flow;
+  }
+
   /** Get the first diagram from definitions. */
   getDiagram(): any {
     return this.definitions?.diagrams?.[0] ?? null;
@@ -178,48 +249,64 @@ export class BpmnDocument {
     return flow;
   }
 
-  /** Remove a flow element and its DI representation. */
+  /** Remove a flow element and its DI representation. Searches all scopes recursively. */
   removeFlowElement(elementId: string): void {
-    const process = this.getProcess();
-    if (!process?.flowElements) return;
+    this._removeIn(elementId, this.getProcess());
+  }
 
-    const idx = process.flowElements.findIndex((el: any) => el.id === elementId);
+  private _removeIn(elementId: string, scope: any): boolean {
+    if (!scope?.flowElements) return false;
+
+    const idx = scope.flowElements.findIndex((el: any) => el.id === elementId);
     if (idx !== -1) {
-      const element = process.flowElements[idx];
+      const element = scope.flowElements[idx];
 
-      // Remove incoming/outgoing references
+      // Remove incoming/outgoing references on the flow itself
       if (element.sourceRef?.outgoing) {
         element.sourceRef.outgoing = element.sourceRef.outgoing.filter(
-          (f: any) => f.id !== elementId
+          (f: any) => f.id !== elementId,
         );
       }
       if (element.targetRef?.incoming) {
         element.targetRef.incoming = element.targetRef.incoming.filter(
-          (f: any) => f.id !== elementId
+          (f: any) => f.id !== elementId,
         );
       }
 
       // Remove connected sequence flows if this is a shape
       if (element.$type !== 'bpmn:SequenceFlow') {
-        const connectedFlows = process.flowElements.filter(
+        const connectedFlows = scope.flowElements.filter(
           (el: any) =>
             el.$type === 'bpmn:SequenceFlow' &&
-            (el.sourceRef?.id === elementId || el.targetRef?.id === elementId)
+            (el.sourceRef?.id === elementId || el.targetRef?.id === elementId),
         );
         for (const flow of connectedFlows) {
-          this.removeFlowElement(flow.id);
+          this._removeIn(flow.id, scope);
+        }
+        // Also remove all children of a subprocess
+        if (element.flowElements) {
+          for (const child of [...element.flowElements]) {
+            this._removeIn(child.id, element);
+          }
         }
       }
 
-      process.flowElements.splice(idx, 1);
+      scope.flowElements.splice(idx, 1);
+
+      // Remove DI
+      const plane = this.getPlane();
+      if (plane?.planeElement) {
+        plane.planeElement = plane.planeElement.filter(
+          (pe: any) => pe.bpmnElement?.id !== elementId,
+        );
+      }
+      return true;
     }
 
-    // Remove DI
-    const plane = this.getPlane();
-    if (plane?.planeElement) {
-      plane.planeElement = plane.planeElement.filter(
-        (pe: any) => pe.bpmnElement?.id !== elementId
-      );
+    // Search in child subprocess scopes
+    for (const el of scope.flowElements) {
+      if (el.flowElements && this._removeIn(elementId, el)) return true;
     }
+    return false;
   }
 }

@@ -20,7 +20,6 @@ interface SchemaPopupMenuProps {
 
 export function SchemaPopupMenu({ prefix, position, onClose }: SchemaPopupMenuProps) {
   const doc = useModelerStore((s) => s.document);
-  const addElement = useModelerStore((s) => s.addElement);
   const [search, setSearch] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -67,9 +66,9 @@ export function SchemaPopupMenu({ prefix, position, onClose }: SchemaPopupMenuPr
   );
 
   const handleCreate = (entry: SchemaEntry) => {
-    // Place at center of viewport (approximate)
-    const position = { x: 300 + Math.random() * 100, y: 200 + Math.random() * 100 };
-    addElement(entry.bpmnType, position, entry.typeName);
+    window.dispatchEvent(new CustomEvent('modeler:place-element', {
+      detail: { bpmnType: entry.bpmnType, studyflowType: entry.typeName },
+    }));
     onClose();
   };
 

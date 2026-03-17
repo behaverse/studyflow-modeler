@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference path="./assets/declarations.d.ts" />
 
 declare module 'bpmn-moddle' {
   export class BpmnModdle {

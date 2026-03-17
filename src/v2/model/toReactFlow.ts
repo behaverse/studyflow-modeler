@@ -5,6 +5,7 @@
  * node or edge, using the DI layer (BPMNDiagram) for positions and bounds.
  */
 import type { Node, Edge } from '@xyflow/react';
+import { MarkerType } from '@xyflow/react';
 import type { BpmnDocument } from './BpmnDocument';
 
 /** Default dimensions when DI bounds are missing. */
@@ -59,14 +60,16 @@ function getDefaultBounds(bpmnType: string): { width: number; height: number } {
   return { width: 100, height: 80 };
 }
 
-/** Convert moddle definitions to React Flow nodes. */
-export function toReactFlowNodes(doc: BpmnDocument): Node[] {
-  const process = doc.getProcess();
-  if (!process?.flowElements) return [];
+/** Convert moddle definitions to React Flow nodes.
+ * @param scope Optional scope BO (subprocess). Defaults to the root process.
+ */
+export function toReactFlowNodes(doc: BpmnDocument, scope?: any): Node[] {
+  const target = scope ?? doc.getProcess();
+  if (!target?.flowElements) return [];
 
   const nodes: Node[] = [];
 
-  for (const element of process.flowElements) {
+  for (const element of target.flowElements) {
     if (isConnection(element)) continue;
 
     const shape = doc.findShape(element.id);
@@ -76,6 +79,15 @@ export function toReactFlowNodes(doc: BpmnDocument): Node[] {
     nodes.push({
       id: element.id,
       type: resolveNodeType(element.$type),
+      zIndex: element.$type === 'bpmn:Group' ? 0 : 1,
+      ...(element.$type === 'bpmn:Group' && {
+        style: {
+          width: bounds?.width ?? defaults.width,
+          height: bounds?.height ?? defaults.height,
+          pointerEvents: 'none' as const,
+        },
+        dragHandle: '.group-drag-handle',
+      }),
       position: {
         x: bounds?.x ?? 0,
         y: bounds?.y ?? 0,
@@ -97,14 +109,16 @@ export function toReactFlowNodes(doc: BpmnDocument): Node[] {
   return nodes;
 }
 
-/** Convert moddle definitions to React Flow edges. */
-export function toReactFlowEdges(doc: BpmnDocument): Edge[] {
-  const process = doc.getProcess();
-  if (!process?.flowElements) return [];
+/** Convert moddle definitions to React Flow edges.
+ * @param scope Optional scope BO (subprocess). Defaults to the root process.
+ */
+export function toReactFlowEdges(doc: BpmnDocument, scope?: any): Edge[] {
+  const target = scope ?? doc.getProcess();
+  if (!target?.flowElements) return [];
 
   const edges: Edge[] = [];
 
-  for (const element of process.flowElements) {
+  for (const element of target.flowElements) {
     if (!isConnection(element)) continue;
 
     const sourceId = element.sourceRef?.id;
@@ -122,7 +136,11 @@ export function toReactFlowEdges(doc: BpmnDocument): Edge[] {
       id: element.id,
       source: sourceId,
       target: targetId,
-      type: 'default',
+      sourceHandle: 'source',
+      targetHandle: 'target',
+      type: 'floating',
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#57534e', width: 16, height: 16 },
+      style: { strokeWidth: 2 },
       label: element.name ?? '',
       data: {
         businessObject: element,

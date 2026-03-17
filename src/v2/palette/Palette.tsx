@@ -92,6 +92,12 @@ export function Palette({ className = '' }: { className?: string }) {
     event.dataTransfer.effectAllowed = 'move';
   };
 
+  const onPaletteClick = (entry: PaletteEntry) => {
+    window.dispatchEvent(new CustomEvent('modeler:place-element', {
+      detail: { bpmnType: entry.bpmnType, studyflowType: entry.studyflowType },
+    }));
+  };
+
   const handleSchemaClick = useCallback((prefix: string, icon: string | undefined, event: ReactMouseEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setPopup({
@@ -117,6 +123,7 @@ export function Palette({ className = '' }: { className?: string }) {
               className="flex palette-button"
               draggable
               onDragStart={(e) => onDragStart(entry, e as unknown as DragEvent)}
+              onClick={() => onPaletteClick(entry)}
               onMouseDown={() => setPressedKey(entry.key)}
               onMouseUp={() => setPressedKey(null)}
               onMouseLeave={() => setPressedKey(null)}
