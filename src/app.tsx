@@ -18,14 +18,11 @@ import { InspectorPanel as V2InspectorPanel } from './v2/inspector/Panel';
 import { NavBar as V2NavBar } from './v2/navbar';
 import { useModelerStore } from './v2/store';
 
-/** Detect engine version from URL param or env var. */
-function getEngine(): 'v1' | 'v2' {
+/** Detect UI version from URL param. */
+function getVersion(): Number {
   const params = new URLSearchParams(window.location.search);
-  const urlEngine = params.get('engine');
-  if (urlEngine === 'v2') return 'v2';
-  if (urlEngine === 'v1') return 'v1';
-  if (import.meta.env.VITE_ENGINE === 'v2') return 'v2';
-  return 'v1';
+  const version = params.get('version');
+  return version ? parseInt(version) : 1;
 }
 
 function V1App() {
@@ -93,8 +90,7 @@ function V2App() {
 }
 
 export default function App() {
-  const engine = getEngine();
-  return engine === 'v2' ? <V2App /> : <V1App />;
+  return getVersion() === 2 ? <V2App /> : <V1App />;
 }
 
 createRoot(document.getElementById('root')!).render(

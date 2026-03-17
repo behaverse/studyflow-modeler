@@ -75,6 +75,7 @@ function ContextPadComponent() {
   }, [selectedNode, getNode, addElement, connectElements]);
 
   if (!selectedNode) return null;
+  if (connectingFromId === selectedNode.id) return null;
 
   const node = getNode(selectedNode.id);
   if (!node) return null;

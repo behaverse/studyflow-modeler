@@ -22,7 +22,22 @@ export function getBorderPoint(
 
   if (dx === 0 && dy === 0) return { x: cx, y: cy, position: Position.Right };
 
-  const isCircular = Math.abs(width - height) < 4 && width <= 56;
+  const isSquare = Math.abs(width - height) < 4 && width <= 56;
+  const isDiamond = isSquare && node.type === 'gatewayNode';
+  const isCircular = isSquare && !isDiamond;
+
+  // Diamond shapes: the inner div is rotated 45°, so the visual tips are at
+  // (width/2)*√2 from center — further out than the DOM bounding box radius.
+  if (isDiamond) {
+    const tipRadius = (width / 2) * Math.SQRT2;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      const position = dx > 0 ? Position.Right : Position.Left;
+      return { x: cx + (dx > 0 ? tipRadius : -tipRadius), y: cy, position };
+    } else {
+      const position = dy > 0 ? Position.Bottom : Position.Top;
+      return { x: cx, y: cy + (dy > 0 ? tipRadius : -tipRadius), position };
+    }
+  }
 
   if (isCircular) {
     const radius = width / 2;
