@@ -48,7 +48,12 @@ export function SchemaPopupMenu({ prefix, position, onClose }: SchemaPopupMenuPr
     if (CORE_PREFIXES.has(typePrefix.toLowerCase())) continue;
     if ((descriptor as any)?.isAbstract) continue;
 
-    const bpmnType = resolveBpmnCreateType(moddle, descriptor);
+    let bpmnType: string | null;
+    try {
+      bpmnType = resolveBpmnCreateType(moddle, descriptor);
+    } catch {
+      continue;
+    }
     if (!bpmnType) continue;
 
     const localName = typeName.includes(':') ? typeName.split(':')[1] : typeName;

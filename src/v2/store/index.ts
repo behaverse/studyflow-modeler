@@ -187,8 +187,9 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
 
     const isEvent = bpmnType.includes('Event');
     const isGateway = bpmnType.includes('Gateway');
-    const width = isEvent ? 36 : isGateway ? 50 : 100;
-    const height = isEvent ? 36 : isGateway ? 50 : 80;
+    const isDataStore = bpmnType === 'bpmn:DataStoreReference' || bpmnType === 'bpmn:DataObjectReference';
+    const width = isEvent ? 36 : isGateway ? 50 : isDataStore ? 50 : 100;
+    const height = isEvent ? 36 : isGateway ? 50 : isDataStore ? 50 : 80;
 
     doc.addFlowElementToScope(businessObject, {
       x: position.x,

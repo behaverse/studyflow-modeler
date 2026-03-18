@@ -32,8 +32,7 @@ const DEFAULT_BOUNDS: Record<string, { width: number; height: number }> = {
 function resolveNodeType(bpmnType: string): string {
   if (bpmnType.includes('Event')) return 'eventNode';
   if (bpmnType.includes('Gateway')) return 'gatewayNode';
-  if (bpmnType === 'bpmn:DataStoreReference') return 'dataStoreNode';
-  if (bpmnType === 'bpmn:DataObjectReference') return 'dataStoreNode';
+  if (bpmnType.includes('DataStoreReference') || bpmnType.includes('DataObjectReference')) return 'dataStoreNode';
   if (bpmnType === 'bpmn:Group') return 'groupNode';
   // Tasks, SubProcesses, CallActivities
   return 'activityNode';
