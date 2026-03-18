@@ -9,7 +9,8 @@ function DataStoreNodeComponent({ data, selected }: NodeProps) {
   const label = (data.label as string) || bo?.name || '';
   const width = (data.width as number) || 50;
   const height = (data.height as number) || 50;
-  const enumerations = useModelerStore((s) => s.document?.getEnumerations() ?? []);
+  const doc = useModelerStore((s) => s.document);
+  const enumerations = doc?.getEnumerations() ?? [];
   const iconClass = resolveDataStoreIcon(bo, enumerations);
 
   return (
