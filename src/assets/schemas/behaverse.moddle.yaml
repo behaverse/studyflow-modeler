@@ -76,6 +76,7 @@ types:
         isAttr: true
         meta:
           hidden: false
+          order: 1
           categories:
             - Behaverse
           condition:
@@ -89,7 +90,6 @@ types:
         redefines: studyflow:CognitiveTask#parameters
         meta:
           icon: iconify bi--hexagon
-          order: 3
           hidden: false
           categories:
             - Behaverse

@@ -105,10 +105,14 @@ export function Panel({ className = '', ...props }) {
             isExtensionPrefix(prop.ns?.prefix)
         ));
 
-        // FIXME sort? moddle is already in order of definition, but extension are not
-        // for (const [catName, props] of Object.entries(propsByCategory)) {
-        //     propsByCategory[catName].sort(...);
-        // }
+        // Sort by meta.order within each category; properties without order keep relative position
+        for (const props of Object.values(propsByCategory)) {
+            props.sort((a: any, b: any) => {
+                const orderA = a.meta?.order ?? Infinity;
+                const orderB = b.meta?.order ?? Infinity;
+                return orderA - orderB;
+            });
+        }
 
         // remove empty groups and return
         return Object.fromEntries(
