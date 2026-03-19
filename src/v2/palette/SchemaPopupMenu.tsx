@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useModelerStore } from '../store';
 import { resolveBpmnCreateType } from '../../shared/moddle/resolveBpmnType';
-import { isExtendsType } from '../../shared/extensionElements';
+import { createShapeDragImage } from './dragPreview';
 
 interface SchemaEntry {
   typeName: string;
@@ -70,11 +70,14 @@ export function SchemaPopupMenu({ prefix, position, onClose }: SchemaPopupMenuPr
     e.label.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleCreate = (entry: SchemaEntry) => {
-    window.dispatchEvent(new CustomEvent('modeler:place-element', {
-      detail: { bpmnType: entry.bpmnType, studyflowType: entry.typeName },
-    }));
-    onClose();
+  const handleDragStart = (entry: SchemaEntry, e: React.DragEvent) => {
+    e.dataTransfer.setData('application/bpmn-type', entry.bpmnType);
+    e.dataTransfer.setData('application/studyflow-type', entry.typeName);
+    e.dataTransfer.effectAllowed = 'move';
+    const el = createShapeDragImage(entry.bpmnType);
+    document.body.appendChild(el);
+    e.dataTransfer.setDragImage(el, 0, 0);
+    requestAnimationFrame(() => document.body.removeChild(el));
   };
 
   return (
@@ -101,8 +104,10 @@ export function SchemaPopupMenu({ prefix, position, onClose }: SchemaPopupMenuPr
           <button
             key={entry.typeName}
             type="button"
-            className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-100 flex items-center gap-2"
-            onClick={() => handleCreate(entry)}
+            draggable
+            className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-100 flex items-center gap-2 cursor-grab"
+            onDragStart={(e) => handleDragStart(entry, e)}
+            onDragEnd={onClose}
           >
             {entry.icon && (
               /^(https?:\/\/|data:image\/)/.test(entry.icon) ? (

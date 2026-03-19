@@ -1,7 +1,8 @@
-import { useState, useCallback, type DragEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useCallback, useRef, type DragEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useModelerStore } from '../store';
 import { SCHEMA_NAMES } from '../../shared/constants';
 import { SchemaPopupMenu } from './SchemaPopupMenu';
+import { createShapeDragImage } from './dragPreview';
 
 type PaletteEntry = {
   key: string;
@@ -64,6 +65,7 @@ export function Palette({ className = '' }: { className?: string }) {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [popup, setPopup] = useState<{ prefix: string; icon?: string; x: number; y: number } | null>(null);
   const doc = useModelerStore((s) => s.document);
+  const isDraggingRef = useRef(false);
 
   // Discover extension schemas from the loaded moddle packages
   const schemas: SchemaDescriptor[] = [];
@@ -85,14 +87,26 @@ export function Palette({ className = '' }: { className?: string }) {
   }
 
   const onDragStart = (entry: PaletteEntry, event: DragEvent) => {
+    isDraggingRef.current = true;
     event.dataTransfer.setData('application/bpmn-type', entry.bpmnType);
     if (entry.studyflowType) {
       event.dataTransfer.setData('application/studyflow-type', entry.studyflowType);
     }
     event.dataTransfer.effectAllowed = 'move';
+
+    const el = createShapeDragImage(entry.bpmnType);
+    document.body.appendChild(el);
+    event.dataTransfer.setDragImage(el, 0, 0);
+    requestAnimationFrame(() => document.body.removeChild(el));
+  };
+
+  const onDragEnd = () => {
+    // Defer reset so the click event (which may fire after dragend in some browsers) is suppressed.
+    setTimeout(() => { isDraggingRef.current = false; }, 0);
   };
 
   const onPaletteClick = (entry: PaletteEntry) => {
+    if (isDraggingRef.current) return;
     window.dispatchEvent(new CustomEvent('modeler:place-element', {
       detail: { bpmnType: entry.bpmnType, studyflowType: entry.studyflowType },
     }));
@@ -123,6 +137,7 @@ export function Palette({ className = '' }: { className?: string }) {
               className="flex palette-button"
               draggable
               onDragStart={(e) => onDragStart(entry, e as unknown as DragEvent)}
+              onDragEnd={onDragEnd}
               onClick={() => onPaletteClick(entry)}
               onMouseDown={() => setPressedKey(entry.key)}
               onMouseUp={() => setPressedKey(null)}
