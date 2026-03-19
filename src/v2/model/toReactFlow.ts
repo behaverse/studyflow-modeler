@@ -5,7 +5,6 @@
  * node or edge, using the DI layer (BPMNDiagram) for positions and bounds.
  */
 import type { Node, Edge } from '@xyflow/react';
-import { MarkerType } from '@xyflow/react';
 import type { BpmnDocument } from './BpmnDocument';
 
 /** Default dimensions when DI bounds are missing. */
@@ -138,7 +137,6 @@ export function toReactFlowEdges(doc: BpmnDocument, scope?: any): Edge[] {
       sourceHandle: 'source',
       targetHandle: 'target',
       type: 'floating',
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#57534e', width: 16, height: 16 },
       style: { strokeWidth: 2 },
       label: element.name ?? '',
       data: {

@@ -18,9 +18,11 @@ export function FloatingEdge({
   source,
   target,
   label,
-  markerEnd,
   style,
+  selected,
 }: EdgeProps) {
+  const color = selected ? '#3b82f6' : '#292524';
+  const markerId = `arrow-${id}`;
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
 
@@ -71,7 +73,12 @@ export function FloatingEdge({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      <defs>
+        <marker id={markerId} markerWidth="16" markerHeight="16" refX="14.5" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L0,16 L16,8 z" fill={color} stroke="none" />
+        </marker>
+      </defs>
+      <BaseEdge id={id} path={edgePath} markerEnd={`url(#${markerId})`} style={{ ...style, stroke: color }} />
       {label && (
         <EdgeLabelRenderer>
           <div
