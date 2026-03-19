@@ -198,6 +198,7 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
       height,
     }, scopeId);
 
+    set({ selectedNodeIds: [id] });
     get().refreshFromModel();
     return id;
   },
