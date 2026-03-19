@@ -10,6 +10,8 @@ associations: []
 enumerations:
   - name: BehaverseSceneEnum
     literalValues:
+      - name: Undefined
+        value: undefined
       - name: Belval Card Sorting (BCS)
         value: BCS
       - name: Belval Matrices (BM)
@@ -52,8 +54,6 @@ enumerations:
         value: UFOV
       - name: Which One (WO)
         value: WO
-      - name: Undefined
-        value: undefined
 types:
   - name: BehaverseTask
     description: A cognitive task from the Behaverse battery.
