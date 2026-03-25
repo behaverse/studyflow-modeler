@@ -91,6 +91,7 @@ export default class SchemaPopupMenu {
       .filter((type: any) => {
         if (type.isAbstract || HIDDEN_TYPES.has(type.name)) return false;
         if (type.superClass?.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) return false;
+        if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
         return true;
       })
       .map((type: any) => {
@@ -134,10 +135,12 @@ export default class SchemaPopupMenu {
         label: opt.label,
         description: opt.description,
         imageHtml: opt.imageHtml,
-        group: {
-          id: `${this._schemaPrefix}-examples`,
-          name: `Examples`,
-        },
+        ...(opt.template.templateSource === 'schema-example' && {
+          group: {
+            id: `${this._schemaPrefix}-examples`,
+            name: `Examples`,
+          },
+        }),
         action: this._createTemplateAction(opt.template),
       };
     });

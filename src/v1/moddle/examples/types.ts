@@ -69,7 +69,7 @@ export interface Example {
   /** Optional nested subprocess content normalized from schema examples */
   flowElements?: ExampleFlowElement[];
   /** Source marker used to route template visibility in popup menus */
-  templateSource?: 'schema-example';
+  templateSource?: 'schema-example' | 'schema-type';
   /** Lowercase schema prefix (e.g., "behaverse") that owns this template */
   schemaPrefix?: string;
 }

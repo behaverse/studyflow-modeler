@@ -153,7 +153,7 @@ export default class Examples {
     const normalizedPrefix = prefix.toLowerCase();
 
     return this._examples.filter((example) =>
-      example.templateSource === 'schema-example'
+      (example.templateSource === 'schema-example' || example.templateSource === 'schema-type')
       && example.schemaPrefix?.toLowerCase() === normalizedPrefix,
     );
   }

@@ -42,6 +42,8 @@ export interface ModdleType {
   properties?: ModdleProperty[];
   icon?: string;
   meta?: {
+    /** Default flowElements to materialize when this type is instantiated as a subprocess. */
+    flowElements?: Array<Record<string, any>>;
     [key: string]: any;
   };
 }

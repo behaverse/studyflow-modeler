@@ -106,7 +106,66 @@ export function runBuildExamplesRegistry(
     }
   }
 
+  examplesOut.push(...buildImplicitExamplesFromTypes(moddle, packages, typeMap));
+
   return examplesOut;
+}
+
+function buildImplicitExamplesFromTypes(
+  moddle: any,
+  packages: any[],
+  typeMap: Record<string, any>,
+): Example[] {
+  const out: Example[] = [];
+
+  for (const pkg of packages) {
+    const prefix: string = pkg.prefix;
+    const types: any[] = pkg.types ?? [];
+
+    for (const type of types) {
+      if (type.isAbstract) continue;
+
+      const flowElements: Array<Record<string, any>> | undefined = type.meta?.flowElements;
+      if (!Array.isArray(flowElements) || flowElements.length === 0) continue;
+
+      const qualifiedName = `${prefix}:${type.name}`;
+      const typeDescriptor = typeMap[qualifiedName];
+      if (!typeDescriptor) continue;
+
+      // Declaring meta.flowElements implies subprocess intent — always use bpmn:SubProcess.
+      const bpmnType = 'bpmn:SubProcess';
+
+      const syntheticObj: Record<string, any> = { flowElements };
+      const normalized = normalizeFlowElements(moddle, syntheticObj, prefix, typeMap);
+
+      const iconClass: string | undefined = type.meta?.icon ?? type.icon;
+
+      const entry: Example = {
+        id: `${qualifiedName}::type-default`,
+        name: type.name,
+        description: type.description ?? '',
+        appliesTo: [bpmnType],
+        elementType: { value: bpmnType },
+        category: {
+          id: prefix,
+          name: capitalize(prefix),
+        },
+        keywords: [],
+        studyflowType: qualifiedName,
+        bpmnType,
+        iconClass,
+        overrideIconClass: undefined,
+        exampleProperties: undefined,
+        flowElements: normalized,
+        templateSource: 'schema-type',
+        schemaPrefix: prefix.toLowerCase(),
+      };
+
+      out.push(entry);
+    }
+  }
+
+  return out;
 }
 
 function resolveTypeDescriptor(moddle: any, typeRef: string, prefix: string): any {
