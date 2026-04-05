@@ -1,7 +1,5 @@
 ---
 title: Cognitive Tasks
-order: 2
-output-file: cognitive-tasks
 lightbox: true
 ---
 
@@ -13,18 +11,18 @@ For example, the N-back task is a common test that assesses working memory. It t
 This trial structure can be visualized as a set of slides, where each slide represents a different trial:
 
 
-<figure className="centered max-w-2xl">
-  ![](./nback.png)
-  <figcaption className="">
+<figure class="centered max-w-2xl">
+  ![](nback.png)
+  <figcaption>
     Trial structure of the N-back task, showing the parameters and stages as slides. This is a common way to visualize cognitive tasks, but it can be difficult to understand the flow of the task and the timing.
   </figcaption>
 </figure>
 
 Studyflow diagrams can also be used to represent the trial structure of cognitive tasks, showing the flow of different stages and parameters in a more structured way:
 
-<figure className="centered max-w-2xl">
-  ![](./nback1.studyflow.svg)
-  <figcaption className="">
+<figure class="centered max-w-2xl">
+  ![](nback1.studyflow.svg)
+  <figcaption>
     The same N-back task represented as a studyflow diagram.
   </figcaption>
 </figure>
@@ -34,9 +32,9 @@ In the figure above, we can see the the stimulus presented in each trial (boxes)
 However, this does not yet provide a formal and complete description of the experiment. For example, we actually have two timers in the trial, one for the ITI (Inter Trial Interval), and one for maximum response time. This can be simply two interrupting timers events (circles with solid borders) that stops the flow of the activity at the appropriate times:
 
 
-<figure className="centered max-w-2xl">
-  ![](./nback2.studyflow.svg)
-  <figcaption className="">
+<figure class="centered max-w-2xl">
+  ![](nback2.studyflow.svg)
+  <figcaption>
     The N-back task with interrupting timers for ITI and response time. This is a more complete representation of the trial structure, but it can be difficult to understand the parameters and logic of the task.
   </figcaption>
 </figure>
@@ -45,9 +43,9 @@ We also overlooked the logic of the task, e.g., whether the current stimulus mat
 
 
 
-<figure className="centered max-w-2xl">
-  ![](./nback3.studyflow.png)
-  <figcaption className="">
+<figure class="centered max-w-2xl">
+  ![](nback3.studyflow.png)
+  <figcaption>
     An example of how BPMN can be used to represent the logic of the N-back task.
   </figcaption>
 </figure>
@@ -55,9 +53,9 @@ We also overlooked the logic of the task, e.g., whether the current stimulus mat
 This looks complicated! Studyflow diagrams also provides a more intuitive way to model standard cognitive tasks for cognitive scientists:
 
 
-<figure className="centered max-w-2xl">
-  ![](./nback4.studyflow.svg)
-  <figcaption className="">
+<figure class="centered max-w-2xl">
+  ![](nback4.studyflow.svg)
+  <figcaption>
     An activity with NB icons represents the N-back task, with parameters for stimulus type, N level, timing, etc. The flow of the task is represented by arrows connecting the different stages, showing how participants move through the experiment.
   </figcaption>
 </figure>

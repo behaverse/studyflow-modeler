@@ -1,106 +1,93 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Sora:wght@100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
 
-@import "tailwindcss";
-@plugin "@iconify/tailwind4";
-
-@theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+body {
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-h1 { @apply text-4xl font-bold}
-h2 { @apply text-3xl font-semibold }
-h3 { @apply text-2xl font-semibold }
-h4 { @apply text-xl font-semibold }
-h5 { @apply text-lg font-semibold }
-h6 { @apply text-base font-semibold }
+/* Minimal layout utilities used in content */
+.max-w-sm  { max-width: 24rem; }
+.max-w-md  { max-width: 28rem; }
+.max-w-2xl { max-width: 42rem; }
+.mx-auto   { margin-left: auto; margin-right: auto; }
+.fst-italic { font-style: italic; }
 
-main p a {
-  @apply text-blue-800 hover:text-blue-900 hover:decoration-2;
+/* CSS grid utilities */
+.grid         { display: grid; }
+.grid-cols-1  { grid-template-columns: repeat(1, 1fr); }
+.grid-cols-2  { grid-template-columns: repeat(2, 1fr); }
+.gap-3        { gap: 0.75rem; }
+.gap-4        { gap: 1rem; }
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .lg\:grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
+  .lg\:grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
 }
 
-@layer base {
-  ul, ol {
-    list-style: revert;
-    margin: revert;
-    padding: revert;
-  }
-
-  li {
-    display: list-item;
-  }
-  a {
-    color: var(--ifm-link-color);
-  }
-
-  .pagination-nav__sublabel { @apply text-neutral-400 }
-}
-
-:root {
-  /* --aa-primary-color-rgb: 255, 0, 0 !important;
-  --aa-muted-color-rgb: 255, 0, 0 !important; */
-  --ifm-font-family-base: var (--font-sans);
-}
-
-
-.pagination-nav__link {
-  border-width: 0px !important;
-}
-
-.breadcrumbs > li:nth-child(1) > a > svg {
-  display: inline !important;
-}
-
-.katex-html {
-  display: none !important;
-}
-
-details[class^='details_'] {
-  border-width: 0px !important;
-	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5);
-}
-
-/* 
-details[class^='details_'].alert--info {
-  --docusaurus-details-decoration-color: var(--color-indigo-300);
-  border-width: 0px !important;
-	--ifm-alert-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.5);
-  --ifm-alert-background-color: var(--color-indigo-50);
-  box-shadow: 0 1px 2px 0 var(--color-indigo-200);
-} */
-
+/* details callout-style colors */
 details.indigo {
-  --docusaurus-details-decoration-color: var(--color-indigo-300);
-  --ifm-alert-background-color: var(--color-indigo-50);
-  box-shadow: 0 1px 2px 0 var(--color-indigo-200);
+  border-left: 3px solid #a5b4fc;
+  background-color: #eef2ff;
+  box-shadow: 0 1px 2px 0 #c7d2fe;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  margin: 0.5rem 0;
 }
 
 details.green {
-  --docusaurus-details-decoration-color: var(--color-emerald-400);
-  --ifm-alert-background-color: var(--color-emerald-50);
-  box-shadow: 0 1px 2px 0 var(--color-emerald-200);
+  border-left: 3px solid #34d399;
+  background-color: #ecfdf5;
+  box-shadow: 0 1px 2px 0 #a7f3d0;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  margin: 0.5rem 0;
 }
 
 details code {
   border: none !important;
 }
 
-
-.green .badge {
-  @apply inline-flex items-center rounded-2xl bg-emerald-100 px-2 text-xs text-emerald-600 ring-1 ring-inset ring-emerald-700/10;
-}
-
-h1, h2, h3, h4 {
-  .red.badge {
-    @apply rounded-xl bg-red-100 px-2 py-0 text-xs ring-1 ring-red-200;
-    @apply text-red-500;
-    line-height: unset !important;
-  }
-}
-
-.indigo .badge {
-  @apply inline-flex items-center rounded-2xl bg-indigo-100 px-2 text-xs text-indigo-600 ring-1 ring-inset ring-indigo-700/10;
-}
-
 summary code {
   background-color: unset !important;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 1rem;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+}
+
+details.green .badge {
+  background-color: #d1fae5;
+  color: #059669;
+  box-shadow: inset 0 0 0 1px rgba(6, 78, 59, 0.1);
+}
+
+details.indigo .badge {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  box-shadow: inset 0 0 0 1px rgba(67, 56, 202, 0.1);
+}
+
+h1 .red.badge,
+h2 .red.badge,
+h3 .red.badge,
+h4 .red.badge {
+  border-radius: 0.75rem;
+  background-color: #fee2e2;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  box-shadow: inset 0 0 0 1px #fecaca;
+  color: #ef4444;
+  line-height: unset !important;
+}
+
+/* KaTeX: hide duplicate HTML rendering */
+.katex-html {
+  display: none !important;
 }

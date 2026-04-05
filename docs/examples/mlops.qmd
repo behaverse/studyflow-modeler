@@ -1,7 +1,5 @@
 ---
 title: MLOps
-order: 8
-output-file: mlops
 lightbox: true
 ---
 

@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: latest
           cache: 'npm'
+      - uses: quarto-dev/quarto-actions/setup@v2
       - run: npm install
       - run: npm run build
       - run: npm run docs:build

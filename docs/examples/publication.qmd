@@ -1,9 +1,8 @@
 ---
 title: Visualization and Publication
-order: 6
-output-file: publication
 lightbox: true
 ---
+
 Scientific manuscripts require clear visual representations of study designs, workflows, and procedures. Traditional text descriptions and static diagrams are often lengthy, difficult to update, and challenging to adapt for different audiences.
 
 Studyflow diagrams provide a visual, machine-readable specification that generates publication-quality visualizations automatically. By specifying study structure once in studyflow format, researchers can generate consistent, professional figures for manuscripts.

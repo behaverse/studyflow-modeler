@@ -1,6 +1,5 @@
 ---
 title: Roadmap
-sidebar_position: 5
 ---
 
 ### February 2026
@@ -8,14 +7,14 @@ sidebar_position: 5
 - Schema editor for data stores
 - More examples
 
-### January 20226
+### January 2026
 
 - Improve modeler UX/UI
 - Specifications for the data elements
 
 ### December 2025
 
-- Migrate docs to Docusaurus
+- Migrate docs to Quarto
 - Use external schemas
 
 ### November 2025
