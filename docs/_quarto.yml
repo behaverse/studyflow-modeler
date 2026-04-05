@@ -7,19 +7,27 @@ website:
   description: "Documentation for Studyflow and Studyflow Modeler"
   site-url: https://behaverse.org/studyflow-modeler/docs/
   favicon: assets/img/favicon.ico
+  llms-txt: true
   search: true
-  # navbar:
-  #   title: "Studyflow Docs"
-  #   right:
-  #     - icon: github
-  #       href: https://github.com/behaverse/studyflow-modeler
-  #       aria-label: GitHub
+  navbar: false
+  bread-crumbs: true
+  page-navigation: true
   sidebar:
     title: Studyflow Docs
     logo: assets/img/logo.png
+    alignment: center
     style: docked
     pinned: true
     collapse-level: 1
+    search: true
+    footer:  "&copy; 2025 xCIT"
+    tools: 
+      - icon: clock-history
+        text: Roadmap
+        href: roadmap.qmd
+      - icon: github
+        href: https://github.com/behaverse/studyflow-modeler
+        text: GitHub
     contents:
       - text: Introduction
         href: index.qmd
@@ -32,10 +40,6 @@ website:
       - section: Examples
         contents:
           - auto: examples/*.qmd
-      - text: Roadmap
-        href: roadmap.qmd
-  page-footer:
-    center: "Copyright &copy; 2025 xCIT"
   open-graph: true
 
 format:
