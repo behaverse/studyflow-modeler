@@ -45,6 +45,6 @@ export function Modeler() {
   }
   
     return (
-        <div className="grow bg-amber-50" data-testid="modeler-canvas" ref={setCanvas}></div>
+        <div className="grow bg-[#faf3e8]" data-testid="modeler-canvas" ref={setCanvas}></div>
     );
 }
