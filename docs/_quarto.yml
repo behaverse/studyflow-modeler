@@ -13,6 +13,7 @@ website:
   bread-crumbs: true
   page-navigation: true
   sidebar:
+    id: default
     title: Studyflow Docs
     logo: assets/img/logo.png
     alignment: center

@@ -1,6 +1,7 @@
 ---
 title: Schemas
 description: Structure and conventions for Studyflow moddle YAML schemas
+order: 4
 ---
 
 This page documents how Studyflow uses direct moddle YAML as the authoring format for schema definitions.
