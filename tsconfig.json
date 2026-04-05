@@ -1,7 +1,6 @@
 {
-  "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
-    "types": ["node", "react", "mdx", "json-schema", "./src/declarations"],
+    "types": ["node", "react", "json-schema", "./src/declarations"],
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",
@@ -27,5 +26,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["vite.config.ts", "playwright.config.ts", "tests/**/*.ts"],
-  "exclude": ["node_modules", "dist", ".docusaurus", "build"],
+  "exclude": ["node_modules", "dist"],
 }
