@@ -5,6 +5,9 @@ import {
   MenuButton,
   MenuItem,
   MenuSeparator,
+  Popover,
+  PopoverButton,
+  PopoverPanel,
   Dialog,
   DialogPanel,
   DialogTitle,
@@ -241,116 +244,122 @@ export function MenuBar() {
   const [publishOpen, setPublishOpen] = useState(false);
   const requestResetZoom = useModelerStore((s) => s.requestResetZoom);
 
-  const handleResetZoom = () => {
-    requestResetZoom();
-  };
-
   return (
-    <div className="grid auto-cols-max grid-flow-col">
+    <div className="flex items-center gap-1">
       <PublishDialog isOpen={publishOpen} onClose={() => setPublishOpen(false)} />
 
-      <Menu as="div" title="FileMenu">
-        <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2">File</MenuButton>
-        <MenuItems
-          unmount={false}
+      <Popover className="relative">
+        <PopoverButton className="hover:bg-white/20 rounded-lg h-8 w-8 flex items-center justify-center text-stone-200">
+          <i className="bi bi-list text-xl leading-none" />
+        </PopoverButton>
+        <PopoverPanel
           anchor="bottom start"
-          className="min-w-48 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50"
+          className="flex items-start gap-0 bg-black/80 backdrop-blur-md border border-white/10 rounded-md p-1 z-50"
         >
-          <MenuItem>
-            <OpenButton className="px-3 py-1 hover:bg-white/20" />
-          </MenuItem>
-          <MenuItem>
-            <SaveButton className="px-3 py-1 hover:bg-white/20" />
-          </MenuItem>
-          <MenuSeparator className="h-px bg-white/10" />
-          <MenuItem>
-            {({ close }) => (
-              <button
-                className="w-full text-left px-3 py-1 hover:bg-white/20"
-                onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'svg'); }}
-              >
-                <i className="bi bi-filetype-svg pe-2" /> Export as SVG
-              </button>
-            )}
-          </MenuItem>
-          <MenuItem>
-            {({ close }) => (
-              <button
-                className="w-full text-left px-3 py-1 hover:bg-white/20"
-                onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'png'); }}
-              >
-                <i className="bi bi-filetype-png pe-2" /> Export as PNG
-              </button>
-            )}
-          </MenuItem>
-          <MenuItem>
-            {({ close }) => (
-              <button
-                className="w-full text-left px-3 py-1 hover:bg-white/20"
-                onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'studyflow'); }}
-              >
-                <i className="bi bi-file-earmark-code pe-2" /> Export as .studyflow
-              </button>
-            )}
-          </MenuItem>
-          <MenuSeparator className="h-px bg-white/10" />
-          <MenuItem>
-            {({ close }) => (
-              <button
-                className="w-full text-left px-3 py-1 hover:bg-white/20"
-                onClick={() => { close(); setPublishOpen(true); }}
-              >
-                <i className="bi bi-broadcast-pin pe-2" /> Publish...
-              </button>
-            )}
-          </MenuItem>
-        </MenuItems>
-      </Menu>
+          <Menu as="div" title="FileMenu">
+            <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2 text-stone-200">File</MenuButton>
+            <MenuItems
+              unmount={false}
+              anchor="bottom start"
+              className="min-w-48 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50"
+            >
+              <MenuItem>
+                <OpenButton className="px-3 py-1 hover:bg-white/20" />
+              </MenuItem>
+              <MenuItem>
+                <SaveButton className="px-3 py-1 hover:bg-white/20" />
+              </MenuItem>
+              <MenuSeparator className="h-px bg-white/10" />
+              <MenuItem>
+                {({ close }) => (
+                  <button
+                    className="w-full text-left px-3 py-1 hover:bg-white/20"
+                    onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'svg'); }}
+                  >
+                    <i className="bi bi-filetype-svg pe-2" /> Export as SVG
+                  </button>
+                )}
+              </MenuItem>
+              <MenuItem>
+                {({ close }) => (
+                  <button
+                    className="w-full text-left px-3 py-1 hover:bg-white/20"
+                    onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'png'); }}
+                  >
+                    <i className="bi bi-filetype-png pe-2" /> Export as PNG
+                  </button>
+                )}
+              </MenuItem>
+              <MenuItem>
+                {({ close }) => (
+                  <button
+                    className="w-full text-left px-3 py-1 hover:bg-white/20"
+                    onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'studyflow'); }}
+                  >
+                    <i className="bi bi-file-earmark-code pe-2" /> Export as .studyflow
+                  </button>
+                )}
+              </MenuItem>
+              <MenuSeparator className="h-px bg-white/10" />
+              <MenuItem>
+                {({ close }) => (
+                  <button
+                    className="w-full text-left px-3 py-1 hover:bg-white/20"
+                    onClick={() => { close(); setPublishOpen(true); }}
+                  >
+                    <i className="bi bi-broadcast-pin pe-2" /> Publish...
+                  </button>
+                )}
+              </MenuItem>
+            </MenuItems>
+          </Menu>
 
-      <Menu as="div" title="ViewMenu">
-        <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2">View</MenuButton>
-        <MenuItems
-          unmount={false}
-          anchor="bottom start"
-          className="min-w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50"
-        >
-          <MenuItem>
-            {({ close }) => (
-              <button
-                className="w-full text-left px-3 py-1 hover:bg-white/20"
-                onClick={() => { close(); handleResetZoom(); }}
-              >
-                <i className="bi bi-arrows-fullscreen pe-2" /> Reset Zoom
-              </button>
-            )}
-          </MenuItem>
-        </MenuItems>
-      </Menu>
+          <Menu as="div" title="ViewMenu">
+            <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2 text-stone-200">View</MenuButton>
+            <MenuItems
+              unmount={false}
+              anchor="bottom start"
+              className="min-w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50"
+            >
+              <MenuItem>
+                {({ close }) => (
+                  <button
+                    className="w-full text-left px-3 py-1 hover:bg-white/20"
+                    onClick={() => { close(); requestResetZoom(); }}
+                  >
+                    <i className="bi bi-arrows-fullscreen pe-2" /> Reset Zoom
+                  </button>
+                )}
+              </MenuItem>
+            </MenuItems>
+          </Menu>
+
+          <Menu as="div" title="HelpMenu">
+            <MenuButton className="hover:bg-white/20 px-2 rounded-lg h-8 text-stone-200">Help</MenuButton>
+            <MenuItems
+              anchor="bottom start"
+              className="w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50"
+            >
+              <MenuItem>
+                <a href="./docs" target="_blank" className="block px-3 py-1 hover:bg-white/20">
+                  Docs
+                </a>
+              </MenuItem>
+              <MenuItem>
+                <a
+                  href="https://github.com/behaverse/studyflow-modeler"
+                  target="_blank"
+                  className="block px-3 py-1 hover:bg-white/20"
+                >
+                  GitHub
+                </a>
+              </MenuItem>
+            </MenuItems>
+          </Menu>
+        </PopoverPanel>
+      </Popover>
 
       <SimulateButton />
-
-      <Menu as="div" title="HelpMenu">
-        <MenuButton className="hover:bg-white/20 px-2 rounded-lg h-8">Help</MenuButton>
-        <MenuItems
-          anchor="bottom start"
-          className="w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50"
-        >
-          <MenuItem>
-            <a href="./docs" target="_blank" className="block px-3 py-1 hover:bg-white/20">
-              Docs
-            </a>
-          </MenuItem>
-          <MenuItem>
-            <a
-              href="https://github.com/behaverse/studyflow-modeler"
-              target="_blank"
-              className="block px-3 py-1 hover:bg-white/20"
-            >
-              GitHub
-            </a>
-          </MenuItem>
-        </MenuItems>
-      </Menu>
     </div>
   );
 }

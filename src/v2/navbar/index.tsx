@@ -19,37 +19,33 @@ export function NavBar() {
         <br />
         <span className="font-semibold">Modeler</span>
       </span>
-      <nav className="navbar">
-        <div className="flex items-center gap-1">
-          <span className="text-lg text-stone-300 border border-dashed rounded-lg px-2 border-stone-500 flex items-center gap-1">
-            {isDirty && (
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Unsaved changes" />
-            )}
-            {isEditing ? (
-              <input
-                type="text"
-                value={diagramName}
-                onChange={(e) => e.target.value.length > 0 && setDiagramName(e.target.value)}
-                onBlur={() => setIsEditing(false)}
-                onKeyDown={(e) => { if (e.key === 'Enter') setIsEditing(false); }}
-                autoFocus
-                maxLength={120}
-                minLength={1}
-                className="text-stone-200 font-semibold bg-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-white/30"
-              />
-            ) : (
-              <span
-                className="font-semibold cursor-pointer"
-                title="Click to edit diagram name"
-                onClick={() => setIsEditing(true)}
-              >
-                {diagramName}
-              </span>
-            )}
+      <span className="text-lg text-stone-300 border border-dashed rounded-lg px-2 border-stone-500 flex items-center gap-1">
+        {isDirty && (
+          <span className="inline-block w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Unsaved changes" />
+        )}
+        {isEditing ? (
+          <input
+            type="text"
+            value={diagramName}
+            onChange={(e) => e.target.value.length > 0 && setDiagramName(e.target.value)}
+            onBlur={() => setIsEditing(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setIsEditing(false); }}
+            autoFocus
+            maxLength={120}
+            minLength={1}
+            className="text-stone-200 font-semibold bg-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-white/30"
+          />
+        ) : (
+          <span
+            className="font-semibold cursor-pointer"
+            title="Click to edit diagram name"
+            onClick={() => setIsEditing(true)}
+          >
+            {diagramName}
           </span>
-          <MenuBar />
-        </div>
-      </nav>
+        )}
+      </span>
+      <MenuBar />
     </div>
   );
 }
