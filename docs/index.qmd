@@ -2,9 +2,9 @@
 title: "Introduction"
 ---
 
-Describing experimental research can be complex and ambiguous. *Studyflow* is a visual language to communicate research experiments in an unambiguous way. It extends [<abbr title="Business Process Model and Notation">BPMN</abbr>](https://en.wikipedia.org/wiki/BPMN) to describe scientific research in a more concise way than texts or static graphics.
+Describing experimental research can be complex and ambiguous. Studyflow is a visual language for describing scientific workflows in a way that is both human-readable and machine-readable. It extends [<abbr title="Business Process Model and Notation">BPMN</abbr>](https://en.wikipedia.org/wiki/BPMN) so researchers can model experiments, data collection, analysis, and reporting in a single formal diagram.
 
-The idea behind studyflow is that scientific experiments can be represented as a series of basic elements (events, activities, decisions, and data). These elements can be organized into a flowchart-like diagram, which can be easily understood by humans (because it is visual) and machines (because it is formal and serializable).
+The core idea is simple: represent a study as connected elements such as events, activities, decisions, and data. That gives you a diagram that is easier to discuss with collaborators, easier to serialize for tools, and easier to reuse across studies.
 
 Here is an example:
 
@@ -15,7 +15,7 @@ Here is an example:
   </figcaption>
 </figure>
 
-## What can I do with studyflow?
+## What you can do with Studyflow
 
 Studyflow diagrams are human-friendly, machine-readable, and executable. They can be used for various purposes, including:
 
@@ -23,10 +23,19 @@ Studyflow diagrams are human-friendly, machine-readable, and executable. They ca
 - **Documenting protocols**: create clear and detailed representations of your experimental procedures.
 - **Communicating methodologies**: share your workflows with collaborators, reviewers, funders, and other stakeholders in varying degrees of detail.
 - **Automating workflows**: integrate with tools to automate data collection, analysis, and reporting.
-- **Reproducing studies**: facilitate replication of experiments by providing a structured representation of the study design and analysis. Parts of existing studyflows can be adapted for new experiments, promoting reusability.
+- **Reproducing studies**: facilitate replication of experiments by providing a structured representation of the study design and analysis. Parts of existing studyflows can be adapted for new experiments, improving reuse.
 - **Reporting and publication**: include studyflows in research papers to enhance transparency and understanding.
 
-## Why studyflow?
+## Start Here
+
+If you are new to the project, use one of these paths:
+
+- **Build your first diagram**: start with [Getting Started](guides/getting-started.qmd) and follow a short, task-based walkthrough.
+- **Learn the modeler UI**: read [Modeler App](guides/modeler-app.qmd) to understand palette actions, inspector editing, save/export, and simulation.
+- **Understand the language**: read the [Specification](reference/spec.qmd) and [Elements](reference/elements.qmd) pages for the formal model and supported element types.
+- **Explore real use cases**: browse [Examples](examples/analysis.qmd) for study designs, reporting patterns, and domain-specific workflows.
+
+## Why Studyflow?
 
 Trusting science requires rigor and reproducibility, hence clear communication of the scientific experiments has become one of the cornerstones of good scientific practices.
 
@@ -34,13 +43,11 @@ Following the need for clear communication, many scientists rely on detailed des
 
 In parallel, as we increasingly rely on machines to facilitate research, trust in code and data are becoming more and more critical. The need for reproducibility has become essential for building trust in automated processes, especially at scale when using various large models.
 
-The context of studyflow is how scientific workflows and everything related to that (study protocols, experimental designs, data, analysis, reporting, etc) can be communicated for rigor and reproducibility. Studyflow is a formal domain-specific language to represent research processes (and data) for various stakeholders using a single cohesive diagram. Studyflow diagrams facilitate communication with participants (e.g., by automatically running a study), researchers (e.g., by reproducible protocols and analyses), systems (e.g., by automated data processing), and other stakeholders.
+The context for Studyflow is scientific workflows and everything related to them: study protocols, experimental designs, data, analysis, reporting, and execution. Studyflow provides a formal domain-specific language for representing research processes and data in one cohesive diagram. Those diagrams help communicate with participants, researchers, systems, and other stakeholders.
 
 ## Next steps
 
-The [*Getting Started*](guides/getting-started.qmd) page is a good place to start if you are new to studyflow. It provides an overview of the main concepts and available tools.
-
-The remaining documentation is structured as follows:
+The documentation is structured as follows:
 
 - **Guides**: tutorials and how-tos for creating studyflows.
 - **Specifications**: fundamental concepts and design decisions for effective communication of scientific experiments.

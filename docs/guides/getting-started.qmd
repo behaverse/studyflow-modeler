@@ -2,9 +2,9 @@
 title: Getting Started
 ---
 
-Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation">BPMN</abbr> and adds research-focused components to make it accessible to scientists.
+Studyflow is a visual language for defining research workflows and scientific experiments. It builds on <abbr title="Business Process Model and Notation">BPMN</abbr> and adds research-focused components for experiments, data, analysis, and reporting.
 
-This page is a quick, streamlined path to creating your first studyflow diagram. After completing this guide, you can explore more advanced topics in the [reference](../reference/spec.qmd) section.
+This page is a quick path to your first useful diagram. If you want the formal language reference, jump to the [Specification](../reference/spec.qmd) after you complete the steps below.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ This page is a quick, streamlined path to creating your first studyflow diagram.
 - [List of Studyflow elements](../reference/elements.qmd)
 - A BPMN cheat sheet (optional, but helpful)
 
-## Basic elements
+## What a studyflow diagram contains
 
 A studyflow diagram is composed of a set of elements that define the structure and flow of the study. To get started, it's important to understand the core elements of the studyflow language:
 
@@ -54,3 +54,21 @@ Studyflow uses a specific graphical notation to convey the semantics of each ele
 </figure>
 
 These icons extend the standard BPMN icons. For a complete list, see [*Reference &rsaquo; Elements*](../reference/elements.qmd).
+
+## Build your first diagram
+
+Follow this minimal workflow to create and export a studyflow diagram:
+
+1. Open the [Modeler app](https://behaverse.org/studyflow-modeler/app) in your browser.
+2. Start a new diagram or open the default template.
+3. Drag a start event and a task from the left palette onto the canvas.
+4. Connect the elements with a sequence flow.
+5. Select the task and edit its properties in the inspector on the right.
+6. Add an end event so the flow has a clear completion point.
+7. Save the diagram as a `.studyflow` file or export it as SVG or PNG.
+
+If you want to understand what each action means, use the sidebar pages in this order:
+
+- [Modeler App](modeler-app.qmd) for the UI workflow.
+- [Elements](../reference/elements.qmd) for the supported diagram elements.
+- [Specification](../reference/spec.qmd) for the formal language model.
