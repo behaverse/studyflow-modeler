@@ -1,0 +1,6 @@
+typography:
+  fonts:
+    - family: IBM Plex Sans
+      source: google
+  base: IBM Plex Sans
+  headings: IBM Plex Sans

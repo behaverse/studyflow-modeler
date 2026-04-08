@@ -7,83 +7,39 @@ order: 1
 
 The main element of a studyflow diagram is the *Study*, which serves as a container for all other elements:
 
-
-<figure class="centered max-w-md">
-  ![Study](../assets/img/elements/study.svg)
-  <figcaption>
-    **Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows.
-  </figcaption>
-</figure>
+::: {layout-ncol=1}
+![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows.](../assets/img/elements/study.svg)
+:::
 
 Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*.
 
 ## Events
 
 
-<div class="grid grid-cols-2 gap-4">
-  <figure class="centered">
-    ![Start Event](../assets/img/elements/start_event.svg)
-    <figcaption>
-      **Start Event** defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.
-    </figcaption>
-  </figure>
+::: {layout-ncol=2}
+![**Start Event** defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.](../assets/img/elements/start_event.svg)
 
-  <figure class="centered">
-    ![End Event](../assets/img/elements/end_event.svg)
-    <figcaption>
-      **End Event** marks the conclusion of the workflow, indicating the completion of all steps within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.
-    </figcaption>
-  </figure>
-</div>
+![**End Event** marks the conclusion of the workflow, indicating the completion of all steps within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.](../assets/img/elements/end_event.svg)
+:::
 
 
 
 ## Activities
 
 
-<div class="grid grid-cols-2 gap-4">
-  <figure class="centered">
-    ![Instructions](../assets/img/elements/instruction.svg)
-    <figcaption>
-      **Instructions** provide detailed guidelines and information to participants about the study procedures.
-    </figcaption>
-  </figure>
+::: {layout-ncol=2}
+![**Instructions** provide detailed guidelines and information to participants about the study procedures.](../assets/img/elements/instruction.svg)
 
-  <figure class="centered">
-    ![Questionnaires](../assets/img/elements/questionnaire.svg)
-    <figcaption>
-      **Questionnaires** are used to gather self-reported data from participants.
-    </figcaption>
-  </figure>
+![**Questionnaires** are used to gather self-reported data from participants.](../assets/img/elements/questionnaire.svg)
 
-  <figure class="centered">
-    ![Cognitive Tests](../assets/img/elements/cognitive_task.svg)
-    <figcaption>
-      **Cognitive Tests** represent various cognitive assessment tests within the experiment.
-    </figcaption>
-  </figure>
+![**Cognitive Tests** represent various cognitive assessment tests within the experiment.](../assets/img/elements/cognitive_task.svg)
 
-  <figure class="centered">
-    ![Video Games](../assets/img/elements/video_game.svg)
-    <figcaption>
-      **Video Games** are interactive games as part of the experimental paradigm.
-    </figcaption>
-  </figure>
+![**Video Games** are interactive games as part of the experimental paradigm.](../assets/img/elements/video_game.svg)
 
-  <figure class="centered">
-    ![Behaverse Tasks](../assets/img/elements/behaverse_task.svg)
-    <figcaption>
-      **Behaverse Tasks** are standardized cognitive tests covering a range of attentional, perceptual, cognitive and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for a list.
-    </figcaption>
-  </figure>
+![**Behaverse Tasks** are standardized cognitive tests covering a range of attentional, perceptual, cognitive and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for a list.](../assets/img/elements/behaverse_task.svg)
 
-  <figure class="centered">
-    ![Rest](../assets/img/elements/rest.svg)
-    <figcaption>
-      **Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between activities. This element can also be used to record resting-state signals.
-    </figcaption>
-  </figure>
-</div>
+![**Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between activities. This element can also be used to record resting-state signals.](../assets/img/elements/rest.svg)
+:::
 
 ## Element-to-schema mapping
 
@@ -98,86 +54,36 @@ Each visual element in the modeler maps to a type definition in the Studyflow mo
 ## Gateways
 
 
-<div class="grid grid-cols-2 gap-4">
-  <figure class="centered">
-    ![Random Gateway](../assets/img/elements/random_gateway.svg)
-    <figcaption>
-      **Random Gateway** represents a randomizer at a decision point in the workflow where only one of several possible paths can be taken.
-    </figcaption>
-  </figure>
+::: {layout-ncol=2}
+![**Random Gateway** represents a randomizer at a decision point in the workflow where only one of several possible paths can be taken.](../assets/img/elements/random_gateway.svg)
 
-  <figure class="centered" style="max-width: 240px;">
-    ![Random Gateway Pattern](../assets/img/elements/random_gateway_pattern.svg)
-    <figcaption>
-      Example use of *Random Gateway* to branch a flow.
-    </figcaption>
-  </figure>
-</div>
+![Example use of *Random Gateway* to branch a flow.](../assets/img/elements/random_gateway_pattern.svg)
+:::
 
 
 ## Data
 
 
-<div class="grid grid-cols-2 gap-4">
-  <figure class="centered">
-    ![Datasets](../assets/img/elements/dataset.svg)
-    <figcaption>
-      **Data Store** and **Dataset** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models. See [the **Data** reference page](data.qmd) for more details.
-    </figcaption>
-  </figure>
+::: {layout-ncol=2}
+![**Data Store** and **Dataset** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models. See [the **Data** reference page](data.qmd) for more details.](../assets/img/elements/dataset.svg)
 
-  <figure class="centered">
-    ![Data Object](../assets/img/elements/data_object.svg)
-    <figcaption>
-      **Data Object** represents any data entity within the workflow, such as files, data, or data streams. It can be used to model inputs and outputs of activities and data transformations.
-    </figcaption>
-  </figure>
-</div>
+![**Data Object** represents any data entity within the workflow, such as files, data, or data streams. It can be used to model inputs and outputs of activities and data transformations.](../assets/img/elements/data_object.svg)
+:::
 
 
 The current version studyflow includes built-in support for several data models commonly used in cognitive sciences, including:
 
 
-<div class="grid grid-cols-2 gap-4">
-  <figure class="centered">
-    ![BDM Events](../assets/img/elements/bdm_events.svg)
-    <figcaption>
-      Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) data model
-    </figcaption>
-  </figure>
+::: {layout-ncol=2}
+![Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) data model](../assets/img/elements/bdm_events.svg)
 
-  <figure class="centered">
-    ![BDM Trials](../assets/img/elements/bdm_trials.svg)
-    <figcaption>
-      Behaverse [Trials](https://behaverse.org/data-model/spec/trials/index.html) data model
-    </figcaption>
-  </figure>
+![Behaverse [Trials](https://behaverse.org/data-model/spec/trials/index.html) data model](../assets/img/elements/bdm_trials.svg)
 
-  <figure class="centered">
-    ![BDM Models](../assets/img/elements/bdm_models.svg)
-    <figcaption>
-      BDM [Statistics & Models](https://behaverse.org/data-model/spec/#)
-    </figcaption>
-  </figure>
+![BDM [Statistics & Models](https://behaverse.org/data-model/spec/#)](../assets/img/elements/bdm_models.svg)
 
-  <figure class="centered">
-    ![BIDS](../assets/img/elements/bids.svg)
-    <figcaption>
-      [Brain Imaging Data Structure](https://bids.neuroimaging.io/)
-    </figcaption>
-  </figure>
+![[Brain Imaging Data Structure](https://bids.neuroimaging.io/)](../assets/img/elements/bids.svg)
 
-  <figure class="centered">
-    ![Psych-DS](../assets/img/elements/psych-ds.svg)
-    <figcaption>
-      [Psych-DS](https://psych-ds.github.io/) dataset standard
-    </figcaption>
-  </figure>
+![[Psych-DS](https://psych-ds.github.io/) dataset standard](../assets/img/elements/psych-ds.svg)
 
-  <figure class="centered">
-    ![Kedro](../assets/img/elements/dataset.svg)
-    <figcaption>
-      [Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/)
-    </figcaption>
-  </figure>
-</div>
+![[Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/)](../assets/img/elements/dataset.svg)
+:::
