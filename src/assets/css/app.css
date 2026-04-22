@@ -11,7 +11,7 @@ svg text.bi {
 }
 
 .navbar {
-  @apply inline-flex items-center px-1 h-10 bg-black/50 backdrop-blur-xs rounded-xl overflow-x-auto text-stone-100
+  @apply inline-flex items-center px-1 h-9 overflow-x-auto;
 }
 
 
@@ -36,22 +36,35 @@ svg text.bi {
   @apply w-12 h-auto;
 }
 
-.palette-button {
-  @apply font-bold text-black bg-stone-50 p-1;
-  @apply cursor-grab shadow-xl rounded-xl;
-  @apply hover:bg-amber-200;
-  @apply active:bg-amber-300;
-  @apply border-2 border-dashed border-violet-500;
-  @apply h-10 w-10 items-center justify-center;
-
+.palette-tool-btn {
+  @apply flex items-center justify-center;
+  @apply w-[34px] h-8 rounded-[10px];
+  @apply text-stone-500 cursor-grab;
+  @apply hover:bg-white/60 hover:text-stone-800;
+  @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.7)];
+  @apply active:bg-white/80;
+  @apply transition-all;
 }
 
+.palette-tooltip {
+  @apply pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2;
+  @apply bg-stone-800/90 backdrop-blur-md text-white text-[11.5px] font-medium;
+  @apply px-2.5 py-1 rounded-lg whitespace-nowrap;
+  @apply opacity-0 group-hover:opacity-100 transition-opacity;
+  @apply z-[200];
+}
+
+/* Legacy aliases */
+.palette-button {
+  @apply flex items-center justify-center w-[34px] h-8 rounded-[10px];
+  @apply text-stone-500 cursor-grab;
+  @apply hover:bg-white/60 hover:text-stone-800 active:bg-white/80 transition-all;
+  @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.7)];
+}
 .palette-button-tool {
-  @apply font-bold text-black bg-transparent p-1;
-  @apply cursor-pointer rounded-xl;
-  @apply hover:bg-stone-200;
-  @apply active:bg-stone-300;
-  @apply h-10 w-10 items-center justify-center;
+  @apply flex items-center justify-center w-[34px] h-8 rounded-[10px];
+  @apply text-stone-500 cursor-pointer;
+  @apply hover:bg-white/60 hover:text-stone-800 active:bg-white/80 transition-all;
 }
 
 .djs-context-pad .entry {

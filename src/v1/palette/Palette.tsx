@@ -216,101 +216,72 @@ export function Palette({ className = '' }: { className?: string }) {
   const paletteEntries = useMemo(() => entries, [entries]);
 
   return (
-    <div className={`fixed top-20 left-2 z-2 flex flex-col ${className}`} data-testid="palette-root">
+    <div className={`fixed top-1/2 -translate-y-1/2 left-0 z-50 flex flex-col
+                     rounded-r-[14px] bg-white/55 backdrop-blur-2xl
+                     border border-white/45 border-l-0
+                     shadow-[2px_0_8px_rgba(0,0,0,0.06),4px_0_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
+                     py-1.5 px-1 gap-0.5
+                     opacity-85 hover:opacity-100 transition-opacity
+                     ${className}`} data-testid="palette-root">
       {paletteEntries.map((entry) => (
-        <div
-          key={entry.key}
-          className="group mb-2 flex items-center gap-2"
-        >
+        <div key={entry.key} className="group relative flex items-center">
           <button
             type="button"
             title={entry.title}
-            className="flex palette-button"
+            className="palette-tool-btn"
             onMouseDown={(e) => handleMouseDown(entry, e)}
             onMouseMove={(e) => handleMouseMove(entry, e)}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onClick={(e) => handleClick(entry, e)}
           >
-            <i className={`text-[24px] ${entry.icon}`}></i>
+            <i className={`text-[22px] ${entry.icon}`}></i>
           </button>
-          <span
-            className={`text-sm text-violet-700 whitespace-nowrap ${
-              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-            }`}
-          >
-            {entry.label}
-          </span>
+          <span className="palette-tooltip">{entry.label}</span>
         </div>
       ))}
-      <div className="mt-3 flex flex-col gap-1">
-        <div
-          key="lasso"
-          className="group flex items-center gap-2"
-        >
+
+      <div className="my-1 h-px bg-black/8 mx-1" />
+
+      <div className="flex flex-col gap-0.5">
+        <div key="lasso" className="group relative flex items-center">
           <button
             type="button"
             title="Select elements with lasso tool"
-            className="flex palette-button-tool"
+            className="palette-tool-btn"
             onClick={handleLassoToolClick}
           >
-            <i className={`text-[24px] iconify material-symbols--ink-selection-rounded`}></i>
+            <i className="text-[22px] iconify material-symbols--ink-selection-rounded"></i>
           </button>
-          <span
-            className={`text-sm text-violet-700 whitespace-nowrap ${
-              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-            }`}
-          >Select Elements (Lasso)</span>
+          <span className="palette-tooltip">Lasso Select</span>
         </div>
         {schemas.map(({ prefix, icon }) => (
-          <div
-            key={`more-${prefix}`}
-            className="group flex items-center gap-2"
-          >
+          <div key={`more-${prefix}`} className="group relative flex items-center">
             <button
               type="button"
               title={`More ${prefix} elements...`}
-              className="flex palette-button-tool"
-              onMouseDown={(e) => { }}
-              onMouseMove={(e) => { }}
+              className="palette-tool-btn"
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               onClick={(e) => handleMoreSchemaElementsClick(prefix, e)}
             >
               {renderSchemaIcon(icon)}
             </button>
-            <span
-              className={`text-sm text-violet-700 whitespace-nowrap ${
-                pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-              }`}
-            >
-              {prefix} elements...
-            </span>
+            <span className="palette-tooltip">{prefix} elements…</span>
           </div>
         ))}
-        <div
-          key="more-bpmn"
-          className="group flex items-center gap-2"
-        >
+        <div key="more-bpmn" className="group relative flex items-center">
           <button
             type="button"
             title="More BPMN elements..."
-            className="flex palette-button-tool"
-            onMouseDown={(e) => { }}
-            onMouseMove={(e) => { }}
+            className="palette-tool-btn"
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onClick={handleMoreElementsClick}
           >
-            <i className={`text-[24px] iconify bi--three-dots`}></i>
+            <i className="text-[22px] iconify bi--three-dots"></i>
           </button>
-          <span
-            className={`text-sm text-violet-700 whitespace-nowrap ${
-              pressedEntryKey ? 'hidden' : 'hidden group-hover:inline-block'
-            }`}
-          >
-            More BPMN elements...
-          </span>
+          <span className="palette-tooltip">More BPMN…</span>
         </div>
       </div>
     </div>

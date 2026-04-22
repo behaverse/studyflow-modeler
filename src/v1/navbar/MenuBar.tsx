@@ -15,45 +15,52 @@ export default function MenuBar(props) {
     const publishDialogRef = useRef(null);
     const loginDialogRef = useRef(null);
 
+  const navBtnCls = "text-[13px] font-medium text-stone-600 hover:text-stone-900 hover:bg-black/5 rounded-md h-7 px-2.5 transition-colors";
+  const dropdownCls = "bg-white/80 backdrop-blur-xl border border-black/8 text-stone-700 rounded-xl shadow-lg z-50 py-1 min-w-40";
+  const itemCls = "px-3 py-1.5 text-[13px] hover:bg-black/6 rounded-lg mx-1 cursor-pointer transition-colors";
+  const sepCls = "h-px bg-black/8 my-1 mx-2";
+
   return (
-    <div className="grid auto-cols-max grid-flow-col">
+    <div className="flex items-center gap-0.5 mx-1">
       <PublishDialog ref={publishDialogRef}  />
       <LoginDialog ref={loginDialogRef} />
       <Menu as="div" title="FileMenu" className="">
-        <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2">File</MenuButton>
-        <MenuItems  unmount={false} anchor="bottom start" className="min-w-48 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50">
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={NewDiagramButton} />
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={OpenButton} />
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={SaveButton} />
-          <MenuSeparator className="h-px bg-white/10" />
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={ExportButton} fileType="svg" />
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={ExportButton} fileType="png" />
-          <MenuSeparator className="h-px bg-white/10" />
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={LoginButton} dialog={loginDialogRef} />
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={PublishButton} dialog={publishDialogRef} />
+        <MenuButton className={navBtnCls}>File</MenuButton>
+        <MenuItems unmount={false} anchor="bottom start" className={dropdownCls}>
+          <MenuItem className={itemCls} as={NewDiagramButton} />
+          <MenuItem className={itemCls} as={OpenButton} />
+          <MenuItem className={itemCls} as={SaveButton} />
+          <MenuSeparator className={sepCls} />
+          <MenuItem className={itemCls} as={ExportButton} fileType="svg" />
+          <MenuItem className={itemCls} as={ExportButton} fileType="png" />
+          <MenuSeparator className={sepCls} />
+          <MenuItem className={itemCls} as={LoginButton} dialog={loginDialogRef} />
+          <MenuItem className={itemCls} as={PublishButton} dialog={publishDialogRef} />
         </MenuItems>
       </Menu>
       <Menu as="div" title="ViewMenu" className="">
-        <MenuButton className="hover:bg-white/20 rounded-lg h-8 px-2">View</MenuButton>
-        <MenuItems unmount={false} anchor="bottom start" className="min-w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50">
-          <MenuItem className="px-3 py-1 hover:bg-white/20" as={ResetZoomButton}  />
+        <MenuButton className={navBtnCls}>View</MenuButton>
+        <MenuItems unmount={false} anchor="bottom start" className={dropdownCls}>
+          <MenuItem className={itemCls} as={ResetZoomButton} />
         </MenuItems>
       </Menu>
-      <Menu as="div" title="SimulateMenu" className="">
-        <SimulateButton className=" rounded-lg h-8 px-2" />
-      </Menu>
       <Menu as="div" title="HelpMenu" className="">
-        <MenuButton className="hover:bg-white/20 px-2 rounded-lg h-8">Help</MenuButton>
-        <MenuItems anchor="bottom start" className="w-36 bg-black/80 backdrop-blur-md border border-white/10 text-stone-200 rounded-md grid auto-rows-max grid-flow-row z-50">
+        <MenuButton className={navBtnCls}>Help</MenuButton>
+        <MenuItems anchor="bottom start" className={dropdownCls}>
           <MenuItem>
-            <a href="./docs" target="_blank" className="px-3 py-1 hover:bg-white/20">Docs</a>
+            <a href="./docs" target="_blank" className={`block ${itemCls}`}>Docs</a>
           </MenuItem>
           <MenuItem>
-            <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className="px-3 py-1 hover:bg-white/20">GitHub</a>
+            <a href="https://github.com/behaverse/studyflow-modeler" target="_blank" className={`block ${itemCls}`}>GitHub</a>
           </MenuItem>
         </MenuItems>
       </Menu>
 
+      <div className="w-px h-4 bg-black/10 mx-1" />
+
+      <Menu as="div" title="SimulateMenu" className="">
+        <SimulateButton className="text-[13px] font-semibold text-white bg-stone-900 hover:bg-stone-700 rounded-md h-7 px-3 transition-colors" />
+      </Menu>
     </div>
   );
 

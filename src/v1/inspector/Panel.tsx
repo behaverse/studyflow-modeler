@@ -189,7 +189,7 @@ export function Panel({ className = '', ...props }) {
 
         return (
             <>
-                <h1 className="pb-0 text-lg font-bold p-2 rounded-2xl text-stone-100">{
+                <h1 className="pb-0 text-[15px] font-bold p-2 pb-0 text-stone-800">{
                     (() => {
                                                 const businessObject = getBusinessObject(el);
                                                 const extension = getExtensionElement(el);
@@ -207,7 +207,7 @@ export function Panel({ className = '', ...props }) {
                                                 return fallbackType || 'Unknown';
                     })()
                 }</h1>
-                <h2 className="text-xs text-left italic font-mono px-2 pb-2 text-stone-300">{
+                <h2 className="text-[10.5px] text-left font-mono px-2 pb-2 text-stone-400">{
                     (() => {
                         const businessObject = getBusinessObject(el);
                         return getAppliedStudyflowType(el) || businessObject?.$type || el.type;
@@ -215,17 +215,17 @@ export function Panel({ className = '', ...props }) {
                 }</h2>
                 <div className="w-full">
                     <TabGroup defaultIndex={defaultIndex}>
-                        <TabList className="flex flex-wrap gap-1 px-1 pb-2 rounded-xl px-2" id="categories-bar">
+                        <TabList className="flex flex-wrap gap-1 px-2 pb-2 border-b border-black/6" id="categories-bar">
                             {categories.map(([catName]) => (
                                 <Tab
                                     key={catName}
                                     className={({ selected }) =>
                                         [
-                                            'px-2 py-1 text-xs font-semibold rounded-lg border transition',
-                                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30',
+                                            'px-2.5 py-1 text-[12px] font-semibold rounded-md transition-all',
+                                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
                                             selected
-                                                ? 'bg-white/20 text-white  shadow-sm'
-                                                : 'bg-transparent text-stone-400  hover:bg-white/10 hover:text-stone-200 hover:border-white/20 hover:shadow-xs hover:cursor-pointer',
+                                                ? 'bg-stone-900 text-white shadow-sm'
+                                                : 'text-stone-500 hover:bg-black/6 hover:text-stone-700 cursor-pointer',
                                         ].join(' ')
                                     }
                                 >
@@ -276,7 +276,11 @@ export function Panel({ className = '', ...props }) {
                     onClick={() => setIsVisible(!isVisible)}
                 />
             }
-            <div data-testid="inspector-root" className={`fixed w-80 px-1 top-2 right-2 bg-black/50 backdrop-blur-xs rounded-2xl text-stone-200 `
+            <div data-testid="inspector-root" className={`fixed w-72 top-1/2 -translate-y-1/2 right-2.5
+                rounded-[14px] bg-white/55 backdrop-blur-2xl
+                border border-white/45
+                shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
+                text-stone-800 max-h-[calc(100vh-72px)] overflow-y-auto `
                 + (isVisible ? '' : 'hidden')}>
                 {element && renderCategories(element) }
             </div>
