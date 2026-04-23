@@ -22,7 +22,7 @@ website:
     collapse-level: 1
     search: true
     footer:  "&copy; 2025 xCIT"
-    tools: 
+    tools:
       - icon: clock-history
         text: Roadmap
         href: roadmap.qmd
@@ -41,6 +41,11 @@ website:
       - section: Examples
         contents:
           - auto: examples/*.qmd
+      - text: ---
+      - text: <i>Modeler App</i>
+        href: https://behaverse.org/studyflow-modeler/app.html
+        icon: box-arrow-up-right
+        target: _blank
   open-graph: true
 
 format:
