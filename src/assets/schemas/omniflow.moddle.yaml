@@ -26,18 +26,6 @@ types:
         type: String
         meta:
           hidden: true
-      - name: inputs
-        type: studyflow:MarkdownString
-        isAttr: true
-        meta:
-          categories:
-            - Variables
-      - name: outputs
-        type: studyflow:MarkdownString
-        isAttr: true
-        meta:
-          categories:
-            - Variables
   - name: Map
     description: Map a function over a data stream, producing a new data stream.
     superClass:

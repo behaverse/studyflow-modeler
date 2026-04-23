@@ -305,6 +305,28 @@ types:
             language: json
             body:
               isDataOperation: true
+      - name: inputs
+        description: Input variables consumed by the operation.
+        type: studyflow:MarkdownString
+        isAttr: true
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              isDataOperation: true
+      - name: outputs
+        description: Output variables produced by the operation.
+        type: studyflow:MarkdownString
+        isAttr: true
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              isDataOperation: true
       - name: operationSteps
         description: Operator pipeline steps for compose operations.
         isAttr: true

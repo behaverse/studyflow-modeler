@@ -16,7 +16,7 @@ export default function MenuBar(props) {
     const loginDialogRef = useRef(null);
 
   const navBtnCls = "text-[13px] font-medium text-stone-600 hover:text-stone-900 hover:bg-black/5 rounded-md h-7 px-2.5 transition-colors";
-  const dropdownCls = "bg-white/80 backdrop-blur-xl border border-black/8 text-stone-700 rounded-xl shadow-lg z-50 py-1 min-w-40";
+  const dropdownCls = "bg-stone-100/85 backdrop-blur-xl border border-black/8 text-stone-700 rounded-xl shadow-lg z-50 py-1 min-w-40";
   const itemCls = "px-3 py-1.5 text-[13px] hover:bg-black/6 rounded-lg mx-1 cursor-pointer transition-colors";
   const sepCls = "h-px bg-black/8 my-1 mx-2";
 

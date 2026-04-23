@@ -278,7 +278,7 @@ export function Panel({ className = '', ...props }) {
                     />
                 }
                 <div data-testid="inspector-root" className={`w-72
-                    rounded-tr-[14px] rounded-br-[14px] rounded-bl-[14px] bg-white/55 backdrop-blur-2xl
+                    rounded-tr-[14px] rounded-br-[14px] rounded-bl-[14px] bg-stone-100/70 backdrop-blur-2xl
                     border border-white/45
                     shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
                     text-stone-800 max-h-[calc(100vh-72px)] overflow-y-auto `

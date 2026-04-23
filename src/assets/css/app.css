@@ -39,10 +39,10 @@ svg text.bi {
 .palette-tool-btn {
   @apply flex items-center justify-center;
   @apply w-[34px] h-8 rounded-[10px];
-  @apply text-stone-500 cursor-grab;
-  @apply hover:bg-white/60 hover:text-stone-800;
+  @apply text-black cursor-grab;
+  @apply hover:bg-purple-50 hover:text-purple-600;
   @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.7)];
-  @apply active:bg-white/80;
+  @apply active:bg-purple-100;
   @apply transition-all;
 }
 
@@ -72,9 +72,91 @@ svg text.bi {
   @apply hover:bg-amber-200;
 }
 
-.djs-palette-shown .bjs-breadcrumbs, .bjs-breadcrumbs {
-  @apply top-20 left-20;
-  @apply font-bold;
+.bjs-breadcrumbs,
+.djs-palette-shown .bjs-breadcrumbs,
+.djs-palette-shown.djs-palette-two-column .bjs-breadcrumbs {
+  position: fixed !important;
+  top: 36px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 12px 0px;
+  list-style: none;
+  z-index: 40;
+
+  background: rgba(245, 245, 244, 0.70);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 6px 20px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--color-stone-700);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+
+.bjs-breadcrumbs-shown .bjs-breadcrumbs {
+  display: flex;
+}
+
+.bjs-breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+}
+
+.bjs-breadcrumbs li a {
+  cursor: pointer;
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: var(--color-stone-500);
+  text-decoration: none;
+}
+
+.bjs-breadcrumbs li a:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-stone-900);
+}
+
+.bjs-breadcrumbs li:last-of-type a {
+  color: var(--color-stone-900);
+  font-weight: 600;
+  cursor: default;
+}
+
+.bjs-breadcrumbs li:last-of-type a:hover {
+  background: transparent;
+}
+
+.bjs-breadcrumbs li:not(:first-child)::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin: 0 2px;
+  background-color: rgba(0, 0, 0, 0.4);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M3 2l3 3-3 3' stroke='black' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat center / contain;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M3 2l3 3-3 3' stroke='black' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat center / contain;
+}
+
+.bjs-breadcrumbs .bjs-crumb {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .djs-palette {

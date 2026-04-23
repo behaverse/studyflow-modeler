@@ -5,79 +5,65 @@ import type { PaletteSchemaDescriptor } from '../commands/paletteSetup';
 import { t } from '../../i18n';
 
 type PaletteEntry = {
-  key: string;
   label: string;
   bpmnType: string;
   studyflowType?: string;
-  icon?: string;
-  title?: string;
+  icon: string;
 };
 
 type PaletteGroup = {
-  key: string;
   label: string;
   icon: string;
-  title: string;
   items: PaletteEntry[];
 };
 
 const PALETTE_GROUPS: PaletteGroup[] = [
   {
-    key: 'events',
     label: 'Events',
     icon: 'iconify bpmn--start-event-none',
-    title: 'Events',
     items: [
-      { key: 'bpmn:StartEvent', label: 'Start', bpmnType: 'bpmn:StartEvent', studyflowType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-none', title: 'Create Start Event' },
-      { key: 'bpmn:IntermediateThrowEvent', label: 'Intermediate', bpmnType: 'bpmn:IntermediateThrowEvent', icon: 'iconify bpmn--intermediate-event-none', title: 'Create Intermediate Event' },
-      { key: 'bpmn:EndEvent', label: 'End', bpmnType: 'bpmn:EndEvent', studyflowType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-none', title: 'Create End Event' },
+      { label: 'Start', bpmnType: 'bpmn:StartEvent', studyflowType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-none' },
+      { label: 'Intermediate', bpmnType: 'bpmn:IntermediateThrowEvent', icon: 'iconify bpmn--intermediate-event-none' },
+      { label: 'End', bpmnType: 'bpmn:EndEvent', studyflowType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-none' },
     ],
   },
   {
-    key: 'activities',
     label: 'Activities',
     icon: 'iconify bpmn--task-none',
-    title: 'Activities',
     items: [
-      { key: 'bpmn:Task', label: 'Task', bpmnType: 'bpmn:Task', icon: 'iconify bpmn--task-none', title: 'Create Task' },
-      { key: 'bpmn:UserTask', label: 'User', bpmnType: 'bpmn:UserTask', icon: 'iconify bpmn--user-task', title: 'Create User Task' },
-      { key: 'bpmn:ScriptTask', label: 'Script', bpmnType: 'bpmn:ScriptTask', icon: 'iconify bpmn--script-task', title: 'Create Script Task' },
-      { key: 'bpmn:ServiceTask', label: 'Service', bpmnType: 'bpmn:ServiceTask', icon: 'iconify bpmn--service-task', title: 'Create Service Task' },
-      { key: 'bpmn:ManualTask', label: 'Manual', bpmnType: 'bpmn:ManualTask', icon: 'iconify bpmn--manual-task', title: 'Create Manual Task' },
-      { key: 'bpmn:SubProcess', label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-expanded', title: 'Create Sub-Process' },
+      { label: 'Task', bpmnType: 'bpmn:Task', icon: 'iconify bpmn--task-none' },
+      { label: 'User', bpmnType: 'bpmn:UserTask', icon: 'iconify bpmn--user-task' },
+      { label: 'Script', bpmnType: 'bpmn:ScriptTask', icon: 'iconify bpmn--script-task' },
+      { label: 'Service', bpmnType: 'bpmn:ServiceTask', icon: 'iconify bpmn--service-task' },
+      { label: 'Manual', bpmnType: 'bpmn:ManualTask', icon: 'iconify bpmn--manual-task' },
+      { label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-expanded' },
     ],
   },
   {
-    key: 'gateways',
     label: 'Gateways',
     icon: 'iconify bpmn--gateway-none',
-    title: 'Gateways',
     items: [
-      { key: 'bpmn:ExclusiveGateway', label: 'Exclusive', bpmnType: 'bpmn:ExclusiveGateway', icon: 'iconify bpmn--gateway-xor', title: 'Create Exclusive Gateway' },
-      { key: 'bpmn:ParallelGateway', label: 'Parallel', bpmnType: 'bpmn:ParallelGateway', icon: 'iconify bpmn--gateway-parallel', title: 'Create Parallel Gateway' },
-      { key: 'bpmn:InclusiveGateway', label: 'Inclusive', bpmnType: 'bpmn:InclusiveGateway', icon: 'iconify bpmn--gateway-or', title: 'Create Inclusive Gateway' },
-      { key: 'bpmn:ComplexGateway', label: 'Complex', bpmnType: 'bpmn:ComplexGateway', icon: 'iconify bpmn--gateway-complex', title: 'Create Complex Gateway' },
-      { key: 'bpmn:EventBasedGateway', label: 'Event', bpmnType: 'bpmn:EventBasedGateway', icon: 'iconify bpmn--gateway-eventbased', title: 'Create Event-Based Gateway' },
+      { label: 'Exclusive', bpmnType: 'bpmn:ExclusiveGateway', icon: 'iconify bpmn--gateway-xor' },
+      { label: 'Parallel', bpmnType: 'bpmn:ParallelGateway', icon: 'iconify bpmn--gateway-parallel' },
+      { label: 'Inclusive', bpmnType: 'bpmn:InclusiveGateway', icon: 'iconify bpmn--gateway-or' },
+      { label: 'Complex', bpmnType: 'bpmn:ComplexGateway', icon: 'iconify bpmn--gateway-complex' },
+      { label: 'Event', bpmnType: 'bpmn:EventBasedGateway', icon: 'iconify bpmn--gateway-eventbased' },
     ],
   },
   {
-    key: 'containers',
     label: 'Containers',
     icon: 'iconify bpmn--participant',
-    title: 'Containers',
     items: [
-      { key: 'bpmn:Participant', label: 'Pool', bpmnType: 'bpmn:Participant', icon: 'iconify bpmn--participant', title: 'Create Pool' },
-      { key: 'bpmn:Group', label: 'Group', bpmnType: 'bpmn:Group', icon: 'iconify bpmn--group', title: 'Create Group' },
+      { label: 'Pool', bpmnType: 'bpmn:Participant', icon: 'iconify bpmn--participant' },
+      { label: 'Group', bpmnType: 'bpmn:Group', icon: 'iconify bpmn--group' },
     ],
   },
   {
-    key: 'artifacts',
     label: 'Data & Artifacts',
     icon: 'iconify bpmn--data-object',
-    title: 'Data & Artifacts',
     items: [
-      { key: 'bpmn:DataObjectReference', label: 'Data Object', bpmnType: 'bpmn:DataObjectReference', icon: 'iconify bpmn--data-object', title: 'Create Data Object' },
-      { key: 'bpmn:DataStoreReference', label: 'Data Store', bpmnType: 'bpmn:DataStoreReference', icon: 'iconify bpmn--data-store', title: 'Create Data Store' },
+      { label: 'Data Object', bpmnType: 'bpmn:DataObjectReference', icon: 'iconify bpmn--data-object' },
+      { label: 'Data Store', bpmnType: 'bpmn:DataStoreReference', icon: 'iconify bpmn--data-store' },
     ],
   },
 ];
@@ -228,19 +214,18 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div className={`fixed top-1/2 -translate-y-1/2 left-0 z-50 flex flex-col
-                     rounded-r-[14px] bg-white/55 backdrop-blur-2xl
-                     border border-white/45 border-l-0
-                     shadow-[2px_0_8px_rgba(0,0,0,0.06),4px_0_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
+                     rounded-r-[14px] bg-stone-100/85 backdrop-blur-2xl
+                     border border-white/70 border-l-0
+                     shadow-[2px_0_10px_rgba(0,0,0,0.08),6px_0_28px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.9)]
                      py-1.5 px-1 gap-0.5
-                     opacity-85 hover:opacity-100 transition-opacity
                      ${className}`} data-testid="palette-root">
       {PALETTE_GROUPS.map((group, groupIdx) => (
-        <React.Fragment key={group.key}>
+        <React.Fragment key={group.label}>
           {groupIdx > 0 && <div className="my-1 h-px mx-1" />}
           <div className="group/palgroup relative flex items-center">
             <button
               type="button"
-              title={group.title}
+              title={group.label}
               className="palette-tool-btn relative"
               tabIndex={-1}
             >
@@ -251,14 +236,14 @@ export function Palette({ className = '' }: { className?: string }) {
             {/* Flyout */}
             <div className="invisible opacity-0 group-hover/palgroup:visible group-hover/palgroup:opacity-100
                             transition-all duration-150
-                            absolute left-[calc(100%+10px)] top-[-6px] z-[300]
+                            absolute left-[calc(100%+5px)] top-[-6px] z-[300]
                             w-[220px] p-2.5 pb-3
-                            rounded-[14px] bg-white/75 backdrop-blur-2xl
+                            rounded-r-[14px] bg-stone-100/80 backdrop-blur-2xl
                             border border-white/60
                             shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.85)]
                             pointer-events-none group-hover/palgroup:pointer-events-auto">
               {/* Gap bridge so hover stays active between button and flyout */}
-              <span className="absolute -left-[10px] top-0 w-[10px] h-full" aria-hidden="true" />
+              <span className="absolute left-[-10px] top-0 w-[10px] h-full" aria-hidden="true" />
 
               <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500
                               pb-2 mb-2 px-1 border-b border-black/6">
@@ -267,11 +252,11 @@ export function Palette({ className = '' }: { className?: string }) {
               <div className="grid grid-cols-3 gap-1">
                 {group.items.map((item) => (
                   <button
-                    key={item.key}
+                    key={item.bpmnType}
                     type="button"
-                    title={item.title}
+                    title={`Create ${item.label}`}
                     className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg
-                               text-stone-600 hover:text-stone-900 hover:bg-black/5
+                               text-black hover:text-purple-600 hover:bg-purple-50
                                transition-colors cursor-grab active:cursor-grabbing"
                     onMouseDown={(e) => handleMouseDown(item, e)}
                     onMouseMove={(e) => handleMouseMove(item, e)}

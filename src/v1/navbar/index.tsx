@@ -26,7 +26,7 @@ export function NavBar(props) {
   return (
     <DiagramNameContext.Provider value={{ diagramName, setDiagramName }}>
     <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center h-9 max-w-[calc(100vw-16px)]
-                    rounded-b-[14px] bg-white/55 backdrop-blur-2xl
+                    rounded-b-[14px] bg-stone-100/70 backdrop-blur-2xl
                     border border-white/45
                     shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
                     opacity-90 hover:opacity-100 transition-opacity">
