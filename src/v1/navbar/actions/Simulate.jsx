@@ -6,9 +6,6 @@ export function SimulateButton({ className }) {
 
   const { modeler } = useContext(ModelerContext);
   const [active, setActive] = useState(false);
-  const [label, setLabel] = useState('Simulate');
-  const [internalClassNames, setInternalClassNames] = useState(
-    'text-stone-200 hover:bg-white/20 rounded px-2');
 
   function toggleSimulation() {
     const next = !active;
@@ -17,21 +14,28 @@ export function SimulateButton({ className }) {
       currentActive: active,
     });
     setActive(next);
-
-    if (next) {
-      setLabel('Stop Simulation');
-      setInternalClassNames('text-white bg-red-600 hover:bg-red-700 rounded px-2 border-red-700');
-    } else {
-      setLabel('Simulate');
-      setInternalClassNames('text-stone-200 hover:bg-white/20 rounded px-2');
-    }
   }
 
   return (
     <button
-      title="Simulate the studyflow"
-      className={`${internalClassNames} ${className}`}
-      onClick={toggleSimulation}>{label}
+      title={active ? 'Stop simulation' : 'Simulate the studyflow'}
+      className={[
+        'inline-flex items-center justify-center gap-1.5',
+        'text-[13px] font-semibold rounded-md h-7 px-3 transition-colors',
+        active
+          ? 'text-white bg-red-500 hover:bg-red-600'
+          : 'text-white bg-purple-600 hover:bg-purple-700',
+        className,
+      ].join(' ')}
+      onClick={toggleSimulation}
+    >
+      {active ? (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+          <rect x="2" y="2" width="12" height="12" rx="1.5" />
+        </svg>
+      ) : (
+        'Simulate'
+      )}
     </button>
   );
 

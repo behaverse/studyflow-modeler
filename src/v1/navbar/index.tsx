@@ -50,7 +50,7 @@ export function NavBar(props) {
           />
         ) : (
           <span
-            className="text-[13px] font-medium text-stone-700 cursor-pointer px-2 py-1 rounded-md hover:bg-black/5 transition-colors"
+            className="text-[13px] font-medium text-stone-700 cursor-pointer px-2 py-1 rounded-md hover:bg-black/5 transition-colors whitespace-nowrap"
             title="Click to edit diagram name"
             onClick={() => setIsEditingDiagramName(true)}
           >{diagramName}</span>

@@ -270,19 +270,21 @@ export function Panel({ className = '', ...props }) {
     return (
         <InspectorContext.Provider
             value={{ element: element ?? undefined, businessObject: element ? getBusinessObject(element) : undefined }}>
-            {element &&
-                <ToggleButton
-                    isInspectorVisible={isVisible}
-                    onClick={() => setIsVisible(!isVisible)}
-                />
-            }
-            <div data-testid="inspector-root" className={`fixed w-72 top-1/2 -translate-y-1/2 right-2.5
-                rounded-[14px] bg-white/55 backdrop-blur-2xl
-                border border-white/45
-                shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
-                text-stone-800 max-h-[calc(100vh-72px)] overflow-y-auto `
-                + (isVisible ? '' : 'hidden')}>
-                {element && renderCategories(element) }
+            <div className="fixed top-12 right-0 flex items-start">
+                {element &&
+                    <ToggleButton
+                        isInspectorVisible={isVisible}
+                        onClick={() => setIsVisible(!isVisible)}
+                    />
+                }
+                <div data-testid="inspector-root" className={`w-72
+                    rounded-tr-[14px] rounded-br-[14px] rounded-bl-[14px] bg-white/55 backdrop-blur-2xl
+                    border border-white/45
+                    shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
+                    text-stone-800 max-h-[calc(100vh-72px)] overflow-y-auto `
+                    + (isVisible ? '' : 'hidden')}>
+                    {element && renderCategories(element) }
+                </div>
             </div>
         </InspectorContext.Provider>
     )

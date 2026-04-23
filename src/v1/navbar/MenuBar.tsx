@@ -57,9 +57,8 @@ export default function MenuBar(props) {
       </Menu>
 
       <div className="w-px h-4 bg-black/10 mx-1" />
-
       <Menu as="div" title="SimulateMenu" className="">
-        <SimulateButton className="text-[13px] font-semibold text-white bg-stone-900 hover:bg-stone-700 rounded-md h-7 px-3 transition-colors" />
+        <SimulateButton className="" />
       </Menu>
     </div>
   );
