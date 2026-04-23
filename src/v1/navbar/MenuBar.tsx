@@ -15,10 +15,10 @@ export default function MenuBar(props) {
     const publishDialogRef = useRef(null);
     const loginDialogRef = useRef(null);
 
-  const navBtnCls = "text-[13px] font-medium text-stone-600 hover:text-stone-900 hover:bg-black/5 rounded-md h-7 px-2.5 transition-colors";
-  const dropdownCls = "bg-stone-100/85 backdrop-blur-xl border border-black/8 text-stone-700 rounded-xl shadow-lg z-50 py-1 min-w-40";
-  const itemCls = "px-3 py-1.5 text-[13px] hover:bg-black/6 rounded-lg mx-1 cursor-pointer transition-colors";
-  const sepCls = "h-px bg-black/8 my-1 mx-2";
+  const navBtnCls = "text-[13px] font-medium text-stone-300 hover:text-white hover:bg-white/10 rounded-md h-7 px-2.5 transition-colors";
+  const dropdownCls = "bg-stone-900/92 backdrop-blur-xl border border-white/10 text-stone-200 rounded-xl shadow-lg z-50 py-1 min-w-40";
+  const itemCls = "px-3 py-1.5 text-[13px] hover:bg-white/10 rounded-lg mx-1 cursor-pointer transition-colors";
+  const sepCls = "h-px bg-white/12 my-1 mx-2";
 
   return (
     <div className="flex items-center gap-0.5 mx-1 flex-shrink-0">
@@ -56,7 +56,7 @@ export default function MenuBar(props) {
         </MenuItems>
       </Menu>
 
-      <div className="w-px h-4 bg-black/10 mx-1" />
+      <div className="w-px h-4 bg-white/15 mx-1" />
       <Menu as="div" title="SimulateMenu" className="">
         <SimulateButton className="" />
       </Menu>

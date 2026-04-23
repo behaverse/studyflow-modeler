@@ -54,7 +54,7 @@ const PALETTE_GROUPS: PaletteGroup[] = [
     icon: 'iconify fluent--box-16-regular',
     items: [
       { label: 'Group', bpmnType: 'bpmn:Group', icon: 'iconify bpmn--group' },
-      { label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-expanded' },
+      { label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-collapsed' },
       { label: 'Pool', bpmnType: 'bpmn:Participant', icon: 'iconify bpmn--participant' }
 
     ],
@@ -215,9 +215,9 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div className={`fixed top-1/2 -translate-y-1/2 left-0 z-50 flex flex-col
-                     rounded-r-xl bg-stone-100/85 backdrop-blur-2xl
-                     border border-white/70 border-l-0
-                     shadow-[2px_0_10px_rgba(0,0,0,0.08),6px_0_28px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.9)]
+                     rounded-r-xl bg-stone-800/90 backdrop-blur-2xl
+                     border border-white/10 border-l-0
+                     shadow-[2px_0_10px_rgba(0,0,0,0.20),6px_0_28px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.08)]
                      py-1.5 px-1 gap-0.5
                      ${className}`} data-testid="palette-root">
         <div key="lasso" className="group relative flex items-center">
@@ -231,10 +231,8 @@ export function Palette({ className = '' }: { className?: string }) {
           </button>
           <span className="palette-tooltip">Select multiple elements</span>
         </div>
-      {PALETTE_GROUPS.map((group, groupIdx) => (
-        <React.Fragment key={group.label}>
-          {groupIdx > 0 && <div className="my-1 h-px mx-1" />}
-          <div className="group/palgroup relative flex items-center">
+      {PALETTE_GROUPS.map((group) => (
+        <div key={group.label} className="group/palgroup relative flex items-center">
             <button
               type="button"
               title={group.label}
@@ -242,7 +240,7 @@ export function Palette({ className = '' }: { className?: string }) {
               tabIndex={-1}
             >
               <i className={`text-[22px] ${group.icon}`}></i>
-              <span className="absolute right-[1px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-800 rotate-[-45deg] -translate-y-1/2" />
+              <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-200 rotate-[-45deg] -translate-y-1/2" />
             </button>
 
             {/* Flyout */}
@@ -250,15 +248,15 @@ export function Palette({ className = '' }: { className?: string }) {
                             transition-all duration-150
                             absolute left-[calc(100%+10px)] top-[-6px] z-[300]
                             w-[220px] p-2.5 pb-3
-                            rounded-[14px] bg-stone-100/80 backdrop-blur-2xl
-                            border border-white/60
-                            shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.85)]
+                            rounded-[14px] bg-stone-900/92 backdrop-blur-2xl
+                            border border-white/10
+                            shadow-[0_4px_12px_rgba(0,0,0,0.25),0_8px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.08)]
                             pointer-events-none group-hover/palgroup:pointer-events-auto">
               {/* Gap bridge so hover stays active between button and flyout */}
               <span className="absolute left-[-10px] top-0 w-[10px] h-full" aria-hidden="true" />
 
-              <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500
-                              pb-2 mb-2 px-1 border-b border-black/6">
+              <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400
+                              pb-2 mb-2 px-1 border-b border-white/10">
                 {group.label}
               </div>
               <div className="grid grid-cols-3 gap-1">
@@ -268,7 +266,7 @@ export function Palette({ className = '' }: { className?: string }) {
                     type="button"
                     title={`Create ${item.label}`}
                     className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg
-                               text-black hover:text-purple-600 hover:bg-purple-50
+                               text-stone-200 hover:text-violet-400 hover:bg-white/10
                                transition-colors cursor-grab active:cursor-grabbing"
                     onMouseDown={(e) => handleMouseDown(item, e)}
                     onMouseMove={(e) => handleMouseMove(item, e)}
@@ -284,13 +282,11 @@ export function Palette({ className = '' }: { className?: string }) {
                 ))}
               </div>
             </div>
-          </div>
-        </React.Fragment>
+        </div>
       ))}
 
-      <div className="my-1 h-px bg-black/8 mx-0" />
+      <div className="my-1 h-px bg-white/10 mx-1" />
 
-      <div className="flex flex-col gap-0.5">
         {schemas.map(({ prefix, icon }) => (
           <div key={`more-${prefix}`} className="group relative flex items-center">
             <button
@@ -304,7 +300,7 @@ export function Palette({ className = '' }: { className?: string }) {
               {renderSchemaIcon(icon)}
             </button>
             <span className="palette-tooltip">{prefix} elements…</span>
-              <span className="absolute right-[1px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-800 rotate-[-45deg] -translate-y-1/2" />
+              <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-200 rotate-[-45deg] -translate-y-1/2" />
           </div>
         ))}
         <div key="more-bpmn" className="group relative flex items-center">
@@ -320,7 +316,6 @@ export function Palette({ className = '' }: { className?: string }) {
           </button>
           <span className="palette-tooltip">More BPMN…</span>
         </div>
-      </div>
     </div>
   );
 }
