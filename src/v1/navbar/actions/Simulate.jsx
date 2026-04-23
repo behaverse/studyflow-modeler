@@ -21,10 +21,10 @@ export function SimulateButton({ className }) {
       title={active ? 'Stop simulation' : 'Simulate the studyflow'}
       className={[
         'inline-flex items-center justify-center gap-1.5',
-        'text-[13px] font-semibold rounded-md h-7 px-3 transition-colors',
+        'text-[13px] font-semibold rounded-lg h-7 px-3 transition-colors',
         active
-          ? 'text-white bg-red-500 hover:bg-red-600'
-          : 'text-white bg-purple-600 hover:bg-purple-700',
+          ? 'text-white bg-red-700 hover:bg-red-800'
+          : 'text-white bg-purple-800 hover:bg-purple-900',
         className,
       ].join(' ')}
       onClick={toggleSimulation}

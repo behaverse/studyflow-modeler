@@ -25,7 +25,7 @@ export function NavBar(props) {
 
   return (
     <DiagramNameContext.Provider value={{ diagramName, setDiagramName }}>
-    <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center h-9
+    <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center h-9 max-w-[calc(100vw-16px)]
                     rounded-b-[14px] bg-white/55 backdrop-blur-2xl
                     border border-white/45
                     shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,0.85)]
@@ -35,7 +35,7 @@ export function NavBar(props) {
         <span className="text-[13px] font-semibold text-stone-800 leading-none tracking-tight select-none">Studyflow</span>
       </a>
 
-      <div className="flex items-center px-2">
+      <div className="flex items-center px-2 min-w-0 flex-shrink">
         {isEditingDiagramName ? (
           <input
             type="text"
@@ -50,7 +50,7 @@ export function NavBar(props) {
           />
         ) : (
           <span
-            className="text-[13px] font-medium text-stone-700 cursor-pointer px-2 py-1 rounded-md hover:bg-black/5 transition-colors whitespace-nowrap"
+            className="text-[13px] font-medium text-stone-700 cursor-pointer px-2 py-1 rounded-md hover:bg-black/5 transition-colors truncate"
             title="Click to edit diagram name"
             onClick={() => setIsEditingDiagramName(true)}
           >{diagramName}</span>

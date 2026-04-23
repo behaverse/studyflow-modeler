@@ -21,7 +21,7 @@ export default function MenuBar(props) {
   const sepCls = "h-px bg-black/8 my-1 mx-2";
 
   return (
-    <div className="flex items-center gap-0.5 mx-1">
+    <div className="flex items-center gap-0.5 mx-1 flex-shrink-0">
       <PublishDialog ref={publishDialogRef}  />
       <LoginDialog ref={loginDialogRef} />
       <Menu as="div" title="FileMenu" className="">
