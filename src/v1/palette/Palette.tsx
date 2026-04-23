@@ -20,7 +20,7 @@ type PaletteGroup = {
 const PALETTE_GROUPS: PaletteGroup[] = [
   {
     label: 'Events',
-    icon: 'iconify bpmn--start-event-none',
+    icon: 'iconify fluent--circle-16-regular',
     items: [
       { label: 'Start', bpmnType: 'bpmn:StartEvent', studyflowType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-none' },
       { label: 'Intermediate', bpmnType: 'bpmn:IntermediateThrowEvent', icon: 'iconify bpmn--intermediate-event-none' },
@@ -29,19 +29,18 @@ const PALETTE_GROUPS: PaletteGroup[] = [
   },
   {
     label: 'Activities',
-    icon: 'iconify bpmn--task-none',
+    icon: 'iconify fluent--rectangle-landscape-16-regular',
     items: [
       { label: 'Task', bpmnType: 'bpmn:Task', icon: 'iconify bpmn--task-none' },
       { label: 'User', bpmnType: 'bpmn:UserTask', icon: 'iconify bpmn--user-task' },
       { label: 'Script', bpmnType: 'bpmn:ScriptTask', icon: 'iconify bpmn--script-task' },
       { label: 'Service', bpmnType: 'bpmn:ServiceTask', icon: 'iconify bpmn--service-task' },
-      { label: 'Manual', bpmnType: 'bpmn:ManualTask', icon: 'iconify bpmn--manual-task' },
-      { label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-expanded' },
+      { label: 'Manual', bpmnType: 'bpmn:ManualTask', icon: 'iconify bpmn--manual-task' }
     ],
   },
   {
     label: 'Gateways',
-    icon: 'iconify bpmn--gateway-none',
+    icon: 'iconify fluent--diamond-16-regular',
     items: [
       { label: 'Exclusive', bpmnType: 'bpmn:ExclusiveGateway', icon: 'iconify bpmn--gateway-xor' },
       { label: 'Parallel', bpmnType: 'bpmn:ParallelGateway', icon: 'iconify bpmn--gateway-parallel' },
@@ -52,15 +51,17 @@ const PALETTE_GROUPS: PaletteGroup[] = [
   },
   {
     label: 'Containers',
-    icon: 'iconify bpmn--participant',
+    icon: 'iconify fluent--box-16-regular',
     items: [
-      { label: 'Pool', bpmnType: 'bpmn:Participant', icon: 'iconify bpmn--participant' },
       { label: 'Group', bpmnType: 'bpmn:Group', icon: 'iconify bpmn--group' },
+      { label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-expanded' },
+      { label: 'Pool', bpmnType: 'bpmn:Participant', icon: 'iconify bpmn--participant' }
+
     ],
   },
   {
-    label: 'Data & Artifacts',
-    icon: 'iconify bpmn--data-object',
+    label: 'Data',
+    icon: 'iconify solar--database-linear',
     items: [
       { label: 'Data Object', bpmnType: 'bpmn:DataObjectReference', icon: 'iconify bpmn--data-object' },
       { label: 'Data Store', bpmnType: 'bpmn:DataStoreReference', icon: 'iconify bpmn--data-store' },
@@ -214,11 +215,22 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div className={`fixed top-1/2 -translate-y-1/2 left-0 z-50 flex flex-col
-                     rounded-r-[14px] bg-stone-100/85 backdrop-blur-2xl
+                     rounded-r-xl bg-stone-100/85 backdrop-blur-2xl
                      border border-white/70 border-l-0
                      shadow-[2px_0_10px_rgba(0,0,0,0.08),6px_0_28px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.9)]
                      py-1.5 px-1 gap-0.5
                      ${className}`} data-testid="palette-root">
+        <div key="lasso" className="group relative flex items-center">
+          <button
+            type="button"
+            title="Select elements with lasso tool"
+            className="palette-tool-btn"
+            onClick={handleLassoToolClick}
+          >
+            <i className="text-[22px] iconify material-symbols--ink-selection-rounded"></i>
+          </button>
+          <span className="palette-tooltip">Select multiple elements</span>
+        </div>
       {PALETTE_GROUPS.map((group, groupIdx) => (
         <React.Fragment key={group.label}>
           {groupIdx > 0 && <div className="my-1 h-px mx-1" />}
@@ -230,15 +242,15 @@ export function Palette({ className = '' }: { className?: string }) {
               tabIndex={-1}
             >
               <i className={`text-[22px] ${group.icon}`}></i>
-              <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-400 rotate-[-45deg] -translate-y-1/2 opacity-70" />
+              <span className="absolute right-[1px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-800 rotate-[-45deg] -translate-y-1/2" />
             </button>
 
             {/* Flyout */}
             <div className="invisible opacity-0 group-hover/palgroup:visible group-hover/palgroup:opacity-100
                             transition-all duration-150
-                            absolute left-[calc(100%+5px)] top-[-6px] z-[300]
+                            absolute left-[calc(100%+10px)] top-[-6px] z-[300]
                             w-[220px] p-2.5 pb-3
-                            rounded-r-[14px] bg-stone-100/80 backdrop-blur-2xl
+                            rounded-[14px] bg-stone-100/80 backdrop-blur-2xl
                             border border-white/60
                             shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.85)]
                             pointer-events-none group-hover/palgroup:pointer-events-auto">
@@ -276,20 +288,9 @@ export function Palette({ className = '' }: { className?: string }) {
         </React.Fragment>
       ))}
 
-      <div className="my-1 h-px bg-black/8 mx-1" />
+      <div className="my-1 h-px bg-black/8 mx-0" />
 
       <div className="flex flex-col gap-0.5">
-        <div key="lasso" className="group relative flex items-center">
-          <button
-            type="button"
-            title="Select elements with lasso tool"
-            className="palette-tool-btn"
-            onClick={handleLassoToolClick}
-          >
-            <i className="text-[22px] iconify material-symbols--ink-selection-rounded"></i>
-          </button>
-          <span className="palette-tooltip">Lasso Select</span>
-        </div>
         {schemas.map(({ prefix, icon }) => (
           <div key={`more-${prefix}`} className="group relative flex items-center">
             <button
@@ -303,6 +304,7 @@ export function Palette({ className = '' }: { className?: string }) {
               {renderSchemaIcon(icon)}
             </button>
             <span className="palette-tooltip">{prefix} elements…</span>
+              <span className="absolute right-[1px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-800 rotate-[-45deg] -translate-y-1/2" />
           </div>
         ))}
         <div key="more-bpmn" className="group relative flex items-center">
