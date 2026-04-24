@@ -130,16 +130,16 @@ types:
         redefines: omniflow:Transform#operationType
   - name: Filter
     description: filter out (remove) some Documents based on specific rules/criteria.
-    superClass:
-      - omniflow:Transform
+    extends:
+      - omniflow:Filter
     properties:
       - name: operationType
         isAttr: true
         type: String
         meta:
           hidden: true
-        default: map
-        redefines: omniflow:Transform#operationType
+        default: filter
+        redefines: omniflow:Filter#operationType
   - name: Stats
     description: blocks to collect statistics on the dataset.
     superClass:

@@ -21,7 +21,16 @@ function resolveDescriptorBpmnType(moddle: any, descriptor: any, seen: Set<strin
   seen.add(descriptorId);
 
   if (Array.isArray(descriptor.extends) && descriptor.extends.length > 0) {
-    return qualifyBpmnType(descriptor.extends[0]);
+    for (const extended of descriptor.extends) {
+      if (typeof extended === 'string' && extended.startsWith('bpmn:')) {
+        return extended;
+      }
+      const extendedDescriptor = resolveTypeDescriptor(moddle, extended, descriptor.ns?.prefix);
+      if (extendedDescriptor) {
+        const resolved = resolveDescriptorBpmnType(moddle, extendedDescriptor, seen);
+        if (resolved) return resolved;
+      }
+    }
   }
 
   if (descriptor.ns?.prefix === 'bpmn' && descriptor.name) {
@@ -89,10 +98,6 @@ function descriptorKey(descriptor: any): string {
   }
 
   return String(descriptor);
-}
-
-function qualifyBpmnType(typeRef: string): string {
-  return typeRef.startsWith('bpmn:') ? typeRef : `bpmn:${stripPrefix(typeRef)}`;
 }
 
 function stripPrefix(typeRef: string): string {

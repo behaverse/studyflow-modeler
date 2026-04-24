@@ -388,6 +388,8 @@ types:
       - studyflow:Questionnaire
     meta:
       icon: iconify material-symbols--info-outline-rounded
+      categories:
+        - Activities
     properties:
       - name: instrument
         redefines: studyflow:Questionnaire#instrument

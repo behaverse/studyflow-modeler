@@ -529,21 +529,35 @@ export function getStudyflowDefaults(
   moddle: any
 ): Record<string, any> {
   const defaults: Record<string, any> = {};
+  const seen = new Set<string>();
 
-  try {
-    const descriptor = moddle.getTypeDescriptor(studyflowType);
-    const properties = getEffectiveDescriptorProperties(descriptor, moddle);
-    if (!properties.length) return defaults;
+  const collect = (typeName: string) => {
+    if (!typeName || seen.has(typeName)) return;
+    seen.add(typeName);
 
-    for (const prop of properties) {
+    let descriptor: any;
+    try {
+      descriptor = moddle.getTypeDescriptor(typeName);
+    } catch {
+      return;
+    }
+    if (!descriptor) return;
+
+    for (const superType of descriptor.superClass ?? []) {
+      if (typeof superType === 'string') collect(superType);
+    }
+    for (const ext of descriptor.extends ?? []) {
+      if (typeof ext === 'string') collect(ext);
+    }
+
+    for (const prop of descriptor.properties ?? []) {
       if (prop.default !== undefined) {
         defaults[prop.name] = prop.default;
       }
     }
-  } catch {
-    // Type not found — return empty defaults
-  }
+  };
 
+  collect(studyflowType);
   return defaults;
 }
 

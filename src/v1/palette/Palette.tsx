@@ -8,7 +8,7 @@ type PaletteEntry = {
   label: string;
   bpmnType: string;
   studyflowType?: string;
-  icon: string;
+  icon?: string;
 };
 
 type PaletteGroup = {
@@ -17,6 +17,7 @@ type PaletteGroup = {
   items: PaletteEntry[];
 };
 
+// default BPMN elements for palette, can be extended by schemas
 const PALETTE_GROUPS: PaletteGroup[] = [
   {
     label: 'Events',
@@ -50,21 +51,20 @@ const PALETTE_GROUPS: PaletteGroup[] = [
     ],
   },
   {
+    label: 'Data',
+    icon: 'iconify mynaui--database',
+    items: [
+      { label: 'Data Object', bpmnType: 'bpmn:DataObjectReference', icon: 'iconify bpmn--data-object' }
+    ],
+  },
+  {
     label: 'Containers',
-    icon: 'iconify fluent--box-16-regular',
+    icon: 'iconify mynaui--square-dashed',
     items: [
       { label: 'Group', bpmnType: 'bpmn:Group', icon: 'iconify bpmn--group' },
       { label: 'Sub-Process', bpmnType: 'bpmn:SubProcess', icon: 'iconify bpmn--subprocess-collapsed' },
       { label: 'Pool', bpmnType: 'bpmn:Participant', icon: 'iconify bpmn--participant' }
 
-    ],
-  },
-  {
-    label: 'Data',
-    icon: 'iconify solar--database-linear',
-    items: [
-      { label: 'Data Object', bpmnType: 'bpmn:DataObjectReference', icon: 'iconify bpmn--data-object' },
-      { label: 'Data Store', bpmnType: 'bpmn:DataStoreReference', icon: 'iconify bpmn--data-store' },
     ],
   },
 ];
@@ -88,11 +88,30 @@ function renderSchemaIcon(icon?: string): React.ReactNode {
 export function Palette({ className = '' }: { className?: string }) {
   const { modeler } = useContext(ModelerContext);
   const [schemas, setSchemas] = useState<PaletteSchemaDescriptor[]>([]);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const mouseDownRef = useRef(false);
   const startedRef = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const registeredSchemasRef = useRef<Set<string>>(new Set());
   const lastModelerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!openGroup) return;
+    const onDocClick = (e: globalThis.MouseEvent) => {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(e.target as Node)) setOpenGroup(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenGroup(null);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [openGroup]);
 
   useEffect(() => {
     if (!modeler) return;
@@ -131,6 +150,7 @@ export function Palette({ className = '' }: { className?: string }) {
       mouseDownRef.current = false;
       return;
     }
+    setOpenGroup(null);
     executeCommand(modeler, {
       type: 'palette-start-create',
       bpmnType: entry.bpmnType,
@@ -219,8 +239,8 @@ export function Palette({ className = '' }: { className?: string }) {
                      border border-white/10 border-l-0
                      shadow-[2px_0_10px_rgba(0,0,0,0.20),6px_0_28px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.08)]
                      py-1.5 px-1 gap-0.5
-                     ${className}`} data-testid="palette-root">
-        <div key="lasso" className="group relative flex items-center">
+                     ${className}`} data-testid="palette-root" ref={rootRef}>
+        <div key="lasso" className="group relative flex items-center" onMouseEnter={() => setOpenGroup(null)}>
           <button
             type="button"
             title="Select elements with lasso tool"
@@ -231,27 +251,37 @@ export function Palette({ className = '' }: { className?: string }) {
           </button>
           <span className="palette-tooltip">Select multiple elements</span>
         </div>
-      {PALETTE_GROUPS.map((group) => (
-        <div key={group.label} className="group/palgroup relative flex items-center">
+      {PALETTE_GROUPS.map((group) => {
+        const isOpen = openGroup === group.label;
+        const extraItems = schemas.flatMap((schema) =>
+          schema.items.filter((item) => item.categories[0] === group.label)
+        );
+        return (
+        <div key={group.label} className="group/palgroup relative flex items-center"
+             onMouseEnter={() => { if (openGroup && openGroup !== group.label) setOpenGroup(null); }}>
             <button
               type="button"
               title={group.label}
               className="palette-tool-btn relative"
-              tabIndex={-1}
+              aria-expanded={isOpen}
+              onClick={(e) => {
+                e.preventDefault();
+                setOpenGroup(isOpen ? null : group.label);
+              }}
             >
               <i className={`text-[22px] ${group.icon}`}></i>
               <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-200 rotate-[-45deg] -translate-y-1/2" />
             </button>
 
             {/* Flyout */}
-            <div className="invisible opacity-0 group-hover/palgroup:visible group-hover/palgroup:opacity-100
+            <div className={`${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}
+                            group-hover/palgroup:visible group-hover/palgroup:opacity-100 group-hover/palgroup:pointer-events-auto
                             transition-all duration-150
                             absolute left-[calc(100%+10px)] top-[-6px] z-[300]
                             w-[220px] p-2.5 pb-3
                             rounded-[14px] bg-stone-900/92 backdrop-blur-2xl
                             border border-white/10
-                            shadow-[0_4px_12px_rgba(0,0,0,0.25),0_8px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.08)]
-                            pointer-events-none group-hover/palgroup:pointer-events-auto">
+                            shadow-[0_4px_12px_rgba(0,0,0,0.25),0_8px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.08)]`}>
               {/* Gap bridge so hover stays active between button and flyout */}
               <span className="absolute left-[-10px] top-0 w-[10px] h-full" aria-hidden="true" />
 
@@ -260,9 +290,12 @@ export function Palette({ className = '' }: { className?: string }) {
                 {group.label}
               </div>
               <div className="grid grid-cols-3 gap-1">
-                {group.items.map((item) => (
+                {[...group.items, ...extraItems].map((item) => {
+                  const key = item.studyflowType ?? item.bpmnType;
+                  const isUrlIcon = !!item.icon && /^(https?:\/\/|data:image\/)/i.test(item.icon);
+                  return (
                   <button
-                    key={item.bpmnType}
+                    key={key}
                     type="button"
                     title={`Create ${item.label}`}
                     className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg
@@ -274,21 +307,27 @@ export function Palette({ className = '' }: { className?: string }) {
                     onMouseLeave={handleMouseUp}
                     onClick={(e) => handleClick(item, e)}
                   >
-                    <i className={`text-[22px] ${item.icon}`}></i>
+                    {isUrlIcon ? (
+                      <img src={item.icon} alt="" className="h-[22px] w-[22px] object-contain" loading="lazy" decoding="async" />
+                    ) : (
+                      <i className={`text-[22px] ${item.icon || 'iconify tabler--hexagon'}`}></i>
+                    )}
                     <span className="text-[9.5px] font-semibold leading-tight text-center">
                       {item.label}
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
         </div>
-      ))}
+        );
+      })}
 
       <div className="my-1 h-px bg-white/10 mx-1" />
 
         {schemas.map(({ prefix, icon }) => (
-          <div key={`more-${prefix}`} className="group relative flex items-center">
+          <div key={`more-${prefix}`} className="group relative flex items-center" onMouseEnter={() => setOpenGroup(null)}>
             <button
               type="button"
               title={`More ${prefix} elements...`}
@@ -303,7 +342,7 @@ export function Palette({ className = '' }: { className?: string }) {
               <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-200 rotate-[-45deg] -translate-y-1/2" />
           </div>
         ))}
-        <div key="more-bpmn" className="group relative flex items-center">
+        <div key="more-bpmn" className="group relative flex items-center" onMouseEnter={() => setOpenGroup(null)}>
           <button
             type="button"
             title="More BPMN elements..."
