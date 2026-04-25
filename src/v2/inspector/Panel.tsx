@@ -124,7 +124,7 @@ export function InspectorPanel() {
               className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300 text-sm"
               onClick={() => removeElements(selectedNodeIds)}
             >
-              <i className="bi bi-trash" /> Delete all
+              <i className="iconify bi--trash" /> Delete all
             </button>
           </div>
         )}

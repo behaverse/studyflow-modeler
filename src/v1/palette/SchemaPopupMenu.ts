@@ -1,4 +1,4 @@
-import { createExtensionElement, getStudyflowDefaults, isExtendsType, setAppliedStudyflowType, setProperty } from '../extensionElements';
+import { createExtensionElement, getDefaults, isExtendsType, setAppliedType, setProperty } from '../extensions';
 import type { Example as ElementExample } from '../moddle/examples';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
@@ -194,15 +194,15 @@ export default class SchemaPopupMenu {
       businessObject.id = businessObject.id || generatedId;
 
       if (extensionType && isExtendsType(extensionType, moddle)) {
-        setAppliedStudyflowType(businessObject, extensionType);
-        const extendedDefaults = getStudyflowDefaults(extensionType, moddle);
+        setAppliedType(businessObject, extensionType);
+        const extendedDefaults = getDefaults(extensionType, moddle);
         for (const [propertyName, defaultValue] of Object.entries(extendedDefaults)) {
           setProperty(businessObject, propertyName, defaultValue);
         }
       }
 
       if (extensionType && !isExtendsType(extensionType, moddle)) {
-        const defaults = getStudyflowDefaults(extensionType, moddle);
+        const defaults = getDefaults(extensionType, moddle);
         createExtensionElement(businessObject, extensionType, moddle, defaults);
       }
 

@@ -1,5 +1,5 @@
 import CommandInterceptor from 'diagram-js/lib/command/CommandInterceptor';
-import { runMaterializeExampleFlow } from '../../commands/materializeExampleFlow';
+import { runMaterializeExampleFlow } from '../../commands/examples';
 import { EXAMPLE_FLOW_ELEMENTS } from './Examples';
 import type Examples from './Examples';
 

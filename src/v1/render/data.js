@@ -1,10 +1,17 @@
+// @ts-check
+
 import { getStrokeColor } from "bpmn-js/lib/draw/BpmnRenderUtil";
 import { SVG_ICON_PATHS } from './constants';
 import { colorToHex, drawIcon, drawSvgPaths } from './utils';
-import { getProperty } from "../extensionElements";
+import { getProperty } from '../extensions';
 
 /**
  * Render a bpmn:DataStoreReference (dataset) with optional format icon.
+ *
+ * @param {any} parentNode
+ * @param {any} element
+ * @param {any} bpmnRenderer
+ * @param {Array<any>} pkgEnums
  */
 export function drawDataStore(parentNode, element, bpmnRenderer, pkgEnums) {
   let format = getProperty(element, 'format');

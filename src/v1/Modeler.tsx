@@ -37,7 +37,7 @@ export function Modeler() {
     return (
       <div className="flex h-full text-center" data-testid="modeler-loading">
         <div role="status" className="m-auto animate-spin" aria-label="Loading modeler">
-          <span className="bi bi-arrow-repeat text-fuchsia-600 text-[3rem]"></span>
+          <span className="iconify bi--arrow-repeat text-fuchsia-600 text-[3rem]"></span>
           <span className="sr-only">Loading...</span>
         </div>
       </div>

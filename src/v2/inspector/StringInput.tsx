@@ -27,7 +27,7 @@ export function StringInput({ bpmnProperty, businessObject, elementId, isMarkdow
       <Label className="flex items-center justify-between">
         {t(bpmnProperty.ns?.name ?? name)}
         <Popover className="relative group">
-          <PopoverButton><i className="bi bi-patch-question text-stone-400" /></PopoverButton>
+          <PopoverButton><i className="iconify bi--patch-question text-stone-400" /></PopoverButton>
           <PopoverPanel anchor="top end" className="max-w-md w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-xl z-50">
             <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns?.name ?? name}</pre>
             {bpmnProperty?.description}

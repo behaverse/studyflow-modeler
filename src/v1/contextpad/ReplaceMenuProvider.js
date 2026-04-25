@@ -1,10 +1,25 @@
+// @ts-check
+
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from '../commands';
-import { getProperty } from '../extensionElements';
+import { getProperty } from '../extensions';
 
+/**
+ * Header entries for bpmn-js's popup replace menu.
+ *
+ * We don't add any body entries (the built-in replace list is fine); we only
+ * contribute a header toggle that flips the `isDataOperation` flag on
+ * `bpmn:Activity` shapes.
+ */
 export default class ReplaceMenuProvider {
   static $inject = ['popupMenu', 'replace', 'modeling', 'eventBus'];
 
+  /**
+   * @param {any} popupMenu
+   * @param {any} replace
+   * @param {any} modeling
+   * @param {any} eventBus
+   */
   constructor(popupMenu, replace, modeling, eventBus) {
     this._popupMenu = popupMenu;
     this._replace = replace;
@@ -13,15 +28,22 @@ export default class ReplaceMenuProvider {
     popupMenu.registerProvider('bpmn-replace', this);
   }
 
+  /**
+   * @param {any} _element
+   */
   // eslint-disable-next-line no-unused-vars
-  getPopupMenuEntries(element) {
+  getPopupMenuEntries(_element) {
     return {};
   }
 
+  /**
+   * @param {any} element
+   */
   getPopupMenuHeaderEntries(element) {
+    /** @type {Record<string, any>} */
     const headerEntries = {};
 
-    // isDataOperation is an extends property on bpmn:Activity (lives on the BO)
+    // isDataOperation is an extends property on bpmn:Activity (lives on the BO).
     if (is(element, 'bpmn:Activity')) {
       headerEntries['toggle-marker-operation'] = this._getOperationMarkerHeaderEntry(element);
     }
@@ -29,10 +51,13 @@ export default class ReplaceMenuProvider {
     return headerEntries;
   }
 
+  /**
+   * @param {any} element
+   */
   _getOperationMarkerHeaderEntry(element) {
     const self = this;
 
-    function toggleDataOperation(event, entry) {
+    function toggleDataOperation(/** @type {any} */ _event, /** @type {any} */ entry) {
       const currentState = !!getProperty(element, 'isDataOperation');
       const newState = !currentState;
 
@@ -40,7 +65,7 @@ export default class ReplaceMenuProvider {
         type: 'update-property',
         element,
         propertyName: 'isDataOperation',
-        value: newState
+        value: newState,
       });
 
       entry.active = newState;
@@ -50,7 +75,7 @@ export default class ReplaceMenuProvider {
       title: 'Data Operator',
       imageHtml: '<i class="iconify mdi--function"></i>',
       active: !!getProperty(element, 'isDataOperation'),
-      action: toggleDataOperation
+      action: toggleDataOperation,
     };
   }
 }

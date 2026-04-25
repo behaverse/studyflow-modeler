@@ -1,7 +1,13 @@
+// @ts-check
+
 import { drawIcon } from './utils';
 
 /**
  * Render a bpmn:Event with optional studyflow overlay.
+ *
+ * @param {any} parentNode
+ * @param {any} element
+ * @param {any} bpmnRenderer
  */
 export function drawEventWithIcon(parentNode, element, bpmnRenderer) {
   const circle = bpmnRenderer.handlers[element.type](parentNode, element);

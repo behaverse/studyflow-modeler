@@ -1,52 +1,47 @@
 import type { CommandContext } from './types';
-import type { PaletteStartCreateCommand } from './paletteStartCreate';
-import { runPaletteStartCreate } from './paletteStartCreate';
-import type { InspectorUpdatePropertyCommand } from './inspectorUpdateProperty';
-import { runInspectorUpdateProperty } from './inspectorUpdateProperty';
-import type { PaletteRegisterSchemaProvidersCommand } from './paletteSetup';
-import { runPaletteRegisterSchemaProviders } from './paletteSetup';
-import type {
-  PaletteActivateLassoCommand,
-  PaletteOpenPopupCommand,
-} from './paletteUi';
-import {
-  runPaletteActivateLasso,
-  runPaletteOpenPopup,
-} from './paletteUi';
-import type {
-  LoginAsGuestCommand,
-  LoginCommand,
-} from './auth';
-import {
-  runLoginAsGuest,
-  runLogin,
-} from './auth';
-import type { OpenDiagramCommand } from './openDiagram';
-import { runOpenDiagram } from './openDiagram';
-import type { NewDiagramCommand } from './newDiagram';
-import { runNewDiagram } from './newDiagram';
-import type { SaveDiagramCommand } from './saveDiagram';
-import { runSaveDiagram } from './saveDiagram';
-import type { ExportDiagramCommand } from './exportDiagram';
-import { runExportDiagram } from './exportDiagram';
-import type { PublishDiagramCommand } from './publishDiagram';
-import { runPublishDiagram } from './publishDiagram';
-import type { ToggleSimulationCommand } from './toggleSimulation';
-import { runToggleSimulation } from './toggleSimulation';
-import type { ResetZoomCommand } from './resetZoom';
-import { runResetZoom } from './resetZoom';
-import type { DownloadSchemasCommand } from './downloadSchemas';
-import { runDownloadSchemas } from './downloadSchemas';
-import type { CreateModelerCommand } from './createModeler';
-import { runCreateModeler } from './createModeler';
-import type { ImportXmlCommand } from './importXml';
-import { runImportXml } from './importXml';
-import type { UpdatePropertyCommand } from './updateProperty';
-import { runUpdateProperty } from './updateProperty';
-import type { UpdateModdlePropertiesCommand } from './updateModdleProperties';
-import { runUpdateModdleProperties } from './updateModdleProperties';
-import type { CreateShapeCommand } from './createShape';
-import { runCreateShape } from './createShape';
+import { normalizeContext } from './context';
+
+import type { PaletteStartCreateCommand } from './palette/paletteStartCreate';
+import { runPaletteStartCreate } from './palette/paletteStartCreate';
+import type { PaletteRegisterSchemaProvidersCommand } from './palette/paletteSetup';
+import { runPaletteRegisterSchemaProviders } from './palette/paletteSetup';
+import type { PaletteActivateLassoCommand, PaletteOpenPopupCommand } from './palette/paletteUi';
+import { runPaletteActivateLasso, runPaletteOpenPopup } from './palette/paletteUi';
+
+import type { LoginAsGuestCommand, LoginCommand } from './auth';
+import { runLoginAsGuest, runLogin } from './auth';
+
+import type { OpenDiagramCommand } from './diagram/openDiagram';
+import { runOpenDiagram } from './diagram/openDiagram';
+import type { NewDiagramCommand } from './diagram/newDiagram';
+import { runNewDiagram } from './diagram/newDiagram';
+import type { SaveDiagramCommand } from './diagram/saveDiagram';
+import { runSaveDiagram } from './diagram/saveDiagram';
+import type { ExportDiagramCommand } from './diagram/exportDiagram';
+import { runExportDiagram } from './diagram/exportDiagram';
+import type { PublishDiagramCommand } from './diagram/publishDiagram';
+import { runPublishDiagram } from './diagram/publishDiagram';
+import type { ResetZoomCommand } from './diagram/resetZoom';
+import { runResetZoom } from './diagram/resetZoom';
+import type { ImportXmlCommand } from './diagram/importXml';
+import { runImportXml } from './diagram/importXml';
+
+import type { ToggleSimulationCommand } from './ui/toggleSimulation';
+import { runToggleSimulation } from './ui/toggleSimulation';
+import type { DownloadSchemasCommand } from './ui/downloadSchemas';
+import { runDownloadSchemas } from './ui/downloadSchemas';
+import type { CreateModelerCommand } from './ui/createModeler';
+import { runCreateModeler } from './ui/createModeler';
+
+import type { UpdatePropertyCommand } from './properties/updateProperty';
+import { runUpdateProperty } from './properties/updateProperty';
+import type { UpdateModdlePropertiesCommand } from './properties/updateModdleProperties';
+import { runUpdateModdleProperties } from './properties/updateModdleProperties';
+import type { InspectorUpdatePropertyCommand } from './properties/inspectorUpdateProperty';
+import { runInspectorUpdateProperty } from './properties/inspectorUpdateProperty';
+
+import type { CreateShapeCommand } from './shape';
+import { runCreateShape } from './shape';
 
 export type DiagramCommand =
   | PaletteStartCreateCommand
@@ -70,95 +65,65 @@ export type DiagramCommand =
   | UpdateModdlePropertiesCommand
   | CreateShapeCommand;
 
-function normalizeContext(contextOrModeler: any): CommandContext {
-  if (!contextOrModeler) return {};
+/**
+ * Map of command-type → handler. The `Extract` generic ensures each handler's
+ * second parameter is the exact command variant for that type, so adding a
+ * new `DiagramCommand` will fail compile until it's added to this map.
+ */
+type HandlerMap = {
+  [K in DiagramCommand['type']]: (
+    context: CommandContext,
+    command: Extract<DiagramCommand, { type: K }>,
+  ) => unknown;
+};
 
-  // bpmn-js modeler has .get(service)
-  if (typeof contextOrModeler.get === 'function') {
-    return { modeler: contextOrModeler };
-  }
+const HANDLERS: HandlerMap = {
+  'palette-start-create': (ctx, cmd) => runPaletteStartCreate(ctx, cmd),
+  'inspector-update-property': (ctx, cmd) => runInspectorUpdateProperty(ctx, cmd),
+  'palette-register-schema-providers': (ctx, cmd) => runPaletteRegisterSchemaProviders(ctx, cmd),
+  'palette-activate-lasso': (ctx, cmd) => runPaletteActivateLasso(ctx, cmd),
+  'palette-open-popup': (ctx, cmd) => runPaletteOpenPopup(ctx, cmd),
+  'login-as-guest': (_ctx, cmd) => runLoginAsGuest(cmd),
+  login: (_ctx, cmd) => runLogin(cmd),
+  'open-diagram': (ctx, cmd) => runOpenDiagram(ctx, cmd),
+  'new-diagram': (ctx, cmd) => runNewDiagram(ctx, cmd),
+  'save-diagram': (ctx, cmd) => runSaveDiagram(ctx, cmd),
+  'export-diagram': (ctx, cmd) => runExportDiagram(ctx, cmd),
+  'publish-diagram': (ctx, cmd) => runPublishDiagram(ctx, cmd),
+  'toggle-simulation': (ctx, cmd) => runToggleSimulation(ctx, cmd),
+  'reset-zoom': (ctx, cmd) => runResetZoom(ctx, cmd),
+  'download-schemas': (_ctx, cmd) => runDownloadSchemas(cmd),
+  'create-modeler': (_ctx, cmd) => runCreateModeler(cmd),
+  'import-xml': (ctx, cmd) => runImportXml(ctx, cmd),
+  'update-property': (ctx, cmd) => {
+    runUpdateProperty(ctx, cmd);
+    return undefined;
+  },
+  'update-moddle-properties': (ctx, cmd) => {
+    runUpdateModdleProperties(ctx, cmd);
+    return undefined;
+  },
+  'create-shape': (ctx, cmd) => runCreateShape(ctx, cmd),
+};
 
-  // modeling service has updateProperties/updateModdleProperties
-  if (
-    typeof contextOrModeler.updateProperties === 'function' ||
-    typeof contextOrModeler.updateModdleProperties === 'function'
-  ) {
-    return { modeling: contextOrModeler };
-  }
-
-  return contextOrModeler;
-}
-
+/**
+ * Dispatch a typed `DiagramCommand` through its registered handler.
+ *
+ * The first argument can be:
+ * - a bpmn-js modeler instance (preferred),
+ * - a bare `modeling` service (back-compat for a few low-level callers),
+ * - an already-shaped `CommandContext`, or
+ * - `null` for handlers that don't need any context (e.g., login).
+ */
 export async function executeCommand(
   contextOrModeler: any,
   command: DiagramCommand,
 ): Promise<any> {
   const context = normalizeContext(contextOrModeler);
-
-  switch (command.type) {
-    case 'palette-start-create':
-      return runPaletteStartCreate(context, command);
-
-    case 'inspector-update-property':
-      return runInspectorUpdateProperty(context, command);
-
-    case 'palette-register-schema-providers':
-      return runPaletteRegisterSchemaProviders(context, command);
-
-    case 'palette-activate-lasso':
-      return runPaletteActivateLasso(context, command);
-
-    case 'palette-open-popup':
-      return runPaletteOpenPopup(context, command);
-
-    case 'login-as-guest':
-      return runLoginAsGuest(command);
-
-    case 'login':
-      return runLogin(command);
-
-    case 'open-diagram':
-      return runOpenDiagram(context, command);
-
-    case 'new-diagram':
-      return runNewDiagram(context, command);
-
-    case 'save-diagram':
-      return runSaveDiagram(context, command);
-
-    case 'export-diagram':
-      return runExportDiagram(context, command);
-
-    case 'publish-diagram':
-      return runPublishDiagram(context, command);
-
-    case 'toggle-simulation':
-      return runToggleSimulation(context, command);
-
-    case 'reset-zoom':
-      return runResetZoom(context, command);
-
-    case 'download-schemas':
-      return runDownloadSchemas(command);
-
-    case 'create-modeler':
-      return runCreateModeler(command);
-
-    case 'import-xml':
-      return runImportXml(context, command);
-
-    case 'update-property':
-      runUpdateProperty(context, command);
-      return undefined;
-
-    case 'update-moddle-properties':
-      runUpdateModdleProperties(context, command);
-      return undefined;
-
-    case 'create-shape':
-      return runCreateShape(context, command);
-
-    default:
-      return undefined;
-  }
+  const handler = HANDLERS[command.type] as (
+    ctx: CommandContext,
+    cmd: DiagramCommand,
+  ) => unknown;
+  if (!handler) return undefined;
+  return handler(context, command);
 }

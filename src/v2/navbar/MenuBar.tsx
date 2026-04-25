@@ -28,7 +28,7 @@ function SaveButton({ className }: { className?: string }) {
 
   return (
     <button title="Save As" className={`w-full text-left ${className ?? ''}`} onClick={saveFile}>
-      <i className="bi bi-download pe-2" /> Save As...
+      <i className="iconify bi--download pe-2" /> Save As...
     </button>
   );
 }
@@ -69,7 +69,7 @@ function OpenButton({ className }: { className?: string }) {
   return (
     <>
       <button title="Open File" className={`w-full text-left ${className ?? ''}`} onClick={handleButtonClick}>
-        <i className="bi bi-folder2-open pe-2" /> Open File...
+        <i className="iconify bi--folder2-open pe-2" /> Open File...
       </button>
       <input
         type="file"
@@ -149,7 +149,7 @@ function PublishDialog({
             <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-8">
               Publish
               <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
-                <i className="bi bi-x-lg" />
+                <i className="iconify bi--x-lg" />
               </span>
             </DialogTitle>
             <form onSubmit={handlePublish}>
@@ -250,7 +250,7 @@ export function MenuBar() {
 
       <Popover className="relative">
         <PopoverButton className="hover:bg-white/20 rounded-lg h-8 w-8 flex items-center justify-center text-stone-200">
-          <i className="bi bi-list text-xl leading-none" />
+          <i className="iconify bi--list text-xl leading-none" />
         </PopoverButton>
         <PopoverPanel
           anchor="bottom start"
@@ -276,7 +276,7 @@ export function MenuBar() {
                     className="w-full text-left px-3 py-1 hover:bg-white/20"
                     onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'svg'); }}
                   >
-                    <i className="bi bi-filetype-svg pe-2" /> Export as SVG
+                    <i className="iconify bi--filetype-svg pe-2" /> Export as SVG
                   </button>
                 )}
               </MenuItem>
@@ -286,7 +286,7 @@ export function MenuBar() {
                     className="w-full text-left px-3 py-1 hover:bg-white/20"
                     onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'png'); }}
                   >
-                    <i className="bi bi-filetype-png pe-2" /> Export as PNG
+                    <i className="iconify bi--filetype-png pe-2" /> Export as PNG
                   </button>
                 )}
               </MenuItem>
@@ -296,7 +296,7 @@ export function MenuBar() {
                     className="w-full text-left px-3 py-1 hover:bg-white/20"
                     onClick={() => { close(); exportDiagram(useModelerStore.getState().diagramName, 'studyflow'); }}
                   >
-                    <i className="bi bi-file-earmark-code pe-2" /> Export as .studyflow
+                    <i className="iconify bi--file-earmark-code pe-2" /> Export as .studyflow
                   </button>
                 )}
               </MenuItem>
@@ -307,7 +307,7 @@ export function MenuBar() {
                     className="w-full text-left px-3 py-1 hover:bg-white/20"
                     onClick={() => { close(); setPublishOpen(true); }}
                   >
-                    <i className="bi bi-broadcast-pin pe-2" /> Publish...
+                    <i className="iconify bi--broadcast-pin pe-2" /> Publish...
                   </button>
                 )}
               </MenuItem>
@@ -327,7 +327,7 @@ export function MenuBar() {
                     className="w-full text-left px-3 py-1 hover:bg-white/20"
                     onClick={() => { close(); requestResetZoom(); }}
                   >
-                    <i className="bi bi-arrows-fullscreen pe-2" /> Reset Zoom
+                    <i className="iconify bi--arrows-fullscreen pe-2" /> Reset Zoom
                   </button>
                 )}
               </MenuItem>

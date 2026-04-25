@@ -1,3 +1,5 @@
+// @ts-check
+
 import { drawIcon } from './utils';
 import {
   append as svgAppend, create as svgCreate
@@ -7,6 +9,11 @@ import {getFillColor, getStrokeColor} from "bpmn-js/lib/draw/BpmnRenderUtil";
 
 /**
  * Draw a diamond (rhombus) shape — used for gateways.
+ *
+ * @param {any} parentGfx
+ * @param {{ width: number, height: number }} element
+ * @param {Record<string, any>} attrs
+ * @param {any} styles
  */
 function drawDiamond(parentGfx, element, attrs, styles) {
   const width = element.width;
@@ -43,6 +50,11 @@ function drawDiamond(parentGfx, element, attrs, styles) {
 
 /**
  * Render a bpmn:Gateway as a diamond with an optional studyflow icon.
+ *
+ * @param {any} parentNode
+ * @param {any} element
+ * @param {string|undefined} iconClass
+ * @param {any} styles
  */
 export function drawGateway(parentNode, element, iconClass, styles) {
   const gateway = drawDiamond(parentNode, element, {}, styles);

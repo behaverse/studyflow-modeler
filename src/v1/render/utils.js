@@ -1,3 +1,5 @@
+// @ts-check
+
 import { getStrokeColor } from "bpmn-js/lib/draw/BpmnRenderUtil";
 import { append as svgAppend, create as svgCreate } from "tiny-svg";
 
@@ -6,9 +8,12 @@ const ICON_OPACITY = 0.75;
 
 /**
  * Convert a CSS color string to a hex color code.
+ *
+ * @param {string} color
+ * @returns {string|null}
  */
 export function colorToHex(color) {
-  const context = document.createElement('canvas').getContext('2d');
+  const context = /** @type {CanvasRenderingContext2D} */ (document.createElement('canvas').getContext('2d'));
   context.fillStyle = 'transparent';
   context.fillStyle = color;
   return /^#[0-9a-fA-F]{6}$/.test(context.fillStyle) ? context.fillStyle : null;
@@ -16,6 +21,14 @@ export function colorToHex(color) {
 
 /**
  * Draw a foreignObject-based icon using an iconify CSS class.
+ *
+ * @param {any} parentNode
+ * @param {any} element
+ * @param {string|undefined} iconClass
+ * @param {number} [x]
+ * @param {number} [y]
+ * @param {number} [size]
+ * @param {string} [colorOverride]
  */
 export function drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26, colorOverride = undefined) {
   if (!iconClass) return;
@@ -57,6 +70,14 @@ export function drawIcon(parentNode, element, iconClass, x = 4, y = 4, size = 26
 /**
  * Draw an icon using inline SVG paths (no foreignObject / CSS).
  * This survives SVG export unlike CSS-based icons.
+ *
+ * @param {any} parentNode
+ * @param {{ viewBox: string, paths: string[] }} iconDef
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {string} fillColor
  */
 export function drawSvgPaths(parentNode, iconDef, x, y, width, height, fillColor) {
   const [, , vbW, vbH] = iconDef.viewBox.split(/\s+/).map(Number);
@@ -84,6 +105,13 @@ export function drawSvgPaths(parentNode, iconDef, x, y, width, height, fillColor
 
 /**
  * Draw a short text label inside an icon area (e.g. behaverse task abbreviation).
+ *
+ * @param {any} parentNode
+ * @param {any} element
+ * @param {string|undefined} marker
+ * @param {number} [x]
+ * @param {number} [y]
+ * @param {number} [fontSize]
  */
 export function drawIconText(parentNode, element, marker, x = 9, y = 21, fontSize = 12) {
   if (!marker) return;
@@ -123,6 +151,8 @@ export function drawIconText(parentNode, element, marker, x = 9, y = 21, fontSiz
 
 /**
  * Remove default BPMN markers rendered by the base renderer.
+ *
+ * @param {SVGElement} parentGfx
  */
 export function removeDefaultMarkers(parentGfx) {
   const markerPaths = parentGfx.querySelectorAll('[data-marker]');

@@ -1,4 +1,4 @@
-import { useImperativeHandle, useContext, useState, ReactElement, useEffect } from "react";
+import { useImperativeHandle, useContext, useState, ReactElement } from "react";
 
 import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description, Input, Field } from '@headlessui/react'
 
@@ -33,9 +33,6 @@ export function PublishDialog({ref, ...props}) {
     setIsOpen(false);
     setPreviewUrl(undefined);
   }
-  useEffect(() => {
-
-  }, [modeler]);
 
   const handlePublish = (e) => {
     e.preventDefault();
@@ -79,7 +76,7 @@ export function PublishDialog({ref, ...props}) {
             <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-8">
               Publish
               <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
-                <i className="bi bi-x-lg"></i>
+                <i className="iconify bi--x-lg"></i>
               </span>
             </DialogTitle>
             <form onSubmit={handlePublish}>
@@ -145,7 +142,7 @@ export function PublishButton({ className, dialog, ...props }) {
         id="publish-button"
         className={`w-full text-left ${className}`}
         onClick={dialog.current?.open}>
-        <i className="bi bi-broadcast-pin pe-2"></i> Publish...
+        <i className="iconify bi--broadcast-pin pe-2"></i> Publish...
       </Button>
     </>
   );

@@ -29,6 +29,7 @@ test-results
 *.egg-info
 *.drawio.bkp
 .docusaurus/
+.claude/
 
 tmp/
 

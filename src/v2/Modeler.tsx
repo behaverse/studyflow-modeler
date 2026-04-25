@@ -306,7 +306,7 @@ function ModelerCanvas() {
           className="m-auto animate-spin"
           aria-label="Loading modeler"
         >
-          <span className="bi bi-arrow-repeat text-fuchsia-600 text-[3rem]" />
+          <span className="iconify bi--arrow-repeat text-fuchsia-600 text-[3rem]" />
           <span className="sr-only">Loading...</span>
         </div>
       </div>

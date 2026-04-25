@@ -1,7 +1,11 @@
+// @ts-check
+
 /**
  * Inline SVG path data for icons that must survive SVG export.
  * CSS-based icons (mask-image, background-image) are lost during export
  * because foreignObject content is not self-contained.
+ *
+ * @type {Record<string, { viewBox: string, paths: string[] }>}
  */
 export const SVG_ICON_PATHS = {
   'bids-dataset-icon': {
@@ -18,6 +22,8 @@ export const SVG_ICON_PATHS = {
 /**
  * Custom icon overrides for standard BPMN elements.
  * Maps BPMN element/marker names to iconify class strings.
+ *
+ * @type {Record<string, string>}
  */
 export const BPMN_ICON_OVERRIDES = {
   'bpmn:ManualTask':        'iconify fluent--hand-left-24-regular rotate-90',

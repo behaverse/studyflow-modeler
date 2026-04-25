@@ -3,7 +3,7 @@ import { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getProperty } from '../extensionElements';
+import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
 
 
@@ -58,7 +58,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
                     <div className="px-4 py-2 flex justify-between items-center">
                         <h3 className="text-lg font-medium">Edit Schema</h3>
                         <button className="text-sm text-slate-500" onClick={closeModal}>
-                            <i className="bi bi-x-lg cursor-pointer"></i>
+                            <i className="iconify bi--x-lg cursor-pointer"></i>
                         </button>
                     </div>
                     <div className="p-4">
@@ -83,7 +83,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
     return (
         <>
             <Button as="button" className="w-full mt-2 p-1 rounded-md hover:text-white cursor-pointer bg-stone-600 hover:bg-stone-700" onClick={showEditorModal}>
-                <i className="bi bi-pencil pe-2"></i> Edit Schema
+                <i className="iconify bi--pencil pe-2"></i> Edit Schema
             </Button>
 
             {modalOpen && createPortal(getEditorModal(), document.body)}

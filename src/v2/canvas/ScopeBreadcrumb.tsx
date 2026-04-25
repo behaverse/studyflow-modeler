@@ -28,7 +28,7 @@ export function ScopeBreadcrumb() {
         const isLast = idx === scopeStack.length - 1;
         return (
           <span key={entry.id} className="flex items-center gap-1">
-            <i className="bi bi-chevron-right text-stone-500 text-[10px]" />
+            <i className="iconify bi--chevron-right text-stone-500 text-[10px]" />
             {isLast ? (
               <span className="text-white font-semibold">{entry.name}</span>
             ) : (

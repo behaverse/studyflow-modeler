@@ -59,7 +59,7 @@ export function LoginDialog({ ref }: { ref: React.Ref<{ open: () => void }> }) {
             <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-8">
               Login
               <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
-                <i className="bi bi-x-lg"></i>
+                <i className="iconify bi--x-lg"></i>
               </span>
             </DialogTitle>
             <p className="text-sm text-stone-600 pb-6">
@@ -110,7 +110,7 @@ export const LoginButton = forwardRef<HTMLButtonElement, { className?: string; o
           onClick?.();
         }}
       >
-        <i className="bi bi-person pe-2"></i>
+        <i className="iconify bi--person pe-2"></i>
         {isGuest ? ' Login...' : ' Switch Account...'}
       </button>
     );

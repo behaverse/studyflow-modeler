@@ -1,7 +1,7 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as svgRemove } from 'tiny-svg';
+import { computeSegLengths, samplePolyline, smootherstep, type Point } from './path';
+import { createTokenSvg, removeTokenSvg, updateTokenPosition, TOKEN_RADIUS } from './tokenVisual';
 
-const TOKEN_RADIUS = 8;
 const TOKEN_SPEED = 200; // pixels per sec
 const ACTIVITY_PAUSE_MS = 500; // pause at activities before moving on
 const SPAWN_INTERVAL_MS = 1000; // how often to spawn new tokens
@@ -15,8 +15,6 @@ const TOKEN_COLORS = [
 ];
 
 export const TOGGLE_SIMULATION_EVENT = 'tokenSimulation.toggle';
-
-type Point = { x: number; y: number };
 
 interface Token {
   svg: any;
@@ -33,34 +31,6 @@ interface Token {
   bounceElementId: string | null;
   cx: number;
   cy: number;
-}
-
-
-/**
- * smoother interpolation
- * Maps 0->1 to 0->1 with zero first AND second derivatives at endpoints.
- */
-function smootherstep(t: number) {
-  return t * t * t * (t * (t * 6 - 15) + 10);
-}
-
-/**
- * Sample a position along a polyline at a given distance from the start.
- */
-function samplePolyline(points: Point[], segLengths: number[], dist: number) {
-  let remaining = dist;
-  for (let i = 0; i < segLengths.length; i++) {
-    if (remaining <= segLengths[i]) {
-      const t = segLengths[i] > 0 ? remaining / segLengths[i] : 0;
-      return {
-        x: points[i].x + (points[i + 1].x - points[i].x) * t,
-        y: points[i].y + (points[i + 1].y - points[i].y) * t,
-      };
-    }
-    remaining -= segLengths[i];
-  }
-  // past the end; return last point
-  return points[points.length - 1];
 }
 
 
@@ -182,7 +152,7 @@ export default class TokenSimulator {
       token.done = true;
 
       if (token.svg) {
-        svgRemove(token.svg);
+        removeTokenSvg(token.svg);
       }
     }
 
@@ -221,7 +191,7 @@ export default class TokenSimulator {
     // remove finished tokens outside the loop
     for (let i = this._tokens.length - 1; i >= 0; i--) {
       if (this._tokens[i].done) {
-        svgRemove(this._tokens[i].svg);
+        removeTokenSvg(this._tokens[i].svg);
         this._tokens.splice(i, 1);
       }
     }
@@ -256,15 +226,7 @@ export default class TokenSimulator {
     const color = TOKEN_COLORS[this._colorIndex % TOKEN_COLORS.length];
     this._colorIndex++;
 
-    const svg = svgCreate('circle');
-    svgAttr(svg, {
-      cx: 0,
-      cy: 0,
-      r: TOKEN_RADIUS,
-    });
-    svg.style.fill = color;
-
-    svgAppend(this._layer, svg);
+    const svg = createTokenSvg(this._layer, color);
 
     const cx = element.x + (element.width / 2);
     const cy = element.y + (element.height / 2);
@@ -383,15 +345,7 @@ export default class TokenSimulator {
     }
 
     // Pre-compute segment lengths
-    const segLengths: number[] = [];
-    let totalDist = 0;
-    for (let i = 0; i < cleaned.length - 1; i++) {
-      const dx = cleaned[i + 1].x - cleaned[i].x;
-      const dy = cleaned[i + 1].y - cleaned[i].y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      segLengths.push(len);
-      totalDist += len;
-    }
+    const { segLengths, totalDist } = computeSegLengths(cleaned);
 
     token.pathPoints = cleaned;
     token.segLengths = segLengths;
@@ -442,15 +396,11 @@ export default class TokenSimulator {
   private _cloneToken(source: Token) {
     const color = source.color;
 
-    const svg = svgCreate('circle');
-    svgAttr(svg, { cx: source.cx, cy: source.cy, r: TOKEN_RADIUS });
-    svg.style.fill = color;
+    const svg = createTokenSvg(this._layer, color, source.cx, source.cy);
     svg.style.stroke = '#fff';
     svg.style.strokeWidth = '2';
     svg.style.opacity = '0.9';
     svg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))';
-
-    svgAppend(this._layer, svg);
 
     const clone: Token = {
       svg,
@@ -476,7 +426,7 @@ export default class TokenSimulator {
   private _setTokenPos(token: Token, x: number, y: number) {
     token.cx = x;
     token.cy = y;
-    svgAttr(token.svg, { cx: x, cy: y });
+    updateTokenPosition(token.svg, x, y);
   }
 
   private _fadeOutToken(token: Token) {

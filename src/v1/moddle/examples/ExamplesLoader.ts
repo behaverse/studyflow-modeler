@@ -6,7 +6,7 @@
  * Injects the generated examples into the `elementTemplates` DI service.
  */
 
-import { runBuildExamplesRegistry } from '../../commands/buildExamplesRegistry';
+import { runBuildExamplesRegistry } from '../../commands/examples';
 
 export default class ExamplesLoader {
 

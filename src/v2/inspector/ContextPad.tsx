@@ -105,7 +105,7 @@ function ContextPadComponent() {
         }`}
         onClick={handleConnect}
       >
-        <i className="text-[16px] bi bi-arrow-right" />
+        <i className="text-[16px] iconify bi--arrow-right" />
       </button>
       <div className="border-t border-stone-200 my-0.5" />
       <button
@@ -171,7 +171,7 @@ function ContextPadComponent() {
         className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50"
         onClick={handleDelete}
       >
-        <i className="text-[16px] bi bi-trash text-red-500" />
+        <i className="text-[16px] iconify bi--trash text-red-500" />
       </button>
     </div>
   );

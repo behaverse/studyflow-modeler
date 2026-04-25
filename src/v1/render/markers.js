@@ -1,10 +1,15 @@
+// @ts-check
+
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import { getProperty } from '../extensionElements';
+import { getProperty } from '../extensions';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
 /**
  * Draw bottom-of-task markers (subprocess, loop, parallel, etc.).
+ *
+ * @param {any} parentNode
+ * @param {any} element
  */
 export function drawMarkers(parentNode, element) {
   let markers = [];

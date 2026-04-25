@@ -1,12 +1,19 @@
-import { getExtensionElement, getProperty } from '../extensionElements';
+// @ts-check
+
+import { getExtensionElement, getProperty } from '../extensions';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, drawIconText } from './utils';
 import { drawMarkers } from './markers';
 
 /**
  * Render a bpmn:Activity (Task, SubProcess, etc.) with studyflow icons and markers.
- * @param {string|undefined} sfIconClass - icon class resolved from the extension descriptor
- * @param {boolean} preservePrimaryIcon - when true, keep the resolved icon (e.g., schema example icon)
+ *
+ * @param {any} parentNode
+ * @param {any} element
+ * @param {any} bpmnRenderer
+ * @param {Array<any>} pkgEnums
+ * @param {string|undefined} sfIconClass     icon class resolved from the extension descriptor
+ * @param {boolean} [preservePrimaryIcon]    when true, keep the resolved icon (e.g., schema example icon)
  */
 export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIconClass, preservePrimaryIcon = false) {
 
