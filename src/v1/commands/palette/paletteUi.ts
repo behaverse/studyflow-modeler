@@ -1,5 +1,3 @@
-import type { CommandContext } from '../types';
-
 type PopupPosition = {
   x: number;
   y: number;
@@ -22,27 +20,27 @@ export type PaletteOpenPopupCommand = {
 };
 
 export function runPaletteActivateLasso(
-  context: CommandContext,
+  modeler: any,
   command: PaletteActivateLassoCommand,
 ): void {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'palette-activate-lasso' requires a modeler instance.");
   }
 
-  const lassoTool = context.modeler.get('lassoTool');
+  const lassoTool = modeler.get('lassoTool');
   lassoTool.activateSelection(command.event);
 }
 
 export function runPaletteOpenPopup(
-  context: CommandContext,
+  modeler: any,
   command: PaletteOpenPopupCommand,
 ): void {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'palette-open-popup' requires a modeler instance.");
   }
 
-  const popupMenu = context.modeler.get('popupMenu');
-  const canvas = context.modeler.get('canvas');
+  const popupMenu = modeler.get('popupMenu');
+  const canvas = modeler.get('canvas');
   const rootElement = canvas.getRootElement();
 
   popupMenu.open(rootElement, command.popupType, command.position, {

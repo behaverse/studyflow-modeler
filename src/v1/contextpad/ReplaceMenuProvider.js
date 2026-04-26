@@ -12,18 +12,18 @@ import { getProperty } from '../extensions';
  * `bpmn:Activity` shapes.
  */
 export default class ReplaceMenuProvider {
-  static $inject = ['popupMenu', 'replace', 'modeling', 'eventBus'];
+  static $inject = ['popupMenu', 'replace', 'injector', 'eventBus'];
 
   /**
    * @param {any} popupMenu
    * @param {any} replace
-   * @param {any} modeling
+   * @param {any} injector  bpmn-js DI container (same `.get(service)` API as the modeler)
    * @param {any} eventBus
    */
-  constructor(popupMenu, replace, modeling, eventBus) {
+  constructor(popupMenu, replace, injector, eventBus) {
     this._popupMenu = popupMenu;
     this._replace = replace;
-    this._modeling = modeling;
+    this._injector = injector;
     this._eventBus = eventBus;
     popupMenu.registerProvider('bpmn-replace', this);
   }
@@ -61,7 +61,7 @@ export default class ReplaceMenuProvider {
       const currentState = !!getProperty(element, 'isDataOperation');
       const newState = !currentState;
 
-      executeCommand(self._modeling, {
+      executeCommand(self._injector, {
         type: 'update-property',
         element,
         propertyName: 'isDataOperation',

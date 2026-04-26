@@ -1,17 +1,15 @@
-import type { CommandContext } from '../types';
-
 export type ImportXmlCommand = {
   type: 'import-xml';
   xml: string;
 };
 
 export async function runImportXml(
-  context: CommandContext,
+  modeler: any,
   command: ImportXmlCommand,
 ): Promise<any> {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'import-xml' requires a modeler instance.");
   }
 
-  return context.modeler.importXML(command.xml);
+  return modeler.importXML(command.xml);
 }

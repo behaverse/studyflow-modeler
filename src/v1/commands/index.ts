@@ -1,6 +1,3 @@
-import type { CommandContext } from './types';
-import { normalizeContext } from './context';
-
 import type { PaletteStartCreateCommand } from './palette/paletteStartCreate';
 import { runPaletteStartCreate } from './palette/paletteStartCreate';
 import type { PaletteRegisterSchemaProvidersCommand } from './palette/paletteSetup';
@@ -69,61 +66,57 @@ export type DiagramCommand =
  * Map of command-type → handler. The `Extract` generic ensures each handler's
  * second parameter is the exact command variant for that type, so adding a
  * new `DiagramCommand` will fail compile until it's added to this map.
+ *
+ * The first argument is the bpmn-js modeler (or any DI container with
+ * `.get(service)` — e.g., the `injector` token). Handlers that don't need the
+ * modeler (login, download-schemas, create-modeler) ignore it.
  */
 type HandlerMap = {
   [K in DiagramCommand['type']]: (
-    context: CommandContext,
+    modeler: any,
     command: Extract<DiagramCommand, { type: K }>,
   ) => unknown;
 };
 
 const HANDLERS: HandlerMap = {
-  'palette-start-create': (ctx, cmd) => runPaletteStartCreate(ctx, cmd),
-  'inspector-update-property': (ctx, cmd) => runInspectorUpdateProperty(ctx, cmd),
-  'palette-register-schema-providers': (ctx, cmd) => runPaletteRegisterSchemaProviders(ctx, cmd),
-  'palette-activate-lasso': (ctx, cmd) => runPaletteActivateLasso(ctx, cmd),
-  'palette-open-popup': (ctx, cmd) => runPaletteOpenPopup(ctx, cmd),
-  'login-as-guest': (_ctx, cmd) => runLoginAsGuest(cmd),
-  login: (_ctx, cmd) => runLogin(cmd),
-  'open-diagram': (ctx, cmd) => runOpenDiagram(ctx, cmd),
-  'new-diagram': (ctx, cmd) => runNewDiagram(ctx, cmd),
-  'save-diagram': (ctx, cmd) => runSaveDiagram(ctx, cmd),
-  'export-diagram': (ctx, cmd) => runExportDiagram(ctx, cmd),
-  'publish-diagram': (ctx, cmd) => runPublishDiagram(ctx, cmd),
-  'toggle-simulation': (ctx, cmd) => runToggleSimulation(ctx, cmd),
-  'reset-zoom': (ctx, cmd) => runResetZoom(ctx, cmd),
-  'download-schemas': (_ctx, cmd) => runDownloadSchemas(cmd),
-  'create-modeler': (_ctx, cmd) => runCreateModeler(cmd),
-  'import-xml': (ctx, cmd) => runImportXml(ctx, cmd),
-  'update-property': (ctx, cmd) => {
-    runUpdateProperty(ctx, cmd);
-    return undefined;
-  },
-  'update-moddle-properties': (ctx, cmd) => {
-    runUpdateModdleProperties(ctx, cmd);
-    return undefined;
-  },
-  'create-shape': (ctx, cmd) => runCreateShape(ctx, cmd),
+  'palette-start-create': runPaletteStartCreate,
+  'inspector-update-property': runInspectorUpdateProperty,
+  'palette-register-schema-providers': runPaletteRegisterSchemaProviders,
+  'palette-activate-lasso': runPaletteActivateLasso,
+  'palette-open-popup': runPaletteOpenPopup,
+  'login-as-guest': (_modeler, cmd) => runLoginAsGuest(cmd),
+  login: (_modeler, cmd) => runLogin(cmd),
+  'open-diagram': runOpenDiagram,
+  'new-diagram': runNewDiagram,
+  'save-diagram': runSaveDiagram,
+  'export-diagram': runExportDiagram,
+  'publish-diagram': runPublishDiagram,
+  'toggle-simulation': runToggleSimulation,
+  'reset-zoom': runResetZoom,
+  'download-schemas': (_modeler, cmd) => runDownloadSchemas(cmd),
+  'create-modeler': (_modeler, cmd) => runCreateModeler(cmd),
+  'import-xml': runImportXml,
+  'update-property': runUpdateProperty,
+  'update-moddle-properties': runUpdateModdleProperties,
+  'create-shape': runCreateShape,
 };
 
 /**
  * Dispatch a typed `DiagramCommand` through its registered handler.
  *
- * The first argument can be:
- * - a bpmn-js modeler instance (preferred),
- * - a bare `modeling` service (back-compat for a few low-level callers),
- * - an already-shaped `CommandContext`, or
- * - `null` for handlers that don't need any context (e.g., login).
+ * `modeler` should be the bpmn-js modeler instance (or any object exposing
+ * `.get(service)` — e.g., the DI `injector` from inside a bpmn-js service).
+ * Pass `null` for handlers that don't need it (login, download-schemas,
+ * create-modeler).
  */
 export async function executeCommand(
-  contextOrModeler: any,
+  modeler: any,
   command: DiagramCommand,
 ): Promise<any> {
-  const context = normalizeContext(contextOrModeler);
   const handler = HANDLERS[command.type] as (
-    ctx: CommandContext,
+    m: any,
     cmd: DiagramCommand,
   ) => unknown;
   if (!handler) return undefined;
-  return handler(context, command);
+  return handler(modeler, command);
 }

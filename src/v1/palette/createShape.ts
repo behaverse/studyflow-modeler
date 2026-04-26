@@ -19,12 +19,11 @@ export function createAndPlace(
 ) {
   const elementFactory = modeler.get('elementFactory');
   const canvas = modeler.get('canvas');
-  const modeling = modeler.get('modeling');
 
   const businessObject = buildBusinessObject(modeler, bpmnType, { attrs, studyflowType });
   const shape = buildShape(elementFactory, bpmnType, businessObject);
 
-  executeCommand(modeling, {
+  executeCommand(modeler, {
     type: 'create-shape',
     shape,
     position,

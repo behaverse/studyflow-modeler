@@ -1,6 +1,5 @@
 import { Canvg } from 'canvg';
 import download from 'downloadjs';
-import type { CommandContext } from '../types';
 
 export type ExportDiagramCommand = {
   type: 'export-diagram';
@@ -107,15 +106,15 @@ async function exportToPng(svg: string): Promise<string> {
 }
 
 export async function runExportDiagram(
-  context: CommandContext,
+  modeler: any,
   command: ExportDiagramCommand,
 ): Promise<void> {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'export-diagram' requires a modeler instance.");
   }
 
-  const { svg } = await context.modeler.saveSVG();
-  const { xml } = await context.modeler.saveXML();
+  const { svg } = await modeler.saveSVG();
+  const { xml } = await modeler.saveXML();
 
   let svgClean = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
   svgClean = await embedIconsInSvg(svgClean);

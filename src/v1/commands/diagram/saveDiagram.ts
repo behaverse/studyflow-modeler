@@ -1,4 +1,3 @@
-import type { CommandContext } from '../types';
 import download from 'downloadjs';
 
 export type SaveDiagramCommand = {
@@ -7,13 +6,13 @@ export type SaveDiagramCommand = {
 };
 
 export async function runSaveDiagram(
-  context: CommandContext,
+  modeler: any,
   command: SaveDiagramCommand,
 ): Promise<void> {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'save-diagram' requires a modeler instance.");
   }
 
-  const { xml } = await context.modeler.saveXML({ format: true });
+  const { xml } = await modeler.saveXML({ format: true });
   download(xml, `${command.diagramName}.studyflow`, 'application/xml');
 }

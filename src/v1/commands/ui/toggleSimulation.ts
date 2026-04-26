@@ -1,19 +1,17 @@
-import type { CommandContext } from '../types';
-
 export type ToggleSimulationCommand = {
   type: 'toggle-simulation';
   currentActive: boolean;
 };
 
 export function runToggleSimulation(
-  context: CommandContext,
+  modeler: any,
   command: ToggleSimulationCommand,
 ): { active: boolean } {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'toggle-simulation' requires a modeler instance.");
   }
 
-  const simulator = context.modeler.get('tokenSimulator');
+  const simulator = modeler.get('tokenSimulator');
   simulator.toggle();
 
   const next = !command.currentActive;

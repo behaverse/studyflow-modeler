@@ -1,6 +1,3 @@
-import type { CommandContext } from '../types';
-import { resolveModeling } from '../types';
-
 export type CreateShapeCommand = {
   type: 'create-shape';
   shape: any;
@@ -9,14 +6,14 @@ export type CreateShapeCommand = {
 };
 
 export function runCreateShape(
-  context: CommandContext,
+  modeler: any,
   command: CreateShapeCommand,
 ): any {
-  const modeling = resolveModeling(context);
-  if (!modeling) {
-    throw new Error("Command 'create-shape' requires modeling or modeler.");
+  if (!modeler) {
+    throw new Error("Command 'create-shape' requires a modeler instance.");
   }
 
+  const modeling = modeler.get('modeling');
   modeling.createShape(command.shape, command.position, command.parent);
   return command.shape;
 }

@@ -1,5 +1,3 @@
-import type { CommandContext } from '../types';
-import { resolveModeling } from '../types';
 import { setProperty } from '../../extensions';
 
 export type UpdatePropertyCommand = {
@@ -10,13 +8,13 @@ export type UpdatePropertyCommand = {
 };
 
 export function runUpdateProperty(
-  context: CommandContext,
+  modeler: any,
   command: UpdatePropertyCommand,
 ): void {
-  const modeling = resolveModeling(context);
-  if (!modeling) {
-    throw new Error("Command 'update-property' requires modeling or modeler.");
+  if (!modeler) {
+    throw new Error("Command 'update-property' requires a modeler instance.");
   }
 
+  const modeling = modeler.get('modeling');
   setProperty(command.element, command.propertyName, command.value, modeling);
 }

@@ -1,4 +1,3 @@
-import type { CommandContext } from '../types';
 import { runUpdateProperty } from './updateProperty';
 
 export type InspectorUpdatePropertyCommand = {
@@ -9,10 +8,10 @@ export type InspectorUpdatePropertyCommand = {
 };
 
 export function runInspectorUpdateProperty(
-  context: CommandContext,
+  modeler: any,
   command: InspectorUpdatePropertyCommand,
 ): void {
-  runUpdateProperty(context, {
+  runUpdateProperty(modeler, {
     type: 'update-property',
     element: command.element,
     propertyName: command.propertyName,

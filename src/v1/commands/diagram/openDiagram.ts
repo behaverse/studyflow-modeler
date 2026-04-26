@@ -1,4 +1,3 @@
-import type { CommandContext } from '../types';
 import { runImportXml } from './importXml';
 
 export type OpenDiagramCommand = {
@@ -19,10 +18,10 @@ function extractXmlFromSvg(svgText: string): string {
 }
 
 export async function runOpenDiagram(
-  context: CommandContext,
+  modeler: any,
   command: OpenDiagramCommand,
 ): Promise<any> {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'open-diagram' requires a modeler instance.");
   }
 
@@ -32,9 +31,9 @@ export async function runOpenDiagram(
     xml = extractXmlFromSvg(command.content);
   }
 
-  const result = await runImportXml(context, { type: 'import-xml', xml });
+  const result = await runImportXml(modeler, { type: 'import-xml', xml });
 
-  context.modeler.get('canvas').zoom('fit-viewport');
+  modeler.get('canvas').zoom('fit-viewport');
 
   if (command.setDiagramName) {
     const nameWithoutExt = command.filename.replace(/\.[^/.]+$/, '');

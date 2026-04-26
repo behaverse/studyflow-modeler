@@ -1,4 +1,3 @@
-import type { CommandContext } from '../types';
 import type { CommandResult } from '../types';
 
 export type PublishDiagramCommand = {
@@ -8,14 +7,14 @@ export type PublishDiagramCommand = {
 };
 
 export async function runPublishDiagram(
-  context: CommandContext,
+  modeler: any,
   command: PublishDiagramCommand,
 ): Promise<CommandResult<{ preview_url?: string }>> {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'publish-diagram' requires a modeler instance.");
   }
 
-  const { xml } = await context.modeler.saveXML({ format: true });
+  const { xml } = await modeler.saveXML({ format: true });
 
   const response = await fetch(`https://api.behaverse.org/v1/studies/${command.studyName}/flow`, {
     method: 'POST',

@@ -1,4 +1,3 @@
-import type { CommandContext } from '../types';
 import { buildBusinessObject, buildShape } from '../shape';
 
 export type PaletteStartCreateCommand = {
@@ -10,14 +9,13 @@ export type PaletteStartCreateCommand = {
 };
 
 export function runPaletteStartCreate(
-  context: CommandContext,
+  modeler: any,
   command: PaletteStartCreateCommand,
 ): any {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'palette-start-create' requires a modeler instance.");
   }
 
-  const modeler = context.modeler;
   const businessObject = buildBusinessObject(modeler, command.bpmnType, {
     attrs: command.attrs,
     studyflowType: command.studyflowType,

@@ -1,6 +1,3 @@
-import type { CommandContext } from '../types';
-import { resolveModeling } from '../types';
-
 export type UpdateModdlePropertiesCommand = {
   type: 'update-moddle-properties';
   element: any;
@@ -9,14 +6,14 @@ export type UpdateModdlePropertiesCommand = {
 };
 
 export function runUpdateModdleProperties(
-  context: CommandContext,
+  modeler: any,
   command: UpdateModdlePropertiesCommand,
 ): void {
-  const modeling = resolveModeling(context);
-  if (!modeling) {
-    throw new Error("Command 'update-moddle-properties' requires modeling or modeler.");
+  if (!modeler) {
+    throw new Error("Command 'update-moddle-properties' requires a modeler instance.");
   }
 
+  const modeling = modeler.get('modeling');
   modeling.updateModdleProperties(
     command.element,
     command.moddleElement,

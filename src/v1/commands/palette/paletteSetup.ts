@@ -1,4 +1,3 @@
-import type { CommandContext } from '../types';
 import { SCHEMA_NAMES } from '../../contexts';
 import SchemaPopupMenu from '../../palette/SchemaPopupMenu';
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
@@ -58,19 +57,19 @@ export type PaletteRegisterSchemaProvidersCommand = {
 };
 
 export function runPaletteRegisterSchemaProviders(
-  context: CommandContext,
+  modeler: any,
   command: PaletteRegisterSchemaProvidersCommand,
 ): PaletteSchemaDescriptor[] {
-  if (!context.modeler) {
+  if (!modeler) {
     throw new Error("Command 'palette-register-schema-providers' requires a modeler instance.");
   }
 
-  const bpmnFactory = context.modeler.get('bpmnFactory');
+  const bpmnFactory = modeler.get('bpmnFactory');
   const moddle = bpmnFactory._model;
-  const popupMenu = context.modeler.get('popupMenu');
-  const elementFactory = context.modeler.get('elementFactory');
-  const create = context.modeler.get('create');
-  const elementTemplates = context.modeler.get('elementTemplates');
+  const popupMenu = modeler.get('popupMenu');
+  const elementFactory = modeler.get('elementFactory');
+  const create = modeler.get('create');
+  const elementTemplates = modeler.get('elementTemplates');
 
   if (!filteredPopupMenus.has(popupMenu as object)) {
     // eslint-disable-next-line no-new
