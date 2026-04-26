@@ -17,14 +17,14 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
                   transition-all duration-150
                   absolute left-[calc(100%+10px)] top-[-6px] z-[300]
                   w-[220px] p-2.5 pb-3
-                  rounded-[14px] bg-stone-900/92 backdrop-blur-2xl
-                  border border-white/10
-                  shadow-[0_4px_12px_rgba(0,0,0,0.25),0_8px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.08)]`}>
+                  rounded-[14px] bg-[#ece5d0]/95 backdrop-blur-2xl
+                  border border-[#b0a993]/40
+                  shadow-[0_4px_12px_rgba(0,0,0,0.10),0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.6)]`}>
       {/* Gap bridge so hover stays active between button and flyout */}
       <span className="absolute left-[-10px] top-0 w-[10px] h-full" aria-hidden="true" />
 
-      <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400
-                      pb-2 mb-2 px-1 border-b border-white/10">
+      <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500
+                      pb-2 mb-2 px-1 border-b border-[#b0a993]/40">
         {group.label}
       </div>
       <div className="grid grid-cols-3 gap-1">
@@ -37,7 +37,7 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
               type="button"
               title={`Create ${item.label}`}
               className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg
-                         text-stone-200 hover:text-violet-400 hover:bg-white/10
+                         text-stone-700 hover:text-violet-700 hover:bg-[#b0a993]/25
                          transition-colors cursor-grab active:cursor-grabbing"
               onMouseDown={(e) => handlers.onMouseDown(item, e)}
               onMouseMove={(e) => handlers.onMouseMove(item, e)}

@@ -36,7 +36,7 @@ export function EnumInput({ bpmnProperty }: Props) {
       <Label className="flex items-center justify-between">
         {t(bpmnProperty.ns.name)}
         <Popover className="relative group">
-          <PopoverButton><i className="iconify bi--patch-question text-stone-400"></i></PopoverButton>
+          <PopoverButton><i className="iconify bi--patch-question text-stone-500"></i></PopoverButton>
           <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-lg">
             <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
             {bpmnProperty?.description}
@@ -49,7 +49,7 @@ export function EnumInput({ bpmnProperty }: Props) {
           aria-label={t(bpmnProperty.ns.name)}
           onChange={handleChange}
           value={value}
-          className="appearance-none px-2 py-1 pr-8 w-full rounded-md border-none bg-white/10 text-sm/6 text-stone-100 focus:outline-2 focus:-outline-offset-2 focus:outline-white/20"
+          className="appearance-none px-2 py-1 pr-8 w-full rounded-md border border-[#b0a993]/40 bg-[#f1ede0] text-sm/6 text-stone-800 focus:outline-2 focus:-outline-offset-2 focus:outline-[#b0a993]"
         >
           {literalValues.map((l: any) => (
             <option key={l.value} value={l.value}>{l.name}</option>

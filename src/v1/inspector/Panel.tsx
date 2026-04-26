@@ -19,7 +19,7 @@ export function Panel({ className: _className = '' }: { className?: string }) {
         businessObject: element ? getBusinessObject(element) : undefined,
       }}
     >
-      <div className="fixed top-0 right-0 flex items-start">
+      <div className="fixed top-0 right-0 z-[60] flex items-start">
         {element && (
           <ToggleButton
             isInspectorVisible={isVisible}
@@ -28,9 +28,10 @@ export function Panel({ className: _className = '' }: { className?: string }) {
         )}
         <div
           data-testid="inspector-root"
-          className={`w-72 rounded-bl-[14px] bg-stone-800/90 backdrop-blur-2xl
-                      shadow-[0_2px_8px_rgba(0,0,0,0.20),0_8px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.08)]
-                      text-stone-100 max-h-[calc(100vh-80px)] overflow-y-auto
+          className={`w-72 rounded-bl-[14px] bg-[#ece5d0]/95 backdrop-blur-2xl
+                      border border-[#b0a993]/40 border-t-0 border-r-0
+                      shadow-[0_2px_8px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.6)]
+                      text-stone-800 max-h-[calc(100vh-80px)] overflow-y-auto
                       ${isVisible ? '' : 'hidden'}`}
         >
           {element && (

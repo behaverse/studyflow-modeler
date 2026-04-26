@@ -39,10 +39,10 @@ svg text.bi {
 .palette-tool-btn {
   @apply flex items-center justify-center;
   @apply w-[34px] h-8 rounded-[10px];
-  @apply text-stone-200 cursor-grab;
-  @apply hover:bg-white/10 hover:text-violet-400;
-  @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.20),inset_0_1px_0_rgba(255,255,255,0.06)];
-  @apply active:bg-white/15;
+  @apply text-stone-700 cursor-grab;
+  @apply hover:bg-[#b0a993]/25 hover:text-violet-700;
+  @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.4)];
+  @apply active:bg-[#b0a993]/40;
   @apply transition-all;
 }
 
@@ -68,8 +68,15 @@ svg text.bi {
 }
 
 .djs-context-pad .entry {
-  @apply bg-amber-50;
-  @apply hover:bg-amber-200;
+  background-color: #ece5d0 !important;
+  box-shadow: 0 0 2px 1px #ece5d0 !important;
+  @apply text-stone-700 rounded-md;
+}
+
+.djs-context-pad .entry:hover {
+  background-color: #b0a993 !important;
+  box-shadow: 0 0 2px 1px #b0a993 !important;
+  @apply text-stone-900;
 }
 
 .bjs-breadcrumbs,
@@ -87,21 +94,21 @@ svg text.bi {
   list-style: none;
   z-index: 40;
 
-  background: rgba(28, 25, 23, 0.88);
+  background: rgba(236, 229, 208, 0.95);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(176, 169, 147, 0.40);
   border-top: none;
   border-radius: 0 0 12px 12px;
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.06),
     0 6px 20px rgba(0, 0, 0, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
   font-size: 12px;
   font-weight: 500;
   font-family: inherit;
-  color: var(--color-stone-300);
+  color: var(--color-stone-700);
   white-space: nowrap;
   line-height: 1;
 }
@@ -121,17 +128,17 @@ svg text.bi {
   cursor: pointer;
   padding: 2px 7px;
   border-radius: 6px;
-  color: var(--color-stone-400);
+  color: var(--color-stone-600);
   text-decoration: none;
 }
 
 .bjs-breadcrumbs li a:hover {
-  background: rgba(255, 255, 255, 0.10);
-  color: var(--color-stone-100);
+  background: rgba(176, 169, 147, 0.25);
+  color: var(--color-stone-900);
 }
 
 .bjs-breadcrumbs li:last-of-type a {
-  color: var(--color-stone-100);
+  color: var(--color-stone-900);
   font-weight: 600;
   cursor: default;
 }
@@ -216,6 +223,12 @@ svg text.bi {
   background-color: currentColor;
 }
 
+/* Cream canvas background */
+.bjs-container,
+.djs-container {
+  background-color: #f1ede0 !important;
+}
+
 /* Green border on canvas when simulation is active */
 .simulation-active .bjs-container {
   box-shadow: inset 0 0 0 3px #4caf50, inset 0 0 40px rgba(76, 175, 80, 0.15);
@@ -224,8 +237,8 @@ svg text.bi {
 
 /* Inspector select options — browser-native dropdown needs explicit colors */
 [data-testid="inspector-root"] select option {
-  background-color: #292524;
-  color: #e7e5e4;
+  background-color: #f1ede0;
+  color: #292524;
 }
 
 /* Hide palette and inspector during simulation */

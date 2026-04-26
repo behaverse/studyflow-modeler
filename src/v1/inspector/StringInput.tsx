@@ -33,7 +33,7 @@ export function StringInput({ bpmnProperty, isMarkdown }: Props) {
       <Label className="flex items-center justify-between">
         {t(bpmnProperty.ns.name)}
         <Popover className="relative group">
-          <PopoverButton><i className="iconify bi--patch-question text-stone-400"></i></PopoverButton>
+          <PopoverButton><i className="iconify bi--patch-question text-stone-500"></i></PopoverButton>
           <PopoverPanel anchor="top end" className="max-w-md w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadowxl">
             <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
             {bpmnProperty?.description}
@@ -46,7 +46,7 @@ export function StringInput({ bpmnProperty, isMarkdown }: Props) {
           onChange={handleChange}
           value={value}
           rows={4}
-          className="px-2 py-1 w-full rounded-md border-none bg-white/10 font-mono text-sm/4 text-stone-100 placeholder-stone-500 focus:outline-2 focus:-outline-offset-2 focus:outline-white/20"
+          className="px-2 py-1 w-full rounded-md border border-[#b0a993]/40 bg-[#f1ede0] font-mono text-sm/4 text-stone-800 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#b0a993]"
         />
       ) : (
         <Input
@@ -54,7 +54,7 @@ export function StringInput({ bpmnProperty, isMarkdown }: Props) {
           type="text"
           onChange={handleChange}
           value={value}
-          className="px-2 py-1 w-full rounded-md border-none bg-white/10 font-mono text-sm/6 text-stone-100 placeholder-stone-500 focus:outline-2 focus:-outline-offset-2 focus:outline-white/20"
+          className="px-2 py-1 w-full rounded-md border border-[#b0a993]/40 bg-[#f1ede0] font-mono text-sm/6 text-stone-800 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#b0a993]"
         />
       )}
     </>

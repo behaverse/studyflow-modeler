@@ -55,7 +55,7 @@ export default function MenuBar() {
           </MenuItems>
         </Menu>
 
-        <div className="w-px h-4 bg-white/15 mx-1" />
+        <div className="w-px h-4 bg-[#b0a993]/40 mx-1" />
         <Menu as="div" title="SimulateMenu">
           <SimulateButton className="" />
         </Menu>

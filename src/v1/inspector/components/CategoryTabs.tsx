@@ -20,7 +20,7 @@ export function CategoryTabs({ element, categories }: Props) {
   return (
     <TabGroup defaultIndex={defaultIndex}>
       <TabList
-        className="flex flex-wrap gap-1 px-2 pb-2 border-b border-white/10"
+        className="flex flex-wrap gap-1 px-2 pb-2 border-b border-[#b0a993]/40"
         id="categories-bar"
       >
         {categories.map(([catName]) => (
@@ -29,10 +29,10 @@ export function CategoryTabs({ element, categories }: Props) {
             className={({ selected }) =>
               [
                 'px-2.5 py-1 text-[12px] font-semibold rounded-md transition-all',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b0a993]',
                 selected
-                  ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-stone-400 hover:bg-white/10 hover:text-stone-200 cursor-pointer',
+                  ? 'bg-[#b0a993]/40 text-stone-900 shadow-sm'
+                  : 'text-stone-500 hover:bg-[#b0a993]/25 hover:text-stone-800 cursor-pointer',
               ].join(' ')
             }
           >

@@ -39,10 +39,10 @@ function resolveTypeLabel(element: any): string {
 export function PropertyHeader({ element }: Props) {
   return (
     <>
-      <h1 className="pb-0 text-[15px] font-bold p-2 pb-0 text-stone-100">
+      <h1 className="pb-0 text-[15px] font-bold p-2 pb-0 text-stone-900">
         {resolveDisplayName(element)}
       </h1>
-      <h2 className="text-[10.5px] text-left font-mono px-2 pb-2 text-stone-400">
+      <h2 className="text-[10.5px] text-left font-mono px-2 pb-2 text-stone-500">
         {resolveTypeLabel(element)}
       </h2>
     </>
