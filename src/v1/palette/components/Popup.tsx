@@ -13,7 +13,6 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
   return (
     <div
       className={`${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}
-                  group-hover/palgroup:visible group-hover/palgroup:opacity-100 group-hover/palgroup:pointer-events-auto
                   transition-all duration-150
                   absolute left-[calc(100%+10px)] top-[-6px] z-[300]
                   w-[220px] p-2.5 pb-3
