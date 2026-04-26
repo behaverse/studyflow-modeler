@@ -4,7 +4,7 @@ import { createTokenSvg, removeTokenSvg, updateTokenPosition, TOKEN_RADIUS } fro
 
 const TOKEN_SPEED = 200; // pixels per sec
 const ACTIVITY_PAUSE_MS = 500; // pause at activities before moving on
-const SPAWN_INTERVAL_MS = 1000; // how often to spawn new tokens
+const SPAWN_INTERVAL_MS = 1000; // how often to create new tokens
 
 const TOKEN_COLORS = [
   '#e040fb', // pink

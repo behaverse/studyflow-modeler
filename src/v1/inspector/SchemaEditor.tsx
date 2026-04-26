@@ -1,6 +1,10 @@
 import { Button, Select } from '@headlessui/react';
 import { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-yaml';
+import 'prismjs/themes/prism.css';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getProperty } from '../extensions';
@@ -63,13 +67,22 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
                     </div>
                     <div className="p-4">
                         <label className="block text-sm font-medium mb-2">Language</label>
-                        <Select value="Moddle YAML" disabled className="appearance-none p-2 w-full rounded-md border-none text-sm text-black/50 bg-stone-200">
-                            <option value="Moddle YAML">Moddle YAML</option>
+                        <Select value="YAML" disabled className="appearance-none p-2 w-full rounded-md border-none text-sm text-black/50 bg-stone-200">
+                            <option value="YAML">YAML</option>
                         </Select>
                     </div>
                     <div className="p-4">
                         <label className="block text-sm font-medium mb-2">Body</label>
-                        <textarea value={modalValue} onChange={(e) => setModalValue(e.target.value)} className="w-full h-[40vh] max-h-[50vh] rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600 resize-none" />
+                        <div className="w-full h-[40vh] max-h-[50vh] overflow-auto rounded-lg bg-stone-200 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-stone-600">
+                            <Editor
+                                value={modalValue}
+                                onValueChange={setModalValue}
+                                highlight={(code) => Prism.highlight(code, Prism.languages.yaml, 'yaml')}
+                                padding={{ top: 6, right: 12, bottom: 6, left: 12 }}
+                                textareaClassName="focus:outline-none"
+                                className="min-h-full font-mono text-sm/6 text-black"
+                            />
+                        </div>
                     </div>
                     <div className="p-4 flex justify-end gap-2">
                         <Button as="button" className="px-2 py-1 rounded cursor-pointer" onClick={closeModal}>Cancel</Button>
@@ -82,7 +95,7 @@ export function SchemaEditor(props: { bpmnProperty: any; }) {
 
     return (
         <>
-            <Button as="button" className="w-full mt-2 p-1 rounded-md hover:text-white cursor-pointer bg-stone-600 hover:bg-stone-700" onClick={showEditorModal}>
+            <Button as="button" className="w-full mt-2 p-1 rounded-md cursor-pointer bg-[#b0a993]/40 hover:bg-[#b0a993]/60 text-stone-800 hover:text-stone-900 border border-[#b0a993]/40 transition-colors" onClick={showEditorModal}>
                 <i className="iconify bi--pencil pe-2"></i> Edit Schema
             </Button>
 

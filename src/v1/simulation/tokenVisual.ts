@@ -3,7 +3,7 @@ import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as sv
 export const TOKEN_RADIUS = 8;
 
 /**
- * Create a token SVG circle, set its color, and append it to the layer.
+ * Create a token circle, set its color, and append it to the layer.
  */
 export function createTokenSvg(layer: any, color: string, cx = 0, cy = 0): any {
   const svg = svgCreate('circle');

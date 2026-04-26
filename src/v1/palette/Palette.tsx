@@ -93,7 +93,7 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div
-      className={`fixed top-1/2 -translate-y-1/2 left-0 z-50 flex flex-col
+      className={`fixed top-1/2 -translate-y-1/2 left-0 z-[210] flex flex-col
                   rounded-r-xl bg-[#ece5d0]/95 backdrop-blur-2xl
                   border border-[#b0a993]/40 border-l-0
                   shadow-[2px_0_10px_rgba(0,0,0,0.08),6px_0_28px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.6)]

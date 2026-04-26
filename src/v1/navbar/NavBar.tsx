@@ -26,8 +26,8 @@ export function NavBar() {
       <div
         className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center h-9 max-w-[calc(100vw-16px)]
                    rounded-b-[14px] bg-[#ece5d0]/95 backdrop-blur-2xl
-                   border border-[#b0a993]/40
-                   shadow-[0_2px_8px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.6)]"
+                   border border-[#b0a993]/40 border-t-0
+                   shadow-[0_2px_8px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.10)]"
       >
         <div className="flex items-center px-2 min-w-0 flex-shrink">
           {isEditingDiagramName ? (

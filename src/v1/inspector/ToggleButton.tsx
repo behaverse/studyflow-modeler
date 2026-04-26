@@ -16,7 +16,7 @@ export function ToggleButton({ isInspectorVisible, onClick }: ToggleButtonProps)
       onClick={onClick}
       className="relative z-10 flex items-center justify-center self-start
                   w-7 h-9 rounded-bl-[10px]
-                  bg-[#ece5d0]/95 backdrop-blur-2xl border border-[#b0a993]/40 border-r-0 border-t-0
+                  bg-[#ece5d0] backdrop-blur-2xl border border-[#b0a993]/40 border-r-0 border-t-0
                   text-stone-600 hover:text-stone-900 transition-colors"
       title={title}
     >

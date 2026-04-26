@@ -1,9 +1,9 @@
-// Pure path helpers for token simulation along polylines.
+// helpers for token simulation along polylines.
 
 export type Point = { x: number; y: number };
 
 /**
- * Smoother interpolation: maps 0->1 to 0->1 with zero first AND
+ * interpolation: maps 0->1 to 0->1 with zero first AND
  * second derivatives at endpoints (Ken Perlin's smootherstep).
  */
 export function smootherstep(t: number): number {

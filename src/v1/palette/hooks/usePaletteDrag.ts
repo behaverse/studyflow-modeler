@@ -35,6 +35,7 @@ export function usePaletteDrag(
       if (!mouseDownRef.current || startedRef.current) return;
       startedRef.current = true;
       event.preventDefault();
+      onBeforeAction?.();
       executeCommand(modeler, {
         type: 'palette-start-create',
         bpmnType: entry.bpmnType,

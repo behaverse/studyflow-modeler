@@ -8,7 +8,7 @@ type Props = {
 };
 
 /**
- * HeadlessUI tab group rendering one property list per category.
+ * tab group rendering one property list per category.
  * Defaults to the `General` tab when present.
  */
 export function CategoryTabs({ element, categories }: Props) {
