@@ -34,6 +34,8 @@ enumerations:
         value: PC
       - name: Regular Expression (RE)
         value: RE
+      - name: Reflexive Spatial Attention Cueing (RSAC)
+        value: RSAC
       - name: Sustained Attention to Response Task (SART)
         value: SART
       - name: Symbolic Matrix Comparison (SMC)
@@ -54,13 +56,28 @@ enumerations:
         value: UFOV
       - name: Which One (WO)
         value: WO
+  - name: ConfigModeEnum
+    description: |
+      How a `BehaverseTask` resolves its runtime configuration. `timeline-ref`
+      points to a timeline shipped with the Behaverse assessment build (with
+      optional parameter overrides). `inline` embeds a full `GameConfig`
+      fragment in the diagram.
+    literalValues:
+      - name: Reference a built-in timeline
+        value: timeline-ref
+      - name: Inline GameConfig
+        value: inline
 types:
   - name: BehaverseTask
     description: |
       Shortcut for a `studyflow:CognitiveTask` pre-configured with
       `instrument: behaverse`. The Behaverse-specific properties (`scene`,
       `configurations`) are inherited from `CognitiveTask` and become visible once
-      `instrument` is set to `behaverse`.
+      `instrument` is set to `behaverse`. At runtime, `scene` maps to the
+      Behaverse assessment task ID (e.g., `NB`, `UFOV`) and `timelineId` selects
+      a timeline shipped with the build; `configurations` either holds parameter
+      overrides (when `configMode` is `timeline-ref`) or a full `GameConfig`
+      fragment (when `inline`).
     superClass:
       - studyflow:CognitiveTask
     meta:
@@ -73,12 +90,49 @@ types:
         redefines: studyflow:CognitiveTask#instrument
         meta:
           hidden: true
+      - name: configMode
+        description: |
+          How this task resolves its runtime configuration. `timeline-ref`
+          points to a built-in timeline (with optional parameter overrides in
+          `configurations`); `inline` embeds a full `GameConfig` fragment.
+        isAttr: true
+        type: ConfigModeEnum
+        default: timeline-ref
+        meta:
+          categories:
+            - Behaverse
+      - name: timelineId
+        description: |
+          Identifier of a timeline shipped with the Behaverse assessment build
+          (e.g., `XCIT_NB_01`, `Demo`). The runtime validates this against the
+          build's manifest before starting the study.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Behaverse
+          condition:
+            language: json
+            body:
+              configMode: timeline-ref
 examples:
-  - description: N-Back task with tutorial
+  - description: N-Back task referencing a built-in timeline with a single parameter override
+    object:
+      type: BehaverseTask
+      bpmn:name: N-Back (XCIT_NB_01)
+      scene: NB
+      configMode: timeline-ref
+      timelineId: XCIT_NB_01
+      configurations: |
+        # Optional parameter overrides merged on top of the named timeline.
+        StimulusDisplayDuration: 0.6
+        InterStimulusInterval: 2.0
+  - description: N-Back task with a fully inline GameConfig (tutorial + progressive feature count)
     object:
       type: BehaverseTask
       bpmn:name: N-Back Task
       scene: NB
+      configMode: inline
       configurations: |
         NValue: 1
         Streams:
