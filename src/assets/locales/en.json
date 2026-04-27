@@ -21,6 +21,7 @@
     "studyflow:bidsDataType": "BIDS Data Type",
     "studyflow:checklist": "Checklist",
     "studyflow:catalog": "Catalog",
+    "studyflow:configurations": "Configurations",
     "schema": "Schema",
     "format": "Format",
     "studyflow:parameters": "Instrument Parameters",

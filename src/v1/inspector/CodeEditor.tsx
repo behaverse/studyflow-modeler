@@ -60,7 +60,7 @@ export function CodeEditor(props: { bpmnProperty: any; }) {
                 <div className="absolute" onClick={closeModal} />
                 <div role="dialog" aria-modal="true" className="relative z-160 bg-stone-100 rounded-2xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-auto">
                     <div className="px-4 py-2 flex justify-between items-center">
-                        <h3 className="text-lg font-medium">Edit Schema</h3>
+                        <h3 className="text-lg font-medium">Edit {t(propertyName)}</h3>
                         <button className="text-sm text-slate-500" onClick={closeModal}>
                             <i className="iconify bi--x-lg cursor-pointer"></i>
                         </button>
@@ -96,7 +96,7 @@ export function CodeEditor(props: { bpmnProperty: any; }) {
     return (
         <>
             <Button as="button" className="w-full mt-2 p-1 rounded-md cursor-pointer bg-[#b0a993]/40 hover:bg-[#b0a993]/60 text-stone-800 hover:text-stone-900 border border-[#b0a993]/40 transition-colors" onClick={showEditorModal}>
-                <i className="iconify bi--pencil pe-2"></i> Edit Schema
+                <i className="iconify bi--pencil pe-2"></i> Edit {t(propertyName)}
             </Button>
 
             {modalOpen && createPortal(getEditorModal(), document.body)}
