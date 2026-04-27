@@ -1,7 +1,7 @@
 import { Field } from '@headlessui/react';
 import { useEffect, useState, useContext, useCallback, type ComponentType } from 'react';
 import { StringInput } from './StringInput';
-import { SchemaEditor } from './SchemaEditor';
+import { CodeEditor } from './CodeEditor';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { InspectorContext, ModelerContext } from '../contexts';
@@ -9,29 +9,22 @@ import { getProperty } from '../extensions';
 import { splitQName } from '../utils/naming';
 
 type FieldProps = { bpmnProperty: any };
-type InputComp = ComponentType<{ bpmnProperty: any; isMarkdown?: boolean }>;
 
-const MarkdownStringInput: InputComp = (p) => <StringInput {...p} isMarkdown />;
+const MarkdownStringInput = (p: any) => <StringInput {...p} isMarkdown />;
 
 /**
  * Maps a resolved property type to the input component that renders it.
  * `Enum` is a synthetic type produced by {@link resolveInputType} when the
  * declared type names an enumeration in its package.
  */
-const INPUT_BY_TYPE: Record<string, InputComp> = {
+const INPUT_BY_TYPE: Record<string, any> = {
   Boolean: BooleanInput,
   Enum: EnumInput,
-  'studyflow:Schema': SchemaEditor,
+  'studyflow:Schema': CodeEditor,
   'studyflow:MarkdownString': MarkdownStringInput,
-  'studyflow:YAMLString': MarkdownStringInput,
+  'studyflow:YAMLString': CodeEditor,
 };
 
-/**
- * Resolve the declared property type into one of the keys in `INPUT_BY_TYPE`.
- * A declared type that names an enumeration in its package becomes `Enum`;
- * everything else is passed through unchanged so the map (or its `StringInput`
- * default) can handle it.
- */
 function resolveInputType(declaredType: string, modeler: any): string {
   const { prefix, localName } = splitQName(declaredType);
   if (prefix && localName) {

@@ -1,4 +1,4 @@
-import { Select, Label, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { Select, Label } from '@headlessui/react';
 import { useContext, useState, type ChangeEvent } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
@@ -35,13 +35,13 @@ export function EnumInput({ bpmnProperty }: Props) {
     <>
       <Label className="flex items-center justify-between">
         {t(bpmnProperty.ns.name)}
-        <Popover className="relative group">
-          <PopoverButton><i className="iconify bi--patch-question text-stone-500"></i></PopoverButton>
-          <PopoverPanel anchor="top end" className="bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-lg">
+        <div className="relative group/help">
+          <i className="iconify bi--patch-question text-stone-500 cursor-help"></i>
+          <div className="absolute bottom-full right-0 mb-1 invisible group-hover/help:visible w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-xl z-50">
             <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
             {bpmnProperty?.description}
-          </PopoverPanel>
-        </Popover>
+          </div>
+        </div>
       </Label>
       <div className="relative">
         <Select

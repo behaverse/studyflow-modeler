@@ -11,7 +11,7 @@ import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
 
 
-export function SchemaEditor(props: { bpmnProperty: any; }) {
+export function CodeEditor(props: { bpmnProperty: any; }) {
 
     const { bpmnProperty } = props;
     const { element } = useContext(InspectorContext);
