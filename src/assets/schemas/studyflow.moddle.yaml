@@ -631,7 +631,7 @@ types:
       - name: body
         description: Schema content as a string (e.g., JSON, YAML). This can also be a URL/path to the schema definition.
         isAttr: true
-        type: String
+        type: YAMLString
         meta:
           categories:
             - Data
