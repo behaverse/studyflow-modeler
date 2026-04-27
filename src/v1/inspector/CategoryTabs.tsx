@@ -1,6 +1,6 @@
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { PropertyField } from '../field';
-import { t } from '../../../i18n';
+import { PropertyField } from './field';
+import { t } from '../../i18n';
 
 type Props = {
   element: any;

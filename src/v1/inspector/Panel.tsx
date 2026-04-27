@@ -2,8 +2,8 @@ import { useContext, useState } from 'react';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { ToggleButton } from './ToggleButton';
-import { PropertyHeader } from './components/PropertyHeader';
-import { CategoryTabs } from './components/CategoryTabs';
+import { Header } from './Header';
+import { CategoryTabs } from './CategoryTabs';
 import { getProperties } from './categories';
 import { useInspectorElement } from './hooks/useInspectorElement';
 
@@ -36,7 +36,7 @@ export function Panel({ className: _className = '' }: { className?: string }) {
         >
           {element && (
             <>
-              <PropertyHeader element={element} />
+              <Header element={element} />
               <div className="w-full">
                 <CategoryTabs
                   element={element}

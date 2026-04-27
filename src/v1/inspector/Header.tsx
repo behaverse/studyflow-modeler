@@ -1,17 +1,7 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getAppliedType, getExtensionElement, getProperty } from '../../extensions';
-import { toLocalName } from '../../utils/naming';
+import { getAppliedType, getExtensionElement, getProperty } from '../extensions';
+import { toLocalName } from '../utils/naming';
 
-type Props = {
-  element: any;
-};
-
-/**
- * Resolve a friendly display name for the element.
- *
- * Preference order: the element's `name` property → the extension element's
- * `name` attribute → the applied-type local-name → the BO `$type` → `element.type`.
- */
 function resolveDisplayName(element: any): string {
   const businessObject = getBusinessObject(element);
   const extension = getExtensionElement(element);
@@ -35,8 +25,7 @@ function resolveTypeLabel(element: any): string {
   return getAppliedType(element) || businessObject?.$type || element.type;
 }
 
-/** Two-line title block shown at the top of the inspector panel. */
-export function PropertyHeader({ element }: Props) {
+export function Header({ element }: { element: any }) {
   return (
     <>
       <h1 className="pb-0 text-[15px] font-bold p-2 pb-0 text-stone-900">
