@@ -11,11 +11,11 @@ import { drawMarkers } from './markers';
  * @param {any} parentNode
  * @param {any} element
  * @param {any} bpmnRenderer
- * @param {Array<any>} pkgEnums
+ * @param {Array<any>} _pkgEnums              kept for signature compatibility (unused)
  * @param {string|undefined} sfIconClass     icon class resolved from the extension descriptor
  * @param {boolean} [preservePrimaryIcon]    when true, keep the resolved icon (e.g., schema example icon)
  */
-export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIconClass, preservePrimaryIcon = false) {
+export function drawActivity(parentNode, element, bpmnRenderer, _pkgEnums, sfIconClass, preservePrimaryIcon = false) {
 
   let activity;
   if (element.type in BPMN_ICON_OVERRIDES || !bpmnRenderer.handlers[element.type]) {
@@ -33,23 +33,16 @@ export function drawActivity(parentNode, element, bpmnRenderer, pkgEnums, sfIcon
   const instrument = getProperty(element, 'instrument');
   const scene = getProperty(element, 'scene')?.toUpperCase();
 
-  if (ext) {
-    if (!preservePrimaryIcon) {
-      const instrumentEnum = pkgEnums.find(e => e.name === "InstrumentEnum");
-      iconClass = instrumentEnum?.literalValues.find(lv => lv.value === instrument)?.icon || iconClass;
-    }
-
-    if (instrument === "behaverse" && !preservePrimaryIcon) {
-      iconMarker = (scene === "UNDEFINED") ? undefined : scene;
-      switch (iconMarker?.length) {
-        case undefined:
-        case 2:
-          iconSize = 24;
-          break;
-        default:
-          iconSize = 28;
-          break;
-      }
+  if (ext && instrument === "behaverse" && !preservePrimaryIcon) {
+    iconMarker = (scene === "UNDEFINED") ? undefined : scene;
+    switch (iconMarker?.length) {
+      case undefined:
+      case 2:
+        iconSize = 24;
+        break;
+      default:
+        iconSize = 28;
+        break;
     }
   }
 

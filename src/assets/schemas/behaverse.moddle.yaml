@@ -56,7 +56,11 @@ enumerations:
         value: WO
 types:
   - name: BehaverseTask
-    description: A cognitive task from the Behaverse battery.
+    description: |
+      Shortcut for a `studyflow:CognitiveTask` pre-configured with
+      `instrument: behaverse`. The Behaverse-specific properties (`scene`,
+      `configurations`) are inherited from `CognitiveTask` and become visible once
+      `instrument` is set to `behaverse`.
     superClass:
       - studyflow:CognitiveTask
     meta:
@@ -64,46 +68,18 @@ types:
     properties:
       - name: instrument
         default: behaverse
-        type: String
+        type: studyflow:InstrumentEnum
         isAttr: true
         redefines: studyflow:CognitiveTask#instrument
         meta:
           hidden: true
-      - name: scene
-        type: BehaverseSceneEnum
-        default: undefined
-        description: Behaverse scene (e.g., N-Back, Digit Span) to be used for the task.
-        isAttr: true
-        meta:
-          hidden: false
-          order: 1
-          categories:
-            - Behaverse
-          condition:
-            language: json
-            body:
-              instrument: behaverse
-      - name: sceneParameters
-        type: studyflow:YAMLString
-        description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
-        isBody: true
-        redefines: studyflow:CognitiveTask#parameters
-        meta:
-          icon: iconify bi--hexagon
-          hidden: false
-          categories:
-            - Behaverse
-          condition:
-            language: json
-            body:
-              instrument: behaverse
 examples:
   - description: N-Back task with tutorial
     object:
       type: BehaverseTask
       bpmn:name: N-Back Task
       scene: NB
-      parameters: |
+      configurations: |
         NValue: 1
         Streams:
           - Feature: Digits

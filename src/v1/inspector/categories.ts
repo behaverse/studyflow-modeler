@@ -9,6 +9,29 @@ import {
 import { toLocalName } from '../utils/naming';
 import { isPropertyVisible } from './field';
 
+/**
+ * Canonical order of inspector category tabs. Categories not listed here keep
+ * their insertion order and appear after the listed ones.
+ *
+ * Flow: id -> docs -> config -> flow -> privacy ->
+ * data -> completion -> low-level control.
+ */
+const CATEGORY_ORDER = [
+  'General',
+  'Documentation',
+  'Content',
+  'Data',
+  'Instrument',
+  'Behaverse',
+  'DataTrove',
+  'EEGPrep',
+  'Assignment',
+  'Eligibility',
+  'Privacy',
+  'Control',
+  'Completion',
+];
+
 /** A property is "identity-like" (id or name) and should always show up first. */
 export function isIdentityProperty(prop: any): boolean {
   const name = prop?.ns?.name ?? prop?.name;
@@ -85,8 +108,15 @@ export function getProperties(element: any): Record<string, any[]> {
     });
   }
 
+  const orderIndex = (cat: string) => {
+    const i = CATEGORY_ORDER.indexOf(cat);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+
   return Object.fromEntries(
-    Object.entries(propsByCategory).filter(([, v]) => v.length > 0)
+    Object.entries(propsByCategory)
+      .filter(([, v]) => v.length > 0)
+      .sort(([a], [b]) => orderIndex(a) - orderIndex(b))
   );
 }
 

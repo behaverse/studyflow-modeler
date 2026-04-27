@@ -119,16 +119,23 @@ enumerations:
         value: dynamic
         description: A code extracted from a URL pattern at runtime (e.g. Prolific).
   - name: InstrumentEnum
-    description: The type of instrument used to measure cognitive performance.
+    description: |
+      Software that delivers a cognitive task. Determines how the
+      task's `configurations` YAML is interpreted. Pick `other` to use a custom
+      identifier set in `customInstrument`.
     literalValues:
-      - name: Video Game
-        value: video-game
-        icon: iconify bi--controller
-      - name: Rest
-        value: rest
-        icon: iconify solar--armchair-2-linear
-      - name: Undefined
-        value: undefined
+      - name: Behaverse
+        value: behaverse
+      - name: PsychoPy
+        value: psychopy
+      - name: jsPsych
+        value: jspsych
+      - name: lab.js
+        value: labjs
+      - name: OpenSesame
+        value: opensesame
+      - name: Other
+        value: other
 types:
   - name: MarkdownString
     description: A string that contains markdown formatting
@@ -340,21 +347,53 @@ types:
             body:
               operationType: compose
   - name: CognitiveTask
+    description: |
+      A cognitive test administered to a participant (e.g., a working-memory or
+      attention task). Concrete tasks are defined by the  `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
     superClass:
       - bpmn:Task
     meta:
       icon: iconify bi--puzzle
     properties:
       - name: instrument
-        description: Instrument used for the task (e.g., video game, rest). This can be an identifier for standardized instruments or a custom name for non-standardized ones.
+        description: |
+          Software used to deliver the task. Determines how `configurations` are interpreted. Pick `other` to specify a custom one.
         isAttr: true
         type: InstrumentEnum
-        default: undefined
         meta:
           categories:
             - Instrument
-      - name: parameters
-        description: Optional parameters for the task (e.g., number of trials, stimulus duration) in YAML format.
+      - name: customInstrument
+        description: |
+          Custom instrument when none of the listed options apply (e.g., an internal framework).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Instrument
+          condition:
+            language: json
+            body:
+              instrument: other
+      - name: scene
+        description: |
+          Behaverse assessment scene used to run the task (e.g., N-Back, Digit
+          Span). Only relevant when the task is delivered by the Behaverse assessment battery.
+        isAttr: true
+        type: behaverse:BehaverseSceneEnum
+        default: undefined
+        meta:
+          categories:
+            - Behaverse
+          condition:
+            language: json
+            body:
+              instrument: behaverse
+      - name: configurations
+        description: |
+          Instrument-specific configuration in YAML format (e.g., number of
+          trials, stimulus duration, block structure). The shape of the YAML
+          depends on the chosen `instrument`.
         isBody: true
         type: YAMLString
         meta:
@@ -367,6 +406,65 @@ types:
         type: String
         meta:
           comment: CognitiveTask is not a data operation.
+          hidden: true
+  - name: VideoGame
+    description: |
+      An interactive video game used as an experimental paradigm or measurement
+      instrument. Configuration is provided as a YAML `configurations` block whose
+      shape depends on the game engine.
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify bi--controller
+    properties:
+      - name: instrument
+        description: |
+          Identifier of the engine or library running the game (e.g., `unity`,
+          `godot`, `web`, or a custom identifier).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Instrument
+      - name: configurations
+        description: Game configuration in YAML format (level set, difficulty, scoring, etc.).
+        isBody: true
+        type: YAMLString
+        meta:
+          categories:
+            - Instrument
+      - name: isDataOperation
+        redefines: Activity#isDataOperation
+        default: false
+        isAttr: true
+        type: String
+        meta:
+          comment: VideoGame is not a data operation.
+          hidden: true
+  - name: Rest
+    description: |
+      A rest period of inactivity or minimal activity. Often used for baseline
+      measurements or breaks between activities. Can also represent
+      resting-state recordings (e.g., resting EEG/fMRI).
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify solar--armchair-2-linear
+    properties:
+      - name: configurations
+        description: Rest configuration in YAML format (e.g., duration, eyes-open/closed).
+        isBody: true
+        type: YAMLString
+        meta:
+          categories:
+            - Instrument
+      - name: isDataOperation
+        redefines: Activity#isDataOperation
+        default: false
+        isAttr: true
+        type: String
+        meta:
+          comment: Rest is not a data operation.
           hidden: true
   - name: Questionnaire
     superClass:
@@ -404,6 +502,9 @@ types:
           categories:
             - Content
   - name: RandomGateway
+    description: |
+      Randomly assigns participants to one of the outgoing branches according
+      to a probability distribution.
     superClass:
       - bpmn:ExclusiveGateway
     meta:
@@ -430,6 +531,89 @@ types:
             language: json
             body:
               algorithm: probabilistic
+  - name: StratifiedAllocationGateway
+    description: |
+      Stratified random assignment of participants. The cohort is partitioned
+      into strata based on a stratification variable (e.g., age band, sex,
+      baseline score), and assignment is performed independently within each
+      stratum to balance allocation across branches.
+    superClass:
+      - bpmn:ExclusiveGateway
+    meta:
+      icon: iconify mdi--layers-outline
+    properties:
+      - name: stratificationVariable
+        description: |
+          Name of the variable used to partition participants into strata
+          (e.g., `age_band`, `sex`, `baseline_score`).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Assignment
+      - name: strata
+        description: |
+          Definition of the strata used for allocation (one entry per stratum),
+          formatted in markdown. For example: `age_band: 18-29`.
+        isAttr: true
+        type: MarkdownString
+        isMany: true
+        meta:
+          categories:
+            - Assignment
+      - name: algorithm
+        description: Algorithm used for the assignment within each stratum.
+        isAttr: true
+        type: AssignmentAlgorithmEnum
+        default: probabilistic
+        meta:
+          categories:
+            - Assignment
+      - name: probabilityFunction
+        description: |
+          Probability mass function that defines the per-stratum discrete
+          distribution. Defaults to `uniform`.
+        isAttr: true
+        type: String
+        default: uniform
+        meta:
+          categories:
+            - Assignment
+          condition:
+            language: json
+            body:
+              algorithm: probabilistic
+  - name: EligibilityGateway
+    description: |
+      Decision gateway encoding inclusion and/or exclusion criteria for
+      participant eligibility. Participants meeting the inclusion criteria (and
+      none of the exclusion criteria) proceed; others are routed to a
+      screen-out branch.
+    superClass:
+      - bpmn:ExclusiveGateway
+    meta:
+      icon: iconify mdi--filter-check-outline
+    properties:
+      - name: inclusionCriteria
+        description: |
+          List of inclusion criteria (one entry per criterion), formatted in
+          markdown. Example: `Age between 18 and 65`.
+        isAttr: true
+        type: MarkdownString
+        isMany: true
+        meta:
+          categories:
+            - Eligibility
+      - name: exclusionCriteria
+        description: |
+          List of exclusion criteria (one entry per criterion), formatted in
+          markdown. Example: `History of neurological disorder`.
+        isAttr: true
+        type: MarkdownString
+        isMany: true
+        meta:
+          categories:
+            - Eligibility
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.

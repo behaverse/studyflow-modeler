@@ -10,14 +10,40 @@ type Props = {
   bpmnProperty: any;
 };
 
+/**
+ * Resolve the values for an enum-typed property, supporting types
+ * defined in a different moddle package than the property itself
+ * (e.g. `studyflow:CognitiveTask.scene` -> `behaverse:BehaverseSceneEnum`).
+ */
+function resolveEnumLiterals(bpmnProperty: any, modeler: any): any[] | null {
+  const propertyType: string = bpmnProperty.type ?? '';
+  const localName = toLocalName(propertyType);
+  const colonIndex = propertyType.indexOf(':');
+  const targetPrefix = colonIndex > 0 ? propertyType.slice(0, colonIndex) : null;
+
+  const definingPkg = bpmnProperty.definedBy?.$pkg;
+  if (!targetPrefix || targetPrefix === definingPkg?.prefix) {
+    return definingPkg?.enumerations?.find((e: any) => e.name === localName)?.literalValues ?? null;
+  }
+
+  const moddle = modeler?.get?.('moddle');
+  if (!moddle) return null;
+
+  const pkg =
+    typeof moddle.getPackage === 'function'
+      ? moddle.getPackage(targetPrefix)
+      : (moddle.packages ? moddle.packages[targetPrefix] : undefined);
+
+  return pkg?.enumerations?.find((e: any) => e.name === localName)?.literalValues ?? null;
+}
+
 export function EnumInput({ bpmnProperty }: Props) {
   const { element } = useContext(InspectorContext);
   const { modeler } = useContext(ModelerContext);
 
   const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
   const propertyType = toLocalName(bpmnProperty.type);
-  const pkg = bpmnProperty.definedBy.$pkg;
-  const literalValues = pkg['enumerations'].find((e: any) => e.name === propertyType).literalValues;
+  const literalValues = resolveEnumLiterals(bpmnProperty, modeler) ?? [];
   const [value, setValue] = useState<string>(getProperty(element, name) || '');
 
   function handleChange(event: ChangeEvent<HTMLSelectElement>) {
