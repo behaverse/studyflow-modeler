@@ -33,6 +33,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, './src/index.html'),
         modeler: resolve(__dirname, './src/app.html'),
+        runner: resolve(__dirname, './src/run.html'),
       }
     },
 

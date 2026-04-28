@@ -293,67 +293,15 @@ types:
         meta:
           categories:
             - General
-      - name: isDataOperation
-        description: Marker indicating the activity is a data operation.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          categories:
-            - Data
-      - name: operationType
-        description: Optional data operation marker for a data task.
-        isAttr: true
-        type: DataOperationTypeEnum
-        meta:
-          categories:
-            - Data
-          condition:
-            language: json
-            body:
-              isDataOperation: true
-      - name: inputs
-        description: Input variables consumed by the operation.
-        type: studyflow:MarkdownString
-        isAttr: true
-        meta:
-          categories:
-            - Data
-          condition:
-            language: json
-            body:
-              isDataOperation: true
-      - name: outputs
-        description: Output variables produced by the operation.
-        type: studyflow:MarkdownString
-        isAttr: true
-        meta:
-          categories:
-            - Data
-          condition:
-            language: json
-            body:
-              isDataOperation: true
-      - name: operationSteps
-        description: Operator pipeline steps for compose operations.
-        isAttr: true
-        type: MarkdownString
-        isMany: true
-        meta:
-          categories:
-            - Data
-          condition:
-            language: json
-            body:
-              operationType: compose
   - name: CognitiveTask
     description: |
       A cognitive test administered to a participant (e.g., a working-memory or
       attention task). Concrete tasks are defined by the  `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
     superClass:
-      - bpmn:Task
+      - Element
     meta:
       icon: iconify bi--puzzle
+      bpmnType: bpmn:Task
     properties:
       - name: instrument
         description: |
@@ -400,12 +348,11 @@ types:
           categories:
             - Instrument
       - name: isDataOperation
-        redefines: Activity#isDataOperation
-        default: false
+        description: CognitiveTask is not a data operation; this hidden property pins the value so the data-operation marker is never rendered.
         isAttr: true
-        type: String
+        type: Boolean
+        default: false
         meta:
-          comment: CognitiveTask is not a data operation.
           hidden: true
   - name: VideoGame
     description: |
@@ -413,9 +360,10 @@ types:
       instrument. Configuration is provided as a YAML `configurations` block whose
       shape depends on the game engine.
     superClass:
-      - bpmn:Task
+      - Element
     meta:
       icon: iconify bi--controller
+      bpmnType: bpmn:Task
     properties:
       - name: instrument
         description: |
@@ -434,12 +382,11 @@ types:
           categories:
             - Instrument
       - name: isDataOperation
-        redefines: Activity#isDataOperation
-        default: false
+        description: VideoGame is not a data operation; this hidden property pins the value so the data-operation marker is never rendered.
         isAttr: true
-        type: String
+        type: Boolean
+        default: false
         meta:
-          comment: VideoGame is not a data operation.
           hidden: true
   - name: Rest
     description: |
@@ -447,9 +394,10 @@ types:
       measurements or breaks between activities. Can also represent
       resting-state recordings (e.g., resting EEG/fMRI).
     superClass:
-      - bpmn:Task
+      - Element
     meta:
       icon: iconify solar--armchair-2-linear
+      bpmnType: bpmn:Task
     properties:
       - name: configurations
         description: Rest configuration in YAML format (e.g., duration, eyes-open/closed).
@@ -459,18 +407,18 @@ types:
           categories:
             - Instrument
       - name: isDataOperation
-        redefines: Activity#isDataOperation
-        default: false
+        description: Rest is not a data operation; this hidden property pins the value so the data-operation marker is never rendered.
         isAttr: true
-        type: String
+        type: Boolean
+        default: false
         meta:
-          comment: Rest is not a data operation.
           hidden: true
   - name: Questionnaire
     superClass:
-      - bpmn:Task
+      - Element
     meta:
       icon: iconify fluent--clipboard-text-edit-32-regular
+      bpmnType: bpmn:Task
     properties:
       - name: instrument
         description: |
@@ -506,9 +454,10 @@ types:
       Randomly assigns participants to one of the outgoing branches according
       to a probability distribution.
     superClass:
-      - bpmn:ExclusiveGateway
+      - Element
     meta:
       icon: iconify streamline-flex--dice-5-remix
+      bpmnType: bpmn:ExclusiveGateway
     properties:
       - name: algorithm
         description: Algorithm used for the assignment.
@@ -538,9 +487,10 @@ types:
       baseline score), and assignment is performed independently within each
       stratum to balance allocation across branches.
     superClass:
-      - bpmn:ExclusiveGateway
+      - Element
     meta:
       icon: iconify mdi--layers-outline
+      bpmnType: bpmn:ExclusiveGateway
     properties:
       - name: stratificationVariable
         description: |
@@ -590,9 +540,10 @@ types:
       none of the exclusion criteria) proceed; others are routed to a
       screen-out branch.
     superClass:
-      - bpmn:ExclusiveGateway
+      - Element
     meta:
       icon: iconify mdi--filter-check-outline
+      bpmnType: bpmn:ExclusiveGateway
     properties:
       - name: inclusionCriteria
         description: |
@@ -619,7 +570,9 @@ types:
       A formal description of the structure of a named collection of types.
       Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
     superClass:
-      - bpmn:DataObjectReference
+      - Element
+    meta:
+      bpmnType: bpmn:DataObjectReference
     properties:
       - name: format
         description: Schema format identifier (e.g., csvw, linkml, jsonschema).
@@ -638,10 +591,11 @@ types:
   - name: Dataset
     description: Collection of data registered in a `DataCatalog` and stored in a `DataStore`. This can represent a table, array, or any structured dataset. The structure can be defined using an optional `Schema`.
     superClass:
-      - bpmn:DataStoreReference
+      - Element
     isAbstract: false
     meta:
       icon: iconify bi--database
+      bpmnType: bpmn:DataStoreReference
     properties:
       - name: catalog
         description: Identifier of the `DataCatalog` that registers this dataset.
@@ -707,7 +661,9 @@ types:
       Persistent physical storage of data (database, filesystem, object store, etc.).
       `DataStore` can be referenced using `DataStoreReference`.
     superClass:
-      - bpmn:DataStoreReference
+      - Element
+    meta:
+      bpmnType: bpmn:DataStoreReference
   - name: DataObjectReference
     description: |
       Represents data produced/consumed within a process instance. Can be used to model

@@ -20,6 +20,16 @@ function resolveDescriptorBpmnType(moddle: any, descriptor: any, seen: Set<strin
 
   seen.add(descriptorId);
 
+  // Custom convention: a type with `meta.bpmnType` (e.g. "bpmn:Task") declares
+  // the BPMN element it attaches to as an extension payload. Used for types
+  // with `superClass: [Element]` that aren't BPMN subtypes themselves
+  // (e.g. behaverse:BehaverseTask) but still need the palette to create a
+  // backing BPMN shape.
+  const bpmnType = descriptor?.meta?.bpmnType;
+  if (typeof bpmnType === 'string' && bpmnType.startsWith('bpmn:')) {
+    return bpmnType;
+  }
+
   if (Array.isArray(descriptor.extends) && descriptor.extends.length > 0) {
     for (const extended of descriptor.extends) {
       if (typeof extended === 'string' && extended.startsWith('bpmn:')) {

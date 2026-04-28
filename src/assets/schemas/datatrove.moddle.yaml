@@ -41,9 +41,10 @@ types:
   - name: Document
     description:
     superClass:
-      - bpmn:DataObjectReference
+      - Element
     meta:
       icon: iconify mdi--file-document-outline
+      bpmnType: bpmn:DataObjectReference
     properties:
       - name: text
         type: String
@@ -66,9 +67,10 @@ types:
   - name: DataFolder
     description: a folder that contains multiple Documents. It can be used to represent a dataset or a collection of data.
     superClass:
-      - bpmn:DataObjectReference
+      - Element
     meta:
       icon: iconify mdi--folder-outline
+      bpmnType: bpmn:DataObjectReference
     properties:
   - name: Reader
     description: read data from different formats and yield Document.

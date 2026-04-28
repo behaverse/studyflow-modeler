@@ -70,26 +70,36 @@ enumerations:
 types:
   - name: BehaverseTask
     description: |
-      Shortcut for a `studyflow:CognitiveTask` pre-configured with
-      `instrument: behaverse`. The Behaverse-specific properties (`scene`,
-      `configurations`) are inherited from `CognitiveTask` and become visible once
-      `instrument` is set to `behaverse`. At runtime, `scene` maps to the
-      Behaverse assessment task ID (e.g., `NB`, `UFOV`) and `timelineId` selects
-      a timeline shipped with the build; `configurations` either holds parameter
-      overrides (when `configMode` is `timeline-ref`) or a full `GameConfig`
-      fragment (when `inline`).
+      Behaverse extension payload attached to a `bpmn:Task` to mark it as an
+      assessment delivered by the Behaverse battery. At runtime, `scene` maps to the
+      Behaverse assessment task ID (e.g., `NB`, `UFOV`) and `timelineId`
+      selects a timeline shipped with the build; `configurations` either
+      holds parameter overrides (when `configMode` is `timeline-ref`) or a
+      full `GameConfig` fragment (when `inline`).
     superClass:
-      - studyflow:CognitiveTask
+      - Element
     meta:
       icon: iconify bi--hexagon
+      # Custom convention honored by `resolveBpmnCreateType` so the modeler
+      # palette creates a `bpmn:Task` shape and attaches this payload as an
+      # extension element rather than trying to make BehaverseTask a task subtype.
+      bpmnType: bpmn:Task
     properties:
       - name: instrument
         default: behaverse
         type: studyflow:InstrumentEnum
         isAttr: true
-        redefines: studyflow:CognitiveTask#instrument
         meta:
           hidden: true
+      - name: scene
+        description: |
+          Behaverse assessment scene used to run the task (e.g., `NB`, `UFOV`).
+        isAttr: true
+        type: BehaverseSceneEnum
+        default: undefined
+        meta:
+          categories:
+            - Behaverse
       - name: configMode
         description: |
           How this task resolves its runtime configuration. `timeline-ref`
@@ -115,6 +125,17 @@ types:
             language: json
             body:
               configMode: timeline-ref
+      - name: configurations
+        description: |
+          Instrument-specific configuration in YAML format. When `configMode`
+          is `timeline-ref`, this is a set of parameter overrides merged on
+          top of the named timeline; when `inline`, this is a full
+          `GameConfig` fragment.
+        isBody: true
+        type: studyflow:YAMLString
+        meta:
+          categories:
+            - Instrument
 examples:
   - description: N-Back task referencing a built-in timeline with a single parameter override
     object:

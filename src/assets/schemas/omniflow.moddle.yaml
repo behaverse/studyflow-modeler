@@ -10,19 +10,19 @@ types:
   - name: Transform
     description: Apply a function to each element in a data stream.
     superClass:
-      - bpmn:Task
+      - Element
+    meta:
+      bpmnType: bpmn:Task
     properties:
       - name: isDataOperation
         isAttr: true
         type: Boolean
         default: true
-        redefines: studyflow:Activity#isDataOperation
         meta:
           hidden: true
       - name: operationType
         isAttr: true
         default: transform
-        redefines: studyflow:Activity#operationType
         type: String
         meta:
           hidden: true
@@ -67,9 +67,9 @@ types:
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     superClass:
       - omniflow:Map
-      - bpmn:SubProcess
     meta:
       icon: iconify fluent--pulse-20-filled
+      bpmnType: bpmn:SubProcess
       flowElements:
         - id: eeg_start
           type: bpmn:StartEvent
@@ -105,20 +105,6 @@ types:
           sourceRef: eeg_clean
           targetRef: eeg_end
     properties:
-      - name: name
-        isAttr: true
-        type: String
-        default: EEGPrep
-        redefines: bpmn:Task#name
-      - name: documentation
-        redefines: bpmn:Task#documentation
-        isAttr: true
-        type: studyflow:MarkdownString
-        meta:
-          categories:
-            - Documentation
-        default: |
-          Remove artifacts from EEG data using the clean_artifacts function from the MNE library. This function applies a combination of flatline detection, high-pass and low-pass filtering, ASR, ICA, and ICLabel classification to identify and remove artifacts from the EEG signal.
       - name: flatline_criterion
         description: Flatline detection threshold, passed to clean_artifacts
         isAttr: true
