@@ -33,8 +33,8 @@ export function resolveIconClass(
 
   let iconClass = exampleIcon || descriptorIcon || BPMN_ICON_OVERRIDES[businessObject?.$type] || undefined;
 
-  // For activities with extension elements, resolve instrument-based icon
-  if (ext && enumerations && !preservePrimary && !exampleIcon) {
+  // Resolve instrument-based icon for any activity that exposes instrument.
+  if (enumerations && !preservePrimary && !exampleIcon) {
     const instrument = getProperty(businessObject, 'instrument');
     const instrumentEnum = enumerations.find((e: any) => e.name === 'InstrumentEnum');
     const instrumentIcon = instrumentEnum?.literalValues?.find(
@@ -54,9 +54,6 @@ export function resolveSceneText(
   preservePrimary = false,
 ): string | undefined {
   if (preservePrimary) return undefined;
-  const ext = getExtensionElement(businessObject);
-  if (!ext) return undefined;
-
   const instrument = getProperty(businessObject, 'instrument');
   if (instrument !== 'behaverse') return undefined;
 

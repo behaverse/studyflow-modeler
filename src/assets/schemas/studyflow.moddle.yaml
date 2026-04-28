@@ -124,8 +124,6 @@ enumerations:
       task's `configurations` YAML is interpreted. Pick `other` to use a custom
       identifier set in `customInstrument`.
     literalValues:
-      - name: Behaverse
-        value: behaverse
       - name: PsychoPy
         value: psychopy
       - name: jsPsych
@@ -169,7 +167,7 @@ types:
   - name: Checklist
     description: A checklist for the element.
     superClass:
-      - Element
+      - bpmn:BaseElement
     isAbstract: true
     properties:
       - name: items
@@ -298,7 +296,8 @@ types:
       A cognitive test administered to a participant (e.g., a working-memory or
       attention task). Concrete tasks are defined by the  `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
     superClass:
-      - Element
+      - bpmn:Task
+      - bpmn:BaseElement
     meta:
       icon: iconify bi--puzzle
       bpmnType: bpmn:Task
@@ -323,20 +322,6 @@ types:
             language: json
             body:
               instrument: other
-      - name: scene
-        description: |
-          Behaverse assessment scene used to run the task (e.g., N-Back, Digit
-          Span). Only relevant when the task is delivered by the Behaverse assessment battery.
-        isAttr: true
-        type: behaverse:BehaverseSceneEnum
-        default: undefined
-        meta:
-          categories:
-            - Behaverse
-          condition:
-            language: json
-            body:
-              instrument: behaverse
       - name: configurations
         description: |
           Instrument-specific configuration in YAML format (e.g., number of
@@ -360,7 +345,8 @@ types:
       instrument. Configuration is provided as a YAML `configurations` block whose
       shape depends on the game engine.
     superClass:
-      - Element
+      - bpmn:Task
+      - bpmn:BaseElement
     meta:
       icon: iconify bi--controller
       bpmnType: bpmn:Task
@@ -394,7 +380,8 @@ types:
       measurements or breaks between activities. Can also represent
       resting-state recordings (e.g., resting EEG/fMRI).
     superClass:
-      - Element
+      - bpmn:Task
+      - bpmn:BaseElement
     meta:
       icon: iconify solar--armchair-2-linear
       bpmnType: bpmn:Task
@@ -415,7 +402,8 @@ types:
           hidden: true
   - name: Questionnaire
     superClass:
-      - Element
+      - bpmn:Task
+      - bpmn:BaseElement
     meta:
       icon: iconify fluent--clipboard-text-edit-32-regular
       bpmnType: bpmn:Task
@@ -454,7 +442,8 @@ types:
       Randomly assigns participants to one of the outgoing branches according
       to a probability distribution.
     superClass:
-      - Element
+      - bpmn:ExclusiveGateway
+      - bpmn:BaseElement
     meta:
       icon: iconify streamline-flex--dice-5-remix
       bpmnType: bpmn:ExclusiveGateway
@@ -487,7 +476,8 @@ types:
       baseline score), and assignment is performed independently within each
       stratum to balance allocation across branches.
     superClass:
-      - Element
+      - bpmn:ExclusiveGateway
+      - bpmn:BaseElement
     meta:
       icon: iconify mdi--layers-outline
       bpmnType: bpmn:ExclusiveGateway
@@ -540,7 +530,8 @@ types:
       none of the exclusion criteria) proceed; others are routed to a
       screen-out branch.
     superClass:
-      - Element
+      - bpmn:ExclusiveGateway
+      - bpmn:BaseElement
     meta:
       icon: iconify mdi--filter-check-outline
       bpmnType: bpmn:ExclusiveGateway
@@ -570,7 +561,8 @@ types:
       A formal description of the structure of a named collection of types.
       Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
     superClass:
-      - Element
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
     meta:
       bpmnType: bpmn:DataObjectReference
     properties:
@@ -591,7 +583,8 @@ types:
   - name: Dataset
     description: Collection of data registered in a `DataCatalog` and stored in a `DataStore`. This can represent a table, array, or any structured dataset. The structure can be defined using an optional `Schema`.
     superClass:
-      - Element
+      - bpmn:DataStoreReference
+      - bpmn:BaseElement
     isAbstract: false
     meta:
       icon: iconify bi--database
@@ -661,7 +654,8 @@ types:
       Persistent physical storage of data (database, filesystem, object store, etc.).
       `DataStore` can be referenced using `DataStoreReference`.
     superClass:
-      - Element
+      - bpmn:DataStoreReference
+      - bpmn:BaseElement
     meta:
       bpmnType: bpmn:DataStoreReference
   - name: DataObjectReference
@@ -682,7 +676,7 @@ types:
   - name: DataCatalog
     description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
     superClass:
-      - Element
+      - bpmn:BaseElement
     isAbstract: false
     properties:
       - name: url
@@ -696,7 +690,7 @@ types:
     description: |
       Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
     superClass:
-      - Element
+      - bpmn:BaseElement
     isAbstract: false
     properties:
       - name: dataset
@@ -718,7 +712,7 @@ types:
       Immutable version of a dataset/table/array associated with a point in the workflow
       or a version control commit.
     superClass:
-      - Element
+      - bpmn:BaseElement
     isAbstract: false
     properties:
       - name: source

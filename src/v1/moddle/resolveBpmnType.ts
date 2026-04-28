@@ -1,4 +1,4 @@
-const PRIMITIVE_SUPER_CLASSES = new Set(['Element', 'String', 'Boolean', 'Integer', 'Float', 'Double']);
+const PRIMITIVE_SUPER_CLASSES = new Set(['Element', 'BaseElement', 'String', 'Boolean', 'Integer', 'Float', 'Double']);
 
 export function resolveBpmnCreateType(moddle: any, typeRefOrDescriptor: any): string | null {
   const descriptor = typeof typeRefOrDescriptor === 'string'

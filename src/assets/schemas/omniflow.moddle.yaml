@@ -10,7 +10,8 @@ types:
   - name: Transform
     description: Apply a function to each element in a data stream.
     superClass:
-      - Element
+      - bpmn:Task
+      - bpmn:BaseElement
     meta:
       bpmnType: bpmn:Task
     properties:

@@ -19,13 +19,15 @@ export class BpmnDocument {
   private definitions: any = null;
 
   constructor(extensionSchemas: Record<string, any> = {}) {
-    this.moddle = new BpmnModdle(extensionSchemas);
+    const ModdleConstructor = BpmnModdle as unknown as new (schemas: Record<string, any>) => any;
+    this.moddle = new ModdleConstructor(extensionSchemas);
   }
 
   /** Parse BPMN XML into a moddle definitions object. */
   async fromXML(xml: string): Promise<{ definitions: any; warnings: string[] }> {
     const result = await this.moddle.fromXML(xml);
     this.definitions = result.rootElement;
+    this._migrateLegacyBehaverseTasks();
     return { definitions: this.definitions, warnings: result.warnings ?? [] };
   }
 
@@ -74,6 +76,76 @@ export class BpmnDocument {
   /** Get a type descriptor by qualified name. */
   getTypeDescriptor(typeName: string): any {
     return this.moddle.getTypeDescriptor(typeName);
+  }
+
+  private _migrateLegacyBehaverseTasks(): void {
+    const process = this.getProcess();
+    if (!process) return;
+
+    const visit = (scope: any): void => {
+      for (const flowElement of scope?.flowElements ?? []) {
+        this._migrateBehaverseWrapper(flowElement);
+        if (Array.isArray(flowElement?.flowElements) && flowElement.flowElements.length > 0) {
+          visit(flowElement);
+        }
+      }
+    };
+
+    visit(process);
+  }
+
+  private _migrateBehaverseWrapper(businessObject: any): void {
+    const attrs = businessObject?.$attrs;
+    if (!attrs || typeof attrs !== 'object') return;
+
+    const behaverseAttrNames = Object.keys(attrs).filter((attrName) =>
+      attrName === 'behaverse:appliedType'
+      || attrName.startsWith('behaverse:')
+    );
+
+    if (behaverseAttrNames.length === 0) return;
+
+    const extensionElements = businessObject.extensionElements ?? this.moddle.create('bpmn:ExtensionElements', { values: [] });
+    extensionElements.$parent = businessObject;
+    businessObject.extensionElements = extensionElements;
+
+    const wrapper = extensionElements.values.find((entry: any) => entry?.$type === 'behaverse:BehaverseTask')
+      ?? this.moddle.create('behaverse:BehaverseTask', {});
+
+    if (!extensionElements.values.includes(wrapper)) {
+      wrapper.$parent = extensionElements;
+      extensionElements.values.push(wrapper);
+    }
+
+    const wrapperProperties = new Set<string>();
+    for (const property of wrapper.$descriptor?.properties ?? []) {
+      if (typeof property?.name === 'string') {
+        wrapperProperties.add(property.name);
+      }
+    }
+
+    for (const attrName of behaverseAttrNames) {
+      const localName = attrName.slice('behaverse:'.length);
+      if (localName === 'appliedType') {
+        delete attrs[attrName];
+        continue;
+      }
+
+      const value = attrs[attrName];
+      if (wrapperProperties.has(localName)) {
+        if (typeof wrapper.set === 'function') {
+          wrapper.set(localName, value);
+        } else {
+          wrapper[localName] = value;
+        }
+      }
+
+      delete attrs[attrName];
+    }
+
+    if (Object.keys(attrs).length === 0) {
+      delete businessObject.$attrs;
+    }
   }
 
   /** Get the first process element from definitions. */

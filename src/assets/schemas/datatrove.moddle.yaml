@@ -41,7 +41,8 @@ types:
   - name: Document
     description:
     superClass:
-      - Element
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
     meta:
       icon: iconify mdi--file-document-outline
       bpmnType: bpmn:DataObjectReference
@@ -67,7 +68,8 @@ types:
   - name: DataFolder
     description: a folder that contains multiple Documents. It can be used to represent a dataset or a collection of data.
     superClass:
-      - Element
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
     meta:
       icon: iconify mdi--folder-outline
       bpmnType: bpmn:DataObjectReference

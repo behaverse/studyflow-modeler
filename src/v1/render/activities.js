@@ -1,6 +1,6 @@
 // @ts-check
 
-import { getExtensionElement, getProperty } from '../extensions';
+import { getProperty } from '../extensions';
 import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, drawIconText } from './utils';
 import { drawMarkers } from './markers';
@@ -25,15 +25,13 @@ export function drawActivity(parentNode, element, bpmnRenderer, _pkgEnums, sfIco
     activity = bpmnRenderer.handlers[element.type](parentNode, element);
   }
 
-  const ext = getExtensionElement(element);
-
   let iconClass = sfIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
   let iconSize = 24;
   let iconMarker = undefined;
   const instrument = getProperty(element, 'instrument');
   const scene = getProperty(element, 'scene')?.toUpperCase();
 
-  if (ext && instrument === "behaverse" && !preservePrimaryIcon) {
+  if (instrument === "behaverse" && !preservePrimaryIcon) {
     iconMarker = (scene === "UNDEFINED") ? undefined : scene;
     switch (iconMarker?.length) {
       case undefined:

@@ -89,7 +89,16 @@ export function setNamespacedAttr(target: any, attrName: string, value: any): vo
 }
 
 export function setAppliedStudyflowType(target: any, studyflowType: string | undefined): void {
+  const attrs = target?.$attrs;
+
   if (!studyflowType) {
+    if (attrs && typeof attrs === 'object') {
+      for (const attrName of Object.keys(attrs)) {
+        if (attrName.endsWith(`:${APPLIED_TYPE_ATTR_LOCAL_NAME}`) || attrName === APPLIED_TYPE_ATTR_LOCAL_NAME) {
+          delete attrs[attrName];
+        }
+      }
+    }
     return;
   }
 
