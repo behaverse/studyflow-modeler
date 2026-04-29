@@ -1,8 +1,9 @@
 # yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-name: Studyflow Schema
-uri: http://behaverse.org/schemas/studyflow
+name: Studyflow
 prefix: studyflow
+description: BPMN extension for modeling behavioral research processes, including experimental design, data collection, and analysis workflows.
+uri: http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase

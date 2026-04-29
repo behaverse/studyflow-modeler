@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-name: Behaverse Schema for Studyflow
+name: Behaverse
 prefix: behaverse
+description: Studyflow extension for modeling Behaverse cognitive tasks in studyflow diagrams. Defines a `BehaverseTask` type with properties for selecting a Behaverse scene and a timeline.
 uri: http://behaverse.org/schemas/studyflow/behaverse
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_B.png
 xml:

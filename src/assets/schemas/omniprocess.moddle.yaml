@@ -1,6 +1,7 @@
-name: omniprocess
-uri: https://w3id.org/omniprocess
+name: OmniProcess
 prefix: omniprocess
+description: A library of data processing tasks and subprocesses for OmniProcess.
+uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
 xml:
   tagAlias: lowerCase

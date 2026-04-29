@@ -176,7 +176,7 @@ export function Palette({ className = '' }: { className?: string }) {
           >
             {renderSchemaIcon(icon)}
           </PaletteButton>
-          <span className="palette-tooltip">{prefix} elements…</span>
+          <span className="palette-tooltip">{prefix} elements...</span>
           <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-600 rotate-[-45deg] -translate-y-1/2" />
         </div>
       ))}

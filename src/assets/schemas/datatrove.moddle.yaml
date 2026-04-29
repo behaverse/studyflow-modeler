@@ -1,7 +1,7 @@
 name: datatrove
-description: A library of data transformation activities for the DataTrove ecosystem.
-uri: https://w3id.org/studyflow/datatrove
 prefix: datatrove
+description: A studyflow extension for data transformation activities in the DataTrove ecosystem.
+uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
