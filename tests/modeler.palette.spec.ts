@@ -58,11 +58,11 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizeXml(studyflowText)).toBe(normalizedEmbeddedStudyflow);
   });
 
-  test('adds a schema-backed omniflow element and preserves operation defaults', async ({ page }) => {
+  test('adds a schema-backed omniprocess element and preserves operation defaults', async ({ page }) => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Create Start Event', { x: 120, y: 160 });
-    await addSchemaPaletteElement(page, 'omniflow', 'Map', { x: 320, y: 180 });
+    await addSchemaPaletteElement(page, 'omniprocess', 'Map', { x: 320, y: 180 });
 
     await page.route('https://api.iconify.design/**', async (route) => {
       await route.fulfill({
@@ -83,7 +83,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
     expect(normalizedEmbeddedStudyflow).toContain('studyflow:isDataOperation="true"');
     expect(normalizedEmbeddedStudyflow).toContain('studyflow:operationType="map"');
-    expect(normalizedEmbeddedStudyflow).toContain('<omniflow:map/>');
+    expect(normalizedEmbeddedStudyflow).toContain('<omniprocess:map/>');
 
     await openFileMenu(page);
     const studyflowDownloadPromise = page.waitForEvent('download');
@@ -94,14 +94,14 @@ test.describe('Studyflow modeler palette flows', () => {
 
     expect(normalizedStudyflow).toContain('studyflow:isDataOperation="true"');
     expect(normalizedStudyflow).toContain('studyflow:operationType="map"');
-    expect(normalizedStudyflow).toContain('<omniflow:map/>');
+    expect(normalizedStudyflow).toContain('<omniprocess:map/>');
     expect(normalizedStudyflow).toBe(normalizedEmbeddedStudyflow);
   });
 
-  test('applies default schema values for omniflow EEGPrep elements', async ({ page }) => {
+  test('applies default schema values for omniprocess EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 
-    await addSchemaPaletteElement(page, 'omniflow', 'EEGPrep', { x: 260, y: 200 });
+    await addSchemaPaletteElement(page, 'omniprocess', 'EEGPrep', { x: 260, y: 200 });
 
     await openFileMenu(page);
     const studyflowDownloadPromise = page.waitForEvent('download');
@@ -109,7 +109,7 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await studyflowDownloadPromise;
     const normalizedStudyflow = normalizeXml(await readDownloadText(studyflowDownload));
 
-    expect(normalizedStudyflow).toContain('<omniflow:eEGPrep/>');
+    expect(normalizedStudyflow).toContain('<omniprocess:EEGPrep/>');
     expect(normalizedStudyflow).toContain('studyflow:isDataOperation="true"');
     expect(normalizedStudyflow).toContain('studyflow:operationType="map"');
     expect(normalizedStudyflow).toContain('name="EEGPrep.clean_artifacts"');

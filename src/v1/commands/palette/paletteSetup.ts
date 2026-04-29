@@ -2,6 +2,34 @@ import { SCHEMA_NAMES } from '../../contexts';
 import SchemaPopupMenu from '../../palette/SchemaPopupMenu';
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
+import { PALETTE_GROUPS } from '../../constants/palette';
+
+// bpmnType -> icon class
+const PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
+  PALETTE_GROUPS.flatMap((group) => group.items.map((item) => [item.bpmnType, item.icon])),
+);
+
+function resolveFallbackIcon(moddle: any, bpmnType: string): string | undefined {
+  if (PALETTE_BPMN_ICONS[bpmnType]) return PALETTE_BPMN_ICONS[bpmnType];
+
+  let descriptor: any;
+  try {
+    descriptor = moddle.getType(bpmnType)?.$descriptor;
+  } catch {
+    return undefined;
+  }
+
+  const ancestors: any[] = descriptor?.allTypes ?? [];
+  // closest ancestor with an icon.
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestorType = ancestors[i]?.name;
+    if (ancestorType && PALETTE_BPMN_ICONS[ancestorType]) {
+      return PALETTE_BPMN_ICONS[ancestorType];
+    }
+  }
+
+  return undefined;
+}
 
 const filteredPopupMenus = new WeakSet<object>();
 const schemaOrder = new Map(SCHEMA_NAMES.map((schemaName, index) => [schemaName, index]));
@@ -22,6 +50,32 @@ const CATEGORY_RULES: Array<{ ancestor: string; category: string }> = [
   { ancestor: 'bpmn:DataStoreReference', category: 'Data' },
   { ancestor: 'bpmn:ItemAwareElement', category: 'Data' },
 ];
+
+// Strip the BPMN base type suffix
+const STRIPPABLE_SUFFIXES = ['Gateway', 'Event'];
+
+function trimBpmnSuffix(typeName: string, bpmnType: string): string {
+  const bpmnLocal = bpmnType.includes(':') ? bpmnType.slice(bpmnType.indexOf(':') + 1) : bpmnType;
+  for (const suffix of STRIPPABLE_SUFFIXES) {
+    if (!bpmnLocal.endsWith(suffix)) continue;
+    if (typeName === suffix) continue;
+    if (typeName.endsWith(suffix) && typeName.length - suffix.length >= 3) {
+      return typeName.slice(0, -suffix.length);
+    }
+  }
+  return typeName;
+}
+
+// Insert spaces for CamelCase / PascalCase
+function humanizeLabel(typeName: string): string {
+  return typeName
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+}
+
+function paletteLabel(typeName: string, bpmnType: string): string {
+  return humanizeLabel(trimBpmnSuffix(typeName, bpmnType));
+}
 
 function deriveCategory(moddle: any, bpmnType: string): string | null {
   let descriptor: any;
@@ -113,6 +167,8 @@ export function runPaletteRegisterSchemaProviders(
         if (type.isAbstract || HIDDEN_TYPES.has(type.name)) return false;
         if (type.superClass?.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) return false;
         if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
+        if (Array.isArray(type.extends) && type.extends.length > 0
+            && (!Array.isArray(type.superClass) || type.superClass.length === 0)) return false;
         return true;
       })
       .map((type: any): PaletteSchemaItem | null => {
@@ -123,10 +179,12 @@ export function runPaletteRegisterSchemaProviders(
           ? type.meta.categories
           : (derived ? [derived] : []);
         return {
-          label: type.name,
+          label: paletteLabel(type.name, bpmnType),
           bpmnType,
           studyflowType: `${pkg.prefix}:${type.name}`,
-          icon: typeof type.meta?.icon === 'string' ? type.meta.icon : undefined,
+          icon: typeof type.meta?.icon === 'string'
+            ? type.meta.icon
+            : resolveFallbackIcon(moddle, bpmnType),
           categories,
         };
       })

@@ -1,1 +1,1 @@
-export const SCHEMA_NAMES = ['studyflow', 'behaverse', 'omniflow', 'datatrove'];
+export const SCHEMA_NAMES = ['studyflow', 'behaverse', 'omniprocess', 'datatrove'];

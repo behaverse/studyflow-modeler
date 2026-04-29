@@ -32,7 +32,7 @@ export type RuntimeStep =
 export type BehaverseTaskPayload = {
   task: string;
   timeline?: string;
-  configMode: 'timeline-ref' | 'inline';
+  configMode: 'builtin' | 'inline';
   overrides?: Record<string, unknown>;
   inlineConfig?: string;
 };

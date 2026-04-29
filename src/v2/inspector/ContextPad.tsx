@@ -9,7 +9,7 @@ const MORPH_OPTIONS: { label: string; icon: string; bpmnType: string }[] = [
   { label: 'Service Task',  icon: 'iconify bpmn--task-service',       bpmnType: 'bpmn:ServiceTask' },
   { label: 'Script Task',   icon: 'iconify bpmn--task-script',        bpmnType: 'bpmn:ScriptTask' },
   { label: 'Manual Task',   icon: 'iconify bpmn--task-manual',        bpmnType: 'bpmn:ManualTask' },
-  { label: 'Sub-Process',   icon: 'iconify bpmn--subprocess-expanded', bpmnType: 'bpmn:SubProcess' },
+  { label: 'SubProcess',   icon: 'iconify bpmn--subprocess-expanded', bpmnType: 'bpmn:SubProcess' },
 ];
 
 

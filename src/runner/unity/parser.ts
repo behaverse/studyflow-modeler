@@ -90,16 +90,16 @@ export function getBehaverseTaskPayload(node: RuntimeNode): BehaverseTaskPayload
     throw new Error(`BehaverseTask ${node.id} has no scene.`);
   }
 
-  const configMode = (getProperty(node.businessObject, 'configMode') as 'timeline-ref' | 'inline')
-    ?? 'timeline-ref';
+  const configMode = (getProperty(node.businessObject, 'configMode') as 'builtin' | 'inline')
+    ?? 'builtin';
   const timeline = getProperty(node.businessObject, 'timelineId') as string | undefined;
   const configurations = getProperty(node.businessObject, 'configurations') as string | undefined;
 
   return {
     task,
-    timeline: configMode === 'timeline-ref' ? timeline : undefined,
+    timeline: configMode === 'builtin' ? timeline : undefined,
     configMode,
-    overrides: configMode === 'timeline-ref' ? parseYamlOverrides(configurations) : undefined,
+    overrides: configMode === 'builtin' ? parseYamlOverrides(configurations) : undefined,
     inlineConfig: configMode === 'inline' ? configurations : undefined,
   };
 }

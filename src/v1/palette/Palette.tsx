@@ -27,18 +27,24 @@ export function Palette({ className = '' }: { className?: string }) {
   const { modeler } = useContext(ModelerContext);
   const schemas = useSchemaProviders(modeler);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const dragHandlers = usePaletteDrag(modeler, () => setOpenGroup(null));
+  const closeAll = () => {
+    setPinnedGroup(null);
+    setOpenGroup(null);
+  };
+
+  const dragHandlers = usePaletteDrag(modeler, closeAll);
 
   useEffect(() => {
-    if (!openGroup) return;
+    if (!openGroup && !pinnedGroup) return;
     const onDocClick = (e: globalThis.MouseEvent) => {
       if (!rootRef.current) return;
-      if (!rootRef.current.contains(e.target as Node)) setOpenGroup(null);
+      if (!rootRef.current.contains(e.target as Node)) closeAll();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenGroup(null);
+      if (e.key === 'Escape') closeAll();
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
@@ -46,7 +52,7 @@ export function Palette({ className = '' }: { className?: string }) {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
     };
-  }, [openGroup]);
+  }, [openGroup, pinnedGroup]);
 
   const getPopupPosition = (event: ReactMouseEvent<HTMLButtonElement>) => {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -102,7 +108,11 @@ export function Palette({ className = '' }: { className?: string }) {
       data-testid="palette-root"
       ref={rootRef}
     >
-      <div key="lasso" className="group relative flex items-center" onMouseEnter={() => setOpenGroup(null)}>
+      <div
+        key="lasso"
+        className="group relative flex items-center"
+        onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
+      >
         <PaletteButton title="Select elements with lasso tool" onClick={handleLassoToolClick}>
           <i className="text-[22px] iconify material-symbols--ink-selection-rounded"></i>
         </PaletteButton>
@@ -111,6 +121,7 @@ export function Palette({ className = '' }: { className?: string }) {
 
       {PALETTE_GROUPS.map((group) => {
         const isOpen = openGroup === group.label;
+        const isPinned = pinnedGroup === group.label;
         const extraItems = schemas.flatMap((schema) =>
           schema.items.filter((item) => item.categories[0] === group.label)
         );
@@ -119,7 +130,11 @@ export function Palette({ className = '' }: { className?: string }) {
             key={group.label}
             className="group/palgroup relative flex items-center"
             onMouseEnter={() => {
-              if (openGroup && openGroup !== group.label) setOpenGroup(null);
+              if (pinnedGroup) return;
+              setOpenGroup(group.label);
+            }}
+            onMouseLeave={() => {
+              if (!isPinned && openGroup === group.label) setOpenGroup(null);
             }}
           >
             <PaletteButton
@@ -127,7 +142,14 @@ export function Palette({ className = '' }: { className?: string }) {
               ariaExpanded={isOpen}
               onClick={(e) => {
                 e.preventDefault();
-                setOpenGroup(isOpen ? null : group.label);
+                if (isPinned) {
+                  setPinnedGroup(null);
+                  setOpenGroup(null);
+                } else {
+                  // Pin this group; supersedes any other open or pinned popup.
+                  setPinnedGroup(group.label);
+                  setOpenGroup(group.label);
+                }
               }}
             >
               <i className={`text-[22px] ${group.icon}`}></i>
@@ -144,7 +166,7 @@ export function Palette({ className = '' }: { className?: string }) {
         <div
           key={`more-${prefix}`}
           className="group relative flex items-center"
-          onMouseEnter={() => setOpenGroup(null)}
+          onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
         >
           <PaletteButton
             title={`More ${prefix} elements...`}
@@ -159,7 +181,11 @@ export function Palette({ className = '' }: { className?: string }) {
         </div>
       ))}
 
-      <div key="more-bpmn" className="group relative flex items-center" onMouseEnter={() => setOpenGroup(null)}>
+      <div
+        key="more-bpmn"
+        className="group relative flex items-center"
+        onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
+      >
         <PaletteButton
           title="More BPMN elements..."
           onMouseUp={dragHandlers.onMouseUp}

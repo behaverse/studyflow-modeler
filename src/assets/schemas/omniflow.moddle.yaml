@@ -1,6 +1,6 @@
-name: omniflow
-uri: https://w3id.org/omniflow
-prefix: omniflow
+name: omniprocess
+uri: https://w3id.org/omniprocess
+prefix: omniprocess
 icon: iconify tabler--hexagon-letter-o
 xml:
   tagAlias: lowerCase
@@ -13,6 +13,7 @@ types:
       - bpmn:Task
       - bpmn:BaseElement
     meta:
+      icon: iconify mdi--function
       bpmnType: bpmn:Task
     properties:
       - name: isDataOperation
@@ -30,7 +31,9 @@ types:
   - name: Map
     description: Map a function over a data stream, producing a new data stream.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
+    meta:
+      icon: iconify mdi--function
     properties:
       - name: operationType
         isAttr: true
@@ -38,11 +41,13 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
   - name: Reduce
     description: Reduce a data stream to a single value.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
+    meta:
+      icon: iconify mdi--function
     properties:
       - name: operationType
         isAttr: true
@@ -50,12 +55,14 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
   - name: Filter
     description: |
       Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
+    meta:
+      icon: iconify mdi--function
     properties:
       - name: operationType
         isAttr: true
@@ -63,11 +70,11 @@ types:
         meta:
           hidden: true
         default: filter
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
   - name: EEGPrep
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     superClass:
-      - omniflow:Map
+      - omniprocess:Map
     meta:
       icon: iconify fluent--pulse-20-filled
       bpmnType: bpmn:SubProcess
@@ -78,14 +85,14 @@ types:
           x: 140
           y: 162
         - id: eeg_filter
-          type: omniflow:Map
+          type: omniprocess:Map
           bpmn:name: Filter signal
           icon: iconify bi--funnel
           isDataOperation: true
           x: 240
           y: 140
         - id: eeg_clean
-          type: omniflow:Map
+          type: omniprocess:Map
           bpmn:name: Remove artifacts
           icon: iconify bi--eraser
           isDataOperation: true

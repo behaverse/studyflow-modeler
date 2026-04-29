@@ -439,7 +439,7 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
     if (!doc) return;
     const sp = doc.findFlowElement(subprocessId);
     if (!sp) return;
-    const newStack = [...scopeStack, { id: subprocessId, name: sp.name || 'Sub-Process' }];
+    const newStack = [...scopeStack, { id: subprocessId, name: sp.name || 'SubProcess' }];
     set({
       scopeId: subprocessId,
       scopeStack: newStack,

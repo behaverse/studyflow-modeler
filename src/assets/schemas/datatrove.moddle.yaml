@@ -77,7 +77,7 @@ types:
   - name: Reader
     description: read data from different formats and yield Document.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
     meta:
       icon: iconify mdi--input
     properties:
@@ -87,7 +87,7 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
       - name: className
         type: ReaderClassEnum
         isAttr: true
@@ -100,7 +100,7 @@ types:
   - name: Writer
     description: write Document to different formats.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
     meta:
       icon: iconify mdi--output
     properties:
@@ -110,7 +110,7 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
       - name: className
         type: WriterClassEnum
         isAttr: true
@@ -123,7 +123,7 @@ types:
   - name: Extractor
     description: extract text content from raw formats (such as webpage html).
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -131,11 +131,11 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
   - name: Filter
     description: filter out (remove) some Documents based on specific rules/criteria.
     extends:
-      - omniflow:Filter
+      - omniprocess:Filter
     properties:
       - name: operationType
         isAttr: true
@@ -143,11 +143,11 @@ types:
         meta:
           hidden: true
         default: filter
-        redefines: omniflow:Filter#operationType
+        redefines: omniprocess:Filter#operationType
   - name: Stats
     description: blocks to collect statistics on the dataset.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -155,11 +155,11 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
   - name: Tokens
     description: blocks to tokenize data or count tokens.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -167,11 +167,11 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType
   - name: Dedup
     description: blocks for deduplication.
     superClass:
-      - omniflow:Transform
+      - omniprocess:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -179,4 +179,4 @@ types:
         meta:
           hidden: true
         default: map
-        redefines: omniflow:Transform#operationType
+        redefines: omniprocess:Transform#operationType

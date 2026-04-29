@@ -39,12 +39,12 @@ export function validateGraph(graph: RuntimeGraph, manifest: Manifest): Validati
       continue;
     }
 
-    if (payload.configMode === 'timeline-ref') {
+    if (payload.configMode === 'builtin') {
       if (!payload.timeline) {
         issues.push({
           nodeId: node.id,
           taskId: payload.task,
-          message: `Missing timelineId on '${payload.task}' (configMode=timeline-ref).`,
+          message: `Missing timelineId on '${payload.task}' (configMode=builtin).`,
         });
       } else if (!manifestTask.timelines.includes(payload.timeline)) {
         issues.push({

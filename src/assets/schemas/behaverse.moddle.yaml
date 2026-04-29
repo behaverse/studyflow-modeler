@@ -58,10 +58,9 @@ enumerations:
         value: WO
   - name: ConfigModeEnum
     description: |
-      How a `BehaverseTask` resolves its runtime configuration. `timeline-ref`
+      How a `BehaverseTask` resolves its runtime configuration. `builtin`
       points to a timeline shipped with the Behaverse assessment build (with
-      optional parameter overrides). `inline` embeds a full `GameConfig`
-      fragment in the diagram.
+      optional parameter overrides). `inline` embeds a full `GameConfig`  in the diagram.
     literalValues:
       - name: Built-in timeline
         value: builtin
@@ -75,7 +74,7 @@ types:
       hidden from the inspector. At runtime, `scene` maps to the Behaverse
       assessment task ID (e.g., `NB`, `UFOV`) and `timelineId` selects a
       timeline shipped with the build; `configurations` either holds parameter
-      overrides (when `configMode` is `timeline-ref`) or a full `GameConfig`
+      overrides (when `configMode` is `builtin`) or a full `GameConfig`
       fragment (when `inline`).
     superClass:
       - studyflow:CognitiveTask
@@ -92,22 +91,22 @@ types:
           hidden: true
       - name: scene
         description: |
-          Behaverse assessment scene used to run the task (e.g., `NB`, `UFOV`).
+          Behaverse scene that delivers this task (e.g., `NB`, `UFOV`, `DS`). Maps to a task ID in the Behaverse at runtime.
         isAttr: true
         type: BehaverseSceneEnum
         default: undefined
         meta:
+          order: 0
           categories:
             - Behaverse
       - name: configMode
         description: |
-          How this task resolves its runtime configuration. `timeline-ref`
-          points to a built-in timeline (with optional parameter overrides in
-          `configurations`); `inline` embeds a full `GameConfig` fragment.
+          How this task resolves its runtime configuration. `builtin` points to a timeline shipped with the Behaverse assessment build (with optional parameter overrides in `configurations`); `inline` embeds a full `GameConfig` in the studyflow diagram.
         isAttr: true
         type: ConfigModeEnum
         default: builtin
         meta:
+          order: 1
           categories:
             - Behaverse
       - name: timelineId
@@ -118,6 +117,7 @@ types:
         isAttr: true
         type: String
         meta:
+          order: 2
           categories:
             - Behaverse
           condition:
@@ -126,14 +126,12 @@ types:
               configMode: builtin
       - name: configurations
         description: |
-          Instrument-specific configuration in YAML format. When `configMode`
-          is `timeline-ref`, this is a set of parameter overrides merged on
-          top of the named timeline; when `inline`, this is a full
-          `GameConfig` fragment.
+          Inline `GameConfig` fragment for the Behaverse runtime. In `builtin` mode the configuration comes from the named timeline shipped with the build.
         isBody: true
         type: studyflow:YAMLString
         redefines: studyflow:CognitiveTask#configurations
         meta:
+          order: 3
           categories:
             - Behaverse
           condition:
@@ -146,7 +144,7 @@ examples:
       type: BehaverseTask
       bpmn:name: N-Back (XCIT_NB_01)
       scene: NB
-      configMode: timeline-ref
+      configMode: builtin
       timelineId: XCIT_NB_01
       configurations: |
         # Optional parameter overrides merged on top of the named timeline.
