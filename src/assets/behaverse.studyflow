@@ -8,10 +8,7 @@
     <bpmn2:endEvent id="Event_061zobr">
       <bpmn2:incoming>Flow_0hdqzay</bpmn2:incoming>
     </bpmn2:endEvent>
-    <bpmn2:task id="BehaverseTask_1c1pxtl">
-      <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" timelineId="XCIT_NB_01" />
-      </bpmn2:extensionElements>
+    <bpmn2:task id="BehaverseTask_1c1pxtl" behaverse:appliedType="behaverse:BehaverseTask" behaverse:scene="NB" behaverse:configMode="builtin" behaverse:timelineId="XCIT_NB_01">
       <bpmn2:outgoing>Flow_0hdqzay</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:sequenceFlow id="Flow_0k8w62k" sourceRef="StartEvent_1" targetRef="BehaverseTask_1c1pxtl" />

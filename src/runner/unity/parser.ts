@@ -82,18 +82,33 @@ export async function parseStudyflow(
   return { process, nodes, edges, startId };
 }
 
+function readBehaverseProperty(businessObject: any, propertyName: string): string | undefined {
+  const fromProperty = getProperty(businessObject, propertyName);
+  if (typeof fromProperty === 'string' && fromProperty.length > 0) return fromProperty;
+
+  const attrs = businessObject?.$attrs;
+  if (attrs && typeof attrs === 'object') {
+    const namespaced = attrs[`behaverse:${propertyName}`];
+    if (typeof namespaced === 'string' && namespaced.length > 0) return namespaced;
+    const bare = attrs[propertyName];
+    if (typeof bare === 'string' && bare.length > 0) return bare;
+  }
+
+  return typeof fromProperty === 'string' ? fromProperty : undefined;
+}
+
 export function getBehaverseTaskPayload(node: RuntimeNode): BehaverseTaskPayload | null {
   if (node.appliedType !== 'behaverse:BehaverseTask') return null;
 
-  const task = (getProperty(node.businessObject, 'scene') as string) || '';
+  const task = readBehaverseProperty(node.businessObject, 'scene') ?? '';
   if (!task || task === 'undefined') {
     throw new Error(`BehaverseTask ${node.id} has no scene.`);
   }
 
-  const configMode = (getProperty(node.businessObject, 'configMode') as 'builtin' | 'inline')
+  const configMode = (readBehaverseProperty(node.businessObject, 'configMode') as 'builtin' | 'inline' | undefined)
     ?? 'builtin';
-  const timeline = getProperty(node.businessObject, 'timelineId') as string | undefined;
-  const configurations = getProperty(node.businessObject, 'configurations') as string | undefined;
+  const timeline = readBehaverseProperty(node.businessObject, 'timelineId');
+  const configurations = readBehaverseProperty(node.businessObject, 'configurations');
 
   return {
     task,

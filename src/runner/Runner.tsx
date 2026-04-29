@@ -7,7 +7,6 @@ import {
   validateGraph,
   runOnUnity,
   waitForUnity,
-  getBehaverseTaskPayload,
 } from './unity';
 import type { RuntimeStep, ValidationIssue, Manifest, RuntimeGraph } from './unity';
 
@@ -70,85 +69,7 @@ export function Runner() {
         }
         append({ kind: 'info', message: `Validation passed against ${manifest.tasks.length} known tasks.` });
 
-        // Compute a first-task preview from the studyflow so Unity can auto-start it.
-        let iframeUrl = `${unityBuildUrl.replace(/\/$/, '')}/index.html`;
-        let initialPayload: { task: string; timeline?: string } | null = null;
-        try {
-          const previewEngine = new StudyflowEngine(graph, { seed });
-          const it = previewEngine.run();
-          // advance until we find the first 'task' step (skip start/instructions/etc.)
-          let first = await it.next();
-          while (!first.done && first.value?.kind !== 'task') {
-            first = await it.next();
-          }
-          if (!first.done && first.value?.kind === 'task' && first.value.payload?.task) {
-            // debug: print the preview step to console for inspection
-            // eslint-disable-next-line no-console
-            console.log('preview first step:', first.value);
-            const qp = new URLSearchParams();
-            qp.set('task', first.value.payload.task);
-            if (first.value.payload.timeline) qp.set('timeline', first.value.payload.timeline);
-            iframeUrl += `?${qp.toString()}`;
-            initialPayload = { task: first.value.payload.task, timeline: first.value.payload.timeline };
-          }
-          else {
-            // fallback: BFS from start to find first reachable BehaverseTask node
-            try {
-              const start = graph.startId;
-              if (start) {
-                const visited = new Set<string>();
-                const q: string[] = [start];
-                while (q.length > 0) {
-                  const id = q.shift()!;
-                  if (visited.has(id)) continue;
-                  visited.add(id);
-                  const node = graph.nodes.get(id);
-                  if (!node) continue;
-                  const payload = getBehaverseTaskPayload(node);
-                  if (payload && payload.task) {
-                    const qp = new URLSearchParams();
-                    qp.set('task', payload.task);
-                    if (payload.timeline) qp.set('timeline', payload.timeline);
-                    iframeUrl += `?${qp.toString()}`;
-                    initialPayload = { task: payload.task, timeline: payload.timeline };
-                    break;
-                  }
-                  for (const outId of node.outgoing) {
-                    const edge = graph.edges.get(outId);
-                    if (edge?.targetId) q.push(edge.targetId);
-                  }
-                }
-              }
-            } catch (err) {
-              // ignore fallback errors
-            }
-          }
-
-          // Last-resort fallback: extract first behaverseTask from the raw XML text
-          if (!initialPayload) {
-            try {
-              const re = /<behaverse:behaverseTask[^>]*\bscene="([^"]+)"(?:[^>]*\btimelineId="([^"]+)")?[^>]*>/i;
-              const m = (xmlText as string).match(re);
-              if (m) {
-                initialPayload = { task: m[1], timeline: m[2] };
-                const qp = new URLSearchParams();
-                qp.set('task', initialPayload.task);
-                if (initialPayload.timeline) qp.set('timeline', initialPayload.timeline);
-                iframeUrl += `?${qp.toString()}`;
-              }
-            } catch (err) {
-              // ignore
-            }
-          }
-        } catch (e) {
-          // ignore preview failures and fall back to default iframe URL
-        }
-
-        if (initialPayload) {
-          append({ kind: 'info', message: `Initial payload: ${initialPayload.task}/${initialPayload.timeline ?? ''}` });
-        } else {
-          append({ kind: 'info', message: `Initial payload: (none)` });
-        }
+        const iframeUrl = `${unityBuildUrl.replace(/\/$/, '')}/index.html`;
         append({ kind: 'info', message: `Unity iframe URL: ${iframeUrl}` });
         setUnityIframeUrl(iframeUrl);
         setPhase('awaiting-unity');
@@ -156,6 +77,13 @@ export function Runner() {
         const unity = await waitForUnity(() => unityIframeRef.current);
         if (cancelled) return;
         append({ kind: 'info', message: 'Unity instance ready.' });
+
+        // Give Unity time to leave its Loading scene before sending RunTaskActivity.
+        // GameManager.OnRuntimeInitializeAfterSceneLoad waits ~0.5s before transitioning
+        // to the menu scene; sending RunTaskActivity inside that window races the
+        // pending SceneManager.LoadScene and the just-started task gets aborted.
+        await new Promise((r) => setTimeout(r, 1000));
+        if (cancelled) return;
 
         setPhase('running');
         const engine = new StudyflowEngine(graph, { seed });
