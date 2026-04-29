@@ -1,4 +1,4 @@
-import { getProperty } from '@/v1/extensions/resolve';
+import { getProperty } from '@/modeler/extensions/resolve';
 import { getBehaverseTaskPayload } from './parser';
 import type { RuntimeGraph, RuntimeNode, RuntimeStep } from './types';
 

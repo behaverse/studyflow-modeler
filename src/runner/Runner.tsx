@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { executeCommand } from '@/v1/commands';
+import { executeCommand } from '@/modeler/commands';
 import {
   parseStudyflow,
   StudyflowEngine,

@@ -1,8 +1,8 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
-import { getAppliedType } from '@/v1/extensions/appliedType';
-import { getExtensionElement } from '@/v1/extensions/wrapper';
-import { getProperty } from '@/v1/extensions/resolve';
+import { getAppliedType } from '@/modeler/extensions/appliedType';
+import { getExtensionElement } from '@/modeler/extensions/wrapper';
+import { getProperty } from '@/modeler/extensions/resolve';
 import type { RuntimeGraph, RuntimeNode, RuntimeEdge, BehaverseTaskPayload } from './types';
 
 const FLOW_NODE_TYPES = new Set([

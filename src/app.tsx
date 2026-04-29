@@ -4,19 +4,19 @@ import 'bootstrap-icons/font/bootstrap-icons.css'
 import '@/assets/css/app.css'
 
 // v1 imports
-import { Modeler as V1Modeler } from './v1/Modeler'
-import { APIKeyContext, ModelerContext } from './v1/contexts';
-import { NavBar } from './v1/navbar';
-import { InspectorPanel as V1InspectorPanel } from './v1/inspector';
-import { Palette as V1Palette } from './v1/palette';
-import { executeCommand } from './v1/commands';
+import { Modeler as V1Modeler } from './modeler/Modeler'
+import { APIKeyContext, ModelerContext } from './modeler/contexts';
+import { NavBar } from './modeler/navbar';
+import { InspectorPanel as V1InspectorPanel } from './modeler/inspector';
+import { Palette as V1Palette } from './modeler/palette';
+import { executeCommand } from './modeler/commands';
 
 // v2 imports
-import { Modeler as V2Modeler } from './v2/Modeler';
-import { Palette as V2Palette } from './v2/palette/Palette';
-import { InspectorPanel as V2InspectorPanel } from './v2/inspector/Panel';
-import { NavBar as V2NavBar } from './v2/navbar';
-import { useModelerStore } from './v2/store';
+import { Modeler as V2Modeler } from './modeler.v2/Modeler';
+import { Palette as V2Palette } from './modeler.v2/palette/Palette';
+import { InspectorPanel as V2InspectorPanel } from './modeler.v2/inspector/Panel';
+import { NavBar as V2NavBar } from './modeler.v2/navbar';
+import { useModelerStore } from './modeler.v2/store';
 
 /** Detect UI version from URL param. */
 function getVersion(): Number {
