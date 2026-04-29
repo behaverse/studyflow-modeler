@@ -7,6 +7,7 @@ import {
   validateGraph,
   runOnUnity,
   waitForUnity,
+  getBehaverseTaskPayload,
 } from './unity';
 import type { RuntimeStep, ValidationIssue, Manifest, RuntimeGraph } from './unity';
 
@@ -28,6 +29,7 @@ export function Runner() {
   const [unityIframeUrl, setUnityIframeUrl] = useState<string | null>(null);
 
   const ranOnce = useRef(false);
+  const unityIframeRef = useRef<HTMLIFrameElement>(null);
 
   const append = (entry: Omit<LogEntry, 'ts'>) =>
     setLog((prev) => [...prev, { ...entry, ts: Date.now() }]);
@@ -54,6 +56,8 @@ export function Runner() {
         ]);
 
         const graph: RuntimeGraph = await parseStudyflow(xmlText, schemas);
+        // debug: append graph node types to the activity log for inspection
+        append({ kind: 'info', message: `Graph start=${graph.startId} nodes=${Array.from(graph.nodes.values()).map((n) => n.appliedType).join(',')}` });
         append({ kind: 'info', message: `Parsed ${graph.nodes.size} nodes, ${graph.edges.size} edges.` });
 
         setPhase('validating');
@@ -66,10 +70,90 @@ export function Runner() {
         }
         append({ kind: 'info', message: `Validation passed against ${manifest.tasks.length} known tasks.` });
 
-        setUnityIframeUrl(`${unityBuildUrl.replace(/\/$/, '')}/index.html`);
+        // Compute a first-task preview from the studyflow so Unity can auto-start it.
+        let iframeUrl = `${unityBuildUrl.replace(/\/$/, '')}/index.html`;
+        let initialPayload: { task: string; timeline?: string } | null = null;
+        try {
+          const previewEngine = new StudyflowEngine(graph, { seed });
+          const it = previewEngine.run();
+          // advance until we find the first 'task' step (skip start/instructions/etc.)
+          let first = await it.next();
+          while (!first.done && first.value?.kind !== 'task') {
+            first = await it.next();
+          }
+          if (!first.done && first.value?.kind === 'task' && first.value.payload?.task) {
+            // debug: print the preview step to console for inspection
+            // eslint-disable-next-line no-console
+            console.log('preview first step:', first.value);
+            const qp = new URLSearchParams();
+            qp.set('task', first.value.payload.task);
+            if (first.value.payload.timeline) qp.set('timeline', first.value.payload.timeline);
+            iframeUrl += `?${qp.toString()}`;
+            initialPayload = { task: first.value.payload.task, timeline: first.value.payload.timeline };
+          }
+          else {
+            // fallback: BFS from start to find first reachable BehaverseTask node
+            try {
+              const start = graph.startId;
+              if (start) {
+                const visited = new Set<string>();
+                const q: string[] = [start];
+                while (q.length > 0) {
+                  const id = q.shift()!;
+                  if (visited.has(id)) continue;
+                  visited.add(id);
+                  const node = graph.nodes.get(id);
+                  if (!node) continue;
+                  const payload = getBehaverseTaskPayload(node);
+                  if (payload && payload.task) {
+                    const qp = new URLSearchParams();
+                    qp.set('task', payload.task);
+                    if (payload.timeline) qp.set('timeline', payload.timeline);
+                    iframeUrl += `?${qp.toString()}`;
+                    initialPayload = { task: payload.task, timeline: payload.timeline };
+                    break;
+                  }
+                  for (const outId of node.outgoing) {
+                    const edge = graph.edges.get(outId);
+                    if (edge?.targetId) q.push(edge.targetId);
+                  }
+                }
+              }
+            } catch (err) {
+              // ignore fallback errors
+            }
+          }
+
+          // Last-resort fallback: extract first behaverseTask from the raw XML text
+          if (!initialPayload) {
+            try {
+              const re = /<behaverse:behaverseTask[^>]*\bscene="([^"]+)"(?:[^>]*\btimelineId="([^"]+)")?[^>]*>/i;
+              const m = (xmlText as string).match(re);
+              if (m) {
+                initialPayload = { task: m[1], timeline: m[2] };
+                const qp = new URLSearchParams();
+                qp.set('task', initialPayload.task);
+                if (initialPayload.timeline) qp.set('timeline', initialPayload.timeline);
+                iframeUrl += `?${qp.toString()}`;
+              }
+            } catch (err) {
+              // ignore
+            }
+          }
+        } catch (e) {
+          // ignore preview failures and fall back to default iframe URL
+        }
+
+        if (initialPayload) {
+          append({ kind: 'info', message: `Initial payload: ${initialPayload.task}/${initialPayload.timeline ?? ''}` });
+        } else {
+          append({ kind: 'info', message: `Initial payload: (none)` });
+        }
+        append({ kind: 'info', message: `Unity iframe URL: ${iframeUrl}` });
+        setUnityIframeUrl(iframeUrl);
         setPhase('awaiting-unity');
 
-        const unity = await waitForUnity();
+        const unity = await waitForUnity(() => unityIframeRef.current);
         if (cancelled) return;
         append({ kind: 'info', message: 'Unity instance ready.' });
 
@@ -77,7 +161,7 @@ export function Runner() {
         const engine = new StudyflowEngine(graph, { seed });
         for await (const step of engine.run()) {
           if (cancelled) return;
-          await handleStep(step, unity, append);
+          await handleStep(step, unity, append, () => unityIframeRef.current?.contentWindow as any);
         }
         setPhase('done');
         append({ kind: 'info', message: 'Study complete.' });
@@ -111,6 +195,7 @@ export function Runner() {
         <section className="flex-1 bg-black">
           {unityIframeUrl ? (
             <iframe
+              ref={unityIframeRef}
               src={unityIframeUrl}
               title="Behaverse Assessment"
               className="w-full h-full border-0"
@@ -142,6 +227,7 @@ async function handleStep(
   step: RuntimeStep,
   unity: Awaited<ReturnType<typeof waitForUnity>>,
   append: (entry: { kind: LogEntry['kind']; message: string }) => void,
+  getUnityWindow: () => any,
 ): Promise<void> {
   if (step.kind === 'start') {
     append({ kind: 'info', message: `Start: ${step.node.id}` });
@@ -156,7 +242,7 @@ async function handleStep(
       kind: 'task',
       message: `Run ${step.payload.task}` + (step.payload.timeline ? ` / ${step.payload.timeline}` : ' (inline)'),
     });
-    const completion = await runOnUnity(unity, step.payload);
+    const completion = await runOnUnity(unity, step.payload, getUnityWindow);
     append({
       kind: 'completion',
       message: `Completed ${completion.taskId} / ${completion.timelineId} — ${completion.isCompleted ? 'ok' : 'aborted'}`,

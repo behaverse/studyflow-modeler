@@ -4,6 +4,8 @@ export type UnityInstance = {
   SendMessage: (gameObjectName: string, methodName: string, value?: string | number) => void;
 };
 
+type UnityWindow = Window & { unityInstance?: UnityInstance };
+
 export type TaskCompletion = {
   taskId: string;
   timelineId: string;
@@ -11,6 +13,8 @@ export type TaskCompletion = {
 };
 
 const COMPLETION_EVENT = 'studyflow:taskCompleted';
+const READY_MESSAGE = 'studyflow:unityReady';
+const COMPLETION_MESSAGE = 'studyflow:taskCompleted';
 
 /**
  * Send a single BehaverseTask to Unity and resolve when Unity dispatches the
@@ -20,18 +24,36 @@ const COMPLETION_EVENT = 'studyflow:taskCompleted';
 export function runOnUnity(
   unity: UnityInstance,
   payload: BehaverseTaskPayload,
+  getUnityWindow: () => UnityWindow | null,
 ): Promise<TaskCompletion> {
   return new Promise((resolve, reject) => {
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; detail?: TaskCompletion } | undefined;
+      if (!data || data.type !== COMPLETION_MESSAGE || !data.detail) return;
+      if (data.detail.taskId !== payload.task) return;
+      if (payload.timeline && data.detail.timelineId && data.detail.timelineId !== payload.timeline) return;
+      cleanup();
+      resolve(data.detail);
+    };
+
     const onCompleted = (event: Event) => {
       const detail = (event as CustomEvent<TaskCompletion>).detail;
       if (!detail) return;
       if (detail.taskId !== payload.task) return;
       if (payload.timeline && detail.timelineId && detail.timelineId !== payload.timeline) return;
-      window.removeEventListener(COMPLETION_EVENT, onCompleted as EventListener);
+      cleanup();
       resolve(detail);
     };
 
+    const cleanup = () => {
+      window.removeEventListener(COMPLETION_EVENT, onCompleted as EventListener);
+      window.removeEventListener('message', onMessage);
+      getUnityWindow()?.removeEventListener(COMPLETION_EVENT, onCompleted as EventListener);
+    };
+
     window.addEventListener(COMPLETION_EVENT, onCompleted as EventListener);
+    window.addEventListener('message', onMessage);
+    getUnityWindow()?.addEventListener(COMPLETION_EVENT, onCompleted as EventListener);
 
     try {
       unity.SendMessage('GameManager', 'RunTaskActivity', JSON.stringify({
@@ -41,33 +63,80 @@ export function runOnUnity(
         inlineConfig: payload.inlineConfig,
       }));
     } catch (err) {
-      window.removeEventListener(COMPLETION_EVENT, onCompleted as EventListener);
+      cleanup();
       reject(err);
     }
   });
 }
 
 /**
- * Wait for `window.unityInstance` to be available (set by the WebGL template's
- * `studyflow:unityReady` event).
+ * Wait for `window.unityInstance` to be available.
+ * The WebGL template posts a ready message to the parent window and also
+ * dispatches a DOM event as a same-window fallback.
  */
-export function waitForUnity(timeoutMs = 60_000): Promise<UnityInstance> {
+export function waitForUnity(
+  getIframe: () => HTMLIFrameElement | null,
+  timeoutMs = 60_000,
+): Promise<UnityInstance> {
   return new Promise((resolve, reject) => {
-    const existing = (window as any).unityInstance as UnityInstance | undefined;
+    const resolveFromIframe = () => {
+      const iframeWindow = getIframe()?.contentWindow as UnityWindow | null | undefined;
+      return iframeWindow?.unityInstance ?? ((window as any).unityInstance as UnityInstance | undefined);
+    };
+
+    const existing = resolveFromIframe();
     if (existing) {
       resolve(existing);
       return;
     }
-    const timer = window.setTimeout(() => {
+
+    let iframeWindow: UnityWindow | null = null;
+    let attachedIframeWindow: UnityWindow | null = null;
+
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('message', onMessage);
       window.removeEventListener('studyflow:unityReady', onReady as EventListener);
+      window.clearInterval(pollTimer);
+      attachedIframeWindow?.removeEventListener('studyflow:unityReady', onReady as EventListener);
+    };
+
+    const onReady = (event: Event) => {
+      const detail = (event as CustomEvent<{ unityInstance: UnityInstance }>).detail;
+      const instance = detail?.unityInstance ?? resolveFromIframe();
+      if (!instance) return;
+      cleanup();
+      resolve(instance);
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string } | undefined;
+      if (data?.type !== READY_MESSAGE) return;
+      const instance = resolveFromIframe();
+      if (!instance) return;
+      cleanup();
+      resolve(instance);
+    };
+
+    const timer = window.setTimeout(() => {
+      cleanup();
       reject(new Error('Timed out waiting for Unity to load.'));
     }, timeoutMs);
-    const onReady = (event: Event) => {
-      window.clearTimeout(timer);
-      window.removeEventListener('studyflow:unityReady', onReady as EventListener);
-      const detail = (event as CustomEvent<{ unityInstance: UnityInstance }>).detail;
-      resolve(detail?.unityInstance ?? ((window as any).unityInstance as UnityInstance));
-    };
+
+    const pollTimer = window.setInterval(() => {
+      iframeWindow = getIframe()?.contentWindow as UnityWindow | null | undefined;
+      if (iframeWindow && iframeWindow !== attachedIframeWindow) {
+        attachedIframeWindow?.removeEventListener('studyflow:unityReady', onReady as EventListener);
+        attachedIframeWindow = iframeWindow;
+        attachedIframeWindow.addEventListener('studyflow:unityReady', onReady as EventListener, { once: true });
+      }
+      const instance = resolveFromIframe();
+      if (!instance) return;
+      cleanup();
+      resolve(instance);
+    }, 100);
+
+    window.addEventListener('message', onMessage);
     window.addEventListener('studyflow:unityReady', onReady as EventListener);
   });
 }
