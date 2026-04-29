@@ -101,6 +101,8 @@ export type PaletteSchemaItem = {
 
 export type PaletteSchemaDescriptor = {
   prefix: string;
+  /** Human-readable schema name (`pkg.name`); falls back to the prefix. */
+  name: string;
   icon?: string;
   items: PaletteSchemaItem[];
 };
@@ -192,6 +194,7 @@ export function runPaletteRegisterSchemaProviders(
 
     schemas.push({
       prefix,
+      name: typeof pkg.name === 'string' && pkg.name.trim().length > 0 ? pkg.name : prefix,
       icon: typeof pkg.icon === 'string' ? pkg.icon : undefined,
       items,
     });

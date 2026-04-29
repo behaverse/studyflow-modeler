@@ -1,4 +1,4 @@
-name: datatrove
+name: DataTrove
 prefix: datatrove
 description: A studyflow extension for data transformation activities in the DataTrove ecosystem.
 uri: https://w3id.org/studyflow/datatrove

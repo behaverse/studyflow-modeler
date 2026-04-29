@@ -108,6 +108,7 @@ export function Palette({ className = '' }: { className?: string }) {
       data-testid="palette-root"
       ref={rootRef}
     >
+      {/* Section 1: tools */}
       <div
         key="lasso"
         className="group relative flex items-center"
@@ -119,6 +120,9 @@ export function Palette({ className = '' }: { className?: string }) {
         <span className="palette-tooltip">Select multiple elements</span>
       </div>
 
+      <div className="my-1 h-px bg-[#b0a993]/40 mx-1" />
+
+      {/* Section 2: element categories */}
       {PALETTE_GROUPS.map((group) => {
         const isOpen = openGroup === group.label;
         const isPinned = pinnedGroup === group.label;
@@ -162,21 +166,22 @@ export function Palette({ className = '' }: { className?: string }) {
 
       <div className="my-1 h-px bg-[#b0a993]/40 mx-1" />
 
-      {schemas.map(({ prefix, icon }) => (
+      {/* Section 3: more-elements popups (per schema + BPMN catch-all) */}
+      {schemas.map(({ prefix, name, icon }) => (
         <div
           key={`more-${prefix}`}
           className="group relative flex items-center"
           onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
         >
           <PaletteButton
-            title={`More ${prefix} elements...`}
+            title={`More ${name} elements...`}
             onMouseUp={dragHandlers.onMouseUp}
             onMouseLeave={dragHandlers.onMouseUp}
             onClick={(e) => handleMoreSchemaElementsClick(prefix, e)}
           >
             {renderSchemaIcon(icon)}
           </PaletteButton>
-          <span className="palette-tooltip">{prefix} elements...</span>
+          <span className="palette-tooltip">{name} elements...</span>
           <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-600 rotate-[-45deg] -translate-y-1/2" />
         </div>
       ))}
@@ -194,7 +199,7 @@ export function Palette({ className = '' }: { className?: string }) {
         >
           <i className="text-[22px] iconify bi--three-dots"></i>
         </PaletteButton>
-        <span className="palette-tooltip">More BPMN…</span>
+        <span className="palette-tooltip">BPMN elements...</span>
       </div>
     </div>
   );
