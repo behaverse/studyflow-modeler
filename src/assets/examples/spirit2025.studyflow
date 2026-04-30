@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0"
+    xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow"
+    id="spirit2025-example"
+    targetNamespace="http://bpmn.io/schema/bpmn"
+    xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="SPIRIT_2025_Protocol" isExecutable="false">
+    <bpmn2:extensionElements>
+      <studyflow:study />
+    </bpmn2:extensionElements>
+    <bpmn2:documentation>SPIRIT 2025 Schedule of Enrolment, Interventions, and Assessments. Each subprocess corresponds to a SPIRIT timepoint (-t1 screening, 0 allocation, t1/t2 follow-up, tx close-out) and carries a checklist of the SPIRIT 2025 items completed at that visit. Outcome datasets and the data dictionary are linked with data associations so the protocol declares not just what happens, but what data are produced and where.</bpmn2:documentation>
+
+    <bpmn2:startEvent id="Protocol_Start" name="Recruitment"
+        studyflow:requiresConsent="true"
+        studyflow:consentFormUri="https://example.org/protocols/spirit2025/consent.pdf">
+      <bpmn2:documentation>SPIRIT 2025 items 1-3 (administrative information): trial registration, protocol version, funding. Item 26a: informed consent.</bpmn2:documentation>
+      <bpmn2:outgoing>Flow_Start_Screen</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:subProcess id="Visit_Screening" name="Screening visit (t = -t1)"
+        studyflow:checklist="- [ ] SPIRIT 11a: eligibility screen&#10;- [ ] SPIRIT 11b: who recruits&#10;- [ ] SPIRIT 14: settings and locations&#10;- [ ] SPIRIT 26a: informed consent obtained&#10;- [ ] SPIRIT 27: confidentiality &amp; data handling">
+      <bpmn2:documentation>Pre-enrollment screening visit. Captures the items SPIRIT requires before randomization (eligibility, consent, baseline demographics).</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Start_Screen</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Screen_Eligibility</bpmn2:outgoing>
+    </bpmn2:subProcess>
+
+    <bpmn2:exclusiveGateway id="Eligibility_Gate" name="Eligible?">
+      <bpmn2:documentation>SPIRIT 2025 item 10: Inclusion and exclusion criteria for participants.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <studyflow:eligibilityGateway>
+          <studyflow:inclusionCriteria>Adults aged 18 to 65 years</studyflow:inclusionCriteria>
+          <studyflow:inclusionCriteria>DSM-5 diagnosis of attentional disorder</studyflow:inclusionCriteria>
+          <studyflow:inclusionCriteria>Stable medication regimen for 3 months</studyflow:inclusionCriteria>
+          <studyflow:exclusionCriteria>Comorbid neurological condition</studyflow:exclusionCriteria>
+          <studyflow:exclusionCriteria>Pregnancy or lactation</studyflow:exclusionCriteria>
+          <studyflow:exclusionCriteria>Participation in another interventional trial within 30 days</studyflow:exclusionCriteria>
+        </studyflow:eligibilityGateway>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Screen_Eligibility</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Eligible_Yes</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Eligible_No</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:endEvent id="ScreenFail" name="Screen failure">
+      <bpmn2:documentation>SPIRIT 2025 item 15 (recruitment): how loss of eligibility is handled. Reasons recorded for the CONSORT flow at publication.</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Eligible_No</bpmn2:incoming>
+      <bpmn2:errorEventDefinition id="ErrorDef_ScreenFail" />
+    </bpmn2:endEvent>
+
+    <bpmn2:subProcess id="Visit_Baseline" name="Baseline visit (t = 0)"
+        studyflow:checklist="- [ ] SPIRIT 12: baseline demographics&#10;- [ ] SPIRIT 12: medical history&#10;- [ ] SPIRIT 12: vitals &amp; physical exam&#10;- [ ] SPIRIT 18a: primary outcome at baseline&#10;- [ ] SPIRIT 18b: secondary outcomes at baseline">
+      <bpmn2:documentation>Baseline assessment immediately before allocation. Establishes the t=0 reference for all primary and secondary outcomes.</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Eligible_Yes</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Baseline_Allocate</bpmn2:outgoing>
+    </bpmn2:subProcess>
+
+    <bpmn2:exclusiveGateway id="Allocate_Gate" name="Stratified allocation">
+      <bpmn2:documentation>SPIRIT 2025 item 16a/16b: sequence generation and allocation concealment mechanism. Stratified randomization balances groups on prognostic baseline variables.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <studyflow:stratifiedAllocationGateway stratificationVariable="age_band" algorithm="probabilistic" probabilityFunction="uniform">
+          <studyflow:strata>age_band: 18-29</studyflow:strata>
+          <studyflow:strata>age_band: 30-44</studyflow:strata>
+          <studyflow:strata>age_band: 45-65</studyflow:strata>
+        </studyflow:stratifiedAllocationGateway>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Baseline_Allocate</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Arm_Treatment</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Arm_Control</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:task id="Activity_Intervention" name="Intervention: cognitive training"
+        studyflow:checklist="- [ ] SPIRIT 17a: intervention dose &amp; schedule&#10;- [ ] SPIRIT 17b: criteria for modification&#10;- [ ] SPIRIT 19: adherence monitoring">
+      <bpmn2:documentation>SPIRIT 2025 item 17a: A description of the interventions for each group with sufficient detail to allow replication.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <studyflow:cognitiveTask instrument="jspsych">
+          <![CDATA[# Adaptive n-back training
+sessions: 12
+session_duration_min: 25
+adaptive: true
+levels: [1, 2, 3, 4]
+]]>
+        </studyflow:cognitiveTask>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Arm_Treatment</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Treatment_Visit1</bpmn2:outgoing>
+    </bpmn2:task>
+
+    <bpmn2:task id="Activity_Control" name="Control: active sham"
+        studyflow:checklist="- [ ] SPIRIT 17a: control dose matched to intervention&#10;- [ ] SPIRIT 17b: criteria for modification&#10;- [ ] SPIRIT 19: adherence monitoring">
+      <bpmn2:documentation>SPIRIT 2025 item 17a: Comparator condition matched on session count and duration to control for non-specific effects.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <studyflow:rest>
+          <![CDATA[# Active sham (low-load 1-back, no adaptation)
+sessions: 12
+session_duration_min: 25
+adaptive: false
+levels: [1]
+]]>
+        </studyflow:rest>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Arm_Control</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Control_Visit1</bpmn2:outgoing>
+    </bpmn2:task>
+
+    <bpmn2:subProcess id="Visit_T1" name="Follow-up visit (t = t1, week 4)"
+        studyflow:checklist="- [ ] SPIRIT 18a: primary outcome reassessed&#10;- [ ] SPIRIT 18b: secondary outcomes reassessed&#10;- [ ] SPIRIT 22: adverse-event review&#10;- [ ] SPIRIT 19: adherence check">
+      <bpmn2:documentation>Mid-trial assessment. Reassesses primary and secondary outcomes; reviews adherence and adverse events.</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Treatment_Visit1</bpmn2:incoming>
+      <bpmn2:incoming>Flow_Control_Visit1</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Visit1_Visit2</bpmn2:outgoing>
+    </bpmn2:subProcess>
+
+    <bpmn2:subProcess id="Visit_T2" name="Primary endpoint visit (t = t2, week 12)"
+        studyflow:checklist="- [ ] SPIRIT 18a: primary outcome — endpoint analysis&#10;- [ ] SPIRIT 18b: secondary outcomes&#10;- [ ] SPIRIT 22: adverse events&#10;- [ ] SPIRIT 27: data lock for primary analysis">
+      <bpmn2:documentation>SPIRIT 2025 item 12: When the primary outcome is measured. End of the active intervention phase.</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Visit1_Visit2</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Visit2_Closeout</bpmn2:outgoing>
+    </bpmn2:subProcess>
+
+    <bpmn2:subProcess id="Visit_Closeout" name="Close-out (t = tx, week 24)"
+        studyflow:checklist="- [ ] SPIRIT 13: participant retention plan executed&#10;- [ ] SPIRIT 18a: durability of primary outcome&#10;- [ ] SPIRIT 22: adverse events final review&#10;- [ ] SPIRIT 31: results dissemination plan&#10;- [ ] SPIRIT 32: data sharing per plan">
+      <bpmn2:documentation>SPIRIT 2025 item 13: Long-term follow-up to assess durability of effects. Participant exit interviews and final adverse-events review.</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Visit2_Closeout</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Closeout_End</bpmn2:outgoing>
+    </bpmn2:subProcess>
+
+    <bpmn2:dataObjectReference id="Schema_Outcomes" name="Outcome data dictionary"
+        dataObjectRef="DataObject_Outcomes">
+      <bpmn2:extensionElements>
+        <studyflow:schema format="csvw">
+          <![CDATA[# CSVW outcome data dictionary
+"@context": http://www.w3.org/ns/csvw
+url: outcomes.csv
+tableSchema:
+  columns:
+    - name: participant_id
+      titles: Participant ID
+      datatype: string
+      required: true
+    - name: visit
+      titles: Visit timepoint
+      datatype: { base: string, format: "(-t1|0|t1|t2|tx)" }
+    - name: arm
+      titles: Allocation arm
+      datatype: { base: string, format: "(treatment|control)" }
+    - name: nback_dprime
+      titles: Primary outcome — n-back d-prime
+      datatype: number
+    - name: ravlt_total
+      titles: Secondary — RAVLT total recall
+      datatype: number
+]]>
+        </studyflow:schema>
+      </bpmn2:extensionElements>
+    </bpmn2:dataObjectReference>
+    <bpmn2:dataObject id="DataObject_Outcomes" />
+
+    <bpmn2:dataStoreReference id="Dataset_Primary" name="Primary &amp; secondary outcomes">
+      <bpmn2:extensionElements>
+        <studyflow:dataset format="bdm" bdmDataLevel="trials" />
+      </bpmn2:extensionElements>
+    </bpmn2:dataStoreReference>
+
+    <bpmn2:dataStoreReference id="Dataset_AE" name="Adverse events register">
+      <bpmn2:extensionElements>
+        <studyflow:dataset format="psych-ds" />
+      </bpmn2:extensionElements>
+    </bpmn2:dataStoreReference>
+
+    <bpmn2:endEvent id="Protocol_End" name="Trial complete"
+        studyflow:hasRedirectUrl="false">
+      <bpmn2:documentation>SPIRIT 2025 item 31a-c: Plans for communicating trial results to participants, healthcare professionals, and the public.</bpmn2:documentation>
+      <bpmn2:incoming>Flow_Closeout_End</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_Start_Screen" sourceRef="Protocol_Start" targetRef="Visit_Screening" />
+    <bpmn2:sequenceFlow id="Flow_Screen_Eligibility" sourceRef="Visit_Screening" targetRef="Eligibility_Gate" />
+    <bpmn2:sequenceFlow id="Flow_Eligible_Yes" name="eligible" sourceRef="Eligibility_Gate" targetRef="Visit_Baseline" />
+    <bpmn2:sequenceFlow id="Flow_Eligible_No" name="not eligible" sourceRef="Eligibility_Gate" targetRef="ScreenFail" />
+    <bpmn2:sequenceFlow id="Flow_Baseline_Allocate" sourceRef="Visit_Baseline" targetRef="Allocate_Gate" />
+    <bpmn2:sequenceFlow id="Flow_Arm_Treatment" name="treatment" sourceRef="Allocate_Gate" targetRef="Activity_Intervention" />
+    <bpmn2:sequenceFlow id="Flow_Arm_Control" name="control" sourceRef="Allocate_Gate" targetRef="Activity_Control" />
+    <bpmn2:sequenceFlow id="Flow_Treatment_Visit1" sourceRef="Activity_Intervention" targetRef="Visit_T1" />
+    <bpmn2:sequenceFlow id="Flow_Control_Visit1" sourceRef="Activity_Control" targetRef="Visit_T1" />
+    <bpmn2:sequenceFlow id="Flow_Visit1_Visit2" sourceRef="Visit_T1" targetRef="Visit_T2" />
+    <bpmn2:sequenceFlow id="Flow_Visit2_Closeout" sourceRef="Visit_T2" targetRef="Visit_Closeout" />
+    <bpmn2:sequenceFlow id="Flow_Closeout_End" sourceRef="Visit_Closeout" targetRef="Protocol_End" />
+
+    <bpmn2:association id="Assoc_Schema_Primary" associationDirection="One"
+        sourceRef="Schema_Outcomes" targetRef="Dataset_Primary" />
+    <bpmn2:association id="Assoc_T2_Primary" associationDirection="One"
+        sourceRef="Visit_T2" targetRef="Dataset_Primary" />
+    <bpmn2:association id="Assoc_Closeout_Primary" associationDirection="One"
+        sourceRef="Visit_Closeout" targetRef="Dataset_Primary" />
+    <bpmn2:association id="Assoc_T1_AE" associationDirection="One"
+        sourceRef="Visit_T1" targetRef="Dataset_AE" />
+    <bpmn2:association id="Assoc_T2_AE" associationDirection="One"
+        sourceRef="Visit_T2" targetRef="Dataset_AE" />
+    <bpmn2:association id="Assoc_Closeout_AE" associationDirection="One"
+        sourceRef="Visit_Closeout" targetRef="Dataset_AE" />
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SPIRIT_2025_Protocol">
+      <bpmndi:BPMNShape id="Protocol_Start_di" bpmnElement="Protocol_Start">
+        <dc:Bounds x="172" y="92" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="162" y="73" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Visit_Screening_di" bpmnElement="Visit_Screening" isExpanded="false">
+        <dc:Bounds x="260" y="70" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Eligibility_Gate_di" bpmnElement="Eligibility_Gate" isMarkerVisible="true">
+        <dc:Bounds x="515" y="85" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="520" y="142" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScreenFail_di" bpmnElement="ScreenFail" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="622" y="92" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="135" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Visit_Baseline_di" bpmnElement="Visit_Baseline" isExpanded="false">
+        <dc:Bounds x="440" y="200" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Allocate_Gate_di" bpmnElement="Allocate_Gate" isMarkerVisible="true">
+        <dc:Bounds x="515" y="320" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="492" y="377" width="96" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Activity_Intervention_di" bpmnElement="Activity_Intervention">
+        <dc:Bounds x="290" y="420" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Control_di" bpmnElement="Activity_Control">
+        <dc:Bounds x="610" y="420" width="180" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Visit_T1_di" bpmnElement="Visit_T1" isExpanded="false">
+        <dc:Bounds x="440" y="550" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Visit_T2_di" bpmnElement="Visit_T2" isExpanded="false">
+        <dc:Bounds x="440" y="670" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Visit_Closeout_di" bpmnElement="Visit_Closeout" isExpanded="false">
+        <dc:Bounds x="440" y="790" width="200" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Protocol_End_di" bpmnElement="Protocol_End">
+        <dc:Bounds x="522" y="910" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="500" y="953" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Schema_Outcomes_di" bpmnElement="Schema_Outcomes">
+        <dc:Bounds x="822" y="555" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="780" y="610" width="120" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Dataset_Primary_di" bpmnElement="Dataset_Primary">
+        <dc:Bounds x="817" y="675" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="780" y="730" width="124" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Dataset_AE_di" bpmnElement="Dataset_AE">
+        <dc:Bounds x="817" y="795" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="780" y="850" width="124" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_Start_Screen_di" bpmnElement="Flow_Start_Screen">
+        <di:waypoint x="208" y="110" />
+        <di:waypoint x="260" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Screen_Eligibility_di" bpmnElement="Flow_Screen_Eligibility">
+        <di:waypoint x="460" y="110" />
+        <di:waypoint x="515" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Eligible_No_di" bpmnElement="Flow_Eligible_No" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="565" y="110" />
+        <di:waypoint x="622" y="110" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="568" y="92" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Eligible_Yes_di" bpmnElement="Flow_Eligible_Yes">
+        <di:waypoint x="540" y="135" />
+        <di:waypoint x="540" y="200" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="546" y="160" width="38" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Baseline_Allocate_di" bpmnElement="Flow_Baseline_Allocate">
+        <di:waypoint x="540" y="280" />
+        <di:waypoint x="540" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Arm_Treatment_di" bpmnElement="Flow_Arm_Treatment">
+        <di:waypoint x="515" y="345" />
+        <di:waypoint x="380" y="345" />
+        <di:waypoint x="380" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="408" y="327" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Arm_Control_di" bpmnElement="Flow_Arm_Control">
+        <di:waypoint x="565" y="345" />
+        <di:waypoint x="700" y="345" />
+        <di:waypoint x="700" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="610" y="327" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Treatment_Visit1_di" bpmnElement="Flow_Treatment_Visit1">
+        <di:waypoint x="380" y="500" />
+        <di:waypoint x="380" y="590" />
+        <di:waypoint x="440" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Control_Visit1_di" bpmnElement="Flow_Control_Visit1">
+        <di:waypoint x="700" y="500" />
+        <di:waypoint x="700" y="590" />
+        <di:waypoint x="640" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Visit1_Visit2_di" bpmnElement="Flow_Visit1_Visit2">
+        <di:waypoint x="540" y="630" />
+        <di:waypoint x="540" y="670" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Visit2_Closeout_di" bpmnElement="Flow_Visit2_Closeout">
+        <di:waypoint x="540" y="750" />
+        <di:waypoint x="540" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Closeout_End_di" bpmnElement="Flow_Closeout_End">
+        <di:waypoint x="540" y="870" />
+        <di:waypoint x="540" y="910" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Assoc_Schema_Primary_di" bpmnElement="Assoc_Schema_Primary">
+        <di:waypoint x="840" y="605" />
+        <di:waypoint x="840" y="675" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_T2_Primary_di" bpmnElement="Assoc_T2_Primary">
+        <di:waypoint x="640" y="710" />
+        <di:waypoint x="817" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Closeout_Primary_di" bpmnElement="Assoc_Closeout_Primary">
+        <di:waypoint x="640" y="820" />
+        <di:waypoint x="780" y="820" />
+        <di:waypoint x="817" y="710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_T1_AE_di" bpmnElement="Assoc_T1_AE">
+        <di:waypoint x="640" y="600" />
+        <di:waypoint x="780" y="600" />
+        <di:waypoint x="817" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_T2_AE_di" bpmnElement="Assoc_T2_AE">
+        <di:waypoint x="640" y="720" />
+        <di:waypoint x="817" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Closeout_AE_di" bpmnElement="Assoc_Closeout_AE">
+        <di:waypoint x="640" y="830" />
+        <di:waypoint x="817" y="830" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

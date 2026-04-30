@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="consort2025-example" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="CONSORT_2025_RCT" isExecutable="false">
+    <bpmn2:extensionElements />
+    <bpmn2:startEvent id="Enrollment_Start" name="Enrollment" studyflow:requiresConsent="true" studyflow:consentFormUri="https://example.org/protocols/consort2025/consent.pdf">
+      <bpmn2:outgoing>Flow_Start_Screening</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:task id="Activity_Screening" studyflow:checklist="- [ ] Demographic intake&#10;- [ ] Medical history&#10;- [ ] Vital signs&#10;- [ ] Baseline cognitive screen" name="Screening assessment">
+      <bpmn2:extensionElements>
+        <studyflow:questionnaire instrument="screening" />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Start_Screening</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Screening_Eligibility</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:exclusiveGateway id="Eligibility_Gateway" name="Assessed for eligibility">
+      <bpmn2:extensionElements>
+        <studyflow:eligibilityGateway />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Screening_Eligibility</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Eligible</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Excluded_Pre</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:endEvent id="Excluded_Pre" name="Excluded (n=...)">
+      <bpmn2:incoming>Flow_Excluded_Pre</bpmn2:incoming>
+      <bpmn2:errorEventDefinition id="ErrorDef_ExcludedPre" />
+    </bpmn2:endEvent>
+    <bpmn2:exclusiveGateway id="Randomize_Gateway" name="Randomization">
+      <bpmn2:extensionElements>
+        <studyflow:randomGateway />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Eligible</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Allocate_A</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Allocate_B</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:task id="Activity_Allocation_A" studyflow:checklist="- [ ] Allocation concealed until enrollment&#10;- [ ] Intervention delivered as protocol&#10;- [ ] Adverse events recorded" name="Allocated to intervention (n=...)">
+      <bpmn2:incoming>Flow_Allocate_A</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_A_Followup</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:boundaryEvent id="DidNotReceive_A" name="Did not receive (n=...)" attachedToRef="Activity_Allocation_A">
+      <bpmn2:outgoing>Flow_DidNotReceive_A</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_DidNotReceive_A" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:task id="Activity_Followup_A" studyflow:checklist="- [ ] Adherence visit&#10;- [ ] Outcome assessment 1&#10;- [ ] Outcome assessment 2&#10;- [ ] Adverse events review" name="Follow-up">
+      <bpmn2:extensionElements>
+        <studyflow:cognitiveTask instrument="jspsych"># n-back primary outcome
+duration: 10
+n_back_levels: [1, 2, 3]
+trials_per_block: 30
+</studyflow:cognitiveTask>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_A_Followup</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_A_Analysis</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:boundaryEvent id="LostFollowup_A" name="Lost to follow-up (n=...)" attachedToRef="Activity_Followup_A">
+      <bpmn2:outgoing>Flow_LostFollowup_A</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_Lost_A" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:boundaryEvent id="Discontinued_A" name="Discontinued (n=...)" attachedToRef="Activity_Followup_A">
+      <bpmn2:outgoing>Flow_Discontinued_A</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_Discont_A" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:task id="Activity_Analysis_A" studyflow:checklist="- [ ] Intention-to-treat dataset&#10;- [ ] Per-protocol dataset&#10;- [ ] Sensitivity analyses&#10;- [ ] Pre-registered statistical plan applied" name="Analyzed (n=...)">
+      <bpmn2:incoming>Flow_A_Analysis</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_A_Done</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:boundaryEvent id="ExcludedFromAnalysis_A" name="Excluded from analysis (n=...)" attachedToRef="Activity_Analysis_A">
+      <bpmn2:outgoing>Flow_ExcludedAnalysis_A</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_AnalysisExcluded_A" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:task id="Activity_Allocation_B" studyflow:checklist="- [ ] Allocation concealed until enrollment&#10;- [ ] Sham/usual-care delivered as protocol&#10;- [ ] Adverse events recorded" name="Allocated to control (n=...)">
+      <bpmn2:incoming>Flow_Allocate_B</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_B_Followup</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:boundaryEvent id="DidNotReceive_B" name="Did not receive (n=...)" attachedToRef="Activity_Allocation_B">
+      <bpmn2:outgoing>Flow_DidNotReceive_B</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_DidNotReceive_B" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:task id="Activity_Followup_B" studyflow:checklist="- [ ] Adherence visit&#10;- [ ] Outcome assessment 1&#10;- [ ] Outcome assessment 2&#10;- [ ] Adverse events review" name="Follow-up">
+      <bpmn2:extensionElements>
+        <studyflow:rest># Resting baseline used as control condition
+duration_min: 10
+eyes_open: true
+</studyflow:rest>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_B_Followup</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_B_Analysis</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:boundaryEvent id="LostFollowup_B" name="Lost to follow-up (n=...)" attachedToRef="Activity_Followup_B">
+      <bpmn2:outgoing>Flow_LostFollowup_B</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_Lost_B" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:boundaryEvent id="Discontinued_B" name="Discontinued (n=...)" attachedToRef="Activity_Followup_B">
+      <bpmn2:outgoing>Flow_Discontinued_B</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_Discont_B" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:task id="Activity_Analysis_B" studyflow:checklist="- [ ] Intention-to-treat dataset&#10;- [ ] Per-protocol dataset&#10;- [ ] Sensitivity analyses&#10;- [ ] Pre-registered statistical plan applied" name="Analyzed (n=...)">
+      <bpmn2:incoming>Flow_B_Analysis</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_B_Done</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:boundaryEvent id="ExcludedFromAnalysis_B" name="Excluded from analysis (n=...)" attachedToRef="Activity_Analysis_B">
+      <bpmn2:outgoing>Flow_ExcludedAnalysis_B</bpmn2:outgoing>
+      <bpmn2:errorEventDefinition id="ErrorDef_AnalysisExcluded_B" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:endEvent id="Trial_Complete" name="Completed" studyflow:hasRedirectUrl="true" studyflow:redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}" studyflow:completionCodeType="dynamic">
+      <bpmn2:incoming>Flow_A_Done</bpmn2:incoming>
+      <bpmn2:incoming>Flow_B_Done</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:endEvent id="Excluded_Post" name="Excluded (n=...)">
+      <bpmn2:incoming>Flow_DidNotReceive_A</bpmn2:incoming>
+      <bpmn2:incoming>Flow_LostFollowup_A</bpmn2:incoming>
+      <bpmn2:incoming>Flow_Discontinued_A</bpmn2:incoming>
+      <bpmn2:incoming>Flow_ExcludedAnalysis_A</bpmn2:incoming>
+      <bpmn2:incoming>Flow_DidNotReceive_B</bpmn2:incoming>
+      <bpmn2:incoming>Flow_LostFollowup_B</bpmn2:incoming>
+      <bpmn2:incoming>Flow_Discontinued_B</bpmn2:incoming>
+      <bpmn2:incoming>Flow_ExcludedAnalysis_B</bpmn2:incoming>
+      <bpmn2:errorEventDefinition id="ErrorDef_ExcludedPost" />
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="Flow_Start_Screening" sourceRef="Enrollment_Start" targetRef="Activity_Screening" />
+    <bpmn2:sequenceFlow id="Flow_Screening_Eligibility" sourceRef="Activity_Screening" targetRef="Eligibility_Gateway" />
+    <bpmn2:sequenceFlow id="Flow_Eligible" name="eligible" sourceRef="Eligibility_Gateway" targetRef="Randomize_Gateway" />
+    <bpmn2:sequenceFlow id="Flow_Excluded_Pre" name="not eligible" sourceRef="Eligibility_Gateway" targetRef="Excluded_Pre" />
+    <bpmn2:sequenceFlow id="Flow_Allocate_A" name="intervention" sourceRef="Randomize_Gateway" targetRef="Activity_Allocation_A" />
+    <bpmn2:sequenceFlow id="Flow_Allocate_B" name="control" sourceRef="Randomize_Gateway" targetRef="Activity_Allocation_B" />
+    <bpmn2:sequenceFlow id="Flow_A_Followup" sourceRef="Activity_Allocation_A" targetRef="Activity_Followup_A" />
+    <bpmn2:sequenceFlow id="Flow_A_Analysis" sourceRef="Activity_Followup_A" targetRef="Activity_Analysis_A" />
+    <bpmn2:sequenceFlow id="Flow_A_Done" sourceRef="Activity_Analysis_A" targetRef="Trial_Complete" />
+    <bpmn2:sequenceFlow id="Flow_B_Followup" sourceRef="Activity_Allocation_B" targetRef="Activity_Followup_B" />
+    <bpmn2:sequenceFlow id="Flow_B_Analysis" sourceRef="Activity_Followup_B" targetRef="Activity_Analysis_B" />
+    <bpmn2:sequenceFlow id="Flow_B_Done" sourceRef="Activity_Analysis_B" targetRef="Trial_Complete" />
+    <bpmn2:sequenceFlow id="Flow_DidNotReceive_A" name="reason" sourceRef="DidNotReceive_A" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_LostFollowup_A" name="reason" sourceRef="LostFollowup_A" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_Discontinued_A" sourceRef="Discontinued_A" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_ExcludedAnalysis_A" name="reason" sourceRef="ExcludedFromAnalysis_A" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_DidNotReceive_B" name="reason" sourceRef="DidNotReceive_B" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_LostFollowup_B" name="reason" sourceRef="LostFollowup_B" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_Discontinued_B" name="reason" sourceRef="Discontinued_B" targetRef="Excluded_Post" />
+    <bpmn2:sequenceFlow id="Flow_ExcludedAnalysis_B" name="reason" sourceRef="ExcludedFromAnalysis_B" targetRef="Excluded_Post" />
+    <bpmn2:group id="Group_Enrollment" categoryValueRef="CategoryValue_Enrollment" />
+    <bpmn2:group id="Group_Allocation" categoryValueRef="CategoryValue_Allocation" />
+    <bpmn2:group id="Group_Followup" categoryValueRef="CategoryValue_Followup" />
+    <bpmn2:group id="Group_Analysis" categoryValueRef="CategoryValue_Analysis" />
+  </bpmn2:process>
+  <bpmn2:category id="Category_Enrollment">
+    <bpmn2:categoryValue id="CategoryValue_Enrollment" value="Enrollment" />
+  </bpmn2:category>
+  <bpmn2:category id="Category_Allocation">
+    <bpmn2:categoryValue id="CategoryValue_Allocation" value="Allocation" />
+  </bpmn2:category>
+  <bpmn2:category id="Category_Followup">
+    <bpmn2:categoryValue id="CategoryValue_Followup" value="Follow-up" />
+  </bpmn2:category>
+  <bpmn2:category id="Category_Analysis">
+    <bpmn2:categoryValue id="CategoryValue_Analysis" value="Analysis" />
+  </bpmn2:category>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="CONSORT_2025_RCT">
+      <bpmndi:BPMNShape id="Enrollment_Start_di" bpmnElement="Enrollment_Start">
+        <dc:Bounds x="412" y="92" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="402" y="73" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Screening_di" bpmnElement="Activity_Screening">
+        <dc:Bounds x="380" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Eligibility_Gateway_di" bpmnElement="Eligibility_Gateway" isMarkerVisible="true">
+        <dc:Bounds x="405" y="280" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="370" y="337" width="120" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Excluded_Pre_di" bpmnElement="Excluded_Pre" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="612" y="287" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="602" y="330" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Randomize_Gateway_di" bpmnElement="Randomize_Gateway" isMarkerVisible="true">
+        <dc:Bounds x="405" y="425" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="389" y="482" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Allocation_A_di" bpmnElement="Activity_Allocation_A">
+        <dc:Bounds x="200" y="490" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Followup_A_di" bpmnElement="Activity_Followup_A">
+        <dc:Bounds x="200" y="630" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Analysis_A_di" bpmnElement="Activity_Analysis_A">
+        <dc:Bounds x="200" y="800" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Allocation_B_di" bpmnElement="Activity_Allocation_B">
+        <dc:Bounds x="500" y="490" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Followup_B_di" bpmnElement="Activity_Followup_B">
+        <dc:Bounds x="500" y="630" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Analysis_B_di" bpmnElement="Activity_Analysis_B">
+        <dc:Bounds x="500" y="800" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Trial_Complete_di" bpmnElement="Trial_Complete">
+        <dc:Bounds x="412" y="952" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="403" y="995" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Excluded_Post_di" bpmnElement="Excluded_Post" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="2" y="732" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-86" y="743" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Discontinued_A_di" bpmnElement="Discontinued_A">
+        <dc:Bounds x="292" y="692" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="308" y="735" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Discontinued_B_di" bpmnElement="Discontinued_B">
+        <dc:Bounds x="602" y="692" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="618" y="735" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ExcludedFromAnalysis_B_di" bpmnElement="ExcludedFromAnalysis_B">
+        <dc:Bounds x="512" y="862" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="504" y="905" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ExcludedFromAnalysis_A_di" bpmnElement="ExcludedFromAnalysis_A">
+        <dc:Bounds x="212" y="862" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="204" y="905" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LostFollowup_A_di" bpmnElement="LostFollowup_A">
+        <dc:Bounds x="212" y="692" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="168" y="735" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LostFollowup_B_di" bpmnElement="LostFollowup_B">
+        <dc:Bounds x="512" y="692" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="468" y="735" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Group_Enrollment_di" bpmnElement="Group_Enrollment">
+        <dc:Bounds x="80" y="50" width="700" height="320" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="97" y="60" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Group_Allocation_di" bpmnElement="Group_Allocation">
+        <dc:Bounds x="80" y="380" width="700" height="200" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="100" y="390" width="50" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Group_Followup_di" bpmnElement="Group_Followup">
+        <dc:Bounds x="80" y="590" width="700" height="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="85" y="653" width="50" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Group_Analysis_di" bpmnElement="Group_Analysis">
+        <dc:Bounds x="80" y="760" width="700" height="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="89" y="783" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DidNotReceive_B_di" bpmnElement="DidNotReceive_B">
+        <dc:Bounds x="602" y="552" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="556" y="595" width="106" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DidNotReceive_A_di" bpmnElement="DidNotReceive_A">
+        <dc:Bounds x="222" y="552" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="172" y="595" width="106" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_Screening_di" bpmnElement="Flow_Start_Screening">
+        <di:waypoint x="430" y="128" />
+        <di:waypoint x="430" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Screening_Eligibility_di" bpmnElement="Flow_Screening_Eligibility">
+        <di:waypoint x="430" y="240" />
+        <di:waypoint x="430" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Eligible_di" bpmnElement="Flow_Eligible">
+        <di:waypoint x="430" y="330" />
+        <di:waypoint x="430" y="425" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="436" y="370" width="38" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Excluded_Pre_di" bpmnElement="Flow_Excluded_Pre" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="455" y="305" />
+        <di:waypoint x="612" y="305" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="500" y="287" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Allocate_A_di" bpmnElement="Flow_Allocate_A">
+        <di:waypoint x="405" y="450" />
+        <di:waypoint x="280" y="450" />
+        <di:waypoint x="280" y="490" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="300" y="432" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Allocate_B_di" bpmnElement="Flow_Allocate_B">
+        <di:waypoint x="455" y="450" />
+        <di:waypoint x="580" y="450" />
+        <di:waypoint x="580" y="490" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="500" y="432" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_Followup_di" bpmnElement="Flow_A_Followup">
+        <di:waypoint x="280" y="570" />
+        <di:waypoint x="280" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_Analysis_di" bpmnElement="Flow_A_Analysis">
+        <di:waypoint x="280" y="710" />
+        <di:waypoint x="280" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_Done_di" bpmnElement="Flow_A_Done">
+        <di:waypoint x="280" y="880" />
+        <di:waypoint x="280" y="970" />
+        <di:waypoint x="412" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B_Followup_di" bpmnElement="Flow_B_Followup">
+        <di:waypoint x="580" y="570" />
+        <di:waypoint x="580" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B_Analysis_di" bpmnElement="Flow_B_Analysis">
+        <di:waypoint x="580" y="710" />
+        <di:waypoint x="580" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B_Done_di" bpmnElement="Flow_B_Done">
+        <di:waypoint x="580" y="880" />
+        <di:waypoint x="580" y="970" />
+        <di:waypoint x="448" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DidNotReceive_A_di" bpmnElement="Flow_DidNotReceive_A" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="240" y="588" />
+        <di:waypoint x="240" y="610" />
+        <di:waypoint x="20" y="610" />
+        <di:waypoint x="20" y="732" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="113" y="585" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_LostFollowup_A_di" bpmnElement="Flow_LostFollowup_A" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="230" y="728" />
+        <di:waypoint x="230" y="750" />
+        <di:waypoint x="38" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="108" y="732" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Discontinued_A_di" bpmnElement="Flow_Discontinued_A" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="310" y="728" />
+        <di:waypoint x="310" y="750" />
+        <di:waypoint x="38" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="143" y="713" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ExcludedAnalysis_A_di" bpmnElement="Flow_ExcludedAnalysis_A" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="230" y="898" />
+        <di:waypoint x="230" y="920" />
+        <di:waypoint x="20" y="920" />
+        <di:waypoint x="20" y="768" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="393" y="895" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DidNotReceive_B_di" bpmnElement="Flow_DidNotReceive_B" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="620" y="588" />
+        <di:waypoint x="620" y="610" />
+        <di:waypoint x="20" y="610" />
+        <di:waypoint x="20" y="732" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="303" y="585" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_LostFollowup_B_di" bpmnElement="Flow_LostFollowup_B" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="530" y="728" />
+        <di:waypoint x="530" y="750" />
+        <di:waypoint x="38" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="531" y="732" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Discontinued_B_di" bpmnElement="Flow_Discontinued_B" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="620" y="728" />
+        <di:waypoint x="620" y="750" />
+        <di:waypoint x="38" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="621" y="732" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ExcludedAnalysis_B_di" bpmnElement="Flow_ExcludedAnalysis_B" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="530" y="898" />
+        <di:waypoint x="530" y="920" />
+        <di:waypoint x="20" y="920" />
+        <di:waypoint x="20" y="768" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="113" y="895" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
