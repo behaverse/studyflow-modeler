@@ -32,6 +32,7 @@ export function Runner() {
   const studyflowUrl = params.get('studyflowUrl') ?? '';
   const seed = params.get('seed') ? Number(params.get('seed')) : undefined;
 
+  const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
   const [log, setLog] = useState<Log[]>([]);
   const [stageReady, setStageReady] = useState(false);
@@ -41,16 +42,25 @@ export function Runner() {
 
   const say = (entry: Log) => setLog((prev) => [...prev, entry]);
 
+  // Fetch XML when a `studyflowUrl` is provided.
   useEffect(() => {
-    if (!studyflowUrl || ranOnce.current) return;
+    if (!studyflowUrl) return;
+    fetch(studyflowUrl).then((r) => r.text()).then(setXml).catch((err) => {
+      say({ kind: 'error', message: `Failed to fetch ${studyflowUrl}: ${err}` });
+      setPhase('error');
+      setStageReady(true);
+    });
+  }, [studyflowUrl]);
+
+  useEffect(() => {
+    if (!xml || ranOnce.current) return;
     ranOnce.current = true;
 
     (async () => {
       try {
         setPhase('loading');
-        const [schemas, xml, manifest] = await Promise.all([
+        const [schemas, manifest] = await Promise.all([
           downloadSchemas(),
-          fetch(studyflowUrl).then((r) => r.text()),
           fetchManifest(UNITY_BUILD_URL),
         ]);
 
@@ -94,9 +104,9 @@ export function Runner() {
         setStageReady(true);
       }
     })();
-  }, [studyflowUrl, seed]);
+  }, [xml, seed]);
 
-  if (!studyflowUrl) return <Help />;
+  if (!xml) return <Help onFileLoaded={setXml} />;
 
   return (
     <div className={layout.page}>
@@ -170,14 +180,28 @@ async function runStep(
   });
 }
 
-function Help() {
+function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    file.text().then(onFileLoaded);
+  };
+
   return (
     <div className={layout.helpPage}>
       <h1 className={layout.helpTitle}>Studyflow Runner</h1>
       <p className={layout.helpText}>
-        Pass a <code>studyflowUrl</code> query parameter pointing to a
-        <code>.studyflow</code> file.
+        Upload a <code>.studyflow</code> file, or pass a <code>studyflowUrl</code> query parameter.
       </p>
+      <label className={layout.uploadButton}>
+        <input
+          type="file"
+          accept=".studyflow,.bpmn,.xml"
+          onChange={onChange}
+          className={layout.uploadInput}
+        />
+        <span>Choose file...</span>
+      </label>
       <pre className={layout.helpExample}>
         run.html?studyflowUrl=/assets/behaverse.studyflow&seed=42
       </pre>

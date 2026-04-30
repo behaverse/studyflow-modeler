@@ -30,7 +30,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
   },
   {
     label: 'Activities',
-    icon: 'iconify fluent--rectangle-landscape-16-regular',
+    icon: 'iconify fluent--square-16-regular',
     items: [
       { label: 'Task', bpmnType: BPMN.Task, icon: 'iconify bpmn--task-none' },
       { label: 'User', bpmnType: BPMN.UserTask, icon: 'iconify bpmn--user-task' },
@@ -52,7 +52,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
   },
   {
     label: 'Data',
-    icon: 'iconify mynaui--database',
+    icon: 'iconify fluent--database-16-regular',
     items: [
       { label: 'Data Object', bpmnType: BPMN.DataObjectReference, icon: 'iconify bpmn--data-object' },
     ],

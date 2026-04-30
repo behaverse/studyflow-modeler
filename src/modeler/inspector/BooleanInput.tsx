@@ -4,6 +4,7 @@ import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
+import { field as s } from './styles';
 
 type Props = {
   bpmnProperty: any;
@@ -27,26 +28,19 @@ export function BooleanInput({ bpmnProperty }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-between">
-      <span className="flex items-center gap-2">
-        <Checkbox
-          checked={value}
-          onChange={handleChange}
-          className="group block size-4 rounded border border-[#b0a993]/60 bg-[#f1ede0] data-[checked]:bg-violet-800 data-[checked]:border-violet-800"
-        >
-          {/* Checkmark icon */}
-          <svg className="stroke-white opacity-0 group-data-[checked]:opacity-100" viewBox="0 0 14 14" fill="none">
+    <div className={s.booleanRow}>
+      <span className={s.booleanGroup}>
+        <Checkbox checked={value} onChange={handleChange} className={s.checkbox}>
+          <svg className={s.checkboxIcon} viewBox="0 0 14 14" fill="none">
             <path d="M3 8L6 11L11 3.5" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Checkbox>
-        <Label className="flex items-center justify-between">
-          {t(bpmnProperty.ns.name)}
-        </Label>
+        <Label className={s.label}>{t(bpmnProperty.ns.name)}</Label>
       </span>
-      <div className="relative group/help">
-        <i className="iconify bi--patch-question text-stone-500 cursor-help"></i>
-        <div className="absolute bottom-full right-0 mb-1 invisible group-hover/help:visible w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-xl z-50">
-          <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
+      <div className={s.helpAnchor}>
+        <i className={s.helpIcon}></i>
+        <div className={s.helpTooltip}>
+          <pre className={s.helpTooltipName}>{bpmnProperty.ns.name}</pre>
           {bpmnProperty?.description}
         </div>
       </div>

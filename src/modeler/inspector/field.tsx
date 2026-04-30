@@ -1,5 +1,5 @@
 import { Field } from '@headlessui/react';
-import { useEffect, useState, useContext, useCallback, type ComponentType } from 'react';
+import { useEffect, useState, useContext, useCallback } from 'react';
 import { StringInput } from './StringInput';
 import { CodeEditor } from './CodeEditor';
 import { BooleanInput } from './BooleanInput';
@@ -7,6 +7,7 @@ import { EnumInput } from './EnumInput';
 import { InspectorContext, ModelerContext } from '../contexts';
 import { getProperty } from '../extensions';
 import { splitQName } from '../utils/naming';
+import { field as s } from './styles';
 
 type FieldProps = { bpmnProperty: any };
 
@@ -93,7 +94,7 @@ export function PropertyField({ bpmnProperty }: FieldProps) {
   const Input = INPUT_BY_TYPE[resolvedType] ?? StringInput;
 
   return (
-    <Field className="mx-2 pb-2">
+    <Field className={s.field}>
       <Input bpmnProperty={bpmnProperty} />
     </Field>
   );

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { createExtensionElement, getDefaults, isExtendsType, setAppliedType } from '../extensions';
+import { createExtensionElement, getDefaults } from '../extensions';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
 const HIDDEN_APPEND_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
@@ -118,14 +118,7 @@ export default class AppendMenuProvider {
       if (studyflowType) {
         const bo = newElement.businessObject;
         const defaults = getDefaults(studyflowType, moddle);
-        if (isExtendsType(studyflowType, moddle)) {
-          setAppliedType(bo, studyflowType);
-          for (const [key, val] of Object.entries(defaults)) {
-            bo.set(key, val);
-          }
-        } else {
-          createExtensionElement(bo, studyflowType, moddle, defaults);
-        }
+        createExtensionElement(bo, studyflowType, moddle, defaults);
       }
 
       return newElement;

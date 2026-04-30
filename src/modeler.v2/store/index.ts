@@ -7,8 +7,6 @@ import { syncNodePosition, syncNodeDimensions } from '../model/fromReactFlow';
 import {
   createExtensionElement,
   getStudyflowDefaults,
-  isExtendsType,
-  setAppliedStudyflowType,
   setProperty,
   resolveProperty,
 } from '../../shared/extensionElements';
@@ -166,21 +164,9 @@ export const useModelerStore = create<ModelerStore>((set, get) => ({
         : bpmnType;
     const id = doc.nextId(prefix);
 
-    let extendedDefaults: Record<string, any> = {};
-    if (studyflowType && isExtendsType(studyflowType, moddle)) {
-      extendedDefaults = getStudyflowDefaults(studyflowType, moddle);
-    }
+    const businessObject = doc.createElement(bpmnType, { id });
 
-    const businessObject = doc.createElement(bpmnType, {
-      ...extendedDefaults,
-      id,
-    });
-
-    if (studyflowType && isExtendsType(studyflowType, moddle)) {
-      setAppliedStudyflowType(businessObject, studyflowType);
-    }
-
-    if (studyflowType && !isExtendsType(studyflowType, moddle)) {
+    if (studyflowType) {
       const defaults = getStudyflowDefaults(studyflowType, moddle);
       createExtensionElement(businessObject, studyflowType, moddle, defaults);
     }

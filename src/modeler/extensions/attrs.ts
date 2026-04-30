@@ -1,8 +1,6 @@
 import { CORE_PREFIXES } from '../constants/bpmn';
 import { splitQName } from '../utils/naming';
 
-const APPLIED_TYPE_ATTR_LOCAL_NAME = 'appliedType';
-
 export { CORE_PREFIXES };
 
 export function isExtensionPrefix(prefix: string | undefined): boolean {
@@ -62,12 +60,3 @@ export function setAttr(target: any, attrName: string, value: any): void {
   }
 }
 
-export function setAppliedType(target: any, studyflowType: string | undefined): void {
-  if (!studyflowType) return;
-
-  const { prefix } = splitQName(studyflowType);
-  if (!prefix) return;
-  setAttr(target, `${prefix}:${APPLIED_TYPE_ATTR_LOCAL_NAME}`, studyflowType);
-}
-
-export const APPLIED_TYPE_ATTR = APPLIED_TYPE_ATTR_LOCAL_NAME;

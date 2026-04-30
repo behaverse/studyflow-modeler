@@ -1,10 +1,4 @@
-import {
-  createExtensionElement,
-  getDefaults,
-  isExtendsType,
-  setAppliedType,
-  setAttr,
-} from '../../extensions';
+import { createExtensionElement, getDefaults, setAttr } from '../../extensions';
 import { toPrefix } from '../../utils/naming';
 
 export type CreateExampleShapeCommand = {
@@ -62,23 +56,6 @@ export function runCreateExampleShape(
   if (bpmnName !== undefined) {
     delete properties['bpmn:name'];
     businessObject.set('name', bpmnName);
-  }
-
-  if (isExtendsType(studyflowType, moddle)) {
-    setAppliedType(businessObject, studyflowType);
-
-    for (const [key, value] of Object.entries(properties)) {
-      businessObject.set(key, value);
-    }
-
-    if (overrideIconClass) {
-      const schemaPrefix = toPrefix(studyflowType);
-      if (schemaPrefix) {
-        setAttr(businessObject, `${schemaPrefix}:icon`, overrideIconClass);
-      }
-    }
-
-    return shape;
   }
 
   const extension = createExtensionElement(

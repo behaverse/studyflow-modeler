@@ -16,7 +16,7 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
                   transition-all duration-150
                   absolute left-[calc(100%+10px)] top-[-6px] z-[300]
                   w-[220px] p-2.5 pb-3
-                  rounded-[14px] bg-[#ece5d0]/95 backdrop-blur-2xl
+                  rounded-[14px] bg-[#c8bea0]/95 backdrop-blur-2xl
                   border border-[#b0a993]/40
                   shadow-[0_4px_12px_rgba(0,0,0,0.10),0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.6)]`}>
       {/* Gap bridge so hover stays active between button and flyout */}
@@ -36,7 +36,7 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
               type="button"
               title={`Create ${item.label}`}
               className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg
-                         text-stone-700 hover:text-violet-700 hover:bg-[#b0a993]/25
+                         text-stone-700 hover:text-violet-700 hover:bg-[#b0a993]/50
                          transition-colors cursor-grab active:cursor-grabbing"
               onMouseDown={(e) => handlers.onMouseDown(item, e)}
               onMouseMove={(e) => handlers.onMouseMove(item, e)}

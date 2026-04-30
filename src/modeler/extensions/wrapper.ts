@@ -28,6 +28,10 @@ export function getExtensionElementProperties(elementOrBusinessObject: any): any
  * Create an extension element on a business object during element creation
  * (before the element is added to the canvas). Skips modeling commands —
  * undo/redo isn't needed before first render.
+ *
+ * For `extends:`-style types (properties already live on the BPMN BO via
+ * moddle extends, and bpmn-moddle cannot create them standalone), defaults
+ * are applied directly to the BO and no wrapper is added.
  */
 export function createExtensionElement(
   businessObject: any,
@@ -35,6 +39,20 @@ export function createExtensionElement(
   moddle: any,
   defaults: Record<string, any> = {},
 ): any {
+  const descriptor = (() => {
+    try { return moddle.getTypeDescriptor(studyflowType); }
+    catch { return undefined; }
+  })();
+  const isExtendsOnly = (descriptor?.extends?.length ?? 0) > 0
+    && (!descriptor?.superClass || descriptor.superClass.length === 0);
+
+  if (isExtendsOnly) {
+    for (const [propertyName, defaultValue] of Object.entries(defaults)) {
+      setProperty(businessObject, propertyName, defaultValue);
+    }
+    return null;
+  }
+
   let extensionElements = businessObject.extensionElements;
 
   if (!extensionElements) {
@@ -66,15 +84,3 @@ export function hasExtends(element: any): boolean {
   ) ?? false;
 }
 
-/**
- * True if a studyflow type uses `extends` (properties on the BPMN element)
- * rather than standalone extension elements.
- */
-export function isExtendsType(studyflowType: string, moddle: any): boolean {
-  try {
-    const descriptor = moddle.getTypeDescriptor(studyflowType);
-    return (descriptor?.extends?.length ?? 0) > 0 || Boolean(descriptor?.meta?.exampleScopedExtends);
-  } catch {
-    return false;
-  }
-}

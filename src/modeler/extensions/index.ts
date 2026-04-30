@@ -1,10 +1,9 @@
-export { CORE_PREFIXES, isExtensionPrefix, getAttr, setAttr, setAppliedType, APPLIED_TYPE_ATTR } from './attrs';
+export { CORE_PREFIXES, isExtensionPrefix, getAttr, setAttr } from './attrs';
 export {
   getExtensionElement,
   getExtensionElementProperties,
   createExtensionElement,
   hasExtends,
-  isExtendsType,
 } from './wrapper';
 export {
   findPropertyDescriptor,
@@ -23,5 +22,5 @@ export {
   type ResolvedContext,
   type ResolvedProperty,
 } from './resolve';
-export { getAppliedType, inferAppliedType } from './appliedType';
+export { getAppliedType } from './appliedType';
 export { getDefaults } from './defaults';

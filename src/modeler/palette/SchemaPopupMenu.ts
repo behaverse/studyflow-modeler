@@ -1,4 +1,4 @@
-import { createExtensionElement, getDefaults, isExtendsType, setAppliedType, setProperty } from '../extensions';
+import { createExtensionElement, getDefaults } from '../extensions';
 import type { Example as ElementExample } from '../moddle/examples';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
@@ -193,15 +193,7 @@ export default class SchemaPopupMenu {
 
       businessObject.id = businessObject.id || generatedId;
 
-      if (extensionType && isExtendsType(extensionType, moddle)) {
-        setAppliedType(businessObject, extensionType);
-        const extendedDefaults = getDefaults(extensionType, moddle);
-        for (const [propertyName, defaultValue] of Object.entries(extendedDefaults)) {
-          setProperty(businessObject, propertyName, defaultValue);
-        }
-      }
-
-      if (extensionType && !isExtendsType(extensionType, moddle)) {
+      if (extensionType) {
         const defaults = getDefaults(extensionType, moddle);
         createExtensionElement(businessObject, extensionType, moddle, defaults);
       }

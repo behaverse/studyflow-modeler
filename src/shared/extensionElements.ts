@@ -6,7 +6,6 @@
  */
 
 import { getBusinessObject } from './businessObject';
-import { resolveBpmnCreateType } from './moddle/resolveBpmnType';
 
 export const CORE_PREFIXES = new Set([
   'bpmn',
@@ -16,9 +15,6 @@ export const CORE_PREFIXES = new Set([
   'xsi',
   'xml'
 ]);
-
-const APPLIED_TYPE_ATTR_LOCAL_NAME = 'appliedType';
-const IGNORED_INFERENCE_DEFAULTS = new Set(['id', 'name', 'documentation']);
 
 export function isExtensionPrefix(prefix: string | undefined): boolean {
   return Boolean(prefix && !CORE_PREFIXES.has(prefix));
@@ -68,44 +64,6 @@ export function getNamespacedAttrValue(
   return undefined;
 }
 
-export function setNamespacedAttr(target: any, attrName: string, value: any): void {
-  if (!target || value === undefined) {
-    return;
-  }
-
-  if (typeof target.set === 'function') {
-    try {
-      target.set(attrName, value);
-      return;
-    } catch {
-      // Fall through to direct $attrs mutation when supported.
-    }
-  }
-
-  const attrs = target.$attrs;
-  if (attrs && typeof attrs === 'object') {
-    attrs[attrName] = value;
-  }
-}
-
-export function setAppliedStudyflowType(target: any, studyflowType: string | undefined): void {
-  const attrs = target?.$attrs;
-
-  if (!studyflowType) {
-    if (attrs && typeof attrs === 'object') {
-      for (const attrName of Object.keys(attrs)) {
-        if (attrName.endsWith(`:${APPLIED_TYPE_ATTR_LOCAL_NAME}`) || attrName === APPLIED_TYPE_ATTR_LOCAL_NAME) {
-          delete attrs[attrName];
-        }
-      }
-    }
-    return;
-  }
-
-  const prefix = studyflowType.split(':')[0];
-  setNamespacedAttr(target, `${prefix}:${APPLIED_TYPE_ATTR_LOCAL_NAME}`, studyflowType);
-}
-
 /**
  * Get the studyflow extension element wrapper from a BPMN element
  * or an already-resolved business object.
@@ -121,112 +79,13 @@ export function getExtensionElement(elementOrBusinessObject: any): any {
   ) ?? null;
 }
 
-function getCandidateInferenceDefaults(descriptor: any): Record<string, any> {
-  const defaults: Record<string, any> = {};
-
-  for (const property of descriptor?.properties ?? []) {
-    if (
-      property?.default !== undefined
-      && !IGNORED_INFERENCE_DEFAULTS.has(property.name)
-    ) {
-      defaults[property.name] = property.default;
-    }
-  }
-
-  return defaults;
-}
-
-function valuesMatch(left: any, right: any): boolean {
-  if (left === right) {
-    return true;
-  }
-
-  if (Array.isArray(left) || Array.isArray(right)) {
-    try {
-      return JSON.stringify(left) === JSON.stringify(right);
-    } catch {
-      return false;
-    }
-  }
-
-  if (left && right && typeof left === 'object' && typeof right === 'object') {
-    try {
-      return JSON.stringify(left) === JSON.stringify(right);
-    } catch {
-      return false;
-    }
-  }
-
-  return false;
-}
-
-function inferAppliedStudyflowType(elementOrBusinessObject: any): string | undefined {
-  const businessObject = getBusinessObject(elementOrBusinessObject);
-  const model = businessObject?.$model;
-  const typeMap: Record<string, any> = model?.registry?.typeMap ?? {};
-  const bpmnType = businessObject?.$type;
-
-  if (!businessObject || !model || !bpmnType) {
-    return undefined;
-  }
-
-  let bestMatch: { typeName: string; score: number } | undefined;
-
-  for (const [typeName, descriptor] of Object.entries(typeMap)) {
-    if (!typeName.includes(':')) {
-      continue;
-    }
-
-    const prefix = descriptor?.ns?.prefix ?? typeName.split(':')[0];
-    if (!isExtensionPrefix(prefix) || descriptor?.isAbstract) {
-      continue;
-    }
-
-    if (!isExtendsType(typeName, model)) {
-      continue;
-    }
-
-    if (resolveBpmnCreateType(model, descriptor) !== bpmnType) {
-      continue;
-    }
-
-    const defaults = getCandidateInferenceDefaults(descriptor);
-    const entries = Object.entries(defaults);
-    if (entries.length === 0) {
-      continue;
-    }
-
-    const matchesAllDefaults = entries.every(([propertyName, defaultValue]) => {
-      const currentValue = getProperty(businessObject, propertyName);
-      return valuesMatch(currentValue, defaultValue);
-    });
-
-    if (!matchesAllDefaults) {
-      continue;
-    }
-
-    const score = entries.length;
-    if (!bestMatch || score > bestMatch.score) {
-      bestMatch = { typeName, score };
-    }
-  }
-
-  return bestMatch?.typeName;
-}
-
+/**
+ * The applied studyflow type is the `$type` of the extension element wrapper
+ * inside `<bpmn:extensionElements>`. Wrapper presence is the single source of
+ * truth — no `appliedType` attribute, no inference fallback.
+ */
 export function getAppliedStudyflowType(elementOrBusinessObject: any): string | undefined {
-  const extensionElement = getExtensionElement(elementOrBusinessObject);
-  if (extensionElement?.$type) {
-    return extensionElement.$type;
-  }
-
-  const businessObject = getBusinessObject(elementOrBusinessObject);
-  const appliedType = getNamespacedAttrValue(businessObject, APPLIED_TYPE_ATTR_LOCAL_NAME);
-  if (appliedType) {
-    return appliedType;
-  }
-
-  return inferAppliedStudyflowType(businessObject);
+  return getExtensionElement(elementOrBusinessObject)?.$type;
 }
 
 export function resolveContext(elementOrBusinessObject: any) {
@@ -497,6 +356,20 @@ export function createExtensionElement(
   moddle: any,
   defaults: Record<string, any> = {}
 ): any {
+  const descriptor = (() => {
+    try { return moddle.getTypeDescriptor(studyflowType); }
+    catch { return undefined; }
+  })();
+  const isExtendsOnly = (descriptor?.extends?.length ?? 0) > 0
+    && (!descriptor?.superClass || descriptor.superClass.length === 0);
+
+  if (isExtendsOnly) {
+    for (const [propertyName, defaultValue] of Object.entries(defaults)) {
+      setProperty(businessObject, propertyName, defaultValue);
+    }
+    return null;
+  }
+
   let extensionElements = businessObject.extensionElements;
 
   if (!extensionElements) {
@@ -552,11 +425,3 @@ export function hasStudyflowExtends(element: any): boolean {
   ) ?? false;
 }
 
-export function isExtendsType(studyflowType: string, moddle: any): boolean {
-  try {
-    const descriptor = moddle.getTypeDescriptor(studyflowType);
-    return (descriptor?.extends?.length ?? 0) > 0 || Boolean(descriptor?.meta?.exampleScopedExtends);
-  } catch {
-    return false;
-  }
-}

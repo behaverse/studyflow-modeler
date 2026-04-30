@@ -40,9 +40,9 @@ svg text.bi {
   @apply flex items-center justify-center;
   @apply w-[34px] h-8 rounded-[10px];
   @apply text-stone-700 cursor-grab;
-  @apply hover:bg-[#b0a993]/25 hover:text-violet-700;
+  @apply hover:bg-[#b0a993]/50 hover:text-violet-700;
   @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.4)];
-  @apply active:bg-[#b0a993]/40;
+  @apply active:bg-[#b0a993]/65;
   @apply transition-all;
 }
 
@@ -68,8 +68,8 @@ svg text.bi {
 }
 
 .djs-context-pad .entry {
-  background-color: #ece5d0 !important;
-  box-shadow: 0 0 2px 1px #ece5d0 !important;
+  background-color: #c8bea0 !important;
+  box-shadow: 0 0 2px 1px #c8bea0 !important;
   @apply text-stone-700 rounded-md;
 }
 

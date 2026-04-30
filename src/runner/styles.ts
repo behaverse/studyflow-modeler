@@ -2,7 +2,7 @@ export type LogKind = 'info' | 'task' | 'ok' | 'error';
 
 export const layout = {
   page: 'flex flex-col h-screen',
-  header: 'bg-fuchsia-700 text-white px-4 py-2 flex items-center gap-3',
+  header: 'bg-fuchsia-900 text-white px-4 py-2 flex items-center gap-3',
   title: 'font-semibold',
   badge: 'text-xs uppercase bg-white/20 rounded px-2 py-0.5',
   meta: 'text-xs opacity-75',
@@ -23,12 +23,14 @@ export const layout = {
   helpPage: 'p-6 max-w-xl mx-auto',
   helpTitle: 'text-2xl font-semibold mb-3',
   helpText: 'mb-4 text-stone-700',
-  helpExample: 'bg-stone-100 p-3 text-xs',
+  helpExample: 'bg-stone-100 p-3 text-xs mt-4',
+  uploadButton: 'inline-flex items-center gap-2 cursor-pointer bg-fuchsia-800 hover:bg-fuchsia-900 text-white text-sm font-medium px-4 py-2 rounded transition-colors',
+  uploadInput: 'sr-only',
 } as const;
 
 export const logColor: Record<LogKind, string> = {
   info: 'text-stone-700',
-  task: 'text-fuchsia-700',
+  task: 'text-blue-700',
   ok: 'text-emerald-700',
   error: 'text-red-700',
 };

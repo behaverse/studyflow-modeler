@@ -4,6 +4,7 @@ import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
+import { field as s } from './styles';
 
 type Props = {
   bpmnProperty: any;
@@ -30,12 +31,12 @@ export function StringInput({ bpmnProperty, isMarkdown }: Props) {
 
   return (
     <>
-      <Label className="flex items-center justify-between">
+      <Label className={s.label}>
         {t(bpmnProperty.ns.name)}
-        <div className="relative group/help">
-          <i className="iconify bi--patch-question text-stone-500 cursor-help"></i>
-          <div className="absolute bottom-full right-0 mb-1 invisible group-hover/help:visible max-w-md w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-xl z-50">
-            <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
+        <div className={s.helpAnchor}>
+          <i className={s.helpIcon}></i>
+          <div className={s.helpTooltipWide}>
+            <pre className={s.helpTooltipName}>{bpmnProperty.ns.name}</pre>
             {bpmnProperty?.description}
           </div>
         </div>
@@ -46,7 +47,7 @@ export function StringInput({ bpmnProperty, isMarkdown }: Props) {
           onChange={handleChange}
           value={value}
           rows={4}
-          className="px-2 py-1 w-full rounded-md border border-[#b0a993]/40 bg-[#f1ede0] font-mono text-sm/4 text-stone-800 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#b0a993]"
+          className={s.textArea}
         />
       ) : (
         <Input
@@ -54,7 +55,7 @@ export function StringInput({ bpmnProperty, isMarkdown }: Props) {
           type="text"
           onChange={handleChange}
           value={value}
-          className="px-2 py-1 w-full rounded-md border border-[#b0a993]/40 bg-[#f1ede0] font-mono text-sm/6 text-stone-800 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#b0a993]"
+          className={s.textInput}
         />
       )}
     </>

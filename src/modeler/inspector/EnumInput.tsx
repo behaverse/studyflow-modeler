@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
 import { toLocalName } from '../utils/naming';
+import { field as s } from './styles';
 
 type Props = {
   bpmnProperty: any;
@@ -59,29 +60,29 @@ export function EnumInput({ bpmnProperty }: Props) {
 
   return (
     <>
-      <Label className="flex items-center justify-between">
+      <Label className={s.label}>
         {t(bpmnProperty.ns.name)}
-        <div className="relative group/help">
-          <i className="iconify bi--patch-question text-stone-500 cursor-help"></i>
-          <div className="absolute bottom-full right-0 mb-1 invisible group-hover/help:visible w-64 bg-stone-700 text-xs text-stone-300 p-2 rounded-lg shadow-xl z-50">
-            <pre className="font-mono text-xs font-bold text-white">{bpmnProperty.ns.name}</pre>
+        <div className={s.helpAnchor}>
+          <i className={s.helpIcon}></i>
+          <div className={s.helpTooltip}>
+            <pre className={s.helpTooltipName}>{bpmnProperty.ns.name}</pre>
             {bpmnProperty?.description}
           </div>
         </div>
       </Label>
-      <div className="relative">
+      <div className={s.selectWrapper}>
         <Select
           name={bpmnProperty.ns.name}
           aria-label={t(bpmnProperty.ns.name)}
           onChange={handleChange}
           value={value}
-          className="appearance-none px-2 py-1 pr-8 w-full rounded-md border border-[#b0a993]/40 bg-[#f1ede0] text-sm/6 text-stone-800 focus:outline-2 focus:-outline-offset-2 focus:outline-[#b0a993]"
+          className={s.select}
         >
           {literalValues.map((l: any) => (
             <option key={l.value} value={l.value}>{l.name}</option>
           ))}
         </Select>
-        <i className="group iconify bi--caret-down pointer-events-none absolute top-1.5 right-2.5" aria-hidden="true"></i>
+        <i className={s.selectChevron} aria-hidden="true"></i>
       </div>
     </>
   );

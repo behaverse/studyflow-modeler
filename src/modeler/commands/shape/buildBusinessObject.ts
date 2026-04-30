@@ -1,9 +1,4 @@
-import {
-  createExtensionElement,
-  getDefaults,
-  isExtendsType,
-  setAppliedType,
-} from '../../extensions';
+import { createExtensionElement, getDefaults } from '../../extensions';
 import { toLocalName } from '../../utils/naming';
 
 export type BuildBusinessObjectOptions = {
@@ -17,12 +12,9 @@ export type BuildBusinessObjectOptions = {
 
 /**
  * Build a new business object for a BPMN element, attaching a studyflow
- * extension if one is given.
- *
- * - For **extends-based** studyflow types: defaults are merged into the BO's
- *   own properties, and the applied-type attribute is set.
- * - For **classic extension** types: an extensionElement wrapper is attached
- *   with defaults applied.
+ * extension wrapper inside `<bpmn:extensionElements>` if a studyflow type
+ * is given. The wrapper's `$type` carries the applied-type identity;
+ * defaults route to the BO or the wrapper via `setProperty` resolution.
  *
  * Reads `bpmnFactory` + `moddle` from the modeler, but does not touch the
  * canvas or modeling service — the caller decides how to place the BO
@@ -37,14 +29,6 @@ export function buildBusinessObject(
   const moddle = bpmnFactory._model;
   const ids = moddle?.ids;
 
-  const isExtends = studyflowType ? isExtendsType(studyflowType, moddle) : false;
-
-  // For extends-based types, merge defaults into the creation payload so
-  // they land directly on the BO without a second .set() pass.
-  const extendsDefaults = isExtends
-    ? getDefaults(studyflowType as string, moddle)
-    : {};
-
   const idBase = studyflowType ?? bpmnType;
   const idPrefix = `${toLocalName(idBase) ?? idBase}_`;
 
@@ -54,7 +38,6 @@ export function buildBusinessObject(
     ?? (ids?.nextPrefixed ? ids.nextPrefixed(idPrefix, { $type: bpmnType } as any) : undefined);
 
   const businessObject = bpmnFactory.create(bpmnType, {
-    ...extendsDefaults,
     ...attrs,
     ...(generatedId ? { id: generatedId } : {}),
   });
@@ -63,12 +46,8 @@ export function buildBusinessObject(
     || (ids?.nextPrefixed ? ids.nextPrefixed(idPrefix, businessObject) : undefined);
 
   if (studyflowType) {
-    if (isExtends) {
-      setAppliedType(businessObject, studyflowType);
-    } else {
-      const defaults = getDefaults(studyflowType, moddle);
-      createExtensionElement(businessObject, studyflowType, moddle, defaults);
-    }
+    const defaults = getDefaults(studyflowType, moddle);
+    createExtensionElement(businessObject, studyflowType, moddle, defaults);
   }
 
   return businessObject;

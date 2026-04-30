@@ -6,11 +6,14 @@ import { Header } from './Header';
 import { CategoryTabs } from './CategoryTabs';
 import { getProperties } from './categories';
 import { useInspectorElement } from './hooks/useInspectorElement';
+import { inspector as s } from './styles';
 
-export function Panel({ className: _className = '' }: { className?: string }) {
+export function Panel() {
   const { modeler } = useContext(ModelerContext);
   const { element } = useInspectorElement(modeler);
   const [isVisible, setIsVisible] = useState(true);
+
+  const toggle = () => setIsVisible((v) => !v);
 
   return (
     <InspectorContext.Provider
@@ -19,25 +22,16 @@ export function Panel({ className: _className = '' }: { className?: string }) {
         businessObject: element ? getBusinessObject(element) : undefined,
       }}
     >
-      <div className="fixed top-0 right-0 z-[60] flex items-start">
-        {element && (
-          <ToggleButton
-            isInspectorVisible={isVisible}
-            onClick={() => setIsVisible(!isVisible)}
-          />
-        )}
+      <div className={s.wrapper}>
         <div
           data-testid="inspector-root"
-          className={`w-72 rounded-bl-[14px] bg-[#ece5d0]/95 backdrop-blur-2xl
-                      border border-[#b0a993]/40 border-t-0 border-r-0 border-l-0
-                      shadow-[0_2px_8px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.10)]
-                      text-stone-800 max-h-[calc(100vh-80px)] overflow-y-auto
-                      ${isVisible ? '' : 'hidden'}`}
+          className={`${s.panel} ${isVisible ? '' : s.panelHidden}`}
         >
           {element && (
             <>
+              <ToggleButton isInspectorVisible={isVisible} onClick={toggle} />
               <Header element={element} />
-              <div className="w-full">
+              <div className={s.panelBody}>
                 <CategoryTabs
                   element={element}
                   categories={Object.entries(getProperties(element))}
@@ -46,6 +40,9 @@ export function Panel({ className: _className = '' }: { className?: string }) {
             </>
           )}
         </div>
+        {element && !isVisible && (
+          <ToggleButton isInspectorVisible={isVisible} onClick={toggle} />
+        )}
       </div>
     </InspectorContext.Provider>
   );
