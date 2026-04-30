@@ -446,7 +446,7 @@ types:
       - bpmn:ExclusiveGateway
       - bpmn:BaseElement
     meta:
-      icon: iconify streamline-flex--dice-5-remix
+      icon: iconify streamline-flex--dice-5
       bpmnType: bpmn:ExclusiveGateway
     properties:
       - name: algorithm

@@ -47,7 +47,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
       { label: 'Parallel', bpmnType: BPMN.ParallelGateway, icon: 'iconify bpmn--gateway-parallel' },
       { label: 'Inclusive', bpmnType: BPMN.InclusiveGateway, icon: 'iconify bpmn--gateway-or' },
       { label: 'Complex', bpmnType: BPMN.ComplexGateway, icon: 'iconify bpmn--gateway-complex' },
-      { label: 'EventBased', bpmnType: BPMN.EventBasedGateway, icon: 'iconify bpmn--gateway-eventbased' },
+      { label: 'Event Based', bpmnType: BPMN.EventBasedGateway, icon: 'iconify bpmn--gateway-eventbased' },
     ],
   },
   {

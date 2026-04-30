@@ -4,7 +4,7 @@ import { getStrokeColor } from "bpmn-js/lib/draw/BpmnRenderUtil";
 import { append as svgAppend, create as svgCreate } from "tiny-svg";
 
 // Apply transparency only to custom icon/marker overlays, not BPMN borders/labels.
-const ICON_OPACITY = 0.75;
+const ICON_OPACITY = 1;
 
 /**
  * Convert a CSS color string to a hex color code.
