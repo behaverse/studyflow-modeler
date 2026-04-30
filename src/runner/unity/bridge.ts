@@ -15,6 +15,7 @@ export type TaskCompletion = {
 const COMPLETION_EVENT = 'studyflow:taskCompleted';
 const READY_MESSAGE = 'studyflow:unityReady';
 const COMPLETION_MESSAGE = 'studyflow:taskCompleted';
+const RUNNER_READY_EVENT = 'studyflow:runnerReady';
 
 /**
  * Send a single BehaverseTask to Unity and resolve when Unity dispatches the
@@ -138,5 +139,43 @@ export function waitForUnity(
 
     window.addEventListener('message', onMessage);
     window.addEventListener('studyflow:unityReady', onReady as EventListener);
+  });
+}
+
+/**
+ * Wait for Unity's GameManager to signal it is past the Loading-scene
+ * transition and ready to accept RunTaskActivity messages. Older Unity builds
+ * that don't emit this signal will hit the timeout — callers should treat the
+ * timeout as "best effort" and proceed anyway.
+ */
+export function waitForRunnerReady(
+  getIframe: () => HTMLIFrameElement | null,
+  timeoutMs = 5_000,
+): Promise<'ready' | 'timeout'> {
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('message', onMessage);
+      window.removeEventListener(RUNNER_READY_EVENT, onReady);
+      getIframe()?.contentWindow?.removeEventListener(RUNNER_READY_EVENT, onReady);
+    };
+
+    const onReady = () => {
+      cleanup();
+      resolve('ready');
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      if ((event.data as { type?: string } | undefined)?.type === RUNNER_READY_EVENT) onReady();
+    };
+
+    const timer = window.setTimeout(() => {
+      cleanup();
+      resolve('timeout');
+    }, timeoutMs);
+
+    window.addEventListener(RUNNER_READY_EVENT, onReady);
+    window.addEventListener('message', onMessage);
+    getIframe()?.contentWindow?.addEventListener(RUNNER_READY_EVENT, onReady);
   });
 }
