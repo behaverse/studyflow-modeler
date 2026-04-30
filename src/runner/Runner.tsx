@@ -14,8 +14,16 @@ import { layout, logColor, type LogKind } from './styles';
 
 const UNITY_BUILD_URL = '/unity';
 
-/** Fallback delay if the Unity build is too old to emit `studyflow:runnerReady`. */
+//Tells Unity to skip its Loading→Debug-menu scene transition.
+const SKIP_DEBUG_MENU = true;
+
+/** Fallback delay if the Unity build is no `studyflow:runnerReady`. */
 const STARTUP_GRACE_MS = 1000;
+
+// Time the cover is shown while Unity loads the task scene.
+const STAGE_REVEAL_DELAY_MS = 300;
+
+const UNITY_IFRAME_SRC = `${UNITY_BUILD_URL}/index.html${SKIP_DEBUG_MENU ? '?skipDebugMenu=1' : ''}`;
 
 type Log = { kind: LogKind; message: string };
 
@@ -26,6 +34,8 @@ export function Runner() {
 
   const [phase, setPhase] = useState('idle');
   const [log, setLog] = useState<Log[]>([]);
+  const [stageReady, setStageReady] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const ranOnce = useRef(false);
 
@@ -51,6 +61,7 @@ export function Runner() {
         if (issues.length > 0) {
           for (const i of issues) say({ kind: 'error', message: `${i.nodeId}: ${i.message}` });
           setPhase('invalid');
+          setStageReady(true);
           return;
         }
 
@@ -65,13 +76,22 @@ export function Runner() {
 
         setPhase('running');
         const engine = new StudyflowEngine(graph, { seed });
+        let firstTaskSeen = false;
         for await (const step of engine.run()) {
+          if (!firstTaskSeen && step.kind === 'task') {
+            firstTaskSeen = true;
+            // Reveal the iframe a beat after the first task is dispatched, so
+            // the menu->task scene transition happens behind the cover.
+            setTimeout(() => setStageReady(true), STAGE_REVEAL_DELAY_MS);
+          }
           await runStep(step, unity, say, () => iframeRef.current?.contentWindow ?? null);
         }
         setPhase('done');
+        setStageReady(true);
       } catch (err) {
         say({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
         setPhase('error');
+        setStageReady(true);
       }
     })();
   }, [studyflowUrl, seed]);
@@ -84,17 +104,43 @@ export function Runner() {
         <span className={layout.title}>Studyflow Runner</span>
         <span className={layout.badge}>{phase}</span>
         {seed != null && <span className={layout.meta}>seed={seed}</span>}
+        <button
+          type="button"
+          onClick={() => setLogsOpen((v) => !v)}
+          className={layout.logsToggle}
+          aria-expanded={logsOpen}
+        >
+          {logsOpen ? 'Hide logs' : `Logs${log.length ? ` (${log.length})` : ''}`}
+        </button>
       </header>
       <main className={layout.body}>
-        <iframe
-          ref={iframeRef}
-          src={`${UNITY_BUILD_URL}/index.html`}
-          title="Behaverse Assessment"
-          className={layout.iframe}
-          allow="autoplay; fullscreen"
-        />
-        <aside className={layout.sidebar}>
-          <h2 className={layout.sidebarTitle}>Activity</h2>
+        <div className={layout.stage}>
+          <iframe
+            ref={iframeRef}
+            src={UNITY_IFRAME_SRC}
+            title="Behaverse Assessment"
+            className={layout.iframe}
+            allow="autoplay; fullscreen"
+          />
+          <div className={`${layout.cover} ${stageReady ? layout.coverHidden : layout.coverShown}`}>
+            <span>Preparing study… ({phase})</span>
+          </div>
+        </div>
+        <aside
+          className={`${layout.sidebar} ${logsOpen ? layout.sidebarOpen : layout.sidebarClosed}`}
+          aria-hidden={!logsOpen}
+        >
+          <div className={layout.sidebarHeader}>
+            <h2 className={layout.sidebarTitle}>Logs</h2>
+            <button
+              type="button"
+              onClick={() => setLogsOpen(false)}
+              className={layout.sidebarClose}
+              aria-label="Close logs"
+            >
+              ×
+            </button>
+          </div>
           <ol className={layout.sidebarList}>
             {log.map((entry, i) => (
               <li key={i} className={logColor[entry.kind]}>{entry.message}</li>
