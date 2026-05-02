@@ -1,5 +1,5 @@
 import { runImportXml } from './importXml';
-import new_diagram from '@/assets/new_diagram.bpmn';
+import new_diagram from '@/assets/examples/new_diagram.bpmn';
 
 export type NewDiagramCommand = {
   type: 'new-diagram';

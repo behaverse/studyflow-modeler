@@ -4,6 +4,7 @@ import { ExportButton } from './actions/Export';
 import { PublishButton, PublishDialog } from './actions/Publish';
 import { SaveButton } from './actions/Save';
 import { OpenButton } from './actions/Open';
+import { ExamplesButton, ExamplesDialog } from './actions/Examples';
 import { SimulateButton } from './actions/Simulate';
 import { NewDiagramButton } from './actions/NewDiagram';
 import { ResetZoomButton } from './actions/ResetZoom';
@@ -13,11 +14,13 @@ import { dropdownCls, itemCls, navBtnCls, sepCls, navBurgerBtnCls } from './styl
 export default function MenuBar() {
   const publishDialogRef = useRef<{ open: () => void }>(null);
   const loginDialogRef = useRef<{ open: () => void }>(null);
+  const examplesDialogRef = useRef<{ open: () => void }>(null);
 
   return (
     <div className="flex items-center gap-0.5 mx-1 flex-shrink-0">
       <PublishDialog ref={publishDialogRef} />
       <LoginDialog ref={loginDialogRef} />
+      <ExamplesDialog ref={examplesDialogRef} />
 
       {/* Desktop */}
       <div className="hidden sm:flex items-center gap-0.5">
@@ -26,6 +29,7 @@ export default function MenuBar() {
           <MenuItems unmount={false} anchor="bottom start" className={dropdownCls}>
             <MenuItem className={itemCls} as={NewDiagramButton} />
             <MenuItem className={itemCls} as={OpenButton} />
+            <MenuItem className={itemCls} as={ExamplesButton} dialog={examplesDialogRef} />
             <MenuItem className={itemCls} as={SaveButton} />
             <MenuSeparator className={sepCls} />
             <MenuItem className={itemCls} as={ExportButton} fileType="svg" />
@@ -70,6 +74,7 @@ export default function MenuBar() {
         <MenuItems unmount={false} anchor="bottom end" className={dropdownCls}>
           <MenuItem className={itemCls} as={NewDiagramButton} />
           <MenuItem className={itemCls} as={OpenButton} />
+          <MenuItem className={itemCls} as={ExamplesButton} dialog={examplesDialogRef} />
           <MenuItem className={itemCls} as={SaveButton} />
           <MenuSeparator className={sepCls} />
           <MenuItem className={itemCls} as={ExportButton} fileType="svg" />

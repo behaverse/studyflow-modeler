@@ -185,7 +185,7 @@ function ModelerCanvas() {
       try {
         const downloadedSchemas = await downloadSchemas();
 
-        const diagramModule = await import('@/assets/new_diagram.bpmn');
+        const diagramModule = await import('@/assets/examples/new_diagram.bpmn');
         const diagramUrl = diagramModule.default;
         const xml = await fetch(diagramUrl).then((r) => r.text());
 

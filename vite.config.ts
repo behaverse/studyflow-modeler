@@ -101,6 +101,6 @@ export default defineConfig({
 
   },
   assetsInclude: [
-    '**/*.png', '**/*.bpmn', '**/*.jpeg', '**/*.gif',
+    '**/*.png', '**/*.bpmn', '**/*.studyflow', '**/*.jpeg', '**/*.gif',
     '**/*.svg', '**/*.ico', '**/*.webp', '**/*.yaml'],
 })
