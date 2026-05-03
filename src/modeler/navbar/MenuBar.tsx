@@ -23,7 +23,7 @@ export default function MenuBar() {
       <ExamplesDialog ref={examplesDialogRef} />
 
       {/* Desktop */}
-      <div className="hidden sm:flex items-center gap-0.5">
+      <div className="hidden md:flex items-center gap-0.5">
         <Menu as="div" title="FileMenu">
           <MenuButton className={navBtnCls}>File</MenuButton>
           <MenuItems unmount={false} anchor="bottom start" className={dropdownCls}>
@@ -67,7 +67,7 @@ export default function MenuBar() {
       </div>
 
       {/* Mobile */}
-      <Menu as="div" title="MobileMenu" className="sm:hidden">
+      <Menu as="div" title="MobileMenu" className="md:hidden">
         <MenuButton className={navBurgerBtnCls} aria-label="Menu">
           <i className="iconify bi--three-dots-vertical text-lg"></i>
         </MenuButton>

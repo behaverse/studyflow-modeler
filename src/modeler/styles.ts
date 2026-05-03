@@ -104,7 +104,18 @@ export const navbar = {
    * room that h-7 children get inside h-10, so items sit equidistant
    * from all four navbar borders.
    */
-  shell: `fixed top-2 left-1/2 -translate-x-1/2 z-50 flex items-center h-10 max-w-[calc(100vw-16px)]
+  /**
+   * Centered in the empty space between the brand (~160px from viewport-left)
+   * and the inspector. When the inspector is expanded the safe area ends at
+   * `viewport - 296` (w-72 + right-2), so the shell's center is shifted
+   * 72px LEFT of viewport center. When the inspector is collapsed (only its
+   * ~50px toggle button remains on the right), the safe area is much wider
+   * and the shell shifts 55px RIGHT of viewport center. The toggle is keyed
+   * on `body.inspector-collapsed`, set by the Panel component.
+   */
+  shell: `fixed top-2 left-[calc(50%-72px)] -translate-x-1/2 z-50 flex items-center h-10 max-w-[calc(100vw-464px)]
+          [body.inspector-collapsed_&]:left-[calc(50%+55px)]
+          [body.inspector-collapsed_&]:max-w-[calc(100vw-220px)]
           ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
           px-1.5`,
 

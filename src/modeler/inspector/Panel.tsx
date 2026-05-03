@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { ToggleButton } from './ToggleButton';
@@ -12,6 +12,13 @@ export function Panel() {
   const { modeler } = useContext(ModelerContext);
   const { element } = useInspectorElement(modeler);
   const [isVisible, setIsVisible] = useState(true);
+
+  // Sibling components (e.g. the navbar) re-center themselves when the
+  // inspector is collapsed by reading this class.
+  useEffect(() => {
+    document.body.classList.toggle('inspector-collapsed', !isVisible);
+    return () => document.body.classList.remove('inspector-collapsed');
+  }, [isVisible]);
 
   const toggle = () => setIsVisible((v) => !v);
 
