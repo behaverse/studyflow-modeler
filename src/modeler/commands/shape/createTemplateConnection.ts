@@ -1,18 +1,18 @@
-export type CreateExampleConnectionCommand = {
-  type: 'create-example-connection';
+export type CreateTemplateConnectionCommand = {
+  type: 'create-template-connection';
   elementFactory: any;
   definition: {
     id?: string;
     bpmnType: string;
-    exampleProperties?: Record<string, any>;
+    templateProperties?: Record<string, any>;
   };
   source: any;
   target: any;
   parent: any;
 };
 
-export function runCreateExampleConnection(
-  command: CreateExampleConnectionCommand,
+export function runCreateTemplateConnection(
+  command: CreateTemplateConnectionCommand,
 ): any {
   const {
     elementFactory,
@@ -22,7 +22,7 @@ export function runCreateExampleConnection(
     parent,
   } = command;
   const properties: Record<string, any> = {
-    ...(definition.exampleProperties || {}),
+    ...(definition.templateProperties || {}),
   };
 
   const connection = elementFactory.create('connection', {

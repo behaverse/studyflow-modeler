@@ -15,7 +15,7 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>SPIRIT 2025 Schedule of Enrolment, Interventions, and Assessments. Each subprocess corresponds to a SPIRIT timepoint (-t1 screening, 0 allocation, t1/t2 follow-up, tx close-out) and carries a checklist of the SPIRIT 2025 items completed at that visit. Outcome datasets and the data dictionary are linked with data associations so the protocol declares not just what happens, but what data are produced and where.</bpmn2:documentation>
+    <bpmn2:documentation>SPIRIT 2025 (Standard Protocol Items: Recommendations for Interventional Trials) to schedule enrolment, interventions, and assessments.</bpmn2:documentation>
 
     <bpmn2:startEvent id="Protocol_Start" name="Recruitment"
         studyflow:requiresConsent="true"

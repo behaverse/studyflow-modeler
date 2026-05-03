@@ -1,21 +1,21 @@
 import { createExtensionElement, getDefaults, setAttr } from '../../extensions';
 import { toPrefix } from '../../utils/naming';
 
-export type CreateExampleShapeCommand = {
-  type: 'create-example-shape';
+export type CreateTemplateShapeCommand = {
+  type: 'create-template-shape';
   elementFactory: any;
   moddle: any;
   bpmnType: string;
   studyflowType?: string;
   overrideIconClass?: string;
-  exampleProperties?: Record<string, any>;
+  templateProperties?: Record<string, any>;
   x?: number;
   y?: number;
   parent?: any;
 };
 
-export function runCreateExampleShape(
-  command: CreateExampleShapeCommand,
+export function runCreateTemplateShape(
+  command: CreateTemplateShapeCommand,
 ): any {
   const {
     elementFactory,
@@ -23,7 +23,7 @@ export function runCreateExampleShape(
     bpmnType,
     studyflowType,
     overrideIconClass,
-    exampleProperties,
+    templateProperties,
     x,
     y,
     parent,
@@ -35,9 +35,9 @@ export function runCreateExampleShape(
 
   const properties: Record<string, any> = {
     ...defaults,
-    ...(exampleProperties || {}),
+    ...(templateProperties || {}),
   };
-  const size = extractExampleDimensions(properties);
+  const size = extractTemplateDimensions(properties);
 
   const shape = elementFactory.create('shape', {
     type: bpmnType,
@@ -90,7 +90,7 @@ function toFiniteNumber(value: any): number | undefined {
   return undefined;
 }
 
-function extractExampleDimensions(
+function extractTemplateDimensions(
   properties: Record<string, any>,
 ): { width?: number; height?: number } {
   const width = toFiniteNumber(properties['bpmn:width'] ?? properties.width);

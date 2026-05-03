@@ -8,10 +8,10 @@ export interface ModdleSchema {
   associations: any[];
   enumerations: ModdleEnumeration[];
   types: ModdleType[];
-  examples?: ModdleExample[];
+  templates?: ModdleTemplate[];
 }
 
-export interface ModdleExample {
+export interface ModdleTemplate {
   description?: string;
   object?: Record<string, any> & {
     type?: string;

@@ -13,7 +13,7 @@ import { drawMarkers } from './markers';
  * @param {any} bpmnRenderer
  * @param {Array<any>} _pkgEnums              kept for signature compatibility (unused)
  * @param {string|undefined} sfIconClass     icon class resolved from the extension descriptor
- * @param {boolean} [preservePrimaryIcon]    when true, keep the resolved icon (e.g., schema example icon)
+ * @param {boolean} [preservePrimaryIcon]    when true, keep the resolved icon (e.g., schema template icon)
  */
 export function drawActivity(parentNode, element, bpmnRenderer, _pkgEnums, sfIconClass, preservePrimaryIcon = false) {
 

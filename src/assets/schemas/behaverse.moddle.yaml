@@ -139,7 +139,7 @@ types:
             language: json
             body:
               configMode: inline
-examples:
+templates:
   - description: N-Back task referencing a built-in timeline with a single parameter override
     object:
       type: BehaverseTask

@@ -1,5 +1,5 @@
 import { createExtensionElement, getDefaults } from '../extensions';
-import type { Example as ElementExample } from '../moddle/examples';
+import type { Template as ElementTemplate } from '../moddle/templates';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
 
 type MenuEntry = {
@@ -15,12 +15,12 @@ type TemplateMenuEntry = {
   label: string;
   description?: string;
   imageHtml?: string;
-  template: ElementExample;
+  template: ElementTemplate;
 };
 
-type ElementExamplesService = {
-  getBySchemaPrefix: (prefix: string) => ElementExample[];
-  createElement: (template: ElementExample) => any;
+type ElementTemplatesService = {
+  getBySchemaPrefix: (prefix: string) => ElementTemplate[];
+  createElement: (template: ElementTemplate) => any;
 };
 
 const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
@@ -37,14 +37,14 @@ export default class SchemaPopupMenu {
   private _schemaPrefix: string;
   private _entries: MenuEntry[];
   private _templateEntries: TemplateMenuEntry[];
-  private _elementTemplates: ElementExamplesService;
+  private _elementTemplates: ElementTemplatesService;
 
   constructor(
     popupMenu: any,
     bpmnFactory: any,
     elementFactory: any,
     create: any,
-    elementTemplates: ElementExamplesService,
+    elementTemplates: ElementTemplatesService,
     schemaPrefix: string,
   ) {
     this._popupMenu = popupMenu;
@@ -92,6 +92,9 @@ export default class SchemaPopupMenu {
         if (type.isAbstract || HIDDEN_TYPES.has(type.name)) return false;
         if (type.superClass?.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) return false;
         if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
+        // Template-scoped types are surfaced via their `templates:` entry only;
+        // hide them from the type list to avoid a duplicate palette entry.
+        if (type.meta?.templateScopedType) return false;
         return true;
       })
       .map((type: any) => {
@@ -135,10 +138,10 @@ export default class SchemaPopupMenu {
         label: opt.label,
         description: opt.description,
         imageHtml: opt.imageHtml,
-        ...(opt.template.templateSource === 'schema-example' && {
+        ...(opt.template.templateSource === 'schema-template' && {
           group: {
-            id: `${this._schemaPrefix}-examples`,
-            name: `Examples`,
+            id: `${this._schemaPrefix}-templates`,
+            name: `Templates`,
           },
         }),
         action: this._createTemplateAction(opt.template),
@@ -148,7 +151,7 @@ export default class SchemaPopupMenu {
     return entries;
   }
 
-  private _createTemplateAction(template: ElementExample) {
+  private _createTemplateAction(template: ElementTemplate) {
     const create = this._create;
     const popupMenu = this._popupMenu;
     const elementTemplates = this._elementTemplates;

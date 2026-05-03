@@ -43,12 +43,12 @@ export default class StudyflowRenderer extends BaseRenderer {
 
   /**
    * Resolve the icon supplied via the element's namespace-qualified `icon`
-   * attribute (a studyflow-example mechanism). Returns `undefined` for
+   * attribute (a studyflow-template mechanism). Returns `undefined` for
    * elements without an extension.
    *
    * @param {any} ext
    */
-  _resolveElementExampleIcon(ext) {
+  _resolveElementTemplateIcon(ext) {
     if (!ext) {
       return undefined;
     }
@@ -76,9 +76,9 @@ export default class StudyflowRenderer extends BaseRenderer {
     const ext = getExtensionElement(element);
     const sfType = getAppliedType(element);
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
-    const elementExampleIconClass = this._resolveElementExampleIcon(ext || element.businessObject);
+    const elementTemplateIconClass = this._resolveElementTemplateIcon(ext || element.businessObject);
     const descriptorIconClass = sfDescriptor?.meta?.icon || sfDescriptor?.icon;
-    const iconClass = elementExampleIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
+    const iconClass = elementTemplateIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
 
     if (is(element, "bpmn:Event")) {
       return drawEventWithIcon(parentNode, element, this.bpmnRenderer);
@@ -95,7 +95,7 @@ export default class StudyflowRenderer extends BaseRenderer {
         this.bpmnRenderer,
         this.pkgEnums,
         iconClass,
-        Boolean(elementExampleIconClass),
+        Boolean(elementTemplateIconClass),
       );
     }
 

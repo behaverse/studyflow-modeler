@@ -24,6 +24,7 @@ const CATEGORY_ORDER = [
   'Instrument',
   'Behaverse',
   'DataTrove',
+  'fMRIPrep',
   'EEGPrep',
   'Assignment',
   'Eligibility',

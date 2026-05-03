@@ -83,7 +83,7 @@ svg text.bi {
 .djs-palette-shown .bjs-breadcrumbs,
 .djs-palette-shown.djs-palette-two-column .bjs-breadcrumbs {
   position: fixed !important;
-  top: 36px !important;
+  top: 42px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   display: none;
@@ -98,8 +98,7 @@ svg text.bi {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(176, 169, 147, 0.40);
-  border-top: none;
-  border-radius: 0 0 12px 12px;
+  border-radius: 12px;
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.06),
     0 6px 20px rgba(0, 0, 0, 0.07),
@@ -110,7 +109,7 @@ svg text.bi {
   font-family: inherit;
   color: var(--color-stone-700);
   white-space: nowrap;
-  line-height: 1;
+  line-height: 1.5;
 }
 
 

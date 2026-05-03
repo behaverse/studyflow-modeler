@@ -1,31 +1,31 @@
 /**
- * Example descriptor used by the element templates service
+ * Template descriptor used by the element templates service
  * and consumed by CreateAppendElementTemplatesModule.
  */
-export interface ExampleFlowNode {
+export interface TemplateFlowNode {
   id: string;
   kind: 'node';
   studyflowType?: string;
   bpmnType: string;
   iconClass?: string;
   overrideIconClass?: string;
-  exampleProperties?: Record<string, any>;
+  templateProperties?: Record<string, any>;
   x?: number;
   y?: number;
 }
 
-export interface ExampleFlowConnection {
+export interface TemplateFlowConnection {
   id?: string;
   kind: 'connection';
   bpmnType: string;
   sourceRef: string;
   targetRef: string;
-  exampleProperties?: Record<string, any>;
+  templateProperties?: Record<string, any>;
 }
 
-export type ExampleFlowElement = ExampleFlowNode | ExampleFlowConnection;
+export type TemplateFlowElement = TemplateFlowNode | TemplateFlowConnection;
 
-export interface Example {
+export interface Template {
   /** Unique template identifier */
   id: string;
   /** Optional version number */
@@ -62,14 +62,14 @@ export interface Example {
   bpmnType: string;
   /** Icon class string from the schema (e.g., "iconify bi--puzzle") */
   iconClass?: string;
-  /** Explicit icon override declared directly on the example object */
+  /** Explicit icon override declared directly on the template object */
   overrideIconClass?: string;
-  /** Property values from the schema example object */
-  exampleProperties?: Record<string, any>;
-  /** Optional nested subprocess content normalized from schema examples */
-  flowElements?: ExampleFlowElement[];
+  /** Property values from the schema template object */
+  templateProperties?: Record<string, any>;
+  /** Optional nested subprocess content normalized from schema templates */
+  flowElements?: TemplateFlowElement[];
   /** Source marker used to route template visibility in popup menus */
-  templateSource?: 'schema-example' | 'schema-type';
+  templateSource?: 'schema-template' | 'schema-type';
   /** Lowercase schema prefix (e.g., "behaverse") that owns this template */
   schemaPrefix?: string;
 }

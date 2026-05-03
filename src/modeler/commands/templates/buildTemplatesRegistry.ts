@@ -1,15 +1,15 @@
 import { BPMN } from '../../constants/bpmn';
-import type { Example } from '../../moddle/examples/types';
+import type { Template } from '../../moddle/templates/types';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
-import { capitalize, extractProperties, resolveExampleMixins } from './mixins';
+import { capitalize, extractProperties, resolveTemplateMixins } from './mixins';
 import { normalizeFlowElements } from './normalizeFlow';
 
-export type BuildExamplesRegistryCommand = {
-  type: 'build-examples-registry';
+export type BuildTemplatesRegistryCommand = {
+  type: 'build-templates-registry';
   moddle: any;
 };
 
-const RESERVED_EXAMPLE_KEYS = new Set([
+const RESERVED_TEMPLATE_KEYS = new Set([
   'type',
   'name',
   'keywords',
@@ -20,28 +20,28 @@ const RESERVED_EXAMPLE_KEYS = new Set([
 ]);
 
 /**
- * Build the full example registry: one `Example` per declared example in
- * each moddle package, plus implicit examples derived from any type that
+ * Build the full template registry: one `Template` per declared template in
+ * each moddle package, plus implicit templates derived from any type that
  * declares `meta.flowElements` (subprocess shorthand).
  */
-export function runBuildExamplesRegistry(
-  command: BuildExamplesRegistryCommand,
-): Example[] {
+export function runBuildTemplatesRegistry(
+  command: BuildTemplatesRegistryCommand,
+): Template[] {
   const { moddle } = command;
   const packages: any[] = moddle.getPackages();
   const typeMap: Record<string, any> = moddle.registry.typeMap;
-  const examplesOut: Example[] = [];
+  const templatesOut: Template[] = [];
 
   for (const pkg of packages) {
-    const examples: any[] = pkg.examples ?? [];
+    const templates: any[] = pkg.templates ?? [];
     const prefix: string = pkg.prefix;
 
-    for (const [index, example] of examples.entries()) {
-      const obj = example?.object;
-      const exampleType = obj?.type;
-      if (!exampleType) continue;
+    for (const [index, template] of templates.entries()) {
+      const obj = template?.object;
+      const templateType = obj?.type;
+      if (!templateType) continue;
 
-      const mixinData = resolveExampleMixins(moddle, obj, prefix);
+      const mixinData = resolveTemplateMixins(moddle, obj, prefix);
       const mergedObject: Record<string, any> = {
         ...mixinData.properties,
         ...obj,
@@ -59,14 +59,14 @@ export function runBuildExamplesRegistry(
 
       const iconClass: string | undefined = mergedObject.icon ?? typeDescriptor.icon;
       const overrideIconClass: string | undefined = mergedObject.icon;
-      const exampleProperties = extractProperties(mergedObject, RESERVED_EXAMPLE_KEYS);
+      const templateProperties = extractProperties(mergedObject, RESERVED_TEMPLATE_KEYS);
       const flowElements = normalizeFlowElements(moddle, mergedObject, prefix, typeMap);
 
-      const exampleName = mergedObject.name ?? mergedObject['bpmn:name'] ?? typeName;
-      const exampleEntry: Example = {
-        id: `${qualifiedName}::example:${index + 1}`,
-        name: exampleName,
-        description: example.description ?? typeDescriptor.description ?? '',
+      const templateName = mergedObject.name ?? mergedObject['bpmn:name'] ?? typeName;
+      const templateEntry: Template = {
+        id: `${qualifiedName}::template:${index + 1}`,
+        name: templateName,
+        description: template.description ?? typeDescriptor.description ?? '',
         appliesTo: [bpmnType],
         elementType: { value: bpmnType },
         category: {
@@ -78,27 +78,27 @@ export function runBuildExamplesRegistry(
         bpmnType,
         iconClass,
         overrideIconClass,
-        exampleProperties: Object.keys(exampleProperties).length > 0 ? exampleProperties : undefined,
+        templateProperties: Object.keys(templateProperties).length > 0 ? templateProperties : undefined,
         flowElements,
-        templateSource: 'schema-example',
+        templateSource: 'schema-template',
         schemaPrefix: prefix.toLowerCase(),
       };
 
-      examplesOut.push(exampleEntry);
+      templatesOut.push(templateEntry);
     }
   }
 
-  examplesOut.push(...buildImplicitExamplesFromTypes(moddle, packages, typeMap));
+  templatesOut.push(...buildImplicitTemplatesFromTypes(moddle, packages, typeMap));
 
-  return examplesOut;
+  return templatesOut;
 }
 
-function buildImplicitExamplesFromTypes(
+function buildImplicitTemplatesFromTypes(
   moddle: any,
   packages: any[],
   typeMap: Record<string, any>,
-): Example[] {
-  const out: Example[] = [];
+): Template[] {
+  const out: Template[] = [];
 
   for (const pkg of packages) {
     const prefix: string = pkg.prefix;
@@ -122,7 +122,7 @@ function buildImplicitExamplesFromTypes(
 
       const iconClass: string | undefined = type.meta?.icon ?? type.icon;
 
-      const entry: Example = {
+      const entry: Template = {
         id: `${qualifiedName}::type-default`,
         name: type.name,
         description: type.description ?? '',
@@ -137,7 +137,7 @@ function buildImplicitExamplesFromTypes(
         bpmnType,
         iconClass,
         overrideIconClass: undefined,
-        exampleProperties: undefined,
+        templateProperties: undefined,
         flowElements: normalized,
         templateSource: 'schema-type',
         schemaPrefix: prefix.toLowerCase(),

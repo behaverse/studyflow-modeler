@@ -1,10 +1,10 @@
 import type {
-  ExampleFlowConnection,
-  ExampleFlowElement,
-  ExampleFlowNode,
-} from '../../moddle/examples/types';
+  TemplateFlowConnection,
+  TemplateFlowElement,
+  TemplateFlowNode,
+} from '../../moddle/templates/types';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
-import { extractProperties, resolveExampleMixins, resolveTypeDescriptor } from './mixins';
+import { extractProperties, resolveTemplateMixins, resolveTypeDescriptor } from './mixins';
 
 const RESERVED_FLOW_NODE_KEYS = new Set([
   'id',
@@ -54,13 +54,13 @@ function normalizeFlowNode(
   entry: Record<string, any>,
   prefix: string,
   typeMap: Record<string, any>,
-): ExampleFlowNode | null {
+): TemplateFlowNode | null {
   const entryType = entry?.type;
   if (typeof entryType !== 'string' || entryType.trim() === '') {
     return null;
   }
 
-  const mixinData = resolveExampleMixins(moddle, entry, prefix);
+  const mixinData = resolveTemplateMixins(moddle, entry, prefix);
   const mergedEntry: Record<string, any> = {
     ...mixinData.properties,
     ...entry,
@@ -95,7 +95,7 @@ function normalizeFlowNode(
     bpmnType,
     iconClass: mergedEntry.icon ?? typeDescriptor?.icon,
     overrideIconClass: mergedEntry.icon,
-    exampleProperties: extractProperties(mergedEntry, RESERVED_FLOW_NODE_KEYS),
+    templateProperties: extractProperties(mergedEntry, RESERVED_FLOW_NODE_KEYS),
     x: typeof mergedEntry.x === 'number' ? mergedEntry.x : undefined,
     y: typeof mergedEntry.y === 'number' ? mergedEntry.y : undefined,
   };
@@ -103,7 +103,7 @@ function normalizeFlowNode(
 
 function normalizeFlowConnection(
   entry: Record<string, any>,
-): ExampleFlowConnection | null {
+): TemplateFlowConnection | null {
   const bpmnType = entry?.['bpmn:type'] ?? entry?.type;
   const sourceRef = entry?.sourceRef;
   const targetRef = entry?.targetRef;
@@ -122,26 +122,26 @@ function normalizeFlowConnection(
     bpmnType,
     sourceRef,
     targetRef,
-    exampleProperties: extractProperties(entry, RESERVED_FLOW_CONNECTION_KEYS),
+    templateProperties: extractProperties(entry, RESERVED_FLOW_CONNECTION_KEYS),
   };
 }
 
 /**
  * Normalize `obj.flowElements` — a loose mix of nodes and connections as
- * declared in a schema example — into a tagged union of
- * `ExampleFlowElement`s ready for the canvas.
+ * declared in a schema template — into a tagged union of
+ * `TemplateFlowElement`s ready for the canvas.
  */
 export function normalizeFlowElements(
   moddle: any,
   obj: Record<string, any>,
   prefix: string,
   typeMap: Record<string, any>,
-): ExampleFlowElement[] | undefined {
+): TemplateFlowElement[] | undefined {
   if (!Array.isArray(obj.flowElements) || obj.flowElements.length === 0) {
     return undefined;
   }
 
-  const normalized: ExampleFlowElement[] = [];
+  const normalized: TemplateFlowElement[] = [];
 
   for (const entry of obj.flowElements) {
     if (!entry || typeof entry !== 'object') {

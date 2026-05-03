@@ -1,17 +1,17 @@
-import { EXAMPLE_FLOW_ELEMENTS } from '../../moddle/examples/Examples';
+import { TEMPLATE_FLOW_ELEMENTS } from '../../moddle/templates/Templates';
 import type {
-  ExampleFlowConnection,
-  ExampleFlowElement,
-  ExampleFlowNode,
-} from '../../moddle/examples/types';
+  TemplateFlowConnection,
+  TemplateFlowElement,
+  TemplateFlowNode,
+} from '../../moddle/templates/types';
 
-export type MaterializeExampleFlowCommand = {
-  type: 'materialize-example-flow';
+export type MaterializeTemplateFlowCommand = {
+  type: 'materialize-template-flow';
   modeling: any;
-  examplesService: {
-    createFlowNodeShape: (definition: ExampleFlowNode, parent: any) => any;
+  templatesService: {
+    createFlowNodeShape: (definition: TemplateFlowNode, parent: any) => any;
     createFlowConnection: (
-      definition: ExampleFlowConnection,
+      definition: TemplateFlowConnection,
       source: any,
       target: any,
       parent: any,
@@ -22,12 +22,12 @@ export type MaterializeExampleFlowCommand = {
   hintKey: string;
 };
 
-export function runMaterializeExampleFlow(
-  command: MaterializeExampleFlowCommand,
+export function runMaterializeTemplateFlow(
+  command: MaterializeTemplateFlowCommand,
 ): void {
   const {
     modeling,
-    examplesService,
+    templatesService,
     shape,
     newRootElement,
     hintKey,
@@ -37,7 +37,7 @@ export function runMaterializeExampleFlow(
     return;
   }
 
-  const flowElements = shape[EXAMPLE_FLOW_ELEMENTS] as ExampleFlowElement[] | undefined;
+  const flowElements = shape[TEMPLATE_FLOW_ELEMENTS] as TemplateFlowElement[] | undefined;
   if (!Array.isArray(flowElements) || flowElements.length === 0) {
     return;
   }
@@ -48,7 +48,7 @@ export function runMaterializeExampleFlow(
   const nodesById = new Map<string, any>();
 
   for (const nodeEntry of nodeEntries) {
-    const nodeShape = examplesService.createFlowNodeShape(nodeEntry, flowContainer);
+    const nodeShape = templatesService.createFlowNodeShape(nodeEntry, flowContainer);
     const createdNode = modeling.createShape(
       nodeShape,
       {
@@ -73,12 +73,12 @@ export function runMaterializeExampleFlow(
 
     if (!source || !target) {
       console.warn(
-        `[examples] Skipping connection '${connectionEntry.id ?? connectionEntry.bpmnType}' because source or target was not found.`
+        `[templates] Skipping connection '${connectionEntry.id ?? connectionEntry.bpmnType}' because source or target was not found.`
       );
       continue;
     }
 
-    const connection = examplesService.createFlowConnection(
+    const connection = templatesService.createFlowConnection(
       connectionEntry,
       source,
       target,
@@ -96,13 +96,13 @@ export function runMaterializeExampleFlow(
     );
   }
 
-  delete shape[EXAMPLE_FLOW_ELEMENTS];
+  delete shape[TEMPLATE_FLOW_ELEMENTS];
 }
 
-function isFlowNode(entry: ExampleFlowElement): entry is ExampleFlowNode {
+function isFlowNode(entry: TemplateFlowElement): entry is TemplateFlowNode {
   return entry.kind === 'node';
 }
 
-function isFlowConnection(entry: ExampleFlowElement): entry is ExampleFlowConnection {
+function isFlowConnection(entry: TemplateFlowElement): entry is TemplateFlowConnection {
   return entry.kind === 'connection';
 }

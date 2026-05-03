@@ -44,7 +44,7 @@ export default class AppendMenuProvider {
     const entries = Object.entries(moddle.registry.typeMap).filter(([, v]) =>
       !HIDDEN_APPEND_TYPES.has(/** @type {any} */ (v)?.name)
       && !(/** @type {any} */ (v)?.isAbstract)
-      && !(/** @type {any} */ (v)?.meta?.exampleScopedType)
+      && !(/** @type {any} */ (v)?.meta?.templateScopedType)
       && !((/** @type {any} */ (v)?.superClass?.length === 1) && /** @type {any} */ (v).superClass.includes('String'))
       && resolveBpmnCreateType(moddle, v),
     );

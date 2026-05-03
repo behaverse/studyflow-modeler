@@ -37,11 +37,11 @@ export function getDefaultProperties(typeDescriptor: any): Record<string, any> {
 }
 
 /**
- * Resolve a mixin chain declared on an example object. Each referenced
+ * Resolve a mixin chain declared on a template object. Each referenced
  * mixin contributes its default properties, and a `bpmn:*` mixin additionally
  * overrides the resolved BPMN type.
  */
-export function resolveExampleMixins(
+export function resolveTemplateMixins(
   moddle: any,
   obj: Record<string, any>,
   prefix: string,
@@ -60,7 +60,7 @@ export function resolveExampleMixins(
 
     const descriptor = resolveTypeDescriptor(moddle, mixinRef, prefix);
     if (!descriptor) {
-      console.warn(`[examples-loader] Unable to resolve mixin '${mixinRef}'`);
+      console.warn(`[templates-loader] Unable to resolve mixin '${mixinRef}'`);
       continue;
     }
 

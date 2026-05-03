@@ -6,7 +6,7 @@ import { executeCommand } from '../../commands';
 const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
 
 const exampleFiles = import.meta.glob(
-  '@/assets/examples/*.{studyflow,bpmn}',
+  '@/assets/examples/*.{studyflow,bpmn,svg}',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -59,6 +59,7 @@ function basename(path: string): string {
 
 function buildInitialEntries(): ExampleEntry[] {
   return Object.entries(exampleFiles)
+    .filter(([_, url]) => !url.endsWith('new_diagram.bpmn'))
     .map(([path, url]) => {
       const filename = basename(path);
       return {
