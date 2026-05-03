@@ -9,7 +9,7 @@ import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
-import { codeEditor as s } from './styles';
+import { codeEditor as s } from '../styles';
 
 export function CodeEditor(props: { bpmnProperty: any }) {
   const { bpmnProperty } = props;

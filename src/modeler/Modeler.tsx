@@ -6,6 +6,7 @@ import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 import 'bpmn-js-color-picker/colors/color-picker.css';
 import { ModelerContext } from './contexts';
 import { executeCommand } from './commands';
+import { modeler as s } from './styles';
 
 export function Modeler() {
 
@@ -35,16 +36,16 @@ export function Modeler() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full text-center" data-testid="modeler-loading">
-        <div role="status" className="m-auto animate-spin" aria-label="Loading modeler">
-          <span className="iconify bi--arrow-repeat text-fuchsia-600 text-[3rem]"></span>
+      <div className={s.loading} data-testid="modeler-loading">
+        <div role="status" className={s.loadingSpinner} aria-label="Loading modeler">
+          <span className={s.loadingIcon}></span>
           <span className="sr-only">Loading...</span>
         </div>
       </div>
     );
   }
-  
+
     return (
-        <div className="grow bg-[#f1ede0]" data-testid="modeler-canvas" ref={setCanvas}></div>
+        <div className={s.canvas} data-testid="modeler-canvas" ref={setCanvas}></div>
     );
 }

@@ -2,6 +2,7 @@ import { forwardRef, useContext, useEffect, useImperativeHandle, useState } from
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { DiagramNameContext, ModelerContext } from '../../contexts';
 import { executeCommand } from '../../commands';
+import { dialog as d, examplesList as e } from '../../styles';
 
 const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
 
@@ -140,23 +141,23 @@ export function ExamplesDialog({ ref }: { ref: React.Ref<{ open: () => void }> }
   };
 
   return (
-    <Dialog open={isOpen} onClose={close} className="relative z-[101] focus:outline-none">
-      <div className="fixed backdrop-blur inset-0 z-10 w-screen overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4">
-          <DialogPanel className="w-full max-w-2xl rounded-xl bg-stone-100 p-6 backdrop-blur-2xl duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]">
-            <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-4">
-              Examples
-              <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
+    <Dialog open={isOpen} onClose={close} className={d.root}>
+      <div className={d.backdrop}>
+        <div className={d.centerLayout}>
+          <DialogPanel className={`${d.panelLg} ${d.panel}`}>
+            <DialogTitle as="h3" className={`${d.title} pb-3`}>
+              Example Diagrams
+              <span className={d.closeButton} onClick={close}>
                 <i className="iconify bi--x-lg"></i>
               </span>
             </DialogTitle>
-            <p className="text-sm text-stone-600 pb-4">
-              Pick a diagram to load it into the editor. Your current diagram will be replaced.
+            <p className={`${d.body} pb-5`}>
+              Your current diagram will be replaced.
             </p>
             {entries.length === 0 ? (
-              <p className="text-sm text-stone-500 italic py-8 text-center">No examples available.</p>
+              <p className={e.empty}>No examples available.</p>
             ) : (
-              <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
+              <ul className={e.list}>
                 {entries.map((entry) => {
                   const isBusy = busy === entry.filename;
                   return (
@@ -165,20 +166,20 @@ export function ExamplesDialog({ ref }: { ref: React.Ref<{ open: () => void }> }
                         type="button"
                         onClick={() => selectExample(entry)}
                         disabled={!!busy}
-                        className="w-full text-left rounded-lg bg-stone-200 hover:bg-stone-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors p-4 cursor-pointer"
+                        className={e.item}
                       >
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span className="font-semibold text-stone-900">{entry.title}</span>
-                          <span className="font-mono text-xs text-stone-500 shrink-0">{entry.filename}</span>
+                        <div className={e.itemHeader}>
+                          <span className={e.itemTitle}>{entry.title}</span>
+                          <span className={e.itemFilename}>{entry.filename}</span>
                         </div>
                         {entry.description && (
-                          <p className="text-sm text-stone-600 mt-1 line-clamp-3">{entry.description}</p>
+                          <p className={e.itemDescription}>{entry.description}</p>
                         )}
                         {entry.error && (
-                          <p className="text-sm text-red-500 mt-1">{entry.error}</p>
+                          <p className={e.itemError}>{entry.error}</p>
                         )}
                         {isBusy && (
-                          <p className="text-xs text-stone-500 mt-1">Loading…</p>
+                          <p className={e.itemBusy}>Loading...</p>
                         )}
                       </button>
                     </li>

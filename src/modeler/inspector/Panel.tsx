@@ -6,7 +6,7 @@ import { Header } from './Header';
 import { CategoryTabs } from './CategoryTabs';
 import { getProperties } from './categories';
 import { useInspectorElement } from './hooks/useInspectorElement';
-import { inspector as s } from './styles';
+import { inspector as s } from '../styles';
 
 export function Panel() {
   const { modeler } = useContext(ModelerContext);
@@ -29,7 +29,6 @@ export function Panel() {
         >
           {element && (
             <>
-              <ToggleButton isInspectorVisible={isVisible} onClick={toggle} />
               <Header element={element} />
               <div className={s.panelBody}>
                 <CategoryTabs
@@ -40,7 +39,14 @@ export function Panel() {
             </>
           )}
         </div>
-        {element && !isVisible && (
+        {/*
+          The toggle is rendered OUTSIDE the panel (which has backdrop-filter)
+          so its `position: fixed` anchors to the viewport. Inside the panel,
+          backdrop-filter establishes a new containing block and `fixed`
+          would anchor to the panel — causing the button to shift between
+          show / hide states.
+        */}
+        {element && (
           <ToggleButton isInspectorVisible={isVisible} onClick={toggle} />
         )}
       </div>

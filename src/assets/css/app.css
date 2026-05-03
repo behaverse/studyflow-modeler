@@ -6,15 +6,44 @@
  prefixes: bi, ri, mdi, uil, fluent, fluent-color, bpmn, material-symbols, flat-color-icons, tabler, solar, streamline-flex, mynaui, hugeicons, streamline;
 }
 
+/*
+ * Custom warm-cream palette (Claude.ai-inspired).
+ *
+ *   cream-50  → lightest, used for the canvas
+ *   cream-100 → primary surfaces (dialogs, modals, navbar/palette/inspector chrome)
+ *   cream-200 → recessed surfaces (inputs, list cards)
+ *   cream-300 → stronger menu/popup character
+ *   cream-400 → focus rings / divider accents
+ *
+ * Translucent chrome (navbar, palette, popups) uses cream-100/300 with
+ * `backdrop-blur-2xl` to render the canvas through with vibrancy.
+ */
+@theme {
+  --color-cream-50:  #faf9f6;
+  --color-cream-100: #f7f5ee;
+  --color-cream-200: #f0ece1;
+  --color-cream-300: #ebe6d4;
+  --color-cream-400: #d8d2bc;
+}
+
+/*
+ * Single source of truth for v1 modeler styling — there are exactly two:
+ *
+ *   1. THIS file — `@theme` color tokens above + global / bpmn-js DOM
+ *      overrides below (canvas, breadcrumbs, watermark, .djs-popup,
+ *      .djs-context-pad chips, etc.) plus a couple of v2-only legacy
+ *      palette aliases.
+ *
+ *   2. `src/modeler/styles.ts` — Tailwind class strings for every chrome
+ *      surface we render in React (navbar, palette, paletteFlyout,
+ *      inspector, field, codeEditor) and the menu primitives.
+ */
+
 svg text.bi {
     font-family: bootstrap-icons !important;
 }
 
-.navbar {
-  @apply inline-flex items-center px-1 h-9 overflow-x-auto;
-}
-
-
+/* BPMN.io "Powered by" watermark in the corner. */
 .bjs-powered-by {
   @apply fixed left-2;
   right: unset !important;
@@ -36,54 +65,31 @@ svg text.bi {
   @apply w-12 h-auto;
 }
 
-.palette-tool-btn {
-  @apply flex items-center justify-center;
-  @apply w-[34px] h-8 rounded-[10px];
-  @apply text-stone-700 cursor-grab;
-  @apply hover:bg-[#b0a993]/50 hover:text-violet-700;
-  @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.4)];
-  @apply active:bg-[#b0a993]/65;
-  @apply transition-all;
+/* Hide the bpmn-js default palette — we render our own (palette/Palette.tsx). */
+.djs-palette {
+  @apply hidden;
 }
 
-.palette-tooltip {
-  @apply pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2;
-  @apply bg-stone-800/90 backdrop-blur-md text-white text-[11.5px] font-medium;
-  @apply px-2.5 py-1 rounded-lg whitespace-nowrap;
-  @apply opacity-0 group-hover:opacity-100 transition-opacity;
-  @apply z-[200];
-}
-
-/* Legacy aliases */
+/* Legacy palette aliases retained for the v2 modeler (src/modeler.v2). */
 .palette-button {
   @apply flex items-center justify-center w-[34px] h-8 rounded-[10px];
   @apply text-stone-500 cursor-grab;
-  @apply hover:bg-white/60 hover:text-stone-800 active:bg-white/80 transition-all;
-  @apply hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.7)];
+  @apply hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08] transition-all;
+  @apply hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)];
 }
 .palette-button-tool {
   @apply flex items-center justify-center w-[34px] h-8 rounded-[10px];
   @apply text-stone-500 cursor-pointer;
-  @apply hover:bg-white/60 hover:text-stone-800 active:bg-white/80 transition-all;
+  @apply hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08] transition-all;
 }
 
-.djs-context-pad .entry {
-  background-color: #c8bea0 !important;
-  box-shadow: 0 0 2px 1px #c8bea0 !important;
-  @apply text-stone-700 rounded-md;
-}
-
-.djs-context-pad .entry:hover {
-  background-color: #b0a993 !important;
-  box-shadow: 0 0 2px 1px #b0a993 !important;
-  @apply text-stone-900;
-}
-
+/* bpmn-js subprocess breadcrumbs (drilled-into-subprocess navigation). */
 .bjs-breadcrumbs,
 .djs-palette-shown .bjs-breadcrumbs,
 .djs-palette-shown.djs-palette-two-column .bjs-breadcrumbs {
   position: fixed !important;
-  top: 42px !important;
+  /* Clear the floating navbar (top-2 + h-10 = 48px) plus 12px breathing room. */
+  top: 60px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   display: none;
@@ -94,15 +100,15 @@ svg text.bi {
   list-style: none;
   z-index: 40;
 
-  background: rgba(236, 229, 208, 0.95);
+  background: rgba(247, 245, 238, 0.78); /* cream-100 */
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(176, 169, 147, 0.40);
-  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.06),
-    0 6px 20px rgba(0, 0, 0, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 
   font-size: 12px;
   font-weight: 500;
@@ -111,7 +117,6 @@ svg text.bi {
   white-space: nowrap;
   line-height: 1.5;
 }
-
 
 .bjs-breadcrumbs-shown .bjs-breadcrumbs {
   display: flex;
@@ -132,7 +137,7 @@ svg text.bi {
 }
 
 .bjs-breadcrumbs li a:hover {
-  background: rgba(176, 169, 147, 0.25);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--color-stone-900);
 }
 
@@ -165,22 +170,7 @@ svg text.bi {
   white-space: nowrap;
 }
 
-.djs-palette {
-  @apply hidden;
-}
-.djs-popup {
-  @apply bg-stone-100 border-2 rounded-2xl border-stone-200 shadow-lg;
-}
-
-.djs-popup .entry.selected {
-  @apply bg-stone-300;
-}
-
-.djs-popup-search input {
-  @apply border border-stone-300 rounded-lg;
-  @apply focus:border-stone-500 focus:ring-stone-500 focus:bg-stone-300;
-}
-
+/* Hide bpmn-token-simulation chrome we don't surface. */
 .bts-palette, .bts-set-animation-speed {
     display: none;
 }
@@ -192,6 +182,73 @@ svg text.bi {
 .bts-token .bts-text {
   fill: transparent !important;
   opacity: 0;
+}
+
+/* Mask-based icon utility — used in the palette to recolor the BIDS SVG. */
+.bids-dataset-icon {
+  -webkit-mask-image: url('assets/img/bids.svg');
+  mask-image: url('assets/img/bids.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background-color: currentColor;
+}
+
+/* the main canvas. */
+.bjs-container,
+.djs-container {
+  background-color: var(--color-cream-50) !important;
+}
+
+/* Green border on canvas when simulation is active. */
+.simulation-active .bjs-container {
+  box-shadow: inset 0 0 0 3px #34c759, inset 0 0 40px rgba(52, 199, 89, 0.12);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Browser-native <select> option list — needs explicit colors so the OS
+ * dropdown matches the cream surface around it. */
+[data-testid="inspector-root"] select option {
+  background-color: var(--color-cream-100);
+  color: #1d1d1f;
+}
+
+/* Hide palette and inspector during simulation. */
+.simulation-active .studyflow-palette,
+.simulation-active .studyflow-inspector {
+  display: none;
+}
+
+/* --- bpmn-js native "create element" popup (used by SchemaPopupMenu).
+ *
+ * Matches the cream-300 menu character used by navbar dropdowns and
+ * palette flyouts so all menu/popover surfaces share one identity.
+ */
+.djs-popup {
+  @apply bg-cream-300/85 backdrop-blur-2xl backdrop-saturate-150 border border-black/[0.08] rounded-2xl;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 12px 36px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.djs-popup .entry:hover {
+  @apply bg-black/[0.05];
+}
+
+.djs-popup .entry.selected {
+  @apply bg-black/[0.08];
+}
+
+/* Search box inside the popup — recessed against the cream-300 surface. */
+.djs-popup-search input {
+  @apply border border-black/[0.08] rounded-lg bg-cream-100 text-stone-900;
+  @apply focus:border-stone-500 focus:ring-stone-500 focus:bg-cream-100;
+}
+
+.djs-popup-group .group {
+  @apply text-[11px] font-semibold uppercase tracking-wider text-stone-500 px-3 pt-2 pb-1;
 }
 
 .entry.more-palette {
@@ -211,37 +268,16 @@ svg text.bi {
   border-bottom: 4px solid currentColor;
 }
 
-.bids-dataset-icon {
-  /* Use mask so the SVG shape takes on the current text color */
-  -webkit-mask-image: url('assets/img/bids.svg');
-  mask-image: url('assets/img/bids.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  background-color: currentColor;
+/* --- bpmn-js context pad — action chips next to a selected element. */
+.djs-context-pad .entry {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  @apply text-stone-700 rounded-lg;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-/* Cream canvas background */
-.bjs-container,
-.djs-container {
-  background-color: #f1ede0 !important;
-}
-
-/* Green border on canvas when simulation is active */
-.simulation-active .bjs-container {
-  box-shadow: inset 0 0 0 3px #4caf50, inset 0 0 40px rgba(76, 175, 80, 0.15);
-  transition: box-shadow 0.3s ease;
-}
-
-/* Inspector select options — browser-native dropdown needs explicit colors */
-[data-testid="inspector-root"] select option {
-  background-color: #f1ede0;
-  color: #292524;
-}
-
-/* Hide palette and inspector during simulation */
-.simulation-active .studyflow-palette,
-.simulation-active .studyflow-inspector {
-  display: none;
+.djs-context-pad .entry:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  box-shadow: none !important;
+  @apply text-stone-900;
 }

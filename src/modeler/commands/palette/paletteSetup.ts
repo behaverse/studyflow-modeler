@@ -171,6 +171,10 @@ export function runPaletteRegisterSchemaProviders(
         if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
         if (Array.isArray(type.extends) && type.extends.length > 0
             && (!Array.isArray(type.superClass) || type.superClass.length === 0)) return false;
+        // Template-scoped types are surfaced via their `templates:` entry only;
+        // hide them from palette flyovers so users always reach for the
+        // prefilled template instead of a bare type instance.
+        if (type.meta?.templateScopedType) return false;
         return true;
       })
       .map((type: any): PaletteSchemaItem | null => {

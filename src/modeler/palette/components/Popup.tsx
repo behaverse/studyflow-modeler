@@ -1,5 +1,6 @@
 import type { PaletteEntry, PaletteGroup } from '../../constants/palette';
 import type { PaletteDragHandlers } from '../hooks/usePaletteDrag';
+import { paletteFlyout } from '../../styles';
 
 type Props = {
   group: PaletteGroup;
@@ -11,22 +12,14 @@ type Props = {
 /** Flyout panel rendered next to a palette group button. */
 export function Popup({ group, extraItems, isOpen, handlers }: Props) {
   return (
-    <div
-      className={`${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}
-                  transition-all duration-150
-                  absolute left-[calc(100%+10px)] top-[-6px] z-[300]
-                  w-[220px] p-2.5 pb-3
-                  rounded-[14px] bg-[#c8bea0]/95 backdrop-blur-2xl
-                  border border-[#b0a993]/40
-                  shadow-[0_4px_12px_rgba(0,0,0,0.10),0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.6)]`}>
+    <div className={paletteFlyout.panel(isOpen)}>
       {/* Gap bridge so hover stays active between button and flyout */}
-      <span className="absolute left-[-10px] top-0 w-[10px] h-full" aria-hidden="true" />
+      <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
-      <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500
-                      pb-2 mb-2 px-1 border-b border-[#b0a993]/40">
+      <div className={paletteFlyout.header}>
         {group.label}
       </div>
-      <div className="grid grid-cols-3 gap-1">
+      <div className={paletteFlyout.grid}>
         {[...group.items, ...extraItems].map((item) => {
           const key = item.studyflowType ?? item.bpmnType;
           const isUrlIcon = !!item.icon && /^(https?:\/\/|data:image\/)/i.test(item.icon);
@@ -35,9 +28,7 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
               key={key}
               type="button"
               title={`Create ${item.label}`}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg
-                         text-stone-700 hover:text-violet-700 hover:bg-[#b0a993]/50
-                         transition-colors cursor-grab active:cursor-grabbing"
+              className={paletteFlyout.item}
               onMouseDown={(e) => handlers.onMouseDown(item, e)}
               onMouseMove={(e) => handlers.onMouseMove(item, e)}
               onMouseUp={handlers.onMouseUp}
@@ -49,7 +40,7 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
               ) : (
                 <i className={`text-[22px] ${item.icon || 'iconify tabler--hexagon'}`}></i>
               )}
-              <span className="text-[9.5px] font-semibold leading-tight text-center">
+              <span className={paletteFlyout.itemLabel}>
                 {item.label}
               </span>
             </button>

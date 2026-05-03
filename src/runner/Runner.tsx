@@ -133,7 +133,7 @@ export function Runner() {
             allow="autoplay; fullscreen"
           />
           <div className={`${layout.cover} ${stageReady ? layout.coverHidden : layout.coverShown}`}>
-            <span>Preparing study… ({phase})</span>
+            <span>Preparing study... ({phase})</span>
           </div>
         </div>
         <aside

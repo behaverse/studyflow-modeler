@@ -139,7 +139,7 @@ function ContextPadComponent() {
           <div className="relative">
             <button
               type="button"
-              title="Change type…"
+              title="Change type..."
               className={`w-7 h-7 flex items-center justify-center rounded hover:bg-stone-100 ${morphOpen ? 'bg-stone-100' : ''}`}
               onClick={() => setMorphOpen((v) => !v)}
             >

@@ -1,7 +1,7 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { getAppliedType, getExtensionElement, getProperty } from '../extensions';
 import { toLocalName } from '../utils/naming';
-import { inspector as s } from './styles';
+import { inspector as s } from '../styles';
 
 function resolveDisplayName(element: any): string {
   const businessObject = getBusinessObject(element);

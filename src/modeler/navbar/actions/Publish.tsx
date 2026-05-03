@@ -4,6 +4,7 @@ import { Button, Dialog, DialogPanel, DialogTitle, Fieldset, Label, Description,
 
 import { ModelerContext } from '../../contexts';
 import { executeCommand } from '../../commands';
+import { dialog as s } from '../../styles';
 
 
 export function PublishDialog({ref, ...props}) {
@@ -66,59 +67,59 @@ export function PublishDialog({ref, ...props}) {
   }
 
   return (
-    <Dialog open={isOpen} className="relative z-[101] focus:outline-none" onClose={close}>
-      <div className="fixed backdrop-blur	inset-0 z-10 w-screen overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4">
+    <Dialog open={isOpen} className={s.root} onClose={close}>
+      <div className={s.backdrop}>
+        <div className={s.centerLayout}>
           <DialogPanel
             transition
-            className="w-full bg-stone-100 max-w-md rounded-xl p-6 backdrop-blur-2xl duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]"
+            className={`${s.panelMd} ${s.panel}`}
           >
-            <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-8">
+            <DialogTitle as="h3" className={`${s.title} pb-6`}>
               Publish
-              <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
+              <span className={s.closeButton} onClick={close}>
                 <i className="iconify bi--x-lg"></i>
               </span>
             </DialogTitle>
             <form onSubmit={handlePublish}>
-              <Fieldset className="space-y-6">
+              <Fieldset className={s.fieldset}>
                 <Field>
-                  <Label className="text-sm font-medium">Study Name</Label>
+                  <Label className={s.label}>Study Name</Label>
                   <Input
                     name="study_name"
-                    className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                    className={s.input}
                     placeholder="Example: my-study"
                   />
-                  <Description className="text-xs text-stone-400 mt-1">
+                  <Description className={s.helpText}>
                     Use only lower-case letters, numbers, and hyphens
                   </Description>
                 </Field>
                 <Field>
-                  <Label className="text-sm font-medium">Behaverse API Key</Label>
+                  <Label className={s.label}>Behaverse API Key</Label>
                   <Input
                     name="api_key"
-                    className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                    className={s.input}
                     placeholder="Example: 12345jdcj33kllk67890"
                   />
-                  <Description className="text-xs text-black/50 mt-1">
-                    See the <a className="text-sky-500 hover:text-sky-600" href="https://api.behaverse.org/docs" target="_blank">API docs</a> for more information
+                  <Description className={s.helpText}>
+                    See the <a className={s.bodyLink} href="https://api.behaverse.org/docs" target="_blank">API docs</a> for more information
                   </Description>
                 </Field>
                 {status &&
                   <div className="float-start inline-flex items-center py-1.5">
-                    <span className="text-sm m-auto">
+                    <span className={s.statusText}>
                       {status}
                     </span>
                   </div>
                 }
                 {previewUrl &&
                   <a href={previewUrl} target="_blank"
-                    className="float-end inline-flex items-center gap-2 rounded-md bg-green-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-green-700"
+                    className={`float-end ${s.previewBtn}`}
                   >Preview</a>
                 }
                 {publishButtonIsVisible &&
                   <Button
                     type="submit"
-                    className="float-end inline-flex items-center gap-2 rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold shadow-inner shadow-white/10 hover:bg-sky-700"
+                    className={`float-end inline-flex items-center gap-2 ${s.primaryBtn}`}
                   >
                     Publish
                   </Button>

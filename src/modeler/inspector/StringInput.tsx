@@ -4,7 +4,7 @@ import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
-import { field as s } from './styles';
+import { field as s } from '../styles';
 
 type Props = {
   bpmnProperty: any;

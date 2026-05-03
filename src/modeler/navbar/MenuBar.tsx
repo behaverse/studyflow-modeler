@@ -9,7 +9,7 @@ import { SimulateButton } from './actions/Simulate';
 import { NewDiagramButton } from './actions/NewDiagram';
 import { ResetZoomButton } from './actions/ResetZoom';
 import { LoginButton, LoginDialog } from './actions/Login';
-import { dropdownCls, itemCls, navBtnCls, sepCls, navBurgerBtnCls } from './styles';
+import { dropdownCls, itemCls, navBtnCls, sepCls, navBurgerBtnCls, navDividerCls, navbar } from '../styles';
 
 export default function MenuBar() {
   const publishDialogRef = useRef<{ open: () => void }>(null);
@@ -17,7 +17,7 @@ export default function MenuBar() {
   const examplesDialogRef = useRef<{ open: () => void }>(null);
 
   return (
-    <div className="flex items-center gap-0.5 mx-1 flex-shrink-0">
+    <div className={navbar.menuContainer}>
       <PublishDialog ref={publishDialogRef} />
       <LoginDialog ref={loginDialogRef} />
       <ExamplesDialog ref={examplesDialogRef} />
@@ -59,7 +59,7 @@ export default function MenuBar() {
           </MenuItems>
         </Menu>
 
-        <div className="w-px h-4 bg-[#b0a993]/40 mx-1" />
+        <div className={navDividerCls} />
         <Menu as="div" title="SimulateMenu">
           <SimulateButton className="" />
         </Menu>

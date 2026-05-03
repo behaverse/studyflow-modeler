@@ -121,8 +121,7 @@ types:
     meta:
       icon: iconify fluent--pulse-20-filled
       bpmnType: bpmn:SubProcess
-      # Surface this type only via its `templates:` entry; never list it as a
-      # standalone palette element so users always see the prefilled template.
+      # never list it as a standalone palette element so users always see the prefilled template.
       templateScopedType: true
     properties:
       - name: flatline_criterion

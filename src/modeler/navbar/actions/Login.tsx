@@ -2,6 +2,7 @@ import { useImperativeHandle, useContext, useState, forwardRef } from 'react';
 import { Button, Dialog, DialogPanel, DialogTitle, Description, Field, Fieldset, Label, Input } from '@headlessui/react';
 import { APIKeyContext } from '../../contexts';
 import { executeCommand } from '../../commands';
+import { dialog as s } from '../../styles';
 
 export function LoginDialog({ ref }: { ref: React.Ref<{ open: () => void }> }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,38 +53,35 @@ export function LoginDialog({ ref }: { ref: React.Ref<{ open: () => void }> }) {
   };
 
   return (
-    <Dialog open={isOpen} onClose={close} className="relative z-[101] focus:outline-none">
-      <div className="fixed backdrop-blur inset-0 z-10 w-screen overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4">
-          <DialogPanel className="w-full max-w-md rounded-xl bg-stone-100 p-6 backdrop-blur-2xl duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]">
-            <DialogTitle as="h3" className="text-base/7 text-stone-900 font-semibold pb-8">
+    <Dialog open={isOpen} onClose={close} className={s.root}>
+      <div className={s.backdrop}>
+        <div className={s.centerLayout}>
+          <DialogPanel className={`${s.panelMd} ${s.panel}`}>
+            <DialogTitle as="h3" className={`${s.title} pb-6`}>
               Login
-              <span className="text-sm/6 text-black ml-2 float-end cursor-pointer" onClick={close}>
+              <span className={s.closeButton} onClick={close}>
                 <i className="iconify bi--x-lg"></i>
               </span>
             </DialogTitle>
-            <p className="text-sm text-stone-600 pb-6">
-              To access this demo, you need a valid key. If you don&apos;t have one, please <a className="text-sky-500 hover:text-sky-600" href="https://github.com/behaverse" target="_blank">contact us</a>.
+            <p className={`${s.body} pb-6`}>
+               Make sure your key has the correct permissions. If you don't have a valid API key, please <a className={s.bodyLink} href="https://github.com/behaverse" target="_blank">contact us</a>.
             </p>
             <form action={login}>
-              <Fieldset className="space-y-6">
+              <Fieldset className={s.fieldset}>
                 <Field>
-                  <Label className="text-sm font-medium">Behaverse API Key</Label>
+                  <Label className={s.label}>Behaverse API Key</Label>
                   <Input
                     name="api_key"
                     onChange={() => { setError(undefined) }}
-                    className="mt-3 block w-full rounded-lg border-none bg-stone-200 py-1.5 px-3 font-mono text-sm/6 text-black focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600"
+                    className={s.input}
                     placeholder="Example: 12345adhjkl67890"
                   />
-                  <Description className="text-xs text-stone-400 mt-1">
-                    Make sure your key has the correct permissions.
-                  </Description>
                 </Field>
                 <div className="flex justify-between items-center">
-                  <div className="float-start">{error && <p className="text-red-500 text-sm">{error}</p>}</div>
+                  <div className="float-start">{error && <p className={s.errorText}>{error}</p>}</div>
                   <div className="float-end space-x-2">
-                    <Button type="button" onClick={guestLogin} className="rounded-md bg-stone-300 py-1.5 px-3 text-sm/6 text-black hover:bg-stone-400 cursor-pointer">Continue as Guest</Button>
-                    <Button type="submit" className="float-end rounded-md bg-sky-500 py-1.5 px-3 text-sm/6 text-white font-semibold hover:bg-sky-700 cursor-pointer">Login</Button>
+                    <Button type="button" onClick={guestLogin} className={s.secondaryBtn}>Continue as Guest</Button>
+                    <Button type="submit" className={`float-end ${s.primaryBtn}`}>Login</Button>
                   </div>
                 </div>
               </Fieldset>

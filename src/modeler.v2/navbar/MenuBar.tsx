@@ -21,7 +21,7 @@ import {
 import { useModelerStore } from '../store';
 import { exportDiagram } from '../commands/exportDiagram';
 
-// ─── Save As ────────────────────────────────────────────────────────────────
+// --- Save As
 
 function SaveButton({ className }: { className?: string }) {
   const saveFile = useModelerStore((s) => s.saveFile);
@@ -33,7 +33,7 @@ function SaveButton({ className }: { className?: string }) {
   );
 }
 
-// ─── Open ────────────────────────────────────────────────────────────────────
+// --- Open
 
 function OpenButton({ className }: { className?: string }) {
   const importXml = useModelerStore((s) => s.importXml);
@@ -82,7 +82,7 @@ function OpenButton({ className }: { className?: string }) {
   );
 }
 
-// ─── Publish Dialog ──────────────────────────────────────────────────────────
+// --- Publish Dialog
 
 function PublishDialog({
   isOpen,
@@ -211,9 +211,9 @@ function PublishDialog({
   );
 }
 
-// ─── MenuBar ─────────────────────────────────────────────────────────────────
+// --- MenuBar
 
-// ─── Simulate Button ─────────────────────────────────────────────────────────
+// --- Simulate Button
 
 function SimulateButton() {
   const simActive = useModelerStore((s) => s.simActive);
@@ -238,7 +238,7 @@ function SimulateButton() {
   );
 }
 
-// ─── MenuBar ─────────────────────────────────────────────────────────────────
+// --- MenuBar
 
 export function MenuBar() {
   const [publishOpen, setPublishOpen] = useState(false);

@@ -1,4 +1,4 @@
-import { inspector as s } from './styles';
+import { inspector as s } from '../styles';
 
 interface ToggleButtonProps {
   isInspectorVisible: boolean;

@@ -7,6 +7,7 @@ import { useSchemaProviders } from './hooks/useSchemaProviders';
 import { usePaletteDrag } from './hooks/usePaletteDrag';
 import { PaletteButton } from './components/PaletteButton';
 import { Popup } from './components/Popup';
+import { palette } from '../styles';
 
 function renderSchemaIcon(icon?: string): React.ReactNode {
   if (icon && /^(https?:\/\/|data:image\/)/i.test(icon)) {
@@ -99,28 +100,23 @@ export function Palette({ className = '' }: { className?: string }) {
 
   return (
     <div
-      className={`fixed top-1/2 -translate-y-1/2 left-0 z-[210] flex flex-col
-                  rounded-r-xl bg-[#c8bea0]/95 backdrop-blur-2xl
-                  border border-[#b0a993]/40 border-l-0
-                  shadow-[2px_0_10px_rgba(0,0,0,0.08),6px_0_28px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.6)]
-                  py-1.5 px-1 gap-0.5
-                  ${className}`}
+      className={`${palette.wrapper} ${className}`}
       data-testid="palette-root"
       ref={rootRef}
     >
       {/* Section 1: tools */}
       <div
         key="lasso"
-        className="group relative flex items-center"
+        className={palette.group}
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton title="Select elements with lasso tool" onClick={handleLassoToolClick}>
           <i className="text-[22px] iconify material-symbols--ink-selection-rounded"></i>
         </PaletteButton>
-        <span className="palette-tooltip">Select multiple elements</span>
+        <span className={palette.tooltip}>Select multiple elements</span>
       </div>
 
-      <div className="my-1 h-px bg-[#b0a993]/40 mx-1" />
+      <div className={palette.separator} />
 
       {/* Section 2: element categories */}
       {PALETTE_GROUPS.map((group) => {
@@ -132,7 +128,7 @@ export function Palette({ className = '' }: { className?: string }) {
         return (
           <div
             key={group.label}
-            className="group/palgroup relative flex items-center"
+            className={palette.groupWithFlyout}
             onMouseEnter={() => {
               if (pinnedGroup) return;
               setOpenGroup(group.label);
@@ -157,20 +153,20 @@ export function Palette({ className = '' }: { className?: string }) {
               }}
             >
               <i className={`text-[22px] ${group.icon}`}></i>
-              <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-600 rotate-[-45deg] -translate-y-1/2" />
+              <span className={palette.groupChevron} />
             </PaletteButton>
             <Popup group={group} extraItems={extraItems} isOpen={isOpen} handlers={dragHandlers} />
           </div>
         );
       })}
 
-      <div className="my-1 h-px bg-[#b0a993]/40 mx-1" />
+      <div className={palette.separator} />
 
       {/* Section 3: more-elements popups (per schema + BPMN catch-all) */}
       {schemas.map(({ prefix, name, icon }) => (
         <div
           key={`more-${prefix}`}
-          className="group relative flex items-center"
+          className={palette.group}
           onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
         >
           <PaletteButton
@@ -181,14 +177,14 @@ export function Palette({ className = '' }: { className?: string }) {
           >
             {renderSchemaIcon(icon)}
           </PaletteButton>
-          <span className="palette-tooltip">{name} elements...</span>
-          <span className="absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-600 rotate-[-45deg] -translate-y-1/2" />
+          <span className={palette.tooltip}>{name} elements...</span>
+          <span className={palette.groupChevron} />
         </div>
       ))}
 
       <div
         key="more-bpmn"
-        className="group relative flex items-center"
+        className={palette.group}
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton
@@ -199,7 +195,7 @@ export function Palette({ className = '' }: { className?: string }) {
         >
           <i className="text-[22px] iconify bi--three-dots"></i>
         </PaletteButton>
-        <span className="palette-tooltip">BPMN elements...</span>
+        <span className={palette.tooltip}>BPMN elements...</span>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { type MouseEventHandler, type ReactNode } from 'react';
+import { palette } from '../../styles';
 
 type Props = {
   title: string;
@@ -24,7 +25,7 @@ export function PaletteButton({
     <button
       type="button"
       title={title}
-      className={`palette-tool-btn ${className}`.trim()}
+      className={`${palette.toolButton} ${className}`.trim()}
       aria-expanded={ariaExpanded}
       onClick={onClick}
       onMouseUp={onMouseUp}

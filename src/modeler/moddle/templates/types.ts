@@ -46,7 +46,7 @@ export interface Template {
   keywords?: string[];
   /** The underlying BPMN type to create (e.g., "bpmn:Task") */
   elementType?: { value: string };
-  /** Template properties (simplified – we use studyflow extensions) */
+  /** Template properties (simplified - use studyflow extensions) */
   properties?: Array<{
     label: string;
     type: string;
@@ -54,7 +54,7 @@ export interface Template {
     binding: { type: string; name: string };
   }>;
 
-  // ── Studyflow-specific fields ──
+  // --- Studyflow-specific fields
 
   /** The studyflow moddle type name (e.g., "studyflow:CognitiveTask") */
   studyflowType: string;

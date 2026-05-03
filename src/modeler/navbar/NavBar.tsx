@@ -2,6 +2,7 @@ import logo_image from '@/assets/img/logo.png';
 import { useState, useContext } from 'react';
 import { DiagramNameContext, ModelerContext } from '../contexts';
 import MenuBar from './MenuBar';
+import { navbar } from '../styles';
 
 export function NavBar() {
   const { modeler } = useContext(ModelerContext);
@@ -13,23 +14,18 @@ export function NavBar() {
       <a
         href="../"
         target="_blank"
-        className="fixed top-2 left-[-10px] z-50 flex items-center gap-2.5 px-4 h-12 select-none"
+        className={navbar.brand}
       >
-        <img src={logo_image} className="h-12 w-12" alt="Studyflow Modeler" title="Studyflow Modeler" />
-        <span className="text-md leading-none select-none text-violet-800">
-          <span className="font-light">Studyflow</span>
+        <img src={logo_image} className={navbar.brandImage} alt="Studyflow Modeler" title="Studyflow Modeler" />
+        <span className={navbar.brandWordmark}>
+          <span className={navbar.brandWordmarkLight}>Studyflow</span>
           <br />
-          <span className="font-semibold">Modeler</span>
+          <span className={navbar.brandWordmarkBold}>Modeler</span>
         </span>
       </a>
 
-      <div
-        className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center h-9 max-w-[calc(100vw-16px)]
-                   rounded-b-[14px] bg-[#c8bea0]/95 backdrop-blur-2xl
-                   border border-[#b0a993]/40 border-t-0
-                   shadow-[0_2px_8px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.10)]"
-      >
-        <div className="flex items-center px-2 min-w-0 flex-shrink">
+      <div className={navbar.shell}>
+        <div className={navbar.diagramSlot}>
           {isEditingDiagramName ? (
             <input
               type="text"
@@ -44,11 +40,11 @@ export function NavBar() {
               autoFocus
               maxLength={120}
               minLength={1}
-              className="text-[13px] font-medium text-stone-800 bg-[#dcd4b8] rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#b0a993]"
+              className={navbar.diagramNameInput}
             />
           ) : (
             <span
-              className="text-[13px] font-medium text-stone-800 cursor-pointer px-2 py-1 rounded-md hover:bg-[#b0a993]/50 transition-colors truncate"
+              className={navbar.diagramName}
               title="Click to edit diagram name"
               onClick={() => setIsEditingDiagramName(true)}
             >

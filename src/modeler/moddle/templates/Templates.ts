@@ -98,8 +98,6 @@ export default class Templates {
     return rootShape;
   }
 
-  // ── Template registry ──────────────────────────────────────────────
-
   /**
    * Replace the full set of templates.
    * Called by TemplatesLoader after templates are built.
@@ -109,7 +107,7 @@ export default class Templates {
     this._eventBus.fire('elementTemplates.changed');
   }
 
-  // ── API consumed by CreateAppendElementTemplatesModule ─────────────
+  // --- API consumed by CreateAppendElementTemplatesModule
 
   /**
    * Return the latest templates.
