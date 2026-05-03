@@ -11,24 +11,25 @@ types:
   - name: Transform
     description: Apply a function to each element in a data stream.
     superClass:
-      - bpmn:Task
+      - bpmn:ServiceTask
       - bpmn:BaseElement
     meta:
       icon: iconify mdi--function
-      bpmnType: bpmn:Task
+      bpmnType: bpmn:ServiceTask
     properties:
       - name: isDataOperation
         isAttr: true
         type: Boolean
         default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
         meta:
-          hidden: true
+          pinned: true
       - name: operationType
         isAttr: true
         default: transform
         type: String
         meta:
-          hidden: true
+          pinned: true
   - name: Map
     description: Map a function over a data stream, producing a new data stream.
     superClass:
@@ -40,7 +41,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
   - name: Reduce
@@ -54,7 +55,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
   - name: Filter
@@ -69,7 +70,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: filter
         redefines: omniprocess:Transform#operationType
   - name: Preprocess_fMRI

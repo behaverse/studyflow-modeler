@@ -7,7 +7,7 @@
 export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:ManualTask':        'iconify fluent--hand-left-24-regular rotate-90',
   'bpmn:UserTask':          'iconify bi--person',
-  'bpmn:ServiceTask':       'iconify mdi--cog',
+  'bpmn:ServiceTask':       'iconify mdi--cog-outline',
   'bpmn:ScriptTask':        'iconify fluent--script-24-regular',
   'bpmn:SendTask':          'iconify bi--envelope-fill',
   'bpmn:ReceiveTask':       'iconify bi--envelope-open',

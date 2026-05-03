@@ -4,6 +4,7 @@ import { StringInput } from './StringInput';
 import { CodeEditor } from './CodeEditor';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
+import { ArrayInput } from './ArrayInput';
 import { InspectorContext, ModelerContext } from '../contexts';
 import { getProperty } from '../extensions';
 import { splitQName } from '../utils/naming';
@@ -44,7 +45,7 @@ function resolveInputType(declaredType: string, modeler: any): string {
  */
 export function isPropertyVisible(bProp: any, el: any): boolean {
   if (!bProp || !el) return true;
-  if (bProp.meta?.hidden) return false;
+  if (bProp.meta?.pinned) return false;
   if (!bProp.meta?.condition) return true;
 
   // TODO this is only valid when condition.language is json
@@ -91,7 +92,8 @@ export function PropertyField({ bpmnProperty }: FieldProps) {
   if (!isVisible) return null;
 
   const resolvedType = resolveInputType(declaredType, modeler);
-  const Input = INPUT_BY_TYPE[resolvedType] ?? StringInput;
+  const isStringList = bpmnProperty.isMany === true && declaredType === 'String';
+  const Input = isStringList ? ArrayInput : (INPUT_BY_TYPE[resolvedType] ?? StringInput);
 
   return (
     <Field className={s.field}>

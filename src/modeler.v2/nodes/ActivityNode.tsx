@@ -14,7 +14,7 @@ function ActivityNodeComponent({ id, data, selected }: NodeProps) {
   const enumerations = doc?.getEnumerations() ?? [];
   const iconClass = resolveIconClass(bo, typeMap, enumerations);
   const sceneText = resolveSceneText(bo);
-  const markers = resolveMarkers(bo);
+  const markers = resolveMarkers(bo, typeMap);
   const editingNodeId = useModelerStore((s) => s.editingNodeId);
   const setEditingNodeId = useModelerStore((s) => s.setEditingNodeId);
   const updateProperty = useModelerStore((s) => s.updateProperty);

@@ -72,7 +72,7 @@ types:
     description: |
       Specialized `CognitiveTask` for the Behaverse battery. It behaves like a
       normal studyflow task, but its `instrument` is fixed to `behaverse` and
-      hidden from the inspector. At runtime, `scene` maps to the Behaverse
+      pinned (not editable in the inspector). At runtime, `scene` maps to the Behaverse
       assessment task ID (e.g., `NB`, `UFOV`) and `timelineId` selects a
       timeline shipped with the build; `configurations` either holds parameter
       overrides (when `configMode` is `builtin`) or a full `GameConfig`
@@ -89,7 +89,7 @@ types:
         isAttr: true
         redefines: studyflow:CognitiveTask#instrument
         meta:
-          hidden: true
+          pinned: true
       - name: scene
         description: |
           Behaverse scene that delivers this task (e.g., `NB`, `UFOV`, `DS`). Maps to a task ID in the Behaverse at runtime.

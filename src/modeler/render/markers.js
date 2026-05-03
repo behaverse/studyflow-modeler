@@ -6,6 +6,16 @@ import { BPMN_ICON_OVERRIDES } from './constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
 /**
+ * Service/Script tasks with isDataOperation=true already convey "data
+ * operation" through their type — and their schema icon (typically `f`)
+ * makes a bottom marker redundant. Skip the operation marker for them.
+ */
+function isServiceOrScriptDataOp(element) {
+  if (!getProperty(element, 'isDataOperation')) return false;
+  return is(element, 'bpmn:ServiceTask') || is(element, 'bpmn:ScriptTask');
+}
+
+/**
  * Draw bottom-of-task markers (subprocess, loop, parallel, etc.).
  *
  * @param {any} parentNode
@@ -15,7 +25,7 @@ export function drawMarkers(parentNode, element) {
   let markers = [];
   removeDefaultMarkers(parentNode);
 
-  if (getProperty(element, 'isDataOperation')) {
+  if (getProperty(element, 'isDataOperation') && !isServiceOrScriptDataOp(element)) {
     markers.push("operation");
   }
 

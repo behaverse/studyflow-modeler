@@ -2,8 +2,10 @@
 
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import { getAppliedType, getExtensionElement, getAttr, hasExtends } from '../extensions';
+import { getAppliedType, getExtensionElement, getAttr, hasExtends, getProperty } from '../extensions';
 import { BPMN_ICON_OVERRIDES } from './constants';
+
+const DATA_OP_ICON = 'iconify mdi--function';
 import { drawEventWithIcon} from './events';
 import { drawDataStore } from './data';
 import { drawActivity } from './activities';
@@ -78,7 +80,17 @@ export default class StudyflowRenderer extends BaseRenderer {
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
     const elementTemplateIconClass = this._resolveElementTemplateIcon(ext || element.businessObject);
     const descriptorIconClass = sfDescriptor?.meta?.icon || sfDescriptor?.icon;
-    const iconClass = elementTemplateIconClass || descriptorIconClass || BPMN_ICON_OVERRIDES[element.type] || undefined;
+    const explicitIcon = elementTemplateIconClass || descriptorIconClass;
+    // Service/Script tasks marked as data operations fall back to the function
+    // symbol when no specific icon was supplied — matches the schema-set icon
+    // on omniprocess types (Map/Reduce/Filter) for plain bpmn:ServiceTask too.
+    const isServiceOrScriptDataOp =
+      (is(element, 'bpmn:ServiceTask') || is(element, 'bpmn:ScriptTask'))
+      && getProperty(element, 'isDataOperation');
+    const iconClass = explicitIcon
+      || (isServiceOrScriptDataOp ? DATA_OP_ICON : undefined)
+      || BPMN_ICON_OVERRIDES[element.type]
+      || undefined;
 
     if (is(element, "bpmn:Event")) {
       return drawEventWithIcon(parentNode, element, this.bpmnRenderer);

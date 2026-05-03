@@ -1,8 +1,28 @@
 // @ts-check
 
-import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { is, getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from '../commands';
-import { getProperty } from '../extensions';
+import {
+  getProperty,
+  getEffectivePropertyDescriptor,
+  getExtensionElement,
+  getExtensionPropertyDescriptor,
+} from '../extensions';
+
+/**
+ * True when the schema pins `isDataOperation` for this element's effective
+ * type — e.g. types that fix the value (CognitiveTask, VideoGame, Rest,
+ * omniprocess:Transform). Users shouldn't be able to toggle it via the
+ * popup in those cases.
+ */
+function isDataOperationPinned(element) {
+  const businessObject = getBusinessObject(element);
+  const ext = getExtensionElement(businessObject);
+  const descriptor =
+    (ext && getExtensionPropertyDescriptor(ext, 'isDataOperation'))
+    || getEffectivePropertyDescriptor(businessObject, 'isDataOperation');
+  return descriptor?.meta?.pinned === true;
+}
 
 /**
  * Header entries for bpmn-js's popup replace menu.
@@ -44,7 +64,8 @@ export default class ReplaceMenuProvider {
     const headerEntries = {};
 
     // isDataOperation is an extends property on bpmn:Activity (lives on the BO).
-    if (is(element, 'bpmn:Activity')) {
+    // Suppress the toggle for types that pin the value via meta.pinned.
+    if (is(element, 'bpmn:Activity') && !isDataOperationPinned(element)) {
       headerEntries['toggle-marker-operation'] = this._getOperationMarkerHeaderEntry(element);
     }
 

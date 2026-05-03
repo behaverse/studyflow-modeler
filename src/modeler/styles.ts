@@ -234,7 +234,7 @@ export const paletteFlyout = {
 // --- 6. Inspector
 
 export const inspector = {
-  wrapper: 'fixed top-2 right-2 z-[60]',
+  wrapper: 'fixed top-2 right-2 z-[220]',
   /**
    * Inspector panel — translucent cream-100 with vibrancy. Floats with
    * margin from the viewport edges (Claude.ai pattern), all corners
@@ -251,7 +251,7 @@ export const inspector = {
    * otherwise establish a containing block for `position: fixed` and anchor
    * the toggle to the panel rather than the viewport.
    */
-  toggleButton: `fixed top-3.5 right-3.5 z-[70] flex items-center justify-center
+  toggleButton: `fixed top-3.5 right-3.5 z-[230] flex items-center justify-center
                  w-8 h-8 rounded-md
                  text-stone-500 hover:text-stone-900 hover:bg-black/[0.05]
                  transition-colors`,
@@ -295,6 +295,15 @@ export const field = {
   booleanGroup: 'flex items-center gap-2',
   checkbox: 'group block size-4 rounded border border-black/[0.20] bg-cream-200 data-[checked]:bg-stone-900 data-[checked]:border-stone-900',
   checkboxIcon: 'stroke-cream-50 opacity-0 group-data-[checked]:opacity-100',
+
+  /* Array (isMany String) field — list editor with inferred-from-connections rows. */
+  arrayList: 'flex flex-col gap-1 mt-1',
+  arrayRow: 'relative',
+  arrayInput: 'px-2 py-1 pr-7 w-full rounded-md border border-black/[0.08] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400',
+  arrayRemoveBtn: 'absolute top-1/2 right-1.5 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
+  arrayAddBtn: 'self-start w-7 h-7 flex items-center justify-center rounded-md text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
+  arrayInferredInput: 'px-2 py-1 pr-16 w-full rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 placeholder-stone-400 focus:outline-none focus:border-black/[0.45]',
+  arrayInferredLabel: 'pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 italic text-[11.5px] text-stone-400',
 } as const;
 
 // --- 8. Code-editor modal (inside the inspector)

@@ -180,11 +180,53 @@ types:
         isMany: true
         categories:
           - Documentation
-        hidden: false
+        pinned: false
   - name: Study
     description: Process definition for a Studyflow study.
     extends:
       - bpmn:Process
+  - name: DataOperationActivity
+    description: |
+      Augments any BPMN Activity with the data-operation flag and
+      input/output variable lists. Subtypes redefine `isDataOperation`
+      to pin it (e.g. CognitiveTask fixes it to false,
+      omniprocess:Transform fixes it to true).
+    extends:
+      - bpmn:Activity
+    isAbstract: true
+    properties:
+      - name: isDataOperation
+        description: Marks the activity as a data operation (e.g. transform, filter, reduce).
+        isAttr: true
+        type: Boolean
+        default: false
+        meta:
+          categories:
+            - Data
+      - name: inputs
+        description: Names of variables consumed by this activity.
+        isAttr: true
+        isMany: true
+        type: String
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              isDataOperation: true
+      - name: outputs
+        description: Names of variables produced by this activity.
+        isAttr: true
+        isMany: true
+        type: String
+        meta:
+          categories:
+            - Data
+          condition:
+            language: json
+            body:
+              isDataOperation: true
   - name: StartEvent
     extends:
       - bpmn:StartEvent
@@ -199,13 +241,13 @@ types:
         meta:
           categories:
             - Privacy
-          hidden: false
+          pinned: false
       - name: consentFormUri
         description: Link to the consent form. Leave empty if you want to use the default consent form.
         isAttr: true
         type: String
         meta:
-          hidden: false
+          pinned: false
           categories:
             - Privacy
           condition:
@@ -225,7 +267,7 @@ types:
         meta:
           categories:
             - Control
-          hidden: false
+          pinned: false
   - name: EndEvent
     extends:
       - bpmn:EndEvent
@@ -334,12 +376,13 @@ types:
           categories:
             - Instrument
       - name: isDataOperation
-        description: CognitiveTask is not a data operation; this hidden property pins the value so the data-operation marker is never rendered.
+        description: CognitiveTask is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
         isAttr: true
         type: Boolean
         default: false
+        redefines: studyflow:DataOperationActivity#isDataOperation
         meta:
-          hidden: true
+          pinned: true
   - name: VideoGame
     description: |
       An interactive video game used as an experimental paradigm or measurement
@@ -369,12 +412,13 @@ types:
           categories:
             - Instrument
       - name: isDataOperation
-        description: VideoGame is not a data operation; this hidden property pins the value so the data-operation marker is never rendered.
+        description: VideoGame is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
         isAttr: true
         type: Boolean
         default: false
+        redefines: studyflow:DataOperationActivity#isDataOperation
         meta:
-          hidden: true
+          pinned: true
   - name: Rest
     description: |
       A rest period of inactivity or minimal activity. Often used for baseline
@@ -395,12 +439,13 @@ types:
           categories:
             - Instrument
       - name: isDataOperation
-        description: Rest is not a data operation; this hidden property pins the value so the data-operation marker is never rendered.
+        description: Rest is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
         isAttr: true
         type: Boolean
         default: false
+        redefines: studyflow:DataOperationActivity#isDataOperation
         meta:
-          hidden: true
+          pinned: true
   - name: Questionnaire
     superClass:
       - bpmn:Task

@@ -1,6 +1,7 @@
 /**
  * Shared utilities for v2 node components.
  */
+import { is } from 'bpmn-js/lib/util/ModelUtil';
 import {
   getAppliedStudyflowType,
   getExtensionElement,
@@ -8,6 +9,30 @@ import {
   getProperty,
 } from '../../shared/extensionElements';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from './constants';
+
+const DATA_OP_ICON = 'iconify mdi--function';
+
+/**
+ * Service/Script tasks marked as data operations promote the function symbol
+ * from a marker into the primary activity icon — but only when no specific
+ * icon was supplied (e.g. Preprocess_fMRI keeps its brain icon and falls
+ * back to the operation marker).
+ */
+function isDataOpPromotedToIcon(businessObject: any, explicitIcon?: string): boolean {
+  if (!getProperty(businessObject, 'isDataOperation')) return false;
+  if (explicitIcon) return false;
+  return is(businessObject, 'bpmn:ServiceTask') || is(businessObject, 'bpmn:ScriptTask');
+}
+
+function getExplicitIcon(businessObject: any, typeMap?: Record<string, any>): string | undefined {
+  const ext = getExtensionElement(businessObject);
+  const sfType = getAppliedStudyflowType(businessObject);
+  const sfDescriptor = sfType && typeMap ? typeMap[sfType] : undefined;
+  const prefix = ext?.$type?.split(':')?.[0];
+  const exampleIcon = getNamespacedAttrValue(ext || businessObject, 'icon', prefix);
+  const descriptorIcon = sfDescriptor?.meta?.icon || sfDescriptor?.icon;
+  return exampleIcon || descriptorIcon;
+}
 
 /** Resolve the icon class for a BPMN element. */
 export function resolveIconClass(
@@ -30,8 +55,13 @@ export function resolveIconClass(
 
   // Icon from schema descriptor metadata
   const descriptorIcon = sfDescriptor?.meta?.icon || sfDescriptor?.icon;
+  const explicitIcon = exampleIcon || descriptorIcon;
 
-  let iconClass = exampleIcon || descriptorIcon || BPMN_ICON_OVERRIDES[businessObject?.$type] || undefined;
+  if (isDataOpPromotedToIcon(businessObject, explicitIcon)) {
+    return DATA_OP_ICON;
+  }
+
+  let iconClass = explicitIcon || BPMN_ICON_OVERRIDES[businessObject?.$type] || undefined;
 
   // Resolve instrument-based icon for any activity that exposes instrument.
   if (enumerations && !preservePrimary && !exampleIcon) {
@@ -72,11 +102,16 @@ export function resolveDataStoreIcon(
 }
 
 /** Compute the list of marker keys for an activity element. */
-export function resolveMarkers(businessObject: any): string[] {
+export function resolveMarkers(businessObject: any, typeMap?: Record<string, any>): string[] {
   const markers: string[] = [];
 
   if (getProperty(businessObject, 'isDataOperation')) {
-    markers.push('operation');
+    // Skip the marker on Service/Script tasks without a custom icon — the
+    // icon itself shows the function symbol there.
+    const explicitIcon = getExplicitIcon(businessObject, typeMap);
+    if (!isDataOpPromotedToIcon(businessObject, explicitIcon)) {
+      markers.push('operation');
+    }
   }
 
   const checklist = getProperty(businessObject, 'checklist');

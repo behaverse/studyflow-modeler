@@ -28,6 +28,8 @@
     "studyflow:content": "Content",
     "isDataOperation": "Data Operation",
     "operationType": "Operation Type",
+    "studyflow:inputs": "Inputs",
+    "studyflow:outputs": "Outputs",
     "studyflow:conditionExpression": "Condition",
     "sceneParameters": "Scene Parameters",
     "scene": "Scene"

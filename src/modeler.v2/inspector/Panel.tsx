@@ -36,7 +36,7 @@ const isIdentityProperty = (prop: any) => {
 /** Check if a property is visible based on its condition. */
 export function isPropertyVisible(bProp: any, el: any): boolean {
   if (!bProp || !el) return true;
-  if (bProp.meta?.hidden) return false;
+  if (bProp.meta?.pinned) return false;
   if (!bProp.meta?.condition) return true;
 
   const conditions = bProp.meta?.condition?.body || {};

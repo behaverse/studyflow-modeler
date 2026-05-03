@@ -85,7 +85,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
       - name: className
@@ -108,7 +108,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
       - name: className
@@ -129,7 +129,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
   - name: Filter
@@ -141,7 +141,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: filter
         redefines: omniprocess:Filter#operationType
   - name: Stats
@@ -153,7 +153,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
   - name: Tokens
@@ -165,7 +165,7 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType
   - name: Dedup
@@ -177,6 +177,6 @@ types:
         isAttr: true
         type: String
         meta:
-          hidden: true
+          pinned: true
         default: map
         redefines: omniprocess:Transform#operationType

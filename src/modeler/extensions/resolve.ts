@@ -119,16 +119,32 @@ export function resolveProperty(elementOrBusinessObject: any, propertyName: stri
   };
 }
 
+function readFrom(target: any, propertyName: string): any {
+  if (!target) return undefined;
+  if (typeof target.get === 'function') return target.get(propertyName);
+  return target[propertyName];
+}
+
 export function getProperty(elementOrBusinessObject: any, propertyName: string): any {
   const resolution = resolveProperty(elementOrBusinessObject, propertyName);
 
   if (!resolution.target || !resolution.propertyName) return undefined;
 
-  if (typeof resolution.target.get === 'function') {
-    return resolution.target.get(resolution.propertyName);
+  // When an extension wrapper type also declares the same property (e.g.
+  // omniprocess:Map redefines `isDataOperation` with a pinned default of
+  // `true`), moddle stores the value on the extension element — not on the BO.
+  // Prefer the extension element's value when it has one so pinned schema
+  // defaults are honored at runtime.
+  if (resolution.extensionElement && resolution.target === resolution.businessObject) {
+    const extDescriptor = getExtensionPropertyDescriptor(resolution.extensionElement, propertyName);
+    if (extDescriptor) {
+      const extPropertyName = extDescriptor.name ?? extDescriptor.ns?.localName ?? resolution.propertyName;
+      const extValue = readFrom(resolution.extensionElement, extPropertyName);
+      if (extValue !== undefined) return extValue;
+    }
   }
 
-  return resolution.target[resolution.propertyName];
+  return readFrom(resolution.target, resolution.propertyName);
 }
 
 export function setProperty(
