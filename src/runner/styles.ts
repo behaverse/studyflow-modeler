@@ -1,4 +1,4 @@
-export type LogKind = 'info' | 'task' | 'ok' | 'error';
+export type LogKind = 'info' | 'task' | 'ok' | 'error' | 'skip';
 
 export const layout = {
   page: 'flex flex-col h-screen',
@@ -33,4 +33,5 @@ export const logColor: Record<LogKind, string> = {
   task: 'text-blue-700',
   ok: 'text-emerald-700',
   error: 'text-red-700',
+  skip: 'text-amber-700',
 };

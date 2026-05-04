@@ -20,10 +20,25 @@ const SKIP_DEBUG_MENU = true;
 /** Fallback delay if the Unity build is no `studyflow:runnerReady`. */
 const STARTUP_GRACE_MS = 1000;
 
-// Time the cover is shown while Unity loads the task scene.
-const STAGE_REVEAL_DELAY_MS = 300;
+// Time the cover is shown while Unity loads the task scene. Bumped from 300ms
+// so a slow venue projector / WiFi has room to swap from the loading scene to
+// the first task without the audience seeing a flash of the menu.
+const STAGE_REVEAL_DELAY_MS = 1500;
 
-const UNITY_IFRAME_SRC = `${UNITY_BUILD_URL}/index.html${SKIP_DEBUG_MENU ? '?skipDebugMenu=1' : ''}`;
+/**
+ * Build the Unity iframe URL with the runner's optional `bot` query
+ * forwarded as a Unity URL param. Unity's GameManager picks up
+ * `?bot=autoAnswer:Valid` (and similar) via BotReflection at scene
+ * load, regardless of what the studyflow XML carries — which is the only
+ * mechanism wired in the May-4 build for flipping the Bot agent.
+ */
+function buildUnityIframeSrc(bot: string | null): string {
+  const params = new URLSearchParams();
+  if (SKIP_DEBUG_MENU) params.set('skipDebugMenu', '1');
+  if (bot) params.set('bot', bot);
+  const qs = params.toString();
+  return `${UNITY_BUILD_URL}/index.html${qs ? `?${qs}` : ''}`;
+}
 
 type Log = { kind: LogKind; message: string };
 
@@ -31,12 +46,15 @@ export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflowUrl') ?? '';
   const seed = params.get('seed') ? Number(params.get('seed')) : undefined;
+  const bot = params.get('bot');
+  const unityIframeSrc = buildUnityIframeSrc(bot);
 
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
   const [log, setLog] = useState<Log[]>([]);
   const [stageReady, setStageReady] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const ranOnce = useRef(false);
 
@@ -75,23 +93,37 @@ export function Runner() {
           return;
         }
 
-        setPhase('awaiting unity');
-        const unity = await waitForUnity(() => iframeRef.current);
-
-        // Wait for Unity to finish its loading-scene transition before sending
-        // the first task. Falls back to a grace period for builds that don't
-        // emit the handshake yet.
-        const result = await waitForRunnerReady(() => iframeRef.current);
-        if (result === 'timeout') await new Promise((r) => setTimeout(r, STARTUP_GRACE_MS));
-
+        // Each studyflow task is an independent activity. Unity tears down
+        // (Application.Quit fires) after each completed task, so we treat
+        // every task as its own iframe lifecycle: reload the iframe, wait for
+        // a fresh Unity instance, dispatch the task, await completion, repeat.
+        // This avoids racing the next SendMessage against a half-destroyed
+        // GameManager from the previous task.
         setPhase('running');
         const engine = new StudyflowEngine(graph, { seed });
-        let firstTaskSeen = false;
+        const noopUnity = { SendMessage: () => undefined } as Awaited<ReturnType<typeof waitForUnity>>;
+        let taskNumber = 0;
         for await (const step of engine.run()) {
-          if (!firstTaskSeen && step.kind === 'task') {
-            firstTaskSeen = true;
-            // Reveal the iframe a beat after the first task is dispatched, so
-            // the menu->task scene transition happens behind the cover.
+          let unity: Awaited<ReturnType<typeof waitForUnity>> = noopUnity;
+          if (step.kind === 'task') {
+            taskNumber += 1;
+            // Each task gets a fresh Unity iframe lifecycle. First task: the
+            // iframe mounted at initial render is reused. Subsequent tasks:
+            // bump the React key so the iframe remounts, then wait for a
+            // fresh Unity instance. This avoids racing against the previous
+            // task's Application.Quit teardown.
+            if (taskNumber > 1) {
+              setStageReady(false);
+              setPhase(`reloading unity (task ${taskNumber})`);
+              setIframeKey((k) => k + 1);
+              await new Promise((r) => setTimeout(r, 50));
+            } else {
+              setPhase('awaiting unity');
+            }
+            unity = await waitForUnity(() => iframeRef.current);
+            const result = await waitForRunnerReady(() => iframeRef.current);
+            if (result === 'timeout') await new Promise((r) => setTimeout(r, STARTUP_GRACE_MS));
+            setPhase(`running task ${taskNumber}`);
             setTimeout(() => setStageReady(true), STAGE_REVEAL_DELAY_MS);
           }
           await runStep(step, unity, say, () => iframeRef.current?.contentWindow ?? null);
@@ -114,6 +146,7 @@ export function Runner() {
         <span className={layout.title}>Studyflow Runner</span>
         <span className={layout.badge}>{phase}</span>
         {seed != null && <span className={layout.meta}>seed={seed}</span>}
+        {bot && <span className={layout.meta}>bot={bot}</span>}
         <button
           type="button"
           onClick={() => setLogsOpen((v) => !v)}
@@ -126,8 +159,9 @@ export function Runner() {
       <main className={layout.body}>
         <div className={layout.stage}>
           <iframe
+            key={iframeKey}
             ref={iframeRef}
-            src={UNITY_IFRAME_SRC}
+            src={unityIframeSrc}
             title="Behaverse Assessment"
             className={layout.iframe}
             allow="autoplay; fullscreen"
@@ -169,7 +203,14 @@ async function runStep(
   getUnityWindow: () => Window | null,
 ): Promise<void> {
   if (step.kind !== 'task') {
-    say({ kind: 'info', message: `${step.kind}: ${step.node.id}` });
+    const label = step.node.businessObject?.name || step.node.id;
+    const isStubbed = step.kind === 'questionnaire' || step.kind === 'instruction';
+    say({
+      kind: isStubbed ? 'skip' : 'info',
+      message: isStubbed
+        ? `Skipped ${step.kind} "${label}" — execution not implemented in v1.`
+        : `${step.kind}: ${label}`,
+    });
     return;
   }
   say({ kind: 'task', message: `Run ${step.payload.task} / ${step.payload.timeline ?? '(inline)'}` });

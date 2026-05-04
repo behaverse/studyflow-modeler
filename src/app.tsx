@@ -3,29 +3,14 @@ import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import '@/assets/css/app.css'
 
-// v1 imports
-import { Modeler as V1Modeler } from './modeler/Modeler'
+import { Modeler } from './modeler/Modeler'
 import { APIKeyContext, ModelerContext } from './modeler/contexts';
 import { NavBar } from './modeler/navbar';
-import { InspectorPanel as V1InspectorPanel } from './modeler/inspector';
-import { Palette as V1Palette } from './modeler/palette';
+import { InspectorPanel } from './modeler/inspector';
+import { Palette } from './modeler/palette';
 import { executeCommand } from './modeler/commands';
 
-// v2 imports
-import { Modeler as V2Modeler } from './modeler.v2/Modeler';
-import { Palette as V2Palette } from './modeler.v2/palette/Palette';
-import { InspectorPanel as V2InspectorPanel } from './modeler.v2/inspector/Panel';
-import { NavBar as V2NavBar } from './modeler.v2/navbar';
-import { useModelerStore } from './modeler.v2/store';
-
-/** Detect UI version from URL param. */
-function getVersion(): Number {
-  const params = new URLSearchParams(window.location.search);
-  const version = params.get('version');
-  return version ? parseInt(version) : 1;
-}
-
-function V1App() {
+function App() {
   const [apiKey, setApiKey] = useState<string | undefined>(undefined);
   const [modeler, setModeler] = useState(undefined);
 
@@ -50,47 +35,19 @@ function V1App() {
           {modeler && <NavBar />}
           <div className="w-screen h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
-              {modeler && <V1Palette className="md:flex studyflow-palette" />}
-              <V1Modeler />
+              {modeler && <Palette className="md:flex studyflow-palette" />}
+              <Modeler />
             </div>
           </div>
           {modeler && (
             <div className="studyflow-inspector" data-testid="inspector-shell">
-              <V1InspectorPanel />
+              <InspectorPanel />
             </div>
           )}
         </div>
       </ModelerContext.Provider>
     </APIKeyContext.Provider>
   );
-}
-
-function V2App() {
-  const isReady = useModelerStore((s) => s.isReady);
-
-  return (
-    <div className="App flex flex-col h-screen" data-testid="modeler-app" data-modeler-ready={isReady ? 'true' : 'false'}>
-      {isReady && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
-      {isReady && <V2NavBar />}
-
-      <div className="w-screen h-full">
-        <div className="flex flex-row h-full overflow-hidden relative">
-          {isReady && <V2Palette className="md:flex studyflow-palette" />}
-          <V2Modeler />
-        </div>
-      </div>
-
-      {isReady && (
-        <div className="studyflow-inspector" data-testid="inspector-shell">
-          <V2InspectorPanel />
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function App() {
-  return getVersion() === 2 ? <V2App /> : <V1App />;
 }
 
 createRoot(document.getElementById('root')!).render(

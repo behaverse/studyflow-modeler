@@ -29,12 +29,22 @@ export type RuntimeStep =
   | { kind: 'questionnaire'; node: RuntimeNode; instrument?: string }
   | { kind: 'end'; node: RuntimeNode };
 
+/**
+ * Wire payload for `RunTaskActivity`. Sent to Unity as a single
+ * JSON.stringify'd argument. The two `configMode` branches are mutually
+ * exclusive on the diagram side: `builtin` carries `timeline` (a string
+ * referencing a build-shipped timeline); `inline` carries `config` (the full
+ * `GameConfig` parsed from the YAML body to a JSON object). `bot` is
+ * undefined when `agentMode` is `human` or the YAML body is empty.
+ */
 export type BehaverseTaskPayload = {
   task: string;
-  timeline?: string;
   configMode: 'builtin' | 'inline';
-  overrides?: Record<string, unknown>;
-  inlineConfig?: string;
+  timeline?: string;
+  config?: Record<string, unknown>;
+  agentMode: 'human' | 'bot';
+  bot?: Record<string, unknown>;
+  metadata: { studyflowNodeId: string };
 };
 
 export type ManifestTask = {

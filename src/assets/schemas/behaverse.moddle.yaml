@@ -60,23 +60,35 @@ enumerations:
   - name: ConfigModeEnum
     description: |
       How a `BehaverseTask` resolves its runtime configuration. `builtin`
-      points to a timeline shipped with the Behaverse assessment build (with
-      optional parameter overrides). `inline` embeds a full `GameConfig`  in the diagram.
+      sends a `timelineId` to Unity referencing a timeline shipped with the
+      build. `inline` embeds a full `GameConfig` (timeline + blocks + trials)
+      in the diagram and sends it as a parsed JSON object — `timelineId` is
+      then ignored. The two modes are mutually exclusive.
     literalValues:
       - name: Built-in timeline
         value: builtin
       - name: Inline
         value: inline
+  - name: AgentModeEnum
+    description: |
+      Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `bot` body to the loaded task's `Bot` agent component.
+    literalValues:
+      - name: Human
+        value: human
+      - name: Bot
+        value: bot
 types:
   - name: BehaverseTask
     description: |
       Specialized `CognitiveTask` for the Behaverse battery. It behaves like a
       normal studyflow task, but its `instrument` is fixed to `behaverse` and
       pinned (not editable in the inspector). At runtime, `scene` maps to the Behaverse
-      assessment task ID (e.g., `NB`, `UFOV`) and `timelineId` selects a
-      timeline shipped with the build; `configurations` either holds parameter
-      overrides (when `configMode` is `builtin`) or a full `GameConfig`
-      fragment (when `inline`).
+      assessment task ID (e.g., `NB`, `UFOV`). When `configMode` is `builtin`,
+      `timelineId` selects a timeline shipped with the build and `configurations`
+      is ignored. When `configMode` is `inline`, `configurations` carries the
+      full `GameConfig` (timeline + blocks + trials) as YAML — the modeler
+      parses it to a JSON object and sends it nested inside the runtime payload.
+      The two modes are mutually exclusive.
     superClass:
       - studyflow:CognitiveTask
     meta:
@@ -102,7 +114,7 @@ types:
             - Behaverse
       - name: configMode
         description: |
-          How this task resolves its runtime configuration. `builtin` points to a timeline shipped with the Behaverse assessment build (with optional parameter overrides in `configurations`); `inline` embeds a full `GameConfig` in the studyflow diagram.
+          How this task resolves its runtime configuration. `builtin` sends `timelineId` to Unity (configurations is ignored); `inline` sends the full `GameConfig` parsed from `configurations` as a nested JSON object (timelineId is ignored). Mutually exclusive.
         isAttr: true
         type: ConfigModeEnum
         default: builtin
@@ -110,11 +122,36 @@ types:
           order: 1
           categories:
             - Behaverse
+      - name: agentMode
+        description: |
+          Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `bot` body to the loaded task's `Bot` agent component.
+        isAttr: true
+        type: AgentModeEnum
+        default: human
+        meta:
+          order: 1.5
+          categories:
+            - Behaverse
+      - name: bot
+        description: |
+          Flat YAML map of bot field overrides applied per task at scene-load time, e.g. `autoAnswer: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentMode` is `bot`.
+        isAttr: true
+        type: studyflow:YAMLString
+        default: ''
+        meta:
+          order: 1.6
+          categories:
+            - Behaverse
+          widget: textarea
+          condition:
+            language: json
+            body:
+              agentMode: bot
       - name: timelineId
         description: |
           Identifier of a timeline shipped with the Behaverse assessment build
           (e.g., `XCIT_NB_01`, `Demo`). The runtime validates this against the
-          build's manifest before starting the study.
+          build's manifest before starting the study. Only used when `configMode` is `builtin`.
         isAttr: true
         type: String
         meta:
@@ -127,7 +164,7 @@ types:
               configMode: builtin
       - name: configurations
         description: |
-          Inline `GameConfig` fragment for the Behaverse runtime. In `builtin` mode the configuration comes from the named timeline shipped with the build.
+          Full `GameConfig` (timeline + blocks + trials) as YAML, embedded inline in the diagram. Parsed to a JSON object on the modeler side and sent to Unity as a nested object. Only used when `configMode` is `inline`.
         isBody: true
         type: studyflow:YAMLString
         redefines: studyflow:CognitiveTask#configurations
@@ -140,17 +177,13 @@ types:
             body:
               configMode: inline
 templates:
-  - description: N-Back task referencing a built-in timeline with a single parameter override
+  - description: N-Back task referencing a built-in timeline shipped with the Behaverse build
     object:
       type: BehaverseTask
       bpmn:name: N-Back (XCIT_NB_01)
       scene: NB
       configMode: builtin
       timelineId: XCIT_NB_01
-      configurations: |
-        # Optional parameter overrides merged on top of the named timeline.
-        StimulusDisplayDuration: 0.6
-        InterStimulusInterval: 2.0
   - description: N-Back task with a fully inline GameConfig (tutorial + progressive feature count)
     object:
       type: BehaverseTask

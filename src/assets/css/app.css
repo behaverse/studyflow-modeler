@@ -27,12 +27,11 @@
 }
 
 /*
- * Single source of truth for v1 modeler styling — there are exactly two:
+ * Single source of truth for modeler styling — there are exactly two:
  *
  *   1. THIS file — `@theme` color tokens above + global / bpmn-js DOM
  *      overrides below (canvas, breadcrumbs, watermark, .djs-popup,
- *      .djs-context-pad chips, etc.) plus a couple of v2-only legacy
- *      palette aliases.
+ *      .djs-context-pad chips, etc.).
  *
  *   2. `src/modeler/styles.ts` — Tailwind class strings for every chrome
  *      surface we render in React (navbar, palette, paletteFlyout,
@@ -68,19 +67,6 @@ svg text.bi {
 /* Hide the bpmn-js default palette — we render our own (palette/Palette.tsx). */
 .djs-palette {
   @apply hidden;
-}
-
-/* Legacy palette aliases retained for the v2 modeler (src/modeler.v2). */
-.palette-button {
-  @apply flex items-center justify-center w-[34px] h-8 rounded-[10px];
-  @apply text-stone-500 cursor-grab;
-  @apply hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08] transition-all;
-  @apply hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)];
-}
-.palette-button-tool {
-  @apply flex items-center justify-center w-[34px] h-8 rounded-[10px];
-  @apply text-stone-500 cursor-pointer;
-  @apply hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08] transition-all;
 }
 
 /* bpmn-js subprocess breadcrumbs (drilled-into-subprocess navigation). */

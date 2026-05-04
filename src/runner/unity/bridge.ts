@@ -57,12 +57,7 @@ export function runOnUnity(
     getUnityWindow()?.addEventListener(COMPLETION_EVENT, onCompleted as EventListener);
 
     try {
-      unity.SendMessage('GameManager', 'RunTaskActivity', JSON.stringify({
-        task: payload.task,
-        timeline: payload.timeline ?? '',
-        overrides: payload.overrides,
-        inlineConfig: payload.inlineConfig,
-      }));
+      unity.SendMessage('GameManager', 'RunTaskActivity', JSON.stringify(payload));
     } catch (err) {
       cleanup();
       reject(err);

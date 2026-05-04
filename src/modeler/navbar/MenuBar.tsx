@@ -6,6 +6,7 @@ import { SaveButton } from './actions/Save';
 import { OpenButton } from './actions/Open';
 import { ExamplesButton, ExamplesDialog } from './actions/Examples';
 import { SimulateButton } from './actions/Simulate';
+import { RunButton } from './actions/Run';
 import { NewDiagramButton } from './actions/NewDiagram';
 import { ResetZoomButton } from './actions/ResetZoom';
 import { LoginButton, LoginDialog } from './actions/Login';
@@ -62,6 +63,9 @@ export default function MenuBar() {
         <div className={navDividerCls} />
         <Menu as="div" title="SimulateMenu">
           <SimulateButton className="" />
+        </Menu>
+        <Menu as="div" title="RunMenu">
+          <RunButton className="" />
         </Menu>
 
       </div>
