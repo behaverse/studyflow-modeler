@@ -27,9 +27,9 @@ type Log = { kind: LogKind; message: string };
 export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflowUrl') ?? '';
+  const studyflowKey = params.get('studyflowKey') ?? '';
   const seed = params.get('seed') ? Number(params.get('seed')) : undefined;
-  const bot = params.get('bot');
-  const behaverseIframeSrc = buildBehaverseIframeSrc(bot);
+  const behaverseIframeSrc = buildBehaverseIframeSrc();
 
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
@@ -42,15 +42,32 @@ export function Runner() {
 
   const say = (entry: Log) => setLog((prev) => [...prev, entry]);
 
-  // Fetch XML when a `studyflowUrl` is provided.
+  // Two ways to feed the runner an XML:
+  // 1. `studyflowKey` — the modeler's "Run" button stashes the live diagram
+  //    in localStorage under a UUID key. Robust across popup tabs (blob URLs
+  //    are fragile across browsing-context groups).
+  // 2. `studyflowUrl` — fetchable URL (e.g. `/assets/foo.studyflow`) for
+  //    direct-link runs.
   useEffect(() => {
+    if (studyflowKey) {
+      const stored = localStorage.getItem(studyflowKey);
+      if (stored) {
+        localStorage.removeItem(studyflowKey);
+        setXml(stored);
+      } else {
+        say({ kind: 'error', message: `No studyflow XML found for key ${studyflowKey}.` });
+        setPhase('error');
+        setStageReady(true);
+      }
+      return;
+    }
     if (!studyflowUrl) return;
     fetch(studyflowUrl).then((r) => r.text()).then(setXml).catch((err) => {
       say({ kind: 'error', message: `Failed to fetch ${studyflowUrl}: ${err}` });
       setPhase('error');
       setStageReady(true);
     });
-  }, [studyflowUrl]);
+  }, [studyflowKey, studyflowUrl]);
 
   useEffect(() => {
     if (!xml || ranOnce.current) return;

@@ -6,27 +6,17 @@ type Props = {
 };
 
 /**
- * Default bot config string forwarded as `?bot=...` on the Runner iframe URL
- * when the "bot" checkbox is on. This is the URL `?bot=` form for stage-demo
- * runs; Unity parses the colon-separated `k:v,k:v` form. Per-task overrides
- * live on each BehaverseTask via `agentMode` + `bot` and ride along inside
- * the RunTaskActivity payload.
- */
-const DEFAULT_BOT_CONFIG = 'autoAnswer:Valid,SkipInstructions:true,AutoClickInstructions:true,SkipFocusArea:true,overrideTemporalParameters:true,stimulusDisplayDuration:0.3,interStimulusInterval:0.3,trialForeperiod:0.1,Speed:100';
-
-/**
  * Opens the standalone Runner (`run.html`) in a new tab with the current
  * diagram passed as a Blob URL. Unsaved diagrams work too: we serialize from
  * the live modeler instead of disk. A seed input is exposed so a presenter
  * can deterministically hit different branches of a RandomGateway across
- * re-runs without re-saving. The bot toggle drives Unity's `Bot`
- * MonoBehaviour via the iframe URL so the studyflow can advance arm-to-arm
- * without keyboard input — useful for stage demos.
+ * re-runs without re-saving. Bot config is per-task in the diagram
+ * (`agentMode` + `bot` on each BehaverseTask) and rides inside the
+ * RunTaskActivity payload — no URL params.
  */
 export function RunButton({ className = '' }: Props) {
   const { modeler } = useContext(ModelerContext);
   const [seed, setSeed] = useState<string>('1');
-  const [botModeOn, setBotModeOn] = useState<boolean>(true);
   const [busy, setBusy] = useState(false);
 
   async function openRunner() {
@@ -34,12 +24,14 @@ export function RunButton({ className = '' }: Props) {
     setBusy(true);
     try {
       const { xml } = await modeler.saveXML({ format: true });
-      const blob = new Blob([xml], { type: 'application/xml' });
-      const blobUrl = URL.createObjectURL(blob);
+      // Hand the XML over via localStorage instead of a blob URL: blob URLs
+      // are tied to the document that minted them and don't reliably survive
+      // a `noopener` popup, leaving the runner with a 404 on its fetch.
+      const key = `studyflow-run-${crypto.randomUUID()}`;
+      localStorage.setItem(key, xml);
       const seedNum = Number(seed);
-      const params = new URLSearchParams({ studyflowUrl: blobUrl });
+      const params = new URLSearchParams({ studyflowKey: key });
       if (Number.isFinite(seedNum)) params.set('seed', String(seedNum));
-      if (botModeOn) params.set('bot', DEFAULT_BOT_CONFIG);
       window.open(`./run.html?${params.toString()}`, '_blank', 'noopener');
     } finally {
       setBusy(false);
@@ -48,18 +40,6 @@ export function RunButton({ className = '' }: Props) {
 
   return (
     <div className="inline-flex items-center gap-1">
-      <label
-        title="Auto-answer via the Bot MonoBehaviour. Lets the studyflow advance arm-to-arm without keyboard input — useful for stage demos."
-        className="inline-flex items-center gap-1 text-[12px] font-medium text-white/90 select-none cursor-pointer"
-      >
-        <input
-          type="checkbox"
-          checked={botModeOn}
-          onChange={(e) => setBotModeOn(e.target.checked)}
-          className="accent-emerald-400 w-3 h-3"
-        />
-        bot
-      </label>
       <input
         type="number"
         value={seed}
