@@ -24,11 +24,12 @@ export const ExportButton = forwardRef<HTMLButtonElement, Props>(
     }
 
     const ext = fileType.toLowerCase();
+    const icon = ext === 'svg' ? 'iconify bi--filetype-svg' : 'iconify bi--filetype-png';
     return (
       <MenuItemButton
         ref={ref}
         title={`Export to ${ext.toUpperCase()}`}
-        icon={`iconify bi--filetype-${ext}`}
+        icon={icon}
         label={` Export to ${fileType.toUpperCase()}...`}
         className={className}
         onClick={exportDiagram}
