@@ -1,34 +1,3 @@
-export type RuntimeNode = {
-  id: string;
-  type: string;
-  appliedType?: string;
-  businessObject: any;
-  outgoing: string[];
-  incoming: string[];
-};
-
-export type RuntimeEdge = {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  conditionExpression?: string;
-  businessObject: any;
-};
-
-export type RuntimeGraph = {
-  process: any;
-  nodes: Map<string, RuntimeNode>;
-  edges: Map<string, RuntimeEdge>;
-  startId?: string;
-};
-
-export type RuntimeStep =
-  | { kind: 'start'; node: RuntimeNode }
-  | { kind: 'task'; node: RuntimeNode; payload: BehaverseTaskPayload }
-  | { kind: 'instruction'; node: RuntimeNode; content: string }
-  | { kind: 'questionnaire'; node: RuntimeNode; instrument?: string }
-  | { kind: 'end'; node: RuntimeNode };
-
 /**
  * Wire payload for `RunTaskActivity`. Sent to Unity as a single
  * JSON.stringify'd argument. The two `configMode` branches are mutually

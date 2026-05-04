@@ -1,5 +1,5 @@
 import { getProperty } from '@/modeler/extensions/resolve';
-import { getBehaverseTaskPayload } from './parser';
+import { getBehaverseTaskPayload } from './behaverse/parser';
 import type { RuntimeGraph, RuntimeNode, RuntimeStep } from './types';
 
 export type EngineOptions = {

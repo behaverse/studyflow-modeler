@@ -1,7 +1,8 @@
 import * as yaml from 'js-yaml';
 import { getBehaverseTaskPayload } from './parser';
 import { getProperty } from '@/modeler/extensions/resolve';
-import type { Manifest, RuntimeGraph, ValidationIssue } from './types';
+import type { RuntimeGraph } from '../types';
+import type { Manifest, ValidationIssue } from './types';
 
 function readAttr(businessObject: any, name: string): string | undefined {
   const fromProperty = getProperty(businessObject, name);

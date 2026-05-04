@@ -1,44 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { downloadSchemas } from '@/shared/downloadSchemas';
+import { parseStudyflow } from './parser';
+import { StudyflowEngine } from './engine';
+import type { RuntimeStep } from './types';
 import {
-  parseStudyflow,
-  StudyflowEngine,
   fetchManifest,
   validateGraph,
   runOnUnity,
   waitForUnity,
   waitForRunnerReady,
-} from './unity';
-import type { RuntimeStep } from './unity';
+  buildBehaverseIframeSrc,
+  BEHAVERSE_RUNTIME_URL,
+} from './behaverse';
 import { layout, logColor, type LogKind } from './styles';
 
-const UNITY_BUILD_URL = '/unity';
-
-//Tells Unity to skip its Loading→Debug-menu scene transition.
-const SKIP_DEBUG_MENU = true;
-
-/** Fallback delay if the Unity build is no `studyflow:runnerReady`. */
+/** Fallback delay if the Behaverse runtime never sends `studyflow:runnerReady`. */
 const STARTUP_GRACE_MS = 1000;
 
-// Time the cover is shown while Unity loads the task scene. Bumped from 300ms
-// so a slow venue projector / WiFi has room to swap from the loading scene to
-// the first task without the audience seeing a flash of the menu.
+// Time the cover is shown while the Behaverse runtime loads the task scene.
+// Bumped from 300ms so a slow venue projector / WiFi has room to swap from the
+// loading scene to the first task without the audience seeing a flash of the menu.
 const STAGE_REVEAL_DELAY_MS = 1500;
-
-/**
- * Build the Unity iframe URL with the runner's optional `bot` query
- * forwarded as a Unity URL param. Unity's GameManager picks up
- * `?bot=autoAnswer:Valid` (and similar) via BotReflection at scene
- * load, regardless of what the studyflow XML carries — which is the only
- * mechanism wired in the May-4 build for flipping the Bot agent.
- */
-function buildUnityIframeSrc(bot: string | null): string {
-  const params = new URLSearchParams();
-  if (SKIP_DEBUG_MENU) params.set('skipDebugMenu', '1');
-  if (bot) params.set('bot', bot);
-  const qs = params.toString();
-  return `${UNITY_BUILD_URL}/index.html${qs ? `?${qs}` : ''}`;
-}
 
 type Log = { kind: LogKind; message: string };
 
@@ -47,7 +29,7 @@ export function Runner() {
   const studyflowUrl = params.get('studyflowUrl') ?? '';
   const seed = params.get('seed') ? Number(params.get('seed')) : undefined;
   const bot = params.get('bot');
-  const unityIframeSrc = buildUnityIframeSrc(bot);
+  const behaverseIframeSrc = buildBehaverseIframeSrc(bot);
 
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
@@ -79,7 +61,7 @@ export function Runner() {
         setPhase('loading');
         const [schemas, manifest] = await Promise.all([
           downloadSchemas(),
-          fetchManifest(UNITY_BUILD_URL),
+          fetchManifest(BEHAVERSE_RUNTIME_URL),
         ]);
 
         const graph = await parseStudyflow(xml, schemas);
@@ -114,11 +96,11 @@ export function Runner() {
             // task's Application.Quit teardown.
             if (taskNumber > 1) {
               setStageReady(false);
-              setPhase(`reloading unity (task ${taskNumber})`);
+              setPhase(`reloading behaverse (task ${taskNumber})`);
               setIframeKey((k) => k + 1);
               await new Promise((r) => setTimeout(r, 50));
             } else {
-              setPhase('awaiting unity');
+              setPhase('awaiting behaverse');
             }
             unity = await waitForUnity(() => iframeRef.current);
             const result = await waitForRunnerReady(() => iframeRef.current);
@@ -146,7 +128,6 @@ export function Runner() {
         <span className={layout.title}>Studyflow Runner</span>
         <span className={layout.badge}>{phase}</span>
         {seed != null && <span className={layout.meta}>seed={seed}</span>}
-        {bot && <span className={layout.meta}>bot={bot}</span>}
         <button
           type="button"
           onClick={() => setLogsOpen((v) => !v)}
@@ -161,7 +142,7 @@ export function Runner() {
           <iframe
             key={iframeKey}
             ref={iframeRef}
-            src={unityIframeSrc}
+            src={behaverseIframeSrc}
             title="Behaverse Assessment"
             className={layout.iframe}
             allow="autoplay; fullscreen"

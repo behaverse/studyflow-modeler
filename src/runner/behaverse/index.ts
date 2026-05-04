@@ -1,14 +1,9 @@
-export { parseStudyflow, getBehaverseTaskPayload } from './parser';
-export { StudyflowEngine } from './engine';
-export type { EngineOptions } from './engine';
+export { getBehaverseTaskPayload, ensureExtensionElementResolved } from './parser';
 export { runOnUnity, waitForUnity, waitForRunnerReady } from './bridge';
 export type { UnityInstance, TaskCompletion } from './bridge';
 export { fetchManifest, validateGraph } from './validator';
+export { BEHAVERSE_RUNTIME_URL, buildBehaverseIframeSrc } from './iframe';
 export type {
-  RuntimeGraph,
-  RuntimeNode,
-  RuntimeEdge,
-  RuntimeStep,
   BehaverseTaskPayload,
   Manifest,
   ManifestTask,
