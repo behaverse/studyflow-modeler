@@ -377,6 +377,7 @@ function ExtensionsSection() {
     const next = new Set(enabled);
     if (on) next.add(prefix);
     else next.delete(prefix);
+    for (const sc of SCHEMAS) if (sc.core) next.add(sc.prefix); // core always included
     update({ enabledSchemas: SCHEMAS.map((sc) => sc.prefix).filter((p) => next.has(p)) });
   }
 
