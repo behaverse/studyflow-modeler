@@ -1,5 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { BPMN } from '../constants/bpmn';
+import { BPMN } from '../constants';
 import { splitQName } from '../utils/naming';
 import { isExtensionPrefix } from './attrs';
 import { getEffectiveDescriptorProperties } from './descriptors';

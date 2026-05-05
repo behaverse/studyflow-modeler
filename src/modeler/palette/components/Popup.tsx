@@ -1,4 +1,4 @@
-import type { PaletteEntry, PaletteGroup } from '../../constants/palette';
+import type { PaletteEntry, PaletteGroup } from '../../constants';
 import type { PaletteDragHandlers } from '../hooks/usePaletteDrag';
 import { paletteFlyout } from '../../styles';
 

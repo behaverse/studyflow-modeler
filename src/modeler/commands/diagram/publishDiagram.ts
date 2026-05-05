@@ -1,4 +1,5 @@
 import type { CommandResult } from '../types';
+import { URLS } from '../../constants';
 
 export type PublishDiagramCommand = {
   type: 'publish-diagram';
@@ -16,7 +17,7 @@ export async function runPublishDiagram(
 
   const { xml } = await modeler.saveXML({ format: true });
 
-  const response = await fetch(`https://api.behaverse.org/v1/studies/${command.studyName}/flow`, {
+  const response = await fetch(`${URLS.apiBase}/v1/studies/${command.studyName}/flow`, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml',

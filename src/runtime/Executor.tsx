@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { downloadSchemas } from '@/shared/downloadSchemas';
+import { executeCommand } from '@/modeler/commands';
 import { parseStudyflow } from './parser';
 import { Graph } from './graph';
 import type { Job } from './types';
@@ -76,7 +76,7 @@ export function Executor() {
     (async () => {
       try {
         setPhase('loading');
-        const schemas = await downloadSchemas();
+        const schemas = await executeCommand(null, { type: 'download-schemas' });
         const process = await parseStudyflow(xml, schemas);
         setStudyName(process.businessObject?.name || process.businessObject?.id || null);
         say({

@@ -1,6 +1,7 @@
 import { createExtensionElement, getDefaults } from '../extensions';
 import type { Template as ElementTemplate } from '../moddle/templates';
 import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
+import { HIDDEN_SCHEMA_TYPES, PRIMITIVE_MODDLE_TYPES } from '../constants';
 
 type MenuEntry = {
   id: string;
@@ -22,9 +23,6 @@ type ElementTemplatesService = {
   getBySchemaPrefix: (prefix: string) => ElementTemplate[];
   createElement: (template: ElementTemplate) => any;
 };
-
-const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
-const HIDDEN_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
 
 export default class SchemaPopupMenu {
   static $inject = ['popupMenu', 'bpmnFactory', 'elementFactory', 'create'];
@@ -89,8 +87,8 @@ export default class SchemaPopupMenu {
 
     return pkg.types
       .filter((type: any) => {
-        if (type.isAbstract || HIDDEN_TYPES.has(type.name)) return false;
-        if (type.superClass?.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) return false;
+        if (type.isAbstract || HIDDEN_SCHEMA_TYPES.has(type.name)) return false;
+        if (type.superClass?.some((sc: string) => PRIMITIVE_MODDLE_TYPES.includes(sc))) return false;
         if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
         // Template-scoped types are surfaced via their `templates:` entry only;
         // hide them from the type list to avoid a duplicate palette entry.

@@ -1,7 +1,5 @@
 import { createContext } from 'react';
 
-export const SCHEMA_NAMES = ['studyflow', 'behaverse', 'omniprocess', 'datatrove', 'galea'];
-
 export const ModelerContext = createContext<{
     modeler: any,
     setModeler: (modeler: any) => void,
@@ -30,4 +28,14 @@ export const APIKeyContext = createContext<{
 export const InspectorContext = createContext({
     element: undefined,
     businessObject: undefined,
+});
+
+export const SettingsViewContext = createContext<{
+    isSettingsOpen: boolean,
+    openSettings: () => void,
+    closeSettings: () => void,
+}>({
+    isSettingsOpen: false,
+    openSettings: () => {},
+    closeSettings: () => {},
 });

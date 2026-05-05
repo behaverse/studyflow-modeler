@@ -401,3 +401,83 @@ export const examplesList = {
   itemError: 'text-[13px] text-red-500 mt-1',
   itemBusy: 'text-xs text-stone-500 mt-1',
 } as const;
+
+export const settingsView = {
+  /** Full-viewport overlay. Solid sheet so the modeler underneath is hidden. */
+  root: `fixed inset-0 z-[300] flex flex-col ${surface.sheet}`,
+
+  /** Top bar — title on the left, close button on the right. */
+  header: `flex items-center justify-between px-6 h-14 shrink-0 border-b border-black/[0.06] ${surface.sheet}`,
+  headerTitle: `text-[15px] font-semibold tracking-tight ${text.primary}`,
+  closeButton: `flex items-center justify-center w-8 h-8 ${radius.field}
+                ${text.muted} hover:text-stone-900 hover:bg-black/[0.05]
+                active:bg-black/[0.08] transition-colors cursor-pointer`,
+  closeIcon: 'iconify bi--x-lg text-[16px]',
+
+  /** Two-column body: sidebar + content scroll area. */
+  body: 'flex flex-1 min-h-0',
+
+  /** Left sidebar — section navigation. */
+  sidebar: `w-60 shrink-0 border-r border-black/[0.06] py-4 px-3 overflow-y-auto ${surface.sheet}`,
+  sidebarGroupLabel: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500 px-3 pt-2 pb-1',
+  sidebarItem: `flex items-center gap-2.5 w-full text-left px-3 py-1.5 ${radius.button}
+                text-[13px] font-medium ${text.secondary}
+                hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08]
+                transition-colors cursor-pointer`,
+  sidebarItemActive: 'bg-black/[0.05] text-stone-900',
+  sidebarItemIcon: 'text-[15px] text-stone-500 shrink-0',
+
+  /** Right content area — scrollable, max-width-constrained. */
+  content: 'flex-1 overflow-y-auto px-8 py-8',
+  contentInner: 'mx-auto max-w-2xl space-y-8',
+
+  /** Section header (large title at the top of the right pane). */
+  sectionTitle: `text-[22px] font-semibold tracking-tight ${text.primary}`,
+  sectionDescription: `text-[13px] ${text.muted} mt-1`,
+
+  /** A single setting row — label on the left, control on the right. */
+  row: 'flex items-start justify-between gap-6 py-4 border-b border-black/[0.06] last:border-b-0',
+  rowText: 'flex-1 min-w-0',
+  rowLabel: `text-[14px] font-medium ${text.primary}`,
+  rowHelp: `text-[12.5px] ${text.muted} mt-0.5 leading-relaxed`,
+  rowControl: 'shrink-0 flex items-center',
+
+  /** Card wrapping a group of related rows. */
+  group: `${radius.card} ${surface.card} border border-black/[0.06] px-4 py-1`,
+  groupTitle: `text-[13px] font-semibold ${text.primary} mb-2`,
+
+  /** Inline buttons used inside rows (e.g. "Clear data", "Sign out"). */
+  inlineBtn: `${radius.button} bg-cream-200 hover:bg-cream-300 active:bg-cream-400
+              border border-black/[0.06] py-1.5 px-3 text-[13px] ${text.secondary}
+              hover:text-stone-900 transition-colors cursor-pointer`,
+  inlineBtnDanger: `${radius.button} bg-red-50 hover:bg-red-100 active:bg-red-200
+                    border border-red-200 py-1.5 px-3 text-[13px] text-red-700
+                    hover:text-red-900 transition-colors cursor-pointer`,
+
+  /** Compact <select> aligned with the existing inspector field style. */
+  select: `appearance-none px-2.5 py-1 pr-8 ${radius.field}
+           border border-black/[0.08] bg-cream-100 text-[13px] text-stone-900
+           focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer`,
+  selectWrapper: 'relative',
+  selectChevron: 'iconify bi--caret-down pointer-events-none absolute top-2.5 right-2 text-stone-500 text-[12px]',
+
+  /** API-key style input — recessed and monospace. */
+  textInput: `px-2.5 py-1.5 w-72 max-w-full ${radius.field}
+              border border-black/[0.08] bg-cream-100 font-mono text-[13px] text-stone-900
+              placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400`,
+
+  /** Switch (track + thumb). Wraps a Headless UI <Switch>. */
+  switchTrack: `relative flex h-5 w-9 cursor-pointer ${radius.pill}
+                bg-cream-300 p-0.5 transition-colors
+                data-[checked]:bg-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400`,
+  switchThumb: `pointer-events-none inline-block size-4 ${radius.pill} bg-cream-50 shadow ring-0
+                transition duration-200 ease-in-out
+                translate-x-0 group-data-[checked]:translate-x-4`,
+
+  /** Static value display (e.g. "Guest" account state). */
+  valueChip: `inline-flex items-center gap-1.5 px-2 py-0.5 ${radius.field}
+              bg-cream-200 border border-black/[0.06] text-[12px] font-medium ${text.secondary}`,
+
+  /** Subtle footnote at the bottom of the sidebar (version / build info). */
+  sidebarFooter: 'mt-6 px-3 text-[11px] text-stone-400',
+} as const;

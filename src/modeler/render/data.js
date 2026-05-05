@@ -1,7 +1,7 @@
 // @ts-check
 
 import { getStrokeColor } from "bpmn-js/lib/draw/BpmnRenderUtil";
-import { SVG_ICON_PATHS } from './constants';
+import { SVG_ICON_PATHS } from '../constants';
 import { colorToHex, drawIcon, drawSvgPaths } from './utils';
 import { getProperty } from '../extensions';
 

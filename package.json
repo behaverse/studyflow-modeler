@@ -1,7 +1,7 @@
 {
   "name": "studyflow-modeler",
   "private": true,
-  "version": "25.1205.dev2",
+  "version": "26.0505.dev2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

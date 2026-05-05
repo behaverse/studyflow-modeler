@@ -3,7 +3,7 @@
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
 import { getExtensionType, getExtensionElement, getAttr, hasExtends, getProperty } from '../extensions';
-import { BPMN_ICON_OVERRIDES } from './constants';
+import { BPMN_ICON_OVERRIDES } from '../constants';
 
 const DATA_OP_ICON = 'iconify mdi--function';
 import { drawEventWithIcon} from './events';

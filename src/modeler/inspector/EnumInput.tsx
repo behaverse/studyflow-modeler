@@ -4,7 +4,7 @@ import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
 import { getProperty } from '../extensions';
 import { executeCommand } from '../commands';
-import { toLocalName } from '../utils/naming';
+import { toLocalName, toPrefix } from '../utils/naming';
 import { field as s } from '../styles';
 
 type Props = {
@@ -19,8 +19,7 @@ type Props = {
 function resolveEnumLiterals(bpmnProperty: any, modeler: any): any[] | null {
   const propertyType: string = bpmnProperty.type ?? '';
   const localName = toLocalName(propertyType);
-  const colonIndex = propertyType.indexOf(':');
-  const targetPrefix = colonIndex > 0 ? propertyType.slice(0, colonIndex) : null;
+  const targetPrefix = toPrefix(propertyType) ?? null;
 
   const definingPkg = bpmnProperty.definedBy?.$pkg;
   if (!targetPrefix || targetPrefix === definingPkg?.prefix) {

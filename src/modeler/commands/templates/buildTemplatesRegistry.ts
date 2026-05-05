@@ -1,4 +1,4 @@
-import { BPMN } from '../../constants/bpmn';
+import { BPMN } from '../../constants';
 import type { Template } from '../../moddle/templates/types';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
 import { capitalize, extractProperties, resolveTemplateMixins } from './mixins';

@@ -1,4 +1,4 @@
-import { CORE_PREFIXES } from '../constants/bpmn';
+import { CORE_PREFIXES } from '../constants';
 import { splitQName } from '../utils/naming';
 
 export { CORE_PREFIXES };

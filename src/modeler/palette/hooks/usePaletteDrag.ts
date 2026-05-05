@@ -1,6 +1,6 @@
 import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { executeCommand } from '../../commands';
-import type { PaletteEntry } from '../../constants/palette';
+import type { PaletteEntry } from '../../constants';
 
 export type PaletteDragHandlers = {
   onMouseDown: (entry: PaletteEntry, event: ReactMouseEvent) => void;

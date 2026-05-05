@@ -2,7 +2,7 @@
 
 import { is } from "bpmn-js/lib/util/ModelUtil";
 import { getProperty } from '../extensions';
-import { BPMN_ICON_OVERRIDES } from './constants';
+import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
 /**

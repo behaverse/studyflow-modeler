@@ -1,7 +1,7 @@
 // @ts-check
 
 import { getProperty } from '../extensions';
-import { BPMN_ICON_OVERRIDES } from './constants';
+import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawIcon, drawIconText } from './utils';
 import { drawMarkers } from './markers';
 

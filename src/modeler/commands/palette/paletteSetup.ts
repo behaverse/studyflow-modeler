@@ -1,8 +1,8 @@
-import { SCHEMA_NAMES } from '../../contexts';
 import SchemaPopupMenu from '../../palette/SchemaPopupMenu';
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
-import { PALETTE_GROUPS } from '../../constants/palette';
+import { toLocalName } from '../../utils/naming';
+import { HIDDEN_SCHEMA_TYPES, PALETTE_GROUPS, PRIMITIVE_MODDLE_TYPES, SCHEMA_NAMES } from '../../constants';
 
 // bpmnType -> icon class
 const PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
@@ -34,9 +34,6 @@ function resolveFallbackIcon(moddle: any, bpmnType: string): string | undefined 
 const filteredPopupMenus = new WeakSet<object>();
 const schemaOrder = new Map(SCHEMA_NAMES.map((schemaName, index) => [schemaName, index]));
 
-const HIDDEN_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
-const PRIMITIVE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
-
 // Ordered: earlier matches win. SubProcess is checked before Activity so
 // "Containers" takes precedence over "Activities" for subprocess-like shapes.
 const CATEGORY_RULES: Array<{ ancestor: string; category: string }> = [
@@ -55,7 +52,7 @@ const CATEGORY_RULES: Array<{ ancestor: string; category: string }> = [
 const STRIPPABLE_SUFFIXES = ['Gateway', 'Event'];
 
 function trimBpmnSuffix(typeName: string, bpmnType: string): string {
-  const bpmnLocal = bpmnType.includes(':') ? bpmnType.slice(bpmnType.indexOf(':') + 1) : bpmnType;
+  const bpmnLocal = toLocalName(bpmnType) ?? bpmnType;
   for (const suffix of STRIPPABLE_SUFFIXES) {
     if (!bpmnLocal.endsWith(suffix)) continue;
     if (typeName === suffix) continue;
@@ -166,8 +163,8 @@ export function runPaletteRegisterSchemaProviders(
 
     const items: PaletteSchemaItem[] = (pkg.types || [])
       .filter((type: any) => {
-        if (type.isAbstract || HIDDEN_TYPES.has(type.name)) return false;
-        if (type.superClass?.some((sc: string) => PRIMITIVE_TYPES.includes(sc))) return false;
+        if (type.isAbstract || HIDDEN_SCHEMA_TYPES.has(type.name)) return false;
+        if (type.superClass?.some((sc: string) => PRIMITIVE_MODDLE_TYPES.includes(sc))) return false;
         if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
         if (Array.isArray(type.extends) && type.extends.length > 0
             && (!Array.isArray(type.superClass) || type.superClass.length === 0)) return false;

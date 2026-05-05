@@ -7,6 +7,8 @@ import react from '@vitejs/plugin-react'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
+
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript',
@@ -71,6 +73,9 @@ export default defineConfig({
   root: './src',
   publicDir: false, // disable public directory
   base: '',  // relative base
+  define: {
+    'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
+  },
   plugins: [
     tailwindcss(),
     react(),

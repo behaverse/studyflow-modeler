@@ -1,3 +1,5 @@
+import { toLocalName } from '../utils/naming';
+
 const PRIMITIVE_SUPER_CLASSES = new Set(['Element', 'BaseElement', 'String', 'Boolean', 'Integer', 'Float', 'Double']);
 
 export function resolveBpmnCreateType(moddle: any, typeRefOrDescriptor: any): string | null {
@@ -44,7 +46,7 @@ function resolveDescriptorBpmnType(moddle: any, descriptor: any, seen: Set<strin
   }
 
   for (const superType of descriptor.superClass ?? []) {
-    const localName = stripPrefix(superType);
+    const localName = toLocalName(superType) ?? superType;
     if (PRIMITIVE_SUPER_CLASSES.has(localName)) {
       continue;
     }
@@ -69,7 +71,7 @@ function resolveDescriptorBpmnType(moddle: any, descriptor: any, seen: Set<strin
 
 function resolveTypeDescriptor(moddle: any, typeRef: string, ownerPrefix?: string): any {
   const typeMap: Record<string, any> = moddle?.registry?.typeMap ?? {};
-  const localName = stripPrefix(typeRef);
+  const localName = toLocalName(typeRef) ?? typeRef;
   const candidates = [
     typeRef,
     ownerPrefix && !typeRef.includes(':') ? `${ownerPrefix}:${typeRef}` : null,
@@ -106,7 +108,3 @@ function descriptorKey(descriptor: any): string {
   return String(descriptor);
 }
 
-function stripPrefix(typeRef: string): string {
-  const separatorIndex = typeRef.indexOf(':');
-  return separatorIndex === -1 ? typeRef : typeRef.slice(separatorIndex + 1);
-}

@@ -1,14 +1,13 @@
 import { forwardRef, useContext, useRef, type ChangeEvent, type MouseEvent } from 'react';
 import { DiagramNameContext, ModelerContext } from '../../contexts';
 import { executeCommand } from '../../commands';
+import { VALID_FILE_EXTENSIONS } from '../../constants';
 import { MenuItemButton } from './MenuItemButton';
 
 type Props = {
   className?: string;
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
 };
-
-const VALID_EXTENSIONS = ['.xml', '.svg', '.studyflow'];
 
 export const OpenButton = forwardRef<HTMLButtonElement, Props>(
   function OpenButton({ className, onClick }, ref) {
@@ -33,7 +32,7 @@ export const OpenButton = forwardRef<HTMLButtonElement, Props>(
       const file = event.target.files?.[0];
       if (!file) return;
 
-      const hasValidExtension = VALID_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+      const hasValidExtension = VALID_FILE_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
       if (!hasValidExtension) {
         alert('Please select a valid XML, SVG, or Studyflow file.');
         return;

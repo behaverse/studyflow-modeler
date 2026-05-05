@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ModelerContext } from '../contexts';
 import { executeCommand } from '../commands';
-import { PALETTE_GROUPS } from '../constants/palette';
+import { PALETTE_GROUPS } from '../constants';
 import { t } from '../../i18n';
 import { useSchemaProviders } from './hooks/useSchemaProviders';
 import { usePaletteDrag } from './hooks/usePaletteDrag';
