@@ -68,12 +68,10 @@ export default function MenuBar() {
         </Menu>
 
         <div className={navDividerCls} />
-        <Menu as="div" title="SimulateMenu">
-          <SimulateButton className="" />
-        </Menu>
-        <Menu as="div" title="RunMenu">
-          <RunButton className="" />
-        </Menu>
+        <div className="flex items-center">
+          <SimulateButton />
+          <RunButton />
+        </div>
 
       </div>
 

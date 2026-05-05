@@ -40,8 +40,8 @@ export function RunButton({ className = '' }: Props) {
       disabled={busy}
       className={[
         'inline-flex items-center justify-center gap-1.5',
-        'text-[13px] font-semibold rounded-lg h-7 px-3.5 transition-colors',
-        'text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-wait',
+        'text-[13px] font-semibold rounded-r-lg h-7 px-3.5 transition-colors',
+        'text-white bg-[#520BBF] hover:bg-[#4309A2] disabled:opacity-50 disabled:cursor-wait',
         className,
       ].join(' ')}
       onClick={openExecutor}

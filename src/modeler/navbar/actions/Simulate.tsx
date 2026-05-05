@@ -24,13 +24,13 @@ export function SimulateButton({ className = '' }: Props) {
       title={active ? 'Stop simulation' : 'Simulate the studyflow'}
       className={[
         'inline-flex items-center justify-center gap-1.5',
-        // `rounded-lg` (8px) sits concentrically inside the navbar's 12px
-        // outer corner with the shell's 6px padding — same arc family as
-        // the pill, just one step smaller for the inset button.
-        'text-[13px] font-semibold rounded-lg h-7 px-3.5 transition-colors',
+        // `rounded-l-lg` only — paired with the Run button on the right,
+        // so the inner edge is flush. Outer arc still nests inside the
+        // navbar's 12px corner with 6px padding.
+        'text-[13px] font-semibold rounded-l-lg h-7 px-3.5 transition-colors',
         active
           ? 'text-white bg-red-700 hover:bg-red-800'
-          : 'text-white bg-violet-900 hover:bg-violet-800',
+          : 'text-white bg-[#C028B0] hover:bg-[#A32295]',
         className,
       ].join(' ')}
       onClick={toggleSimulation}

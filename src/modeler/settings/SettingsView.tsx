@@ -38,16 +38,16 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
   return (
     <div className={s.root} role="dialog" aria-modal="true" aria-label="Settings" data-testid="settings-view">
       <header className={s.header}>
-        <h1 className={s.headerTitle}>Settings</h1>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close settings"
-          title="Close settings (Esc)"
-          className={s.closeButton}
+          aria-label="Back"
+          title="Back (Esc)"
+          className={s.backButton}
         >
-          <i className={s.closeIcon} aria-hidden="true" />
+          <i className={s.backIcon} aria-hidden="true" />
         </button>
+        <h1 className={s.headerTitle}>Settings</h1>
       </header>
 
       <div className={s.body}>

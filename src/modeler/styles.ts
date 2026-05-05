@@ -406,13 +406,12 @@ export const settingsView = {
   /** Full-viewport overlay. Solid sheet so the modeler underneath is hidden. */
   root: `fixed inset-0 z-[300] flex flex-col ${surface.sheet}`,
 
-  /** Top bar — title on the left, close button on the right. */
-  header: `flex items-center justify-between px-6 h-14 shrink-0 border-b border-black/[0.06] ${surface.sheet}`,
+  header: `flex items-center gap-2 px-3 h-14 shrink-0 border-b border-black/[0.06] ${surface.sheet}`,
   headerTitle: `text-[15px] font-semibold tracking-tight ${text.primary}`,
-  closeButton: `flex items-center justify-center w-8 h-8 ${radius.field}
+  backButton: `flex items-center justify-center w-8 h-8 ${radius.field}
                 ${text.muted} hover:text-stone-900 hover:bg-black/[0.05]
                 active:bg-black/[0.08] transition-colors cursor-pointer`,
-  closeIcon: 'iconify bi--x-lg text-[16px]',
+  backIcon: 'iconify bi--arrow-left text-[16px]',
 
   /** Two-column body: sidebar + content scroll area. */
   body: 'flex flex-1 min-h-0',
