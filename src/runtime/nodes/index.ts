@@ -12,7 +12,7 @@ import.meta.glob('./*/index.tsx', { eager: true });
 
 export { registerNode } from './registry';
 
-// bpmn:*Task subtypes that the fallback node catches when no appliedType matches.
+// bpmn:*Task subtypes that the fallback node catches when no extensionType matches.
 const BPMN_TASK_TYPES = new Set([
   'bpmn:Task',
   'bpmn:UserTask',
@@ -23,8 +23,8 @@ const BPMN_TASK_TYPES = new Set([
 
 /**
  * Find the node definition responsible for a given FlowNode. Three-pass match:
- *   1. appliedType — most specific (studyflow:Instruction, behaverse:BehaverseTask, …)
- *   2. bpmnType    — less specific (bpmn:StartEvent, bpmn:EndEvent)
+ *   1. extensionType — most specific (studyflow:Instruction, behaverse:BehaverseTask, …)
+ *   2. bpmnType      — less specific (bpmn:StartEvent, bpmn:EndEvent)
  *   3. fallback    — catch-all for unmatched bpmn:*Task nodes
  * Returns undefined for gateways and other unsupported nodes (graph traversal
  * skips those).
@@ -32,7 +32,7 @@ const BPMN_TASK_TYPES = new Set([
 export function findByFlowNode(node: FlowNode): NodeDefinition | undefined {
   const nodes = getRegisteredNodes();
   for (const def of nodes) {
-    if ('appliedType' in def.match && node.appliedType === def.match.appliedType) {
+    if ('extensionType' in def.match && node.extensionType === def.match.extensionType) {
       return def;
     }
   }
@@ -68,7 +68,7 @@ export function validate(process: Process, manifest?: Manifest): ValidationIssue
  */
 export function requiresBehaverseRuntime(process: Process): boolean {
   for (const node of process.nodes.values()) {
-    if (node.appliedType === 'behaverse:BehaverseTask') return true;
+    if (node.extensionType === 'behaverse:BehaverseTask') return true;
   }
   return false;
 }

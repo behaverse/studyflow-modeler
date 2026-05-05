@@ -17,7 +17,7 @@ declare module '@/runtime/types' {
 
 // Behaverse-side ready event timing.
 const STARTUP_GRACE_MS = 1000;
-const STAGE_REVEAL_DELAY_MS = 1500;
+const STAGE_REVEAL_DELAY_MS = 1000;
 
 export type BehaverseJob = {
   kind: 'behaverse';
@@ -112,7 +112,7 @@ export function validate(process: Process, manifest?: Manifest): ValidationIssue
 
 registerNode({
   kind: 'behaverse',
-  match: { appliedType: 'behaverse:BehaverseTask' },
+  match: { extensionType: 'behaverse:BehaverseTask' },
   toJob: behaverseToJob,
   Component: Behaverse,
   validate,

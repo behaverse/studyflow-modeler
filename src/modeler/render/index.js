@@ -2,7 +2,7 @@
 
 import BaseRenderer from "diagram-js/lib/draw/BaseRenderer";
 import { is } from "bpmn-js/lib/util/ModelUtil";
-import { getAppliedType, getExtensionElement, getAttr, hasExtends, getProperty } from '../extensions';
+import { getExtensionType, getExtensionElement, getAttr, hasExtends, getProperty } from '../extensions';
 import { BPMN_ICON_OVERRIDES } from './constants';
 
 const DATA_OP_ICON = 'iconify mdi--function';
@@ -76,7 +76,7 @@ export default class StudyflowRenderer extends BaseRenderer {
    */
   drawShape(parentNode, element) {
     const ext = getExtensionElement(element);
-    const sfType = getAppliedType(element);
+    const sfType = getExtensionType(element);
     const sfDescriptor = sfType ? this.pkgTypeMap[sfType] : undefined;
     const elementTemplateIconClass = this._resolveElementTemplateIcon(ext || element.businessObject);
     const descriptorIconClass = sfDescriptor?.meta?.icon || sfDescriptor?.icon;

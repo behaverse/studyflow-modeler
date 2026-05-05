@@ -10,7 +10,7 @@
 export type FlowNode = {
   id: string;
   type: string;
-  appliedType?: string;
+  extensionType?: string;
   businessObject: any;
   outgoing: string[];
   incoming: string[];

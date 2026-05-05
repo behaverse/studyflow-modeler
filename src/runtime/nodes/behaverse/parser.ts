@@ -20,7 +20,7 @@ function readBehaverseProperty(businessObject: any, propertyName: string): strin
 }
 
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
-  if (node.appliedType !== 'behaverse:BehaverseTask') return null;
+  if (node.extensionType !== 'behaverse:BehaverseTask') return null;
 
   const task = readBehaverseProperty(node.businessObject, 'scene') ?? '';
   if (!task || task === 'undefined') {

@@ -5,6 +5,7 @@ import { executeCommand } from '../../commands';
 import { dialog as d, examplesList as e } from '../../styles';
 
 const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
+const STUDYFLOW_NS = 'http://behaverse.org/schemas/studyflow';
 
 const exampleFiles = import.meta.glob(
   '@/assets/examples/*.{studyflow,bpmn,svg}',
@@ -31,19 +32,19 @@ function parseExampleMetadata(filename: string, xml: string): { title: string; d
     throw new Error('Invalid XML');
   }
 
-  const process = doc.getElementsByTagNameNS(BPMN_NS, 'process')[0];
+  const study = doc.getElementsByTagNameNS(STUDYFLOW_NS, 'study')[0];
 
   let title = '';
-  if (process) {
-    title = process.getAttribute('name')?.trim() || humanizeId(process.getAttribute('id') ?? '');
+  if (study) {
+    title = study.getAttribute('name')?.trim() || humanizeId(study.getAttribute('id') ?? '');
   }
   if (!title) {
     title = filename.replace(/\.[^/.]+$/, '');
   }
 
   let description = '';
-  if (process) {
-    for (const child of Array.from(process.children)) {
+  if (study) {
+    for (const child of Array.from(study.children)) {
       if (child.namespaceURI === BPMN_NS && child.localName === 'documentation') {
         description = (child.textContent ?? '').trim();
         break;

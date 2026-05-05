@@ -22,5 +22,5 @@ export {
   type ResolvedContext,
   type ResolvedProperty,
 } from './resolve';
-export { getAppliedType } from './appliedType';
+export { getExtensionType } from './extensionType';
 export { getDefaults } from './defaults';

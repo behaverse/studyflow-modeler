@@ -159,7 +159,7 @@ export function Questionnaire({ job, log, setVariable, complete }: NodeProps<Que
 export function validate(process: Process): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const node of process.nodes.values()) {
-    if (node.appliedType !== 'studyflow:Questionnaire') continue;
+    if (node.extensionType !== 'studyflow:Questionnaire') continue;
     const instrument = (getProperty(node.businessObject, 'instrument') as string) || '';
     if (!instrument.trim()) {
       issues.push({
@@ -173,7 +173,7 @@ export function validate(process: Process): ValidationIssue[] {
 
 registerNode({
   kind: 'questionnaire',
-  match: { appliedType: 'studyflow:Questionnaire' },
+  match: { extensionType: 'studyflow:Questionnaire' },
   toJob: questionnaireToJob,
   Component: Questionnaire,
   validate,

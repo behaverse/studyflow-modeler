@@ -1,5 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getAppliedType, getExtensionElement, getProperty } from '../extensions';
+import { getExtensionType, getExtensionElement, getProperty } from '../extensions';
 import { toLocalName } from '../utils/naming';
 import { inspector as s } from '../styles';
 
@@ -14,7 +14,7 @@ function resolveDisplayName(element: any): string {
     return resolvedName;
   }
 
-  const fallbackType = getAppliedType(element) || businessObject?.$type || element?.type;
+  const fallbackType = getExtensionType(element) || businessObject?.$type || element?.type;
   if (typeof fallbackType === 'string' && fallbackType.includes(':')) {
     return toLocalName(fallbackType) ?? fallbackType;
   }
@@ -23,7 +23,7 @@ function resolveDisplayName(element: any): string {
 
 function resolveTypeLabel(element: any): string {
   const businessObject = getBusinessObject(element);
-  return getAppliedType(element) || businessObject?.$type || element.type;
+  return getExtensionType(element) || businessObject?.$type || element.type;
 }
 
 export function Header({ element }: { element: any }) {

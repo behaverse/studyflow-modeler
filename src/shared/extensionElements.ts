@@ -82,7 +82,7 @@ export function getExtensionElement(elementOrBusinessObject: any): any {
 /**
  * The applied studyflow type is the `$type` of the extension element wrapper
  * inside `<bpmn:extensionElements>`. Wrapper presence is the single source of
- * truth — no `appliedType` attribute, no inference fallback.
+ * truth — there is no XML attribute, no inference fallback.
  */
 export function getAppliedStudyflowType(elementOrBusinessObject: any): string | undefined {
   return getExtensionElement(elementOrBusinessObject)?.$type;

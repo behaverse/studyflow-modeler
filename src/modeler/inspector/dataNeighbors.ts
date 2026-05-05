@@ -1,5 +1,5 @@
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
-import { getAppliedType } from '../extensions';
+import { getExtensionType } from '../extensions';
 
 const DATA_BPMN_TYPES = [
   'bpmn:DataObject',
@@ -21,8 +21,8 @@ const DATA_STUDYFLOW_TYPES = new Set([
 function isDataElement(element: any): boolean {
   if (!element) return false;
   if (DATA_BPMN_TYPES.some((t) => is(element, t))) return true;
-  const applied = getAppliedType(element);
-  return applied ? DATA_STUDYFLOW_TYPES.has(applied) : false;
+  const ext = getExtensionType(element);
+  return ext ? DATA_STUDYFLOW_TYPES.has(ext) : false;
 }
 
 function nameOf(element: any): string | undefined {

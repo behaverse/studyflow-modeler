@@ -14,11 +14,11 @@ export type NodeProps<J extends Job = Job> = {
 
 /**
  * How a NodeDefinition recognizes a FlowNode. Match precedence in the registry
- * is appliedType → bpmnType → fallback, so fallback only catches bpmn:*Task
+ * is extensionType → bpmnType → fallback, so fallback only catches bpmn:*Task
  * nodes that no other definition has claimed.
  */
 export type NodeMatcher =
-  | { appliedType: string }
+  | { extensionType: string }
   | { bpmnType: string | string[] }
   | { fallback: 'task' };
 

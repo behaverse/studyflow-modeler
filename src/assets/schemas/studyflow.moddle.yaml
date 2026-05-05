@@ -183,8 +183,22 @@ types:
         pinned: false
   - name: Study
     description: Process definition for a Studyflow study.
-    extends:
+    superClass:
       - bpmn:Process
+    properties:
+      - name: authors
+        description: Authors of the study.
+        isAttr: true
+        isMany: true
+        type: String
+        meta:
+      - name: isExecutable
+        redefines: bpmn:Process#isExecutable
+        isAttr: true
+        type: Boolean
+        default: true
+        meta:
+          pinned: true
   - name: DataOperationActivity
     description: |
       Augments any BPMN Activity with the data-operation flag and

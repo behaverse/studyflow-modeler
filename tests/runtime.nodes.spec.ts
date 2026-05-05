@@ -26,7 +26,7 @@ async function runStudyflow(page: Page, key: string, xml: string): Promise<void>
 
 const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="runner-stages-no-unity" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Study_1" isExecutable="false">
+  <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1" name="Welcome">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -46,12 +46,12 @@ const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Instr_1" />
     <bpmn2:sequenceFlow id="F2" sourceRef="Instr_1" targetRef="Quest_1" />
     <bpmn2:sequenceFlow id="F3" sourceRef="Quest_1" targetRef="EndEvent_1" />
-  </bpmn2:process>
+  </studyflow:study>
 </bpmn2:definitions>`;
 
 const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Study_1" isExecutable="false">
+  <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1" name="Consent" requiresConsent="true">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -65,12 +65,12 @@ const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
     </bpmn2:endEvent>
     <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Instr_1" />
     <bpmn2:sequenceFlow id="F2" sourceRef="Instr_1" targetRef="EndEvent_1" />
-  </bpmn2:process>
+  </studyflow:study>
 </bpmn2:definitions>`;
 
 const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" id="runner-stages-untyped" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Study_1" isExecutable="false">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="runner-stages-untyped" targetNamespace="http://bpmn.io/schema/bpmn">
+  <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -83,7 +83,7 @@ const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
     </bpmn2:endEvent>
     <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Untyped_1" />
     <bpmn2:sequenceFlow id="F2" sourceRef="Untyped_1" targetRef="EndEvent_1" />
-  </bpmn2:process>
+  </studyflow:study>
 </bpmn2:definitions>`;
 
 test.describe('Studyflow runtime nodes', () => {

@@ -34,7 +34,7 @@ export function validateProcess(process: Process, manifest: Manifest): Validatio
   const tasksById = new Map(manifest.tasks.map((t) => [t.id, t]));
 
   for (const node of process.nodes.values()) {
-    if (node.appliedType !== 'behaverse:BehaverseTask') continue;
+    if (node.extensionType !== 'behaverse:BehaverseTask') continue;
 
     let payload;
     try {

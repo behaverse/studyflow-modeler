@@ -1,5 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getAppliedType } from '../../extensions';
+import { getExtensionType } from '../../extensions';
 import { runCreateTemplateConnection, runCreateTemplateShape } from '../../commands/shape';
 import type {
   Template,
@@ -131,7 +131,7 @@ export default class Templates {
    * Get the template currently applied to `element`, or null.
    */
   get(element: any): Template | null {
-    const sfType = getAppliedType(element);
+    const sfType = getExtensionType(element);
     if (!sfType) return null;
     return this._templates.find(t => t.studyflowType === sfType) ?? null;
   }

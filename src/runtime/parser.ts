@@ -1,5 +1,5 @@
 import { BpmnModdle } from 'bpmn-moddle';
-import { getAppliedType } from '@/modeler/extensions/appliedType';
+import { getExtensionType } from '@/modeler/extensions/extensionType';
 import type { Process, FlowNode, SequenceFlow } from './types';
 
 const FLOW_NODE_TYPES = new Set([
@@ -26,10 +26,10 @@ export async function parseStudyflow(
   const { rootElement } = await moddle.fromXML(xml);
 
   const businessObject = (rootElement as any)?.rootElements?.find(
-    (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
+    (re: any) => re?.$type === 'studyflow:Study',
   );
   if (!businessObject) {
-    throw new Error('No bpmn:Process / studyflow:Study found in diagram.');
+    throw new Error('No studyflow:Study found in diagram.');
   }
 
   const nodes = new Map<string, FlowNode>();
@@ -43,7 +43,7 @@ export async function parseStudyflow(
     nodes.set(el.id, {
       id: el.id,
       type: el.$type,
-      appliedType: getAppliedType(el),
+      extensionType: getExtensionType(el),
       businessObject: el,
       outgoing: [],
       incoming: [],

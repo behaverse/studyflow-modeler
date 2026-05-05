@@ -16,7 +16,7 @@ That's it; no other file needs editing.
 
 ### `match` shapes
 
-- `{ appliedType: 'studyflow:MyKind' }` — match by `node.appliedType` (most specific; priority over bpmnType).
+- `{ extensionType: 'studyflow:MyKind' }` — match by `node.extensionType` (most specific; priority over bpmnType).
 - `{ bpmnType: 'bpmn:StartEvent' }` or `{ bpmnType: ['bpmn:UserTask', 'bpmn:ServiceTask'] }` — match by `node.type`.
 - `{ fallback: 'task' }` — catch any unmatched `bpmn:*Task`. Only `task/` uses this pattern.
 
@@ -58,7 +58,7 @@ export function Wait({ job, complete }: NodeProps<WaitJob>) {
 
 registerNode({
   kind: 'wait',
-  match: { appliedType: 'studyflow:Wait' },
+  match: { extensionType: 'studyflow:Wait' },
   toJob: waitToJob,
   Component: Wait,
 });

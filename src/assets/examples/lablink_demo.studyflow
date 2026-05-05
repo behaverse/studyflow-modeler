@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="LabLink_Demo" name="Epsylon LabLink Demo" isExecutable="false">
+  <studyflow:study id="LabLink_Demo" name="Epsylon LabLink Demo" isExecutable="true">
     <bpmn2:documentation>Three-arm N-Back demo for the Epsylon LabLink talk: a 1-back warm-up, then a random allocation across three 2-back timeline variants. All activities are Behaverse tasks (scene=NB) that the Runner dispatches to the Unity build. Each task carries `autoAnswer: Valid` so the bot agent fills correct responses and the studyflow advances arm-to-arm without keyboard input.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Start">
       <bpmn2:outgoing>Flow_Start_Warmup</bpmn2:outgoing>
@@ -148,7 +148,7 @@ Timelines:
     <bpmn2:sequenceFlow id="Flow_Dual_End" sourceRef="Arm_Dual2Back" targetRef="End" />
     <bpmn2:sequenceFlow id="Flow_XCIT_End" sourceRef="Arm_XCIT_NB_03" targetRef="End" />
     <bpmn2:sequenceFlow id="Flow_Demo_End" sourceRef="Arm_Demo" targetRef="End" />
-  </bpmn2:process>
+  </studyflow:study>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="LabLink_Demo">
       <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
