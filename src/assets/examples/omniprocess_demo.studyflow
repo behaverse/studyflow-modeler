@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:datatrove="https://w3id.org/studyflow/datatrove" xmlns:omniprocess="https://w3id.org/omniprocess" id="omniprocess_lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="OmniProcessLabLinkDemo" name="Epsylon LabLink — OmniProcess Demo" isExecutable="true">
-    <bpmn2:documentation>OmniProcess+DataTrove preprocessing pipeline for the Epsylon LabLink talk. A canonical data request (e.g., /omni/{id}/:eeg/:sensor/@Cz) resolves either to a cached derivative or, on cache miss, to an HPC-scale multimodal preprocessing run: a DataTrove Reader pulls raw BIDS data, a Filter drops QC failures, then fMRIPrep and EEGPrep run in parallel, a Stats step records QC metrics, and a Writer materializes the new derivative into the OmniData lakehouse.</bpmn2:documentation>
+    <bpmn2:documentation>OmniProcess+DataTrove preprocessing pipeline for the Epsylon LabLink talk. A canonical data request (e.g., /omni/{id}/:eeg/:sensor/@Cz) resolves either to a cached derivative or, on cache miss, to an HPC-scale multimodal preprocessing run: a DataTrove Reader pulls from the Raw BIDS data store, a Filter drops QC failures, then fMRIPrep and EEGPrep run in parallel, a Stats step records QC metrics, and a Writer materializes the new derivative into the OmniData lakehouse data store.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Canonical request">
       <bpmn2:outgoing>Flow_Start_Cache</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -23,6 +23,11 @@
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Cache_Miss</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Read_Filter</bpmn2:outgoing>
+      <bpmn2:property id="Property_ReadBIDS_in" name="__targetRef_placeholder" />
+      <bpmn2:dataInputAssociation id="DataInput_RawBIDS_Read">
+        <bpmn2:sourceRef>RawBIDSDataset</bpmn2:sourceRef>
+        <bpmn2:targetRef>Property_ReadBIDS_in</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
     </bpmn2:serviceTask>
     <bpmn2:serviceTask id="QCFilter" name="Drop QC failures" studyflow:isDataOperation="true" studyflow:operationType="filter">
       <bpmn2:extensionElements>
@@ -93,6 +98,9 @@
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Stats_Write</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Write_End</bpmn2:outgoing>
+      <bpmn2:dataOutputAssociation id="DataOutput_Write_Lakehouse">
+        <bpmn2:targetRef>OmniDataLakehouse</bpmn2:targetRef>
+      </bpmn2:dataOutputAssociation>
     </bpmn2:serviceTask>
     <bpmn2:endEvent id="EndMaterialized" name="Derivative ready">
       <bpmn2:incoming>Flow_Write_End</bpmn2:incoming>
@@ -110,6 +118,16 @@
     <bpmn2:sequenceFlow id="Flow_Join_Stats" sourceRef="JoinModalities" targetRef="CollectStats" />
     <bpmn2:sequenceFlow id="Flow_Stats_Write" sourceRef="CollectStats" targetRef="WriteLakehouse" />
     <bpmn2:sequenceFlow id="Flow_Write_End" sourceRef="WriteLakehouse" targetRef="EndMaterialized" />
+    <bpmn2:dataStoreReference id="RawBIDSDataset" name="Raw BIDS data">
+      <bpmn2:extensionElements>
+        <studyflow:dataset format="bids" />
+      </bpmn2:extensionElements>
+    </bpmn2:dataStoreReference>
+    <bpmn2:dataStoreReference id="OmniDataLakehouse" name="OmniData lakehouse">
+      <bpmn2:extensionElements>
+        <studyflow:dataset format="bids" />
+      </bpmn2:extensionElements>
+    </bpmn2:dataStoreReference>
   </studyflow:study>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="OmniProcessLabLinkDemo">
@@ -168,6 +186,18 @@
         <dc:Bounds x="1462" y="382" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="1438" y="425" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="RawBIDSDataset_di" bpmnElement="RawBIDSDataset">
+        <dc:Bounds x="445" y="600" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="427" y="655" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="OmniDataLakehouse_di" bpmnElement="OmniDataLakehouse">
+        <dc:Bounds x="1325" y="600" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1297" y="655" width="106" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_Start_Cache_di" bpmnElement="Flow_Start_Cache">
@@ -232,6 +262,14 @@
       <bpmndi:BPMNEdge id="Flow_Write_End_di" bpmnElement="Flow_Write_End">
         <di:waypoint x="1400" y="400" />
         <di:waypoint x="1462" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInput_RawBIDS_Read_di" bpmnElement="DataInput_RawBIDS_Read">
+        <di:waypoint x="470" y="600" />
+        <di:waypoint x="470" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataOutput_Write_Lakehouse_di" bpmnElement="DataOutput_Write_Lakehouse">
+        <di:waypoint x="1350" y="440" />
+        <di:waypoint x="1350" y="600" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
