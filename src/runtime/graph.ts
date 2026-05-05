@@ -1,9 +1,4 @@
-import { startToJob } from './nodes/start';
-import { endToJob } from './nodes/end';
-import { instructionToJob } from './nodes/instruction';
-import { questionnaireToJob } from './nodes/questionnaire';
-import { taskToJob } from './nodes/task';
-import { behaverseToJob } from './nodes/behaverse';
+import { findByFlowNode } from './nodes';
 import type { Process, FlowNode, Job } from './types';
 
 export type GraphOptions = {
@@ -49,39 +44,11 @@ export class Graph {
   }
 
   private toJob(node: FlowNode): Job | null {
-    switch (node.type) {
-      case 'bpmn:StartEvent':
-        return startToJob(node);
-      case 'bpmn:EndEvent':
-        return endToJob(node);
-      case 'bpmn:Task':
-      case 'bpmn:UserTask':
-      case 'bpmn:ServiceTask':
-      case 'bpmn:ScriptTask':
-      case 'bpmn:ManualTask':
-        return this.taskJob(node);
-      case 'bpmn:ExclusiveGateway':
-      case 'bpmn:InclusiveGateway':
-      case 'bpmn:EventBasedGateway':
-        return null;
-      case 'bpmn:ParallelGateway':
-        throw new Error(`ParallelGateway (${node.id}) is not supported in v1.`);
-      default:
-        return null;
+    if (node.type === 'bpmn:ParallelGateway') {
+      throw new Error(`ParallelGateway (${node.id}) is not supported yet.`);
     }
-  }
-
-  private taskJob(node: FlowNode): Job | null {
-    if (node.appliedType === 'behaverse:BehaverseTask') {
-      return behaverseToJob(node);
-    }
-    if (node.appliedType === 'studyflow:Instruction') {
-      return instructionToJob(node);
-    }
-    if (node.appliedType === 'studyflow:Questionnaire') {
-      return questionnaireToJob(node);
-    }
-    return taskToJob(node);
+    const def = findByFlowNode(node);
+    return (def?.toJob(node) as Job | null | undefined) ?? null;
   }
 
   private advance(node: FlowNode): string | undefined {

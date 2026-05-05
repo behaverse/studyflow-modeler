@@ -4,11 +4,18 @@ import type { Process, FlowNode } from '../../types';
 import type { ValidationIssue } from '../behaverse/types';
 import { type NodeProps, readBoolProperty } from '../types';
 import { nodeStyles } from '../styles';
+import { registerNode } from '../registry';
 import {
   type CompletionCodeType,
   resolveCompletionCode,
   substituteCompletionCode,
 } from './completionCode';
+
+declare module '@/runtime/types' {
+  interface JobsByKind {
+    end: EndJob;
+  }
+}
 
 const REDIRECT_TIMEOUT = 5;  // seconds
 
@@ -146,3 +153,11 @@ export function validate(process: Process): ValidationIssue[] {
   }
   return issues;
 }
+
+registerNode({
+  kind: 'end',
+  match: { bpmnType: 'bpmn:EndEvent' },
+  toJob: endToJob,
+  Component: End,
+  validate,
+});

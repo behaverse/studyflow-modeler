@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import type { Job } from '../types';
 import type { LogKind } from '../styles';
 import type { NodeProps } from './types';
-import { Start, End, Instruction, Questionnaire, Task, Behaverse } from './';
+import { findByKind } from './';
 
 export type NodeOutcome =
   | { kind: 'complete'; result?: unknown }
@@ -46,19 +46,14 @@ export function NodeRenderer({ job, log, setVariable, onResolve }: Props) {
 
   const props = { job, log, setVariable, complete, abort } as NodeProps<any>;
 
-  switch (job.kind) {
-    case 'start':         return <Start         {...props} />;
-    case 'end':           return <End           {...props} />;
-    case 'instruction':   return <Instruction   {...props} />;
-    case 'questionnaire': return <Questionnaire {...props} />;
-    case 'task':          return <Task          {...props} />;
-    case 'behaverse':     return <Behaverse     {...props} />;
-    default: {
-      if (!resolvedRef.current) {
-        resolvedRef.current = true;
-        onResolve({ kind: 'abort', reason: `unknown-job-kind:${(job as Job).kind}` });
-      }
-      return null;
+  const def = findByKind(job.kind);
+  if (!def) {
+    if (!resolvedRef.current) {
+      resolvedRef.current = true;
+      onResolve({ kind: 'abort', reason: `unknown-job-kind:${job.kind}` });
     }
+    return null;
   }
+  const Component = def.Component;
+  return <Component {...props} />;
 }

@@ -7,6 +7,13 @@ import { buildBehaverseIframeSrc } from './iframe';
 import { getBehaverseTaskPayload } from './parser';
 import { validateProcess as validateBehaverseProcess } from './validator';
 import { nodeStyles } from '../styles';
+import { registerNode } from '../registry';
+
+declare module '@/runtime/types' {
+  interface JobsByKind {
+    behaverse: BehaverseJob;
+  }
+}
 
 // Behaverse-side ready event timing.
 const STARTUP_GRACE_MS = 1000;
@@ -102,6 +109,14 @@ export function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>
 export function validate(process: Process, manifest?: Manifest): ValidationIssue[] {
   return manifest ? validateBehaverseProcess(process, manifest) : [];
 }
+
+registerNode({
+  kind: 'behaverse',
+  match: { appliedType: 'behaverse:BehaverseTask' },
+  toJob: behaverseToJob,
+  Component: Behaverse,
+  validate,
+});
 
 export type {
   BehaverseTaskPayload,

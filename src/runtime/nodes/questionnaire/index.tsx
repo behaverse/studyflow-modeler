@@ -4,7 +4,14 @@ import type { Process, FlowNode } from '../../types';
 import type { ValidationIssue } from '../behaverse/types';
 import type { NodeProps } from '../types';
 import { nodeStyles } from '../styles';
+import { registerNode } from '../registry';
 import { getInstrument, type InstrumentDefinition } from './instruments';
+
+declare module '@/runtime/types' {
+  interface JobsByKind {
+    questionnaire: QuestionnaireJob;
+  }
+}
 
 export type QuestionnaireJob = {
   kind: 'questionnaire';
@@ -163,3 +170,11 @@ export function validate(process: Process): ValidationIssue[] {
   }
   return issues;
 }
+
+registerNode({
+  kind: 'questionnaire',
+  match: { appliedType: 'studyflow:Questionnaire' },
+  toJob: questionnaireToJob,
+  Component: Questionnaire,
+  validate,
+});

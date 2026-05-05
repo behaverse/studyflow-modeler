@@ -2,6 +2,13 @@ import { useEffect } from 'react';
 import type { FlowNode } from '../../types';
 import type { NodeProps } from '../types';
 import { nodeStyles } from '../styles';
+import { registerNode } from '../registry';
+
+declare module '@/runtime/types' {
+  interface JobsByKind {
+    task: TaskJob;
+  }
+}
 
 export type TaskJob = {
   kind: 'task';
@@ -40,3 +47,10 @@ export function Task({ job, log, complete }: NodeProps<TaskJob>) {
     </div>
   );
 }
+
+registerNode({
+  kind: 'task',
+  match: { fallback: 'task' },
+  toJob: taskToJob,
+  Component: Task,
+});

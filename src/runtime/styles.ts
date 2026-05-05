@@ -2,7 +2,7 @@ export type LogKind = 'info' | 'task' | 'ok' | 'error' | 'skip';
 
 export const layout = {
   page: 'flex flex-col h-screen',
-  header: 'bg-fuchsia-900 text-white px-4 py-2 flex items-center gap-3',
+  header: 'bg-black text-white px-4 py-2 flex items-center gap-3',
   title: 'font-semibold',
   badge: 'text-xs uppercase bg-white/20 rounded px-2 py-0.5',
   meta: 'text-xs opacity-75',

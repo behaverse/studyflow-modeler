@@ -1,6 +1,8 @@
+import type { ComponentType } from 'react';
 import { getProperty } from '@/modeler/extensions/resolve';
 import type { LogKind } from '../styles';
-import type { Job, FlowNode } from '../types';
+import type { Job, FlowNode, Process } from '../types';
+import type { Manifest, ValidationIssue } from './behaverse/types';
 
 export type NodeProps<J extends Job = Job> = {
   job: J;
@@ -9,6 +11,29 @@ export type NodeProps<J extends Job = Job> = {
   complete: (result?: unknown) => void;
   abort: (reason: string) => void;
 };
+
+/**
+ * How a NodeDefinition recognizes a FlowNode. Match precedence in the registry
+ * is appliedType → bpmnType → fallback, so fallback only catches bpmn:*Task
+ * nodes that no other definition has claimed.
+ */
+export type NodeMatcher =
+  | { appliedType: string }
+  | { bpmnType: string | string[] }
+  | { fallback: 'task' };
+
+/**
+ * Single source of truth for a runtime node kind. Each node module exports one
+ * of these; the registry in nodes/index.ts collects them and drives all
+ * dispatch (graph traversal, rendering, validation).
+ */
+export interface NodeDefinition<J extends { kind: string; node: FlowNode } = { kind: string; node: FlowNode }> {
+  kind: J['kind'];
+  match: NodeMatcher;
+  toJob: (node: FlowNode) => J | null;
+  Component: ComponentType<NodeProps<J>>;
+  validate?: (process: Process, manifest?: Manifest) => ValidationIssue[];
+}
 
 /**
  * Read a property off the BPMN business object, falling back to the

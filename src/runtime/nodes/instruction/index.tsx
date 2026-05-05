@@ -3,6 +3,13 @@ import type { Process, FlowNode } from '../../types';
 import type { ValidationIssue } from '../behaverse/types';
 import type { NodeProps } from '../types';
 import { nodeStyles } from '../styles';
+import { registerNode } from '../registry';
+
+declare module '@/runtime/types' {
+  interface JobsByKind {
+    instruction: InstructionJob;
+  }
+}
 
 export type InstructionJob = {
   kind: 'instruction';
@@ -52,3 +59,11 @@ export function validate(process: Process): ValidationIssue[] {
   }
   return issues;
 }
+
+registerNode({
+  kind: 'instruction',
+  match: { appliedType: 'studyflow:Instruction' },
+  toJob: instructionToJob,
+  Component: Instruction,
+  validate,
+});

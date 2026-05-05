@@ -4,6 +4,13 @@ import type { Process, FlowNode } from '../../types';
 import type { ValidationIssue } from '../behaverse/types';
 import { type NodeProps, readBoolProperty } from '../types';
 import { nodeStyles } from '../styles';
+import { registerNode } from '../registry';
+
+declare module '@/runtime/types' {
+  interface JobsByKind {
+    start: StartJob;
+  }
+}
 
 export type StartJob = {
   kind: 'start';
@@ -125,3 +132,11 @@ export function validate(process: Process): ValidationIssue[] {
   }
   return issues;
 }
+
+registerNode({
+  kind: 'start',
+  match: { bpmnType: 'bpmn:StartEvent' },
+  toJob: startToJob,
+  Component: Start,
+  validate,
+});

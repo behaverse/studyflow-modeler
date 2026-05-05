@@ -3,7 +3,9 @@
 //   SequenceFlow — BPMN edge connecting two FlowNodes.
 //   Process      — the parsed BPMN process: nodes + sequence flows + start id.
 //   Job          — one materialized unit yielded by Graph.traverse() — the FlowNode
-//                  plus per-kind extras the renderer needs.
+//                  plus per-kind extras the renderer needs. Derived from
+//                  `JobsByKind` below, which each node module under
+//                  src/runtime/nodes/<kind>/ augments to register its own job type.
 
 export type FlowNode = {
   id: string;
@@ -29,17 +31,15 @@ export type Process = {
   startId?: string;
 };
 
-import type { StartJob } from './nodes/start';
-import type { EndJob } from './nodes/end';
-import type { InstructionJob } from './nodes/instruction';
-import type { QuestionnaireJob } from './nodes/questionnaire';
-import type { TaskJob } from './nodes/task';
-import type { BehaverseJob } from './nodes/behaverse';
-
-export type Job =
-  | StartJob
-  | EndJob
-  | InstructionJob
-  | QuestionnaireJob
-  | TaskJob
-  | BehaverseJob;
+/**
+ * Map of registered node kinds to their job types. Each node module under
+ * src/runtime/nodes/<kind>/index.tsx augments this interface; the `Job` union
+ * below is derived from it, so adding a new kind requires no edit here.
+ *
+ * In a node module:
+ *   declare module '@/runtime/types' {
+ *     interface JobsByKind { myKind: MyKindJob; }
+ *   }
+ */
+export interface JobsByKind {}
+export type Job = JobsByKind[keyof JobsByKind];
