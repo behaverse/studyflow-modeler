@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 import { getBehaverseTaskPayload } from './parser';
 import { getProperty } from '@/modeler/extensions/resolve';
-import type { RuntimeGraph } from '../types';
+import type { Process } from '../../types';
 import type { Manifest, ValidationIssue } from './types';
 
 function readAttr(businessObject: any, name: string): string | undefined {
@@ -29,11 +29,11 @@ export async function fetchManifest(unityBuildUrl: string): Promise<Manifest> {
   return (await response.json()) as Manifest;
 }
 
-export function validateGraph(graph: RuntimeGraph, manifest: Manifest): ValidationIssue[] {
+export function validateProcess(process: Process, manifest: Manifest): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const tasksById = new Map(manifest.tasks.map((t) => [t.id, t]));
 
-  for (const node of graph.nodes.values()) {
+  for (const node of process.nodes.values()) {
     if (node.appliedType !== 'behaverse:BehaverseTask') continue;
 
     let payload;

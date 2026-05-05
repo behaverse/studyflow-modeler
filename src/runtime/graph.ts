@@ -1,21 +1,25 @@
-import { getProperty } from '@/modeler/extensions/resolve';
-import { getBehaverseTaskPayload } from './behaverse/parser';
-import type { RuntimeGraph, RuntimeNode, RuntimeStep } from './types';
+import { startToJob } from './nodes/start';
+import { endToJob } from './nodes/end';
+import { instructionToJob } from './nodes/instruction';
+import { questionnaireToJob } from './nodes/questionnaire';
+import { taskToJob } from './nodes/task';
+import { behaverseToJob } from './nodes/behaverse';
+import type { Process, FlowNode, Job } from './types';
 
-export type EngineOptions = {
-  /** Deterministic random seed for gateways . */
+export type GraphOptions = {
+  /** Deterministic random seed for gateways. */
   seed?: number;
   /** Variables exposed to conditionExpression evaluation. */
   variables?: Record<string, unknown>;
 };
 
-export class StudyflowEngine {
-  private graph: RuntimeGraph;
+export class Graph {
+  private process: Process;
   private rand: () => number;
   private vars: Record<string, unknown>;
 
-  constructor(graph: RuntimeGraph, options: EngineOptions = {}) {
-    this.graph = graph;
+  constructor(process: Process, options: GraphOptions = {}) {
+    this.process = process;
     this.rand = options.seed != null ? random(options.seed) : Math.random;
     this.vars = { ...(options.variables ?? {}) };
   }
@@ -24,38 +28,38 @@ export class StudyflowEngine {
     this.vars[name] = value;
   }
 
-  async *run(): AsyncGenerator<RuntimeStep, void, void> {
-    if (!this.graph.startId) {
+  async *traverse(): AsyncGenerator<Job, void, void> {
+    if (!this.process.startId) {
       throw new Error('No StartEvent found in diagram.');
     }
-    let currentId: string | undefined = this.graph.startId;
+    let currentId: string | undefined = this.process.startId;
 
     while (currentId) {
-      const node: RuntimeNode | undefined = this.graph.nodes.get(currentId);
+      const node: FlowNode | undefined = this.process.nodes.get(currentId);
       if (!node) {
         throw new Error(`Dangling node reference: ${currentId}`);
       }
 
-      const step = this.toStep(node);
-      if (step) yield step;
-      if (step?.kind === 'end') return;
+      const job = this.toJob(node);
+      if (job) yield job;
+      if (job?.kind === 'end') return;
 
       currentId = this.advance(node);
     }
   }
 
-  private toStep(node: RuntimeNode): RuntimeStep | null {
+  private toJob(node: FlowNode): Job | null {
     switch (node.type) {
       case 'bpmn:StartEvent':
-        return { kind: 'start', node };
+        return startToJob(node);
       case 'bpmn:EndEvent':
-        return { kind: 'end', node };
+        return endToJob(node);
       case 'bpmn:Task':
       case 'bpmn:UserTask':
       case 'bpmn:ServiceTask':
       case 'bpmn:ScriptTask':
       case 'bpmn:ManualTask':
-        return this.taskStep(node);
+        return this.taskJob(node);
       case 'bpmn:ExclusiveGateway':
       case 'bpmn:InclusiveGateway':
       case 'bpmn:EventBasedGateway':
@@ -67,24 +71,20 @@ export class StudyflowEngine {
     }
   }
 
-  private taskStep(node: RuntimeNode): RuntimeStep | null {
+  private taskJob(node: FlowNode): Job | null {
     if (node.appliedType === 'behaverse:BehaverseTask') {
-      const payload = getBehaverseTaskPayload(node);
-      if (!payload) return null;
-      return { kind: 'task', node, payload };
+      return behaverseToJob(node);
     }
     if (node.appliedType === 'studyflow:Instruction') {
-      const content = (getProperty(node.businessObject, 'content') as string) || '';
-      return { kind: 'instruction', node, content };
+      return instructionToJob(node);
     }
     if (node.appliedType === 'studyflow:Questionnaire') {
-      const instrument = getProperty(node.businessObject, 'instrument') as string | undefined;
-      return { kind: 'questionnaire', node, instrument };
+      return questionnaireToJob(node);
     }
-    return null;
+    return taskToJob(node);
   }
 
-  private advance(node: RuntimeNode): string | undefined {
+  private advance(node: FlowNode): string | undefined {
     if (node.outgoing.length === 0) return undefined;
 
     if (this.isRandomGateway(node)) {
@@ -98,31 +98,31 @@ export class StudyflowEngine {
     return this.firstOutgoingTarget(node);
   }
 
-  private isRandomGateway(node: RuntimeNode): boolean {
+  private isRandomGateway(node: FlowNode): boolean {
     const t = node.appliedType;
     return t === 'studyflow:RandomGateway' || t === 'studyflow:StratifiedAllocationGateway';
   }
 
-  private isExclusiveGateway(node: RuntimeNode): boolean {
+  private isExclusiveGateway(node: FlowNode): boolean {
     return node.type === 'bpmn:ExclusiveGateway' || node.type === 'bpmn:InclusiveGateway';
   }
 
-  private firstOutgoingTarget(node: RuntimeNode): string | undefined {
-    const edge = this.graph.edges.get(node.outgoing[0]);
+  private firstOutgoingTarget(node: FlowNode): string | undefined {
+    const edge = this.process.edges.get(node.outgoing[0]);
     return edge?.targetId;
   }
 
-  private pickRandomBranch(node: RuntimeNode): string | undefined {
+  private pickRandomBranch(node: FlowNode): string | undefined {
     const targets = node.outgoing
-      .map((id) => this.graph.edges.get(id)?.targetId)
+      .map((id) => this.process.edges.get(id)?.targetId)
       .filter((t): t is string => Boolean(t));
     if (targets.length === 0) return undefined;
     return targets[Math.floor(this.rand() * targets.length)];
   }
 
-  private pickConditionBranch(node: RuntimeNode): string | undefined {
+  private pickConditionBranch(node: FlowNode): string | undefined {
     for (const edgeId of node.outgoing) {
-      const edge = this.graph.edges.get(edgeId);
+      const edge = this.process.edges.get(edgeId);
       if (edge?.conditionExpression && this.evalCondition(edge.conditionExpression)) {
         return edge.targetId;
       }
@@ -130,14 +130,14 @@ export class StudyflowEngine {
     return undefined;
   }
 
-  private pickDefaultBranch(node: RuntimeNode): string | undefined {
+  private pickDefaultBranch(node: FlowNode): string | undefined {
     const defaultEdgeId = node.businessObject?.default?.id;
     if (defaultEdgeId) {
-      const edge = this.graph.edges.get(defaultEdgeId);
+      const edge = this.process.edges.get(defaultEdgeId);
       if (edge) return edge.targetId;
     }
     for (const edgeId of node.outgoing) {
-      const edge = this.graph.edges.get(edgeId);
+      const edge = this.process.edges.get(edgeId);
       if (edge && !edge.conditionExpression) return edge.targetId;
     }
     return this.firstOutgoingTarget(node);

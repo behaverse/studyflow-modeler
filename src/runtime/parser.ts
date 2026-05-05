@@ -1,6 +1,6 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import { getAppliedType } from '@/modeler/extensions/appliedType';
-import type { RuntimeGraph, RuntimeNode, RuntimeEdge } from './types';
+import type { Process, FlowNode, SequenceFlow } from './types';
 
 const FLOW_NODE_TYPES = new Set([
   'bpmn:StartEvent',
@@ -21,22 +21,22 @@ const FLOW_NODE_TYPES = new Set([
 export async function parseStudyflow(
   xml: string,
   schemas: Record<string, any>,
-): Promise<RuntimeGraph> {
+): Promise<Process> {
   const moddle = new BpmnModdle(schemas);
   const { rootElement } = await moddle.fromXML(xml);
 
-  const process = (rootElement as any)?.rootElements?.find(
+  const businessObject = (rootElement as any)?.rootElements?.find(
     (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
   );
-  if (!process) {
+  if (!businessObject) {
     throw new Error('No bpmn:Process / studyflow:Study found in diagram.');
   }
 
-  const nodes = new Map<string, RuntimeNode>();
-  const edges = new Map<string, RuntimeEdge>();
+  const nodes = new Map<string, FlowNode>();
+  const edges = new Map<string, SequenceFlow>();
   let startId: string | undefined;
 
-  for (const el of process.flowElements ?? []) {
+  for (const el of businessObject.flowElements ?? []) {
     if (el.$type === 'bpmn:SequenceFlow') continue;
     if (!FLOW_NODE_TYPES.has(el.$type)) continue;
 
@@ -54,7 +54,7 @@ export async function parseStudyflow(
     }
   }
 
-  for (const el of process.flowElements ?? []) {
+  for (const el of businessObject.flowElements ?? []) {
     if (el.$type !== 'bpmn:SequenceFlow') continue;
 
     const sourceId = el.sourceRef?.id;
@@ -76,5 +76,5 @@ export async function parseStudyflow(
     nodes.get(targetId)?.incoming.push(el.id);
   }
 
-  return { process, nodes, edges, startId };
+  return { businessObject, nodes, edges, startId };
 }

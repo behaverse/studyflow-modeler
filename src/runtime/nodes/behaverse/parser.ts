@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 import { getExtensionElement } from '@/modeler/extensions/wrapper';
 import { getProperty } from '@/modeler/extensions/resolve';
-import type { RuntimeNode } from '../types';
+import type { FlowNode } from '../../types';
 import type { BehaverseTaskPayload } from './types';
 
 function readBehaverseProperty(businessObject: any, propertyName: string): string | undefined {
@@ -19,7 +19,7 @@ function readBehaverseProperty(businessObject: any, propertyName: string): strin
   return typeof fromProperty === 'string' ? fromProperty : undefined;
 }
 
-export function getBehaverseTaskPayload(node: RuntimeNode): BehaverseTaskPayload | null {
+export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.appliedType !== 'behaverse:BehaverseTask') return null;
 
   const task = readBehaverseProperty(node.businessObject, 'scene') ?? '';
@@ -113,7 +113,7 @@ function parseYamlOverrides(text: string | undefined): Record<string, unknown> |
     : undefined;
 }
 
-export function ensureExtensionElementResolved(node: RuntimeNode): void {
+export function ensureExtensionElementResolved(node: FlowNode): void {
   // Touch the lazy lookup so descriptor caching kicks in.
   getExtensionElement(node.businessObject);
 }
