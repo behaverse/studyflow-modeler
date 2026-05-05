@@ -109,9 +109,9 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await studyflowDownloadPromise;
     const normalizedStudyflow = normalizeXml(await readDownloadText(studyflowDownload));
 
-    expect(normalizedStudyflow).toContain('<omniprocess:EEGPrep/>');
+    expect(normalizedStudyflow).toContain('<omniprocess:preprocessEEG ');
     expect(normalizedStudyflow).toContain('studyflow:isDataOperation="true"');
     expect(normalizedStudyflow).toContain('studyflow:operationType="map"');
-    expect(normalizedStudyflow).toContain('name="EEGPrep.clean_artifacts"');
+    expect(normalizedStudyflow).toContain('name="EEGPrep"');
   });
 });

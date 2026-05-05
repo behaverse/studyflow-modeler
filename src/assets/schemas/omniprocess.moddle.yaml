@@ -73,7 +73,7 @@ types:
           pinned: true
         default: filter
         redefines: omniprocess:Transform#operationType
-  - name: Preprocess_fMRI
+  - name: PreprocessfMRI
     description: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
     superClass:
       - omniprocess:Map
@@ -115,7 +115,7 @@ types:
         meta:
           categories:
             - fMRIPrep
-  - name: Preprocess_EEG
+  - name: PreprocessEEG
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     superClass:
       - omniprocess:Map
@@ -177,7 +177,7 @@ templates:
   - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep
-      type: Preprocess_fMRI
+      type: PreprocessfMRI
       bpmn:documentation: "Preprocess fMRI data: filtering, artifact removal, and normalization. Requires BIDS-formatted input."
       icon: iconify streamline--brain
       output_spaces: MNI152NLin2009cAsym
@@ -187,7 +187,7 @@ templates:
   - description: "Preprocess EEG data: filtering, artifact removal, and normalization."
     object:
       bpmn:name: EEGPrep
-      type: Preprocess_EEG
+      type: PreprocessEEG
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
       icon: iconify fluent--pulse-20-filled
       flatline_criterion: 5

@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:datatrove="https://w3id.org/studyflow/datatrove" xmlns:omniprocess="https://w3id.org/omniprocess" id="omniprocess_lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
+  <studyflow:study id="OmniProcessLabLinkDemo" name="Epsylon LabLink — OmniProcess Demo" isExecutable="true">
+    <bpmn2:documentation>OmniProcess+DataTrove preprocessing pipeline for the Epsylon LabLink talk. A canonical data request (e.g., /omni/{id}/:eeg/:sensor/@Cz) resolves either to a cached derivative or, on cache miss, to an HPC-scale multimodal preprocessing run: a DataTrove Reader pulls raw BIDS data, a Filter drops QC failures, then fMRIPrep and EEGPrep run in parallel, a Stats step records QC metrics, and a Writer materializes the new derivative into the OmniData lakehouse.</bpmn2:documentation>
+    <bpmn2:startEvent id="Start" name="Canonical request">
+      <bpmn2:outgoing>Flow_Start_Cache</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:exclusiveGateway id="CacheCheck" name="Cached?">
+      <bpmn2:incoming>Flow_Start_Cache</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Cache_Hit</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Cache_Miss</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:task id="ServeCached" name="Serve cached derivative">
+      <bpmn2:incoming>Flow_Cache_Hit</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Cached_End</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:endEvent id="EndCached" name="Cache hit">
+      <bpmn2:incoming>Flow_Cached_End</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:serviceTask id="ReadBIDS" name="Read BIDS dataset" studyflow:isDataOperation="true" studyflow:operationType="map">
+      <bpmn2:extensionElements>
+        <datatrove:reader className="ParquetReader" />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Cache_Miss</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Read_Filter</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:serviceTask id="QCFilter" name="Drop QC failures" studyflow:isDataOperation="true" studyflow:operationType="filter">
+      <bpmn2:extensionElements>
+        <datatrove:filter />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Read_Filter</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Filter_Split</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:parallelGateway id="SplitModalities" name="fan out by modality">
+      <bpmn2:incoming>Flow_Filter_Split</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Split_fMRI</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Split_EEG</bpmn2:outgoing>
+    </bpmn2:parallelGateway>
+    <bpmn2:serviceTask id="fMRIPrep" name="fMRIPrep" studyflow:isDataOperation="true" studyflow:operationType="map">
+      <bpmn2:documentation>Preprocess fMRI data: filtering, artifact removal, and normalization. Requires BIDS-formatted input.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <omniprocess:preprocessfMRI output_spaces="MNI152NLin2009cAsym" skull_strip_t1w="force" use_aroma="false" use_syn_sdc="false" />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Split_fMRI</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_fMRI_Join</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:subProcess id="EEGPrep" name="EEGPrep" studyflow:isDataOperation="true" studyflow:operationType="map">
+      <bpmn2:documentation>Preprocess EEG data: filtering, artifact removal, and normalization.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <omniprocess:preprocessEEG flatline_criterion="5" highpass="1" lowpass="100" asr_criterion="20" ica="true" iclabel="true" />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Split_EEG</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_EEG_Join</bpmn2:outgoing>
+      <bpmn2:startEvent id="EEG_Start" name="Start">
+        <bpmn2:outgoing>Flow_EEG_Filter</bpmn2:outgoing>
+      </bpmn2:startEvent>
+      <bpmn2:serviceTask id="EEG_FilterSignal" name="Filter signal" studyflow:isDataOperation="true" studyflow:operationType="map">
+        <bpmn2:extensionElements>
+          <omniprocess:map />
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>Flow_EEG_Filter</bpmn2:incoming>
+        <bpmn2:outgoing>Flow_EEG_Clean</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+      <bpmn2:serviceTask id="EEG_RemoveArtifacts" name="Remove artifacts" studyflow:isDataOperation="true" studyflow:operationType="map">
+        <bpmn2:extensionElements>
+          <omniprocess:map />
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>Flow_EEG_Clean</bpmn2:incoming>
+        <bpmn2:outgoing>Flow_EEG_End</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+      <bpmn2:endEvent id="EEG_End" name="End">
+        <bpmn2:incoming>Flow_EEG_End</bpmn2:incoming>
+      </bpmn2:endEvent>
+      <bpmn2:sequenceFlow id="Flow_EEG_Filter" sourceRef="EEG_Start" targetRef="EEG_FilterSignal" />
+      <bpmn2:sequenceFlow id="Flow_EEG_Clean" sourceRef="EEG_FilterSignal" targetRef="EEG_RemoveArtifacts" />
+      <bpmn2:sequenceFlow id="Flow_EEG_End" sourceRef="EEG_RemoveArtifacts" targetRef="EEG_End" />
+    </bpmn2:subProcess>
+    <bpmn2:parallelGateway id="JoinModalities" name="merge modalities">
+      <bpmn2:incoming>Flow_fMRI_Join</bpmn2:incoming>
+      <bpmn2:incoming>Flow_EEG_Join</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Join_Stats</bpmn2:outgoing>
+    </bpmn2:parallelGateway>
+    <bpmn2:serviceTask id="CollectStats" name="Collect QC stats" studyflow:isDataOperation="true" studyflow:operationType="map">
+      <bpmn2:extensionElements>
+        <datatrove:stats />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Join_Stats</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Stats_Write</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:serviceTask id="WriteLakehouse" name="Write to OmniData" studyflow:isDataOperation="true" studyflow:operationType="map">
+      <bpmn2:extensionElements>
+        <datatrove:writer className="ParquetWriter" />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Stats_Write</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Write_End</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:endEvent id="EndMaterialized" name="Derivative ready">
+      <bpmn2:incoming>Flow_Write_End</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="Flow_Start_Cache" sourceRef="Start" targetRef="CacheCheck" />
+    <bpmn2:sequenceFlow id="Flow_Cache_Hit" name="hit" sourceRef="CacheCheck" targetRef="ServeCached" />
+    <bpmn2:sequenceFlow id="Flow_Cache_Miss" name="miss" sourceRef="CacheCheck" targetRef="ReadBIDS" />
+    <bpmn2:sequenceFlow id="Flow_Cached_End" sourceRef="ServeCached" targetRef="EndCached" />
+    <bpmn2:sequenceFlow id="Flow_Read_Filter" sourceRef="ReadBIDS" targetRef="QCFilter" />
+    <bpmn2:sequenceFlow id="Flow_Filter_Split" sourceRef="QCFilter" targetRef="SplitModalities" />
+    <bpmn2:sequenceFlow id="Flow_Split_fMRI" sourceRef="SplitModalities" targetRef="fMRIPrep" />
+    <bpmn2:sequenceFlow id="Flow_Split_EEG" sourceRef="SplitModalities" targetRef="EEGPrep" />
+    <bpmn2:sequenceFlow id="Flow_fMRI_Join" sourceRef="fMRIPrep" targetRef="JoinModalities" />
+    <bpmn2:sequenceFlow id="Flow_EEG_Join" sourceRef="EEGPrep" targetRef="JoinModalities" />
+    <bpmn2:sequenceFlow id="Flow_Join_Stats" sourceRef="JoinModalities" targetRef="CollectStats" />
+    <bpmn2:sequenceFlow id="Flow_Stats_Write" sourceRef="CollectStats" targetRef="WriteLakehouse" />
+    <bpmn2:sequenceFlow id="Flow_Write_End" sourceRef="WriteLakehouse" targetRef="EndMaterialized" />
+  </studyflow:study>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="OmniProcessLabLinkDemo">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="162" y="382" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="138" y="425" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CacheCheck_di" bpmnElement="CacheCheck" isMarkerVisible="true">
+        <dc:Bounds x="295" y="375" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="299" y="432" width="43" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServeCached_di" bpmnElement="ServeCached">
+        <dc:Bounds x="500" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndCached_di" bpmnElement="EndCached">
+        <dc:Bounds x="1462" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1450" y="265" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReadBIDS_di" bpmnElement="ReadBIDS">
+        <dc:Bounds x="420" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="QCFilter_di" bpmnElement="QCFilter">
+        <dc:Bounds x="570" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SplitModalities_di" bpmnElement="SplitModalities">
+        <dc:Bounds x="745" y="375" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="722" y="335" width="96" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fMRIPrep_di" bpmnElement="fMRIPrep">
+        <dc:Bounds x="870" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EEGPrep_di" bpmnElement="EEGPrep">
+        <dc:Bounds x="870" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="JoinModalities_di" bpmnElement="JoinModalities">
+        <dc:Bounds x="1045" y="375" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1027" y="432" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CollectStats_di" bpmnElement="CollectStats">
+        <dc:Bounds x="1150" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="WriteLakehouse_di" bpmnElement="WriteLakehouse">
+        <dc:Bounds x="1300" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndMaterialized_di" bpmnElement="EndMaterialized">
+        <dc:Bounds x="1462" y="382" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1438" y="425" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_Cache_di" bpmnElement="Flow_Start_Cache">
+        <di:waypoint x="198" y="400" />
+        <di:waypoint x="295" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cache_Hit_di" bpmnElement="Flow_Cache_Hit">
+        <di:waypoint x="320" y="375" />
+        <di:waypoint x="320" y="240" />
+        <di:waypoint x="500" y="240" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="329" y="305" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cache_Miss_di" bpmnElement="Flow_Cache_Miss">
+        <di:waypoint x="345" y="400" />
+        <di:waypoint x="420" y="400" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="371" y="382" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cached_End_di" bpmnElement="Flow_Cached_End">
+        <di:waypoint x="600" y="240" />
+        <di:waypoint x="1462" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Read_Filter_di" bpmnElement="Flow_Read_Filter">
+        <di:waypoint x="520" y="400" />
+        <di:waypoint x="570" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Filter_Split_di" bpmnElement="Flow_Filter_Split">
+        <di:waypoint x="670" y="400" />
+        <di:waypoint x="745" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Split_fMRI_di" bpmnElement="Flow_Split_fMRI">
+        <di:waypoint x="770" y="375" />
+        <di:waypoint x="770" y="300" />
+        <di:waypoint x="870" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Split_EEG_di" bpmnElement="Flow_Split_EEG">
+        <di:waypoint x="770" y="425" />
+        <di:waypoint x="770" y="500" />
+        <di:waypoint x="870" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_fMRI_Join_di" bpmnElement="Flow_fMRI_Join">
+        <di:waypoint x="970" y="300" />
+        <di:waypoint x="1070" y="300" />
+        <di:waypoint x="1070" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_EEG_Join_di" bpmnElement="Flow_EEG_Join">
+        <di:waypoint x="970" y="500" />
+        <di:waypoint x="1070" y="500" />
+        <di:waypoint x="1070" y="425" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Join_Stats_di" bpmnElement="Flow_Join_Stats">
+        <di:waypoint x="1095" y="400" />
+        <di:waypoint x="1150" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Stats_Write_di" bpmnElement="Flow_Stats_Write">
+        <di:waypoint x="1250" y="400" />
+        <di:waypoint x="1300" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Write_End_di" bpmnElement="Flow_Write_End">
+        <di:waypoint x="1400" y="400" />
+        <di:waypoint x="1462" y="400" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_EEGPrep">
+    <bpmndi:BPMNPlane id="BPMNPlane_EEGPrep" bpmnElement="EEGPrep">
+      <bpmndi:BPMNShape id="EEG_Start_di" bpmnElement="EEG_Start">
+        <dc:Bounds x="140" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EEG_FilterSignal_di" bpmnElement="EEG_FilterSignal">
+        <dc:Bounds x="240" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EEG_RemoveArtifacts_di" bpmnElement="EEG_RemoveArtifacts">
+        <dc:Bounds x="390" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EEG_End_di" bpmnElement="EEG_End">
+        <dc:Bounds x="540" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_EEG_Filter_di" bpmnElement="Flow_EEG_Filter">
+        <di:waypoint x="176" y="180" />
+        <di:waypoint x="240" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_EEG_Clean_di" bpmnElement="Flow_EEG_Clean">
+        <di:waypoint x="340" y="180" />
+        <di:waypoint x="390" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_EEG_End_di" bpmnElement="Flow_EEG_End">
+        <di:waypoint x="490" y="180" />
+        <di:waypoint x="540" y="180" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
