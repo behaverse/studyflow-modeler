@@ -59,14 +59,8 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
         <div className={s.body}>
           <nav className={s.sidebar} aria-label="Settings sections">
             <SidebarGroup
-              label="User"
-              sections={SECTIONS.filter((sec) => sec.group === 'user')}
-              active={active}
-              onSelect={setActive}
-            />
-            <SidebarGroup
-              label="Application"
-              sections={SECTIONS.filter((sec) => sec.group === 'app')}
+              label=""
+              sections={SECTIONS}
               active={active}
               onSelect={setActive}
             />
