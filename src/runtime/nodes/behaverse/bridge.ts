@@ -57,7 +57,7 @@ export function runOnUnity(
     getUnityWindow()?.addEventListener(COMPLETION_EVENT, onCompleted as EventListener);
 
     try {
-      unity.SendMessage('GameManager', 'RunTaskActivity', JSON.stringify(payload));
+      unity.SendMessage('GameManager', 'RunTask', JSON.stringify(payload));
     } catch (err) {
       cleanup();
       reject(err);
@@ -139,7 +139,7 @@ export function waitForUnity(
 
 /**
  * Wait for Unity's GameManager to signal it is past the Loading-scene
- * transition and ready to accept RunTaskActivity messages. Older Unity builds
+ * transition and ready to accept RunTask messages. Older Unity builds
  * that don't emit this signal will hit the timeout — callers should treat the
  * timeout as "best effort" and proceed anyway.
  */

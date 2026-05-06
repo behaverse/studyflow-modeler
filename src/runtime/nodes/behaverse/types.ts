@@ -1,5 +1,5 @@
 /**
- * Wire payload for `RunTaskActivity`. Sent to Unity as a single
+ * Wire payload for `RunTask`. Sent to Unity as a single
  * JSON.stringify'd argument. The two `configMode` branches are mutually
  * exclusive on the diagram side: `builtin` carries `timeline` (a string
  * referencing a build-shipped timeline); `inline` carries `config` (the full

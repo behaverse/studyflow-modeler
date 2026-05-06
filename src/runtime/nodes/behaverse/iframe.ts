@@ -1,7 +1,7 @@
 // Behaverse runtime is shipped as a Unity WebGL build mounted at /unity by the
 // Vite dev server (see vite.config.ts:unityBuildPlugin). The studyflow runner
 // embeds it in an iframe and forwards a single skip-debug-menu flag. All
-// per-task config (including bot overrides) rides inside the RunTaskActivity
+// per-task config (including bot overrides) rides inside the RunTask
 // JSON payload — see bridge.ts.
 
 export const BEHAVERSE_RUNTIME_URL = '/unity';
