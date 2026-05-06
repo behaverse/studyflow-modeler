@@ -113,9 +113,11 @@ export const navbar = {
    * and the shell shifts 55px RIGHT of viewport center. The toggle is keyed
    * on `body.inspector-collapsed`, set by the Panel component.
    */
-  shell: `fixed top-2 left-[calc(50%-72px)] -translate-x-1/2 z-50 flex items-center h-10 max-w-[calc(100vw-464px)]
-          [body.inspector-collapsed_&]:left-[calc(50%+55px)]
-          [body.inspector-collapsed_&]:max-w-[calc(100vw-220px)]
+  shell: `fixed top-2 left-1/2 -translate-x-1/2 z-50 flex items-center h-10
+          max-w-[calc(100vw-32px)]
+          md:left-[calc(50%-72px)] md:max-w-[calc(100vw-464px)]
+          [body.inspector-collapsed_&]:md:left-[calc(50%+55px)]
+          [body.inspector-collapsed_&]:md:max-w-[calc(100vw-220px)]
           ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
           px-1.5`,
 
@@ -143,7 +145,7 @@ export const navBtnCls =
   'text-[13px] font-medium text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] rounded-md h-7 px-2.5 transition-colors';
 
 export const navBurgerBtnCls =
-  'text-md font-medium text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] rounded-md h-7 px-1.5 transition-colors py-1.5';
+  'inline-flex items-center justify-center text-lg font-medium text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] rounded-md h-7 w-7 transition-colors';
 
 /**
  * Headless UI <MenuItems> dropdown panel. Stronger cream character than the
@@ -167,8 +169,13 @@ export const itemCls =
 /** Horizontal divider inside a dropdown. */
 export const sepCls = 'h-px bg-black/[0.08] my-1 mx-2';
 
-/** Vertical 1px divider used inside the navbar shell (between menus and Simulate). */
-export const navDividerCls = 'w-px h-4 bg-black/[0.10] mx-1';
+/**
+ * Vertical 1px divider used inside the navbar shell (between diagram name and
+ * Simulate). The diagram-name span has internal `px-2` (8px) which the eye
+ * reads as part of the gap before the line, so the divider only needs right
+ * margin to balance perceptually against the colored Simulate button.
+ */
+export const navDividerCls = 'w-px h-4 bg-black/[0.10] mr-2 ml-2';
 
 // --- 4. Side palette
 
@@ -386,6 +393,44 @@ export const dialog = {
 
   errorText: 'text-red-500 text-sm',
   statusText: 'text-sm text-stone-600 m-auto',
+} as const;
+
+// --- 10b. Command palette (burger → search dialog)
+
+export const commandPalette = {
+  /**
+   * Headless UI <Dialog> root. Sits above the inspector (`z-[220]`) but below
+   * the settings overlay (`z-[300]`) — when the palette opens, the rest of
+   * the chrome recedes behind a single soft blur.
+   */
+  root: 'relative z-[250] focus:outline-none',
+  /** Backdrop: light blur, full viewport. */
+  backdrop: 'fixed inset-0 z-10 backdrop-blur',
+  /** Top-aligned layout (palette feels natural near the top, not centered). */
+  layout: 'fixed inset-0 z-20 flex items-start justify-center pt-[15vh] p-4 overflow-y-auto',
+  /** The palette sheet itself — cream-100 with hairline border + sheet shadow. */
+  panel: `w-full max-w-lg ${radius.capsule} ${surface.sheet} border border-black/[0.06] ${shadow.sheet}
+          duration-200 ease-out closed:transform-[scale(98%)] closed:opacity-0 overflow-hidden`,
+
+  /** Top input row with search icon. */
+  searchRow: 'flex items-center gap-3 px-4 h-12 border-b border-black/[0.06]',
+  searchIcon: 'iconify bi--search text-stone-400 text-[14px] shrink-0',
+  searchInput: `flex-1 bg-transparent text-[14px] ${text.primary} placeholder-stone-400 focus:outline-none`,
+
+  /** Scrollable list area below the search input. */
+  list: 'max-h-[55vh] overflow-y-auto p-1.5',
+  empty: 'text-[13px] text-stone-500 italic py-8 text-center',
+
+  /** Group label (small caps, like inspector flyout headers). */
+  groupLabel: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500 px-3 pt-2.5 pb-1',
+
+  /** Single command row. */
+  item: `flex items-center gap-3 w-full text-left px-3 py-2 ${radius.button}
+         text-[13px] ${text.secondary} cursor-pointer transition-colors`,
+  itemActive: 'bg-black/[0.05] text-stone-900',
+  itemIcon: 'text-[15px] text-stone-500 shrink-0 w-5 text-center',
+  itemLabel: 'flex-1 truncate',
+  itemHint: 'text-[11px] font-mono text-stone-400 shrink-0',
 } as const;
 
 // --- 11. Examples-dialog list cards

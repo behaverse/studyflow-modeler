@@ -39,3 +39,11 @@ export const SettingsViewContext = createContext<{
     openSettings: () => {},
     closeSettings: () => {},
 });
+
+export const SimulationContext = createContext<{
+    isSimulating: boolean,
+    setIsSimulating: (v: boolean) => void,
+}>({
+    isSimulating: false,
+    setIsSimulating: () => {},
+});
