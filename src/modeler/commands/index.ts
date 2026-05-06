@@ -5,9 +5,6 @@ import { runPaletteRegisterSchemaProviders } from './palette/paletteSetup';
 import type { PaletteActivateLassoCommand, PaletteOpenPopupCommand } from './palette/paletteUi';
 import { runPaletteActivateLasso, runPaletteOpenPopup } from './palette/paletteUi';
 
-import type { LoginAsGuestCommand, LoginCommand } from './auth';
-import { runLoginAsGuest, runLogin } from './auth';
-
 import type { OpenDiagramCommand } from './diagram/openDiagram';
 import { runOpenDiagram } from './diagram/openDiagram';
 import type { NewDiagramCommand } from './diagram/newDiagram';
@@ -46,8 +43,6 @@ export type DiagramCommand =
   | PaletteRegisterSchemaProvidersCommand
   | PaletteActivateLassoCommand
   | PaletteOpenPopupCommand
-  | LoginAsGuestCommand
-  | LoginCommand
   | OpenDiagramCommand
   | NewDiagramCommand
   | SaveDiagramCommand
@@ -84,8 +79,6 @@ const HANDLERS: HandlerMap = {
   'palette-register-schema-providers': runPaletteRegisterSchemaProviders,
   'palette-activate-lasso': runPaletteActivateLasso,
   'palette-open-popup': runPaletteOpenPopup,
-  'login-as-guest': (_modeler, cmd) => runLoginAsGuest(cmd),
-  login: (_modeler, cmd) => runLogin(cmd),
   'open-diagram': runOpenDiagram,
   'new-diagram': runNewDiagram,
   'save-diagram': runSaveDiagram,

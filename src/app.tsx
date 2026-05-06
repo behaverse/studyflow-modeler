@@ -1,4 +1,4 @@
-import { StrictMode, useState, useEffect } from 'react'
+import { StrictMode, useState, useEffect, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import '@/assets/css/app.css'
@@ -9,20 +9,20 @@ import { NavBar } from './modeler/navbar';
 import { InspectorPanel } from './modeler/inspector';
 import { Palette } from './modeler/palette';
 import { SettingsView } from './modeler/settings';
-import { executeCommand } from './modeler/commands';
+import { getStoredApiKey, setStoredApiKey } from './modeler/settings/store';
 
 function App() {
-  const [apiKey, setApiKey] = useState<string | undefined>(undefined);
+  const [apiKey, setApiKeyState] = useState<string | undefined>(undefined);
   const [modeler, setModeler] = useState(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
-    executeCommand(null, { type: 'login-as-guest' })
-      .then((result: any) => {
-        if (result?.success && result?.data?.apiKey !== undefined) {
-          setApiKey(result.data.apiKey);
-        }
-      });
+    setApiKeyState(getStoredApiKey() ?? 'guest');
+  }, []);
+
+  const setApiKey = useCallback((key: string) => {
+    setApiKeyState(key);
+    setStoredApiKey(key);
   }, []);
 
   if (apiKey === undefined) {

@@ -403,8 +403,10 @@ export const examplesList = {
 } as const;
 
 export const settingsView = {
-  /** Full-viewport overlay. Solid sheet so the modeler underneath is hidden. */
-  root: `fixed inset-0 z-[300] flex flex-col ${surface.sheet}`,
+  /** Backdrop sits over the modeler with a margin so the panel is inset from the edges. */
+  root: `fixed inset-0 z-[300] p-8 flex bg-black/40 backdrop-blur-xs`,
+  /** Inset panel containing the actual settings UI. */
+  panel: `flex flex-1 flex-col overflow-hidden ${surface.sheet} ${radius.capsule} border border-black/[0.08] ${shadow.sheet}`,
 
   header: `flex items-center gap-2 px-3 h-14 shrink-0 border-b border-black/[0.06] ${surface.sheet}`,
   headerTitle: `text-[15px] font-semibold tracking-tight ${text.primary}`,
@@ -447,7 +449,7 @@ export const settingsView = {
 
   /** Inline buttons used inside rows (e.g. "Clear data", "Sign out"). */
   inlineBtn: `${radius.button} bg-cream-200 hover:bg-cream-300 active:bg-cream-400
-              border border-black/[0.06] py-1.5 px-3 text-[13px] ${text.secondary}
+              border border-black/[0.06] py-1.5 px-3 text-[14px] ${text.secondary}
               hover:text-stone-900 transition-colors cursor-pointer`,
   inlineBtnDanger: `${radius.button} bg-red-50 hover:bg-red-100 active:bg-red-200
                     border border-red-200 py-1.5 px-3 text-[13px] text-red-700

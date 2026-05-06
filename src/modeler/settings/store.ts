@@ -9,6 +9,9 @@
 
 import { SCHEMA_NAMES, SETTINGS_STORAGE_KEY as STORAGE_KEY } from '../constants';
 
+const API_KEY_STORAGE_KEY = 'studyflow-modeler:api_key:v1';
+const USER_EMAIL_STORAGE_KEY = 'studyflow-modeler:user_email:v1';
+
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type DiagramAutoSave = 'off' | 'local';
 
@@ -116,4 +119,50 @@ export function clearAllLocalData(): void {
   current = { ...DEFAULT_SETTINGS };
   writeStorage(current);
   listeners.forEach((l) => l(current));
+}
+
+// --- API key persistence
+
+export function getStoredApiKey(): string | undefined {
+  if (typeof window === 'undefined' || !window.localStorage) return undefined;
+  try {
+    return window.localStorage.getItem(API_KEY_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function setStoredApiKey(key: string | undefined | null): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    if (!key || key === 'guest') {
+      window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(API_KEY_STORAGE_KEY, key);
+    }
+  } catch {
+    // Quota or privacy mode — silently drop.
+  }
+}
+
+export function getStoredUserEmail(): string | undefined {
+  if (typeof window === 'undefined' || !window.localStorage) return undefined;
+  try {
+    return window.localStorage.getItem(USER_EMAIL_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function setStoredUserEmail(email: string | undefined | null): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    if (!email) {
+      window.localStorage.removeItem(USER_EMAIL_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(USER_EMAIL_STORAGE_KEY, email);
+    }
+  } catch {
+    // Quota or privacy mode — silently drop.
+  }
 }

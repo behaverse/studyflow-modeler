@@ -4,7 +4,12 @@ import { APIKeyContext } from '../contexts';
 import { SCHEMAS, URLS } from '../constants';
 import { settingsView as s } from '../styles';
 import { useSettings } from './useSettings';
-import { clearAllLocalData, getStorageEstimate } from './store';
+import {
+  clearAllLocalData,
+  getStorageEstimate,
+  getStoredUserEmail,
+  setStoredUserEmail,
+} from './store';
 
 type SectionId = 'account' | 'general' | 'editor' | 'extensions' | 'privacy' | 'about';
 
@@ -37,48 +42,50 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={s.root} role="dialog" aria-modal="true" aria-label="Settings" data-testid="settings-view">
-      <header className={s.header}>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Back"
-          title="Back (Esc)"
-          className={s.backButton}
-        >
-          <i className={s.backIcon} aria-hidden="true" />
-        </button>
-        <h1 className={s.headerTitle}>Settings</h1>
-      </header>
+      <div className={s.panel}>
+        <header className={s.header}>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Back"
+            title="Back (Esc)"
+            className={s.backButton}
+          >
+            <i className={s.backIcon} aria-hidden="true" />
+          </button>
+          <h1 className={s.headerTitle}>Settings</h1>
+        </header>
 
-      <div className={s.body}>
-        <nav className={s.sidebar} aria-label="Settings sections">
-          <SidebarGroup
-            label="User"
-            sections={SECTIONS.filter((sec) => sec.group === 'user')}
-            active={active}
-            onSelect={setActive}
-          />
-          <SidebarGroup
-            label="Application"
-            sections={SECTIONS.filter((sec) => sec.group === 'app')}
-            active={active}
-            onSelect={setActive}
-          />
-          <p className={s.sidebarFooter}>
-            Stored locally on this browser.
-          </p>
-        </nav>
+        <div className={s.body}>
+          <nav className={s.sidebar} aria-label="Settings sections">
+            <SidebarGroup
+              label="User"
+              sections={SECTIONS.filter((sec) => sec.group === 'user')}
+              active={active}
+              onSelect={setActive}
+            />
+            <SidebarGroup
+              label="Application"
+              sections={SECTIONS.filter((sec) => sec.group === 'app')}
+              active={active}
+              onSelect={setActive}
+            />
+            <p className={s.sidebarFooter}>
+              Stored locally on this browser.
+            </p>
+          </nav>
 
-        <main className={s.content}>
-          <div className={s.contentInner}>
-            {active === 'account' && <AccountSection />}
-            {active === 'general' && <GeneralSection />}
-            {active === 'editor' && <EditorSection />}
-            {active === 'extensions' && <ExtensionsSection />}
-            {active === 'privacy' && <PrivacySection />}
-            {active === 'about' && <AboutSection />}
-          </div>
-        </main>
+          <main className={s.content}>
+            <div className={s.contentInner}>
+              {active === 'account' && <AccountSection />}
+              {active === 'general' && <GeneralSection />}
+              {active === 'editor' && <EditorSection />}
+              {active === 'extensions' && <ExtensionsSection />}
+              {active === 'privacy' && <PrivacySection />}
+              {active === 'about' && <AboutSection />}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
@@ -132,7 +139,7 @@ function Row({
   control,
 }: {
   label: string;
-  help?: string;
+  help?: React.ReactNode;
   control: React.ReactNode;
 }) {
   return (
@@ -202,73 +209,151 @@ function SelectControl<T extends string>({
 
 // --- Sections
 
+const GOOGLE_LOGIN_URL = `${URLS.apiBase}/v1/auth/google/login`;
+const API_BASE_ORIGIN = (() => {
+  try {
+    return new URL(URLS.apiBase).origin;
+  } catch {
+    return '';
+  }
+})();
+
 function AccountSection() {
   const { apiKey, setApiKey } = useContext(APIKeyContext);
   const isGuest = !apiKey || apiKey === 'guest';
-  const [draftKey, setDraftKey] = useState('');
+  const [revealKey, setRevealKey] = useState(false);
+  const [loginError, setLoginError] = useState<string | undefined>();
+  const [loginPending, setLoginPending] = useState(false);
+  const [email, setEmail] = useState<string | undefined>(() => getStoredUserEmail());
+
+  useEffect(() => {
+    if (isGuest) setEmail(undefined);
+  }, [isGuest]);
+
+  function loginWithGoogle() {
+    setLoginError(undefined);
+    setLoginPending(true);
+
+    const w = 480;
+    const h = 640;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      GOOGLE_LOGIN_URL,
+      'behaverse-login',
+      `width=${w},height=${h},left=${left},top=${top},popup=yes`,
+    );
+
+    if (!popup) {
+      setLoginPending(false);
+      setLoginError('Popup blocked. Allow popups and try again.');
+      return;
+    }
+
+    const onMessage = (event: MessageEvent) => {
+      if (API_BASE_ORIGIN && event.origin !== API_BASE_ORIGIN) return;
+      const data = event.data as { type?: string; api_key?: string; email?: string } | null;
+      if (!data || data.type !== 'behaverse:login' || !data.api_key) return;
+      window.removeEventListener('message', onMessage);
+      clearInterval(closedTimer);
+      setApiKey(data.api_key);
+      if (data.email) {
+        setEmail(data.email);
+        setStoredUserEmail(data.email);
+      }
+      setLoginPending(false);
+      try { popup.close(); } catch { /* ignore */ }
+    };
+
+    const closedTimer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(closedTimer);
+        window.removeEventListener('message', onMessage);
+        setLoginPending(false);
+      }
+    }, 500);
+
+    window.addEventListener('message', onMessage);
+  }
+
+  function signOut() {
+    setApiKey('guest');
+    setStoredUserEmail(undefined);
+    setEmail(undefined);
+    setRevealKey(false);
+  }
 
   return (
     <>
       <SectionHeader
         title="Account"
-        description="Sign in with a Behaverse API key to publish and sync diagrams. Local-only mode is available without a key."
+        description=""
       />
 
       <Row
         label="Status"
-        help={isGuest ? 'You are working as a guest. Diagrams stay on this device.' : 'Signed in.'}
-        control={
-          <span className={s.valueChip}>
-            <i className={`iconify ${isGuest ? 'bi--person' : 'bi--person-check-fill'} text-[12px]`} aria-hidden="true" />
-            {isGuest ? 'Guest' : 'Signed in'}
-          </span>
+        help={
+          isGuest
+            ? 'You are working as a guest. Diagrams stay on this device.'
+            : email
+              ? <>Signed in as <strong className="font-semibold text-stone-900">{email}</strong></>
+              : 'Signed in.'
         }
-      />
-
-      <Row
-        label="Behaverse API key"
-        help="Stored in this browser only. Replace it any time to switch accounts."
         control={
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={draftKey}
-              onChange={(e) => setDraftKey(e.target.value)}
-              placeholder={isGuest ? 'Paste your key' : '••••••••'}
-              className={s.textInput}
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              className={s.inlineBtn}
-              disabled={draftKey.trim() === ''}
-              onClick={() => {
-                if (!draftKey.trim()) return;
-                setApiKey(draftKey.trim());
-                setDraftKey('');
-              }}
-            >
-              Save
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            {isGuest ? (
+              <button
+                type="button"
+                className={`${s.inlineBtn} inline-flex items-center gap-2`}
+                disabled={loginPending}
+                onClick={loginWithGoogle}
+              >
+                <i className="iconify bi--google" aria-hidden="true" />
+                <span>{loginPending ? 'Waiting for Google...' : 'Login with Google'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={s.inlineBtn}
+                onClick={signOut}
+                title="Clears the saved API key and returns to guest mode"
+              >
+                Sign out
+              </button>
+            )}
+            {isGuest && loginError && <p className="text-[12px] text-red-700">{loginError}</p>}
           </div>
         }
       />
 
       {!isGuest && (
         <Row
-          label="Sign out"
-          help="Clears the saved API key and returns to guest mode."
+          label="API key"
+          help="Stored locally on this browser. Keep your key secret, anyone with this key can act as you."
           control={
-            <button
-              type="button"
-              className={s.inlineBtn}
-              onClick={() => setApiKey('guest')}
-            >
-              Sign out
-            </button>
+            <div className="relative inline-block">
+              <input
+                id="api-key-input"
+                type={revealKey ? 'text' : 'password'}
+                value={apiKey}
+                readOnly
+                className={`${s.textInput} pr-9`}
+              />
+              <button
+                type="button"
+                aria-controls="api-key-input"
+                aria-pressed={revealKey}
+                onClick={() => setRevealKey((v) => !v)}
+                title={revealKey ? 'Hide key' : 'Show key'}
+                className="absolute inset-y-0 right-0 flex items-center justify-center w-9 text-stone-500 hover:text-stone-900 cursor-pointer"
+              >
+                <i className={`iconify ${revealKey ? 'bi--eye-slash' : 'bi--eye'}`} aria-hidden="true" />
+              </button>
+            </div>
           }
         />
       )}
+
     </>
   );
 }

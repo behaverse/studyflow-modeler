@@ -9,23 +9,20 @@ import { SimulateButton } from './actions/Simulate';
 import { RunButton } from './actions/Run';
 import { NewDiagramButton } from './actions/NewDiagram';
 import { ResetZoomButton } from './actions/ResetZoom';
-import { LoginButton } from './actions/Login';
 import { SettingsButton } from './actions/Settings';
-import { LoginDialog, PublishDialog, ExamplesDialog } from '../dialogs';
+import { PublishDialog, ExamplesDialog } from '../dialogs';
 import { SettingsViewContext } from '../contexts';
 import { URLS } from '../constants';
 import { dropdownCls, itemCls, navBtnCls, sepCls, navBurgerBtnCls, navDividerCls, navbar } from '../styles';
 
 export default function MenuBar() {
   const publishDialogRef = useRef<{ open: () => void }>(null);
-  const loginDialogRef = useRef<{ open: () => void }>(null);
   const examplesDialogRef = useRef<{ open: () => void }>(null);
   const { openSettings } = useContext(SettingsViewContext);
 
   return (
     <div className={navbar.menuContainer}>
       <PublishDialog ref={publishDialogRef} />
-      <LoginDialog ref={loginDialogRef} />
       <ExamplesDialog ref={examplesDialogRef} />
 
       {/* Desktop */}
@@ -41,7 +38,6 @@ export default function MenuBar() {
             <MenuItem className={itemCls} as={ExportButton} fileType="svg" />
             <MenuItem className={itemCls} as={ExportButton} fileType="png" />
             <MenuSeparator className={sepCls} />
-            <MenuItem className={itemCls} as={LoginButton} dialog={loginDialogRef} />
             <MenuItem className={itemCls} as={PublishButton} dialog={publishDialogRef} />
             <MenuSeparator className={sepCls} />
             <MenuItem className={itemCls} as={SettingsButton} openSettings={openSettings} />
@@ -89,7 +85,6 @@ export default function MenuBar() {
           <MenuItem className={itemCls} as={ExportButton} fileType="svg" />
           <MenuItem className={itemCls} as={ExportButton} fileType="png" />
           <MenuSeparator className={sepCls} />
-          <MenuItem className={itemCls} as={LoginButton} dialog={loginDialogRef} />
           <MenuItem className={itemCls} as={PublishButton} dialog={publishDialogRef} />
           <MenuSeparator className={sepCls} />
           <MenuItem className={itemCls} as={SettingsButton} openSettings={openSettings} />
