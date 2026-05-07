@@ -84,7 +84,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         id: 'simulate',
         group: 'Run',
         label: isSimulating ? 'Stop Simulation' : 'Start Simulation',
-        icon: isSimulating ? 'iconify bi--stop-circle' : 'iconify bi--play-circle',
+        icon: isSimulating ? 'iconify bi--stop' : 'iconify bi--play',
         action: () => {
           executeCommand(modeler, { type: 'toggle-simulation', currentActive: isSimulating });
           setIsSimulating(!isSimulating);
@@ -94,7 +94,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         id: 'run',
         group: 'Run',
         label: 'Run',
-        icon: 'iconify bi--box-arrow-up-right',
+        icon: 'iconify bi--play-fill',
         action: async () => {
           if (!modeler) return;
           const { xml } = await modeler.saveXML({ format: true });
