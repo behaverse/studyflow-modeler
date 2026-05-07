@@ -27,7 +27,7 @@
     </bpmn2:task>
     <bpmn2:task id="Warmup_1Back" name="1-Back&#10;(warm-up)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" bot="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Id: NB
+        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Id: NB
 Scene: NBack
 EnumDefinitions:
   HudWidgetPosition: [Hidden, StatusBarLeft, StatusBarCenter, StatusBarRight, InformationPanel]
@@ -136,21 +136,21 @@ Timelines:
     </bpmn2:exclusiveGateway>
     <bpmn2:task id="Arm_Dual2Back" name="2-Back&#10;(Symbols)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" agentMode="bot" bot="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1" timelineId="XCIT_NB_05" />
+        <behaverse:behaverseTask scene="NB" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1" timelineId="XCIT_NB_05" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_To_Dual</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Dual_PostPHQ9</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="Arm_XCIT_NB_03" name="2-Back&#10;(Digits)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" agentMode="bot" bot="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1" timelineId="XCIT_NB_02" />
+        <behaverse:behaverseTask scene="NB" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1" timelineId="XCIT_NB_02" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_To_XCIT</bpmn2:incoming>
       <bpmn2:outgoing>Flow_XCIT_PostPHQ9</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="Arm_Demo" name="1-Back">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" bot="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Id: NB
+        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Id: NB
 Scene: NBack
 EnumDefinitions:
   HudWidgetPosition: [Hidden, StatusBarLeft, StatusBarCenter, StatusBarRight, InformationPanel]

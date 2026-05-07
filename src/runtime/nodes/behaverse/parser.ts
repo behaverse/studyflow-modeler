@@ -31,7 +31,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
     ?? 'builtin';
   const timelineId = readBehaverseProperty(node.businessObject, 'timelineId');
   const configurations = readBehaverseProperty(node.businessObject, 'configurations');
-  const botConfig = readBehaverseProperty(node.businessObject, 'bot');
+  const botConfig = readBehaverseProperty(node.businessObject, 'botConfig');
 
   // `agentMode` is a string Enum, so moddle keeps it as a string on both
   // the property and the raw $attrs map — `readBehaverseProperty` handles

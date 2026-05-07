@@ -82,7 +82,7 @@ export function validateProcess(process: Process, manifest: Manifest): Validatio
 
     // Bot validation: when agentMode is 'bot', the YAML must parse to a flat object.
     if (payload.agentMode === 'bot') {
-      const raw = readAttr(node.businessObject, 'bot');
+      const raw = readAttr(node.businessObject, 'botConfig');
       if (raw && raw.trim()) {
         let parsed: unknown;
         try {
