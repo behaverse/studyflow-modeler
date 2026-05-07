@@ -30,19 +30,20 @@ function parseExampleMetadata(filename: string, xml: string): { title: string; d
     throw new Error('Invalid XML');
   }
 
-  const study = doc.getElementsByTagNameNS(NAMESPACES.studyflow, 'study')[0];
+  const process = doc.getElementsByTagNameNS(NAMESPACES.bpmn, 'process')[0]
+    ?? doc.getElementsByTagNameNS(NAMESPACES.studyflow, 'study')[0];
 
   let title = '';
-  if (study) {
-    title = study.getAttribute('name')?.trim() || humanizeId(study.getAttribute('id') ?? '');
+  if (process) {
+    title = process.getAttribute('name')?.trim() || humanizeId(process.getAttribute('id') ?? '');
   }
   if (!title) {
     title = filename.replace(/\.[^/.]+$/, '');
   }
 
   let description = '';
-  if (study) {
-    for (const child of Array.from(study.children)) {
+  if (process) {
+    for (const child of Array.from(process.children)) {
       if (child.namespaceURI === NAMESPACES.bpmn && child.localName === 'documentation') {
         description = (child.textContent ?? '').trim();
         break;
@@ -59,7 +60,7 @@ function basename(path: string): string {
 
 function buildInitialEntries(): ExampleEntry[] {
   return Object.entries(exampleFiles)
-    .filter(([_, url]) => !url.endsWith('new_diagram.bpmn'))
+    .filter(([path, url]) => !path.endsWith('new_diagram.bpmn'))
     .map(([path, url]) => {
       const filename = basename(path);
       return {

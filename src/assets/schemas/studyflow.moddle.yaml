@@ -195,6 +195,8 @@ types:
     description: Process definition for a Studyflow study.
     superClass:
       - bpmn:Process
+    meta:
+      bpmnType: bpmn:Process
     properties:
       - name: environment
         description: Execution environment in which the study runs (e.g., Cloud, Local, HPC).

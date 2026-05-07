@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <studyflow:study id="LabLink_Demo" name="Epsylon LabLink Demo">
+  <bpmn2:process id="LabLink_Demo" name="Epsylon LabLink Demo">
+    <bpmn2:extensionElements>
+      <studyflow:study />
+    </bpmn2:extensionElements>
+    <bpmn2:documentation>Example studyflow shwoing participants complete questionnaires and cognitive tasks.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Welcome" studyflow:requiresConsent="true" studyflow:consentFormUri="https://example.org/protocols/lablink/consent.md">
       <bpmn2:outgoing>Flow_Start_Welcome</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -144,7 +148,7 @@ Timelines:
     <bpmn2:sequenceFlow id="Flow_Demo_BDI2" sourceRef="Arm_Demo" targetRef="BDI_II" />
     <bpmn2:sequenceFlow id="Flow_BDI2_PostPHQ9" sourceRef="BDI_II" targetRef="PHQ_9_followup" />
     <bpmn2:sequenceFlow id="Flow_PostPHQ9_End" sourceRef="PHQ_9_followup" targetRef="End" />
-  </studyflow:study>
+  </bpmn2:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="LabLink_Demo">
       <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">

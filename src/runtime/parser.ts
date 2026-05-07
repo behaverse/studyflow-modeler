@@ -26,10 +26,10 @@ export async function parseStudyflow(
   const { rootElement } = await moddle.fromXML(xml);
 
   const businessObject = (rootElement as any)?.rootElements?.find(
-    (re: any) => re?.$type === 'studyflow:Study',
+    (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
   );
   if (!businessObject) {
-    throw new Error('No studyflow:Study found in diagram.');
+    throw new Error('No bpmn:Process found in diagram.');
   }
 
   const nodes = new Map<string, FlowNode>();
