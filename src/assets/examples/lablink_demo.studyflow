@@ -30,6 +30,7 @@
         <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Blocks:
   LabLink_InlineBlock:
     Name: LabLink_InlineBlock
+    Inherits: Default
     Parameters:
       NValue: 1
       Feature: Letters
@@ -84,6 +85,7 @@ Timelines:
         <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Blocks:
   LabLink_InlineBlock:
     Name: LabLink_InlineBlock
+    Inherits: Default
     Parameters:
       NValue: 1
       Feature: Letters
