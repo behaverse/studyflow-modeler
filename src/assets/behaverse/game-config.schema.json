@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://behaverse.com/schema/game-config.schema.json",
+  "title": "Behaverse task config",
+  "description": "One self-contained JSON per task. Lives at Assets/Scenes/<SceneName>/Resources/<TaskId>.json. ParameterInfos / Blocks / Timelines / Rules are all under one roof.",
+  "type": "object",
+  "required": ["Id", "ParameterInfos", "Blocks", "Timelines"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "Id": { "type": "string", "description": "Short task ID; matches the folder name." },
+    "Scene": { "type": "string", "description": "Unity scene name (defaults to task folder name)." },
+
+    "ParameterInfos": {
+      "type": "object",
+      "description": "Parameter type/range definitions, keyed by parameter name.",
+      "additionalProperties": { "$ref": "#/definitions/ValueSpace" }
+    },
+    "EnumDefinitions": {
+      "type": "object",
+      "description": "Named enum string lists. Reference by name from ParameterInfos.",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "Presets": {
+      "type": "object",
+      "description": "Named complex-object presets. Used with Object-typed parameters.",
+      "additionalProperties": { "type": "object" }
+    },
+    "MappingRules": {
+      "type": "array",
+      "description": "Cross-parameter value translations.",
+      "items": { "$ref": "#/definitions/MappingRule" }
+    },
+    "Rules": {
+      "type": "object",
+      "description": "Ruleset name -> Instruction[]. Often built from inline `rules:` blocks inside Timelines.",
+      "additionalProperties": { "type": "array" }
+    },
+    "Blocks": {
+      "type": "object",
+      "description": "Block name -> BlockDefinition.",
+      "additionalProperties": { "$ref": "#/definitions/BlockDefinition" }
+    },
+    "Timelines": {
+      "type": "object",
+      "description": "Timeline name -> Timeline (an ordered list of block references).",
+      "additionalProperties": { "$ref": "#/definitions/Timeline" }
+    }
+  },
+
+  "definitions": {
+    "ValueSpace": {
+      "type": "object",
+      "required": ["Type"],
+      "properties": {
+        "Type": {
+          "type": "string",
+          "description": "Parameter kind. Active: int, float, bool, enum, color, string, object. Obsolete: nullonly. Matched case-insensitively at runtime.",
+          "examples": ["int", "float", "bool", "enum", "color", "string", "object"]
+        },
+        "Min": { "type": ["number", "integer", "null"] },
+        "Max": { "type": ["number", "integer", "null"] },
+        "Values": {
+          "description": "For enum Type: inline string array OR string referencing an EnumDefinitions key.",
+          "oneOf": [
+            { "type": "array", "items": { "type": "string" } },
+            { "type": "string" }
+          ]
+        },
+        "Nullable": { "type": "boolean" }
+      }
+    },
+
+    "Distribution": {
+      "type": "object",
+      "required": ["Type"],
+      "properties": {
+        "Type": {
+          "type": "string",
+          "description": "Distribution kind. Active: bernoulli, uniform, normal, poisson, weighted. Obsolete: exponential.",
+          "examples": ["Bernoulli", "Uniform", "Normal", "Poisson", "Weighted"]
+        }
+      }
+    },
+
+    "Sequence": {
+      "type": "object",
+      "required": ["Type"],
+      "properties": {
+        "Type": {
+          "type": "string",
+          "description": "Sequence kind. Built-in active: ordered, int, repeat. Obsolete: markov. Tasks may register custom kinds (e.g. NBack, Regex) via SequenceConverter.RegisterSequenceConverter.",
+          "examples": ["Ordered", "Int", "Repeat", "NBack", "Regex"]
+        }
+      }
+    },
+
+    "AdaptiveAlgorithm": {
+      "type": "object",
+      "required": ["Type"],
+      "properties": {
+        "Type": {
+          "type": "string",
+          "description": "Adaptive algorithm. Active: SingleStaircase, SampledUpdateRule. Obsolete: DeltaRuleUpdate.",
+          "examples": ["SingleStaircase", "SampledUpdateRule"]
+        }
+      }
+    },
+
+    "ExitRule": {
+      "type": "object",
+      "description": "Dispatched by which key is present (Trials / Blocks / Time), not by Type.",
+      "anyOf": [
+        { "required": ["Trials"] }, { "required": ["trials"] },
+        { "required": ["Blocks"] }, { "required": ["blocks"] },
+        { "required": ["Time"] },   { "required": ["time"] }
+      ],
+      "properties": {
+        "Trials": { "type": ["integer", "number"], "minimum": 0 },
+        "trials": { "type": ["integer", "number"], "minimum": 0 },
+        "Blocks": { "type": ["integer", "number"], "minimum": 0 },
+        "blocks": { "type": ["integer", "number"], "minimum": 0 },
+        "Time":   { "type": "number", "minimum": 0 },
+        "time":   { "type": "number", "minimum": 0 }
+      }
+    },
+
+    "ValueGenerator": {
+      "description": "A parameter's value-source. Scalar/array literals are valid, or an object dispatched by key (Distribution / Sequence / Reference / Generate / Operation). Tasks may add custom keys.",
+      "oneOf": [
+        { "type": "number" }, { "type": "boolean" }, { "type": "string" },
+        { "type": "null" }, { "type": "array" }, { "type": "object" }
+      ]
+    },
+
+    "BlockDefinition": {
+      "type": "object",
+      "description": "One game block. Defines per-trial parameters, optional explicit trial overrides, exit rules, and adaptive algorithms.",
+      "properties": {
+        "Name":                { "type": "string" },
+        "Description":         { "type": "string" },
+        "MinAccuracyRequired": { "type": "number", "minimum": 0, "maximum": 1 },
+        "MaxRepeats":          { "type": "integer", "minimum": 0 },
+        "Parameters":          { "type": "object", "additionalProperties": { "$ref": "#/definitions/ValueGenerator" } },
+        "Trials":              { "type": "array", "items": { "$ref": "#/definitions/Trial" } },
+        "TrialOrder":          {
+          "description": "Optional explicit trial-order. Either an array of integer indices into Trials, or a ValueGenerator (e.g. {Distribution: ...} for randomized order).",
+          "oneOf": [
+            { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+            { "type": "object" }
+          ]
+        },
+        "ExitRules":           { "type": "array", "items": { "$ref": "#/definitions/ExitRule" } },
+        "Adapt":               { "type": "array", "items": { "$ref": "#/definitions/AdaptiveAlgorithm" } },
+        "AdaptiveAlgorithms":  { "type": "array", "items": { "$ref": "#/definitions/AdaptiveAlgorithm" } }
+      }
+    },
+
+    "Trial": {
+      "type": "object",
+      "properties": {
+        "MinAccuracyRequired": { "type": "number", "minimum": 0, "maximum": 1 },
+        "Parameters":          { "type": "object", "additionalProperties": { "$ref": "#/definitions/ValueGenerator" } }
+      }
+    },
+
+    "Timeline": {
+      "type": "object",
+      "description": "An ordered list of block references, plus timeline-level exit rules and adaptive algorithms.",
+      "properties": {
+        "Name":             { "type": "string" },
+        "Description":      { "type": "string" },
+        "Seed":             { "type": ["integer", "null"] },
+        "AutoStartBlocks":  { "type": "boolean" },
+        "AutoStartTrials":  { "type": "boolean" },
+        "Blocks": {
+          "type": "array",
+          "description": "Block references. Each item is a GameBlock by name, an inline InstructionBlock (Instructions:...), an inline BreakBlock (WaitMessage:...), or a TimelineBlock (Type: Timeline + Name).",
+          "items": { "$ref": "#/definitions/TimelineBlock" }
+        },
+        "blocks": { "$ref": "#/properties/Timelines/additionalProperties/properties/Blocks" },
+        "ExitRules": { "type": "array", "items": { "$ref": "#/definitions/ExitRule" } },
+        "Adapt":     { "type": "array", "items": { "$ref": "#/definitions/AdaptiveAlgorithm" } }
+      }
+    },
+
+    "TimelineBlock": {
+      "type": "object",
+      "description": "An entry in a Timeline.Blocks list.",
+      "properties": {
+        "Name":         { "type": "string", "description": "GameBlock name reference (resolved against top-level Blocks)." },
+        "Type":         { "type": "string", "description": "Set to 'Timeline' to nest another timeline by name." },
+        "Instructions": { "type": "array", "description": "Inline InstructionBlock content." },
+        "WaitMessage":  { "type": "string", "description": "Inline BreakBlock content." },
+        "Timeline":     { "type": "string", "description": "Used by TimelineBlock to point at another timeline." },
+        "Rules":        { "type": "array", "description": "Optional inline rules; deduplicated into top-level Rules at merge/load time." },
+        "rules":        { "type": "array", "description": "Lowercase variant of Rules (accepted at runtime)." },
+        "rulesName":    { "type": "string", "description": "Resolved rule reference (set automatically when inline rules are deduplicated)." }
+      }
+    },
+
+    "MappingRule": {
+      "type": "object",
+      "required": ["From", "To", "Mapping"],
+      "properties": {
+        "From":    { "type": "string" },
+        "To":      { "type": "string" },
+        "Mapping": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["OriginalValue", "NewValue"],
+            "properties": {
+              "OriginalValue": {},
+              "NewValue":      {}
+            }
+          }
+        }
+      }
+    }
+  }
+}
