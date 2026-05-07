@@ -1,6 +1,6 @@
 // Completion-code resolution for the End node. The schema defines three modes
 // (`none`, `static`, `dynamic`). For `dynamic`, the schema's intent is "extract
-// from URL pattern at runtime (e.g. Prolific)" — we honor this by reading
+// from URL pattern at runtime (e.g. Prolific)" - we honor this by reading
 // known query params off the parent page URL, then fall back to a generated
 // random code so the redirect URL still resolves.
 

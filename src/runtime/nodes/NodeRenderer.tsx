@@ -22,7 +22,7 @@ type Props = {
  *
  * Re-mount on job change is enforced by the parent passing a `key` prop
  * (typically the job's node id) so two consecutive jobs of the same kind
- * don't share component state — and the resolved-guard ref resets too.
+ * don't share component state - and the resolved-guard ref resets too.
  */
 export function NodeRenderer({ job, log, setVariable, onResolve }: Props) {
   const resolvedRef = useRef(false);

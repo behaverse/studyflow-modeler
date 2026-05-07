@@ -115,7 +115,7 @@ levels: [1]
     </bpmn2:subProcess>
 
     <bpmn2:subProcess id="Visit_T2" name="Primary endpoint visit (t = t2, week 12)"
-        studyflow:checklist="- [ ] SPIRIT 18a: primary outcome — endpoint analysis&#10;- [ ] SPIRIT 18b: secondary outcomes&#10;- [ ] SPIRIT 22: adverse events&#10;- [ ] SPIRIT 27: data lock for primary analysis">
+        studyflow:checklist="- [ ] SPIRIT 18a: primary outcome - endpoint analysis&#10;- [ ] SPIRIT 18b: secondary outcomes&#10;- [ ] SPIRIT 22: adverse events&#10;- [ ] SPIRIT 27: data lock for primary analysis">
       <bpmn2:documentation>SPIRIT 2025 item 12: When the primary outcome is measured. End of the active intervention phase.</bpmn2:documentation>
       <bpmn2:incoming>Flow_Visit1_Visit2</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Visit2_Closeout</bpmn2:outgoing>
@@ -148,10 +148,10 @@ tableSchema:
       titles: Allocation arm
       datatype: { base: string, format: "(treatment|control)" }
     - name: nback_dprime
-      titles: Primary outcome — n-back d-prime
+      titles: Primary outcome - n-back d-prime
       datatype: number
     - name: ravlt_total
-      titles: Secondary — RAVLT total recall
+      titles: Secondary - RAVLT total recall
       datatype: number
 ]]>
         </studyflow:schema>

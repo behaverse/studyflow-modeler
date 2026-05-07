@@ -13,8 +13,8 @@ Every task ships **one self-contained JSON file** at:
 Assets/Scenes/<SceneName>/Resources/<TaskId>.json
 ```
 
-Everything for one task — parameter info, blocks, timelines, rules,
-mappings — lives under one roof. `GameConfigRepository.TryLoadTaskConfig`
+Everything for one task - parameter info, blocks, timelines, rules,
+mappings - lives under one roof. `GameConfigRepository.TryLoadTaskConfig`
 loads it and hands it to `GameConfig.Deserialize`. No merge step.
 
 A project-level defaults file at `Assets/Resources/DefaultConfig.json`
@@ -58,7 +58,7 @@ Required top-level fields: `Id`, `ParameterInfos`, `Blocks`, `Timelines`.
 
 ## ParameterInfos
 
-Each entry describes one parameter — its type, optional range, allowed
+Each entry describes one parameter - its type, optional range, allowed
 values. Used by every `BlockDefinition` to validate parameter assignments.
 
 ```jsonc
@@ -74,7 +74,7 @@ values. Used by every `BlockDefinition` to validate parameter assignments.
 ```
 
 Valid `Type` values (case-insensitive at parse time): `int`, `float`, `bool`,
-`enum`, `color`, `string`, `object`. Plus `nullonly` (obsolete — see
+`enum`, `color`, `string`, `object`. Plus `nullonly` (obsolete - see
 `docs/cleanup-removed-types.md`).
 
 Enum types take either inline `Values: [...]` or a reference to a named
@@ -128,7 +128,7 @@ break page.
       { "Name": "Tutorial" },                           // GameBlock by name
       { "Instructions": [ { "Type": "..." } ] },        // InstructionBlock (inline)
       { "Type": "Timeline", "Name": "OtherTimeline" },  // TimelineBlock (expand another timeline here)
-      { "Name": "MainBlock", "rules": [ ... ] }         // inline rules — auto-deduped into top-level Rules at load time
+      { "Name": "MainBlock", "rules": [ ... ] }         // inline rules - auto-deduped into top-level Rules at load time
     ],
     "ExitRules": [ ... ],                               // Timeline-level exit rules
     "AutoStartBlocks": true,
@@ -245,15 +245,15 @@ example, to set `IntSequence.Max` based on `StimulusType`.
 ## Tips for editing configs
 
 1. **Run validation before each commit**: Behaverse > Validate All Configs.
-2. **Keep `ParameterInfos` at the top of the file** — it's the contract every block
+2. **Keep `ParameterInfos` at the top of the file** - it's the contract every block
    under `Blocks` is checked against.
 3. **The block/timeline key is the canonical name** (e.g. `"Blocks": { "Tutorial": {...} }`).
    An interior `"Name": "..."` field is redundant.
 4. **Pick a casing convention per task** (`"Type": "Bernoulli"` vs `"bernoulli"`) and
-   stick to it — the deserializer accepts both, but mixed-casing inside one task
+   stick to it - the deserializer accepts both, but mixed-casing inside one task
    fights diff readability.
 5. **Comments are not allowed** in the deserialized JSON (Newtonsoft's default mode).
    Use a sibling `<TaskId>.notes.md` for design notes.
-6. **`nullonly` / `markov` / `exponential` / `deltaruleupdate` / `Operation` are obsolete** —
+6. **`nullonly` / `markov` / `exponential` / `deltaruleupdate` / `Operation` are obsolete** -
    they still deserialize, but new configs should avoid them. See
    `docs/cleanup-removed-types.md`.

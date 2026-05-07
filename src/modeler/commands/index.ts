@@ -63,7 +63,7 @@ export type DiagramCommand =
  * new `DiagramCommand` will fail compile until it's added to this map.
  *
  * The first argument is the bpmn-js modeler (or any DI container with
- * `.get(service)` — e.g., the `injector` token). Handlers that don't need the
+ * `.get(service)` - e.g., the `injector` token). Handlers that don't need the
  * modeler (login, download-schemas, create-modeler) ignore it.
  */
 type HandlerMap = {
@@ -98,7 +98,7 @@ const HANDLERS: HandlerMap = {
  * Dispatch a typed `DiagramCommand` through its registered handler.
  *
  * `modeler` should be the bpmn-js modeler instance (or any object exposing
- * `.get(service)` — e.g., the DI `injector` from inside a bpmn-js service).
+ * `.get(service)` - e.g., the DI `injector` from inside a bpmn-js service).
  * Pass `null` for handlers that don't need it (login, download-schemas,
  * create-modeler).
  */

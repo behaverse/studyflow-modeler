@@ -48,8 +48,8 @@ export function Executor() {
   }, []);
 
   // XML resolution:
-  // 1. `session_id` — modeler "Run" button stashes XML in localStorage.
-  // 2. `studyflow_url` — direct URL fetch.
+  // 1. `session_id` - modeler "Run" button stashes XML in localStorage.
+  // 2. `studyflow_url` - direct URL fetch.
   useEffect(() => {
     if (sessionId) {
       const stored = localStorage.getItem(sessionId);
@@ -87,7 +87,7 @@ export function Executor() {
         const needsBehaverse = requiresBehaverseRuntime(process);
         const manifest = needsBehaverse ? await fetchManifest(BEHAVERSE_RUNTIME_URL) : undefined;
         if (!needsBehaverse) {
-          say({ kind: 'info', message: 'No behaverse tasks — skipping Unity manifest.' });
+          say({ kind: 'info', message: 'No behaverse tasks - skipping Unity manifest.' });
         }
 
         const issues = validate(process, manifest);

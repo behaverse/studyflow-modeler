@@ -2,7 +2,7 @@
 // Vite dev server (see vite.config.ts:unityBuildPlugin). The studyflow runner
 // embeds it in an iframe and forwards a single skip-debug-menu flag. All
 // per-task config (including bot overrides) rides inside the RunTask
-// JSON payload — see bridge.ts.
+// JSON payload - see bridge.ts.
 
 export const BEHAVERSE_RUNTIME_URL = '/unity';
 

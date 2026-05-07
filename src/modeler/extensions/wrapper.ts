@@ -26,7 +26,7 @@ export function getExtensionElementProperties(elementOrBusinessObject: any): any
 
 /**
  * Create an extension element on a business object during element creation
- * (before the element is added to the canvas). Skips modeling commands —
+ * (before the element is added to the canvas). Skips modeling commands -
  * undo/redo isn't needed before first render.
  *
  * For `extends:`-style types (properties already live on the BPMN BO via

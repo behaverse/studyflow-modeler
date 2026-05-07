@@ -5,7 +5,7 @@ import { navDividerCls } from '../styles';
 /**
  * Right-side actions of the navbar (Simulate + Run).
  *
- * Hidden on small viewports — those commands stay accessible through the
+ * Hidden on small viewports - those commands stay accessible through the
  * burger / command palette on the left of the diagram name.
  */
 export default function CommandMenu() {

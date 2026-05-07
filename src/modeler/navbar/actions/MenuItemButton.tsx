@@ -9,7 +9,7 @@ type Props = {
   label: ReactNode;
   /** Extra classes merged into the `w-full text-left` button. */
   className?: string;
-  /** Click handler — fires before any menu-level `onClick` passed by the parent. */
+  /** Click handler - fires before any menu-level `onClick` passed by the parent. */
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 

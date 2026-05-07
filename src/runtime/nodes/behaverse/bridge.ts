@@ -140,7 +140,7 @@ export function waitForUnity(
 /**
  * Wait for Unity's GameManager to signal it is past the Loading-scene
  * transition and ready to accept RunTask messages. Older Unity builds
- * that don't emit this signal will hit the timeout — callers should treat the
+ * that don't emit this signal will hit the timeout - callers should treat the
  * timeout as "best effort" and proceed anyway.
  */
 export function waitForRunnerReady(

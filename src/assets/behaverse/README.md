@@ -51,7 +51,7 @@ If you prefer per-file wiring, add this as the first key of any config file:
   in `Parameters` blocks don't trip false-positives.
 - It cannot catch broken cross-references (e.g. a timeline naming a block
   that doesn't exist). Use **Behaverse > Validate All Configs** in Unity Editor
-  for that — it runs the same merge + deserialize pipeline as runtime and
+  for that - it runs the same merge + deserialize pipeline as runtime and
   reports broken refs.
 - Obsolete `Type` values (`exponential`, `markov`, `deltaruleupdate`, `nullonly`)
   are accepted but the schema description flags them as obsolete; see

@@ -16,9 +16,9 @@ That's it; no other file needs editing.
 
 ### `match` shapes
 
-- `{ extensionType: 'studyflow:MyKind' }` — match by `node.extensionType` (most specific; priority over bpmnType).
-- `{ bpmnType: 'bpmn:StartEvent' }` or `{ bpmnType: ['bpmn:UserTask', 'bpmn:ServiceTask'] }` — match by `node.type`.
-- `{ fallback: 'task' }` — catch any unmatched `bpmn:*Task`. Only `task/` uses this pattern.
+- `{ extensionType: 'studyflow:MyKind' }` - match by `node.extensionType` (most specific; priority over bpmnType).
+- `{ bpmnType: 'bpmn:StartEvent' }` or `{ bpmnType: ['bpmn:UserTask', 'bpmn:ServiceTask'] }` - match by `node.type`.
+- `{ fallback: 'task' }` - catch any unmatched `bpmn:*Task`. Only `task/` uses this pattern.
 
 ### Example: a "wait" node that pauses for N seconds
 
@@ -68,9 +68,9 @@ That's the whole node. The registry picks it up automatically.
 
 ## Files in this folder
 
-- `<kind>/` — one folder per node kind.
-- [`index.ts`](./index.ts) — public API (`findByFlowNode`, `findByKind`, `validate`) + the auto-discovery glob.
-- [`registry.ts`](./registry.ts) — holds the mutable `nodes[]` and `registerNode`. Lives in its own file so node modules can import `registerNode` without re-triggering the glob (which would cause a circular import).
-- [`types.ts`](./types.ts) — `NodeProps`, `NodeMatcher`, `NodeDefinition`, plus shared property readers.
-- [`NodeRenderer.tsx`](./NodeRenderer.tsx) — looks up the component for the current job's `kind` and renders it.
-- [`styles.ts`](./styles.ts) — shared `nodeStyles` used by every kind.
+- `<kind>/` - one folder per node kind.
+- [`index.ts`](./index.ts) - public API (`findByFlowNode`, `findByKind`, `validate`) + the auto-discovery glob.
+- [`registry.ts`](./registry.ts) - holds the mutable `nodes[]` and `registerNode`. Lives in its own file so node modules can import `registerNode` without re-triggering the glob (which would cause a circular import).
+- [`types.ts`](./types.ts) - `NodeProps`, `NodeMatcher`, `NodeDefinition`, plus shared property readers.
+- [`NodeRenderer.tsx`](./NodeRenderer.tsx) - looks up the component for the current job's `kind` and renders it.
+- [`styles.ts`](./styles.ts) - shared `nodeStyles` used by every kind.

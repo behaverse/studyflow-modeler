@@ -7,7 +7,7 @@ import { drawIcon, removeDefaultMarkers } from './utils';
 
 /**
  * Service/Script tasks with isDataOperation=true already convey "data
- * operation" through their type — and their schema icon (typically `f`)
+ * operation" through their type - and their schema icon (typically `f`)
  * makes a bottom marker redundant. Skip the operation marker for them.
  */
 function isServiceOrScriptDataOp(element) {

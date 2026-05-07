@@ -34,7 +34,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   const botConfig = readBehaverseProperty(node.businessObject, 'botConfig');
 
   // `agentMode` is a string Enum, so moddle keeps it as a string on both
-  // the property and the raw $attrs map — `readBehaverseProperty` handles
+  // the property and the raw $attrs map - `readBehaverseProperty` handles
   // both. Default to `human` when absent (legacy diagrams without the attr).
   const agentMode = (readBehaverseProperty(node.businessObject, 'agentMode') as 'human' | 'bot' | undefined)
     ?? 'human';
@@ -57,19 +57,21 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   };
 
   if (configMode === 'builtin') {
-    // Pass timelineId through (may be empty — validator surfaces that as a
+    // Pass timelineId through (may be empty - validator surfaces that as a
     // structured issue; parser only throws for diagrams that are unrunnable:
     // no scene, mixed b1, or bad inline/bot YAML).
     payload.timeline = timelineId;
   } else {
-    // inline: parse the full GameConfig YAML body to a JSON object.
+    // inline: parse the GameConfig *override* YAML body to a JSON object.
+    // Unity merges this on top of `Resources/<task>.json`, so the body only
+    // needs to carry diverging fields (typically Blocks + Timelines).
     if (hasInlineBody) {
       let parsed: unknown;
       try {
         parsed = yaml.load(configurations as string);
       } catch (err) {
         throw new Error(
-          `BehaverseTask ${node.id}: failed to parse inline \`configurations\` YAML — ${(err as Error).message}`,
+          `BehaverseTask ${node.id}: failed to parse inline \`configurations\` YAML - ${(err as Error).message}`,
         );
       }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {

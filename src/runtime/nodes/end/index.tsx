@@ -61,7 +61,7 @@ export function End({ job, log, complete }: NodeProps<EndJob>) {
   useEffect(() => {
     if (code) log('info', `Completion code: ${code}`);
     if (redirectUrl) log('info', `Will redirect to: ${redirectUrl}`);
-    // End is the last job — signal completion to the executor immediately
+    // End is the last job - signal completion to the executor immediately
     // so the executor reaches `done` phase. The component stays mounted so the
     // user can read the code / countdown.
     complete();

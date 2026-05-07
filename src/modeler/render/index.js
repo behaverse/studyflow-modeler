@@ -82,7 +82,7 @@ export default class StudyflowRenderer extends BaseRenderer {
     const descriptorIconClass = sfDescriptor?.meta?.icon || sfDescriptor?.icon;
     const explicitIcon = elementTemplateIconClass || descriptorIconClass;
     // Service/Script tasks marked as data operations fall back to the function
-    // symbol when no specific icon was supplied — matches the schema-set icon
+    // symbol when no specific icon was supplied - matches the schema-set icon
     // on omniprocess types (Map/Reduce/Filter) for plain bpmn:ServiceTask too.
     const isServiceOrScriptDataOp =
       (is(element, 'bpmn:ServiceTask') || is(element, 'bpmn:ScriptTask'))

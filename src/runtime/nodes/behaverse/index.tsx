@@ -40,7 +40,7 @@ export function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>
     let cancelled = false;
     const src = buildBehaverseIframeSrc();
     if (iframeRef.current) {
-      // Force a full reload so each task gets a fresh Unity instance — Unity
+      // Force a full reload so each task gets a fresh Unity instance - Unity
       // tears down on Application.Quit and re-using the iframe races against
       // the half-destroyed previous GameManager.
       iframeRef.current.src = src;

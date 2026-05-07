@@ -109,7 +109,7 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByText('Read this carefully.')).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    // Questionnaire stage — PHQ-9
+    // Questionnaire stage - PHQ-9
     await expect(
       page.getByRole('heading', { name: 'Patient Health Questionnaire-9 (PHQ-9)' }),
     ).toBeVisible();
@@ -118,14 +118,14 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(submit).toBeDisabled();
     for (let i = 1; i <= 9; i += 1) {
       // The radio inputs are sr-only (visual styling lives on the wrapping
-      // <label>), so a normal .check() can't reach them — use the force flag
+      // <label>), so a normal .check() can't reach them - use the force flag
       // to dispatch the click directly on the input.
       await page.locator(`input[name="phq9_${i}"][value="1"]`).check({ force: true });
     }
     await expect(submit).toBeEnabled();
     await submit.click();
 
-    // End stage — phase = done, no Unity manifest fetch
+    // End stage - phase = done, no Unity manifest fetch
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
     expect(manifestFetched).toBe(false);
   });

@@ -8,7 +8,7 @@ import {getFillColor, getStrokeColor} from "bpmn-js/lib/draw/BpmnRenderUtil";
 
 
 /**
- * Draw a diamond (rhombus) shape — used for gateways.
+ * Draw a diamond (rhombus) shape - used for gateways.
  *
  * @param {any} parentGfx
  * @param {{ width: number, height: number }} element

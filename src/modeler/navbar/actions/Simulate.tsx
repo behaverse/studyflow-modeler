@@ -24,7 +24,7 @@ export function SimulateButton({ className = '' }: Props) {
       title={isSimulating ? 'Stop simulation' : 'Simulate the studyflow'}
       className={[
         'inline-flex items-center justify-center gap-1.5',
-        // `rounded-l-lg` only — paired with the Run button on the right,
+        // `rounded-l-lg` only - paired with the Run button on the right,
         // so the inner edge is flush. Outer arc still nests inside the
         // navbar's 12px corner with 6px padding.
         'text-[13px] font-semibold rounded-l-lg h-7 px-3.5 transition-colors',

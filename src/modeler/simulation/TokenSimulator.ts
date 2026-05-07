@@ -385,7 +385,7 @@ export default class TokenSimulator {
         }
       }, ACTIVITY_PAUSE_MS);
     } else {
-      // gateways, events, etc. — advance immediately
+      // gateways, events, etc. - advance immediately
       this._advanceFromElement(token, target);
     }
   }

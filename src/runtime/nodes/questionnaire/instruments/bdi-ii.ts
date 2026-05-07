@@ -2,12 +2,12 @@ import type { InstrumentDefinition } from './index';
 
 // BDI-II uses unique answer options per item. Each item is a category
 // (sadness, pessimism, etc.) with four ordered statements scored 0-3.
-// We ship a compact subset (selected items) — researchers using the full
+// We ship a compact subset (selected items) - researchers using the full
 // BDI-II should plug in the complete bank via a custom instrument id.
 
 export const bdi2: InstrumentDefinition = {
   id: 'bdi-ii',
-  title: 'Beck Depression Inventory-II (BDI-II) — short form',
+  title: 'Beck Depression Inventory-II (BDI-II) - short form',
   preamble:
     'For each item, pick the statement that best describes how you have been feeling over the past two weeks, including today.',
   items: [

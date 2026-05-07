@@ -7,7 +7,7 @@ import { getRegisteredNodes } from './registry';
 // eager-imports each one, triggering its registerNode() side effect.
 //
 // Each node module imports `registerNode` from './registry' (not from here)
-// to avoid a circular import — see registry.ts for details.
+// to avoid a circular import - see registry.ts for details.
 import.meta.glob('./*/index.tsx', { eager: true });
 
 export { registerNode } from './registry';
@@ -23,9 +23,9 @@ const BPMN_TASK_TYPES = new Set([
 
 /**
  * Find the node definition responsible for a given FlowNode. Three-pass match:
- *   1. extensionType — most specific (studyflow:Instruction, behaverse:BehaverseTask, …)
- *   2. bpmnType      — less specific (bpmn:StartEvent, bpmn:EndEvent)
- *   3. fallback    — catch-all for unmatched bpmn:*Task nodes
+ *   1. extensionType - most specific (studyflow:Instruction, behaverse:BehaverseTask, …)
+ *   2. bpmnType      - less specific (bpmn:StartEvent, bpmn:EndEvent)
+ *   3. fallback    - catch-all for unmatched bpmn:*Task nodes
  * Returns undefined for gateways and other unsupported nodes (graph traversal
  * skips those).
  */

@@ -11,7 +11,7 @@ import {
 
 /**
  * True when the schema pins `isDataOperation` for this element's effective
- * type — e.g. types that fix the value (CognitiveTask, VideoGame, Rest,
+ * type - e.g. types that fix the value (CognitiveTask, VideoGame, Rest,
  * omniprocess:Transform). Users shouldn't be able to toggle it via the
  * popup in those cases.
  */

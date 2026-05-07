@@ -51,7 +51,7 @@ export const border = {
 } as const;
 
 /**
- * Hover / active wash tokens — subtle dark wash on cream surfaces.
+ * Hover / active wash tokens - subtle dark wash on cream surfaces.
  * Use as full strings (Tailwind detects `hover:bg-black/[0.05]` literally).
  */
 export const interaction = {
@@ -72,15 +72,15 @@ export const text = {
 export const radius = {
   /** Full pill (use for icon-only round buttons or very short controls). */
   pill: 'rounded-full',
-  /** 16px — top-level chrome (navbar shell, dialogs, popovers, flyouts, inspector). */
+  /** 16px - top-level chrome (navbar shell, dialogs, popovers, flyouts, inspector). */
   capsule: 'rounded-2xl',
-  /** 12px — palette wrapper, primary CTAs, inspector tab pills. */
+  /** 12px - palette wrapper, primary CTAs, inspector tab pills. */
   card: 'rounded-xl',
-  /** 8px — buttons, dropdown items, list cards inside dialogs. */
+  /** 8px - buttons, dropdown items, list cards inside dialogs. */
   button: 'rounded-lg',
-  /** 6px — inputs, text fields, tabs, chevron-icon hovers. */
+  /** 6px - inputs, text fields, tabs, chevron-icon hovers. */
   field: 'rounded-md',
-  /** 10px — palette tool buttons (chosen for concentric fit inside palette wrapper). */
+  /** 10px - palette tool buttons (chosen for concentric fit inside palette wrapper). */
   paletteTool: 'rounded-[10px]',
 } as const;
 
@@ -100,7 +100,7 @@ export const navbar = {
    * floating chrome panels (navbar / palette / inspector) read as one
    * coherent corner family.
    *
-   * Padding is `px-1.5` (6px) — matched to the ~6px vertical breathing
+   * Padding is `px-1.5` (6px) - matched to the ~6px vertical breathing
    * room that h-7 children get inside h-10, so items sit equidistant
    * from all four navbar borders.
    */
@@ -122,7 +122,7 @@ export const navbar = {
           px-1.5`,
 
   /**
-   * Slot has no horizontal padding — the diagram-name span / input adds
+   * Slot has no horizontal padding - the diagram-name span / input adds
    * its own `px-2`. Stacking another `px-2` here would make the left
    * edge feel ~2× more padded than the top/bottom.
    */
@@ -131,7 +131,7 @@ export const navbar = {
   diagramNameInput: `text-[13px] font-medium ${text.primary} ${surface.card} ${radius.field} px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-cream-400`,
 
   /**
-   * Only `ml-1` (left margin) — the right margin would stack with the
+   * Only `ml-1` (left margin) - the right margin would stack with the
    * shell's `px-1.5` and push Simulate ~10px from the navbar's right edge,
    * exceeding the ~6px vertical breathing room. Keep the left margin so
    * menus sit a comfortable gap away from the diagram name.
@@ -152,14 +152,14 @@ export const navBurgerBtnCls =
  * shell so menus pop, but the same 12px radius as the navbar / palette /
  * inspector so every floating chrome surface shares one corner family.
  *
- * Padding is on the dropdown (`px-1 py-1`), not on items — see `itemCls`.
+ * Padding is on the dropdown (`px-1 py-1`), not on items - see `itemCls`.
  */
 export const dropdownCls = `${surface.menu} ${border.hairline} text-stone-800 ${radius.card} shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] z-50 px-1 py-1 min-w-44`;
 
 /**
  * Single dropdown item. Padding lives on the dropdown container above so
  * items can use `w-full` (the standard for menu buttons) without spilling
- * past the panel's right edge — `width: 100%` + `mx-1` would render at
+ * past the panel's right edge - `width: 100%` + `mx-1` would render at
  * `parent + 8px`, which is what produced the visible overflow on the File
  * / View menus before.
  */
@@ -181,7 +181,7 @@ export const navDividerCls = 'w-px h-4 bg-black/[0.10] mr-2 ml-2';
 
 export const palette = {
   /**
-   * Outer floating palette panel — vertical capsule, cream-100 with vibrancy.
+   * Outer floating palette panel - vertical capsule, cream-100 with vibrancy.
    *
    * Radius is chosen to be concentric with inner tool buttons (`rounded-[10px]`
    * + ~4px horizontal padding ≈ 14px outer): `rounded-xl` (12px) reads as
@@ -209,7 +209,7 @@ export const palette = {
                active:bg-black/[0.08]
                transition-all`,
 
-  /** "Has flyout" affordance — small chevron rendered absolutely on the button. */
+  /** "Has flyout" affordance - small chevron rendered absolutely on the button. */
   groupChevron: 'absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-600 rotate-[-45deg] -translate-y-1/2',
 
   /** Floating tooltip span shown on hover next to a palette button. */
@@ -254,7 +254,7 @@ export const paletteFlyout = {
 export const inspector = {
   wrapper: 'fixed top-2 right-2 z-[220]',
   /**
-   * Inspector panel — translucent cream-100 with vibrancy. Floats with
+   * Inspector panel - translucent cream-100 with vibrancy. Floats with
    * margin from the viewport edges (Claude.ai pattern), all corners
    * rounded with the same 12px radius as the navbar / palette.
    */
@@ -314,7 +314,7 @@ export const field = {
   checkbox: 'group block size-4 rounded border border-black/[0.20] bg-cream-200 data-[checked]:bg-stone-900 data-[checked]:border-stone-900',
   checkboxIcon: 'stroke-cream-50 opacity-0 group-data-[checked]:opacity-100',
 
-  /* Array (isMany String) field — list editor with inferred-from-connections rows. */
+  /* Array (isMany String) field - list editor with inferred-from-connections rows. */
   arrayList: 'flex flex-col gap-1 mt-1',
   arrayRow: 'relative',
   arrayInput: 'px-2 py-1 pr-7 w-full rounded-md border border-black/[0.08] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400',
@@ -347,7 +347,7 @@ export const codeEditor = {
 // --- 9. Modeler shell + canvas 
 
 export const modeler = {
-  /** Loading-state container — full-height, canvas-colored. */
+  /** Loading-state container - full-height, canvas-colored. */
   loading: `flex h-full text-center ${surface.canvas}`,
   loadingSpinner: 'm-auto animate-spin',
   loadingIcon: 'iconify bi--arrow-repeat text-stone-500 text-[3rem]',
@@ -366,7 +366,7 @@ export const dialog = {
   centerLayout: 'flex min-h-full items-center justify-center p-4',
 
   /**
-   * Solid sheet — cream-100 with hairline border + sheet shadow.
+   * Solid sheet - cream-100 with hairline border + sheet shadow.
    * Combine with `panelMd` / `panelLg` for width.
    */
   panel: `${radius.capsule} ${surface.sheet} border border-black/[0.06] p-7 ${shadow.sheet} duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]`,
@@ -400,7 +400,7 @@ export const dialog = {
 export const commandPalette = {
   /**
    * Headless UI <Dialog> root. Sits above the inspector (`z-[220]`) but below
-   * the settings overlay (`z-[300]`) — when the palette opens, the rest of
+   * the settings overlay (`z-[300]`) - when the palette opens, the rest of
    * the chrome recedes behind a single soft blur.
    */
   root: 'relative z-[250] focus:outline-none',
@@ -408,7 +408,7 @@ export const commandPalette = {
   backdrop: 'fixed inset-0 z-10 backdrop-blur',
   /** Top-aligned layout (palette feels natural near the top, not centered). */
   layout: 'fixed inset-0 z-20 flex items-start justify-center pt-[15vh] p-4 overflow-y-auto',
-  /** The palette sheet itself — cream-100 with hairline border + sheet shadow. */
+  /** The palette sheet itself - cream-100 with hairline border + sheet shadow. */
   panel: `w-full max-w-lg ${radius.capsule} ${surface.sheet} border border-black/[0.06] ${shadow.sheet}
           duration-200 ease-out closed:transform-[scale(98%)] closed:opacity-0 overflow-hidden`,
 
@@ -463,7 +463,7 @@ export const settingsView = {
   /** Two-column body: sidebar + content scroll area. */
   body: 'flex flex-1 min-h-0',
 
-  /** Left sidebar — section navigation. */
+  /** Left sidebar - section navigation. */
   sidebar: `w-60 shrink-0 border-r border-black/[0.06] py-4 px-3 overflow-y-auto ${surface.sheet}`,
   sidebarGroupLabel: 'text-xs font-semibold uppercase tracking-[0.1em] text-stone-500 px-3 pt-2 pb-1',
   sidebarItem: `flex items-center gap-2.5 w-full text-left px-3 py-1.5 ${radius.button}
@@ -473,7 +473,7 @@ export const settingsView = {
   sidebarItemActive: 'bg-black/[0.05] text-stone-900',
   sidebarItemIcon: 'text-[15px] text-stone-500 shrink-0',
 
-  /** Right content area — scrollable, max-width-constrained. */
+  /** Right content area - scrollable, max-width-constrained. */
   content: 'flex-1 overflow-y-auto px-4 py-8',
   contentInner: 'mx-auto max-w-2xl space-y-8',
 
@@ -481,7 +481,7 @@ export const settingsView = {
   sectionTitle: `text-[22px] font-semibold tracking-tight ${text.primary}`,
   sectionDescription: `text-[13px] ${text.muted} mt-1`,
 
-  /** A single setting row — label on the left, control on the right. */
+  /** A single setting row - label on the left, control on the right. */
   row: 'flex items-start justify-between gap-6 py-4 border-b border-black/[0.06] last:border-b-0',
   rowText: 'flex-1 min-w-0',
   rowLabel: `text-[14px] font-medium ${text.primary}`,
@@ -507,7 +507,7 @@ export const settingsView = {
   selectWrapper: 'relative',
   selectChevron: 'iconify bi--caret-down pointer-events-none absolute top-2.5 right-2 text-stone-500 text-[12px]',
 
-  /** API-key style input — recessed and monospace. */
+  /** API-key style input - recessed and monospace. */
   textInput: `px-2.5 py-1.5 w-72 max-w-full ${radius.field}
               border border-black/[0.08] bg-cream-100 font-mono text-[13px] text-stone-900
               placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400`,

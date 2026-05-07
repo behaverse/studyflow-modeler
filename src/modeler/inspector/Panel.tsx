@@ -50,7 +50,7 @@ export function Panel() {
           The toggle is rendered OUTSIDE the panel (which has backdrop-filter)
           so its `position: fixed` anchors to the viewport. Inside the panel,
           backdrop-filter establishes a new containing block and `fixed`
-          would anchor to the panel — causing the button to shift between
+          would anchor to the panel - causing the button to shift between
           show / hide states.
         */}
         {element && (

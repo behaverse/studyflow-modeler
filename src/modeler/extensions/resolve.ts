@@ -132,7 +132,7 @@ export function getProperty(elementOrBusinessObject: any, propertyName: string):
 
   // When an extension wrapper type also declares the same property (e.g.
   // omniprocess:Map redefines `isDataOperation` with a pinned default of
-  // `true`), moddle stores the value on the extension element — not on the BO.
+  // `true`), moddle stores the value on the extension element - not on the BO.
   // Prefer the extension element's value when it has one so pinned schema
   // defaults are honored at runtime.
   if (resolution.extensionElement && resolution.target === resolution.businessObject) {

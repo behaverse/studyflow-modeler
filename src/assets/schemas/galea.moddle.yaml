@@ -585,7 +585,7 @@ types:
             - Galea
 
 templates:
-  - description: A typical Galea session — donning → impedance → calibration → baseline → VR task → doffing → export
+  - description: A typical Galea session - donning → impedance → calibration → baseline → VR task → doffing → export
     object:
       type: GaleaSession
       bpmn:name: Galea VR session

@@ -27,51 +27,7 @@
     </bpmn2:task>
     <bpmn2:task id="Warmup_1Back" name="1-Back&#10;(warm-up)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Id: NB
-Scene: NBack
-EnumDefinitions:
-  HudWidgetPosition: [Hidden, StatusBarLeft, StatusBarCenter, StatusBarRight, InformationPanel]
-  ProgressElementStyle: [Continuous, Discrete, ColoredDiscrete, Circular, Counter]
-  TimerElementStyle: [Linear, Circular, TimeOnly]
-  ShowAccuracyCheckFeedback: [Never, Always]
-  ShowCorrectTrialResponseFeedback: [Never, OnError, Always]
-ParameterInfos:
-  NValue: { Type: Int, Min: 1, Max: 200 }
-  Streams: { Type: Object }
-  Feature: { Type: Enum, Values: [Letters, Digits, Colors, GridPosition8, GridPosition4, Symbols] }
-  StimulusValue: { Type: Int, Min: 1, Max: 100 }
-  StreamSize: { Type: Int, Min: 1, Max: 200 }
-  FeatureValuesCount: { Type: Int, Min: 1, Max: 100 }
-  UseNonMatchButton: { Type: Bool }
-  PlayerPaced: { Type: Bool }
-  MaxResponseTime: { Type: Float, Min: 0 }
-  ShowAccuracyOnButtonFeedback: { Type: Bool }
-  ShowMissedTrialFeedback: { Type: Bool }
-  ErrorTimeOutDuration: { Type: Float, Min: 0 }
-  ShowSequenceComparison: { Type: Bool }
-  StimulusDisplayDuration: { Type: Float, Min: 0.01 }
-  InterStimulusInterval: { Type: Float, Min: 0 }
-  TrialForeperiod: { Type: Float, Min: 0 }
-  StimulusMovingAnimationDuration: { Type: Float, Min: 0 }
-  RevealBoxContent: { Type: Enum, Values: [StimulusOnly, StimulusAndCompared, All] }
-  RevealNBackBoxContentFeedback: { Type: Enum, Values: [Never, OnError, Always] }
-  ShowAccuracyCheckFeedback: { Type: Enum, Name: ShowAccuracyCheckFeedback }
-  ShowCorrectTrialResponseFeedback: { Type: Enum, Name: ShowCorrectTrialResponseFeedback }
-  ScoreLabel_Position: { Type: Enum, Name: HudWidgetPosition }
-  TaskName_Position: { Type: Enum, Name: HudWidgetPosition }
-  TrialResults_Position: { Type: Enum, Name: HudWidgetPosition }
-  TrialResults_Style: { Type: Enum, Name: ProgressElementStyle }
-  BlockCounter_Position: { Type: Enum, Name: HudWidgetPosition }
-  BlockCounter_Style: { Type: Enum, Name: ProgressElementStyle }
-  TrialCounter_Position: { Type: Enum, Name: HudWidgetPosition }
-  TrialCounter_Style: { Type: Enum, Name: ProgressElementStyle }
-  LevelLabel_Position: { Type: Enum, Name: HudWidgetPosition }
-  UserInputTimer_Position: { Type: Enum, Name: HudWidgetPosition }
-  UserInputTimer_Style: { Type: Enum, Name: TimerElementStyle }
-  UserInputTimer_CountUp: { Type: Bool }
-  UserInputTimer_DisplayTime: { Type: Bool }
-Rules: {}
-Blocks:
+        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Blocks:
   LabLink_InlineBlock:
     Name: LabLink_InlineBlock
     Parameters:
@@ -87,34 +43,9 @@ Blocks:
               Values: [3, 1, 2, 1, 3, 2, 3, 2]
       StreamSize: 8
       FeatureValuesCount: 3
-      UseNonMatchButton: true
-      PlayerPaced: false
       MaxResponseTime: 3
-      ShowAccuracyOnButtonFeedback: false
-      ShowMissedTrialFeedback: false
-      ErrorTimeOutDuration: 0
-      ShowSequenceComparison: false
       StimulusDisplayDuration: 0.5
       InterStimulusInterval: 2.2
-      TrialForeperiod: 0
-      StimulusMovingAnimationDuration: 0.3
-      RevealBoxContent: StimulusOnly
-      RevealNBackBoxContentFeedback: Never
-      ShowAccuracyCheckFeedback: Never
-      ShowCorrectTrialResponseFeedback: Never
-      ScoreLabel_Position: Hidden
-      TaskName_Position: StatusBarLeft
-      TrialResults_Position: InformationPanel
-      TrialResults_Style: ColoredDiscrete
-      BlockCounter_Position: StatusBarLeft
-      BlockCounter_Style: Counter
-      TrialCounter_Position: Hidden
-      TrialCounter_Style: Counter
-      LevelLabel_Position: Hidden
-      UserInputTimer_Position: Hidden
-      UserInputTimer_Style: Circular
-      UserInputTimer_CountUp: true
-      UserInputTimer_DisplayTime: false
 Timelines:
   LabLink_Inline:
     Name: LabLink_Inline
@@ -150,51 +81,7 @@ Timelines:
     </bpmn2:task>
     <bpmn2:task id="Arm_Demo" name="1-Back">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Id: NB
-Scene: NBack
-EnumDefinitions:
-  HudWidgetPosition: [Hidden, StatusBarLeft, StatusBarCenter, StatusBarRight, InformationPanel]
-  ProgressElementStyle: [Continuous, Discrete, ColoredDiscrete, Circular, Counter]
-  TimerElementStyle: [Linear, Circular, TimeOnly]
-  ShowAccuracyCheckFeedback: [Never, Always]
-  ShowCorrectTrialResponseFeedback: [Never, OnError, Always]
-ParameterInfos:
-  NValue: { Type: Int, Min: 1, Max: 200 }
-  Streams: { Type: Object }
-  Feature: { Type: Enum, Values: [Letters, Digits, Colors, GridPosition8, GridPosition4, Symbols] }
-  StimulusValue: { Type: Int, Min: 1, Max: 100 }
-  StreamSize: { Type: Int, Min: 1, Max: 200 }
-  FeatureValuesCount: { Type: Int, Min: 1, Max: 100 }
-  UseNonMatchButton: { Type: Bool }
-  PlayerPaced: { Type: Bool }
-  MaxResponseTime: { Type: Float, Min: 0 }
-  ShowAccuracyOnButtonFeedback: { Type: Bool }
-  ShowMissedTrialFeedback: { Type: Bool }
-  ErrorTimeOutDuration: { Type: Float, Min: 0 }
-  ShowSequenceComparison: { Type: Bool }
-  StimulusDisplayDuration: { Type: Float, Min: 0.01 }
-  InterStimulusInterval: { Type: Float, Min: 0 }
-  TrialForeperiod: { Type: Float, Min: 0 }
-  StimulusMovingAnimationDuration: { Type: Float, Min: 0 }
-  RevealBoxContent: { Type: Enum, Values: [StimulusOnly, StimulusAndCompared, All] }
-  RevealNBackBoxContentFeedback: { Type: Enum, Values: [Never, OnError, Always] }
-  ShowAccuracyCheckFeedback: { Type: Enum, Name: ShowAccuracyCheckFeedback }
-  ShowCorrectTrialResponseFeedback: { Type: Enum, Name: ShowCorrectTrialResponseFeedback }
-  ScoreLabel_Position: { Type: Enum, Name: HudWidgetPosition }
-  TaskName_Position: { Type: Enum, Name: HudWidgetPosition }
-  TrialResults_Position: { Type: Enum, Name: HudWidgetPosition }
-  TrialResults_Style: { Type: Enum, Name: ProgressElementStyle }
-  BlockCounter_Position: { Type: Enum, Name: HudWidgetPosition }
-  BlockCounter_Style: { Type: Enum, Name: ProgressElementStyle }
-  TrialCounter_Position: { Type: Enum, Name: HudWidgetPosition }
-  TrialCounter_Style: { Type: Enum, Name: ProgressElementStyle }
-  LevelLabel_Position: { Type: Enum, Name: HudWidgetPosition }
-  UserInputTimer_Position: { Type: Enum, Name: HudWidgetPosition }
-  UserInputTimer_Style: { Type: Enum, Name: TimerElementStyle }
-  UserInputTimer_CountUp: { Type: Bool }
-  UserInputTimer_DisplayTime: { Type: Bool }
-Rules: {}
-Blocks:
+        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1">Blocks:
   LabLink_InlineBlock:
     Name: LabLink_InlineBlock
     Parameters:
@@ -210,34 +97,9 @@ Blocks:
               Values: [3, 1, 2, 1, 3, 2, 3, 2]
       StreamSize: 8
       FeatureValuesCount: 3
-      UseNonMatchButton: true
-      PlayerPaced: false
       MaxResponseTime: 3
-      ShowAccuracyOnButtonFeedback: false
-      ShowMissedTrialFeedback: false
-      ErrorTimeOutDuration: 0
-      ShowSequenceComparison: false
       StimulusDisplayDuration: 0.5
       InterStimulusInterval: 2.2
-      TrialForeperiod: 0
-      StimulusMovingAnimationDuration: 0.3
-      RevealBoxContent: StimulusOnly
-      RevealNBackBoxContentFeedback: Never
-      ShowAccuracyCheckFeedback: Never
-      ShowCorrectTrialResponseFeedback: Never
-      ScoreLabel_Position: Hidden
-      TaskName_Position: StatusBarLeft
-      TrialResults_Position: InformationPanel
-      TrialResults_Style: ColoredDiscrete
-      BlockCounter_Position: StatusBarLeft
-      BlockCounter_Style: Counter
-      TrialCounter_Position: Hidden
-      TrialCounter_Style: Counter
-      LevelLabel_Position: Hidden
-      UserInputTimer_Position: Hidden
-      UserInputTimer_Style: Circular
-      UserInputTimer_CountUp: true
-      UserInputTimer_DisplayTime: false
 Timelines:
   LabLink_Inline:
     Name: LabLink_Inline

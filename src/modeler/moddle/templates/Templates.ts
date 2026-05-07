@@ -174,7 +174,7 @@ export default class Templates {
 
   /**
    * Apply a template to an existing element (replace).
-   * Stubbed — replace support is not implemented.
+   * Stubbed - replace support is not implemented.
    */
   applyTemplate(_element: any, _template: Template): void {
     // no-op
@@ -182,7 +182,7 @@ export default class Templates {
 
   /**
    * Remove a template from an element.
-   * Stubbed — remove support is not implemented.
+   * Stubbed - remove support is not implemented.
    */
   removeTemplate(_element: any): void {
     // no-op

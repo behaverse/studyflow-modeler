@@ -114,7 +114,7 @@ function buildImplicitTemplatesFromTypes(
       const typeDescriptor = typeMap[qualifiedName];
       if (!typeDescriptor) continue;
 
-      // Declaring meta.flowElements implies subprocess intent — always use bpmn:SubProcess.
+      // Declaring meta.flowElements implies subprocess intent - always use bpmn:SubProcess.
       const bpmnType = BPMN.SubProcess;
 
       const syntheticObj: Record<string, any> = { flowElements };

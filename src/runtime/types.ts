@@ -1,8 +1,8 @@
 // Naming contract:
-//   FlowNode     — BPMN executable vertex (Task / Event / Gateway). Data, parsed from XML.
-//   SequenceFlow — BPMN edge connecting two FlowNodes.
-//   Process      — the parsed BPMN process: nodes + sequence flows + start id.
-//   Job          — one materialized unit yielded by Graph.traverse() — the FlowNode
+//   FlowNode     - BPMN executable vertex (Task / Event / Gateway). Data, parsed from XML.
+//   SequenceFlow - BPMN edge connecting two FlowNodes.
+//   Process      - the parsed BPMN process: nodes + sequence flows + start id.
+//   Job          - one materialized unit yielded by Graph.traverse() - the FlowNode
 //                  plus per-kind extras the renderer needs. Derived from
 //                  `JobsByKind` below, which each node module under
 //                  src/runtime/nodes/<kind>/ augments to register its own job type.

@@ -127,8 +127,8 @@ function normalizeFlowConnection(
 }
 
 /**
- * Normalize `obj.flowElements` — a loose mix of nodes and connections as
- * declared in a schema template — into a tagged union of
+ * Normalize `obj.flowElements` - a loose mix of nodes and connections as
+ * declared in a schema template - into a tagged union of
  * `TemplateFlowElement`s ready for the canvas.
  */
 export function normalizeFlowElements(

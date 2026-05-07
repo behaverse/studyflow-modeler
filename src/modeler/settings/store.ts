@@ -58,7 +58,7 @@ function writeStorage(value: Settings): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch {
-    // Quota or privacy mode — silently drop. Settings stay in memory.
+    // Quota or privacy mode - silently drop. Settings stay in memory.
   }
 }
 
@@ -141,7 +141,7 @@ export function setStoredApiKey(key: string | undefined | null): void {
       window.localStorage.setItem(API_KEY_STORAGE_KEY, key);
     }
   } catch {
-    // Quota or privacy mode — silently drop.
+    // Quota or privacy mode - silently drop.
   }
 }
 
@@ -163,6 +163,6 @@ export function setStoredUserEmail(email: string | undefined | null): void {
       window.localStorage.setItem(USER_EMAIL_STORAGE_KEY, email);
     }
   } catch {
-    // Quota or privacy mode — silently drop.
+    // Quota or privacy mode - silently drop.
   }
 }

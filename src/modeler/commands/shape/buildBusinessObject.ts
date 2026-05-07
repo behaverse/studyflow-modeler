@@ -17,7 +17,7 @@ export type BuildBusinessObjectOptions = {
  * defaults route to the BO or the wrapper via `setProperty` resolution.
  *
  * Reads `bpmnFactory` + `moddle` from the modeler, but does not touch the
- * canvas or modeling service — the caller decides how to place the BO
+ * canvas or modeling service - the caller decides how to place the BO
  * (drag-create via `create.start`, immediate via `modeling.createShape`).
  */
 export function buildBusinessObject(

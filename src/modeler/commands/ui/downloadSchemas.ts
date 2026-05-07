@@ -16,7 +16,7 @@ export async function runDownloadSchemas(command: DownloadSchemasCommand): Promi
   void command;
   const downloadedSchemas: Record<string, any> = {};
   const enabled = new Set(getSettings().enabledSchemas);
-  // Core schemas are always loaded — they back default elements (Study, StartEvent, EndEvent).
+  // Core schemas are always loaded - they back default elements (Study, StartEvent, EndEvent).
   for (const schema of SCHEMAS) {
     if (schema.core) enabled.add(schema.prefix);
   }

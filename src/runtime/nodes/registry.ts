@@ -9,7 +9,7 @@ const nodes: NodeDefinition[] = [];
  * new folder under nodes/<kind>/ with an index.tsx that calls registerNode.
  *
  * Lives in its own file (not index.ts) so each node module can import this
- * function without triggering the auto-discovery glob — that would create a
+ * function without triggering the auto-discovery glob - that would create a
  * circular import where nodes are evaluated before `registerNode` is defined.
  */
 export function registerNode(def: NodeDefinition): void {
