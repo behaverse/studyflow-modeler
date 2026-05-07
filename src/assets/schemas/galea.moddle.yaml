@@ -134,7 +134,7 @@ types:
             - Galea
       - name: modalities
         description: Biosignal/sensor modalities active in this session.
-        isAttr: true
+        isAttr: false
         isMany: true
         type: GaleaModalityEnum
         meta:
@@ -189,7 +189,7 @@ types:
             - Galea
       - name: modalities
         description: Biosignal/sensor modalities active in this session.
-        isAttr: true
+        isAttr: false
         isMany: true
         type: GaleaModalityEnum
         meta:
@@ -553,7 +553,7 @@ types:
     properties:
       - name: modalities
         description: Biosignal/sensor modalities included in this recording.
-        isAttr: true
+        isAttr: false
         isMany: true
         type: GaleaModalityEnum
         meta:

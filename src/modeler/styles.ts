@@ -231,14 +231,14 @@ export const paletteFlyout = {
   panel: (isOpen: boolean) => `${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}
               transition-all duration-150
               absolute left-[calc(100%+10px)] top-[-6px] z-[300]
-              w-[220px] p-2.5 pb-3
+              w-[240px] p-2.5 pb-3
               ${radius.card} ${surface.menu} ${border.hairline} ${shadow.menu}`,
 
   /** Invisible bridge that keeps hover alive between trigger button and flyout. */
   gapBridge: 'absolute left-[-10px] top-0 w-[10px] h-full',
 
   /** Group label header at the top of the flyout. */
-  header: 'text-[10px] font-semibold uppercase tracking-[0.1em] text-stone-500 pb-2 mb-2 px-1 border-b border-black/[0.08]',
+  header: 'text-xs font-semibold uppercase tracking-[0.1em] text-stone-500 pb-2 mb-2 px-1 border-b border-black/[0.08]',
 
   /** 3-column grid of element tiles. */
   grid: 'grid grid-cols-3 gap-1',
@@ -246,7 +246,7 @@ export const paletteFlyout = {
   /** Individual draggable element tile. */
   item: 'flex flex-col items-center justify-center gap-1 p-2 rounded-lg text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-grab active:cursor-grabbing',
 
-  itemLabel: 'text-[9.5px] font-semibold leading-tight text-center',
+  itemLabel: 'text-xs leading-tight text-center',
 } as const;
 
 // --- 6. Inspector
@@ -279,7 +279,7 @@ export const inspector = {
   headerSubtitle: 'text-[10.5px] text-left font-mono px-2 pb-2 text-stone-500',
 
   tabList: 'flex flex-wrap gap-1 px-2 pb-2 border-b border-black/[0.08]',
-  tabBase: 'px-2.5 py-1 text-[12px] font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-400',
+  tabBase: 'px-2.5 py-1 text-xs font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-400',
   tabSelected: 'bg-stone-900 text-cream-50 shadow-sm',
   tabUnselected: 'text-stone-600 hover:bg-black/[0.05] hover:text-stone-900 cursor-pointer',
   tabPanels: 'p-1',
@@ -291,7 +291,7 @@ export const inspector = {
 export const field = {
   field: 'mx-2 pb-2',
 
-  label: 'flex items-center justify-between',
+  label: 'flex items-center justify-between text-sm font-semibold',
   helpAnchor: 'relative group/help',
   helpIcon: 'iconify bi--patch-question text-stone-400 cursor-help',
   helpTooltip: 'absolute bottom-full right-0 mb-1 invisible group-hover/help:visible w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-50',
@@ -449,7 +449,7 @@ export const examplesList = {
 
 export const settingsView = {
   /** Backdrop sits over the modeler with a margin so the panel is inset from the edges. */
-  root: `fixed inset-0 z-[300] p-8 flex bg-black/40 backdrop-blur-xs`,
+  root: `fixed inset-0 z-[300] p-16 px-48 flex bg-black/40 backdrop-blur-xs`,
   /** Inset panel containing the actual settings UI. */
   panel: `flex flex-1 flex-col overflow-hidden ${surface.sheet} ${radius.capsule} border border-black/[0.08] ${shadow.sheet}`,
 
@@ -465,7 +465,7 @@ export const settingsView = {
 
   /** Left sidebar — section navigation. */
   sidebar: `w-60 shrink-0 border-r border-black/[0.06] py-4 px-3 overflow-y-auto ${surface.sheet}`,
-  sidebarGroupLabel: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500 px-3 pt-2 pb-1',
+  sidebarGroupLabel: 'text-xs font-semibold uppercase tracking-[0.1em] text-stone-500 px-3 pt-2 pb-1',
   sidebarItem: `flex items-center gap-2.5 w-full text-left px-3 py-1.5 ${radius.button}
                 text-[13px] font-medium ${text.secondary}
                 hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08]
@@ -474,7 +474,7 @@ export const settingsView = {
   sidebarItemIcon: 'text-[15px] text-stone-500 shrink-0',
 
   /** Right content area — scrollable, max-width-constrained. */
-  content: 'flex-1 overflow-y-auto px-8 py-8',
+  content: 'flex-1 overflow-y-auto px-4 py-8',
   contentInner: 'mx-auto max-w-2xl space-y-8',
 
   /** Section header (large title at the top of the right pane). */

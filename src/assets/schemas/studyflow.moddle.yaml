@@ -119,6 +119,16 @@ enumerations:
       - name: Dynamic
         value: dynamic
         description: A code extracted from a URL pattern at runtime (e.g. Prolific).
+  - name: EnvironmentEnum
+    isAbstract: true
+    description: Execution environment in which the study runs.
+    literalValues:
+      - name: Cloud
+        value: cloud
+      - name: Local
+        value: local
+      - name: HPC
+        value: hpc
   - name: InstrumentEnum
     description: |
       Software that delivers a cognitive task. Determines how the
@@ -173,7 +183,7 @@ types:
     properties:
       - name: items
         description: Checklist items.
-        isAttr: true
+        isAttr: false
         type: MarkdownString
         meta:
           order: 1
@@ -186,9 +196,17 @@ types:
     superClass:
       - bpmn:Process
     properties:
+      - name: environment
+        description: Execution environment in which the study runs (e.g., Cloud, Local, HPC).
+        isAttr: true
+        type: EnvironmentEnum
+        default: cloud
+        meta:
+          categories:
+            - General
       - name: authors
         description: Authors of the study.
-        isAttr: true
+        isAttr: false
         isMany: true
         type: String
         meta:
@@ -219,7 +237,7 @@ types:
             - Data
       - name: inputs
         description: Names of variables consumed by this activity.
-        isAttr: true
+        isAttr: false
         isMany: true
         type: String
         meta:
@@ -231,7 +249,7 @@ types:
               isDataOperation: true
       - name: outputs
         description: Names of variables produced by this activity.
-        isAttr: true
+        isAttr: false
         isMany: true
         type: String
         meta:
@@ -555,7 +573,7 @@ types:
         description: |
           Definition of the strata used for allocation (one entry per stratum),
           formatted in markdown. For example: `age_band: 18-29`.
-        isAttr: true
+        isAttr: false
         type: MarkdownString
         isMany: true
         meta:
@@ -600,7 +618,7 @@ types:
         description: |
           List of inclusion criteria (one entry per criterion), formatted in
           markdown. Example: `Age between 18 and 65`.
-        isAttr: true
+        isAttr: false
         type: MarkdownString
         isMany: true
         meta:
@@ -610,7 +628,7 @@ types:
         description: |
           List of exclusion criteria (one entry per criterion), formatted in
           markdown. Example: `History of neurological disorder`.
-        isAttr: true
+        isAttr: false
         type: MarkdownString
         isMany: true
         meta:

@@ -92,7 +92,9 @@ export function PropertyField({ bpmnProperty }: FieldProps) {
   if (!isVisible) return null;
 
   const resolvedType = resolveInputType(declaredType, modeler);
-  const isStringList = bpmnProperty.isMany === true && declaredType === 'String';
+  const isStringList = bpmnProperty.isMany === true && (
+    declaredType === 'String' || declaredType.endsWith(':MarkdownString')
+  );
   const Input = isStringList ? ArrayInput : (INPUT_BY_TYPE[resolvedType] ?? StringInput);
 
   return (

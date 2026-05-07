@@ -93,7 +93,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
       {
         id: 'run',
         group: 'Run',
-        label: 'Run in New Tab',
+        label: 'Run',
         icon: 'iconify bi--box-arrow-up-right',
         action: async () => {
           if (!modeler) return;
