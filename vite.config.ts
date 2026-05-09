@@ -79,7 +79,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    unityBuildPlugin('/unity', unityBuildPath),
+    unityBuildPlugin('/assessment-unity', unityBuildPath),
   ],
   css: {
     postcss: {

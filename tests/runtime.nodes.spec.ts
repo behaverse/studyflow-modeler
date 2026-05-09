@@ -93,7 +93,7 @@ test.describe('Studyflow runtime nodes', () => {
     // not pay the manifest cost.
     let manifestFetched = false;
     page.on('request', (req) => {
-      if (req.url().includes('/unity/StreamingAssets/Studyflow/manifest.json')) {
+      if (req.url().includes('/assessment-unity/StreamingAssets/Studyflow/manifest.json')) {
         manifestFetched = true;
       }
     });

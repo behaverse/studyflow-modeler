@@ -28,6 +28,30 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npm run docs:build
+      - name: Fetch Unity WebGL build (latest release)
+        # Pulls the WebGL build published by `./build.sh publish` in
+        # behaverse/assessment-unity (private repo). Requires the
+        # ASSESSMENT_UNITY_TOKEN secret: a PAT with `Contents: read` on
+        # behaverse/assessment-unity. Pin to a specific tag by setting
+        # ASSESSMENT_TAG to e.g. v26.05-6a1d3e884.
+        env:
+          GH_TOKEN: ${{ secrets.ASSESSMENT_UNITY_TOKEN }}
+          ASSESSMENT_REPO: behaverse/assessment-unity
+          ASSESSMENT_TAG: latest
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "ASSESSMENT_UNITY_TOKEN secret is not set." >&2
+            exit 1
+          fi
+          mkdir -p dist/assessment-unity
+          if [ "$ASSESSMENT_TAG" = "latest" ]; then
+            gh release download --repo "$ASSESSMENT_REPO" --pattern WebGL.zip --output /tmp/WebGL.zip
+          else
+            gh release download "$ASSESSMENT_TAG" --repo "$ASSESSMENT_REPO" --pattern WebGL.zip --output /tmp/WebGL.zip
+          fi
+          unzip -q /tmp/WebGL.zip -d dist/assessment-unity
+          echo "Unpacked $(du -sh dist/assessment-unity | cut -f1) to dist/assessment-unity"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
