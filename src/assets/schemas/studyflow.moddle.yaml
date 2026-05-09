@@ -119,7 +119,7 @@ enumerations:
       - name: Dynamic
         value: dynamic
         description: A code extracted from a URL pattern at runtime (e.g. Prolific).
-  - name: EnvironmentEnum
+  - name: RuntimeEnum
     isAbstract: true
     description: Execution environment in which the study runs.
     literalValues:
@@ -198,14 +198,14 @@ types:
     meta:
       bpmnType: bpmn:Process
     properties:
-      - name: environment
-        description: Execution environment in which the study runs (e.g., Cloud, Local, HPC).
+      - name: runtime
+        description: Execution runtime in which the study runs (e.g., cloud, local, HPC).
         isAttr: true
-        type: EnvironmentEnum
+        type: RuntimeEnum
         default: cloud
         meta:
           categories:
-            - General
+            - Environment
       - name: authors
         description: Authors of the study.
         isAttr: false
