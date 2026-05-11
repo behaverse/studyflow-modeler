@@ -19,24 +19,24 @@ Here is an example:
 
 Studyflow diagrams are human-friendly, machine-readable, and executable. Common uses include:
 
-- **Designing experiments**: plan and visualize the steps of your study before conducting it.
-- **Documenting protocols**: create clear and detailed representations of your experimental procedures.
-- **Communicating methodologies**: share your workflows with collaborators, reviewers, funders, and other stakeholders.
-- **Automating workflows**: integrate with tools to automate data collection, analysis, and reporting.
-- **Reproducing studies**: facilitate replication by providing a structured representation of the study design and analysis.
-- **Reporting and publication**: include studyflows in research papers to enhance transparency.
+- **Design experiments**: plan and simulate the steps of your study before conducting it.
+- **Document protocols**: create clear and detailed representations of your experimental procedures.
+- **Communicate methods**: share your analysis workflows with collaborators, reviewers, funders, and other stakeholders.
+- **Automate workflows**: integrate with tools to automate data collection, analysis, and reporting.
+- **Reproduce studies**: replication by providing a structured, version-controllable  representation of all the steps of an experiment.
+- **Report and publish**: include studyflows in research papers, embed them in standard SVG format, and link them to data and code repositories.
 
 ## Start here
 
 If you are new to the project, use one of these paths:
 
 - **Read a studyflow**: walk through a complete worked example on [Get started](get-started/index.qmd).
-- **Try the modeler**: open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow the [Modeler app guide](guides/modeler-app.qmd).
+- **The modeler**: open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow its [usage guide](guides/modeler-app.qmd).
 - **Understand the language**: read [Why Studyflow](reference/why-studyflow.qmd), [Studyflow vs BPMN](reference/studyflow-vs-bpmn.qmd), and the [Specification](reference/spec.qmd).
-- **Browse use cases**: explore the [Examples gallery](examples/index.qmd) for cognitive tasks, CONSORT, analysis pipelines, and MLOps.
+- **Use cases**: explore the [Examples gallery](examples/index.qmd) for cognitive tasks, CONSORT, analysis pipelines, and MLOps.
 
-For quick orientation, see the [FAQ](faq.qmd) and the [Glossary](reference/glossary.qmd).
+See also [FAQ](faq.qmd) and [Glossary](reference/glossary.qmd).
 
 ## Get in touch
 
-Studyflow is an open source project and contributions are welcome. Please [visit our GitHub](https://github.com/behaverse) for issues and PRs, or reach out by email at [contact@xcit.org](mailto:contact@xcit.org). For contributor onboarding, see [Dev setup](develop/dev-setup.qmd).
+Studyflow is an open source project and contributions are welcome. Please [visit our GitHub](https://github.com/behaverse) or reach out by email at [contact@xcit.org](mailto:contact@xcit.org).

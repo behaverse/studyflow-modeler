@@ -68,6 +68,8 @@ website:
             href: reference/views.qmd
           - text: Specification
             href: reference/spec.qmd
+          - text: Extensions
+            href: reference/extensions.qmd
           - text: Glossary
             href: reference/glossary.qmd
       - section: Examples
@@ -75,12 +77,6 @@ website:
           - text: Gallery
             href: examples/index.qmd
           - auto: examples/*.qmd
-      - section: Develop
-        contents:
-          - text: Moddle schemas
-            href: develop/schemas.qmd
-          - text: Dev setup
-            href: develop/dev-setup.qmd
       - text: ---
       - text: <i>Modeler App</i>
         href: https://behaverse.org/studyflow-modeler/app.html

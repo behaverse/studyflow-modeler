@@ -27,7 +27,7 @@ This page collects short definitions and links to the deep reference for each te
 
 **Choreography** — A BPMN2 construct for modeling interactions between multiple participants, used in multi-agent studies. See the [Multi-agent collaboration example](../examples/multi-agent.qmd).
 
-**Moddle** — The schema format used internally by [bpmn-js](https://github.com/bpmn-io) to describe element types and their attributes. Studyflow defines its language as a moddle YAML file. See [Moddle schemas](../develop/schemas.qmd) (contributor docs).
+**Moddle** — The schema format used internally by [bpmn-js](https://github.com/bpmn-io) to describe element types and their attributes. Studyflow defines its language as a moddle YAML file.
 
 **View** — A rendering of a studyflow diagram tuned to a specific need: the *Study view* (BPMN-like overview), the *Timeline view* (Gantt-like), and the *Checklist view*. See [Views](views.qmd).
 
