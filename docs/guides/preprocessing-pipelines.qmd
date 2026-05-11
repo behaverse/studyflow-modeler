@@ -11,21 +11,21 @@ Each operation is a marker (a small *f* badge) on an otherwise normal BPMN task.
 
 | Operation | Cardinality | When to use |
 |---|---|---|
-| `Map` | 1 → 1 | Element-wise transform (rescale, compute a column, parse a field). |
-| `Filter` | N → subset(N) | Drop rows that fail a criterion (RT < 100 ms, missing data). |
-| `FlatMap` | 1 → N | Unnest, expand events per trial, explode arrays. |
-| `Reduce` | N → 1 (per group) | Aggregate to summary statistics (mean RT, accuracy). |
-| `Group` | N → G groups | Partition by participant, condition, or block. |
+| `Map` | 1 &rarr; 1 | Element-wise transform (rescale, compute a column, parse a field). |
+| `Filter` | N &rarr; subset(N) | Drop rows that fail a criterion (RT < 100 ms, missing data). |
+| `FlatMap` | 1 &rarr; N | Unnest, expand events per trial, explode arrays. |
+| `Reduce` | N &rarr; 1 (per group) | Aggregate to summary statistics (mean RT, accuracy). |
+| `Group` | N &rarr; G groups | Partition by participant, condition, or block. |
 | `Transform` | generic | Any pure function not better described by the above. |
 | `Compose` | n/a | Bundle several primitive operations into one logical step. |
 
-`Filter` changes the dataset by removing rows. A *data-driven gateway* changes the control flow. They are not interchangeable — see [Data](../reference/data.qmd) for the distinction.
+`Filter` changes the dataset by removing rows. A *data-driven gateway* changes the control flow. They are not interchangeable -- see [Data](../reference/data.qmd) for the distinction.
 
 ## A typical pipeline
 
 A behavioral RT analysis pipeline usually has this shape:
 
-1. **Read raw data** — a normal task with a data input from a `Dataset` or `Table`.
+1. **Read raw data** -- a normal task with a data input from a `Dataset` or `Table`.
 2. **Filter** invalid trials (RT outliers, missing responses).
 3. **Map** to compute derived columns (log RT, condition labels).
 4. **Group** by participant and condition.
@@ -34,7 +34,7 @@ A behavioral RT analysis pipeline usually has this shape:
 
 Modeled in Studyflow, each step is a task with the corresponding marker, connected by sequence flows. Data flows are dashed edges from/to the data stores.
 
-::: {.callout-note title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram"}
 The canonical RT pipeline figure should live at `docs/assets/img/guides/preprocessing-pipeline.svg`.
 :::
 
@@ -43,8 +43,8 @@ The canonical RT pipeline figure should live at `docs/assets/img/guides/preproce
 Three concrete benefits over describing the pipeline only in prose or only in code:
 
 - **Reviewers** can verify the analysis plan without reading the code.
-- **Pre-registration** of analysis is the diagram itself — there's no "what we did" vs "what we planned" drift.
-- **Reuse** is straightforward — copy the `Filter → Map → Group → Reduce` sub-process into the next study.
+- **Pre-registration** of analysis is the diagram itself -- there's no "what we did" vs "what we planned" drift.
+- **Reuse** is straightforward -- copy the `Filter -> Map -> Group -> Reduce` sub-process into the next study.
 
 ## Compose vs primitive
 
@@ -52,7 +52,7 @@ For exploratory work, primitive markers (`Map`, `Filter`, `Reduce`) keep the dia
 
 ## Streaming and batch
 
-`Map` and `Filter` are stateless and work on either batch or streaming data. `Reduce` and `Group` are stateful — for streaming, they require windowing or accumulator semantics. Annotate streaming-only tasks with a `streaming: true` attribute so the runtime can validate.
+`Map` and `Filter` are stateless and work on either batch or streaming data. `Reduce` and `Group` are stateful -- for streaming, they require windowing or accumulator semantics. Annotate streaming-only tasks with a `streaming: true` attribute so the runtime can validate.
 
 ## Checklist
 

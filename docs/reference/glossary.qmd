@@ -5,32 +5,32 @@ description: One-sentence definitions of the terms used across these docs
 
 This page collects short definitions and links to the deep reference for each term.
 
-**Studyflow** — A BPMN-based visual language for specifying scientific studies and the data flows around them. See [Why Studyflow](why-studyflow.qmd).
+**Studyflow** -- A BPMN-based visual language for specifying scientific studies and the data flows around them. See [Why Studyflow](why-studyflow.qmd).
 
-**`.studyflow` file** — The serialized form of a studyflow diagram. It is BPMN 2.0 XML with a `studyflow:` namespace for the research-specific extensions.
+**`.studyflow` file** -- The serialized form of a studyflow diagram. It is BPMN 2.0 XML with a `studyflow:` namespace for the research-specific extensions.
 
-**Study** — The top-level element of a diagram, extending `bpmn:Process`. Contains all events, activities, gateways, and data. See [Elements](elements.qmd).
+**Study** -- The top-level element of a diagram, extending `bpmn:Process`. Contains all events, activities, gateways, and data. See [Elements](elements.qmd).
 
-**Element** — A node in the diagram: an event, activity, gateway, data object, data store, dataset, table, or sub-process.
+**Element** -- A node in the diagram: an event, activity, gateway, data object, data store, dataset, table, or sub-process.
 
-**Activity** — A step in the workflow (a rectangle). In Studyflow, specialized as `CognitiveTask`, `Questionnaire`, `Instruction`, `Rest`, `VideoGame`, `Script`, `Manual`, or `BehaverseTask`.
+**Activity** -- A step in the workflow (a rectangle). In Studyflow, specialized as `CognitiveTask`, `Questionnaire`, `Instruction`, `Rest`, `VideoGame`, `Script`, `Manual`, or `BehaverseTask`.
 
-**Event** — A trigger point in the workflow (a circle): start, end, intermediate, boundary, timer, or error.
+**Event** -- A trigger point in the workflow (a circle): start, end, intermediate, boundary, timer, or error.
 
-**Gateway** — A branching/merging point (a diamond): exclusive, parallel, inclusive, complex, event-based, or — Studyflow-specific — `RandomGateway` for stochastic branching.
+**Gateway** -- A branching/merging point (a diamond): exclusive, parallel, inclusive, complex, event-based, or -- Studyflow-specific -- `RandomGateway` for stochastic branching.
 
-**Sequence flow** — A directed arrow connecting two elements, specifying execution order.
+**Sequence flow** -- A directed arrow connecting two elements, specifying execution order.
 
-**Data object / data store** — BPMN elements for transient and persistent data, respectively. Studyflow refines these with `Dataset`, `Table`, `Array`, `Schema`, and `DataCatalog`. See [Data](data.qmd).
+**Data object / data store** -- BPMN elements for transient and persistent data, respectively. Studyflow refines these with `Dataset`, `Table`, `Array`, `Schema`, and `DataCatalog`. See [Data](data.qmd).
 
-**Data operation** — A marker on a task indicating a data transformation: `Map`, `Filter`, `Reduce`, `Group`, `FlatMap`, `Transform`, or `Compose`. The task remains a normal BPMN task; the marker adds data semantics. See [Data](data.qmd).
+**Data operation** -- A marker on a task indicating a data transformation: `Map`, `Filter`, `Reduce`, `Group`, `FlatMap`, `Transform`, or `Compose`. The task remains a normal BPMN task; the marker adds data semantics. See [Data](data.qmd).
 
-**Choreography** — A BPMN2 construct for modeling interactions between multiple participants, used in multi-agent studies. See the [Multi-agent collaboration example](../examples/multi-agent.qmd).
+**Choreography** -- A BPMN2 construct for modeling interactions between multiple participants, used in multi-agent studies. See the [Multi-agent collaboration example](../examples/multi-agent.qmd).
 
-**Moddle** — The schema format used internally by [bpmn-js](https://github.com/bpmn-io) to describe element types and their attributes. Studyflow defines its language as a moddle YAML file.
+**Moddle** -- The schema format used internally by [bpmn-js](https://github.com/bpmn-io) to describe element types and their attributes. Studyflow defines its language as a moddle YAML file.
 
-**View** — A rendering of a studyflow diagram tuned to a specific need: the *Study view* (BPMN-like overview), the *Timeline view* (Gantt-like), and the *Checklist view*. See [Views](views.qmd).
+**View** -- A rendering of a studyflow diagram tuned to a specific need: the *Study view* (BPMN-like overview), the *Timeline view* (Gantt-like), and the *Checklist view*. See [Views](views.qmd).
 
-**BPMN** — Business Process Model and Notation. The ISO-standard process notation that Studyflow extends. See [Studyflow vs BPMN](studyflow-vs-bpmn.qmd).
+**BPMN** -- Business Process Model and Notation. The ISO-standard process notation that Studyflow extends. See [Studyflow vs BPMN](studyflow-vs-bpmn.qmd).
 
-**Modeler** — The web app at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler/) used to author and edit `.studyflow` files. See [Modeler app](../guides/modeler-app.qmd).
+**Modeler** -- The web app at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler/) used to author and edit `.studyflow` files. See [Modeler app](../guides/modeler-app.qmd).

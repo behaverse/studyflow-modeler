@@ -3,47 +3,97 @@ title: FAQ
 description: Quick answers to questions about Studyflow and the Modeler
 ---
 
-## What is Studyflow?
+```{=html}
+<style>
+.faq summary {
+  color: var(--bs-body-color, #212529);
+  cursor: pointer;
+}
+.faq summary strong {
+  color: var(--bs-body-color, #212529);
+}
+.faq details {
+  padding: 0.25rem 0;
+}
+.faq details[open] summary {
+  margin-bottom: 0.5rem;
+}
+</style>
+```
+
+::: {.faq}
+
+<details>
+<summary>**What is Studyflow?**</summary>
 
 A BPMN-based visual language for specifying scientific studies and the data flows around them. The same `.studyflow` file serves as a study protocol, a publication figure, a data pipeline spec, and a participant-facing runtime. See [Why Studyflow](reference/why-studyflow.qmd).
 
-## Who is it for?
+</details>
+
+<details>
+<summary>**Who is it for?**</summary>
 
 Two primary audiences:
 
 - **Experimental researchers** modeling studies (recruitment, consent, tasks, data collection).
 - **Pipeline and model builders** modeling data flow (ingestion, preprocessing, training, deployment).
 
-Secondary audience: tool builders extending the language. See [Develop](develop/dev-setup.qmd).
+</details>
 
-## Why BPMN?
+<details>
+<summary>**Why BPMN?**</summary>
 
 BPMN is an ISO-standard process notation with a mature tooling ecosystem. Building on it means Studyflow inherits a vocabulary that engineers already know, plus editors, validators, and runtimes. Studyflow extends BPMN with research-specific elements rather than reinventing the notation. See [Studyflow vs BPMN](reference/studyflow-vs-bpmn.qmd).
 
-## Is a `.studyflow` file executable?
+</details>
 
-The format is a specification, not a program. The [Behaverse Data Server](guides/publish.qmd) can execute one as a participant-facing runtime. Analysis pipeline tasks reference external scripts that you run yourself. See [Modeler app — Simulation mode](guides/modeler-app.qmd#simulation-mode) for a step-through simulator in the modeler.
+<details>
+<summary>**Is a `.studyflow` file executable?**</summary>
 
-## How does Studyflow relate to Psych-DS, BIDS, or CSVW?
+The format is a specification, not a program. The [Behaverse Data Server](guides/publish.qmd) can execute one as a participant-facing runtime. Analysis pipeline tasks reference external scripts that you run yourself. See [Modeler app, Simulation mode](guides/modeler-app.qmd#simulation-mode) for a step-through simulator in the modeler.
 
-They are complementary. Studyflow describes the **process** (what happens, in what order, with what data flow). Psych-DS, BIDS, and CSVW describe the **data** (column names, file layouts, schemas). A Studyflow diagram references these standards via the `schemaRef` attribute on `Dataset` and `Table` elements. See [Attach a schema to a dataset](guides/attach-schema.qmd).
+</details>
 
-## Can I use it without the Behaverse server?
+<details>
+<summary>**How does Studyflow relate to Psych-DS, BIDS, or CSVW?**</summary>
 
-Yes. A `.studyflow` file is plain BPMN XML; you can render, share, and reference it without any server involvement. You only need the Behaverse Data Server if you want it to host the study and collect participant data. See [Save, share, and version-control](guides/save-share-version.qmd).
+They are complementary. Studyflow describes the **process** (what happens, in what order, with what data flow). Psych-DS, BIDS, and CSVW describe the **data** (column names, file layouts, schemas). A Studyflow diagram references these standards via the `schemaRef` attribute on `Dataset` and `Table` elements. See [Attach a schema](guides/attach-schema.qmd).
 
-## Do I need to install anything?
+</details>
 
-No. The [Modeler app](https://behaverse.org/studyflow-modeler/app) runs entirely in the browser. To contribute to the modeler or build the docs locally, see [Dev setup](develop/dev-setup.qmd).
+<details>
+<summary>**Can I use it without the Behaverse server?**</summary>
 
-## Where do I report a bug or request a feature?
+Yes. A `.studyflow` file is plain BPMN XML; you can render, share, and reference it without any server involvement. You only need the Behaverse Data Server if you want it to host the study and collect participant data. See [Save and share](guides/save-share-version.qmd).
 
-[GitHub issues](https://github.com/behaverse/studyflow-modeler/issues). For larger changes — new element types, schema extensions — open an issue first to discuss before sending a PR.
+</details>
 
-## How do I cite Studyflow?
+<details>
+<summary>**Do I need to install anything?**</summary>
+
+No. The [Modeler app](https://behaverse.org/studyflow-modeler/app) runs entirely in the browser.
+
+</details>
+
+<details>
+<summary>**Where do I report a bug or request a feature?**</summary>
+
+[GitHub issues](https://github.com/behaverse/studyflow-modeler/issues). For larger changes (new element types, schema extensions), open an issue first to discuss before sending a PR.
+
+</details>
+
+<details>
+<summary>**How do I cite Studyflow?**</summary>
 
 A citation form will be added here once the corresponding paper is available. In the meantime, link to the [GitHub repository](https://github.com/behaverse/studyflow-modeler) and include the version of your `.studyflow` file in supplementary materials.
 
-## Is the format stable?
+</details>
+
+<details>
+<summary>**Is the format stable?**</summary>
 
 The core (events, activities, gateways, data objects, sequence flow) is stable and inherits BPMN's stability guarantees. Studyflow extensions (specialized activity types, data operations, temporal attributes) are evolving; breaking changes are tracked in [GitHub Releases](https://github.com/behaverse/studyflow-modeler/releases).
+
+</details>
+
+:::

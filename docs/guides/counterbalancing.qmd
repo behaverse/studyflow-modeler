@@ -11,7 +11,7 @@ The simplest case: every participant is randomly assigned to one of two (or more
 
 Drop a `RandomGateway` after the demographics block. Add an outgoing sequence flow for each condition. The inspector lets you set the probability on each branch (default: equal). The runtime evaluates the probabilities at execution time and routes the participant down exactly one branch.
 
-::: {.callout-note title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram"}
 A simple two-group random assignment diagram should live at `docs/assets/img/guides/random-assignment.svg`. The element catalog already has [`random_gateway_pattern.svg`](../assets/img/elements/random_gateway_pattern.svg) which illustrates the basic shape.
 :::
 
@@ -25,7 +25,7 @@ When you have several task blocks (say A, B, C) and want every participant to do
 
 **Option 2: Parallel gateway with random sequencing.** Use a parallel gateway and annotate each block with a `randomOrder` attribute. The runtime computes a permutation per participant. This is concise but pushes the randomization into the runtime; reviewers may want Option 1 for clarity.
 
-For 2 or 3 blocks, prefer Option 1 — the diagram is the spec. For 4+ blocks, Option 2 is the only sane choice.
+For 2 or 3 blocks, prefer Option 1 -- the diagram is the spec. For 4+ blocks, Option 2 is the only sane choice.
 
 ## Stratified randomization
 

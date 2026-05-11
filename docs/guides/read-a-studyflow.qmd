@@ -1,15 +1,21 @@
 ---
-title: Read someone else's studyflow
-description: Navigate an unfamiliar `.studyflow` file efficiently
+title: Read a studyflow
+subtitle: Open someone else's studyflow file
 ---
 
-When you receive a `.studyflow` file — from a collaborator, a paper supplement, or a previous version of your own work — there is a fast path to understanding it. This guide walks through that path.
+When you receive a `.studyflow` file -- from a collaborator, a paper supplement, or a previous version of your own work -- there is a quick path to understanding it. This guide walks through that path.
+
+## 0. SVG or .studyflow?
+
+If you have an SVG, you can open it in any image viewer or browser. The SVG is a static snapshot of the studyflow, showing all the elements and their connections. If the studyflow is embedded in the SVG, you can inspect it with the Modeler app. If you have a `.studyflow` file, you can open it in the Modeler app (on any other BPMN tool) and inspect its attributes.
 
 ## 1. Open it and zoom out
 
-Open the file in the [Modeler app](https://behaverse.org/studyflow-modeler/app) (*File → Open*). The first thing to do is **zoom out** until the whole diagram fits. Studyflows read top-to-bottom or left-to-right; the overall shape tells you the lifecycle the study covers.
+Open the file in the [Modeler app](https://behaverse.org/studyflow-modeler/app) (*File &rarr; Open*). The first thing to do is **zoom out** until the whole diagram fits. Studyflows read top-to-bottom or left-to-right; the overall shape tells you the lifecycle the study covers.
 
-A study that is mostly tasks and questionnaires is a data-collection study. A study with several data stores and a chain of `Transform`/`Map`/`Reduce` markers is a pipeline. A study with both halves is the typical Studyflow case: collect on the left, analyze on the right.
+A study that is mostly tasks and questionnaires is a data-collection study. A study with several data stores and a chain of data transformation markers is a pipeline. The overall shape gives you a mental model of the study before you dive into the details.
+
+If you see datasets, click to inspect their schema -- that usually tells you the data being collected or analyzed.
 
 ## 2. Find the boundaries
 
@@ -19,48 +25,49 @@ Locate:
 - The **end event(s).** Where does the flow terminate? Multiple end events usually indicate exception paths (e.g., dropouts).
 - Any **sub-processes** (rectangles with a `+`). These hide complexity. Click in to see the nested flow.
 
-## 3. Identify the data spine
+## 3. Identify the data structures
 
-Data objects and data stores tell you the *what* of the study, not just the *how*. Look for:
+Datasets and data objects tell you the *what* of the study, not just the *how*. Look for:
 
-- Cylinder shapes (data stores) — what is being persisted?
-- Document shapes (data objects) — what is flowing between tasks?
-- `Dataset` or `Table` elements — what schemas are involved? Click them to see the inspector.
+- Cylinder shapes (datasets) -- what is being persisted over time?
+- Document shapes (data objects) -- what is internally flowing between tasks?
+- `Dataset` or `Table` elements -- what schemas are involved? Click them to see the inspector.
 
-The data spine usually reveals the study's purpose faster than the sequence flow does.
+Some data flows reveal the experiment's purpose faster than the process flow does. For example, if you see a dataset called "MemoryTestResults" being written by a cognitive task, you can infer that the study is about memory performance.
 
 ## 4. Read the activities in order
 
 Walk the sequence flow from start to end. For each activity:
 
-- **Type icon.** Questionnaire, cognitive task, instruction, rest, script, manual — each looks different.
-- **Inspector attributes.** Click and read the right panel. This is where domain-specific parameters live (stimulus, duration, language, model parameters).
-- **Data operation marker.** If the task has an *f* marker, it's a data transformation — note what kind (Map, Filter, Reduce, etc.).
+- **Type icon.** Questionnaire, cognitive task, instruction, rest, script, manual -- each looks different.
+- **Inspector attributes.** Click and read the right panel. This is where specific parameterization live (stimulus, duration, language, model parameters).
+- **Data operation marker.** If the task has an *f* marker, it's a data transformation -- note what kind (Map, Filter, Reduce, etc.).
 
 ## 5. Read the gateways
 
 Each gateway is a *decision*: how does the flow branch?
 
-- **Exclusive (X)** — one path is taken based on a condition. Check the condition on each outgoing flow.
-- **Parallel (+)** — all paths run concurrently.
-- **Inclusive (O)** — multiple paths can be taken based on conditions.
-- **Random (?)** — Studyflow's stochastic gateway. Inspect each outgoing flow for its probability.
+- **Exclusive (X)** -- one path is taken based on a condition. Check the condition on each outgoing flow.
+- **Parallel (+)** -- all paths run concurrently.
+- **Inclusive (O)** -- multiple paths can be taken based on conditions.
+- **Random (?)** -- stochastic gateway. Inspect each outgoing flow for its probability.
+- **Stratified (S)** -- stratified random gateway. Each outgoing flow has a probability and a condition; the flow is randomly assigned to one of the paths that meet the condition.
 
-If you can't tell which branch will be taken, the labels on the outgoing sequence flows usually explain it.
+If you can't tell which branch will be taken, the labels on the outgoing sequence flows usually explain it. You can also use "Simulate" mode in the Modeler app to see how the flow would execute.
 
 ## 6. Check the temporal hints
 
 If activities have start/end times, durations, or progress, the [Timeline view](../reference/views.qmd) renders them as a Gantt chart. For schedule-driven studies (longitudinal, clinical), the Timeline view is often more informative than the Study view.
 
-## A reading checklist
+## Checklist
 
-When reviewing a studyflow for a paper or PR, this checklist catches most issues:
+When reviewing a studyflow for a paper, this checklist catches most issues:
 
 - [ ] Every start event has at least one outgoing flow.
 - [ ] Every end event has at least one incoming flow.
 - [ ] No element is disconnected from the rest of the diagram.
-- [ ] Every gateway's branches are labeled with conditions or probabilities.
-- [ ] Every data store has at least one task that writes to it.
-- [ ] Every task that consumes data has an incoming data association.
-- [ ] Cognitive tasks have their stimulus and timing parameters set.
+- [ ] Every gateway's branches are assigned with conditions or probabilities.
+- [ ] Every dataset has at least one task that writes to it or reads from it.
+- [ ] Every task that consumes data has an incoming data association (dashed line) from a dataset or data object.
+- [ ] Cognitive tasks have their stimulus and timing parameters set in the inspector.
 - [ ] The diagram fits on one screen at a reasonable zoom (otherwise, refactor into sub-processes).

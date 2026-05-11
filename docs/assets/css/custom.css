@@ -1,7 +1,108 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
 
+/* All palette values come from docs/_brand.yml via assets/css/theme.scss.
+   Edit colors in _brand.yml; theme.scss bridges them into the --doc-* CSS vars below. */
+
 body {
   font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--doc-text);
+}
+
+h1, .h1 { font-size: 2rem; margin-top: 0; }
+h2, .h2 { font-size: 1.5rem; margin-top: 2.25rem; margin-bottom: 0.75rem; }
+h3, .h3 { font-size: 1.2rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+h4, .h4 { font-size: 1.05rem; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+
+main a,
+.content a,
+article a {
+  color: var(--doc-link);
+  text-decoration-color: rgba(44, 82, 130, 0.35);
+  text-underline-offset: 2px;
+}
+
+main a:hover,
+.content a:hover,
+article a:hover {
+  color: var(--doc-link-hover);
+  text-decoration-color: var(--doc-link-hover);
+}
+
+#quarto-sidebar,
+#quarto-sidebar .sidebar-navigation,
+#quarto-sidebar .sidebar-menu-container,
+#quarto-sidebar ul,
+#quarto-sidebar li,
+#quarto-sidebar .sidebar-section,
+#quarto-sidebar .sidebar-item,
+#quarto-sidebar .sidebar-item-container {
+  background-color: var(--doc-sidebar-bg);
+  border-color: var(--doc-border) !important;
+}
+
+#quarto-sidebar hr,
+#quarto-sidebar .sidebar-divider {
+  border-top: 1px solid var(--doc-border);
+  background-color: transparent;
+  color: var(--doc-border);
+  opacity: 1;
+}
+
+#TOC,
+nav[role="doc-toc"],
+.sidebar.margin-sidebar,
+#quarto-margin-sidebar {
+  background-color: var(--doc-bg);
+}
+
+/* External "Open Modeler App" link in the sidebar */
+.sidebar-item a[href*="studyflow-modeler/app"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--doc-link);
+}
+
+.sidebar-item a[href*="studyflow-modeler/app"]:hover {
+  color: var(--doc-link-hover);
+}
+
+.sidebar-item a[href*="studyflow-modeler/app"] .bi {
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+/* Inline code */
+:not(pre) > code,
+:not(pre) > code.sourceCode {
+  background-color: var(--doc-code-bg);
+  color: var(--doc-code-text);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+  border: 1px solid var(--doc-code-border);
+}
+
+/* Block code */
+pre,
+div.sourceCode,
+pre.sourceCode,
+pre > code.sourceCode {
+  background-color: var(--doc-code-bg) !important;
+  color: var(--doc-text);
+  border: 1px solid var(--doc-code-border);
+  border-radius: 0.4rem;
+}
+
+pre > code.sourceCode {
+  border: none;
+  background-color: transparent !important;
 }
 
 /* KaTeX: hide duplicate HTML rendering */
@@ -12,4 +113,26 @@ body {
 .sidebar-footer-item {
   font-size: 0.75rem;
   color: #999;
+}
+
+/* Sidebar copyright: plain link, no underline (only on hover), no external-link icon */
+.quarto-sidebar-footer a,
+.sidebar-footer-item a {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+.quarto-sidebar-footer a:hover,
+.sidebar-footer-item a:hover {
+  text-decoration: underline !important;
+}
+
+.quarto-sidebar-footer a::after,
+.quarto-sidebar-footer a svg,
+.quarto-sidebar-footer a .bi,
+.sidebar-footer-item a::after,
+.sidebar-footer-item a svg,
+.sidebar-footer-item a .bi {
+  display: none !important;
+  content: none !important;
 }

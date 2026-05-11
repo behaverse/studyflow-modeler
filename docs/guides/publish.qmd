@@ -1,5 +1,5 @@
 ---
-title: Publish to Behaverse Data Server
+title: Publish a studyflow
 description: Deploy a studyflow so participants can run it
 ---
 
@@ -8,13 +8,13 @@ The Behaverse Data Server can execute a `.studyflow` file as a live study: parti
 ## Prerequisites
 
 - A `.studyflow` file open in the [Modeler app](https://behaverse.org/studyflow-modeler/app).
-- A Behaverse account and API key. Sign in on the modeler's login screen — guest mode lets you draft but not publish.
+- A Behaverse account and API key. Sign in on the modeler's login screen -- guest mode lets you draft but not publish.
 
 ## Publish from the modeler
 
 1. Sign in with your Behaverse API key.
 2. Confirm the diagram is valid: every start event has an outgoing flow, every end event has an incoming flow, gateways are fully wired. The modeler highlights validation issues in the inspector.
-3. Open *File → Publish*. The modeler uploads the `.studyflow` file to your account on the data server.
+3. Open *File &rarr; Publish*. The modeler uploads the `.studyflow` file to your account on the data server.
 
 <figure class="centered max-w-md">
   ![Publish option in the File menu](../assets/img/screenshots/9-publish.png)
@@ -35,7 +35,7 @@ Local assets (custom stimulus images, audio, external scripts) need to be upload
 
 ## What doesn't transfer
 
-The rendered SVG/PNG is not used at runtime — the data server renders its own participant-facing UI from the diagram structure, not from the modeler's visualization. Visual layout in the modeler is for human readers; the runtime ignores it.
+The rendered SVG/PNG is not used at runtime -- the data server renders its own participant-facing UI from the diagram structure, not from the modeler's visualization. Visual layout in the modeler is for human readers; the runtime ignores it.
 
 ## Versioning
 
@@ -44,6 +44,6 @@ Each publish creates a new version on the data server. Earlier versions remain a
 ## Troubleshooting
 
 - **"Cannot publish in guest mode."** Sign in with an API key.
-- **"Validation failed."** Check the inspector for highlighted issues — usually an unconnected element or a gateway with no condition.
+- **"Validation failed."** Check the inspector for highlighted issues -- usually an unconnected element or a gateway with no condition.
 - **"Asset URL not reachable."** External stimuli referenced by URL must be publicly accessible. Upload them to the data server or use a public CDN.
 - **Participants see a different flow than you expected.** Confirm that the version on the server matches your local file by inspecting the study version metadata.

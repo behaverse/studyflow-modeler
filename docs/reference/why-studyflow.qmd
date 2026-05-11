@@ -1,6 +1,6 @@
 ---
 title: Why Studyflow
-description: One diagram, many audiences — the case for a single source of truth across the study lifecycle
+description: One diagram, many audiences -- the case for a single source of truth across the study lifecycle
 ---
 
 A scientific study touches many people and systems. The researcher designs it. The ethics reviewer approves it. The participant runs it. The data pipeline ingests it. The model trains on it. The reviewer reads it in a manuscript. The replicator tries to rebuild it.
@@ -34,6 +34,6 @@ Studyflow extends BPMN where research needs it: domain-specific activity types (
 
 ## Trust by construction
 
-Trusting science requires rigor and reproducibility. As we increasingly rely on machines to facilitate research, trust in code and data is becoming critical too — especially at scale, with large models in the loop.
+Trusting science requires rigor and reproducibility. As we increasingly rely on machines to facilitate research, trust in code and data is becoming critical too -- especially at scale, with large models in the loop.
 
 A Studyflow diagram is human-readable (a researcher can review it), machine-readable (a pipeline can execute it), and reusable (parts of one study can seed another). That makes reproducibility a property of the artifact itself, not a separate documentation effort that has to be maintained alongside the work.

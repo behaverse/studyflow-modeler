@@ -1,6 +1,6 @@
 ---
-title: Examples gallery
-description: Studyflow patterns for experiments, pipelines, and reporting
+title: Examples
+description: Studyflow patterns for experiments, analysis, and reporting
 listing:
   contents:
     - "*.qmd"
@@ -8,15 +8,8 @@ listing:
   type: grid
   sort: "title"
   categories: true
-  fields: [title, description, categories]
+  fields: [title, subtitle, categories]
   exclude:
     filename: "index.qmd"
 ---
 
-These pages show patterns and worked examples drawn from real research and pipeline workflows. Each example is tagged by who it is most relevant to:
-
-- <span class="badge bg-primary">Experimental</span> — study design, data collection, reporting.
-- <span class="badge bg-success">Pipeline</span> — analysis, preprocessing, model training and deployment.
-- <span class="badge bg-secondary">Both</span> — end-to-end examples that span data collection and analysis.
-
-Use the categories filter below to narrow to your audience.

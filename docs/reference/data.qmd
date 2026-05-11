@@ -89,7 +89,7 @@ Data operations are studyflow-specific markers to describe how data is manipulat
 
 
 
-### Specialized data operations <span class="badge bg-danger">Advanced</span>
+### Specialized data operations
 
 
 Inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming, data operations can be further categorized based on their behavior and the type of transformation they perform. The following are some common types of operations that can be represented in Studyflow. Note that these are advanced and optional, and the generic data operation marker can be used for any data transformation without needing to specify the type.
@@ -109,19 +109,19 @@ Inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_
 <details class="green">
   <summary>`filter` <span class="badge float-right">$f$</span></summary>
 
-  Selects a subset of data based on specified criteria. Used for conditional selection (1 -> subset(1)). The different between filtering and data-driven gateways in BPMN is that filtering changes the dataset, but gateways change the control flow. They are complementary.
+  Selects a subset of data based on specified criteria. Used for conditional selection (1 &rarr; subset(1)). The different between filtering and data-driven gateways in BPMN is that filtering changes the dataset, but gateways change the control flow. They are complementary.
 </details>
 
 <details class="green">
   <summary>`reduce` <span class="badge float-right">$f$</span></summary>
 
-  Aggregates data by applying a function that combines multiple input values into a single output value. Used for summarization or joining operations (N -> 1 per group or for the entire dataset).
+  Aggregates data by applying a function that combines multiple input values into a single output value. Used for summarization or joining operations (N &rarr; 1 per group or for the entire dataset).
 </details>
 
 <details class="green">
   <summary>`group` <span class="badge float-right">$f$</span></summary>
 
-  Organizes data into groups based on specified attributes. Used for categorization and clustering (1 -> G groups). It changes the data structure to a grouped format.
+  Organizes data into groups based on specified attributes. Used for categorization and clustering (1 &rarr; G groups). It changes the data structure to a grouped format.
 </details>
 
 <details class="green">
@@ -133,11 +133,11 @@ Inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_
 <details class="green">
   <summary>`flatMap` <span class="badge float-right">$f$</span></summary>
 
-  Similar to map, but flattens the resulting data array into a single output array. Used for one-to-many mappings (1 -> N). Relevant to unnesting in data wrangling libraries.
+  Similar to map, but flattens the resulting data array into a single output array. Used for one-to-many mappings (1 &rarr; N). Relevant to unnesting in data wrangling libraries.
 </details>
 
 
-::: {.callout-info}
+::: {.callout-info appearance="simple"}
 ## Batch vs. Streaming
 
 Some operations are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
@@ -206,12 +206,12 @@ Study RTAnalysis
         group
         reduce
 
-    SequenceFlow sf1 sub_s → t1
-    SequenceFlow sf2 t1    → sub_e
+    SequenceFlow sf1 sub_s -> t1
+    SequenceFlow sf2 t1    -> sub_e
 
-  SequenceFlow f1 s                    → CollectTrials
-  SequenceFlow f2 CollectTrials        → RTAnalysisPipeline
-  SequenceFlow f3 RTAnalysisPipeline   → e
+  SequenceFlow f1 s                    -> CollectTrials
+  SequenceFlow f2 CollectTrials        -> RTAnalysisPipeline
+  SequenceFlow f3 RTAnalysisPipeline   -> e
 ```
 
 </details>
@@ -237,7 +237,7 @@ trials_summary <- trials_raw |>
 ## Planned updates
 
 - `Timeseries`, `Event` data structures for multi-dimensional physiological and behavioral data.
-- `transformTables`: Special case of `transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables -> 1+ tables).
+- `transformTables`: Special case of `transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables &rarr; 1+ tables).
 - `loadData`, `saveData`, `exportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
 
 - `anonymizeData`, `validateData`, `controlAccess`: data governance and regulatory compliance operations (de-identification, validation, data cleaning, and access control).

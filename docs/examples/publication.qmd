@@ -1,8 +1,8 @@
 ---
 title: Visualization and publication
-description: Selective rendering for manuscripts, supplements, and presentations
+subtitle: Selective rendering for manuscripts, supplements, and presentations
 lightbox: true
-categories: [Experimental, Pipeline]
+categories: [Experiments, Analysis]
 ---
 
 Scientific manuscripts require clear visual representations of study designs, workflows, and procedures. Traditional text descriptions and static diagrams are often lengthy, difficult to update, and challenging to adapt for different audiences.

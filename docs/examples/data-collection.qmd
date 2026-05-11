@@ -1,30 +1,30 @@
 ---
 title: Data collection
-description: Recruitment, consent, multi-instrument assessment, scheduling
+subtitle: Recruitment, consent, multi-instrument assessment, scheduling
 lightbox: true
-categories: [Experimental]
+categories: [Experiments]
 ---
 
 Behavioral studies often involve complex data-collection workflows that integrate multiple instruments, assessment methods, and scheduling. By combining activities (data-collection points), gateways (conditional logic), and events (triggers), studyflow diagrams capture the protocol in a single artifact.
 
 This example illustrates a behavioral study where participants undergo a sequence of assessments: questionnaires, physiological measurements, and cognitive tests, with scheduling and dropout handling.
 
-::: {.callout-note title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram"}
 The reference diagram for this example should live at `docs/assets/img/examples/data-collection.svg` and the source at `docs/assets/img/examples/data-collection.studyflow`. Author it in the modeler using the structure below.
 :::
 
 ## Stages
 
-1. **Recruitment** — a `Manual` activity representing the recruitment step, with a data output to a participants `Table`.
-2. **Eligibility screening** — a `Questionnaire` activity with an [Exclusive Gateway](../reference/elements.qmd) downstream that branches into "eligible" and "ineligible" paths.
-3. **Consent** — a `Start Event` with `requiresConsent: true`, gating entry into the rest of the flow.
-4. **Demographics** — a `Questionnaire` activity collecting baseline data.
-5. **Parallel block** — a [Parallel Gateway](../reference/elements.qmd) launches the physiological measurement device (a `Manual` activity) and the first cognitive task (`CognitiveTask`) simultaneously. They synchronize at the closing parallel gateway.
-6. **Rest** — a `Rest` activity, used both as a break and to record resting-state baseline.
-7. **Second task block** — another `CognitiveTask`.
-8. **Boundary error event** — attached to the task block, this catches participant dropout or technical errors and routes to an early-exit end event with a dropout reason recorded to the data store.
-9. **Save data** — every task writes to a `Dataset` with a schema (Psych-DS or Behaverse Trials).
-10. **End event(s)** — separate ends for completed, ineligible, and dropped-out participants.
+1. **Recruitment** -- a `Manual` activity representing the recruitment step, with a data output to a participants `Table`.
+2. **Eligibility screening** -- a `Questionnaire` activity with an [Exclusive Gateway](../reference/elements.qmd) downstream that branches into "eligible" and "ineligible" paths.
+3. **Consent** -- a `Start Event` with `requiresConsent: true`, gating entry into the rest of the flow.
+4. **Demographics** -- a `Questionnaire` activity collecting baseline data.
+5. **Parallel block** -- a [Parallel Gateway](../reference/elements.qmd) launches the physiological measurement device (a `Manual` activity) and the first cognitive task (`CognitiveTask`) simultaneously. They synchronize at the closing parallel gateway.
+6. **Rest** -- a `Rest` activity, used both as a break and to record resting-state baseline.
+7. **Second task block** -- another `CognitiveTask`.
+8. **Boundary error event** -- attached to the task block, this catches participant dropout or technical errors and routes to an early-exit end event with a dropout reason recorded to the data store.
+9. **Save data** -- every task writes to a `Dataset` with a schema (Psych-DS or Behaverse Trials).
+10. **End event(s)** -- separate ends for completed, ineligible, and dropped-out participants.
 
 ## Why diagram it
 
@@ -34,6 +34,6 @@ The reference diagram for this example should live at `docs/assets/img/examples/
 
 ## See also
 
-- [CONSORT example](consort.qmd) — a fuller dropout-handling example using boundary error events.
-- [Counterbalancing and randomization](../guides/counterbalancing.qmd) — how to model random assignment.
-- [Cognitive tasks](cognitive-tasks/index.qmd) — modeling trial-level structure within a task.
+- [CONSORT example](consort.qmd) -- a fuller dropout-handling example using boundary error events.
+- [Counterbalancing and randomization](../guides/counterbalancing.qmd) -- how to model random assignment.
+- [Cognitive tasks](cognitive-tasks/index.qmd) -- modeling trial-level structure within a task.

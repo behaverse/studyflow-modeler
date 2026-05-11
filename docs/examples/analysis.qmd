@@ -1,15 +1,15 @@
 ---
 title: Analysis pipelines
-description: End-to-end analysis from raw trial data to summary statistics
+subtitle: End-to-end analysis from raw trial data to summary statistics
 lightbox: true
-categories: [Pipeline]
+categories: [Analysis]
 ---
 
-Scientific research requires systematic and reproducible data-analysis workflows. Studyflow expresses an analysis pipeline as a process with explicit data flow, transformation semantics, and decision points — giving you a specification a reviewer can read without touching the code.
+Scientific research requires systematic and reproducible data-analysis workflows. Studyflow expresses an analysis pipeline as a process with explicit data flow, transformation semantics, and decision points -- giving you a specification a reviewer can read without touching the code.
 
-This example walks through a typical behavioral analysis pipeline: raw trial data → cleaning → derived measures → group statistics → manuscript-ready figures.
+This example walks through a typical behavioral analysis pipeline: raw trial data &rarr; cleaning &rarr; derived measures &rarr; group statistics &rarr; manuscript-ready figures.
 
-::: {.callout-note title="Diagram"}
+::: {.callout-note appearance="simple"}
 The reference diagram for this example should live at `docs/assets/img/examples/analysis-pipeline.svg` and the source at `docs/assets/img/examples/analysis-pipeline.studyflow`. Author it in the modeler using the structure below.
 :::
 
@@ -18,7 +18,7 @@ The reference diagram for this example should live at `docs/assets/img/examples/
 1. **Read raw trial data.** A task with a data input from a `Dataset` representing the raw collection output.
 2. **Filter** invalid trials. Drop responses faster than 100 ms, trials with missing data, and any flagged-as-bad rows. Uses the `Filter` data operation. See [Preprocessing pipelines](../guides/preprocessing-pipelines.qmd).
 3. **Map** to derived measures. Compute log-RT and code conditions. The `Map` data operation makes this transformation explicit.
-4. **Conditional branching.** An [Exclusive Gateway](../reference/elements.qmd) splits paths based on data type — within-subject designs go down one branch, between-subject down another.
+4. **Conditional branching.** An [Exclusive Gateway](../reference/elements.qmd) splits paths based on data type -- within-subject designs go down one branch, between-subject down another.
 5. **Group** by participant and condition.
 6. **Reduce** to group-level summary statistics: mean accuracy, mean log-RT, standard error.
 7. **Manual review** activity. A `Manual` task with a data input/output represents the analyst inspecting outliers and re-running with adjusted criteria if needed.
@@ -27,14 +27,14 @@ The reference diagram for this example should live at `docs/assets/img/examples/
 
 ## Why diagram it
 
-Three reasons a diagram beats prose-only documentation here:
+Three reasons a diagram beats text-only documentations:
 
 - **Pre-registration is literally the diagram.** No drift between what you said you'd do and what the code does.
-- **The conditional branch is visible.** A reader can see immediately that within-subject and between-subject data take different paths — a fact often buried in prose.
+- **The conditional branch is visible.** A reader can see immediately that within-subject and between-subject data take different paths -- a fact often buried in prose.
 - **The schema attached to the output table** is part of the spec, so the figure-generation code can rely on it without ambiguity.
 
 ## See also
 
-- [Preprocessing pipelines](../guides/preprocessing-pipelines.qmd) — how to use `Map`, `Filter`, `Reduce`, `Group`.
-- [Attach a schema to a dataset](../guides/attach-schema.qmd) — schema-attached datasets.
-- [Data](../reference/data.qmd) — data elements and operations reference.
+- [Preprocessing pipelines](../guides/preprocessing-pipelines.qmd): how to use `Map`, `Filter`, and `Reduce`.
+- [Attach a schema](../guides/attach-schema.qmd): schema-attached datasets.
+- [Data](../reference/data.qmd): data elements and operations reference.

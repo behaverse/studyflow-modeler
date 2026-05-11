@@ -74,13 +74,13 @@ Choreography     ::= 'Choreography' Attribute* ParticipantRef+ InitiatingPartici
 ParticipantRef   ::= ProcessRef
 InitiatingParticipant ::= ParticipantRef
 MessageFlowList  ::= MessageFlow*
-MessageFlow      ::= 'MessageFlow' Identifier Attribute* ParticipantRef '→' ParticipantRef
+MessageFlow      ::= 'MessageFlow' Identifier Attribute* ParticipantRef '->' ParticipantRef
 
 /* Gateway definitions */
 Gateway          ::= 'Gateway' Identifier GatewayAttribute*
 GatewayAttribute ::= GatewayType | Attribute
 GatewayType      ::= '@type' ('Random' | 'Exclusive' | 'Complex')
-SequenceFlow     ::= 'SequenceFlow' Identifier Attribute* NodeRef '→' NodeRef
+SequenceFlow     ::= 'SequenceFlow' Identifier Attribute* NodeRef '->' NodeRef
 
 /* Common definitions */
 Attribute             ::= Identifier Value
@@ -125,12 +125,12 @@ Study exampleStudy
 
   EndEvent e
 
-  SequenceFlow f1 s → qs
-  SequenceFlow f2 qs → gw
-  SequenceFlow f3 gw → instr
-  SequenceFlow f4 gw → e
-  SequenceFlow f5 instr → rest
-  SequenceFlow f6 rest → e
+  SequenceFlow f1 s -> qs
+  SequenceFlow f2 qs -> gw
+  SequenceFlow f3 gw -> instr
+  SequenceFlow f4 gw -> e
+  SequenceFlow f5 instr -> rest
+  SequenceFlow f6 rest -> e
 ```
 </details>
 

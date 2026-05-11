@@ -1,5 +1,5 @@
 ---
-title: Attach a schema to a dataset
+title: Attach a schema
 description: Declare column types, units, and constraints so downstream tasks can validate
 ---
 
@@ -39,11 +39,11 @@ Reference it from your `Table` element by setting `schemaRef` to the URL or rela
 
 For domain-specific data, prefer a community standard over a hand-rolled schema:
 
-- **[BIDS](https://bids.neuroimaging.io/)** — Brain Imaging Data Structure, for neuroimaging.
-- **[Psych-DS](https://psych-ds.github.io/)** — psychology dataset standard for behavioral data.
-- **Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) and [Trials](https://behaverse.org/data-model/spec/trials/index.html)** — Behaverse data models for behavioral experiments.
+- **[BIDS](https://bids.neuroimaging.io/)** -- Brain Imaging Data Structure, for neuroimaging.
+- **[Psych-DS](https://psych-ds.github.io/)** -- psychology dataset standard for behavioral data.
+- **Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) and [Trials](https://behaverse.org/data-model/spec/trials/index.html)** -- Behaverse data models for behavioral experiments.
 
-The element catalog has icons for each of these — see [Elements](../reference/elements.qmd). Set `schemaRef` on the dataset to the standard's URL.
+The element catalog has icons for each of these -- see [Elements](../reference/elements.qmd). Set `schemaRef` on the dataset to the standard's URL.
 
 ## Schemas on non-tabular data
 
@@ -55,7 +55,7 @@ Once a dataset has a schema:
 
 - **The modeler validates** that data-operation tasks (`Map`, `Filter`) reference columns the schema declares.
 - **The runtime can refuse** to write data that violates the schema, catching bugs at production time rather than analysis time.
-- **Downstream tasks read confidently** — a `Reduce` over a column knows the column's type.
+- **Downstream tasks read confidently** -- a `Reduce` over a column knows the column's type.
 - **Reviewers see the data contract** without reading code.
 
 ## Checklist

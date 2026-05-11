@@ -10,7 +10,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
-    "docs": "quarto preview docs",
+    "docs": "quarto preview docs --no-browser",
     "docs:build": "quarto render docs"
   },
   "dependencies": {

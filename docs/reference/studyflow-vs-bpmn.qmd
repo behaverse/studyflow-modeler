@@ -9,15 +9,15 @@ Studyflow extends [BPMN 2.1](https://www.omg.org/spec/BPMN/2.0/) rather than rep
 
 Studyflow uses BPMN's full vocabulary for control flow and structure:
 
-- **Events** — start, end, intermediate, boundary, timer, error.
-- **Activities** — tasks, sub-processes, call activities.
-- **Gateways** — exclusive, parallel, inclusive, event-based, complex.
+- **Events** -- start, end, intermediate, boundary, timer, error.
+- **Activities** -- tasks, sub-processes, call activities.
+- **Gateways** -- exclusive, parallel, inclusive, event-based, complex.
 - **Sequence flows** and **message flows**.
 - **Data objects** and **data stores**, with data associations.
 - **Pools and lanes** for participants and roles.
 - **Choreography** for modeling multi-participant interactions.
 
-These behave exactly as in BPMN and render with standard BPMN shapes. A BPMN-only tool can open a `.studyflow` file and see a well-formed process — the Studyflow-specific attributes degrade gracefully.
+These behave exactly as in BPMN and render with standard BPMN shapes. A BPMN-only tool can open a `.studyflow` file and see a well-formed process -- the Studyflow-specific attributes degrade gracefully.
 
 ## What Studyflow adds
 
@@ -35,12 +35,12 @@ Each renders with a distinctive icon while remaining a normal BPMN task undernea
 
 **Research-specific data elements.** BPMN's `DataObject` and `DataStore` are generic. Studyflow adds:
 
-- `Dataset` — a logical collection (potentially multi-table, multi-modal).
-- `Table` — a tabular component of a dataset, linked to a schema.
-- `Array` — a multi-dimensional structure for tensors, images, fMRI, video.
-- `Schema` — formal column/dimension definitions (CSVW-compatible).
-- `DataCatalog` — a registry of datasets, potentially across stores.
-- `Snapshot` — an immutable version of a dataset.
+- `Dataset` -- a logical collection (potentially multi-table, multi-modal).
+- `Table` -- a tabular component of a dataset, linked to a schema.
+- `Array` -- a multi-dimensional structure for tensors, images, fMRI, video.
+- `Schema` -- formal column/dimension definitions (CSVW-compatible).
+- `DataCatalog` -- a registry of datasets, potentially across stores.
+- `Snapshot` -- an immutable version of a dataset.
 
 **Data operations as task markers.** Pipelines need to express *how* data is transformed, not just *that* it flows through a task. Studyflow adds a small data-operations vocabulary (`Map`, `Filter`, `Reduce`, `Group`, `FlatMap`, `Transform`, `Compose`) that renders as a small marker on an otherwise normal BPMN task. The control flow stays BPMN; the data semantics become explicit.
 
@@ -61,7 +61,7 @@ This means: any conforming BPMN renderer or analyzer can process a `.studyflow` 
 
 ## When you should use plain BPMN instead
 
-If your study is well-served by generic BPMN — for example, a clinical operations workflow with no cognitive tasks, no specialized data structures, and no random assignment — you don't need Studyflow. Studyflow earns its keep when at least one of the following is true:
+If your study is well-served by generic BPMN -- for example, a clinical operations workflow with no cognitive tasks, no specialized data structures, and no random assignment -- you don't need Studyflow. Studyflow earns its keep when at least one of the following is true:
 
 - The study involves cognitive tests, questionnaires, or other research-specific activities.
 - The diagram needs to describe data flow with explicit transformation semantics.

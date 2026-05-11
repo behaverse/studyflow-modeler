@@ -1,0 +1,13 @@
+/*-- scss:rules --*/
+
+:root {
+  --doc-bg: #{$brand-cream};
+  --doc-sidebar-bg: #{$brand-cream-warm};
+  --doc-border: #{$brand-border-warm};
+  --doc-text: #{$brand-near-black};
+  --doc-link: #{$brand-navy};
+  --doc-link-hover: #{$brand-navy-dark};
+  --doc-code-bg: #{$brand-code-bg};
+  --doc-code-text: #{$brand-code-text};
+  --doc-code-border: #{$brand-code-border};
+}

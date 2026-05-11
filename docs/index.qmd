@@ -2,7 +2,9 @@
 title: "Introduction"
 ---
 
-Describing experimental research can be complex and ambiguous. Studyflow is a visual language for describing scientific workflows in a way that is both human-readable and machine-readable. It extends [<abbr title="Business Process Model and Notation">BPMN</abbr>](https://en.wikipedia.org/wiki/BPMN) so researchers can model experiments, data collection, analysis, and reporting in a single formal diagram.
+Describing experimental research can be complex and ambiguous. Studyflow is a visual language for describing scientific workflows in a way that is both human-understandable and machine-readable. It extends BPMN[^bpmn] so researchers can model experiments, data collection, analysis, and reporting in a single formal diagram.
+
+[^bpmn]: [Business Process Model and Notation](https://en.wikipedia.org/wiki/BPMN).
 
 The core idea is simple: represent a study as connected elements such as events, activities, decisions, and data. That gives you a diagram that is easier to discuss with collaborators, easier to serialize for tools, and easier to reuse across studies.
 
@@ -11,7 +13,7 @@ Here is an example:
 <figure class="centered max-w-2xl">
   ![](assets/img/studyflow_example_1.svg)
   <figcaption>
-    A simple studyflow diagram showing the experimental design of a study as a series of tasks and events.
+    A simple studyflow diagram showing the experimental design of a study as a series of events, tasks, and decisions.
   </figcaption>
 </figure>
 
@@ -30,9 +32,9 @@ Studyflow diagrams are human-friendly, machine-readable, and executable. Common 
 
 If you are new to the project, use one of these paths:
 
-- **Read a studyflow**: walk through a complete worked example on [Get started](get-started/index.qmd).
+- **Get started**: walk through a complete worked example on [Get started](get-started.qmd).
 - **The modeler**: open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow its [usage guide](guides/modeler-app.qmd).
-- **Understand the language**: read [Why Studyflow](reference/why-studyflow.qmd), [Studyflow vs BPMN](reference/studyflow-vs-bpmn.qmd), and the [Specification](reference/spec.qmd).
+- **Specification**: read [Why Studyflow](reference/why-studyflow.qmd), [Studyflow vs BPMN](reference/studyflow-vs-bpmn.qmd), and the [Specification](reference/spec.qmd).
 - **Use cases**: explore the [Examples gallery](examples/index.qmd) for cognitive tasks, CONSORT, analysis pipelines, and MLOps.
 
 See also [FAQ](faq.qmd) and [Glossary](reference/glossary.qmd).

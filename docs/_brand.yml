@@ -1,3 +1,19 @@
+color:
+  palette:
+    navy: "#2c5282"
+    navy-dark: "#1a365d"
+    cream: "#fbfaf6"
+    cream-warm: "#efece3"
+    border-warm: "#d8d4c6"
+    near-black: "#1f2530"
+    code-bg: "#f3f0e6"
+    code-text: "#5a4632"
+    code-border: "#e2dccb"
+  background: cream
+  foreground: near-black
+  primary: navy
+  link: navy
+
 typography:
   fonts:
     - family: IBM Plex Sans

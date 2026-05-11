@@ -21,10 +21,10 @@ A Gantt-like rendering that places time-sensitive elements along a temporal axis
 
 Experimental research often involves activities with durations, deadlines, and dependencies in wall-clock time. BPMN already supports timer events and triggers but has no native way to represent duration, start/end times, or progress on a regular activity. Studyflow extends BPMN elements with optional temporal attributes:
 
-- **Start/end time** — when an activity is scheduled to begin and end.
-- **Duration** — the time allocated for an activity (or the difference between start and end).
-- **Progress** — completion status, as a percentage or label.
-- **Resource allocation** — personnel, equipment, or budget assigned to the activity, expressed as lanes or pools in BPMN.
+- **Start/end time** -- when an activity is scheduled to begin and end.
+- **Duration** -- the time allocated for an activity (or the difference between start and end).
+- **Progress** -- completion status, as a percentage or label.
+- **Resource allocation** -- personnel, equipment, or budget assigned to the activity, expressed as lanes or pools in BPMN.
 
 When these attributes are present, the Timeline view can render the diagram as a Gantt chart automatically. Trial-level timing (stimulus duration, ITI, response window) and study-level timing (visit schedule, follow-ups) use the same mechanism at different zoom levels.
 
@@ -37,7 +37,7 @@ When these attributes are present, the Timeline view can render the diagram as a
 A task-oriented view that flattens the diagram into a list of activities with their associated checklist items and status. Useful for:
 
 - Running studies day-to-day (what's next, what's done).
-- Adhering to reporting guidelines (CONSORT, SPIRIT, STROBE) — the checklist view maps elements to the items the guideline requires. See [Reporting guidelines](../examples/reporting-guidelines.qmd).
+- Adhering to reporting guidelines (CONSORT, SPIRIT, STROBE) -- the checklist view maps elements to the items the guideline requires. See [Reporting guidelines](../examples/reporting-guidelines.qmd).
 - Generating supplementary materials and protocol annexes.
 
 ## Choosing a view

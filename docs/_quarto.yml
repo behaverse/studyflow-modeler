@@ -21,7 +21,7 @@ website:
     pinned: true
     collapse-level: 1
     search: true
-    footer:  "&copy; 2025 xCIT"
+    footer: '&copy; 2025 [xCIT.org](https://xcit.org)'
     tools:
       - icon: clock-history
         text: Roadmap
@@ -32,28 +32,34 @@ website:
     contents:
       - text: Introduction
         href: index.qmd
-      - text: FAQ
-        href: faq.qmd
-      - section: Get started
-        contents:
-          - text: Read a studyflow
-            href: get-started/index.qmd
+      - text: Get started
+        href: get-started.qmd
       - section: Guides
         contents:
           - text: Modeler app
             href: guides/modeler-app.qmd
-          - text: Save, share, and version-control
+          - text: Save and share
             href: guides/save-share-version.qmd
-          - text: Read someone else's studyflow
+          - text: Read a studyflow
             href: guides/read-a-studyflow.qmd
           - text: Counterbalancing and randomization
             href: guides/counterbalancing.qmd
-          - text: Publish to Behaverse Data Server
+          - text: Publish a studyflow
             href: guides/publish.qmd
           - text: Preprocessing pipelines
             href: guides/preprocessing-pipelines.qmd
-          - text: Attach a schema to a dataset
+          - text: Attach a schema
             href: guides/attach-schema.qmd
+      - section: Examples
+        href: examples/index.qmd
+        contents:
+          - examples/analysis.qmd
+          - examples/consort.qmd
+          - examples/data-collection.qmd
+          - examples/mlops.qmd
+          - examples/multi-agent.qmd
+          - examples/publication.qmd
+          - examples/reporting-guidelines.qmd
       - section: Reference
         contents:
           - text: Why Studyflow
@@ -72,13 +78,10 @@ website:
             href: reference/extensions.qmd
           - text: Glossary
             href: reference/glossary.qmd
-      - section: Examples
-        contents:
-          - text: Gallery
-            href: examples/index.qmd
-          - auto: examples/*.qmd
-      - text: ---
-      - text: <i>Modeler App</i>
+      - text: FAQ
+        href: faq.qmd
+      - text: "---"
+      - text: Open Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
         icon: box-arrow-up-right
         target: _blank
@@ -86,10 +89,16 @@ website:
 
 format:
   html:
-    theme: default
+    theme:
+      - default
+      - assets/css/theme.scss
     css:
       - assets/css/custom.css
       - assets/css/figures.css
     toc: true
+    reference-location: block
     mainfont: "IBM Plex Sans"
     highlight-style: github
+    link-external-icon: true
+    link-external-newwindow: true
+    link-external-filter: '^(?:http://|https://)(?:[^/]*\.)?behaverse\.org/studyflow-modeler/docs/'
