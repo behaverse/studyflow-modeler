@@ -1,0 +1,66 @@
+---
+title: Attach a schema to a dataset
+description: Declare column types, units, and constraints so downstream tasks can validate
+---
+
+A `Dataset` or `Table` without a schema is opaque: a reader of the diagram cannot tell what columns exist or what they contain. Attaching a schema closes that gap and lets tooling validate that upstream tasks produce, and downstream tasks consume, compatible data.
+
+## Two ways to attach a schema
+
+**Inline.** Set the `schema` attribute on the `Table` element in the inspector. The schema is part of the diagram and travels with the `.studyflow` file. Use this for small datasets where the schema is short and study-specific.
+
+**By reference.** Set the `schemaRef` attribute to point at an external schema file or a standard. Use this when the schema is shared across studies (e.g., BIDS, Psych-DS, a CSVW URL).
+
+Both forms render the same way in the modeler; the difference is whether the schema text lives inside or outside the `.studyflow` file.
+
+## CSVW for tabular data
+
+For tabular data, [CSV on the Web (CSVW)](https://w3c.github.io/csvw/) is the recommended schema format. A minimal CSVW schema looks like this:
+
+```json
+{
+  "@context": "http://www.w3.org/ns/csvw",
+  "url": "trials.csv",
+  "tableSchema": {
+    "columns": [
+      { "name": "participantId", "datatype": "string", "required": true },
+      { "name": "trialIndex", "datatype": "integer", "minimum": 0 },
+      { "name": "condition", "datatype": "string", "valueUrl": "#congruent|#incongruent" },
+      { "name": "rt", "datatype": "number", "minimum": 0 },
+      { "name": "correct", "datatype": "boolean" }
+    ]
+  }
+}
+```
+
+Reference it from your `Table` element by setting `schemaRef` to the URL or relative path of the CSVW file.
+
+## Standard schemas
+
+For domain-specific data, prefer a community standard over a hand-rolled schema:
+
+- **[BIDS](https://bids.neuroimaging.io/)** — Brain Imaging Data Structure, for neuroimaging.
+- **[Psych-DS](https://psych-ds.github.io/)** — psychology dataset standard for behavioral data.
+- **Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) and [Trials](https://behaverse.org/data-model/spec/trials/index.html)** — Behaverse data models for behavioral experiments.
+
+The element catalog has icons for each of these — see [Elements](../reference/elements.qmd). Set `schemaRef` on the dataset to the standard's URL.
+
+## Schemas on non-tabular data
+
+For arrays (tensors, images, fMRI volumes, video), use the `Array` element instead of `Table` and set a schema that documents dimensions, dtype, and units. For neuroimaging, BIDS is usually sufficient and you can reference its sidecar `.json` files directly.
+
+## What schemas enable
+
+Once a dataset has a schema:
+
+- **The modeler validates** that data-operation tasks (`Map`, `Filter`) reference columns the schema declares.
+- **The runtime can refuse** to write data that violates the schema, catching bugs at production time rather than analysis time.
+- **Downstream tasks read confidently** — a `Reduce` over a column knows the column's type.
+- **Reviewers see the data contract** without reading code.
+
+## Checklist
+
+- [ ] Every `Table` and `Array` has a `schema` or `schemaRef`.
+- [ ] Column names in the schema match the names used by upstream tasks.
+- [ ] Units and constraints are present where they matter (RT minimum, accuracy in [0, 1], etc.).
+- [ ] External `schemaRef` URLs are stable (don't reference a moving target).

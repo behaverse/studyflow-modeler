@@ -1,12 +1,44 @@
 ---
 title: MLOps
+description: Training, evaluation, deployment, and monitoring as a studyflow
 lightbox: true
+categories: [Pipeline]
 ---
 
-Machine learning pipelines often involve complex processes that span data preparation, model training, validation, and deployment. Managing these workflows is challenging: documentation often diverges from implementation, model versions are created without clear tracking, and deployment decisions lack transparent criteria.
+Machine-learning pipelines span data preparation, model training, validation, and deployment. Documentation usually diverges from implementation; model versions are created without clear tracking; deployment decisions lack transparent criteria.
 
-Studyflow provides a formal specification language for machine learning operations pipelines, enabling researchers to document decision points, environmental dependencies, and gateways that govern lifecycle management.
+Studyflow provides a formal specification language for ML operations. Researchers can document decision points, environmental dependencies, and gates that govern lifecycle management — all in one diagram.
 
-Here is an example that illustrates an MLOps workflow for prediction models: from raw behavioral data ingestion and feature engineering, through model training and cross-validation, to performance evaluation and conditional deployment.
+This example illustrates an MLOps workflow for prediction models: raw behavioral-data ingestion → feature engineering → model training and cross-validation → performance evaluation → conditional deployment → monitoring → retraining.
 
-The flow includes quality checkpoints (e.g., performance thresholds, fairness audits), conditional branching based on validation metrics, and integration with monitoring systems that trigger retraining workflows when model performance degrades. By specifying the entire pipeline in studyflow format, researchers can ensure reproducibility, maintain audit trails, and automate routine operations while preserving human oversight of critical decisions.
+::: {.callout-note title="Diagram"}
+The reference diagram for this example should live at `docs/assets/img/examples/mlops-pipeline.svg` and the source at `docs/assets/img/examples/mlops-pipeline.studyflow`. Author it in the modeler using the structure below.
+:::
+
+## Stages
+
+1. **Ingest** — a `Script` activity reading raw data from a `Dataset` representing the data lake. The data operation marker is `Transform`.
+2. **Feature engineering** — a sequence of `Map` and `Reduce` operations on the raw data, producing a feature table with a schema. See [Attach a schema](../guides/attach-schema.qmd).
+3. **Train/test split** — a `Filter` operation produces two tables.
+4. **Model training** — a `Script` activity that consumes the training table and produces a model artifact (a `Snapshot` of the model `Dataset`).
+5. **Cross-validation gateway** — an [Exclusive Gateway](../reference/elements.qmd) checking that CV scores meet a threshold. Failing branches loop back to feature engineering with logged failure reasons; passing branches continue.
+6. **Fairness audit** — a `Manual` activity (or a `Script` with reviewer sign-off) checking group-level performance. Output: a fairness report.
+7. **Fairness gateway** — another exclusive gateway. Pass: continue to deployment. Fail: route to a retraining loop with the fairness criteria as part of the loss.
+8. **Deployment** — a `Script` activity that writes the model snapshot to the production store.
+9. **Monitoring** — a sub-process triggered by a timer event (daily/weekly) that checks live performance against the held-out baseline.
+10. **Retraining trigger** — a boundary error event on the monitoring sub-process. When live performance drops below threshold, it routes back to feature engineering.
+
+## Why diagram it
+
+ML pipelines collect decision-and-rollback paths that are hard to describe in prose:
+
+- **Gates are visible.** The CV and fairness gateways show, in the diagram, what conditions a model must meet before it's deployed. Reviewers can verify the policy without reading code.
+- **The retraining loop is the topology.** Monitoring → boundary event → back to feature engineering is one path on the diagram, not a description split across runbooks.
+- **Model snapshots are first-class.** A `Snapshot` element documents what version of the model was deployed when.
+- **The fairness audit has a name and a place.** Treating it as an explicit activity in the diagram makes it harder to skip and easier to demand.
+
+## See also
+
+- [Analysis pipelines](analysis.qmd) — preprocessing patterns shared with MLOps.
+- [Preprocessing pipelines](../guides/preprocessing-pipelines.qmd) — Map/Filter/Reduce/Group reference.
+- [Data](../reference/data.qmd) — `Dataset`, `Snapshot`, `Catalog`.

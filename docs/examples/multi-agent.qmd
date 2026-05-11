@@ -1,10 +1,47 @@
 ---
-title: Multi-Agent Collaboration
+title: Multi-agent collaboration
+description: Choreography for studies that involve interactions between participants
 lightbox: true
+categories: [Experimental]
 ---
 
-Rather than modeling what each participant does internally, BPMN2 introduced choreography tasks that can be used to model multi-agent collaborative experiments, i.e., the interaction between agents. A choreography task is a specialized task that represents a sequence of interactions between some participants, which one initiates, and what is sent in each direction. Here is an example of a choreography task:
+Some studies cannot be described as a single participant walking through a flow — they involve **interactions** between multiple participants, or between a participant and an experimenter. BPMN2 introduced **choreography tasks** for exactly this. A choreography task is a specialized task that represents a sequence of interactions between participants: who initiates, what is sent, and in which direction.
 
-![BPMN2 choreography elements not only include tasks but also interactions between multiple participants.](../assets/img/choreography.bpmn.png)
+Studyflow inherits BPMN2's choreography construct unchanged. This page covers when and how to use it.
 
-In the example above, we see choreography tasks that involve two participants: "Subject" and "Experimenter". In the first task, "Subject" performs an activity called "Give Consent". The same color is used for the task and the "Subject" band to indicate that the task is initiated by the "Subject".
+![BPMN2 choreography elements include both tasks and the interactions between participants](../assets/img/choreography.bpmn.png)
+
+In the figure above, two participants — *Subject* and *Experimenter* — are involved in a study. In the first choreography task, the subject performs an activity called *Give Consent*. The same color is used for the task and the *Subject* band to indicate that the subject initiates the interaction.
+
+## When to use choreography
+
+Choreography is the right construct when:
+
+- The study includes **multiple participants** (subject + experimenter, two-player game, parent + child).
+- The flow is driven by **interactions** between them rather than each participant's internal steps.
+- You care about **who initiates** each interaction.
+
+For single-participant studies, ordinary BPMN tasks and pools/lanes are simpler. Choreography earns its keep when the *interaction itself* is the unit of analysis.
+
+## Pattern: dyadic decision study
+
+A common pattern: two participants take turns making decisions that depend on each other's previous responses. Each round is a choreography task with one initiator and one responder. Across rounds, the initiator alternates.
+
+::: {.callout-note title="Diagram"}
+A fully worked dyadic-decision diagram should live at `docs/assets/img/examples/dyadic-decision.svg`. The figure above (`choreography.bpmn.png`) illustrates the choreography-task notation that the diagram would extend.
+:::
+
+The corresponding `.studyflow` file uses one `Choreography` activity per round, listing the two `ParticipantRef`s and which one is the `InitiatingParticipant`. See the [Specification](../reference/spec.qmd) for the grammar.
+
+## Pattern: experimenter-driven protocol
+
+When an experimenter administers a battery of tasks to a subject, you may not need full choreography — pools and lanes are usually enough. Use choreography only when the experimenter's choice of *what to do next* depends on the subject's responses *during* the interaction, not just before or after.
+
+## Pattern: parent-child or multi-generation
+
+For developmental studies where the same data is collected from multiple family members, model each as a separate participant and use choreography for the joint tasks (e.g., parent administers a task while the child responds). Separate `Start Event`s for parent and child indicate independent recruitment; choreography tasks tie the joint sessions together.
+
+## See also
+
+- [Specification](../reference/spec.qmd) — formal grammar for `Choreography`, `ParticipantRef`, `MessageFlow`.
+- [Glossary — Choreography](../reference/glossary.qmd).

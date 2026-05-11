@@ -1,0 +1,50 @@
+---
+title: Save, share, and version-control a `.studyflow` file
+description: Storing studyflows alongside code and data so they evolve with the project
+---
+
+A `.studyflow` file is plain BPMN 2.0 XML. That has two practical consequences: it diffs reasonably in Git, and any BPMN-aware tool can open it. This guide shows how to fit it into a normal project workflow.
+
+## Save from the modeler
+
+In the [Modeler app](modeler-app.qmd), use *File → Save As…* and choose a name ending in `.studyflow`. The file is written to your local Downloads folder (browsers can't write arbitrary paths).
+
+To export a rendered image alongside the source file, use *File → Export* → SVG or PNG. Keep the SVG when you can — it embeds cleanly in papers and scales without quality loss.
+
+## Where to put it in a repository
+
+A convention that works for both experiments and pipelines:
+
+```
+project/
+├── studyflow/
+│   ├── study.studyflow      # the source of truth
+│   ├── study.svg            # rendered diagram for the README
+│   └── README.md            # 2-3 lines describing the study
+├── data/
+├── analysis/
+└── ...
+```
+
+Keep the `.studyflow` file under version control. Treat regenerated SVG/PNG files as build artifacts — either commit them (so GitHub renders them) or generate them in CI.
+
+## Diffing studyflow files
+
+Because the format is XML, `git diff` is usable but verbose. Two patterns help:
+
+- **Diff the SVG alongside the XML.** A visual diff (GitHub renders SVGs inline in PRs) catches changes that XML diffs hide.
+- **Stable element IDs.** When you copy/duplicate an element, rename its ID to something meaningful (`taskNBackBlock1` rather than `Task_0a1b2c3`). The default modeler IDs are random and make diffs hostile.
+
+## Sharing studyflows
+
+Three patterns, depending on the audience:
+
+- **Colleagues and reviewers.** Share the `.studyflow` file plus a rendered SVG. The colleague can open the XML in the modeler if they want to navigate it; the SVG is enough for a quick read.
+- **Papers and reports.** Export SVG and embed in the manuscript. Keep the `.studyflow` source in supplementary materials so reviewers can verify exactly what was run.
+- **Pipelines and runtimes.** Reference the `.studyflow` file by path or URL. The modeler app can also publish to the Behaverse Data Server — see [Publish to Behaverse Data Server](publish.qmd).
+
+## Common pitfalls
+
+- **Editing by hand.** The XML is human-readable but easy to break in ways the modeler won't tell you about until next time you open it. Prefer round-tripping through the modeler.
+- **Renaming files.** A `.studyflow` file does not embed its own filename. Renaming is safe; any references to it (in your README, runtime config, etc.) need to be updated.
+- **Conflicts on the same file.** XML merge conflicts are painful. For collaborative work, agree on who edits what part of the diagram, or use the [choreography](../examples/multi-agent.qmd) pattern to split a study into sub-processes that different people own.

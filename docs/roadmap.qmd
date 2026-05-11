@@ -3,47 +3,16 @@ title: Roadmap
 sidebar: default
 ---
 
-### February 2026
+This page is forward-looking only. For released changes, see [GitHub Releases](https://github.com/behaverse/studyflow-modeler/releases).
+
+### Near-term
 
 - Schema editor for data stores
-- More examples
-
-### January 2026
-
-- Improve modeler UX/UI
+- More worked examples (analysis, MLOps, data collection)
+- Improved modeler UX/UI
 - Specifications for the data elements
 
-### December 2025
+### Later
 
-- Migrate docs to Quarto
-- Use external schemas
-
-### November 2025
-
-- Add examples for common use cases
-- Add data analysis elements to the specs
-- Login via Google
-
-## Changelog
-
-### October 2025
-
-- Change modeler login method.
-- Modeler tutorial.
-- Improved specs documentation.
-
-### September 2025
-
-- New documentation website.
-- Updated EBNF grammar and examples.
-
-### July 2025
-
-- Publish diagrams to the data-server and execute them.
-- Added support for data elements.
-- A new `Study` element to group studyflow elements.
-- Improved UI.
-
-### January 2025
-
-- Initial release of the studyflow modeler.
+- Reduce friction around external-schema authoring
+- Broader runtime integrations beyond the Behaverse Data Server

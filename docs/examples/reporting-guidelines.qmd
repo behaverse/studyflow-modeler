@@ -1,6 +1,8 @@
 ---
-title: Reporting Guidelines
+title: Reporting guidelines
+description: SPIRIT, CONSORT, STROBE, and other checklists as studyflows
 lightbox: true
+categories: [Experimental]
 ---
 
 Reporting specific types of research (e.g., in science and health) requires structured formats to ensure the quality and transparency of research studies, and to guide authors while writing manuscripts [^1].

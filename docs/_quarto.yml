@@ -32,15 +32,55 @@ website:
     contents:
       - text: Introduction
         href: index.qmd
+      - text: FAQ
+        href: faq.qmd
+      - section: Get started
+        contents:
+          - text: Read a studyflow
+            href: get-started/index.qmd
       - section: Guides
         contents:
-          - auto: guides/*.qmd
+          - text: Modeler app
+            href: guides/modeler-app.qmd
+          - text: Save, share, and version-control
+            href: guides/save-share-version.qmd
+          - text: Read someone else's studyflow
+            href: guides/read-a-studyflow.qmd
+          - text: Counterbalancing and randomization
+            href: guides/counterbalancing.qmd
+          - text: Publish to Behaverse Data Server
+            href: guides/publish.qmd
+          - text: Preprocessing pipelines
+            href: guides/preprocessing-pipelines.qmd
+          - text: Attach a schema to a dataset
+            href: guides/attach-schema.qmd
       - section: Reference
         contents:
-          - auto: reference/*.qmd
+          - text: Why Studyflow
+            href: reference/why-studyflow.qmd
+          - text: Studyflow vs BPMN
+            href: reference/studyflow-vs-bpmn.qmd
+          - text: Elements
+            href: reference/elements.qmd
+          - text: Data
+            href: reference/data.qmd
+          - text: Views
+            href: reference/views.qmd
+          - text: Specification
+            href: reference/spec.qmd
+          - text: Glossary
+            href: reference/glossary.qmd
       - section: Examples
         contents:
+          - text: Gallery
+            href: examples/index.qmd
           - auto: examples/*.qmd
+      - section: Develop
+        contents:
+          - text: Moddle schemas
+            href: develop/schemas.qmd
+          - text: Dev setup
+            href: develop/dev-setup.qmd
       - text: ---
       - text: <i>Modeler App</i>
         href: https://behaverse.org/studyflow-modeler/app.html

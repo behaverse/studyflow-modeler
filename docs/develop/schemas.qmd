@@ -1,10 +1,14 @@
 ---
-title: Schemas
+title: Moddle schemas
 description: Structure and conventions for Studyflow moddle YAML schemas
-order: 4
 ---
 
-This page documents how Studyflow uses direct moddle YAML as the authoring format for schema definitions.
+This page is for **contributors** extending the Studyflow language with new element types or attributes. If you are a researcher or pipeline author using the modeler, see the [Elements](../reference/elements.qmd) reference instead.
+
+Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
+
+- `studyflow.moddle.yaml` — the core Studyflow language.
+- `behaverse.moddle.yaml`, `datatrove.moddle.yaml`, `galea.moddle.yaml`, `omniprocess.moddle.yaml` — domain extensions.
 
 ## Core structure
 

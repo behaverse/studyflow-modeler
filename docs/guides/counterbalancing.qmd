@@ -1,0 +1,46 @@
+---
+title: Counterbalancing and randomization
+description: Modeling random assignment, block ordering, and counterbalanced designs
+---
+
+Random assignment is a control-flow operation: the participant goes down one path rather than another, by chance. In Studyflow, this maps to the `RandomGateway` element. This guide covers the three patterns you will use most often.
+
+## Random assignment to groups
+
+The simplest case: every participant is randomly assigned to one of two (or more) conditions.
+
+Drop a `RandomGateway` after the demographics block. Add an outgoing sequence flow for each condition. The inspector lets you set the probability on each branch (default: equal). The runtime evaluates the probabilities at execution time and routes the participant down exactly one branch.
+
+::: {.callout-note title="Diagram"}
+A simple two-group random assignment diagram should live at `docs/assets/img/guides/random-assignment.svg`. The element catalog already has [`random_gateway_pattern.svg`](../assets/img/elements/random_gateway_pattern.svg) which illustrates the basic shape.
+:::
+
+For balanced (not just random) assignment, add a `condition` attribute on the gateway that references a counter or stratification variable from earlier in the flow. The runtime will assign so as to keep the groups balanced rather than independently random per participant.
+
+## Block-level counterbalancing
+
+When you have several task blocks (say A, B, C) and want every participant to do all of them, but in a randomized order, you have two options:
+
+**Option 1: Random gateway over fixed orderings.** Enumerate the orderings you care about (ABC, ACB, BAC, …) as separate sub-flows downstream of a `RandomGateway`. Each branch contains the blocks in one specific order. This is explicit and easy to read but verbose when you have many blocks.
+
+**Option 2: Parallel gateway with random sequencing.** Use a parallel gateway and annotate each block with a `randomOrder` attribute. The runtime computes a permutation per participant. This is concise but pushes the randomization into the runtime; reviewers may want Option 1 for clarity.
+
+For 2 or 3 blocks, prefer Option 1 — the diagram is the spec. For 4+ blocks, Option 2 is the only sane choice.
+
+## Stratified randomization
+
+Stratification means: keep the random assignment balanced *within* subgroups. For example, balance gender within each treatment arm.
+
+The pattern is: branch first on the stratification variable (an `Exclusive` gateway on `gender`, say), then run the `RandomGateway` independently inside each branch. Each `RandomGateway` keeps its own counter. The diagram makes it visually obvious that randomization is happening per-stratum.
+
+## Counterbalancing across trials
+
+For trial-level counterbalancing within a single task (e.g., congruent vs incongruent Stroop trials in random order), keep the counterbalancing *inside the task* rather than expressing it in the diagram. Studyflow diagrams describe study-level structure; trial-level randomization is a parameter on the `CognitiveTask` activity. See the [Cognitive tasks example](../examples/cognitive-tasks/index.qmd) for trial-level structure.
+
+## Checklist
+
+- [ ] Every random gateway has at least two outgoing flows.
+- [ ] Probabilities on the outgoing flows sum to 1.
+- [ ] If using stratification, the stratifying gateway is upstream of the random gateway.
+- [ ] The `condition` attribute is set if you want balanced (not independent) assignment.
+- [ ] The downstream end events handle every branch (no dead-end paths).

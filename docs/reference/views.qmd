@@ -1,30 +1,51 @@
 ---
 title: Views
-description: Different ways to visualize studyflows
+description: Different ways to visualize a studyflow diagram
 ---
 
-The same studyflow diagram can be viewed in different ways depending on the stakeholder's needs:
+The same `.studyflow` file can be rendered in several ways depending on the stakeholder's needs. Studyflow defines three primary views over the underlying diagram.
 
-- **Study View**: A high-level BPMN-like overview of the study, showing all the components, their relationships, and properties.
-- **Timeline View**: A Gantt-like chronological chart of the time-sensitive elements, showing the sequence of tasks and milestones. This view automatically identifies temporal patterns of the workflow, making it easier to manage and report the timeline of the study.
-- **Checklist View**: A task-oriented view that lists all the tasks, their corresponding checklist items and status.
+## Study view
 
+The default rendering: a BPMN-like graph showing every element and connection. This is what the modeler displays and what most readers see in a paper.
 
-## Timelines
+The Study view is **structural**. It shows what happens and in what order, but does not commit to when each activity runs in wall-clock time. It is the canonical view for:
 
-Experimental research often involves time-related activities and constraints. The visual representations of activities also require elements along the time axis such as timelines, temporal dependencies, and deadlines. Timelines provide temporal ordering of activities and events (e.g., trial timelines, CONSORT, SPIRIT, etc.) which can be effectively modeled using timer events in BPMN, and visualized as Gantt charts.
+- Methods sections that need to describe procedure.
+- Reviewers checking the logical structure of a study.
+- Pipeline authors wiring up data flow.
 
-BPMN already provides some support for temporal modeling, such as timer events and triggers, which can be used to model the timing of tasks and events within a workflow. However, there is no direct or native way to represent duration of the activities, start and end times, or progress of the tasks in BPMN. This is a significant limitation when modeling scientific workflows where time is a key factor in the design and execution of the study, such as in showing trial timelines, standard flow figures (e.g., SPIRIT), or longitudinal studies.
+## Timeline view
 
-To address this, Studyflow extends BPMN elements with properties that allow modeling temporal aspects of the activities. These additional properties are not part of the BPMN standard but are essential for scientific workflows. They can be represented as attributes of the activities or as separate elements that are linked to the activities. These properties include:
+A Gantt-like rendering that places time-sensitive elements along a temporal axis. Useful for studies where the *timing* of activities matters as much as their order: longitudinal studies, trial timelines, SPIRIT-style schedules of enrolment and assessment.
 
-- Start/end time: The time when specific activity is to begin/end.
-- Duration: The total time allocated for an activity, which can be calculated as the difference between the start and end times.
-- Progress: The current status of an activity, indicating how much of the activity has been completed. Progress can be represented as a percentage (e.g., 50%) or as a label (e.g., "In Progress", "Completed", etc.).
-- Resource allocation: The resources assigned to an activity, such as personnel, equipment, or budget. This is represented as lanes or pools in BPMN.
+Experimental research often involves activities with durations, deadlines, and dependencies in wall-clock time. BPMN already supports timer events and triggers but has no native way to represent duration, start/end times, or progress on a regular activity. Studyflow extends BPMN elements with optional temporal attributes:
 
-![Temporal patterns and corresponding Gantt representations](../assets/img/timeline_patterns.png)
+- **Start/end time** — when an activity is scheduled to begin and end.
+- **Duration** — the time allocated for an activity (or the difference between start and end).
+- **Progress** — completion status, as a percentage or label.
+- **Resource allocation** — personnel, equipment, or budget assigned to the activity, expressed as lanes or pools in BPMN.
 
-Here is an example of a Gantt task using BPMN or Studyflow:
+When these attributes are present, the Timeline view can render the diagram as a Gantt chart automatically. Trial-level timing (stimulus duration, ITI, response window) and study-level timing (visit schedule, follow-ups) use the same mechanism at different zoom levels.
 
-![&zwnj;](../assets/img/gantt_task.studyflow.svg)
+![Temporal patterns and their Gantt-style equivalents](../assets/img/timeline_patterns.png)
+
+![A Gantt task expressed in BPMN/Studyflow](../assets/img/gantt_task.studyflow.svg)
+
+## Checklist view
+
+A task-oriented view that flattens the diagram into a list of activities with their associated checklist items and status. Useful for:
+
+- Running studies day-to-day (what's next, what's done).
+- Adhering to reporting guidelines (CONSORT, SPIRIT, STROBE) — the checklist view maps elements to the items the guideline requires. See [Reporting guidelines](../examples/reporting-guidelines.qmd).
+- Generating supplementary materials and protocol annexes.
+
+## Choosing a view
+
+| If you need to communicate… | Use |
+|---|---|
+| Procedural structure, branching, data flow | Study view |
+| Wall-clock timing, schedules, durations | Timeline view |
+| Coverage against a reporting checklist or protocol | Checklist view |
+
+The three views read the same source file, so changes in one are reflected in the others.

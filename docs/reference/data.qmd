@@ -1,7 +1,6 @@
 ---
 title: Data
-description: Elements for data-centric workflows
-order: 3
+description: Elements and operations for data-centric workflows
 ---
 
 ## Data elements in BPMN and Studyflow

@@ -1,0 +1,39 @@
+---
+title: Why Studyflow
+description: One diagram, many audiences — the case for a single source of truth across the study lifecycle
+---
+
+A scientific study touches many people and systems. The researcher designs it. The ethics reviewer approves it. The participant runs it. The data pipeline ingests it. The model trains on it. The reviewer reads it in a manuscript. The replicator tries to rebuild it.
+
+Today, each of those audiences gets a different artifact: a protocol PDF, a registration form, an experiment script, a preprocessing notebook, a model card, a manuscript figure, a CONSORT diagram. Each artifact drifts from the others over time. By the end, no single thing describes the study as it was actually run.
+
+**Studyflow is one diagram that serves all of those audiences.** The same `.studyflow` file:
+
+- Reads as a study protocol for a colleague or reviewer.
+- Generates a publication-quality figure for a paper.
+- Specifies a data pipeline that produces analysis outputs.
+- Drives a runtime that collects data from participants.
+- Documents the model and decision points behind a deployed predictor.
+
+Because it is a single source of truth, the diagram in the paper *is* the protocol the participants ran *is* the pipeline that produced the figures. Drift is no longer possible by construction.
+
+## Two audiences, one language
+
+Studyflow serves two primary audiences explicitly:
+
+- **Experimental researchers** model studies: recruitment, consent, randomization, task blocks, questionnaires, dropouts, data collection.
+- **Pipeline and model builders** model data flow: ingestion, preprocessing, transformation, model training, evaluation, deployment, monitoring.
+
+Both audiences use the same elements. A study that ends in a model training pipeline is one diagram, not two stitched together. A pipeline that triggers a retraining when fairness degrades looks like a study with a feedback loop. The boundary between "doing science" and "operating a model" stops being a documentation cliff.
+
+## Why BPMN as the base
+
+BPMN is a mature, ISO-standard process notation with an existing tooling ecosystem (editors, validators, runtimes). It already covers events, activities, gateways, sub-processes, data objects, and choreography between participants. Building on BPMN means Studyflow gets all of that for free, plus a shape vocabulary that engineers and analysts outside science already recognize.
+
+Studyflow extends BPMN where research needs it: domain-specific activity types (Cognitive Task, Questionnaire, Rest), research-specific data structures (Dataset, Table, Schema, Catalog), data operations as task markers (Map, Filter, Reduce), and a Study container at the top level. See [Studyflow vs BPMN](studyflow-vs-bpmn.qmd) for the precise delta.
+
+## Trust by construction
+
+Trusting science requires rigor and reproducibility. As we increasingly rely on machines to facilitate research, trust in code and data is becoming critical too — especially at scale, with large models in the loop.
+
+A Studyflow diagram is human-readable (a researcher can review it), machine-readable (a pipeline can execute it), and reusable (parts of one study can seed another). That makes reproducibility a property of the artifact itself, not a separate documentation effort that has to be maintained alongside the work.

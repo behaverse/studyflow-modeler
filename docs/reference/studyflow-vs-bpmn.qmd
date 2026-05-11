@@ -1,0 +1,70 @@
+---
+title: Studyflow vs BPMN
+description: What BPMN provides, what Studyflow adds, what it leaves alone
+---
+
+Studyflow extends [BPMN 2.1](https://www.omg.org/spec/BPMN/2.0/) rather than replacing it. If you already know BPMN, this page tells you the precise delta. If you don't, treat this as a map of *what is standard process notation* and *what is research-specific*.
+
+## What Studyflow inherits from BPMN
+
+Studyflow uses BPMN's full vocabulary for control flow and structure:
+
+- **Events** — start, end, intermediate, boundary, timer, error.
+- **Activities** — tasks, sub-processes, call activities.
+- **Gateways** — exclusive, parallel, inclusive, event-based, complex.
+- **Sequence flows** and **message flows**.
+- **Data objects** and **data stores**, with data associations.
+- **Pools and lanes** for participants and roles.
+- **Choreography** for modeling multi-participant interactions.
+
+These behave exactly as in BPMN and render with standard BPMN shapes. A BPMN-only tool can open a `.studyflow` file and see a well-formed process — the Studyflow-specific attributes degrade gracefully.
+
+## What Studyflow adds
+
+Studyflow extends BPMN in four areas where research needs more vocabulary than business processes provide.
+
+**Study container.** A top-level `Study` element extends `bpmn:Process` and groups everything in a single research project. It carries study-level metadata (name, version, ethics approval, registration) that doesn't fit naturally on the process itself.
+
+**Domain-specific activity types.** BPMN has generic Task, ScriptTask, and UserTask. Studyflow specializes Task into research-meaningful types so the inspector can show the right attributes:
+
+- `CognitiveTask`, `Questionnaire`, `Instruction`, `Rest`, `VideoGame`
+- `BehaverseTask` (standardized cognitive test from the Behaverse catalog)
+- `Script` and `Manual` for analysis and manual procedures
+
+Each renders with a distinctive icon while remaining a normal BPMN task underneath.
+
+**Research-specific data elements.** BPMN's `DataObject` and `DataStore` are generic. Studyflow adds:
+
+- `Dataset` — a logical collection (potentially multi-table, multi-modal).
+- `Table` — a tabular component of a dataset, linked to a schema.
+- `Array` — a multi-dimensional structure for tensors, images, fMRI, video.
+- `Schema` — formal column/dimension definitions (CSVW-compatible).
+- `DataCatalog` — a registry of datasets, potentially across stores.
+- `Snapshot` — an immutable version of a dataset.
+
+**Data operations as task markers.** Pipelines need to express *how* data is transformed, not just *that* it flows through a task. Studyflow adds a small data-operations vocabulary (`Map`, `Filter`, `Reduce`, `Group`, `FlatMap`, `Transform`, `Compose`) that renders as a small marker on an otherwise normal BPMN task. The control flow stays BPMN; the data semantics become explicit.
+
+**Random gateway.** BPMN's gateways are deterministic. Studyflow adds `RandomGateway` for stochastic branching (random assignment, counterbalancing), with branch probabilities as attributes.
+
+**Temporal attributes.** BPMN has timer events but no native notion of activity duration, progress, or scheduled start/end. Studyflow attaches these as element attributes so timelines and Gantt-style views can be derived from the same diagram. See [Views](views.qmd).
+
+## What Studyflow deliberately leaves alone
+
+Studyflow does **not** redefine:
+
+- Sequence and message flow semantics.
+- Sub-process execution semantics.
+- Gateway logic for exclusive/parallel/inclusive gateways.
+- BPMN serialization conventions (XML namespaces, element IDs).
+
+This means: any conforming BPMN renderer or analyzer can process a `.studyflow` file and produce something meaningful, even if it ignores Studyflow extensions. The serialized form is BPMN XML with a `studyflow:` namespace for the extensions.
+
+## When you should use plain BPMN instead
+
+If your study is well-served by generic BPMN — for example, a clinical operations workflow with no cognitive tasks, no specialized data structures, and no random assignment — you don't need Studyflow. Studyflow earns its keep when at least one of the following is true:
+
+- The study involves cognitive tests, questionnaires, or other research-specific activities.
+- The diagram needs to describe data flow with explicit transformation semantics.
+- The diagram should drive both a participant-facing runtime *and* an analysis pipeline.
+- The study includes randomization or counterbalancing.
+- The diagram targets a reproducibility or reporting standard (CONSORT, SPIRIT, etc.).

@@ -1,6 +1,8 @@
 ---
-title: Cognitive Tasks
+title: Cognitive tasks
+description: Modeling N-back and other trial-level task structures
 lightbox: true
+categories: [Experimental]
 ---
 
 One common way to describe cognitive assessment tasks and their trial structures is to visualize different stages of a trial as slides, and then annotate them with parameters (e.g., timing, stimulus, etc.).

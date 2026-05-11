@@ -1,6 +1,8 @@
 ---
 title: CONSORT
+description: Reporting randomized controlled trials as a studyflow
 lightbox: true
+categories: [Experimental]
 ---
 
 Reporting specific types of research (e.g., in science and health) requires structured formats to ensure the quality and transparency of research studies. Those structured formats also guide the authors while writing manuscripts.

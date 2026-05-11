@@ -1,0 +1,62 @@
+---
+title: Model a preprocessing pipeline
+description: Express Map, Filter, Reduce, and Group operations in a studyflow
+---
+
+Studyflow's data operations let you describe what each task in a pipeline does, not just that data flows through it. This guide covers the common operations and the patterns they compose into.
+
+## The operations
+
+Each operation is a marker (a small *f* badge) on an otherwise normal BPMN task. The task remains executable as a script or service task; the marker tells readers and tooling what kind of transformation it performs.
+
+| Operation | Cardinality | When to use |
+|---|---|---|
+| `Map` | 1 → 1 | Element-wise transform (rescale, compute a column, parse a field). |
+| `Filter` | N → subset(N) | Drop rows that fail a criterion (RT < 100 ms, missing data). |
+| `FlatMap` | 1 → N | Unnest, expand events per trial, explode arrays. |
+| `Reduce` | N → 1 (per group) | Aggregate to summary statistics (mean RT, accuracy). |
+| `Group` | N → G groups | Partition by participant, condition, or block. |
+| `Transform` | generic | Any pure function not better described by the above. |
+| `Compose` | n/a | Bundle several primitive operations into one logical step. |
+
+`Filter` changes the dataset by removing rows. A *data-driven gateway* changes the control flow. They are not interchangeable — see [Data](../reference/data.qmd) for the distinction.
+
+## A typical pipeline
+
+A behavioral RT analysis pipeline usually has this shape:
+
+1. **Read raw data** — a normal task with a data input from a `Dataset` or `Table`.
+2. **Filter** invalid trials (RT outliers, missing responses).
+3. **Map** to compute derived columns (log RT, condition labels).
+4. **Group** by participant and condition.
+5. **Reduce** to per-group summary statistics.
+6. **Write output** to a new `Dataset` or `Table`.
+
+Modeled in Studyflow, each step is a task with the corresponding marker, connected by sequence flows. Data flows are dashed edges from/to the data stores.
+
+::: {.callout-note title="Diagram"}
+The canonical RT pipeline figure should live at `docs/assets/img/guides/preprocessing-pipeline.svg`.
+:::
+
+## Why this matters
+
+Three concrete benefits over describing the pipeline only in prose or only in code:
+
+- **Reviewers** can verify the analysis plan without reading the code.
+- **Pre-registration** of analysis is the diagram itself — there's no "what we did" vs "what we planned" drift.
+- **Reuse** is straightforward — copy the `Filter → Map → Group → Reduce` sub-process into the next study.
+
+## Compose vs primitive
+
+For exploratory work, primitive markers (`Map`, `Filter`, `Reduce`) keep the diagram explicit. For published pipelines, `Compose` lets you encapsulate a multi-step operation as one task with a name like *outlier-trimmed RT summary*. Use `Compose` when the operation is a unit of meaning (you'd give it a name in a paper), and primitives when the steps are themselves the story.
+
+## Streaming and batch
+
+`Map` and `Filter` are stateless and work on either batch or streaming data. `Reduce` and `Group` are stateful — for streaming, they require windowing or accumulator semantics. Annotate streaming-only tasks with a `streaming: true` attribute so the runtime can validate.
+
+## Checklist
+
+- [ ] Every data-operation task has both a data input and a data output.
+- [ ] `Reduce` and `Group` tasks have the grouping key documented in their attributes.
+- [ ] The output dataset has a schema (see [Attach a schema](attach-schema.qmd)).
+- [ ] Any `Filter` whose criterion is not a simple expression is annotated with a description.
