@@ -1,5 +1,7 @@
 import type { PaletteStartCreateCommand } from './palette/paletteStartCreate';
 import { runPaletteStartCreate } from './palette/paletteStartCreate';
+import type { PaletteStartCreateTemplateCommand } from './palette/paletteStartCreateTemplate';
+import { runPaletteStartCreateTemplate } from './palette/paletteStartCreateTemplate';
 import type { PaletteRegisterSchemaProvidersCommand } from './palette/paletteSetup';
 import { runPaletteRegisterSchemaProviders } from './palette/paletteSetup';
 import type { PaletteActivateLassoCommand, PaletteOpenPopupCommand } from './palette/paletteUi';
@@ -39,6 +41,7 @@ import { runCreateShape } from './shape';
 
 export type DiagramCommand =
   | PaletteStartCreateCommand
+  | PaletteStartCreateTemplateCommand
   | InspectorUpdatePropertyCommand
   | PaletteRegisterSchemaProvidersCommand
   | PaletteActivateLassoCommand
@@ -75,6 +78,7 @@ type HandlerMap = {
 
 const HANDLERS: HandlerMap = {
   'palette-start-create': runPaletteStartCreate,
+  'palette-start-create-template': runPaletteStartCreateTemplate,
   'inspector-update-property': runInspectorUpdateProperty,
   'palette-register-schema-providers': runPaletteRegisterSchemaProviders,
   'palette-activate-lasso': runPaletteActivateLasso,

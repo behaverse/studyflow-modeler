@@ -1,8 +1,8 @@
-import SchemaPopupMenu from '../../palette/SchemaPopupMenu';
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
 import { toLocalName } from '../../utils/naming';
-import { HIDDEN_SCHEMA_TYPES, PALETTE_GROUPS, PRIMITIVE_MODDLE_TYPES, SCHEMA_NAMES } from '../../constants';
+import { HIDDEN_SCHEMA_TYPES, PALETTE_GROUPS, PRIMITIVE_MODDLE_TYPES, SCHEMA_NAMES, SCHEMAS } from '../../constants';
+import type { Template as ElementTemplate } from '../../moddle/templates/types';
 
 // bpmnType -> icon class
 const PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
@@ -96,22 +96,33 @@ export type PaletteSchemaItem = {
   categories: string[];
 };
 
+export type PaletteSchemaTemplate = {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  bpmnType: string;
+  studyflowType: string;
+};
+
 export type PaletteSchemaDescriptor = {
   prefix: string;
   /** Human-readable schema name (`pkg.name`); falls back to the prefix. */
   name: string;
   icon?: string;
+  /** True for schemas backing default elements; false for third-party extensions. */
+  core: boolean;
   items: PaletteSchemaItem[];
+  templates: PaletteSchemaTemplate[];
 };
 
 export type PaletteRegisterSchemaProvidersCommand = {
   type: 'palette-register-schema-providers';
-  registeredSchemas: Set<string>;
 };
 
 export function runPaletteRegisterSchemaProviders(
   modeler: any,
-  command: PaletteRegisterSchemaProvidersCommand,
+  _command: PaletteRegisterSchemaProvidersCommand,
 ): PaletteSchemaDescriptor[] {
   if (!modeler) {
     throw new Error("Command 'palette-register-schema-providers' requires a modeler instance.");
@@ -120,8 +131,6 @@ export function runPaletteRegisterSchemaProviders(
   const bpmnFactory = modeler.get('bpmnFactory');
   const moddle = bpmnFactory._model;
   const popupMenu = modeler.get('popupMenu');
-  const elementFactory = modeler.get('elementFactory');
-  const create = modeler.get('create');
   const elementTemplates = modeler.get('elementTemplates');
 
   if (!filteredPopupMenus.has(popupMenu as object)) {
@@ -143,23 +152,6 @@ export function runPaletteRegisterSchemaProviders(
     const prefix = pkg.prefix.toLowerCase();
     if (!prefix) return;
     if (['bpmn', 'bpmndi', 'di', 'dc', 'bioc', 'color'].includes(prefix)) return;
-
-    if (!command.registeredSchemas.has(prefix)) {
-      try {
-        // eslint-disable-next-line no-new
-        new (SchemaPopupMenu as any)(
-          popupMenu,
-          bpmnFactory,
-          elementFactory,
-          create,
-          elementTemplates,
-          prefix,
-        );
-        command.registeredSchemas.add(prefix);
-      } catch {
-        return;
-      }
-    }
 
     const items: PaletteSchemaItem[] = (pkg.types || [])
       .filter((type: any) => {
@@ -193,11 +185,27 @@ export function runPaletteRegisterSchemaProviders(
       })
       .filter((entry: PaletteSchemaItem | null): entry is PaletteSchemaItem => entry !== null);
 
+    const templates: PaletteSchemaTemplate[] = (
+      typeof elementTemplates?.getBySchemaPrefix === 'function'
+        ? elementTemplates.getBySchemaPrefix(prefix)
+        : []
+    ).map((template: ElementTemplate) => ({
+      id: template.id,
+      label: template.name,
+      description: template.description,
+      icon: template.iconClass,
+      bpmnType: template.bpmnType,
+      studyflowType: template.studyflowType,
+    }));
+
+    const descriptor = SCHEMAS.find((s) => s.prefix === prefix);
     schemas.push({
       prefix,
       name: typeof pkg.name === 'string' && pkg.name.trim().length > 0 ? pkg.name : prefix,
       icon: typeof pkg.icon === 'string' ? pkg.icon : undefined,
+      core: descriptor?.core === true,
       items,
+      templates,
     });
   });
 

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useContext, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ModelerContext } from '../contexts';
 import { executeCommand } from '../commands';
 import { PALETTE_GROUPS } from '../constants';
@@ -7,22 +7,8 @@ import { useSchemaProviders } from './hooks/useSchemaProviders';
 import { usePaletteDrag } from './hooks/usePaletteDrag';
 import { PaletteButton } from './components/PaletteButton';
 import { Popup } from './components/Popup';
+import { SchemaPopup } from './components/SchemaPopup';
 import { palette } from '../styles';
-
-function renderSchemaIcon(icon?: string): React.ReactNode {
-  if (icon && /^(https?:\/\/|data:image\/)/i.test(icon)) {
-    return (
-      <img
-        src={icon}
-        alt=""
-        className="h-6 w-6 object-contain"
-        loading="lazy"
-        decoding="async"
-      />
-    );
-  }
-  return <i className={`text-[24px] ${icon || 'iconify tabler--hexagon'}`}></i>;
-}
 
 export function Palette({ className = '' }: { className?: string }) {
   const { modeler } = useContext(ModelerContext);
@@ -81,20 +67,6 @@ export function Palette({ className = '' }: { className?: string }) {
       popupType: 'bpmn-create',
       position: getPopupPosition(event),
       title: t('Create BPMN element'),
-    });
-  };
-
-  const handleMoreSchemaElementsClick = (
-    prefix: string,
-    event: ReactMouseEvent<HTMLButtonElement>,
-  ) => {
-    if (!modeler) return;
-    event.preventDefault();
-    executeCommand(modeler, {
-      type: 'palette-open-popup',
-      popupType: `${prefix}-create`,
-      position: getPopupPosition(event),
-      title: t('Create element'),
     });
   };
 
@@ -162,25 +134,57 @@ export function Palette({ className = '' }: { className?: string }) {
 
       <div className={palette.separator} />
 
-      {/* Section 3: more-elements popups (per schema + BPMN catch-all) */}
-      {schemas.map(({ prefix, name, icon }) => (
-        <div
-          key={`more-${prefix}`}
-          className={palette.group}
-          onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
-        >
-          <PaletteButton
-            title={`More ${name} elements...`}
-            onMouseUp={dragHandlers.onMouseUp}
-            onMouseLeave={dragHandlers.onMouseUp}
-            onClick={(e) => handleMoreSchemaElementsClick(prefix, e)}
-          >
-            {renderSchemaIcon(icon)}
-          </PaletteButton>
-          <span className={palette.tooltip}>{name} elements...</span>
-          <span className={palette.groupChevron} />
-        </div>
-      ))}
+      {/* Section 3: per-schema flyovers + BPMN catch-all */}
+      {schemas
+        .filter((schema) => schema.items.length > 0 || schema.templates.length > 0)
+        .map((schema) => {
+          const key = `schema:${schema.prefix}`;
+          const isOpen = openGroup === key;
+          const isPinned = pinnedGroup === key;
+          return (
+            <div
+              key={`more-${schema.prefix}`}
+              className={palette.groupWithFlyout}
+              onMouseEnter={() => {
+                if (pinnedGroup) return;
+                setOpenGroup(key);
+              }}
+              onMouseLeave={() => {
+                if (!isPinned && openGroup === key) setOpenGroup(null);
+              }}
+            >
+              <PaletteButton
+                title={`More ${schema.name} elements...`}
+                ariaExpanded={isOpen}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (isPinned) {
+                    setPinnedGroup(null);
+                    setOpenGroup(null);
+                  } else {
+                    setPinnedGroup(key);
+                    setOpenGroup(key);
+                  }
+                }}
+              >
+                {schema.icon && /^(https?:\/\/|data:image\/)/i.test(schema.icon) ? (
+                  <img
+                    src={schema.icon}
+                    alt=""
+                    className="h-6 w-6 object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <i className={`text-[24px] ${schema.icon || 'iconify tabler--hexagon'}`}></i>
+                )}
+                <span className={palette.groupChevron} />
+              </PaletteButton>
+              <span className={palette.tooltip}>{schema.name} elements...</span>
+              <SchemaPopup schema={schema} isOpen={isOpen} handlers={dragHandlers} />
+            </div>
+          );
+        })}
 
       <div
         key="more-bpmn"

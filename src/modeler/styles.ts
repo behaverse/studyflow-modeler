@@ -240,6 +240,12 @@ export const paletteFlyout = {
   /** Group label header at the top of the flyout. */
   header: 'text-xs font-semibold uppercase tracking-[0.1em] text-stone-500 pb-2 mb-2 px-1 border-b border-black/[0.08]',
 
+  /** Thin section header inside a flyout (e.g. "Types", "Templates"). */
+  sectionHeader: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 px-1 mt-2 mb-1 first:mt-0',
+
+  /** Small "EXT" badge next to a schema name to mark third-party extensions. */
+  extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[9.5px] font-semibold uppercase tracking-[0.1em] bg-amber-100 text-amber-800 border border-amber-200',
+
   /** 3-column grid of element tiles. */
   grid: 'grid grid-cols-3 gap-1',
 
