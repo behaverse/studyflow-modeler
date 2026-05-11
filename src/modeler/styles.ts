@@ -229,9 +229,10 @@ export const paletteFlyout = {
    * so every floating chrome surface shares one corner family.
    */
   panel: (isOpen: boolean) => `${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}
-              transition-all duration-150
+              transition-opacity duration-150
               absolute left-[calc(100%+10px)] top-[-6px] z-[300]
-              w-[240px] p-2.5 pb-3
+              w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto overscroll-contain palette-flyout-scroll
+              p-2.5 pb-3
               ${radius.card} ${surface.menu} ${border.hairline} ${shadow.menu}`,
 
   /** Invisible bridge that keeps hover alive between trigger button and flyout. */
@@ -244,7 +245,7 @@ export const paletteFlyout = {
   sectionHeader: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 px-1 mt-2 mb-1 first:mt-0',
 
   /** Small "EXT" badge next to a schema name to mark third-party extensions. */
-  extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[9.5px] font-semibold uppercase tracking-[0.1em] bg-amber-100 text-amber-800 border border-amber-200',
+  extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[9.5px] font-semibold uppercase tracking-[0.1em] bg-transparent text-current border border-current',
 
   /** 3-column grid of element tiles. */
   grid: 'grid grid-cols-3 gap-1',

@@ -257,3 +257,21 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'compensation':           'iconify bpmn--compensation-marker',
   'checklist':              'iconify mdi--checkbox-outline',
 };
+
+/**
+ * Lookup an icon for a BPMN type by checking the default palette entries
+ * first, then `BPMN_ICON_OVERRIDES`. Returns `undefined` if the type is
+ * unknown — callers should fall back to a parent (group/schema) icon.
+ */
+const _PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
+  PALETTE_GROUPS.flatMap((group) =>
+    group.items
+      .filter((item): item is PaletteEntry & { icon: string } => !!item.icon)
+      .map((item) => [item.bpmnType, item.icon] as const)
+  )
+);
+
+export function getPaletteIconForBpmnType(bpmnType: string | undefined): string | undefined {
+  if (!bpmnType) return undefined;
+  return _PALETTE_BPMN_ICONS[bpmnType] ?? BPMN_ICON_OVERRIDES[bpmnType];
+}

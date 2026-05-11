@@ -1,5 +1,7 @@
 import type { PaletteEntry, PaletteGroup } from '../../constants';
+import { getPaletteIconForBpmnType } from '../../constants';
 import type { PaletteDragHandlers } from '../hooks/usePaletteDrag';
+import { useFlyoutPosition } from '../hooks/useFlyoutPosition';
 import { paletteFlyout } from '../../styles';
 
 type Props = {
@@ -11,8 +13,9 @@ type Props = {
 
 /** Flyout panel rendered next to a palette group button. */
 export function Popup({ group, extraItems, isOpen, handlers }: Props) {
+  const { ref, style } = useFlyoutPosition(isOpen);
   return (
-    <div className={paletteFlyout.panel(isOpen)}>
+    <div ref={ref} style={style} className={paletteFlyout.panel(isOpen)}>
       {/* Gap bridge so hover stays active between button and flyout */}
       <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
@@ -22,7 +25,8 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
       <div className={paletteFlyout.grid}>
         {[...group.items, ...extraItems].map((item) => {
           const key = item.studyflowType ?? item.bpmnType;
-          const isUrlIcon = !!item.icon && /^(https?:\/\/|data:image\/)/i.test(item.icon);
+          const resolvedIcon = item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? group.icon;
+          const isUrlIcon = !!resolvedIcon && /^(https?:\/\/|data:image\/)/i.test(resolvedIcon);
           return (
             <button
               key={key}
@@ -36,9 +40,9 @@ export function Popup({ group, extraItems, isOpen, handlers }: Props) {
               onClick={(e) => handlers.onClick(item, e)}
             >
               {isUrlIcon ? (
-                <img src={item.icon} alt="" className="h-[22px] w-[22px] object-contain" loading="lazy" decoding="async" />
+                <img src={resolvedIcon} alt="" className="h-[22px] w-[22px] object-contain" loading="lazy" decoding="async" />
               ) : (
-                <i className={`text-[22px] ${item.icon || 'iconify tabler--hexagon'}`}></i>
+                <i className={`text-[22px] ${resolvedIcon}`}></i>
               )}
               <span className={paletteFlyout.itemLabel}>
                 {item.label}

@@ -5,6 +5,8 @@ import type {
   PaletteSchemaTemplate,
 } from '../../commands/palette/paletteSetup';
 import type { PaletteDraggable, PaletteDragHandlers } from '../hooks/usePaletteDrag';
+import { useFlyoutPosition } from '../hooks/useFlyoutPosition';
+import { getPaletteIconForBpmnType } from '../../constants';
 import { paletteFlyout } from '../../styles';
 
 type Props = {
@@ -29,7 +31,7 @@ function renderTileIcon(icon?: string): ReactNode {
       />
     );
   }
-  return <i className={`text-[22px] ${icon || 'iconify tabler--hexagon'}`}></i>;
+  return <i className={`text-[22px] ${icon}`}></i>;
 }
 
 function renderHeaderIcon(icon?: string): ReactNode {
@@ -54,9 +56,10 @@ function renderHeaderIcon(icon?: string): ReactNode {
 export function SchemaPopup({ schema, isOpen, handlers }: Props) {
   const hasItems = schema.items.length > 0;
   const hasTemplates = schema.templates.length > 0;
+  const { ref, style } = useFlyoutPosition(isOpen);
 
   return (
-    <div className={paletteFlyout.panel(isOpen)}>
+    <div ref={ref} style={style} className={paletteFlyout.panel(isOpen)}>
       {/* Gap bridge so hover stays active between button and flyout */}
       <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
@@ -65,7 +68,7 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
         <span>{schema.name}</span>
         {!schema.core && (
           <span
-            className={paletteFlyout.extBadge}
+            className={`${paletteFlyout.extBadge} ml-auto`}
             title="Third-party extension schema"
           >
             ext
@@ -78,6 +81,7 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
           <div className={paletteFlyout.grid}>
             {schema.items.map((item: PaletteSchemaItem) => {
               const draggable: PaletteDraggable = item;
+              const resolvedIcon = item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? schema.icon;
               return (
                 <button
                   key={`type-${item.studyflowType}`}
@@ -90,7 +94,7 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
                   onMouseLeave={handlers.onMouseUp}
                   onClick={(e) => handlers.onClick(draggable, e)}
                 >
-                  {renderTileIcon(item.icon)}
+                  {renderTileIcon(resolvedIcon)}
                   <span className={paletteFlyout.itemLabel}>{item.label}</span>
                 </button>
               );
@@ -105,6 +109,8 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
           <div className={paletteFlyout.grid}>
             {schema.templates.map((template: PaletteSchemaTemplate) => {
               const draggable: PaletteDraggable = { ...template, __template: true };
+              const typeIcon = schema.items.find((it) => it.studyflowType === template.studyflowType)?.icon;
+              const resolvedIcon = template.icon ?? typeIcon ?? schema.icon ?? getPaletteIconForBpmnType(template.bpmnType);
               return (
                 <button
                   key={`template-${template.id}`}
@@ -117,7 +123,7 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
                   onMouseLeave={handlers.onMouseUp}
                   onClick={(e) => handlers.onClick(draggable, e)}
                 >
-                  {renderTileIcon(template.icon)}
+                  {renderTileIcon(resolvedIcon)}
                   <span className={paletteFlyout.itemLabel}>{template.label}</span>
                 </button>
               );

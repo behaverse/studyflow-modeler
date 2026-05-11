@@ -95,64 +95,9 @@ types:
   - name: GaleaSession
     description: |
       A single session of work with the OpenBCI Galea headset, modeled as a
-      BPMN sub-process. Carries the device-level configuration (VR HMD,
-      streaming protocol, active modalities, electrode type) that is shared
-      by every phase nested inside the sub-process.
-    superClass:
-      - bpmn:SubProcess
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--virtual-reality
-      bpmnType: bpmn:SubProcess
-    properties:
-      - name: vrDevice
-        description: VR head-mounted display paired with the Galea biosensor module.
-        isAttr: true
-        type: VRDeviceEnum
-        default: quest_pro
-        meta:
-          categories:
-            - Galea
-      - name: customVRDevice
-        description: Custom VR device identifier when none of the listed options apply.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Galea
-          condition:
-            language: json
-            body:
-              vrDevice: other
-      - name: streamProtocol
-        description: Streaming protocol used to acquire data from the Galea headset.
-        isAttr: true
-        type: GaleaStreamProtocolEnum
-        default: lsl
-        meta:
-          categories:
-            - Galea
-      - name: modalities
-        description: Biosignal/sensor modalities active in this session.
-        isAttr: false
-        isMany: true
-        type: GaleaModalityEnum
-        meta:
-          categories:
-            - Galea
-      - name: electrodeType
-        description: EEG electrode contact medium used in the headset's montage.
-        isAttr: true
-        type: GaleaElectrodeTypeEnum
-        default: hybrid
-        meta:
-          categories:
-            - Galea
-
-  - name: GaleaSessionPool
-    description: |
-      A Galea session pool carries the same semantics as
-      `GaleaSession`.
+      BPMN pool. Carries the device-level configuration (VR HMD, streaming
+      protocol, active modalities, electrode type) shared by every phase
+      inside the session.
     superClass:
       - bpmn:Participant
       - bpmn:BaseElement
