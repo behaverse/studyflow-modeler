@@ -1,6 +1,6 @@
 ---
 title: Counterbalancing and randomization
-description: Modeling random assignment, block ordering, and counterbalanced designs
+subtitle: Modeling random assignment, block ordering, and counterbalanced designs
 ---
 
 Random assignment is a control-flow operation: the participant goes down one path rather than another, by chance. In Studyflow, this maps to the `RandomGateway` element. This guide covers the three patterns you will use most often.
