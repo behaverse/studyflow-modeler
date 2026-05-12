@@ -231,7 +231,7 @@ export const paletteFlyout = {
   panel: (isOpen: boolean) => `${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}
               transition-opacity duration-150
               absolute left-[calc(100%+10px)] top-[-6px] z-[300]
-              w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto overscroll-contain palette-flyout-scroll
+              w-[272px]
               p-2.5 pb-3
               ${radius.card} ${surface.menu} ${border.hairline} ${shadow.menu}`,
 
@@ -247,13 +247,13 @@ export const paletteFlyout = {
   /** Small "EXT" badge next to a schema name to mark third-party extensions. */
   extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[9.5px] font-semibold uppercase tracking-[0.1em] bg-transparent text-current border border-current',
 
-  /** 3-column grid of element tiles. */
-  grid: 'grid grid-cols-3 gap-1',
+  /** 3-column grid of element tiles. Capped at ~3 rows; scrolls vertically only. */
+  grid: 'grid grid-cols-3 gap-1 max-h-56 overflow-y-auto overflow-x-hidden overscroll-contain palette-flyout-scroll',
 
   /** Individual draggable element tile. */
-  item: 'flex flex-col items-center justify-center gap-1 p-2 rounded-lg text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-grab active:cursor-grabbing',
+  item: 'flex flex-col items-center justify-center gap-1 p-2 rounded-lg text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-grab active:cursor-grabbing min-w-0',
 
-  itemLabel: 'text-xs leading-tight text-center',
+  itemLabel: 'text-xs leading-tight text-center text-pretty hyphens-auto w-full',
 } as const;
 
 // --- 6. Inspector
@@ -365,8 +365,10 @@ export const modeler = {
 // --- 10. Dialog primitives (Login / Publish / Examples) 
 
 export const dialog = {
-  /** Headless UI <Dialog> root. */
-  root: 'relative z-[101] focus:outline-none',
+  /** Headless UI <Dialog> root. Sits above the inspector (`z-[220]`) and its
+   * toggle (`z-[230]`) so modals like Examples/Publish/Login fully cover the
+   * side panel. */
+  root: 'relative z-[240] focus:outline-none',
   /** Backdrop overlay covering the viewport with a blur. */
   backdrop: 'fixed backdrop-blur inset-0 z-10 w-screen overflow-y-auto',
   /** Centered layout for the panel inside the backdrop. */

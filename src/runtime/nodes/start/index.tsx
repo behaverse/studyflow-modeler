@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getProperty } from '@/modeler/extensions/resolve';
 import type { Process, FlowNode } from '../../types';
 import type { ValidationIssue } from '../behaverse/types';
-import { type NodeProps, readBoolProperty } from '../types';
+import { type NodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 
@@ -15,19 +15,16 @@ declare module '@/runtime/types' {
 export type StartJob = {
   kind: 'start';
   node: FlowNode;
-  requiresConsent: boolean;
   consentFormUri?: string;
   studyName?: string;
 };
 
 export function startToJob(node: FlowNode): StartJob {
-  const requiresConsent = readBoolProperty(node.businessObject, 'requiresConsent');
   const consentFormUri = (getProperty(node.businessObject, 'consentFormUri') as string) || undefined;
   const studyName = node.businessObject?.name || undefined;
   return {
     kind: 'start',
     node,
-    requiresConsent,
     consentFormUri,
     studyName,
   };
@@ -39,7 +36,7 @@ export function Start({ job, log, setVariable, complete, abort }: NodeProps<Star
   const title = job.studyName || 'Study';
 
   useEffect(() => {
-    if (!job.requiresConsent || !job.consentFormUri) return;
+    if (!job.consentFormUri) return;
     let cancelled = false;
     fetch(job.consentFormUri)
       .then((r) => {
@@ -58,9 +55,9 @@ export function Start({ job, log, setVariable, complete, abort }: NodeProps<Star
     return () => {
       cancelled = true;
     };
-  }, [job.consentFormUri, job.requiresConsent, log]);
+  }, [job.consentFormUri, log]);
 
-  if (!job.requiresConsent) {
+  if (!job.consentFormUri) {
     return (
       <div className={nodeStyles.card}>
         <div className={nodeStyles.panel}>
@@ -121,9 +118,8 @@ export function validate(process: Process): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const node of process.nodes.values()) {
     if (node.type !== 'bpmn:StartEvent') continue;
-    const requiresConsent = readBoolProperty(node.businessObject, 'requiresConsent');
     const consentFormUri = (getProperty(node.businessObject, 'consentFormUri') as string) || '';
-    if (requiresConsent && consentFormUri && !/^(https?:|\/)/i.test(consentFormUri)) {
+    if (consentFormUri && !/^(https?:|\/)/i.test(consentFormUri)) {
       issues.push({
         nodeId: node.id,
         message: `consentFormUri '${consentFormUri}' does not look like a URL or absolute path.`,

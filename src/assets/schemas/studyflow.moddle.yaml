@@ -267,27 +267,15 @@ types:
     meta:
       icon: iconify bpmn--start-event
     properties:
-      - name: requiresConsent
-        description: User requires to give consent before participating.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          categories:
-            - Privacy
-          pinned: false
       - name: consentFormUri
-        description: Link to the consent form. Leave empty if you want to use the default consent form.
+        description: Link to the consent form. Untick to skip the consent step entirely.
         isAttr: true
         type: String
         meta:
           pinned: false
+          optional: true
           categories:
             - Privacy
-          condition:
-            language: json
-            body:
-              requiresConsent: true
   - name: SequenceFlow
     extends:
       - bpmn:SequenceFlow
@@ -308,27 +296,18 @@ types:
     meta:
       icon: iconify bpmn--end-event
     properties:
-      - name: hasRedirectUrl
-        description: Redirect the user to the given URL after completion.
-        isAttr: true
-        type: Boolean
-        meta:
-          categories:
-            - Completion
       - name: redirectTo
         description: |
-          URL to redirect the user upon completion. Use `{COMPLETION_CODE}` as a
-          placeholder that will be replaced with the actual code at runtime
+          URL to redirect the user upon completion. Untick to skip the redirect.
+          Use `{COMPLETION_CODE}` as a placeholder that will be replaced with
+          the actual code at runtime
           (e.g. `https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}`).
         isAttr: true
         type: String
         meta:
+          optional: true
           categories:
             - Completion
-          condition:
-            language: json
-            body:
-              hasRedirectUrl: true
       - name: completionCodeType
         description: How the completion code is issued when the study ends.
         isAttr: true
@@ -340,7 +319,7 @@ types:
           condition:
             language: json
             body:
-              hasRedirectUrl: true
+              redirectTo: $set
       - name: completionCode
         description: Fixed completion code to embed in the redirect URL.
         isAttr: true
@@ -351,7 +330,7 @@ types:
           condition:
             language: json
             body:
-              hasRedirectUrl: true
+              redirectTo: $set
               completionCodeType: static
   - name: Activity
     description: Base class for all the activities in the Studyflow.

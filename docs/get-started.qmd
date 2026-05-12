@@ -23,7 +23,7 @@ The canonical Get Started diagram (`first.studyflow.svg`) needs to be authored i
 
 The flow reads top-to-bottom:
 
-1. **Start event**: the participant arrives. The start event carries a `requiresConsent` attribute so the runtime gates entry on informed consent.
+1. **Start event**: the participant arrives. The start event carries a `consentFormUri` attribute; when it is set, the runtime gates entry on informed consent.
 2. **Questionnaire activity**: a short demographics form. Studyflow's `Questionnaire` activity carries `language` and `text` attributes inspected in the right panel.
 3. **Cognitive task activity**: one block of a `CognitiveTask`. The icon distinguishes it from a generic BPMN task; the inspector shows task-specific parameters.
 4. **Data store (Dataset)**: the dataset where trial data is persisted. The flow from the task to the dataset is a *data association* (a dashed line), not a sequence flow.

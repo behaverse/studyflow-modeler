@@ -8,8 +8,6 @@
   "uri": "URI",
   "instrument": "Instrument",
   "studyflow:text": "Content",
-  "requiresConsent": "Requires Consent",
-  "hasRedirectUrl": "Redirect After Completion",
   "redirectTo": "Redirect URL",
   "completionCodeType": "Completion Code",
   "completionCode": "Code",

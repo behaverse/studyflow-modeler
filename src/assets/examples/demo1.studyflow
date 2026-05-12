@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="LabLink_Demo" name="Epsylon LabLink Demo">
+  <bpmn2:process id="LabLink_Demo" name="1. Study orchestration">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Example studyflow shwoing participants complete questionnaires and cognitive tasks.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Welcome" studyflow:requiresConsent="true" studyflow:consentFormUri="https://example.org/protocols/lablink/consent.md">
+    <bpmn2:documentation>Orchestrate a study: consent, screening questionnaires, randomized cognitive arms, bot- and human-driven sessions, and data collection.</bpmn2:documentation>
+    <bpmn2:startEvent id="Start" name="Welcome" studyflow:consentFormUri="https://example.org/protocols/lablink/consent.md">
       <bpmn2:outgoing>Flow_Start_Welcome</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Welcome_Instruction" name="Welcome">
@@ -77,9 +77,9 @@ Timelines:
       <bpmn2:incoming>Flow_To_Dual</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Dual_PostPHQ9</bpmn2:outgoing>
     </bpmn2:task>
-    <bpmn2:task id="Arm_XCIT_NB_03" name="2-Back&#10;(Digits)">
+    <bpmn2:task id="Arm_XCIT_NB_03" name="2-Back&#10;(Digits, human)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" agentMode="bot" botConfig="autoAnswer: Valid&#10;Speed: 100&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;overrideTemporalParameters: true&#10;stimulusDisplayDuration: 0.3&#10;interStimulusInterval: 0.3&#10;trialForeperiod: 0.1" timelineId="XCIT_NB_02" />
+        <behaverse:behaverseTask scene="NB" agentMode="human" timelineId="XCIT_NB_02" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_To_XCIT</bpmn2:incoming>
       <bpmn2:outgoing>Flow_XCIT_PostPHQ9</bpmn2:outgoing>
@@ -131,10 +131,18 @@ Timelines:
       <bpmn2:incoming>Flow_XCIT_PostPHQ9</bpmn2:incoming>
       <bpmn2:incoming>Flow_BDI2_PostPHQ9</bpmn2:incoming>
       <bpmn2:outgoing>Flow_PostPHQ9_End</bpmn2:outgoing>
+      <bpmn2:dataOutputAssociation id="DataOutput_Session">
+        <bpmn2:targetRef>SessionData</bpmn2:targetRef>
+      </bpmn2:dataOutputAssociation>
     </bpmn2:task>
-    <bpmn2:endEvent id="End" name="End" studyflow:hasRedirectUrl="true" studyflow:redirectTo="https://google.com" studyflow:completionCodeType="dynamic">
+    <bpmn2:endEvent id="End" name="End" studyflow:redirectTo="https://behaverse.org/studyflow-modeler/docs/" studyflow:completionCodeType="dynamic">
       <bpmn2:incoming>Flow_PostPHQ9_End</bpmn2:incoming>
     </bpmn2:endEvent>
+    <bpmn2:dataStoreReference id="SessionData" name="Session data">
+      <bpmn2:extensionElements>
+        <studyflow:dataset format="bdm" />
+      </bpmn2:extensionElements>
+    </bpmn2:dataStoreReference>
     <bpmn2:sequenceFlow id="Flow_Start_Welcome" sourceRef="Start" targetRef="Welcome_Instruction" />
     <bpmn2:sequenceFlow id="Flow_Welcome_PHQ9" sourceRef="Welcome_Instruction" targetRef="PHQ_9_baseline" />
     <bpmn2:sequenceFlow id="Flow_PHQ9_GAD7" sourceRef="PHQ_9_baseline" targetRef="GAD_7_baseline" />
@@ -205,6 +213,12 @@ Timelines:
           <dc:Bounds x="1580" y="243" width="20" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SessionData_di" bpmnElement="SessionData">
+        <dc:Bounds x="1425" y="430" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1413" y="485" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_Start_Welcome_di" bpmnElement="Flow_Start_Welcome">
         <di:waypoint x="216" y="218" />
         <di:waypoint x="270" y="218" />
@@ -271,6 +285,10 @@ Timelines:
       <bpmndi:BPMNEdge id="Flow_PostPHQ9_End_di" bpmnElement="Flow_PostPHQ9_End">
         <di:waypoint x="1510" y="218" />
         <di:waypoint x="1572" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataOutput_Session_di" bpmnElement="DataOutput_Session">
+        <di:waypoint x="1450" y="258" />
+        <di:waypoint x="1450" y="430" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

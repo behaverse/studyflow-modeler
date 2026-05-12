@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getProperty } from '@/modeler/extensions/resolve';
 import type { Process, FlowNode } from '../../types';
 import type { ValidationIssue } from '../behaverse/types';
-import { type NodeProps, readBoolProperty } from '../types';
+import { type NodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 import {
@@ -22,14 +22,12 @@ const REDIRECT_TIMEOUT = 5;  // seconds
 export type EndJob = {
   kind: 'end';
   node: FlowNode;
-  hasRedirectUrl: boolean;
   redirectTo?: string;
   completionCodeType: CompletionCodeType;
   completionCode?: string;
 };
 
 export function endToJob(node: FlowNode): EndJob {
-  const hasRedirectUrl = readBoolProperty(node.businessObject, 'hasRedirectUrl');
   const redirectTo = (getProperty(node.businessObject, 'redirectTo') as string) || undefined;
   const completionCodeType =
     ((getProperty(node.businessObject, 'completionCodeType') as string) as CompletionCodeType) ||
@@ -39,7 +37,6 @@ export function endToJob(node: FlowNode): EndJob {
   return {
     kind: 'end',
     node,
-    hasRedirectUrl,
     redirectTo,
     completionCodeType,
     completionCode,
@@ -52,9 +49,9 @@ export function End({ job, log, complete }: NodeProps<EndJob>) {
     [job.completionCodeType, job.completionCode],
   );
   const redirectUrl = useMemo(() => {
-    if (!job.hasRedirectUrl || !job.redirectTo) return null;
+    if (!job.redirectTo) return null;
     return substituteCompletionCode(job.redirectTo, code);
-  }, [job.hasRedirectUrl, job.redirectTo, code]);
+  }, [job.redirectTo, code]);
 
   const [countdown, setCountdown] = useState<number | null>(redirectUrl ? REDIRECT_TIMEOUT : null);
 
@@ -120,19 +117,12 @@ export function validate(process: Process): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const node of process.nodes.values()) {
     if (node.type !== 'bpmn:EndEvent') continue;
-    const hasRedirectUrl = readBoolProperty(node.businessObject, 'hasRedirectUrl');
     const redirectTo = (getProperty(node.businessObject, 'redirectTo') as string) || '';
     const completionCodeType =
       ((getProperty(node.businessObject, 'completionCodeType') as string) as CompletionCodeType) ||
       'none';
     const completionCode = (getProperty(node.businessObject, 'completionCode') as string) || '';
 
-    if (hasRedirectUrl && !redirectTo) {
-      issues.push({
-        nodeId: node.id,
-        message: `EndEvent '${node.id}' has hasRedirectUrl=true but no redirectTo.`,
-      });
-    }
     if (completionCodeType === 'static' && !completionCode) {
       issues.push({
         nodeId: node.id,
@@ -140,7 +130,6 @@ export function validate(process: Process): ValidationIssue[] {
       });
     }
     if (
-      hasRedirectUrl &&
       redirectTo &&
       redirectTo.includes('{COMPLETION_CODE}') &&
       completionCodeType === 'none'

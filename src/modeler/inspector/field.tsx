@@ -5,6 +5,7 @@ import { CodeEditor } from './CodeEditor';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { ArrayInput } from './ArrayInput';
+import { OptionalStringInput } from './OptionalStringInput';
 import { InspectorContext, ModelerContext } from '../contexts';
 import { getProperty } from '../extensions';
 import { splitQName } from '../utils/naming';
@@ -52,6 +53,9 @@ export function isPropertyVisible(bProp: any, el: any): boolean {
   const conditions = bProp.meta?.condition?.body || {};
   const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
     const cVal = getProperty(el, cKey);
+    if (cExpectedVal === '$set') {
+      return cVal != null;
+    }
     if (Array.isArray(cExpectedVal)) {
       return cExpectedVal.includes(cVal);
     }
@@ -95,7 +99,13 @@ export function PropertyField({ bpmnProperty }: FieldProps) {
   const isStringList = bpmnProperty.isMany === true && (
     declaredType === 'String' || declaredType.endsWith(':MarkdownString')
   );
-  const Input = isStringList ? ArrayInput : (INPUT_BY_TYPE[resolvedType] ?? StringInput);
+  const isOptionalString =
+    bpmnProperty.meta?.optional === true && (resolvedType === 'String' || declaredType === 'String');
+  const Input = isOptionalString
+    ? OptionalStringInput
+    : isStringList
+      ? ArrayInput
+      : (INPUT_BY_TYPE[resolvedType] ?? StringInput);
 
   return (
     <Field className={s.field}>

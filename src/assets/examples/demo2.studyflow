@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:datatrove="https://w3id.org/studyflow/datatrove" xmlns:omniprocess="https://w3id.org/omniprocess" id="omniprocess_lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="OmniProcessLabLinkDemo" name="OmniProcess Demo" isExecutable="true">
+  <bpmn2:process id="OmniProcessLabLinkDemo" name="2. Modeling and publication pipeline" isExecutable="true">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Multimodal Neuroimaging processing pipeline using DataTrove.
-    </bpmn2:documentation>
+    <bpmn2:documentation>Multimodal preprocessing, model fitting, and publication-ready figures and tables. Tasks can be dispatched to cloud, cluster, or local execution.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Canonical request">
       <bpmn2:outgoing>Flow_Start_Cache</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -89,25 +88,40 @@
       <bpmn2:incoming>Flow_EEG_Join</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Join_Stats</bpmn2:outgoing>
     </bpmn2:parallelGateway>
-    <bpmn2:serviceTask id="CollectStats" name="Collect QC stats" studyflow:isDataOperation="true" studyflow:operationType="map">
+    <bpmn2:serviceTask id="CollectStats" name="Collect features" studyflow:isDataOperation="true" studyflow:operationType="reduce">
       <bpmn2:extensionElements>
         <datatrove:stats />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Join_Stats</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Stats_Write</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Features_FitModel</bpmn2:outgoing>
     </bpmn2:serviceTask>
-    <bpmn2:serviceTask id="WriteLakehouse" name="Write to OmniData" studyflow:isDataOperation="true" studyflow:operationType="map">
+    <bpmn2:serviceTask id="FitModel" name="Fit model" studyflow:isDataOperation="true" studyflow:operationType="reduce">
+      <bpmn2:documentation>Hierarchical Bayesian model of behavioral and neural features.</bpmn2:documentation>
+      <bpmn2:extensionElements>
+        <omniprocess:reduce />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_Features_FitModel</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_FitModel_Figures</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:serviceTask id="GenerateFigures" name="Generate figures" studyflow:isDataOperation="true" studyflow:operationType="map">
+      <bpmn2:extensionElements>
+        <omniprocess:map />
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_FitModel_Figures</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Figures_Manuscript</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:serviceTask id="RenderManuscript" name="Render manuscript table" studyflow:isDataOperation="true" studyflow:operationType="map">
       <bpmn2:extensionElements>
         <datatrove:writer className="ParquetWriter" />
       </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Stats_Write</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Write_End</bpmn2:outgoing>
-      <bpmn2:dataOutputAssociation id="DataOutput_Write_Lakehouse">
-        <bpmn2:targetRef>OmniDataLakehouse</bpmn2:targetRef>
+      <bpmn2:incoming>Flow_Figures_Manuscript</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Manuscript_End</bpmn2:outgoing>
+      <bpmn2:dataOutputAssociation id="DataOutput_Manuscript">
+        <bpmn2:targetRef>ManuscriptArtifacts</bpmn2:targetRef>
       </bpmn2:dataOutputAssociation>
     </bpmn2:serviceTask>
-    <bpmn2:endEvent id="EndMaterialized" name="Derivative ready">
-      <bpmn2:incoming>Flow_Write_End</bpmn2:incoming>
+    <bpmn2:endEvent id="EndMaterialized" name="Manuscript ready">
+      <bpmn2:incoming>Flow_Manuscript_End</bpmn2:incoming>
     </bpmn2:endEvent>
     <bpmn2:sequenceFlow id="Flow_Start_Cache" sourceRef="Start" targetRef="CacheCheck" />
     <bpmn2:sequenceFlow id="Flow_Cache_Hit" name="hit" sourceRef="CacheCheck" targetRef="ServeCached" />
@@ -120,16 +134,18 @@
     <bpmn2:sequenceFlow id="Flow_fMRI_Join" sourceRef="fMRIPrep" targetRef="JoinModalities" />
     <bpmn2:sequenceFlow id="Flow_EEG_Join" sourceRef="EEGPrep" targetRef="JoinModalities" />
     <bpmn2:sequenceFlow id="Flow_Join_Stats" sourceRef="JoinModalities" targetRef="CollectStats" />
-    <bpmn2:sequenceFlow id="Flow_Stats_Write" sourceRef="CollectStats" targetRef="WriteLakehouse" />
-    <bpmn2:sequenceFlow id="Flow_Write_End" sourceRef="WriteLakehouse" targetRef="EndMaterialized" />
+    <bpmn2:sequenceFlow id="Flow_Features_FitModel" sourceRef="CollectStats" targetRef="FitModel" />
+    <bpmn2:sequenceFlow id="Flow_FitModel_Figures" sourceRef="FitModel" targetRef="GenerateFigures" />
+    <bpmn2:sequenceFlow id="Flow_Figures_Manuscript" sourceRef="GenerateFigures" targetRef="RenderManuscript" />
+    <bpmn2:sequenceFlow id="Flow_Manuscript_End" sourceRef="RenderManuscript" targetRef="EndMaterialized" />
     <bpmn2:dataStoreReference id="RawBIDSDataset" name="Raw BIDS data">
       <bpmn2:extensionElements>
         <studyflow:dataset format="bids" />
       </bpmn2:extensionElements>
     </bpmn2:dataStoreReference>
-    <bpmn2:dataStoreReference id="OmniDataLakehouse" name="OmniData lakehouse">
+    <bpmn2:dataStoreReference id="ManuscriptArtifacts" name="Manuscript artifacts (figures, tables)">
       <bpmn2:extensionElements>
-        <studyflow:dataset format="bids" />
+        <studyflow:dataset format="bdm" />
       </bpmn2:extensionElements>
     </bpmn2:dataStoreReference>
   </bpmn2:process>
@@ -151,9 +167,9 @@
         <dc:Bounds x="500" y="200" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndCached_di" bpmnElement="EndCached">
-        <dc:Bounds x="1462" y="222" width="36" height="36" />
+        <dc:Bounds x="1762" y="222" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1450" y="265" width="60" height="14" />
+          <dc:Bounds x="1750" y="265" width="60" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ReadBIDS_di" bpmnElement="ReadBIDS">
@@ -183,13 +199,19 @@
       <bpmndi:BPMNShape id="CollectStats_di" bpmnElement="CollectStats">
         <dc:Bounds x="1150" y="360" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="WriteLakehouse_di" bpmnElement="WriteLakehouse">
+      <bpmndi:BPMNShape id="FitModel_di" bpmnElement="FitModel">
         <dc:Bounds x="1300" y="360" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GenerateFigures_di" bpmnElement="GenerateFigures">
+        <dc:Bounds x="1450" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="RenderManuscript_di" bpmnElement="RenderManuscript">
+        <dc:Bounds x="1600" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndMaterialized_di" bpmnElement="EndMaterialized">
-        <dc:Bounds x="1462" y="382" width="36" height="36" />
+        <dc:Bounds x="1762" y="382" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1438" y="425" width="86" height="14" />
+          <dc:Bounds x="1738" y="425" width="86" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="RawBIDSDataset_di" bpmnElement="RawBIDSDataset">
@@ -198,10 +220,10 @@
           <dc:Bounds x="427" y="655" width="86" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="OmniDataLakehouse_di" bpmnElement="OmniDataLakehouse">
-        <dc:Bounds x="1325" y="600" width="50" height="50" />
+      <bpmndi:BPMNShape id="ManuscriptArtifacts_di" bpmnElement="ManuscriptArtifacts">
+        <dc:Bounds x="1625" y="540" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1297" y="655" width="106" height="14" />
+          <dc:Bounds x="1585" y="595" width="130" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_Start_Cache_di" bpmnElement="Flow_Start_Cache">
@@ -225,7 +247,7 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Cached_End_di" bpmnElement="Flow_Cached_End">
         <di:waypoint x="600" y="240" />
-        <di:waypoint x="1462" y="240" />
+        <di:waypoint x="1762" y="240" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Read_Filter_di" bpmnElement="Flow_Read_Filter">
         <di:waypoint x="520" y="400" />
@@ -259,21 +281,29 @@
         <di:waypoint x="1095" y="400" />
         <di:waypoint x="1150" y="400" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Stats_Write_di" bpmnElement="Flow_Stats_Write">
+      <bpmndi:BPMNEdge id="Flow_Features_FitModel_di" bpmnElement="Flow_Features_FitModel">
         <di:waypoint x="1250" y="400" />
         <di:waypoint x="1300" y="400" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Write_End_di" bpmnElement="Flow_Write_End">
+      <bpmndi:BPMNEdge id="Flow_FitModel_Figures_di" bpmnElement="Flow_FitModel_Figures">
         <di:waypoint x="1400" y="400" />
-        <di:waypoint x="1462" y="400" />
+        <di:waypoint x="1450" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Figures_Manuscript_di" bpmnElement="Flow_Figures_Manuscript">
+        <di:waypoint x="1550" y="400" />
+        <di:waypoint x="1600" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Manuscript_End_di" bpmnElement="Flow_Manuscript_End">
+        <di:waypoint x="1700" y="400" />
+        <di:waypoint x="1762" y="400" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DataInput_RawBIDS_Read_di" bpmnElement="DataInput_RawBIDS_Read">
         <di:waypoint x="470" y="600" />
         <di:waypoint x="470" y="440" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataOutput_Write_Lakehouse_di" bpmnElement="DataOutput_Write_Lakehouse">
-        <di:waypoint x="1350" y="440" />
-        <di:waypoint x="1350" y="600" />
+      <bpmndi:BPMNEdge id="DataOutput_Manuscript_di" bpmnElement="DataOutput_Manuscript">
+        <di:waypoint x="1650" y="440" />
+        <di:waypoint x="1650" y="540" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -11,10 +11,10 @@ import { drawIcon } from './utils';
  */
 export function drawEventWithIcon(parentNode, element, bpmnRenderer) {
   const circle = bpmnRenderer.handlers[element.type](parentNode, element);
-  if (element.businessObject.get("hasRedirectUrl")) {
+  if (element.businessObject.get("redirectTo")) {
     drawIcon(parentNode, element, "iconify tabler--external-link", 4, 4, 28);
   }
-  if (element.businessObject.get("requiresConsent")) {
+  if (element.businessObject.get("consentFormUri")) {
     drawIcon(parentNode, element, "iconify fluent--shield-task-28-regular", 4, 4, 28);
   }
   return circle;

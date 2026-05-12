@@ -4,7 +4,7 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:startEvent id="Enrollment_Start" name="Enrollment" studyflow:requiresConsent="true" studyflow:consentFormUri="https://example.org/protocols/consort2025/consent.pdf">
+    <bpmn2:startEvent id="Enrollment_Start" name="Enrollment" studyflow:consentFormUri="https://example.org/protocols/consort2025/consent.pdf">
       <bpmn2:outgoing>Flow_Start_Screening</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Activity_Screening" studyflow:checklist="- [ ] Demographic intake&#10;- [ ] Medical history&#10;- [ ] Vital signs&#10;- [ ] Baseline cognitive screen" name="Screening assessment">
@@ -103,7 +103,7 @@ eyes_open: true
       <bpmn2:outgoing>Flow_ExcludedAnalysis_B</bpmn2:outgoing>
       <bpmn2:errorEventDefinition id="ErrorDef_AnalysisExcluded_B" />
     </bpmn2:boundaryEvent>
-    <bpmn2:endEvent id="Trial_Complete" name="Completed" studyflow:hasRedirectUrl="true" studyflow:redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}" studyflow:completionCodeType="dynamic">
+    <bpmn2:endEvent id="Trial_Complete" name="Completed" studyflow:redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}" studyflow:completionCodeType="dynamic">
       <bpmn2:incoming>Flow_A_Done</bpmn2:incoming>
       <bpmn2:incoming>Flow_B_Done</bpmn2:incoming>
     </bpmn2:endEvent>

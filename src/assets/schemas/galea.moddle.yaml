@@ -158,7 +158,7 @@ types:
       - bpmn:Task
       - bpmn:BaseElement
     meta:
-      icon: iconify mdi--head-snowflake-outline
+      icon: iconify mdi--head-plus-outline
       bpmnType: bpmn:Task
     properties:
       - name: usesGel
@@ -409,7 +409,7 @@ types:
       - bpmn:Task
       - bpmn:BaseElement
     meta:
-      icon: iconify mdi--head-remove-outline
+      icon: iconify mdi--head-minus-outline
       bpmnType: bpmn:Task
     properties:
       - name: stopsStreams
