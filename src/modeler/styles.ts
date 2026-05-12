@@ -355,7 +355,7 @@ export const codeEditor = {
 
 export const modeler = {
   /** Loading-state container - full-height, canvas-colored. */
-  loading: `flex h-full text-center ${surface.canvas}`,
+  loading: `flex flex-1 h-full text-center ${surface.canvas}`,
   loadingSpinner: 'm-auto animate-spin',
   loadingIcon: 'iconify bi--arrow-repeat text-stone-500 text-[3rem]',
   /** Modeler canvas (where bpmn-js renders). */
