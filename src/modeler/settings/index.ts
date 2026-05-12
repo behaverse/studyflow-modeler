@@ -10,3 +10,8 @@ export {
   type ThemePreference,
   type DiagramAutoSave,
 } from './store';
+export {
+  loadAutosavedDiagram,
+  saveAutosavedDiagram,
+  clearAutosavedDiagram,
+} from './autosaveDiagram';

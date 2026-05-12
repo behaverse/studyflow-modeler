@@ -1,5 +1,5 @@
 import { runImportXml } from './importXml';
-import new_diagram from '@/assets/examples/new_diagram.bpmn';
+import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
 
 export type NewDiagramCommand = {
   type: 'new-diagram';
@@ -13,8 +13,7 @@ export async function runNewDiagram(
     throw new Error("Command 'new-diagram' requires a modeler instance.");
   }
 
-  const xml = await fetch(new_diagram).then((r) => r.text());
-  const result = await runImportXml(modeler, { type: 'import-xml', xml });
+  const result = await runImportXml(modeler, { type: 'import-xml', xml: new_diagram });
   modeler.get('canvas').zoom('fit-viewport');
   return result;
 }

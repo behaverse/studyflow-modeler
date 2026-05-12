@@ -20,7 +20,6 @@ export type Settings = {
   language: string;
   diagramAutoSave: DiagramAutoSave;
   showGrid: boolean;
-  inspectorDefaultOpen: boolean;
   telemetryEnabled: boolean;
   /** Moddle prefixes of extension schemas to load at boot. */
   enabledSchemas: string[];
@@ -31,7 +30,6 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'en',
   diagramAutoSave: 'local',
   showGrid: true,
-  inspectorDefaultOpen: true,
   telemetryEnabled: false,
   enabledSchemas: [...SCHEMA_NAMES],
 };

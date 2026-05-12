@@ -410,18 +410,6 @@ function EditorSection() {
       />
 
       <Row
-        label="Open inspector by default"
-        help="When you load a diagram, expand the inspector panel automatically."
-        control={
-          <ToggleControl
-            label="Open inspector by default"
-            checked={settings.inspectorDefaultOpen}
-            onChange={(inspectorDefaultOpen) => update({ inspectorDefaultOpen })}
-          />
-        }
-      />
-
-      <Row
         label="Auto-save diagram"
         help="Save the current diagram to this browser as you edit, so it persists across reloads."
         control={

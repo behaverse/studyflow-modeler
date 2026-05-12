@@ -197,6 +197,9 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
 /** localStorage key for user-level modeler settings (theme / language / etc.). */
 export const SETTINGS_STORAGE_KEY = 'studyflow-modeler:settings:v1';
 
+/** localStorage key for the diagram XML persisted by auto-save. */
+export const AUTOSAVE_DIAGRAM_STORAGE_KEY = 'studyflow-modeler:autosave-diagram:v1';
+
 // --- 5. File handling
 
 /** Accepted file extensions when opening a diagram from disk. */
