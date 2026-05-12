@@ -1,5 +1,5 @@
 ---
-title: Attach a schema
+title: Attach a schema to a dataset
 description: Declare column types, units, and constraints so downstream tasks can validate
 ---
 

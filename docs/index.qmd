@@ -32,10 +32,10 @@ Studyflow diagrams are human-friendly, machine-readable, and executable. Common 
 
 If you are new to the project, use one of these paths:
 
-- **Get started**: walk through a complete worked example on [Get started](get-started.qmd).
-- **The modeler**: open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow its [usage guide](guides/modeler-app.qmd).
-- **Specification**: read [Why Studyflow](reference/why-studyflow.qmd), [Studyflow vs BPMN](reference/studyflow-vs-bpmn.qmd), and the [Specification](reference/spec.qmd).
-- **Use cases**: explore the [Examples gallery](examples/index.qmd) for cognitive tasks, CONSORT, analysis pipelines, and MLOps.
+- [Get started](get-started.qmd): walk through a complete example.
+- Open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow its [usage guide](guides/modeler-app.qmd).
+- Explore the [Examples](examples/index.qmd) for cognitive tasks, CONSORT, analysis pipelines, MLOps, and more.
+- Read [Specification](reference/spec.qmd).
 
 See also [FAQ](faq.qmd) and [Glossary](reference/glossary.qmd).
 

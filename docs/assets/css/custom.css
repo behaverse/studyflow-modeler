@@ -105,6 +105,12 @@ pre > code.sourceCode {
   background-color: transparent !important;
 }
 
+/* Expandable details/summary */
+details > summary {
+  color: var(--doc-text, #1a1a2e);
+  cursor: pointer;
+}
+
 /* KaTeX: hide duplicate HTML rendering */
 .katex-html {
   display: none !important;

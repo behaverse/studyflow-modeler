@@ -1,6 +1,7 @@
 ---
 title: Elements
 description: Catalog of every element type with icons and short definitions
+order: 3
 ---
 
 This page is a reference catalog. For deeper concept material, see [Why Studyflow](why-studyflow.qmd) and [Studyflow vs BPMN](studyflow-vs-bpmn.qmd). For worked examples that use these elements in context, see:

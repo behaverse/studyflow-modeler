@@ -1,5 +1,5 @@
 ---
-title: Counterbalancing and randomization
+title: Counterbalancing
 subtitle: Modeling random assignment, block ordering, and counterbalanced designs
 ---
 

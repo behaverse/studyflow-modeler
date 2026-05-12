@@ -1,6 +1,7 @@
 ---
 title: Why Studyflow
 description: One diagram, many audiences -- the case for a single source of truth across the study lifecycle
+order: 1
 ---
 
 A scientific study touches many people and systems. The researcher designs it. The ethics reviewer approves it. The participant runs it. The data pipeline ingests it. The model trains on it. The reviewer reads it in a manuscript. The replicator tries to rebuild it.

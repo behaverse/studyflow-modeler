@@ -36,48 +36,14 @@ website:
         href: get-started.qmd
       - section: Guides
         contents:
-          - text: Modeler app
-            href: guides/modeler-app.qmd
-          - text: Save and share
-            href: guides/save-share-version.qmd
-          - text: Read a studyflow
-            href: guides/read-a-studyflow.qmd
-          - text: Counterbalancing and randomization
-            href: guides/counterbalancing.qmd
-          - text: Publish a studyflow
-            href: guides/publish.qmd
-          - text: Preprocessing pipelines
-            href: guides/preprocessing-pipelines.qmd
-          - text: Attach a schema
-            href: guides/attach-schema.qmd
+          - auto: guides
       - section: Examples
         href: examples/index.qmd
         contents:
-          - examples/analysis.qmd
-          - examples/consort.qmd
-          - examples/data-collection.qmd
-          - examples/mlops.qmd
-          - examples/multi-agent.qmd
-          - examples/publication.qmd
-          - examples/reporting-guidelines.qmd
+          - auto: examples/*.qmd
       - section: Reference
         contents:
-          - text: Why Studyflow
-            href: reference/why-studyflow.qmd
-          - text: Studyflow vs BPMN
-            href: reference/studyflow-vs-bpmn.qmd
-          - text: Elements
-            href: reference/elements.qmd
-          - text: Data
-            href: reference/data.qmd
-          - text: Views
-            href: reference/views.qmd
-          - text: Specification
-            href: reference/spec.qmd
-          - text: Extensions
-            href: reference/extensions.qmd
-          - text: Glossary
-            href: reference/glossary.qmd
+          - auto: reference/*.qmd
       - text: FAQ
         href: faq.qmd
       - text: "---"

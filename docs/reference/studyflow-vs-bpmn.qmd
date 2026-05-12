@@ -1,6 +1,7 @@
 ---
 title: Studyflow vs BPMN
 description: What BPMN provides, what Studyflow adds, what it leaves alone
+order: 2
 ---
 
 Studyflow extends [BPMN 2.1](https://www.omg.org/spec/BPMN/2.0/) rather than replacing it. If you already know BPMN, this page tells you *what is standard process notation* and *what is domain-specific*.

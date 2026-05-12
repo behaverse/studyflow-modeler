@@ -1,6 +1,7 @@
 ---
-title: Moddle schemas
-description: Structure and conventions for Studyflow moddle YAML schemas
+title: Extensions
+description: Extending the Studyflow with new element types and attributes.
+order: 5
 ---
 
 This page is for **contributors** extending the Studyflow language with new element types or attributes. If you are a researcher or pipeline author using the modeler, see the [Elements](../reference/elements.qmd) reference instead.
