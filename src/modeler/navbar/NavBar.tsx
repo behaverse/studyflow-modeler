@@ -7,7 +7,7 @@ import {
   SimulationContext,
 } from '../contexts';
 import CommandMenu from './CommandMenu';
-import { CommandPalette } from '../dialogs';
+import { CommandPalette, OPEN_PALETTE_SHORTCUT_LABEL } from '../dialogs';
 import { navbar, navBurgerBtnCls } from '../styles';
 
 export function NavBar() {
@@ -40,7 +40,7 @@ export function NavBar() {
             <CommandPalette ref={paletteRef} openSettings={openSettings} />
             <button
               type="button"
-              title="Menu (⌘K)"
+              title={`Menu (${OPEN_PALETTE_SHORTCUT_LABEL})`}
               aria-label="Open command palette"
               className={navBurgerBtnCls}
               onClick={() => paletteRef.current?.open()}

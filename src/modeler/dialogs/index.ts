@@ -1,3 +1,3 @@
 export { PublishDialog } from './Publish';
 export { ExamplesDialog } from './Examples';
-export { CommandPalette } from './CommandPalette';
+export { CommandPalette, OPEN_PALETTE_SHORTCUT_LABEL } from './CommandPalette';

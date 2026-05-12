@@ -22,8 +22,29 @@ type Command = {
   label: string;
   icon: string;
   hint?: string;
+  /**
+   * Optional single-key shortcut (one letter or digit, e.g. `'s'`, `'0'`).
+   * Fires only while the palette is open and the search box is empty, so it
+   * doesn't conflict with typing a query that starts with the same letter.
+   */
+  shortcut?: string;
   action: () => void | Promise<void>;
 };
+
+function matchShortcut(event: KeyboardEvent | React.KeyboardEvent, shortcut: string): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+  return event.key.toLowerCase() === shortcut.toLowerCase();
+}
+
+function formatShortcut(shortcut: string): string {
+  return shortcut.toUpperCase();
+}
+
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac|iPad|iPhone|iPod/.test(navigator.platform);
+
+/** Cross-platform label for the palette's global open shortcut. */
+export const OPEN_PALETTE_SHORTCUT_LABEL = IS_MAC ? '⌘K' : 'Ctrl+K';
 
 type Props = {
   ref?: React.Ref<{ open: () => void; close: () => void }>;
@@ -95,6 +116,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'Run',
         label: 'Run',
         icon: 'iconify bi--play-fill',
+        shortcut: '1',
         action: async () => {
           if (!modeler) return;
           const { xml } = await modeler.saveXML({ format: true });
@@ -109,6 +131,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'File',
         label: 'New',
         icon: 'iconify bi--file-earmark-plus',
+        shortcut: '2',
         action: () => {
           alert('FIXME: this will delete the current diagram and load an empty one. It cannot be undone.');
           if (modeler) executeCommand(modeler, { type: 'new-diagram' }).catch((err) => console.log(err));
@@ -119,6 +142,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'File',
         label: 'Open File...',
         icon: 'iconify bi--folder2-open',
+        shortcut: '3',
         action: () => fileInputRef.current?.click(),
       },
       {
@@ -126,6 +150,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'File',
         label: 'Examples...',
         icon: 'iconify bi--collection',
+        shortcut: '4',
         action: () => examplesDialogRef.current?.open(),
       },
       {
@@ -133,6 +158,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'File',
         label: 'Save As...',
         icon: 'iconify bi--download',
+        shortcut: '5',
         action: () => executeCommand(modeler, { type: 'save-diagram', diagramName }),
       },
       {
@@ -163,6 +189,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'View',
         label: 'Reset Zoom',
         icon: 'iconify bi--fullscreen',
+        shortcut: '0',
         action: () => {
           try {
             executeCommand(modeler, { type: 'reset-zoom' });
@@ -176,6 +203,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'Settings',
         label: 'Settings...',
         icon: 'iconify bi--gear',
+        shortcut: '6',
         action: () => openSettings?.(),
       },
       {
@@ -248,6 +276,15 @@ export function CommandPalette({ ref, openSettings }: Props) {
   };
 
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    // Single-key shortcut: fire when search box is empty so it doesn't shadow typing.
+    if (query === '' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      const match = commands.find((c) => c.shortcut && matchShortcut(e, c.shortcut));
+      if (match) {
+        e.preventDefault();
+        runCommand(match);
+        return;
+      }
+    }
     if (filtered.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -284,7 +321,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search commands..."
+                placeholder={`Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} to toggle)`}
                 className={cp.searchInput}
                 aria-label="Search commands"
               />
@@ -310,7 +347,11 @@ export function CommandPalette({ ref, openSettings }: Props) {
                         >
                           <i className={`${c.icon} ${cp.itemIcon}`}></i>
                           <span className={cp.itemLabel}>{c.label}</span>
-                          {c.hint && <span className={cp.itemHint}>{c.hint}</span>}
+                          {c.shortcut ? (
+                            <span className={cp.itemHint}>{formatShortcut(c.shortcut)}</span>
+                          ) : c.hint ? (
+                            <span className={cp.itemHint}>{c.hint}</span>
+                          ) : null}
                         </button>
                       );
                     })}
