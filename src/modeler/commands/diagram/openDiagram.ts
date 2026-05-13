@@ -36,8 +36,11 @@ export async function runOpenDiagram(
   modeler.get('canvas').zoom('fit-viewport');
 
   if (command.setDiagramName) {
-    const nameWithoutExt = command.filename.replace(/\.[^/.]+$/, '');
-    command.setDiagramName(nameWithoutExt);
+    const rootElement = modeler.get('canvas').getRootElement();
+    const embedded = rootElement?.businessObject?.name;
+    const hasEmbedded = typeof embedded === 'string' && embedded.length > 0;
+    const name = hasEmbedded ? embedded : command.filename.replace(/\.[^/.]+$/, '');
+    command.setDiagramName(name);
   }
 
   return result;

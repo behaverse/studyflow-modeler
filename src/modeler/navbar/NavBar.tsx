@@ -1,5 +1,5 @@
 import logo_image from '@/assets/img/logo.png';
-import { useState, useContext, useRef } from 'react';
+import { useState, useContext, useEffect, useCallback, useRef } from 'react';
 import {
   DiagramNameContext,
   ModelerContext,
@@ -10,13 +10,54 @@ import CommandMenu from './CommandMenu';
 import { CommandPalette, OPEN_PALETTE_SHORTCUT_LABEL } from '../dialogs';
 import { navbar, navBurgerBtnCls } from '../styles';
 
+const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';
+
+function readProcessName(modeler: any): string | undefined {
+  const rootElement = modeler?.get('canvas')?.getRootElement?.();
+  const name = rootElement?.businessObject?.name;
+  return typeof name === 'string' && name.length > 0 ? name : undefined;
+}
+
 export function NavBar() {
   const { modeler } = useContext(ModelerContext);
   const { openSettings } = useContext(SettingsViewContext);
-  const [diagramName, setDiagramName] = useState('Untitled Diagram');
+  const [diagramName, setDiagramNameState] = useState(DEFAULT_DIAGRAM_NAME);
   const [isEditingDiagramName, setIsEditingDiagramName] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const paletteRef = useRef<{ open: () => void; close: () => void }>(null);
+
+  const setDiagramName = useCallback(
+    (name: string) => {
+      setDiagramNameState(name);
+      if (!modeler) return;
+      const rootElement = modeler.get('canvas')?.getRootElement?.();
+      if (!rootElement) return;
+      const modelValue = name === DEFAULT_DIAGRAM_NAME ? undefined : name;
+      if (rootElement.businessObject.name !== modelValue) {
+        modeler.get('modeling').updateProperties(rootElement, { name: modelValue });
+      }
+    },
+    [modeler],
+  );
+
+  useEffect(() => {
+    if (!modeler) return;
+    const eventBus = modeler.get('eventBus');
+    const canvas = modeler.get('canvas');
+    const sync = () => {
+      setDiagramNameState(readProcessName(modeler) ?? DEFAULT_DIAGRAM_NAME);
+    };
+    const onElementChanged = (event: any) => {
+      if (event?.element === canvas.getRootElement()) sync();
+    };
+    sync();
+    eventBus.on('import.done', sync);
+    eventBus.on('element.changed', onElementChanged);
+    return () => {
+      eventBus.off('import.done', sync);
+      eventBus.off('element.changed', onElementChanged);
+    };
+  }, [modeler]);
 
   return (
     <SimulationContext.Provider value={{ isSimulating, setIsSimulating }}>
