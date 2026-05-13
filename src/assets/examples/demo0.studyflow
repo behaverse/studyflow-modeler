@@ -4,7 +4,7 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Live-build demo. Drag elements from the palette to grow this scaffold into a runnable study: an Instruction, a CognitiveTask (N-back), and a Questionnaire.</bpmn2:documentation>
+    <bpmn2:documentation>Minimal process.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Participant arrives">
       <bpmn2:outgoing>Flow_Start_End</bpmn2:outgoing>
     </bpmn2:startEvent>

@@ -4,7 +4,7 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Orchestrate a study: consent, screening questionnaires, randomized cognitive arms, bot- and human-driven sessions, and data collection.</bpmn2:documentation>
+    <bpmn2:documentation>Orchestrate a study: consent, questionnaires, cognitive tests, bot- and human, and data collection.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Welcome" studyflow:consentFormUri="https://example.org/protocols/lablink/consent.md">
       <bpmn2:outgoing>Flow_Start_Welcome</bpmn2:outgoing>
     </bpmn2:startEvent>

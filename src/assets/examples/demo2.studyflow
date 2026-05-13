@@ -4,7 +4,7 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Multimodal preprocessing, model fitting, and publication-ready figures and tables. Tasks can be dispatched to cloud, cluster, or local execution.</bpmn2:documentation>
+    <bpmn2:documentation>Multimodal preprocessing and model fitting.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Canonical request">
       <bpmn2:outgoing>Flow_Start_Cache</bpmn2:outgoing>
     </bpmn2:startEvent>
