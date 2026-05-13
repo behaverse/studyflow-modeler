@@ -44,7 +44,7 @@ types:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
     meta:
-      icon: iconify mdi--file-document-outline
+      icon: iconify fluent--document-text-24-regular
       bpmnType: bpmn:DataObjectReference
     properties:
       - name: text
@@ -71,7 +71,7 @@ types:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
     meta:
-      icon: iconify mdi--folder-outline
+      icon: iconify fluent--folder-open-24-regular
       bpmnType: bpmn:DataObjectReference
     properties:
   - name: Reader

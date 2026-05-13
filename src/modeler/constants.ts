@@ -178,7 +178,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
     label: 'Data',
     icon: 'iconify fluent--database-16-regular',
     items: [
-      { label: 'Data Object', bpmnType: BPMN.DataObjectReference, icon: 'iconify bpmn--data-object' },
+      { label: 'Data Object', bpmnType: BPMN.DataObjectReference, icon: 'iconify fluent--document-24-regular' },
     ],
   },
   {
@@ -251,6 +251,7 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:InclusiveGateway':  'iconify mdi--checkbox-blank-circle-outline',
   'bpmn:ComplexGateway':    'iconify mdi--asterisk',
   'bpmn:EventBasedGateway': 'iconify mdi--pentagon-outline',
+  'bpmn:DataObjectReference': 'iconify fluent--document-24-regular',
   'operation':              'iconify mdi--function',
   'subprocess':             'iconify mdi--plus-box-outline',
   'adhoc':                  'iconify tabler--tilde',

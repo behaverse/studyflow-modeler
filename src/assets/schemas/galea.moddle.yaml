@@ -42,7 +42,8 @@ enumerations:
         value: hybrid
 
   - name: VRDeviceEnum
-    description: VR head-mounted display.
+    description: |
+      VR head-mounted display. Properties typed with this enum may also accept custom identifiers.
     literalValues:
       - name: Meta Quest Pro
         value: quest_pro
@@ -52,11 +53,11 @@ enumerations:
         value: valve_index
       - name: Varjo XR-3
         value: varjo_xr3
-      - name: Other / custom
-        value: other
 
   - name: GaleaStreamProtocolEnum
-    description: Streaming protocol used to acquire data from the Galea headset.
+    description: |
+      Streaming protocol used to acquire data from the Galea headset.
+      This may also accept custom identifiers when.
     literalValues:
       - name: LSL (Lab Streaming Layer)
         value: lsl
@@ -64,8 +65,6 @@ enumerations:
         value: brainflow
       - name: OpenBCI GUI
         value: openbci_gui
-      - name: Custom
-        value: custom
 
   - name: BaselineConditionEnum
     description: Resting-state baseline condition.
@@ -106,30 +105,21 @@ types:
       bpmnType: bpmn:Participant
     properties:
       - name: vrDevice
-        description: VR head-mounted display paired with the Galea biosensor module.
+        description: VR head-mounted display paired with the Galea biosensor module. Pick a listed option or type a custom identifier.
         isAttr: true
         type: VRDeviceEnum
         default: quest_pro
         meta:
+          editable: true
           categories:
             - Galea
-      - name: customVRDevice
-        description: Custom VR device identifier when none of the listed options apply.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Galea
-          condition:
-            language: json
-            body:
-              vrDevice: other
       - name: streamProtocol
-        description: Streaming protocol used to acquire data from the Galea headset.
+        description: Streaming protocol used to acquire data from the Galea headset. Pick a listed option or type a custom identifier.
         isAttr: true
         type: GaleaStreamProtocolEnum
         default: lsl
         meta:
+          editable: true
           categories:
             - Galea
       - name: modalities
