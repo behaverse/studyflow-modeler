@@ -62,10 +62,13 @@ export interface ModdleProperty {
     categories?: string[];
     order?: number;
     hidden?: boolean;
+    /** For enum-typed properties: render an editable text input with the enum literals as suggestions. */
+    editable?: boolean;
+    /** Conditional visibility - property is shown only when `body` matches the element. */
+    condition?: {
+      language: string;
+      body: Record<string, any>;
+    };
     [key: string]: any;
-  };
-  condition?: {
-    language: string;
-    body: Record<string, any>;
   };
 }

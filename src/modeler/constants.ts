@@ -264,7 +264,7 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
 /**
  * Lookup an icon for a BPMN type by checking the default palette entries
  * first, then `BPMN_ICON_OVERRIDES`. Returns `undefined` if the type is
- * unknown — callers should fall back to a parent (group/schema) icon.
+ * unknown - callers should fall back to a parent (group/schema) icon.
  */
 const _PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
   PALETTE_GROUPS.flatMap((group) =>

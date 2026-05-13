@@ -505,7 +505,7 @@ types:
           categories:
             - Galea
       - name: eegChannels
-        description: Number of EEG channels recorded (typically 8–10 on Galea).
+        description: Number of EEG channels recorded (typically 8-10 on Galea).
         isAttr: true
         type: Number
         default: 10

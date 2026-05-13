@@ -21,7 +21,7 @@ export function saveAutosavedDiagram(xml: string): void {
   try {
     window.localStorage.setItem(KEY, xml);
   } catch {
-    // Quota or privacy mode — silently drop. Next save attempts again.
+    // Quota or privacy mode - silently drop. Next save attempts again.
   }
 }
 

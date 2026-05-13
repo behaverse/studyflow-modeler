@@ -285,8 +285,8 @@ export const inspector = {
   headerTitle: 'pb-0 text-[15px] font-semibold p-2 pb-0 text-stone-900 tracking-tight',
   headerSubtitle: 'text-[10.5px] text-left font-mono px-2 pb-2 text-stone-500',
 
-  tabList: 'flex flex-wrap gap-1 px-2 pb-2 border-b border-black/[0.08]',
-  tabBase: 'px-2.5 py-1 text-xs font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-400',
+  tabList: 'flex flex-wrap gap-0.5 px-2 pb-2 border-b border-black/[0.08]',
+  tabBase: 'px-1.5 py-1 text-xs font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-400',
   tabSelected: 'bg-stone-900 text-cream-50 shadow-sm',
   tabUnselected: 'text-stone-600 hover:bg-black/[0.05] hover:text-stone-900 cursor-pointer',
   tabPanels: 'p-1',
@@ -315,6 +315,18 @@ export const field = {
   selectWrapper: 'relative',
   select: 'appearance-none px-2 py-1 pr-8 w-full rounded-md border border-black/[0.08] bg-cream-200 text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400',
   selectChevron: 'group iconify bi--caret-down pointer-events-none absolute top-1.5 right-2.5 text-stone-500',
+
+  /* Editable combobox - text input + chevron-triggered options panel. */
+  comboInput: 'appearance-none px-2 py-1 pr-8 w-full rounded-md border border-black/[0.08] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400',
+  comboChevronBtn: 'absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
+  comboChevronIndicator: 'pointer-events-none absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500',
+  comboChevronIcon: 'iconify bi--caret-down text-[12px]',
+  comboOptions: 'z-[240] mt-1 w-[var(--input-width)] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] py-1 focus:outline-none [--anchor-gap:4px]',
+  comboOption: 'px-2.5 py-1 text-sm/6 text-stone-800 data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
+
+  /* Listbox (non-editable enum) - button trigger styled like an input field. */
+  listboxBtn: 'appearance-none px-2 py-1 pr-8 w-full text-left rounded-md border border-black/[0.08] bg-cream-200 text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer',
+  listboxOptions: 'z-[240] mt-1 w-[var(--button-width)] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] py-1 focus:outline-none [--anchor-gap:4px]',
 
   booleanRow: 'flex items-center justify-between',
   booleanGroup: 'flex items-center gap-2',

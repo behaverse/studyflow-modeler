@@ -132,8 +132,8 @@ enumerations:
   - name: InstrumentEnum
     description: |
       Software that delivers a cognitive task. Determines how the
-      task's `configurations` YAML is interpreted. Pick `other` to use a custom
-      identifier set in `customInstrument`.
+      task's `configurations` YAML is interpreted. Properties typed with this
+      enum may also accept custom identifiers when annotated with `meta.editable: true`.
     literalValues:
       - name: PsychoPy
         value: psychopy
@@ -143,6 +143,30 @@ enumerations:
         value: labjs
       - name: OpenSesame
         value: opensesame
+  - name: QuestionnaireInstrumentEnum
+    description: |
+      Curated list of standardized questionnaires. This list is a starting
+      point for common psychometric instruments; properties typed with this
+      enum may also accept custom names when annotated with `meta.editable: true`.
+    literalValues:
+      - name: PHQ-9
+        value: phq-9
+      - name: GAD-7
+        value: gad-7
+      - name: BDI-II
+        value: bdi-ii
+      - name: STAI
+        value: stai
+      - name: PSS
+        value: pss
+      - name: WHO-5
+        value: who-5
+      - name: Big Five Inventory
+        value: bfi
+      - name: DASS-21
+        value: dass-21
+      - name: PANAS
+        value: panas
       - name: Other
         value: other
 types:
@@ -360,24 +384,13 @@ types:
     properties:
       - name: instrument
         description: |
-          Software used to deliver the task. Determines how `configurations` are interpreted. Pick `other` to specify a custom one.
+          Software used to deliver the task. Determines how `configurations` are interpreted. Pick a listed option or type a custom identifier.
         isAttr: true
         type: InstrumentEnum
         meta:
+          editable: true
           categories:
             - Instrument
-      - name: customInstrument
-        description: |
-          Custom instrument when none of the listed options apply (e.g., an internal framework).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Instrument
-          condition:
-            language: json
-            body:
-              instrument: other
       - name: configurations
         description: |
           Instrument-specific configuration in YAML format (e.g., number of
@@ -471,10 +484,19 @@ types:
         description: |
           Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g., PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
         isAttr: true
-        type: String
+        type: QuestionnaireInstrumentEnum
         meta:
+          editable: true
           categories:
             - Instrument
+      - name: isDataOperation
+        description: Questionnaire is not a data operation.
+        isAttr: true
+        type: Boolean
+        default: false
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
   - name: Instruction
     description: A passive information display.
     superClass:
