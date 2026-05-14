@@ -306,7 +306,7 @@ types:
       blocks). Used as a reference signal for downstream analysis and as a
       post-calibration recording quality check.
     superClass:
-      - studyflow:Rest
+      - cognitive:Rest
     meta:
       icon: iconify mdi--brain
       bpmnType: bpmn:Task
@@ -345,10 +345,10 @@ types:
   - name: GaleaTask
     description: |
       A VR cognitive task delivered through the Galea headset. Behaves like a
-      `studyflow:CognitiveTask` but pins `instrument` to `galea` and adds
+      `cognitive:CognitiveTask` but pins `instrument` to `galea` and adds
       VR-scene specific properties (scene id, locomotion mode, marker channel).
     superClass:
-      - studyflow:CognitiveTask
+      - cognitive:CognitiveTask
     meta:
       icon: iconify mdi--virtual-reality
       bpmnType: bpmn:Task
@@ -357,7 +357,7 @@ types:
         default: galea
         type: String
         isAttr: true
-        redefines: studyflow:CognitiveTask#instrument
+        redefines: cognitive:CognitiveTask#instrument
         meta:
           pinned: true
       - name: sceneId

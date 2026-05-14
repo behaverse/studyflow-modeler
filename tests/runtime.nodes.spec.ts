@@ -25,18 +25,18 @@ async function runStudyflow(page: Page, key: string, xml: string): Promise<void>
 }
 
 const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="runner-stages-no-unity" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-no-unity" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1" name="Welcome">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Instr_1" name="Instructions">
-      <bpmn2:extensionElements><studyflow:instruction content="Read this carefully." /></bpmn2:extensionElements>
+      <bpmn2:extensionElements><cognitive:instruction content="Read this carefully." /></bpmn2:extensionElements>
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="Quest_1" name="PHQ-9">
-      <bpmn2:extensionElements><studyflow:questionnaire instrument="phq-9" /></bpmn2:extensionElements>
+      <bpmn2:extensionElements><cognitive:questionnaire instrument="phq-9" /></bpmn2:extensionElements>
       <bpmn2:incoming>F2</bpmn2:incoming>
       <bpmn2:outgoing>F3</bpmn2:outgoing>
     </bpmn2:task>
@@ -50,13 +50,13 @@ const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn2:definitions>`;
 
 const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1" name="Consent" requiresConsent="true">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Instr_1" name="Should not appear">
-      <bpmn2:extensionElements><studyflow:instruction content="never" /></bpmn2:extensionElements>
+      <bpmn2:extensionElements><cognitive:instruction content="never" /></bpmn2:extensionElements>
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
     </bpmn2:task>
@@ -69,7 +69,7 @@ const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn2:definitions>`;
 
 const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="runner-stages-untyped" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-untyped" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>

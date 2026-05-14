@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:process id="LabLink_Demo" name="1. Study orchestration">
     <bpmn2:extensionElements>
       <studyflow:study />
@@ -10,21 +10,21 @@
     </bpmn2:startEvent>
     <bpmn2:task id="Welcome_Instruction" name="Welcome">
       <bpmn2:extensionElements>
-        <studyflow:instruction content="# Welcome to the LabLink demo&#10;&#10;You will complete two short questionnaires (PHQ-9 and GAD-7), a 1-back warm-up, and one randomly-assigned N-back arm. The session takes about 15 minutes.&#10;&#10;Press **Continue** when you are ready." />
+        <cognitive:instruction content="# Welcome to the LabLink demo&#10;&#10;You will complete two short questionnaires (PHQ-9 and GAD-7), a 1-back warm-up, and one randomly-assigned N-back arm. The session takes about 15 minutes.&#10;&#10;Press **Continue** when you are ready." />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Start_Welcome</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Welcome_PHQ9</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="PHQ_9_baseline" name="PHQ-9">
       <bpmn2:extensionElements>
-        <studyflow:questionnaire instrument="phq-9" />
+        <cognitive:questionnaire instrument="phq-9" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Welcome_PHQ9</bpmn2:incoming>
       <bpmn2:outgoing>Flow_PHQ9_GAD7</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="GAD_7_baseline" name="GAD-7">
       <bpmn2:extensionElements>
-        <studyflow:questionnaire instrument="gad-7" />
+        <cognitive:questionnaire instrument="gad-7" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_PHQ9_GAD7</bpmn2:incoming>
       <bpmn2:outgoing>Flow_GAD7_Warmup</bpmn2:outgoing>
@@ -63,7 +63,7 @@ Timelines:
     </bpmn2:task>
     <bpmn2:exclusiveGateway id="Allocate" name="Random allocation">
       <bpmn2:extensionElements>
-        <studyflow:randomGateway />
+        <cognitive:randomGateway />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Warmup_Allocate</bpmn2:incoming>
       <bpmn2:outgoing>Flow_To_Dual</bpmn2:outgoing>
@@ -118,14 +118,14 @@ Timelines:
     </bpmn2:task>
     <bpmn2:task id="BDI_II" name="BDI-II">
       <bpmn2:extensionElements>
-        <studyflow:questionnaire instrument="bdi-ii" />
+        <cognitive:questionnaire instrument="bdi-ii" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Demo_BDI2</bpmn2:incoming>
       <bpmn2:outgoing>Flow_BDI2_PostPHQ9</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="PHQ_9_followup" name="PHQ-9">
       <bpmn2:extensionElements>
-        <studyflow:questionnaire instrument="phq-9" />
+        <cognitive:questionnaire instrument="phq-9" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Dual_PostPHQ9</bpmn2:incoming>
       <bpmn2:incoming>Flow_XCIT_PostPHQ9</bpmn2:incoming>

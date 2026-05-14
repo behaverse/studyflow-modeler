@@ -23,7 +23,7 @@ const BPMN_TASK_TYPES = new Set([
 
 /**
  * Find the node definition responsible for a given FlowNode. Three-pass match:
- *   1. extensionType - most specific (studyflow:Instruction, behaverse:BehaverseTask, …)
+ *   1. extensionType - most specific (cognitive:Instruction, behaverse:BehaverseTask, …)
  *   2. bpmnType      - less specific (bpmn:StartEvent, bpmn:EndEvent)
  *   3. fallback    - catch-all for unmatched bpmn:*Task nodes
  * Returns undefined for gateways and other unsupported nodes (graph traversal

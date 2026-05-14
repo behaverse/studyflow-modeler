@@ -48,7 +48,7 @@ export function Instruction({ job, complete }: NodeProps<InstructionJob>) {
 export function validate(process: Process): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const node of process.nodes.values()) {
-    if (node.extensionType !== 'studyflow:Instruction') continue;
+    if (node.extensionType !== 'cognitive:Instruction') continue;
     const content = (getProperty(node.businessObject, 'content') as string) || '';
     if (!content.trim()) {
       issues.push({
@@ -62,7 +62,7 @@ export function validate(process: Process): ValidationIssue[] {
 
 registerNode({
   kind: 'instruction',
-  match: { extensionType: 'studyflow:Instruction' },
+  match: { extensionType: 'cognitive:Instruction' },
   toJob: instructionToJob,
   Component: Instruction,
   validate,

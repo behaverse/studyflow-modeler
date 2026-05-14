@@ -4,7 +4,7 @@ import { toLocalName } from '../../utils/naming';
 export type BuildBusinessObjectOptions = {
   /** Attributes set on the BO during creation (name, custom properties, etc.). */
   attrs?: Record<string, unknown>;
-  /** Studyflow extension type (e.g. 'studyflow:CognitiveTask'). */
+  /** Studyflow extension type */
   studyflowType?: string;
   /** If provided, used verbatim; otherwise generated via moddle.ids. */
   id?: string;

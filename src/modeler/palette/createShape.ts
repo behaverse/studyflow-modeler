@@ -8,8 +8,7 @@ import { buildBusinessObject, buildShape } from '../commands/shape';
  * @param bpmnType      - The base BPMN element type (e.g., "bpmn:Task")
  * @param position      - Where to place the shape on the canvas
  * @param attrs         - Optional business object attributes (name, etc.)
- * @param studyflowType - Optional studyflow extension type (e.g., "studyflow:CognitiveTask")
- */
+ * @param studyflowType - Optional studyflow extension type */
 export function createAndPlace(
   modeler: any,
   bpmnType: string,

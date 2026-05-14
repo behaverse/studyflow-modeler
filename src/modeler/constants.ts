@@ -6,7 +6,7 @@
 // --- 1. Schemas
 
 export type SchemaDescriptor = {
-  /** prefix (matches the schema's `prefix` field). */
+  /** prefix (matches the schema's `prefix` field and the `.moddle.yaml` filename). */
   prefix: string;
   /** Display name shown in UI. */
   name: string;
@@ -20,8 +20,13 @@ export const SCHEMAS: SchemaDescriptor[] = [
   {
     prefix: 'studyflow',
     name: 'Studyflow',
-    description: 'BPMN extension for modeling cognitive research.',
+    description: 'Generic research-process elements: study, events, flows, and data infrastructure.',
     core: true,
+  },
+  {
+    prefix: 'cognitive',
+    name: 'Cognitive Science',
+    description: 'Cognitive and behavioral research elements: tasks, questionnaires, and assignment gateways.',
   },
   {
     prefix: 'behaverse',
@@ -50,6 +55,7 @@ export const SCHEMA_NAMES = SCHEMAS.map((s) => s.prefix);
 export const NAMESPACES = {
   bpmn: 'http://www.omg.org/spec/BPMN/20100524/MODEL',
   studyflow: 'http://behaverse.org/schemas/studyflow',
+  cognitive: 'http://behaverse.org/schemas/studyflow/cognitive',
 } as const;
 
 // --- 2. BPMN element types

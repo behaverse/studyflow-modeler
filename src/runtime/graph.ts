@@ -67,7 +67,7 @@ export class Graph {
 
   private isRandomGateway(node: FlowNode): boolean {
     const t = node.extensionType;
-    return t === 'studyflow:RandomGateway' || t === 'studyflow:StratifiedAllocationGateway';
+    return t === 'cognitive:RandomGateway' || t === 'cognitive:StratifiedAllocationGateway';
   }
 
   private isExclusiveGateway(node: FlowNode): boolean {

@@ -24,9 +24,7 @@ type Props = {
 
 /**
  * Resolve the values for an enum-typed property, supporting types
- * defined in a different moddle package than the property itself
- * (e.g. `studyflow:CognitiveTask.scene` -> `behaverse:BehaverseSceneEnum`).
- */
+ * defined in a different moddle package than the property itself */
 function resolveEnumLiterals(bpmnProperty: any, modeler: any): any[] | null {
   const propertyType: string = bpmnProperty.type ?? '';
   const localName = toLocalName(propertyType);

@@ -56,7 +56,7 @@ export interface Template {
 
   // --- Studyflow-specific fields
 
-  /** The studyflow moddle type name (e.g., "studyflow:CognitiveTask") */
+  /** The studyflow moddle type name */
   studyflowType: string;
   /** The BPMN base type resolved from the schema hierarchy */
   bpmnType: string;

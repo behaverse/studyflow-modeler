@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+<bpmn2:definitions xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
   <bpmn2:process id="Study_1" isExecutable="false">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements><bpmn2:startEvent id="StartEvent_1" name="start">
       <bpmn2:outgoing>Flow_1blym28</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Questionnaire_0aacick" name="Questionnaire">
-      <bpmn2:extensionElements><studyflow:questionnaire /></bpmn2:extensionElements><bpmn2:incoming>Flow_1blym28</bpmn2:incoming>
+      <bpmn2:extensionElements><cognitive:questionnaire /></bpmn2:extensionElements><bpmn2:incoming>Flow_1blym28</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1oan8pv</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:sequenceFlow id="Flow_1blym28" sourceRef="StartEvent_1" targetRef="Questionnaire_0aacick" />
     <bpmn2:exclusiveGateway id="RandomGateway_1lkg88n">
-      <bpmn2:extensionElements><studyflow:randomGateway /></bpmn2:extensionElements><bpmn2:incoming>Flow_1oan8pv</bpmn2:incoming>
+      <bpmn2:extensionElements><cognitive:randomGateway /></bpmn2:extensionElements><bpmn2:incoming>Flow_1oan8pv</bpmn2:incoming>
       <bpmn2:outgoing>Flow_1tuihsu</bpmn2:outgoing>
       <bpmn2:outgoing>Flow_146ougx</bpmn2:outgoing>
     </bpmn2:exclusiveGateway>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="consort2025-example" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="consort2025-example" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
   <bpmn2:process id="CONSORT_2025_RCT" isExecutable="false">
     <bpmn2:extensionElements>
       <studyflow:study />
@@ -9,14 +9,14 @@
     </bpmn2:startEvent>
     <bpmn2:task id="Activity_Screening" studyflow:checklist="- [ ] Demographic intake&#10;- [ ] Medical history&#10;- [ ] Vital signs&#10;- [ ] Baseline cognitive screen" name="Screening assessment">
       <bpmn2:extensionElements>
-        <studyflow:questionnaire instrument="screening" />
+        <cognitive:questionnaire instrument="screening" />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Start_Screening</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Screening_Eligibility</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:exclusiveGateway id="Eligibility_Gateway" name="Assessed for eligibility">
       <bpmn2:extensionElements>
-        <studyflow:eligibilityGateway />
+        <cognitive:eligibilityGateway />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Screening_Eligibility</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Eligible</bpmn2:outgoing>
@@ -28,7 +28,7 @@
     </bpmn2:endEvent>
     <bpmn2:exclusiveGateway id="Randomize_Gateway" name="Randomization">
       <bpmn2:extensionElements>
-        <studyflow:randomGateway />
+        <cognitive:randomGateway />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Eligible</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Allocate_A</bpmn2:outgoing>
@@ -44,11 +44,11 @@
     </bpmn2:boundaryEvent>
     <bpmn2:task id="Activity_Followup_A" studyflow:checklist="- [ ] Adherence visit&#10;- [ ] Outcome assessment 1&#10;- [ ] Outcome assessment 2&#10;- [ ] Adverse events review" name="Follow-up">
       <bpmn2:extensionElements>
-        <studyflow:cognitiveTask instrument="jspsych"># n-back primary outcome
+        <cognitive:cognitiveTask instrument="jspsych"># n-back primary outcome
 duration: 10
 n_back_levels: [1, 2, 3]
 trials_per_block: 30
-</studyflow:cognitiveTask>
+</cognitive:cognitiveTask>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_A_Followup</bpmn2:incoming>
       <bpmn2:outgoing>Flow_A_Analysis</bpmn2:outgoing>
@@ -79,10 +79,10 @@ trials_per_block: 30
     </bpmn2:boundaryEvent>
     <bpmn2:task id="Activity_Followup_B" studyflow:checklist="- [ ] Adherence visit&#10;- [ ] Outcome assessment 1&#10;- [ ] Outcome assessment 2&#10;- [ ] Adverse events review" name="Follow-up">
       <bpmn2:extensionElements>
-        <studyflow:rest># Resting baseline used as control condition
+        <cognitive:rest># Resting baseline used as control condition
 duration_min: 10
 eyes_open: true
-</studyflow:rest>
+</cognitive:rest>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_B_Followup</bpmn2:incoming>
       <bpmn2:outgoing>Flow_B_Analysis</bpmn2:outgoing>

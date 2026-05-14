@@ -90,7 +90,7 @@ types:
       parses it to a JSON object and sends it nested inside the runtime payload.
       The two modes are mutually exclusive.
     superClass:
-      - studyflow:CognitiveTask
+      - cognitive:CognitiveTask
     meta:
       icon: iconify bi--hexagon
       bpmnType: bpmn:Task
@@ -99,7 +99,7 @@ types:
         default: behaverse
         type: String
         isAttr: true
-        redefines: studyflow:CognitiveTask#instrument
+        redefines: cognitive:CognitiveTask#instrument
         meta:
           order: 0
           pinned: true
@@ -177,7 +177,7 @@ types:
           `GameConfig` *override* (Blocks, Timelines, and any other diverging fields) as YAML, embedded inline in the diagram. Parsed to a JSON object on the modeler side and merged at runtime over the per-task baseline shipped in `Resources/<scene>.json` - so the body only needs to carry what differs from the defaults (no need to repeat `Id`, `Scene`, `EnumDefinitions`, `ParameterInfos`, `Rules`, or unchanged blocks/timelines). New blocks should set `Inherits: Default` (or another baseline block from the per-task config) so they pick up HUD/feedback parameters without restating them. Only used when `configMode` is `inline`.
         isBody: true
         type: studyflow:YAMLString
-        redefines: studyflow:CognitiveTask#configurations
+        redefines: cognitive:CognitiveTask#configurations
         meta:
           order: 5
           categories:

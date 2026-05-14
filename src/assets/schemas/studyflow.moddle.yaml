@@ -2,7 +2,7 @@
 
 name: Studyflow
 prefix: studyflow
-description: BPMN extension for modeling behavioral research processes, including experimental design, data collection, and analysis workflows.
+description: Core BPMN extension for modeling research processes - the study container, events, flows, generic activities, and the data-infrastructure types shared by every use case.
 uri: http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
@@ -65,28 +65,6 @@ enumerations:
         value: perf
       - name: pet (positron emission tomography)
         value: pet
-  - name: AssignmentAlgorithmEnum
-    isAbstract: true
-    description: The scheduling algorithm used for the assignment.
-    literalValues:
-      - name: Probabilistic
-        value: probabilistic
-      - name: Round Robin
-        value: round-robin
-  - name: ProbabilityDistributionEnum
-    isAbstract: true
-    description: The random statistical distribution used for the assignment.
-    literalValues:
-      - name: Uniform
-        value: uniform
-      - name: Normal
-        value: normal
-      - name: Exponential
-        value: exponential
-      - name: Poisson
-        value: poisson
-      - name: Undefined
-        value: undefined
   - name: DataOperationTypeEnum
     description: |
       Studyflow data operator marker for tasks. Operators describe how data is manipulated
@@ -129,46 +107,28 @@ enumerations:
         value: local
       - name: HPC
         value: hpc
-  - name: InstrumentEnum
-    description: |
-      Software that delivers a cognitive task. Determines how the
-      task's `configurations` YAML is interpreted. Properties typed with this
-      enum may also accept custom identifiers when annotated with `meta.editable: true`.
+  - name: AssignmentAlgorithmEnum
+    isAbstract: true
+    description: The scheduling algorithm used for the assignment.
     literalValues:
-      - name: PsychoPy
-        value: psychopy
-      - name: jsPsych
-        value: jspsych
-      - name: lab.js
-        value: labjs
-      - name: OpenSesame
-        value: opensesame
-  - name: QuestionnaireInstrumentEnum
-    description: |
-      Curated list of standardized questionnaires. This list is a starting
-      point for common psychometric instruments; properties typed with this
-      enum may also accept custom names when annotated with `meta.editable: true`.
+      - name: Probabilistic
+        value: probabilistic
+      - name: Round Robin
+        value: round-robin
+  - name: ProbabilityDistributionEnum
+    isAbstract: true
+    description: The random statistical distribution used for the assignment.
     literalValues:
-      - name: PHQ-9
-        value: phq-9
-      - name: GAD-7
-        value: gad-7
-      - name: BDI-II
-        value: bdi-ii
-      - name: STAI
-        value: stai
-      - name: PSS
-        value: pss
-      - name: WHO-5
-        value: who-5
-      - name: Big Five Inventory
-        value: bfi
-      - name: DASS-21
-        value: dass-21
-      - name: PANAS
-        value: panas
-      - name: Other
-        value: other
+      - name: Uniform
+        value: uniform
+      - name: Normal
+        value: normal
+      - name: Exponential
+        value: exponential
+      - name: Poisson
+        value: poisson
+      - name: Undefined
+        value: undefined
 types:
   - name: MarkdownString
     description: A string that contains markdown formatting
@@ -371,272 +331,6 @@ types:
         meta:
           categories:
             - General
-  - name: CognitiveTask
-    description: |
-      A cognitive test administered to a participant (e.g., a working-memory or
-      attention task). Concrete tasks are defined by the  `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify bi--puzzle
-      bpmnType: bpmn:Task
-    properties:
-      - name: instrument
-        description: |
-          Software used to deliver the task. Determines how `configurations` are interpreted. Pick a listed option or type a custom identifier.
-        isAttr: true
-        type: InstrumentEnum
-        meta:
-          editable: true
-          categories:
-            - Instrument
-      - name: configurations
-        description: |
-          Instrument-specific configuration in YAML format (e.g., number of
-          trials, stimulus duration, block structure). The shape of the YAML
-          depends on the chosen `instrument`.
-        isBody: true
-        type: YAMLString
-        meta:
-          categories:
-            - Instrument
-      - name: isDataOperation
-        description: CognitiveTask is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-  - name: VideoGame
-    description: |
-      An interactive video game used as an experimental paradigm or measurement
-      instrument. Configuration is provided as a YAML `configurations` block whose
-      shape depends on the game engine.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify bi--controller
-      bpmnType: bpmn:Task
-    properties:
-      - name: instrument
-        description: |
-          Identifier of the engine or library running the game (e.g., `unity`,
-          `godot`, `web`, or a custom identifier).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Instrument
-      - name: configurations
-        description: Game configuration in YAML format (level set, difficulty, scoring, etc.).
-        isBody: true
-        type: YAMLString
-        meta:
-          categories:
-            - Instrument
-      - name: isDataOperation
-        description: VideoGame is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-  - name: Rest
-    description: |
-      A rest period of inactivity or minimal activity. Often used for baseline
-      measurements or breaks between activities. Can also represent
-      resting-state recordings (e.g., resting EEG/fMRI).
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify solar--armchair-2-linear
-      bpmnType: bpmn:Task
-    properties:
-      - name: configurations
-        description: Rest configuration in YAML format (e.g., duration, eyes-open/closed).
-        isBody: true
-        type: YAMLString
-        meta:
-          categories:
-            - Instrument
-      - name: isDataOperation
-        description: Rest is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-  - name: Questionnaire
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify fluent--clipboard-text-edit-32-regular
-      bpmnType: bpmn:Task
-    properties:
-      - name: instrument
-        description: |
-          Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g., PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
-        isAttr: true
-        type: QuestionnaireInstrumentEnum
-        meta:
-          editable: true
-          categories:
-            - Instrument
-      - name: isDataOperation
-        description: Questionnaire is not a data operation.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-  - name: Instruction
-    description: A passive information display.
-    superClass:
-      - studyflow:Questionnaire
-    meta:
-      icon: iconify material-symbols--info-outline-rounded
-      categories:
-        - Activities
-    properties:
-      - name: instrument
-        redefines: studyflow:Questionnaire#instrument
-        isAttr: true
-        type: String
-        default: instruction
-      - name: content
-        description: Instruction content in markdown format.
-        isAttr: true
-        type: MarkdownString
-        meta:
-          categories:
-            - Content
-  - name: RandomGateway
-    description: |
-      Randomly assigns participants to one of the outgoing branches according
-      to a probability distribution.
-    superClass:
-      - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
-    meta:
-      icon: iconify streamline-flex--dice-5
-      bpmnType: bpmn:ExclusiveGateway
-    properties:
-      - name: algorithm
-        description: Algorithm used for the assignment.
-        isAttr: true
-        type: AssignmentAlgorithmEnum
-        default: probabilistic
-        meta:
-          categories:
-            - Assignment
-      - name: probabilityFunction
-        description: |
-          Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
-        isAttr: true
-        type: String
-        default: uniform
-        meta:
-          categories:
-            - Assignment
-          condition:
-            language: json
-            body:
-              algorithm: probabilistic
-  - name: StratifiedAllocationGateway
-    description: |
-      Stratified random assignment of participants. The cohort is partitioned
-      into strata based on a stratification variable (e.g., age band, sex,
-      baseline score), and assignment is performed independently within each
-      stratum to balance allocation across branches.
-    superClass:
-      - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--layers-outline
-      bpmnType: bpmn:ExclusiveGateway
-    properties:
-      - name: stratificationVariable
-        description: |
-          Name of the variable used to partition participants into strata
-          (e.g., `age_band`, `sex`, `baseline_score`).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Assignment
-      - name: strata
-        description: |
-          Definition of the strata used for allocation (one entry per stratum),
-          formatted in markdown. For example: `age_band: 18-29`.
-        isAttr: false
-        type: MarkdownString
-        isMany: true
-        meta:
-          categories:
-            - Assignment
-      - name: algorithm
-        description: Algorithm used for the assignment within each stratum.
-        isAttr: true
-        type: AssignmentAlgorithmEnum
-        default: probabilistic
-        meta:
-          categories:
-            - Assignment
-      - name: probabilityFunction
-        description: |
-          Probability mass function that defines the per-stratum discrete
-          distribution. Defaults to `uniform`.
-        isAttr: true
-        type: String
-        default: uniform
-        meta:
-          categories:
-            - Assignment
-          condition:
-            language: json
-            body:
-              algorithm: probabilistic
-  - name: EligibilityGateway
-    description: |
-      Decision gateway encoding inclusion and/or exclusion criteria for
-      participant eligibility. Participants meeting the inclusion criteria (and
-      none of the exclusion criteria) proceed; others are routed to a
-      screen-out branch.
-    superClass:
-      - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--filter-check-outline
-      bpmnType: bpmn:ExclusiveGateway
-    properties:
-      - name: inclusionCriteria
-        description: |
-          List of inclusion criteria (one entry per criterion), formatted in
-          markdown. Example: `Age between 18 and 65`.
-        isAttr: false
-        type: MarkdownString
-        isMany: true
-        meta:
-          categories:
-            - Eligibility
-      - name: exclusionCriteria
-        description: |
-          List of exclusion criteria (one entry per criterion), formatted in
-          markdown. Example: `History of neurological disorder`.
-        isAttr: false
-        type: MarkdownString
-        isMany: true
-        meta:
-          categories:
-            - Eligibility
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.

@@ -7,7 +7,7 @@
     xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
     xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0"
     xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0"
-    xmlns:studyflow="http://behaverse.org/schemas/studyflow"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
     id="spirit2025-example"
     targetNamespace="http://bpmn.io/schema/bpmn"
     xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
@@ -33,14 +33,14 @@
     <bpmn2:exclusiveGateway id="Eligibility_Gate" name="Eligible?">
       <bpmn2:documentation>SPIRIT 2025 item 10: Inclusion and exclusion criteria for participants.</bpmn2:documentation>
       <bpmn2:extensionElements>
-        <studyflow:eligibilityGateway>
-          <studyflow:inclusionCriteria>Adults aged 18 to 65 years</studyflow:inclusionCriteria>
-          <studyflow:inclusionCriteria>DSM-5 diagnosis of attentional disorder</studyflow:inclusionCriteria>
-          <studyflow:inclusionCriteria>Stable medication regimen for 3 months</studyflow:inclusionCriteria>
-          <studyflow:exclusionCriteria>Comorbid neurological condition</studyflow:exclusionCriteria>
-          <studyflow:exclusionCriteria>Pregnancy or lactation</studyflow:exclusionCriteria>
-          <studyflow:exclusionCriteria>Participation in another interventional trial within 30 days</studyflow:exclusionCriteria>
-        </studyflow:eligibilityGateway>
+        <cognitive:eligibilityGateway>
+          <cognitive:inclusionCriteria>Adults aged 18 to 65 years</cognitive:inclusionCriteria>
+          <cognitive:inclusionCriteria>DSM-5 diagnosis of attentional disorder</cognitive:inclusionCriteria>
+          <cognitive:inclusionCriteria>Stable medication regimen for 3 months</cognitive:inclusionCriteria>
+          <cognitive:exclusionCriteria>Comorbid neurological condition</cognitive:exclusionCriteria>
+          <cognitive:exclusionCriteria>Pregnancy or lactation</cognitive:exclusionCriteria>
+          <cognitive:exclusionCriteria>Participation in another interventional trial within 30 days</cognitive:exclusionCriteria>
+        </cognitive:eligibilityGateway>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Screen_Eligibility</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Eligible_Yes</bpmn2:outgoing>
@@ -63,11 +63,11 @@
     <bpmn2:exclusiveGateway id="Allocate_Gate" name="Stratified allocation">
       <bpmn2:documentation>SPIRIT 2025 item 16a/16b: sequence generation and allocation concealment mechanism. Stratified randomization balances groups on prognostic baseline variables.</bpmn2:documentation>
       <bpmn2:extensionElements>
-        <studyflow:stratifiedAllocationGateway stratificationVariable="age_band" algorithm="probabilistic" probabilityFunction="uniform">
-          <studyflow:strata>age_band: 18-29</studyflow:strata>
-          <studyflow:strata>age_band: 30-44</studyflow:strata>
-          <studyflow:strata>age_band: 45-65</studyflow:strata>
-        </studyflow:stratifiedAllocationGateway>
+        <cognitive:stratifiedAllocationGateway stratificationVariable="age_band" algorithm="probabilistic" probabilityFunction="uniform">
+          <cognitive:strata>age_band: 18-29</cognitive:strata>
+          <cognitive:strata>age_band: 30-44</cognitive:strata>
+          <cognitive:strata>age_band: 45-65</cognitive:strata>
+        </cognitive:stratifiedAllocationGateway>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Baseline_Allocate</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Arm_Treatment</bpmn2:outgoing>
@@ -78,14 +78,14 @@
         studyflow:checklist="- [ ] SPIRIT 17a: intervention dose &amp; schedule&#10;- [ ] SPIRIT 17b: criteria for modification&#10;- [ ] SPIRIT 19: adherence monitoring">
       <bpmn2:documentation>SPIRIT 2025 item 17a: A description of the interventions for each group with sufficient detail to allow replication.</bpmn2:documentation>
       <bpmn2:extensionElements>
-        <studyflow:cognitiveTask instrument="jspsych">
+        <cognitive:cognitiveTask instrument="jspsych">
           <![CDATA[# Adaptive n-back training
 sessions: 12
 session_duration_min: 25
 adaptive: true
 levels: [1, 2, 3, 4]
 ]]>
-        </studyflow:cognitiveTask>
+        </cognitive:cognitiveTask>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Arm_Treatment</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Treatment_Visit1</bpmn2:outgoing>
@@ -95,14 +95,14 @@ levels: [1, 2, 3, 4]
         studyflow:checklist="- [ ] SPIRIT 17a: control dose matched to intervention&#10;- [ ] SPIRIT 17b: criteria for modification&#10;- [ ] SPIRIT 19: adherence monitoring">
       <bpmn2:documentation>SPIRIT 2025 item 17a: Comparator condition matched on session count and duration to control for non-specific effects.</bpmn2:documentation>
       <bpmn2:extensionElements>
-        <studyflow:rest>
+        <cognitive:rest>
           <![CDATA[# Active sham (low-load 1-back, no adaptation)
 sessions: 12
 session_duration_min: 25
 adaptive: false
 levels: [1]
 ]]>
-        </studyflow:rest>
+        </cognitive:rest>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Arm_Control</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Control_Visit1</bpmn2:outgoing>
