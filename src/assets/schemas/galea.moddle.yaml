@@ -3,7 +3,7 @@
 name: Galea
 prefix: galea
 description: |
-  Studyflow extension for modeling experiments using the OpenBCI Galea VR headset. Defines a `GaleaSession` container plus per-phase activities (donning, impedance check, sensor calibration, resting baseline, VR task, doffing, export) and a `GaleaRecording` dataset variant carrying multimodal acquisition metadata (EEG, EMG, EOG, EDA, PPG, eye-tracking, head IMU).
+  Studyflow extension for modeling experiments using the OpenBCI Galea VR headset. Defines a `GaleaSession` container plus per-phase activities (mount, impedance check, sensor calibration, resting baseline, VR task, unmount, export) and a `GaleaRecording` dataset variant carrying multimodal acquisition metadata (EEG, EMG, EOG, EDA, PPG, eye-tracking, head IMU).
 uri: http://behaverse.org/schemas/studyflow/galea
 icon: iconify mdi--virtual-reality
 xml:
@@ -140,7 +140,7 @@ types:
             - Galea
 
   # ---------- Phase 1: fitting ----------
-  - name: Donning
+  - name: Mount
     description: |
       Fit the Galea headset on the participant. Includes adjusting the VR HMD
       straps, and positioning the EEG electrode array.
@@ -158,22 +158,22 @@ types:
         default: true
         meta:
           categories:
-            - Donning
+            - Mount
       - name: estimatedDurationMinutes
-        description: Estimated duration of the donning procedure, in minutes.
+        description: Estimated duration of the mount procedure, in minutes.
         isAttr: true
         type: Number
         default: 10
         meta:
           categories:
-            - Donning
+            - Mount
       - name: instructions
-        description: Step-by-step donning instructions in markdown, shown to the experimenter or participant.
+        description: Step-by-step mount instructions in markdown, shown to the experimenter or participant.
         isBody: true
         type: studyflow:MarkdownString
         meta:
           categories:
-            - Donning
+            - Mount
       - name: isDataOperation
         isAttr: true
         type: Boolean
@@ -187,7 +187,7 @@ types:
     description: |
       Verify that EEG/EMG/EOG electrodes have acceptable contact impedance
       (or pass the chosen quality test) before any recording starts. Fails
-      the run, or routes back to `Donning`, when too many channels exceed
+      the run, or routes back to `Mount`, when too many channels exceed
       the threshold.
     superClass:
       - bpmn:Task
@@ -390,8 +390,8 @@ types:
           categories:
             - Galea
 
-  # ---------- Phase 6: doffing & cleanup ----------
-  - name: Doffing
+  # ---------- Phase 6: unmount & cleanup ----------
+  - name: Unmount
     description: |
       Remove the headset, clean the electrodes, and stop streams. The runtime
       closes any open recording handles before this task completes.
@@ -412,14 +412,14 @@ types:
         meta:
           pinned: true
           categories:
-            - Doffing
+            - Unmount
       - name: instructions
-        description: Step-by-step doffing and electrode-cleaning instructions, in markdown.
+        description: Step-by-step unmount and electrode-cleaning instructions, in markdown.
         isBody: true
         type: studyflow:MarkdownString
         meta:
           categories:
-            - Doffing
+            - Unmount
       - name: isDataOperation
         isAttr: true
         type: Boolean
@@ -520,7 +520,7 @@ types:
             - Galea
 
 templates:
-  - description: A typical Galea session - donning → impedance → calibration → baseline → VR task → doffing → export
+  - description: A typical Galea session - mount → impedance → calibration → baseline → VR task → unmount → export
     object:
       type: GaleaSession
       bpmn:name: Galea VR session
@@ -542,9 +542,9 @@ templates:
           bpmn:name: Start
           x: 100
           y: 200
-        - id: galea_donning
-          type: galea:Donning
-          bpmn:name: Don headset
+        - id: galea_mount
+          type: galea:Mount
+          bpmn:name: Mount headset
           x: 200
           y: 178
           usesGel: true
@@ -580,9 +580,9 @@ templates:
           y: 178
           sceneId: MOT_VR
           locomotion: seated
-        - id: galea_doffing
-          type: galea:Doffing
-          bpmn:name: Doff and clean
+        - id: galea_unmount
+          type: galea:Unmount
+          bpmn:name: Unmount and clean
           x: 1000
           y: 178
         - id: galea_export
@@ -600,9 +600,9 @@ templates:
           y: 200
         - type: bpmn:SequenceFlow
           sourceRef: galea_start
-          targetRef: galea_donning
+          targetRef: galea_mount
         - type: bpmn:SequenceFlow
-          sourceRef: galea_donning
+          sourceRef: galea_mount
           targetRef: galea_impedance
         - type: bpmn:SequenceFlow
           sourceRef: galea_impedance
@@ -615,9 +615,9 @@ templates:
           targetRef: galea_task
         - type: bpmn:SequenceFlow
           sourceRef: galea_task
-          targetRef: galea_doffing
+          targetRef: galea_unmount
         - type: bpmn:SequenceFlow
-          sourceRef: galea_doffing
+          sourceRef: galea_unmount
           targetRef: galea_export
         - type: bpmn:SequenceFlow
           sourceRef: galea_export

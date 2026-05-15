@@ -20,13 +20,14 @@ export const SCHEMAS: SchemaDescriptor[] = [
   {
     prefix: 'studyflow',
     name: 'Studyflow',
-    description: 'Generic research-process elements: study, events, flows, and data infrastructure.',
+    description: 'Generic research elements and data infrastructure.',
     core: true,
   },
   {
     prefix: 'cognitive',
-    name: 'Cognitive Science',
-    description: 'Cognitive and behavioral research elements: tasks, questionnaires, and assignment gateways.',
+    name: 'Cognitive',
+    description: 'Cognitive and behavioral research elements.',
+    core: true,
   },
   {
     prefix: 'behaverse',
@@ -36,17 +37,17 @@ export const SCHEMAS: SchemaDescriptor[] = [
   {
     prefix: 'omniprocess',
     name: 'OmniProcess',
-    description: 'A library of data processing elements for multimodal cognitive neuroscience.',
+    description: 'Data processing elements for multimodal cognitive neuroscience.',
   },
   {
     prefix: 'datatrove',
     name: 'DataTrove',
-    description: 'Data transformation activities for the DataTrove ecosystem.',
+    description: 'Data transformation elements for the DataTrove ecosystem.',
   },
   {
     prefix: 'galea',
     name: 'Galea',
-    description: 'Experimental elements for the OpenBCI Galea VR headset (donning, sensor calibration, recording, etc).',
+    description: 'Experimental elements for the OpenBCI Galea VR headset.',
   },
 ];
 
