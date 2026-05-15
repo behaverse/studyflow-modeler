@@ -1,6 +1,6 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getExtensionType, getExtensionElement, getProperty } from '../extensions';
-import { toLocalName } from '../utils/naming';
+import { getExtensionType, getExtensionElement, getProperty } from '@/lib/core/extensions';
+import { toLocalName } from '@/lib/core/utils/naming';
 import { inspector as s } from '../styles';
 
 function resolveDisplayName(element: any): string {

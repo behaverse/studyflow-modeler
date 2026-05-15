@@ -1,4 +1,4 @@
-import { splitQName } from '../../utils/naming';
+import { splitQName } from '@/lib/core/utils/naming';
 
 /**
  * Look up a moddle type descriptor by a (potentially partial) type ref,

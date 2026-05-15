@@ -1,5 +1,5 @@
-import { createExtensionElement, getDefaults } from '../../extensions';
-import { toLocalName } from '../../utils/naming';
+import { createExtensionElement, getDefaults } from '@/lib/core/extensions';
+import { toLocalName } from '@/lib/core/utils/naming';
 
 export type BuildBusinessObjectOptions = {
   /** Attributes set on the BO during creation (name, custom properties, etc.). */

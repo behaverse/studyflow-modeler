@@ -5,8 +5,8 @@ import {
   getExtensionElementProperties,
   getRedefinedPropertyName,
   isExtensionPrefix,
-} from '../extensions';
-import { toLocalName } from '../utils/naming';
+} from '@/lib/core/extensions';
+import { toLocalName } from '@/lib/core/utils/naming';
 import { isPropertyVisible } from './field';
 
 /**

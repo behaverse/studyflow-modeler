@@ -7,8 +7,8 @@ import { EnumInput } from './EnumInput';
 import { ArrayInput } from './ArrayInput';
 import { OptionalStringInput } from './OptionalStringInput';
 import { InspectorContext, ModelerContext } from '../contexts';
-import { getProperty } from '../extensions';
-import { splitQName } from '../utils/naming';
+import { getProperty } from '@/lib/core/extensions';
+import { splitQName } from '@/lib/core/utils/naming';
 import { field as s } from '../styles';
 
 type FieldProps = { bpmnProperty: any };

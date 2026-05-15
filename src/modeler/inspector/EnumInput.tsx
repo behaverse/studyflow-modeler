@@ -13,9 +13,9 @@ import {
 import { useContext, useMemo, useState } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getProperty } from '../extensions';
+import { getProperty } from '@/lib/core/extensions';
 import { executeCommand } from '../commands';
-import { toLocalName, toPrefix } from '../utils/naming';
+import { toLocalName, toPrefix } from '@/lib/core/utils/naming';
 import { field as s } from '../styles';
 
 type Props = {

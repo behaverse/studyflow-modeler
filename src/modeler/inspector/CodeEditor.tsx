@@ -7,7 +7,7 @@ import 'prismjs/components/prism-yaml';
 import 'prismjs/themes/prism.css';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getProperty } from '../extensions';
+import { getProperty } from '@/lib/core/extensions';
 import { executeCommand } from '../commands';
 import { codeEditor as s } from '../styles';
 

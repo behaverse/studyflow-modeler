@@ -1,4 +1,4 @@
-import { setProperty } from '../../extensions';
+import { setProperty } from '@/lib/core/extensions';
 
 export type UpdatePropertyCommand = {
   type: 'update-property';

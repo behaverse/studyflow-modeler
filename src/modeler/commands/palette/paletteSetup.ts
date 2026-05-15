@@ -1,6 +1,6 @@
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
-import { toLocalName } from '../../utils/naming';
+import { toLocalName } from '@/lib/core/utils/naming';
 import { HIDDEN_SCHEMA_TYPES, PALETTE_GROUPS, PRIMITIVE_MODDLE_TYPES, SCHEMA_NAMES, SCHEMAS } from '../../constants';
 import type { Template as ElementTemplate } from '../../moddle/templates/types';
 

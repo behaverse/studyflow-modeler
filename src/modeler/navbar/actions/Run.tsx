@@ -8,7 +8,7 @@ type Props = {
 const SEED = 42;
 
 /**
- * Opens the standalone Executor (`run.html`) in a new tab with the current
+ * Opens the standalone Runner (`run.html`) in a new tab with the current
  * diagram handed off via localStorage. Unsaved diagrams work too: we
  * serialize from the live modeler instead of disk.
  */
@@ -16,14 +16,14 @@ export function RunButton({ className = '' }: Props) {
   const { modeler } = useContext(ModelerContext);
   const [busy, setBusy] = useState(false);
 
-  async function openExecutor() {
+  async function openRunner() {
     if (!modeler || busy) return;
     setBusy(true);
     try {
       const { xml } = await modeler.saveXML({ format: true });
       // Hand the XML over via localStorage instead of a blob URL: blob URLs
       // are tied to the document that minted them and don't reliably survive
-      // a `noopener` popup, leaving the executor with a 404 on its fetch.
+      // a `noopener` popup, leaving the runner with a 404 on its fetch.
       const sessionId = `studyflow-${crypto.randomUUID()}`;
       localStorage.setItem(sessionId, xml);
       const params = new URLSearchParams({ session_id: sessionId, seed: String(SEED) });
@@ -44,7 +44,7 @@ export function RunButton({ className = '' }: Props) {
         'text-white bg-[#520BBF] hover:bg-[#4309A2] disabled:opacity-50 disabled:cursor-wait',
         className,
       ].join(' ')}
-      onClick={openExecutor}
+      onClick={openRunner}
     >
       Run
     </button>

@@ -1,5 +1,5 @@
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
-import { getExtensionType } from '../extensions';
+import { getExtensionType } from '@/lib/core/extensions';
 
 const DATA_BPMN_TYPES = [
   'bpmn:DataObject',

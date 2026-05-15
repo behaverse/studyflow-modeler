@@ -1,5 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getExtensionType } from '../../extensions';
+import { getExtensionType } from '@/lib/core/extensions';
 import { runCreateTemplateConnection, runCreateTemplateShape } from '../../commands/shape';
 import type {
   Template,

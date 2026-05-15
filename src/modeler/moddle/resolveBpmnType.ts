@@ -1,4 +1,4 @@
-import { toLocalName } from '../utils/naming';
+import { toLocalName } from '@/lib/core/utils/naming';
 
 const PRIMITIVE_SUPER_CLASSES = new Set(['Element', 'BaseElement', 'String', 'Boolean', 'Integer', 'Float', 'Double']);
 

@@ -2,7 +2,7 @@ import { Checkbox, Input, Label } from '@headlessui/react';
 import { useContext, useState, type ChangeEvent } from 'react';
 import { ModelerContext, InspectorContext } from '../contexts';
 import { t } from '../../i18n';
-import { getProperty } from '../extensions';
+import { getProperty } from '@/lib/core/extensions';
 import { executeCommand } from '../commands';
 import { field as s } from '../styles';
 
