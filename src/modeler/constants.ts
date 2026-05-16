@@ -1,18 +1,5 @@
-/**
- * Modeler-only constants.
- *
- * Anything used by both the modeler and the runner lives in `src/lib/core/constants.ts`
- * and is re-exported here for backwards-compatibility with modeler call sites.
- */
-
 import { BPMN } from '@/lib/core/constants';
-export {
-  type SchemaDescriptor,
-  SCHEMAS,
-  SCHEMA_NAMES,
-  BPMN,
-  CORE_PREFIXES,
-} from '@/lib/core/constants';
+export { SCHEMAS, SCHEMA_NAMES, BPMN } from '@/lib/core/constants';
 
 export const NAMESPACES = {
   bpmn: 'http://www.omg.org/spec/BPMN/20100524/MODEL',
@@ -20,18 +7,16 @@ export const NAMESPACES = {
   cognitive: 'http://behaverse.org/schemas/studyflow/cognitive',
 } as const;
 
-/** Schema types that are excluded from palette . */
+/** Schema types hidden from the palette. */
 export const HIDDEN_SCHEMA_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
 
-/** primitive type names used to filter out non-instantiable schema types. */
+/** Moddle primitive type names; non-instantiable on the palette. */
 export const PRIMITIVE_MODDLE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
-
-// --- 3. Palette
 
 export type PaletteEntry = {
   label: string;
   bpmnType: string;
-  studyflowType?: string;
+  extensionType?: string;
   icon?: string;
 };
 
@@ -41,19 +26,15 @@ export type PaletteGroup = {
   items: PaletteEntry[];
 };
 
-/**
- * Default palette groups. Schemas contribute extra entries at
- * runtime via the `palette-register-schema-providers` command; those get
- * merged into these groups.
- */
+/** Default palette groups; schemas merge extra entries via `resolve-palette-schemas`. */
 export const PALETTE_GROUPS: PaletteGroup[] = [
   {
     label: 'Events',
     icon: 'iconify fluent--circle-16-regular',
     items: [
-      { label: 'Start', bpmnType: BPMN.StartEvent, studyflowType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-none' },
+      { label: 'Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-none' },
       { label: 'Intermediate', bpmnType: BPMN.IntermediateThrowEvent, icon: 'iconify bpmn--intermediate-event-none' },
-      { label: 'End', bpmnType: BPMN.EndEvent, studyflowType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-none' },
+      { label: 'End', bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-none' },
     ],
   },
   {
@@ -96,36 +77,19 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
   },
 ];
 
-// --- 4. Persistence
-
-/** localStorage key for user-level modeler settings (theme / language / etc.). */
 export const SETTINGS_STORAGE_KEY = 'studyflow-modeler:settings:v1';
-
-/** localStorage key for the diagram XML persisted by auto-save. */
 export const AUTOSAVE_DIAGRAM_STORAGE_KEY = 'studyflow-modeler:autosave-diagram:v1';
 
-// --- 5. File handling
-
-/** Accepted file extensions when opening a diagram from disk. */
 export const VALID_FILE_EXTENSIONS = ['.xml', '.svg', '.studyflow'];
-
-// --- 6. External URLs
 
 export const URLS = {
   githubRepo: 'https://github.com/behaverse/studyflow-modeler',
-  githubOrg: 'https://github.com/behaverse',
   apiBase: 'https://api.behaverse.org',
   apiDocs: 'https://api.behaverse.org/docs',
   docs: './docs',
 } as const;
 
-// --- 7. Renderer icon assets
-
-/**
- * Inline SVG path data for icons that must survive SVG export.
- * CSS-based icons (mask-image, background-image) are lost during export
- * because foreignObject content is not self-contained.
- */
+/** Inline SVG paths for icons that must survive SVG export (CSS icons don't). */
 export const SVG_ICON_PATHS: Record<string, { viewBox: string; paths: string[] }> = {
   'bids-dataset-icon': {
     viewBox: '0 0 135 43.461',
@@ -138,10 +102,7 @@ export const SVG_ICON_PATHS: Record<string, { viewBox: string; paths: string[] }
   },
 };
 
-/**
- * Custom icon overrides for standard BPMN elements.
- * Maps BPMN element / marker names to iconify class strings.
- */
+/** Iconify class overrides keyed by BPMN type or marker name. */
 export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:ManualTask':        'iconify fluent--hand-left-24-regular rotate-90',
   'bpmn:UserTask':          'iconify bi--person',
@@ -166,12 +127,8 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'checklist':              'iconify mdi--checkbox-outline',
 };
 
-/**
- * Lookup an icon for a BPMN type by checking the default palette entries
- * first, then `BPMN_ICON_OVERRIDES`. Returns `undefined` if the type is
- * unknown - callers should fall back to a parent (group/schema) icon.
- */
-const _PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
+/** Icon lookup by bpmnType, sourced from PALETTE_GROUPS. */
+export const PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
   PALETTE_GROUPS.flatMap((group) =>
     group.items
       .filter((item): item is PaletteEntry & { icon: string } => !!item.icon)
@@ -179,7 +136,8 @@ const _PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
   )
 );
 
+/** Icon for a BPMN type; falls through palette entries to BPMN_ICON_OVERRIDES. */
 export function getPaletteIconForBpmnType(bpmnType: string | undefined): string | undefined {
   if (!bpmnType) return undefined;
-  return _PALETTE_BPMN_ICONS[bpmnType] ?? BPMN_ICON_OVERRIDES[bpmnType];
+  return PALETTE_BPMN_ICONS[bpmnType] ?? BPMN_ICON_OVERRIDES[bpmnType];
 }

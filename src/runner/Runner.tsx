@@ -17,7 +17,7 @@ export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflow_url') ?? '';
   const sessionId = params.get('session_id') ?? '';
-  const seed = params.get('seed') ? Number(params.get('seed')) : undefined;
+  const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
 
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
@@ -29,11 +29,10 @@ export function Runner() {
   const resolverRef = useRef<((outcome: NodeOutcome) => void) | null>(null);
   const studyRef = useRef<Study | null>(null);
 
-  const say = (entry: Log) => setLog((prev) => [...prev, entry]);
-
-  const sayLog = useCallback((kind: LogKind, message: string) => {
+  const addLog = useCallback((kind: LogKind, message: string) => {
     setLog((prev) => [...prev, { kind, message }]);
   }, []);
+
   const setVariable = useCallback((name: string, value: unknown) => {
     studyRef.current?.setVariable(name, value);
   }, []);
@@ -46,9 +45,6 @@ export function Runner() {
     }
   }, []);
 
-  // XML resolution:
-  // 1. `session_id` - modeler "Run" button stashes XML in localStorage.
-  // 2. `studyflow_url` - direct URL fetch.
   useEffect(() => {
     if (sessionId) {
       const stored = localStorage.getItem(sessionId);
@@ -56,14 +52,14 @@ export function Runner() {
         localStorage.removeItem(sessionId);
         setXml(stored);
       } else {
-        say({ kind: 'error', message: `No studyflow found for session=${sessionId}.` });
+        addLog('error', `No studyflow found for session=${sessionId}.`);
         setPhase('error');
       }
       return;
     }
     if (!studyflowUrl) return;
     fetch(studyflowUrl).then((r) => r.text()).then(setXml).catch((err) => {
-      say({ kind: 'error', message: `Failed to fetch ${studyflowUrl}: ${err}` });
+      addLog('error', `Failed to fetch ${studyflowUrl}: ${err}`);
       setPhase('error');
     });
   }, [sessionId, studyflowUrl]);
@@ -79,20 +75,15 @@ export function Runner() {
         const study = await Study.parse(xml, schemas, { seed });
         studyRef.current = study;
         setStudyName(study.businessObject?.name || study.businessObject?.id || null);
-        say({
-          kind: 'info',
-          message: `Parsed ${study.nodes.size} nodes, ${study.edges.size} edges.`,
-        });
+        addLog('info', `Parsed ${study.flowNodes.size} flow nodes, ${study.sequenceFlows.size} sequence flows.`);
 
         const needsBehaverse = requiresBehaverseRuntime(study);
         const manifest = needsBehaverse ? await fetchManifest(BEHAVERSE_RUNTIME_URL) : undefined;
-        if (!needsBehaverse) {
-          say({ kind: 'info', message: 'No behaverse tasks - skipping Unity manifest.' });
-        }
+        if (!needsBehaverse) addLog('info', 'No behaverse tasks - skipping Unity manifest.');
 
         const issues = validate(study, manifest);
         if (issues.length > 0) {
-          for (const i of issues) say({ kind: 'error', message: `${i.nodeId}: ${i.message}` });
+          for (const issue of issues) addLog('error', `${issue.nodeId}: ${issue.message}`);
           setPhase('invalid');
           return;
         }
@@ -100,20 +91,20 @@ export function Runner() {
         setPhase('running');
         for await (const job of study.traverse()) {
           setCurrentJob(job);
-          setPhase(`job:${job.kind}`);
+          setPhase(`job:${job.type}`);
           const outcome = await new Promise<NodeOutcome>((resolve) => {
             resolverRef.current = resolve;
           });
           resolverRef.current = null;
           if (outcome.kind === 'abort') {
-            say({ kind: 'error', message: `Aborted at ${job.node.id}: ${outcome.reason}` });
+            addLog('error', `Aborted at ${job.node.id}: ${outcome.reason}`);
             setPhase('aborted');
             return;
           }
         }
         setPhase('done');
       } catch (err) {
-        say({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+        addLog('error', err instanceof Error ? err.message : String(err));
         setPhase('error');
       }
     })();
@@ -142,12 +133,12 @@ export function Runner() {
             <NodeRenderer
               key={currentJob.node.id}
               job={currentJob}
-              log={sayLog}
+              log={addLog}
               setVariable={setVariable}
               onResolve={handleResolve}
             />
           ) : (
-            <div className={layout.cover + ' ' + layout.coverShown}>
+            <div className={`${layout.cover} ${layout.coverShown}`}>
               <span>Preparing study... ({phase})</span>
             </div>
           )}

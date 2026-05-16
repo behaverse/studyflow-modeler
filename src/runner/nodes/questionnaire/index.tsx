@@ -1,29 +1,24 @@
 import { useState } from 'react';
-import { getProperty } from '@/lib/core/extensions/resolve';
 import type { FlowNode } from '@/lib/core/flow';
 import type { Study } from '@/runner/study';
-import type { ValidationIssue } from '../behaverse/types';
-import type { NodeProps } from '@/runner/nodes/types';
+import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
+import { NodePanel } from '../NodePanel';
+import { readString } from '../readAttribute';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 import { getInstrument, type InstrumentDefinition } from './instruments';
 
 declare module '@/runner/types' {
-  interface JobsByKind {
+  interface JobsByType {
     questionnaire: QuestionnaireJob;
   }
 }
 
-export type QuestionnaireJob = {
-  kind: 'questionnaire';
+type QuestionnaireJob = {
+  type: 'questionnaire';
   node: FlowNode;
   instrument?: string;
 };
-
-export function questionnaireToJob(node: FlowNode): QuestionnaireJob {
-  const instrument = (getProperty(node.businessObject, 'instrument') as string) || undefined;
-  return { kind: 'questionnaire', node, instrument };
-}
 
 function LikertForm({
   definition,
@@ -120,48 +115,43 @@ function FallbackForm({
   );
 }
 
-export function Questionnaire({ job, log, setVariable, complete }: NodeProps<QuestionnaireJob>) {
+function Questionnaire({ job, log, setVariable, complete }: NodeProps<QuestionnaireJob>) {
   const definition = getInstrument(job.instrument);
   const title =
     definition?.title || job.node.businessObject?.name || `Questionnaire: ${job.instrument || '(unspecified)'}`;
   const instrumentKey = job.instrument || 'unspecified';
 
   return (
-    <div className={nodeStyles.card}>
-      <div className={nodeStyles.panel}>
-        <h2 className={nodeStyles.title}>{title}</h2>
-        {definition ? (
-          <LikertForm
-            definition={definition}
-            onSubmit={(responses) => {
-              setVariable(`questionnaire.${instrumentKey}`, responses);
-              log('ok', `Submitted ${instrumentKey} (${Object.keys(responses).length} items).`);
-              complete(responses);
-            }}
-          />
-        ) : (
-          <FallbackForm
-            instrument={instrumentKey}
-            onSubmit={(text) => {
-              setVariable(`questionnaire.${instrumentKey}`, text);
-              log(
-                'info',
-                `Submitted ${instrumentKey} fallback (${text.length} chars).`,
-              );
-              complete(text);
-            }}
-          />
-        )}
-      </div>
-    </div>
+    <NodePanel>
+      <h2 className={nodeStyles.title}>{title}</h2>
+      {definition ? (
+        <LikertForm
+          definition={definition}
+          onSubmit={(responses) => {
+            setVariable(`questionnaire.${instrumentKey}`, responses);
+            log('ok', `Submitted ${instrumentKey} (${Object.keys(responses).length} items).`);
+            complete(responses);
+          }}
+        />
+      ) : (
+        <FallbackForm
+          instrument={instrumentKey}
+          onSubmit={(text) => {
+            setVariable(`questionnaire.${instrumentKey}`, text);
+            log('info', `Submitted ${instrumentKey} fallback (${text.length} chars).`);
+            complete(text);
+          }}
+        />
+      )}
+    </NodePanel>
   );
 }
 
-export function validate(study: Study): ValidationIssue[] {
+function validateQuestionnaires(study: Study): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const node of study.nodes.values()) {
+  for (const node of study.flowNodes.values()) {
     if (node.extensionType !== 'cognitive:Questionnaire') continue;
-    const instrument = (getProperty(node.businessObject, 'instrument') as string) || '';
+    const instrument = readString(node, 'instrument') ?? '';
     if (!instrument.trim()) {
       issues.push({
         nodeId: node.id,
@@ -173,9 +163,9 @@ export function validate(study: Study): ValidationIssue[] {
 }
 
 registerNode({
-  kind: 'questionnaire',
+  type: 'questionnaire',
   match: { extensionType: 'cognitive:Questionnaire' },
-  toJob: questionnaireToJob,
+  toJob: (node) => ({ type: 'questionnaire', node, instrument: readString(node, 'instrument') }),
   Component: Questionnaire,
-  validate,
+  validate: validateQuestionnaires,
 });

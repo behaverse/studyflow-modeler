@@ -7,77 +7,45 @@ import type {
   TemplateFlowNode,
 } from './types';
 
+// Stash key on a SubProcess shape for TemplateFlowElementsBehavior to materialize nested flow elements.
 export const TEMPLATE_FLOW_ELEMENTS = '__studyflowTemplateFlowElements';
 
+type ShapeDefinition = Pick<TemplateFlowNode, 'bpmnType' | 'extensionType' | 'overrideIconClass' | 'templateAttributes'> & {
+  x?: number;
+  y?: number;
+  parent?: any;
+};
+
+/** `elementTemplates` DI service: implements the bpmn-js-create-append-anything contract. */
 export default class Templates {
 
-  static $inject = [
-    'elementFactory',
-    'bpmnFactory',
-    'moddle',
-    'eventBus'
-  ];
+  static $inject = ['elementFactory', 'moddle', 'eventBus'];
 
   private _elementFactory: any;
-  private _bpmnFactory: any;
   private _moddle: any;
   private _eventBus: any;
   private _templates: Template[] = [];
 
-  constructor(
-    elementFactory: any,
-    bpmnFactory: any,
-    moddle: any,
-    eventBus: any,
-  ) {
+  constructor(elementFactory: any, moddle: any, eventBus: any) {
     this._elementFactory = elementFactory;
-    this._bpmnFactory = bpmnFactory;
     this._moddle = moddle;
     this._eventBus = eventBus;
   }
 
-  private _createTemplateShape(
-    definition: Pick<TemplateFlowNode, 'bpmnType' | 'studyflowType' | 'overrideIconClass' | 'templateProperties'> & {
-      x?: number;
-      y?: number;
-      parent?: any;
-    },
-  ): any {
+  private _createShape(definition: ShapeDefinition): any {
     return runCreateTemplateShape({
       type: 'create-template-shape',
       elementFactory: this._elementFactory,
       moddle: this._moddle,
-      bpmnType: definition.bpmnType,
-      studyflowType: definition.studyflowType,
-      overrideIconClass: definition.overrideIconClass,
-      templateProperties: definition.templateProperties,
-      x: definition.x,
-      y: definition.y,
-      parent: definition.parent,
+      ...definition,
     });
   }
 
-  createFlowNodeShape(
-    definition: TemplateFlowNode,
-    parent: any,
-  ): any {
-    return this._createTemplateShape({
-      bpmnType: definition.bpmnType,
-      studyflowType: definition.studyflowType,
-      overrideIconClass: definition.overrideIconClass,
-      templateProperties: definition.templateProperties,
-      x: definition.x,
-      y: definition.y,
-      parent,
-    });
+  createFlowNodeShape(definition: TemplateFlowNode, parent: any): any {
+    return this._createShape({ ...definition, parent });
   }
 
-  createFlowConnection(
-    definition: TemplateFlowConnection,
-    source: any,
-    target: any,
-    parent: any,
-  ): any {
+  createFlowConnection(definition: TemplateFlowConnection, source: any, target: any, parent: any): any {
     return runCreateTemplateConnection({
       type: 'create-template-connection',
       elementFactory: this._elementFactory,
@@ -88,103 +56,50 @@ export default class Templates {
     });
   }
 
-  private _attachNestedFlowElements(template: Template, rootShape: any): any {
-    if (!template.flowElements?.length || template.bpmnType !== 'bpmn:SubProcess') {
-      return rootShape;
-    }
-
-    rootShape[TEMPLATE_FLOW_ELEMENTS] = template.flowElements;
-
-    return rootShape;
-  }
-
-  /**
-   * Replace the full set of templates.
-   * Called by TemplatesLoader after templates are built.
-   */
   set(templates: Template[]): void {
     this._templates = templates;
     this._eventBus.fire('elementTemplates.changed');
   }
 
-  // --- API consumed by CreateAppendElementTemplatesModule
-
-  /**
-   * Return the latest templates.
-   *
-   * When called with an `element`, returns only templates whose
-   * `appliesTo` match the element's BPMN type (used by the replace
-   * provider).
-   */
   getLatest(element?: any): Template[] {
-    if (!element) {
-      return this._templates;
-    }
-    const bo = getBusinessObject(element);
-    const type = bo?.$type;
-    return this._templates.filter(t =>
-      t.appliesTo.includes(type)
-    );
+    if (!element) return this._templates;
+    const type = getBusinessObject(element)?.$type;
+    return this._templates.filter((t) => t.appliesTo.includes(type));
   }
 
-  /**
-   * Get the template currently applied to `element`, or null.
-   */
   get(element: any): Template | null {
-    const sfType = getExtensionType(element);
-    if (!sfType) return null;
-    return this._templates.find(t => t.studyflowType === sfType) ?? null;
+    const extType = getExtensionType(element);
+    if (!extType) return null;
+    return this._templates.find((t) => t.extensionType === extType) ?? null;
   }
 
-  /**
-   * Get all registered templates.
-   */
   getAll(): Template[] {
     return this._templates;
   }
 
-  /**
-   * Get schema templates that belong to a specific schema prefix.
-   */
   getBySchemaPrefix(prefix: string): Template[] {
-    const normalizedPrefix = prefix.toLowerCase();
-
-    return this._templates.filter((template) =>
-      (template.templateSource === 'schema-template' || template.templateSource === 'schema-type')
-      && template.schemaPrefix?.toLowerCase() === normalizedPrefix,
+    const normalized = prefix.toLowerCase();
+    return this._templates.filter((t) =>
+      (t.templateSource === 'schema-template' || t.templateSource === 'schema-type')
+      && t.schemaPrefix?.toLowerCase() === normalized,
     );
   }
 
-  /**
-   * Create a new diagram shape for the given template.
-   *
-   * This is the main factory method used by Create/Append providers
-   * from bpmn-js-create-append-anything.
-   */
   createElement(template: Template): any {
-    const shape = this._createTemplateShape({
+    const shape = this._createShape({
       bpmnType: template.bpmnType,
-      studyflowType: template.studyflowType,
-      templateProperties: template.templateProperties,
+      extensionType: template.extensionType,
+      templateAttributes: template.templateAttributes,
       overrideIconClass: template.overrideIconClass,
     });
 
-    return this._attachNestedFlowElements(template, shape);
+    if (template.flowElements?.length && template.bpmnType === 'bpmn:SubProcess') {
+      shape[TEMPLATE_FLOW_ELEMENTS] = template.flowElements;
+    }
+    return shape;
   }
 
-  /**
-   * Apply a template to an existing element (replace).
-   * Stubbed - replace support is not implemented.
-   */
-  applyTemplate(_element: any, _template: Template): void {
-    // no-op
-  }
-
-  /**
-   * Remove a template from an element.
-   * Stubbed - remove support is not implemented.
-   */
-  removeTemplate(_element: any): void {
-    // no-op
-  }
+  // Required by the plugin contract; replace/remove are not supported.
+  applyTemplate(_element: any, _template: Template): void {}
+  removeTemplate(_element: any): void {}
 }

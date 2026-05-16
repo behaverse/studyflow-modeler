@@ -1,18 +1,19 @@
-import { useContext, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { ModelerContext } from '../contexts';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { PALETTE_GROUPS } from '../constants';
 import { t } from '../../i18n';
-import { useSchemaProviders } from './hooks/useSchemaProviders';
+import { usePaletteSchemas } from './hooks/usePaletteSchemas';
 import { usePaletteDrag } from './hooks/usePaletteDrag';
 import { PaletteButton } from './components/PaletteButton';
+import { PaletteIcon } from './components/PaletteIcon';
 import { Popup } from './components/Popup';
 import { SchemaPopup } from './components/SchemaPopup';
 import { palette } from '../styles';
 
 export function Palette({ className = '' }: { className?: string }) {
-  const { modeler } = useContext(ModelerContext);
-  const schemas = useSchemaProviders(modeler);
+  const modeler = useModeler();
+  const schemas = usePaletteSchemas(modeler);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -41,33 +42,49 @@ export function Palette({ className = '' }: { className?: string }) {
     };
   }, [openGroup, pinnedGroup]);
 
-  const getPopupPosition = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const getPopupPosition = (e: ReactMouseEvent<HTMLButtonElement>) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return {
       x: rect.left + rect.width / 2 + 35,
       y: rect.top + rect.height / 2 + 10,
-      cursor: { x: event.clientX, y: event.clientY },
+      cursor: { x: e.clientX, y: e.clientY },
     };
   };
 
-  const handleLassoToolClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+  const handleLassoToolClick = (e: ReactMouseEvent<HTMLButtonElement>) => {
     if (!modeler) return;
-    event.preventDefault();
+    e.preventDefault();
     executeCommand(modeler, {
       type: 'palette-activate-lasso',
-      event: event.nativeEvent,
+      event: e.nativeEvent,
     });
   };
 
-  const handleMoreElementsClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+  const handleMoreElementsClick = (e: ReactMouseEvent<HTMLButtonElement>) => {
     if (!modeler) return;
-    event.preventDefault();
+    e.preventDefault();
     executeCommand(modeler, {
       type: 'palette-open-popup',
       popupType: 'bpmn-create',
-      position: getPopupPosition(event),
+      position: getPopupPosition(e),
       title: t('Create BPMN element'),
     });
+  };
+
+  /** Hover opens transiently; click pins (supersedes any other open or pinned popup). */
+  const flyoutHandlers = (key: string) => {
+    const isOpen = openGroup === key;
+    const isPinned = pinnedGroup === key;
+    return {
+      isOpen,
+      onMouseEnter: () => { if (!pinnedGroup) setOpenGroup(key); },
+      onMouseLeave: () => { if (!isPinned && openGroup === key) setOpenGroup(null); },
+      onClick: (e: ReactMouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        if (isPinned) closeAll();
+        else { setPinnedGroup(key); setOpenGroup(key); }
+      },
+    };
   };
 
   return (
@@ -76,55 +93,33 @@ export function Palette({ className = '' }: { className?: string }) {
       data-testid="palette-root"
       ref={rootRef}
     >
-      {/* Section 1: tools */}
       <div
         key="lasso"
         className={palette.group}
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton title="Select elements with lasso tool" onClick={handleLassoToolClick}>
-          <i className="text-[22px] iconify material-symbols--ink-selection-rounded"></i>
+          <PaletteIcon icon="iconify material-symbols--ink-selection-rounded" size={22} />
         </PaletteButton>
         <span className={palette.tooltip}>Select multiple elements</span>
       </div>
 
       <div className={palette.separator} />
 
-      {/* Section 2: element categories */}
       {PALETTE_GROUPS.map((group) => {
-        const isOpen = openGroup === group.label;
-        const isPinned = pinnedGroup === group.label;
+        const { isOpen, onMouseEnter, onMouseLeave, onClick } = flyoutHandlers(group.label);
         const extraItems = schemas.flatMap((schema) =>
-          schema.items.filter((item) => item.categories[0] === group.label)
+          schema.items.filter((item) => item.categories[0] === group.label),
         );
         return (
           <div
             key={group.label}
             className={palette.groupWithFlyout}
-            onMouseEnter={() => {
-              if (pinnedGroup) return;
-              setOpenGroup(group.label);
-            }}
-            onMouseLeave={() => {
-              if (!isPinned && openGroup === group.label) setOpenGroup(null);
-            }}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
           >
-            <PaletteButton
-              title={group.label}
-              ariaExpanded={isOpen}
-              onClick={(e) => {
-                e.preventDefault();
-                if (isPinned) {
-                  setPinnedGroup(null);
-                  setOpenGroup(null);
-                } else {
-                  // Pin this group; supersedes any other open or pinned popup.
-                  setPinnedGroup(group.label);
-                  setOpenGroup(group.label);
-                }
-              }}
-            >
-              <i className={`text-[22px] ${group.icon}`}></i>
+            <PaletteButton title={group.label} ariaExpanded={isOpen} onClick={onClick}>
+              <PaletteIcon icon={group.icon} size={22} />
               <span className={palette.groupChevron} />
             </PaletteButton>
             <Popup group={group} extraItems={extraItems} isOpen={isOpen} handlers={dragHandlers} />
@@ -134,50 +129,19 @@ export function Palette({ className = '' }: { className?: string }) {
 
       <div className={palette.separator} />
 
-      {/* Section 3: per-schema flyovers + BPMN catch-all */}
       {schemas
         .filter((schema) => schema.items.length > 0 || schema.templates.length > 0)
         .map((schema) => {
-          const key = `schema:${schema.prefix}`;
-          const isOpen = openGroup === key;
-          const isPinned = pinnedGroup === key;
+          const { isOpen, onMouseEnter, onMouseLeave, onClick } = flyoutHandlers(`schema:${schema.prefix}`);
           return (
             <div
               key={`more-${schema.prefix}`}
               className={palette.groupWithFlyout}
-              onMouseEnter={() => {
-                if (pinnedGroup) return;
-                setOpenGroup(key);
-              }}
-              onMouseLeave={() => {
-                if (!isPinned && openGroup === key) setOpenGroup(null);
-              }}
+              onMouseEnter={onMouseEnter}
+              onMouseLeave={onMouseLeave}
             >
-              <PaletteButton
-                title={`More ${schema.name} elements...`}
-                ariaExpanded={isOpen}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (isPinned) {
-                    setPinnedGroup(null);
-                    setOpenGroup(null);
-                  } else {
-                    setPinnedGroup(key);
-                    setOpenGroup(key);
-                  }
-                }}
-              >
-                {schema.icon && /^(https?:\/\/|data:image\/)/i.test(schema.icon) ? (
-                  <img
-                    src={schema.icon}
-                    alt=""
-                    className="h-6 w-6 object-contain"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <i className={`text-[24px] ${schema.icon || 'iconify tabler--hexagon'}`}></i>
-                )}
+              <PaletteButton title={`More ${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
+                <PaletteIcon icon={schema.icon ?? 'iconify tabler--hexagon'} size={24} />
                 <span className={palette.groupChevron} />
               </PaletteButton>
               <span className={palette.tooltip}>{schema.name} elements...</span>
@@ -197,7 +161,7 @@ export function Palette({ className = '' }: { className?: string }) {
           onMouseLeave={dragHandlers.onMouseUp}
           onClick={handleMoreElementsClick}
         >
-          <i className="text-[22px] iconify bi--three-dots"></i>
+          <PaletteIcon icon="iconify bi--three-dots" size={22} />
         </PaletteButton>
         <span className={palette.tooltip}>BPMN elements...</span>
       </div>

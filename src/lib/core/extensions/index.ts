@@ -1,26 +1,15 @@
-export { CORE_PREFIXES, isExtensionPrefix, getAttr, setAttr } from './attrs';
+export { isExtensionPrefix, getRawAttribute, setRawAttribute } from './attrs';
 export {
   getExtensionElement,
-  getExtensionElementProperties,
+  getExtensionAttributeDefinitions,
   createExtensionElement,
   hasExtends,
 } from './wrapper';
 export {
-  findPropertyDescriptor,
-  getEffectiveDescriptorProperties,
-  getEffectivePropertyDescriptor,
-  getBusinessObjectPropertyDescriptor,
-  getExtensionPropertyDescriptor,
-  getElementProperties,
-  getRedefinedPropertyName,
-} from './descriptors';
-export {
-  resolveContext,
-  resolveProperty,
-  getProperty,
-  setProperty,
-  type ResolvedContext,
-  type ResolvedProperty,
-} from './resolve';
+  getAttributeDefinition,
+  getAttributeDefinitions,
+  getRedefinedName,
+} from './attributeDefinitions';
+export { getAttribute, setAttribute } from './resolve';
 export { getExtensionType } from './extensionType';
 export { getDefaults } from './defaults';

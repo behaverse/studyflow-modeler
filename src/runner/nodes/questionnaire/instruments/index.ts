@@ -2,7 +2,7 @@ import { phq9 } from './phq-9';
 import { gad7 } from './gad-7';
 import { bdi2 } from './bdi-ii';
 
-export type InstrumentItem = {
+type InstrumentItem = {
   id: string;
   prompt: string;
   scale: { value: number; label: string }[];

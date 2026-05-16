@@ -9,7 +9,7 @@ export function drawEventWithIcon(
 ): SVGElement {
   const circle = bpmnRenderer.handlers[element.type](parentNode, element);
 
-  //TODO hardcoded icons, should be based on element type and properties
+  // TODO hardcoded icons, should be based on element type and attributes
   if (element.businessObject.get('redirectTo')) {
     drawIcon(parentNode, element, 'iconify fluent--arrow-exit-24-regular', 6, 6, 24);
   }

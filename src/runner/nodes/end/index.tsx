@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getProperty } from '@/lib/core/extensions/resolve';
+import { getAttribute } from '@/lib/core/extensions';
 import type { FlowNode } from '@/lib/core/flow';
 import type { Study } from '@/runner/study';
-import type { ValidationIssue } from '../behaverse/types';
-import { type NodeProps } from '@/runner/nodes/types';
+import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
+import { NodePanel } from '../NodePanel';
+import { readString } from '../readAttribute';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 import {
@@ -13,57 +14,42 @@ import {
 } from './completionCode';
 
 declare module '@/runner/types' {
-  interface JobsByKind {
+  interface JobsByType {
     end: EndJob;
   }
 }
 
 const REDIRECT_TIMEOUT = 5;  // seconds
 
-export type EndJob = {
-  kind: 'end';
+type EndJob = {
+  type: 'end';
   node: FlowNode;
   redirectTo?: string;
   completionCodeType: CompletionCodeType;
   completionCode?: string;
 };
 
-export function endToJob(node: FlowNode): EndJob {
-  const redirectTo = (getProperty(node.businessObject, 'redirectTo') as string) || undefined;
-  const completionCodeType =
-    ((getProperty(node.businessObject, 'completionCodeType') as string) as CompletionCodeType) ||
-    'none';
-  const completionCode = (getProperty(node.businessObject, 'completionCode') as string) || undefined;
-
-  return {
-    kind: 'end',
-    node,
-    redirectTo,
-    completionCodeType,
-    completionCode,
-  };
+function readCompletionCodeType(node: FlowNode): CompletionCodeType {
+  return (getAttribute(node.businessObject, 'completionCodeType') as CompletionCodeType | undefined) ?? 'none';
 }
 
-export function End({ job, log, complete }: NodeProps<EndJob>) {
+function End({ job, log, complete }: NodeProps<EndJob>) {
   const code = useMemo(
     () => resolveCompletionCode(job.completionCodeType, job.completionCode),
     [job.completionCodeType, job.completionCode],
   );
-  const redirectUrl = useMemo(() => {
-    if (!job.redirectTo) return null;
-    return substituteCompletionCode(job.redirectTo, code);
-  }, [job.redirectTo, code]);
+  const redirectUrl = useMemo(
+    () => (job.redirectTo ? substituteCompletionCode(job.redirectTo, code) : null),
+    [job.redirectTo, code],
+  );
 
   const [countdown, setCountdown] = useState<number | null>(redirectUrl ? REDIRECT_TIMEOUT : null);
 
   useEffect(() => {
     if (code) log('info', `Completion code: ${code}`);
     if (redirectUrl) log('info', `Will redirect to: ${redirectUrl}`);
-    // End is the last job - signal completion to the executor immediately
-    // so the executor reaches `done` phase. The component stays mounted so the
-    // user can read the code / countdown.
+    // Signal the executor so it reaches the `done` phase; the component stays mounted for the user.
     complete();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -72,57 +58,54 @@ export function End({ job, log, complete }: NodeProps<EndJob>) {
       if (redirectUrl) window.location.href = redirectUrl;
       return;
     }
-    const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
-    return () => window.clearTimeout(t);
+    const timerId = window.setTimeout(
+      () => setCountdown((current) => (current === null ? null : current - 1)),
+      1000,
+    );
+    return () => window.clearTimeout(timerId);
   }, [countdown, redirectUrl]);
 
   return (
-    <div className={nodeStyles.card}>
-      <div className={nodeStyles.panel}>
-        <h2 className={nodeStyles.title}>Study complete</h2>
-        <p className={nodeStyles.subtitle}>Thank you for participating.</p>
+    <NodePanel>
+      <h2 className={nodeStyles.title}>Study complete</h2>
+      <p className={nodeStyles.subtitle}>Thank you for participating.</p>
 
-        {code && (
-          <div>
-            <div className={nodeStyles.subtitle}>Your completion code</div>
-            <div className={nodeStyles.codeBlock}>{code}</div>
-          </div>
-        )}
-
-        {redirectUrl && (
-          <div className={nodeStyles.redirectInfo}>
-            Redirecting in {countdown}s to{' '}
-            <span className="break-all">{redirectUrl}</span>
-          </div>
-        )}
-
-        <div className={nodeStyles.actions}>
-          {redirectUrl && (
-            <button
-              type="button"
-              className={nodeStyles.primaryButton}
-              onClick={() => {
-                window.location.href = redirectUrl;
-              }}
-            >
-              Continue
-            </button>
-          )}
+      {code && (
+        <div>
+          <div className={nodeStyles.subtitle}>Your completion code</div>
+          <div className={nodeStyles.codeBlock}>{code}</div>
         </div>
+      )}
+
+      {redirectUrl && (
+        <div className={nodeStyles.redirectInfo}>
+          Redirecting in {countdown}s to{' '}
+          <span className="break-all">{redirectUrl}</span>
+        </div>
+      )}
+
+      <div className={nodeStyles.actions}>
+        {redirectUrl && (
+          <button
+            type="button"
+            className={nodeStyles.primaryButton}
+            onClick={() => { window.location.href = redirectUrl; }}
+          >
+            Continue
+          </button>
+        )}
       </div>
-    </div>
+    </NodePanel>
   );
 }
 
-export function validate(study: Study): ValidationIssue[] {
+function validateEndEvents(study: Study): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const node of study.nodes.values()) {
+  for (const node of study.flowNodes.values()) {
     if (node.type !== 'bpmn:EndEvent') continue;
-    const redirectTo = (getProperty(node.businessObject, 'redirectTo') as string) || '';
-    const completionCodeType =
-      ((getProperty(node.businessObject, 'completionCodeType') as string) as CompletionCodeType) ||
-      'none';
-    const completionCode = (getProperty(node.businessObject, 'completionCode') as string) || '';
+    const redirectTo = readString(node, 'redirectTo') ?? '';
+    const completionCodeType = readCompletionCodeType(node);
+    const completionCode = readString(node, 'completionCode') ?? '';
 
     if (completionCodeType === 'static' && !completionCode) {
       issues.push({
@@ -130,11 +113,7 @@ export function validate(study: Study): ValidationIssue[] {
         message: `EndEvent '${node.id}' uses static completionCode but no completionCode value is set.`,
       });
     }
-    if (
-      redirectTo &&
-      redirectTo.includes('{COMPLETION_CODE}') &&
-      completionCodeType === 'none'
-    ) {
+    if (redirectTo.includes('{COMPLETION_CODE}') && completionCodeType === 'none') {
       issues.push({
         nodeId: node.id,
         message: `EndEvent '${node.id}': redirectTo references {COMPLETION_CODE} but completionCodeType is 'none'.`,
@@ -145,9 +124,15 @@ export function validate(study: Study): ValidationIssue[] {
 }
 
 registerNode({
-  kind: 'end',
+  type: 'end',
   match: { bpmnType: 'bpmn:EndEvent' },
-  toJob: endToJob,
+  toJob: (node) => ({
+    type: 'end',
+    node,
+    redirectTo: readString(node, 'redirectTo'),
+    completionCodeType: readCompletionCodeType(node),
+    completionCode: readString(node, 'completionCode'),
+  }),
   Component: End,
-  validate,
+  validate: validateEndEvents,
 });

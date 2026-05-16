@@ -4,20 +4,10 @@ import type {
   TemplateFlowNode,
 } from '../../moddle/templates/types';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
-import { extractProperties, resolveTemplateMixins, resolveTypeDescriptor } from './mixins';
+import { extractAttributes, resolveTemplateMixins, resolveTypeSchema } from './mixins';
+import { RESERVED_TEMPLATE_KEYS } from './reservedKeys';
 
-const RESERVED_FLOW_NODE_KEYS = new Set([
-  'id',
-  'x',
-  'y',
-  'type',
-  'name',
-  'keywords',
-  'icon',
-  'attributes',
-  'mixins',
-  'flowElements',
-]);
+const RESERVED_FLOW_NODE_KEYS = new Set([...RESERVED_TEMPLATE_KEYS, 'id', 'x', 'y']);
 
 const RESERVED_FLOW_CONNECTION_KEYS = new Set([
   'id',
@@ -27,86 +17,53 @@ const RESERVED_FLOW_CONNECTION_KEYS = new Set([
   'targetRef',
 ]);
 
-function resolveSchemaTypeDescriptor(
-  typeName: string,
-  prefix: string,
-  typeMap: Record<string, any>,
-): { qualifiedName: string; typeDescriptor: any } | null {
-  const qualifiedName = typeName.includes(':') ? typeName : `${prefix}:${typeName}`;
-  const typeDescriptor = typeMap[qualifiedName];
-
-  if (!typeDescriptor) {
-    return null;
-  }
-
-  if (typeDescriptor.isAbstract) {
-    return null;
-  }
-
-  return {
-    qualifiedName,
-    typeDescriptor,
-  };
-}
-
 function normalizeFlowNode(
   moddle: any,
-  entry: Record<string, any>,
+  flowElement: Record<string, any>,
   prefix: string,
   typeMap: Record<string, any>,
 ): TemplateFlowNode | null {
-  const entryType = entry?.type;
-  if (typeof entryType !== 'string' || entryType.trim() === '') {
-    return null;
-  }
+  if (typeof flowElement?.type !== 'string' || flowElement.type.trim() === '') return null;
 
-  const mixinData = resolveTemplateMixins(moddle, entry, prefix);
-  const mergedEntry: Record<string, any> = {
-    ...mixinData.properties,
-    ...entry,
-  };
+  const mixinData = resolveTemplateMixins(moddle, flowElement, prefix);
+  const merged: Record<string, any> = { ...mixinData.attributes, ...flowElement };
 
-  let studyflowType: string | undefined;
+  let extensionType: string | undefined;
   let bpmnType: string | undefined;
-  let typeDescriptor: any;
+  let typeDef: any;
 
-  if (mergedEntry.type.startsWith('bpmn:')) {
-    typeDescriptor = resolveTypeDescriptor(moddle, mergedEntry.type, prefix);
-    bpmnType = mixinData.bpmnTypeOverride ?? mergedEntry.type;
+  if (merged.type.startsWith('bpmn:')) {
+    typeDef = resolveTypeSchema(moddle, merged.type, prefix);
+    bpmnType = mixinData.bpmnTypeOverride ?? merged.type;
   } else {
-    const resolved = resolveSchemaTypeDescriptor(mergedEntry.type, prefix, typeMap);
-    if (!resolved) {
-      return null;
-    }
-
-    studyflowType = resolved.qualifiedName;
-    typeDescriptor = resolved.typeDescriptor;
-    bpmnType = mixinData.bpmnTypeOverride ?? resolveBpmnCreateType(moddle, resolved.typeDescriptor) ?? undefined;
+    const qualifiedName = merged.type.includes(':') ? merged.type : `${prefix}:${merged.type}`;
+    typeDef = typeMap[qualifiedName];
+    if (!typeDef || typeDef.isAbstract) return null;
+    extensionType = qualifiedName;
+    bpmnType = mixinData.bpmnTypeOverride ?? resolveBpmnCreateType(moddle, typeDef) ?? undefined;
   }
 
-  if (!bpmnType) {
-    return null;
-  }
+  if (!bpmnType) return null;
 
   return {
-    id: String(mergedEntry.id),
+    id: String(merged.id),
     kind: 'node',
-    studyflowType,
+    extensionType,
     bpmnType,
-    iconClass: mergedEntry.icon ?? typeDescriptor?.icon,
-    overrideIconClass: mergedEntry.icon,
-    templateProperties: extractProperties(mergedEntry, RESERVED_FLOW_NODE_KEYS),
-    x: typeof mergedEntry.x === 'number' ? mergedEntry.x : undefined,
-    y: typeof mergedEntry.y === 'number' ? mergedEntry.y : undefined,
+    iconClass: merged.icon ?? typeDef?.icon,
+    overrideIconClass: merged.icon,
+    templateAttributes: extractAttributes(merged, RESERVED_FLOW_NODE_KEYS),
+    x: typeof merged.x === 'number' ? merged.x : undefined,
+    y: typeof merged.y === 'number' ? merged.y : undefined,
   };
 }
 
 function normalizeFlowConnection(
-  entry: Record<string, any>,
+  flowElement: Record<string, any>,
 ): TemplateFlowConnection | null {
-  const bpmnType = entry?.['bpmn:type'] ?? entry?.type;
-  const sourceRef = entry?.sourceRef;
-  const targetRef = entry?.targetRef;
+  const bpmnType = flowElement?.['bpmn:type'] ?? flowElement?.type;
+  const sourceRef = flowElement?.sourceRef;
+  const targetRef = flowElement?.targetRef;
 
   if (
     typeof bpmnType !== 'string'
@@ -117,55 +74,39 @@ function normalizeFlowConnection(
   }
 
   return {
-    id: typeof entry.id === 'string' ? entry.id : undefined,
+    id: typeof flowElement.id === 'string' ? flowElement.id : undefined,
     kind: 'connection',
     bpmnType,
     sourceRef,
     targetRef,
-    templateProperties: extractProperties(entry, RESERVED_FLOW_CONNECTION_KEYS),
+    templateAttributes: extractAttributes(flowElement, RESERVED_FLOW_CONNECTION_KEYS),
   };
 }
 
-/**
- * Normalize `obj.flowElements` - a loose mix of nodes and connections as
- * declared in a schema template - into a tagged union of
- * `TemplateFlowElement`s ready for the canvas.
- */
+/** Normalize a schema template's `flowElements` into tagged `TemplateFlowElement`s. */
 export function normalizeFlowElements(
   moddle: any,
-  obj: Record<string, any>,
+  definition: Record<string, any>,
   prefix: string,
   typeMap: Record<string, any>,
 ): TemplateFlowElement[] | undefined {
-  if (!Array.isArray(obj.flowElements) || obj.flowElements.length === 0) {
-    return undefined;
-  }
+  if (!Array.isArray(definition.flowElements) || definition.flowElements.length === 0) return undefined;
 
   const normalized: TemplateFlowElement[] = [];
 
-  for (const entry of obj.flowElements) {
-    if (!entry || typeof entry !== 'object') {
-      continue;
-    }
+  for (const flowElement of definition.flowElements) {
+    if (!flowElement || typeof flowElement !== 'object') continue;
 
-    if (
-      typeof entry.sourceRef === 'string'
-      && typeof entry.targetRef === 'string'
-      && (typeof entry.type === 'string' || typeof entry['bpmn:type'] === 'string')
-    ) {
-      const connection = normalizeFlowConnection(entry);
-      if (connection) {
-        normalized.push(connection);
-      }
-      continue;
-    }
+    const isConnection =
+      typeof flowElement.sourceRef === 'string'
+      && typeof flowElement.targetRef === 'string'
+      && (typeof flowElement.type === 'string' || typeof flowElement['bpmn:type'] === 'string');
 
-    if (typeof entry.type === 'string') {
-      const node = normalizeFlowNode(moddle, entry, prefix, typeMap);
-      if (node) {
-        normalized.push(node);
-      }
-    }
+    const result = isConnection
+      ? normalizeFlowConnection(flowElement)
+      : (typeof flowElement.type === 'string' ? normalizeFlowNode(moddle, flowElement, prefix, typeMap) : null);
+
+    if (result) normalized.push(result);
   }
 
   return normalized.length > 0 ? normalized : undefined;

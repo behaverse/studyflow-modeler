@@ -7,25 +7,14 @@ import type { Styles } from '../bpmn-js';
 function drawDiamond(
   parentGfx: SVGElement,
   element: { width: number; height: number },
-  attrs: Record<string, unknown>,
   styles: Styles,
 ): SVGElement {
-  const width = element.width;
-  const height = element.height;
+  const { width, height } = element;
+  const cx = width / 2;
+  const cy = height / 2;
+  const points = `${cx},0 ${width},${cy} ${cx},${height} 0,${cy}`;
 
-  const x_2 = width / 2;
-  const y_2 = height / 2;
-
-  const points = [
-    { x: x_2, y: 0 },
-    { x: width, y: y_2 },
-    { x: x_2, y: height },
-    { x: 0, y: y_2 },
-  ];
-
-  const pointsString = points.map((point) => point.x + ',' + point.y).join(' ');
-
-  attrs = styles.computeStyle(attrs, {
+  const svgAttributes = styles.computeStyle({}, {
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
     strokeWidth: 2,
@@ -33,11 +22,7 @@ function drawDiamond(
     fill: getFillColor(element),
   });
 
-  const polygon = svgCreate('polygon', {
-    ...attrs,
-    points: pointsString,
-  });
-
+  const polygon = svgCreate('polygon', { ...svgAttributes, points });
   svgAppend(parentGfx, polygon);
   return polygon;
 }
@@ -49,7 +34,7 @@ export function drawGateway(
   iconClass: string | undefined,
   styles: Styles,
 ): SVGElement {
-  const gateway = drawDiamond(parentNode, element, {}, styles);
+  const gateway = drawDiamond(parentNode, element, styles);
   drawIcon(parentNode, element, iconClass, 13, 13, 24);
   return gateway;
 }

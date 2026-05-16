@@ -10,90 +10,60 @@ import {
   ListboxOption,
   ListboxOptions,
 } from '@headlessui/react';
-import { useContext, useMemo, useState } from 'react';
-import { ModelerContext, InspectorContext } from '../contexts';
+import { useMemo, useState } from 'react';
 import { t } from '../../i18n';
-import { getProperty } from '@/lib/core/extensions';
-import { executeCommand } from '../commands';
 import { toLocalName, toPrefix } from '@/lib/core/utils/naming';
+import { HelpTooltip } from './HelpTooltip';
+import { useAttributeState } from './hooks/useAttributeState';
 import { field as s } from '../styles';
 
 type Props = {
-  bpmnProperty: any;
+  attrDef: any;
 };
 
-/**
- * Resolve the values for an enum-typed property, supporting types
- * defined in a different moddle package than the property itself */
-function resolveEnumLiterals(bpmnProperty: any, modeler: any): any[] | null {
-  const propertyType: string = bpmnProperty.type ?? '';
-  const localName = toLocalName(propertyType);
-  const targetPrefix = toPrefix(propertyType) ?? null;
-
-  const definingPkg = bpmnProperty.definedBy?.$pkg;
-  if (!targetPrefix || targetPrefix === definingPkg?.prefix) {
-    return definingPkg?.enumerations?.find((e: any) => e.name === localName)?.literalValues ?? null;
-  }
-
-  const moddle = modeler?.get?.('moddle');
-  if (!moddle) return null;
-
-  const pkg =
-    typeof moddle.getPackage === 'function'
-      ? moddle.getPackage(targetPrefix)
-      : (moddle.packages ? moddle.packages[targetPrefix] : undefined);
-
-  return pkg?.enumerations?.find((e: any) => e.name === localName)?.literalValues ?? null;
+function literalsIn(pkg: any, enumName: string | undefined): any[] | null {
+  return pkg?.enumerations?.find((e: any) => e.name === enumName)?.literalValues ?? null;
 }
 
-export function EnumInput({ bpmnProperty }: Props) {
-  const { element } = useContext(InspectorContext);
-  const { modeler } = useContext(ModelerContext);
+function findPackage(moddle: any, prefix: string): any {
+  if (!moddle) return undefined;
+  if (typeof moddle.getPackage === 'function') return moddle.getPackage(prefix);
+  return moddle.packages?.[prefix];
+}
 
-  const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
-  const literalValues = resolveEnumLiterals(bpmnProperty, modeler) ?? [];
-  const isEditable = bpmnProperty.meta?.editable === true;
-  const [value, setValue] = useState<string>(getProperty(element, name) || '');
+/** Resolve enum literals, supporting types defined in a different moddle package. */
+function resolveEnumLiterals(attrDef: any, modeler: any): any[] | null {
+  const attributeType: string = attrDef.type ?? '';
+  const localName = toLocalName(attributeType);
+  const targetPrefix = toPrefix(attributeType);
 
-  function commit(newValue: string) {
-    setValue(newValue);
-    executeCommand(modeler, {
-      type: 'update-property',
-      element,
-      propertyName: name,
-      value: newValue,
-    });
+  const definingPkg = attrDef.definedBy?.$pkg;
+  if (!targetPrefix || targetPrefix === definingPkg?.prefix) {
+    return literalsIn(definingPkg, localName);
   }
+  return literalsIn(findPackage(modeler?.get?.('moddle'), targetPrefix), localName);
+}
+
+export function EnumInput({ attrDef }: Props) {
+  const { value, commit, modeler } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const name = attrDef.ns.name;
+  const literalValues = resolveEnumLiterals(attrDef, modeler) ?? [];
+  const isEditable = attrDef.meta?.editable === true;
+  const Picker = isEditable ? EditableEnumCombobox : PlainEnumSelect;
 
   return (
     <>
       <Label className={s.label}>
-        {t(bpmnProperty.ns.name)}
-        <div className={s.helpAnchor}>
-          <i className={s.helpIcon}></i>
-          <div className={s.helpTooltip}>
-            <pre className={s.helpTooltipName}>{bpmnProperty.ns.name}</pre>
-            {bpmnProperty?.description}
-          </div>
-        </div>
+        {t(name)}
+        <HelpTooltip name={name} description={attrDef?.description} wide={false} />
       </Label>
-      {isEditable ? (
-        <EditableEnumCombobox
-          name={name}
-          ariaLabel={t(bpmnProperty.ns.name)}
-          value={value}
-          literalValues={literalValues}
-          onCommit={commit}
-        />
-      ) : (
-        <PlainEnumSelect
-          name={name}
-          ariaLabel={t(bpmnProperty.ns.name)}
-          value={value}
-          literalValues={literalValues}
-          onCommit={commit}
-        />
-      )}
+      <Picker
+        name={name}
+        ariaLabel={t(name)}
+        value={value}
+        literalValues={literalValues}
+        onCommit={commit}
+      />
     </>
   );
 }

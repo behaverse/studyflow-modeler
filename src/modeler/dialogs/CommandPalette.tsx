@@ -1,16 +1,18 @@
 import { Dialog, DialogPanel } from '@headlessui/react';
 import {
+  useContext,
   useImperativeHandle,
   useState,
   useEffect,
   useMemo,
   useRef,
-  useContext,
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { ModelerContext, DiagramNameContext, SimulationContext } from '../contexts';
+import { SettingsViewContext } from '../contexts';
+import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
+import { useIsSimulating } from '../simulation/useIsSimulating';
 import { ExamplesDialog } from './Examples';
 import { PublishDialog } from './Publish';
 import { commandPalette as cp } from '../styles';
@@ -22,22 +24,14 @@ type Command = {
   label: string;
   icon: string;
   hint?: string;
-  /**
-   * Optional single-key shortcut (one letter or digit, e.g. `'s'`, `'0'`).
-   * Fires only while the palette is open and the search box is empty, so it
-   * doesn't conflict with typing a query that starts with the same letter.
-   */
+  /** Single-key shortcut active only when the search box is empty. */
   shortcut?: string;
   action: () => void | Promise<void>;
 };
 
-function matchShortcut(event: KeyboardEvent | React.KeyboardEvent, shortcut: string): boolean {
-  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
-  return event.key.toLowerCase() === shortcut.toLowerCase();
-}
-
-function formatShortcut(shortcut: string): string {
-  return shortcut.toUpperCase();
+function isBareKey(e: React.KeyboardEvent, key: string): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
+  return e.key.toLowerCase() === key.toLowerCase();
 }
 
 const IS_MAC =
@@ -48,19 +42,18 @@ export const OPEN_PALETTE_SHORTCUT_LABEL = IS_MAC ? '⌘K' : 'Ctrl+K';
 
 type Props = {
   ref?: React.Ref<{ open: () => void; close: () => void }>;
-  openSettings?: () => void;
 };
 
-export function CommandPalette({ ref, openSettings }: Props) {
+export function CommandPalette({ ref }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
-  const { modeler } = useContext(ModelerContext);
-  const { diagramName, setDiagramName } = useContext(DiagramNameContext);
-  const { isSimulating, setIsSimulating } = useContext(SimulationContext);
+  const [isExamplesOpen, setIsExamplesOpen] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const modeler = useModeler();
+  const { openSettings } = useContext(SettingsViewContext);
+  const isSimulating = useIsSimulating(modeler);
 
-  const examplesDialogRef = useRef<{ open: () => void }>(null);
-  const publishDialogRef = useRef<{ open: () => void }>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -74,8 +67,8 @@ export function CommandPalette({ ref, openSettings }: Props) {
 
   useImperativeHandle(ref, () => ({ open, close }), []);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     const ok = VALID_FILE_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
     if (!ok) {
@@ -83,20 +76,19 @@ export function CommandPalette({ ref, openSettings }: Props) {
       return;
     }
     const reader = new FileReader();
-    reader.onloadend = (e) => {
-      const content = (e.target as FileReader).result;
+    reader.onloadend = (loadEvent) => {
+      const content = (loadEvent.target as FileReader).result;
       executeCommand(modeler, {
         type: 'open-diagram',
         filename: file.name,
         content,
-        setDiagramName,
       }).catch((err: any) => {
         alert(err?.message || 'Failed to open diagram.');
         console.error(err);
       });
     };
     reader.readAsText(file);
-    event.target.value = '';
+    e.target.value = '';
   };
 
   const commands: Command[] = useMemo(
@@ -106,10 +98,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         group: 'Run',
         label: isSimulating ? 'Stop Simulation' : 'Start Simulation',
         icon: isSimulating ? 'iconify bi--stop' : 'iconify bi--play',
-        action: () => {
-          executeCommand(modeler, { type: 'toggle-simulation', currentActive: isSimulating });
-          setIsSimulating(!isSimulating);
-        },
+        action: () => executeCommand(modeler, { type: 'toggle-simulation' }),
       },
       {
         id: 'run',
@@ -117,14 +106,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Run',
         icon: 'iconify bi--play-fill',
         shortcut: '1',
-        action: async () => {
-          if (!modeler) return;
-          const { xml } = await modeler.saveXML({ format: true });
-          const sessionId = `studyflow-${crypto.randomUUID()}`;
-          localStorage.setItem(sessionId, xml);
-          const params = new URLSearchParams({ session_id: sessionId, seed: '42' });
-          window.open(`./run.html?${params.toString()}`, '_blank', 'noopener');
-        },
+        action: () => executeCommand(modeler, { type: 'open-runner' }),
       },
       {
         id: 'new',
@@ -133,8 +115,8 @@ export function CommandPalette({ ref, openSettings }: Props) {
         icon: 'iconify bi--file-earmark-plus',
         shortcut: '2',
         action: () => {
-          alert('FIXME: this will delete the current diagram and load an empty one. It cannot be undone.');
-          if (modeler) executeCommand(modeler, { type: 'new-diagram' }).catch((err) => console.log(err));
+          alert('Warning: this will delete the current diagram and load an empty one. It cannot be undone.');
+          if (modeler) executeCommand(modeler, { type: 'new-diagram' }).catch(console.error);
         },
       },
       {
@@ -151,7 +133,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Examples...',
         icon: 'iconify bi--collection',
         shortcut: '4',
-        action: () => examplesDialogRef.current?.open(),
+        action: () => setIsExamplesOpen(true),
       },
       {
         id: 'save',
@@ -159,7 +141,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Save As...',
         icon: 'iconify bi--download',
         shortcut: '5',
-        action: () => executeCommand(modeler, { type: 'save-diagram', diagramName }),
+        action: () => executeCommand(modeler, { type: 'save-diagram' }),
       },
       {
         id: 'export-svg',
@@ -167,7 +149,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Export to SVG...',
         icon: 'iconify bi--filetype-svg',
         action: () =>
-          executeCommand(modeler, { type: 'export-diagram', diagramName, fileType: 'svg' }),
+          executeCommand(modeler, { type: 'export-diagram', fileType: 'svg' }),
       },
       {
         id: 'export-png',
@@ -175,14 +157,14 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Export to PNG...',
         icon: 'iconify bi--filetype-png',
         action: () =>
-          executeCommand(modeler, { type: 'export-diagram', diagramName, fileType: 'png' }),
+          executeCommand(modeler, { type: 'export-diagram', fileType: 'png' }),
       },
       {
         id: 'publish',
         group: 'File',
         label: 'Publish...',
         icon: 'iconify bi--broadcast-pin',
-        action: () => publishDialogRef.current?.open(),
+        action: () => setIsPublishOpen(true),
       },
       {
         id: 'reset-zoom',
@@ -190,13 +172,8 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Reset Zoom',
         icon: 'iconify bi--fullscreen',
         shortcut: '0',
-        action: () => {
-          try {
-            executeCommand(modeler, { type: 'reset-zoom' });
-          } catch (err) {
-            console.warn('Zoom to fit failed', err);
-          }
-        },
+        action: () => executeCommand(modeler, { type: 'reset-zoom' })
+          .catch((err) => console.warn('Zoom to fit failed', err)),
       },
       {
         id: 'settings',
@@ -204,7 +181,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         label: 'Settings...',
         icon: 'iconify bi--gear',
         shortcut: '6',
-        action: () => openSettings?.(),
+        action: openSettings,
       },
       {
         id: 'docs',
@@ -221,7 +198,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
         action: () => window.open(URLS.githubRepo, '_blank'),
       },
     ],
-    [modeler, diagramName, setDiagramName, openSettings, isSimulating, setIsSimulating],
+    [modeler, openSettings, isSimulating],
   );
 
   const filtered = useMemo(() => {
@@ -238,7 +215,7 @@ export function CommandPalette({ ref, openSettings }: Props) {
       if (!map.has(c.group)) map.set(c.group, []);
       map.get(c.group)!.push(c);
     }
-    return Array.from(map.entries());
+    return Array.from(map);
   }, [filtered]);
 
   useEffect(() => {
@@ -276,9 +253,8 @@ export function CommandPalette({ ref, openSettings }: Props) {
   };
 
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
-    // Single-key shortcut: fire when search box is empty so it doesn't shadow typing.
     if (query === '' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-      const match = commands.find((c) => c.shortcut && matchShortcut(e, c.shortcut));
+      const match = commands.find((c) => c.shortcut && isBareKey(e, c.shortcut));
       if (match) {
         e.preventDefault();
         runCommand(match);
@@ -300,8 +276,8 @@ export function CommandPalette({ ref, openSettings }: Props) {
 
   return (
     <>
-      <ExamplesDialog ref={examplesDialogRef} />
-      <PublishDialog ref={publishDialogRef} />
+      <ExamplesDialog isOpen={isExamplesOpen} onClose={() => setIsExamplesOpen(false)} />
+      <PublishDialog isOpen={isPublishOpen} onClose={() => setIsPublishOpen(false)} />
       <input
         ref={fileInputRef}
         type="file"
@@ -334,24 +310,21 @@ export function CommandPalette({ ref, openSettings }: Props) {
                   <div key={group}>
                     <div className={cp.groupLabel}>{group}</div>
                     {items.map((c) => {
-                      const idx = filtered.indexOf(c);
-                      const active = idx === activeIndex;
+                      const flatIndex = filtered.indexOf(c);
+                      const active = flatIndex === activeIndex;
+                      const hint = c.shortcut?.toUpperCase() ?? c.hint;
                       return (
                         <button
                           key={c.id}
                           type="button"
-                          data-cmd-index={idx}
+                          data-cmd-index={flatIndex}
                           className={`${cp.item} ${active ? cp.itemActive : ''}`}
-                          onMouseEnter={() => setActiveIndex(idx)}
+                          onMouseEnter={() => setActiveIndex(flatIndex)}
                           onClick={() => runCommand(c)}
                         >
                           <i className={`${c.icon} ${cp.itemIcon}`}></i>
                           <span className={cp.itemLabel}>{c.label}</span>
-                          {c.shortcut ? (
-                            <span className={cp.itemHint}>{formatShortcut(c.shortcut)}</span>
-                          ) : c.hint ? (
-                            <span className={cp.itemHint}>{c.hint}</span>
-                          ) : null}
+                          {hint && <span className={cp.itemHint}>{hint}</span>}
                         </button>
                       );
                     })}

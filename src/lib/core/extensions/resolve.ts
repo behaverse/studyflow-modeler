@@ -1,97 +1,61 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { toLocalName } from '../utils/naming';
-import {
-  getEffectivePropertyDescriptor,
-  getExtensionPropertyDescriptor,
-  getRedefinedPropertyName,
-} from './descriptors';
+import { getAttributeDefinition, getRedefinedName } from './attributeDefinitions';
 import { getExtensionElement, hasExtends } from './wrapper';
 
-export type ResolvedContext = {
-  element: any | undefined;
-  businessObject: any;
-  extensionElement: any;
-  hasExtends: boolean;
-  hasWrapperExtension: boolean;
-};
-
-export type ResolvedProperty = ResolvedContext & {
-  descriptor: any;
-  propertyName: string | undefined;
+type Resolved = {
+  bo: any;
+  ext: any;
+  attributeName: string | undefined;
   target: any;
-  usesExtension: boolean;
-  updateKind: 'properties' | 'moddle-properties';
+  targetKind: 'business-object' | 'extension-element';
 };
 
-export function resolveContext(elementOrBO: any): ResolvedContext {
-  const businessObject = getBusinessObject(elementOrBO);
-  const extensionElement = getExtensionElement(businessObject);
-  return {
-    element: elementOrBO?.businessObject ? elementOrBO : undefined,
-    businessObject,
-    extensionElement,
-    hasExtends: hasExtends(businessObject),
-    hasWrapperExtension: !!extensionElement,
-  };
-}
-
-function resolveName(name: string | undefined, descriptor: any): string | undefined {
+function resolveName(name: string | undefined, attrDef: any): string | undefined {
   if (name === 'bpmn:id') return 'id';
   if (name === 'bpmn:name') return 'name';
-  return descriptor?.name ?? descriptor?.ns?.localName ?? toLocalName(name);
+  return attrDef?.name ?? attrDef?.ns?.localName ?? toLocalName(name);
 }
 
-export function resolveProperty(elementOrBO: any, propertyName: string): ResolvedProperty {
-  const ctx = resolveContext(elementOrBO);
-  const boDescriptor = getEffectivePropertyDescriptor(ctx.businessObject, propertyName);
-  const extDescriptor = getExtensionPropertyDescriptor(ctx.extensionElement, propertyName);
+function resolveAttribute(elementOrBO: any, attributeName: string): Resolved {
+  const bo = getBusinessObject(elementOrBO);
+  const ext = getExtensionElement(bo);
+  const boDef = getAttributeDefinition(bo, attributeName);
+  const extDef = getAttributeDefinition(ext, attributeName);
 
-  // Extension redefines a BO property → write to the BO under the redefined name.
-  if (extDescriptor && ctx.extensionElement) {
-    const redefined = getRedefinedPropertyName(extDescriptor);
-    if (redefined && (boDescriptor || ctx.hasExtends)) {
-      return {
-        ...ctx,
-        descriptor: extDescriptor,
-        propertyName: redefined,
-        target: ctx.businessObject,
-        usesExtension: false,
-        updateKind: 'properties',
-      };
+  // Extension redefines a BO attribute -> write under the redefined name.
+  if (extDef && ext) {
+    const redefined = getRedefinedName(extDef);
+    if (redefined && (boDef || hasExtends(bo))) {
+      return { bo, ext, attributeName: redefined, target: bo, targetKind: 'business-object' };
     }
   }
 
-  if (boDescriptor) {
+  if (boDef) {
     return {
-      ...ctx,
-      descriptor: boDescriptor,
-      propertyName: resolveName(propertyName, boDescriptor),
-      target: ctx.businessObject,
-      usesExtension: false,
-      updateKind: 'properties',
+      bo, ext,
+      attributeName: resolveName(attributeName, boDef),
+      target: bo,
+      targetKind: 'business-object',
     };
   }
 
-  if (extDescriptor && ctx.extensionElement) {
+  if (extDef && ext) {
     return {
-      ...ctx,
-      descriptor: extDescriptor,
-      propertyName: resolveName(propertyName, extDescriptor),
-      target: ctx.extensionElement,
-      usesExtension: true,
-      updateKind: 'moddle-properties',
+      bo, ext,
+      attributeName: resolveName(attributeName, extDef),
+      target: ext,
+      targetKind: 'extension-element',
     };
   }
 
-  // Unknown property — pick a sensible target so writes don't silently drop.
-  const target = ctx.hasExtends || !ctx.extensionElement ? ctx.businessObject : ctx.extensionElement;
+  // Unknown attribute: pick a target that won't silently drop the write.
+  const useExt = !!ext && !hasExtends(bo);
   return {
-    ...ctx,
-    descriptor: undefined,
-    propertyName: resolveName(propertyName, undefined),
-    target,
-    usesExtension: target === ctx.extensionElement,
-    updateKind: target === ctx.extensionElement ? 'moddle-properties' : 'properties',
+    bo, ext,
+    attributeName: resolveName(attributeName, undefined),
+    target: useExt ? ext : bo,
+    targetKind: useExt ? 'extension-element' : 'business-object',
   };
 }
 
@@ -100,38 +64,36 @@ function read(target: any, name: string): any {
   return typeof target.get === 'function' ? target.get(name) : target[name];
 }
 
-export function getProperty(elementOrBO: any, propertyName: string): any {
-  const r = resolveProperty(elementOrBO, propertyName);
-  if (!r.target || !r.propertyName) return undefined;
+export function getAttribute(elementOrBO: any, attributeName: string): any {
+  const r = resolveAttribute(elementOrBO, attributeName);
+  if (!r.target || !r.attributeName) return undefined;
 
-  // When the wrapper redefines a BO property (e.g. omniprocess:Map pinning
-  // `isDataOperation: true`), moddle stores the value on the wrapper. Prefer
-  // the wrapper value so pinned schema defaults are honored.
-  if (r.extensionElement && r.target === r.businessObject) {
-    const extDesc = getExtensionPropertyDescriptor(r.extensionElement, propertyName);
-    if (extDesc) {
-      const extName = extDesc.name ?? extDesc.ns?.localName ?? r.propertyName;
-      const extValue = read(r.extensionElement, extName);
+  // Pinned defaults on the wrapper take precedence over the BO value.
+  if (r.ext && r.target === r.bo) {
+    const extDef = getAttributeDefinition(r.ext, attributeName);
+    if (extDef) {
+      const extName = extDef.name ?? extDef.ns?.localName ?? r.attributeName;
+      const extValue = read(r.ext, extName);
       if (extValue !== undefined) return extValue;
     }
   }
 
-  return read(r.target, r.propertyName);
+  return read(r.target, r.attributeName);
 }
 
-export function setProperty(element: any, propertyName: string, value: any, modeling?: any): void {
-  const r = resolveProperty(element, propertyName);
-  if (!r.target || !r.propertyName) return;
+export function setAttribute(element: any, attributeName: string, value: any, modeling?: any): void {
+  const r = resolveAttribute(element, attributeName);
+  if (!r.target || !r.attributeName) return;
 
   if (!modeling) {
-    if (typeof r.target.set === 'function') r.target.set(r.propertyName, value);
-    else r.target[r.propertyName] = value;
+    if (typeof r.target.set === 'function') r.target.set(r.attributeName, value);
+    else r.target[r.attributeName] = value;
     return;
   }
 
-  if (r.updateKind === 'properties') {
-    modeling.updateProperties(element, { [r.propertyName]: value });
+  if (r.targetKind === 'business-object') {
+    modeling.updateProperties(element, { [r.attributeName]: value });
   } else {
-    modeling.updateModdleProperties(element, r.target, { [r.propertyName]: value });
+    modeling.updateModdleProperties(element, r.target, { [r.attributeName]: value });
   }
 }

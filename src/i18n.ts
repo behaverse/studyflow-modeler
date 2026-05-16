@@ -1,10 +1,11 @@
 import en from './assets/locales/en.json';
+import { toLocalName } from '@/lib/core/utils/naming';
 
 const translations: Record<string, string> = en;
 
 export function t(key: string) {
-    if (key in translations) return translations[key];
-    const localName = key.includes(':') ? key.slice(key.indexOf(':') + 1) : undefined;
-    if (localName && localName in translations) return translations[localName];
-    return key;
+  if (key in translations) return translations[key];
+  const localName = toLocalName(key);
+  if (localName && localName !== key && localName in translations) return translations[localName];
+  return key;
 }

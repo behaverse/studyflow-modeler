@@ -10,8 +10,8 @@ export default {
     'studyFlowAppendMenuProvider',
     'studyFlowReplaceMenuProvider',
   ],
-  studyFlowAppendMenuProvider: ['type', AppendMenuProvider],
   studyFlowContextPad: ['type', StudyflowContextPad],
-  colorPopupProvider: [ 'type', ColorPopupProvider ],
+  studyFlowAppendMenuProvider: ['type', AppendMenuProvider],
   studyFlowReplaceMenuProvider: ['type', ReplaceMenuProvider],
+  colorPopupProvider: ['type', ColorPopupProvider],
 };

@@ -1,49 +1,29 @@
-import type { PaletteStartCreateCommand } from './palette/paletteStartCreate';
-import { runPaletteStartCreate } from './palette/paletteStartCreate';
-import type { PaletteStartCreateTemplateCommand } from './palette/paletteStartCreateTemplate';
-import { runPaletteStartCreateTemplate } from './palette/paletteStartCreateTemplate';
-import type { PaletteRegisterSchemaProvidersCommand } from './palette/paletteSetup';
-import { runPaletteRegisterSchemaProviders } from './palette/paletteSetup';
-import type { PaletteActivateLassoCommand, PaletteOpenPopupCommand } from './palette/paletteUi';
-import { runPaletteActivateLasso, runPaletteOpenPopup } from './palette/paletteUi';
+import { runPaletteStartCreate, type PaletteStartCreateCommand } from './palette/paletteStartCreate';
+import { runPaletteStartCreateTemplate, type PaletteStartCreateTemplateCommand } from './palette/paletteStartCreateTemplate';
+import { runResolvePaletteSchemas, type ResolvePaletteSchemasCommand } from './palette/paletteSetup';
+import { runPaletteActivateLasso, runPaletteOpenPopup, type PaletteActivateLassoCommand, type PaletteOpenPopupCommand } from './palette/paletteUi';
 
-import type { OpenDiagramCommand } from './diagram/openDiagram';
-import { runOpenDiagram } from './diagram/openDiagram';
-import type { NewDiagramCommand } from './diagram/newDiagram';
-import { runNewDiagram } from './diagram/newDiagram';
-import type { SaveDiagramCommand } from './diagram/saveDiagram';
-import { runSaveDiagram } from './diagram/saveDiagram';
-import type { ExportDiagramCommand } from './diagram/exportDiagram';
-import { runExportDiagram } from './diagram/exportDiagram';
-import type { PublishDiagramCommand } from './diagram/publishDiagram';
-import { runPublishDiagram } from './diagram/publishDiagram';
-import type { ResetZoomCommand } from './diagram/resetZoom';
-import { runResetZoom } from './diagram/resetZoom';
-import type { ImportXmlCommand } from './diagram/importXml';
-import { runImportXml } from './diagram/importXml';
+import { runOpenDiagram, type OpenDiagramCommand } from './diagram/openDiagram';
+import { runNewDiagram, type NewDiagramCommand } from './diagram/newDiagram';
+import { runSaveDiagram, type SaveDiagramCommand } from './diagram/saveDiagram';
+import { runExportDiagram, type ExportDiagramCommand } from './diagram/exportDiagram';
+import { runPublishDiagram, type PublishDiagramCommand } from './diagram/publishDiagram';
+import { runResetZoom, type ResetZoomCommand } from './diagram/resetZoom';
+import { runImportXml, type ImportXmlCommand } from './diagram/importXml';
 
-import type { ToggleSimulationCommand } from './ui/toggleSimulation';
-import { runToggleSimulation } from './ui/toggleSimulation';
-import type { DownloadSchemasCommand } from './ui/downloadSchemas';
-import { runDownloadSchemas } from './ui/downloadSchemas';
-import type { CreateModelerCommand } from './ui/createModeler';
-import { runCreateModeler } from './ui/createModeler';
+import { runToggleSimulation, type ToggleSimulationCommand } from './ui/toggleSimulation';
+import { runDownloadSchemas, type DownloadSchemasCommand } from './ui/downloadSchemas';
+import { runCreateModeler, type CreateModelerCommand } from './ui/createModeler';
+import { runOpenRunner, type OpenRunnerCommand } from './ui/openRunner';
 
-import type { UpdatePropertyCommand } from './properties/updateProperty';
-import { runUpdateProperty } from './properties/updateProperty';
-import type { UpdateModdlePropertiesCommand } from './properties/updateModdleProperties';
-import { runUpdateModdleProperties } from './properties/updateModdleProperties';
-import type { InspectorUpdatePropertyCommand } from './properties/inspectorUpdateProperty';
-import { runInspectorUpdateProperty } from './properties/inspectorUpdateProperty';
+import { runUpdateAttribute, type UpdateAttributeCommand } from './attributes/updateAttribute';
 
-import type { CreateShapeCommand } from './shape';
-import { runCreateShape } from './shape';
+import { runCreateShape, runSetColor, type CreateShapeCommand, type SetColorCommand } from './shape';
 
 export type DiagramCommand =
   | PaletteStartCreateCommand
   | PaletteStartCreateTemplateCommand
-  | InspectorUpdatePropertyCommand
-  | PaletteRegisterSchemaProvidersCommand
+  | ResolvePaletteSchemasCommand
   | PaletteActivateLassoCommand
   | PaletteOpenPopupCommand
   | OpenDiagramCommand
@@ -55,20 +35,13 @@ export type DiagramCommand =
   | ResetZoomCommand
   | DownloadSchemasCommand
   | CreateModelerCommand
+  | OpenRunnerCommand
   | ImportXmlCommand
-  | UpdatePropertyCommand
-  | UpdateModdlePropertiesCommand
-  | CreateShapeCommand;
+  | UpdateAttributeCommand
+  | CreateShapeCommand
+  | SetColorCommand;
 
-/**
- * Map of command-type → handler. The `Extract` generic ensures each handler's
- * second parameter is the exact command variant for that type, so adding a
- * new `DiagramCommand` will fail compile until it's added to this map.
- *
- * The first argument is the bpmn-js modeler (or any DI container with
- * `.get(service)` - e.g., the `injector` token). Handlers that don't need the
- * modeler (login, download-schemas, create-modeler) ignore it.
- */
+/** Adding a new `DiagramCommand` fails compile until it's registered in HANDLERS. */
 type HandlerMap = {
   [K in DiagramCommand['type']]: (
     modeler: any,
@@ -79,8 +52,7 @@ type HandlerMap = {
 const HANDLERS: HandlerMap = {
   'palette-start-create': runPaletteStartCreate,
   'palette-start-create-template': runPaletteStartCreateTemplate,
-  'inspector-update-property': runInspectorUpdateProperty,
-  'palette-register-schema-providers': runPaletteRegisterSchemaProviders,
+  'resolve-palette-schemas': runResolvePaletteSchemas,
   'palette-activate-lasso': runPaletteActivateLasso,
   'palette-open-popup': runPaletteOpenPopup,
   'open-diagram': runOpenDiagram,
@@ -90,30 +62,17 @@ const HANDLERS: HandlerMap = {
   'publish-diagram': runPublishDiagram,
   'toggle-simulation': runToggleSimulation,
   'reset-zoom': runResetZoom,
-  'download-schemas': (_modeler, cmd) => runDownloadSchemas(cmd),
-  'create-modeler': (_modeler, cmd) => runCreateModeler(cmd),
+  'download-schemas': runDownloadSchemas,
+  'create-modeler': runCreateModeler,
+  'open-runner': runOpenRunner,
   'import-xml': runImportXml,
-  'update-property': runUpdateProperty,
-  'update-moddle-properties': runUpdateModdleProperties,
+  'update-attribute': runUpdateAttribute,
   'create-shape': runCreateShape,
+  'set-color': runSetColor,
 };
 
-/**
- * Dispatch a typed `DiagramCommand` through its registered handler.
- *
- * `modeler` should be the bpmn-js modeler instance (or any object exposing
- * `.get(service)` - e.g., the DI `injector` from inside a bpmn-js service).
- * Pass `null` for handlers that don't need it (login, download-schemas,
- * create-modeler).
- */
-export async function executeCommand(
-  modeler: any,
-  command: DiagramCommand,
-): Promise<any> {
-  const handler = HANDLERS[command.type] as (
-    m: any,
-    cmd: DiagramCommand,
-  ) => unknown;
-  if (!handler) return undefined;
-  return handler(modeler, command);
+/** Dispatch a typed `DiagramCommand`; `modeler` is any DI container with `.get(service)`. */
+export async function executeCommand(modeler: any, command: DiagramCommand): Promise<any> {
+  const handler = HANDLERS[command.type] as (m: any, cmd: DiagramCommand) => unknown;
+  return handler ? handler(modeler, command) : undefined;
 }

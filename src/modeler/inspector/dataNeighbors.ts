@@ -22,7 +22,7 @@ function isDataElement(element: any): boolean {
   if (!element) return false;
   if (DATA_BPMN_TYPES.some((t) => is(element, t))) return true;
   const ext = getExtensionType(element);
-  return ext ? DATA_STUDYFLOW_TYPES.has(ext) : false;
+  return !!ext && DATA_STUDYFLOW_TYPES.has(ext);
 }
 
 function nameOf(element: any): string | undefined {
@@ -34,11 +34,11 @@ export function getInferredDataNeighbors(
   element: any,
   direction: 'inputs' | 'outputs',
 ): string[] {
-  const edges = (direction === 'inputs' ? element?.incoming : element?.outgoing) || [];
+  const edges = (direction === 'inputs' ? element?.incoming : element?.outgoing) ?? [];
   const otherEnd = direction === 'inputs' ? 'source' : 'target';
   return edges
     .map((edge: any) => edge?.[otherEnd])
     .filter(isDataElement)
     .map(nameOf)
-    .filter((n: string | undefined): n is string => Boolean(n));
+    .filter((n: string | undefined): n is string => !!n);
 }

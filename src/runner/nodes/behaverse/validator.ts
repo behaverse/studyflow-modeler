@@ -1,25 +1,11 @@
 import * as yaml from 'js-yaml';
-import { getBehaverseTaskPayload } from './parser';
-import { getProperty } from '@/lib/core/extensions/resolve';
+import { getBehaverseTaskPayload, readBehaverseAttribute } from './parser';
 import type { Study } from '@/runner/study';
-import type { Manifest, ValidationIssue } from '@/runner/nodes/behaverse/types';
-function readAttr(businessObject: any, name: string): string | undefined {
-  const fromProperty = getProperty(businessObject, name);
-  if (typeof fromProperty === 'string' && fromProperty.length > 0) return fromProperty;
-  const attrs = businessObject?.$attrs;
-  if (attrs && typeof attrs === 'object') {
-    const namespaced = attrs[`behaverse:${name}`];
-    if (typeof namespaced === 'string' && namespaced.length > 0) return namespaced;
-    const bare = attrs[name];
-    if (typeof bare === 'string' && bare.length > 0) return bare;
-  }
-  return undefined;
-}
+import type { Manifest } from '@/runner/nodes/behaverse/types';
+import type { ValidationIssue } from '@/runner/nodes/types';
 
 export async function fetchManifest(unityBuildUrl: string): Promise<Manifest> {
-  // Unity puts Resources/* into the build under StreamingAssets/ at runtime, but
-  // we serve it statically for the validator. The manifest path mirrors the
-  // editor location so the runner can fetch it directly.
+  // Manifest path mirrors Unity's StreamingAssets layout so the runner can fetch it directly.
   const url = `${unityBuildUrl.replace(/\/$/, '')}/StreamingAssets/Studyflow/manifest.json`;
   const response = await fetch(url);
   if (!response.ok) {
@@ -32,7 +18,7 @@ export function validateStudy(study: Study, manifest: Manifest): ValidationIssue
   const issues: ValidationIssue[] = [];
   const tasksById = new Map(manifest.tasks.map((t) => [t.id, t]));
 
-  for (const node of study.nodes.values()) {
+  for (const node of study.flowNodes.values()) {
     if (node.extensionType !== 'behaverse:BehaverseTask') continue;
 
     let payload;
@@ -81,7 +67,7 @@ export function validateStudy(study: Study, manifest: Manifest): ValidationIssue
 
     // Bot validation: when agentMode is 'bot', the YAML must parse to a flat object.
     if (payload.agentMode === 'bot') {
-      const raw = readAttr(node.businessObject, 'botConfig');
+      const raw = readBehaverseAttribute(node.businessObject, 'botConfig');
       if (raw && raw.trim()) {
         let parsed: unknown;
         try {

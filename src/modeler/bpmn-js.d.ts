@@ -1,5 +1,4 @@
-// Local type shims for bpmn-js / diagram-js DI services we touch via $inject.
-// Most of these are typed as `any` upstream; we narrow only the subset we use.
+// Narrow type shims for the bpmn-js / diagram-js DI services we touch.
 
 declare module 'tiny-svg' {
   export function append(parent: SVGElement, child: SVGElement): void;
@@ -13,25 +12,9 @@ export type EventBus = {
   fire(event: string, payload?: any): any;
 };
 
-export type Canvas = {
-  getRootElement(): any;
-  getContainer(): HTMLElement;
-  zoom(level: number | string, center?: { x: number; y: number } | 'auto'): number;
-  scroll(delta: { dx: number; dy: number }): void;
-  getLayer(name: string): SVGGElement;
-  addMarker(element: any, marker: string): void;
-  removeMarker(element: any, marker: string): void;
-};
-
 export type ElementFactory = {
   create(type: string, attrs?: Record<string, any>): any;
   createShape(attrs?: Record<string, any>): any;
-};
-
-export type ElementRegistry = {
-  get(id: string): any;
-  getAll(): any[];
-  forEach(callback: (element: any, gfx: SVGElement) => void): void;
 };
 
 export type Modeling = {
@@ -46,10 +29,6 @@ export type Moddle = {
     typeMap: Record<string, any>;
     packageMap: Record<string, { enumerations?: any[] } | undefined>;
   };
-};
-
-export type BpmnFactory = {
-  create(type: string, attrs?: Record<string, any>): any;
 };
 
 export type PopupMenu = {
@@ -90,7 +69,7 @@ export type Styles = {
   computeStyle(custom: Record<string, unknown>, defaults: Record<string, unknown>): Record<string, unknown>;
 };
 
-// The default bpmn-js renderer; we delegate to it for unhandled element types.
+// Default bpmn-js renderer; delegated to for unhandled element types.
 export type BpmnRenderer = {
   handlers: Record<string, (parentNode: SVGElement, element: any) => SVGElement>;
 };

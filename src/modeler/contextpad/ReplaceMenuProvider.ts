@@ -1,48 +1,29 @@
 import { is, getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { executeCommand } from '../commands';
 import {
-  getProperty,
-  getEffectivePropertyDescriptor,
+  getAttribute,
+  getAttributeDefinition,
   getExtensionElement,
-  getExtensionPropertyDescriptor,
 } from '@/lib/core/extensions';
 import type { EventBus, Injector, PopupMenu, Replace } from '../bpmn-js';
 
-/**
- * True when the schema pins `isDataOperation` for this element's effective
- * type - e.g. types that fix the value (CognitiveTask, VideoGame, Rest,
- * omniprocess:Transform). Users shouldn't be able to toggle it via the
- * popup in those cases.
- */
+/** True when the attribute definition pins `isDataOperation`. */
 function isDataOperationPinned(element: any): boolean {
-  const businessObject = getBusinessObject(element);
-  const ext = getExtensionElement(businessObject);
-  const descriptor =
-    (ext && getExtensionPropertyDescriptor(ext, 'isDataOperation'))
-    || getEffectivePropertyDescriptor(businessObject, 'isDataOperation');
-  return descriptor?.meta?.pinned === true;
+  const bo = getBusinessObject(element);
+  const ext = getExtensionElement(bo);
+  const attrDef = (ext && getAttributeDefinition(ext, 'isDataOperation'))
+    || getAttributeDefinition(bo, 'isDataOperation');
+  return attrDef?.meta?.pinned === true;
 }
 
-/**
- * Header entries for bpmn-js's popup replace menu.
- *
- * We don't add any body entries (the built-in replace list is fine); we only
- * contribute a header toggle that flips the `isDataOperation` flag on
- * `bpmn:Activity` shapes.
- */
+/** Contributes a header toggle for `isDataOperation` to bpmn-js's replace menu. */
 export default class ReplaceMenuProvider {
   static $inject = ['popupMenu', 'replace', 'injector', 'eventBus'];
 
-  _popupMenu: PopupMenu;
-  _replace: Replace;
-  _injector: Injector;
-  _eventBus: EventBus;
+  private _injector: Injector;
 
-  constructor(popupMenu: PopupMenu, replace: Replace, injector: Injector, eventBus: EventBus) {
-    this._popupMenu = popupMenu;
-    this._replace = replace;
+  constructor(popupMenu: PopupMenu, _replace: Replace, injector: Injector, _eventBus: EventBus) {
     this._injector = injector;
-    this._eventBus = eventBus;
     popupMenu.registerProvider('bpmn-replace', this);
   }
 
@@ -52,37 +33,29 @@ export default class ReplaceMenuProvider {
 
   getPopupMenuHeaderEntries(element: any): Record<string, any> {
     const headerEntries: Record<string, any> = {};
-
-    // isDataOperation is an extends property on bpmn:Activity (lives on the BO).
-    // Suppress the toggle for types that pin the value via meta.pinned.
     if (is(element, 'bpmn:Activity') && !isDataOperationPinned(element)) {
       headerEntries['toggle-marker-operation'] = this._getOperationMarkerHeaderEntry(element);
     }
-
     return headerEntries;
   }
 
-  _getOperationMarkerHeaderEntry(element: any) {
-    const self = this;
-
-    function toggleDataOperation(_event: any, entry: any) {
-      const currentState = !!getProperty(element, 'isDataOperation');
-      const newState = !currentState;
-
-      executeCommand(self._injector as any, {
-        type: 'update-property',
+  private _getOperationMarkerHeaderEntry(element: any) {
+    const injector = this._injector;
+    const toggleDataOperation = (_e: any, entry: any) => {
+      const next = !getAttribute(element, 'isDataOperation');
+      executeCommand(injector as any, {
+        type: 'update-attribute',
         element,
-        propertyName: 'isDataOperation',
-        value: newState,
+        attributeName: 'isDataOperation',
+        value: next,
       });
-
-      entry.active = newState;
-    }
+      entry.active = next;
+    };
 
     return {
       title: 'Data Operator',
       imageHtml: '<i class="iconify mdi--function"></i>',
-      active: !!getProperty(element, 'isDataOperation'),
+      active: !!getAttribute(element, 'isDataOperation'),
       action: toggleDataOperation,
     };
   }

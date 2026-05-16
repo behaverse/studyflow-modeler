@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { NodeProps } from '@/runner/nodes/types';
 import type { FlowNode } from '@/lib/core/flow';
 import type { Study } from '@/runner/study';
-import type { BehaverseTaskPayload, Manifest, ValidationIssue } from '@/runner/nodes/behaverse/types';
+import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
+import type { BehaverseTaskPayload, Manifest } from '@/runner/nodes/behaverse/types';
 import { runOnUnity, waitForUnity, waitForRunnerReady } from './bridge';
 import { buildBehaverseIframeSrc } from './iframe';
 import { getBehaverseTaskPayload } from './parser';
@@ -11,28 +11,26 @@ import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 
 declare module '@/runner/types' {
-  interface JobsByKind {
+  interface JobsByType {
     behaverse: BehaverseJob;
   }
 }
 
-// Behaverse-side ready event timing.
 const STARTUP_GRACE_MS = 1000;
 const STAGE_REVEAL_DELAY_MS = 1000;
 
-export type BehaverseJob = {
-  kind: 'behaverse';
+type BehaverseJob = {
+  type: 'behaverse';
   node: FlowNode;
   payload: BehaverseTaskPayload;
 };
 
-export function behaverseToJob(node: FlowNode): BehaverseJob | null {
+function behaverseToJob(node: FlowNode): BehaverseJob | null {
   const payload = getBehaverseTaskPayload(node);
-  if (!payload) return null;
-  return { kind: 'behaverse', node, payload };
+  return payload ? { type: 'behaverse', node, payload } : null;
 }
 
-export function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
+function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [stageReady, setStageReady] = useState(false);
   const [statusLine, setStatusLine] = useState('Loading Behaverse...');
@@ -41,9 +39,7 @@ export function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>
     let cancelled = false;
     const src = buildBehaverseIframeSrc();
     if (iframeRef.current) {
-      // Force a full reload so each task gets a fresh Unity instance - Unity
-      // tears down on Application.Quit and re-using the iframe races against
-      // the half-destroyed previous GameManager.
+      // Fresh Unity instance per task: Application.Quit tears down GameManager.
       iframeRef.current.src = src;
     }
 
@@ -85,7 +81,6 @@ export function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -107,26 +102,10 @@ export function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>
   );
 }
 
-export function validate(study: Study, manifest?: Manifest): ValidationIssue[] {
-  return manifest ? validateBehaverseStudy(study, manifest) : [];
-}
-
 registerNode({
-  kind: 'behaverse',
+  type: 'behaverse',
   match: { extensionType: 'behaverse:BehaverseTask' },
   toJob: behaverseToJob,
   Component: Behaverse,
-  validate,
+  validate: (study, manifest) => manifest ? validateBehaverseStudy(study, manifest) : [],
 });
-
-export type {
-  BehaverseTaskPayload,
-  Manifest,
-  ManifestTask,
-  ValidationIssue,
-} from './types';
-export type { UnityInstance, TaskCompletion } from './bridge';
-export { runOnUnity, waitForUnity, waitForRunnerReady } from './bridge';
-export { buildBehaverseIframeSrc, BEHAVERSE_RUNTIME_URL } from './iframe';
-export { fetchManifest } from './validator';
-export { getBehaverseTaskPayload, ensureExtensionElementResolved } from './parser';

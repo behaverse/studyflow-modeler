@@ -5,14 +5,7 @@ export type NewDiagramCommand = {
   type: 'new-diagram';
 };
 
-export async function runNewDiagram(
-  modeler: any,
-  _command: NewDiagramCommand,
-): Promise<any> {
-  if (!modeler) {
-    throw new Error("Command 'new-diagram' requires a modeler instance.");
-  }
-
+export async function runNewDiagram(modeler: any, _command: NewDiagramCommand): Promise<any> {
   const result = await runImportXml(modeler, { type: 'import-xml', xml: new_diagram });
   modeler.get('canvas').zoom('fit-viewport');
   return result;

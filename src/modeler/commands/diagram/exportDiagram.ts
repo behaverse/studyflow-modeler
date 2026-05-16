@@ -1,9 +1,9 @@
 import { Canvg } from 'canvg';
 import download from 'downloadjs';
+import { getDiagramName } from '../../diagramName';
 
 export type ExportDiagramCommand = {
   type: 'export-diagram';
-  diagramName: string;
   fileType: 'svg' | 'png' | 'studyflow';
 };
 
@@ -34,38 +34,25 @@ async function embedIconsInSvg(svgString: string): Promise<string> {
   const foreignObjects = svgDoc.querySelectorAll('foreignObject.icon-container');
 
   for (const foreignObject of foreignObjects) {
-    let iconDiv = foreignObject.querySelector('div[data-icon-class]');
-    if (!iconDiv) iconDiv = foreignObject.querySelector('DIV[data-icon-class]');
-    if (!iconDiv) continue;
-
-    const iconClass = iconDiv.getAttribute('data-icon-class');
+    const iconDiv = foreignObject.querySelector('div[data-icon-class], DIV[data-icon-class]');
+    const iconClass = iconDiv?.getAttribute('data-icon-class');
     if (!iconClass) continue;
-
-    const color = iconDiv.getAttribute('data-icon-color')
-      || foreignObject.getAttribute('color')
-      || foreignObject.getAttribute('style')?.match(/color:\s*([^;]+)/)?.[1];
 
     const iconData = await fetchIconSvg(iconClass);
     if (!iconData) continue;
 
-    const x = foreignObject.getAttribute('x');
-    const y = foreignObject.getAttribute('y');
-    const width = foreignObject.getAttribute('width');
-    const height = foreignObject.getAttribute('height');
-
-    let iconContent = iconData.content;
-    if (color) {
-      iconContent = iconContent.replace(/currentColor/g, color);
-    }
+    const color = iconDiv?.getAttribute('data-icon-color')
+      || foreignObject.getAttribute('color')
+      || foreignObject.getAttribute('style')?.match(/color:\s*([^;]+)/)?.[1];
 
     const iconSvg = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    iconSvg.setAttribute('x', x || '0');
-    iconSvg.setAttribute('y', y || '0');
-    iconSvg.setAttribute('width', width || '24');
-    iconSvg.setAttribute('height', height || '24');
+    iconSvg.setAttribute('x', foreignObject.getAttribute('x') || '0');
+    iconSvg.setAttribute('y', foreignObject.getAttribute('y') || '0');
+    iconSvg.setAttribute('width', foreignObject.getAttribute('width') || '24');
+    iconSvg.setAttribute('height', foreignObject.getAttribute('height') || '24');
     iconSvg.setAttribute('viewBox', iconData.viewBox);
     iconSvg.setAttribute('stroke', 'none');
-    iconSvg.innerHTML = iconContent;
+    iconSvg.innerHTML = color ? iconData.content.replace(/currentColor/g, color) : iconData.content;
 
     foreignObject.parentNode?.replaceChild(iconSvg, foreignObject);
   }
@@ -94,42 +81,36 @@ function embedStudyflowIntoSvg(svg: string, xml: string): string {
 
 async function exportToPng(svg: string): Promise<string> {
   const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  const canvg = Canvg.fromString(context as any, svg);
+  const context = canvas.getContext('2d')!;
+  const canvg = Canvg.fromString(context, svg);
   await canvg.render();
 
-  (context as any).globalCompositeOperation = 'destination-over';
-  (context as any).fillStyle = 'white';
-  (context as any).fillRect(0, 0, canvas.width, canvas.height);
+  // White background under the rendered SVG so transparent areas don't appear black.
+  context.globalCompositeOperation = 'destination-over';
+  context.fillStyle = 'white';
+  context.fillRect(0, 0, canvas.width, canvas.height);
 
   return canvas.toDataURL('image/png');
 }
 
-export async function runExportDiagram(
-  modeler: any,
-  command: ExportDiagramCommand,
-): Promise<void> {
-  if (!modeler) {
-    throw new Error("Command 'export-diagram' requires a modeler instance.");
+export async function runExportDiagram(modeler: any, command: ExportDiagramCommand): Promise<void> {
+  const filename = getDiagramName(modeler) ?? 'diagram';
+
+  if (command.fileType === 'studyflow') {
+    const { xml } = await modeler.saveXML();
+    download(xml, `${filename}.studyflow`, 'application/xml');
+    return;
   }
 
-  const { svg } = await modeler.saveSVG();
-  const { xml } = await modeler.saveXML();
-
+  const [{ svg }, { xml }] = await Promise.all([modeler.saveSVG(), modeler.saveXML()]);
   let svgClean = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
   svgClean = await embedIconsInSvg(svgClean);
   svgClean = embedStudyflowIntoSvg(svgClean, xml);
 
   if (command.fileType === 'png') {
     const png = await exportToPng(svgClean);
-    download(png, `${command.diagramName}.png`, 'image/png');
-    return;
+    download(png, `${filename}.png`, 'image/png');
+  } else {
+    download(svgClean, `${filename}.svg`, 'image/svg+xml');
   }
-
-  if (command.fileType === 'svg') {
-    download(svgClean, `${command.diagramName}.svg`, 'image/svg+xml');
-    return;
-  }
-
-  download(xml, `${command.diagramName}.studyflow`, 'application/xml');
 }

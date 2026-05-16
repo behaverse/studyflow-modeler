@@ -1,21 +1,15 @@
 export default class RemoveTemplatesFromPopup {
   static $inject = ['popupMenu'];
 
-  private _popupMenu: any;
-
   constructor(popupMenu: any) {
-    this._popupMenu = popupMenu;
-    this._popupMenu.registerProvider('bpmn-create', this);
+    popupMenu.registerProvider('bpmn-create', this);
   }
 
   getPopupMenuEntries(_element: any) {
     return (entries: Record<string, any>) => {
-      Object.keys(entries).forEach((key) => {
-        if (key.startsWith('create.template-')) {
-          delete entries[key];
-        }
-      });
-
+      for (const key of Object.keys(entries)) {
+        if (key.startsWith('create.template-')) delete entries[key];
+      }
       return entries;
     };
   }

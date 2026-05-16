@@ -1,6 +1,4 @@
-// BPMN flow primitives. The materialized `Study` (data + runtime engine)
-// lives in @/runner/study — see it for the parsed graph wrapper.
-
+/** BPMN flow primitives; see `@/runner/study` for the runtime wrapper. */
 export type FlowNode = {
   id: string;
   type: string;

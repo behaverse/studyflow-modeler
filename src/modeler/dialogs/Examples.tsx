@@ -1,6 +1,6 @@
-import { useContext, useEffect, useImperativeHandle, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { DiagramNameContext, ModelerContext } from '../contexts';
+import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { dialog as d, examplesList as e } from '../styles';
 import { NAMESPACES } from '../constants';
@@ -25,31 +25,22 @@ function humanizeId(id: string): string {
 
 function parseExampleMetadata(filename: string, xml: string): { title: string; description: string } {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('Invalid XML');
-  }
+  if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
 
   const process = doc.getElementsByTagNameNS(NAMESPACES.bpmn, 'process')[0]
     ?? doc.getElementsByTagNameNS(NAMESPACES.studyflow, 'study')[0];
 
-  let title = '';
-  if (process) {
-    title = process.getAttribute('name')?.trim() || humanizeId(process.getAttribute('id') ?? '');
-  }
-  if (!title) {
-    title = filename.replace(/\.[^/.]+$/, '');
-  }
+  const fromName = process?.getAttribute('name')?.trim();
+  const fromId = process?.getAttribute('id');
+  const title = fromName
+    || (fromId ? humanizeId(fromId) : '')
+    || filename.replace(/\.[^/.]+$/, '');
 
-  let description = '';
-  if (process) {
-    for (const child of Array.from(process.children)) {
-      if (child.namespaceURI === NAMESPACES.bpmn && child.localName === 'documentation') {
-        description = (child.textContent ?? '').trim();
-        break;
-      }
-    }
-  }
+  const description = process
+    ? Array.from(process.children).find(
+        (c) => c.namespaceURI === NAMESPACES.bpmn && c.localName === 'documentation',
+      )?.textContent?.trim() ?? ''
+    : '';
 
   return { title, description };
 }
@@ -60,7 +51,7 @@ function basename(path: string): string {
 
 function buildInitialEntries(): ExampleEntry[] {
   return Object.entries(exampleFiles)
-    .filter(([path, url]) => !path.endsWith('new_diagram.bpmn'))
+    .filter(([path]) => !path.endsWith('new_diagram.bpmn'))
     .map(([path, url]) => {
       const filename = basename(path);
       return {
@@ -73,28 +64,24 @@ function buildInitialEntries(): ExampleEntry[] {
     .sort((a, b) => a.filename.localeCompare(b.filename));
 }
 
-export function ExamplesDialog({ ref }: { ref: React.Ref<{ open: () => void }> }) {
-  const [isOpen, setIsOpen] = useState(false);
+type Props = {
+  isOpen: boolean;
+  onClose: () => void;
+};
+
+export function ExamplesDialog({ isOpen, onClose }: Props) {
   const [entries, setEntries] = useState<ExampleEntry[]>(buildInitialEntries);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const { modeler } = useContext(ModelerContext);
-  const { setDiagramName } = useContext(DiagramNameContext);
-
-  useImperativeHandle(ref, () => ({
-    open() {
-      setIsOpen(true);
-    },
-  }), []);
+  const modeler = useModeler();
 
   useEffect(() => {
     if (!isOpen || loaded) return;
     let cancelled = false;
 
     (async () => {
-      const initial = buildInitialEntries();
       const enriched = await Promise.all(
-        initial.map(async (entry) => {
+        buildInitialEntries().map(async (entry) => {
           try {
             const content = await fetch(entry.url).then((r) => r.text());
             const { title, description } = parseExampleMetadata(entry.filename, content);
@@ -116,10 +103,6 @@ export function ExamplesDialog({ ref }: { ref: React.Ref<{ open: () => void }> }
     };
   }, [isOpen, loaded]);
 
-  function close() {
-    setIsOpen(false);
-  }
-
   const selectExample = async (entry: ExampleEntry) => {
     if (!modeler || busy) return;
     setBusy(entry.filename);
@@ -129,9 +112,8 @@ export function ExamplesDialog({ ref }: { ref: React.Ref<{ open: () => void }> }
         type: 'open-diagram',
         filename: entry.filename,
         content,
-        setDiagramName,
       });
-      close();
+      onClose();
     } catch (err: any) {
       alert(err?.message || 'Failed to load example.');
       console.error(err);
@@ -141,13 +123,13 @@ export function ExamplesDialog({ ref }: { ref: React.Ref<{ open: () => void }> }
   };
 
   return (
-    <Dialog open={isOpen} onClose={close} className={d.root}>
+    <Dialog open={isOpen} onClose={onClose} className={d.root}>
       <div className={d.backdrop}>
         <div className={d.centerLayout}>
           <DialogPanel className={`${d.panelLg} ${d.panel}`}>
             <DialogTitle as="h3" className={`${d.title} pb-3`}>
               Example Diagrams
-              <span className={d.closeButton} onClick={close}>
+              <span className={d.closeButton} onClick={onClose}>
                 <i className="iconify bi--x-lg"></i>
               </span>
             </DialogTitle>

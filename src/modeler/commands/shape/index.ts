@@ -1,5 +1,5 @@
-export { buildBusinessObject, type BuildBusinessObjectOptions } from './buildBusinessObject';
-export { buildShape } from './buildShape';
+export { buildBusinessObject } from './buildBusinessObject';
 export { runCreateShape, type CreateShapeCommand } from './createShape';
-export { runCreateTemplateShape, type CreateTemplateShapeCommand } from './createTemplateShape';
-export { runCreateTemplateConnection, type CreateTemplateConnectionCommand } from './createTemplateConnection';
+export { runCreateTemplateShape } from './createTemplateShape';
+export { runCreateTemplateConnection } from './createTemplateConnection';
+export { runSetColor, type SetColorCommand } from './setColor';

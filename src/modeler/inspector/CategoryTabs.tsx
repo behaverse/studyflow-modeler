@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { PropertyField } from './field';
+import { AttributeField } from './field';
 import { t } from '../../i18n';
 import { inspector as s } from '../styles';
 
@@ -9,45 +9,38 @@ type Props = {
   categories: [string, any[]][];
 };
 
-/**
- * tab group rendering one property list per category.
- * Defaults to the `General` tab when present, and falls back to it when the
- * previously selected category is not available for the current element.
- */
+/** One tab per category; defaults to `General` and falls back to it when the prior tab is gone. */
 export function CategoryTabs({ element, categories }: Props) {
   const [selectedName, setSelectedName] = useState<string>('General');
 
-  const generalIndex = Math.max(
-    0,
-    categories.findIndex(([catName]) => catName === 'General'),
-  );
-  const namedIndex = categories.findIndex(([catName]) => catName === selectedName);
-  const selectedIndex = namedIndex === -1 ? generalIndex : namedIndex;
+  const indexOf = (name: string) => categories.findIndex(([categoryName]) => categoryName === name);
+  const namedIndex = indexOf(selectedName);
+  const selectedIndex = namedIndex !== -1 ? namedIndex : Math.max(0, indexOf('General'));
 
   return (
     <TabGroup
       selectedIndex={selectedIndex}
-      onChange={(i) => setSelectedName(categories[i]?.[0] ?? 'General')}
+      onChange={(categoryIndex) => setSelectedName(categories[categoryIndex]?.[0] ?? 'General')}
     >
       <TabList className={s.tabList} id="categories-bar">
-        {categories.map(([catName]) => (
+        {categories.map(([name]) => (
           <Tab
-            key={catName}
+            key={name}
             className={({ selected }) =>
               `${s.tabBase} ${selected ? s.tabSelected : s.tabUnselected}`
             }
           >
-            {t(catName)}
+            {t(name)}
           </Tab>
         ))}
       </TabList>
       <TabPanels className={s.tabPanels}>
-        {categories.map(([catName, catProperties]) => (
-          <TabPanel key={catName} className={s.tabPanel}>
-            {catProperties.map((p: any) => (
-              <PropertyField
-                key={element.id + p.ns.prefix + ':' + p.ns.name}
-                bpmnProperty={p}
+        {categories.map(([name, attrDefs]) => (
+          <TabPanel key={name} className={s.tabPanel}>
+            {attrDefs.map((attrDef: any) => (
+              <AttributeField
+                key={element.id + attrDef.ns.prefix + ':' + attrDef.ns.name}
+                attrDef={attrDef}
               />
             ))}
           </TabPanel>

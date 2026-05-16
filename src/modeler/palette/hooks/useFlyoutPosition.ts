@@ -1,13 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 
-/**
- * Keep a palette flyout panel within the viewport. The panel is natively
- * anchored to the top of its trigger button; when that would push the
- * bottom edge off-screen, shift the panel upward just enough to fit.
- *
- * The panel also caps its own height (`max-h-[calc(100vh-…)]`), so when
- * even shifting cannot fit it the inner content scrolls.
- */
+/** Shift a flyout upward when its bottom would overflow the viewport. */
 export function useFlyoutPosition(isOpen: boolean) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [offset, setOffset] = useState(0);
@@ -21,7 +14,6 @@ export function useFlyoutPosition(isOpen: boolean) {
     if (!el) return;
 
     const measure = () => {
-      // Reset to natural position before measuring so we don't compound shifts.
       el.style.transform = '';
       const rect = el.getBoundingClientRect();
       const margin = 12;

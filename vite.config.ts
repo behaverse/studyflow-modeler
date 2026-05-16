@@ -71,8 +71,8 @@ const unityBuildPath = process.env.UNITY_BUILD_PATH
 // https://vite.dev/config/
 export default defineConfig({
   root: './src',
-  publicDir: false, // disable public directory
-  base: '',  // relative base
+  publicDir: false,
+  base: '',  // relative
   define: {
     'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
   },
@@ -81,31 +81,26 @@ export default defineConfig({
     react(),
     unityBuildPlugin('/assessment-unity', unityBuildPath),
   ],
-  css: {
-    postcss: {
-      plugins: [],
-    }
-  },
   resolve: {
     alias: [
       { find: '@', replacement: resolve(__dirname, 'src') },
-      { find: '#root', replacement: resolve(__dirname) }
+      { find: '#root', replacement: resolve(__dirname) },
     ],
   },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1000, // increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       input: {
         main: resolve(__dirname, './src/index.html'),
         modeler: resolve(__dirname, './src/app.html'),
         runner: resolve(__dirname, './src/run.html'),
-      }
+      },
     },
-
   },
   assetsInclude: [
     '**/*.png', '**/*.bpmn', '**/*.studyflow', '**/*.jpeg', '**/*.gif',
-    '**/*.svg', '**/*.ico', '**/*.webp', '**/*.yaml'],
+    '**/*.svg', '**/*.ico', '**/*.webp', '**/*.yaml',
+  ],
 })

@@ -5,7 +5,7 @@ import type {
   TemplateFlowNode,
 } from '../../moddle/templates/types';
 
-export type MaterializeTemplateFlowCommand = {
+type MaterializeTemplateFlowCommand = {
   type: 'materialize-template-flow';
   modeling: any;
   templatesService: {
@@ -22,87 +22,39 @@ export type MaterializeTemplateFlowCommand = {
   hintKey: string;
 };
 
-export function runMaterializeTemplateFlow(
-  command: MaterializeTemplateFlowCommand,
-): void {
-  const {
-    modeling,
-    templatesService,
-    shape,
-    newRootElement,
-    hintKey,
-  } = command;
+export function runMaterializeTemplateFlow(command: MaterializeTemplateFlowCommand): void {
+  const { modeling, templatesService, shape, newRootElement, hintKey } = command;
 
-  if (!shape) {
-    return;
-  }
-
-  const flowElements = shape[TEMPLATE_FLOW_ELEMENTS] as TemplateFlowElement[] | undefined;
-  if (!Array.isArray(flowElements) || flowElements.length === 0) {
-    return;
-  }
+  const flowElements: TemplateFlowElement[] = shape[TEMPLATE_FLOW_ELEMENTS] ?? [];
+  if (flowElements.length === 0) return;
 
   const flowContainer = newRootElement ?? shape;
-  const nodeEntries = flowElements.filter(isFlowNode);
-  const connectionEntries = flowElements.filter(isFlowConnection);
   const nodesById = new Map<string, any>();
 
-  for (const nodeEntry of nodeEntries) {
-    const nodeShape = templatesService.createFlowNodeShape(nodeEntry, flowContainer);
-    const createdNode = modeling.createShape(
+  for (const node of flowElements.filter(isFlowNode)) {
+    const nodeShape = templatesService.createFlowNodeShape(node, flowContainer);
+    const created = modeling.createShape(
       nodeShape,
-      {
-        x: nodeShape.x,
-        y: nodeShape.y,
-        width: nodeShape.width,
-        height: nodeShape.height,
-      },
+      { x: nodeShape.x, y: nodeShape.y, width: nodeShape.width, height: nodeShape.height },
       flowContainer,
-      {
-        autoResize: false,
-        [hintKey]: true,
-      },
+      { autoResize: false, [hintKey]: true },
     );
-
-    nodesById.set(nodeEntry.id, createdNode);
+    nodesById.set(node.id, created);
   }
 
-  for (const connectionEntry of connectionEntries) {
-    const source = nodesById.get(connectionEntry.sourceRef);
-    const target = nodesById.get(connectionEntry.targetRef);
-
+  for (const conn of flowElements.filter(isFlowConnection)) {
+    const source = nodesById.get(conn.sourceRef);
+    const target = nodesById.get(conn.targetRef);
     if (!source || !target) {
-      console.warn(
-        `[templates] Skipping connection '${connectionEntry.id ?? connectionEntry.bpmnType}' because source or target was not found.`
-      );
+      console.warn(`[templates] Skipping connection '${conn.id ?? conn.bpmnType}' - source or target not found.`);
       continue;
     }
-
-    const connection = templatesService.createFlowConnection(
-      connectionEntry,
-      source,
-      target,
-      flowContainer,
-    );
-
-    modeling.createConnection(
-      source,
-      target,
-      connection,
-      flowContainer,
-      {
-        [hintKey]: true,
-      },
-    );
+    const created = templatesService.createFlowConnection(conn, source, target, flowContainer);
+    modeling.createConnection(source, target, created, flowContainer, { [hintKey]: true });
   }
 
   delete shape[TEMPLATE_FLOW_ELEMENTS];
 }
 
-function isFlowNode(entry: TemplateFlowElement): entry is TemplateFlowNode {
-  return entry.kind === 'node';
-}
-
-function isFlowConnection(entry: TemplateFlowElement): entry is TemplateFlowConnection {
-  return entry.kind === 'connection';
-}
+const isFlowNode = (e: TemplateFlowElement): e is TemplateFlowNode => e.kind === 'node';
+const isFlowConnection = (e: TemplateFlowElement): e is TemplateFlowConnection => e.kind === 'connection';

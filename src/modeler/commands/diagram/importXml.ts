@@ -3,13 +3,6 @@ export type ImportXmlCommand = {
   xml: string;
 };
 
-export async function runImportXml(
-  modeler: any,
-  command: ImportXmlCommand,
-): Promise<any> {
-  if (!modeler) {
-    throw new Error("Command 'import-xml' requires a modeler instance.");
-  }
-
+export async function runImportXml(modeler: any, command: ImportXmlCommand): Promise<any> {
   return modeler.importXML(command.xml);
 }

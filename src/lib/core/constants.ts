@@ -1,14 +1,12 @@
-// Constants shared by the modeler editor and the runner.
-
-export type SchemaDescriptor = {
+type Schema = {
   prefix: string;
   name: string;
   description: string;
-  // Core schemas back the default elements (Study, StartEvent, EndEvent). Always loaded.
+  /** Core schemas back the default elements (always loaded). */
   core?: boolean;
 };
 
-export const SCHEMAS: SchemaDescriptor[] = [
+export const SCHEMAS: Schema[] = [
   { prefix: 'studyflow', name: 'Studyflow', description: 'Generic research elements and data infrastructure.', core: true },
   { prefix: 'cognitive', name: 'Cognitive', description: 'Cognitive and behavioral research elements.', core: true },
   { prefix: 'behaverse', name: 'Behaverse', description: 'Cognitive tasks (Behaverse assessments).' },

@@ -2,10 +2,10 @@ import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { BPMN } from '../constants';
 import { splitQName } from '../utils/naming';
 import { isExtensionPrefix } from './attrs';
-import { getEffectiveDescriptorProperties } from './descriptors';
-import { setProperty } from './resolve';
+import { getAttributeDefinitions } from './attributeDefinitions';
+import { setAttribute } from './resolve';
 
-// First non-core extension wrapper on `<bpmn:extensionElements>`, or null.
+/** First non-core extension wrapper on `<bpmn:extensionElements>`, or null. */
 export function getExtensionElement(elementOrBO: any): any {
   const bo = getBusinessObject(elementOrBO);
   const values = bo?.extensionElements?.values;
@@ -13,54 +13,52 @@ export function getExtensionElement(elementOrBO: any): any {
   return values.find((ext: any) => isExtensionPrefix(splitQName(ext.$type).prefix)) ?? null;
 }
 
-export function getExtensionElementProperties(elementOrBO: any): any[] {
+/** Attribute definitions declared on this element's extension wrapper, if any. */
+export function getExtensionAttributeDefinitions(elementOrBO: any): any[] {
   const ext = getExtensionElement(elementOrBO);
-  return getEffectiveDescriptorProperties(ext, ext?.$model);
+  return getAttributeDefinitions(ext, ext?.$model);
 }
 
-// Create an extension wrapper on a BO during element creation (pre-canvas).
-// For `extends:`-style types, defaults are written directly onto the BO and
-// no wrapper is added (bpmn-moddle cannot create extends-only types standalone).
+/** Adds a wrapper inside `<bpmn:extensionElements>`; `extends:`-style types write defaults straight to the BO. */
 export function createExtensionElement(
-  businessObject: any,
-  studyflowType: string,
+  bo: any,
+  extensionType: string,
   moddle: any,
   defaults: Record<string, any> = {},
 ): any {
-  let descriptor: any;
-  try { descriptor = moddle.getTypeDescriptor(studyflowType); } catch { /* */ }
+  let typeDef: any;
+  try { typeDef = moddle.getTypeDescriptor(extensionType); } catch { /* unknown type */ }
 
-  const isExtendsOnly = (descriptor?.extends?.length ?? 0) > 0
-    && (!descriptor?.superClass || descriptor.superClass.length === 0);
+  const isExtendsOnly = (typeDef?.extends?.length ?? 0) > 0
+    && (!typeDef?.superClass || typeDef.superClass.length === 0);
 
   if (isExtendsOnly) {
     for (const [name, value] of Object.entries(defaults)) {
-      setProperty(businessObject, name, value);
+      setAttribute(bo, name, value);
     }
     return null;
   }
 
-  if (!businessObject.extensionElements) {
+  if (!bo.extensionElements) {
     const ext = moddle.create(BPMN.ExtensionElements, { values: [] });
-    ext.$parent = businessObject;
-    businessObject.extensionElements = ext;
+    ext.$parent = bo;
+    bo.extensionElements = ext;
   }
 
-  const wrapper = moddle.create(studyflowType, {});
-  wrapper.$parent = businessObject.extensionElements;
-  businessObject.extensionElements.values.push(wrapper);
+  const wrapper = moddle.create(extensionType, {});
+  wrapper.$parent = bo.extensionElements;
+  bo.extensionElements.values.push(wrapper);
 
   for (const [name, value] of Object.entries(defaults)) {
-    setProperty(businessObject, name, value);
+    setAttribute(bo, name, value);
   }
 
   return wrapper;
 }
 
-// True if extension properties are mixed onto the BO via moddle `extends`
-// (e.g. StartEvent / EndEvent) rather than nested in an extension element.
+/** True when extension attributes are mixed onto the BO via moddle `extends`. */
 export function hasExtends(element: any): boolean {
   const bo = element?.businessObject ?? element;
-  return getEffectiveDescriptorProperties(bo, bo?.$model)
-    .some((p: any) => isExtensionPrefix(p.ns?.prefix));
+  return getAttributeDefinitions(bo, bo?.$model)
+    .some((attrDef: any) => isExtensionPrefix(attrDef.ns?.prefix));
 }

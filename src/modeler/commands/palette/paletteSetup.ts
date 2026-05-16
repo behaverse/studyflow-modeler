@@ -1,41 +1,43 @@
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
 import { resolveBpmnCreateType } from '../../moddle/resolveBpmnType';
 import { toLocalName } from '@/lib/core/utils/naming';
-import { HIDDEN_SCHEMA_TYPES, PALETTE_GROUPS, PRIMITIVE_MODDLE_TYPES, SCHEMA_NAMES, SCHEMAS } from '../../constants';
+import { HIDDEN_SCHEMA_TYPES, PALETTE_BPMN_ICONS, PRIMITIVE_MODDLE_TYPES, SCHEMA_NAMES, SCHEMAS } from '../../constants';
 import type { Template as ElementTemplate } from '../../moddle/templates/types';
 
-// bpmnType -> icon class
-const PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
-  PALETTE_GROUPS.flatMap((group) => group.items.map((item) => [item.bpmnType, item.icon])),
-);
+function getBpmnTypeDefinition(moddle: any, bpmnType: string): any | null {
+  try { return moddle.getType(bpmnType)?.$descriptor ?? null; }
+  catch { return null; }
+}
 
 function resolveFallbackIcon(moddle: any, bpmnType: string): string | undefined {
   if (PALETTE_BPMN_ICONS[bpmnType]) return PALETTE_BPMN_ICONS[bpmnType];
 
-  let descriptor: any;
-  try {
-    descriptor = moddle.getType(bpmnType)?.$descriptor;
-  } catch {
-    return undefined;
-  }
-
-  const ancestors: any[] = descriptor?.allTypes ?? [];
-  // closest ancestor with an icon.
+  const ancestors: any[] = getBpmnTypeDefinition(moddle, bpmnType)?.allTypes ?? [];
   for (let i = ancestors.length - 1; i >= 0; i--) {
-    const ancestorType = ancestors[i]?.name;
-    if (ancestorType && PALETTE_BPMN_ICONS[ancestorType]) {
-      return PALETTE_BPMN_ICONS[ancestorType];
-    }
+    const icon = PALETTE_BPMN_ICONS[ancestors[i]?.name];
+    if (icon) return icon;
   }
-
   return undefined;
 }
 
 const filteredPopupMenus = new WeakSet<object>();
 const schemaOrder = new Map(SCHEMA_NAMES.map((schemaName, index) => [schemaName, index]));
 
-// Ordered: earlier matches win. SubProcess is checked before Activity so
-// "Containers" takes precedence over "Activities" for subprocess-like shapes.
+/** Prefixes never shown in user-facing palette flyouts. */
+const NON_USER_PREFIXES = new Set(['bpmn', 'bpmndi', 'di', 'dc', 'bioc', 'color']);
+
+/** Skip abstract types, primitives, `extends:`-only types, and template-only types. */
+function isHiddenFromPalette(type: any): boolean {
+  if (type.isAbstract || HIDDEN_SCHEMA_TYPES.has(type.name)) return true;
+  if (type.superClass?.some((sc: string) => PRIMITIVE_MODDLE_TYPES.includes(sc))) return true;
+  if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return true;
+  if (Array.isArray(type.extends) && type.extends.length > 0
+      && (!Array.isArray(type.superClass) || type.superClass.length === 0)) return true;
+  if (type.meta?.templateScopedType) return true;
+  return false;
+}
+
+// Order matters: SubProcess/Participant/Group come before Activity so they land in "Containers".
 const CATEGORY_RULES: Array<{ ancestor: string; category: string }> = [
   { ancestor: 'bpmn:Event', category: 'Events' },
   { ancestor: 'bpmn:Gateway', category: 'Gateways' },
@@ -48,9 +50,9 @@ const CATEGORY_RULES: Array<{ ancestor: string; category: string }> = [
   { ancestor: 'bpmn:ItemAwareElement', category: 'Data' },
 ];
 
-// Strip the BPMN base type suffix
 const STRIPPABLE_SUFFIXES = ['Gateway', 'Event'];
 
+/** Drop the BPMN base-type suffix (e.g. "ExclusiveGateway" -> "Exclusive"). */
 function trimBpmnSuffix(typeName: string, bpmnType: string): string {
   const bpmnLocal = toLocalName(bpmnType) ?? bpmnType;
   for (const suffix of STRIPPABLE_SUFFIXES) {
@@ -63,7 +65,6 @@ function trimBpmnSuffix(typeName: string, bpmnType: string): string {
   return typeName;
 }
 
-// Insert spaces for CamelCase / PascalCase
 function humanizeLabel(typeName: string): string {
   return typeName
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
@@ -75,149 +76,108 @@ function paletteLabel(typeName: string, bpmnType: string): string {
 }
 
 function deriveCategory(moddle: any, bpmnType: string): string | null {
-  let descriptor: any;
-  try {
-    descriptor = moddle.getType(bpmnType)?.$descriptor;
-  } catch {
-    return null;
-  }
-  const ancestors: string[] = (descriptor?.allTypes ?? []).map((t: any) => t.name);
+  const ancestors: string[] = (getBpmnTypeDefinition(moddle, bpmnType)?.allTypes ?? [])
+    .map((typeDef: any) => typeDef.name);
   for (const { ancestor, category } of CATEGORY_RULES) {
     if (ancestors.includes(ancestor)) return category;
   }
   return null;
 }
 
-export type PaletteSchemaItem = {
+export type PaletteItem = {
   label: string;
   bpmnType: string;
-  studyflowType: string;
+  extensionType: string;
   icon?: string;
   categories: string[];
 };
 
-export type PaletteSchemaTemplate = {
+export type PaletteTemplate = {
   id: string;
   label: string;
   description?: string;
   icon?: string;
   bpmnType: string;
-  studyflowType: string;
+  extensionType: string;
 };
 
-export type PaletteSchemaDescriptor = {
+export type PaletteSchema = {
   prefix: string;
-  /** Human-readable schema name (`pkg.name`); falls back to the prefix. */
   name: string;
   icon?: string;
   /** True for schemas backing default elements; false for third-party extensions. */
   core: boolean;
-  items: PaletteSchemaItem[];
-  templates: PaletteSchemaTemplate[];
+  items: PaletteItem[];
+  templates: PaletteTemplate[];
 };
 
-export type PaletteRegisterSchemaProvidersCommand = {
-  type: 'palette-register-schema-providers';
+export type ResolvePaletteSchemasCommand = {
+  type: 'resolve-palette-schemas';
 };
 
-export function runPaletteRegisterSchemaProviders(
+export function runResolvePaletteSchemas(
   modeler: any,
-  _command: PaletteRegisterSchemaProvidersCommand,
-): PaletteSchemaDescriptor[] {
-  if (!modeler) {
-    throw new Error("Command 'palette-register-schema-providers' requires a modeler instance.");
-  }
-
-  const bpmnFactory = modeler.get('bpmnFactory');
-  const moddle = bpmnFactory._model;
+  _command: ResolvePaletteSchemasCommand,
+): PaletteSchema[] {
+  const moddle = modeler.get('moddle');
   const popupMenu = modeler.get('popupMenu');
   const elementTemplates = modeler.get('elementTemplates');
 
-  if (!filteredPopupMenus.has(popupMenu as object)) {
-    // eslint-disable-next-line no-new
+  if (!filteredPopupMenus.has(popupMenu)) {
     new (RemoveTemplatesFromPopup as any)(popupMenu);
-    filteredPopupMenus.add(popupMenu as object);
+    filteredPopupMenus.add(popupMenu);
   }
 
-  const schemas: PaletteSchemaDescriptor[] = [];
+  const schemas: PaletteSchema[] = moddle.getPackages()
+    .map((pkg: any): PaletteSchema | null => {
+      const prefix = pkg.prefix?.toLowerCase();
+      if (!prefix || NON_USER_PREFIXES.has(prefix)) return null;
 
-  const packagesArray: any[] =
-    (typeof (moddle as any).getPackages === 'function'
-      ? (moddle as any).getPackages()
-      : (Array.isArray((moddle as any).packages)
-          ? (moddle as any).packages
-          : Object.values((moddle as any).packages || {})));
+      const items: PaletteItem[] = (pkg.types || [])
+        .filter((type: any) => !isHiddenFromPalette(type))
+        .flatMap((type: any): PaletteItem[] => {
+          const bpmnType = resolveBpmnCreateType(moddle, type);
+          if (!bpmnType) return [];
+          const explicitCategories = type.meta?.categories;
+          const categories = Array.isArray(explicitCategories) && explicitCategories.length > 0
+            ? explicitCategories
+            : [deriveCategory(moddle, bpmnType)].filter((c): c is string => c !== null);
+          return [{
+            label: paletteLabel(type.name, bpmnType),
+            bpmnType,
+            extensionType: `${pkg.prefix}:${type.name}`,
+            icon: typeof type.meta?.icon === 'string'
+              ? type.meta.icon
+              : resolveFallbackIcon(moddle, bpmnType),
+            categories,
+          }];
+        });
 
-  packagesArray.forEach((pkg: any) => {
-    const prefix = pkg.prefix.toLowerCase();
-    if (!prefix) return;
-    if (['bpmn', 'bpmndi', 'di', 'dc', 'bioc', 'color'].includes(prefix)) return;
+      const templates: PaletteTemplate[] = (elementTemplates?.getBySchemaPrefix?.(prefix) ?? [])
+        .map((template: ElementTemplate) => ({
+          id: template.id,
+          label: template.name,
+          description: template.description,
+          icon: template.iconClass,
+          bpmnType: template.bpmnType,
+          extensionType: template.extensionType,
+        }));
 
-    const items: PaletteSchemaItem[] = (pkg.types || [])
-      .filter((type: any) => {
-        if (type.isAbstract || HIDDEN_SCHEMA_TYPES.has(type.name)) return false;
-        if (type.superClass?.some((sc: string) => PRIMITIVE_MODDLE_TYPES.includes(sc))) return false;
-        if (Array.isArray(type.meta?.flowElements) && type.meta.flowElements.length > 0) return false;
-        if (Array.isArray(type.extends) && type.extends.length > 0
-            && (!Array.isArray(type.superClass) || type.superClass.length === 0)) return false;
-        // Template-scoped types are surfaced via their `templates:` entry only;
-        // hide them from palette flyovers so users always reach for the
-        // prefilled template instead of a bare type instance.
-        if (type.meta?.templateScopedType) return false;
-        return true;
-      })
-      .map((type: any): PaletteSchemaItem | null => {
-        const bpmnType = resolveBpmnCreateType(moddle, type);
-        if (!bpmnType) return null;
-        const derived = deriveCategory(moddle, bpmnType);
-        const categories = Array.isArray(type.meta?.categories) && type.meta.categories.length > 0
-          ? type.meta.categories
-          : (derived ? [derived] : []);
-        return {
-          label: paletteLabel(type.name, bpmnType),
-          bpmnType,
-          studyflowType: `${pkg.prefix}:${type.name}`,
-          icon: typeof type.meta?.icon === 'string'
-            ? type.meta.icon
-            : resolveFallbackIcon(moddle, bpmnType),
-          categories,
-        };
-      })
-      .filter((entry: PaletteSchemaItem | null): entry is PaletteSchemaItem => entry !== null);
+      const meta = SCHEMAS.find((s) => s.prefix === prefix);
+      return {
+        prefix,
+        name: typeof pkg.name === 'string' && pkg.name.trim().length > 0 ? pkg.name : prefix,
+        icon: typeof pkg.icon === 'string' ? pkg.icon : undefined,
+        core: meta?.core === true,
+        items,
+        templates,
+      };
+    })
+    .filter((s: PaletteSchema | null): s is PaletteSchema => s !== null);
 
-    const templates: PaletteSchemaTemplate[] = (
-      typeof elementTemplates?.getBySchemaPrefix === 'function'
-        ? elementTemplates.getBySchemaPrefix(prefix)
-        : []
-    ).map((template: ElementTemplate) => ({
-      id: template.id,
-      label: template.name,
-      description: template.description,
-      icon: template.iconClass,
-      bpmnType: template.bpmnType,
-      studyflowType: template.studyflowType,
-    }));
-
-    const descriptor = SCHEMAS.find((s) => s.prefix === prefix);
-    schemas.push({
-      prefix,
-      name: typeof pkg.name === 'string' && pkg.name.trim().length > 0 ? pkg.name : prefix,
-      icon: typeof pkg.icon === 'string' ? pkg.icon : undefined,
-      core: descriptor?.core === true,
-      items,
-      templates,
-    });
+  return schemas.sort((a, b) => {
+    const ai = schemaOrder.get(a.prefix) ?? Number.MAX_SAFE_INTEGER;
+    const bi = schemaOrder.get(b.prefix) ?? Number.MAX_SAFE_INTEGER;
+    return ai !== bi ? ai - bi : a.prefix.localeCompare(b.prefix);
   });
-
-  schemas.sort((left, right) => {
-    const leftIndex = schemaOrder.get(left.prefix) ?? Number.MAX_SAFE_INTEGER;
-    const rightIndex = schemaOrder.get(right.prefix) ?? Number.MAX_SAFE_INTEGER;
-
-    if (leftIndex !== rightIndex) {
-      return leftIndex - rightIndex;
-    }
-
-    return left.prefix.localeCompare(right.prefix);
-  });
-  return schemas;
 }

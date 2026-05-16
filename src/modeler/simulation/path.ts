@@ -1,19 +1,11 @@
-// helpers for token simulation along polylines.
-
 export type Point = { x: number; y: number };
 
-/**
- * interpolation: maps 0->1 to 0->1 with zero first AND
- * second derivatives at endpoints (Ken Perlin's smootherstep).
- */
+/** Ken Perlin's smootherstep: zero first and second derivatives at 0 and 1. */
 export function smootherstep(t: number): number {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-/**
- * Compute the length of each segment of a polyline,
- * along with the total polyline distance.
- */
+/** Length of each polyline segment plus the total length. */
 export function computeSegLengths(points: Point[]): { segLengths: number[]; totalDist: number } {
   const segLengths: number[] = [];
   let totalDist = 0;
@@ -27,10 +19,7 @@ export function computeSegLengths(points: Point[]): { segLengths: number[]; tota
   return { segLengths, totalDist };
 }
 
-/**
- * Sample a position along a polyline at a given distance from the start.
- * If `dist` exceeds the polyline length, returns the last point.
- */
+/** Position at `dist` from the start of the polyline; clamps to the last point. */
 export function samplePolyline(points: Point[], segLengths: number[], dist: number): Point {
   let remaining = dist;
   for (let i = 0; i < segLengths.length; i++) {
@@ -43,6 +32,5 @@ export function samplePolyline(points: Point[], segLengths: number[], dist: numb
     }
     remaining -= segLengths[i];
   }
-  // past the end; return last point
   return points[points.length - 1];
 }

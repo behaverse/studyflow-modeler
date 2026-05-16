@@ -1,4 +1,4 @@
-export { Palette as Palette } from './Palette';
+export { Palette } from './Palette';
 
 export default {
   __init__: [],

@@ -1,9 +1,9 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Switch } from '@headlessui/react';
-import { APIKeyContext } from '../contexts';
 import { SCHEMAS, URLS } from '../constants';
 import { settingsView as s } from '../styles';
 import { useSettings } from './useSettings';
+import { useApiKey } from './useApiKey';
 import {
   clearAllLocalData,
   getStorageEstimate,
@@ -17,16 +17,15 @@ type Section = {
   id: SectionId;
   label: string;
   icon: string;
-  group: 'user' | 'app';
 };
 
 const SECTIONS: Section[] = [
-  { id: 'account', label: 'Account', icon: 'bi--person-circle', group: 'user' },
-  { id: 'general', label: 'General', icon: 'bi--sliders', group: 'app' },
-  { id: 'editor', label: 'Editor', icon: 'bi--pencil', group: 'app' },
-  { id: 'extensions', label: 'Extensions', icon: 'bi--diagram-3', group: 'app' },
-  { id: 'privacy', label: 'Privacy', icon: 'bi--shield-lock', group: 'app' },
-  { id: 'about', label: 'About', icon: 'bi--info-circle', group: 'app' },
+  { id: 'account', label: 'Account', icon: 'bi--person-circle' },
+  { id: 'general', label: 'General', icon: 'bi--sliders' },
+  { id: 'editor', label: 'Editor', icon: 'bi--pencil' },
+  { id: 'extensions', label: 'Extensions', icon: 'bi--diagram-3' },
+  { id: 'privacy', label: 'Privacy', icon: 'bi--shield-lock' },
+  { id: 'about', label: 'About', icon: 'bi--info-circle' },
 ];
 
 export function SettingsView({ onClose }: { onClose: () => void }) {
@@ -58,15 +57,22 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
 
         <div className={s.body}>
           <nav className={s.sidebar} aria-label="Settings sections">
-            <SidebarGroup
-              label=""
-              sections={SECTIONS}
-              active={active}
-              onSelect={setActive}
-            />
-            <p className={s.sidebarFooter}>
-              Stored locally on this browser.
-            </p>
+            <ul className="space-y-0.5">
+              {SECTIONS.map((sec) => (
+                <li key={sec.id}>
+                  <button
+                    type="button"
+                    onClick={() => setActive(sec.id)}
+                    aria-current={active === sec.id ? 'page' : undefined}
+                    className={`${s.sidebarItem} ${active === sec.id ? s.sidebarItemActive : ''}`}
+                  >
+                    <i className={`iconify ${sec.icon} ${s.sidebarItemIcon}`} aria-hidden="true" />
+                    <span>{sec.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className={s.sidebarFooter}>Stored locally on this browser.</p>
           </nav>
 
           <main className={s.content}>
@@ -81,39 +87,6 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
           </main>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SidebarGroup({
-  label,
-  sections,
-  active,
-  onSelect,
-}: {
-  label: string;
-  sections: Section[];
-  active: SectionId;
-  onSelect: (id: SectionId) => void;
-}) {
-  return (
-    <div className="mb-2">
-      <p className={s.sidebarGroupLabel}>{label}</p>
-      <ul className="space-y-0.5">
-        {sections.map((sec) => (
-          <li key={sec.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(sec.id)}
-              aria-current={active === sec.id ? 'page' : undefined}
-              className={`${s.sidebarItem} ${active === sec.id ? s.sidebarItemActive : ''}`}
-            >
-              <i className={`iconify ${sec.icon} ${s.sidebarItemIcon}`} aria-hidden="true" />
-              <span>{sec.label}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -213,8 +186,8 @@ const API_BASE_ORIGIN = (() => {
 })();
 
 function AccountSection() {
-  const { apiKey, setApiKey } = useContext(APIKeyContext);
-  const isGuest = !apiKey || apiKey === 'guest';
+  const { apiKey, setApiKey } = useApiKey();
+  const isGuest = apiKey === 'guest';
   const [revealKey, setRevealKey] = useState(false);
   const [loginError, setLoginError] = useState<string | undefined>();
   const [loginPending, setLoginPending] = useState(false);
@@ -244,9 +217,9 @@ function AccountSection() {
       return;
     }
 
-    const onMessage = (event: MessageEvent) => {
-      if (API_BASE_ORIGIN && event.origin !== API_BASE_ORIGIN) return;
-      const data = event.data as { type?: string; api_key?: string; email?: string } | null;
+    const onMessage = (e: MessageEvent) => {
+      if (API_BASE_ORIGIN && e.origin !== API_BASE_ORIGIN) return;
+      const data = e.data as { type?: string; api_key?: string; email?: string } | null;
       if (!data || data.type !== 'behaverse:login' || !data.api_key) return;
       window.removeEventListener('message', onMessage);
       clearInterval(closedTimer);
@@ -279,10 +252,7 @@ function AccountSection() {
 
   return (
     <>
-      <SectionHeader
-        title="Account"
-        description=""
-      />
+      <SectionHeader title="Account" />
 
       <Row
         label="Status"
@@ -361,7 +331,6 @@ function GeneralSection() {
 
       <Row
         label="Theme"
-        help=""
         control={
           <SelectControl
             label="Theme"
@@ -376,7 +345,6 @@ function GeneralSection() {
 
       <Row
         label="Language"
-        help=""
         control={
           <SelectControl
             label="Language"
@@ -514,7 +482,7 @@ function PrivacySection() {
 
       <Row
         label="Local storage"
-        help={`${estimate.keys} key${estimate.keys === 1 ? '' : 's'} • ~${formatBytes(estimate.bytes)}`}
+        help={`${estimate.keys} key${estimate.keys === 1 ? '' : 's'}, ~${formatBytes(estimate.bytes)}`}
         control={
           <button
             type="button"

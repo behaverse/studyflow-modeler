@@ -7,8 +7,7 @@ const schemaFiles = import.meta.glob('@/assets/schemas/*.moddle.yaml', {
   eager: true,
 }) as Record<string, string>;
 
-// Load the listed schemas plus any flagged `core: true`. Caller decides which
-// non-core schemas to include.
+/** Load the listed schemas plus any `core: true` schemas. */
 export async function loadSchemas(prefixes: string[]): Promise<Record<string, any>> {
   const enabled = new Set(prefixes);
   for (const s of SCHEMAS) if (s.core) enabled.add(s.prefix);

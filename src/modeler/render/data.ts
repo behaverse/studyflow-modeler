@@ -1,7 +1,7 @@
 import { getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { SVG_ICON_PATHS } from '../constants';
 import { colorToHex, drawIcon, drawSvgPaths } from './utils';
-import { getProperty } from '@/lib/core/extensions';
+import { getAttribute } from '@/lib/core/extensions';
 import type { BpmnRenderer } from '../bpmn-js';
 
 /** Render a bpmn:DataStoreReference (dataset) with optional format icon. */
@@ -11,7 +11,7 @@ export function drawDataStore(
   bpmnRenderer: BpmnRenderer,
   pkgEnums: any[],
 ): SVGElement {
-  const format = getProperty(element, 'format');
+  const format = getAttribute(element, 'format');
   const formatEnum = pkgEnums.find((e) => e.name === 'DatasetFormatEnum');
   const iconClass: string | undefined =
     formatEnum?.literalValues.find((lv: any) => lv.value === format)?.icon || undefined;
@@ -21,8 +21,7 @@ export function drawDataStore(
   const strokeHex = colorToHex(getStrokeColor(element));
   const iconColor = strokeHex ? strokeHex + 'bb' : '#000000bb';
 
-  // Use inline SVG paths for icons that need to survive SVG export;
-  // fall back to foreignObject-based drawIcon for iconify icons.
+  // Inline SVG paths survive SVG export; iconify icons fall back to foreignObject.
   const svgDef = iconClass && SVG_ICON_PATHS[iconClass];
   if (svgDef) {
     drawSvgPaths(parentNode, svgDef, 4, 28, 42, 14, iconColor);

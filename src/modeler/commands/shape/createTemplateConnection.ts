@@ -1,10 +1,12 @@
-export type CreateTemplateConnectionCommand = {
+import { setRawAttribute } from '@/lib/core/extensions';
+
+type CreateTemplateConnectionCommand = {
   type: 'create-template-connection';
   elementFactory: any;
   definition: {
     id?: string;
     bpmnType: string;
-    templateProperties?: Record<string, any>;
+    templateAttributes?: Record<string, any>;
   };
   source: any;
   target: any;
@@ -14,16 +16,8 @@ export type CreateTemplateConnectionCommand = {
 export function runCreateTemplateConnection(
   command: CreateTemplateConnectionCommand,
 ): any {
-  const {
-    elementFactory,
-    definition,
-    source,
-    target,
-    parent,
-  } = command;
-  const properties: Record<string, any> = {
-    ...(definition.templateProperties || {}),
-  };
+  const { elementFactory, definition, source, target, parent } = command;
+  const attributes: Record<string, any> = { ...(definition.templateAttributes || {}) };
 
   const connection = elementFactory.create('connection', {
     type: definition.bpmnType,
@@ -33,60 +27,30 @@ export function runCreateTemplateConnection(
     waypoints: createWaypoints(source, target),
   });
 
-  const businessObject = connection.businessObject;
+  const bo = connection.businessObject;
 
   if (definition.id) {
-    businessObject.set('id', definition.id);
+    bo.set('id', definition.id);
     connection.id = definition.id;
   }
 
-  const bpmnName = properties['bpmn:name'];
+  const bpmnName = attributes['bpmn:name'];
   if (bpmnName !== undefined) {
-    delete properties['bpmn:name'];
-    businessObject.set('name', bpmnName);
+    delete attributes['bpmn:name'];
+    bo.set('name', bpmnName);
   }
 
-  for (const [key, value] of Object.entries(properties)) {
-    if (key.startsWith('bpmn:')) {
-      setNamespacedAttr(businessObject, key, value);
-      continue;
-    }
-
-    businessObject.set(key, value);
+  for (const [key, value] of Object.entries(attributes)) {
+    if (key.startsWith('bpmn:')) setRawAttribute(bo, key, value);
+    else bo.set(key, value);
   }
 
   return connection;
 }
 
-function setNamespacedAttr(target: any, attrName: string, value: any): void {
-  if (!target || value === undefined) {
-    return;
-  }
-
-  if (typeof target.set === 'function') {
-    try {
-      target.set(attrName, value);
-      return;
-    } catch {
-      // Fall through to direct $attrs mutation when supported.
-    }
-  }
-
-  const attrs = target.$attrs;
-  if (attrs && typeof attrs === 'object') {
-    attrs[attrName] = value;
-  }
-}
-
 function createWaypoints(source: any, target: any): Array<{ x: number; y: number }> {
   return [
-    {
-      x: source.x + source.width / 2,
-      y: source.y + source.height / 2,
-    },
-    {
-      x: target.x + target.width / 2,
-      y: target.y + target.height / 2,
-    },
+    { x: source.x + source.width / 2,  y: source.y + source.height / 2 },
+    { x: target.x + target.width / 2,  y: target.y + target.height / 2 },
   ];
 }

@@ -1,25 +1,20 @@
 import { Field } from '@headlessui/react';
-import { useEffect, useState, useContext, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { StringInput } from './StringInput';
 import { CodeEditor } from './CodeEditor';
 import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { ArrayInput } from './ArrayInput';
 import { OptionalStringInput } from './OptionalStringInput';
-import { InspectorContext, ModelerContext } from '../contexts';
-import { getProperty } from '@/lib/core/extensions';
+import { useModeler } from '../useModeler';
+import { useInspectedElement } from './hooks/useInspectedElement';
+import { getAttribute } from '@/lib/core/extensions';
 import { splitQName } from '@/lib/core/utils/naming';
 import { field as s } from '../styles';
 
-type FieldProps = { bpmnProperty: any };
+const MarkdownStringInput = (inputProps: any) => <StringInput {...inputProps} isMarkdown />;
 
-const MarkdownStringInput = (p: any) => <StringInput {...p} isMarkdown />;
-
-/**
- * Maps a resolved property type to the input component that renders it.
- * `Enum` is a synthetic type produced by {@link resolveInputType} when the
- * declared type names an enumeration in its package.
- */
+// `Enum` is a synthetic type produced by `resolveInputType` for enum-typed attributes.
 const INPUT_BY_TYPE: Record<string, any> = {
   Boolean: BooleanInput,
   Enum: EnumInput,
@@ -32,84 +27,61 @@ function resolveInputType(declaredType: string, modeler: any): string {
   const { prefix, localName } = splitQName(declaredType);
   if (prefix && localName) {
     const pkg = modeler.get('moddle').getPackage(prefix);
-    if (pkg?.enumerations?.some((e: any) => e.name === localName)) {
-      return 'Enum';
-    }
+    if (pkg?.enumerations?.some((e: any) => e.name === localName)) return 'Enum';
   }
   return declaredType;
 }
 
-/**
- * Check if a property is visible based on its condition.
- * For studyflow properties, conditions are checked against the extension
- * element wrapper, not the business object.
- */
-export function isPropertyVisible(bProp: any, el: any): boolean {
-  if (!bProp || !el) return true;
-  if (bProp.meta?.pinned) return false;
-  if (!bProp.meta?.condition) return true;
+/** Whether an attribute definition renders in the inspector. */
+export function isAttributeVisible(attrDef: any, element: any): boolean {
+  if (!attrDef || !element) return true;
+  if (attrDef.meta?.pinned) return false;
+  if (!attrDef.meta?.condition) return true;
 
-  // TODO this is only valid when condition.language is json
-  const conditions = bProp.meta?.condition?.body || {};
-  const results = Object.entries(conditions).map(([cKey, cExpectedVal]) => {
-    const cVal = getProperty(el, cKey);
-    if (cExpectedVal === '$set') {
-      return cVal != null;
-    }
-    if (Array.isArray(cExpectedVal)) {
-      return cExpectedVal.includes(cVal);
-    }
-    return cVal === cExpectedVal;
+  const conditions = attrDef.meta.condition.body || {};
+  return Object.entries(conditions).every(([key, expected]) => {
+    const actual = getAttribute(element, key);
+    if (expected === '$set') return actual != null;
+    if (Array.isArray(expected)) return expected.includes(actual);
+    return actual === expected;
   });
-  return results.every((r) => r);
 }
 
-export function PropertyField({ bpmnProperty }: FieldProps) {
-  const { element } = useContext(InspectorContext);
-  const { modeler } = useContext(ModelerContext);
-  const injector = modeler.get('injector');
-  const eventBus = injector.get('eventBus');
+function pickInput(attrDef: any, modeler: any) {
+  const declaredType = attrDef.type || 'String';
+  const resolvedType = resolveInputType(declaredType, modeler);
+  const isStringList = attrDef.isMany === true
+    && (declaredType === 'String' || declaredType.endsWith(':MarkdownString'));
+  const isOptionalString = attrDef.meta?.optional === true && declaredType === 'String';
 
-  const declaredType = bpmnProperty.type || 'String';
-  const [isVisible, setVisible] = useState(true);
+  if (isOptionalString) return OptionalStringInput;
+  if (isStringList) return ArrayInput;
+  return INPUT_BY_TYPE[resolvedType] ?? StringInput;
+}
 
-  const checkConditionalVisibility = useCallback((bProp: any, el: any) => {
-    setVisible(isPropertyVisible(bProp, el));
-  }, []);
+export function AttributeField({ attrDef }: { attrDef: any }) {
+  const element = useInspectedElement();
+  const modeler = useModeler();
+  const eventBus = modeler.get('eventBus');
 
-  // initial + on-element-change visibility
+  const [isVisible, setVisible] = useState(() => isAttributeVisible(attrDef, element));
+
   useEffect(() => {
-    checkConditionalVisibility(bpmnProperty, element);
-  }, [bpmnProperty, element, checkConditionalVisibility]);
+    setVisible(isAttributeVisible(attrDef, element));
 
-  useEffect(() => {
-    function onElementsChanged(e: any) {
-      const newElement = e.element;
-      if (newElement) checkConditionalVisibility(bpmnProperty, newElement);
-    }
-    eventBus.on('element.changed', onElementsChanged);
-    return () => {
-      eventBus.off('element.changed', onElementsChanged);
+    const onElementChanged = (e: any) => {
+      if (e.element) setVisible(isAttributeVisible(attrDef, e.element));
     };
-  }, [eventBus, bpmnProperty, element, checkConditionalVisibility]);
+    eventBus.on('element.changed', onElementChanged);
+    return () => eventBus.off('element.changed', onElementChanged);
+  }, [attrDef, element, eventBus]);
 
   if (!isVisible) return null;
 
-  const resolvedType = resolveInputType(declaredType, modeler);
-  const isStringList = bpmnProperty.isMany === true && (
-    declaredType === 'String' || declaredType.endsWith(':MarkdownString')
-  );
-  const isOptionalString =
-    bpmnProperty.meta?.optional === true && (resolvedType === 'String' || declaredType === 'String');
-  const Input = isOptionalString
-    ? OptionalStringInput
-    : isStringList
-      ? ArrayInput
-      : (INPUT_BY_TYPE[resolvedType] ?? StringInput);
-
+  const Input = pickInput(attrDef, modeler);
   return (
     <Field className={s.field}>
-      <Input bpmnProperty={bpmnProperty} />
+      <Input attrDef={attrDef} />
     </Field>
   );
 }

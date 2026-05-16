@@ -6,21 +6,13 @@ import PaletteModule from './palette';
 import StudyflowTemplatesModule from './moddle/templates';
 
 export const StudyflowModelerModule = {
-  __init__: [
-    'studyFlowContextPad',
-    'studyFlowRenderer',
-    'colorPopupProvider',
-    'resizableTasks',
-    'studyFlowAppendMenuProvider',
-  ],
+  __init__: ['studyFlowRenderer', 'resizableTasks'],
   __depends__: [
     SimulationModule,
     PaletteModule,
     ContextPadModule,
-    StudyflowTemplatesModule
+    StudyflowTemplatesModule,
   ],
   studyFlowRenderer: ['type', StudyflowRenderer],
   resizableTasks: ['type', ResizableTasks],
 };
-
-export { ModelerContext } from './contexts';

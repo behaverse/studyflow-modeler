@@ -1,48 +1,40 @@
-import { parseStudyflow } from '@/lib/core/parsers/studyflow';
+import { parseStudyflow, type ParsedStudy } from '@/lib/core/parsers/studyflow';
 import type { FlowNode, SequenceFlow } from '@/lib/core/flow';
 import { findByFlowNode } from './nodes';
 import type { Job } from './types';
 
 export type StudyOptions = {
-  // Deterministic random seed for gateways.
+  /** Deterministic random seed for gateways. */
   seed?: number;
-  // Variables exposed to `conditionExpression` evaluation.
+  /** Variables exposed to `conditionExpression` evaluation. */
   variables?: Record<string, unknown>;
 };
 
-type StudyData = {
-  businessObject: any;
-  nodes: Map<string, FlowNode>;
-  edges: Map<string, SequenceFlow>;
-  startId?: string;
-};
-
-// A parsed studyflow plus the runtime state needed to walk it: random source,
-// variable bag, and the `traverse()` generator that yields Jobs to the runner.
+/** Walks a parsed studyflow, yielding `Job`s; owns the random source and variable bag. */
 export class Study {
   businessObject: any;
-  nodes: Map<string, FlowNode>;
-  edges: Map<string, SequenceFlow>;
+  flowNodes: Map<string, FlowNode>;
+  sequenceFlows: Map<string, SequenceFlow>;
   startId?: string;
 
-  private rand: () => number;
-  private vars: Record<string, unknown>;
+  private random: () => number;
+  private variables: Record<string, unknown>;
 
   static async parse(xml: string, schemas: Record<string, any>, options: StudyOptions = {}): Promise<Study> {
     return new Study(await parseStudyflow(xml, schemas), options);
   }
 
-  constructor(data: StudyData, options: StudyOptions = {}) {
+  constructor(data: ParsedStudy, options: StudyOptions = {}) {
     this.businessObject = data.businessObject;
-    this.nodes = data.nodes;
-    this.edges = data.edges;
+    this.flowNodes = data.flowNodes;
+    this.sequenceFlows = data.sequenceFlows;
     this.startId = data.startId;
-    this.rand = options.seed != null ? mulberry32(options.seed) : Math.random;
-    this.vars = { ...(options.variables ?? {}) };
+    this.random = options.seed != null ? mulberry32(options.seed) : Math.random;
+    this.variables = { ...(options.variables ?? {}) };
   }
 
   setVariable(name: string, value: unknown): void {
-    this.vars[name] = value;
+    this.variables[name] = value;
   }
 
   async *traverse(): AsyncGenerator<Job, void, void> {
@@ -50,12 +42,12 @@ export class Study {
 
     let currentId: string | undefined = this.startId;
     while (currentId) {
-      const node = this.nodes.get(currentId);
+      const node = this.flowNodes.get(currentId);
       if (!node) throw new Error(`Dangling node reference: ${currentId}`);
 
       const job = this.toJob(node);
       if (job) yield job;
-      if (job?.kind === 'end') return;
+      if (job?.type === 'end') return;
 
       currentId = this.advance(node);
     }
@@ -76,8 +68,8 @@ export class Study {
   }
 
   private isRandomGateway(node: FlowNode): boolean {
-    const t = node.extensionType;
-    return t === 'cognitive:RandomGateway' || t === 'cognitive:StratifiedAllocationGateway';
+    const ext = node.extensionType;
+    return ext === 'cognitive:RandomGateway' || ext === 'cognitive:StratifiedAllocationGateway';
   }
 
   private isExclusiveGateway(node: FlowNode): boolean {
@@ -85,47 +77,47 @@ export class Study {
   }
 
   private firstOutgoingTarget(node: FlowNode): string | undefined {
-    return this.edges.get(node.outgoing[0])?.targetId;
+    return this.sequenceFlows.get(node.outgoing[0])?.targetId;
   }
 
   private pickRandomBranch(node: FlowNode): string | undefined {
     const targets = node.outgoing
-      .map((id) => this.edges.get(id)?.targetId)
+      .map((id) => this.sequenceFlows.get(id)?.targetId)
       .filter((t): t is string => !!t);
     if (targets.length === 0) return undefined;
-    return targets[Math.floor(this.rand() * targets.length)];
+    return targets[Math.floor(this.random() * targets.length)];
   }
 
   private pickConditionBranch(node: FlowNode): string | undefined {
-    for (const edgeId of node.outgoing) {
-      const edge = this.edges.get(edgeId);
-      if (edge?.conditionExpression && this.evalCondition(edge.conditionExpression)) {
-        return edge.targetId;
+    for (const flowId of node.outgoing) {
+      const flow = this.sequenceFlows.get(flowId);
+      if (flow?.conditionExpression && this.evalCondition(flow.conditionExpression)) {
+        return flow.targetId;
       }
     }
     return undefined;
   }
 
   private pickDefaultBranch(node: FlowNode): string | undefined {
-    const defaultEdgeId = node.businessObject?.default?.id;
-    if (defaultEdgeId) {
-      const edge = this.edges.get(defaultEdgeId);
-      if (edge) return edge.targetId;
+    const defaultFlowId = node.businessObject?.default?.id;
+    if (defaultFlowId) {
+      const flow = this.sequenceFlows.get(defaultFlowId);
+      if (flow) return flow.targetId;
     }
-    for (const edgeId of node.outgoing) {
-      const edge = this.edges.get(edgeId);
-      if (edge && !edge.conditionExpression) return edge.targetId;
+    for (const flowId of node.outgoing) {
+      const flow = this.sequenceFlows.get(flowId);
+      if (flow && !flow.conditionExpression) return flow.targetId;
     }
     return this.firstOutgoingTarget(node);
   }
 
   private evalCondition(expression: string): boolean {
-    const fn = new Function('vars', `with (vars) { return (${expression}); }`);
-    try { return Boolean(fn(this.vars)); } catch { return false; }
+    const compiled = new Function('variables', `with (variables) { return (${expression}); }`);
+    try { return Boolean(compiled(this.variables)); } catch { return false; }
   }
 }
 
-// Deterministic PRNG (mulberry32).
+/** mulberry32 -- deterministic PRNG. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return function () {

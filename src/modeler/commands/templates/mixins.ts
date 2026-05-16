@@ -1,93 +1,59 @@
 import { splitQName } from '@/lib/core/utils/naming';
 
-/**
- * Look up a moddle type descriptor by a (potentially partial) type ref,
- * falling back to the package prefix if the ref is unqualified.
- */
-export function resolveTypeDescriptor(moddle: any, typeRef: string, prefix: string): any {
+/** Look up a moddle type definition; falls back to the package prefix when the ref is unqualified. */
+export function resolveTypeSchema(moddle: any, typeRef: string, prefix: string): any {
   const typeMap: Record<string, any> = moddle.registry.typeMap;
   const { localName } = splitQName(typeRef);
   const fallback = localName ?? typeRef;
-  const candidates = [typeRef, `${prefix}:${fallback}`, fallback];
 
-  for (const candidate of candidates) {
-    if (typeMap[candidate]) {
-      return typeMap[candidate];
-    }
+  for (const candidate of [typeRef, `${prefix}:${fallback}`, fallback]) {
+    if (typeMap[candidate]) return typeMap[candidate];
   }
 
-  try {
-    return moddle.getTypeDescriptor(typeRef);
-  } catch {
-    return undefined;
-  }
+  try { return moddle.getTypeDescriptor(typeRef); } catch { return undefined; }
 }
 
-/** Collect `default` values declared on a moddle type descriptor's properties. */
-export function getDefaultProperties(typeDescriptor: any): Record<string, any> {
+function collectDefaults(typeDef: any): Record<string, any> {
   const defaults: Record<string, any> = {};
-
-  for (const property of typeDescriptor?.properties ?? []) {
-    if (property.default !== undefined) {
-      defaults[property.name] = property.default;
-    }
+  for (const attrDef of typeDef?.properties ?? []) {
+    if (attrDef.default !== undefined) defaults[attrDef.name] = attrDef.default;
   }
-
   return defaults;
 }
 
-/**
- * Resolve a mixin chain declared on a template object. Each referenced
- * mixin contributes its default properties, and a `bpmn:*` mixin additionally
- * overrides the resolved BPMN type.
- */
+/** Resolve a `mixins:` chain; each contributes defaults, `bpmn:*` mixins override the BPMN type. */
 export function resolveTemplateMixins(
   moddle: any,
-  obj: Record<string, any>,
+  definition: Record<string, any>,
   prefix: string,
-): {
-  bpmnTypeOverride?: string;
-  properties: Record<string, any>;
-} {
-  const mixins = Array.isArray(obj.mixins) ? obj.mixins : [];
-  const properties: Record<string, any> = {};
+): { bpmnTypeOverride?: string; attributes: Record<string, any> } {
+  const mixins = Array.isArray(definition.mixins) ? definition.mixins : [];
+  const attrs: Record<string, any> = {};
   let bpmnTypeOverride: string | undefined;
 
   for (const mixinRef of mixins) {
-    if (typeof mixinRef !== 'string' || mixinRef.trim() === '') {
-      continue;
-    }
+    if (typeof mixinRef !== 'string' || mixinRef.trim() === '') continue;
 
-    const descriptor = resolveTypeDescriptor(moddle, mixinRef, prefix);
-    if (!descriptor) {
+    const typeDef = resolveTypeSchema(moddle, mixinRef, prefix);
+    if (!typeDef) {
       console.warn(`[templates-loader] Unable to resolve mixin '${mixinRef}'`);
       continue;
     }
 
-    Object.assign(properties, getDefaultProperties(descriptor));
-
-    if (mixinRef.startsWith('bpmn:')) {
-      bpmnTypeOverride = mixinRef;
-    }
+    Object.assign(attrs, collectDefaults(typeDef));
+    if (mixinRef.startsWith('bpmn:')) bpmnTypeOverride = mixinRef;
   }
 
-  return { bpmnTypeOverride, properties };
+  return { bpmnTypeOverride, attributes: attrs };
 }
 
 /** Keep only keys not in `reservedKeys`, dropping `undefined` values. */
-export function extractProperties(
-  obj: Record<string, any>,
-  reservedKeys: Set<string>,
-): Record<string, any> {
-  const properties: Record<string, any> = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    if (!reservedKeys.has(key) && value !== undefined) {
-      properties[key] = value;
-    }
+export function extractAttributes(definition: Record<string, any>, reservedKeys: Set<string>): Record<string, any> {
+  const attributes: Record<string, any> = {};
+  for (const [key, value] of Object.entries(definition)) {
+    if (!reservedKeys.has(key) && value !== undefined) attributes[key] = value;
   }
-
-  return properties;
+  return attributes;
 }
 
 export function capitalize(value: string): string {

@@ -1,21 +1,15 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import {
-  getBusinessObjectPropertyDescriptor,
-  getElementProperties,
-  getExtensionElementProperties,
-  getRedefinedPropertyName,
+  getAttributeDefinition,
+  getAttributeDefinitions,
+  getExtensionAttributeDefinitions,
+  getRedefinedName,
   isExtensionPrefix,
 } from '@/lib/core/extensions';
 import { toLocalName } from '@/lib/core/utils/naming';
-import { isPropertyVisible } from './field';
+import { isAttributeVisible } from './field';
 
-/**
- * Canonical order of inspector category tabs. Categories not listed here keep
- * their insertion order and appear after the listed ones.
- *
- * Flow: id -> docs -> config -> flow -> privacy ->
- * data -> completion -> low-level control.
- */
+/** Canonical tab order; unlisted categories follow in insertion order. */
 const CATEGORY_ORDER = [
   'General',
   'Documentation',
@@ -33,12 +27,12 @@ const CATEGORY_ORDER = [
   'Completion',
 ];
 
-/** A property is "identity-like" (id or name) and should always show up first. */
-export function isIdentityProperty(prop: any): boolean {
-  const name = prop?.ns?.name ?? prop?.name;
-  const localName = prop?.ns?.localName ?? toLocalName(name);
+/** Identity attributes (id, name) are always pinned to the top. */
+function isIdentity(attrDef: any): boolean {
+  const name = attrDef?.ns?.name ?? attrDef?.name;
+  const localName = attrDef?.ns?.localName ?? toLocalName(name);
   return (
-    prop?.isId
+    attrDef?.isId
     || name === 'bpmn:id'
     || name === 'bpmn:name'
     || localName === 'id'
@@ -46,84 +40,65 @@ export function isIdentityProperty(prop: any): boolean {
   );
 }
 
-/**
- * Collect the visible properties of an element grouped by category.
- *
- * Ordering rules:
- * - `id` and `name` descriptors on the business object are always shown first.
- * - Extension-prefixed business-object properties follow, minus ones that
- *   are redefined by the extension element.
- * - Extension element properties go last; within each category, items are
- *   sorted by `meta.order` (unset orders keep relative position).
- *
- * Empty categories are pruned from the result.
- */
-export function getProperties(element: any): Record<string, any[]> {
-  const propsByCategory: Record<string, any[]> = {};
-  const businessObject = getBusinessObject(element);
-  const extensionProperties = getExtensionElementProperties(element);
+/** Visible attribute defs grouped by category; id/name first, then BO attrs, then extension attrs. */
+export function getAttributesByCategory(element: any): Record<string, any[]> {
+  const byCategory: Record<string, any[]> = {};
+  const bo = getBusinessObject(element);
+  const extAttrDefs = getExtensionAttributeDefinitions(element);
   const seen = new Set<string>();
 
-  const overriddenBusinessProperties = new Set(
-    extensionProperties
-      .map((prop: any) => getRedefinedPropertyName(prop) ?? prop.ns?.localName ?? prop.name)
+  const overridden = new Set(
+    extAttrDefs
+      .map((attrDef: any) => getRedefinedName(attrDef) ?? attrDef.ns?.localName ?? attrDef.name)
       .filter((name: string | undefined): name is string => Boolean(name))
   );
 
-  const identityProperties = [
-    getBusinessObjectPropertyDescriptor(businessObject, 'bpmn:id'),
-    getBusinessObjectPropertyDescriptor(businessObject, 'bpmn:name'),
-  ].filter((prop: any) => Boolean(prop));
+  const identity = [
+    getAttributeDefinition(bo, 'bpmn:id'),
+    getAttributeDefinition(bo, 'bpmn:name'),
+  ].filter(Boolean);
 
-  const collect = (properties: any[], predicate: (prop: any) => boolean) => {
-    properties.forEach((prop: any) => {
-      if (!predicate(prop)) return;
-      if (!isPropertyVisible(prop, element)) return;
+  const collect = (attrDefs: any[], predicate: (attrDef: any) => boolean) => {
+    attrDefs.forEach((attrDef: any) => {
+      if (!predicate(attrDef)) return;
+      if (!isAttributeVisible(attrDef, element)) return;
 
-      const propKey = prop.ns?.name ?? prop.name;
-      if (seen.has(propKey)) return;
-      seen.add(propKey);
+      const key = attrDef.ns?.name ?? attrDef.name;
+      if (seen.has(key)) return;
+      seen.add(key);
 
-      (prop.meta?.categories ?? ['General']).forEach((cat: string) => {
-        (propsByCategory[cat] ??= []).push(prop);
+      (attrDef.meta?.categories ?? ['General']).forEach((category: string) => {
+        (byCategory[category] ??= []).push(attrDef);
       });
     });
   };
 
-  collect(identityProperties, () => true);
+  collect(identity, () => true);
 
-  collect(getElementProperties(businessObject), (prop: any) =>
-    !overriddenBusinessProperties.has(prop.ns?.localName ?? prop.name)
-    && !isIdentityProperty(prop)
-    && isExtensionPrefix(prop.ns?.prefix)
+  collect(getAttributeDefinitions(bo, bo?.$model), (attrDef: any) =>
+    !overridden.has(attrDef.ns?.localName ?? attrDef.name)
+    && !isIdentity(attrDef)
+    && isExtensionPrefix(attrDef.ns?.prefix)
   );
 
-  collect(extensionProperties, (prop: any) => isExtensionPrefix(prop.ns?.prefix));
+  collect(extAttrDefs, (attrDef: any) => isExtensionPrefix(attrDef.ns?.prefix));
 
-  // Sort by meta.order within each category
-  for (const props of Object.values(propsByCategory)) {
-    props.sort((a: any, b: any) => {
+  for (const attrDefs of Object.values(byCategory)) {
+    attrDefs.sort((a: any, b: any) => {
       const orderA = a.meta?.order ?? Infinity;
       const orderB = b.meta?.order ?? Infinity;
       return orderA - orderB;
     });
   }
 
-  const orderIndex = (cat: string) => {
-    const i = CATEGORY_ORDER.indexOf(cat);
+  const orderIndex = (category: string) => {
+    const i = CATEGORY_ORDER.indexOf(category);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
 
   return Object.fromEntries(
-    Object.entries(propsByCategory)
+    Object.entries(byCategory)
       .filter(([, v]) => v.length > 0)
       .sort(([a], [b]) => orderIndex(a) - orderIndex(b))
   );
-}
-
-/** Stable signature of the property set, used to detect render-worthy changes. */
-export function getCategoriesSignature(categories: Record<string, any[]>): string {
-  return Object.entries(categories)
-    .map(([catName, props]) => `${catName}:${props.map((p: any) => p.ns.name).join(',')}`)
-    .join('|');
 }

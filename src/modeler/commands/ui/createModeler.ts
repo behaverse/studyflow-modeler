@@ -9,7 +9,7 @@ import GridModule from 'diagram-js-grid';
 import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
 import { StudyflowModelerModule } from '../..';
 
-const DEFAULT_ADDITIONAL_MODULES = [
+const ADDITIONAL_MODULES = [
   CreateAppendAnythingModule,
   BpmnColorPickerModule,
   CreateAppendElementTemplatesModule,
@@ -21,13 +21,11 @@ export type CreateModelerCommand = {
   type: 'create-modeler';
   container: any;
   extensionSchemas: Record<string, any>;
-  additionalModules?: any[];
-  initialDiagramUrl?: string;
-  /** Raw BPMN XML to import on boot. Takes precedence over `initialDiagramUrl`. */
+  /** Boot XML; falls back to the blank `new_diagram` template. */
   initialDiagramXml?: string;
 };
 
-export async function runCreateModeler(command: CreateModelerCommand): Promise<any> {
+export async function runCreateModeler(_modeler: any, command: CreateModelerCommand): Promise<any> {
   const modeler = new BpmnModeler({
     container: command.container,
     textRenderer: {
@@ -36,16 +34,9 @@ export async function runCreateModeler(command: CreateModelerCommand): Promise<a
       },
     },
     moddleExtensions: command.extensionSchemas,
-    additionalModules: command.additionalModules ?? DEFAULT_ADDITIONAL_MODULES,
+    additionalModules: ADDITIONAL_MODULES,
   });
 
-  let diagramXML = command.initialDiagramXml;
-  if (!diagramXML) {
-    diagramXML = command.initialDiagramUrl
-      ? await fetch(command.initialDiagramUrl).then((r) => r.text())
-      : new_diagram;
-  }
-  await modeler.importXML(diagramXML);
-
+  await modeler.importXML(command.initialDiagramXml ?? new_diagram);
   return modeler;
 }

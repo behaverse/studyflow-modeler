@@ -1,14 +1,14 @@
-import { createExtensionElement, getDefaults, setAttr } from '@/lib/core/extensions';
+import { createExtensionElement, getDefaults, setRawAttribute } from '@/lib/core/extensions';
 import { toPrefix } from '@/lib/core/utils/naming';
 
-export type CreateTemplateShapeCommand = {
+type CreateTemplateShapeCommand = {
   type: 'create-template-shape';
   elementFactory: any;
   moddle: any;
   bpmnType: string;
-  studyflowType?: string;
+  extensionType?: string;
   overrideIconClass?: string;
-  templateProperties?: Record<string, any>;
+  templateAttributes?: Record<string, any>;
   x?: number;
   y?: number;
   parent?: any;
@@ -21,23 +21,17 @@ export function runCreateTemplateShape(
     elementFactory,
     moddle,
     bpmnType,
-    studyflowType,
+    extensionType,
     overrideIconClass,
-    templateProperties,
+    templateAttributes,
     x,
     y,
     parent,
   } = command;
 
-  const defaults = studyflowType
-    ? getDefaults(studyflowType, moddle)
-    : {};
-
-  const properties: Record<string, any> = {
-    ...defaults,
-    ...(templateProperties || {}),
-  };
-  const size = extractTemplateDimensions(properties);
+  const defaults = extensionType ? getDefaults(extensionType, moddle) : {};
+  const attributes: Record<string, any> = { ...defaults, ...(templateAttributes || {}) };
+  const size = takeSize(attributes);
 
   const shape = elementFactory.create('shape', {
     type: bpmnType,
@@ -47,59 +41,43 @@ export function runCreateTemplateShape(
     ...(parent ? { parent } : {}),
   });
 
-  if (!studyflowType) {
-    return shape;
-  }
+  if (!extensionType) return shape;
 
-  const businessObject = shape.businessObject;
-  const bpmnName = properties['bpmn:name'];
+  const bo = shape.businessObject;
+  const bpmnName = attributes['bpmn:name'];
   if (bpmnName !== undefined) {
-    delete properties['bpmn:name'];
-    businessObject.set('name', bpmnName);
+    delete attributes['bpmn:name'];
+    bo.set('name', bpmnName);
   }
 
-  const extension = createExtensionElement(
-    businessObject,
-    studyflowType,
-    moddle,
-    properties,
-  );
+  const ext = createExtensionElement(bo, extensionType, moddle, attributes);
 
   if (overrideIconClass) {
-    const schemaPrefix = toPrefix(studyflowType);
-    if (schemaPrefix) {
-      setAttr(extension, `${schemaPrefix}:icon`, overrideIconClass);
-    }
+    const extPrefix = toPrefix(extensionType);
+    if (extPrefix) setRawAttribute(ext, `${extPrefix}:icon`, overrideIconClass);
   }
 
   return shape;
 }
 
 function toFiniteNumber(value: any): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim() !== '') {
     const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
+    if (Number.isFinite(parsed)) return parsed;
   }
-
   return undefined;
 }
 
-function extractTemplateDimensions(
-  properties: Record<string, any>,
-): { width?: number; height?: number } {
-  const width = toFiniteNumber(properties['bpmn:width'] ?? properties.width);
-  const height = toFiniteNumber(properties['bpmn:height'] ?? properties.height);
+/** Reads `width`/`height` (or bpmn-prefixed) out of `attributes` and returns them as a shape-size object. */
+function takeSize(attributes: Record<string, any>): { width?: number; height?: number } {
+  const width = toFiniteNumber(attributes['bpmn:width'] ?? attributes.width);
+  const height = toFiniteNumber(attributes['bpmn:height'] ?? attributes.height);
 
-  delete properties['bpmn:width'];
-  delete properties['bpmn:height'];
-  delete properties.width;
-  delete properties.height;
+  delete attributes['bpmn:width'];
+  delete attributes['bpmn:height'];
+  delete attributes.width;
+  delete attributes.height;
 
   return {
     ...(width !== undefined ? { width } : {}),

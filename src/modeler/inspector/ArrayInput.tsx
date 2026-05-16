@@ -1,18 +1,18 @@
 import { Input, Label } from '@headlessui/react';
-import { useContext, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { ModelerContext, InspectorContext } from '../contexts';
+import { useEffect, useRef, type ChangeEvent } from 'react';
 import { t } from '../../i18n';
-import { getProperty } from '@/lib/core/extensions';
-import { executeCommand } from '../commands';
+import { HelpTooltip } from './HelpTooltip';
+import { useAttributeState } from './hooks/useAttributeState';
+import { useInspectedElement } from './hooks/useInspectedElement';
 import { field as s } from '../styles';
 import { getInferredDataNeighbors } from './dataNeighbors';
 
 type Props = {
-  bpmnProperty: any;
+  attrDef: any;
 };
 
 function toArray(raw: any): string[] {
-  if (Array.isArray(raw)) return raw.map((v) => (v == null ? '' : String(v)));
+  if (Array.isArray(raw)) return raw.map((item) => (item == null ? '' : String(item)));
   if (raw == null || raw === '') return [];
   return [String(raw)];
 }
@@ -23,20 +23,14 @@ function inferDirection(localName: string): 'inputs' | 'outputs' | undefined {
   return undefined;
 }
 
-export function ArrayInput({ bpmnProperty }: Props) {
-  const { element } = useContext(InspectorContext);
-  const { modeler } = useContext(ModelerContext);
+export function ArrayInput({ attrDef }: Props) {
+  const element = useInspectedElement();
+  const fullName = attrDef.ns?.name ?? attrDef.name;
+  const localName = attrDef.ns?.localName ?? fullName;
 
-  const fullName = bpmnProperty.ns?.name ?? bpmnProperty.name;
-  const localName = bpmnProperty.ns?.localName ?? fullName;
-
-  const [values, setValues] = useState<string[]>(toArray(getProperty(element, fullName)));
+  const { value: values, commit: persist } = useAttributeState<string[]>(attrDef, toArray);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const focusIndexRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setValues(toArray(getProperty(element, fullName)));
-  }, [element, fullName]);
 
   useEffect(() => {
     if (focusIndexRef.current != null) {
@@ -44,16 +38,6 @@ export function ArrayInput({ bpmnProperty }: Props) {
       focusIndexRef.current = null;
     }
   }, [values]);
-
-  function persist(next: string[]) {
-    setValues(next);
-    executeCommand(modeler, {
-      type: 'update-property',
-      element,
-      propertyName: fullName,
-      value: next,
-    });
-  }
 
   function handleChangeAt(index: number, event: ChangeEvent<HTMLInputElement>) {
     const next = values.slice();
@@ -80,13 +64,7 @@ export function ArrayInput({ bpmnProperty }: Props) {
     <>
       <Label className={s.label}>
         {t(fullName)}
-        <div className={s.helpAnchor}>
-          <i className={s.helpIcon}></i>
-          <div className={s.helpTooltipWide}>
-            <pre className={s.helpTooltipName}>{fullName}</pre>
-            {bpmnProperty?.description}
-          </div>
-        </div>
+        <HelpTooltip name={fullName} description={attrDef?.description} />
       </Label>
 
       <div className={s.arrayList}>
@@ -101,13 +79,13 @@ export function ArrayInput({ bpmnProperty }: Props) {
           </div>
         ))}
 
-        {values.map((v, i) => (
+        {values.map((value, i) => (
           <div key={i} className={s.arrayRow}>
             <Input
               ref={(el: HTMLInputElement | null) => { inputRefs.current[i] = el; }}
               name={`${fullName}[${i}]`}
               type="text"
-              value={v}
+              value={value}
               onChange={(e) => handleChangeAt(i, e)}
               className={s.arrayInput}
             />

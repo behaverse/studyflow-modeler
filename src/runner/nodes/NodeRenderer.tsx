@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import type { Job } from '@/runner/types';
 import type { LogKind } from '../styles';
 import type { NodeProps } from '@/runner/nodes/types';
-import { findByKind } from './';
+import { findByType } from './';
 
 export type NodeOutcome =
   | { kind: 'complete'; result?: unknown }
@@ -15,45 +15,25 @@ type Props = {
   onResolve: (outcome: NodeOutcome) => void;
 };
 
-/**
- * Mounts the React component for the current job's kind. The component
- * reports its outcome via `complete()` / `abort()` callbacks; `onResolve` is
- * invoked exactly once per mount and the parent advances Graph.
- *
- * Re-mount on job change is enforced by the parent passing a `key` prop
- * (typically the job's node id) so two consecutive jobs of the same kind
- * don't share component state - and the resolved-guard ref resets too.
- */
+/** Mounts the component for the job's type; `onResolve` fires once per mount. */
 export function NodeRenderer({ job, log, setVariable, onResolve }: Props) {
   const resolvedRef = useRef(false);
 
-  const complete = useCallback(
-    (result?: unknown) => {
-      if (resolvedRef.current) return;
-      resolvedRef.current = true;
-      onResolve({ kind: 'complete', result });
-    },
-    [onResolve],
-  );
-  const abort = useCallback(
-    (reason: string) => {
-      if (resolvedRef.current) return;
-      resolvedRef.current = true;
-      onResolve({ kind: 'abort', reason });
-    },
-    [onResolve],
-  );
+  const resolveOnce = useCallback((outcome: NodeOutcome) => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    onResolve(outcome);
+  }, [onResolve]);
 
-  const props = { job, log, setVariable, complete, abort } as NodeProps<any>;
+  const complete = useCallback((result?: unknown) => resolveOnce({ kind: 'complete', result }), [resolveOnce]);
+  const abort = useCallback((reason: string) => resolveOnce({ kind: 'abort', reason }), [resolveOnce]);
 
-  const def = findByKind(job.kind);
+  const def = findByType(job.type);
   if (!def) {
-    if (!resolvedRef.current) {
-      resolvedRef.current = true;
-      onResolve({ kind: 'abort', reason: `unknown-job-kind:${job.kind}` });
-    }
+    resolveOnce({ kind: 'abort', reason: `unknown-job-type:${job.type}` });
     return null;
   }
+
   const Component = def.Component;
-  return <Component {...props} />;
+  return <Component {...({ job, log, setVariable, complete, abort } as NodeProps<any>)} />;
 }

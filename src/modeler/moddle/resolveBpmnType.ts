@@ -2,74 +2,48 @@ import { toLocalName } from '@/lib/core/utils/naming';
 
 const PRIMITIVE_SUPER_CLASSES = new Set(['Element', 'BaseElement', 'String', 'Boolean', 'Integer', 'Float', 'Double']);
 
-export function resolveBpmnCreateType(moddle: any, typeRefOrDescriptor: any): string | null {
-  const descriptor = typeof typeRefOrDescriptor === 'string'
-    ? resolveTypeDescriptor(moddle, typeRefOrDescriptor)
-    : typeRefOrDescriptor;
-
-  if (!descriptor) {
-    return null;
-  }
-
-  return resolveDescriptorBpmnType(moddle, descriptor, new Set<string>());
+export function resolveBpmnCreateType(moddle: any, typeRefOrSchema: any): string | null {
+  const typeDef = typeof typeRefOrSchema === 'string'
+    ? resolveTypeSchema(moddle, typeRefOrSchema)
+    : typeRefOrSchema;
+  if (!typeDef) return null;
+  return walkForBpmnType(moddle, typeDef, new Set<string>());
 }
 
-function resolveDescriptorBpmnType(moddle: any, descriptor: any, seen: Set<string>): string | null {
-  const descriptorId = descriptorKey(descriptor);
-  if (seen.has(descriptorId)) {
-    return null;
+function walkForBpmnType(moddle: any, typeDef: any, seen: Set<string>): string | null {
+  const id = typeDef?.ns?.name || typeDef?.name || String(typeDef);
+  if (seen.has(id)) return null;
+  seen.add(id);
+
+  // Studyflow convention: `meta.bpmnType` (e.g. "bpmn:Task") declares the attach point.
+  const metaBpmn = typeDef?.meta?.bpmnType;
+  if (typeof metaBpmn === 'string' && metaBpmn.startsWith('bpmn:')) return metaBpmn;
+
+  for (const extended of typeDef.extends ?? []) {
+    if (typeof extended === 'string' && extended.startsWith('bpmn:')) return extended;
+    const extendedSchema = resolveTypeSchema(moddle, extended, typeDef.ns?.prefix);
+    if (!extendedSchema) continue;
+    const resolved = walkForBpmnType(moddle, extendedSchema, seen);
+    if (resolved) return resolved;
   }
 
-  seen.add(descriptorId);
+  if (typeDef.ns?.prefix === 'bpmn' && typeDef.name) return `bpmn:${typeDef.name}`;
 
-  // Custom convention: a type with `meta.bpmnType` (e.g. "bpmn:Task") declares the BPMN element it attaches to as an extension. 
-  const bpmnType = descriptor?.meta?.bpmnType;
-  if (typeof bpmnType === 'string' && bpmnType.startsWith('bpmn:')) {
-    return bpmnType;
-  }
-
-  if (Array.isArray(descriptor.extends) && descriptor.extends.length > 0) {
-    for (const extended of descriptor.extends) {
-      if (typeof extended === 'string' && extended.startsWith('bpmn:')) {
-        return extended;
-      }
-      const extendedDescriptor = resolveTypeDescriptor(moddle, extended, descriptor.ns?.prefix);
-      if (extendedDescriptor) {
-        const resolved = resolveDescriptorBpmnType(moddle, extendedDescriptor, seen);
-        if (resolved) return resolved;
-      }
-    }
-  }
-
-  if (descriptor.ns?.prefix === 'bpmn' && descriptor.name) {
-    return `bpmn:${descriptor.name}`;
-  }
-
-  for (const superType of descriptor.superClass ?? []) {
+  for (const superType of typeDef.superClass ?? []) {
     const localName = toLocalName(superType) ?? superType;
-    if (PRIMITIVE_SUPER_CLASSES.has(localName)) {
-      continue;
-    }
+    if (PRIMITIVE_SUPER_CLASSES.has(localName)) continue;
+    if (typeof superType === 'string' && superType.startsWith('bpmn:')) return superType;
 
-    if (typeof superType === 'string' && superType.startsWith('bpmn:')) {
-      return superType;
-    }
-
-    const parentDescriptor = resolveTypeDescriptor(moddle, superType, descriptor.ns?.prefix);
-    if (!parentDescriptor) {
-      continue;
-    }
-
-    const resolved = resolveDescriptorBpmnType(moddle, parentDescriptor, seen);
-    if (resolved) {
-      return resolved;
-    }
+    const parentSchema = resolveTypeSchema(moddle, superType, typeDef.ns?.prefix);
+    if (!parentSchema) continue;
+    const resolved = walkForBpmnType(moddle, parentSchema, seen);
+    if (resolved) return resolved;
   }
 
   return null;
 }
 
-function resolveTypeDescriptor(moddle: any, typeRef: string, ownerPrefix?: string): any {
+function resolveTypeSchema(moddle: any, typeRef: string, ownerPrefix?: string): any {
   const typeMap: Record<string, any> = moddle?.registry?.typeMap ?? {};
   const localName = toLocalName(typeRef) ?? typeRef;
   const candidates = [
@@ -77,34 +51,13 @@ function resolveTypeDescriptor(moddle: any, typeRef: string, ownerPrefix?: strin
     ownerPrefix && !typeRef.includes(':') ? `${ownerPrefix}:${typeRef}` : null,
     !typeRef.startsWith('bpmn:') ? `bpmn:${localName}` : null,
     localName,
-  ].filter((candidate): candidate is string => Boolean(candidate));
+  ].filter((c): c is string => Boolean(c));
 
   for (const candidate of candidates) {
-    if (typeMap[candidate]) {
-      return typeMap[candidate];
-    }
+    if (typeMap[candidate]) return typeMap[candidate];
   }
-
   for (const candidate of candidates) {
-    try {
-      return moddle.getTypeDescriptor(candidate);
-    } catch {
-      // Continue.
-    }
+    try { return moddle.getTypeDescriptor(candidate); } catch { /* try next */ }
   }
-
   return null;
 }
-
-function descriptorKey(descriptor: any): string {
-  if (typeof descriptor?.ns?.name === 'string' && descriptor.ns.name.length > 0) {
-    return descriptor.ns.name;
-  }
-
-  if (typeof descriptor?.name === 'string' && descriptor.name.length > 0) {
-    return descriptor.name;
-  }
-
-  return String(descriptor);
-}
-

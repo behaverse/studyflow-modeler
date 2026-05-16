@@ -1,19 +1,10 @@
-/**
- * Settings persistence layer.
- *
- * Today this is a thin wrapper over `localStorage`. The interface (`load` /
- * `save` / `subscribe`) is intentionally narrow so we can swap the backend
- * (IndexedDB, server-synced profile after login, etc.) without touching the
- * React surface.
- */
-
 import { SCHEMA_NAMES, SETTINGS_STORAGE_KEY as STORAGE_KEY } from '../constants';
 
 const API_KEY_STORAGE_KEY = 'studyflow-modeler:api_key:v1';
 const USER_EMAIL_STORAGE_KEY = 'studyflow-modeler:user_email:v1';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
-export type DiagramAutoSave = 'off' | 'local';
+type ThemePreference = 'light' | 'dark' | 'system';
+type DiagramAutoSave = 'off' | 'local';
 
 export type Settings = {
   theme: ThemePreference;
@@ -25,7 +16,7 @@ export type Settings = {
   enabledSchemas: string[];
 };
 
-export const DEFAULT_SETTINGS: Settings = {
+const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   language: 'en',
   diagramAutoSave: 'local',
@@ -34,40 +25,47 @@ export const DEFAULT_SETTINGS: Settings = {
   enabledSchemas: [...SCHEMA_NAMES],
 };
 
+const ls: Storage | undefined =
+  typeof window !== 'undefined' ? window.localStorage : undefined;
+
+function read(key: string): string | undefined {
+  try { return ls?.getItem(key) ?? undefined; } catch { return undefined; }
+}
+
+function write(key: string, value: string | undefined): void {
+  if (!ls) return;
+  try {
+    if (value === undefined) ls.removeItem(key);
+    else ls.setItem(key, value);
+  } catch { /* quota / privacy mode */ }
+}
+
 type Listener = (value: Settings) => void;
 const listeners = new Set<Listener>();
 
-function readStorage(): Settings {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return { ...DEFAULT_SETTINGS };
-  }
+function loadSettings(): Settings {
+  const raw = read(STORAGE_KEY);
+  if (!raw) return { ...DEFAULT_SETTINGS };
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw) as Partial<Settings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
 
-function writeStorage(value: Settings): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // Quota or privacy mode - silently drop. Settings stay in memory.
-  }
-}
-
-let current: Settings = readStorage();
+let current: Settings = loadSettings();
 
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY) return;
-    current = readStorage();
+    current = loadSettings();
     listeners.forEach((l) => l(current));
   });
+}
+
+function emit(): void {
+  write(STORAGE_KEY, JSON.stringify(current));
+  listeners.forEach((l) => l(current));
 }
 
 export function getSettings(): Settings {
@@ -76,91 +74,53 @@ export function getSettings(): Settings {
 
 export function setSettings(partial: Partial<Settings>): Settings {
   current = { ...current, ...partial };
-  writeStorage(current);
-  listeners.forEach((l) => l(current));
+  emit();
   return current;
 }
 
 export function resetSettings(): Settings {
   current = { ...DEFAULT_SETTINGS };
-  writeStorage(current);
-  listeners.forEach((l) => l(current));
+  emit();
   return current;
 }
 
 export function subscribeSettings(listener: Listener): () => void {
   listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+  return () => { listeners.delete(listener); };
 }
 
 export function getStorageEstimate(): { keys: number; bytes: number } {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return { keys: 0, bytes: 0 };
-  }
+  if (!ls) return { keys: 0, bytes: 0 };
   let bytes = 0;
   let keys = 0;
-  for (let i = 0; i < window.localStorage.length; i++) {
-    const key = window.localStorage.key(i);
+  for (let i = 0; i < ls.length; i++) {
+    const key = ls.key(i);
     if (!key) continue;
     keys += 1;
-    const value = window.localStorage.getItem(key) ?? '';
-    bytes += key.length + value.length;
+    bytes += key.length + (ls.getItem(key) ?? '').length;
   }
   return { keys, bytes };
 }
 
 export function clearAllLocalData(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  window.localStorage.clear();
+  if (!ls) return;
+  try { ls.clear(); } catch { /* quota / privacy mode */ }
   current = { ...DEFAULT_SETTINGS };
-  writeStorage(current);
-  listeners.forEach((l) => l(current));
+  emit();
 }
 
-// --- API key persistence
-
 export function getStoredApiKey(): string | undefined {
-  if (typeof window === 'undefined' || !window.localStorage) return undefined;
-  try {
-    return window.localStorage.getItem(API_KEY_STORAGE_KEY) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return read(API_KEY_STORAGE_KEY);
 }
 
 export function setStoredApiKey(key: string | undefined | null): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  try {
-    if (!key || key === 'guest') {
-      window.localStorage.removeItem(API_KEY_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(API_KEY_STORAGE_KEY, key);
-    }
-  } catch {
-    // Quota or privacy mode - silently drop.
-  }
+  write(API_KEY_STORAGE_KEY, !key || key === 'guest' ? undefined : key);
 }
 
 export function getStoredUserEmail(): string | undefined {
-  if (typeof window === 'undefined' || !window.localStorage) return undefined;
-  try {
-    return window.localStorage.getItem(USER_EMAIL_STORAGE_KEY) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return read(USER_EMAIL_STORAGE_KEY);
 }
 
 export function setStoredUserEmail(email: string | undefined | null): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  try {
-    if (!email) {
-      window.localStorage.removeItem(USER_EMAIL_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(USER_EMAIL_STORAGE_KEY, email);
-    }
-  } catch {
-    // Quota or privacy mode - silently drop.
-  }
+  write(USER_EMAIL_STORAGE_KEY, email || undefined);
 }

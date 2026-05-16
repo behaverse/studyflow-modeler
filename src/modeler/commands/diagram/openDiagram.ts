@@ -1,10 +1,10 @@
 import { runImportXml } from './importXml';
+import { runUpdateAttribute } from '../attributes/updateAttribute';
 
 export type OpenDiagramCommand = {
   type: 'open-diagram';
   filename: string;
   content: string;
-  setDiagramName?: (name: string) => void;
 };
 
 function extractXmlFromSvg(svgText: string): string {
@@ -17,30 +17,26 @@ function extractXmlFromSvg(svgText: string): string {
   return studyflowEl.innerHTML;
 }
 
-export async function runOpenDiagram(
-  modeler: any,
-  command: OpenDiagramCommand,
-): Promise<any> {
-  if (!modeler) {
-    throw new Error("Command 'open-diagram' requires a modeler instance.");
-  }
+const filenameStem = (filename: string) => filename.replace(/\.[^/.]+$/, '');
 
-  let xml = command.content;
-
-  if (command.filename.toLowerCase().endsWith('.svg')) {
-    xml = extractXmlFromSvg(command.content);
-  }
+export async function runOpenDiagram(modeler: any, command: OpenDiagramCommand): Promise<any> {
+  const xml = command.filename.toLowerCase().endsWith('.svg')
+    ? extractXmlFromSvg(command.content)
+    : command.content;
 
   const result = await runImportXml(modeler, { type: 'import-xml', xml });
-
   modeler.get('canvas').zoom('fit-viewport');
 
-  if (command.setDiagramName) {
-    const rootElement = modeler.get('canvas').getRootElement();
-    const embedded = rootElement?.businessObject?.name;
-    const hasEmbedded = typeof embedded === 'string' && embedded.length > 0;
-    const name = hasEmbedded ? embedded : command.filename.replace(/\.[^/.]+$/, '');
-    command.setDiagramName(name);
+  // Derive a name from the filename if the diagram didn't ship with one.
+  const root = modeler.get('canvas').getRootElement();
+  const embedded = root?.businessObject?.name;
+  if (root && (typeof embedded !== 'string' || embedded.length === 0)) {
+    runUpdateAttribute(modeler, {
+      type: 'update-attribute',
+      element: root,
+      attributeName: 'name',
+      value: filenameStem(command.filename),
+    });
   }
 
   return result;

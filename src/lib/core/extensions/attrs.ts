@@ -1,42 +1,40 @@
 import { CORE_PREFIXES } from '../constants';
 import { splitQName } from '../utils/naming';
 
-export { CORE_PREFIXES };
-
 export function isExtensionPrefix(prefix: string | undefined): boolean {
   return !!prefix && !CORE_PREFIXES.has(prefix);
 }
 
-export function getAttr(target: any, localName: string, preferredPrefix?: string): string | undefined {
-  const attrs = target?.$attrs;
-  if (!attrs || typeof attrs !== 'object') return undefined;
+export function getRawAttribute(target: any, localName: string, preferredPrefix?: string): string | undefined {
+  const rawAttributes = target?.$attrs;
+  if (!rawAttributes || typeof rawAttributes !== 'object') return undefined;
 
-  const pick = (val: any) => (typeof val === 'string' && val.trim() !== '' ? val : undefined);
+  const pick = (value: any) => (typeof value === 'string' && value.trim() !== '' ? value : undefined);
 
   if (preferredPrefix) {
-    const v = pick(attrs[`${preferredPrefix}:${localName}`]);
-    if (v) return v;
+    const value = pick(rawAttributes[`${preferredPrefix}:${localName}`]);
+    if (value) return value;
   }
 
-  const exact = pick(attrs[localName]);
+  const exact = pick(rawAttributes[localName]);
   if (exact) return exact;
 
-  for (const [name, value] of Object.entries(attrs)) {
-    const v = pick(value);
-    if (!v) continue;
-    const { prefix, localName: ln } = splitQName(name);
-    if (ln === localName && isExtensionPrefix(prefix)) return v;
+  for (const [name, rawValue] of Object.entries(rawAttributes)) {
+    const value = pick(rawValue);
+    if (!value) continue;
+    const { prefix, localName: candidateLocalName } = splitQName(name);
+    if (candidateLocalName === localName && isExtensionPrefix(prefix)) return value;
   }
 
   return undefined;
 }
 
-export function setAttr(target: any, attrName: string, value: any): void {
+export function setRawAttribute(target: any, attributeName: string, value: any): void {
   if (!target || value === undefined) return;
 
   if (typeof target.set === 'function') {
     try {
-      target.set(attrName, value);
+      target.set(attributeName, value);
       return;
     } catch {
       // fall through to direct $attrs mutation
@@ -44,6 +42,6 @@ export function setAttr(target: any, attrName: string, value: any): void {
   }
 
   if (target.$attrs && typeof target.$attrs === 'object') {
-    target.$attrs[attrName] = value;
+    target.$attrs[attributeName] = value;
   }
 }

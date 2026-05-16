@@ -20,29 +20,29 @@ const FLOW_NODE_TYPES = new Set([
 
 export type ParsedStudy = {
   businessObject: any;
-  nodes: Map<string, FlowNode>;
-  edges: Map<string, SequenceFlow>;
+  flowNodes: Map<string, FlowNode>;
+  sequenceFlows: Map<string, SequenceFlow>;
   startId?: string;
 };
 
 export async function parseStudyflow(xml: string, schemas: Record<string, any>): Promise<ParsedStudy> {
   const moddle = new BpmnModdle(schemas);
-  const { rootElement } = await moddle.fromXML(xml);
+  const { rootElement: definitions } = await moddle.fromXML(xml);
 
-  const businessObject = (rootElement as any)?.rootElements?.find(
+  const businessObject = (definitions as any)?.rootElements?.find(
     (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
   );
   if (!businessObject) throw new Error('No bpmn:Process found in diagram.');
 
-  const nodes = new Map<string, FlowNode>();
-  const edges = new Map<string, SequenceFlow>();
+  const flowNodes = new Map<string, FlowNode>();
+  const sequenceFlows = new Map<string, SequenceFlow>();
   let startId: string | undefined;
 
   for (const el of businessObject.flowElements ?? []) {
     if (el.$type === 'bpmn:SequenceFlow') continue;
     if (!FLOW_NODE_TYPES.has(el.$type)) continue;
 
-    nodes.set(el.id, {
+    flowNodes.set(el.id, {
       id: el.id,
       type: el.$type,
       extensionType: getExtensionType(el),
@@ -61,9 +61,10 @@ export async function parseStudyflow(xml: string, schemas: Record<string, any>):
     const targetId = el.targetRef?.id;
     if (!sourceId || !targetId) continue;
 
-    const condition = el.conditionExpression?.body ?? el.conditionExpression?.get?.('body');
+    const condition = el.conditionExpression?.body
+      ?? el.conditionExpression?.get?.('body');
 
-    edges.set(el.id, {
+    sequenceFlows.set(el.id, {
       id: el.id,
       sourceId,
       targetId,
@@ -71,9 +72,9 @@ export async function parseStudyflow(xml: string, schemas: Record<string, any>):
       businessObject: el,
     });
 
-    nodes.get(sourceId)?.outgoing.push(el.id);
-    nodes.get(targetId)?.incoming.push(el.id);
+    flowNodes.get(sourceId)?.outgoing.push(el.id);
+    flowNodes.get(targetId)?.incoming.push(el.id);
   }
 
-  return { businessObject, nodes, edges, startId };
+  return { businessObject, flowNodes, sequenceFlows, startId };
 }

@@ -1,5 +1,4 @@
-// Collect default property values for a type by walking `superClass` and
-// `extends` chains via DFS and accumulating `default` along the way.
+/** Default attribute values for a type, walking the `superClass` and `extends` chains. */
 export function getDefaults(typeName: string, moddle: any): Record<string, any> {
   const defaults: Record<string, any> = {};
   const seen = new Set<string>();
@@ -8,15 +7,15 @@ export function getDefaults(typeName: string, moddle: any): Record<string, any> 
     if (!name || seen.has(name)) return;
     seen.add(name);
 
-    let descriptor: any;
-    try { descriptor = moddle.getTypeDescriptor(name); } catch { return; }
-    if (!descriptor) return;
+    let typeDef: any;
+    try { typeDef = moddle.getTypeDescriptor(name); } catch { return; }
+    if (!typeDef) return;
 
-    for (const s of descriptor.superClass ?? []) if (typeof s === 'string') collect(s);
-    for (const e of descriptor.extends ?? []) if (typeof e === 'string') collect(e);
+    for (const s of typeDef.superClass ?? []) if (typeof s === 'string') collect(s);
+    for (const e of typeDef.extends ?? []) if (typeof e === 'string') collect(e);
 
-    for (const prop of descriptor.properties ?? []) {
-      if (prop.default !== undefined) defaults[prop.name] = prop.default;
+    for (const attrDef of typeDef.properties ?? []) {
+      if (attrDef.default !== undefined) defaults[attrDef.name] = attrDef.default;
     }
   };
 

@@ -1,9 +1,6 @@
 import { getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
 
-// Apply transparency only to custom icon/marker overlays, not BPMN borders/labels.
-const ICON_OPACITY = 1;
-
 /** Convert a CSS color string to a hex color code. */
 export function colorToHex(color: string): string | null {
   const context = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
@@ -32,7 +29,6 @@ export function drawIcon(
     height: size,
     class: 'icon-container',
     color: color,
-    opacity: ICON_OPACITY,
   });
 
   const iconDiv = document.createElement('div');
@@ -41,9 +37,7 @@ export function drawIcon(
   iconDiv.style.height = size + 'px';
   iconDiv.style.fontSize = size + 'px';
   iconDiv.style.color = color || 'currentColor';
-  // Prevent font/line-height/inline-gap from shifting the icon inside the
-  // SVG foreignObject. Make the icon a block-level square with no margins
-  // or extra line-height so it fills the foreignObject exactly.
+  // Square block with no inline gap so the icon fills the foreignObject exactly.
   iconDiv.style.display = 'block';
   iconDiv.style.lineHeight = '1';
   iconDiv.style.verticalAlign = 'top';
@@ -58,10 +52,7 @@ export function drawIcon(
   return foreignObject;
 }
 
-/**
- * Draw an icon using inline SVG paths (no foreignObject / CSS).
- * This survives SVG export unlike CSS-based icons.
- */
+/** Draw an icon using inline SVG paths; survives SVG export, unlike CSS-based icons. */
 export function drawSvgPaths(
   parentNode: SVGElement,
   iconDef: { viewBox: string; paths: string[] },
@@ -74,7 +65,6 @@ export function drawSvgPaths(
   const [, , vbW, vbH] = iconDef.viewBox.split(/\s+/).map(Number);
   const g = svgCreate('g');
   g.setAttribute('transform', `translate(${x}, ${y})`);
-  g.setAttribute('opacity', String(ICON_OPACITY));
 
   const inner = svgCreate('g');
   const sx = width / vbW;
@@ -94,35 +84,21 @@ export function drawSvgPaths(
   return g;
 }
 
-/** Draw a short text label inside an icon area (e.g. behaverse task abbreviation). */
+/** Draw a short text marker (truncated to 4 chars) sized by length. */
 export function drawIconText(
   parentNode: SVGElement,
   element: any,
   marker: string | undefined,
-  x: number = 9,
-  y: number = 21,
-  fontSize: number = 12,
 ): SVGElement | undefined {
   if (!marker) return;
 
-  switch (marker.length) {
-    case 2:
-      x = 9;
-      y = 20;
-      fontSize = 11;
-      break;
-    case 3:
-      x = 8;
-      y = 22;
-      fontSize = 11;
-      break;
-    default:
-      marker = marker.substring(0, 4);
-      x = 8.5;
-      y = 21;
-      fontSize = 8;
-      break;
-  }
+  let x: number;
+  let y: number;
+  let fontSize: number;
+
+  if (marker.length === 2) { x = 9; y = 20; fontSize = 11; }
+  else if (marker.length === 3) { x = 8; y = 22; fontSize = 11; }
+  else { x = 8.5; y = 21; fontSize = 8; marker = marker.substring(0, 4); }
 
   const text = svgCreate('text', {
     x, y, fontSize,
@@ -130,7 +106,6 @@ export function drawIconText(
     fill: getStrokeColor(element),
     fontWeight: 'bold',
     strokeWidth: 0,
-    opacity: ICON_OPACITY,
   });
 
   text.textContent = marker;

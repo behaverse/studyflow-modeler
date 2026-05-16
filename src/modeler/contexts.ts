@@ -1,49 +1,16 @@
 import { createContext } from 'react';
 
+const noop = () => {};
+
 export const ModelerContext = createContext<{
-    modeler: any,
-    setModeler: (modeler: any) => void,
-}>({
-    modeler: undefined,
-    setModeler: () => {},
-});
+  modeler: any;
+  setModeler: (modeler: any) => void;
+}>({ modeler: undefined, setModeler: noop });
 
-export const DiagramNameContext = createContext<{
-    diagramName: string,
-    setDiagramName: (name: string) => void,
-}>({
-    diagramName: 'Untitled Diagram',
-    setDiagramName: () => {},
-});
-
-export const APIKeyContext = createContext<{
-    apiKey: string | undefined,
-    setApiKey: (key: string) => void,
-}>({
-    apiKey: undefined,
-    setApiKey: () => {},
-});
-
-
-export const InspectorContext = createContext({
-    element: undefined,
-    businessObject: undefined,
+export const InspectorContext = createContext<{ element: any | undefined }>({
+  element: undefined,
 });
 
 export const SettingsViewContext = createContext<{
-    isSettingsOpen: boolean,
-    openSettings: () => void,
-    closeSettings: () => void,
-}>({
-    isSettingsOpen: false,
-    openSettings: () => {},
-    closeSettings: () => {},
-});
-
-export const SimulationContext = createContext<{
-    isSimulating: boolean,
-    setIsSimulating: (v: boolean) => void,
-}>({
-    isSimulating: false,
-    setIsSimulating: () => {},
-});
+  openSettings: () => void;
+}>({ openSettings: noop });

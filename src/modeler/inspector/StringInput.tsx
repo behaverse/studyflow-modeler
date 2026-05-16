@@ -1,62 +1,33 @@
 import { Input, Label, Textarea } from '@headlessui/react';
-import { useContext, useState, type ChangeEvent } from 'react';
-import { ModelerContext, InspectorContext } from '../contexts';
+import type { ChangeEvent } from 'react';
 import { t } from '../../i18n';
-import { getProperty } from '@/lib/core/extensions';
-import { executeCommand } from '../commands';
+import { HelpTooltip } from './HelpTooltip';
+import { useAttributeState } from './hooks/useAttributeState';
 import { field as s } from '../styles';
 
 type Props = {
-  bpmnProperty: any;
+  attrDef: any;
   isMarkdown?: boolean;
 };
 
-export function StringInput({ bpmnProperty, isMarkdown }: Props) {
-  const { element } = useContext(InspectorContext);
-  const { modeler } = useContext(ModelerContext);
+export function StringInput({ attrDef, isMarkdown }: Props) {
+  const { value, commit } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const name = attrDef.ns.name;
 
-  const name = bpmnProperty.ns?.name ?? bpmnProperty.name;
-  const [value, setValue] = useState<string>(getProperty(element, name) || '');
-
-  function handleChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    const newValue = event.target.value;
-    setValue(newValue);
-    executeCommand(modeler, {
-      type: 'update-property',
-      element,
-      propertyName: name,
-      value: newValue,
-    });
+  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    commit(e.target.value);
   }
 
   return (
     <>
       <Label className={s.label}>
-        {t(bpmnProperty.ns.name)}
-        <div className={s.helpAnchor}>
-          <i className={s.helpIcon}></i>
-          <div className={s.helpTooltipWide}>
-            <pre className={s.helpTooltipName}>{bpmnProperty.ns.name}</pre>
-            {bpmnProperty?.description}
-          </div>
-        </div>
+        {t(name)}
+        <HelpTooltip name={name} description={attrDef?.description} />
       </Label>
       {isMarkdown ? (
-        <Textarea
-          name={bpmnProperty.ns.name}
-          onChange={handleChange}
-          value={value}
-          rows={4}
-          className={s.textArea}
-        />
+        <Textarea name={name} onChange={handleChange} value={value} rows={4} className={s.textArea} />
       ) : (
-        <Input
-          name={bpmnProperty.ns.name}
-          type="text"
-          onChange={handleChange}
-          value={value}
-          className={s.textInput}
-        />
+        <Input name={name} type="text" onChange={handleChange} value={value} className={s.textInput} />
       )}
     </>
   );

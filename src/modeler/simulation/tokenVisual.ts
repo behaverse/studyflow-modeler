@@ -2,9 +2,7 @@ import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as sv
 
 export const TOKEN_RADIUS = 8;
 
-/**
- * Create a token circle, set its color, and append it to the layer.
- */
+/** Create a token circle and append it to the layer. */
 export function createTokenSvg(layer: any, color: string, cx = 0, cy = 0): any {
   const svg = svgCreate('circle');
   svgAttr(svg, { cx, cy, r: TOKEN_RADIUS });
@@ -13,16 +11,10 @@ export function createTokenSvg(layer: any, color: string, cx = 0, cy = 0): any {
   return svg;
 }
 
-/**
- * Update the cx/cy of a token SVG circle.
- */
 export function updateTokenPosition(svg: any, cx: number, cy: number): void {
   svgAttr(svg, { cx, cy });
 }
 
-/**
- * Remove a token SVG element from its parent.
- */
 export function removeTokenSvg(svg: any): void {
   svgRemove(svg);
 }

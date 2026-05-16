@@ -1,39 +1,22 @@
-import { useContext } from 'react';
-import { ModelerContext, SimulationContext } from '../../contexts';
+import { useModeler } from '../../useModeler';
 import { executeCommand } from '../../commands';
+import { useIsSimulating } from '../../simulation/useIsSimulating';
 
-type Props = {
-  className?: string;
-};
+// Left half of the Simulate/Run pair - only the left corners are rounded.
+const BASE = 'inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold rounded-l-lg h-7 px-3.5 transition-colors text-white';
+const ACTIVE = 'bg-red-700 hover:bg-red-800';
+const IDLE = 'bg-[#C028B0] hover:bg-[#A32295]';
 
-export function SimulateButton({ className = '' }: Props) {
-  const { modeler } = useContext(ModelerContext);
-  const { isSimulating, setIsSimulating } = useContext(SimulationContext);
-
-  function toggleSimulation() {
-    executeCommand(modeler, {
-      type: 'toggle-simulation',
-      currentActive: isSimulating,
-    });
-    setIsSimulating(!isSimulating);
-  }
+export function SimulateButton() {
+  const modeler = useModeler();
+  const isSimulating = useIsSimulating(modeler);
 
   return (
     <button
       type="button"
       title={isSimulating ? 'Stop simulation' : 'Simulate the studyflow'}
-      className={[
-        'inline-flex items-center justify-center gap-1.5',
-        // `rounded-l-lg` only - paired with the Run button on the right,
-        // so the inner edge is flush. Outer arc still nests inside the
-        // navbar's 12px corner with 6px padding.
-        'text-[13px] font-semibold rounded-l-lg h-7 px-3.5 transition-colors',
-        isSimulating
-          ? 'text-white bg-red-700 hover:bg-red-800'
-          : 'text-white bg-[#C028B0] hover:bg-[#A32295]',
-        className,
-      ].join(' ')}
-      onClick={toggleSimulation}
+      className={`${BASE} ${isSimulating ? ACTIVE : IDLE}`}
+      onClick={() => executeCommand(modeler, { type: 'toggle-simulation' })}
     >
       {isSimulating ? (
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">

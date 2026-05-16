@@ -1,15 +1,11 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { getProperty } from '@/lib/core/extensions';
+import { getAttribute } from '@/lib/core/extensions';
 import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
-/**
- * Service/Script tasks with isDataOperation=true already convey "data
- * operation" through their type - and their schema icon (typically `f`)
- * makes a bottom marker redundant. Skip the operation marker for them.
- */
+/** Service/Script tasks already convey "data operation" via their schema icon; skip the bottom marker. */
 function isServiceOrScriptDataOp(element: any): boolean {
-  if (!getProperty(element, 'isDataOperation')) return false;
+  if (!getAttribute(element, 'isDataOperation')) return false;
   return is(element, 'bpmn:ServiceTask') || is(element, 'bpmn:ScriptTask');
 }
 
@@ -18,50 +14,42 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
   const markers: string[] = [];
   removeDefaultMarkers(parentNode);
 
-  if (getProperty(element, 'isDataOperation') && !isServiceOrScriptDataOp(element)) {
+  if (getAttribute(element, 'isDataOperation') && !isServiceOrScriptDataOp(element)) {
     markers.push('operation');
   }
 
-  const checklist = getProperty(element, 'checklist');
+  const checklist = getAttribute(element, 'checklist');
   if (checklist?.length > 0) {
     markers.push('checklist');
   }
 
-  if (is(element, 'bpmn:SubProcess')) {
-    if (!element.di.isExpanded) {
-      markers.push('subprocess');
-    }
+  if (is(element, 'bpmn:SubProcess') && !element.di.isExpanded) {
+    markers.push('subprocess');
   }
 
   if (is(element, 'bpmn:AdHocSubProcess')) {
     markers.push('adhoc');
   }
 
-  if (getProperty(element, 'isForCompensation')) {
+  if (getAttribute(element, 'isForCompensation')) {
     markers.push('compensation');
   }
 
-  const loopCharacteristics = getProperty(element, 'loopCharacteristics');
+  const loopCharacteristics = getAttribute(element, 'loopCharacteristics');
   if (loopCharacteristics) {
-    if (loopCharacteristics.get('isSequential') === true) {
-      markers.push('sequential');
-    } else if (loopCharacteristics.get('isSequential') === false) {
-      markers.push('parallel');
-    } else if (loopCharacteristics.get('isSequential') === undefined) {
-      markers.push('loop');
-    }
+    const isSequential = loopCharacteristics.get('isSequential');
+    if (isSequential === true) markers.push('sequential');
+    else if (isSequential === false) markers.push('parallel');
+    else markers.push('loop');
   }
 
   // TODO show subprocess marker always in the center, and other markers on the left/right side of it
 
-  const gapX = 0;
-  const gapY = 4;
-  const markerSize = 20;
-  const markerY = element.height - markerSize - gapY;
-  const offsetX = (element.width - (markers.length * (markerSize + gapX))) / 2;
+  const MARKER_SIZE = 20;
+  const MARKER_GAP_Y = 4;
+  const markerY = element.height - MARKER_SIZE - MARKER_GAP_Y;
+  const offsetX = (element.width - markers.length * MARKER_SIZE) / 2;
   markers.forEach((marker, index) => {
-    const markerX = offsetX + index * (markerSize + gapX);
-    const markerIcon = BPMN_ICON_OVERRIDES[marker];
-    drawIcon(parentNode, element, markerIcon, markerX, markerY, markerSize);
+    drawIcon(parentNode, element, BPMN_ICON_OVERRIDES[marker], offsetX + index * MARKER_SIZE, markerY, MARKER_SIZE);
   });
 }

@@ -5,6 +5,7 @@ import { createTokenSvg, removeTokenSvg, updateTokenPosition, TOKEN_RADIUS } fro
 const TOKEN_SPEED = 200; // pixels per sec
 const ACTIVITY_PAUSE_MS = 500; // pause at activities before moving on
 const SPAWN_INTERVAL_MS = 1000; // how often to create new tokens
+const MAX_BOUNCING_PER_ELEMENT = 5; // dead-end overflow before oldest fades out
 
 const TOKEN_COLORS = [
   '#e040fb', // pink
@@ -33,6 +34,21 @@ interface Token {
   cy: number;
 }
 
+function makeToken(svg: any, color: string, cx: number, cy: number): Token {
+  return {
+    svg, color, cx, cy,
+    pathPoints: [],
+    segLengths: [],
+    totalDist: 0,
+    travelled: 0,
+    targetElement: null,
+    paused: false,
+    pauseRemaining: 0,
+    done: false,
+    bouncing: false,
+    bounceElementId: null,
+  };
+}
 
 export default class TokenSimulator {
   static $inject = ['eventBus', 'elementRegistry', 'canvas'];
@@ -49,26 +65,21 @@ export default class TokenSimulator {
   private _colorIndex = 0;
   private _lastTimestamp = 0;
   private _startEvents: any[] = [];
-  private _handleRootSetBound: () => void;
-  private _tick: (timestamp: number) => void;
 
   constructor(eventBus: any, elementRegistry: any, canvas: any) {
     this._eventBus = eventBus;
     this._elementRegistry = elementRegistry;
     this._canvas = canvas;
+    this._eventBus.on('root.set', this._handleRootSet);
+  }
 
-    this._handleRootSetBound = this._handleRootSet.bind(this);
-    this._tick = this._tickImpl.bind(this);
-
-    this._eventBus.on('root.set', this._handleRootSetBound);
+  isActive(): boolean {
+    return this._active;
   }
 
   toggle() {
-    if (this._active) {
-      this.stop();
-    } else {
-      this.start();
-    }
+    if (this._active) this.stop();
+    else this.start();
   }
 
   start() {
@@ -77,17 +88,14 @@ export default class TokenSimulator {
     this._ensureBounceKeyframes();
     this._layer = this._canvas.getLayer('token-simulation', 1000);
 
-    this._refreshVisibleStartEvents();
-    this._spawnStartEventTokens();
+    this._startEvents = this._getVisibleStartEvents();
+    for (const startEvent of this._startEvents) this._spawnToken(startEvent);
 
-    // then keep spawning at a fixed interval (capped to TOKEN_COLORS tokens)
     this._spawnIntervalId = window.setInterval(() => {
       if (!this._active) return;
-      const activeCount = this._tokens.filter(t => !t.done).length;
+      const activeCount = this._tokens.filter((token) => !token.done).length;
       if (activeCount >= TOKEN_COLORS.length) return;
-      for (const se of this._startEvents) {
-        this._spawnToken(se);
-      }
+      for (const startEvent of this._startEvents) this._spawnToken(startEvent);
     }, SPAWN_INTERVAL_MS);
 
     this._lastTimestamp = performance.now();
@@ -116,35 +124,20 @@ export default class TokenSimulator {
     this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: false });
   }
 
-  private _handleRootSet() {
+  private _handleRootSet = () => {
     if (!this._active) return;
-
     this._layer = this._canvas.getLayer('token-simulation', 1000);
-    this._refreshVisibleStartEvents();
-    this._clearTokens();
-    this._spawnStartEventTokens();
-  }
-
-  private _refreshVisibleStartEvents() {
     this._startEvents = this._getVisibleStartEvents();
-  }
+    this._clearTokens();
+    for (const startEvent of this._startEvents) this._spawnToken(startEvent);
+  };
 
   private _getVisibleStartEvents() {
-    const rootElement = this._canvas.getRootElement();
-
-    if (!rootElement) {
-      return [];
-    }
-
+    const root = this._canvas.getRootElement();
+    if (!root) return [];
     return this._elementRegistry.filter(
-      (el: any) => is(el, 'bpmn:StartEvent') && el.type !== 'label' && el.parent === rootElement
+      (el: any) => is(el, 'bpmn:StartEvent') && el.type !== 'label' && el.parent === root,
     );
-  }
-
-  private _spawnStartEventTokens() {
-    for (const startEvent of this._startEvents) {
-      this._spawnToken(startEvent);
-    }
   }
 
   private _clearTokens() {
@@ -159,36 +152,23 @@ export default class TokenSimulator {
     this._tokens = [];
   }
 
-  // animation loop wrapper
-  private _tickImpl(timestamp: number) {
+  private _tick = (timestamp: number) => {
     if (!this._active) return;
 
-    // cap dt to avoid jumps
+    // Cap dt to avoid jumps after a long tab-blur.
     const dt = Math.min((timestamp - this._lastTimestamp) / 1000, 0.1);
     this._lastTimestamp = timestamp;
 
-    for (let i = 0; i < this._tokens.length; i++) {
-      const token = this._tokens[i];
-
-      if (token.bouncing) {
-        // bouncing is handled via CSS animation, skip
-        continue;
-      }
-
+    for (const token of this._tokens) {
+      if (token.bouncing) continue; // bouncing is driven by CSS animation
       if (token.paused) {
         token.pauseRemaining -= dt * 1000;
-        if (token.pauseRemaining <= 0) {
-          token.paused = false;
-        }
+        if (token.pauseRemaining <= 0) token.paused = false;
         continue;
       }
-
-      if (token.totalDist > 0) {
-        this._moveAlongPath(token, dt);
-      }
+      if (token.totalDist > 0) this._moveAlongPath(token, dt);
     }
 
-    // remove finished tokens outside the loop
     for (let i = this._tokens.length - 1; i >= 0; i--) {
       if (this._tokens[i].done) {
         removeTokenSvg(this._tokens[i].svg);
@@ -197,124 +177,65 @@ export default class TokenSimulator {
     }
 
     this._animFrameId = requestAnimationFrame(this._tick);
-  }
+  };
 
-  /**
-   * Move token along its pre-computed path using eased progress.
-   */
+  /** Move token along its pre-computed path using eased progress. */
   private _moveAlongPath(token: Token, dt: number) {
-    const speed = TOKEN_SPEED;
-    token.travelled += speed * dt;
-
-    // raw linear 0->1
-    let t = Math.min(token.travelled / token.totalDist, 1);
-
-    // apply ease-in-out for smooth accel / decel
-    t = smootherstep(t);
-
-    // find position at parameter t along polyline
-    const targetDist = t * token.totalDist;
-    const pos = samplePolyline(token.pathPoints, token.segLengths, targetDist);
-    this._setTokenPos(token, pos.x, pos.y);
-
-    if (t >= 1) {
-      this._onTokenArrived(token);
-    }
+    token.travelled += TOKEN_SPEED * dt;
+    const progress = smootherstep(Math.min(token.travelled / token.totalDist, 1));
+    const point = samplePolyline(token.pathPoints, token.segLengths, progress * token.totalDist);
+    this._setTokenPos(token, point.x, point.y);
+    if (progress >= 1) this._onTokenArrived(token);
   }
 
   private _spawnToken(element: any) {
-    const color = TOKEN_COLORS[this._colorIndex % TOKEN_COLORS.length];
-    this._colorIndex++;
-
-    const svg = createTokenSvg(this._layer, color);
-
-    const cx = element.x + (element.width / 2);
-    const cy = element.y + (element.height / 2);
-
-    const token: Token = {
-      svg,
-      color,
-      pathPoints: [],
-      segLengths: [],
-      totalDist: 0,
-      travelled: 0,
-      targetElement: null,
-      paused: false,
-      pauseRemaining: 0,
-      done: false,
-      bouncing: false,
-      bounceElementId: null,
-      cx,
-      cy,
-    };
+    const color = TOKEN_COLORS[this._colorIndex++ % TOKEN_COLORS.length];
+    const cx = element.x + element.width / 2;
+    const cy = element.y + element.height / 2;
+    const token = makeToken(createTokenSvg(this._layer, color), color, cx, cy);
 
     this._setTokenPos(token, cx, cy);
     this._tokens.push(token);
-
-    // proceed from this element after a delay
     this._advanceFromElement(token, element);
   }
 
   private _advanceFromElement(token: Token, element: any) {
-    // End event -> pop token
     if (is(element, 'bpmn:EndEvent')) {
       this._popToken(token);
       return;
     }
 
-    const outgoing = (element.outgoing || []).filter(
-      (c: any) => is(c, 'bpmn:SequenceFlow')
-    );
+    const outgoing = (element.outgoing || []).filter((c: any) => is(c, 'bpmn:SequenceFlow'));
 
     if (outgoing.length === 0) {
-      // dead end but not an EndEvent -> bounce in place
+      // Bounce in place at dead ends; fade the oldest once capped.
       const elId = element.id;
-      const bouncingHere = this._tokens.filter(t => t.bouncing && t.bounceElementId === elId);
-      if (bouncingHere.length >= 5) {
-        // fade out the oldest one to make room
-        this._fadeOutToken(bouncingHere[0]);
-      }
-      // spread tokens along x so they don't overlap (centered on element)
-      const count = bouncingHere.length;
+      const bouncingHere = this._tokens.filter((t) => t.bouncing && t.bounceElementId === elId);
+      if (bouncingHere.length >= MAX_BOUNCING_PER_ELEMENT) this._fadeOutToken(bouncingHere[0]);
+
       const spacing = TOKEN_RADIUS * 2.5;
-      const offsetX = (count - (5 - 1) / 2) * spacing;
-      const baseCx = element.x + (element.width / 2);
-      token.cx = baseCx + offsetX;
+      const offsetX = (bouncingHere.length - (MAX_BOUNCING_PER_ELEMENT - 1) / 2) * spacing;
+      token.cx = element.x + element.width / 2 + offsetX;
       this._setTokenPos(token, token.cx, token.cy);
       this._startBounce(token, elId);
       return;
     }
 
-    // fork
-    if (is(element, 'bpmn:ParallelGateway') ||
-        is(element, 'bpmn:InclusiveGateway')) {
-      if (outgoing.length > 1) {
-        // Reuse existing token for the first flow
-        this._sendTokenAlongFlow(token, outgoing[0]);
-
-        // Spawn a new token for each additional outgoing flow
-        for (let i = 1; i < outgoing.length; i++) {
-          const clone = this._cloneToken(token);
-          this._sendTokenAlongFlow(clone, outgoing[i]);
-        }
-        return;
+    // Parallel/Inclusive gateways fork: reuse the token for the first branch, clone the rest.
+    const isFork = is(element, 'bpmn:ParallelGateway') || is(element, 'bpmn:InclusiveGateway');
+    if (isFork && outgoing.length > 1) {
+      this._sendTokenAlongFlow(token, outgoing[0]);
+      for (let i = 1; i < outgoing.length; i++) {
+        this._sendTokenAlongFlow(this._cloneToken(token), outgoing[i]);
       }
-    }
-
-    // Exclusive/random gateways -> pick one
-    if (outgoing.length > 1) {
-      const flow = outgoing[Math.floor(Math.random() * outgoing.length)];
-      this._sendTokenAlongFlow(token, flow);
       return;
     }
 
-    // Single outgoing flow
-    this._sendTokenAlongFlow(token, outgoing[0]);
+    const pick = outgoing.length > 1 ? outgoing[Math.floor(Math.random() * outgoing.length)] : outgoing[0];
+    this._sendTokenAlongFlow(token, pick);
   }
 
-  /**
-   * Build a smooth path: current position -> flow waypoints -> center.
-   */
+  /** Build a smooth path: current position -> flow waypoints -> target center. */
   private _sendTokenAlongFlow(token: Token, flow: any) {
     const waypoints = flow.waypoints;
 
@@ -327,14 +248,12 @@ export default class TokenSimulator {
     const targetCx = target.x + (target.width / 2);
     const targetCy = target.y + (target.height / 2);
 
-    // Build full path: [current pos] + flow waypoints + [center]
     const points: Point[] = [
       { x: token.cx, y: token.cy },
       ...waypoints.map((wp: any) => ({ x: wp.x, y: wp.y })),
       { x: targetCx, y: targetCy },
     ];
 
-    // Remove duplicate consecutive points (e.g. if token is already at first wp)
     const cleaned: Point[] = [points[0]];
     for (let i = 1; i < points.length; i++) {
       const prev = cleaned[cleaned.length - 1];
@@ -344,7 +263,6 @@ export default class TokenSimulator {
       }
     }
 
-    // Pre-compute segment lengths
     const { segLengths, totalDist } = computeSegLengths(cleaned);
 
     token.pathPoints = cleaned;
@@ -356,8 +274,6 @@ export default class TokenSimulator {
 
   private _onTokenArrived(token: Token) {
     const target = token.targetElement;
-
-    // reset path state
     token.pathPoints = [];
     token.segLengths = [];
     token.totalDist = 0;
@@ -369,56 +285,29 @@ export default class TokenSimulator {
       return;
     }
 
-    // Update stored position to target center
-    token.cx = target.x + (target.width / 2);
-    token.cy = target.y + (target.height / 2);
+    token.cx = target.x + target.width / 2;
+    token.cy = target.y + target.height / 2;
 
-    // Pause at activities
     if (is(target, 'bpmn:Activity') || is(target, 'bpmn:SubProcess')) {
       token.paused = true;
       token.pauseRemaining = ACTIVITY_PAUSE_MS;
-
-      // schedule advance after the pause
       setTimeout(() => {
-        if (this._active && !token.done) {
-          this._advanceFromElement(token, target);
-        }
+        if (this._active && !token.done) this._advanceFromElement(token, target);
       }, ACTIVITY_PAUSE_MS);
     } else {
-      // gateways, events, etc. - advance immediately
       this._advanceFromElement(token, target);
     }
   }
 
-  /**
-   * Clone an existing token at the same position (used for parallel forks).
-   */
+  /** Clone the token in place; used for parallel-gateway forks. */
   private _cloneToken(source: Token) {
-    const color = source.color;
-
-    const svg = createTokenSvg(this._layer, color, source.cx, source.cy);
+    const svg = createTokenSvg(this._layer, source.color, source.cx, source.cy);
     svg.style.stroke = '#fff';
     svg.style.strokeWidth = '2';
     svg.style.opacity = '0.9';
     svg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))';
 
-    const clone: Token = {
-      svg,
-      color,
-      pathPoints: [],
-      segLengths: [],
-      totalDist: 0,
-      travelled: 0,
-      targetElement: null,
-      paused: false,
-      pauseRemaining: 0,
-      done: false,
-      bouncing: false,
-      bounceElementId: null,
-      cx: source.cx,
-      cy: source.cy,
-    };
-
+    const clone = makeToken(svg, source.color, source.cx, source.cy);
     this._tokens.push(clone);
     return clone;
   }
@@ -430,34 +319,26 @@ export default class TokenSimulator {
   }
 
   private _fadeOutToken(token: Token) {
-    // fade-out via opacity transition
     token.svg.style.transition = 'opacity 0.4s';
     token.svg.style.opacity = '0';
-    setTimeout(() => {
-      token.done = true;
-    }, 450);
+    setTimeout(() => { token.done = true; }, 450);
   }
 
+  /** Balloon-pop: scale up fast then disappear. */
   private _popToken(token: Token) {
-    // balloon-pop: scale up fast then disappear
     token.svg.style.transformOrigin = token.cx + 'px ' + token.cy + 'px';
     token.svg.style.animation = 'token-pop 0.35s ease-out forwards';
-    setTimeout(() => {
-      token.done = true;
-    }, 380);
+    setTimeout(() => { token.done = true; }, 380);
   }
 
   private _startBounce(token: Token, elementId?: string) {
     token.bouncing = true;
     token.bounceElementId = elementId || null;
-    // Use CSS animation for the bounce
     token.svg.style.transformOrigin = token.cx + 'px ' + token.cy + 'px';
     token.svg.style.animation = 'token-bounce 0.5s ease-in-out infinite alternate';
   }
 
-  /**
-   * Ensure the bounce keyframes are injected into the document once.
-   */
+  /** Inject the shared bounce/pop keyframes into the document once. */
   private _ensureBounceKeyframes() {
     if (document.getElementById('token-bounce-keyframes')) return;
     const style = document.createElement('style');

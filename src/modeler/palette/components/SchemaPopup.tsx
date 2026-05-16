@@ -1,61 +1,19 @@
-import type { ReactNode } from 'react';
-import type {
-  PaletteSchemaDescriptor,
-  PaletteSchemaItem,
-  PaletteSchemaTemplate,
-} from '../../commands/palette/paletteSetup';
-import type { PaletteDraggable, PaletteDragHandlers } from '../hooks/usePaletteDrag';
+import type { PaletteSchema } from '../../commands/palette/paletteSetup';
+import type { PaletteDragHandlers } from '../hooks/usePaletteDrag';
 import { useFlyoutPosition } from '../hooks/useFlyoutPosition';
 import { getPaletteIconForBpmnType } from '../../constants';
 import { paletteFlyout } from '../../styles';
+import { PaletteIcon } from './PaletteIcon';
+import { PaletteTile } from './PaletteTile';
 
 type Props = {
-  schema: PaletteSchemaDescriptor;
+  schema: PaletteSchema;
   isOpen: boolean;
   handlers: PaletteDragHandlers;
 };
 
-function isUrlIcon(icon?: string): boolean {
-  return !!icon && /^(https?:\/\/|data:image\/)/i.test(icon);
-}
-
-function renderTileIcon(icon?: string): ReactNode {
-  if (isUrlIcon(icon)) {
-    return (
-      <img
-        src={icon}
-        alt=""
-        className="h-[22px] w-[22px] object-contain"
-        loading="lazy"
-        decoding="async"
-      />
-    );
-  }
-  return <i className={`text-[22px] ${icon}`}></i>;
-}
-
-function renderHeaderIcon(icon?: string): ReactNode {
-  if (isUrlIcon(icon)) {
-    return (
-      <img
-        src={icon}
-        alt=""
-        className="h-4 w-4 object-contain"
-        loading="lazy"
-        decoding="async"
-      />
-    );
-  }
-  if (icon) {
-    return <i className={`text-[14px] ${icon}`}></i>;
-  }
-  return null;
-}
-
 /** Flyout panel rendered next to a schema "More..." palette button. */
 export function SchemaPopup({ schema, isOpen, handlers }: Props) {
-  const hasItems = schema.items.length > 0;
-  const hasTemplates = schema.templates.length > 0;
   const { ref, style } = useFlyoutPosition(isOpen);
 
   return (
@@ -64,7 +22,7 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
       <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
       <div className={`${paletteFlyout.header} flex items-center gap-1.5`}>
-        {renderHeaderIcon(schema.icon)}
+        <PaletteIcon icon={schema.icon} size={14} />
         <span>{schema.name}</span>
         {!schema.core && (
           <span
@@ -76,56 +34,36 @@ export function SchemaPopup({ schema, isOpen, handlers }: Props) {
         )}
       </div>
 
-      {hasItems && (
-        <>
-          <div className={paletteFlyout.grid}>
-            {schema.items.map((item: PaletteSchemaItem) => {
-              const draggable: PaletteDraggable = item;
-              const resolvedIcon = item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? schema.icon;
-              return (
-                <button
-                  key={`type-${item.studyflowType}`}
-                  type="button"
-                  title={`Create ${item.label}`}
-                  className={paletteFlyout.item}
-                  onMouseDown={(e) => handlers.onMouseDown(draggable, e)}
-                  onMouseMove={(e) => handlers.onMouseMove(draggable, e)}
-                  onMouseUp={handlers.onMouseUp}
-                  onMouseLeave={handlers.onMouseUp}
-                  onClick={(e) => handlers.onClick(draggable, e)}
-                >
-                  {renderTileIcon(resolvedIcon)}
-                  <span className={paletteFlyout.itemLabel}>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </>
+      {schema.items.length > 0 && (
+        <div className={paletteFlyout.grid}>
+          {schema.items.map((item) => (
+            <PaletteTile
+              key={`type-${item.extensionType}`}
+              draggable={item}
+              icon={item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? schema.icon}
+              title={`Create ${item.label}`}
+              label={item.label}
+              handlers={handlers}
+            />
+          ))}
+        </div>
       )}
 
-      {hasTemplates && (
+      {schema.templates.length > 0 && (
         <>
           <div className={paletteFlyout.sectionHeader}>Templates</div>
           <div className={paletteFlyout.grid}>
-            {schema.templates.map((template: PaletteSchemaTemplate) => {
-              const draggable: PaletteDraggable = { ...template, __template: true };
-              const typeIcon = schema.items.find((it) => it.studyflowType === template.studyflowType)?.icon;
-              const resolvedIcon = template.icon ?? typeIcon ?? schema.icon ?? getPaletteIconForBpmnType(template.bpmnType);
+            {schema.templates.map((template) => {
+              const typeIcon = schema.items.find((it) => it.extensionType === template.extensionType)?.icon;
               return (
-                <button
+                <PaletteTile
                   key={`template-${template.id}`}
-                  type="button"
+                  draggable={{ ...template, __template: true }}
+                  icon={template.icon ?? typeIcon ?? schema.icon ?? getPaletteIconForBpmnType(template.bpmnType)}
                   title={template.description ? `${template.label}: ${template.description}` : `Create ${template.label}`}
-                  className={paletteFlyout.item}
-                  onMouseDown={(e) => handlers.onMouseDown(draggable, e)}
-                  onMouseMove={(e) => handlers.onMouseMove(draggable, e)}
-                  onMouseUp={handlers.onMouseUp}
-                  onMouseLeave={handlers.onMouseUp}
-                  onClick={(e) => handlers.onClick(draggable, e)}
-                >
-                  {renderTileIcon(resolvedIcon)}
-                  <span className={paletteFlyout.itemLabel}>{template.label}</span>
-                </button>
+                  label={template.label}
+                  handlers={handlers}
+                />
               );
             })}
           </div>

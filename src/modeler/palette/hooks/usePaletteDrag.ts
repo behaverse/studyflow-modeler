@@ -1,30 +1,22 @@
 import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { executeCommand } from '../../commands';
 import type { PaletteEntry } from '../../constants';
-import type { PaletteSchemaTemplate } from '../../commands/palette/paletteSetup';
+import type { PaletteTemplate } from '../../commands/palette/paletteSetup';
 
-export type PaletteDraggable = PaletteEntry | (PaletteSchemaTemplate & { __template: true });
+export type PaletteDraggable = PaletteEntry | (PaletteTemplate & { __template: true });
 
 export type PaletteDragHandlers = {
-  onMouseDown: (entry: PaletteDraggable, event: ReactMouseEvent) => void;
-  onMouseMove: (entry: PaletteDraggable, event: ReactMouseEvent) => void;
+  onMouseDown: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
+  onMouseMove: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
   onMouseUp: () => void;
-  onClick: (entry: PaletteDraggable, event: ReactMouseEvent) => void;
+  onClick: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
 };
 
-function isTemplate(entry: PaletteDraggable): entry is PaletteSchemaTemplate & { __template: true } {
-  return (entry as any).__template === true;
+function isTemplate(draggable: PaletteDraggable): draggable is PaletteTemplate & { __template: true } {
+  return (draggable as any).__template === true;
 }
 
-/**
- * Drag-vs-click dispatch for palette buttons.
- *
- * A mouse move after mousedown initiates a drag-create; a plain click (no
- * prior drag) dispatches an immediate create. `onBeforeAction` lets the
- * owning component close its flyout before the action fires. Templates
- * route through `palette-start-create-template`; plain types through
- * `palette-start-create`.
- */
+/** Drag-vs-click dispatch for palette buttons; both routes through `executeCommand`. */
 export function usePaletteDrag(
   modeler: any,
   onBeforeAction?: () => void,
@@ -32,45 +24,45 @@ export function usePaletteDrag(
   const mouseDownRef = useRef(false);
   const startedRef = useRef(false);
 
-  const dispatchCreate = (entry: PaletteDraggable, nativeEvent: MouseEvent) => {
-    if (isTemplate(entry)) {
+  const dispatchCreate = (draggable: PaletteDraggable, nativeEvent: MouseEvent) => {
+    if (isTemplate(draggable)) {
       executeCommand(modeler, {
         type: 'palette-start-create-template',
-        templateId: entry.id,
+        templateId: draggable.id,
         event: nativeEvent,
       });
       return;
     }
     executeCommand(modeler, {
       type: 'palette-start-create',
-      bpmnType: entry.bpmnType,
+      bpmnType: draggable.bpmnType,
       event: nativeEvent,
-      attrs: {},
-      studyflowType: entry.studyflowType,
+      attributes: {},
+      extensionType: draggable.extensionType,
     });
   };
 
   return {
-    onMouseDown: (_entry, event) => {
+    onMouseDown: (_draggable, event) => {
       mouseDownRef.current = true;
       startedRef.current = false;
       event.preventDefault();
     },
 
-    onMouseMove: (entry, event) => {
+    onMouseMove: (draggable, event) => {
       if (!modeler) return;
       if (!mouseDownRef.current || startedRef.current) return;
       startedRef.current = true;
       event.preventDefault();
       onBeforeAction?.();
-      dispatchCreate(entry, event.nativeEvent);
+      dispatchCreate(draggable, event.nativeEvent);
     },
 
     onMouseUp: () => {
       mouseDownRef.current = false;
     },
 
-    onClick: (entry, event) => {
+    onClick: (draggable, event) => {
       if (!modeler) return;
       event.preventDefault();
       if (startedRef.current) {
@@ -79,7 +71,7 @@ export function usePaletteDrag(
         return;
       }
       onBeforeAction?.();
-      dispatchCreate(entry, event.nativeEvent);
+      dispatchCreate(draggable, event.nativeEvent);
     },
   };
 }

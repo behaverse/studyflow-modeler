@@ -1,41 +1,24 @@
 import { silenceGetPadDeprecationWarning } from './silenceDeprecationWarning';
+import { TOGGLE_SIMULATION_EVENT } from '../simulation/TokenSimulator';
 import type { ContextPad, EventBus } from '../bpmn-js';
 
-/**
- * Studyflow context-pad provider.
- *
- * Registers with bpmn-js's `contextPad` and removes the built-in
- * append entries (we provide our own via `AppendMenuProvider`).
- * Also closes the pad while token simulation is running.
- */
+/** Filters bpmn-js's contextPad: hides built-in append entries and closes during simulation. */
 export default class StudyflowContextPad {
   static $inject = ['contextPad', 'eventBus'];
 
-  _contextPad: ContextPad;
-  _eventBus: EventBus;
-  _disabled: boolean;
+  private _disabled = false;
 
   constructor(contextPad: ContextPad, eventBus: EventBus) {
-    this._contextPad = contextPad;
-    this._eventBus = eventBus;
-    this._disabled = false;
     contextPad.registerProvider(this);
 
-    // Close the pad when simulation starts, re-enable when it stops.
-    eventBus.on('tokenSimulation.toggle', ({ active }: { active: boolean }) => {
+    eventBus.on(TOGGLE_SIMULATION_EVENT, ({ active }: { active: boolean }) => {
       this._disabled = !!active;
-      if (active && typeof contextPad.close === 'function') {
-        contextPad.close();
-      }
+      if (active) contextPad.close?.();
     });
 
     silenceGetPadDeprecationWarning(contextPad);
   }
 
-  /**
-   * Hide the default append/gateway/intermediate-event entries so our
-   * custom append menu is the only path.
-   */
   getContextPadEntries(_element: any) {
     return (entries: Record<string, any>) => {
       if (this._disabled) return {};

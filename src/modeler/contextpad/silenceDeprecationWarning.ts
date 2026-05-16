@@ -1,13 +1,4 @@
-/**
- * HACK Silence the `ContextPad#getPad is deprecated` warning produced by
- * diagram-js 15.x when used through bpmn-js 18.x. The warning will stop once
- * bpmn-js ships a fix; track progress at
- * https://github.com/bpmn-io/diagram-js/pull/888
- *
- * Wraps `contextPad.getPad` so that any `console.warn` invoked during the
- * original call is filtered to drop the deprecation message. Everything else
- * still logs normally.
- */
+/** Suppresses the diagram-js 15 / bpmn-js 18 `ContextPad#getPad is deprecated` warning; remove once bpmn-io/diagram-js#888 ships. */
 export function silenceGetPadDeprecationWarning(contextPad: { getPad?: (target: any) => any }): void {
   if (typeof contextPad.getPad !== 'function') return;
 

@@ -1,37 +1,26 @@
 import { useEffect, useState } from 'react';
-import { getProperty } from '@/lib/core/extensions/resolve';
 import type { FlowNode } from '@/lib/core/flow';
 import type { Study } from '@/runner/study';
-import type { ValidationIssue } from '../behaverse/types';
-import { type NodeProps } from '@/runner/nodes/types';
+import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
+import { NodePanel } from '../NodePanel';
+import { readString } from '../readAttribute';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 
 declare module '@/runner/types' {
-  interface JobsByKind {
+  interface JobsByType {
     start: StartJob;
   }
 }
 
-export type StartJob = {
-  kind: 'start';
+type StartJob = {
+  type: 'start';
   node: FlowNode;
   consentFormUri?: string;
   studyName?: string;
 };
 
-export function startToJob(node: FlowNode): StartJob {
-  const consentFormUri = (getProperty(node.businessObject, 'consentFormUri') as string) || undefined;
-  const studyName = node.businessObject?.name || undefined;
-  return {
-    kind: 'start',
-    node,
-    consentFormUri,
-    studyName,
-  };
-}
-
-export function Start({ job, log, setVariable, complete, abort }: NodeProps<StartJob>) {
+function Start({ job, log, setVariable, complete, abort }: NodeProps<StartJob>) {
   const [consentText, setConsentText] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const title = job.studyName || 'Study';
@@ -60,66 +49,56 @@ export function Start({ job, log, setVariable, complete, abort }: NodeProps<Star
 
   if (!job.consentFormUri) {
     return (
-      <div className={nodeStyles.card}>
-        <div className={nodeStyles.panel}>
-          <h2 className={nodeStyles.title}>{title}</h2>
-          <p className={nodeStyles.subtitle}>Welcome. Press Begin to start the study.</p>
-          <div className={nodeStyles.actions}>
-            <button
-              type="button"
-              className={nodeStyles.primaryButton}
-              onClick={() => complete()}
-            >
-              Begin
-            </button>
-          </div>
+      <NodePanel>
+        <h2 className={nodeStyles.title}>{title}</h2>
+        <p className={nodeStyles.subtitle}>Welcome. Press Begin to start the study.</p>
+        <div className={nodeStyles.actions}>
+          <button type="button" className={nodeStyles.primaryButton} onClick={() => complete()}>
+            Begin
+          </button>
         </div>
-      </div>
+      </NodePanel>
     );
   }
 
-  const formContent = job.consentFormUri
-    ? consentText ?? fetchError ?? 'Loading consent form...'
-    : 'Please confirm that you consent to participate in this study.';
+  const formContent = consentText ?? fetchError ?? 'Loading consent form...';
 
   return (
-    <div className={nodeStyles.card}>
-      <div className={nodeStyles.panel}>
-        <h2 className={nodeStyles.title}>{title}</h2>
-        <p className={nodeStyles.subtitle}>Informed consent</p>
-        <div className={nodeStyles.consentBox}>{formContent}</div>
-        <div className={nodeStyles.actions}>
-          <button
-            type="button"
-            className={nodeStyles.secondaryButton}
-            onClick={() => {
-              log('skip', 'Participant declined consent.');
-              abort('consent-declined');
-            }}
-          >
-            Decline
-          </button>
-          <button
-            type="button"
-            className={nodeStyles.primaryButton}
-            onClick={() => {
-              setVariable('start.consentGiven', true);
-              complete();
-            }}
-          >
-            I consent
-          </button>
-        </div>
+    <NodePanel>
+      <h2 className={nodeStyles.title}>{title}</h2>
+      <p className={nodeStyles.subtitle}>Informed consent</p>
+      <div className={nodeStyles.consentBox}>{formContent}</div>
+      <div className={nodeStyles.actions}>
+        <button
+          type="button"
+          className={nodeStyles.secondaryButton}
+          onClick={() => {
+            log('skip', 'Participant declined consent.');
+            abort('consent-declined');
+          }}
+        >
+          Decline
+        </button>
+        <button
+          type="button"
+          className={nodeStyles.primaryButton}
+          onClick={() => {
+            setVariable('start.consentGiven', true);
+            complete();
+          }}
+        >
+          I consent
+        </button>
       </div>
-    </div>
+    </NodePanel>
   );
 }
 
-export function validate(study: Study): ValidationIssue[] {
+function validateStartEvents(study: Study): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const node of study.nodes.values()) {
+  for (const node of study.flowNodes.values()) {
     if (node.type !== 'bpmn:StartEvent') continue;
-    const consentFormUri = (getProperty(node.businessObject, 'consentFormUri') as string) || '';
+    const consentFormUri = readString(node, 'consentFormUri') ?? '';
     if (consentFormUri && !/^(https?:|\/)/i.test(consentFormUri)) {
       issues.push({
         nodeId: node.id,
@@ -131,9 +110,14 @@ export function validate(study: Study): ValidationIssue[] {
 }
 
 registerNode({
-  kind: 'start',
+  type: 'start',
   match: { bpmnType: 'bpmn:StartEvent' },
-  toJob: startToJob,
+  toJob: (node) => ({
+    type: 'start',
+    node,
+    consentFormUri: readString(node, 'consentFormUri'),
+    studyName: node.businessObject?.name || undefined,
+  }),
   Component: Start,
-  validate,
+  validate: validateStartEvents,
 });

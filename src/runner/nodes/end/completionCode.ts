@@ -1,8 +1,4 @@
-// Completion-code resolution for the End node. The schema defines three modes
-// (`none`, `static`, `dynamic`). For `dynamic`, the schema's intent is "extract
-// from URL pattern at runtime (e.g. Prolific)" - we honor this by reading
-// known query params off the parent page URL, then fall back to a generated
-// random code so the redirect URL still resolves.
+// `dynamic` mode reads known query params (e.g. Prolific), falling back to a generated code.
 
 const PARAM_NAMES = ['cc', 'completion_code', 'COMPLETION_CODE', 'PROLIFIC_PID'];
 
@@ -15,11 +11,10 @@ export function resolveCompletionCode(
   if (type === 'none') return null;
   if (type === 'static') return staticValue?.trim() || null;
 
-  // dynamic: try known URL params first, otherwise generate.
   const params = new URLSearchParams(window.location.search);
   for (const key of PARAM_NAMES) {
-    const v = params.get(key);
-    if (v && v.trim()) return v.trim();
+    const value = params.get(key);
+    if (value && value.trim()) return value.trim();
   }
   return generateRandomCode(8);
 }
@@ -31,11 +26,11 @@ export function substituteCompletionCode(template: string, code: string | null):
 
 function generateRandomCode(length: number): string {
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  let out = '';
-  const buf = new Uint32Array(length);
-  crypto.getRandomValues(buf);
+  let code = '';
+  const randomBytes = new Uint32Array(length);
+  crypto.getRandomValues(randomBytes);
   for (let i = 0; i < length; i += 1) {
-    out += alphabet[buf[i] % alphabet.length];
+    code += alphabet[randomBytes[i] % alphabet.length];
   }
-  return out;
+  return code;
 }
