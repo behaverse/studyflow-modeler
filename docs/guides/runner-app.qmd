@@ -1,0 +1,62 @@
+---
+title: Running a studyflow
+description: Execute a studyflow end-to-end in the browser
+---
+
+The **Runner** is a companion to the [Modeler app](modeler-app.qmd) that walks a participant through a `.studyflow` diagram one node at a time. It loads the diagram, validates it, then traverses the flow from the `StartEvent` to the `EndEvent`, rendering each activity as a UI step.
+
+## Opening the runner
+
+The runner lives at `run.html` (alongside the modeler at `app.html`). There are three ways to hand it a diagram:
+
+1. **From the Modeler** -- click *Run* in the toolbar. The current diagram is serialized to local storage, the runner opens in a new tab, and the seed is passed through the URL.
+2. **By URL** -- append `?studyflow_url=<absolute or relative URL>` to fetch a hosted `.studyflow` file:
+   ```
+   run.html?studyflow_url=/assets/my-study.studyflow&seed=42
+   ```
+3. **By file upload** -- open `run.html` directly. A landing screen lets you choose a `.studyflow`/`.bpmn`/`.xml` file from disk.
+
+The `seed` query parameter (integer) makes random branches deterministic, which is useful for pilot runs and reproducibility.
+
+## What the runner does
+
+After loading, the runner:
+
+1. **Parses** the XML using the bundled studyflow + cognitive schemas (plus any optional extension schemas the diagram references).
+2. **Pre-fetches the Behaverse runtime manifest** if (and only if) the diagram contains a `BehaverseTask`. Other diagrams skip this network call.
+3. **Validates** the diagram. Each node kind contributes its own validator (missing required attributes, unsupported types, etc.). Issues are listed in the logs and the run is aborted with a `phase=invalid` status.
+4. **Traverses** the diagram starting at the `StartEvent`. Each node yields a *job*; the runner renders the corresponding component and waits for the participant to complete or skip it. On `EndEvent`, the run finishes with `phase=done`.
+
+Gateway behavior:
+
+- **`RandomGateway`** / **`StratifiedAllocationGateway`** -- pick one outgoing branch uniformly at random (seeded by `?seed`). The stratified variant is currently treated as a random pick; stratification logic is reserved for future work.
+- **Exclusive / Inclusive gateway** with `conditionExpression` on an outgoing sequence flow -- the first flow whose expression evaluates truthy wins. Conditions are evaluated against the runtime *variable bag* (nodes call `setVariable(name, value)` to write to it).
+- **No matching condition** -- the gateway's `default` flow is taken if set, otherwise the first un-conditioned outgoing flow, otherwise the first outgoing flow.
+- **`ParallelGateway`** -- not yet supported; the runner throws.
+
+## Built-in node kinds
+
+| Node                  | Matches                                                | Behavior                                                                                       |
+| --------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| **Start**             | `bpmn:StartEvent`                                      | Renders consent screen if `consentFormUri` is set; otherwise advances immediately.             |
+| **End**               | `bpmn:EndEvent`                                        | Issues a completion code (`none`/`static`/`dynamic`) and redirects via `redirectTo` if set.    |
+| **Instruction**       | `cognitive:Instruction`                                | Renders the markdown `content`; participant clicks *Continue*.                                 |
+| **Questionnaire**     | `cognitive:Questionnaire`                              | Renders the chosen `instrument` (PHQ-9, GAD-7, BDI-II ship as built-ins) and stores responses. |
+| **Behaverse Task**    | `behaverse:BehaverseTask`                              | Embeds the Behaverse Unity runtime in an iframe and bridges messages.                          |
+| **Generic Task**      | Any `bpmn:Task` / `UserTask` / `ServiceTask` / etc.    | Fallback step with a *Continue* button.                                                        |
+
+Other element kinds (data references, score gateways, sub-processes that aren't traversed inline, etc.) are skipped at run time -- they affect modeling and analysis, not execution.
+
+## Adding a new node kind
+
+The runner discovers node modules under `src/runner/nodes/<kind>/index.tsx` at startup. Each module calls `registerNode(...)` with a `match` predicate (typically `extensionType: 'myschema:MyType'`), a `toJob(node)` mapper, and a React `Component`. See `src/runner/nodes/README.md` for the full template -- adding a new node kind only requires creating one new folder.
+
+## Logs and debugging
+
+The *Logs* panel (top-right of the runner header) records parsing, validation, and per-node messages. The header also shows the current `phase` (`loading`, `running`, `job:<kind>`, `done`, `aborted`, `invalid`, `error`) and the seed if one was passed.
+
+## What's next
+
+- [Modeler app](modeler-app.qmd) -- how to author a diagram.
+- [Read a studyflow](read-a-studyflow.qmd) -- learn the notation by reading one.
+- [Publish](publish.qmd) -- how to share a diagram so the runner can load it from a URL.

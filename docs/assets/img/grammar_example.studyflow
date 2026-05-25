@@ -20,10 +20,11 @@
       <bpmn2:outgoing>f5</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:sequenceFlow id="f3" name="f3" sourceRef="gw" targetRef="instr" />
-    <studyflow:cognitiveTest id="rest" name="rest" instrument="rest" type="studyflow:CognitiveTest">
+    <bpmn2:task id="rest" name="rest">
+      <bpmn2:extensionElements><cognitive:rest /></bpmn2:extensionElements>
       <bpmn2:incoming>f5</bpmn2:incoming>
       <bpmn2:outgoing>f6</bpmn2:outgoing>
-    </studyflow:cognitiveTest>
+    </bpmn2:task>
     <bpmn2:sequenceFlow id="f5" name="f5" sourceRef="instr" targetRef="rest" />
     <bpmn2:endEvent id="e" name="e">
       <bpmn2:incoming>f6</bpmn2:incoming>

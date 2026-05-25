@@ -7,10 +7,9 @@ This documentation site is built with [Quarto](https://quarto.org/).
 - `index.qmd` -- landing page.
 - `faq.qmd` -- quick answers.
 - `get-started.qmd` -- single read-along tutorial.
-- `guides/` -- task-oriented how-tos (modeler app, save/share, counterbalancing, publishing, preprocessing, schemas).
-- `reference/` -- facts and concepts (why-studyflow, vs-BPMN, elements, data, views, spec, glossary).
+- `guides/` -- task-oriented how-tos (modeler app, runner app, save/share, counterbalancing, publishing, preprocessing, schemas).
+- `reference/` -- facts and concepts (why-studyflow, vs-BPMN, elements, data, views, spec, extensions, glossary).
 - `examples/` -- domain-specific worked examples, tagged Experiments / Analysis.
-- `develop/` -- contributor docs (moddle schemas, dev setup).
 - `roadmap.qmd` -- forward-looking only; changelog lives in GitHub Releases.
 - `assets/` -- images, screenshots, CSS, brand.
 

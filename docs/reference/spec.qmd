@@ -14,11 +14,11 @@ $N$ can be further divided into subsets based on the type of elements ($T$). For
 
 The main components of the $S$ tuple are described in the BPMN 2.1 specification, and studyflow extends them with additional types and attributes to better suit the needs of experimental studies. More specifically:
 
-- $N_A$ (activities) is extended with specific activity types relevant to experimental studies, such as cognitive tests, questionnaires, instructions, rest periods, and video games.
-- $N_G$ (gateways) is extended with a random gateway type, which allows for random assignment of participants to different branches of the study based on specified probabilities or conditions.
-- $N_D$ (data objects) can be used to represent data collected during the study, such as participant responses, physiological measurements, or other relevant data. It also support standard data formats (e.g., BIDS, BDM, Psych-DS) and can include attributes for data validation and preprocessing.
-- $\lambda$ (attributes) is extended to include attributes specific to experimental studies or data analysis, such as metadata (e.g., study name, version), event triggers (e.g., temporal, errors), gateway logic (e.g., randomization probabilities, conditional logics), and implementation details (e.g., links to external scripts or software).
-- $E$ (edges) can include group assignments, indicating which paths participants should follow based on their assigned group.
+- $N_A$ (activities) is extended with specific activity types relevant to experimental studies, such as cognitive tests, questionnaires, instructions, rest periods, video games, and standardized Behaverse tasks. The abstract `DataOperationActivity` augments any BPMN activity with the data-operation marker and input/output variable lists.
+- $N_G$ (gateways) is extended with a random gateway type (`RandomGateway`) for random assignment, a stratified variant (`StratifiedAllocationGateway`) that balances allocation across covariate strata, and an eligibility decision gateway (`EligibilityGateway`) that encodes inclusion/exclusion criteria.
+- $N_D$ (data objects) can be used to represent data collected during the study, such as participant responses, physiological measurements, or other relevant data. It also supports standard data formats (e.g., BIDS, BDM, Psych-DS, Kedro) and the related infrastructure types: `DataCatalog`, `DataStorage`, `Dataset`, `Schema`, `Array`, and `Snapshot`.
+- $\lambda$ (attributes) is extended to include attributes specific to experimental studies or data analysis, such as metadata (e.g., study name, version), event triggers (e.g., temporal, errors), gateway logic (e.g., randomization probabilities, conditional logics), and implementation details (e.g., links to external scripts or software). The studyflow `BaseElement` augments every element with `documentation` (markdown) and a `checklist`.
+- $E$ (edges) can include group assignments, indicating which paths participants should follow based on their assigned group. `SequenceFlow` carries an optional `conditionExpression` for gated branches.
 - $S$ can also include design patterns commonly used in experimental studies, such as counterbalancing, recruitment, exception handling, and data quality checks.
 
 
@@ -36,20 +36,23 @@ The grammar below defines the structure of a studyflow diagram using the EBNF no
 Definitions       ::= Study*
 Study             ::= 'Study' Identifier Attribute* (Element | SequenceFlow)*
 SubProcess        ::= 'SubProcess' Identifier Attribute* (Element | SequenceFlow | DataAssociation)*
-Element           ::= Event | Activity | Gateway | SubProcess | DataObject | Dataset | DataCatalog | Table
+Element           ::= Event | Activity | Gateway | SubProcess
+                    | DataObject | DataCatalog | DataStorage | Dataset
+                    | Schema | Array | Snapshot
 
 /* ========== Events ========== */
 
 Event             ::= StartEvent | EndEvent
-StartEvent        ::= 'StartEvent' Identifier Attribute*
-EndEvent          ::= 'EndEvent' Identifier Attribute*
+StartEvent        ::= 'StartEvent' Identifier Attribute*    /* may carry consentFormUri */
+EndEvent          ::= 'EndEvent' Identifier Attribute*      /* may carry redirectTo, completionCodeType, completionCode */
 
 /* ========== Activities ========== */
 
 Activity              ::= 'Activity' Identifier ActivityAttributeList Choreography?
 ActivityAttributeList ::= ActivityType ActivityAttribute*
 ActivityType          ::= '@type' ('CognitiveTask' | 'Questionnaire' | 'Instruction' |
-                                   'Rest' | 'VideoGame' | 'Script' | 'Manual')
+                                   'Rest' | 'VideoGame' | 'BehaverseTask' |
+                                   'Script' | 'Manual')
 ActivityAttribute     ::= Attribute | DataInput | DataOutput | DataOperation
 
 /* ========== Data transformations ========== */
@@ -61,11 +64,13 @@ CompositeOp        ::= 'Compose' PrimitiveOp+
 
 /* ========== Data elements ========== */
 
-DataCatalog        ::= 'DataCatalog' Identifier Attribute*
-Dataset            ::= 'Dataset' Identifier Attribute* DataCatalog
-Table              ::= 'Table' Identifier Attribute* DatasetRef SchemaRef
-DataObject         ::= 'DataObject' Identifier Attribute*
-DataStore          ::= 'DataStore' Identifier Attribute*
+DataCatalog        ::= 'DataCatalog' Identifier Attribute*               /* url */
+DataStorage        ::= 'DataStorage' Identifier Attribute*               /* persistent physical store */
+Dataset            ::= 'Dataset' Identifier Attribute*                   /* catalog, storage, schema, format */
+Schema             ::= 'Schema' Identifier Attribute*                    /* format, body */
+Array              ::= 'Array' Identifier Attribute*                     /* dataset, schema */
+Snapshot           ::= 'Snapshot' Identifier Attribute*                  /* source, version */
+DataObject         ::= 'DataObject' Identifier Attribute*                /* may carry state */
 DataInput          ::= '@in' NodeRef
 DataOutput         ::= '@out' NodeRef
 
@@ -80,8 +85,10 @@ MessageFlow      ::= 'MessageFlow' Identifier Attribute* ParticipantRef '->' Par
 /* Gateway definitions */
 Gateway          ::= 'Gateway' Identifier GatewayAttribute*
 GatewayAttribute ::= GatewayType | Attribute
-GatewayType      ::= '@type' ('Random' | 'Exclusive' | 'Complex')
+GatewayType      ::= '@type' ('Random' | 'StratifiedAllocation' | 'Eligibility' |
+                              'Exclusive' | 'Parallel' | 'Inclusive' | 'Complex')
 SequenceFlow     ::= 'SequenceFlow' Identifier Attribute* NodeRef '->' NodeRef
+                                                            /* optional conditionExpression */
 
 /* Common definitions */
 Attribute             ::= Identifier Value
@@ -105,26 +112,31 @@ An example studyflow in this formalism is shown below:
 
 ```ini
 Study exampleStudy
+
   StartEvent s
+    consentFormUri "https://example.org/consent.pdf"
 
   Activity qs
     @type Questionnaire
-    language "en"
-    text "What is your age?"
+    instrument phq-9
 
   Gateway gw
     @type Random
-    condition "ageGroup"
+    algorithm probabilistic
+    probabilityFunction uniform
 
   Activity instr
     @type Instruction
-    text "Follow carefully"
+    content "Follow carefully"
 
   Activity rest
     @type Rest
-    duration 5
+    configurations "duration: 5"
 
   EndEvent e
+    redirectTo "https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}"
+    completionCodeType static
+    completionCode "ABCD1234"
 
   SequenceFlow f1 s -> qs
   SequenceFlow f2 qs -> gw
@@ -143,7 +155,7 @@ Which can be visualized as an extended BPMN diagram:
 
 :::
 
-This diagram can also be represented in machine-readable formats:
+This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `VideoGame`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions stay in `studyflow`. Concrete cognitive activities are serialized as a standard `bpmn2:task` with the schema-specific extension element nested inside `extensionElements`:
 
 <details>
 <summary>**XML/BPMN** serialization (click to expand)</summary>
@@ -153,56 +165,64 @@ This diagram can also be represented in machine-readable formats:
 <bpmn2:definitions
   xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
   xmlns:studyflow="http://behaverse.org/schemas/studyflow"
+  xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
   id="example-diagram">
-  <studyflow:study id="exampleStudy" isExecutable="false">
+  <bpmn2:process id="exampleStudy" isExecutable="true">
+    <bpmn2:extensionElements>
+      <studyflow:study />
+    </bpmn2:extensionElements>
     <bpmn2:startEvent id="s" name="s">
+      <bpmn2:extensionElements>
+        <studyflow:startEvent consentFormUri="https://example.org/consent.pdf" />
+      </bpmn2:extensionElements>
       <bpmn2:outgoing>f1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <studyflow:questionnaire
-        id="qs"
-        name="qs"
-        type="studyflow:Questionnaire"
-        language="en"
-        text="What is your age?">
+    <bpmn2:task id="qs" name="qs">
+      <bpmn2:extensionElements>
+        <cognitive:questionnaire instrument="phq-9" />
+      </bpmn2:extensionElements>
       <bpmn2:incoming>f1</bpmn2:incoming>
       <bpmn2:outgoing>f2</bpmn2:outgoing>
-    </studyflow:questionnaire>
-    <bpmn2:sequenceFlow id="f1" name="f1" sourceRef="s" targetRef="qs" />
-    <studyflow:randomGateway
-        id="gw"
-        name="gw"
-        type="studyflow:RandomGateway"
-        condition="ageGroup">
+    </bpmn2:task>
+    <bpmn2:sequenceFlow id="f1" sourceRef="s" targetRef="qs" />
+    <bpmn2:exclusiveGateway id="gw" name="gw">
+      <bpmn2:extensionElements>
+        <cognitive:randomGateway algorithm="probabilistic" probabilityFunction="uniform" />
+      </bpmn2:extensionElements>
       <bpmn2:incoming>f2</bpmn2:incoming>
       <bpmn2:outgoing>f3</bpmn2:outgoing>
       <bpmn2:outgoing>f4</bpmn2:outgoing>
-    </studyflow:randomGateway>
-    <bpmn2:sequenceFlow id="f2" name="f2" sourceRef="qs" targetRef="gw" />
-    <studyflow:instruction
-        id="instr"
-        name="instr"
-        type="studyflow:Instruction"
-        text="Follow carefully">
+    </bpmn2:exclusiveGateway>
+    <bpmn2:sequenceFlow id="f2" sourceRef="qs" targetRef="gw" />
+    <bpmn2:task id="instr" name="instr">
+      <bpmn2:extensionElements>
+        <cognitive:instruction content="Follow carefully" />
+      </bpmn2:extensionElements>
       <bpmn2:incoming>f3</bpmn2:incoming>
       <bpmn2:outgoing>f5</bpmn2:outgoing>
-    </studyflow:instruction>
-    <bpmn2:sequenceFlow id="f3" name="f3" sourceRef="gw" targetRef="instr" />
-    <studyflow:rest
-        id="rest"
-        name="rest"
-        type="studyflow:Rest"
-        duration="5">
+    </bpmn2:task>
+    <bpmn2:sequenceFlow id="f3" sourceRef="gw" targetRef="instr" />
+    <bpmn2:task id="rest" name="rest">
+      <bpmn2:extensionElements>
+        <cognitive:rest>duration: 5</cognitive:rest>
+      </bpmn2:extensionElements>
       <bpmn2:incoming>f5</bpmn2:incoming>
       <bpmn2:outgoing>f6</bpmn2:outgoing>
-    </studyflow:rest>
-    <bpmn2:sequenceFlow id="f5" name="f5" sourceRef="instr" targetRef="rest" />
+    </bpmn2:task>
+    <bpmn2:sequenceFlow id="f5" sourceRef="instr" targetRef="rest" />
     <bpmn2:endEvent id="e" name="e">
+      <bpmn2:extensionElements>
+        <studyflow:endEvent
+          redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}"
+          completionCodeType="static"
+          completionCode="ABCD1234" />
+      </bpmn2:extensionElements>
       <bpmn2:incoming>f6</bpmn2:incoming>
       <bpmn2:incoming>f4</bpmn2:incoming>
     </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="f6" name="f6" sourceRef="rest" targetRef="e" />
-    <bpmn2:sequenceFlow id="f4" name="f4" sourceRef="gw" targetRef="e" />
-  </studyflow:study>
+    <bpmn2:sequenceFlow id="f6" sourceRef="rest" targetRef="e" />
+    <bpmn2:sequenceFlow id="f4" sourceRef="gw" targetRef="e" />
+  </bpmn2:process>
 </bpmn2:definitions>
 ```
 
@@ -214,38 +234,39 @@ This diagram can also be represented in machine-readable formats:
 
 ```yaml
 study:
-  @id: exampleStudy
+  '@id': exampleStudy
+  isExecutable: true
   elements:
-    - @type: bpmn2:StartEvent
-      @id: s
+    - '@type': bpmn2:StartEvent
+      '@id': s
+      consentFormUri: https://example.org/consent.pdf
       outgoing: [f1]
-    - @type: studyflow:Questionnaire
-      @id: qs
-      attributes:
-        - language: en
-        - text: What is your age?
+    - '@type': cognitive:Questionnaire
+      '@id': qs
+      instrument: phq-9
       incoming: [f1]
       outgoing: [f2]
-    - @type: studyflow:RandomGateway
-      @id: gw
-      attributes:
-        - condition: ageGroup
+    - '@type': cognitive:RandomGateway
+      '@id': gw
+      algorithm: probabilistic
+      probabilityFunction: uniform
       incoming: [f2]
       outgoing: [f3, f4]
-    - @type: studyflow:Instruction
-      @id: instr
-      attributes:
-        - text: Follow carefully
+    - '@type': cognitive:Instruction
+      '@id': instr
+      content: Follow carefully
       incoming: [f3]
       outgoing: [f5]
-    - @type: studyflow:Rest
-      @id: rest
-      attributes:
-        - duration: 5
+    - '@type': cognitive:Rest
+      '@id': rest
+      configurations: "duration: 5"
       incoming: [f5]
       outgoing: [f6]
-    - @type: bpmn2:EndEvent
-      @id: e
+    - '@type': bpmn2:EndEvent
+      '@id': e
+      redirectTo: "https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}"
+      completionCodeType: static
+      completionCode: ABCD1234
       incoming: [f4, f6]
 ```
 </details>

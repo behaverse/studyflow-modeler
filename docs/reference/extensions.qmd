@@ -8,17 +8,20 @@ This page is for **contributors** extending the Studyflow language with new elem
 
 Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
 
-- `studyflow.moddle.yaml` -- the core Studyflow language.
-- `behaverse.moddle.yaml`, `datatrove.moddle.yaml`, `galea.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions.
+- `studyflow.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`DataOperationActivity` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
+- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`). Split out of `studyflow` so adopters can swap the cognitive layer without touching the core.
+- `behaverse.moddle.yaml`, `datatrove.moddle.yaml`, `galea.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions you can enable from the modeler's schema palette.
 
 ## Core structure
 
 Studyflow moddle YAML files follow this top-level layout:
 
 ```yaml
-name: Studyflow Schema
-uri: http://behaverse.org/schemas/studyflow
+name: Studyflow
 prefix: studyflow
+description: Core BPMN extension for modeling research processes.
+uri: http://behaverse.org/schemas/studyflow
+icon: https://example.org/schema-icon.png    # optional, shown in the modeler
 xml:
   tagAlias: lowerCase
 associations: []
@@ -27,39 +30,92 @@ types: []
 examples: []
 ```
 
+The `description` is shown in the schema palette. The optional `icon` (URL or `iconify <name>`) appears next to the schema name.
+
+## Enumerations
+
+`enumerations` define reusable closed value lists referenced from properties via `type:`.
+
+```yaml
+enumerations:
+  - name: CompletionCodeTypeEnum
+    isAbstract: true
+    description: How the completion code is generated when the study ends.
+    literalValues:
+      - name: None
+        value: none
+        description: No completion code is issued.
+      - name: Static
+        value: static
+      - name: Dynamic
+        value: dynamic
+```
+
+Properties typed with an enum can opt into free-text entry alongside the enum values by setting `meta.editable: true`.
+
 ## Types and properties
 
-Each moddle type defines a domain element plus the properties shown in the modeler. For example:
+Each moddle type defines a domain element plus the properties shown in the inspector. Two relationships compose types:
+
+- **`extends`** -- pure mixin onto an existing BPMN class. Use it when you only want to *add* attributes to a BPMN base (e.g. extend `bpmn:StartEvent` with `consentFormUri`) without creating a new visual element.
+- **`superClass`** -- class inheritance. Use it when defining a new concrete element. List the BPMN base first (e.g. `bpmn:Task`, `bpmn:ExclusiveGateway`, `bpmn:DataStoreReference`) and add `bpmn:BaseElement` so the inspector picks up the standard metadata fields.
+
+Pair `superClass` with `meta.bpmnType` so the modeler knows which BPMN shape to render.
 
 ```yaml
 types:
   - name: StartEvent
-    superClass:
-      - Element
+    extends:
+      - bpmn:StartEvent
     meta:
-      bpmnType: bpmn:StartEvent
+      icon: iconify bpmn--start-event
     properties:
-      - name: requiresConsent
-        type: Boolean
+      - name: consentFormUri
+        description: Link to the consent form. Untick to skip the consent step entirely.
         isAttr: true
-        default: false
-        categories: [Privacy]
+        type: String
+        meta:
+          pinned: false
+          optional: true
+          categories:
+            - Privacy
+
+  - name: RandomGateway
+    description: Randomly assigns participants to one of the outgoing branches.
+    superClass:
+      - bpmn:ExclusiveGateway
+      - bpmn:BaseElement
+    meta:
+      icon: iconify streamline-flex--dice-5
+      bpmnType: bpmn:ExclusiveGateway
+    properties:
+      - name: algorithm
+        isAttr: true
+        type: studyflow:AssignmentAlgorithmEnum
+        default: probabilistic
+        meta:
+          categories:
+            - Assignment
 ```
 
-## Extensions
+### Property modifiers
 
-Property entries carry moddle behavior directly.
+Property entries carry moddle behavior directly:
 
-- `redefines`
-- `replaces`
-- `default`
-- `isMany`
+- `isAttr: true` -- serialized as an XML attribute (most scalar properties).
+- `isBody: true` -- serialized as the element's text body. Used for free-form content like YAML `configurations`.
+- `isMany: true` -- repeated property (rendered as a list in the inspector).
+- `default` -- initial value.
+- `redefines` -- override the type or default of an inherited property (e.g. `redefines: bpmn:Process#isExecutable`).
+- `replaces` -- replace an inherited property entirely.
 
-Studyflow-specific modeler behavior is also stored directly on the property.
+Studyflow-specific modeler behavior lives under `meta` on the property:
 
-- `hidden`
-- `condition.language`
-- `condition.body`
+- `meta.pinned: true` -- always visible in the inspector summary.
+- `meta.optional: true` -- the inspector shows a checkbox to opt the property in.
+- `meta.editable: true` -- enum properties also accept free-text entries.
+- `meta.categories: [Privacy]` -- tab the property lives under in the inspector.
+- `meta.condition.language: json` + `meta.condition.body: { otherField: value }` -- visibility predicate; the property only appears when other fields match.
 
 ## Examples
 
@@ -147,10 +203,15 @@ These attributes are not added back onto the original schema class. Instead, the
 
 If the same example also includes undeclared scalar properties such as `param1: value1`, those are inferred onto the same example-scoped derived type rather than onto the parent schema class.
 
+## Cross-schema references
+
+Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:DataOperationActivity`. The cognitive schema, for example, refers to `studyflow:DataOperationActivity#isDataOperation` when pinning the data-operation marker off for activities like `CognitiveTask`.
+
 ## Common mistakes
 
 - Prefix mismatch: type references using the wrong prefix (for example `studyflow:` vs local names).
 - Missing `type`: moddle properties without a type often fall back to string-like behavior and may produce unintended interfaces.
+- Mixing up `extends` and `superClass`: use `extends` to mix attributes onto an existing BPMN base; use `superClass` to define a new concrete type that inherits behavior.
 - Incorrect BPMN mapping: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
 - Invalid condition shape: malformed `condition.body` JSON disables conditional visibility.
 - Incorrect `redefines` owner: invalid targets are dropped.

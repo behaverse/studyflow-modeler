@@ -6,7 +6,7 @@ order: 3
 
 This page is a reference catalog. For deeper concept material, see [Why Studyflow](why-studyflow.qmd) and [Studyflow vs BPMN](studyflow-vs-bpmn.qmd). For worked examples that use these elements in context, see:
 
-- [Cognitive tasks](../examples/cognitive-tasks/index.qmd) -- `CognitiveTask`, timer events, trial-level structure.
+- [Cognitive tasks](../examples/cognitive-tasks.qmd) -- `CognitiveTask`, timer events, trial-level structure.
 - [CONSORT](../examples/consort.qmd) -- boundary error events, dropout handling.
 - [Data collection](../examples/data-collection.qmd) -- questionnaires, parallel gateways, consent.
 - [Analysis pipelines](../examples/analysis.qmd) -- data operations, schemas, exclusive gateways.
@@ -16,18 +16,28 @@ This page is a reference catalog. For deeper concept material, see [Why Studyflo
 The main element of a studyflow diagram is the *Study*, which serves as a container for all other elements:
 
 ::: {layout-ncol=1}
-![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows.](../assets/img/elements/study.svg)
+![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows. Has `runtime` (`cloud`/`local`/`hpc`), `authors`, and the inherited `isExecutable` properties.](../assets/img/elements/study.svg)
 :::
 
-Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*.
+Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*. Every element also carries the studyflow `BaseElement` attributes `documentation` (markdown) and `checklist` (markdown items).
+
+## Schemas
+
+Studyflow elements ship in a layered set of moddle schemas:
+
+- **`studyflow`** (core): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `DataOperationActivity`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
+- **`cognitive`** (core): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`).
+- **`behaverse`**, **`omniprocess`**, **`datatrove`**, **`galea`** (optional): domain extensions enabled from the modeler's schema palette.
+
+See [Extensions](extensions.qmd) for how to author your own schema.
 
 ## Events
 
 
 ::: {layout-ncol=2}
-![**Start Event** defines the beginning of the workflow. It can be conditioned on participants giving informed consent, supporting the ethical and legal requirements.](../assets/img/elements/start_event.svg)
+![**Start Event** defines the beginning of the workflow. Optional `consentFormUri` (URL of a consent form) gates entry on informed consent at runtime; leave it unset to skip the consent step entirely.](../assets/img/elements/start_event.svg)
 
-![**End Event** marks the conclusion of the workflow, indicating the completion of all steps within the study. It can redirect to a different workflow or terminate the study, typically after all the data has been collected.](../assets/img/elements/end_event.svg)
+![**End Event** marks the conclusion of the workflow. Optional `redirectTo` URL redirects the participant on completion; supports `{COMPLETION_CODE}` placeholder. `completionCodeType` is `none`, `static` (fixed code), or `dynamic` (extracted from URL at runtime, e.g. Prolific).](../assets/img/elements/end_event.svg)
 :::
 
 
@@ -36,50 +46,55 @@ Within a *Study* element, you can define various elements. In addition to the st
 
 
 ::: {layout-ncol=2}
-![**Instructions** provide detailed guidelines and information to participants about the study procedures.](../assets/img/elements/instruction.svg)
+![**Instructions** display passive information (markdown `content`) to participants. Inherits from `Questionnaire` but uses an `instruction` instrument.](../assets/img/elements/instruction.svg)
 
-![**Questionnaires** are used to gather self-reported data from participants.](../assets/img/elements/questionnaire.svg)
+![**Questionnaires** gather self-reported data. The `instrument` enum covers common standardized instruments (PHQ-9, GAD-7, BDI-II, STAI, PSS, WHO-5, BFI, DASS-21, PANAS) and accepts custom identifiers.](../assets/img/elements/questionnaire.svg)
 
-![**Cognitive Tests** represent various cognitive assessment tests within the experiment.](../assets/img/elements/cognitive_task.svg)
+![**Cognitive Tasks** deliver cognitive assessments. The `instrument` enum covers PsychoPy, jsPsych, lab.js, OpenSesame (and accepts custom IDs). `configurations` is instrument-specific YAML embedded in the diagram.](../assets/img/elements/cognitive_task.svg)
 
-![**Video Games** are interactive games as part of the experimental paradigm.](../assets/img/elements/video_game.svg)
+![**Video Games** are interactive games used as experimental paradigms. `instrument` identifies the engine (e.g. `unity`, `godot`, `web`); `configurations` is engine-specific YAML.](../assets/img/elements/video_game.svg)
 
-![**Behaverse Tasks** are standardized cognitive tests covering a range of attentional, perceptual, cognitive and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for a list.](../assets/img/elements/behaverse_task.svg)
+![**Behaverse Tasks** are standardized cognitive tests covering attentional, perceptual, cognitive, and motor abilities. See [Behaverse assessment](https://behaverse.org/projects/cognitive-tests.html) for the catalog. Provided by the optional `behaverse` schema.](../assets/img/elements/behaverse_task.svg)
 
-![**Rest** periods are intervals of inactivity or minimal activity within the workflow, often used for baseline measurements or to provide breaks between activities. This element can also be used to record resting-state signals.](../assets/img/elements/rest.svg)
+![**Rest** periods are intervals of inactivity or minimal activity, often used for baseline measurements, breaks, or resting-state recordings (e.g. resting EEG/fMRI). `configurations` holds e.g. duration and eyes-open/closed.](../assets/img/elements/rest.svg)
 :::
 
-## Element-to-schema mapping
-
-Each visual element in the modeler maps to a type definition in the Studyflow moddle schemas.
-
-- Event elements map to types such as `StartEvent` and `EndEvent`, then to moddle entries for BPMN event types.
-- Activity elements (e.g., `Instruction`, `Questionnaire`, `CognitiveTask`) map to types with domain-specific attributes shown in the inspector.
-- Gateway elements map to types like `RandomGateway`, with control-flow attributes encoded in schema properties.
-- Data elements map to types such as `Dataset`, `Table`, and `DataCatalog`.
-
+In addition, the abstract `DataOperationActivity` augments any BPMN activity with `isDataOperation`, `inputs`, and `outputs`. Subtypes pin the flag: `CognitiveTask`, `Questionnaire`, `VideoGame`, and `Rest` fix it to `false`; data operators from `omniprocess`/`datatrove` fix it to `true`.
 
 ## Gateways
 
 
 ::: {layout-ncol=2}
-![**Random Gateway** represents a randomizer at a decision point in the workflow where only one of several possible paths can be taken.](../assets/img/elements/random_gateway.svg)
+![**Random Gateway** randomly routes participants to one of the outgoing branches. `algorithm` is `probabilistic` or `round-robin`; `probabilityFunction` defines the distribution (default `uniform`).](../assets/img/elements/random_gateway.svg)
 
 ![Example use of *Random Gateway* to branch a flow.](../assets/img/elements/random_gateway_pattern.svg)
 :::
 
+Two additional gateways are provided by the `cognitive` schema (no dedicated icons -- they render as exclusive gateways with distinguishing markers in the modeler):
+
+- **`StratifiedAllocationGateway`** -- stratified random assignment. Partitions the cohort by a `stratificationVariable` (e.g. `age_band`, `sex`, `baseline_score`) and allocates independently within each stratum. Useful when the design requires balanced allocation across covariates.
+- **`EligibilityGateway`** -- encodes inclusion/exclusion criteria. Participants meeting `inclusionCriteria` (and none of `exclusionCriteria`) proceed; others are routed to a screen-out branch. Criteria are markdown lists.
+
+For control-flow gateways, Studyflow also uses standard BPMN gateways (`ExclusiveGateway`, `ParallelGateway`, `InclusiveGateway`).
 
 ## Data
 
 
 ::: {layout-ncol=2}
-![**Data Store** and **Dataset** persist data (e.g., events, trials, etc) and facilitate the integration of standard data models. See [the **Data** reference page](data.qmd) for more details.](../assets/img/elements/dataset.svg)
+![**Dataset** is a logical collection of data registered in a `DataCatalog` and stored in a `DataStorage`. Carries a `format` (BDM, BIDS, Psych-DS, Kedro), an optional `schema`, and format-specific properties (e.g. `bidsDataType`, `bdmDataLevel`).](../assets/img/elements/dataset.svg)
 
-![**Data Object** represents any data entity within the workflow, such as files, data, or data streams. It can be used to model inputs and outputs of activities and data transformations.](../assets/img/elements/data_object.svg)
+![**Data Object** represents data flowing through the process (a file, message, or stream). State annotations (e.g. `[raw]`, `[processed]`) capture lifecycle.](../assets/img/elements/data_object.svg)
 :::
 
+The full data-element vocabulary (with definitions, attributes, and operations) lives in the dedicated [Data reference](data.qmd):
 
-The current version studyflow includes built-in support for several data models commonly used in cognitive sciences, including:
+- **`DataCatalog`** -- persistent registry of datasets (e.g. `openneuro`, `behaverse`).
+- **`DataStorage`** -- persistent physical storage (database, filesystem, object store). Referenced via `DataStoreReference`.
+- **`Schema`** -- formal structure for a named collection of types (CSVW columns for tables; dimensions/types for arrays). Carries `format` and inline `body`.
+- **`Array`** -- multi-dimensional tensor (images, videos, fMRI). Expects a `schema`.
+- **`Snapshot`** -- immutable version of a dataset, table, or array. Carries `source` and `version`.
+
+The current version of Studyflow includes built-in support for several data models commonly used in cognitive sciences:
 
 
 ::: {layout-ncol=2}
@@ -95,3 +110,12 @@ The current version studyflow includes built-in support for several data models 
 
 ![[Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/)](../assets/img/elements/dataset.svg)
 :::
+
+## Element-to-schema mapping
+
+Each visual element in the modeler maps to a type definition in one of the Studyflow moddle schemas under `src/assets/schemas/`:
+
+- Event elements (`StartEvent`, `EndEvent`) live in `studyflow.moddle.yaml` and extend the corresponding BPMN event types.
+- Activity elements (`Instruction`, `Questionnaire`, `CognitiveTask`, `VideoGame`, `Rest`) live in `cognitive.moddle.yaml` and map to `bpmn:Task` with domain attributes shown in the inspector.
+- Gateway elements (`RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`) live in `cognitive.moddle.yaml` and map to `bpmn:ExclusiveGateway`.
+- Data elements (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`) live in `studyflow.moddle.yaml`; tabular and tensor structures map onto BPMN data references.
