@@ -165,7 +165,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
   const modal = (
     <div className={s.modalOverlay}>
       <div className={s.modalBackdrop} onClick={close} />
-      <div role="dialog" aria-modal="true" className={s.modal} style={{ maxWidth: 720 }}>
+      <div role="dialog" aria-modal="true" className={s.modal}>
         <div className={s.modalHeader}>
           <h3 className={s.modalTitle}>Edit columns — {t(attributeName)}</h3>
           <button className={s.modalClose} onClick={close}>
@@ -173,46 +173,47 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
           </button>
         </div>
 
-        <div className={s.modalSection}>
-          <div className="flex items-center justify-between gap-3 pb-2">
-            <div className="flex items-center gap-3 text-sm">
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="schema-format"
-                  value="csvw"
-                  checked={format === 'csvw'}
-                  onChange={() => setFormat('csvw')}
-                />
-                CSVW JSON-LD
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="schema-format"
-                  value="linkml"
-                  checked={format === 'linkml'}
-                  onChange={() => setFormat('linkml')}
-                />
-                LinkML YAML
-              </label>
+        <div className={s.modalBody}>
+          <div className={s.modalSection}>
+            <div className="flex items-center justify-between gap-3 pb-2">
+              <div className="flex items-center gap-3 text-sm">
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="schema-format"
+                    value="csvw"
+                    checked={format === 'csvw'}
+                    onChange={() => setFormat('csvw')}
+                  />
+                  CSVW JSON-LD
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="schema-format"
+                    value="linkml"
+                    checked={format === 'linkml'}
+                    onChange={() => setFormat('linkml')}
+                  />
+                  LinkML YAML
+                </label>
+              </div>
+              <button
+                type="button"
+                className="text-xs text-stone-500 hover:text-stone-900"
+                onClick={() => setShowSource((v) => !v)}
+              >
+                {showSource ? 'Hide source' : 'View source'}
+              </button>
             </div>
-            <button
-              type="button"
-              className="text-xs text-stone-500 hover:text-stone-900"
-              onClick={() => setShowSource((v) => !v)}
-            >
-              {showSource ? 'Hide source' : 'View source'}
-            </button>
-          </div>
 
-          {showSource ? (
-            <pre className="bg-stone-50 border border-black/[0.06] rounded p-3 text-[11px] overflow-x-auto max-h-[40vh]">
-              {sourcePreview}
-            </pre>
-          ) : (
-            <div className="overflow-x-auto border border-black/[0.06] rounded">
-              <table className="w-full text-sm">
+            {showSource ? (
+              <pre className="bg-stone-50 border border-black/[0.06] rounded p-3 text-[11px] overflow-auto">
+                {sourcePreview}
+              </pre>
+            ) : (
+              <div className="overflow-x-auto border border-black/[0.06] rounded">
+                <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500">
                     <th className="px-2 py-1.5 w-8"></th>
@@ -315,6 +316,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         <div className={s.modalActions}>

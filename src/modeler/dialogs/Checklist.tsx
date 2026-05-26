@@ -105,8 +105,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
             </DialogTitle>
             {totalCheckboxes > 0 && (
               <p className="text-xs text-stone-500 pb-3">
-                <strong>{totalChecked}</strong> of <strong>{totalCheckboxes}</strong> checkbox
-                items complete.
+                <strong>{totalChecked}</strong> of <strong>{totalCheckboxes}</strong> items complete.
               </p>
             )}
             {groups.length === 0 ? (
@@ -114,7 +113,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
                 No elements in this diagram carry a checklist attribute yet.
               </p>
             ) : (
-              <ul className="space-y-4 max-h-[60vh] overflow-y-auto">
+              <ul className={`${d.panelBody} space-y-4`}>
                 {groups.map((g) => (
                   <li key={g.id} className="border border-black/[0.06] rounded-lg p-3 bg-white/40">
                     <div className="flex items-baseline justify-between gap-3 pb-2">

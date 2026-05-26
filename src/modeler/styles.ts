@@ -244,18 +244,28 @@ export const codeEditor = {
   // Overlay sits above the inspector (z-[220]) and inspector toggle (z-[230]),
   // and above the Headless UI dialog root (z-[240]/z-[250]) so the editor
   // covers any palette/inspector content it might be opened from.
-  modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-4 backdrop-blur-xs',
-  modalBackdrop: 'absolute',
-  modal: 'relative z-[270] bg-cream-100 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_24px_72px_rgba(0,0,0,0.16)] border border-black/[0.06] w-full max-w-4xl max-h-[90vh] overflow-auto',
-  modalHeader: 'px-4 py-3 flex justify-between items-center border-b border-black/[0.06]',
+  modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-2 sm:p-4 md:p-6 backdrop-blur-xs',
+  modalBackdrop: 'absolute inset-0',
+  // Editor-class modal: fills most of the viewport on desktop, hugs the edges
+  // on mobile. flex-col so the body section can grow with the available height.
+  modal: `relative z-[270] bg-cream-100 ${radius.capsule} ${shadow.sheet} border border-black/[0.06]
+          flex flex-col
+          w-full max-w-6xl
+          h-[min(92vh,900px)] max-h-[92vh]`,
+  modalHeader: 'px-4 sm:px-5 py-3 flex justify-between items-center border-b border-black/[0.06] shrink-0',
   modalTitle: 'text-[15px] font-semibold tracking-tight text-stone-900',
   modalClose: 'text-sm text-stone-500 hover:text-stone-800 cursor-pointer',
-  modalSection: 'p-4',
+  /** Body wrapper containing all sections. Grows to fill remaining height. */
+  modalBody: 'flex-1 min-h-0 flex flex-col overflow-y-auto',
+  modalSection: 'px-4 sm:px-5 py-3',
+  /** Section that should fill remaining vertical space (e.g. the editor frame). */
+  modalSectionGrow: 'px-4 sm:px-5 py-3 flex-1 min-h-0 flex flex-col',
   modalSubLabel: 'block text-sm font-medium mb-2 text-stone-700',
   modalLanguageSelect: 'appearance-none p-2 w-full rounded-md border border-black/[0.08] text-sm text-stone-800 bg-cream-200',
-  modalEditorFrame: 'w-full h-[40vh] max-h-[50vh] overflow-auto rounded-lg bg-cream-200 border border-black/[0.06] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-cream-400',
+  // Fills available height instead of a fixed 40vh.
+  modalEditorFrame: 'flex-1 min-h-[200px] w-full overflow-auto rounded-lg bg-cream-200 border border-black/[0.06] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-cream-400',
   modalEditor: 'min-h-full font-mono text-sm/6 text-stone-900',
-  modalActions: 'p-4 flex justify-end gap-2 border-t border-black/[0.06]',
+  modalActions: 'px-4 sm:px-5 py-3 flex justify-end gap-2 border-t border-black/[0.06] shrink-0',
   modalCancelBtn: 'px-3 py-1.5 rounded-lg cursor-pointer text-stone-700 hover:bg-black/[0.05]',
   modalSaveBtn: 'px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-cream-50 rounded-lg cursor-pointer font-medium',
 } as const;
@@ -271,7 +281,7 @@ export const modeler = {
   canvas: `grow ${surface.canvas}`,
 } as const;
 
-// --- Dialog primitives (Login / Publish / Examples) 
+// --- Dialog primitives (Login / Publish / Examples)
 
 export const dialog = {
   /** Headless UI <Dialog> root. Sits above the inspector (`z-[220]`) and its
@@ -280,16 +290,29 @@ export const dialog = {
   root: 'relative z-[240] focus:outline-none',
   /** Backdrop overlay covering the viewport with a blur. */
   backdrop: 'fixed backdrop-blur inset-0 z-10 w-screen overflow-y-auto',
-  /** Centered layout for the panel inside the backdrop. */
-  centerLayout: 'flex min-h-full items-center justify-center p-4',
+  /** Centered layout for the panel inside the backdrop. Padding scales down on
+   * small viewports so the panel can hug the edges on mobile. */
+  centerLayout: 'flex min-h-full items-center justify-center p-2 sm:p-4',
 
   /**
    * Solid sheet - cream-100 with hairline border + sheet shadow.
-   * Combine with `panelMd` / `panelLg` for width.
+   * Combine with `panelSm` / `panelMd` / `panelLg` / `panelXl` for width.
+   * `flex-col` + bounded max-height lets a `panelBody` child scroll while
+   * keeping the header/footer pinned.
    */
-  panel: `${radius.capsule} ${surface.sheet} border border-black/[0.06] p-7 ${shadow.sheet} duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]`,
-  panelMd: 'w-full max-w-md',
-  panelLg: 'w-full max-w-2xl',
+  panel: `${radius.capsule} ${surface.sheet} border border-black/[0.06] p-5 sm:p-6 md:p-7 ${shadow.sheet} duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]
+          flex flex-col max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)]`,
+  /** ~28rem - tight forms (Publish). */
+  panelSm: 'w-full max-w-md',
+  /** ~42rem - alias for the previous `panelLg`; kept for compatibility. */
+  panelMd: 'w-full max-w-2xl',
+  /** ~56rem - list / view dialogs (Examples, Checklist, Gantt). */
+  panelLg: 'w-full max-w-4xl',
+  /** ~72rem - very wide views; rarely needed outside the editor-class modal. */
+  panelXl: 'w-full max-w-6xl',
+  /** Scrollable body region inside a panel. Grows to fill remaining height
+   * and provides its own vertical scrollbar so the title/footer stay put. */
+  panelBody: 'flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
 
   title: 'text-[17px] tracking-tight text-stone-900 font-semibold',
   closeButton: 'text-sm/6 text-stone-500 hover:text-stone-900 ml-2 float-end cursor-pointer transition-colors',
@@ -352,7 +375,7 @@ export const commandPalette = {
 // --- Examples-dialog list cards
 
 export const examplesList = {
-  list: 'space-y-1.5 max-h-[60vh] overflow-y-auto',
+  list: 'space-y-1.5 flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
   empty: 'text-sm text-stone-500 italic py-10 text-center',
   item: `w-full text-left ${radius.card} ${surface.card} border border-black/[0.06] hover:bg-cream-300 hover:border-black/[0.10] disabled:opacity-50 disabled:cursor-not-allowed transition-all p-4 cursor-pointer`,
   itemHeader: 'flex items-baseline justify-between gap-3',

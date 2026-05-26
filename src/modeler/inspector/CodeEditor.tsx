@@ -38,23 +38,25 @@ export function CodeEditor({ attrDef }: { attrDef: any }) {
             <i className="iconify bi--x-lg cursor-pointer"></i>
           </button>
         </div>
-        <div className={s.modalSection}>
-          <label className={s.modalSubLabel}>Language</label>
-          <Select value="YAML" disabled className={s.modalLanguageSelect}>
-            <option value="YAML">YAML</option>
-          </Select>
-        </div>
-        <div className={s.modalSection}>
-          <label className={s.modalSubLabel}>Body</label>
-          <div className={s.modalEditorFrame}>
-            <Editor
-              value={modalValue}
-              onValueChange={setModalValue}
-              highlight={(code) => Prism.highlight(code, Prism.languages.yaml, 'yaml')}
-              padding={{ top: 6, right: 12, bottom: 6, left: 12 }}
-              textareaClassName="focus:outline-none"
-              className={s.modalEditor}
-            />
+        <div className={s.modalBody}>
+          <div className={s.modalSection}>
+            <label className={s.modalSubLabel}>Language</label>
+            <Select value="YAML" disabled className={s.modalLanguageSelect}>
+              <option value="YAML">YAML</option>
+            </Select>
+          </div>
+          <div className={s.modalSectionGrow}>
+            <label className={s.modalSubLabel}>Body</label>
+            <div className={s.modalEditorFrame}>
+              <Editor
+                value={modalValue}
+                onValueChange={setModalValue}
+                highlight={(code) => Prism.highlight(code, Prism.languages.yaml, 'yaml')}
+                padding={{ top: 6, right: 12, bottom: 6, left: 12 }}
+                textareaClassName="focus:outline-none"
+                className={s.modalEditor}
+              />
+            </div>
           </div>
         </div>
         <div className={s.modalActions}>

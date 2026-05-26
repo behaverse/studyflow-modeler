@@ -212,9 +212,9 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                 No elements in this diagram carry temporal attributes yet.
               </p>
             ) : (
-              <div className="max-h-[60vh] overflow-y-auto space-y-5 pr-2">
+              <div className={`${d.panelBody} space-y-5 pr-2`}>
                 {groups.map(([groupLabel, groupRows]) => (
-                  <section key={groupLabel}>
+                  <section key={groupLabel} className="overflow-x-auto">
                     <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-500 pb-1">
                       {groupLabel}
                     </h4>
