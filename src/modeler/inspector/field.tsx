@@ -6,6 +6,7 @@ import { BooleanInput } from './BooleanInput';
 import { EnumInput } from './EnumInput';
 import { ArrayInput } from './ArrayInput';
 import { OptionalStringInput } from './OptionalStringInput';
+import { SchemaEditor } from './SchemaEditor';
 import { useModeler } from '../useModeler';
 import { useInspectedElement } from './hooks/useInspectedElement';
 import { getAttribute } from '@/lib/core/extensions';
@@ -54,6 +55,7 @@ function pickInput(attrDef: any, modeler: any) {
     && (declaredType === 'String' || declaredType.endsWith(':MarkdownString'));
   const isOptionalString = attrDef.meta?.optional === true && declaredType === 'String';
 
+  if (attrDef.meta?.editor === 'csvw-table') return SchemaEditor;
   if (isOptionalString) return OptionalStringInput;
   if (isStringList) return ArrayInput;
   return INPUT_BY_TYPE[resolvedType] ?? StringInput;

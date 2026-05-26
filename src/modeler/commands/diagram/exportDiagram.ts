@@ -1,10 +1,13 @@
 import { Canvg } from 'canvg';
 import download from 'downloadjs';
 import { getDiagramName } from '../../diagramName';
+import { exportToLinkML } from '../../exporters/linkml';
+import { exportToNidm } from '../../exporters/nidm';
+import { exportToArtemis } from '../../exporters/artemis';
 
 export type ExportDiagramCommand = {
   type: 'export-diagram';
-  fileType: 'svg' | 'png' | 'studyflow';
+  fileType: 'svg' | 'png' | 'studyflow' | 'linkml' | 'nidm' | 'artemis';
 };
 
 async function fetchIconSvg(iconClass: string) {
@@ -99,6 +102,24 @@ export async function runExportDiagram(modeler: any, command: ExportDiagramComma
   if (command.fileType === 'studyflow') {
     const { xml } = await modeler.saveXML();
     download(new Blob([xml], { type: 'application/xml;charset=utf-8' }), `${filename}.studyflow`, 'application/xml');
+    return;
+  }
+
+  if (command.fileType === 'linkml') {
+    const linkmlYaml = exportToLinkML(modeler);
+    download(new Blob([linkmlYaml], { type: 'text/yaml;charset=utf-8' }), `${filename}.linkml.yaml`, 'text/yaml');
+    return;
+  }
+
+  if (command.fileType === 'nidm') {
+    const turtle = exportToNidm(modeler);
+    download(new Blob([turtle], { type: 'text/turtle;charset=utf-8' }), `${filename}.nidm.ttl`, 'text/turtle');
+    return;
+  }
+
+  if (command.fileType === 'artemis') {
+    const json = exportToArtemis(modeler);
+    download(new Blob([json], { type: 'application/json;charset=utf-8' }), `${filename}.artemis.json`, 'application/json');
     return;
   }
 

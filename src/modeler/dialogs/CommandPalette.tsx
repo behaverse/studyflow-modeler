@@ -15,6 +15,8 @@ import { executeCommand } from '../commands';
 import { useIsSimulating } from '../simulation/useIsSimulating';
 import { ExamplesDialog } from './Examples';
 import { PublishDialog } from './Publish';
+import { ChecklistDialog } from './Checklist';
+import { GanttDialog } from './Gantt';
 import { commandPalette as cp } from '../styles';
 import { URLS, VALID_FILE_EXTENSIONS } from '../constants';
 
@@ -26,8 +28,31 @@ type Command = {
   hint?: string;
   /** Single-key shortcut active only when the search box is empty. */
   shortcut?: string;
-  action: () => void | Promise<void>;
+  /** Leaf action. Required unless `children` is set. */
+  action?: () => void | Promise<void>;
+  /** When present, clicking this command opens a sub-palette instead of running. */
+  children?: Command[];
 };
+
+function flattenAll(cmds: Command[]): Command[] {
+  const out: Command[] = [];
+  for (const c of cmds) {
+    out.push(c);
+    if (c.children) out.push(...flattenAll(c.children));
+  }
+  return out;
+}
+
+function findCommand(cmds: Command[], id: string): Command | null {
+  for (const c of cmds) {
+    if (c.id === id) return c;
+    if (c.children) {
+      const hit = findCommand(c.children, id);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
 
 function isBareKey(e: React.KeyboardEvent, key: string): boolean {
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
@@ -50,6 +75,9 @@ export function CommandPalette({ ref }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isExamplesOpen, setIsExamplesOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [isChecklistOpen, setIsChecklistOpen] = useState(false);
+  const [isGanttOpen, setIsGanttOpen] = useState(false);
+  const [submenuId, setSubmenuId] = useState<string | null>(null);
   const modeler = useModeler();
   const { openSettings } = useContext(SettingsViewContext);
   const isSimulating = useIsSimulating(modeler);
@@ -61,6 +89,7 @@ export function CommandPalette({ ref }: Props) {
   const open = () => {
     setQuery('');
     setActiveIndex(0);
+    setSubmenuId(null);
     setIsOpen(true);
   };
   const close = () => setIsOpen(false);
@@ -144,20 +173,48 @@ export function CommandPalette({ ref }: Props) {
         action: () => executeCommand(modeler, { type: 'save-diagram' }),
       },
       {
-        id: 'export-svg',
+        id: 'export-as',
         group: 'File',
-        label: 'Export to SVG...',
-        icon: 'iconify bi--filetype-svg',
-        action: () =>
-          executeCommand(modeler, { type: 'export-diagram', fileType: 'svg' }),
-      },
-      {
-        id: 'export-png',
-        group: 'File',
-        label: 'Export to PNG...',
-        icon: 'iconify bi--filetype-png',
-        action: () =>
-          executeCommand(modeler, { type: 'export-diagram', fileType: 'png' }),
+        label: 'Export As...',
+        icon: 'iconify bi--box-arrow-up',
+        hint: 'submenu',
+        children: [
+          {
+            id: 'export-svg',
+            group: 'Export As',
+            label: 'SVG...',
+            icon: 'iconify bi--filetype-svg',
+            action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'svg' }),
+          },
+          {
+            id: 'export-png',
+            group: 'Export As',
+            label: 'PNG...',
+            icon: 'iconify bi--filetype-png',
+            action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'png' }),
+          },
+          {
+            id: 'export-linkml',
+            group: 'Export As',
+            label: 'LinkML (data elements)...',
+            icon: 'iconify bi--filetype-yml',
+            action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'linkml' }),
+          },
+          {
+            id: 'export-nidm',
+            group: 'Export As',
+            label: 'NIDM-Results / Turtle (analysis)...',
+            icon: 'iconify bi--diagram-3',
+            action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'nidm' }),
+          },
+          {
+            id: 'export-artemis',
+            group: 'Export As',
+            label: 'ARTEM-IS / JSON (EEG methods)...',
+            icon: 'iconify bi--filetype-json',
+            action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'artemis' }),
+          },
+        ],
       },
       {
         id: 'publish',
@@ -174,6 +231,29 @@ export function CommandPalette({ ref }: Props) {
         shortcut: '0',
         action: () => executeCommand(modeler, { type: 'reset-zoom' })
           .catch((err) => console.warn('Zoom to fit failed', err)),
+      },
+      {
+        id: 'view-as',
+        group: 'View',
+        label: 'View As...',
+        icon: 'iconify bi--eye',
+        hint: 'submenu',
+        children: [
+          {
+            id: 'checklist-view',
+            group: 'View As',
+            label: 'Checklist',
+            icon: 'iconify bi--check2-square',
+            action: () => setIsChecklistOpen(true),
+          },
+          {
+            id: 'gantt-view',
+            group: 'View As',
+            label: 'Gantt',
+            icon: 'iconify bi--bar-chart-steps',
+            action: () => setIsGanttOpen(true),
+          },
+        ],
       },
       {
         id: 'settings',
@@ -201,13 +281,22 @@ export function CommandPalette({ ref }: Props) {
     [modeler, openSettings, isSimulating],
   );
 
+  const submenuParent = useMemo(
+    () => (submenuId ? findCommand(commands, submenuId) : null),
+    [submenuId, commands],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return commands;
-    return commands.filter(
-      (c) => c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q),
-    );
-  }, [query, commands]);
+    if (q) {
+      // When searching, flatten and search every leaf command across all submenus.
+      return flattenAll(commands).filter(
+        (c) => !c.children && (c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q)),
+      );
+    }
+    if (submenuParent?.children) return submenuParent.children;
+    return commands;
+  }, [query, commands, submenuParent]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Command[]>();
@@ -248,13 +337,36 @@ export function CommandPalette({ ref }: Props) {
   }, [activeIndex]);
 
   const runCommand = (c: Command) => {
+    if (c.children) {
+      setSubmenuId(c.id);
+      setQuery('');
+      setActiveIndex(0);
+      requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
     close();
-    c.action();
+    c.action?.();
+  };
+
+  const popSubmenu = () => {
+    setSubmenuId(null);
+    setQuery('');
+    setActiveIndex(0);
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    // ESC inside a submenu pops one level rather than closing the palette entirely.
+    // Backspace at the start of an empty query also pops.
+    if (submenuId && query === '' && (e.key === 'Backspace' || e.key === 'Escape')) {
+      e.preventDefault();
+      e.stopPropagation();
+      popSubmenu();
+      return;
+    }
     if (query === '' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-      const match = commands.find((c) => c.shortcut && isBareKey(e, c.shortcut));
+      const shortcutSource = submenuParent?.children ?? commands;
+      const match = shortcutSource.find((c) => c.shortcut && isBareKey(e, c.shortcut));
       if (match) {
         e.preventDefault();
         runCommand(match);
@@ -278,6 +390,8 @@ export function CommandPalette({ ref }: Props) {
     <>
       <ExamplesDialog isOpen={isExamplesOpen} onClose={() => setIsExamplesOpen(false)} />
       <PublishDialog isOpen={isPublishOpen} onClose={() => setIsPublishOpen(false)} />
+      <ChecklistDialog isOpen={isChecklistOpen} onClose={() => setIsChecklistOpen(false)} />
+      <GanttDialog isOpen={isGanttOpen} onClose={() => setIsGanttOpen(false)} />
       <input
         ref={fileInputRef}
         type="file"
@@ -297,11 +411,30 @@ export function CommandPalette({ ref }: Props) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} to toggle)`}
+                placeholder={submenuParent
+                  ? `Search ${submenuParent.label.replace(/\.\.\.$/, '').toLowerCase()}...`
+                  : `Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} to toggle)`}
                 className={cp.searchInput}
                 aria-label="Search commands"
               />
             </div>
+            {submenuParent && (
+              <div className="px-3 py-1.5 text-[11px] text-stone-500 flex items-center gap-2 border-b border-black/[0.04]">
+                <button
+                  type="button"
+                  onClick={popSubmenu}
+                  className="hover:text-stone-900 inline-flex items-center gap-1"
+                  title="Back to main palette (Esc or Backspace)"
+                >
+                  <i className="iconify bi--arrow-left"></i>
+                  <span>Back</span>
+                </button>
+                <span className="text-stone-300">/</span>
+                <span className="text-stone-700 font-medium">
+                  {submenuParent.label.replace(/\.\.\.$/, '')}
+                </span>
+              </div>
+            )}
             <div ref={listRef} className={cp.list}>
               {filtered.length === 0 ? (
                 <div className={cp.empty}>No matching commands.</div>
@@ -312,7 +445,8 @@ export function CommandPalette({ ref }: Props) {
                     {items.map((c) => {
                       const flatIndex = filtered.indexOf(c);
                       const active = flatIndex === activeIndex;
-                      const hint = c.shortcut?.toUpperCase() ?? c.hint;
+                      const isParent = !!c.children;
+                      const hint = c.shortcut?.toUpperCase() ?? (isParent ? undefined : c.hint);
                       return (
                         <button
                           key={c.id}
@@ -325,6 +459,9 @@ export function CommandPalette({ ref }: Props) {
                           <i className={`${c.icon} ${cp.itemIcon}`}></i>
                           <span className={cp.itemLabel}>{c.label}</span>
                           {hint && <span className={cp.itemHint}>{hint}</span>}
+                          {isParent && (
+                            <i className="iconify bi--chevron-right text-stone-400 text-[10px] ml-1" aria-hidden="true"></i>
+                          )}
                         </button>
                       );
                     })}

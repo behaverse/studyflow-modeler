@@ -13,7 +13,7 @@ description: |
   authored as additional moddle schemas; their LinkML mirrors are out of scope
   for this core file.
 license: MIT
-version: 0.1.0
+version: 26.0526-dev1
 
 prefixes:
   linkml: https://w3id.org/linkml/
@@ -159,21 +159,6 @@ classes:
           List of items to be checked off when completing the element,
           formatted as a Markdown list.
         range: MarkdownString
-      start:
-        description: Optional start time of the element.
-        range: string
-      end:
-        description: Optional end time of the element.
-        range: string
-      duration:
-        description: Optional duration of the element.
-        range: string
-      progress:
-        description: Optional progress indicator (percentage or label).
-        range: string
-      resourceAllocation:
-        description: Optional resource allocation (personnel, equipment, budget).
-        range: string
 
   # -------------------------------------------------------------------------
   # Top-level container
@@ -205,7 +190,7 @@ classes:
   # -------------------------------------------------------------------------
 
   Activity:
-    description: Base class for all Studyflow activities.
+    description: Base class for all Studyflow activities. Carries the Gantt-axis temporal attributes consumed by the Gantt view.
     abstract: true
     class_uri: bpmn:Activity
     mixins: [Element]
@@ -213,6 +198,34 @@ classes:
       uri:
         description: Optional link to an external resource describing the activity.
         range: uri
+      onset:
+        description: Optional onset (start time). Free-form string (ISO timestamp, relative offset, or label). Drives Gantt rendering with `duration`.
+        range: string
+      duration:
+        description: Optional duration. When set with `onset`, the Gantt view extends the bar by this length.
+        range: string
+      progress:
+        description: Optional progress indicator (percentage or label).
+        range: string
+
+  Event:
+    description: |
+      Base class for BPMN events (StartEvent, IntermediateEvent, EndEvent, ...).
+      Adds the same Gantt-axis attributes as Activity so events can appear on
+      the Gantt timeline as zero-duration milestones or extended occurrences.
+    abstract: true
+    class_uri: bpmn:Event
+    mixins: [Element]
+    attributes:
+      onset:
+        description: Optional onset (occurrence time). Free-form string.
+        range: string
+      duration:
+        description: Optional duration; events are usually instantaneous (zero duration).
+        range: string
+      progress:
+        description: Optional progress indicator (percentage or label).
+        range: string
 
   DataOperationActivity:
     description: |
@@ -468,26 +481,29 @@ classes:
       units:
         description: Physical units of the recorded values (e.g., uV, mV, deg).
         range: string
-      duration:
-        description: Duration in seconds.
+      recordingDuration:
+        description: Duration of the recording in seconds.
         range: float
       format:
         range: TimeseriesFormatEnum
         ifabsent: "string(undefined)"
 
-  Event:
+  EventMarker:
     description: |
       Sparse, time-stamped occurrences within a recording session (stimulus
-      onsets, button presses, artifact markers, ...).
+      onsets, button presses, artifact markers, ...). Distinct from the BPMN
+      `Event` class: those represent diagram-level events with Gantt-axis
+      timing, while EventMarker is a data element capturing recording-time
+      occurrences.
     class_uri: bpmn:DataObjectReference
     mixins: [Element]
     attributes:
       eventType:
         range: string
-      onset:
+      eventOnset:
         description: Onset time in seconds, relative to recording start.
         range: float
-      offset:
+      eventOffset:
         description: Offset time in seconds, relative to recording start.
         range: float
       eventCount:

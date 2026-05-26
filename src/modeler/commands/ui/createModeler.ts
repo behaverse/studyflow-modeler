@@ -8,6 +8,7 @@ import GridModule from 'diagram-js-grid';
 
 import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
 import { StudyflowModelerModule } from '../..';
+import { clearAutosavedDiagram } from '../../settings/autosaveDiagram';
 
 const ADDITIONAL_MODULES = [
   CreateAppendAnythingModule,
@@ -37,6 +38,23 @@ export async function runCreateModeler(_modeler: any, command: CreateModelerComm
     additionalModules: ADDITIONAL_MODULES,
   });
 
-  await modeler.importXML(command.initialDiagramXml ?? new_diagram);
+  const provided = command.initialDiagramXml;
+  if (provided) {
+    try {
+      await modeler.importXML(provided);
+      return modeler;
+    } catch (err) {
+      // An autosaved or supplied diagram failed to import (schema drift, version
+      // mismatch, corruption). Drop the autosave entry so we don't loop on it
+      // and boot a fresh blank diagram instead.
+      console.warn(
+        'Failed to import the initial diagram; falling back to a new diagram. ' +
+        'The autosaved entry (if any) has been cleared.',
+        err,
+      );
+      clearAutosavedDiagram();
+    }
+  }
+  await modeler.importXML(new_diagram);
   return modeler;
 }

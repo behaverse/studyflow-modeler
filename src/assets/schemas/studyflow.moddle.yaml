@@ -7,6 +7,8 @@ uri: http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase
+version: 26.0526-dev1
+
 associations: []
 enumerations:
   - name: DatasetFormatEnum
@@ -405,7 +407,7 @@ types:
               redirectTo: $set
               completionCodeType: static
   - name: Activity
-    description: Base class for all the activities in the Studyflow.
+    description: Base class for all the activities in the Studyflow. Adds the Gantt-axis temporal attributes that the Gantt view consumes.
     extends:
       - bpmn:Activity
     isAbstract: true
@@ -419,6 +421,71 @@ types:
         meta:
           categories:
             - General
+      - name: onset
+        description: |
+          Optional onset (start time) of the activity. Free-form string so it can
+          carry an ISO 8601 timestamp, a relative offset (e.g., `T0+30min`), or a
+          label. Drives the Gantt view together with `duration`.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+      - name: duration
+        description: |
+          Optional duration of the activity (e.g., `30min`, `PT1H`, or a relative
+          unit). When set, the Gantt view places the bar at `onset` and extends
+          it by `duration`.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+      - name: progress
+        description: |
+          Optional progress indicator (percentage `0`–`100` or a free-form label
+          such as `done`/`blocked`). The Gantt view shades the bar accordingly.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+  - name: Event
+    description: |
+      Base class for BPMN events. Adds the same Gantt-axis temporal attributes
+      as Activity so events (StartEvent, IntermediateEvent, EndEvent, ...) can
+      be placed on the Gantt as zero-duration milestones or as anchors with an
+      explicit duration when needed.
+    extends:
+      - bpmn:Event
+    isAbstract: true
+    properties:
+      - name: onset
+        description: |
+          Optional onset (occurrence time) of the event. Free-form string so it
+          can carry an ISO 8601 timestamp, a relative offset, or a label.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+      - name: duration
+        description: |
+          Optional duration. Events are usually instantaneous (zero duration);
+          set this only when the event represents an extended occurrence.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+      - name: progress
+        description: |
+          Optional progress indicator (percentage or label such as `done`).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.
@@ -443,6 +510,7 @@ types:
         meta:
           categories:
             - Data
+          editor: csvw-table
   - name: Dataset
     description: Collection of data registered in a `DataCatalog` and stored in a `DataStore`. This can represent a table, array, or any structured dataset. The structure can be defined using an optional `Schema`.
     superClass:
@@ -663,7 +731,7 @@ types:
         meta:
           categories:
             - Data
-      - name: duration
+      - name: recordingDuration
         description: Duration of the recording in seconds.
         isAttr: true
         type: Real
@@ -678,11 +746,13 @@ types:
         meta:
           categories:
             - Data
-  - name: Event
+  - name: EventMarker
     description: |
       Sparse, time-stamped occurrences within a recording session (e.g., trial
       markers, stimulus onsets, button presses). Companion to `Timeseries` for
-      continuous data and to `Dataset` for tabular trial data.
+      continuous data and to `Dataset` for tabular trial data. The recording-time
+      fields here are distinct from the Gantt-axis `onset`/`duration` carried by
+      BPMN Activities and Events.
     superClass:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
@@ -698,14 +768,14 @@ types:
         meta:
           categories:
             - Data
-      - name: onset
+      - name: eventOnset
         description: Onset time of the event in seconds, relative to the recording start.
         isAttr: true
         type: Real
         meta:
           categories:
             - Data
-      - name: offset
+      - name: eventOffset
         description: Offset time of the event in seconds, relative to the recording start.
         isAttr: true
         type: Real

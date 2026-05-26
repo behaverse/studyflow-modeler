@@ -241,9 +241,12 @@ export const field = {
 
 export const codeEditor = {
   openButton: 'w-full mt-2 p-1.5 rounded-md cursor-pointer bg-cream-200 hover:bg-cream-300 text-stone-700 hover:text-stone-900 border border-black/[0.08] transition-colors',
-  modalOverlay: 'fixed inset-0 z-150 flex items-center justify-center p-4 backdrop-blur-xs',
+  // Overlay sits above the inspector (z-[220]) and inspector toggle (z-[230]),
+  // and above the Headless UI dialog root (z-[240]/z-[250]) so the editor
+  // covers any palette/inspector content it might be opened from.
+  modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-4 backdrop-blur-xs',
   modalBackdrop: 'absolute',
-  modal: 'relative z-160 bg-cream-100 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_24px_72px_rgba(0,0,0,0.16)] border border-black/[0.06] w-full max-w-4xl max-h-[90vh] overflow-auto',
+  modal: 'relative z-[270] bg-cream-100 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_24px_72px_rgba(0,0,0,0.16)] border border-black/[0.06] w-full max-w-4xl max-h-[90vh] overflow-auto',
   modalHeader: 'px-4 py-3 flex justify-between items-center border-b border-black/[0.06]',
   modalTitle: 'text-[15px] font-semibold tracking-tight text-stone-900',
   modalClose: 'text-sm text-stone-500 hover:text-stone-800 cursor-pointer',
