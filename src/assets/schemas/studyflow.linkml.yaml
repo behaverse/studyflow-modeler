@@ -99,36 +99,6 @@ enums:
       probabilistic: {title: Probabilistic}
       round-robin:   {title: Round Robin}
 
-  DataOperationTypeEnum:
-    description: |
-      Studyflow data-operator marker for tasks. Operators describe how data is
-      manipulated as it flows through the process.
-    permissible_values:
-      transform:     {title: Transform}
-      map:           {title: Map}
-      filter:        {title: Filter}
-      reduce:        {title: Reduce}
-      group:         {title: Group}
-      compose:       {title: Compose}
-      flatMap:       {title: FlatMap}
-      loadData:      {title: Load Data}
-      saveData:      {title: Save Data}
-      exportData:    {title: Export Data}
-      anonymizeData: {title: Anonymize Data}
-      validateData:  {title: Validate Data}
-      controlAccess: {title: Control Access}
-      randomSample:  {title: Random Sample}
-      shuffle:       {title: Shuffle}
-      bootstrap:     {title: Bootstrap Resample}
-      jitter:        {title: Jitter}
-      splitData:     {title: Split}
-      cleanData:     {title: Clean}
-      joinTables:    {title: Join Tables}
-      pivot:         {title: Pivot}
-      selectColumns: {title: Select Columns}
-      mutate:        {title: Mutate}
-      summarize:     {title: Summarize}
-
   ActorTypeEnum:
     description: Kind of actor represented by a participant pool.
     permissible_values:
@@ -239,9 +209,6 @@ classes:
         description: Marks the activity as a data operation (transform/filter/reduce/...).
         range: boolean
         ifabsent: "false"
-      operation:
-        description: Specific data-operation kind (when isDataOperation is true).
-        range: DataOperationTypeEnum
       inputs:
         description: Names of variables consumed by this activity.
         range: string

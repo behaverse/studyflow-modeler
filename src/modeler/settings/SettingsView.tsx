@@ -57,7 +57,7 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
 
         <div className={s.body}>
           <nav className={s.sidebar} aria-label="Settings sections">
-            <ul className="space-y-0.5">
+            <ul className={s.sidebarList}>
               {SECTIONS.map((sec) => (
                 <li key={sec.id}>
                   <button

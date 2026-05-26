@@ -49,14 +49,14 @@ types:
     superClass:
       - omniprocess:Transform
     meta:
-      icon: iconify mdi--function
+      icon: iconify mdi--sigma
     properties:
       - name: operationType
         isAttr: true
         type: String
         meta:
           pinned: true
-        default: map
+        default: reduce
         redefines: omniprocess:Transform#operationType
   - name: Filter
     description: |
@@ -64,7 +64,7 @@ types:
     superClass:
       - omniprocess:Transform
     meta:
-      icon: iconify mdi--function
+      icon: iconify mdi--filter-variant
     properties:
       - name: operationType
         isAttr: true
@@ -72,6 +72,48 @@ types:
         meta:
           pinned: true
         default: filter
+        redefines: omniprocess:Transform#operationType
+  - name: Compose
+    description: Compose two or more transformations into a single pipeline step.
+    superClass:
+      - omniprocess:Transform
+    meta:
+      icon: iconify mdi--function-variant
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: compose
+        redefines: omniprocess:Transform#operationType
+  - name: AnonymizeData
+    description: Remove or pseudonymize identifying fields.
+    superClass:
+      - omniprocess:Transform
+    meta:
+      icon: iconify mdi--incognito
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: anonymizeData
+        redefines: omniprocess:Transform#operationType
+  - name: SplitData
+    description: Partition data items into named subsets (e.g., train/test).
+    superClass:
+      - omniprocess:Transform
+    meta:
+      icon: iconify mdi--call-split
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: splitData
         redefines: omniprocess:Transform#operationType
   - name: PreprocessfMRI
     description: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.

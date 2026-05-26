@@ -13,6 +13,7 @@ import { isAttributeVisible } from './field';
 const CATEGORY_ORDER = [
   'General',
   'Documentation',
+  'Gantt',
   'Content',
   'Data',
   'Instrument',

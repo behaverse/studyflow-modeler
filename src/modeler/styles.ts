@@ -387,10 +387,16 @@ export const examplesList = {
 } as const;
 
 export const settingsView = {
-  /** Backdrop sits over the modeler with a margin so the panel is inset from the edges. */
-  root: `fixed inset-0 z-[300] p-16 px-48 flex bg-black/40 backdrop-blur-xs`,
-  /** Inset panel containing the actual settings UI. */
-  panel: `flex flex-1 flex-col overflow-hidden ${surface.sheet} ${radius.capsule} border border-black/[0.08] ${shadow.sheet}`,
+  /** Backdrop sits over the modeler with responsive insets — fullscreen on
+   * mobile, progressively margined on larger viewports. */
+  root: `fixed inset-0 z-[300] flex bg-black/40 backdrop-blur-xs
+         p-0 sm:p-4 md:p-8 md:px-12 lg:p-12 lg:px-24 xl:p-16 xl:px-48`,
+  /** Inset panel containing the actual settings UI. Square edges on mobile
+   * (fills the screen edge-to-edge) and rounded once the backdrop margins
+   * kick in. */
+  panel: `flex flex-1 flex-col overflow-hidden ${surface.sheet}
+          rounded-none sm:rounded-2xl
+          border-0 sm:border sm:border-black/[0.08] ${shadow.sheet}`,
 
   header: `flex items-center gap-2 px-3 h-14 shrink-0 border-b border-black/[0.06] ${surface.sheet}`,
   headerTitle: `text-[15px] font-semibold tracking-tight ${text.primary}`,
@@ -399,21 +405,32 @@ export const settingsView = {
                 active:bg-black/[0.08] transition-colors cursor-pointer`,
   backIcon: 'iconify bi--arrow-left text-[16px]',
 
-  /** Two-column body: sidebar + content scroll area. */
-  body: 'flex flex-1 min-h-0',
+  /** Two-column body: sidebar + content scroll area. Stacks vertically on
+   * narrow viewports so the sidebar doesn't crowd out the content. */
+  body: 'flex flex-col sm:flex-row flex-1 min-h-0',
 
-  /** Left sidebar - section navigation. */
-  sidebar: `w-60 shrink-0 border-r border-black/[0.06] py-4 px-3 overflow-y-auto ${surface.sheet}`,
-  sidebarItem: `flex items-center gap-2.5 w-full text-left px-3 py-1.5 ${radius.button}
+  /** Left sidebar - section navigation. Becomes a horizontal scrollable strip
+   * above the content on mobile. */
+  sidebar: `shrink-0 ${surface.sheet}
+            overflow-x-auto sm:overflow-y-auto
+            border-b sm:border-b-0 sm:border-r border-black/[0.06]
+            w-full sm:w-48 md:w-60
+            px-2 sm:px-3 py-2 sm:py-4`,
+  /** Inner list of section buttons. Horizontal flex on mobile, vertical on
+   * sm+ so the sidebar reads as a stack. */
+  sidebarList: 'flex flex-row gap-0.5 sm:flex-col',
+  sidebarItem: `flex items-center gap-2.5 text-left px-3 py-1.5 ${radius.button}
                 text-[13px] font-medium ${text.secondary}
+                whitespace-nowrap sm:whitespace-normal sm:w-full
                 hover:bg-black/[0.05] hover:text-stone-900 active:bg-black/[0.08]
                 transition-colors cursor-pointer`,
   sidebarItemActive: 'bg-black/[0.05] text-stone-900',
   sidebarItemIcon: 'text-[15px] text-stone-500 shrink-0',
 
-  /** Right content area - scrollable, max-width-constrained. */
-  content: 'flex-1 overflow-y-auto px-4 py-8',
-  contentInner: 'mx-auto max-w-2xl space-y-8',
+  /** Right content area - scrollable, max-width-constrained. Responsive
+   * padding so it doesn't waste space on small viewports. */
+  content: 'flex-1 overflow-y-auto px-4 py-5 sm:px-5 sm:py-6 md:px-6 md:py-8',
+  contentInner: 'mx-auto max-w-2xl space-y-6 sm:space-y-8',
 
   /** Section header (large title at the top of the right pane). */
   sectionTitle: `text-[22px] font-semibold tracking-tight ${text.primary}`,
@@ -461,6 +478,7 @@ export const settingsView = {
   valueChip: `inline-flex items-center gap-1.5 px-2 py-0.5 ${radius.field}
               bg-cream-200 border border-black/[0.06] text-[12px] font-medium ${text.secondary}`,
 
-  /** Subtle footnote at the bottom of the sidebar (version / build info). */
-  sidebarFooter: 'mt-6 px-3 text-[11px] text-stone-400',
+  /** Subtle footnote at the bottom of the sidebar (version / build info).
+   * Hidden on mobile to keep the horizontal tab strip compact. */
+  sidebarFooter: 'hidden sm:block mt-6 px-3 text-[11px] text-stone-400',
 } as const;
