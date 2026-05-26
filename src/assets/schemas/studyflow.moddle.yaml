@@ -15,6 +15,7 @@ enumerations:
     literalValues:
       - name: BDM (Behaverse Data Model)
         value: bdm
+        icon: iconify bi--hexagon
       - name: BIDS (Brain Imaging Data Structure)
         value: bids
         icon: bids-dataset-icon

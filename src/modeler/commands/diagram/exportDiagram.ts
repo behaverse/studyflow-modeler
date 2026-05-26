@@ -98,7 +98,7 @@ export async function runExportDiagram(modeler: any, command: ExportDiagramComma
 
   if (command.fileType === 'studyflow') {
     const { xml } = await modeler.saveXML();
-    download(xml, `${filename}.studyflow`, 'application/xml');
+    download(new Blob([xml], { type: 'application/xml;charset=utf-8' }), `${filename}.studyflow`, 'application/xml');
     return;
   }
 
@@ -111,6 +111,6 @@ export async function runExportDiagram(modeler: any, command: ExportDiagramComma
     const png = await exportToPng(svgClean);
     download(png, `${filename}.png`, 'image/png');
   } else {
-    download(svgClean, `${filename}.svg`, 'image/svg+xml');
+    download(new Blob([svgClean], { type: 'image/svg+xml;charset=utf-8' }), `${filename}.svg`, 'image/svg+xml');
   }
 }
