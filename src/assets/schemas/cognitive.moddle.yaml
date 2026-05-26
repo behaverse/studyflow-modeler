@@ -49,6 +49,23 @@ enumerations:
         value: panas
       - name: Other
         value: other
+  - name: ActorTypeEnum
+    description: |
+      Kind of actor represented by a participant pool. Distinguishes human
+      participants from artificial agents and from instrumented apparatus.
+      Choreography tasks between any combination (human-human, human-llm,
+      human-instrument) use the same BPMN choreography primitive.
+    literalValues:
+      - name: Human
+        value: human
+      - name: Large Language Model
+        value: llm
+      - name: Software Agent
+        value: agent
+        description: Non-LLM software agent (e.g., a reinforcement-learning policy or rule-based bot).
+      - name: Instrument
+        value: instrument
+        description: Apparatus or recording device that participates in the study (e.g., an EEG amplifier triggering events).
 types:
   - name: CognitiveTask
     description: |
@@ -316,3 +333,78 @@ types:
         meta:
           categories:
             - Eligibility
+  - name: Actor
+    description: |
+      A participant pool tagged with actor-type metadata so it can be flagged
+      as human, LLM, software agent, or instrument. Renders as a standard BPMN
+      Pool; choreography tasks continue to use the standard BPMN ParticipantRef.
+      Multi-agent cognitive studies use this to disambiguate human-vs-artificial
+      pools without redefining the BPMN choreography primitive.
+    superClass:
+      - bpmn:Participant
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--account-group
+      bpmnType: bpmn:Participant
+    properties:
+      - name: actorType
+        description: Kind of actor this pool represents.
+        isAttr: true
+        type: ActorTypeEnum
+        default: human
+        meta:
+          categories:
+            - Actor
+      - name: model
+        description: |
+          Model identifier when actorType is llm (e.g., `gpt-4`, `claude-opus-4-7`,
+          `gemini-2.5-pro`). Free text so any provider can be named.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Actor
+          condition:
+            language: json
+            body:
+              actorType: llm
+      - name: promptTemplate
+        description: |
+          Optional prompt template applied to the LLM actor each turn. Use
+          markdown; placeholders (e.g. `{{stimulus}}`, `{{history}}`) are
+          resolved by the runner adapter at execution time.
+        isAttr: true
+        type: studyflow:MarkdownString
+        meta:
+          categories:
+            - Actor
+          condition:
+            language: json
+            body:
+              actorType: llm
+      - name: agentSpec
+        description: |
+          Optional URI or identifier of a software-agent specification when
+          actorType is agent (e.g., a CogEnv profile, a checkpoint hash).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Actor
+          condition:
+            language: json
+            body:
+              actorType: agent
+      - name: instrumentSpec
+        description: |
+          Optional identifier of an instrument or recording device when
+          actorType is instrument (e.g., an LSL stream name, a device serial).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Actor
+          condition:
+            language: json
+            body:
+              actorType: instrument

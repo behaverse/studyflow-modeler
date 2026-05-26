@@ -69,7 +69,9 @@ enumerations:
   - name: DataOperationTypeEnum
     description: |
       Studyflow data operator marker for tasks. Operators describe how data is manipulated
-      as it flows through the process (pure transformations).
+      as it flows through the process. Pure transformations are listed first, then
+      storage I/O, data governance, stochastic operations, and the tidyverse-mirrored
+      vocabulary for tabular pipelines.
     literalValues:
       - name: Transform
         value: transform
@@ -85,6 +87,91 @@ enumerations:
         value: compose
       - name: FlatMap
         value: flatMap
+      - name: Load Data
+        value: loadData
+        description: Read data from a storage backend into the process scope.
+      - name: Save Data
+        value: saveData
+        description: Persist data to a storage backend.
+      - name: Export Data
+        value: exportData
+        description: Emit data to an external format outside the process scope.
+      - name: Anonymize Data
+        value: anonymizeData
+        description: Remove or pseudonymize identifying fields.
+      - name: Validate Data
+        value: validateData
+        description: Check data against a schema or constraint set; abort or branch on failure.
+      - name: Control Access
+        value: controlAccess
+        description: Apply an access-control policy before exposing data downstream.
+      - name: Random Sample
+        value: randomSample
+        description: Draw a random subset of rows according to a sampling rule.
+      - name: Shuffle
+        value: shuffle
+        description: Permute the ordering of elements.
+      - name: Bootstrap Resample
+        value: bootstrap
+        description: Resample with replacement to support resampling-based inference.
+      - name: Jitter
+        value: jitter
+        description: Add bounded random noise to a numeric variable.
+      - name: Split
+        value: splitData
+        description: Partition rows into named subsets (e.g., train/test).
+      - name: Clean
+        value: cleanData
+        description: Repair or remove malformed rows (missing values, duplicates, type errors).
+      - name: Join Tables
+        value: joinTables
+        description: Combine rows from two or more tables on a key.
+      - name: Pivot
+        value: pivot
+        description: Reshape between long and wide formats.
+      - name: Select Columns
+        value: selectColumns
+        description: Project a subset of columns.
+      - name: Mutate
+        value: mutate
+        description: Derive new columns from existing ones.
+      - name: Summarize
+        value: summarize
+        description: Aggregate rows into summary statistics.
+  - name: TableFormatEnum
+    isAbstract: true
+    description: On-disk format of a tabular dataset.
+    literalValues:
+      - name: CSV
+        value: csv
+      - name: TSV
+        value: tsv
+      - name: Parquet
+        value: parquet
+      - name: Arrow
+        value: arrow
+      - name: JSON Lines
+        value: jsonl
+      - name: Undefined
+        value: undefined
+  - name: TimeseriesFormatEnum
+    isAbstract: true
+    description: On-disk format of a time-series recording.
+    literalValues:
+      - name: EDF (European Data Format)
+        value: edf
+      - name: BDF (Biosemi Data Format)
+        value: bdf
+      - name: FIF (MNE/Elekta)
+        value: fif
+      - name: SET (EEGLAB)
+        value: set
+      - name: Parquet
+        value: parquet
+      - name: Zarr
+        value: zarr
+      - name: Undefined
+        value: undefined
   - name: CompletionCodeTypeEnum
     isAbstract: true
     description: How the completion code is generated when the study ends.
@@ -502,6 +589,133 @@ types:
         description: Version identifier (e.g., tag, checksum, commit hash).
         isAttr: true
         type: String
+        meta:
+          categories:
+            - Data
+  - name: Table
+    description: |
+      Tabular data element (rows + columns). Schema is typically described via CSVW
+      or LinkML and may be inline or referenced. Distinct from `Dataset` in that a
+      Table commits to row-and-column structure rather than an opaque collection.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    isAbstract: false
+    meta:
+      icon: iconify bi--table
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: format
+        description: On-disk format of the table (csv, tsv, parquet, arrow, jsonl).
+        isAttr: true
+        type: TableFormatEnum
+        default: csv
+        meta:
+          categories:
+            - Data
+      - name: schema
+        description: |
+          Reference to the table's schema. Typically a `Schema` element carrying
+          CSVW JSON-LD or a LinkML class definition.
+        isAttr: true
+        type: Schema
+        meta:
+          categories:
+            - Data
+      - name: rowCount
+        description: Expected or declared number of rows.
+        isAttr: true
+        type: Integer
+        meta:
+          categories:
+            - Data
+  - name: Timeseries
+    description: |
+      Continuous physiological or behavioural recording sampled over time
+      (e.g., EEG, EMG, eye-tracking gaze stream, accelerometer). Channels and
+      sampling rate are first-class so downstream operations can validate them.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    isAbstract: false
+    meta:
+      icon: iconify mdi--chart-line
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: samplingRate
+        description: Sampling rate in samples per second (Hz).
+        isAttr: true
+        type: Real
+        meta:
+          categories:
+            - Data
+      - name: channelCount
+        description: Number of channels in the recording.
+        isAttr: true
+        type: Integer
+        meta:
+          categories:
+            - Data
+      - name: units
+        description: Physical units of the recorded values (e.g., uV, mV, deg).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Data
+      - name: duration
+        description: Duration of the recording in seconds.
+        isAttr: true
+        type: Real
+        meta:
+          categories:
+            - Data
+      - name: format
+        description: On-disk format of the time-series file (edf, bdf, fif, set, parquet, zarr).
+        isAttr: true
+        type: TimeseriesFormatEnum
+        default: undefined
+        meta:
+          categories:
+            - Data
+  - name: Event
+    description: |
+      Sparse, time-stamped occurrences within a recording session (e.g., trial
+      markers, stimulus onsets, button presses). Companion to `Timeseries` for
+      continuous data and to `Dataset` for tabular trial data.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    isAbstract: false
+    meta:
+      icon: iconify mdi--lightning-bolt-outline
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: eventType
+        description: Category of event (e.g., stimulus, response, artifact).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Data
+      - name: onset
+        description: Onset time of the event in seconds, relative to the recording start.
+        isAttr: true
+        type: Real
+        meta:
+          categories:
+            - Data
+      - name: offset
+        description: Offset time of the event in seconds, relative to the recording start.
+        isAttr: true
+        type: Real
+        meta:
+          categories:
+            - Data
+      - name: eventCount
+        description: Expected or declared number of events.
+        isAttr: true
+        type: Integer
         meta:
           categories:
             - Data
