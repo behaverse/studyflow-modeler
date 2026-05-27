@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@/lib/core/schemas';
 import { Study } from './study';
 import type { Job } from '@/runner/types';
@@ -30,7 +31,10 @@ export function Runner() {
   const studyRef = useRef<Study | null>(null);
 
   const addLog = useCallback((kind: LogKind, message: string) => {
-    setLog((prev) => [...prev, { kind, message }]);
+    // flushSync so per-trial LLM logs paint into the sidebar BEFORE the synchronous
+    // unity.SendMessage that immediately follows in bridge.ts — otherwise Unity's
+    // iframe repaints first and the log appears to lag behind the visible action.
+    flushSync(() => setLog((prev) => [...prev, { kind, message }]));
   }, []);
 
   const setVariable = useCallback((name: string, value: unknown) => {

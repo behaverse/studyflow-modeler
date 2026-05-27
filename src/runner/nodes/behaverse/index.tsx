@@ -62,6 +62,7 @@ function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
           unity,
           job.payload,
           () => iframeRef.current?.contentWindow ?? null,
+          log,
         );
         if (cancelled) return;
         log(

@@ -371,7 +371,7 @@ types:
             - Gantt
       - name: progress
         description: |
-          Optional progress indicator (percentage `0`–`100` or a free-form label
+          Optional progress indicator (percentage or a free-form label
           such as `done`/`blocked`). The Gantt view shades the bar accordingly.
         isAttr: true
         type: String

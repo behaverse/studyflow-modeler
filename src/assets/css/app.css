@@ -9,11 +9,11 @@
 /*
  * Custom warm-cream palette (Claude.ai-inspired).
  *
- *   cream-50  → lightest, used for the canvas
- *   cream-100 → primary surfaces (dialogs, modals, navbar/palette/inspector chrome)
- *   cream-200 → recessed surfaces (inputs, list cards)
- *   cream-300 → stronger menu/popup character
- *   cream-400 → focus rings / divider accents
+ *   cream-50  -> lightest, used for the canvas
+ *   cream-100 -> primary surfaces (dialogs, modals, navbar/palette/inspector chrome)
+ *   cream-200 -> recessed surfaces (inputs, list cards)
+ *   cream-300 -> stronger menu/popup character
+ *   cream-400 -> focus rings / divider accents
  *
  * Translucent chrome (navbar, palette, popups) uses cream-100/300 with
  * `backdrop-blur-2xl` to render the canvas through with vibrancy.

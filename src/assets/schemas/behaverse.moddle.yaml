@@ -125,7 +125,7 @@ types:
             - Behaverse
       - name: botConfig
         description: |
-          Flat YAML map of bot field overrides applied per task at scene-load time, e.g. `autoAnswer: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentMode` is `bot`.
+          YAML map of bot field overrides applied per task at scene-load time, e.g. `autoAnswer: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentMode` is `bot`. Three response sources: `ResponseSource: internal` (default, Unity's in-game bot), `external` (runner picks uniformly at random), `llm` (runner asks an LLM). For `llm`, add `LLM: { Provider: claude|ollama, Model: ... }` to override the global defaults, and `Prompt: |` with a free-form system prompt describing the simulated participant (persona, target accuracy, strategy, mistakes). Set `IncludeScreenshot: true` to make Unity attach a PNG of the current frame to every `AwaitingResponse` so a vision-capable LLM can read visual stimuli (required for WhichOne, PatternComparison, UFOV, etc.). Bump `MaxResponseTime` in `configurations` to give the LLM time to reply.
         isAttr: true
         type: studyflow:YAMLString
         default: |

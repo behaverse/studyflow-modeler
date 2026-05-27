@@ -387,7 +387,7 @@ export const examplesList = {
 } as const;
 
 export const settingsView = {
-  /** Backdrop sits over the modeler with responsive insets — fullscreen on
+  /** Backdrop sits over the modeler with responsive insets - fullscreen on
    * mobile, progressively margined on larger viewports. */
   root: `fixed inset-0 z-[300] flex bg-black/40 backdrop-blur-xs
          p-0 sm:p-4 md:p-8 md:px-12 lg:p-12 lg:px-24 xl:p-16 xl:px-48`,

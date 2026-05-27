@@ -24,13 +24,6 @@ Add to `.vscode/settings.json`:
 }
 ```
 
-## JetBrains (Rider / IntelliJ)
-
-Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings
-→ "+" → name "Behaverse Game Config", schema file
-`schema/game-config.schema.json`, schema version 7. File path pattern:
-`Assets/Scenes/*/Resources/*.json`.
-
 ## Per-file `$schema:` reference (alternative)
 
 If you prefer per-file wiring, add this as the first key of any config file:

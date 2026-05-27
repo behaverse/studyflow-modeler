@@ -167,7 +167,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
       <div className={s.modalBackdrop} onClick={close} />
       <div role="dialog" aria-modal="true" className={s.modal}>
         <div className={s.modalHeader}>
-          <h3 className={s.modalTitle}>Edit columns — {t(attributeName)}</h3>
+          <h3 className={s.modalTitle}>Edit columns; {t(attributeName)}</h3>
           <button className={s.modalClose} onClick={close}>
             <i className="iconify bi--x-lg cursor-pointer"></i>
           </button>

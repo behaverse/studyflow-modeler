@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 import { getBehaverseTaskPayload, readBehaverseAttribute } from './parser';
 import type { Study } from '@/runner/study';
-import type { Manifest } from '@/runner/nodes/behaverse/types';
+import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@/runner/nodes/behaverse/types';
 import type { ValidationIssue } from '@/runner/nodes/types';
 
 export async function fetchManifest(unityBuildUrl: string): Promise<Manifest> {
@@ -88,8 +88,13 @@ export function validateStudy(study: Study, manifest: Manifest): ValidationIssue
           });
           continue;
         }
-        // Reject nested values - bot fields are flat scalars (string|number|boolean).
+        // Reject nested values - Unity-bound bot fields are flat scalars
+        // (BotReflection applies them by name). Runner-only keys are exempt:
+        // they're consumed by the studyflow runner, not forwarded to Unity for
+        // reflection, so nesting is fine.
+        const runnerOnly = new Set<string>(RUNNER_ONLY_BOT_KEYS);
         for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+          if (runnerOnly.has(k)) continue;
           if (v !== null && typeof v === 'object') {
             issues.push({
               nodeId: node.id,

@@ -520,7 +520,7 @@ types:
             - Galea
 
 templates:
-  - description: A typical Galea session - mount → impedance → calibration → baseline → VR task → unmount → export
+  - description: A typical Galea session - mount -> impedance -> calibration -> baseline -> VR task -> unmount -> export
     object:
       type: GaleaSession
       bpmn:name: Galea VR session
