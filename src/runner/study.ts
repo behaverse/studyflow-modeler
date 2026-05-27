@@ -3,7 +3,7 @@ import type { FlowNode, SequenceFlow } from '@/lib/core/flow';
 import { findByFlowNode } from './nodes';
 import type { Job } from './types';
 
-export type StudyOptions = {
+export type StudyContext = {
   /** Deterministic random seed for gateways. */
   seed?: number;
   /** Variables exposed to `conditionExpression` evaluation. */
@@ -20,17 +20,17 @@ export class Study {
   private random: () => number;
   private variables: Record<string, unknown>;
 
-  static async parse(xml: string, schemas: Record<string, any>, options: StudyOptions = {}): Promise<Study> {
+  static async parse(xml: string, schemas: Record<string, any>, context: StudyContext = {}): Promise<Study> {
     return new Study(await parseStudyflow(xml, schemas), options);
   }
 
-  constructor(data: ParsedStudy, options: StudyOptions = {}) {
+  constructor(data: ParsedStudy, context: StudyContext = {}) {
     this.businessObject = data.businessObject;
     this.flowNodes = data.flowNodes;
     this.sequenceFlows = data.sequenceFlows;
     this.startId = data.startId;
-    this.random = options.seed != null ? mulberry32(options.seed) : Math.random;
-    this.variables = { ...(options.variables ?? {}) };
+    this.random = context.seed != null ? mulberry32(context.seed) : Math.random;
+    this.variables = { ...(context.variables ?? {}) };
   }
 
   setVariable(name: string, value: unknown): void {

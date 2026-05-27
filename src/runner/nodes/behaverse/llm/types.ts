@@ -5,7 +5,7 @@ export type TrialHistoryEntry = {
   chosenResponse: string;
 };
 
-/** Provider identity + model. Either field can be missing; the responder resolves
+/** Provider identity + model. Either field can be missing; the bot resolves
  *  per-task `botConfig.LLM` over global settings. */
 export type LLMProviderConfig = {
   provider: 'claude' | 'ollama';
@@ -14,13 +14,13 @@ export type LLMProviderConfig = {
   claudeProxyUrl: string;
 };
 
-/** Everything the responder needs to choose a response for one `AwaitingResponse`. */
-export type LLMResponderInput = {
+/** Everything the bot needs to choose a response for one `AwaitingResponse`. */
+export type LLMBotInput = {
   taskId: string;
   taskConfig?: Record<string, unknown>;
   prompt: string;
   stimulus: unknown;
-  allowedResponses: string[];
+  responseOptions: string[];
   trialIndex: number;
   history: TrialHistoryEntry[];
   /** Optional `data:image/<type>;base64,<payload>` URL captured by Unity when the
@@ -29,14 +29,14 @@ export type LLMResponderInput = {
   screenshot?: string;
 };
 
-/** Shape returned by every provider; `response` must already be in `allowedResponses`,
- *  or the responder falls back to random. */
+/** Shape returned by every provider; `response` must already be in `responseOptions`,
+ *  or the bot falls back to random. */
 export type ProviderRequest = {
   system: string;
   user: string;
   model: string;
-  allowedResponses: string[];
-  /** Parsed-out image payload when the responder input carried a screenshot.
+  responseOptions: string[];
+  /** Parsed-out image payload when the bot input carried a screenshot.
    *  `mediaType` is the MIME type (e.g. `image/png`); `data` is bare base64
    *  with no `data:` prefix and no whitespace. */
   image?: { mediaType: string; data: string };

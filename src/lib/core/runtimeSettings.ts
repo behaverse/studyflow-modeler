@@ -1,5 +1,5 @@
 /** Runner-safe slice of user settings: provider + endpoint config for the
- *  LLM responder. Read/write via localStorage with a dedicated key so the
+ *  LLM bot. Read/write via localStorage with a dedicated key so the
  *  modeler-side settings store and the runner can both consume it. */
 
 const LLM_STORAGE_KEY = 'studyflow-modeler:llm:v1';

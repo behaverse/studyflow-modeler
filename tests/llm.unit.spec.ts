@@ -2,16 +2,16 @@ import { expect, test } from '@playwright/test';
 import { buildPrompt } from '../src/runner/nodes/behaverse/llm/prompt';
 import { callClaude } from '../src/runner/nodes/behaverse/llm/providers/claude';
 import { callOllama } from '../src/runner/nodes/behaverse/llm/providers/ollama';
-import { selectResponse } from '../src/runner/nodes/behaverse/llm/responder';
+import { selectResponse } from '../src/runner/nodes/behaverse/llm/bot';
 import { RUNNER_ONLY_BOT_KEYS } from '../src/runner/nodes/behaverse/types';
-import type { LLMProviderConfig, LLMResponderInput, ProviderRequest } from '../src/runner/nodes/behaverse/llm/types';
+import type { LLMBotInput, LLMProviderConfig, ProviderRequest } from '../src/runner/nodes/behaverse/llm/types';
 
-const NB_INPUT: LLMResponderInput = {
+const NB_INPUT: LLMBotInput = {
   taskId: 'NB',
   taskConfig: { NValue: 2 },
   prompt: 'You are an expert 2-back participant.',
   stimulus: { Value: 'A' },
-  allowedResponses: ['Match', 'NonMatch'],
+  responseOptions: ['Match', 'NonMatch'],
   trialIndex: 3,
   history: [
     { trialIndex: 1, stimulus: { Value: 'B' }, chosenResponse: 'NonMatch' },
@@ -19,7 +19,7 @@ const NB_INPUT: LLMResponderInput = {
   ],
 };
 
-test('buildPrompt: uses researcher prompt as system, embeds task id and allowed responses in user', () => {
+test('buildPrompt: uses researcher prompt as system, embeds task id and response options in user', () => {
   const out = buildPrompt(NB_INPUT, 'claude-haiku-4-5');
   expect(out.system).toBe('You are an expert 2-back participant.');
   expect(out.user).toContain('Task: NB');
@@ -42,14 +42,14 @@ test('buildPrompt: falls back to a default system prompt when researcher leaves 
   expect(out.system.toLowerCase()).toContain('cognitive task');
 });
 
-test('buildPrompt: SRM task with numeric allowed responses renders cleanly', () => {
+test('buildPrompt: SRM task with numeric response options renders cleanly', () => {
   const out = buildPrompt(
     {
       taskId: 'SRM',
       taskConfig: {},
       prompt: '',
       stimulus: { Index: 4 },
-      allowedResponses: ['0', '1', '2', '3'],
+      responseOptions: ['0', '1', '2', '3'],
       trialIndex: 1,
       history: [],
     },
@@ -66,14 +66,14 @@ const CONFIG: LLMProviderConfig = {
   claudeProxyUrl: '/api/llm/claude',
 };
 
-test('selectResponse: falls back to a random allowed response when provider errors', async () => {
+test('selectResponse: falls back to a random response option when provider errors', async () => {
   const out = await selectResponse(NB_INPUT, CONFIG);
   expect(['Match', 'NonMatch']).toContain(out.response);
-  expect(out.source).toBe('fallback-random');
+  expect(out.source).toBe('random');
   expect(out.error).toBeTruthy();
 });
 
-test('selectResponse: matches LLM output to an allowed response (case-insensitive, punctuation-tolerant)', async () => {
+test('selectResponse: matches LLM output to a response option (case-insensitive, punctuation-tolerant)', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response(
     JSON.stringify({ message: { content: '  "match".  ' } }),
@@ -89,7 +89,7 @@ test('selectResponse: matches LLM output to an allowed response (case-insensitiv
   }
 });
 
-test('selectResponse: out-of-allowed LLM output triggers fallback-random with an error message', async () => {
+test('selectResponse: out-of-options LLM output triggers fallback with an error message', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response(
     JSON.stringify({ message: { content: 'I think I should pick option C maybe?' } }),
@@ -99,8 +99,8 @@ test('selectResponse: out-of-allowed LLM output triggers fallback-random with an
   try {
     const out = await selectResponse(NB_INPUT, CONFIG);
     expect(['Match', 'NonMatch']).toContain(out.response);
-    expect(out.source).toBe('fallback-random');
-    expect(out.error).toContain('not in allowed set');
+    expect(out.source).toBe('random');
+    expect(out.error).toContain('not in response options');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -134,7 +134,7 @@ test('callClaude: forwards image to the proxy when present', async () => {
   try {
     const req: ProviderRequest = {
       system: 's', user: 'u', model: 'm',
-      allowedResponses: ['Left', 'Right'],
+      responseOptions: ['Left', 'Right'],
       image: { mediaType: 'image/png', data: TINY_PNG_B64 },
     };
     const out = await callClaude(req, '/api/llm/claude');
@@ -155,7 +155,7 @@ test('callClaude: omits the image field when none was set', async () => {
 
   try {
     await callClaude(
-      { system: '', user: 'u', model: 'm', allowedResponses: ['Match'] },
+      { system: '', user: 'u', model: 'm', responseOptions: ['Match'] },
       '/api/llm/claude',
     );
     expect(capturedBody && 'image' in capturedBody).toBe(false);
@@ -175,7 +175,7 @@ test('callOllama: attaches images on the user message when present', async () =>
   try {
     const req: ProviderRequest = {
       system: 's', user: 'u', model: 'llava',
-      allowedResponses: ['Left', 'Right'],
+      responseOptions: ['Left', 'Right'],
       image: { mediaType: 'image/png', data: TINY_PNG_B64 },
     };
     const out = await callOllama(req, 'http://localhost:11434');
@@ -228,7 +228,7 @@ test('callOllama: omits images on the user message when none set', async () => {
 
   try {
     await callOllama(
-      { system: '', user: 'u', model: 'm', allowedResponses: ['Match'] },
+      { system: '', user: 'u', model: 'm', responseOptions: ['Match'] },
       'http://localhost:11434',
     );
     const userMsg = capturedBody?.messages?.find((m) => m.role === 'user');

@@ -1,6 +1,6 @@
 import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
 import { getLLMSettings } from '@/lib/core/runtimeSettings';
-import { selectResponse } from '@/runner/nodes/behaverse/llm/responder';
+import { selectResponse } from '@/runner/nodes/behaverse/llm/bot';
 import type { LLMProviderConfig, TrialHistoryEntry } from '@/runner/nodes/behaverse/llm/types';
 
 /** Strip runner-only keys (e.g. `LLM`, `Prompt`) from the bot payload before
@@ -86,7 +86,7 @@ export function runOnUnity(
       RequestId: string;
       TrialIndex: number;
       Stimulus: { Value: string };
-      AllowedResponses: string[];
+      ResponseOptions: string[];
       MaxResponseTime: number;  // seconds, matches Unity's MaxResponseTime config
       /** `data:image/png;base64,...` set by Unity when `Bot.IncludeScreenshot = true`.
        *  Forwarded to vision-capable LLM providers; ignored by `external`/`internal`. */
@@ -134,7 +134,7 @@ export function runOnUnity(
     };
 
     const handleAwaiting = async (detail: AwaitingResponseDetail | undefined) => {
-      if (!detail || !Array.isArray(detail.AllowedResponses) || detail.AllowedResponses.length === 0) return;
+      if (!detail || !Array.isArray(detail.ResponseOptions) || detail.ResponseOptions.length === 0) return;
       if (seenRequestIds.has(detail.RequestId)) return;
       seenRequestIds.add(detail.RequestId);
 
@@ -145,7 +145,7 @@ export function runOnUnity(
           taskConfig: payload.config,
           prompt: readPrompt(payload.bot),
           stimulus: detail.Stimulus,
-          allowedResponses: detail.AllowedResponses,
+          responseOptions: detail.ResponseOptions,
           trialIndex: detail.TrialIndex,
           history,
           ...(typeof detail.Screenshot === 'string' && detail.Screenshot.length > 0
@@ -162,7 +162,7 @@ export function runOnUnity(
         return;
       }
 
-      const response = detail.AllowedResponses[Math.floor(Math.random() * detail.AllowedResponses.length)];
+      const response = detail.ResponseOptions[Math.floor(Math.random() * detail.ResponseOptions.length)];
       sendResponse(detail, response);
     };
 

@@ -9,7 +9,7 @@
  * - `ResponseSource`: `'internal'` (default) uses Unity's in-game bot;
  *   `'external'` makes Unity emit `studyflow:AwaitingResponse` per trial and
  *   wait for an `InjectResponse` SendMessage from the runner - the runner's
- *   built-in policy picks uniformly at random from `AllowedResponses`;
+ *   built-in policy picks uniformly at random from `ResponseOptions`;
  *   `'llm'` is like `'external'` but the runner asks an LLM (`claude` or
  *   `ollama`) to choose. Unity-side fields below are inert for `'llm'`.
  * - `LLM`: `{ Provider, Model }` - overrides the global LLM defaults for this
@@ -18,8 +18,8 @@
  * - `Prompt`: free-form string used as the LLM's system prompt. Persona,
  *   target accuracy, strategy, mistakes to make - anything that should steer
  *   the simulated participant goes here. The runner appends task config,
- *   trial history, current stimulus, and allowed responses as the user
- *   message; the LLM's reply is matched against `AllowedResponses`.
+ *   trial history, current stimulus, and response options as the user
+ *   message; the LLM's reply is matched against `ResponseOptions`.
  * - `IncludeScreenshot`: opt-in boolean (default `false`). When `true` and
  *   `ResponseSource: llm`, Unity captures the current frame at each
  *   `AwaitingResponse` and embeds it as a `data:image/png;base64,...` URL on

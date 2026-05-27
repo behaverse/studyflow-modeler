@@ -4,7 +4,7 @@
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Two N-Back blocks (1-back warm-up, 2-back main) driven by the studyflow runner via the external-bot bridge: each trial Unity fires `studyflow:AwaitingResponse` and waits for `SendMessage('GameManager','InjectResponse', ...)`. The runner's built-in random policy picks one of `AllowedResponses` per trial. Inspect the browser console to watch the events flow. Configure with `ResponseSource: external` in the task's `botConfig`.</bpmn2:documentation>
+    <bpmn2:documentation>Two N-Back blocks (1-back warm-up, 2-back main) driven by the studyflow runner via the external-bot bridge: each trial Unity fires `studyflow:AwaitingResponse` and waits for `SendMessage('GameManager','InjectResponse', ...)`. The runner's built-in random policy picks one of `ResponseOptions` per trial. Inspect the browser console to watch the events flow. Configure with `ResponseSource: external` in the task's `botConfig`.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Start">
       <bpmn2:outgoing>Flow_Start_Warmup</bpmn2:outgoing>
     </bpmn2:startEvent>
