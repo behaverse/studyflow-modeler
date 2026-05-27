@@ -13,9 +13,11 @@ type TaskCompletion = {
 };
 
 // Unity dispatches each topic as both a CustomEvent and a parent-window postMessage.
-const TASK_COMPLETED = 'studyflow:taskCompleted';
-const UNITY_READY = 'studyflow:unityReady';
-const RUNNER_READY = 'studyflow:runnerReady';
+// Topic strings are PascalCase to mirror the C# source of truth (browser_bridge.jslib).
+const TASK_COMPLETED = 'studyflow:TaskCompleted';
+const AWAITING_RESPONSE = 'studyflow:AwaitingResponse';
+const UNITY_READY = 'studyflow:UnityReady';
+const RUNNER_READY = 'studyflow:RunnerReady';
 
 /** Send a task to Unity and resolve when the matching TASK_COMPLETED event fires. */
 export function runOnUnity(
@@ -24,6 +26,15 @@ export function runOnUnity(
   getUnityWindow: () => UnityWindow | null,
 ): Promise<TaskCompletion> {
   return new Promise((resolve, reject) => {
+    // Keys mirror C# field/JSON conventions (PascalCase, source of truth in Unity).
+    type AwaitingResponseDetail = {
+      RequestId: string;
+      TrialIndex: number;
+      Stimulus: { Value: string };
+      AllowedResponses: string[];
+      MaxResponseTime: number;  // seconds, matches Unity's MaxResponseTime config
+    };
+
     const matches = (detail: TaskCompletion | undefined): detail is TaskCompletion =>
       !!detail
       && detail.taskId === payload.task
@@ -44,15 +55,45 @@ export function runOnUnity(
       resolve(detail);
     };
 
+    const handleAwaiting = (detail: AwaitingResponseDetail | undefined) => {
+      if (!detail || !Array.isArray(detail.AllowedResponses) || detail.AllowedResponses.length === 0) return;
+      const response = detail.AllowedResponses[Math.floor(Math.random() * detail.AllowedResponses.length)];
+      try {
+        unity.SendMessage('GameManager', 'InjectResponse', JSON.stringify({
+          RequestId: detail.RequestId,
+          Response: response,
+          Agent: { Name: 'bot' },
+        }));
+      } catch {
+        // swallow; the trial's natural maxResponseTime handles missed responses
+      }
+    };
+
+    const onAwaitingMessage = (e: MessageEvent) => {
+      const data = e.data as { type?: string; detail?: AwaitingResponseDetail } | undefined;
+      if (data?.type !== AWAITING_RESPONSE) return;
+      handleAwaiting(data.detail);
+    };
+
+    const onAwaiting = (e: Event) => {
+      handleAwaiting((e as CustomEvent<AwaitingResponseDetail>).detail);
+    };
+
     const cleanup = () => {
       window.removeEventListener(TASK_COMPLETED, onCompleted as EventListener);
       window.removeEventListener('message', onMessage);
       getUnityWindow()?.removeEventListener(TASK_COMPLETED, onCompleted as EventListener);
+      window.removeEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
+      window.removeEventListener('message', onAwaitingMessage);
+      getUnityWindow()?.removeEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
     };
 
     window.addEventListener(TASK_COMPLETED, onCompleted as EventListener);
     window.addEventListener('message', onMessage);
     getUnityWindow()?.addEventListener(TASK_COMPLETED, onCompleted as EventListener);
+    window.addEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
+    window.addEventListener('message', onAwaitingMessage);
+    getUnityWindow()?.addEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
 
     try {
       unity.SendMessage('GameManager', 'RunTask', JSON.stringify(payload));

@@ -134,10 +134,10 @@ types:
           SkipInstructions: true
           AutoClickInstructions: true
           SkipFocusArea: true
-          overrideTemporalParameters: true
-          stimulusDisplayDuration: 0.3
-          interStimulusInterval: 0.3
-          trialForeperiod: 0.1
+          OverrideTemporalParameters: true
+          StimulusDisplayDuration: 0.3
+          InterStimulusInterval: 0.3
+          TrialForeperiod: 0.1
         meta:
           order: 3
           categories:
