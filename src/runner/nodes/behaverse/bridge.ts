@@ -26,9 +26,9 @@ type UnityInstance = {
 type UnityWindow = Window & { unityInstance?: UnityInstance };
 
 type TaskCompletion = {
-  taskId: string;
-  timelineId: string;
-  isCompleted: boolean;
+  TaskId: string;
+  TimelineId: string;
+  IsCompleted: boolean;
 };
 
 /** Resolve effective LLM provider/model from per-task botConfig.LLM over global settings. */
@@ -68,8 +68,7 @@ function readPrompt(bot: BehaverseTaskPayload['bot']): string {
 // Topic strings are PascalCase to mirror the C# source of truth (browser_bridge.jslib).
 const TASK_COMPLETED = 'studyflow:TaskCompleted';
 const AWAITING_RESPONSE = 'studyflow:AwaitingResponse';
-const UNITY_READY = 'studyflow:UnityReady';
-const RUNNER_READY = 'studyflow:RunnerReady';
+const READY = 'studyflow:Ready';
 
 type LogFn = (kind: 'info' | 'task' | 'ok' | 'error' | 'skip', message: string) => void;
 
@@ -95,8 +94,8 @@ export function runOnUnity(
 
     const matches = (detail: TaskCompletion | undefined): detail is TaskCompletion =>
       !!detail
-      && detail.taskId === payload.task
-      && (!payload.timeline || !detail.timelineId || detail.timelineId === payload.timeline);
+      && detail.TaskId === payload.task
+      && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
 
     const onMessage = (e: MessageEvent) => {
       const data = e.data as { type?: string; detail?: TaskCompletion } | undefined;
@@ -202,8 +201,9 @@ export function runOnUnity(
   });
 }
 
-/** Wait for the WebGL template to expose `window.unityInstance`. */
-export function waitForUnity(
+/** Wait for `studyflow:Ready` — the combined signal that Unity is loaded AND
+ *  GameManager is up. Resolves with the `unityInstance` handle. */
+export function waitForReady(
   getIframe: () => HTMLIFrameElement | null,
   timeoutMs = 60_000,
 ): Promise<UnityInstance> {
@@ -213,92 +213,59 @@ export function waitForUnity(
       return iframeWindow?.unityInstance ?? ((window as any).unityInstance as UnityInstance | undefined);
     };
 
-    const existing = resolveFromIframe();
-    if (existing) {
-      resolve(existing);
-      return;
+    const readyFlagSet = () => {
+      const iframeWindow = getIframe()?.contentWindow as (UnityWindow & { studyflowReady?: boolean }) | null | undefined;
+      return iframeWindow?.studyflowReady === true || (window as any).studyflowReady === true;
+    };
+
+    // If we attached too late and the event already fired, the jslib sets
+    // `studyflowReady = true` on the iframe (and the template forwards it to
+    // the parent) — pick it up on the first tick.
+    if (readyFlagSet()) {
+      const instance = resolveFromIframe();
+      if (instance) {
+        resolve(instance);
+        return;
+      }
     }
 
-    let iframeWindow: UnityWindow | null = null;
     let attachedIframeWindow: UnityWindow | null = null;
 
     const cleanup = () => {
       window.clearTimeout(timer);
       window.removeEventListener('message', onMessage);
-      window.removeEventListener(UNITY_READY, onReady as EventListener);
+      window.removeEventListener(READY, onReady);
       window.clearInterval(pollTimer);
-      attachedIframeWindow?.removeEventListener(UNITY_READY, onReady as EventListener);
-    };
-
-    const onReady = (e: Event) => {
-      const detail = (e as CustomEvent<{ unityInstance: UnityInstance }>).detail;
-      const instance = detail?.unityInstance ?? resolveFromIframe();
-      if (!instance) return;
-      cleanup();
-      resolve(instance);
-    };
-
-    const onMessage = (e: MessageEvent) => {
-      const data = e.data as { type?: string } | undefined;
-      if (data?.type !== UNITY_READY) return;
-      const instance = resolveFromIframe();
-      if (!instance) return;
-      cleanup();
-      resolve(instance);
-    };
-
-    const timer = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('Timed out waiting for Unity to load.'));
-    }, timeoutMs);
-
-    const pollTimer = window.setInterval(() => {
-      iframeWindow = getIframe()?.contentWindow as UnityWindow | null | undefined;
-      if (iframeWindow && iframeWindow !== attachedIframeWindow) {
-        attachedIframeWindow?.removeEventListener(UNITY_READY, onReady as EventListener);
-        attachedIframeWindow = iframeWindow;
-        attachedIframeWindow.addEventListener(UNITY_READY, onReady as EventListener, { once: true });
-      }
-      const instance = resolveFromIframe();
-      if (!instance) return;
-      cleanup();
-      resolve(instance);
-    }, 100);
-
-    window.addEventListener('message', onMessage);
-    window.addEventListener(UNITY_READY, onReady as EventListener);
-  });
-}
-
-/** Wait for the GameManager `runnerReady` signal; resolves `'timeout'` for older builds without it. */
-export function waitForRunnerReady(
-  getIframe: () => HTMLIFrameElement | null,
-  timeoutMs = 5_000,
-): Promise<'ready' | 'timeout'> {
-  return new Promise((resolve) => {
-    const cleanup = () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('message', onMessage);
-      window.removeEventListener(RUNNER_READY, onReady);
-      getIframe()?.contentWindow?.removeEventListener(RUNNER_READY, onReady);
+      attachedIframeWindow?.removeEventListener(READY, onReady);
     };
 
     const onReady = () => {
+      const instance = resolveFromIframe();
+      if (!instance) return;
       cleanup();
-      resolve('ready');
+      resolve(instance);
     };
 
     const onMessage = (e: MessageEvent) => {
-      if ((e.data as { type?: string } | undefined)?.type === RUNNER_READY) onReady();
+      if ((e.data as { type?: string } | undefined)?.type === READY) onReady();
     };
 
     const timer = window.setTimeout(() => {
       cleanup();
-      resolve('timeout');
+      reject(new Error('Timed out waiting for Unity to be ready.'));
     }, timeoutMs);
 
-    window.addEventListener(RUNNER_READY, onReady);
+    const pollTimer = window.setInterval(() => {
+      const iframeWindow = getIframe()?.contentWindow as UnityWindow | null | undefined;
+      if (iframeWindow && iframeWindow !== attachedIframeWindow) {
+        attachedIframeWindow?.removeEventListener(READY, onReady);
+        attachedIframeWindow = iframeWindow;
+        attachedIframeWindow.addEventListener(READY, onReady, { once: true });
+      }
+      if (readyFlagSet()) onReady();
+    }, 100);
+
     window.addEventListener('message', onMessage);
-    getIframe()?.contentWindow?.addEventListener(RUNNER_READY, onReady);
+    window.addEventListener(READY, onReady);
   });
 }

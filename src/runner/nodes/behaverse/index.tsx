@@ -3,7 +3,7 @@ import type { FlowNode } from '@/lib/core/flow';
 import type { Study } from '@/runner/study';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import type { BehaverseTaskPayload, Manifest } from '@/runner/nodes/behaverse/types';
-import { runOnUnity, waitForUnity, waitForRunnerReady } from './bridge';
+import { runOnUnity, waitForReady } from './bridge';
 import { buildBehaverseIframeSrc } from './iframe';
 import { getBehaverseTaskPayload } from './parser';
 import { validateStudy as validateBehaverseStudy } from './validator';
@@ -16,7 +16,6 @@ declare module '@/runner/types' {
   }
 }
 
-const STARTUP_GRACE_MS = 1000;
 const STAGE_REVEAL_DELAY_MS = 1000;
 
 type BehaverseJob = {
@@ -45,13 +44,8 @@ function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
 
     (async () => {
       try {
-        const unity = await waitForUnity(() => iframeRef.current);
+        const unity = await waitForReady(() => iframeRef.current);
         if (cancelled) return;
-        const ready = await waitForRunnerReady(() => iframeRef.current);
-        if (cancelled) return;
-        if (ready === 'timeout') {
-          await new Promise((r) => setTimeout(r, STARTUP_GRACE_MS));
-        }
         setStatusLine(`Running ${job.payload.task}`);
         setTimeout(() => {
           if (!cancelled) setStageReady(true);
@@ -66,11 +60,11 @@ function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
         );
         if (cancelled) return;
         log(
-          result.isCompleted ? 'ok' : 'error',
-          `${result.isCompleted ? 'Completed' : 'Aborted'} ${result.taskId} / ${result.timelineId}`,
+          result.IsCompleted ? 'ok' : 'error',
+          `${result.IsCompleted ? 'Completed' : 'Aborted'} ${result.TaskId} / ${result.TimelineId}`,
         );
-        if (result.isCompleted) complete(result);
-        else abort(`task-aborted:${result.taskId}`);
+        if (result.IsCompleted) complete(result);
+        else abort(`task-aborted:${result.TaskId}`);
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
