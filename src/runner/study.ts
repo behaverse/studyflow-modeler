@@ -8,6 +8,11 @@ export type StudyContext = {
   seed?: number;
   /** Variables exposed to `conditionExpression` evaluation. */
   variables?: Record<string, unknown>;
+  /** BDM-aligned identity of the participant. Stamped onto every event via
+   *  `agent.id`. Falls back to a per-device GUID on the Unity side when absent. */
+  agentId?: string;
+  /** Runner-session identifier. Stamped into `context.session`. */
+  sessionId?: string;
 };
 
 /** Walks a parsed studyflow, yielding `Job`s; owns the random source and variable bag. */
@@ -16,12 +21,16 @@ export class Study {
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
   startId?: string;
+  /** BDM `agent_id` for the run; undefined when running anonymously. */
+  agentId?: string;
+  /** Session identifier; undefined when running outside a managed session. */
+  sessionId?: string;
 
   private random: () => number;
   private variables: Record<string, unknown>;
 
   static async parse(xml: string, schemas: Record<string, any>, context: StudyContext = {}): Promise<Study> {
-    return new Study(await parseStudyflow(xml, schemas), options);
+    return new Study(await parseStudyflow(xml, schemas), context);
   }
 
   constructor(data: ParsedStudy, context: StudyContext = {}) {
@@ -29,8 +38,24 @@ export class Study {
     this.flowNodes = data.flowNodes;
     this.sequenceFlows = data.sequenceFlows;
     this.startId = data.startId;
+    this.agentId = context.agentId;
+    this.sessionId = context.sessionId;
     this.random = context.seed != null ? mulberry32(context.seed) : Math.random;
     this.variables = { ...(context.variables ?? {}) };
+  }
+
+  /** BDM `study_id`. Sourced from the BPMN root's `id` attribute. */
+  get studyId(): string | undefined {
+    const id = this.businessObject?.id;
+    return typeof id === 'string' && id.length > 0 ? id : undefined;
+  }
+
+  /** Identifier for this specific studyflow document. Sourced from the BPMN
+   *  root's `name` attribute — the same string the modeler navbar displays.
+   *  Falls back to `studyId` when the document has no name. */
+  get studyflowId(): string | undefined {
+    const name = this.businessObject?.name;
+    return typeof name === 'string' && name.length > 0 ? name : this.studyId;
   }
 
   setVariable(name: string, value: unknown): void {

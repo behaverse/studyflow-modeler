@@ -51,6 +51,17 @@ export type BehaverseTaskPayload = {
   agentMode: 'human' | 'bot';
   bot?: BehaverseBotPayload;
   metadata: { studyflowNodeId: string };
+  /** Participant identity. Stamped onto every Unity telemetry event as
+   *  `agent.id`; maps to BDM `agent_id`. Omitted ⇒ Unity falls back to its
+   *  per-device PlayerPrefs GUID (dev/solo mode). */
+  agent?: { id: string };
+  /** BDM `study_id`. Sourced from the BPMN root element's `id` attribute. */
+  studyId?: string;
+  /** Identifier for the specific studyflow document. Sourced from the BPMN
+   *  root element's `name` (matches the modeler navbar). */
+  studyflowId?: string;
+  /** Runner-session identifier; stamped into `context.session`. */
+  sessionId?: string;
 };
 
 export type ManifestTask = {

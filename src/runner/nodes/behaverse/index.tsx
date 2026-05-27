@@ -29,7 +29,7 @@ function behaverseToJob(node: FlowNode): BehaverseJob | null {
   return payload ? { type: 'behaverse', node, payload } : null;
 }
 
-function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
+function Behaverse({ job, study, log, complete, abort }: NodeProps<BehaverseJob>) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [stageReady, setStageReady] = useState(false);
   const [statusLine, setStatusLine] = useState('Loading Behaverse...');
@@ -52,9 +52,16 @@ function Behaverse({ job, log, complete, abort }: NodeProps<BehaverseJob>) {
         }, STAGE_REVEAL_DELAY_MS);
 
         log('task', `Run ${job.payload.task} / ${job.payload.timeline ?? '(inline)'}`);
+        const enrichedPayload: BehaverseTaskPayload = {
+          ...job.payload,
+          ...(study.agentId ? { agent: { id: study.agentId } } : {}),
+          ...(study.studyId ? { studyId: study.studyId } : {}),
+          ...(study.studyflowId ? { studyflowId: study.studyflowId } : {}),
+          ...(study.sessionId ? { sessionId: study.sessionId } : {}),
+        };
         const result = await runOnUnity(
           unity,
-          job.payload,
+          enrichedPayload,
           () => iframeRef.current?.contentWindow ?? null,
           log,
         );

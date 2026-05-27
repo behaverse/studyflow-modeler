@@ -18,6 +18,7 @@ export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflow_url') ?? '';
   const sessionId = params.get('session_id') ?? '';
+  const agentId = params.get('agent_id') ?? undefined;
   const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
 
   const [xml, setXml] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export function Runner() {
       try {
         setPhase('loading');
         const schemas = await loadAllSchemas();
-        const study = await Study.parse(xml, schemas, { seed });
+        const study = await Study.parse(xml, schemas, { seed, agentId, sessionId: sessionId || undefined });
         studyRef.current = study;
         setStudyName(study.businessObject?.name || study.businessObject?.id || null);
         addLog('info', `Parsed ${study.flowNodes.size} flow nodes, ${study.sequenceFlows.size} sequence flows.`);
@@ -137,6 +138,7 @@ export function Runner() {
             <NodeRenderer
               key={currentJob.node.id}
               job={currentJob}
+              study={studyRef.current!}
               log={addLog}
               setVariable={setVariable}
               onResolve={handleResolve}

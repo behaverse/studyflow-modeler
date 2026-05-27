@@ -7,6 +7,9 @@ import type { Manifest } from './behaverse/types';
 
 export type NodeProps<J extends Job = Job> = {
   job: J;
+  /** Study reference; exposes runtime identity (`agentId`, `sessionId`,
+   *  `studyId`, `studyflowId`) and the variable bag for downstream nodes. */
+  study: Study;
   log: (kind: LogKind, message: string) => void;
   setVariable: (name: string, value: unknown) => void;
   complete: (result?: unknown) => void;

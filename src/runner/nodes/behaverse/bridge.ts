@@ -119,12 +119,12 @@ export function runOnUnity(
     // avoid double LLM calls (wasted tokens) and duplicate sidebar logs.
     const seenRequestIds = new Set<string>();
 
-    const sendResponse = (detail: AwaitingResponseDetail, response: string) => {
+    const sendResponse = (detail: AwaitingResponseDetail, response: string, agentId: string) => {
       try {
         unity.SendMessage('GameManager', 'InjectResponse', JSON.stringify({
           RequestId: detail.RequestId,
           Response: response,
-          Agent: { Id: 'bot' },
+          Agent: { Id: agentId },
         }));
         history.push({ trialIndex: detail.TrialIndex, stimulus: detail.Stimulus, chosenResponse: response });
       } catch {
@@ -157,12 +157,16 @@ export function runOnUnity(
           log?.('error', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex} -> fall back to random "${result.response}": ${result.error}`);
           console.warn(`[behaverse:llm] trial ${detail.TrialIndex} fell back to random: ${result.error}`);
         }
-        sendResponse(detail, result.response);
+        // When the LLM actually answered, tag the response with `<provider>:<model>`
+        // so downstream telemetry can distinguish LLM-driven from random-fallback
+        // trials. On random fallback, keep the generic `bot` tag.
+        const agentId = result.source === 'llm' ? `${llmConfig.provider}:${llmConfig.model}` : 'bot';
+        sendResponse(detail, result.response, agentId);
         return;
       }
 
       const response = detail.ResponseOptions[Math.floor(Math.random() * detail.ResponseOptions.length)];
-      sendResponse(detail, response);
+      sendResponse(detail, response, 'bot');
     };
 
     const onAwaitingMessage = (e: MessageEvent) => {
