@@ -124,7 +124,7 @@ export function runOnUnity(
         unity.SendMessage('GameManager', 'InjectResponse', JSON.stringify({
           RequestId: detail.RequestId,
           Response: response,
-          Agent: { Name: 'bot' },
+          Agent: { Id: 'bot' },
         }));
         history.push({ trialIndex: detail.TrialIndex, stimulus: detail.Stimulus, chosenResponse: response });
       } catch {
