@@ -120,7 +120,7 @@ export function runOnUnity(
     const seenRequestIds = new Set<string>();
 
     const sendResponse = (detail: AwaitingResponseDetail, response: string, agentId: string) => {
-      // BDM `response_option_index` — 0-based position of the chosen option in
+      // BDM `response_option_index` - 0-based position of the chosen option in
       // `ResponseOptions`. `-1` when the response isn't a known option (shouldn't
       // happen on the LLM/random path but the InjectResponse contract allows it).
       const responseOptionIndex = detail.ResponseOptions.indexOf(response);
@@ -210,7 +210,7 @@ export function runOnUnity(
   });
 }
 
-/** Wait for `studyflow:Ready` — the combined signal that Unity is loaded AND
+/** Wait for `studyflow:Ready` - the combined signal that Unity is loaded AND
  *  GameManager is up. Resolves with the `unityInstance` handle. */
 export function waitForReady(
   getIframe: () => HTMLIFrameElement | null,
@@ -229,7 +229,7 @@ export function waitForReady(
 
     // If we attached too late and the event already fired, the jslib sets
     // `studyflowReady = true` on the iframe (and the template forwards it to
-    // the parent) — pick it up on the first tick.
+    // the parent) - pick it up on the first tick.
     if (readyFlagSet()) {
       const instance = resolveFromIframe();
       if (instance) {

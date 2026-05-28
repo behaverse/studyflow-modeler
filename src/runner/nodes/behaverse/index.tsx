@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FlowNode } from '@/lib/core/flow';
-import type { Study } from '@/runner/study';
-import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
-import type { BehaverseTaskPayload, Manifest } from '@/runner/nodes/behaverse/types';
+import type { NodeProps } from '@/runner/nodes/types';
+import type { BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
 import { runOnUnity, waitForReady } from './bridge';
 import { buildBehaverseIframeSrc } from './iframe';
 import { getBehaverseTaskPayload } from './parser';
-import { validateStudy as validateBehaverseStudy } from './validator';
+import { validateStudyflow as validateBehaverseStudyflow } from './validator';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 
@@ -29,7 +28,7 @@ function behaverseToJob(node: FlowNode): BehaverseJob | null {
   return payload ? { type: 'behaverse', node, payload } : null;
 }
 
-function Behaverse({ job, study, log, complete, abort }: NodeProps<BehaverseJob>) {
+function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJob>) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [stageReady, setStageReady] = useState(false);
   const [statusLine, setStatusLine] = useState('Loading Behaverse...');
@@ -54,11 +53,11 @@ function Behaverse({ job, study, log, complete, abort }: NodeProps<BehaverseJob>
         log('task', `Run ${job.payload.task} / ${job.payload.timeline ?? '(inline)'}`);
         const enrichedPayload: BehaverseTaskPayload = {
           ...job.payload,
-          ...(study.agentId ? { agent: { id: study.agentId } } : {}),
-          ...(study.studyId ? { studyId: study.studyId } : {}),
-          ...(study.studyflowId ? { studyflowId: study.studyflowId } : {}),
-          ...(study.sessionId ? { sessionId: study.sessionId } : {}),
-          ...(study.studyflowHash ? { studyflowHash: study.studyflowHash } : {}),
+          ...(session.agentId ? { agent: { id: session.agentId } } : {}),
+          ...(session.studyflow.studyId ? { studyId: session.studyflow.studyId } : {}),
+          ...(session.studyflow.studyflowId ? { studyflowId: session.studyflow.studyflowId } : {}),
+          ...(session.sessionId ? { sessionId: session.sessionId } : {}),
+          ...(session.studyflow.studyflowHash ? { studyflowHash: session.studyflow.studyflowHash } : {}),
         };
         const result = await runOnUnity(
           unity,
@@ -110,5 +109,5 @@ registerNode({
   match: { extensionType: 'behaverse:BehaverseTask' },
   toJob: behaverseToJob,
   Component: Behaverse,
-  validate: (study, manifest) => manifest ? validateBehaverseStudy(study, manifest) : [],
+  validate: (studyflow, manifest) => manifest ? validateBehaverseStudyflow(studyflow, manifest) : [],
 });

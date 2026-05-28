@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type { Job } from '@/runner/types';
-import type { Study } from '@/runner/study';
+import type { Session } from '@/runner/session';
 import type { LogKind } from '../styles';
 import type { NodeProps } from '@/runner/nodes/types';
 import { findByType } from './';
@@ -11,14 +11,14 @@ export type NodeOutcome =
 
 type Props = {
   job: Job;
-  study: Study;
+  session: Session;
   log: (kind: LogKind, message: string) => void;
   setVariable: (name: string, value: unknown) => void;
   onResolve: (outcome: NodeOutcome) => void;
 };
 
 /** Mounts the component for the job's type; `onResolve` fires once per mount. */
-export function NodeRenderer({ job, study, log, setVariable, onResolve }: Props) {
+export function NodeRenderer({ job, session, log, setVariable, onResolve }: Props) {
   const resolvedRef = useRef(false);
 
   const resolveOnce = useCallback((outcome: NodeOutcome) => {
@@ -37,5 +37,5 @@ export function NodeRenderer({ job, study, log, setVariable, onResolve }: Props)
   }
 
   const Component = def.Component;
-  return <Component {...({ job, study, log, setVariable, complete, abort } as NodeProps<any>)} />;
+  return <Component {...({ job, session, log, setVariable, complete, abort } as NodeProps<any>)} />;
 }

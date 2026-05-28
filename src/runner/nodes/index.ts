@@ -1,5 +1,5 @@
 import type { FlowNode } from '@/lib/core/flow';
-import type { Study } from '@/runner/study';
+import type { Studyflow } from '@/runner/studyflow';
 import type { Manifest } from './behaverse/types';
 import type { NodeDefinition, ValidationIssue } from './types';
 import { getRegisteredNodes } from './registry';
@@ -43,13 +43,13 @@ export function findByType(type: string): NodeDefinition | undefined {
   return getRegisteredNodes().find((n) => n.type === type);
 }
 
-export function validate(study: Study, manifest?: Manifest): ValidationIssue[] {
-  return getRegisteredNodes().flatMap((n) => n.validate?.(study, manifest) ?? []);
+export function validate(studyflow: Studyflow, manifest?: Manifest): ValidationIssue[] {
+  return getRegisteredNodes().flatMap((n) => n.validate?.(studyflow, manifest) ?? []);
 }
 
 /** Drives whether the runner pre-fetches the Unity manifest. */
-export function requiresBehaverseRuntime(study: Study): boolean {
-  for (const node of study.flowNodes.values()) {
+export function requiresBehaverseRuntime(studyflow: Studyflow): boolean {
+  for (const node of studyflow.flowNodes.values()) {
     if (node.extensionType === 'behaverse:BehaverseTask') return true;
   }
   return false;

@@ -1,5 +1,5 @@
 import type { FlowNode } from '@/lib/core/flow';
-import type { Study } from '@/runner/study';
+import type { Studyflow } from '@/runner/studyflow';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { readString } from '../readAttribute';
@@ -35,9 +35,9 @@ function Instruction({ job, complete }: NodeProps<InstructionJob>) {
   );
 }
 
-function validateInstructions(study: Study): ValidationIssue[] {
+function validateInstructions(studyflow: Studyflow): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const node of study.flowNodes.values()) {
+  for (const node of studyflow.flowNodes.values()) {
     if (node.extensionType !== 'cognitive:Instruction') continue;
     const content = readString(node, 'content') ?? '';
     if (!content.trim()) {

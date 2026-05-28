@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 import { getBehaverseTaskPayload, readBehaverseAttribute } from './parser';
-import type { Study } from '@/runner/study';
+import type { Studyflow } from '@/runner/studyflow';
 import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@/runner/nodes/behaverse/types';
 import type { ValidationIssue } from '@/runner/nodes/types';
 
@@ -14,11 +14,11 @@ export async function fetchManifest(unityBuildUrl: string): Promise<Manifest> {
   return (await response.json()) as Manifest;
 }
 
-export function validateStudy(study: Study, manifest: Manifest): ValidationIssue[] {
+export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const tasksById = new Map(manifest.tasks.map((t) => [t.id, t]));
 
-  for (const node of study.flowNodes.values()) {
+  for (const node of studyflow.flowNodes.values()) {
     if (node.extensionType !== 'behaverse:BehaverseTask') continue;
 
     let payload;

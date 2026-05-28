@@ -2,14 +2,16 @@ import type { ComponentType } from 'react';
 import type { LogKind } from '../styles';
 import type { Job } from '@/runner/types';
 import type { FlowNode } from '@/lib/core/flow';
-import type { Study } from '@/runner/study';
+import type { Session } from '@/runner/session';
+import type { Studyflow } from '@/runner/studyflow';
 import type { Manifest } from './behaverse/types';
 
 export type NodeProps<J extends Job = Job> = {
   job: J;
-  /** Study reference; exposes runtime identity (`agentId`, `sessionId`,
-   *  `studyId`, `studyflowId`) and the variable bag for downstream nodes. */
-  study: Study;
+  /** Runtime session. Exposes participant identity (`agentId`, `sessionId`)
+   *  and the variable bag. The parsed studyflow is reachable as
+   *  `session.studyflow` (`studyId`, `studyflowId`, `studyflowHash`, ...). */
+  session: Session;
   log: (kind: LogKind, message: string) => void;
   setVariable: (name: string, value: unknown) => void;
   complete: (result?: unknown) => void;
@@ -36,5 +38,5 @@ export interface NodeDefinition<J extends { type: string; node: FlowNode } = { t
   match: NodeMatcher;
   toJob: (node: FlowNode) => J | null;
   Component: ComponentType<NodeProps<J>>;
-  validate?: (study: Study, manifest?: Manifest) => ValidationIssue[];
+  validate?: (studyflow: Studyflow, manifest?: Manifest) => ValidationIssue[];
 }

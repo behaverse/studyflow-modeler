@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="demo5_ollama_bot" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Demo5_OllamaBot" name="5. LLM bot — Ollama (local)">
+  <bpmn2:process id="Demo5_OllamaBot" name="LLM bot (Ollama)">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Two N-Back blocks driven by a local Ollama model (`gemma4:e2b` — the smallest Gemma 4 size). Requires Ollama running locally with `OLLAMA_ORIGINS=* ollama serve` and `ollama pull gemma4:e2b`. Per-trial latency is ~1–2s (vs ~15–20s for Claude Max), so `maxResponseTime` is set to 15s. NBack runs in player-paced mode so the trial waits for the LLM instead of auto-advancing.</bpmn2:documentation>
+    <bpmn2:documentation>Two N-Back blocks driven by a local Ollama model (`gemma4:e2b` - the smallest Gemma 4 size). Requires Ollama running locally with `OLLAMA_ORIGINS=* ollama serve` and `ollama pull gemma4:e2b`. Per-trial latency is ~1-2s (vs ~15-20s for Claude Max), so `maxResponseTime` is set to 15s. NBack runs in player-paced mode so the trial waits for the LLM instead of auto-advancing.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Start">
       <bpmn2:outgoing>Flow_Start_Warmup</bpmn2:outgoing>
     </bpmn2:startEvent>

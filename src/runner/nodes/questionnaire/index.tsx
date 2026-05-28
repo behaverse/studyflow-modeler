@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FlowNode } from '@/lib/core/flow';
-import type { Study } from '@/runner/study';
+import type { Studyflow } from '@/runner/studyflow';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { readString } from '../readAttribute';
@@ -147,9 +147,9 @@ function Questionnaire({ job, log, setVariable, complete }: NodeProps<Questionna
   );
 }
 
-function validateQuestionnaires(study: Study): ValidationIssue[] {
+function validateQuestionnaires(studyflow: Studyflow): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const node of study.flowNodes.values()) {
+  for (const node of studyflow.flowNodes.values()) {
     if (node.extensionType !== 'cognitive:Questionnaire') continue;
     const instrument = readString(node, 'instrument') ?? '';
     if (!instrument.trim()) {
