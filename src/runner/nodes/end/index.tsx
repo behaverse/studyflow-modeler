@@ -33,7 +33,7 @@ function readCompletionCodeType(node: FlowNode): CompletionCodeType {
   return (getAttribute(node.businessObject, 'completionCodeType') as CompletionCodeType | undefined) ?? 'none';
 }
 
-function End({ job, log, complete }: NodeProps<EndJob>) {
+function End({ job, log, setVariable, complete }: NodeProps<EndJob>) {
   const code = useMemo(
     () => resolveCompletionCode(job.completionCodeType, job.completionCode),
     [job.completionCodeType, job.completionCode],
@@ -46,7 +46,10 @@ function End({ job, log, complete }: NodeProps<EndJob>) {
   const [countdown, setCountdown] = useState<number | null>(redirectUrl ? REDIRECT_TIMEOUT : null);
 
   useEffect(() => {
-    if (code) log('info', `Completion code: ${code}`);
+    if (code) {
+      log('info', `Completion code: ${code}`);
+      setVariable('end.completionCode', code);
+    }
     if (redirectUrl) log('info', `Will redirect to: ${redirectUrl}`);
     // Signal the executor so it reaches the `done` phase; the component stays mounted for the user.
     complete();

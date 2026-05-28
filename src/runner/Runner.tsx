@@ -11,6 +11,13 @@ import {
 } from './nodes';
 import { NodeRenderer, type NodeOutcome } from './nodes/NodeRenderer';
 import { layout, logColor, type LogKind } from './styles';
+import {
+  createSession,
+  readDataServerConfig,
+  updateSession,
+  type DataServerConfig,
+  type SessionHandle,
+} from './dataServer';
 
 type Log = { kind: LogKind; message: string };
 
@@ -24,12 +31,36 @@ async function sha256Hex(text: string): Promise<string> {
     .join('');
 }
 
+/** PATCHes the data-server session with the final variable bag. No-op when
+ *  the session is offline or the runner was started without a server. */
+async function pushFinalState(
+  config: DataServerConfig,
+  handle: SessionHandle | null,
+  study: Study,
+  status: 'completed' | 'canceled',
+  addLog: (kind: LogKind, message: string) => void,
+): Promise<void> {
+  if (!handle) return;
+  const variables = study.getVariables();
+  const completionCode = typeof variables['end.completionCode'] === 'string'
+    ? (variables['end.completionCode'] as string)
+    : undefined;
+  const ok = await updateSession(config, handle, { status, variables, completionCode });
+  if (handle.online) {
+    addLog(ok ? 'info' : 'skip',
+      ok
+        ? `Session ${handle.sessionId} marked ${status}.`
+        : `Failed to persist final state for session ${handle.sessionId}.`);
+  }
+}
+
 export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflow_url') ?? '';
   const sessionId = params.get('session_id') ?? '';
   const agentId = params.get('agent_id') ?? undefined;
   const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
+  const dataServerConfig = readDataServerConfig(params);
 
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
@@ -40,6 +71,8 @@ export function Runner() {
   const ranOnce = useRef(false);
   const resolverRef = useRef<((outcome: NodeOutcome) => void) | null>(null);
   const studyRef = useRef<Study | null>(null);
+  const sessionRef = useRef<SessionHandle | null>(null);
+  const dataServerRef = useRef<DataServerConfig>(dataServerConfig);
 
   const addLog = useCallback((kind: LogKind, message: string) => {
     // flushSync so per-trial LLM logs paint into the sidebar BEFORE the synchronous
@@ -84,6 +117,7 @@ export function Runner() {
     ranOnce.current = true;
 
     (async () => {
+      const dataServer = dataServerRef.current;
       try {
         setPhase('loading');
         const schemas = await loadAllSchemas();
@@ -109,6 +143,16 @@ export function Runner() {
           return;
         }
 
+        const session = await createSession(dataServer, { agentId });
+        sessionRef.current = session;
+        study.sessionId = session.sessionId;
+        addLog(
+          session.online ? 'info' : 'skip',
+          session.online
+            ? `Session ${session.sessionId} registered with data-server.`
+            : `Running offline (session=${session.sessionId}); data-server writes are skipped.`,
+        );
+
         setPhase('running');
         for await (const job of study.traverse()) {
           setCurrentJob(job);
@@ -120,13 +164,18 @@ export function Runner() {
           if (outcome.kind === 'abort') {
             addLog('error', `Aborted at ${job.node.id}: ${outcome.reason}`);
             setPhase('aborted');
+            await pushFinalState(dataServer, sessionRef.current, study, 'canceled', addLog);
             return;
           }
         }
         setPhase('done');
+        await pushFinalState(dataServer, sessionRef.current, study, 'completed', addLog);
       } catch (err) {
         addLog('error', err instanceof Error ? err.message : String(err));
         setPhase('error');
+        if (studyRef.current) {
+          await pushFinalState(dataServer, sessionRef.current, studyRef.current, 'canceled', addLog);
+        }
       }
     })();
   }, [xml, seed]);
@@ -203,6 +252,8 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
       <h1 className={layout.helpTitle}>Studyflow</h1>
       <p className={layout.helpText}>
         Upload a <code>.studyflow</code> file, or pass a <code>studyflow_url</code> query parameter.
+        Add <code>data_server_url</code> + <code>study_name</code> to persist sessions and variables;
+        omit them (or pass <code>disable_data_server=1</code>) to run offline.
       </p>
       <label className={layout.uploadButton}>
         <input
@@ -214,7 +265,7 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
         <span>Choose file...</span>
       </label>
       <pre className={layout.helpExample}>
-        run.html?studyflow_url=/assets/behaverse.studyflow&seed=42
+        run.html?studyflow_url=https://data.behaverse.org/v1/studies/pilot3/studyflow&data_server_url=https://data.behaverse.org/v1&study_name=pilot3&agent_id=p001&seed=42
       </pre>
     </div>
   );

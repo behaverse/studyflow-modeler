@@ -68,6 +68,10 @@ export class Study {
     this.variables[name] = value;
   }
 
+  getVariables(): Record<string, unknown> {
+    return { ...this.variables };
+  }
+
   async *traverse(): AsyncGenerator<Job, void, void> {
     if (!this.startId) throw new Error('No StartEvent found in diagram.');
 
