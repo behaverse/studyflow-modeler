@@ -11,11 +11,11 @@
     id="spirit2025-example"
     targetNamespace="http://bpmn.io/schema/bpmn"
     xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
-  <bpmn2:process id="SPIRIT_2025_Protocol" isExecutable="false">
+  <bpmn2:process id="SPIRIT_2025" isExecutable="false">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>SPIRIT 2025 (Standard Protocol Items: Recommendations for Interventional Trials) to schedule enrolment, interventions, and assessments.</bpmn2:documentation>
+    <bpmn2:documentation>A SPIRIT 2025-compliant trial protocol scheduling enrollment, interventions, and outcome assessments.</bpmn2:documentation>
 
     <bpmn2:startEvent id="Protocol_Start" name="Recruitment"
         studyflow:consentFormUri="https://example.org/protocols/spirit2025/consent.pdf">

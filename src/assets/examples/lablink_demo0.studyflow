@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="demo0" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Demo0_FromScratch" name="0. Build a study from scratch">
+  <bpmn2:process id="Demo0_FromScratch" name="EPSYLON LabLink - Build a study from scratch">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Minimal process.</bpmn2:documentation>
+    <bpmn2:documentation>EPSYLON LabLink 2026 talk: building a study from scratch.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Participant arrives">
       <bpmn2:outgoing>Flow_Start_End</bpmn2:outgoing>
     </bpmn2:startEvent>

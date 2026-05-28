@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:datatrove="https://w3id.org/studyflow/datatrove" xmlns:omniprocess="https://w3id.org/omniprocess" id="omniprocess_lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="OmniProcessLabLinkDemo" name="2. Modeling and publication pipeline" isExecutable="true">
+  <bpmn2:process id="OmniProcessLabLinkDemo" name="EPSYLON LabLink - Modeling pipeline" isExecutable="true">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Multimodal preprocessing and model fitting.</bpmn2:documentation>
+    <bpmn2:documentation>EPSYLON LabLink 2026 talk: data pipeline that reads BIDS input, runs multimodal preprocessing, fits models, and caches derivatives for reuse.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Canonical request">
       <bpmn2:outgoing>Flow_Start_Cache</bpmn2:outgoing>
     </bpmn2:startEvent>

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="demo4_llm_bot" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Demo4_LLMBot" name="4. LLM bot">
+  <bpmn2:process id="Demo4_LLMBot" name="LLM bot (Claude Code)">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Three LLM-driven blocks. The two N-Back tasks rely on the text-serialized stimulus (the letter is in `Stimulus.Value`). The third task is `WhichOne`, a purely visual comparison - there is no useful textual stimulus, so it sets `IncludeScreenshot: true` and Unity captures a PNG of the frame each `AwaitingResponse`. The runner forwards the image to a vision-capable model (`claude-haiku-4-5` for Claude; `llava` / `llama3.2-vision` for Ollama). `MaxResponseTime` is bumped to 30s to give the LLM time to reply.</bpmn2:documentation>
+    <bpmn2:documentation>Claude-powered LLM bot completing two N-Back blocks via text stimuli and a WhichOne visual task via screenshots.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Start">
       <bpmn2:outgoing>Flow_Start_Warmup</bpmn2:outgoing>
     </bpmn2:startEvent>
