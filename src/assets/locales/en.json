@@ -32,8 +32,8 @@
   "scene": "Scene",
   "environment": "Environment",
   "authors": "Authors",
-  "botConfig": "Bot Configurations",
-  "agentMode": "Agent Mode",
+  "botConfigurations": "Bot configurations",
+  "agentType": "Agent Type",
   "configMode": "Configuration Mode",
   "timelineId": "Timeline ID",
   "configurations": "Configurations"

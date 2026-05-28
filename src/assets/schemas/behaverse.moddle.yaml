@@ -2,11 +2,12 @@
 
 name: Behaverse
 prefix: behaverse
-description: Studyflow extension for modeling Behaverse cognitive tasks in studyflow diagrams. Defines a `BehaverseTask` type with properties for selecting a Behaverse scene and a timeline.
+description: Studyflow extension for modeling Behaverse cognitive tasks in studyflow diagrams. Defines a `Task` type with properties for selecting a Behaverse scene and a timeline.
 uri: http://behaverse.org/schemas/studyflow/behaverse
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_B.png
 xml:
   tagAlias: lowerCase
+version: 26.0528
 associations: []
 enumerations:
   - name: BehaverseSceneEnum
@@ -59,7 +60,7 @@ enumerations:
         value: WO
   - name: ConfigModeEnum
     description: |
-      How a `BehaverseTask` resolves its runtime configuration. `builtin`
+      How a `Task` resolves its runtime configuration. `builtin`
       sends a `timelineId` to Unity referencing a timeline shipped with the
       build. `inline` embeds a full `GameConfig` (timeline + blocks + trials)
       in the diagram and sends it as a parsed JSON object - `timelineId` is
@@ -69,16 +70,26 @@ enumerations:
         value: builtin
       - name: Inline
         value: inline
-  - name: AgentModeEnum
+  - name: AgentTypeEnum
     description: |
-      Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfig` body to the loaded task's `Bot` agent component.
+      Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
     literalValues:
       - name: Human
         value: human
       - name: Bot
         value: bot
 types:
-  - name: BehaverseTask
+  - name: BotConfigurations
+    description: |
+      Wrapper element carrying the bot configuration YAML body. Subclasses
+      `cognitive:Configurations` purely so moddle serializes it under a distinct
+      element name (`<behaverse:botConfigurations>`) — without this, both the
+      task `configurations` and `botConfigurations` properties would come out as
+      `<cognitive:configurations>` siblings and the next load couldn't tell them
+      apart.
+    superClass:
+      - cognitive:Configurations
+  - name: Task
     description: |
       Specialized `CognitiveTask` for the Behaverse battery. It behaves like a
       normal studyflow task, but its `instrument` is fixed to `behaverse` and
@@ -113,40 +124,6 @@ types:
           order: 1
           categories:
             - Behaverse
-      - name: agentMode
-        description: |
-          Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfig` body to the loaded task's `Bot` agent component.
-        isAttr: true
-        type: AgentModeEnum
-        default: human
-        meta:
-          order: 2
-          categories:
-            - Behaverse
-      - name: botConfig
-        description: |
-          YAML map of bot field overrides applied per task at scene-load time, e.g. `autoAnswer: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentMode` is `bot`. Three response sources: `ResponseSource: internal` (default, Unity's in-game bot), `external` (runner picks uniformly at random), `llm` (runner asks an LLM). For `llm`, add `LLM: { Provider: claude|ollama, Model: ... }` to override the global defaults, and `Prompt: |` with a free-form system prompt describing the simulated participant (persona, target accuracy, strategy, mistakes). Set `IncludeScreenshot: true` to make Unity attach a PNG of the current frame to every `AwaitingResponse` so a vision-capable LLM can read visual stimuli (required for WhichOne, PatternComparison, UFOV, etc.). Bump `MaxResponseTime` in `configurations` to give the LLM time to reply.
-        isAttr: true
-        type: studyflow:YAMLString
-        default: |
-          autoAnswer: Valid
-          Speed: 100
-          SkipInstructions: true
-          AutoClickInstructions: true
-          SkipFocusArea: true
-          OverrideTemporalParameters: true
-          StimulusDisplayDuration: 0.3
-          InterStimulusInterval: 0.3
-          TrialForeperiod: 0.1
-        meta:
-          order: 3
-          categories:
-            - Behaverse
-          widget: textarea
-          condition:
-            language: json
-            body:
-              agentMode: bot
       - name: configMode
         description: |
           How this task resolves its runtime configuration. `builtin` sends `timelineId` to Unity (configurations is ignored); `inline` sends a `GameConfig` *override* (parsed from `configurations`) that the runtime layers on top of the per-task baseline shipped in `Resources/<scene>.json`. The two modes are mutually exclusive.
@@ -154,7 +131,7 @@ types:
         type: ConfigModeEnum
         default: builtin
         meta:
-          order: 4
+          order: 2
           categories:
             - Behaverse
       - name: timelineId
@@ -165,7 +142,7 @@ types:
         isAttr: true
         type: String
         meta:
-          order: 5
+          order: 3
           categories:
             - Behaverse
           condition:
@@ -175,28 +152,51 @@ types:
       - name: configurations
         description: |
           `GameConfig` *override* (Blocks, Timelines, and any other diverging fields) as YAML, embedded inline in the diagram. Parsed to a JSON object on the modeler side and merged at runtime over the per-task baseline shipped in `Resources/<scene>.json` - so the body only needs to carry what differs from the defaults (no need to repeat `Id`, `Scene`, `EnumDefinitions`, `ParameterInfos`, `Rules`, or unchanged blocks/timelines). New blocks should set `Inherits: Default` (or another baseline block from the per-task config) so they pick up HUD/feedback parameters without restating them. Only used when `configMode` is `inline`.
-        isBody: true
-        type: studyflow:YAMLString
+        type: cognitive:Configurations
         redefines: cognitive:CognitiveTask#configurations
         meta:
-          order: 5
+          order: 3
           categories:
             - Behaverse
+          widget: textarea
           condition:
             language: json
             body:
               configMode: inline
+      - name: agentType
+        description: |
+          Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
+        isAttr: true
+        type: AgentTypeEnum
+        default: human
+        meta:
+          order: 4
+          categories:
+            - Behaverse
+      - name: botConfigurations
+        description: |
+          YAML map of bot field overrides applied per task at scene-load time, e.g. `autoAnswer: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentType` is `bot`. Three response sources: `ResponseSource: internal` (default, Unity's in-game bot), `external` (runner picks uniformly at random), `llm` (runner asks an LLM). For `llm`, add `LLM: { Provider: claude|ollama, Model: ... }` to override the global defaults, and `Prompt: |` with a free-form system prompt describing the simulated participant (persona, target accuracy, strategy, mistakes). Set `IncludeScreenshot: true` to make Unity attach a PNG of the current frame to every `AwaitingResponse` so a vision-capable LLM can read visual stimuli (required for WhichOne, PatternComparison, UFOV, etc.). Bump `MaxResponseTime` in `configurations` to give the LLM time to reply.
+        type: BotConfigurations
+        meta:
+          order: 5
+          categories:
+            - Behaverse
+          widget: textarea
+          condition:
+            language: json
+            body:
+              agentType: bot
 templates:
   - description: N-Back task referencing a built-in timeline shipped with the Behaverse build
     object:
-      type: BehaverseTask
+      type: Task
       bpmn:name: N-Back (XCIT_NB_01)
       scene: NB
       configMode: builtin
       timelineId: XCIT_NB_01
   - description: N-Back task with inline overrides - only the diverging Blocks/Timelines need to be authored; everything else is layered on top of `Resources/NB.json` at runtime.
     object:
-      type: BehaverseTask
+      type: Task
       bpmn:name: N-Back (inline)
       scene: NB
       configMode: inline

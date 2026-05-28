@@ -5,6 +5,7 @@ uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
 xml:
   tagAlias: lowerCase
+version: 26.0528
 associations: []
 enumerations: []
 types:

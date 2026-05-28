@@ -19,21 +19,28 @@ export function readBehaverseAttribute(bo: any, attributeName: string): string |
   return undefined;
 }
 
+/** Read the YAML body carried by a `cognitive:Configurations` wrapper child element.
+ *  `getAttribute` unwraps the wrapper to its body string, so this is currently
+ *  identical to `readBehaverseAttribute` and exists as a clearer call site. */
+export function readBehaverseBody(bo: any, propertyName: string): string | undefined {
+  return readBehaverseAttribute(bo, propertyName);
+}
+
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
-  if (node.extensionType !== 'behaverse:BehaverseTask') return null;
+  if (node.extensionType !== 'behaverse:Task') return null;
 
   const task = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
   if (!task || task === 'undefined') {
-    throw new Error(`BehaverseTask ${node.id} has no scene.`);
+    throw new Error(`Behaverse task ${node.id} has no scene.`);
   }
 
   const configMode = (readBehaverseAttribute(node.businessObject, 'configMode') as 'builtin' | 'inline' | undefined)
     ?? 'builtin';
   const timelineId = readBehaverseAttribute(node.businessObject, 'timelineId');
-  const configurations = readBehaverseAttribute(node.businessObject, 'configurations');
-  const botConfig = readBehaverseAttribute(node.businessObject, 'botConfig');
+  const configurations = readBehaverseBody(node.businessObject, 'configurations');
+  const botConfigurations = readBehaverseBody(node.businessObject, 'botConfigurations');
 
-  const agentMode = (readBehaverseAttribute(node.businessObject, 'agentMode') as 'human' | 'bot' | undefined)
+  const agentType = (readBehaverseAttribute(node.businessObject, 'agentType') as 'human' | 'bot' | undefined)
     ?? 'human';
 
   const hasInlineBody = !!(configurations && configurations.trim());
@@ -41,14 +48,14 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
 
   if (hasTimelineId && hasInlineBody) {
     throw new Error(
-      `BehaverseTask ${node.id}: cannot mix \`timelineId\` and a non-empty \`configurations\` body. Pick one (configMode=builtin uses timelineId; configMode=inline uses configurations).`,
+      `Behaverse task ${node.id}: cannot mix \`timelineId\` and a non-empty \`configurations\` body. Pick one (configMode=builtin uses timelineId; configMode=inline uses configurations).`,
     );
   }
 
   const payload: BehaverseTaskPayload = {
     task,
     configMode,
-    agentMode,
+    agentType,
     metadata: { studyflowNodeId: node.id },
   };
 
@@ -60,12 +67,12 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
       parsed = yaml.load(configurations as string);
     } catch (err) {
       throw new Error(
-        `BehaverseTask ${node.id}: failed to parse inline \`configurations\` YAML - ${(err as Error).message}`,
+        `Behaverse task ${node.id}: failed to parse inline \`configurations\` YAML - ${(err as Error).message}`,
       );
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(
-        `BehaverseTask ${node.id}: inline \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
+        `Behaverse task ${node.id}: inline \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
       );
     }
     const config = parsed as Record<string, unknown>;
@@ -78,8 +85,8 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
     }
   }
 
-  if (agentMode === 'bot') {
-    const bot = parseYamlOverrides(botConfig);
+  if (agentType === 'bot') {
+    const bot = parseYamlOverrides(botConfigurations);
     if (bot) payload.bot = bot;
   }
 

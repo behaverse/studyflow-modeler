@@ -10,7 +10,17 @@
     </bpmn2:startEvent>
     <bpmn2:task id="Warmup_1Back" name="1-Back warm-up">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="ResponseSource: external&#10;Speed: 20&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;OverrideTemporalParameters: true&#10;StimulusDisplayDuration: 0.3&#10;InterStimulusInterval: 0.3&#10;TrialForeperiod: 0.1">Blocks:
+        <behaverse:task scene="NB" configMode="inline" agentType="bot">
+        <behaverse:botConfigurations>ResponseSource: external
+Speed: 20
+SkipInstructions: true
+AutoClickInstructions: true
+SkipFocusArea: true
+OverrideTemporalParameters: true
+StimulusDisplayDuration: 0.3
+InterStimulusInterval: 0.3
+TrialForeperiod: 0.1</behaverse:botConfigurations>
+        <cognitive:configurations>Blocks:
   Demo3_Warmup:
     Name: Demo3_Warmup
     Inherits: Default
@@ -35,14 +45,25 @@ Timelines:
     Name: Demo3_Warmup
     blocks:
       - name: Demo3_Warmup
-</behaverse:behaverseTask>
+</cognitive:configurations>
+      </behaverse:task>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Start_Warmup</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Warmup_Main</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="Main_2Back" name="2-Back main">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="ResponseSource: external&#10;Speed: 20&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;OverrideTemporalParameters: true&#10;StimulusDisplayDuration: 0.3&#10;InterStimulusInterval: 0.3&#10;TrialForeperiod: 0.1">Blocks:
+        <behaverse:task scene="NB" configMode="inline" agentType="bot">
+        <behaverse:botConfigurations>ResponseSource: external
+Speed: 20
+SkipInstructions: true
+AutoClickInstructions: true
+SkipFocusArea: true
+OverrideTemporalParameters: true
+StimulusDisplayDuration: 0.3
+InterStimulusInterval: 0.3
+TrialForeperiod: 0.1</behaverse:botConfigurations>
+        <cognitive:configurations>Blocks:
   Demo3_Main:
     Name: Demo3_Main
     Inherits: Default
@@ -67,7 +88,8 @@ Timelines:
     Name: Demo3_Main
     blocks:
       - name: Demo3_Main
-</behaverse:behaverseTask>
+</cognitive:configurations>
+      </behaverse:task>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Warmup_Main</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Main_End</bpmn2:outgoing>

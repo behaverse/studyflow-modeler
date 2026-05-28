@@ -7,6 +7,7 @@ uri: http://behaverse.org/schemas/studyflow/cognitive
 icon: iconify tabler--hexagon-letter-c
 xml:
   tagAlias: lowerCase
+version: 26.0528
 associations: []
 enumerations:
   - name: InstrumentEnum
@@ -67,6 +68,16 @@ enumerations:
         value: instrument
         description: Apparatus or recording device that participates in the study (e.g., an EEG amplifier triggering events).
 types:
+  - name: Configurations
+    description: |
+      Wrapper element carrying an instrument-specific configuration block (YAML)
+      as its text body. Used as a child element on tasks that need to declare
+      runtime configuration without polluting parent attributes or the parent's
+      own text body.
+    properties:
+      - name: value
+        isBody: true
+        type: studyflow:YAMLString
   - name: CognitiveTask
     description: |
       A cognitive test administered to a participant (e.g., a working-memory or
@@ -92,8 +103,7 @@ types:
           Instrument-specific configuration in YAML format (e.g., number of
           trials, stimulus duration, block structure). The shape of the YAML
           depends on the chosen `instrument`.
-        isBody: true
-        type: studyflow:YAMLString
+        type: Configurations
         meta:
           categories:
             - Instrument
@@ -111,63 +121,36 @@ types:
       instrument. Configuration is provided as a YAML `configurations` block whose
       shape depends on the game engine.
     superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
+      - CognitiveTask
     meta:
       icon: iconify bi--controller
       bpmnType: bpmn:Task
     properties:
-      - name: instrument
-        description: |
-          Identifier of the engine or library running the game (e.g., `unity`,
-          `godot`, `web`, or a custom identifier).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Instrument
       - name: configurations
         description: Game configuration in YAML format (level set, difficulty, scoring, etc.).
-        isBody: true
-        type: studyflow:YAMLString
+        type: Configurations
+        redefines: CognitiveTask#configurations
         meta:
           categories:
             - Instrument
-      - name: isDataOperation
-        description: VideoGame is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
   - name: Rest
     description: |
       A rest period of inactivity or minimal activity. Often used for baseline
       measurements or breaks between activities. Can also represent
       resting-state recordings (e.g., resting EEG/fMRI).
     superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
+      - CognitiveTask
     meta:
       icon: iconify solar--armchair-2-linear
       bpmnType: bpmn:Task
     properties:
       - name: configurations
         description: Rest configuration in YAML format (e.g., duration, eyes-open/closed).
-        isBody: true
-        type: studyflow:YAMLString
+        type: Configurations
+        redefines: CognitiveTask#configurations
         meta:
           categories:
             - Instrument
-      - name: isDataOperation
-        description: Rest is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
   - name: Questionnaire
     superClass:
       - bpmn:Task

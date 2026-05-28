@@ -50,7 +50,7 @@ export function validate(studyflow: Studyflow, manifest?: Manifest): ValidationI
 /** Drives whether the runner pre-fetches the Unity manifest. */
 export function requiresBehaverseRuntime(studyflow: Studyflow): boolean {
   for (const node of studyflow.flowNodes.values()) {
-    if (node.extensionType === 'behaverse:BehaverseTask') return true;
+    if (node.extensionType === 'behaverse:Task') return true;
   }
   return false;
 }

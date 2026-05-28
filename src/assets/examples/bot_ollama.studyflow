@@ -10,7 +10,28 @@
     </bpmn2:startEvent>
     <bpmn2:task id="Warmup_1Back" name="1-Back warm-up (tired)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="ResponseSource: llm&#10;LLM:&#10;  Provider: ollama&#10;  Model: gemma4:e2b&#10;Prompt: |&#10;  You are a tired participant near the end of a long 1-back session.&#10;  Aim for about 80% accuracy. Occasionally miss matches when your&#10;  attention drifts. Never explain; reply with exactly Match or NonMatch.&#10;Speed: 20&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;OverrideTemporalParameters: true&#10;StimulusDisplayDuration: 0.3&#10;InterStimulusInterval: 0.3&#10;TrialForeperiod: 0.1&#10;overrideUserInputParameters: true&#10;playerPaced: true&#10;useNonMatchButton: true&#10;maxResponseTime: 15">Blocks:
+        <behaverse:task scene="NB" configMode="inline" agentType="bot">
+        <behaverse:botConfigurations>ResponseSource: llm
+LLM:
+  Provider: ollama
+  Model: gemma4:e2b-mlx
+Prompt: |
+  You are a tired participant near the end of a long 1-back session.
+  Aim for about 80% accuracy. Occasionally miss matches when your
+  attention drifts. Never explain; reply with exactly Match or NonMatch.
+Speed: 20
+SkipInstructions: true
+AutoClickInstructions: true
+SkipFocusArea: true
+OverrideTemporalParameters: true
+StimulusDisplayDuration: 0.3
+InterStimulusInterval: 0.3
+TrialForeperiod: 0.1
+overrideUserInputParameters: true
+playerPaced: true
+useNonMatchButton: true
+maxResponseTime: 15</behaverse:botConfigurations>
+        <cognitive:configurations>Blocks:
   Demo5_Warmup:
     Name: Demo5_Warmup
     Inherits: Default
@@ -34,14 +55,37 @@ Timelines:
     Name: Demo5_Warmup
     blocks:
       - name: Demo5_Warmup
-</behaverse:behaverseTask>
+</cognitive:configurations>
+      </behaverse:task>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Start_Warmup</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Warmup_Main</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="Main_2Back" name="2-Back main (expert)">
       <bpmn2:extensionElements>
-        <behaverse:behaverseTask scene="NB" configMode="inline" agentMode="bot" botConfig="ResponseSource: llm&#10;LLM:&#10;  Provider: ollama&#10;  Model: gemma4:e2b&#10;Prompt: |&#10;  You are an attentive, expert participant in a 2-back task.&#10;  Respond Match if the current letter is identical to the letter shown&#10;  exactly two trials ago, otherwise NonMatch. Aim for near-perfect&#10;  accuracy. Reply with exactly Match or NonMatch; no explanation.&#10;Speed: 20&#10;SkipInstructions: true&#10;AutoClickInstructions: true&#10;SkipFocusArea: true&#10;OverrideTemporalParameters: true&#10;StimulusDisplayDuration: 0.3&#10;InterStimulusInterval: 0.3&#10;TrialForeperiod: 0.1&#10;overrideUserInputParameters: true&#10;playerPaced: true&#10;useNonMatchButton: true&#10;maxResponseTime: 15">Blocks:
+        <behaverse:task scene="NB" configMode="inline" agentType="bot">
+        <behaverse:botConfigurations>ResponseSource: llm
+LLM:
+  Provider: ollama
+  Model: gemma4:e2b-mlx
+Prompt: |
+  You are an attentive, expert participant in a 2-back task.
+  Respond Match if the current letter is identical to the letter shown
+  exactly two trials ago, otherwise NonMatch. Aim for near-perfect
+  accuracy. Reply with exactly Match or NonMatch; no explanation.
+Speed: 20
+SkipInstructions: true
+AutoClickInstructions: true
+SkipFocusArea: true
+OverrideTemporalParameters: true
+StimulusDisplayDuration: 0.3
+InterStimulusInterval: 0.3
+TrialForeperiod: 0.1
+overrideUserInputParameters: true
+playerPaced: true
+useNonMatchButton: true
+maxResponseTime: 15</behaverse:botConfigurations>
+        <cognitive:configurations>Blocks:
   Demo5_Main:
     Name: Demo5_Main
     Inherits: Default
@@ -65,7 +109,8 @@ Timelines:
     Name: Demo5_Main
     blocks:
       - name: Demo5_Main
-</behaverse:behaverseTask>
+</cognitive:configurations>
+      </behaverse:task>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Warmup_Main</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Main_End</bpmn2:outgoing>

@@ -58,7 +58,7 @@ async function pushFinalState(
 export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflow_url') ?? '';
-  const localStorageKey = params.get('session_id') ?? '';
+  const diagramId = params.get('diagram_id') ?? '';
   const agentId = params.get('agent_id') ?? undefined;
   const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
   const dataServerConfig = readDataServerConfig(params);
@@ -95,13 +95,13 @@ export function Runner() {
   }, []);
 
   useEffect(() => {
-    if (localStorageKey) {
-      const stored = localStorage.getItem(localStorageKey);
+    if (diagramId) {
+      const stored = localStorage.getItem(diagramId);
       if (stored) {
-        localStorage.removeItem(localStorageKey);
+        localStorage.removeItem(diagramId);
         setXml(stored);
       } else {
-        addLog('error', `No studyflow found for session=${localStorageKey}.`);
+        addLog('error', `No studyflow found for diagram_id=${diagramId}.`);
         setPhase('error');
       }
       return;
@@ -111,7 +111,7 @@ export function Runner() {
       addLog('error', `Failed to fetch ${studyflowUrl}: ${err}`);
       setPhase('error');
     });
-  }, [localStorageKey, studyflowUrl]);
+  }, [diagramId, studyflowUrl]);
 
   useEffect(() => {
     if (!xml || ranOnce.current) return;
@@ -146,8 +146,8 @@ export function Runner() {
         addLog(
           handle.online ? 'info' : 'skip',
           handle.online
-            ? `Session ${handle.sessionId} registered with data-server.`
-            : `Running offline (session=${handle.sessionId}); data-server writes are skipped.`,
+            ? `Online (session_id=${handle.sessionId}). Data will be submitted to the data-server.`
+            : `Offline (session_id=${handle.sessionId}). No data will stored or submitted.`
         );
 
         setPhase('running');
@@ -181,19 +181,6 @@ export function Runner() {
 
   return (
     <div className={layout.page}>
-      <header className={layout.header}>
-        <span className={layout.title}>{studyflowName ?? 'Studyflow'}</span>
-        <span className={layout.badge}>{phase}</span>
-        {seed != null && <span className={layout.meta}>seed={seed}</span>}
-        <button
-          type="button"
-          onClick={() => setLogsOpen((v) => !v)}
-          className={layout.logsToggle}
-          aria-expanded={logsOpen}
-        >
-          {logsOpen ? 'Hide logs' : `Logs${log.length ? ` (${log.length})` : ''}`}
-        </button>
-      </header>
       <main className={layout.body}>
         <div className={layout.stage}>
           {currentJob ? (
@@ -210,13 +197,30 @@ export function Runner() {
               <span>Preparing study... ({phase})</span>
             </div>
           )}
+          {/* Floating logs toggle — overlays the stage so it's visible above
+              any iframe content. The sidebar (z-10) covers it when open; the
+              sidebar's own × handles closing from that state. */}
+          <button
+            type="button"
+            onClick={() => setLogsOpen((v) => !v)}
+            className={layout.logsToggle}
+            aria-expanded={logsOpen}
+          >
+            {logsOpen ? 'Hide logs' : `Logs${log.length ? ` (${log.length})` : ''}`}
+          </button>
         </div>
         <aside
           className={`${layout.sidebar} ${logsOpen ? layout.sidebarOpen : layout.sidebarClosed}`}
           aria-hidden={!logsOpen}
         >
           <div className={layout.sidebarHeader}>
-            <h2 className={layout.sidebarTitle}>Logs</h2>
+            <div className={layout.sidebarInfo}>
+              <span className={layout.title}>{studyflowName ?? 'Studyflow'}</span>
+              <div className={layout.sidebarInfoMetaRow}>
+                <span className={layout.badge}>{phase}</span>
+                {seed != null && <span className={layout.meta}>seed={seed}</span>}
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => setLogsOpen(false)}

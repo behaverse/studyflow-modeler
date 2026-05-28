@@ -31,7 +31,7 @@ type TaskCompletion = {
   IsCompleted: boolean;
 };
 
-/** Resolve effective LLM provider/model from per-task botConfig.LLM over global settings. */
+/** Resolve effective LLM provider/model from per-task botConfigurations.LLM over global settings. */
 function resolveLLMConfig(bot: BehaverseTaskPayload['bot']): LLMProviderConfig {
   const settings = getLLMSettings();
   const override = (bot && typeof bot === 'object' ? (bot as Record<string, unknown>).LLM : undefined);

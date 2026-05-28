@@ -8,6 +8,7 @@ uri: http://behaverse.org/schemas/studyflow/galea
 icon: iconify mdi--virtual-reality
 xml:
   tagAlias: lowerCase
+version: 26.0528
 associations: []
 
 enumerations:

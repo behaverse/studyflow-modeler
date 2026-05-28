@@ -7,7 +7,7 @@ uri: http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase
-version: 26.0526-dev1
+version: 26.0528
 
 associations: []
 enumerations:

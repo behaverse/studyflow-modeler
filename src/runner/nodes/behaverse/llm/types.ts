@@ -6,7 +6,7 @@ export type TrialHistoryEntry = {
 };
 
 /** Provider identity + model. Either field can be missing; the bot resolves
- *  per-task `botConfig.LLM` over global settings. */
+ *  per-task `botConfigurations.LLM` over global settings. */
 export type LLMProviderConfig = {
   provider: 'claude' | 'ollama';
   model: string;

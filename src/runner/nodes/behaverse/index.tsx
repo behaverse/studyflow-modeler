@@ -106,7 +106,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
 
 registerNode({
   type: 'behaverse',
-  match: { extensionType: 'behaverse:BehaverseTask' },
+  match: { extensionType: 'behaverse:Task' },
   toJob: behaverseToJob,
   Component: Behaverse,
   validate: (studyflow, manifest) => manifest ? validateBehaverseStudyflow(studyflow, manifest) : [],

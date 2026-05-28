@@ -24,12 +24,36 @@ const INPUT_BY_TYPE: Record<string, any> = {
   'studyflow:YAMLString': CodeEditor,
 };
 
+const PRIMITIVE_MODDLE_TYPES = new Set(['String', 'Integer', 'Real', 'Boolean', 'Number']);
+
+/** Drill into a body-wrapper moddle type (e.g. `cognitive:Configurations`) and
+ *  return the type of its `isBody` property — so wrappers around `YAMLString`
+ *  render with the same editor as a direct `studyflow:YAMLString` attribute.
+ *  Uses `registry.getEffectiveDescriptor` so inherited body properties (e.g. a
+ *  subclass like `behaverse:BotConfigurations` that gets `value` from
+ *  `cognitive:Configurations`) are visible. `getTypeDescriptor` alone returns
+ *  only own properties and would miss them. */
+function resolveBodyType(declaredType: string, modeler: any): string | undefined {
+  if (!declaredType || PRIMITIVE_MODDLE_TYPES.has(declaredType)) return undefined;
+  const moddle = modeler.get('moddle');
+  let typeDef: any;
+  try { typeDef = moddle.registry?.getEffectiveDescriptor?.(declaredType) ?? moddle.getTypeDescriptor?.(declaredType); }
+  catch { return undefined; }
+  if (!typeDef) return undefined;
+  const props: any[] = Array.isArray(typeDef.properties)
+    ? typeDef.properties
+    : Object.values(typeDef.propertiesByName ?? {});
+  return props.find((p: any) => p?.isBody)?.type;
+}
+
 function resolveInputType(declaredType: string, modeler: any): string {
   const { prefix, localName } = splitQName(declaredType);
   if (prefix && localName) {
     const pkg = modeler.get('moddle').getPackage(prefix);
     if (pkg?.enumerations?.some((e: any) => e.name === localName)) return 'Enum';
   }
+  const bodyType = resolveBodyType(declaredType, modeler);
+  if (bodyType && INPUT_BY_TYPE[bodyType]) return bodyType;
   return declaredType;
 }
 

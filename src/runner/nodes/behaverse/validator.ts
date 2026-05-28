@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import { getBehaverseTaskPayload, readBehaverseAttribute } from './parser';
+import { getBehaverseTaskPayload, readBehaverseBody } from './parser';
 import type { Studyflow } from '@/runner/studyflow';
 import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@/runner/nodes/behaverse/types';
 import type { ValidationIssue } from '@/runner/nodes/types';
@@ -19,7 +19,7 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
   const tasksById = new Map(manifest.tasks.map((t) => [t.id, t]));
 
   for (const node of studyflow.flowNodes.values()) {
-    if (node.extensionType !== 'behaverse:BehaverseTask') continue;
+    if (node.extensionType !== 'behaverse:Task') continue;
 
     let payload;
     try {
@@ -65,9 +65,9 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
       }
     }
 
-    // Bot validation: when agentMode is 'bot', the YAML must parse to a flat object.
-    if (payload.agentMode === 'bot') {
-      const raw = readBehaverseAttribute(node.businessObject, 'botConfig');
+    // Bot validation: when agentType is 'bot', the YAML must parse to a flat object.
+    if (payload.agentType === 'bot') {
+      const raw = readBehaverseBody(node.businessObject, 'botConfigurations');
       if (raw && raw.trim()) {
         let parsed: unknown;
         try {

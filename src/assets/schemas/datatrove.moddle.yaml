@@ -5,6 +5,7 @@ uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
+version: 26.0528
 associations: []
 enumerations:
   - name: ReaderClassEnum

@@ -9,10 +9,10 @@ export type OpenRunnerCommand = {
 
 export async function runOpenRunner(modeler: any, command: OpenRunnerCommand): Promise<void> {
   const { xml } = await modeler.saveXML({ format: true });
-  const sessionId = `studyflow-${crypto.randomUUID()}`;
-  localStorage.setItem(sessionId, xml);
+  const diagramId = `studyflow-${crypto.randomUUID()}`;
+  localStorage.setItem(diagramId, xml);
   const params = new URLSearchParams({
-    session_id: sessionId,
+    diagram_id: diagramId,
     seed: String(command.seed ?? DEFAULT_SEED),
   });
   window.open(`./run.html?${params.toString()}`, '_blank', 'noopener');

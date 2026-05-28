@@ -36,7 +36,7 @@
  */
 export type BehaverseBotPayload = Record<string, unknown>;
 
-/** Keys in `botConfig` YAML that are consumed by the studyflow runner and must
+/** Keys in `botConfigurations` YAML that are consumed by the studyflow runner and must
  *  NOT be forwarded to Unity's `BotReflection.Apply` - that helper throws on
  *  any unknown field name. The validator also exempts these from the flat-scalar
  *  check, since they may carry nested objects (e.g. `LLM: { Provider, Model }`). */
@@ -48,7 +48,7 @@ export type BehaverseTaskPayload = {
   configMode: 'builtin' | 'inline';
   timeline?: string;
   config?: Record<string, unknown>;
-  agentMode: 'human' | 'bot';
+  agentType: 'human' | 'bot';
   bot?: BehaverseBotPayload;
   metadata: { studyflowNodeId: string };
   /** Participant identity. Stamped onto every Unity telemetry event as

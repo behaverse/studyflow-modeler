@@ -72,7 +72,7 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
                 </li>
               ))}
             </ul>
-            <p className={s.sidebarFooter}>Stored locally on this browser.</p>
+            {/* <p className={s.sidebarFooter}>Stored locally on this browser.</p> */}
           </nav>
 
           <main className={s.content}>
