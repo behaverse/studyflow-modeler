@@ -120,10 +120,15 @@ export function runOnUnity(
     const seenRequestIds = new Set<string>();
 
     const sendResponse = (detail: AwaitingResponseDetail, response: string, agentId: string) => {
+      // BDM `response_option_index` — 0-based position of the chosen option in
+      // `ResponseOptions`. `-1` when the response isn't a known option (shouldn't
+      // happen on the LLM/random path but the InjectResponse contract allows it).
+      const responseOptionIndex = detail.ResponseOptions.indexOf(response);
       try {
         unity.SendMessage('GameManager', 'InjectResponse', JSON.stringify({
           RequestId: detail.RequestId,
           Response: response,
+          ResponseOptionIndex: responseOptionIndex,
           Agent: { Id: agentId },
         }));
         history.push({ trialIndex: detail.TrialIndex, stimulus: detail.Stimulus, chosenResponse: response });

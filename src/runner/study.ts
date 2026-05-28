@@ -13,6 +13,9 @@ export type StudyContext = {
   agentId?: string;
   /** Runner-session identifier. Stamped into `context.session`. */
   sessionId?: string;
+  /** SHA-256 hex of the raw studyflow XML. Stamped into `context.studyflowHash`
+   *  so downstream tools can pin every event to the exact source document. */
+  studyflowHash?: string;
 };
 
 /** Walks a parsed studyflow, yielding `Job`s; owns the random source and variable bag. */
@@ -25,6 +28,8 @@ export class Study {
   agentId?: string;
   /** Session identifier; undefined when running outside a managed session. */
   sessionId?: string;
+  /** SHA-256 hex of the studyflow XML that produced this Study. */
+  studyflowHash?: string;
 
   private random: () => number;
   private variables: Record<string, unknown>;
@@ -40,6 +45,7 @@ export class Study {
     this.startId = data.startId;
     this.agentId = context.agentId;
     this.sessionId = context.sessionId;
+    this.studyflowHash = context.studyflowHash;
     this.random = context.seed != null ? mulberry32(context.seed) : Math.random;
     this.variables = { ...(context.variables ?? {}) };
   }

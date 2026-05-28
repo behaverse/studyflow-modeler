@@ -58,6 +58,7 @@ function Behaverse({ job, study, log, complete, abort }: NodeProps<BehaverseJob>
           ...(study.studyId ? { studyId: study.studyId } : {}),
           ...(study.studyflowId ? { studyflowId: study.studyflowId } : {}),
           ...(study.sessionId ? { sessionId: study.sessionId } : {}),
+          ...(study.studyflowHash ? { studyflowHash: study.studyflowHash } : {}),
         };
         const result = await runOnUnity(
           unity,

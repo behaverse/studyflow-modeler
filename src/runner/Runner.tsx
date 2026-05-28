@@ -14,6 +14,16 @@ import { layout, logColor, type LogKind } from './styles';
 
 type Log = { kind: LogKind; message: string };
 
+/** SHA-256 hex digest of a string. Used to fingerprint the studyflow XML so
+ *  downstream telemetry can pin every event to the exact source document. */
+async function sha256Hex(text: string): Promise<string> {
+  const buf = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflow_url') ?? '';
@@ -77,7 +87,13 @@ export function Runner() {
       try {
         setPhase('loading');
         const schemas = await loadAllSchemas();
-        const study = await Study.parse(xml, schemas, { seed, agentId, sessionId: sessionId || undefined });
+        const studyflowHash = await sha256Hex(xml);
+        const study = await Study.parse(xml, schemas, {
+          seed,
+          agentId,
+          sessionId: sessionId || undefined,
+          studyflowHash,
+        });
         studyRef.current = study;
         setStudyName(study.businessObject?.name || study.businessObject?.id || null);
         addLog('info', `Parsed ${study.flowNodes.size} flow nodes, ${study.sequenceFlows.size} sequence flows.`);

@@ -62,6 +62,9 @@ export type BehaverseTaskPayload = {
   studyflowId?: string;
   /** Runner-session identifier; stamped into `context.session`. */
   sessionId?: string;
+  /** SHA-256 hex of the studyflow XML. Stamped into `context.studyflowHash`
+   *  so events can be pinned to the exact source document. */
+  studyflowHash?: string;
 };
 
 export type ManifestTask = {
