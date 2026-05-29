@@ -19,6 +19,7 @@ import {
   type DataServerConfig,
   type SessionHandle,
 } from './dataServer';
+import { createEventRecorder, type EventRecorder } from './nodes/behaverse/events';
 
 type Log = { kind: LogKind; message: string };
 
@@ -30,6 +31,26 @@ async function sha256Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+/** Parse the `diagram_id` localStorage payload the modeler hands off. It's a
+ *  JSON envelope `{ xml, dataServerApiKey? }` — the API key travels here, not in
+ *  the URL, so it never lands in history/referrer/logs. Tolerates a bare XML
+ *  string too, so any older/external writer of this key still works. */
+function parseRunnerHandoff(raw: string): { xml: string; dataServerApiKey?: string } {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && typeof parsed.xml === 'string') {
+      return {
+        xml: parsed.xml,
+        dataServerApiKey:
+          typeof parsed.dataServerApiKey === 'string' ? parsed.dataServerApiKey : undefined,
+      };
+    }
+  } catch {
+    /* not JSON — fall through to treat the value as raw studyflow XML */
+  }
+  return { xml: raw };
 }
 
 /** PATCHes the data-server session with the final variable bag. No-op when
@@ -74,6 +95,7 @@ export function Runner() {
   const sessionRef = useRef<Session | null>(null);
   const serverSessionRef = useRef<SessionHandle | null>(null);
   const dataServerRef = useRef<DataServerConfig>(dataServerConfig);
+  const recorderRef = useRef<EventRecorder | null>(null);
 
   const addLog = useCallback((kind: LogKind, message: string) => {
     // flushSync so per-trial LLM logs paint into the sidebar BEFORE the synchronous
@@ -99,7 +121,14 @@ export function Runner() {
       const stored = localStorage.getItem(diagramId);
       if (stored) {
         localStorage.removeItem(diagramId);
-        setXml(stored);
+        const handoff = parseRunnerHandoff(stored);
+        // The modeler passes the data-server token through this same-origin
+        // handoff instead of the URL (which would leak it into history/logs).
+        // Non-secret config still arrives via URL params; merge the token in.
+        if (handoff.dataServerApiKey) {
+          dataServerRef.current = { ...dataServerRef.current, apiKey: handoff.dataServerApiKey };
+        }
+        setXml(handoff.xml);
       } else {
         addLog('error', `No studyflow found for diagram_id=${diagramId}.`);
         setPhase('error');
@@ -129,6 +158,14 @@ export function Runner() {
         setStudyflowName(studyflow.businessObject?.name || studyflow.businessObject?.id || null);
         addLog('info', `Parsed ${studyflow.flowNodes.size} flow nodes, ${studyflow.sequenceFlows.size} sequence flows.`);
 
+        // The data-server study name is the studyflow's BPMN process id
+        // (`studyflow.studyId`), preferred over the `study_name` URL param. This
+        // scopes the session and its telemetry events to the same study, and
+        // matches the `studyId` Unity stamps into each event's `context.study`.
+        if (studyflow.studyId) {
+          dataServer.studyName = studyflow.studyId;
+        }
+
         const needsBehaverse = requiresBehaverseRuntime(studyflow);
         const manifest = needsBehaverse ? await fetchManifest(BEHAVERSE_RUNTIME_URL) : undefined;
         if (!needsBehaverse) addLog('info', 'No behaverse tasks - skipping Unity manifest.');
@@ -149,6 +186,21 @@ export function Runner() {
             ? `Online (session_id=${handle.sessionId}). Data will be submitted to the data-server.`
             : `Offline (session_id=${handle.sessionId}). No data will stored or submitted.`
         );
+
+        // Record telemetry events Unity streams over the WebGL bridge and
+        // forward them to the data-server. Only when online — offline runs have
+        // nowhere to send them.
+        if (handle.online) {
+          recorderRef.current = createEventRecorder({
+            config: dataServer,
+            getAgentId: () => sessionRef.current?.agentId,
+            onFlush: (count, ok) =>
+              addLog(
+                ok ? 'info' : 'skip',
+                ok ? `Recorded ${count} event(s).` : `Failed to record ${count} event(s).`,
+              ),
+          });
+        }
 
         setPhase('running');
         for await (const job of session.traverse()) {
@@ -173,6 +225,12 @@ export function Runner() {
         if (sessionRef.current) {
           await pushFinalState(dataServer, serverSessionRef.current, sessionRef.current, 'canceled', addLog);
         }
+      } finally {
+        // Drain any buffered telemetry and detach the listener, however the run
+        // ended (done / aborted / errored / early return).
+        await recorderRef.current?.flush();
+        recorderRef.current?.stop();
+        recorderRef.current = null;
       }
     })();
   }, [xml, seed]);
@@ -253,8 +311,10 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
       <h1 className={layout.helpTitle}>Studyflow</h1>
       <p className={layout.helpText}>
         Upload a <code>.studyflow</code> file, or pass a <code>studyflow_url</code> query parameter.
-        Add <code>data_server_url</code> + <code>study_name</code> to persist sessions and variables;
-        omit them (or pass <code>disable_data_server=1</code>) to run offline.
+        Add <code>data_server_url</code> to persist sessions, variables, and telemetry events; the
+        study name comes from the studyflow's process <code>id</code> (<code>study_name</code> is an
+        optional fallback). Omit <code>data_server_url</code> (or pass <code>disable_data_server=1</code>)
+        to run offline.
       </p>
       <label className={layout.uploadButton}>
         <input

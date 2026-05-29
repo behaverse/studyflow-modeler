@@ -14,6 +14,11 @@ export type Settings = {
   telemetryEnabled: boolean;
   /** Moddle prefixes of extension schemas to load at boot. */
   enabledSchemas: string[];
+  /** Base URL of the data-server the runner writes to, e.g.
+   *  `https://data.behaverse.org/v1`. Empty -> modeler-launched runs stay offline. */
+  dataServerUrl: string;
+  /** Study the runner persists sessions/events under. Empty -> offline. */
+  studyName: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -23,6 +28,8 @@ const DEFAULT_SETTINGS: Settings = {
   showGrid: true,
   telemetryEnabled: false,
   enabledSchemas: [...SCHEMA_NAMES],
+  dataServerUrl: '',
+  studyName: '',
 };
 
 const ls: Storage | undefined =

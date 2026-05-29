@@ -122,3 +122,34 @@ export async function updateSession(
     return false;
   }
 }
+
+/** POSTs a batch of telemetry events to the data-server.
+ *
+ * The runner owns the data-server connection now: Unity streams its BDM events
+ * over the WebGL bridge (`studyflow:Event`) and the runner buffers them, then
+ * forwards them here. Events are sent as a JSON array — the `/events` endpoint
+ * accepts a single object or an array (`insert_many`). Unlike the session
+ * endpoints, `/events` requires Bearer auth, and it reads `agent_id` as a query
+ * param (not a body field). Best-effort, like the session calls: on missing
+ * config, the kill-switch, or any HTTP error it returns false and the flow
+ * keeps running. */
+export async function recordEvents(
+  config: DataServerConfig,
+  events: unknown[],
+  agentId?: string,
+): Promise<boolean> {
+  if (!Array.isArray(events) || events.length === 0) return false;
+  if (!canConnect(config)) return false;
+  try {
+    const base = `${config.baseUrl}/studies/${encodeURIComponent(config.studyName!)}/events`;
+    const url = agentId ? `${base}?agent_id=${encodeURIComponent(agentId)}` : base;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: buildHeaders(config, 'application/json'),
+      body: JSON.stringify(events),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
