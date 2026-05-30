@@ -13,7 +13,7 @@ export const layout = {
   // stage. Sidebar (z-10) covers it when open — that's fine, the sidebar has
   // its own close button.
   logsToggle: 'absolute top-3 right-3 z-20 text-[11px] uppercase tracking-wide bg-black/70 hover:bg-black/85 text-white rounded px-2.5 py-1 backdrop-blur transition-colors shadow-md',
-  sidebar: 'absolute top-0 right-0 bottom-0 w-80 bg-stone-100 border-l border-stone-300 overflow-y-auto p-3 text-sm shadow-lg transition-transform duration-200 z-10',
+  sidebar: 'absolute top-0 right-0 bottom-0 w-80 bg-stone-100 border-l border-stone-300 flex flex-col p-3 text-sm shadow-lg transition-transform duration-200 z-10',
   sidebarOpen: 'translate-x-0',
   sidebarClosed: 'translate-x-full',
   // Sidebar header now hosts the study identity (title/phase/seed) that used
@@ -22,7 +22,8 @@ export const layout = {
   sidebarInfo: 'flex flex-col gap-1 min-w-0',
   sidebarInfoMetaRow: 'flex items-center gap-2 flex-wrap',
   sidebarClose: 'text-stone-500 hover:text-stone-800 text-lg leading-none shrink-0',
-  sidebarList: 'space-y-1',
+  recordToggle: 'flex items-center gap-2 mb-3 text-xs text-stone-600 select-none cursor-pointer',
+  sidebarList: 'space-y-1 flex-1 min-h-0 overflow-y-auto',
   helpPage: 'p-6 max-w-xl mx-auto',
   helpTitle: 'text-2xl font-semibold mb-3',
   helpText: 'mb-4 text-stone-700',

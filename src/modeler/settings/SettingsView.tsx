@@ -11,7 +11,7 @@ import {
   setStoredUserEmail,
 } from './store';
 
-type SectionId = 'account' | 'general' | 'editor' | 'data-server' | 'extensions' | 'privacy' | 'about';
+type SectionId = 'account' | 'general' | 'editor' | 'extensions' | 'privacy' | 'about';
 
 type Section = {
   id: SectionId;
@@ -23,8 +23,6 @@ const SECTIONS: Section[] = [
   { id: 'account', label: 'Account', icon: 'bi--person-circle' },
   { id: 'general', label: 'General', icon: 'bi--sliders' },
   { id: 'editor', label: 'Editor', icon: 'bi--pencil' },
-  // Hidden for now — uncomment to expose the Data server settings tab again.
-  // { id: 'data-server', label: 'Data server', icon: 'bi--hdd-network' },
   { id: 'extensions', label: 'Extensions', icon: 'bi--diagram-3' },
   { id: 'privacy', label: 'Privacy', icon: 'bi--shield-lock' },
   { id: 'about', label: 'About', icon: 'bi--info-circle' },
@@ -82,7 +80,6 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
               {active === 'account' && <AccountSection />}
               {active === 'general' && <GeneralSection />}
               {active === 'editor' && <EditorSection />}
-              {active === 'data-server' && <DataServerSection />}
               {active === 'extensions' && <ExtensionsSection />}
               {active === 'privacy' && <PrivacySection />}
               {active === 'about' && <AboutSection />}
@@ -395,69 +392,6 @@ function EditorSection() {
           />
         }
       />
-    </>
-  );
-}
-
-function DataServerSection() {
-  const { settings, update } = useSettings();
-  const { apiKey } = useApiKey();
-  const hasServer = Boolean(settings.dataServerUrl && settings.studyName);
-  const signedIn = apiKey !== 'guest';
-  const statusIcon = !hasServer ? 'bi--cloud-slash' : signedIn ? 'bi--cloud-check' : 'bi--exclamation-triangle';
-
-  return (
-    <>
-      <SectionHeader
-        title="Data server"
-        description="Where runs launched with “Run” persist sessions and telemetry events. Requests are authenticated with your account API key (set it on the Account page). Leave the URL or study name empty to run offline — no session is created and nothing is sent."
-      />
-
-      <Row
-        label="Server URL"
-        help="Base URL of the Behaverse data-server, including the API version."
-        control={
-          <input
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Data-server URL"
-            value={settings.dataServerUrl}
-            onChange={(e) => update({ dataServerUrl: e.target.value.trim() })}
-            placeholder="https://data.behaverse.org/v1"
-            className={s.textInput}
-          />
-        }
-      />
-
-      <Row
-        label="Study name"
-        help="Sessions and events are written under this study."
-        control={
-          <input
-            type="text"
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Study name"
-            value={settings.studyName}
-            onChange={(e) => update({ studyName: e.target.value.trim() })}
-            placeholder="my-study"
-            className={s.textInput}
-          />
-        }
-      />
-
-      <div className={s.group}>
-        <p className={s.rowHelp}>
-          <i className={`iconify ${statusIcon} pe-1.5`} aria-hidden="true" />
-          {!hasServer
-            ? 'Runs are offline. Set both a server URL and a study name to persist data.'
-            : signedIn
-              ? 'Runs will create a session and post events to the data-server.'
-              : 'Runs will create a session, but posting events needs your account API key — sign in on the Account page.'}
-        </p>
-      </div>
     </>
   );
 }

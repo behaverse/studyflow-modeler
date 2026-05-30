@@ -144,6 +144,7 @@ export function runOnUnity(
 
       if (source === 'llm') {
         const llmConfig = resolveLLMConfig(payload.bot);
+        log?.('task', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex}: querying...`);
         const result = await selectResponse({
           taskId: payload.task,
           taskConfig: payload.config,

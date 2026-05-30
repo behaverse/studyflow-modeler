@@ -2,11 +2,15 @@
  * Thin client for the Behaverse data-server. Used by the runner to persist
  * session state and the final variable bag.
  *
- * Designed to be optional: if no data-server URL is configured, if the
- * `disable_data_server` flag is set, or if any HTTP call fails, the runner
- * falls back to a locally generated session ID and silently skips writes.
- * The flow keeps running either way.
+ * Designed to be optional: if recording is turned off (the runner's "Record
+ * events" toggle, off by default), if the studyflow has no study id, or if any
+ * HTTP call fails, the runner falls back to a locally generated session ID and
+ * silently skips writes. The flow keeps running either way.
  */
+
+import { getApiKey, shouldRecordEvents } from '@/lib/core/runtimeSettings';
+
+export const DATA_SERVER_URL = 'https://data.behaverse.org/v1';
 
 export type DataServerConfig = {
   /** Base URL of the data-server, e.g. `https://data.behaverse.org/v1`. */
@@ -37,14 +41,11 @@ type UpdatePayload = {
   variables?: Record<string, unknown>;
 };
 
-/** Reads runner configuration from URL query params. */
-export function readDataServerConfig(params: URLSearchParams): DataServerConfig {
-  const disabled = params.get('disable_data_server');
+export function loadDataServerConfig(): DataServerConfig {
   return {
-    baseUrl: params.get('data_server_url') ?? undefined,
-    studyName: params.get('study_name') ?? undefined,
-    apiKey: params.get('data_server_api_key') ?? undefined,
-    disabled: disabled === '1' || disabled === 'true',
+    baseUrl: DATA_SERVER_URL,
+    apiKey: getApiKey(),
+    disabled: !shouldRecordEvents(),
   };
 }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@/lib/core/schemas';
-import { getApiKey } from '@/lib/core/runtimeSettings';
+import { shouldRecordEvents, setRecordEvents } from '@/lib/core/runtimeSettings';
 import { Studyflow } from './studyflow';
 import { Session } from './session';
 import type { Job } from '@/runner/types';
@@ -15,7 +15,7 @@ import { NodeRenderer, type NodeOutcome } from './nodes/NodeRenderer';
 import { layout, logColor, type LogKind } from './styles';
 import {
   createSession,
-  readDataServerConfig,
+  loadDataServerConfig,
   updateSession,
   type DataServerConfig,
   type SessionHandle,
@@ -61,9 +61,8 @@ export function Runner() {
   const params = new URLSearchParams(window.location.search);
   const studyflowUrl = params.get('studyflow_url') ?? '';
   const diagramId = params.get('diagram_id') ?? '';
-  const agentId = params.get('agent_id') ?? undefined;
   const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
-  const dataServerConfig = readDataServerConfig(params);
+  const dataServerConfig = loadDataServerConfig();
 
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
@@ -71,12 +70,18 @@ export function Runner() {
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [studyflowName, setStudyflowName] = useState<string | null>(null);
   const [logsOpen, setLogsOpen] = useState(false);
+  // Whether this run records its data (session, variables, Unity events) to the
+  // data-server. Off by default; the runner — not the modeler — owns this
+  // decision. Stored so it sticks across runs.
+  const [recording, setRecording] = useState(shouldRecordEvents());
   const ranOnce = useRef(false);
   const resolverRef = useRef<((outcome: NodeOutcome) => void) | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const serverSessionRef = useRef<SessionHandle | null>(null);
   const dataServerRef = useRef<DataServerConfig>(dataServerConfig);
   const recorderRef = useRef<EventRecorder | null>(null);
+  const logListRef = useRef<HTMLOListElement>(null);
+  const stickToBottom = useRef(true);
 
   const addLog = useCallback((kind: LogKind, message: string) => {
     // flushSync so per-trial LLM logs paint into the sidebar BEFORE the synchronous
@@ -97,15 +102,32 @@ export function Runner() {
     }
   }, []);
 
+  const toggleRecordEvents = useCallback((next: boolean) => {
+    setRecording(next);
+    setRecordEvents(next);
+    // Mutate in place (don't replace)
+    dataServerRef.current.disabled = !next;
+  }, []);
+
+  // Remember whether the log list is pinned to (near) the bottom, so streaming
+  // entries auto-follow only when the user hasn't scrolled up to read history.
+  const onLogScroll = useCallback((e: React.UIEvent<HTMLOListElement>) => {
+    const el = e.currentTarget;
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }, []);
+
+  // Keep the newest log line in view as entries stream in (e.g. per-trial LLM
+  // calls), so the panel reflects activity in real time.
+  useEffect(() => {
+    const el = logListRef.current;
+    if (logsOpen && el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [log, logsOpen]);
+
   useEffect(() => {
     if (diagramId) {
       const stored = localStorage.getItem(diagramId);
       if (stored) {
         localStorage.removeItem(diagramId);
-        const apiKey = getApiKey();
-        if (apiKey) {
-          dataServerRef.current = { ...dataServerRef.current, apiKey: apiKey };
-        }
         setXml(stored);
       } else {
         addLog('error', `No studyflow found for diagram_id=${diagramId}.`);
@@ -131,15 +153,20 @@ export function Runner() {
         const schemas = await loadAllSchemas();
         const studyflowHash = await sha256Hex(xml);
         const studyflow = await Studyflow.parse(xml, schemas, studyflowHash);
+        // Modeler and standalone runs aren't tied to a real participant, so mint
+        // a throwaway agent id; it groups the session and its telemetry events
+        // under one identity for this run.
+        const agentId = `anon-${crypto.randomUUID().slice(0, 8)}`;
         const session = new Session(studyflow, { seed, agentId });
         sessionRef.current = session;
         setStudyflowName(studyflow.businessObject?.name || studyflow.businessObject?.id || null);
         addLog('info', `Parsed ${studyflow.flowNodes.size} flow nodes, ${studyflow.sequenceFlows.size} sequence flows.`);
 
         // The data-server study name is the studyflow's BPMN process id
-        // (`studyflow.studyId`), preferred over the `study_name` URL param. This
-        // scopes the session and its telemetry events to the same study, and
-        // matches the `studyId` Unity stamps into each event's `context.study`.
+        // (`studyflow.studyId`) — the only source, since it's intrinsic to the
+        // diagram. It scopes the session and its telemetry events to the same
+        // study, and matches the `studyId` Unity stamps into each event's
+        // `context.study`. Without it there's no study to address, so stay offline.
         if (studyflow.studyId) {
           dataServer.studyName = studyflow.studyId;
         }
@@ -266,7 +293,16 @@ export function Runner() {
               ×
             </button>
           </div>
-          <ol className={layout.sidebarList}>
+          <label className={layout.recordToggle}>
+            <input
+              type="checkbox"
+              checked={recording}
+              onChange={(e) => toggleRecordEvents(e.target.checked)}
+              className="accent-fuchsia-800"
+            />
+            <span>Record events</span>
+          </label>
+          <ol ref={logListRef} onScroll={onLogScroll} className={layout.sidebarList}>
             {log.map((entry, i) => (
               <li key={i} className={logColor[entry.kind]}>{entry.message}</li>
             ))}
@@ -289,10 +325,9 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
       <h1 className={layout.helpTitle}>Studyflow</h1>
       <p className={layout.helpText}>
         Upload a <code>.studyflow</code> file, or pass a <code>studyflow_url</code> query parameter.
-        Add <code>data_server_url</code> to persist sessions, variables, and telemetry events; the
-        study name comes from the studyflow's process <code>id</code> (<code>study_name</code> is an
-        optional fallback). Omit <code>data_server_url</code> (or pass <code>disable_data_server=1</code>)
-        to run offline.
+        Runs record sessions, variables, and telemetry events to the Behaverse data-server when
+        you enable “Record events” in the logs panel (off by default). The study name comes from
+        the studyflow's process <code>id</code>, and an agent id is generated automatically.
       </p>
       <label className={layout.uploadButton}>
         <input
@@ -304,7 +339,7 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
         <span>Choose file...</span>
       </label>
       <pre className={layout.helpExample}>
-        run.html?studyflow_url=https://data.behaverse.org/v1/studies/pilot3/studyflow&data_server_url=https://data.behaverse.org/v1&study_name=pilot3&agent_id=p001&seed=42
+        run.html?studyflow_url=https://data.behaverse.org/v1/studies/pilot3/studyflow&seed=42
       </pre>
     </div>
   );

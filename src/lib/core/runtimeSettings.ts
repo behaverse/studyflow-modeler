@@ -52,3 +52,24 @@ export function getApiKey(): string | undefined {
     return undefined;
   }
 }
+
+export const RECORD_EVENTS_STORAGE_KEY = 'studyflow-modeler:should_record_events:v1';
+
+/** Whether the runner should record this run's data (session, variables, and
+ *  Unity events) to the data-server. Off unless the user opts in via the
+ *  runner's "Record events" toggle. Stored under its own key so the choice
+ *  sticks across runs without being passed as a URL param. */
+export function shouldRecordEvents(): boolean {
+  try {
+    return ls()?.getItem(RECORD_EVENTS_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setRecordEvents(enabled: boolean): void {
+  try {
+    if (enabled) ls()?.setItem(RECORD_EVENTS_STORAGE_KEY, '1');
+    else ls()?.removeItem(RECORD_EVENTS_STORAGE_KEY);
+  } catch { /* quota / privacy mode */ }
+}
