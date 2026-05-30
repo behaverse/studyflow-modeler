@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@/lib/core/schemas';
+import { getApiKey } from '@/lib/core/runtimeSettings';
 import { Studyflow } from './studyflow';
 import { Session } from './session';
 import type { Job } from '@/runner/types';
@@ -31,26 +32,6 @@ async function sha256Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
-}
-
-/** Parse the `diagram_id` localStorage payload the modeler hands off. It's a
- *  JSON envelope `{ xml, dataServerApiKey? }` — the API key travels here, not in
- *  the URL, so it never lands in history/referrer/logs. Tolerates a bare XML
- *  string too, so any older/external writer of this key still works. */
-function parseRunnerHandoff(raw: string): { xml: string; dataServerApiKey?: string } {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && typeof parsed.xml === 'string') {
-      return {
-        xml: parsed.xml,
-        dataServerApiKey:
-          typeof parsed.dataServerApiKey === 'string' ? parsed.dataServerApiKey : undefined,
-      };
-    }
-  } catch {
-    /* not JSON — fall through to treat the value as raw studyflow XML */
-  }
-  return { xml: raw };
 }
 
 /** PATCHes the data-server session with the final variable bag. No-op when
@@ -121,14 +102,11 @@ export function Runner() {
       const stored = localStorage.getItem(diagramId);
       if (stored) {
         localStorage.removeItem(diagramId);
-        const handoff = parseRunnerHandoff(stored);
-        // The modeler passes the data-server token through this same-origin
-        // handoff instead of the URL (which would leak it into history/logs).
-        // Non-secret config still arrives via URL params; merge the token in.
-        if (handoff.dataServerApiKey) {
-          dataServerRef.current = { ...dataServerRef.current, apiKey: handoff.dataServerApiKey };
+        const apiKey = getApiKey();
+        if (apiKey) {
+          dataServerRef.current = { ...dataServerRef.current, apiKey: apiKey };
         }
-        setXml(handoff.xml);
+        setXml(stored);
       } else {
         addLog('error', `No studyflow found for diagram_id=${diagramId}.`);
         setPhase('error');

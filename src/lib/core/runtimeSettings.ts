@@ -41,3 +41,14 @@ export function setLLMSettings(partial: Partial<LLMRuntimeSettings>): LLMRuntime
   try { ls()?.setItem(LLM_STORAGE_KEY, JSON.stringify(next)); } catch { /* quota / privacy mode */ }
   return next;
 }
+
+export const API_KEY_STORAGE_KEY = 'studyflow-modeler:api_key:v1';
+
+export function getApiKey(): string | undefined {
+  try {
+    const key = ls()?.getItem(API_KEY_STORAGE_KEY) ?? undefined;
+    return key && key !== 'guest' ? key : undefined;
+  } catch {
+    return undefined;
+  }
+}

@@ -1,6 +1,6 @@
 import { SCHEMA_NAMES, SETTINGS_STORAGE_KEY as STORAGE_KEY } from '../constants';
+import { API_KEY_STORAGE_KEY } from '@/lib/core/runtimeSettings';
 
-const API_KEY_STORAGE_KEY = 'studyflow-modeler:api_key:v1';
 const USER_EMAIL_STORAGE_KEY = 'studyflow-modeler:user_email:v1';
 
 type ThemePreference = 'light' | 'dark' | 'system';
