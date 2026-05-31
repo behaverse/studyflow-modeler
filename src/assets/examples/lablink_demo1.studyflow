@@ -32,7 +32,7 @@
     <bpmn2:task id="Warmup_1Back" name="1-Back&#10;(warm-up)">
       <bpmn2:extensionElements>
         <behaverse:task scene="NB" configMode="inline" agentType="bot">
-        <behaverse:botConfigurations>autoAnswer: Valid
+        <behaverse:botConfigurations>autoResponse: Valid
 Speed: 100
 SkipInstructions: true
 AutoClickInstructions: true
@@ -84,7 +84,7 @@ Timelines:
     <bpmn2:task id="Arm_Dual2Back" name="2-Back&#10;(Symbols)">
       <bpmn2:extensionElements>
         <behaverse:task scene="NB" agentType="bot" timelineId="XCIT_NB_05">
-        <behaverse:botConfigurations>autoAnswer: Valid
+        <behaverse:botConfigurations>autoResponse: Valid
 Speed: 100
 SkipInstructions: true
 AutoClickInstructions: true
@@ -108,7 +108,7 @@ TrialForeperiod: 0.1</behaverse:botConfigurations>
     <bpmn2:task id="Arm_Demo" name="1-Back">
       <bpmn2:extensionElements>
         <behaverse:task scene="NB" configMode="inline" agentType="bot">
-        <behaverse:botConfigurations>autoAnswer: Valid
+        <behaverse:botConfigurations>autoResponse: Valid
 Speed: 100
 SkipInstructions: true
 AutoClickInstructions: true

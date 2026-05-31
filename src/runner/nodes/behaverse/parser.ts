@@ -29,8 +29,8 @@ export function readBehaverseBody(bo: any, propertyName: string): string | undef
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== 'behaverse:Task') return null;
 
-  const task = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
-  if (!task || task === 'undefined') {
+  const scene = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
+  if (!scene || scene === 'undefined') {
     throw new Error(`Behaverse task ${node.id} has no scene.`);
   }
 
@@ -53,7 +53,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   }
 
   const payload: BehaverseTaskPayload = {
-    task,
+    scene,
     configMode,
     agentType,
     metadata: { studyflowNodeId: node.id },
@@ -75,10 +75,10 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
         `Behaverse task ${node.id}: inline \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
       );
     }
-    const config = parsed as Record<string, unknown>;
-    payload.config = config;
+    const parameters = parsed as Record<string, unknown>;
+    payload.parameters = parameters;
     // First timeline key keys the bridge's completion matcher.
-    const timelines = config.Timelines as Record<string, unknown> | undefined;
+    const timelines = parameters.Timelines as Record<string, unknown> | undefined;
     if (timelines && typeof timelines === 'object') {
       const firstTimelineKey = Object.keys(timelines)[0];
       if (firstTimelineKey) payload.timeline = firstTimelineKey;

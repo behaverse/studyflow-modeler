@@ -1,5 +1,5 @@
 /**
- * Bot payload shipped to Unity inside `RunTask`. Wire shape stays a free-form dict
+ * Bot payload shipped to Unity inside `RunCognitiveTask`. Wire shape stays a free-form dict
  * so `BotReflection` can pick up new fields without a schema change.
  *
  * Field names are PascalCase to match the C# source-of-truth (BotReflection
@@ -42,12 +42,12 @@ export type BehaverseBotPayload = Record<string, unknown>;
  *  check, since they may carry nested objects (e.g. `LLM: { Provider, Model }`). */
 export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt'] as const;
 
-/** `RunTask` payload Unity receives as JSON; `builtin` uses a shipped timeline, `inline` layers `config` over Resources/<task>.json. */
+/** `RunCognitiveTask` payload Unity receives as JSON; `builtin` uses a shipped timeline, `inline` layers `parameters` over Resources/<scene>.json. */
 export type BehaverseTaskPayload = {
-  task: string;
+  scene: string;
   configMode: 'builtin' | 'inline';
   timeline?: string;
-  config?: Record<string, unknown>;
+  parameters?: Record<string, unknown>;
   agentType: 'human' | 'bot';
   bot?: BehaverseBotPayload;
   metadata: { studyflowNodeId: string };

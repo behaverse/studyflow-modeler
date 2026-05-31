@@ -65,7 +65,8 @@ function readPrompt(bot: BehaverseTaskPayload['bot']): string {
 }
 
 // Unity dispatches each topic as both a CustomEvent and a parent-window postMessage.
-// Topic strings are PascalCase to mirror the C# source of truth (browser_bridge.jslib).
+// Topic strings mirror the C# source of truth (browser_bridge.jslib).
+// Completion event is `studyflow:TaskCompleted` (ADR-0007: CognitiveTask vocabulary).
 const TASK_COMPLETED = 'studyflow:TaskCompleted';
 const AWAITING_RESPONSE = 'studyflow:AwaitingResponse';
 const READY = 'studyflow:Ready';
@@ -94,7 +95,7 @@ export function runOnUnity(
 
     const matches = (detail: TaskCompletion | undefined): detail is TaskCompletion =>
       !!detail
-      && detail.TaskId === payload.task
+      && detail.TaskId === payload.scene
       && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
 
     const onMessage = (e: MessageEvent) => {
@@ -146,8 +147,8 @@ export function runOnUnity(
         const llmConfig = resolveLLMConfig(payload.bot);
         log?.('task', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex}: querying...`);
         const result = await selectResponse({
-          taskId: payload.task,
-          taskConfig: payload.config,
+          taskId: payload.scene,
+          taskConfig: payload.parameters,
           prompt: readPrompt(payload.bot),
           stimulus: detail.Stimulus,
           responseOptions: detail.ResponseOptions,
@@ -203,7 +204,7 @@ export function runOnUnity(
 
     try {
       const unityPayload = { ...payload, bot: botForUnity(payload.bot) };
-      unity.SendMessage('GameManager', 'RunTask', JSON.stringify(unityPayload));
+      unity.SendMessage('GameManager', 'RunCognitiveTask', JSON.stringify(unityPayload));
     } catch (err) {
       cleanup();
       reject(err);

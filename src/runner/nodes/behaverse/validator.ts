@@ -30,12 +30,12 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
     }
     if (!payload) continue;
 
-    const manifestTask = tasksById.get(payload.task);
+    const manifestTask = tasksById.get(payload.scene);
     if (!manifestTask) {
       issues.push({
         nodeId: node.id,
-        taskId: payload.task,
-        message: `Unknown task '${payload.task}' (not in Unity manifest).`,
+        taskId: payload.scene,
+        message: `Unknown task '${payload.scene}' (not in Unity manifest).`,
       });
       continue;
     }
@@ -44,23 +44,23 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
       if (!payload.timeline) {
         issues.push({
           nodeId: node.id,
-          taskId: payload.task,
-          message: `Missing timelineId on '${payload.task}' (configMode=builtin).`,
+          taskId: payload.scene,
+          message: `Missing timelineId on '${payload.scene}' (configMode=builtin).`,
         });
       } else if (!manifestTask.timelines.includes(payload.timeline)) {
         issues.push({
           nodeId: node.id,
-          taskId: payload.task,
+          taskId: payload.scene,
           timelineId: payload.timeline,
-          message: `Unknown timeline '${payload.timeline}' for task '${payload.task}'.`,
+          message: `Unknown timeline '${payload.timeline}' for task '${payload.scene}'.`,
         });
       }
     } else if (payload.configMode === 'inline') {
-      if (!payload.config || Object.keys(payload.config).length === 0) {
+      if (!payload.parameters || Object.keys(payload.parameters).length === 0) {
         issues.push({
           nodeId: node.id,
-          taskId: payload.task,
-          message: `Empty inline configurations on '${payload.task}' (configMode=inline). Provide a GameConfig override YAML body (e.g. Blocks/Timelines that diverge from Resources/${payload.task}.json).`,
+          taskId: payload.scene,
+          message: `Empty inline configurations on '${payload.scene}' (configMode=inline). Provide a CognitiveTask override YAML body (e.g. Blocks/Timelines that diverge from Resources/${payload.scene}.json).`,
         });
       }
     }
@@ -75,16 +75,16 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
         } catch (err) {
           issues.push({
             nodeId: node.id,
-            taskId: payload.task,
-            message: `Invalid bot YAML on '${payload.task}': ${(err as Error).message}`,
+            taskId: payload.scene,
+            message: `Invalid bot YAML on '${payload.scene}': ${(err as Error).message}`,
           });
           continue;
         }
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
           issues.push({
             nodeId: node.id,
-            taskId: payload.task,
-            message: `bot YAML on '${payload.task}' must be a flat object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
+            taskId: payload.scene,
+            message: `bot YAML on '${payload.scene}' must be a flat object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
           });
           continue;
         }
@@ -98,8 +98,8 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
           if (v !== null && typeof v === 'object') {
             issues.push({
               nodeId: node.id,
-              taskId: payload.task,
-              message: `bot YAML on '${payload.task}' must be flat (no nested objects/arrays) - key '${k}' has a nested ${Array.isArray(v) ? 'array' : 'object'}.`,
+              taskId: payload.scene,
+              message: `bot YAML on '${payload.scene}' must be flat (no nested objects/arrays) - key '${k}' has a nested ${Array.isArray(v) ? 'array' : 'object'}.`,
             });
             break;
           }
