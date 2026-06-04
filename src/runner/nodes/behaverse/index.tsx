@@ -45,12 +45,12 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
       try {
         const unity = await waitForReady(() => iframeRef.current);
         if (cancelled) return;
-        setStatusLine(`Running ${job.payload.task}`);
+        setStatusLine(`Running ${job.payload.scene}`);
         setTimeout(() => {
           if (!cancelled) setStageReady(true);
         }, STAGE_REVEAL_DELAY_MS);
 
-        log('task', `Run ${job.payload.task} / ${job.payload.timeline ?? '(inline)'}`);
+        log('task', `Run ${job.payload.scene} / ${job.payload.timeline ?? '(no timeline)'}`);
         const enrichedPayload: BehaverseTaskPayload = {
           ...job.payload,
           ...(session.agentId ? { agent: { id: session.agentId } } : {}),

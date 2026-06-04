@@ -42,10 +42,12 @@ export type BehaverseBotPayload = Record<string, unknown>;
  *  check, since they may carry nested objects (e.g. `LLM: { Provider, Model }`). */
 export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt'] as const;
 
-/** `RunCognitiveTask` payload Unity receives as JSON; `builtin` uses a shipped timeline, `inline` layers `parameters` over Resources/<scene>.json. */
+/** `RunCognitiveTask` payload Unity receives as JSON. `parameters` is the parsed
+ *  `configurations` GameConfig; it layers over Resources/<scene>.json at runtime.
+ *  `timeline` is the first key under `Timelines` - a build-shipped timeline when
+ *  listed by name only, otherwise an inline one - and keys the completion matcher. */
 export type BehaverseTaskPayload = {
   scene: string;
-  configMode: 'builtin' | 'inline';
   timeline?: string;
   parameters?: Record<string, unknown>;
   agentType: 'human' | 'bot';

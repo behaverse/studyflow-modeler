@@ -58,18 +58,6 @@ enumerations:
         value: UFOV
       - name: Which One (WO)
         value: WO
-  - name: ConfigModeEnum
-    description: |
-      How a `Task` resolves its runtime configuration. `builtin`
-      sends a `timelineId` to Unity referencing a timeline shipped with the
-      build. `inline` embeds a full `GameConfig` (timeline + blocks + trials)
-      in the diagram and sends it as a parsed JSON object - `timelineId` is
-      then ignored. The two modes are mutually exclusive.
-    literalValues:
-      - name: Built-in timeline
-        value: builtin
-      - name: Inline
-        value: inline
   - name: AgentTypeEnum
     description: |
       Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
@@ -93,13 +81,13 @@ types:
     description: |
       Specialized `CognitiveTask` for the Behaverse battery. It behaves like a
       normal studyflow task, but its `instrument` is fixed to `behaverse` and
-      pinned (not editable in the inspector). At runtime, `scene` maps to the Behaverse
-      assessment task ID (e.g., `NB`, `UFOV`). When `configMode` is `builtin`,
-      `timelineId` selects a timeline shipped with the build and `configurations`
-      is ignored. When `configMode` is `inline`, `configurations` carries the
-      full `GameConfig` (timeline + blocks + trials) as YAML - the modeler
-      parses it to a JSON object and sends it nested inside the runtime payload.
-      The two modes are mutually exclusive.
+      pinned (not editable in the inspector). At runtime, `scene` maps to the
+      Behaverse assessment task ID (e.g., `NB`, `UFOV`) and `configurations`
+      carries a `GameConfig` as YAML - the modeler parses it to a JSON object and
+      sends it nested inside the runtime payload. A timeline listed by name only
+      (no body) under `Timelines` runs one shipped with the build (e.g.
+      `XCIT_NB_01`); a timeline with its own `blocks` is run inline. Both go
+      through the same `configurations` mechanism.
     superClass:
       - cognitive:CognitiveTask
     meta:
@@ -124,45 +112,16 @@ types:
           order: 1
           categories:
             - Behaverse
-      - name: configMode
+      - name: configurations
         description: |
-          How this task resolves its runtime configuration. `builtin` sends `timelineId` to Unity (configurations is ignored); `inline` sends a `GameConfig` *override* (parsed from `configurations`) that the runtime layers on top of the per-task baseline shipped in `Resources/<scene>.json`. The two modes are mutually exclusive.
-        isAttr: true
-        type: ConfigModeEnum
-        default: builtin
+          `GameConfig` as YAML, embedded in the diagram and parsed to a JSON object on the modeler side. To run a timeline shipped with the build, list it by name only (no body) under `Timelines`, e.g. `Timelines:` then an indented `XCIT_NB_01:`. To run an inline timeline, give it its own `blocks` (plus any diverging `Blocks` and fields); inline definitions are merged at runtime over the per-task baseline shipped in `Resources/<scene>.json` - so the body only needs to carry what differs from the defaults (no need to repeat `Id`, `Scene`, `EnumDefinitions`, `ParameterInfos`, `Rules`, or unchanged blocks/timelines). New blocks should set `Inherits: Default` (or another baseline block from the per-task config) so they pick up HUD/feedback parameters without restating them.
+        type: cognitive:Configurations
+        redefines: cognitive:CognitiveTask#configurations
         meta:
           order: 2
           categories:
             - Behaverse
-      - name: timelineId
-        description: |
-          Identifier of a timeline shipped with the Behaverse assessment build
-          (e.g., `XCIT_NB_01`, `Demo`). The runtime validates this against the
-          build's manifest before starting the study. Only used when `configMode` is `builtin`.
-        isAttr: true
-        type: String
-        meta:
-          order: 3
-          categories:
-            - Behaverse
-          condition:
-            language: json
-            body:
-              configMode: builtin
-      - name: configurations
-        description: |
-          `GameConfig` *override* (Blocks, Timelines, and any other diverging fields) as YAML, embedded inline in the diagram. Parsed to a JSON object on the modeler side and merged at runtime over the per-task baseline shipped in `Resources/<scene>.json` - so the body only needs to carry what differs from the defaults (no need to repeat `Id`, `Scene`, `EnumDefinitions`, `ParameterInfos`, `Rules`, or unchanged blocks/timelines). New blocks should set `Inherits: Default` (or another baseline block from the per-task config) so they pick up HUD/feedback parameters without restating them. Only used when `configMode` is `inline`.
-        type: cognitive:Configurations
-        redefines: cognitive:CognitiveTask#configurations
-        meta:
-          order: 3
-          categories:
-            - Behaverse
           widget: textarea
-          condition:
-            language: json
-            body:
-              configMode: inline
       - name: agentType
         description: |
           Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
@@ -187,19 +146,19 @@ types:
             body:
               agentType: bot
 templates:
-  - description: N-Back task referencing a built-in timeline shipped with the Behaverse build
+  - description: N-Back task referencing a built-in timeline shipped with the Behaverse build - listed by name only under `Timelines`.
     object:
       type: Task
       bpmn:name: N-Back (XCIT_NB_01)
       scene: NB
-      configMode: builtin
-      timelineId: XCIT_NB_01
+      configurations: |
+        Timelines:
+          XCIT_NB_01:
   - description: N-Back task with inline overrides - only the diverging Blocks/Timelines need to be authored; everything else is layered on top of `Resources/NB.json` at runtime.
     object:
       type: Task
       bpmn:name: N-Back (inline)
       scene: NB
-      configMode: inline
       configurations: |
         Blocks:
           LabLink_InlineBlock:

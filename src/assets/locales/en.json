@@ -34,7 +34,5 @@
   "authors": "Authors",
   "botConfigurations": "Bot configurations",
   "agentType": "Agent Type",
-  "configMode": "Configuration Mode",
-  "timelineId": "Timeline ID",
   "configurations": "Configurations"
 }

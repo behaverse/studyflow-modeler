@@ -10,7 +10,7 @@
     </bpmn2:startEvent>
     <bpmn2:task id="Warmup_1Back" name="1-Back warm-up">
       <bpmn2:extensionElements>
-        <behaverse:task scene="NB" configMode="inline" agentType="bot">
+        <behaverse:task scene="NB" agentType="bot">
         <behaverse:botConfigurations>ResponseSource: external
 Speed: 20
 SkipInstructions: true
@@ -53,7 +53,7 @@ Timelines:
     </bpmn2:task>
     <bpmn2:task id="Main_2Back" name="2-Back main">
       <bpmn2:extensionElements>
-        <behaverse:task scene="NB" configMode="inline" agentType="bot">
+        <behaverse:task scene="NB" agentType="bot">
         <behaverse:botConfigurations>ResponseSource: external
 Speed: 20
 SkipInstructions: true

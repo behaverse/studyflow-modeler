@@ -34,50 +34,36 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
     throw new Error(`Behaverse task ${node.id} has no scene.`);
   }
 
-  const configMode = (readBehaverseAttribute(node.businessObject, 'configMode') as 'builtin' | 'inline' | undefined)
-    ?? 'builtin';
-  const timelineId = readBehaverseAttribute(node.businessObject, 'timelineId');
   const configurations = readBehaverseBody(node.businessObject, 'configurations');
   const botConfigurations = readBehaverseBody(node.businessObject, 'botConfigurations');
 
   const agentType = (readBehaverseAttribute(node.businessObject, 'agentType') as 'human' | 'bot' | undefined)
     ?? 'human';
 
-  const hasInlineBody = !!(configurations && configurations.trim());
-  const hasTimelineId = !!(timelineId && timelineId.trim());
-
-  if (hasTimelineId && hasInlineBody) {
-    throw new Error(
-      `Behaverse task ${node.id}: cannot mix \`timelineId\` and a non-empty \`configurations\` body. Pick one (configMode=builtin uses timelineId; configMode=inline uses configurations).`,
-    );
-  }
-
   const payload: BehaverseTaskPayload = {
     scene,
-    configMode,
     agentType,
     metadata: { studyflowNodeId: node.id },
   };
 
-  if (configMode === 'builtin') {
-    payload.timeline = timelineId;
-  } else if (hasInlineBody) {
+  if (configurations && configurations.trim()) {
     let parsed: unknown;
     try {
-      parsed = yaml.load(configurations as string);
+      parsed = yaml.load(configurations);
     } catch (err) {
       throw new Error(
-        `Behaverse task ${node.id}: failed to parse inline \`configurations\` YAML - ${(err as Error).message}`,
+        `Behaverse task ${node.id}: failed to parse \`configurations\` YAML - ${(err as Error).message}`,
       );
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(
-        `Behaverse task ${node.id}: inline \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
+        `Behaverse task ${node.id}: \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
       );
     }
     const parameters = parsed as Record<string, unknown>;
     payload.parameters = parameters;
-    // First timeline key keys the bridge's completion matcher.
+    // First timeline key keys the bridge's completion matcher. A build-shipped
+    // timeline is listed by name only; an inline one carries its own definition.
     const timelines = parameters.Timelines as Record<string, unknown> | undefined;
     if (timelines && typeof timelines === 'object') {
       const firstTimelineKey = Object.keys(timelines)[0];

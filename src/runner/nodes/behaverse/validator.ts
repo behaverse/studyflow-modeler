@@ -40,28 +40,28 @@ export function validateStudyflow(studyflow: Studyflow, manifest: Manifest): Val
       continue;
     }
 
-    if (payload.configMode === 'builtin') {
-      if (!payload.timeline) {
-        issues.push({
-          nodeId: node.id,
-          taskId: payload.scene,
-          message: `Missing timelineId on '${payload.scene}' (configMode=builtin).`,
-        });
-      } else if (!manifestTask.timelines.includes(payload.timeline)) {
-        issues.push({
-          nodeId: node.id,
-          taskId: payload.scene,
-          timelineId: payload.timeline,
-          message: `Unknown timeline '${payload.timeline}' for task '${payload.scene}'.`,
-        });
-      }
-    } else if (payload.configMode === 'inline') {
-      if (!payload.parameters || Object.keys(payload.parameters).length === 0) {
-        issues.push({
-          nodeId: node.id,
-          taskId: payload.scene,
-          message: `Empty inline configurations on '${payload.scene}' (configMode=inline). Provide a CognitiveTask override YAML body (e.g. Blocks/Timelines that diverge from Resources/${payload.scene}.json).`,
-        });
+    if (!payload.parameters || Object.keys(payload.parameters).length === 0) {
+      issues.push({
+        nodeId: node.id,
+        taskId: payload.scene,
+        message: `Empty configurations on '${payload.scene}'. Provide a GameConfig YAML body - list a build-shipped timeline by name under Timelines (e.g. XCIT_NB_01), or define one inline with its own blocks.`,
+      });
+    } else {
+      // A timeline listed by name only (null body) references one shipped with
+      // the build, so validate it against the manifest. A timeline with its own
+      // definition is run inline and won't be in the manifest - skip it.
+      const timelines = payload.parameters.Timelines as Record<string, unknown> | undefined;
+      if (timelines && typeof timelines === 'object') {
+        for (const [name, def] of Object.entries(timelines)) {
+          if (def == null && !manifestTask.timelines.includes(name)) {
+            issues.push({
+              nodeId: node.id,
+              taskId: payload.scene,
+              timelineId: name,
+              message: `Unknown timeline '${name}' for task '${payload.scene}'.`,
+            });
+          }
+        }
       }
     }
 
