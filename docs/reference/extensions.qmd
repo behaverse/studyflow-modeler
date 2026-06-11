@@ -20,7 +20,7 @@ Studyflow moddle YAML files follow this top-level layout:
 name: Core
 prefix: core
 description: Core BPMN extension for modeling research processes.
-uri: http://behaverse.org/schemas/studyflow
+uri: http://behaverse.org/schemas/studyflow/v1   # version segment = studyflow format version
 icon: https://example.org/schema-icon.png    # optional, shown in the modeler
 xml:
   tagAlias: lowerCase

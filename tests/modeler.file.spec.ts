@@ -17,21 +17,23 @@ test.describe('Studyflow modeler file flows', () => {
     await gotoModeler(page);
 
     const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const download = await downloadPromise;
 
     await expect(download.suggestedFilename()).toBe('diagram.studyflow');
     const content = await readDownloadText(download);
-    expect(content.startsWith('studyflow:')).toBe(true);
-    expect(content).toContain('\nelements:');
-    expect(content).toContain('\ndiagram:');
+    expect(content.startsWith('id:')).toBe(true);
+    expect(content).toContain('\ndefinitions:');
+    // Geometry folds into the elements; no separate bpmndi tree remains.
+    expect(content).not.toContain('\ndiagram:');
+    expect(content).toContain('bounds:');
   });
 
   test('saved YAML studyflow file opens again (UI round trip)', async ({ page }) => {
     await gotoModeler(page);
 
     const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const yamlText = await readDownloadText(await downloadPromise);
 
     await page.locator('input[type="file"]').setInputFiles({
@@ -50,7 +52,7 @@ test.describe('Studyflow modeler file flows', () => {
     await gotoModeler(page);
 
     const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Export As...', 'BPMN 2.0 XML...');
+    await runPaletteCommand(page, 'Save As...', 'BPMN 2.0 XML...');
     const download = await downloadPromise;
 
     await expect(download.suggestedFilename()).toBe('diagram.bpmn');

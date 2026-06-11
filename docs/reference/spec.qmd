@@ -155,116 +155,108 @@ Which can be visualized as an extended BPMN diagram:
 
 :::
 
-This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `VideoGame`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions live in the core `studyflow` schema (namespace URI `http://behaverse.org/schemas/studyflow`). Concrete cognitive activities are serialized as a standard BPMN task carrying the schema-specific extension element inside `extensionElements`.
+This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `VideoGame`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions live in the core `studyflow` schema (namespace URI `http://behaverse.org/schemas/studyflow/v1`; the version segment identifies the studyflow format version, and the unversioned URI written by older releases is accepted and rewritten on load). Concrete cognitive activities are serialized as a standard BPMN task carrying the schema-specific extension element inside `extensionElements`.
 
-The native `.studyflow` file format is **YAML**, with four top-level keys: `studyflow` (format version), `definitions` (diagram metadata), `elements` (the BPMN root elements), and `diagram` (the diagram-interchange tree -- element positions and waypoints; empty here because this example carries no layout). Values equal to a schema default are omitted on save and re-applied on load: the `RandomGateway` below carries no `algorithm`/`probabilityFunction` keys because this example uses the defaults (`probabilistic`, `uniform`).
+The native `.studyflow` file format is **YAML**: the diagram id sits at the root (`id`), the remaining diagram metadata under `definitions`, and every other top-level entry is a BPMN root element keyed by its id. Element collections (`flowElements`, `participants`, `lanes`, ...) are likewise mappings keyed by element id, and diagram geometry (`bounds`, `label`, `waypoint`) sits inline on the element it describes -- a top-level `diagram` key appears only for diagram-interchange data that cannot be attached to an element (this example carries no layout at all). Values equal to a schema default are omitted on save and re-applied on load: the `RandomGateway` below carries no `algorithm`/`probabilityFunction` keys because this example uses the defaults (`probabilistic`, `uniform`). `incoming`/`outgoing` may be omitted when authoring by hand; they are derived from the sequence flows on load.
 
 <details>
 <summary>**YAML** serialization -- the native `.studyflow` format (click to expand)</summary>
 
 ```yaml
-studyflow: "1"
+id: example-diagram
 definitions:
-  id: example-diagram
   xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-  xmlns:studyflow: http://behaverse.org/schemas/studyflow
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
-elements:
-  - type: bpmn:Process
-    id: exampleStudy
-    extensionElements:
-      values:
-        - type: studyflow:Study
-    flowElements:
-      - type: bpmn:StartEvent
-        id: s
-        name: s
-        outgoing:
-          - f1
-        consentFormUri: https://example.org/consent.pdf
-      - type: bpmn:Task
-        id: qs
-        extensionElements:
-          values:
-            - type: cognitive:Questionnaire
-              instrument: phq-9
-        name: qs
-        incoming:
-          - f1
-        outgoing:
-          - f2
-      - type: bpmn:SequenceFlow
-        id: f1
-        sourceRef: s
-        targetRef: qs
-      - type: bpmn:ExclusiveGateway
-        id: gw
-        extensionElements:
-          values:
-            - type: cognitive:RandomGateway
-        name: gw
-        incoming:
-          - f2
-        outgoing:
-          - f3
-          - f4
-      - type: bpmn:SequenceFlow
-        id: f2
-        sourceRef: qs
-        targetRef: gw
-      - type: bpmn:Task
-        id: instr
-        extensionElements:
-          values:
-            - type: cognitive:Instruction
-              content: Follow carefully
-        name: instr
-        incoming:
-          - f3
-        outgoing:
-          - f5
-      - type: bpmn:SequenceFlow
-        id: f3
-        sourceRef: gw
-        targetRef: instr
-      - type: bpmn:Task
-        id: rest
-        extensionElements:
-          values:
-            - type: cognitive:Rest
-              configurations:
-                value: "duration: 5"
-        name: rest
-        incoming:
-          - f5
-        outgoing:
-          - f6
-      - type: bpmn:SequenceFlow
-        id: f5
-        sourceRef: instr
-        targetRef: rest
-      - type: bpmn:EndEvent
-        id: e
-        name: e
-        incoming:
-          - f6
-          - f4
-        redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
-        completionCodeType: static
-        completionCode: ABCD1234
-      - type: bpmn:SequenceFlow
-        id: f6
-        sourceRef: rest
-        targetRef: e
-      - type: bpmn:SequenceFlow
-        id: f4
-        sourceRef: gw
-        targetRef: e
-diagram: []
+exampleStudy:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+    s:
+      type: bpmn:StartEvent
+      name: s
+      outgoing:
+        - f1
+      consentFormUri: https://example.org/consent.pdf
+    qs:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: phq-9
+      name: qs
+      incoming:
+        - f1
+      outgoing:
+        - f2
+    f1:
+      type: bpmn:SequenceFlow
+      sourceRef: s
+      targetRef: qs
+    gw:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+      name: gw
+      incoming:
+        - f2
+      outgoing:
+        - f3
+        - f4
+    f2:
+      type: bpmn:SequenceFlow
+      sourceRef: qs
+      targetRef: gw
+    instr:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Instruction
+          content: Follow carefully
+      name: instr
+      incoming:
+        - f3
+      outgoing:
+        - f5
+    f3:
+      type: bpmn:SequenceFlow
+      sourceRef: gw
+      targetRef: instr
+    rest:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Rest
+          configurations:
+            duration: 5
+      name: rest
+      incoming:
+        - f5
+      outgoing:
+        - f6
+    f5:
+      type: bpmn:SequenceFlow
+      sourceRef: instr
+      targetRef: rest
+    e:
+      type: bpmn:EndEvent
+      name: e
+      incoming:
+        - f6
+        - f4
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+      completionCodeType: static
+      completionCode: ABCD1234
+    f6:
+      type: bpmn:SequenceFlow
+      sourceRef: rest
+      targetRef: e
+    f4:
+      type: bpmn:SequenceFlow
+      sourceRef: gw
+      targetRef: e
 ```
 </details>
 
-The same model also serializes to standard **BPMN 2.0 XML** (*File &rarr; Export As &rarr; BPMN 2.0 XML* in the modeler) for interop with other BPMN tooling. Legacy `.studyflow` files use this XML form and still open in both the modeler and the runner. Note the two extension styles: new element types nest a wrapper element inside `extensionElements` (`<cognitive:questionnaire>`), while extensions of standard BPMN elements appear as namespaced attributes on the host element (`studyflow:consentFormUri` on `<bpmn:startEvent>`).
+The same model also serializes to standard **BPMN 2.0 XML** (*File &rarr; Save As &rarr; BPMN 2.0 XML* in the modeler) for interop with other BPMN tooling. Legacy `.studyflow` files use this XML form and still open in both the modeler and the runner. Note the two extension styles: new element types nest a wrapper element inside `extensionElements` (`<cognitive:questionnaire>`), while extensions of standard BPMN elements appear as namespaced attributes on the host element (`studyflow:consentFormUri` on `<bpmn:startEvent>`).
 
 <details>
 <summary>**BPMN 2.0 XML** serialization (click to expand)</summary>

@@ -1,7 +1,7 @@
 export {
   definitionsToYamlDoc,
   looksLikeXml,
-  STUDYFLOW_YAML_VERSION,
+  normalizeStudyflowXml,
   studyflowYamlToXml,
   xmlToStudyflowYaml,
   yamlDocToDefinitions,

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
+import * as yaml from 'js-yaml';
 
 import { looksLikeXml, studyflowYamlToXml, xmlToStudyflowYaml } from '../src/lib/core/codec';
 import { SCHEMAS } from '../src/lib/core/constants';
@@ -51,6 +52,155 @@ test.describe('studyflow YAML codec', () => {
       'DSM-5 diagnosis of attentional disorder',
       'Stable medication regimen for 3 months',
     ]);
+  });
+
+  test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const xml = readFileSync(path.join(EXAMPLES_DIR, 'bot_ollama.studyflow'), 'utf8');
+    const doc: any = yaml.load(await xmlToStudyflowYaml(xml, moddle));
+
+    // The definitions id sits at the root; no version key, no bpmndi tree.
+    expect(doc.id).toBe('demo5_ollama_bot');
+    expect(doc.studyflow).toBeUndefined();
+    expect(doc.definitions.id).toBeUndefined();
+    expect(doc.diagram).toBeUndefined();
+    expect(doc.elements).toBeUndefined();
+
+    // The format version rides on the core namespace; the example's legacy
+    // (unversioned) declaration is rewritten on load.
+    expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
+
+    // Root elements and containment collections are keyed by id.
+    const process = doc.Demo5_OllamaBot;
+    expect(process.type).toBe('bpmn:Process');
+    expect(process.flowElements.Start.id).toBeUndefined();
+
+    // extensionElements is a plain list (no `values:` wrapper).
+    expect(Array.isArray(process.extensionElements)).toBe(true);
+    expect(process.extensionElements[0].type).toBe('studyflow:Study');
+
+    // Config wrappers inline their YAML body (no `value: |` string block).
+    const ext = process.flowElements.Warmup_1Back.extensionElements[0];
+    expect(ext.type).toBe('behaverse:Task');
+    expect(ext.configurations.Blocks.Demo5_Warmup.Parameters.NValue).toBe(1);
+    expect(ext.botConfigurations.LLM.Provider).toBe('ollama');
+
+    // Geometry lives on the element it describes.
+    const start = process.flowElements.Start;
+    expect(start.bounds).toMatchObject({ width: 36, height: 36 });
+    expect(start.label.bounds).toBeDefined();
+    expect(Array.isArray(process.flowElements.Flow_Start_Warmup.waypoint)).toBe(true);
+  });
+
+  test('hand-written keyed YAML loads; missing incoming/outgoing are derived', async () => {
+    const text = `
+id: keyed_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: bpmn:Process
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      bounds: { x: 0, "y": 0, width: 36, height: 36 }
+    T1:
+      type: bpmn:Task
+      bounds: { x: 100, "y": 0, width: 100, height: 80 }
+    End:
+      type: bpmn:EndEvent
+      bounds: { x: 300, "y": 0, width: 36, height: 36 }
+    F1:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: T1
+      waypoint: [{ x: 36, "y": 18 }, { x: 100, "y": 18 }]
+    F2:
+      type: bpmn:SequenceFlow
+      sourceRef: T1
+      targetRef: End
+      waypoint: [{ x: 200, "y": 18 }, { x: 300, "y": 18 }]
+`;
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const xml = await studyflowYamlToXml(text, moddle);
+    expect(xml).toContain('id="keyed_demo"');
+    // incoming/outgoing were omitted by hand and derived from the flows.
+    expect(xml).toMatch(/:outgoing>F1</);
+    expect(xml).toMatch(/:incoming>F1</);
+    expect(xml).toMatch(/:outgoing>F2</);
+    expect(xml).toMatch(/:incoming>F2</);
+
+    const graph = await parseStudyflow(text, structuredClone(packages));
+    expect(graph.startId).toBe('Start');
+    expect(graph.flowNodes.get('T1')?.incoming).toEqual(['F1']);
+    expect(graph.flowNodes.get('T1')?.outgoing).toEqual(['F2']);
+  });
+
+  test('legacy YAML spelling (values/value wrappers + diagram section) still loads', async () => {
+    const legacy = `
+studyflow: "1"
+definitions:
+  id: legacy_demo
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow
+elements:
+  - type: bpmn:Process
+    id: P
+    extensionElements:
+      values:
+        - type: studyflow:Study
+    flowElements:
+      - type: bpmn:StartEvent
+        id: Start
+        outgoing: [F1]
+      - type: bpmn:Task
+        id: T1
+        extensionElements:
+          values:
+            - type: behaverse:Task
+              scene: NB
+              configurations:
+                value: |
+                  Timelines:
+                    XCIT_NB_01:
+        incoming: [F1]
+        outgoing: [F2]
+      - type: bpmn:EndEvent
+        id: End
+        incoming: [F2]
+      - type: bpmn:SequenceFlow
+        id: F1
+        sourceRef: Start
+        targetRef: T1
+      - type: bpmn:SequenceFlow
+        id: F2
+        sourceRef: T1
+        targetRef: End
+diagram:
+  - id: BPMNDiagram_1
+    plane:
+      id: BPMNPlane_1
+      bpmnElement: P
+      planeElement:
+        - type: bpmndi:BPMNShape
+          id: Start_di
+          bpmnElement: Start
+          bounds: { x: 160, "y": 180, width: 36, height: 36 }
+`;
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const xml = await studyflowYamlToXml(legacy, moddle);
+    expect(xml).toContain('XCIT_NB_01');
+    expect(xml).toContain('Start_di');
+
+    // Re-saving normalizes the legacy spelling to the folded, id-keyed format.
+    const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
+    const doc: any = yaml.load(await xmlToStudyflowYaml(xml, moddle2));
+    expect(doc.id).toBe('legacy_demo');
+    expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
+    expect(doc.diagram).toBeUndefined();
+    const process = doc.P;
+    expect(Array.isArray(process.extensionElements)).toBe(true);
+    expect(process.flowElements.T1.extensionElements[0].configurations.Timelines).toBeDefined();
+    expect(process.flowElements.Start.bounds.x).toBe(160);
   });
 
   test('sniffer distinguishes XML from YAML', () => {

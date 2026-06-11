@@ -6,7 +6,6 @@ import { runPaletteActivateLasso, runPaletteOpenPopup, type PaletteActivateLasso
 import { runOpenDiagram, type OpenDiagramCommand } from './diagram/openDiagram';
 import { runNewDiagram, type NewDiagramCommand } from './diagram/newDiagram';
 import { runSaveDiagram, type SaveDiagramCommand } from './diagram/saveDiagram';
-import { runExportDiagram, type ExportDiagramCommand } from './diagram/exportDiagram';
 import { runPublishDiagram, type PublishDiagramCommand } from './diagram/publishDiagram';
 import { runResetZoom, type ResetZoomCommand } from './diagram/resetZoom';
 import { runImportXml, type ImportXmlCommand } from './diagram/importXml';
@@ -29,7 +28,6 @@ export type DiagramCommand =
   | OpenDiagramCommand
   | NewDiagramCommand
   | SaveDiagramCommand
-  | ExportDiagramCommand
   | PublishDiagramCommand
   | ToggleSimulationCommand
   | ResetZoomCommand
@@ -58,7 +56,6 @@ const HANDLERS: HandlerMap = {
   'open-diagram': runOpenDiagram,
   'new-diagram': runNewDiagram,
   'save-diagram': runSaveDiagram,
-  'export-diagram': runExportDiagram,
   'publish-diagram': runPublishDiagram,
   'toggle-simulation': runToggleSimulation,
   'reset-zoom': runResetZoom,

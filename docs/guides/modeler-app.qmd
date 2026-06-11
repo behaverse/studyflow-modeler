@@ -58,7 +58,7 @@ description: Design and execute studyflow diagrams using the Modeler webapp
   <figcaption>Completed diagram</figcaption>
 </figure>
 
-7. Save your diagram using the "Save As..." option in the "File" menu. The diagram will be saved as a YAML file (`*.studyflow`). Alternatively, you can export the diagram as an image using the export options.
+7. Save your diagram using the "Save As..." option in the "File" menu and pick a format: "Studyflow" writes the native YAML file (`*.studyflow`); the same menu also offers BPMN 2.0 XML, images (SVG, PNG), and the other export formats (LinkML, NIDM, ARTEM-IS).
 
 <figure class="centered max-w-md">
   ![Save as *.studyflow file (YAML format)](../assets/img/screenshots/7-save.png)

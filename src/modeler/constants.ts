@@ -3,7 +3,8 @@ export { SCHEMAS, SCHEMA_NAMES, BPMN } from '@/lib/core/constants';
 
 export const NAMESPACES = {
   bpmn: 'http://www.omg.org/spec/BPMN/20100524/MODEL',
-  // Stable URI; the prefix was renamed to `core` but the namespace was not.
+  // Unversioned legacy namespace, as declared in the bundled XML examples
+  // (the current versioned URI lives in `lib/core/constants.ts`).
   core: 'http://behaverse.org/schemas/studyflow',
   cognitive: 'http://behaverse.org/schemas/studyflow/cognitive',
 } as const;

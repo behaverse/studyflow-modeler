@@ -130,16 +130,40 @@ sub-process flows, pools, colors, and diagram geometry all survive both
 directions by construction.
 
 ```yaml
-studyflow: "1"
-definitions: { id: ... }
-elements:    [ { type: studyflow:Study, ... } ]   # bpmn rootElements
-diagram:     [ ... ]                              # bpmndi tree (geometry)
+id: my_study                                # bpmn:Definitions id
+definitions: { targetNamespace: ..., ... }  # remaining definitions attributes
+My_Process:                                 # one entry per bpmn rootElement, keyed by id
+  type: bpmn:Process
+  flowElements: { Start: {...}, ... }       # containment keyed by id, geometry inline
+diagram: [ ... ]                            # only DI that cannot fold inline (rare)
 ```
+
+The studyflow format version is carried by the core namespace URI
+(`xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1`); the
+unversioned URI written by older releases is rewritten on load
+(`normalizeStudyflowXml`).
+
+Four readability foldings sit on top of the generic walk; each is reversed
+on load and the pre-folding (legacy) spellings are still accepted:
+
+- containment lists whose items all carry ids serialize as `id -> body`
+  mappings (`flowElements`, `participants`, `lanes`, ...; root elements at
+  the document root); lists of id-less items (extension wrappers,
+  waypoints) stay lists,
+- `bpmn:ExtensionElements` collapses to the plain list of its `values`,
+- YAML-bodied config wrappers (`cognitive:Configurations`,
+  `behaverse:BotConfigurations`, ...) inline their parsed body as nested
+  YAML instead of a `value: |` string block,
+- diagram geometry attaches to the element it describes — `bounds` and
+  `label` on shapes, `waypoint` on edges, plus DI-only flags and colors
+  (`isMarkerVisible`, `bioc:stroke`, ...). DI ids are regenerated as
+  `<elementId>_di` on load, so `bounds`/`waypoint` are reserved keys on
+  elements.
 
 Boundaries:
 
-- **Save As** writes YAML; **Export As > BPMN 2.0 XML** writes raw XML for
-  interop with other BPMN tooling.
+- **Save As > Studyflow** writes YAML; **Save As > BPMN 2.0 XML** writes raw
+  XML for interop with other BPMN tooling.
 - **Open** sniffs the content, so legacy XML `.studyflow` files, `.bpmn`,
   and `.xml` keep working; the runner accepts both serializations too.
 - Internal XML stays XML: autosave (localStorage), the publish API body,

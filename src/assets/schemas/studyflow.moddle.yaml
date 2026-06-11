@@ -3,7 +3,7 @@
 name: Core
 prefix: studyflow
 description: Core BPMN extension for modeling research processes - the study container, events, flows, generic activities, and the data-infrastructure types shared by every use case.
-uri: http://behaverse.org/schemas/studyflow
+uri: http://behaverse.org/schemas/studyflow/v1
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase

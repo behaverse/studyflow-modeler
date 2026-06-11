@@ -50,7 +50,7 @@ test.describe('Studyflow modeler palette flows', () => {
     });
 
     const svgDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Export As...', 'SVG...');
+    await runPaletteCommand(page, 'Save As...', 'SVG...');
     const svgDownload = await svgDownloadPromise;
     const svgText = await readDownloadText(svgDownload);
 
@@ -65,12 +65,12 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
 
     const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
 
     expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow');
-    expect(studyflowText.startsWith('studyflow:')).toBe(true);
+    expect(studyflowText.startsWith('id:')).toBe(true);
     expect(studyflowText).toContain('name: Review Task');
     // The saved YAML and the SVG-embedded XML describe the same diagram.
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
@@ -91,7 +91,7 @@ test.describe('Studyflow modeler palette flows', () => {
     });
 
     const svgDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Export As...', 'SVG...');
+    await runPaletteCommand(page, 'Save As...', 'SVG...');
     const svgDownload = await svgDownloadPromise;
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
@@ -104,7 +104,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizedEmbeddedStudyflow).toContain('<omniprocess:map/>');
 
     const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
 
@@ -122,7 +122,7 @@ test.describe('Studyflow modeler palette flows', () => {
     await addSchemaPaletteElement(page, 'OmniProcess', 'EEGPrep', { x: 260, y: 200 });
 
     const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
 

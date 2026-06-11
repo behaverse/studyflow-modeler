@@ -1,6 +1,6 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
-import { looksLikeXml, yamlDocToDefinitions } from '../codec';
+import { looksLikeXml, normalizeStudyflowXml, yamlDocToDefinitions } from '../codec';
 import { getExtensionType } from '../extensions/extensionType';
 import type { FlowNode, SequenceFlow } from '../flow';
 
@@ -31,7 +31,7 @@ export type ParsedStudy = {
 export async function parseStudyflow(text: string, schemas: Record<string, any>): Promise<ParsedStudy> {
   const moddle = new BpmnModdle(schemas);
   const definitions = looksLikeXml(text)
-    ? (await moddle.fromXML(text)).rootElement
+    ? (await moddle.fromXML(normalizeStudyflowXml(text))).rootElement
     : yamlDocToDefinitions(yaml.load(text) as any, moddle);
 
   const businessObject = (definitions as any)?.rootElements?.find(

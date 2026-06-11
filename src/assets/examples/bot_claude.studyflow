@@ -115,7 +115,7 @@ Timelines:
       </behaverse:task>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Warmup_Main</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Main_End</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_Main_Visual</bpmn2:outgoing>
     </bpmn2:task>
     <bpmn2:task id="Visual_WhichOne" name="WhichOne (vision)">
       <bpmn2:extensionElements>

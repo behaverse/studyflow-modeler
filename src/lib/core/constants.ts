@@ -1,3 +1,12 @@
+/**
+ * Core studyflow namespace; the version segment identifies the studyflow
+ * format version. Must match `uri` in `assets/schemas/studyflow.moddle.yaml`.
+ */
+export const STUDYFLOW_NS = 'http://behaverse.org/schemas/studyflow/v1';
+
+/** Unversioned namespace written by older releases; rewritten to `STUDYFLOW_NS` on load. */
+export const LEGACY_STUDYFLOW_NS = 'http://behaverse.org/schemas/studyflow';
+
 type Schema = {
   prefix: string;
   name: string;
