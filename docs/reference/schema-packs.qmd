@@ -4,7 +4,7 @@ description: The optional extension schemas -- Behaverse, OmniProcess, DataTrove
 order: 7
 ---
 
-Studyflow elements ship in layered moddle schemas (see [Extensions](extensions.qmd) for the authoring format). The two core schemas -- `studyflow` and `cognitive` -- are always loaded and their elements are documented in [Elements](elements.qmd). This page catalogs the optional extension packs.
+Studyflow elements ship in layered moddle schemas (see [Extensions](extensions.qmd) for the authoring format). The two core schemas -- `core` and `cognitive` -- are always loaded and their elements are documented in [Elements](elements.qmd). This page catalogs the optional extension packs.
 
 ## Enabling and disabling packs
 

@@ -15,7 +15,7 @@ import { getDiagramName } from '../diagramName';
 
 const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .
 @prefix nidm:  <http://purl.org/nidash/nidm#> .
-@prefix studyflow: <https://behaverse.org/schemas/studyflow/> .
+@prefix core: <https://behaverse.org/schemas/studyflow/> .
 @prefix bpmn:  <http://www.omg.org/spec/BPMN/20100524/MODEL/> .
 @prefix dct:   <http://purl.org/dc/terms/> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -64,7 +64,7 @@ function isDataOperationActivity(bo: any): boolean {
 }
 
 function turtleId(id: string): string {
-  return `studyflow:${id.replace(/[^A-Za-z0-9_]/g, '_')}`;
+  return `core:${id.replace(/[^A-Za-z0-9_]/g, '_')}`;
 }
 
 function escape(s: string): string {
@@ -139,7 +139,7 @@ export function exportToNidm(modeler: any): string {
 
   for (const ent of entities.values()) {
     const lex: string[] = [];
-    lex.push(`${turtleId(ent.id)} a prov:Entity , studyflow:${ent.type.split(':')[1]} ;`);
+    lex.push(`${turtleId(ent.id)} a prov:Entity , core:${ent.type.split(':')[1]} ;`);
     lex.push(`  rdfs:label "${escape(ent.name)}"`);
     if (ent.format) lex.push(` ;\n  nidm:format "${escape(ent.format)}"`);
     lex[lex.length - 1] += ' .';
@@ -149,7 +149,7 @@ export function exportToNidm(modeler: any): string {
 
   for (const act of activities) {
     const lex: string[] = [];
-    lex.push(`${turtleId(act.id)} a prov:Activity , studyflow:${act.type.split(':')[1] || 'Activity'} ;`);
+    lex.push(`${turtleId(act.id)} a prov:Activity , core:${act.type.split(':')[1] || 'Activity'} ;`);
     lex.push(`  rdfs:label "${escape(act.name)}"`);
     if (act.operation) lex.push(` ;\n  studyflow:operation "${escape(act.operation)}"`);
     if (act.documentation) lex.push(` ;\n  rdfs:comment "${escape(act.documentation)}"`);

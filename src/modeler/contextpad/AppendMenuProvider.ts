@@ -1,8 +1,6 @@
-import { toLocalName } from '@/lib/core/utils/naming';
-import { resolveBpmnCreateType } from '../moddle/resolveBpmnType';
-import { HIDDEN_SCHEMA_TYPES } from '../constants';
+import { getActiveCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@/lib/core/catalog';
 import { buildBusinessObject } from '../commands/shape';
-import type { AutoPlace, Create, ElementFactory, Injector, Moddle, PopupMenu, Rules } from '../bpmn-js';
+import type { AutoPlace, Create, ElementFactory, Injector, PopupMenu, Rules } from '../bpmn-js';
 
 type AppendableType = {
   label: string;
@@ -12,6 +10,14 @@ type AppendableType = {
   extensionType: string;
 };
 
+/** Concrete schema types offered in the append menu. */
+function isAppendable(type: TypeEntry): boolean {
+  return !type.isAbstract
+    && !HIDDEN_SCHEMA_TYPES.has(type.ns.localName)
+    && !type.meta?.templateScopedType
+    && type.bpmnType !== null;
+}
+
 /** Append-menu entries for every creatable studyflow type. */
 export default class AppendMenuProvider {
   static $inject = [
@@ -19,7 +25,6 @@ export default class AppendMenuProvider {
     'popupMenu',
     'create',
     'autoPlace',
-    'moddle',
     'rules',
     'injector',
   ];
@@ -36,7 +41,6 @@ export default class AppendMenuProvider {
     popupMenu: PopupMenu,
     create: Create,
     autoPlace: AutoPlace,
-    moddle: Moddle,
     rules: Rules,
     injector: Injector,
   ) {
@@ -46,26 +50,20 @@ export default class AppendMenuProvider {
     this._rules = rules;
     this._injector = injector;
 
-    this._appendableTypes = Object.entries(moddle.registry.typeMap).flatMap(([qualifiedName, type]) => {
-      const typeDef = type as any;
-      if (HIDDEN_SCHEMA_TYPES.has(typeDef?.name)) return [];
-      if (typeDef?.isAbstract || typeDef?.meta?.templateScopedType) return [];
-      if (typeDef?.superClass?.length === 1
-          && typeDef.superClass.includes('String')) return [];
-
-      const bpmnType = resolveBpmnCreateType(moddle, typeDef);
-      if (!bpmnType) return [];
-
-      return [{
-        label: toLocalName(typeDef.name) ?? typeDef.name,
-        actionName: toLocalName(qualifiedName) ?? qualifiedName,
-        imageHtml: typeDef.icon
-          ? `<span class="${typeDef.icon}" style="font-size: 18px;"></span>`
+    this._appendableTypes = getActiveCatalog().allTypes()
+      .filter(isAppendable)
+      .map((type) => {
+        const icon = typeof type.meta?.icon === 'string' ? type.meta.icon : type.icon;
+        return {
+        label: type.ns.localName,
+        actionName: type.ns.localName,
+        imageHtml: icon
+          ? `<span class="${icon}" style="font-size: 18px;"></span>`
           : '',
-        bpmnType,
-        extensionType: qualifiedName,
-      }];
-    });
+        bpmnType: type.bpmnType!,
+        extensionType: type.name,
+        };
+      });
 
     popupMenu.registerProvider('bpmn-append', this);
   }

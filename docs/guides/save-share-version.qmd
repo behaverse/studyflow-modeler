@@ -3,7 +3,9 @@ title: Save and share a `.studyflow` file
 description: Storing studyflows alongside code and data so they evolve with the project
 ---
 
-A `.studyflow` file is plain BPMN 2.0 XML. That has two practical consequences: it diffs reasonably in Git, and any BPMN-aware tool can open it. This guide shows how to fit it into a normal project workflow.
+A `.studyflow` file is plain-text YAML, semantically equivalent to the BPMN 2.0 XML serialization. That has two practical consequences: it diffs cleanly in Git, and any BPMN-aware tool can open the XML export (*File &rarr; Export As &rarr; BPMN 2.0 XML*). This guide shows how to fit it into a normal project workflow.
+
+Files saved by older versions of the modeler are BPMN 2.0 XML; they still open (the modeler sniffs the content, so `.bpmn` and `.xml` files work too), and saving them again writes YAML.
 
 ## Save from the modeler
 
@@ -19,32 +21,32 @@ A convention that works for both experiments and pipelines:
 project/
 ├── studyflow/
 │   ├── study.studyflow.svg  # rendered diagram with the source embedded
-│   ├── study.studyflow      # optional; the source XML, can also be embedded in the SVG above
+│   ├── study.studyflow      # optional; the YAML source (the SVG above also embeds the diagram source)
 │   └── README.md            # 2-3 lines describing the study
 ├── data/
 ├── analysis/
 └── ...
 ```
 
-Keep the `.studyflow.svg` file under version control. It renders directly on GitHub and carries the source XML inside, so a single committed file is both the diagram and the spec. A separate `.studyflow` file is optional; commit it only if you want the raw XML to be discoverable on its own.
+Keep the `.studyflow.svg` file under version control. It renders directly on GitHub and carries the diagram source inside (embedded as BPMN XML), so a single committed file is both the diagram and the spec. A separate `.studyflow` file is optional; commit it only if you want the YAML source to be discoverable on its own.
 
 ## Diffing studyflow files
 
-Because the format is XML, `git diff` is usable but verbose. Two patterns help:
+Because the format is YAML, `git diff` is readable. Two patterns still help:
 
-- **Diff the SVG alongside the XML.** A visual diff (GitHub renders SVGs inline in PRs) catches changes that XML diffs hide.
+- **Diff the SVG alongside the YAML.** A visual diff (GitHub renders SVGs inline in PRs) catches changes that text diffs hide.
 - **Stable element IDs.** When you copy/duplicate an element, rename its ID to something meaningful (`taskNBackBlock1` rather than `Task_0a1b2c3`). The default modeler IDs are random and make diffs hostile.
 
 ## Sharing studyflows
 
 Three patterns, depending on the audience:
 
-- **Colleagues and reviewers.** Share the `.studyflow` file plus a rendered SVG. The colleague can open the XML in the modeler if they want to navigate it; the SVG is enough for a quick read.
+- **Colleagues and reviewers.** Share the `.studyflow` file plus a rendered SVG. The colleague can open the file in the modeler if they want to navigate it; the SVG is enough for a quick read.
 - **Papers and reports.** Export SVG and embed in the manuscript. Keep the `.studyflow` source in supplementary materials so reviewers can verify exactly what was run.
 - **Pipelines and runtimes.** Reference the `.studyflow` file by path or URL. The modeler app can also publish to the Behaverse Data Server (see [Publish a studyflow](publish.qmd)).
 
 ## Common pitfalls
 
-- **Editing by hand.** The XML is human-readable but easy to break in ways the modeler won't tell you about until next time you open it. Prefer round-tripping through the modeler.
+- **Editing by hand.** The YAML is human-readable and far friendlier to hand-edits than XML, but it is still easy to break cross-references (element ids) in ways the modeler won't tell you about until next time you open it. Prefer round-tripping through the modeler.
 - **Renaming files.** A `.studyflow` file does not embed its own filename. Renaming is safe; any references to it (in your README, runtime config, etc.) need to be updated.
-- **Conflicts on the same file.** XML merge conflicts are painful. For collaborative work, agree on who edits what part of the diagram, or use the [choreography](../examples/multi-agent.qmd) pattern to split a study into sub-processes that different people own.
+- **Conflicts on the same file.** Merge conflicts on a generated file are painful. For collaborative work, agree on who edits what part of the diagram, or use the [choreography](../examples/multi-agent.qmd) pattern to split a study into sub-processes that different people own.

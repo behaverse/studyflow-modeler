@@ -1,4 +1,5 @@
 import { getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
+import { getActiveCatalog } from '@/lib/core/catalog';
 import { SVG_ICON_PATHS } from '../constants';
 import { colorToHex, drawIcon, drawSvgPaths } from './utils';
 import { getAttribute } from '@/lib/core/extensions';
@@ -9,12 +10,11 @@ export function drawDataStore(
   parentNode: SVGElement,
   element: any,
   bpmnRenderer: BpmnRenderer,
-  pkgEnums: any[],
 ): SVGElement {
   const format = getAttribute(element, 'format');
-  const formatEnum = pkgEnums.find((e) => e.name === 'DatasetFormatEnum');
+  const formatEnum = getActiveCatalog().enumOf('DatasetFormatEnum');
   const iconClass: string | undefined =
-    formatEnum?.literalValues.find((lv: any) => lv.value === format)?.icon || undefined;
+    formatEnum?.literals.find((lv) => lv.value === format)?.icon || undefined;
 
   const dataset = bpmnRenderer.handlers['bpmn:DataStoreReference'](parentNode, element);
 

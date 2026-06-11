@@ -7,7 +7,7 @@ type Schema = {
 };
 
 export const SCHEMAS: Schema[] = [
-  { prefix: 'studyflow', name: 'Studyflow', description: 'Generic research elements and data infrastructure.', core: true },
+  { prefix: 'studyflow', name: 'Core', description: 'Generic research elements and data infrastructure.', core: true },
   { prefix: 'cognitive', name: 'Cognitive', description: 'Cognitive and behavioral research elements.', core: true },
   { prefix: 'behaverse', name: 'Behaverse', description: 'Cognitive tasks (Behaverse assessments).' },
   { prefix: 'omniprocess', name: 'OmniProcess', description: 'Data processing elements for multimodal cognitive neuroscience.' },

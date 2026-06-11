@@ -3,15 +3,10 @@ export { SCHEMAS, SCHEMA_NAMES, BPMN } from '@/lib/core/constants';
 
 export const NAMESPACES = {
   bpmn: 'http://www.omg.org/spec/BPMN/20100524/MODEL',
-  studyflow: 'http://behaverse.org/schemas/studyflow',
+  // Stable URI; the prefix was renamed to `core` but the namespace was not.
+  core: 'http://behaverse.org/schemas/studyflow',
   cognitive: 'http://behaverse.org/schemas/studyflow/cognitive',
 } as const;
-
-/** Schema types hidden from the palette. */
-export const HIDDEN_SCHEMA_TYPES = new Set(['Study', 'StartEvent', 'EndEvent', 'SequenceFlow']);
-
-/** Moddle primitive type names; non-instantiable on the palette. */
-export const PRIMITIVE_MODDLE_TYPES = ['String', 'Boolean', 'Integer', 'Float', 'Double'];
 
 export type PaletteEntry = {
   label: string;

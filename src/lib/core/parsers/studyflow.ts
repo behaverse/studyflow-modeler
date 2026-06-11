@@ -1,4 +1,6 @@
 import { BpmnModdle } from 'bpmn-moddle';
+import * as yaml from 'js-yaml';
+import { looksLikeXml, yamlDocToDefinitions } from '../codec';
 import { getExtensionType } from '../extensions/extensionType';
 import type { FlowNode, SequenceFlow } from '../flow';
 
@@ -25,9 +27,12 @@ export type ParsedStudy = {
   startId?: string;
 };
 
-export async function parseStudyflow(xml: string, schemas: Record<string, any>): Promise<ParsedStudy> {
+/** Accepts both `.studyflow` serializations: BPMN 2.0 XML and YAML. */
+export async function parseStudyflow(text: string, schemas: Record<string, any>): Promise<ParsedStudy> {
   const moddle = new BpmnModdle(schemas);
-  const { rootElement: definitions } = await moddle.fromXML(xml);
+  const definitions = looksLikeXml(text)
+    ? (await moddle.fromXML(text)).rootElement
+    : yamlDocToDefinitions(yaml.load(text) as any, moddle);
 
   const businessObject = (definitions as any)?.rootElements?.find(
     (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',

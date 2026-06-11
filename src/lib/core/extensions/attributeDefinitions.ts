@@ -1,60 +1,49 @@
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { getActiveCatalog, type AttributeSpec } from '../catalog';
 import { toLocalName } from '../utils/naming';
 
-/** Resolve a moddle type definition for an element, using inline type metadata as a fallback. */
-function getTypeDefinition(elementOrType: any, model?: any): any {
-  const typeName = elementOrType?.$type ?? elementOrType?.ns?.name;
-  const registry = model?.registry;
-  if (typeName && typeof registry?.getEffectiveDescriptor === 'function') {
-    try { return registry.getEffectiveDescriptor(typeName); } catch { /* fall through */ }
-  }
-  return elementOrType?.$descriptor ?? elementOrType;
+/** bpmn-js elements carry the moddle object on `businessObject`. */
+function toBusinessObject(elementOrBO: any): any {
+  return elementOrBO?.businessObject ?? elementOrBO;
 }
 
-function matchesName(attrDef: any, name: string): boolean {
-  if (!attrDef) return false;
-  const local = toLocalName(name);
-  return attrDef.name === name
-    || attrDef.ns?.name === name
-    || attrDef.ns?.localName === name
-    || attrDef.name === local
-    || attrDef.ns?.name === local
-    || attrDef.ns?.localName === local;
+function typeNameOf(elementOrType: any): string | undefined {
+  if (typeof elementOrType === 'string') return elementOrType;
+  const target = toBusinessObject(elementOrType);
+  return target?.$type ?? target?.ns?.name;
 }
 
-/** All attribute definitions declared on this element's moddle type (deduped by qualified name). */
-export function getAttributeDefinitions(elementOrType: any, model?: any): any[] {
-  const typeDef = getTypeDefinition(elementOrType, model);
+/** BPMN-native identity attributes, addressable as `bpmn:id`/`bpmn:name`. */
+const BPMN_NATIVE_SPECS: Record<string, AttributeSpec> = {
+  id: {
+    name: 'id',
+    ns: { name: 'bpmn:id', prefix: 'bpmn', localName: 'id' },
+    type: 'String',
+    isAttr: true,
+    isId: true,
+  },
+  name: {
+    name: 'name',
+    ns: { name: 'bpmn:name', prefix: 'bpmn', localName: 'name' },
+    type: 'String',
+    isAttr: true,
+  },
+};
 
-  if (Array.isArray(typeDef?.properties) && typeDef.properties.length > 0) {
-    return typeDef.properties;
-  }
-
-  const byName = typeDef?.propertiesByName;
-  if (!byName) return [];
-
-  const seen = new Set<string>();
-  return Object.values(byName).filter((attrDef: any) => {
-    const key = attrDef?.ns?.name ?? attrDef?.name;
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+/** All schema-defined attributes for this element/type (BPMN natives excluded). */
+export function getAttributeDefinitions(elementOrType: any): AttributeSpec[] {
+  return getActiveCatalog().instanceAttributesOf(typeNameOf(elementOrType));
 }
 
-/** Definition for a single named attribute on a BO, extension element, or raw moddle type. */
-export function getAttributeDefinition(elementOrBO: any, name: string | undefined): any {
+/** Definition for a single named attribute, including the bpmn:id/bpmn:name pair. */
+export function getAttributeDefinition(elementOrBO: any, name: string | undefined): AttributeSpec | undefined {
   if (!name) return undefined;
-  const target = getBusinessObject(elementOrBO);
-  const model = target?.$model;
-  if (typeof model?.getPropertyDescriptor === 'function') return model.getPropertyDescriptor(target, name);
-  return getAttributeDefinitions(target, model).find((attrDef) => matchesName(attrDef, name));
+  const spec = getActiveCatalog().attributeOf(typeNameOf(elementOrBO), name);
+  if (spec) return spec;
+  const local = toLocalName(name);
+  return local ? BPMN_NATIVE_SPECS[local] : undefined;
 }
 
 /** Local name of the attribute this definition overrides via `redefines:` or `replaces:`. */
-export function getRedefinedName(attrDef: any): string | undefined {
-  const ref = attrDef?.redefines ?? attrDef?.replaces;
-  if (typeof ref !== 'string') return undefined;
-  const match = ref.match(/^[^#]+#(.+)$/);
-  return match ? toLocalName(match[1]) : undefined;
+export function getRedefinedName(attrDef: AttributeSpec | undefined): string | undefined {
+  return attrDef?.redefinedName;
 }

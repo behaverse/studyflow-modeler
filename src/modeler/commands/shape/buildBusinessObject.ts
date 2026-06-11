@@ -34,7 +34,7 @@ export function buildBusinessObject(
   bo.id = bo.id || (ids?.nextPrefixed ? ids.nextPrefixed(idPrefix, bo) : undefined);
 
   if (extensionType) {
-    const defaults = getDefaults(extensionType, moddle);
+    const defaults = getDefaults(extensionType);
     createExtensionElement(bo, extensionType, moddle, defaults);
   }
 

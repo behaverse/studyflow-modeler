@@ -155,118 +155,172 @@ Which can be visualized as an extended BPMN diagram:
 
 :::
 
-This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `VideoGame`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions stay in `studyflow`. Concrete cognitive activities are serialized as a standard `bpmn2:task` with the schema-specific extension element nested inside `extensionElements`:
+This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `VideoGame`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions live in the core `studyflow` schema (namespace URI `http://behaverse.org/schemas/studyflow`). Concrete cognitive activities are serialized as a standard BPMN task carrying the schema-specific extension element inside `extensionElements`.
+
+The native `.studyflow` file format is **YAML**, with four top-level keys: `studyflow` (format version), `definitions` (diagram metadata), `elements` (the BPMN root elements), and `diagram` (the diagram-interchange tree -- element positions and waypoints; empty here because this example carries no layout). Values equal to a schema default are omitted on save and re-applied on load: the `RandomGateway` below carries no `algorithm`/`probabilityFunction` keys because this example uses the defaults (`probabilistic`, `uniform`).
 
 <details>
-<summary>**XML/BPMN** serialization (click to expand)</summary>
+<summary>**YAML** serialization -- the native `.studyflow` format (click to expand)</summary>
+
+```yaml
+studyflow: "1"
+definitions:
+  id: example-diagram
+  xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+elements:
+  - type: bpmn:Process
+    id: exampleStudy
+    extensionElements:
+      values:
+        - type: studyflow:Study
+    flowElements:
+      - type: bpmn:StartEvent
+        id: s
+        name: s
+        outgoing:
+          - f1
+        consentFormUri: https://example.org/consent.pdf
+      - type: bpmn:Task
+        id: qs
+        extensionElements:
+          values:
+            - type: cognitive:Questionnaire
+              instrument: phq-9
+        name: qs
+        incoming:
+          - f1
+        outgoing:
+          - f2
+      - type: bpmn:SequenceFlow
+        id: f1
+        sourceRef: s
+        targetRef: qs
+      - type: bpmn:ExclusiveGateway
+        id: gw
+        extensionElements:
+          values:
+            - type: cognitive:RandomGateway
+        name: gw
+        incoming:
+          - f2
+        outgoing:
+          - f3
+          - f4
+      - type: bpmn:SequenceFlow
+        id: f2
+        sourceRef: qs
+        targetRef: gw
+      - type: bpmn:Task
+        id: instr
+        extensionElements:
+          values:
+            - type: cognitive:Instruction
+              content: Follow carefully
+        name: instr
+        incoming:
+          - f3
+        outgoing:
+          - f5
+      - type: bpmn:SequenceFlow
+        id: f3
+        sourceRef: gw
+        targetRef: instr
+      - type: bpmn:Task
+        id: rest
+        extensionElements:
+          values:
+            - type: cognitive:Rest
+              configurations:
+                value: "duration: 5"
+        name: rest
+        incoming:
+          - f5
+        outgoing:
+          - f6
+      - type: bpmn:SequenceFlow
+        id: f5
+        sourceRef: instr
+        targetRef: rest
+      - type: bpmn:EndEvent
+        id: e
+        name: e
+        incoming:
+          - f6
+          - f4
+        redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+        completionCodeType: static
+        completionCode: ABCD1234
+      - type: bpmn:SequenceFlow
+        id: f6
+        sourceRef: rest
+        targetRef: e
+      - type: bpmn:SequenceFlow
+        id: f4
+        sourceRef: gw
+        targetRef: e
+diagram: []
+```
+</details>
+
+The same model also serializes to standard **BPMN 2.0 XML** (*File &rarr; Export As &rarr; BPMN 2.0 XML* in the modeler) for interop with other BPMN tooling. Legacy `.studyflow` files use this XML form and still open in both the modeler and the runner. Note the two extension styles: new element types nest a wrapper element inside `extensionElements` (`<cognitive:questionnaire>`), while extensions of standard BPMN elements appear as namespaced attributes on the host element (`studyflow:consentFormUri` on `<bpmn:startEvent>`).
+
+<details>
+<summary>**BPMN 2.0 XML** serialization (click to expand)</summary>
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions
-  xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
-  xmlns:studyflow="http://behaverse.org/schemas/studyflow"
-  xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
-  id="example-diagram">
-  <bpmn2:process id="exampleStudy" isExecutable="true">
-    <bpmn2:extensionElements>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="example-diagram">
+  <bpmn:process id="exampleStudy">
+    <bpmn:extensionElements>
       <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:startEvent id="s" name="s">
-      <bpmn2:extensionElements>
-        <studyflow:startEvent consentFormUri="https://example.org/consent.pdf" />
-      </bpmn2:extensionElements>
-      <bpmn2:outgoing>f1</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:task id="qs" name="qs">
-      <bpmn2:extensionElements>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="s" name="s" studyflow:consentFormUri="https://example.org/consent.pdf">
+      <bpmn:outgoing>f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="qs" name="qs">
+      <bpmn:extensionElements>
         <cognitive:questionnaire instrument="phq-9" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>f1</bpmn2:incoming>
-      <bpmn2:outgoing>f2</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:sequenceFlow id="f1" sourceRef="s" targetRef="qs" />
-    <bpmn2:exclusiveGateway id="gw" name="gw">
-      <bpmn2:extensionElements>
-        <cognitive:randomGateway algorithm="probabilistic" probabilityFunction="uniform" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>f2</bpmn2:incoming>
-      <bpmn2:outgoing>f3</bpmn2:outgoing>
-      <bpmn2:outgoing>f4</bpmn2:outgoing>
-    </bpmn2:exclusiveGateway>
-    <bpmn2:sequenceFlow id="f2" sourceRef="qs" targetRef="gw" />
-    <bpmn2:task id="instr" name="instr">
-      <bpmn2:extensionElements>
+      </bpmn:extensionElements>
+      <bpmn:incoming>f1</bpmn:incoming>
+      <bpmn:outgoing>f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="f1" sourceRef="s" targetRef="qs" />
+    <bpmn:exclusiveGateway id="gw" name="gw">
+      <bpmn:extensionElements>
+        <cognitive:randomGateway />
+      </bpmn:extensionElements>
+      <bpmn:incoming>f2</bpmn:incoming>
+      <bpmn:outgoing>f3</bpmn:outgoing>
+      <bpmn:outgoing>f4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="f2" sourceRef="qs" targetRef="gw" />
+    <bpmn:task id="instr" name="instr">
+      <bpmn:extensionElements>
         <cognitive:instruction content="Follow carefully" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>f3</bpmn2:incoming>
-      <bpmn2:outgoing>f5</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:sequenceFlow id="f3" sourceRef="gw" targetRef="instr" />
-    <bpmn2:task id="rest" name="rest">
-      <bpmn2:extensionElements>
-        <cognitive:rest>duration: 5</cognitive:rest>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>f5</bpmn2:incoming>
-      <bpmn2:outgoing>f6</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:sequenceFlow id="f5" sourceRef="instr" targetRef="rest" />
-    <bpmn2:endEvent id="e" name="e">
-      <bpmn2:extensionElements>
-        <studyflow:endEvent
-          redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}"
-          completionCodeType="static"
-          completionCode="ABCD1234" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>f6</bpmn2:incoming>
-      <bpmn2:incoming>f4</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="f6" sourceRef="rest" targetRef="e" />
-    <bpmn2:sequenceFlow id="f4" sourceRef="gw" targetRef="e" />
-  </bpmn2:process>
-</bpmn2:definitions>
-```
-
-</details>
-
-
-<details>
-<summary>**YAML** serialization (click to expand)</summary>
-
-```yaml
-study:
-  '@id': exampleStudy
-  isExecutable: true
-  elements:
-    - '@type': bpmn2:StartEvent
-      '@id': s
-      consentFormUri: https://example.org/consent.pdf
-      outgoing: [f1]
-    - '@type': cognitive:Questionnaire
-      '@id': qs
-      instrument: phq-9
-      incoming: [f1]
-      outgoing: [f2]
-    - '@type': cognitive:RandomGateway
-      '@id': gw
-      algorithm: probabilistic
-      probabilityFunction: uniform
-      incoming: [f2]
-      outgoing: [f3, f4]
-    - '@type': cognitive:Instruction
-      '@id': instr
-      content: Follow carefully
-      incoming: [f3]
-      outgoing: [f5]
-    - '@type': cognitive:Rest
-      '@id': rest
-      configurations: "duration: 5"
-      incoming: [f5]
-      outgoing: [f6]
-    - '@type': bpmn2:EndEvent
-      '@id': e
-      redirectTo: "https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}"
-      completionCodeType: static
-      completionCode: ABCD1234
-      incoming: [f4, f6]
+      </bpmn:extensionElements>
+      <bpmn:incoming>f3</bpmn:incoming>
+      <bpmn:outgoing>f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="f3" sourceRef="gw" targetRef="instr" />
+    <bpmn:task id="rest" name="rest">
+      <bpmn:extensionElements>
+        <cognitive:rest>
+          <cognitive:configurations>duration: 5</cognitive:configurations>
+        </cognitive:rest>
+      </bpmn:extensionElements>
+      <bpmn:incoming>f5</bpmn:incoming>
+      <bpmn:outgoing>f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="f5" sourceRef="instr" targetRef="rest" />
+    <bpmn:endEvent id="e" name="e" studyflow:redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}" studyflow:completionCodeType="static" studyflow:completionCode="ABCD1234">
+      <bpmn:incoming>f6</bpmn:incoming>
+      <bpmn:incoming>f4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="f6" sourceRef="rest" targetRef="e" />
+    <bpmn:sequenceFlow id="f4" sourceRef="gw" targetRef="e" />
+  </bpmn:process>
+</bpmn:definitions>
 ```
 </details>

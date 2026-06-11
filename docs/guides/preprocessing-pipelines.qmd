@@ -19,7 +19,7 @@ Each operation is a marker (a small *f* badge) on an otherwise normal BPMN task.
 | `Transform` | generic | Any pure function not better described by the above. |
 | `Compose` | n/a | Bundle several primitive operations into one logical step. |
 
-In the modeler palette these elements use Title Case names (Map, Filter, Reduce, ...) while the underlying `operationType` values serialized in the XML are lowercase (`map`, `filter`, `reduce`, ...) -- see [Data](../reference/data.qmd).
+In the modeler palette these elements use Title Case names (Map, Filter, Reduce, ...) while the underlying `operationType` values serialized in the `.studyflow` file are lowercase (`map`, `filter`, `reduce`, ...) -- see [Data](../reference/data.qmd).
 
 `Filter` changes the dataset by removing rows. A *data-driven gateway* changes the control flow. They are not interchangeable -- see [Data](../reference/data.qmd) for the distinction.
 

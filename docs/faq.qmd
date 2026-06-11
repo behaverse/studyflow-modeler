@@ -64,7 +64,7 @@ They are complementary. Studyflow describes the **process** (what happens, in wh
 <details>
 <summary>**Can I use it without the Behaverse server?**</summary>
 
-Yes. A `.studyflow` file is plain BPMN XML; you can render, share, and reference it without any server involvement. You only need the Behaverse Data Server if you want it to host the study and collect participant data. See [Save and share](guides/save-share-version.qmd).
+Yes. A `.studyflow` file is a plain-text YAML document (semantically equivalent to BPMN 2.0 XML, which the modeler can also export); you can render, share, and reference it without any server involvement. You only need the Behaverse Data Server if you want it to host the study and collect participant data. See [Save and share](guides/save-share-version.qmd).
 
 </details>
 

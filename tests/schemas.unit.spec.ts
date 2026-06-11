@@ -6,7 +6,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { SCHEMAS } from '../src/lib/core/constants';
-import { toModelerModdleSchema } from '../src/lib/core/parsers/moddle-schema';
+import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
 
 /**
  * Schema design rules, checked without a browser.
@@ -14,8 +14,8 @@ import { toModelerModdleSchema } from '../src/lib/core/parsers/moddle-schema';
  * Layer 1 lints the raw `*.moddle.yaml` files: required metadata, naming
  * conventions, resolvable type references, sane defaults, valid redefines.
  *
- * Layer 2 feeds the parsed schemas through the same `toModelerModdleSchema`
- * transform the modeler uses and registers them in a real bpmn-moddle
+ * Layer 2 feeds the parsed schemas through the same IR pipeline the modeler
+ * uses (`fromModdleYaml` -> `toModdlePackages`) and registers them in a real bpmn-moddle
  * instance: every concrete type must instantiate, and every palette template
  * must only set properties its type actually declares.
  */
@@ -191,13 +191,13 @@ test.describe('schema lint', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('moddle registration', () => {
-  const packages = Object.fromEntries(
-    SCHEMAS.map(({ prefix }) => [
-      prefix,
-      toModelerModdleSchema(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-    ]),
+  const models = SCHEMAS.map(({ prefix }) =>
+    fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
   );
-  const moddle = new BpmnModdle(packages);
+  const packages = Object.fromEntries(
+    models.map((model) => [model.prefix, toModdlePackages(model, models)]),
+  );
+  const moddle = new BpmnModdle(packages) as any;
 
   /** Property names a moddle instance of `qname` accepts (own + inherited + extends traits). */
   function knownProperties(qname: string): Set<string> {

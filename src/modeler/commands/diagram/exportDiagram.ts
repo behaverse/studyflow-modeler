@@ -7,7 +7,7 @@ import { exportToArtemis } from '../../exporters/artemis';
 
 export type ExportDiagramCommand = {
   type: 'export-diagram';
-  fileType: 'svg' | 'png' | 'studyflow' | 'linkml' | 'nidm' | 'artemis';
+  fileType: 'svg' | 'png' | 'bpmn' | 'linkml' | 'nidm' | 'artemis';
 };
 
 async function fetchIconSvg(iconClass: string) {
@@ -99,9 +99,11 @@ async function exportToPng(svg: string): Promise<string> {
 export async function runExportDiagram(modeler: any, command: ExportDiagramCommand): Promise<void> {
   const filename = getDiagramName(modeler) ?? 'diagram';
 
-  if (command.fileType === 'studyflow') {
-    const { xml } = await modeler.saveXML();
-    download(new Blob([xml], { type: 'application/xml;charset=utf-8' }), `${filename}.studyflow`, 'application/xml');
+  // Raw BPMN 2.0 XML, for interop with other BPMN tooling. `.studyflow`
+  // files themselves are YAML (see save-diagram).
+  if (command.fileType === 'bpmn') {
+    const { xml } = await modeler.saveXML({ format: true });
+    download(new Blob([xml], { type: 'application/xml;charset=utf-8' }), `${filename}.bpmn`, 'application/xml');
     return;
   }
 

@@ -28,7 +28,7 @@ function parseExampleMetadata(filename: string, xml: string): { title: string; d
   if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
 
   const process = doc.getElementsByTagNameNS(NAMESPACES.bpmn, 'process')[0]
-    ?? doc.getElementsByTagNameNS(NAMESPACES.studyflow, 'study')[0];
+    ?? doc.getElementsByTagNameNS(NAMESPACES.core, 'study')[0];
 
   const fromName = process?.getAttribute('name')?.trim();
   const fromId = process?.getAttribute('id');

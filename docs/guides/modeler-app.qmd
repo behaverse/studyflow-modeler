@@ -9,7 +9,7 @@ description: Design and execute studyflow diagrams using the Modeler webapp
 
 - Drag-and-drop interface.
 - Predefined node types for common research elements (e.g., cognitive tests, video games, questionnaires, and instructions).
-- Export studyflow diagrams as XML, PNG, or SVG.
+- Export studyflow diagrams as BPMN 2.0 XML, PNG, or SVG.
 - Integration with *Behaverse Data Server* to execute diagrams directly from the modeler.
 - Simulation mode to test and debug diagrams.
 
@@ -58,10 +58,10 @@ description: Design and execute studyflow diagrams using the Modeler webapp
   <figcaption>Completed diagram</figcaption>
 </figure>
 
-7. Save your diagram using the "Save As..." option in the "File" menu. The diagram will be saved as an XML file (`*.studyflow`). Alternatively, you can export the diagram as an image using the export options.
+7. Save your diagram using the "Save As..." option in the "File" menu. The diagram will be saved as a YAML file (`*.studyflow`). Alternatively, you can export the diagram as an image using the export options.
 
 <figure class="centered max-w-md">
-  ![Save as *.studyflow file (XML format)](../assets/img/screenshots/7-save.png)
+  ![Save as *.studyflow file (YAML format)](../assets/img/screenshots/7-save.png)
   <figcaption>File menu options</figcaption>
 </figure>
 
@@ -89,7 +89,7 @@ The palette also hosts the *View As...* commands (Checklist, Gantt) -- see [View
 
 ## Autosave
 
-The modeler can save the current diagram XML to the browser's local storage as you edit, so the diagram survives reloads. Toggle this under *Settings &rarr; Editor &rarr; Auto-save diagram* (off or on for this browser). Autosave is local-only; use *Save As...* to keep a `.studyflow` file alongside your code and data.
+The modeler can save the current diagram to the browser's local storage as you edit, so the diagram survives reloads. Toggle this under *Settings &rarr; Editor &rarr; Auto-save diagram* (off or on for this browser). Autosave is local-only; use *Save As...* to keep a `.studyflow` file alongside your code and data.
 
 ## Settings
 
@@ -102,14 +102,15 @@ The *Settings* view (palette shortcut <kbd>6</kbd>) groups configuration into se
 
 ## Schema palette
 
-Element types ship in layered schemas. `studyflow` and `cognitive` are core and always loaded; the domain extensions -- *Behaverse*, *OmniProcess*, *DataTrove*, *Galea* -- can be enabled or disabled under *Settings &rarr; Extensions*. Disabled schemas are excluded from the palette and not recognized when opening diagrams (reload the page to apply changes). See [Schema packs](../reference/schema-packs.qmd) for what each pack provides.
+Element types ship in layered schemas. `core` and `cognitive` are always loaded; the domain extensions -- *Behaverse*, *OmniProcess*, *DataTrove*, *Galea* -- can be enabled or disabled under *Settings &rarr; Extensions*. Disabled schemas are excluded from the palette and not recognized when opening diagrams (reload the page to apply changes). See [Schema packs](../reference/schema-packs.qmd) for what each pack provides.
 
 ## Export formats
 
-Besides saving the `.studyflow` XML, the modeler exports the diagram in several formats (see `src/modeler/exporters/`):
+Besides saving the `.studyflow` file (YAML), the modeler exports the diagram in several formats (see `src/modeler/exporters/`):
 
 | Format | What it is for |
 |---|---|
+| BPMN 2.0 XML | The same diagram as standard BPMN XML, for interop with other BPMN tooling. |
 | SVG | Vector figure of the diagram, for manuscripts and web pages. |
 | PNG | Raster figure, for slides and quick sharing. |
 | LinkML | The diagram's data elements as a LinkML schema, for data engineers and validation tooling. |

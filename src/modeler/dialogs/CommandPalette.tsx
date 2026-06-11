@@ -194,6 +194,13 @@ export function CommandPalette({ ref }: Props) {
             action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'png' }),
           },
           {
+            id: 'export-bpmn',
+            group: 'Export As',
+            label: 'BPMN 2.0 XML...',
+            icon: 'iconify bi--filetype-xml',
+            action: () => executeCommand(modeler, { type: 'export-diagram', fileType: 'bpmn' }),
+          },
+          {
             id: 'export-linkml',
             group: 'Export As',
             label: 'LinkML (data elements)...',

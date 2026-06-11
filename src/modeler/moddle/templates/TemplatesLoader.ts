@@ -1,14 +1,13 @@
-import { runBuildTemplatesRegistry } from '../../commands/templates';
+import { getActiveCatalog } from '@/lib/core/catalog';
 
-/** Builds templates from moddle packages and registers them with `elementTemplates`. */
+/** Registers the catalog's compiled templates with `elementTemplates`. */
 export default class TemplatesLoader {
 
-  static $inject = ['elementTemplates', 'moddle', 'eventBus'];
+  static $inject = ['elementTemplates', 'eventBus'];
 
-  constructor(elementTemplates: any, moddle: any, eventBus: any) {
+  constructor(elementTemplates: any, eventBus: any) {
     eventBus.on('diagram.init', () => {
-      const templates = runBuildTemplatesRegistry({ type: 'build-templates-registry', moddle });
-      elementTemplates.set(templates);
+      elementTemplates.set(getActiveCatalog().allTemplates());
     });
   }
 }

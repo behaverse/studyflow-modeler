@@ -29,7 +29,7 @@ export function runCreateTemplateShape(
     parent,
   } = command;
 
-  const defaults = extensionType ? getDefaults(extensionType, moddle) : {};
+  const defaults = extensionType ? getDefaults(extensionType) : {};
   const attributes: Record<string, any> = { ...defaults, ...(templateAttributes || {}) };
   const size = takeSize(attributes);
 

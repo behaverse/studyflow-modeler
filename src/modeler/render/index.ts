@@ -1,5 +1,6 @@
 import BaseRenderer from 'diagram-js/lib/draw/BaseRenderer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { getActiveCatalog } from '@/lib/core/catalog';
 import { getExtensionType, getExtensionElement, getRawAttribute, hasExtends, getAttribute } from '@/lib/core/extensions';
 import { toPrefix } from '@/lib/core/utils/naming';
 import { BPMN_ICON_OVERRIDES } from '../constants';
@@ -7,7 +8,7 @@ import { drawEventWithIcon } from './events';
 import { drawDataStore } from './data';
 import { drawActivity } from './activities';
 import { drawGateway } from './gateways';
-import type { BpmnRenderer, EventBus, Moddle, Styles } from '../bpmn-js';
+import type { BpmnRenderer, EventBus, Styles } from '../bpmn-js';
 
 const DATA_OP_ICON = 'iconify mdi--function';
 const HIGH_PRIORITY = 1500;
@@ -18,22 +19,17 @@ function resolveTemplateIcon(ext: any): string | undefined {
   return getRawAttribute(ext, 'icon', toPrefix(ext.$type));
 }
 
-/** Renders elements with a studyflow extension wrapper or `extends:`-style applied type. */
+/** Renders elements with a studyflow extension wrapper or trait-extended type. */
 export default class StudyflowRenderer extends BaseRenderer {
-  static $inject = ['eventBus', 'styles', 'bpmnRenderer', 'moddle'];
+  static $inject = ['eventBus', 'styles', 'bpmnRenderer'];
 
   private styles: Styles;
   private bpmnRenderer: BpmnRenderer;
-  private typeMap: Record<string, any>;
-  private enums: any[];
 
-  constructor(eventBus: EventBus, styles: Styles, bpmnRenderer: BpmnRenderer, moddle: Moddle) {
+  constructor(eventBus: EventBus, styles: Styles, bpmnRenderer: BpmnRenderer) {
     super(eventBus as any, HIGH_PRIORITY);
     this.styles = styles;
     this.bpmnRenderer = bpmnRenderer;
-    this.typeMap = moddle.registry.typeMap;
-    this.enums = Object.values(moddle.registry.packageMap || {})
-      .flatMap((pkg) => pkg?.enumerations || []);
   }
 
   canRender(element: any): boolean {
@@ -44,7 +40,7 @@ export default class StudyflowRenderer extends BaseRenderer {
   drawShape(parentNode: SVGElement, element: any): SVGElement {
     const ext = getExtensionElement(element);
     const extType = getExtensionType(element);
-    const extTypeDef = extType ? this.typeMap[extType] : undefined;
+    const extEntry = extType ? getActiveCatalog().getType(extType) : undefined;
     const templateIcon = resolveTemplateIcon(ext || element.businessObject);
 
     // Service/Script + isDataOperation -> function icon (matches omniprocess Map/Reduce/Filter).
@@ -53,13 +49,13 @@ export default class StudyflowRenderer extends BaseRenderer {
       && getAttribute(element, 'isDataOperation');
 
     const iconClass = templateIcon
-      || extTypeDef?.meta?.icon
-      || extTypeDef?.icon
+      || extEntry?.meta?.icon
+      || extEntry?.icon
       || (isDataOpTask ? DATA_OP_ICON : undefined)
       || BPMN_ICON_OVERRIDES[element.type];
 
     if (is(element, 'bpmn:Event')) return drawEventWithIcon(parentNode, element, this.bpmnRenderer);
-    if (is(element, 'bpmn:DataStoreReference')) return drawDataStore(parentNode, element, this.bpmnRenderer, this.enums);
+    if (is(element, 'bpmn:DataStoreReference')) return drawDataStore(parentNode, element, this.bpmnRenderer);
     if (is(element, 'bpmn:Activity')) return drawActivity(parentNode, element, this.bpmnRenderer, iconClass, !!templateIcon);
     if (is(element, 'bpmn:Gateway')) return drawGateway(parentNode, element, iconClass, this.styles);
 

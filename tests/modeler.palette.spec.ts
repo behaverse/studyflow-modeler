@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
+import { expect, test } from '@playwright/test';
+import { BpmnModdle } from 'bpmn-moddle';
+
+import { xmlToStudyflowYaml } from '../src/lib/core/codec';
+import { SCHEMAS } from '../src/lib/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
 import {
   addPaletteElement,
   addSchemaPaletteElement,
@@ -10,6 +17,16 @@ import {
   runPaletteCommand,
   setSelectedElementName,
 } from './utils';
+
+/** Convert BPMN XML to studyflow YAML with the same codec the app uses. */
+async function toYaml(xml: string): Promise<string> {
+  const schemaDir = path.join(process.cwd(), 'src/assets/schemas');
+  const models = SCHEMAS.map(({ prefix }) =>
+    fromModdleYaml(readFileSync(path.join(schemaDir, `${prefix}.moddle.yaml`), 'utf8')),
+  );
+  const packages = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
+  return xmlToStudyflowYaml(xml, new BpmnModdle(packages));
+}
 
 test.describe('Studyflow modeler palette flows', () => {
   test('adds palette items, names a task, and keeps exported outputs in sync', async ({ page }) => {
@@ -53,7 +70,10 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowText = await readDownloadText(studyflowDownload);
 
     expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow');
-    expect(normalizeXml(studyflowText)).toBe(normalizedEmbeddedStudyflow);
+    expect(studyflowText.startsWith('studyflow:')).toBe(true);
+    expect(studyflowText).toContain('name: Review Task');
+    // The saved YAML and the SVG-embedded XML describe the same diagram.
+    expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
   test('adds a schema-backed omniprocess element and preserves operation defaults', async ({ page }) => {
@@ -87,10 +107,13 @@ test.describe('Studyflow modeler palette flows', () => {
     await runPaletteCommand(page, 'Save As...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
-    const normalizedStudyflow = normalizeXml(studyflowText);
 
-    expect(normalizedStudyflow).toContain('<omniprocess:map/>');
-    expect(normalizedStudyflow).toBe(normalizedEmbeddedStudyflow);
+    // In YAML the wrapper stays bare; the pinned operation defaults live as
+    // explicit values on the service task element.
+    expect(studyflowText).toContain('type: omniprocess:Map');
+    expect(studyflowText).toContain('isDataOperation: true');
+    expect(studyflowText).toContain('operationType: map');
+    expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
   test('applies default schema values for omniprocess EEGPrep elements', async ({ page }) => {
@@ -101,14 +124,14 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownloadPromise = page.waitForEvent('download');
     await runPaletteCommand(page, 'Save As...');
     const studyflowDownload = await studyflowDownloadPromise;
-    const normalizedStudyflow = normalizeXml(await readDownloadText(studyflowDownload));
+    const studyflowText = await readDownloadText(studyflowDownload);
 
     // The EEGPrep template now expands into a subprocess pipeline
     // (filter signal -> remove artifacts) of data-operation service tasks.
-    expect(normalizedStudyflow).toContain('<omniprocess:preprocessEEG ');
-    expect(normalizedStudyflow).toMatch(/<[A-Za-z0-9_]+:subProcess\b/);
-    expect(normalizedStudyflow).toContain('studyflow:isDataOperation="true"');
-    expect(normalizedStudyflow).toContain('<omniprocess:filter ');
-    expect(normalizedStudyflow).toContain('name="EEGPrep"');
+    expect(studyflowText).toContain('type: omniprocess:PreprocessEEG');
+    expect(studyflowText).toContain('type: bpmn:SubProcess');
+    expect(studyflowText).toContain('isDataOperation: true');
+    expect(studyflowText).toContain('type: omniprocess:Filter');
+    expect(studyflowText).toContain('name: EEGPrep');
   });
 });

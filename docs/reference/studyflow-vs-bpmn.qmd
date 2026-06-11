@@ -18,7 +18,7 @@ Studyflow uses BPMN's full vocabulary for control flow and structure:
 - **Pools and lanes**.
 - **Choreography** for modeling multi-agent interactions.
 
-These elements behave exactly as in BPMN and render with standard BPMN shapes. A BPMN-only tool can open a `.studyflow` file and see a well-formed process -- the Studyflow-specific elements and attributes degrade to BPMN without breaking the diagram.
+These elements behave exactly as in BPMN and render with standard BPMN shapes. A BPMN-only tool can open the BPMN 2.0 XML export of a `.studyflow` file and see a well-formed process -- the Studyflow-specific elements and attributes degrade to BPMN without breaking the diagram.
 
 ## What Studyflow adds
 
@@ -51,9 +51,9 @@ Each renders with a distinctive icon while remaining a normal BPMN task undernea
 
 ## What Studyflow deliberately leaves alone
 
-Studyflow does **not** redefine serialization conventions (XML namespaces, element IDs).
+Studyflow does **not** redefine BPMN's semantics or its serialization conventions (namespaces, element IDs, `extensionElements`).
 
-This means: any conforming BPMN renderer or analyzer can process a `.studyflow` file and produce something meaningful, even if it ignores Studyflow extensions. The serialized form is BPMN XML with a `studyflow:` namespace for the extensions (i.e., elements inside the `<extensionElements>` blocks). This design choice maximizes compatibility with existing BPMN tools and libraries.
+The native `.studyflow` format is YAML, but it is a one-to-one mapping of the BPMN 2.0 XML serialization, and the modeler exports that XML on demand (*File &rarr; Export As &rarr; BPMN 2.0 XML*). The export is standard BPMN XML with dedicated namespaces for the extensions (i.e., elements inside the `<extensionElements>` blocks, plus extension attributes on standard elements). Any conforming BPMN renderer or analyzer can process it and produce something meaningful, even if it ignores the Studyflow extensions. This design choice maximizes compatibility with existing BPMN tools and libraries.
 
 ## When you should use plain BPMN instead
 

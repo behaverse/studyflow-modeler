@@ -76,7 +76,7 @@ export function getAttributesByCategory(element: any): Record<string, any[]> {
 
   collect(identity, () => true);
 
-  collect(getAttributeDefinitions(bo, bo?.$model), (attrDef: any) =>
+  collect(getAttributeDefinitions(bo), (attrDef: any) =>
     !overridden.has(attrDef.ns?.localName ?? attrDef.name)
     && !isIdentity(attrDef)
     && isExtensionPrefix(attrDef.ns?.prefix)

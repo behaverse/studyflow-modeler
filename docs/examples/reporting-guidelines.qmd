@@ -27,7 +27,7 @@ To this end, several [reporting guidelines](https://www.equator-network.org/libr
 
 As an example, the [SPIRIT 2025](https://www.consort-spirit.org/) checklist recommends a set of 34 items across 9 topics to describe an interventional trial. It includes items such as the administrative information, open science, methods, ethics, outcomes, and statistical methods that should be included when reporting the protocol of an intervention.
 
-Studyflow can be used to create checklists that adhere to these guidelines, making it easier to ensure that all necessary information is included in the diagram. Every studyflow element carries a `studyflow:checklist` attribute -- a markdown list with checkboxes -- and each item can be linked to a specific guideline section and to an element in the studyflow. Because the checklist lives in the diagram XML, it is machine-readable and can be used to generate compliance reports.
+Studyflow can be used to create checklists that adhere to these guidelines, making it easier to ensure that all necessary information is included in the diagram. Every studyflow element carries a `studyflow:checklist` attribute -- a markdown list with checkboxes -- and each item can be linked to a specific guideline section and to an element in the studyflow. Because the checklist lives in the diagram file, it is machine-readable and can be used to generate compliance reports.
 
 The modeler renders these attributes through the **Checklist view** (*View As &rarr; Checklist* in the command palette) -- see [Views](../reference/views.qmd). For worked sources, see the CONSORT example (`docs/assets/img/consort2025.studyflow`, walked through in [CONSORT](consort.qmd)) and the SPIRIT timeline below.
 

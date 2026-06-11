@@ -8,8 +8,8 @@ This page is for **contributors** extending the Studyflow language with new elem
 
 Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
 
-- `studyflow.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`DataOperationActivity` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`). Split out of `studyflow` so adopters can swap the cognitive layer without touching the core.
+- `core.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`DataOperationActivity` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
+- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`). Split out of `core` so adopters can swap the cognitive layer without touching the core.
 - `behaverse.moddle.yaml`, `datatrove.moddle.yaml`, `galea.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions you can enable from the modeler's schema palette.
 
 ## Core structure
@@ -17,8 +17,8 @@ Studyflow uses direct moddle YAML as the authoring format for schema definitions
 Studyflow moddle YAML files follow this top-level layout:
 
 ```yaml
-name: Studyflow
-prefix: studyflow
+name: Core
+prefix: core
 description: Core BPMN extension for modeling research processes.
 uri: http://behaverse.org/schemas/studyflow
 icon: https://example.org/schema-icon.png    # optional, shown in the modeler
@@ -30,7 +30,7 @@ types: []
 examples: []
 ```
 
-The `description` is shown in the schema palette. The optional `icon` (URL or `iconify <name>`) appears next to the schema name.
+The `description` is shown in the schema palette. The optional `icon` (URL or `iconify <name>`) appears next to the schema name. The `uri` is the stable identifier existing files are matched by -- the core schema's URI intentionally keeps `studyflow` even though its prefix was renamed to `core`.
 
 ## Enumerations
 
@@ -102,8 +102,8 @@ types:
 
 Property entries carry moddle behavior directly:
 
-- `isAttr: true` -- serialized as an XML attribute (most scalar properties).
-- `isBody: true` -- serialized as the element's text body. Used for free-form content like YAML `configurations`.
+- `isAttr: true` -- serialized as an XML attribute in the BPMN XML form (most scalar properties). The YAML `.studyflow` codec maps every property to a plain key regardless of this flag.
+- `isBody: true` -- serialized as the element's text body in the BPMN XML form. Used for free-form content like YAML `configurations`.
 - `isMany: true` -- repeated property (rendered as a list in the inspector).
 - `default` -- initial value.
 - `redefines` -- override the type or default of an inherited property (e.g. `redefines: bpmn:Process#isExecutable`).
@@ -199,7 +199,7 @@ examples:
       bpmn:name: EEGPrep
 ```
 
-These attributes are not added back onto the original schema class. Instead, the modeler generates an example-scoped derived moddle type for that specific example object, so the extra attributes persist in BPMN XML without changing other `MapData` examples or the base class definition.
+These attributes are not added back onto the original schema class. Instead, the modeler generates an example-scoped derived moddle type for that specific example object, so the extra attributes persist in the saved diagram (both the YAML and the BPMN XML serializations) without changing other `MapData` examples or the base class definition.
 
 If the same example also includes undeclared scalar properties such as `param1: value1`, those are inferred onto the same example-scoped derived type rather than onto the parent schema class.
 
@@ -209,7 +209,7 @@ Use the schema prefix to reference types from another schema, e.g. `studyflow:YA
 
 ## Common mistakes
 
-- Prefix mismatch: type references using the wrong prefix (for example `studyflow:` vs local names).
+- Prefix mismatch: type references using the wrong prefix (for example `core:` vs local names, or the legacy `studyflow:` prefix).
 - Missing `type`: moddle properties without a type often fall back to string-like behavior and may produce unintended interfaces.
 - Mixing up `extends` and `superClass`: use `extends` to mix attributes onto an existing BPMN base; use `superClass` to define a new concrete type that inherits behavior.
 - Incorrect BPMN mapping: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
@@ -222,4 +222,4 @@ Property names follow camelCase (`consentFormUri`, `completionCodeType`), except
 
 ## The LinkML companion schema
 
-`src/assets/schemas/studyflow.linkml.yaml` is a hand-maintained LinkML companion to the core moddle schemas. It declares itself the authoritative definition of the core element types and constraints, but it is **not loaded by the modeler** -- the schema loader globs only `*.moddle.yaml` -- and the LinkML exporter generates its output from the diagram's data elements rather than from this file. Keep it in sync manually when changing data element types in `studyflow.moddle.yaml` or `cognitive.moddle.yaml`.
+`src/assets/schemas/studyflow.linkml.yaml` is a hand-maintained LinkML companion to the core moddle schemas. It declares itself the authoritative definition of the core element types and constraints, but it is **not loaded by the modeler** -- the schema loader globs only `*.moddle.yaml` -- and the LinkML exporter generates its output from the diagram's data elements rather than from this file. Keep it in sync manually when changing data element types in `core.moddle.yaml` or `cognitive.moddle.yaml`.

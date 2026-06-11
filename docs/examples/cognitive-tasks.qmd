@@ -62,4 +62,4 @@ This looks complicated! Studyflow diagrams also provides a more intuitive way to
   </figcaption>
 </figure>
 
-The parameters of the N-back task can be modified using the Modeler app (in the inspector sidebar) or directly in the Studyflow XML file. Since the diagram is generated from the XML file, any changes to the parameters will automatically update the diagram, and it can be version controlled too!
+The parameters of the N-back task can be modified using the Modeler app (in the inspector sidebar) or directly in the `.studyflow` file (a YAML document). Since the diagram is generated from that file, any changes to the parameters will automatically update the diagram, and it can be version controlled too!

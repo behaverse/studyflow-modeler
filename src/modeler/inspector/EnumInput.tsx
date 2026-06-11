@@ -12,7 +12,7 @@ import {
 } from '@headlessui/react';
 import { useMemo, useState } from 'react';
 import { t } from '../../i18n';
-import { toLocalName, toPrefix } from '@/lib/core/utils/naming';
+import { getActiveCatalog } from '@/lib/core/catalog';
 import { HelpTooltip } from './HelpTooltip';
 import { useAttributeState } from './hooks/useAttributeState';
 import { field as s } from '../styles';
@@ -21,33 +21,10 @@ type Props = {
   attrDef: any;
 };
 
-function literalsIn(pkg: any, enumName: string | undefined): any[] | null {
-  return pkg?.enumerations?.find((e: any) => e.name === enumName)?.literalValues ?? null;
-}
-
-function findPackage(moddle: any, prefix: string): any {
-  if (!moddle) return undefined;
-  if (typeof moddle.getPackage === 'function') return moddle.getPackage(prefix);
-  return moddle.packages?.[prefix];
-}
-
-/** Resolve enum literals, supporting types defined in a different moddle package. */
-function resolveEnumLiterals(attrDef: any, modeler: any): any[] | null {
-  const attributeType: string = attrDef.type ?? '';
-  const localName = toLocalName(attributeType);
-  const targetPrefix = toPrefix(attributeType);
-
-  const definingPkg = attrDef.definedBy?.$pkg;
-  if (!targetPrefix || targetPrefix === definingPkg?.prefix) {
-    return literalsIn(definingPkg, localName);
-  }
-  return literalsIn(findPackage(modeler?.get?.('moddle'), targetPrefix), localName);
-}
-
 export function EnumInput({ attrDef }: Props) {
-  const { value, commit, modeler } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const { value, commit } = useAttributeState<string>(attrDef, (raw) => raw || '');
   const name = attrDef.ns.name;
-  const literalValues = resolveEnumLiterals(attrDef, modeler) ?? [];
+  const literalValues = getActiveCatalog().enumOf(attrDef.type)?.literals ?? [];
   const isEditable = attrDef.meta?.editable === true;
   const Picker = isEditable ? EditableEnumCombobox : PlainEnumSelect;
 

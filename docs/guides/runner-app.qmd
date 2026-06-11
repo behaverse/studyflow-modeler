@@ -34,7 +34,7 @@ The runner accepts three URL query parameters:
 
 After loading, the runner:
 
-1. **Parses** the XML using the bundled studyflow + cognitive schemas (plus any optional extension schemas the diagram references).
+1. **Parses** the diagram -- both serializations are accepted, YAML `.studyflow` and legacy BPMN 2.0 XML -- using the bundled studyflow + cognitive schemas (plus any optional extension schemas the diagram references).
 2. **Pre-fetches the Behaverse runtime manifest** if (and only if) the diagram contains a `BehaverseTask`. Other diagrams skip this network call.
 3. **Validates** the diagram. Each node kind contributes its own validator (missing required attributes, unsupported types, etc.). Issues are listed in the logs and the run is aborted with a `phase=invalid` status.
 4. **Traverses** the diagram starting at the `StartEvent`. Each node yields a *job*; the runner renders the corresponding component and waits for the participant to complete or skip it. On `EndEvent`, the run finishes with `phase=done`.
@@ -85,7 +85,7 @@ To record, configure a data server in the modeler's *Settings* (API key; the bas
 
 1. Creates a session on the server at the start of the run.
 2. Streams batched studyflow events -- trial outcomes, questionnaire responses, and timings -- as the participant progresses.
-3. Records a SHA-256 hash of the diagram XML alongside the events, so every data point is traceable to the exact study version that produced it.
+3. Records a SHA-256 hash of the diagram source alongside the events, so every data point is traceable to the exact study version that produced it.
 4. `PATCH`es the session with the final status and completion code when the run ends.
 
 If no server is configured (or the toggle is off), the run proceeds local-only -- nothing leaves the browser and the study still works end-to-end. See `src/runner/dataServer.ts` and `src/lib/core/runtimeSettings.ts` for details.

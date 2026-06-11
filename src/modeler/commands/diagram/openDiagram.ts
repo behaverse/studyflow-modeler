@@ -1,3 +1,4 @@
+import { looksLikeXml, studyflowYamlToXml } from '@/lib/core/codec';
 import { runImportXml } from './importXml';
 import { runUpdateAttribute } from '../attributes/updateAttribute';
 
@@ -19,10 +20,15 @@ function extractXmlFromSvg(svgText: string): string {
 
 const filenameStem = (filename: string) => filename.replace(/\.[^/.]+$/, '');
 
+/** `.studyflow` content is sniffed: YAML (current format) or BPMN XML (legacy files, `.bpmn`, `.xml`). */
+async function toXml(modeler: any, filename: string, content: string): Promise<string> {
+  if (filename.toLowerCase().endsWith('.svg')) return extractXmlFromSvg(content);
+  if (looksLikeXml(content)) return content;
+  return studyflowYamlToXml(content, modeler.get('moddle'));
+}
+
 export async function runOpenDiagram(modeler: any, command: OpenDiagramCommand): Promise<any> {
-  const xml = command.filename.toLowerCase().endsWith('.svg')
-    ? extractXmlFromSvg(command.content)
-    : command.content;
+  const xml = await toXml(modeler, command.filename, command.content);
 
   const result = await runImportXml(modeler, { type: 'import-xml', xml });
   modeler.get('canvas').zoom('fit-viewport');

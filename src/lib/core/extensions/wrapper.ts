@@ -1,38 +1,38 @@
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { getActiveCatalog, type AttributeSpec } from '../catalog';
 import { BPMN } from '../constants';
 import { splitQName } from '../utils/naming';
 import { isExtensionPrefix } from './attrs';
 import { getAttributeDefinitions } from './attributeDefinitions';
 import { setAttribute } from './resolve';
 
+function toBusinessObject(elementOrBO: any): any {
+  return elementOrBO?.businessObject ?? elementOrBO;
+}
+
 /** First non-core extension wrapper on `<bpmn:extensionElements>`, or null. */
 export function getExtensionElement(elementOrBO: any): any {
-  const bo = getBusinessObject(elementOrBO);
+  const bo = toBusinessObject(elementOrBO);
   const values = bo?.extensionElements?.values;
   if (!values) return null;
   return values.find((ext: any) => isExtensionPrefix(splitQName(ext.$type).prefix)) ?? null;
 }
 
 /** Attribute definitions declared on this element's extension wrapper, if any. */
-export function getExtensionAttributeDefinitions(elementOrBO: any): any[] {
+export function getExtensionAttributeDefinitions(elementOrBO: any): AttributeSpec[] {
   const ext = getExtensionElement(elementOrBO);
-  return getAttributeDefinitions(ext, ext?.$model);
+  return ext ? getAttributeDefinitions(ext) : [];
 }
 
-/** Adds a wrapper inside `<bpmn:extensionElements>`; `extends:`-style types write defaults straight to the BO. */
+/** Adds a wrapper inside `<bpmn:extensionElements>`; trait types write defaults straight to the BO. */
 export function createExtensionElement(
   bo: any,
   extensionType: string,
   moddle: any,
   defaults: Record<string, any> = {},
 ): any {
-  let typeDef: any;
-  try { typeDef = moddle.getTypeDescriptor(extensionType); } catch { /* unknown type */ }
+  const entry = getActiveCatalog().getType(extensionType);
 
-  const isExtendsOnly = (typeDef?.extends?.length ?? 0) > 0
-    && (!typeDef?.superClass || typeDef.superClass.length === 0);
-
-  if (isExtendsOnly) {
+  if (entry?.style === 'trait') {
     for (const [name, value] of Object.entries(defaults)) {
       setAttribute(bo, name, value);
     }
@@ -56,9 +56,8 @@ export function createExtensionElement(
   return wrapper;
 }
 
-/** True when extension attributes are mixed onto the BO via moddle `extends`. */
+/** True when extension attributes are mixed onto the BO via schema traits. */
 export function hasExtends(element: any): boolean {
-  const bo = element?.businessObject ?? element;
-  return getAttributeDefinitions(bo, bo?.$model)
-    .some((attrDef: any) => isExtensionPrefix(attrDef.ns?.prefix));
+  const bo = toBusinessObject(element);
+  return getAttributeDefinitions(bo).some((spec) => isExtensionPrefix(spec.ns?.prefix));
 }

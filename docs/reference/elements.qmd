@@ -19,14 +19,14 @@ The main element of a studyflow diagram is the *Study*, which serves as a contai
 ![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows. Has `runtime` (`cloud`/`local`/`hpc`), `authors`, and the inherited `isExecutable` properties.](../assets/img/elements/study.svg)
 :::
 
-Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*. Every element also carries the studyflow `BaseElement` attributes `documentation` (markdown) and `checklist` (markdown items).
+Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*. Every element also carries the core `BaseElement` attributes `documentation` (markdown) and `checklist` (markdown items).
 
 ## Schemas
 
 Studyflow elements ship in a layered set of moddle schemas:
 
-- **`studyflow`** (core): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `DataOperationActivity`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- **`cognitive`** (core): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`).
+- **`core`** (always loaded): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `DataOperationActivity`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
+- **`cognitive`** (always loaded): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`).
 - **`behaverse`**, **`omniprocess`**, **`datatrove`**, **`galea`** (optional): domain extensions enabled from the modeler's schema palette.
 
 See [Schema packs](schema-packs.qmd) for the element catalogs of the other schema packs, and [Extensions](extensions.qmd) for how to author your own schema.
@@ -115,7 +115,7 @@ The current version of Studyflow includes built-in support for several data mode
 
 Each visual element in the modeler maps to a type definition in one of the Studyflow moddle schemas under `src/assets/schemas/`:
 
-- Event elements (`StartEvent`, `EndEvent`) live in `studyflow.moddle.yaml` and extend the corresponding BPMN event types.
+- Event elements (`StartEvent`, `EndEvent`) live in `core.moddle.yaml` and extend the corresponding BPMN event types.
 - Activity elements (`Instruction`, `Questionnaire`, `CognitiveTask`, `VideoGame`, `Rest`) live in `cognitive.moddle.yaml` and map to `bpmn:Task` with domain attributes shown in the inspector.
 - Gateway elements (`RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`) live in `cognitive.moddle.yaml` and map to `bpmn:ExclusiveGateway`.
-- Data elements (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`) live in `studyflow.moddle.yaml`; tabular and tensor structures map onto BPMN data references.
+- Data elements (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`) live in `core.moddle.yaml`; tabular and tensor structures map onto BPMN data references.

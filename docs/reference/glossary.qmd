@@ -13,7 +13,7 @@ A BPMN-based visual language for specifying scientific studies and the data flow
 
 <details>
 <summary>**`.studyflow` file**</summary>
-The serialized form of a studyflow diagram. It is BPMN 2.0 XML with a `studyflow:` namespace for the research-specific extensions.
+The serialized form of a studyflow diagram: a YAML document (top-level keys `studyflow`, `definitions`, `elements`, `diagram`) semantically equivalent to BPMN 2.0 XML. Legacy XML `.studyflow` files still open, and the modeler can export BPMN 2.0 XML for interop with other BPMN tools.
 </details>
 
 <details>
