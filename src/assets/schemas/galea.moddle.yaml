@@ -8,11 +8,12 @@ uri: http://behaverse.org/schemas/studyflow/galea
 icon: iconify mdi--virtual-reality
 xml:
   tagAlias: lowerCase
-version: 26.0528
+version: 26.0610
 associations: []
 
 enumerations:
   - name: GaleaModalityEnum
+    isAbstract: true
     description: Biosignal/sensor modality recorded by the Galea headset.
     literalValues:
       - name: EEG (electroencephalography)
@@ -33,6 +34,7 @@ enumerations:
         value: audio
 
   - name: GaleaElectrodeTypeEnum
+    isAbstract: true
     description: EEG electrode contact medium used in the montage.
     literalValues:
       - name: Dry
@@ -43,6 +45,7 @@ enumerations:
         value: hybrid
 
   - name: VRDeviceEnum
+    isAbstract: true
     description: |
       VR head-mounted display. Properties typed with this enum may also accept custom identifiers.
     literalValues:
@@ -56,9 +59,10 @@ enumerations:
         value: varjo_xr3
 
   - name: GaleaStreamProtocolEnum
+    isAbstract: true
     description: |
       Streaming protocol used to acquire data from the Galea headset.
-      This may also accept custom identifiers when.
+      Properties typed with this enum may also accept custom identifiers.
     literalValues:
       - name: LSL (Lab Streaming Layer)
         value: lsl
@@ -68,6 +72,7 @@ enumerations:
         value: openbci_gui
 
   - name: BaselineConditionEnum
+    isAbstract: true
     description: Resting-state baseline condition.
     literalValues:
       - name: Eyes open
@@ -78,6 +83,7 @@ enumerations:
         value: alternating
 
   - name: SignalQualityCheckEnum
+    isAbstract: true
     description: How signal quality is verified before recording starts.
     literalValues:
       - name: Per-channel impedance (kΩ threshold)
@@ -163,7 +169,7 @@ types:
       - name: estimatedDurationMinutes
         description: Estimated duration of the mount procedure, in minutes.
         isAttr: true
-        type: Number
+        type: Real
         default: 10
         meta:
           categories:
@@ -208,7 +214,7 @@ types:
       - name: impedanceThresholdKOhm
         description: Maximum acceptable per-channel impedance (kΩ). Channels above this fail the check.
         isAttr: true
-        type: Number
+        type: Real
         default: 50
         meta:
           categories:
@@ -220,7 +226,7 @@ types:
       - name: maxFailedChannels
         description: Maximum number of channels allowed to fail before the whole check fails.
         isAttr: true
-        type: Number
+        type: Integer
         default: 2
         meta:
           categories:
@@ -258,7 +264,7 @@ types:
       - name: eyeTrackerPoints
         description: Number of fixation points used for eye-tracker calibration.
         isAttr: true
-        type: Number
+        type: Integer
         default: 9
         meta:
           categories:
@@ -323,7 +329,7 @@ types:
       - name: durationSeconds
         description: Total duration of the baseline recording, in seconds.
         isAttr: true
-        type: Number
+        type: Real
         default: 120
         meta:
           categories:
@@ -332,7 +338,7 @@ types:
         description: |
           Length of each eyes-open / eyes-closed block when `condition` is `alternating`.
         isAttr: true
-        type: Number
+        type: Real
         default: 30
         meta:
           categories:
@@ -498,7 +504,7 @@ types:
       - name: eegChannels
         description: Number of EEG channels recorded (typically 8-10 on Galea).
         isAttr: true
-        type: Number
+        type: Integer
         default: 10
         meta:
           categories:
@@ -506,7 +512,7 @@ types:
       - name: eegSamplingRateHz
         description: EEG sampling rate, in Hz (e.g., 250, 500, 1000).
         isAttr: true
-        type: Number
+        type: Real
         default: 250
         meta:
           categories:
@@ -514,7 +520,7 @@ types:
       - name: eyeTrackingSamplingRateHz
         description: Eye-tracker sampling rate, in Hz (e.g., 90, 120).
         isAttr: true
-        type: Number
+        type: Real
         default: 90
         meta:
           categories:

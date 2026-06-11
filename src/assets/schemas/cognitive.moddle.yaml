@@ -7,10 +7,11 @@ uri: http://behaverse.org/schemas/studyflow/cognitive
 icon: iconify tabler--hexagon-letter-c
 xml:
   tagAlias: lowerCase
-version: 26.0528
+version: 26.0610
 associations: []
 enumerations:
   - name: InstrumentEnum
+    isAbstract: true
     description: |
       Software that delivers a cognitive task. Determines how the
       task's `configurations` YAML is interpreted. Properties typed with this
@@ -25,6 +26,7 @@ enumerations:
       - name: OpenSesame
         value: opensesame
   - name: QuestionnaireInstrumentEnum
+    isAbstract: true
     description: |
       Curated list of standardized questionnaires. This list is a starting
       point for common psychometric instruments; properties typed with this
@@ -51,6 +53,7 @@ enumerations:
       - name: Other
         value: other
   - name: ActorTypeEnum
+    isAbstract: true
     description: |
       Kind of actor represented by a participant pool. Distinguishes human
       participants from artificial agents and from instrumented apparatus.
@@ -152,6 +155,8 @@ types:
           categories:
             - Instrument
   - name: Questionnaire
+    description: |
+      A self-report instrument administered to a participant - either a standardized psychometric questionnaire (e.g., PHQ-9, GAD-7) or a custom form. The `instrument` identifies which questionnaire is shown.
     superClass:
       - bpmn:Task
       - bpmn:BaseElement
@@ -218,11 +223,12 @@ types:
             - Assignment
       - name: probabilityFunction
         description: |
-          Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`.
+          Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`. Pick a listed option or type a custom identifier.
         isAttr: true
-        type: String
+        type: studyflow:ProbabilityDistributionEnum
         default: uniform
         meta:
+          editable: true
           categories:
             - Assignment
           condition:
@@ -272,11 +278,12 @@ types:
       - name: probabilityFunction
         description: |
           Probability mass function that defines the per-stratum discrete
-          distribution. Defaults to `uniform`.
+          distribution. Defaults to `uniform`. Pick a listed option or type a custom identifier.
         isAttr: true
-        type: String
+        type: studyflow:ProbabilityDistributionEnum
         default: uniform
         meta:
+          editable: true
           categories:
             - Assignment
           condition:

@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
 name: DataTrove
 prefix: datatrove
 description: A studyflow extension for data transformation activities in the DataTrove ecosystem.
@@ -5,7 +7,7 @@ uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
-version: 26.0528
+version: 26.0610
 associations: []
 enumerations:
   - name: ReaderClassEnum
@@ -40,7 +42,7 @@ enumerations:
         value: ParquetWriter
 types:
   - name: Document
-    description:
+    description: A single unit of text data with optional media attachments and metadata, mirroring DataTrove's Document record.
     superClass:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
@@ -74,7 +76,6 @@ types:
     meta:
       icon: iconify fluent--folder-open-24-regular
       bpmnType: bpmn:DataObjectReference
-    properties:
   - name: Reader
     description: read data from different formats and yield Document.
     superClass:
@@ -98,6 +99,13 @@ types:
         meta:
           categories:
             - DataTrove
+      - name: path
+        description: Source location to read from (e.g., a folder path, glob pattern, URL, or dataset identifier).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - DataTrove
   - name: Writer
     description: write Document to different formats.
     superClass:
@@ -110,8 +118,15 @@ types:
         type: String
         meta:
           pinned: true
-        default: map
+        default: write
         redefines: omniprocess:Transform#operationType
+      - name: path
+        description: Destination location to write to (e.g., a folder path, URL, or dataset identifier).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - DataTrove
       - name: className
         type: WriterClassEnum
         isAttr: true
@@ -135,7 +150,7 @@ types:
         redefines: omniprocess:Transform#operationType
   - name: Filter
     description: filter out (remove) some Documents based on specific rules/criteria.
-    extends:
+    superClass:
       - omniprocess:Filter
     properties:
       - name: operationType

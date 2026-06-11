@@ -3,8 +3,8 @@
 
 Studyflow Modeler is a tool to design and run cognitive experiments using [Studyflow diagrams](https://behaverse.org/projects/studyflows). It ships two browser apps backed by a shared core library:
 
-- **Modeler** (`app.html`) - visual editor for `.studyflow` (BPMN 2.0 XML) diagrams, with a pluggable schema palette covering cognitive, data, and domain-specific element types.
-- **Runner** (`run.html`) - executes a `.studyflow` diagram end-to-end in the browser: parses the XML, validates it, and walks the flow node-by-node (consent, instructions, questionnaires, cognitive tasks, Behaverse tasks).
+- **Modeler** (`app.html`) - visual editor for `.studyflow` (BPMN 2.0 XML) diagrams, with a pluggable schema palette covering cognitive, data, and domain-specific element types. Diagrams export to SVG, PNG, LinkML, NIDM-Results, and ARTEM-IS.
+- **Runner** (`run.html`) - executes a `.studyflow` diagram end-to-end in the browser: parses the XML, validates it, and walks the flow node-by-node (consent, instructions, questionnaires, cognitive tasks, Behaverse tasks). Supports optional event recording to a Behaverse data server and LLM/bot-driven task execution.
 
 ## Development
 

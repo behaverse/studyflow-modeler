@@ -9,8 +9,8 @@ Scientific research requires systematic and reproducible data-analysis workflows
 
 This example walks through a typical behavioral analysis pipeline: raw trial data &rarr; cleaning &rarr; derived measures &rarr; group statistics &rarr; manuscript-ready figures.
 
-::: {.callout-note appearance="simple"}
-The reference diagram for this example should live at `docs/assets/img/examples/analysis-pipeline.svg` and the source at `docs/assets/img/examples/analysis-pipeline.studyflow`. Author it in the modeler using the structure below.
+::: {.callout-note appearance="simple" title="Diagram (TODO)"}
+TODO: The reference diagram for this example should live at `docs/assets/img/examples/analysis-pipeline.svg` and the source at `docs/assets/img/examples/analysis-pipeline.studyflow`. Author it in the modeler using the structure below.
 :::
 
 ## Stages

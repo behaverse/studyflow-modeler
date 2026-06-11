@@ -11,7 +11,7 @@ The simplest case: every participant is randomly assigned to one of two (or more
 
 Drop a `RandomGateway` after the demographics block. Add an outgoing sequence flow for each condition. The inspector lets you set the probability on each branch (default: equal). The runtime evaluates the probabilities at execution time and routes the participant down exactly one branch.
 
-::: {.callout-note appearance="simple" title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram (TODO)"}
 A simple two-group random assignment diagram should live at `docs/assets/img/guides/random-assignment.svg`. The element catalog already has [`random_gateway_pattern.svg`](../assets/img/elements/random_gateway_pattern.svg) which illustrates the basic shape.
 :::
 

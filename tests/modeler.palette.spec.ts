@@ -6,8 +6,8 @@ import {
   extractStudyflowFromSvg,
   gotoModeler,
   normalizeXml,
-  openFileMenu,
   readDownloadText,
+  runPaletteCommand,
   setSelectedElementName,
 } from './utils';
 
@@ -15,10 +15,10 @@ test.describe('Studyflow modeler palette flows', () => {
   test('adds palette items, names a task, and keeps exported outputs in sync', async ({ page }) => {
     await gotoModeler(page);
 
-    await addPaletteElement(page, 'Create Start Event', { x: 140, y: 160 });
+    await addPaletteElement(page, 'Events', 'Start', { x: 140, y: 160 });
     await expect(page.getByTestId('inspector-root')).toContainText('StartEvent');
 
-    await addPaletteElement(page, 'Create Task', { x: 340, y: 180 });
+    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
     await expect(page.getByTestId('inspector-root')).toContainText('Task');
 
     await setSelectedElementName(page, 'Review Task');
@@ -32,13 +32,12 @@ test.describe('Studyflow modeler palette flows', () => {
       });
     });
 
-    await openFileMenu(page);
     const svgDownloadPromise = page.waitForEvent('download');
-    await page.getByText('Export to SVG...', { exact: true }).click();
+    await runPaletteCommand(page, 'Export As...', 'SVG...');
     const svgDownload = await svgDownloadPromise;
     const svgText = await readDownloadText(svgDownload);
 
-    expect(svgDownload.suggestedFilename()).toBe('Untitled Diagram.svg');
+    expect(svgDownload.suggestedFilename()).toBe('diagram.svg');
     expect(svgText).toContain('Review Task');
     expect(svgText).toContain('<studyflow>');
 
@@ -48,21 +47,20 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizedEmbeddedStudyflow).toContain('name="Review Task"');
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
 
-    await openFileMenu(page);
     const studyflowDownloadPromise = page.waitForEvent('download');
-    await page.getByText('Save As...', { exact: true }).click();
+    await runPaletteCommand(page, 'Save As...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    expect(studyflowDownload.suggestedFilename()).toBe('Untitled Diagram.studyflow');
+    expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow');
     expect(normalizeXml(studyflowText)).toBe(normalizedEmbeddedStudyflow);
   });
 
   test('adds a schema-backed omniprocess element and preserves operation defaults', async ({ page }) => {
     await gotoModeler(page);
 
-    await addPaletteElement(page, 'Create Start Event', { x: 120, y: 160 });
-    await addSchemaPaletteElement(page, 'omniprocess', 'Map', { x: 320, y: 180 });
+    await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
+    await addSchemaPaletteElement(page, 'OmniProcess', 'Map', { x: 320, y: 180 });
 
     await page.route('https://api.iconify.design/**', async (route) => {
       await route.fulfill({
@@ -72,28 +70,25 @@ test.describe('Studyflow modeler palette flows', () => {
       });
     });
 
-    await openFileMenu(page);
     const svgDownloadPromise = page.waitForEvent('download');
-    await page.getByText('Export to SVG...', { exact: true }).click();
+    await runPaletteCommand(page, 'Export As...', 'SVG...');
     const svgDownload = await svgDownloadPromise;
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
 
-    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:task\b/);
+    // Map is a service task; its operation defaults (isDataOperation,
+    // operationType="map") stay implicit in the schema rather than being
+    // serialized onto the element.
+    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:serviceTask\b/);
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
-    expect(normalizedEmbeddedStudyflow).toContain('studyflow:isDataOperation="true"');
-    expect(normalizedEmbeddedStudyflow).toContain('studyflow:operationType="map"');
     expect(normalizedEmbeddedStudyflow).toContain('<omniprocess:map/>');
 
-    await openFileMenu(page);
     const studyflowDownloadPromise = page.waitForEvent('download');
-    await page.getByText('Save As...', { exact: true }).click();
+    await runPaletteCommand(page, 'Save As...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
     const normalizedStudyflow = normalizeXml(studyflowText);
 
-    expect(normalizedStudyflow).toContain('studyflow:isDataOperation="true"');
-    expect(normalizedStudyflow).toContain('studyflow:operationType="map"');
     expect(normalizedStudyflow).toContain('<omniprocess:map/>');
     expect(normalizedStudyflow).toBe(normalizedEmbeddedStudyflow);
   });
@@ -101,17 +96,19 @@ test.describe('Studyflow modeler palette flows', () => {
   test('applies default schema values for omniprocess EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 
-    await addSchemaPaletteElement(page, 'omniprocess', 'EEGPrep', { x: 260, y: 200 });
+    await addSchemaPaletteElement(page, 'OmniProcess', 'EEGPrep', { x: 260, y: 200 });
 
-    await openFileMenu(page);
     const studyflowDownloadPromise = page.waitForEvent('download');
-    await page.getByText('Save As...', { exact: true }).click();
+    await runPaletteCommand(page, 'Save As...');
     const studyflowDownload = await studyflowDownloadPromise;
     const normalizedStudyflow = normalizeXml(await readDownloadText(studyflowDownload));
 
+    // The EEGPrep template now expands into a subprocess pipeline
+    // (filter signal -> remove artifacts) of data-operation service tasks.
     expect(normalizedStudyflow).toContain('<omniprocess:preprocessEEG ');
+    expect(normalizedStudyflow).toMatch(/<[A-Za-z0-9_]+:subProcess\b/);
     expect(normalizedStudyflow).toContain('studyflow:isDataOperation="true"');
-    expect(normalizedStudyflow).toContain('studyflow:operationType="map"');
+    expect(normalizedStudyflow).toContain('<omniprocess:filter ');
     expect(normalizedStudyflow).toContain('name="EEGPrep"');
   });
 });

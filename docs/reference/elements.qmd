@@ -29,7 +29,7 @@ Studyflow elements ship in a layered set of moddle schemas:
 - **`cognitive`** (core): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`).
 - **`behaverse`**, **`omniprocess`**, **`datatrove`**, **`galea`** (optional): domain extensions enabled from the modeler's schema palette.
 
-See [Extensions](extensions.qmd) for how to author your own schema.
+See [Schema packs](schema-packs.qmd) for the element catalogs of the other schema packs, and [Extensions](extensions.qmd) for how to author your own schema.
 
 ## Events
 

@@ -19,7 +19,11 @@ Each operation is a marker (a small *f* badge) on an otherwise normal BPMN task.
 | `Transform` | generic | Any pure function not better described by the above. |
 | `Compose` | n/a | Bundle several primitive operations into one logical step. |
 
+In the modeler palette these elements use Title Case names (Map, Filter, Reduce, ...) while the underlying `operationType` values serialized in the XML are lowercase (`map`, `filter`, `reduce`, ...) -- see [Data](../reference/data.qmd).
+
 `Filter` changes the dataset by removing rows. A *data-driven gateway* changes the control flow. They are not interchangeable -- see [Data](../reference/data.qmd) for the distinction.
+
+Ready-made preprocessing templates -- an fMRIPrep task (`PreprocessfMRI`) and an EEGPrep subprocess (`PreprocessEEG`) -- ship with the optional `omniprocess` schema; see [Schema packs](../reference/schema-packs.qmd).
 
 ## A typical pipeline
 
@@ -34,7 +38,7 @@ A behavioral RT analysis pipeline usually has this shape:
 
 Modeled in Studyflow, each step is a task with the corresponding marker, connected by sequence flows. Data flows are dashed edges from/to the data stores.
 
-::: {.callout-note appearance="simple" title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram (TODO)"}
 The canonical RT pipeline figure should live at `docs/assets/img/guides/preprocessing-pipeline.svg`.
 :::
 

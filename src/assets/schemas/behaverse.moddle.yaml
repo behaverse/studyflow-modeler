@@ -7,10 +7,11 @@ uri: http://behaverse.org/schemas/studyflow/behaverse
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_B.png
 xml:
   tagAlias: lowerCase
-version: 26.0528
+version: 26.0610
 associations: []
 enumerations:
   - name: BehaverseSceneEnum
+    isAbstract: true
     literalValues:
       - name: Undefined
         value: undefined
@@ -59,6 +60,7 @@ enumerations:
       - name: Which One (WO)
         value: WO
   - name: AgentTypeEnum
+    isAbstract: true
     description: |
       Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
     literalValues:

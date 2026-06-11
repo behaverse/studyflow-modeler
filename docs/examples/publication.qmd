@@ -11,8 +11,14 @@ Studyflow diagrams provide a visual, machine-readable specification that generat
 
 The modular structure of studyflow enables selective rendering of elements, allowing authors to emphasize different aspects of their study design depending on audience and context.
 
-Here is an example that illustrates how a single studyflow specification can be visualized in different ways for publication:
+The modeler currently offers three rendering mechanisms (see [Views](../reference/views.qmd)):
 
-1. as a comprehensive study workflow including all procedural details,
-2. as a simplified figure for the main manuscript, and
-3. as an interactive figure for online supplements or presentations.
+1. **Diagram export** -- the full study workflow exported as SVG or PNG, suitable for a methods figure or supplement.
+2. **Checklist view** -- the diagram flattened into a list of activities with their checklist items, suitable for protocol annexes and reporting-guideline compliance (see [Reporting guidelines](reporting-guidelines.qmd)).
+3. **Gantt view** -- time-sensitive elements placed along a temporal axis, suitable for SPIRIT-style schedules of enrolment and assessment.
+
+Because all three render from the same `.studyflow` source, the manuscript figure, the compliance checklist, and the timeline cannot drift apart.
+
+::: {.callout-note appearance="simple" title="Worked example (TODO)"}
+A worked example showing the same studyflow rendered as a full diagram, a simplified manuscript figure, and an interactive supplement is planned for this page.
+:::

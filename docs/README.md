@@ -41,4 +41,4 @@ npm run docs:build    # renders to dist/docs/
 - Example pages have a `categories:` list with one or more of `Experiments`, `Analysis`.
 - Diagrams: prefer SVG over PNG. Source `.studyflow` files live next to the rendered SVG so the source is recoverable.
 - Cross-link element mentions back to `reference/elements.qmd` and pipeline operations back to `reference/data.qmd`.
-- Contributor-facing content lives in `develop/`, not `reference/`.
+- Contributor-facing content currently lives in `reference/extensions.qmd` (a dedicated `develop/` section may be split out later).

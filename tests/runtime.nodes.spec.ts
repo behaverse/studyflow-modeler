@@ -21,7 +21,7 @@ async function runStudyflow(page: Page, key: string, xml: string): Promise<void>
     },
     { k: key, x: xml },
   );
-  await page.goto(`/run.html?session_id=${key}&seed=42`);
+  await page.goto(`/run.html?diagram_id=${key}&seed=42`);
 }
 
 const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -52,7 +52,7 @@ const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="Study_1" isExecutable="false">
-    <bpmn2:startEvent id="StartEvent_1" name="Consent" requiresConsent="true">
+    <bpmn2:startEvent id="StartEvent_1" name="Consent" studyflow:consentFormUri="/consent.txt">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Instr_1" name="Should not appear">
@@ -131,6 +131,9 @@ test.describe('Studyflow runtime nodes', () => {
   });
 
   test('declined consent aborts the run before instruction', async ({ page }) => {
+    await page.route('**/consent.txt', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/plain', body: 'You agree to participate.' }),
+    );
     await runStudyflow(page, 'runner-stages-consent', CONSENT_DECLINE_XML);
 
     await expect(page.getByRole('heading', { name: 'Consent' })).toBeVisible();
@@ -140,8 +143,8 @@ test.describe('Studyflow runtime nodes', () => {
 
     // Run should never reach the Instruction stage.
     await expect(page.getByRole('heading', { name: 'Should not appear' })).toBeHidden();
-    // Phase chip in the header reads "aborted".
-    await expect(page.locator('header').getByText('aborted', { exact: false })).toBeVisible();
+    // Phase chip in the logs panel reads "aborted".
+    await expect(page.getByText('aborted', { exact: true })).toBeVisible();
   });
 
   test('untyped bpmn:Task renders the generic continue node', async ({ page }) => {

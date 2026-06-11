@@ -10,35 +10,53 @@ export async function gotoModeler(page: Page): Promise<void> {
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
 }
 
-export async function openFileMenu(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'File' }).click();
-  await expect(page.getByText('Open File...', { exact: true })).toBeVisible();
+export async function openCommandPalette(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Open command palette' }).click();
+  await expect(page.getByPlaceholder(/Search commands/)).toBeVisible();
+}
+
+/**
+ * Open the command palette and click through one or more entries
+ * (e.g. 'Export As...' then 'SVG...' for submenu commands).
+ */
+export async function runPaletteCommand(page: Page, ...labels: string[]): Promise<void> {
+  await openCommandPalette(page);
+  for (const label of labels) {
+    await page.getByRole('dialog').getByText(label, { exact: true }).click();
+  }
+}
+
+/** Click a tile (by its exact label) inside the currently open palette flyout. */
+async function clickPaletteTile(page: Page, label: string): Promise<void> {
+  // A flyout can list a BPMN item and a same-named schema extra; the BPMN
+  // group items render first, so take the first visible match.
+  const tile = page
+    .locator('button:visible')
+    .filter({ has: page.locator('span', { hasText: new RegExp(`^${label}$`) }) })
+    .first();
+  await expect(tile).toBeVisible();
+  await tile.click();
 }
 
 export async function addPaletteElement(
   page: Page,
-  title: string,
+  group: string,
+  label: string,
   position: { x: number; y: number },
 ): Promise<void> {
-  await page.getByTitle(title).click();
+  await page.getByRole('button', { name: group, exact: true }).click();
+  await clickPaletteTile(page, label);
   await page.getByTestId('modeler-canvas').click({ position });
 }
 
 export async function addSchemaPaletteElement(
   page: Page,
-  schemaPrefix: string,
+  schemaName: string,
   label: string,
   position: { x: number; y: number },
 ): Promise<void> {
-  await page.getByTitle(`More ${schemaPrefix} elements...`).click();
-
-  const popupEntry = page
-    .locator('.djs-popup .entry')
-    .filter({ has: page.locator('.djs-popup-label', { hasText: label }) })
-    .first();
-
-  await expect(popupEntry).toBeVisible();
-  await popupEntry.click();
+  await page.getByRole('button', { name: `More ${schemaName} elements...` }).click();
+  await clickPaletteTile(page, label);
   await page.getByTestId('modeler-canvas').click({ position });
 }
 
@@ -49,7 +67,7 @@ export async function setSelectedElementName(page: Page, value: string): Promise
 }
 
 export async function uploadStudyflowDiagram(page: Page, filename = 'sample.studyflow'): Promise<void> {
-  const diagramBuffer = readFileSync(path.join(process.cwd(), 'src/assets/new_diagram.bpmn'));
+  const diagramBuffer = readFileSync(path.join(process.cwd(), 'src/assets/examples/new_diagram.bpmn'));
 
   await page.locator('input[type="file"]').setInputFiles({
     name: filename,

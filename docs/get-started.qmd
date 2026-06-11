@@ -7,7 +7,7 @@ This page walks you through a complete (but small) studyflow diagram so you lear
 
 If you want to skip ahead:
 
-- The downloadable [`first.studyflow.svg`](assets/first.studyflow.svg) file used in this page.
+- The downloadable `first.studyflow.svg` file used in this page (not yet published -- see the note below).
 - The [Modeler app](guides/modeler-app.qmd) walkthrough for the UI.
 - The [Specification](reference/spec.qmd) for the formal grammar.
 
@@ -15,7 +15,7 @@ If you want to skip ahead:
 
 Below is a deliberately generic study: it collects a small amount of demographic data, runs one cognitive task, saves the data, runs a short analysis script, and produces a report. It is small enough to fit on one screen and exercises every category of element you will encounter elsewhere.
 
-::: {.callout-note appearance="simple" title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram (TODO)"}
 The canonical Get Started diagram (`first.studyflow.svg`) needs to be authored in the modeler and saved to `docs/assets/first.studyflow.svg` (a rendered SVG with the source XML embedded). Until then, this page references it by name only.
 :::
 

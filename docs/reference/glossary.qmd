@@ -1,6 +1,7 @@
 ---
 title: Glossary
 description: One-sentence definitions of the terms used across these docs
+order: 9
 ---
 
 This page collects short definitions and links to the deep reference for each term.

@@ -27,7 +27,7 @@ For single-participant studies, ordinary BPMN tasks and pools/lanes are simpler.
 
 A common pattern: two participants take turns making decisions that depend on each other's previous responses. Each round is a choreography task with one initiator and one responder. Across rounds, the initiator alternates.
 
-::: {.callout-note appearance="simple" title="Diagram"}
+::: {.callout-note appearance="simple" title="Diagram (TODO)"}
 A fully worked dyadic-decision diagram should live at `docs/assets/img/examples/dyadic-decision.svg`. The figure above (`choreography.bpmn.png`) illustrates the choreography-task notation that the diagram would extend.
 :::
 

@@ -7,7 +7,7 @@ uri: http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase
-version: 26.0528
+version: 26.0610
 
 associations: []
 enumerations:
@@ -187,12 +187,12 @@ types:
         description: Checklist items.
         isAttr: false
         type: MarkdownString
+        isMany: true
         meta:
           order: 1
-        isMany: true
-        categories:
-          - Documentation
-        pinned: false
+          categories:
+            - Documentation
+          pinned: false
   - name: Study
     description: Process definition for a Studyflow study.
     superClass:
@@ -213,7 +213,6 @@ types:
         isAttr: false
         isMany: true
         type: String
-        meta:
       - name: isExecutable
         redefines: bpmn:Process#isExecutable
         isAttr: true
@@ -463,10 +462,6 @@ types:
         meta:
           categories:
             - Data
-          condition:
-            language: json
-            body:
-              format: bdm
       - name: schema
         description: |
           Path to the schema describing the dataset structure (e.g., CSVW).

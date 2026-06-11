@@ -71,6 +71,51 @@ description: Design and execute studyflow diagrams using the Modeler webapp
 </figure>
 
 
+## Command palette and shortcuts
+
+Press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd> to open the command palette, a searchable list of every modeler action (run, file operations, exports, views, settings). While the search box is empty, common commands have single-key shortcuts:
+
+| Key | Command |
+|---|---|
+| 1 | Run |
+| 2 | New |
+| 3 | Open File |
+| 4 | Examples |
+| 5 | Save As |
+| 6 | Settings |
+| 0 | Reset Zoom |
+
+The palette also hosts the *View As...* commands (Checklist, Gantt) -- see [Views](../reference/views.qmd).
+
+## Autosave
+
+The modeler can save the current diagram XML to the browser's local storage as you edit, so the diagram survives reloads. Toggle this under *Settings &rarr; Editor &rarr; Auto-save diagram* (off or on for this browser). Autosave is local-only; use *Save As...* to keep a `.studyflow` file alongside your code and data.
+
+## Settings
+
+The *Settings* view (palette shortcut <kbd>6</kbd>) groups configuration into sections:
+
+- **Account** -- the Behaverse API key used to publish studies and record run data.
+- **Editor** -- canvas preferences and the autosave toggle.
+- **Extensions** -- the schema palette (see below).
+- **LLM** -- default provider (`claude` or `ollama`), model, and endpoint for [bot-driven tasks](llm-bots.qmd).
+
+## Schema palette
+
+Element types ship in layered schemas. `studyflow` and `cognitive` are core and always loaded; the domain extensions -- *Behaverse*, *OmniProcess*, *DataTrove*, *Galea* -- can be enabled or disabled under *Settings &rarr; Extensions*. Disabled schemas are excluded from the palette and not recognized when opening diagrams (reload the page to apply changes). See [Schema packs](../reference/schema-packs.qmd) for what each pack provides.
+
+## Export formats
+
+Besides saving the `.studyflow` XML, the modeler exports the diagram in several formats (see `src/modeler/exporters/`):
+
+| Format | What it is for |
+|---|---|
+| SVG | Vector figure of the diagram, for manuscripts and web pages. |
+| PNG | Raster figure, for slides and quick sharing. |
+| LinkML | The diagram's data elements as a LinkML schema, for data engineers and validation tooling. |
+| NIDM-Results (Turtle) | Analysis metadata as NIDM-Results RDF, for neuroimaging provenance tooling. |
+| ARTEM-IS (JSON) | EEG methods descriptor following the ARTEM-IS template, for EEG reporting. |
+
 ## Simulation mode
 
 Once your diagram is complete, you can test it using the simulation mode. Click the "Simulate" button in the top toolbar to start the simulation. This will allow you to interact with the studyflow as if it were running in a real study.

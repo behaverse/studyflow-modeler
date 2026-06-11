@@ -18,6 +18,18 @@ The runner lives at `run.html` (alongside the modeler at `app.html`). There are 
 
 The `seed` query parameter (integer) makes random branches deterministic, which is useful for pilot runs and reproducibility.
 
+## Launching a study
+
+The runner accepts three URL query parameters:
+
+| Parameter | Purpose |
+|---|---|
+| `studyflow_url` | Absolute or relative URL of a hosted `.studyflow` file to fetch and run. |
+| `diagram_id` | Key of a diagram stored in the browser's local storage. Used when the runner is launched from the modeler's *Run* button; not useful across browsers or machines. |
+| `seed` | Integer RNG seed. Makes gateway draws (random/stratified branches) reproducible across runs. |
+
+`studyflow_url` and `diagram_id` are alternatives; if neither is given, the runner shows the file-upload landing screen.
+
 ## What the runner does
 
 After loading, the runner:
@@ -47,6 +59,37 @@ Gateway behavior:
 
 Other element kinds (data references, score gateways, sub-processes that aren't traversed inline, etc.) are skipped at run time -- they affect modeling and analysis, not execution.
 
+### What executes vs what is design-only
+
+Not every element you can model has a dedicated runtime. The current support matrix:
+
+- **Executed natively** -- `StartEvent` (consent), `EndEvent` (completion code, redirect), `Instruction`, `Questionnaire`, `BehaverseTask`, and the gateways listed above.
+- **Generic fallback** -- `CognitiveTask`, `VideoGame`, and `Rest` are design-time elements; at run time they render the generic task step (a *Continue* button), like any plain BPMN task.
+- **Questionnaire instruments** -- only PHQ-9, GAD-7, and BDI-II ship as built-in forms. Other `instrument` values (STAI, PSS, custom IDs, ...) fall back to the generic step.
+- **`ParallelGateway`** -- unsupported; the runner raises an error during validation/traversal.
+
+### Configuring Behaverse tasks
+
+A `BehaverseTask` carries instrument-specific YAML in its `configurations` property. The `Timelines:` section supports two styles:
+
+- **Built-in by name** -- a timeline listed by name only (e.g. `XCIT_NB_01`) runs a timeline that ships with the Behaverse build.
+- **Inline, merged over the baseline** -- a timeline that declares its own blocks is authored inline. At run time it is merged over the per-scene baseline configuration (`Resources/<scene>.json`), so you only author the fields that diverge from the defaults. New blocks should set `Inherits: Default` to pick up the baseline block parameters.
+
+Behaverse tasks can also be driven by a bot instead of a human participant -- see [LLM and bot participants](llm-bots.qmd).
+
+## Recording data
+
+The runner can stream run data to a Behaverse data server. Recording is controlled by the **Record events** toggle in the runner header -- it is **off by default** (privacy first) and the choice is persisted in the browser's local storage.
+
+To record, configure a data server in the modeler's *Settings* (API key; the base URL defaults to `https://data.behaverse.org/v1`); the study name is taken from the diagram. When the toggle is on and a server is configured, the runner:
+
+1. Creates a session on the server at the start of the run.
+2. Streams batched studyflow events -- trial outcomes, questionnaire responses, and timings -- as the participant progresses.
+3. Records a SHA-256 hash of the diagram XML alongside the events, so every data point is traceable to the exact study version that produced it.
+4. `PATCH`es the session with the final status and completion code when the run ends.
+
+If no server is configured (or the toggle is off), the run proceeds local-only -- nothing leaves the browser and the study still works end-to-end. See `src/runner/dataServer.ts` and `src/lib/core/runtimeSettings.ts` for details.
+
 ## Adding a new node kind
 
 The runner discovers node modules under `src/runner/nodes/<kind>/index.tsx` at startup. Each module calls `registerNode(...)` with a `match` predicate (typically `extensionType: 'myschema:MyType'`), a `toJob(node)` mapper, and a React `Component`. See `src/runner/nodes/README.md` for the full template -- adding a new node kind only requires creating one new folder.
@@ -58,5 +101,6 @@ The *Logs* panel (top-right of the runner header) records parsing, validation, a
 ## What's next
 
 - [Modeler app](modeler-app.qmd) -- how to author a diagram.
+- [LLM and bot participants](llm-bots.qmd) -- run Behaverse tasks with simulated participants.
 - [Read a studyflow](read-a-studyflow.qmd) -- learn the notation by reading one.
 - [Publish](publish.qmd) -- how to share a diagram so the runner can load it from a URL.

@@ -215,3 +215,11 @@ Use the schema prefix to reference types from another schema, e.g. `studyflow:YA
 - Incorrect BPMN mapping: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
 - Invalid condition shape: malformed `condition.body` JSON disables conditional visibility.
 - Incorrect `redefines` owner: invalid targets are dropped.
+
+## Naming conventions
+
+Property names follow camelCase (`consentFormUri`, `completionCodeType`), except where a type mirrors an external tool's CLI one-to-one -- e.g. `PreprocessfMRI`'s `output_spaces` matches the corresponding fMRIPrep flag verbatim so configurations can be copy-pasted.
+
+## The LinkML companion schema
+
+`src/assets/schemas/studyflow.linkml.yaml` is a hand-maintained LinkML companion to the core moddle schemas. It declares itself the authoritative definition of the core element types and constraints, but it is **not loaded by the modeler** -- the schema loader globs only `*.moddle.yaml` -- and the LinkML exporter generates its output from the diagram's data elements rather than from this file. Keep it in sync manually when changing data element types in `studyflow.moddle.yaml` or `cognitive.moddle.yaml`.
