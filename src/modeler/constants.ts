@@ -121,6 +121,7 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'loop':                   'iconify mdi--loop',
   'compensation':           'iconify bpmn--compensation-marker',
   'checklist':              'iconify mdi--checkbox-outline',
+  'binding':                'iconify mdi--function-variant',
 };
 
 /** Icon lookup by bpmnType, sourced from PALETTE_GROUPS. */

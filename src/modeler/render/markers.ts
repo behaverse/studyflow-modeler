@@ -23,6 +23,11 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
     markers.push('checklist');
   }
 
+  const uses = getAttribute(element, 'uses');
+  if (typeof uses === 'string' && uses.trim()) {
+    markers.push('binding');
+  }
+
   if (is(element, 'bpmn:SubProcess') && !element.di.isExpanded) {
     markers.push('subprocess');
   }

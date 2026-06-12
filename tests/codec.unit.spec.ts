@@ -54,6 +54,23 @@ test.describe('studyflow YAML codec', () => {
     ]);
   });
 
+  test('uses attribute and with body survive a load (executable bindings)', async () => {
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const xml = readFileSync(path.join(EXAMPLES_DIR, 'bindings_demo.studyflow'), 'utf8');
+    const { rootElement } = await moddle.fromXML(xml);
+    const study = rootElement.rootElements.find(
+      (re: any) => re.$type === 'bpmn:Process' || re.$type === 'studyflow:Study',
+    );
+    const map = study.flowElements.find((el: any) => el.id === 'MapRT');
+
+    expect(map.get('studyflow:uses')).toBe('python://pkg_for_st.do_map@1.2');
+    expect(map.get('studyflow:with').get('value')).toBe('column: rt\nfn: median');
+
+    const fetch = study.flowElements.find((el: any) => el.id === 'FetchScript');
+    expect(fetch.get('studyflow:uses')).toBe('https://example.org/scripts/clean.py@v2');
+    expect(fetch.get('studyflow:with')).toBeUndefined();
+  });
+
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const xml = readFileSync(path.join(EXAMPLES_DIR, 'bot_ollama.studyflow'), 'utf8');

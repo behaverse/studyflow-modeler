@@ -16,6 +16,7 @@ const CATEGORY_ORDER = [
   'Gantt',
   'Content',
   'Data',
+  'Execution',
   'Instrument',
   'Behaverse',
   'DataTrove',

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:omniprocess="https://w3id.org/omniprocess" id="bindings_demo" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:process id="BindingsDemo" name="Executable bindings demo" isExecutable="true">
+    <bpmn2:extensionElements>
+      <studyflow:study />
+    </bpmn2:extensionElements>
+    <bpmn2:documentation>Demonstrates GitHub-Actions-style executable bindings: a `uses` reference plus a `with` argument block on activities that represent code.</bpmn2:documentation>
+    <bpmn2:startEvent id="Start" name="Start">
+      <bpmn2:outgoing>Flow_Start_Map</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:serviceTask id="MapRT" name="Median RT per block" studyflow:isDataOperation="true" studyflow:operationType="map" studyflow:uses="python://pkg_for_st.do_map@1.2">
+      <bpmn2:extensionElements>
+        <omniprocess:map />
+      </bpmn2:extensionElements>
+      <studyflow:with>column: rt
+fn: median</studyflow:with>
+      <bpmn2:incoming>Flow_Start_Map</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Map_Fetch</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:task id="FetchScript" name="Fetch cleaning script" studyflow:uses="https://example.org/scripts/clean.py@v2">
+      <bpmn2:incoming>Flow_Map_Fetch</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_Fetch_End</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:endEvent id="End" name="Done">
+      <bpmn2:incoming>Flow_Fetch_End</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="Flow_Start_Map" sourceRef="Start" targetRef="MapRT" />
+    <bpmn2:sequenceFlow id="Flow_Map_Fetch" sourceRef="MapRT" targetRef="FetchScript" />
+    <bpmn2:sequenceFlow id="Flow_Fetch_End" sourceRef="FetchScript" targetRef="End" />
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="BindingsDemo">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="168" y="225" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MapRT_di" bpmnElement="MapRT">
+        <dc:Bounds x="260" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="FetchScript_di" bpmnElement="FetchScript">
+        <dc:Bounds x="420" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="582" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="589" y="225" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_Map_di" bpmnElement="Flow_Start_Map">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="260" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Map_Fetch_di" bpmnElement="Flow_Map_Fetch">
+        <di:waypoint x="360" y="200" />
+        <di:waypoint x="420" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fetch_End_di" bpmnElement="Flow_Fetch_End">
+        <di:waypoint x="520" y="200" />
+        <di:waypoint x="582" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

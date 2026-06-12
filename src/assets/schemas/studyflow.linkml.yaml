@@ -217,6 +217,14 @@ classes:
         description: Names of variables produced by this activity.
         range: string
         multivalued: true
+      uses:
+        description: |
+          Executable binding, GitHub-Actions style
+          (`<scheme>://<ref>[@<version-or-digest>]`).
+        range: string
+      with:
+        description: YAML mapping of arguments passed to the `uses` binding.
+        range: YAMLString
 
   CognitiveTask:
     description: A cognitive test administered to a participant.

@@ -4,6 +4,7 @@ import type { NodeProps } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
+import { readBinding, resolveBinding, validateBindings } from '../bindings';
 
 declare module '@/runner/types' {
   interface JobsByType {
@@ -16,19 +17,72 @@ type TaskJob = {
   node: FlowNode;
 };
 
+function BindingPanel({ node }: { node: FlowNode }) {
+  const binding = readBinding(node);
+  if (!binding) return null;
+  const resolved = resolveBinding(binding);
+  const argEntries = resolved.args ? Object.entries(resolved.args) : [];
+
+  return (
+    <div className="border border-stone-200 rounded p-4 bg-stone-50 flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <span className={nodeStyles.subtitle}>Would call</span>
+        <code className={nodeStyles.codeBlock}>{binding.uses}</code>
+      </div>
+      {resolved.parsed && (
+        <dl className="text-sm text-stone-700 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          <dt className="text-stone-500">scheme</dt>
+          <dd className="font-mono">{resolved.parsed.scheme}</dd>
+          <dt className="text-stone-500">ref</dt>
+          <dd className="font-mono break-all">{resolved.parsed.ref}</dd>
+          {resolved.parsed.version && (
+            <>
+              <dt className="text-stone-500">version</dt>
+              <dd className="font-mono break-all">{resolved.parsed.version}</dd>
+            </>
+          )}
+        </dl>
+      )}
+      {argEntries.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className={nodeStyles.subtitle}>with</span>
+          <dl className="text-sm text-stone-700 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            {argEntries.map(([key, value]) => (
+              <div key={key} className="contents">
+                <dt className="font-mono text-stone-500">{key}</dt>
+                <dd className="font-mono break-all">{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+      <p className={nodeStyles.subtitle}>Bindings are not executed in the browser runner.</p>
+    </div>
+  );
+}
+
 function Task({ job, log, complete }: NodeProps<TaskJob>) {
   const name = job.node.businessObject?.name || job.node.id;
+  const binding = readBinding(job.node);
 
   useEffect(() => {
-    log('skip', `Untyped task '${job.node.id}' rendered as continue node.`);
+    if (binding) {
+      log('info', `Task '${job.node.id}' declares a binding: ${binding.uses}`);
+    } else {
+      log('skip', `Untyped task '${job.node.id}' rendered as continue node.`);
+    }
   }, [job.node.id]);
 
   return (
     <NodePanel>
       <h2 className={nodeStyles.title}>{name}</h2>
-      <p className={nodeStyles.subtitle}>
-        This task has no applied type. Press Continue to advance.
-      </p>
+      {binding ? (
+        <BindingPanel node={job.node} />
+      ) : (
+        <p className={nodeStyles.subtitle}>
+          This task has no applied type. Press Continue to advance.
+        </p>
+      )}
       <div className={nodeStyles.actions}>
         <button type="button" className={nodeStyles.primaryButton} onClick={() => complete()}>
           Continue
@@ -43,4 +97,5 @@ registerNode({
   match: { fallback: 'task' },
   toJob: (node) => ({ type: 'task', node }),
   Component: Task,
+  validate: (studyflow) => validateBindings(studyflow),
 });

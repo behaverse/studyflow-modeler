@@ -58,7 +58,7 @@ const KNOWN_DIVERGENCES: string[] = [
   'type cognitive:Rest: bpmnType bpmn:Activity != bpmn:Task',
   'type cognitive:StratifiedAllocationGateway: missing in linkml source',
   'type cognitive:VideoGame: bpmnType bpmn:Activity != bpmn:Task',
-  'type studyflow:Activity: attributes missing in linkml: inputs, isDataOperation, outputs',
+  'type studyflow:Activity: attributes missing in linkml: inputs, isDataOperation, outputs, uses, with',
   'type studyflow:Activity: style wrapper != trait',
   'type studyflow:Actor: missing in moddle mirrors',
   'type studyflow:Array: attributes only in linkml: checklist, documentation',
@@ -88,6 +88,7 @@ const KNOWN_DIVERGENCES: string[] = [
   'type studyflow:Study: attributes only in linkml: name, version',
   'type studyflow:Table: attributes missing in linkml: state',
   'type studyflow:Timeseries: attributes missing in linkml: state',
+  'type studyflow:With: missing in linkml source',
 ];
 
 function diffCatalogs(): string[] {

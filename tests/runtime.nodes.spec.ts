@@ -86,6 +86,44 @@ const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </studyflow:study>
 </bpmn2:definitions>`;
 
+const BOUND_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-bound" targetNamespace="http://bpmn.io/schema/bpmn">
+  <studyflow:study id="Study_1" isExecutable="false">
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>F1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:task id="Bound_1" name="Median RT" studyflow:uses="python://pkg_for_st.do_map@1.2">
+      <studyflow:with>column: rt
+fn: median</studyflow:with>
+      <bpmn2:incoming>F1</bpmn2:incoming>
+      <bpmn2:outgoing>F2</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:endEvent id="EndEvent_1">
+      <bpmn2:incoming>F2</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Bound_1" />
+    <bpmn2:sequenceFlow id="F2" sourceRef="Bound_1" targetRef="EndEvent_1" />
+  </studyflow:study>
+</bpmn2:definitions>`;
+
+const BAD_BINDING_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-badbinding" targetNamespace="http://bpmn.io/schema/bpmn">
+  <studyflow:study id="Study_1" isExecutable="false">
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>F1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:task id="Bad_1" name="Broken binding" studyflow:uses="python:/oops">
+      <bpmn2:incoming>F1</bpmn2:incoming>
+      <bpmn2:outgoing>F2</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:endEvent id="EndEvent_1">
+      <bpmn2:incoming>F2</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Bad_1" />
+    <bpmn2:sequenceFlow id="F2" sourceRef="Bad_1" targetRef="EndEvent_1" />
+  </studyflow:study>
+</bpmn2:definitions>`;
+
 test.describe('Studyflow runtime nodes', () => {
   test('no-Unity flow advances through start, instruction, questionnaire, end', async ({ page }) => {
     // Track whether the runtime attempted to fetch the Unity manifest. The
@@ -159,5 +197,28 @@ test.describe('Studyflow runtime nodes', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+  });
+
+  test('a bound task displays its resolved uses binding and with arguments', async ({ page }) => {
+    await runStudyflow(page, 'runner-stages-bound', BOUND_TASK_XML);
+
+    await page.getByRole('button', { name: 'Begin' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Median RT' })).toBeVisible();
+    await expect(page.getByText('Would call')).toBeVisible();
+    await expect(page.getByText('python://pkg_for_st.do_map@1.2', { exact: true })).toBeVisible();
+    // `with` arguments parsed and displayed.
+    await expect(page.getByText('median', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+  });
+
+  test('a malformed uses binding fails validation before the run starts', async ({ page }) => {
+    await runStudyflow(page, 'runner-stages-badbinding', BAD_BINDING_XML);
+
+    await expect(page.getByText(/Invalid 'uses' binding/)).toBeVisible();
+    // The run halts at validation; the bound task never renders.
+    await expect(page.getByRole('heading', { name: 'Broken binding' })).toBeHidden();
   });
 });
