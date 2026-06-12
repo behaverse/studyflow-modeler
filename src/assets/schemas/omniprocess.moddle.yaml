@@ -2,12 +2,12 @@
 
 name: OmniProcess
 prefix: omniprocess
-description: Studyflow extension for data processing pipelines - functional operations (map, filter, flatMap, group, reduce, compose), data hygiene tasks (anonymize, split), and prefilled neuroimaging preprocessing templates (fMRIPrep, EEGPrep).
+description: Studyflow extension for data processing pipelines - functional operations (map, filter, flatMap, reduce, compose) plus prefilled templates that bind an operation to a function via `uses` (group, split, anonymize, fMRIPrep, EEGPrep).
 uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
 xml:
   tagAlias: lowerCase
-version: 26.0610
+version: 26.0612
 associations: []
 enumerations: []
 types:
@@ -58,27 +58,6 @@ types:
           pinned: true
         default: flatMap
         redefines: omniprocess:Transform#operationType
-  - name: Group
-    description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--group
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: group
-        redefines: omniprocess:Transform#operationType
-      - name: key
-        description: Name of the variable(s) used as the grouping key.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Execution
   - name: Reduce
     description: Reduce a data stream to a single value.
     superClass:
@@ -121,34 +100,6 @@ types:
         meta:
           pinned: true
         default: compose
-        redefines: omniprocess:Transform#operationType
-  - name: AnonymizeData
-    description: Remove or pseudonymize identifying fields.
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--incognito
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: anonymizeData
-        redefines: omniprocess:Transform#operationType
-  - name: SplitData
-    description: Partition data items into named subsets (e.g., train/test).
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--call-split
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: splitData
         redefines: omniprocess:Transform#operationType
   - name: PreprocessfMRI
     description: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
@@ -251,6 +202,50 @@ types:
           categories:
             - EEGPrep
 templates:
+  # Parameterized operations: a generic operation type bound to a concrete
+  # function via `uses` (and arguments via `with`), instead of a dedicated
+  # schema type per operation.
+  - description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
+    object:
+      bpmn:name: Group
+      type: Map
+      bpmn:documentation: Partition a data stream into named groups by a key (e.g., participant, condition, block). A Map bound to a grouping function; set the key via `with`.
+      icon: iconify mdi--group
+      keywords:
+        - group
+        - groupby
+        - partition
+      operationType: group
+      uses: python://omniprocess.group
+      with: "key: participant"
+  - description: Partition data items into named subsets (e.g., train/test) with scikit-learn.
+    object:
+      bpmn:name: Split Data
+      type: Transform
+      bpmn:documentation: Partition data items into named subsets (e.g., train/test). Bound to scikit-learn's train_test_split; adjust sizes via `with`.
+      icon: iconify mdi--call-split
+      keywords:
+        - split
+        - train
+        - test
+        - holdout
+        - sklearn
+      operationType: splitData
+      uses: python://sklearn.model_selection.train_test_split
+      with: "test_size: 0.2"
+  - description: Remove or pseudonymize identifying fields.
+    object:
+      bpmn:name: Anonymize Data
+      type: Map
+      bpmn:documentation: Remove or pseudonymize identifying fields before sharing or further processing.
+      icon: iconify mdi--incognito
+      keywords:
+        - anonymize
+        - pseudonymize
+        - deidentify
+        - privacy
+      operationType: anonymizeData
+      uses: python://omniprocess.anonymize
   - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep

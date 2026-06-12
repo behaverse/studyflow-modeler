@@ -254,8 +254,12 @@ test.describe('moddle registration', () => {
     });
 
     test(`${prefix}: templates only set declared properties`, () => {
-      // Keys handled by the template expander itself rather than the moddle type.
-      const STRUCTURAL = new Set(['type', 'icon', 'flowElements', 'x', 'y', 'id', 'sourceRef', 'targetRef']);
+      // Keys handled by the template expander itself rather than the moddle type
+      // (matches RESERVED_TEMPLATE_KEYS in the catalog compiler, plus flow-node keys).
+      const STRUCTURAL = new Set([
+        'type', 'name', 'keywords', 'icon', 'attributes', 'mixins', 'flowElements',
+        'x', 'y', 'id', 'sourceRef', 'targetRef',
+      ]);
 
       const checkObject = (obj: Record<string, any>, context: string) => {
         const typeRef = String(obj.type);

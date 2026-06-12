@@ -26,14 +26,11 @@ Generic data-operation activities for preprocessing and analysis pipelines (see 
 - **`Map`** -- element-wise (1 &rarr; 1) transform producing a new stream.
 - **`FlatMap`** -- one-to-many transform (unnest, expand, explode).
 - **`Filter`** -- drop items that fail a criterion.
-- **`Group`** -- partition a stream into named groups.
 - **`Reduce`** -- aggregate a stream to a single value (per group).
 - **`Compose`** -- bundle several operations into one logical pipeline step.
-- **`AnonymizeData`** -- remove or pseudonymize identifying fields.
-- **`SplitData`** -- partition data into named subsets (e.g. train/test).
 - **`PreprocessfMRI`**, **`PreprocessEEG`** -- template-scoped preprocessing types, surfaced only via templates.
 
-Templates: an **fMRIPrep** task (`PreprocessfMRI` with fMRIPrep-style parameters such as `output_spaces`) and an **EEGPrep** subprocess (`PreprocessEEG` with `clean_artifacts`/ICA parameters).
+Templates: operations that are really "a generic operation plus a function" ship as prefilled templates rather than dedicated types -- **Group** (a `Map` bound to `python://omniprocess.group`, grouping key via `with`), **Split Data** (a `Transform` bound to scikit-learn's `train_test_split`, sizes via `with`), and **Anonymize Data** (a `Map` bound to `python://omniprocess.anonymize`); the `uses` binding is a prefilled default you can repoint at your own function. Plus the neuroimaging prefabs: an **fMRIPrep** task (`PreprocessfMRI` with fMRIPrep-style parameters such as `output_spaces`) and an **EEGPrep** subprocess (`PreprocessEEG` with `clean_artifacts`/ICA parameters).
 
 ## DataTrove
 

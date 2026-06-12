@@ -116,6 +116,24 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
+  test('adds a template-backed omniprocess operation with its uses binding', async ({ page }) => {
+    await gotoModeler(page);
+
+    // Group is a template (a Map bound to a grouping function), not a type.
+    await addSchemaPaletteElement(page, 'OmniProcess', 'Group', { x: 320, y: 180 });
+
+    const studyflowDownloadPromise = page.waitForEvent('download');
+    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
+    const studyflowDownload = await studyflowDownloadPromise;
+    const studyflowText = await readDownloadText(studyflowDownload);
+
+    expect(studyflowText).toContain('type: omniprocess:Map');
+    expect(studyflowText).toContain('name: Group');
+    expect(studyflowText).toContain('operationType: group');
+    expect(studyflowText).toContain('uses: python://omniprocess.group');
+    expect(studyflowText).toContain('key: participant');
+  });
+
   test('applies default schema values for omniprocess EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 
