@@ -9,7 +9,8 @@
  *
  *     python://pkg_for_st.do_map@1.2
  *     docker://ghcr.io/lab/img@sha256:abc123
- *     https://example.org/scripts/clean.py@v2
+ *     https://example.org/scripts/clean.py
+ *     file:///path/to/local/script.py
  *
  * The ref/version split happens at the LAST `@`, so docker digests
  * (`@sha256:...`) and refs containing `@` earlier in the string both parse.
@@ -28,7 +29,7 @@ export type UsesParseResult =
   | { ok: false; error: string };
 
 /** Schemes with first-class support; others parse but may be flagged as informational. */
-export const KNOWN_SCHEMES: readonly string[] = ['python', 'docker', 'https'];
+export const KNOWN_SCHEMES: readonly string[] = ['python', 'docker', 'https', 'file'];
 
 // RFC 3986 scheme: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 const SCHEME_RE = /^([A-Za-z][A-Za-z0-9+.-]*):\/\/(.*)$/;
