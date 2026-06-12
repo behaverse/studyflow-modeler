@@ -41,7 +41,7 @@ Walk the sequence flow from start to end. For each activity:
 
 - **Type icon.** Questionnaire, cognitive task, instruction, rest, script, manual -- each looks different.
 - **Inspector attributes.** Click and read the right panel. This is where specific parameterization live (stimulus, duration, language, model parameters).
-- **Binding marker.** If a data operation has an *ƒ* marker at its bottom edge, it declares an executable binding (`uses`, e.g. `python://` or `docker://`). The kind of operation (Map, Filter, Reduce, etc.) is conveyed by its type icon and the inspector.
+- **Function marker.** If a data operation has an *ƒ* marker at its bottom edge, it declares a function to run (`uses`, e.g. `python://` or `docker://`). The kind of operation (Map, Filter, Reduce, etc.) is conveyed by its type icon and the inspector.
 
 ## 5. Read the gateways
 

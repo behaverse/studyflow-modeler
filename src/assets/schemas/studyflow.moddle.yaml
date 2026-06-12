@@ -7,7 +7,7 @@ uri: http://behaverse.org/schemas/studyflow/v1
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase
-version: 26.0612
+version: 26.0613
 
 associations: []
 enumerations:
@@ -159,7 +159,7 @@ types:
   - name: With
     description: |
       Wrapper carrying the YAML arguments block for an activity's `uses`
-      binding as its text body (GitHub Actions' `with:`).
+      function as its text body (GitHub Actions' `with:`).
     properties:
       - name: value
         isBody: true
@@ -249,7 +249,7 @@ types:
             - Execution
       - name: uses
         description: |
-          Executable binding for this activity, GitHub-Actions style:
+          Function or executable this activity runs, GitHub-Actions style:
           `<scheme>://<ref>[@<version-or-digest>]`. Schemes: `python://`
           (importable callable, e.g. `python://pkg_for_st.do_map@1.2`),
           `docker://` (image, e.g. `docker://ghcr.io/lab/img@sha256:...`),
@@ -262,7 +262,7 @@ types:
             - Execution
       - name: with
         description: |
-          YAML mapping of arguments passed to the `uses` binding
+          YAML mapping of arguments passed to the `uses` function
           (GitHub Actions' `with:` block).
         type: With
         meta:

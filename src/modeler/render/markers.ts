@@ -15,7 +15,7 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
 
   const uses = getAttribute(element, 'uses');
   if (getAttribute(element, 'isDataOperation') || (typeof uses === 'string' && uses.trim())) {
-    markers.push('binding');
+    markers.push('function');
   }
 
   if (is(element, 'bpmn:SubProcess') && !element.di.isExpanded) {

@@ -117,12 +117,12 @@ Studyflow-specific modeler behavior lives under `meta` on the property:
 - `meta.categories: [Privacy]` -- tab the property lives under in the inspector.
 - `meta.condition.language: json` + `meta.condition.body: { otherField: value }` -- visibility predicate; the property only appears when other fields match. A value of `$set` matches whenever the other field has any value.
 
-## Executable bindings (`uses` / `with`)
+## Function calls (`uses` / `with`)
 
-Any activity can declare what implements it, GitHub-Actions style. Two properties on the core `studyflow:DataOperationActivity` trait (which mixes onto every `bpmn:Activity`) carry the binding:
+Any activity can declare the function that implements it, GitHub-Actions style. Two properties on the core `studyflow:DataOperationActivity` trait (which mixes onto every `bpmn:Activity`) carry the call:
 
 - `uses` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), and `https://` (a script URL). Other schemes are allowed but flagged as unresolved. The ref/version split happens at the last `@`, so docker digests parse correctly.
-- `with` -- a YAML mapping of arguments passed to the binding (GitHub Actions' `with:` block), carried as the text body of a `studyflow:With` wrapper. The inspector edits it under the Execution tab and reveals it once `uses` is set.
+- `with` -- a YAML mapping of arguments passed to the function (GitHub Actions' `with:` block), carried as the text body of a `studyflow:With` wrapper. The inspector edits it under the Execution tab and reveals it once `uses` is set.
 
 ```yaml
 uses: python://pkg_for_st.do_map@1.2
@@ -131,7 +131,7 @@ with:
   fn: median
 ```
 
-In the BPMN XML form, `uses` is an attribute on the activity (`studyflow:uses="..."`) and `with` is a `<studyflow:with>` child element holding the YAML as its body; both round-trip losslessly through the `.studyflow` YAML form. An activity that carries a `uses` value shows a function marker on the canvas. The reference runner resolves and validates the binding (the `uses` grammar and that `with` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/bindings_demo.studyflow` for a worked example.
+In the BPMN XML form, `uses` is an attribute on the activity (`studyflow:uses="..."`) and `with` is a `<studyflow:with>` child element holding the YAML as its body; both round-trip losslessly through the `.studyflow` YAML form. An activity that carries a `uses` value shows a function marker on the canvas. The reference runner resolves and validates the call (the `uses` grammar and that `with` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/function_call_demo.studyflow` for a worked example.
 
 ## Examples
 

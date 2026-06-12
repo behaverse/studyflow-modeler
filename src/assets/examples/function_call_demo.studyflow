@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:omniprocess="https://w3id.org/omniprocess" id="bindings_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="BindingsDemo" name="Executable bindings demo" isExecutable="true">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:omniprocess="https://w3id.org/omniprocess" id="function_call_demo" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:process id="FunctionCallDemo" name="Function calls demo" isExecutable="true">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
-    <bpmn2:documentation>Demonstrates GitHub-Actions-style executable bindings: a `uses` reference plus a `with` argument block on activities that represent code.</bpmn2:documentation>
+    <bpmn2:documentation>Demonstrates GitHub-Actions-style function calls on activities that represent code: a `uses` reference plus a `with` argument block.</bpmn2:documentation>
     <bpmn2:startEvent id="Start" name="Start">
       <bpmn2:outgoing>Flow_Start_Map</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -29,7 +29,7 @@ fn: median</studyflow:with>
     <bpmn2:sequenceFlow id="Flow_Fetch_End" sourceRef="FetchScript" targetRef="End" />
   </bpmn2:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="BindingsDemo">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="FunctionCallDemo">
       <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
         <dc:Bounds x="162" y="182" width="36" height="36" />
         <bpmndi:BPMNLabel>

@@ -54,9 +54,9 @@ test.describe('studyflow YAML format', () => {
     ]);
   });
 
-  test('uses attribute and with body survive a load (executable bindings)', async () => {
+  test('uses attribute and with body survive a load (function calls)', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const xml = readFileSync(path.join(EXAMPLES_DIR, 'bindings_demo.studyflow'), 'utf8');
+    const xml = readFileSync(path.join(EXAMPLES_DIR, 'function_call_demo.studyflow'), 'utf8');
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
       (re: any) => re.$type === 'bpmn:Process' || re.$type === 'studyflow:Study',

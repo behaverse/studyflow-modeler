@@ -1,5 +1,6 @@
 /**
- * Parser for the `uses` executable-binding reference on activities.
+ * Parser for the `uses` attribute on activities: a reference to the function
+ * (or container image, or script) that implements the activity.
  *
  * Grammar (GitHub-Actions inspired):
  *
@@ -18,14 +19,14 @@
  * informational rather than errors.
  */
 
-export type ParsedUses = {
+export type FunctionRef = {
   scheme: string;
   ref: string;
   version?: string;
 };
 
-export type UsesParseResult =
-  | { ok: true; value: ParsedUses }
+export type FunctionRefParseResult =
+  | { ok: true; value: FunctionRef }
   | { ok: false; error: string };
 
 /** Schemes with first-class support; others parse but may be flagged as informational. */
@@ -34,10 +35,10 @@ export const KNOWN_SCHEMES: readonly string[] = ['python', 'docker', 'https', 'f
 // RFC 3986 scheme: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 const SCHEME_RE = /^([A-Za-z][A-Za-z0-9+.-]*):\/\/(.*)$/;
 
-export function parseUses(raw: string | undefined | null): UsesParseResult {
+export function parseFunctionRef(raw: string | undefined | null): FunctionRefParseResult {
   const input = (raw ?? '').trim();
   if (!input) {
-    return { ok: false, error: 'empty binding: expected <scheme>://<ref>[@<version>]' };
+    return { ok: false, error: 'empty function reference: expected <scheme>://<ref>[@<version>]' };
   }
 
   const match = SCHEME_RE.exec(input);

@@ -116,7 +116,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
-  test('adds a template-backed omniprocess operation with its uses binding', async ({ page }) => {
+  test('adds a template-backed omniprocess operation with its function reference', async ({ page }) => {
     await gotoModeler(page);
 
     // Group is a template (a Map bound to a grouping function), not a type.
