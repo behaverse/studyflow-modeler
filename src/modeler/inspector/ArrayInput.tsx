@@ -59,6 +59,9 @@ export function ArrayInput({ attrDef }: Props) {
   const direction = inferDirection(localName);
   const inferred = direction ? getInferredDataNeighbors(element, direction) : [];
   const showInferred = inferred.length > 0;
+  // inputs/outputs are inferred from connected data elements (plus the
+  // function's arguments); only free-form lists get a manual add button.
+  const allowAdd = !direction;
 
   return (
     <>
@@ -100,15 +103,17 @@ export function ArrayInput({ attrDef }: Props) {
           </div>
         ))}
 
-        <button
-          type="button"
-          aria-label="Add another item"
-          title="Add another item"
-          onClick={handleAdd}
-          className={s.arrayAddBtn}
-        >
-          <i className="iconify bi--plus text-lg" />
-        </button>
+        {allowAdd && (
+          <button
+            type="button"
+            aria-label="Add another item"
+            title="Add another item"
+            onClick={handleAdd}
+            className={s.arrayAddBtn}
+          >
+            <i className="iconify bi--plus text-lg" />
+          </button>
+        )}
       </div>
     </>
   );

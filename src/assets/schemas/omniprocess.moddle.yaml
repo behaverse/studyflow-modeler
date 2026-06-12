@@ -17,7 +17,6 @@ types:
       - bpmn:ServiceTask
       - bpmn:BaseElement
     meta:
-      icon: iconify mdi--function
       bpmnType: bpmn:ServiceTask
     properties:
       - name: isDataOperation
@@ -33,22 +32,10 @@ types:
         type: String
         meta:
           pinned: true
-      - name: streaming
-        description: |
-          Marks the operation as streaming-only (requires windowing or
-          accumulator semantics) so the runtime can validate placement.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          categories:
-            - Data
   - name: Map
     description: Map a function over a data stream, producing a new data stream.
     superClass:
       - omniprocess:Transform
-    meta:
-      icon: iconify mdi--function
     properties:
       - name: operationType
         isAttr: true
@@ -91,7 +78,7 @@ types:
         type: String
         meta:
           categories:
-            - Data
+            - Execution
   - name: Reduce
     description: Reduce a data stream to a single value.
     superClass:

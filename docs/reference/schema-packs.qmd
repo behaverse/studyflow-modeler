@@ -22,7 +22,7 @@ Templates: two N-Back templates -- one referencing a built-in timeline by name (
 
 Generic data-operation activities for preprocessing and analysis pipelines (see [Model a preprocessing pipeline](../guides/preprocessing-pipelines.qmd)).
 
-- **`Transform`** -- apply a function to each element in a data stream; carries a `streaming` flag.
+- **`Transform`** -- apply a function to each element in a data stream.
 - **`Map`** -- element-wise (1 &rarr; 1) transform producing a new stream.
 - **`FlatMap`** -- one-to-many transform (unnest, expand, explode).
 - **`Filter`** -- drop items that fail a criterion.

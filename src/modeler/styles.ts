@@ -198,8 +198,8 @@ export const field = {
   label: 'flex items-center justify-between text-sm font-semibold',
   helpAnchor: 'relative group/help',
   helpIcon: 'iconify bi--patch-question text-stone-400 cursor-help',
-  helpTooltip: 'absolute bottom-full right-0 mb-1 invisible group-hover/help:visible w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-50',
-  helpTooltipWide: 'absolute bottom-full right-0 mb-1 invisible group-hover/help:visible max-w-md w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-50',
+  helpTooltip: 'fixed w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
+  helpTooltipWide: 'fixed max-w-md w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
   helpTooltipName: 'font-mono text-xs font-bold text-cream-50',
 
   // cream-200 inputs sit recessed inside the cream-100 inspector panel.
@@ -375,10 +375,10 @@ export const commandPalette = {
 // --- Examples-dialog list cards
 
 export const examplesList = {
-  list: 'space-y-1.5 flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
+  list: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 min-h-0 overflow-y-auto -mx-1 px-1 content-start',
   empty: 'text-sm text-stone-500 italic py-10 text-center',
-  item: `w-full text-left ${radius.card} ${surface.card} border border-black/[0.06] hover:bg-cream-300 hover:border-black/[0.10] disabled:opacity-50 disabled:cursor-not-allowed transition-all p-4 cursor-pointer`,
-  itemHeader: 'flex items-baseline justify-between gap-3',
+  item: `w-full h-full flex flex-col text-left ${radius.card} ${surface.card} border border-black/[0.06] hover:bg-cream-300 hover:border-black/[0.10] disabled:opacity-50 disabled:cursor-not-allowed transition-all p-4 cursor-pointer`,
+  itemHeader: 'flex flex-col gap-0.5',
   itemTitle: 'font-semibold tracking-tight text-stone-900',
   itemFilename: 'font-mono text-[11px] text-stone-500 shrink-0',
   itemDescription: 'text-[13px] leading-relaxed text-stone-600 mt-1 line-clamp-3',

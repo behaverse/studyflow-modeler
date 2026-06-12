@@ -56,7 +56,7 @@ For exploratory work, primitive markers (`Map`, `Filter`, `Reduce`) keep the dia
 
 ## Streaming and batch
 
-`Map` and `Filter` are stateless and work on either batch or streaming data. `Reduce` and `Group` are stateful -- for streaming, they require windowing or accumulator semantics. Annotate streaming-only tasks with a `streaming: true` attribute so the runtime can validate.
+`Map` and `Filter` are stateless and work on either batch or streaming data. `Reduce` and `Group` are stateful -- for streaming, they require windowing or accumulator semantics, typically passed as arguments to the bound function.
 
 ## Checklist
 

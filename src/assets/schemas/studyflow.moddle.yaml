@@ -244,32 +244,9 @@ types:
         type: Boolean
         default: false
         meta:
+          order: 1
           categories:
-            - Data
-      - name: inputs
-        description: Names of variables consumed by this activity.
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          categories:
-            - Data
-          condition:
-            language: json
-            body:
-              isDataOperation: true
-      - name: outputs
-        description: Names of variables produced by this activity.
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          categories:
-            - Data
-          condition:
-            language: json
-            body:
-              isDataOperation: true
+            - Execution
       - name: uses
         description: |
           Executable binding for this activity, GitHub-Actions style:
@@ -280,7 +257,7 @@ types:
         isAttr: true
         type: String
         meta:
-          order: 1
+          order: 2
           categories:
             - Execution
       - name: with
@@ -289,13 +266,39 @@ types:
           (GitHub Actions' `with:` block).
         type: With
         meta:
-          order: 2
+          order: 3
           categories:
             - Execution
           condition:
             language: json
             body:
               uses: $set
+      - name: inputs
+        description: Names of variables consumed by this activity.
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Execution
+          condition:
+            language: json
+            body:
+              isDataOperation: true
+      - name: outputs
+        description: Names of variables produced by this activity.
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 5
+          categories:
+            - Execution
+          condition:
+            language: json
+            body:
+              isDataOperation: true
   - name: StartEvent
     extends:
       - bpmn:StartEvent

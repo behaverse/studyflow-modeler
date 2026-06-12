@@ -35,6 +35,6 @@
   "botConfigurations": "Bot configurations",
   "agentType": "Agent Type",
   "configurations": "Configurations",
-  "uses": "Uses",
-  "with": "With (arguments)"
+  "uses": "Function",
+  "with": "Arguments"
 }

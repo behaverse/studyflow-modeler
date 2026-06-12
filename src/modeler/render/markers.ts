@@ -14,7 +14,7 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
   }
 
   const uses = getAttribute(element, 'uses');
-  if (getAttribute(element, 'isDataOperation') && typeof uses === 'string' && uses.trim()) {
+  if (getAttribute(element, 'isDataOperation') || (typeof uses === 'string' && uses.trim())) {
     markers.push('binding');
   }
 
