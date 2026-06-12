@@ -3,20 +3,10 @@ import { getAttribute } from '@/lib/core/extensions';
 import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawIcon, removeDefaultMarkers } from './utils';
 
-/** Service/Script tasks already convey "data operation" via their schema icon; skip the bottom marker. */
-function isServiceOrScriptDataOp(element: any): boolean {
-  if (!getAttribute(element, 'isDataOperation')) return false;
-  return is(element, 'bpmn:ServiceTask') || is(element, 'bpmn:ScriptTask');
-}
-
 /** Draw bottom-of-task markers (subprocess, loop, parallel, etc.). */
 export function drawMarkers(parentNode: SVGElement, element: any): void {
   const markers: string[] = [];
   removeDefaultMarkers(parentNode);
-
-  if (getAttribute(element, 'isDataOperation') && !isServiceOrScriptDataOp(element)) {
-    markers.push('operation');
-  }
 
   const checklist = getAttribute(element, 'checklist');
   if (checklist?.length > 0) {
@@ -24,7 +14,7 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
   }
 
   const uses = getAttribute(element, 'uses');
-  if (typeof uses === 'string' && uses.trim()) {
+  if (getAttribute(element, 'isDataOperation') && typeof uses === 'string' && uses.trim()) {
     markers.push('binding');
   }
 

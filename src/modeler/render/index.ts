@@ -1,7 +1,7 @@
 import BaseRenderer from 'diagram-js/lib/draw/BaseRenderer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { getActiveCatalog } from '@/lib/core/catalog';
-import { getExtensionType, getExtensionElement, getRawAttribute, hasExtends, getAttribute } from '@/lib/core/extensions';
+import { getExtensionType, getExtensionElement, getRawAttribute, hasExtends } from '@/lib/core/extensions';
 import { toPrefix } from '@/lib/core/utils/naming';
 import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawEventWithIcon } from './events';
@@ -10,7 +10,6 @@ import { drawActivity } from './activities';
 import { drawGateway } from './gateways';
 import type { BpmnRenderer, EventBus, Styles } from '../bpmn-js';
 
-const DATA_OP_ICON = 'iconify mdi--function';
 const HIGH_PRIORITY = 1500;
 
 /** Reads the studyflow-template namespaced `icon` attribute off the wrapper. */
@@ -43,15 +42,9 @@ export default class StudyflowRenderer extends BaseRenderer {
     const extEntry = extType ? getActiveCatalog().getType(extType) : undefined;
     const templateIcon = resolveTemplateIcon(ext || element.businessObject);
 
-    // Service/Script + isDataOperation -> function icon (matches omniprocess Map/Reduce/Filter).
-    const isDataOpTask =
-      (is(element, 'bpmn:ServiceTask') || is(element, 'bpmn:ScriptTask'))
-      && getAttribute(element, 'isDataOperation');
-
     const iconClass = templateIcon
       || extEntry?.meta?.icon
       || extEntry?.icon
-      || (isDataOpTask ? DATA_OP_ICON : undefined)
       || BPMN_ICON_OVERRIDES[element.type];
 
     if (is(element, 'bpmn:Event')) return drawEventWithIcon(parentNode, element, this.bpmnRenderer);

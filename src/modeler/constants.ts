@@ -113,7 +113,6 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:ComplexGateway':    'iconify mdi--asterisk',
   'bpmn:EventBasedGateway': 'iconify mdi--pentagon-outline',
   'bpmn:DataObjectReference': 'iconify fluent--document-24-regular',
-  'operation':              'iconify mdi--function',
   'subprocess':             'iconify mdi--plus-box-outline',
   'adhoc':                  'iconify tabler--tilde',
   'parallel':               'iconify solar--hamburger-menu-linear rotate-90',
@@ -121,7 +120,7 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'loop':                   'iconify mdi--loop',
   'compensation':           'iconify bpmn--compensation-marker',
   'checklist':              'iconify mdi--checkbox-outline',
-  'binding':                'iconify mdi--function-variant',
+  'binding':                'iconify mdi--function',
 };
 
 /** Icon lookup by bpmnType, sourced from PALETTE_GROUPS. */
