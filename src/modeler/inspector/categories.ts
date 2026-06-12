@@ -3,10 +3,9 @@ import {
   getAttributeDefinition,
   getAttributeDefinitions,
   getExtensionAttributeDefinitions,
-  getRedefinedName,
   isExtensionPrefix,
 } from '@/lib/core/extensions';
-import { toLocalName } from '@/lib/core/utils/naming';
+import { toLocalName } from '@/lib/core/naming';
 import { isAttributeVisible } from './field';
 
 /** Canonical tab order; unlisted categories follow in insertion order. */
@@ -51,7 +50,7 @@ export function getAttributesByCategory(element: any): Record<string, any[]> {
 
   const overridden = new Set(
     extAttrDefs
-      .map((attrDef: any) => getRedefinedName(attrDef) ?? attrDef.ns?.localName ?? attrDef.name)
+      .map((attrDef: any) => attrDef.redefinedName ?? attrDef.ns?.localName ?? attrDef.name)
       .filter((name: string | undefined): name is string => Boolean(name))
   );
 

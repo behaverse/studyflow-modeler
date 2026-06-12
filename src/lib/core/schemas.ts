@@ -1,20 +1,18 @@
 import { SCHEMAS } from './constants';
-import { buildCatalog, setActiveCatalog } from './catalog';
+import { buildCatalog, setCatalog } from './catalog';
 import { fromModdleYaml, toModdlePackages, type SchemaModel } from './schema';
 
 const schemaFiles = import.meta.glob('@/assets/schemas/*.moddle.yaml', {
-  query: '?url',
+  query: '?raw',
   import: 'default',
-  eager: true,
-}) as Record<string, string>;
+}) as Record<string, () => Promise<string>>;
 
 /**
  * Load the listed schemas plus any `core: true` schemas.
  *
- * Pipeline: schema text -> IR (`SchemaModel`) -> (a) the compiled catalog the
- * whole app reads, and (b) generated moddle packages for the BPMN XML codec.
- * Swapping the authoring format (e.g. LinkML) only changes the front-end
- * call here; see `src/lib/core/schema`.
+ * Pipeline: schema text -> `SchemaModel` -> (a) the compiled catalog the
+ * whole app reads, and (b) moddle packages so bpmn-js can read and write the
+ * XML. See `src/lib/core/schema.ts`.
  */
 export async function loadSchemas(prefixes: string[]): Promise<Record<string, any>> {
   const enabled = new Set(prefixes);
@@ -23,13 +21,12 @@ export async function loadSchemas(prefixes: string[]): Promise<Record<string, an
   const models: SchemaModel[] = [];
   for (const { prefix } of SCHEMAS) {
     if (!enabled.has(prefix)) continue;
-    const url = schemaFiles[`/assets/schemas/${prefix}.moddle.yaml`];
-    if (!url) throw new Error(`Schema not found in bundle: ${prefix}`);
-    const text = await (await fetch(url)).text();
-    models.push(fromModdleYaml(text));
+    const load = schemaFiles[`/assets/schemas/${prefix}.moddle.yaml`];
+    if (!load) throw new Error(`Schema not found in bundle: ${prefix}`);
+    models.push(fromModdleYaml(await load()));
   }
 
-  setActiveCatalog(buildCatalog(models));
+  setCatalog(buildCatalog(models));
   return Object.fromEntries(models.map((model) => [model.prefix, toModdlePackages(model, models)]));
 }
 

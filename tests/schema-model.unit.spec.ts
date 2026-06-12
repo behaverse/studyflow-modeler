@@ -9,14 +9,14 @@ import { SCHEMAS } from '../src/lib/core/constants';
 import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
 
 /**
- * Schema IR pipeline guarantees.
+ * Schema-model pipeline guarantees.
  *
- * The moddle package format is now an *output* of the IR
+ * The moddle package format is now an *output* of the schema model
  * (`fromModdleYaml` -> `toModdlePackages`), not the source format. These tests
  * pin two things:
  *
- * 1. Generated packages match what the pre-IR code handed to bpmn-moddle,
- *    modulo two documented data-loss fixes, so `.studyflow` XML
+ * 1. Generated packages match what the pre-SchemaModel code handed to
+ *    bpmn-moddle, modulo two documented data-loss fixes, so `.studyflow` XML
  *    serialization cannot change by accident.
  * 2. The schema-driven connection-rule evaluator (`meta.connectsTo`) behaves
  *    as documented, including its defer-to-BPMN default.
@@ -27,7 +27,7 @@ const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
 const VALUE_TYPE_SUPER_CLASSES = new Set(['String', 'Boolean', 'Integer', 'Float', 'Double']);
 
 /**
- * The legacy transform the app used before the IR split, kept as oracle —
+ * The legacy transform the app used before the SchemaModel split, kept as oracle —
  * adjusted (independently of the production code) for the two intentional
  * divergences documented on `toModdlePackages`:
  *
@@ -54,7 +54,7 @@ function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, pre
   return schema;
 }
 
-test.describe('schema IR: moddle package generation', () => {
+test.describe('schema model: moddle package generation', () => {
   const texts = new Map(
     SCHEMAS.map(({ prefix }) => [prefix, readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')]),
   );
@@ -110,7 +110,7 @@ test.describe('schema IR: moddle package generation', () => {
 // Connection rules
 // ---------------------------------------------------------------------------
 
-test.describe('schema IR: connection rules', () => {
+test.describe('schema model: connection rules', () => {
   const catalog = buildCatalog([
     {
       prefix: 'lab',

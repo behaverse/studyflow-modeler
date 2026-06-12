@@ -5,13 +5,13 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, studyflowYamlToXml, xmlToStudyflowYaml } from '../src/lib/core/codec';
+import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '../src/lib/core/studyflowYaml';
 import { SCHEMAS } from '../src/lib/core/constants';
-import { parseStudyflow } from '../src/lib/core/parsers/studyflow';
+import { parseStudyflow } from '../src/lib/core/parseStudyflow';
 import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
 
 /**
- * `.studyflow` YAML codec guarantees, checked against every bundled example
+ * `.studyflow` YAML format guarantees, checked against every bundled example
  * diagram (real studies with extension wrappers, traits, templates, nested
  * sub-process flows, colors, and DI geometry):
  *
@@ -34,7 +34,7 @@ const packages: Record<string, any> = Object.fromEntries(
 
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.studyflow'));
 
-test.describe('studyflow YAML codec', () => {
+test.describe('studyflow YAML format', () => {
   test('isMany value-typed lists survive a load (data-loss regression)', async () => {
     // Before toModdlePackages rewrote value-typed wire formats to String,
     // moddle silently dropped this text on every load.
@@ -74,7 +74,7 @@ test.describe('studyflow YAML codec', () => {
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const xml = readFileSync(path.join(EXAMPLES_DIR, 'bot_ollama.studyflow'), 'utf8');
-    const doc: any = yaml.load(await xmlToStudyflowYaml(xml, moddle));
+    const doc: any = yaml.load(await xmlToStudyflow(xml, moddle));
 
     // The definitions id sits at the root; no version key, no bpmndi tree.
     expect(doc.id).toBe('demo5_ollama_bot');
@@ -138,7 +138,7 @@ P:
       waypoint: [{ x: 200, "y": 18 }, { x: 300, "y": 18 }]
 `;
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const xml = await studyflowYamlToXml(text, moddle);
+    const xml = await studyflowToXml(text, moddle);
     expect(xml).toContain('id="keyed_demo"');
     // incoming/outgoing were omitted by hand and derived from the flows.
     expect(xml).toMatch(/:outgoing>F1</);
@@ -204,13 +204,13 @@ diagram:
           bounds: { x: 160, "y": 180, width: 36, height: 36 }
 `;
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const xml = await studyflowYamlToXml(legacy, moddle);
+    const xml = await studyflowToXml(legacy, moddle);
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
     // Re-saving normalizes the legacy spelling to the folded, id-keyed format.
     const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
-    const doc: any = yaml.load(await xmlToStudyflowYaml(xml, moddle2));
+    const doc: any = yaml.load(await xmlToStudyflow(xml, moddle2));
     expect(doc.id).toBe('legacy_demo');
     expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
     expect(doc.diagram).toBeUndefined();
@@ -231,9 +231,9 @@ diagram:
       const moddle = new BpmnModdle(structuredClone(packages)) as any;
       const xml = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
 
-      const yaml1 = await xmlToStudyflowYaml(xml, moddle);
-      const xml2 = await studyflowYamlToXml(yaml1, moddle);
-      const yaml2 = await xmlToStudyflowYaml(xml2, moddle);
+      const yaml1 = await xmlToStudyflow(xml, moddle);
+      const xml2 = await studyflowToXml(yaml1, moddle);
+      const yaml2 = await xmlToStudyflow(xml2, moddle);
 
       expect(yaml2).toBe(yaml1);
     });
@@ -241,7 +241,7 @@ diagram:
     test(`${file}: runner sees the same flow graph through both serializations`, async () => {
       const moddle = new BpmnModdle(structuredClone(packages)) as any;
       const xml = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
-      const yamlText = await xmlToStudyflowYaml(xml, moddle);
+      const yamlText = await xmlToStudyflow(xml, moddle);
 
       const fromXmlGraph = await parseStudyflow(xml, structuredClone(packages));
       const fromYamlGraph = await parseStudyflow(yamlText, structuredClone(packages));

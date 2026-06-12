@@ -1,5 +1,5 @@
 import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
-import { getLLMSettings } from '@/lib/core/runtimeSettings';
+import { getLLMSettings } from '@/lib/core/runnerSettings';
 import { selectResponse } from '@/runner/nodes/behaverse/llm/bot';
 import type { LLMProviderConfig, TrialHistoryEntry } from '@/runner/nodes/behaverse/llm/types';
 

@@ -1,6 +1,6 @@
 import { Canvg } from 'canvg';
 import download from 'downloadjs';
-import { xmlToStudyflowYaml } from '@/lib/core/codec';
+import { xmlToStudyflow } from '@/lib/core/studyflowYaml';
 import { getDiagramName } from '../../diagramName';
 import { exportToLinkML } from '../../exporters/linkml';
 import { exportToNidm } from '../../exporters/nidm';
@@ -104,10 +104,10 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
   const fileType = command.fileType ?? 'studyflow';
   const filename = getDiagramName(modeler) ?? 'diagram';
 
-  // Native `.studyflow` files are YAML (see `lib/core/codec`).
+  // Native `.studyflow` files are YAML (see `lib/core/studyflowYaml`).
   if (fileType === 'studyflow') {
     const { xml } = await modeler.saveXML({ format: true });
-    const yamlText = await xmlToStudyflowYaml(xml, modeler.get('moddle'));
+    const yamlText = await xmlToStudyflow(xml, modeler.get('moddle'));
     download(yamlText, `${filename}.studyflow`, 'text/yaml');
     return;
   }

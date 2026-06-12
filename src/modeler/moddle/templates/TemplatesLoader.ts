@@ -1,4 +1,4 @@
-import { getActiveCatalog } from '@/lib/core/catalog';
+import { getCatalog } from '@/lib/core/catalog';
 
 /** Registers the catalog's compiled templates with `elementTemplates`. */
 export default class TemplatesLoader {
@@ -7,7 +7,7 @@ export default class TemplatesLoader {
 
   constructor(elementTemplates: any, eventBus: any) {
     eventBus.on('diagram.init', () => {
-      elementTemplates.set(getActiveCatalog().allTemplates());
+      elementTemplates.set(getCatalog().allTemplates());
     });
   }
 }

@@ -14,7 +14,7 @@ import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
  * Layer 1 lints the raw `*.moddle.yaml` files: required metadata, naming
  * conventions, resolvable type references, sane defaults, valid redefines.
  *
- * Layer 2 feeds the parsed schemas through the same IR pipeline the modeler
+ * Layer 2 feeds the parsed schemas through the same SchemaModel pipeline the modeler
  * uses (`fromModdleYaml` -> `toModdlePackages`) and registers them in a real bpmn-moddle
  * instance: every concrete type must instantiate, and every palette template
  * must only set properties its type actually declares.

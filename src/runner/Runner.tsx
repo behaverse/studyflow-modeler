@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@/lib/core/schemas';
-import { shouldRecordEvents, setRecordEvents } from '@/lib/core/runtimeSettings';
+import { shouldRecordEvents, setRecordEvents } from '@/lib/core/runnerSettings';
 import { Studyflow } from './studyflow';
 import { Session } from './session';
 import type { Job } from '@/runner/types';

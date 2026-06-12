@@ -1,5 +1,5 @@
 import { createExtensionElement, getDefaults, setRawAttribute } from '@/lib/core/extensions';
-import { toPrefix } from '@/lib/core/utils/naming';
+import { toPrefix } from '@/lib/core/naming';
 
 type CreateTemplateShapeCommand = {
   type: 'create-template-shape';

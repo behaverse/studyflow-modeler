@@ -1,5 +1,5 @@
 import { createExtensionElement, getDefaults } from '@/lib/core/extensions';
-import { toLocalName } from '@/lib/core/utils/naming';
+import { toLocalName } from '@/lib/core/naming';
 
 export type BuildBusinessObjectOptions = {
   attributes?: Record<string, unknown>;

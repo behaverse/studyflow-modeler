@@ -102,7 +102,7 @@ types:
 
 Property entries carry moddle behavior directly:
 
-- `isAttr: true` -- serialized as an XML attribute in the BPMN XML form (most scalar properties). The YAML `.studyflow` codec maps every property to a plain key regardless of this flag.
+- `isAttr: true` -- serialized as an XML attribute in the BPMN XML form (most scalar properties). The YAML `.studyflow` format maps every property to a plain key regardless of this flag.
 - `isBody: true` -- serialized as the element's text body in the BPMN XML form. Used for free-form content like YAML `configurations`.
 - `isMany: true` -- repeated property (rendered as a list in the inspector).
 - `default` -- initial value.
@@ -131,7 +131,7 @@ with:
   fn: median
 ```
 
-In the BPMN XML form, `uses` is an attribute on the activity (`studyflow:uses="..."`) and `with` is a `<studyflow:with>` child element holding the YAML as its body; both round-trip losslessly through the `.studyflow` codec. An activity that carries a `uses` value shows a function marker on the canvas. The reference runner resolves and validates the binding (the `uses` grammar and that `with` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/bindings_demo.studyflow` for a worked example.
+In the BPMN XML form, `uses` is an attribute on the activity (`studyflow:uses="..."`) and `with` is a `<studyflow:with>` child element holding the YAML as its body; both round-trip losslessly through the `.studyflow` YAML form. An activity that carries a `uses` value shows a function marker on the canvas. The reference runner resolves and validates the binding (the `uses` grammar and that `with` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/bindings_demo.studyflow` for a worked example.
 
 ## Examples
 
@@ -235,7 +235,3 @@ Use the schema prefix to reference types from another schema, e.g. `studyflow:YA
 ## Naming conventions
 
 Property names follow camelCase (`consentFormUri`, `completionCodeType`), except where a type mirrors an external tool's CLI one-to-one -- e.g. `PreprocessfMRI`'s `output_spaces` matches the corresponding fMRIPrep flag verbatim so configurations can be copy-pasted.
-
-## The LinkML companion schema
-
-`src/assets/schemas/studyflow.linkml.yaml` is a hand-maintained LinkML companion to the core moddle schemas. It declares itself the authoritative definition of the core element types and constraints, but it is **not loaded by the modeler** -- the schema loader globs only `*.moddle.yaml` -- and the LinkML exporter generates its output from the diagram's data elements rather than from this file. Keep it in sync manually when changing data element types in `core.moddle.yaml` or `cognitive.moddle.yaml`.

@@ -1,10 +1,10 @@
 import * as yaml from 'js-yaml';
 
-import { LEGACY_STUDYFLOW_NS, STUDYFLOW_NS } from '../constants';
+import { LEGACY_STUDYFLOW_NS, STUDYFLOW_NS } from './constants';
 
 /**
- * `.studyflow` YAML codec — a lossless, semantic mapping between the BPMN
- * object tree and a YAML document.
+ * The `.studyflow` YAML file format — a lossless, semantic mapping between
+ * the BPMN object tree and a YAML document.
  *
  * The mapping is *generic over the metamodel* (it walks moddle element
  * descriptors), so every construct the XML serialization can express —
@@ -54,10 +54,10 @@ import { LEGACY_STUDYFLOW_NS, STUDYFLOW_NS } from '../constants';
  * nodes from each sequence flow's `sourceRef`/`targetRef`, so hand-written
  * files may omit them.
  *
- * NOTE: this module is part of the serialization (codec) layer and therefore
- * may use moddle's object model (`$descriptor`, `$attrs`) — the same
- * exemption as `parsers/studyflow.ts`. Schema semantics still come from the
- * catalog everywhere else in the app.
+ * NOTE: this module reads and writes the serialized form and therefore may
+ * use moddle's object model (`$descriptor`, `$attrs`) — the same exemption
+ * as `parseStudyflow.ts`. Schema semantics still come from the catalog
+ * everywhere else in the app.
  */
 
 type YamlDoc = Record<string, unknown>;
@@ -293,7 +293,7 @@ function isRedundantDiagramNode(node: Record<string, any>, inferredRootId: strin
 }
 
 /** Serialize a `bpmn:Definitions` tree into the `.studyflow` YAML document. */
-export function definitionsToYamlDoc(definitions: any): YamlDoc {
+function definitionsToYamlDoc(definitions: any): YamlDoc {
   const ctx: SerializeContext = { di: planDiFolding(definitions), foldedIds: new Set() };
   const serialized = serializeElement(definitions, 'bpmn:Definitions', ctx);
   const { rootElements, diagrams: _diagrams, id, ...rest } = serialized;
@@ -339,7 +339,7 @@ type InlineDi = {
   props: Record<string, unknown>;
 };
 
-class Reconstructor {
+class ModdleBuilder {
   private moddle: any;
   private pending: PendingRef[] = [];
   private byId = new Map<string, any>();
@@ -435,7 +435,7 @@ class Reconstructor {
       return this.moddle.create(typeName, {});
     } catch (error) {
       const [prefix, localPart] = typeName.includes(':') ? typeName.split(':', 2) : [undefined, typeName];
-      const renamed = prefix && Reconstructor.LEGACY_PREFIXES[prefix];
+      const renamed = prefix && ModdleBuilder.LEGACY_PREFIXES[prefix];
       if (!renamed) throw error;
       return this.moddle.create(`${renamed}:${localPart}`, {});
     }
@@ -555,8 +555,9 @@ function isPrimitiveTypeRef(type: string): boolean {
   return ['String', 'Boolean', 'Integer', 'Real', 'Element'].includes(type);
 }
 
-/** Rebuild a `bpmn:Definitions` tree from a parsed `.studyflow` YAML document. */
-export function yamlDocToDefinitions(doc: YamlDoc, moddle: any): any {
+/** Rebuild a `bpmn:Definitions` tree from `.studyflow` YAML text. */
+export function studyflowToDefinitions(yamlText: string, moddle: any): any {
+  const doc = yaml.load(yamlText) as YamlDoc;
   if (!doc || typeof doc !== 'object' || !('definitions' in doc || 'studyflow' in doc)) {
     throw new Error("Not a studyflow YAML document (missing 'definitions').");
   }
@@ -577,8 +578,8 @@ export function yamlDocToDefinitions(doc: YamlDoc, moddle: any): any {
     if (key.startsWith('xmlns') && value === LEGACY_STUDYFLOW_NS) definitionAttrs[key] = STUDYFLOW_NS;
   }
 
-  const reconstructor = new Reconstructor(moddle);
-  const definitions = reconstructor.build(
+  const builder = new ModdleBuilder(moddle);
+  const definitions = builder.build(
     {
       type: 'bpmn:Definitions',
       ...definitionAttrs,
@@ -587,11 +588,11 @@ export function yamlDocToDefinitions(doc: YamlDoc, moddle: any): any {
     },
     'bpmn:Definitions',
   );
-  const diagrams = reconstructor.buildDiagrams((doc.diagram as unknown[]) ?? [], definitions);
+  const diagrams = builder.buildDiagrams((doc.diagram as unknown[]) ?? [], definitions);
   for (const diagram of diagrams) diagram.$parent = definitions;
   if (diagrams.length > 0) definitions.set('diagrams', diagrams);
-  reconstructor.resolveReferences();
-  reconstructor.linkSequenceFlows();
+  builder.resolveReferences();
+  builder.linkSequenceFlows();
   return definitions;
 }
 
@@ -600,14 +601,13 @@ export function yamlDocToDefinitions(doc: YamlDoc, moddle: any): any {
 // ---------------------------------------------------------------------------
 
 /** BPMN 2.0 XML -> `.studyflow` YAML text. */
-export async function xmlToStudyflowYaml(xml: string, moddle: any): Promise<string> {
+export async function xmlToStudyflow(xml: string, moddle: any): Promise<string> {
   const { rootElement: definitions } = await moddle.fromXML(normalizeStudyflowXml(xml));
   return yaml.dump(definitionsToYamlDoc(definitions), YAML_DUMP_OPTIONS);
 }
 
 /** `.studyflow` YAML text -> BPMN 2.0 XML. */
-export async function studyflowYamlToXml(yamlText: string, moddle: any): Promise<string> {
-  const definitions = yamlDocToDefinitions(yaml.load(yamlText) as YamlDoc, moddle);
-  const { xml } = await moddle.toXML(definitions, { format: true });
+export async function studyflowToXml(yamlText: string, moddle: any): Promise<string> {
+  const { xml } = await moddle.toXML(studyflowToDefinitions(yamlText, moddle), { format: true });
   return xml;
 }

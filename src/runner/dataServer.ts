@@ -8,7 +8,7 @@
  * silently skips writes. The flow keeps running either way.
  */
 
-import { getApiKey, shouldRecordEvents } from '@/lib/core/runtimeSettings';
+import { getApiKey, shouldRecordEvents } from '@/lib/core/runnerSettings';
 
 export const DATA_SERVER_URL = 'https://data.behaverse.org/v1';
 

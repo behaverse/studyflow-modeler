@@ -1,4 +1,4 @@
-import { getActiveCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@/lib/core/catalog';
+import { getCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@/lib/core/catalog';
 import { buildBusinessObject } from '../commands/shape';
 import type { AutoPlace, Create, ElementFactory, Injector, PopupMenu, Rules } from '../bpmn-js';
 
@@ -50,7 +50,7 @@ export default class AppendMenuProvider {
     this._rules = rules;
     this._injector = injector;
 
-    this._appendableTypes = getActiveCatalog().allTypes()
+    this._appendableTypes = getCatalog().allTypes()
       .filter(isAppendable)
       .map((type) => {
         const icon = typeof type.meta?.icon === 'string' ? type.meta.icon : type.icon;

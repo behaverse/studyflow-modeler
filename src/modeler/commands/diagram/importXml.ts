@@ -1,4 +1,4 @@
-import { normalizeStudyflowXml } from '@/lib/core/codec';
+import { normalizeStudyflowXml } from '@/lib/core/studyflowYaml';
 
 export type ImportXmlCommand = {
   type: 'import-xml';

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { xmlToStudyflowYaml } from '../src/lib/core/codec';
+import { xmlToStudyflow } from '../src/lib/core/studyflowYaml';
 import { SCHEMAS } from '../src/lib/core/constants';
 import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
 import {
@@ -18,14 +18,14 @@ import {
   setSelectedElementName,
 } from './utils';
 
-/** Convert BPMN XML to studyflow YAML with the same codec the app uses. */
+/** Convert BPMN XML to studyflow YAML the same way the app does. */
 async function toYaml(xml: string): Promise<string> {
   const schemaDir = path.join(process.cwd(), 'src/assets/schemas');
   const models = SCHEMAS.map(({ prefix }) =>
     fromModdleYaml(readFileSync(path.join(schemaDir, `${prefix}.moddle.yaml`), 'utf8')),
   );
   const packages = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
-  return xmlToStudyflowYaml(xml, new BpmnModdle(packages));
+  return xmlToStudyflow(xml, new BpmnModdle(packages));
 }
 
 test.describe('Studyflow modeler palette flows', () => {

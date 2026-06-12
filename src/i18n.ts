@@ -1,5 +1,5 @@
 import en from './assets/locales/en.json';
-import { toLocalName } from '@/lib/core/utils/naming';
+import { toLocalName } from '@/lib/core/naming';
 
 const translations: Record<string, string> = en;
 

@@ -1,4 +1,4 @@
-import { parseStudyflow, type ParsedStudy } from '@/lib/core/parsers/studyflow';
+import { parseStudyflow, type ParsedStudy } from '@/lib/core/parseStudyflow';
 import type { FlowNode, SequenceFlow } from '@/lib/core/flow';
 
 /** Parsed studyflow document. Static BPMN structure only; no runtime state.

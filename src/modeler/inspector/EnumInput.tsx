@@ -12,7 +12,7 @@ import {
 } from '@headlessui/react';
 import { useMemo, useState } from 'react';
 import { t } from '../../i18n';
-import { getActiveCatalog } from '@/lib/core/catalog';
+import { getCatalog } from '@/lib/core/catalog';
 import { HelpTooltip } from './HelpTooltip';
 import { useAttributeState } from './hooks/useAttributeState';
 import { field as s } from '../styles';
@@ -24,7 +24,7 @@ type Props = {
 export function EnumInput({ attrDef }: Props) {
   const { value, commit } = useAttributeState<string>(attrDef, (raw) => raw || '');
   const name = attrDef.ns.name;
-  const literalValues = getActiveCatalog().enumOf(attrDef.type)?.literals ?? [];
+  const literalValues = getCatalog().enumOf(attrDef.type)?.literals ?? [];
   const isEditable = attrDef.meta?.editable === true;
   const Picker = isEditable ? EditableEnumCombobox : PlainEnumSelect;
 

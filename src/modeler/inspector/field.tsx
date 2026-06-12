@@ -10,7 +10,7 @@ import { SchemaEditor } from './SchemaEditor';
 import { useModeler } from '../useModeler';
 import { useInspectedElement } from './hooks/useInspectedElement';
 import { getAttribute } from '@/lib/core/extensions';
-import { splitQName } from '@/lib/core/utils/naming';
+import { splitQName } from '@/lib/core/naming';
 import { field as s } from '../styles';
 
 const MarkdownStringInput = (inputProps: any) => <StringInput {...inputProps} isMarkdown />;

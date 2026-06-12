@@ -4,8 +4,8 @@
  *
  * The catalog replaces runtime moddle reflection (registry walking, descriptor
  * probing) everywhere in the app: the modeler, the inspector, the palette,
- * templates, and the runner all read the same compiled metadata. moddle remains
- * solely the BPMN XML codec inside bpmn-js.
+ * templates, and the runner all read the same compiled metadata. moddle's only
+ * remaining job is reading and writing the BPMN XML inside bpmn-js.
  */
 
 export type NsInfo = {
@@ -81,7 +81,7 @@ export type TypeEntry = {
   icon?: string;
   isAbstract: boolean;
   style: TypeStyle;
-  superClass: string[];
+  /** Trait refs: attributes mix onto these BPMN types and their subtypes. */
   extends: string[];
   meta: Record<string, any>;
   /**

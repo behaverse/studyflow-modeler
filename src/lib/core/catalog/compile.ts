@@ -1,6 +1,6 @@
-import { splitQName, toLocalName } from '../utils/naming';
+import { splitQName, toLocalName } from '../naming';
 import { SCHEMAS } from '../constants';
-import type { SchemaModel } from '../schema/model';
+import type { SchemaModel } from '../schema';
 import { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from './bpmn';
 import type {
   AttributeSpec,
@@ -53,21 +53,28 @@ export class TypeCatalog {
   private enumsByName = new Map<string, EnumEntry>();
   /** Trait attribute lists per direct BPMN target type. */
   private traitsByTarget = new Map<string, AttributeSpec[][]>();
-  private mixinCache = new Map<string, AttributeSpec[]>();
+  private traitCache = new Map<string, AttributeSpec[]>();
 
-  /** Resolve a type ref, trying `ownerPrefix` and then every schema for unqualified refs. */
-  getType(ref: string | undefined, ownerPrefix?: string): TypeEntry | undefined {
-    if (!ref) return undefined;
-    if (ref.includes(':')) return this.typesByName.get(ref);
+  /** Resolve a qualified-name ref, trying `ownerPrefix` and then every schema for unqualified refs. */
+  private resolveIn<T>(byName: Map<string, T>, ref: string, ownerPrefix?: string): T | undefined {
+    if (ref.includes(':')) return byName.get(ref);
     if (ownerPrefix) {
-      const owned = this.typesByName.get(`${ownerPrefix}:${ref}`);
+      const owned = byName.get(`${ownerPrefix}:${ref}`);
       if (owned) return owned;
     }
     for (const schema of this.schemas) {
-      const found = this.typesByName.get(`${schema.prefix}:${ref}`);
+      const found = byName.get(`${schema.prefix}:${ref}`);
       if (found) return found;
     }
     return undefined;
+  }
+
+  getType(ref: string | undefined, ownerPrefix?: string): TypeEntry | undefined {
+    return ref ? this.resolveIn(this.typesByName, ref, ownerPrefix) : undefined;
+  }
+
+  enumOf(ref: string | undefined, ownerPrefix?: string): EnumEntry | undefined {
+    return ref ? this.resolveIn(this.enumsByName, ref, ownerPrefix) : undefined;
   }
 
   /** BPMN element type a schema type attaches to; `bpmn:*` refs pass through. */
@@ -77,16 +84,10 @@ export class TypeCatalog {
     return this.getType(ref, ownerPrefix)?.bpmnType ?? null;
   }
 
-  /** Effective attributes of a schema type (qualified name). */
-  attributesOf(typeName: string | undefined): AttributeSpec[] {
-    if (!typeName) return [];
-    return this.typesByName.get(typeName)?.attributes ?? [];
-  }
-
   /** Trait attributes mixed onto a BPMN business-object type (and its subtypes). */
-  mixinAttributesOf(bpmnType: string | undefined): AttributeSpec[] {
+  traitAttributesOf(bpmnType: string | undefined): AttributeSpec[] {
     if (!bpmnType || !bpmnType.startsWith('bpmn:')) return [];
-    const cached = this.mixinCache.get(bpmnType);
+    const cached = this.traitCache.get(bpmnType);
     if (cached) return cached;
 
     let merged: AttributeSpec[] = [];
@@ -97,22 +98,22 @@ export class TypeCatalog {
         merged = mergeAttributeSpecs(merged, traitAttrs);
       }
     }
-    this.mixinCache.set(bpmnType, merged);
+    this.traitCache.set(bpmnType, merged);
     return merged;
   }
 
   /**
    * Attributes visible on an instance of `typeName`: for BPMN types the trait
-   * mixins, for schema types the effective attributes plus the mixins applied
-   * via their BPMN super classes (mirrors moddle effective descriptors).
+   * attributes, for schema types the effective attributes plus the traits
+   * applied via their BPMN super classes (mirrors moddle effective descriptors).
    */
   instanceAttributesOf(typeName: string | undefined): AttributeSpec[] {
     if (!typeName) return [];
-    if (typeName.startsWith('bpmn:')) return this.mixinAttributesOf(typeName);
+    if (typeName.startsWith('bpmn:')) return this.traitAttributesOf(typeName);
 
     const entry = this.typesByName.get(typeName);
     if (!entry) return [];
-    return mergeAttributeSpecs(this.mixinAttributesOf(entry.bpmnType ?? undefined), entry.attributes);
+    return mergeAttributeSpecs(this.traitAttributesOf(entry.bpmnType ?? undefined), entry.attributes);
   }
 
   /** Find one attribute by local or qualified name on an instance of `typeName`. */
@@ -128,20 +129,6 @@ export class TypeCatalog {
   defaultsOf(typeName: string | undefined): Record<string, unknown> {
     if (!typeName) return {};
     return this.typesByName.get(typeName)?.defaults ?? {};
-  }
-
-  enumOf(ref: string | undefined, ownerPrefix?: string): EnumEntry | undefined {
-    if (!ref) return undefined;
-    if (ref.includes(':')) return this.enumsByName.get(ref);
-    if (ownerPrefix) {
-      const owned = this.enumsByName.get(`${ownerPrefix}:${ref}`);
-      if (owned) return owned;
-    }
-    for (const schema of this.schemas) {
-      const found = this.enumsByName.get(`${schema.prefix}:${ref}`);
-      if (found) return found;
-    }
-    return undefined;
   }
 
   allTypes(): TypeEntry[] {
@@ -196,7 +183,7 @@ export class TypeCatalog {
         this.traitsByTarget.set(target, list);
       }
     }
-    this.mixinCache.clear();
+    this.traitCache.clear();
   }
 }
 
@@ -283,9 +270,8 @@ class Compiler {
 
   compileType(prefix: string, rawType: RawType): TypeEntry {
     const qualified = `${prefix}:${rawType.name}`;
-    const superClass: string[] = rawType.superClass ?? [];
     const extendsRefs: string[] = rawType.extends ?? [];
-    const style = extendsRefs.length > 0 && superClass.length === 0 ? 'trait' : 'wrapper';
+    const style = extendsRefs.length > 0 && (rawType.superClass ?? []).length === 0 ? 'trait' : 'wrapper';
     const meta = rawType.meta ?? {};
     const bpmnType = this.resolveBpmnType(qualified, new Set());
     const attributes = this.effectiveAttributes(qualified, new Set());
@@ -305,7 +291,6 @@ class Compiler {
       icon: typeof rawType.icon === 'string' ? rawType.icon : undefined,
       isAbstract: rawType.isAbstract === true,
       style,
-      superClass,
       extends: extendsRefs,
       meta,
       bpmnType,
@@ -714,6 +699,6 @@ function extractAttributes(definition: Record<string, any>, reservedKeys: Set<st
   return attributes;
 }
 
-export function capitalize(value: string): string {
+function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }

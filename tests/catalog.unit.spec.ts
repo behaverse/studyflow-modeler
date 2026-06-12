@@ -12,7 +12,7 @@ import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
  * Cross-validates the compiled TypeCatalog against bpmn-moddle.
  *
  * The app reads all schema metadata from the catalog (plain data compiled
- * from the YAML); moddle is only the XML codec. These tests keep moddle as
+ * from the YAML); moddle only reads and writes the XML. These tests keep moddle as
  * the oracle so the catalog's static view can never drift from what moddle
  * actually serializes: attribute sets, types, defaults, inheritance,
  * `extends` traits, and the static BPMN ancestor table.
@@ -24,8 +24,8 @@ const models = SCHEMAS.map(({ prefix }) =>
   fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
 );
 
-// Production pipeline: IR -> catalog for the app, IR -> generated packages
-// for the moddle codec. The two never share objects (moddle mutates its
+// Production pipeline: SchemaModel -> catalog for the app, SchemaModel -> packages
+// for moddle. The two never share objects (moddle mutates its
 // packages in place).
 const catalog = buildCatalog(models);
 const packages: Record<string, any> = Object.fromEntries(
@@ -256,7 +256,7 @@ test.describe('catalog: type parity with moddle', () => {
         .filter((p: any) => isExtensionPrefix(p.ns?.prefix))
         .map((p: any) => p.ns.name)
         .sort();
-      const catalogNames = catalog.mixinAttributesOf(target).map((spec) => spec.ns.name).sort();
+      const catalogNames = catalog.traitAttributesOf(target).map((spec) => spec.ns.name).sort();
       expect(catalogNames, `${target} mixins`).toEqual(moddleNames);
     }
   });

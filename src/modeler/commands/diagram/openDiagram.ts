@@ -1,4 +1,4 @@
-import { looksLikeXml, studyflowYamlToXml } from '@/lib/core/codec';
+import { looksLikeXml, studyflowToXml } from '@/lib/core/studyflowYaml';
 import { runImportXml } from './importXml';
 import { runUpdateAttribute } from '../attributes/updateAttribute';
 
@@ -24,7 +24,7 @@ const filenameStem = (filename: string) => filename.replace(/\.[^/.]+$/, '');
 async function toXml(modeler: any, filename: string, content: string): Promise<string> {
   if (filename.toLowerCase().endsWith('.svg')) return extractXmlFromSvg(content);
   if (looksLikeXml(content)) return content;
-  return studyflowYamlToXml(content, modeler.get('moddle'));
+  return studyflowToXml(content, modeler.get('moddle'));
 }
 
 export async function runOpenDiagram(modeler: any, command: OpenDiagramCommand): Promise<any> {

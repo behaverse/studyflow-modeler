@@ -1,6 +1,6 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { getExtensionType, getExtensionElement, getAttribute } from '@/lib/core/extensions';
-import { toLocalName } from '@/lib/core/utils/naming';
+import { toLocalName } from '@/lib/core/naming';
 import { inspector as s } from '../styles';
 
 /** Effective `$type`: extension type -> BO type -> raw element type. */

@@ -1,5 +1,5 @@
 import RuleProvider from 'diagram-js/lib/features/rules/RuleProvider';
-import { getActiveCatalog } from '@/lib/core/catalog';
+import { getCatalog } from '@/lib/core/catalog';
 import { getExtensionType } from '@/lib/core/extensions';
 
 /** Above bpmn-js's BpmnRules (priority 1000): schema rules win when declared. */
@@ -13,8 +13,8 @@ function typeRefOf(element: any): string | undefined {
 /**
  * Schema-driven connection rules.
  *
- * A schema type may declare `meta.connectsTo` (moddle YAML `meta:` or LinkML
- * `annotations:`) with an allow-list of connection targets. When the source
+ * A schema type may declare `meta.connectsTo` (moddle YAML `meta:`)
+ * with an allow-list of connection targets. When the source
  * type declares rules they are enforced — allowing or vetoing the connection
  * regardless of the BPMN defaults. When it declares none (all current
  * schemas), the rule returns `undefined` and bpmn-js's built-in BpmnRules
@@ -26,7 +26,7 @@ export default class StudyflowRules extends RuleProvider {
   init() {
     const evaluate = ({ source, target }: any): boolean | undefined => {
       if (!source || !target) return undefined;
-      const verdict = getActiveCatalog().connectionVerdict(typeRefOf(source), typeRefOf(target));
+      const verdict = getCatalog().connectionVerdict(typeRefOf(source), typeRefOf(target));
       return verdict === 'defer' ? undefined : verdict;
     };
 

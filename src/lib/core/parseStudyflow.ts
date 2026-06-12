@@ -1,8 +1,7 @@
 import { BpmnModdle } from 'bpmn-moddle';
-import * as yaml from 'js-yaml';
-import { looksLikeXml, normalizeStudyflowXml, yamlDocToDefinitions } from '../codec';
-import { getExtensionType } from '../extensions/extensionType';
-import type { FlowNode, SequenceFlow } from '../flow';
+import { looksLikeXml, normalizeStudyflowXml, studyflowToDefinitions } from './studyflowYaml';
+import { getExtensionType } from './extensions';
+import type { FlowNode, SequenceFlow } from './flow';
 
 const FLOW_NODE_TYPES = new Set([
   'bpmn:StartEvent',
@@ -32,7 +31,7 @@ export async function parseStudyflow(text: string, schemas: Record<string, any>)
   const moddle = new BpmnModdle(schemas);
   const definitions = looksLikeXml(text)
     ? (await moddle.fromXML(normalizeStudyflowXml(text))).rootElement
-    : yamlDocToDefinitions(yaml.load(text) as any, moddle);
+    : studyflowToDefinitions(text, moddle);
 
   const businessObject = (definitions as any)?.rootElements?.find(
     (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',

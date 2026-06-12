@@ -20,14 +20,20 @@ const DEFAULTS: LLMRuntimeSettings = {
   claudeProxyUrl: '/api/llm/claude',
 };
 
-function ls(): Storage | undefined {
-  return typeof window !== 'undefined' ? window.localStorage : undefined;
+/** localStorage get that survives SSR, privacy mode, and quota errors. */
+function lsGet(key: string): string | undefined {
+  try { return window.localStorage.getItem(key) ?? undefined; } catch { return undefined; }
+}
+
+function lsSet(key: string, value: string | undefined): void {
+  try {
+    if (value === undefined) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch { /* quota / privacy mode */ }
 }
 
 export function getLLMSettings(): LLMRuntimeSettings {
-  const raw = (() => {
-    try { return ls()?.getItem(LLM_STORAGE_KEY) ?? undefined; } catch { return undefined; }
-  })();
+  const raw = lsGet(LLM_STORAGE_KEY);
   if (!raw) return { ...DEFAULTS };
   try {
     return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<LLMRuntimeSettings>) };
@@ -38,19 +44,15 @@ export function getLLMSettings(): LLMRuntimeSettings {
 
 export function setLLMSettings(partial: Partial<LLMRuntimeSettings>): LLMRuntimeSettings {
   const next = { ...getLLMSettings(), ...partial };
-  try { ls()?.setItem(LLM_STORAGE_KEY, JSON.stringify(next)); } catch { /* quota / privacy mode */ }
+  lsSet(LLM_STORAGE_KEY, JSON.stringify(next));
   return next;
 }
 
 export const API_KEY_STORAGE_KEY = 'studyflow-modeler:api_key:v1';
 
 export function getApiKey(): string | undefined {
-  try {
-    const key = ls()?.getItem(API_KEY_STORAGE_KEY) ?? undefined;
-    return key && key !== 'guest' ? key : undefined;
-  } catch {
-    return undefined;
-  }
+  const key = lsGet(API_KEY_STORAGE_KEY);
+  return key && key !== 'guest' ? key : undefined;
 }
 
 export const RECORD_EVENTS_STORAGE_KEY = 'studyflow-modeler:should_record_events:v1';
@@ -60,16 +62,9 @@ export const RECORD_EVENTS_STORAGE_KEY = 'studyflow-modeler:should_record_events
  *  runner's "Record events" toggle. Stored under its own key so the choice
  *  sticks across runs without being passed as a URL param. */
 export function shouldRecordEvents(): boolean {
-  try {
-    return ls()?.getItem(RECORD_EVENTS_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return lsGet(RECORD_EVENTS_STORAGE_KEY) === '1';
 }
 
 export function setRecordEvents(enabled: boolean): void {
-  try {
-    if (enabled) ls()?.setItem(RECORD_EVENTS_STORAGE_KEY, '1');
-    else ls()?.removeItem(RECORD_EVENTS_STORAGE_KEY);
-  } catch { /* quota / privacy mode */ }
+  lsSet(RECORD_EVENTS_STORAGE_KEY, enabled ? '1' : undefined);
 }

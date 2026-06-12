@@ -1,5 +1,5 @@
 import RemoveTemplatesFromPopup from '../../palette/RemoveTemplatesFromPopup';
-import { bpmnSelfAndAncestors, getActiveCatalog } from '@/lib/core/catalog';
+import { bpmnSelfAndAncestors, getCatalog } from '@/lib/core/catalog';
 import { PALETTE_BPMN_ICONS } from '../../constants';
 
 /** Most-specific palette icon for a BPMN type, walking up its ancestors. */
@@ -55,7 +55,7 @@ export function runResolvePaletteSchemas(
     filteredPopupMenus.add(popupMenu);
   }
 
-  return getActiveCatalog().schemas.map((schema): PaletteSchema => ({
+  return getCatalog().schemas.map((schema): PaletteSchema => ({
     prefix: schema.prefix,
     name: schema.name,
     icon: schema.icon,
