@@ -23,7 +23,7 @@ In the modeler palette these elements use Title Case names (Map, Filter, Reduce,
 
 `Filter` changes the dataset by removing rows. A *data-driven gateway* changes the control flow. They are not interchangeable -- see [Data](../reference/data.qmd) for the distinction.
 
-Ready-made preprocessing templates -- an fMRIPrep task (`PreprocessfMRI`) and an EEGPrep subprocess (`PreprocessEEG`) -- ship with the optional `omniprocess` schema; see [Schema packs](../reference/schema-packs.qmd).
+Ready-made preprocessing templates -- an fMRIPrep task (`PreprocessfMRI`) and an EEGPrep subprocess (`PreprocessEEG`) -- ship with the optional `omniprocess` schema; see [Extensions](../reference/extensions.qmd).
 
 ## A typical pipeline
 

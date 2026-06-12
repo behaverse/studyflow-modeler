@@ -1,237 +1,63 @@
 ---
 title: Extensions
-description: Extending the Studyflow with new element types and attributes.
+description: The optional extension schemas -- Behaverse, OmniProcess, DataTrove, Galea -- and what each provides
 order: 5
 ---
 
-This page is for **contributors** extending the Studyflow language with new element types or attributes. If you are a researcher or pipeline author using the modeler, see the [Elements](../reference/elements.qmd) reference instead.
+Studyflow elements ship in layered moddle schemas (see [Authoring schemas](authoring-schemas.qmd) for the authoring format). The two core schemas -- `core` and `cognitive` -- are always loaded and their elements are documented in [Elements](elements.qmd). This page catalogs the optional extensions.
 
-Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
+## Enabling and disabling extensions
 
-- `core.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`DataOperationActivity` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`). Split out of `core` so adopters can swap the cognitive layer without touching the core.
-- `behaverse.moddle.yaml`, `datatrove.moddle.yaml`, `galea.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions you can enable from the modeler's schema palette.
+Open *Settings &rarr; Extensions* in the modeler to toggle the optional schemas. Disabled schemas are excluded from the palette and not recognized when opening diagrams; reload the page to apply changes. Core schemas cannot be disabled.
 
-## Core structure
+## Behaverse
 
-Studyflow moddle YAML files follow this top-level layout:
+Standardized cognitive testing with the [Behaverse](https://behaverse.org) Unity runtime.
 
-```yaml
-name: Core
-prefix: core
-description: Core BPMN extension for modeling research processes.
-uri: http://behaverse.org/schemas/studyflow/v1   # version segment = studyflow format version
-icon: https://example.org/schema-icon.png    # optional, shown in the modeler
-xml:
-  tagAlias: lowerCase
-associations: []
-enumerations: []
-types: []
-examples: []
-```
+- **`Task`** (Behaverse Task) -- a Behaverse assessment, identified by `scene` (e.g. `NB`, `UFOV`) with task-specific YAML `configurations`. `agentType` selects a `human` or `bot` participant; `botConfigurations` configures the bot (see [LLM and bot participants](../guides/llm-bots.qmd)).
 
-The `description` is shown in the schema palette. The optional `icon` (URL or `iconify <name>`) appears next to the schema name. The `uri` is the stable identifier existing files are matched by -- the core schema's URI intentionally keeps `studyflow` even though its prefix was renamed to `core`.
+Templates: two N-Back templates -- one referencing a built-in timeline by name (e.g. `XCIT_NB_01`), one with inline block overrides merged over the per-scene baseline at runtime (see [Running a studyflow](../guides/runner-app.qmd)).
 
-## Enumerations
+## OmniProcess
 
-`enumerations` define reusable closed value lists referenced from properties via `type:`.
+Generic data-operation activities for preprocessing and analysis pipelines (see [Model a preprocessing pipeline](../guides/preprocessing-pipelines.qmd)).
 
-```yaml
-enumerations:
-  - name: CompletionCodeTypeEnum
-    isAbstract: true
-    description: How the completion code is generated when the study ends.
-    literalValues:
-      - name: None
-        value: none
-        description: No completion code is issued.
-      - name: Static
-        value: static
-      - name: Dynamic
-        value: dynamic
-```
+- **`Transform`** -- apply a function to each element in a data stream.
+- **`Map`** -- element-wise (1 &rarr; 1) transform producing a new stream.
+- **`FlatMap`** -- one-to-many transform (unnest, expand, explode).
+- **`Filter`** -- drop items that fail a criterion.
+- **`Reduce`** -- aggregate a stream to a single value (per group).
+- **`Compose`** -- bundle several operations into one logical pipeline step.
+- **`PreprocessfMRI`**, **`PreprocessEEG`** -- template-scoped preprocessing types, surfaced only via templates.
 
-Properties typed with an enum can opt into free-text entry alongside the enum values by setting `meta.editable: true`.
+Templates: operations that are really "a generic operation plus a function" ship as prefilled templates rather than dedicated types -- **Group** (a `Map` bound to `python://omniprocess.group`, grouping key via `with`), **Split Data** (a `Transform` bound to scikit-learn's `train_test_split`, sizes via `with`), and **Anonymize Data** (a `Map` bound to `python://omniprocess.anonymize`); the `uses` binding is a prefilled default you can repoint at your own function. Plus the neuroimaging prefabs: an **fMRIPrep** task (`PreprocessfMRI` with fMRIPrep-style parameters such as `output_spaces`) and an **EEGPrep** subprocess (`PreprocessEEG` with `clean_artifacts`/ICA parameters).
 
-## Types and properties
+## DataTrove
 
-Each moddle type defines a domain element plus the properties shown in the inspector. Two relationships compose types:
+Large-scale text/data processing pipelines mirroring the [DataTrove](https://github.com/huggingface/datatrove) library.
 
-- **`extends`** -- pure mixin onto an existing BPMN class. Use it when you only want to *add* attributes to a BPMN base (e.g. extend `bpmn:StartEvent` with `consentFormUri`) without creating a new visual element.
-- **`superClass`** -- class inheritance. Use it when defining a new concrete element. List the BPMN base first (e.g. `bpmn:Task`, `bpmn:ExclusiveGateway`, `bpmn:DataStoreReference`) and add `bpmn:BaseElement` so the inspector picks up the standard metadata fields.
+- **`Document`** -- a single data item (text plus metadata).
+- **`DataFolder`** -- a folder of documents; a dataset or collection.
+- **`Reader`** -- read data from various formats and yield documents.
+- **`Writer`** -- write documents to various formats.
+- **`Extractor`** -- extract text content from raw formats (e.g. HTML).
+- **`Filter`** -- remove documents based on rules/criteria.
+- **`Stats`** -- collect statistics on the dataset.
+- **`Tokens`** -- tokenize data or count tokens.
+- **`Dedup`** -- deduplication blocks.
 
-Pair `superClass` with `meta.bpmnType` so the modeler knows which BPMN shape to render.
+## Galea
 
-```yaml
-types:
-  - name: StartEvent
-    extends:
-      - bpmn:StartEvent
-    meta:
-      icon: iconify bpmn--start-event
-    properties:
-      - name: consentFormUri
-        description: Link to the consent form. Untick to skip the consent step entirely.
-        isAttr: true
-        type: String
-        meta:
-          pinned: false
-          optional: true
-          categories:
-            - Privacy
+The full VR/EEG session lifecycle for the Galea headset.
 
-  - name: RandomGateway
-    description: Randomly assigns participants to one of the outgoing branches.
-    superClass:
-      - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
-    meta:
-      icon: iconify streamline-flex--dice-5
-      bpmnType: bpmn:ExclusiveGateway
-    properties:
-      - name: algorithm
-        isAttr: true
-        type: studyflow:AssignmentAlgorithmEnum
-        default: probabilistic
-        meta:
-          categories:
-            - Assignment
-```
+- **`GaleaSession`** -- pool/container for a complete session.
+- **`Mount`** -- fit the headset on the participant.
+- **`ImpedanceCheck`** -- verify electrode contact quality.
+- **`SensorCalibration`** -- calibrate sensors (eye tracking, EMG, ...).
+- **`BaselineRecording`** -- resting-state baseline (eyes open/closed).
+- **`GaleaTask`** -- a VR task recorded during the session.
+- **`Unmount`** -- remove the headset and end acquisition.
+- **`GaleaExport`** -- export the recorded data (path templates, anonymization).
+- **`GaleaRecording`** -- the multimodal dataset produced by a session; specializes `studyflow:Dataset` with modality lists and sampling rates.
 
-### Property modifiers
-
-Property entries carry moddle behavior directly:
-
-- `isAttr: true` -- serialized as an XML attribute in the BPMN XML form (most scalar properties). The YAML `.studyflow` format maps every property to a plain key regardless of this flag.
-- `isBody: true` -- serialized as the element's text body in the BPMN XML form. Used for free-form content like YAML `configurations`.
-- `isMany: true` -- repeated property (rendered as a list in the inspector).
-- `default` -- initial value.
-- `redefines` -- override the type or default of an inherited property (e.g. `redefines: bpmn:Process#isExecutable`).
-- `replaces` -- replace an inherited property entirely.
-
-Studyflow-specific modeler behavior lives under `meta` on the property:
-
-- `meta.pinned: true` -- always visible in the inspector summary.
-- `meta.optional: true` -- the inspector shows a checkbox to opt the property in.
-- `meta.editable: true` -- enum properties also accept free-text entries.
-- `meta.categories: [Privacy]` -- tab the property lives under in the inspector.
-- `meta.condition.language: json` + `meta.condition.body: { otherField: value }` -- visibility predicate; the property only appears when other fields match. A value of `$set` matches whenever the other field has any value.
-
-## Executable bindings (`uses` / `with`)
-
-Any activity can declare what implements it, GitHub-Actions style. Two properties on the core `studyflow:DataOperationActivity` trait (which mixes onto every `bpmn:Activity`) carry the binding:
-
-- `uses` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), and `https://` (a script URL). Other schemes are allowed but flagged as unresolved. The ref/version split happens at the last `@`, so docker digests parse correctly.
-- `with` -- a YAML mapping of arguments passed to the binding (GitHub Actions' `with:` block), carried as the text body of a `studyflow:With` wrapper. The inspector edits it under the Execution tab and reveals it once `uses` is set.
-
-```yaml
-uses: python://pkg_for_st.do_map@1.2
-with:
-  column: rt
-  fn: median
-```
-
-In the BPMN XML form, `uses` is an attribute on the activity (`studyflow:uses="..."`) and `with` is a `<studyflow:with>` child element holding the YAML as its body; both round-trip losslessly through the `.studyflow` YAML form. An activity that carries a `uses` value shows a function marker on the canvas. The reference runner resolves and validates the binding (the `uses` grammar and that `with` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/bindings_demo.studyflow` for a worked example.
-
-## Examples
-
-Schemas may define top-level `examples` entries that appear in the modeler create/append menus.
-Each entry uses `object.type` to identify the schema type to instantiate, plus any default property values to apply.
-
-```yaml
-examples:
-  - description: Preprocess EEG data for a single subject.
-    object:
-      type: MapData
-      bpmn:name: Preprocess EEG (subject)
-      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      isDataOperation: true
-      icon: iconify icon-park--eeg
-```
-
-### Example mixins
-
-`examples[].object.mixins` lets an example compose additional defaults from other types.
-This is useful when the example should behave like a specialized BPMN shape without changing the underlying schema class.
-
-```yaml
-examples:
-  - description: Preprocess EEG data for a single subject.
-    object:
-      type: MapData
-      bpmn:name: Preprocess EEG (subject)
-      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      isDataOperation: true
-      icon: iconify icon-park--eeg
-      mixins:
-        - bpmn:SubProcess
-```
-
-- Use `mixins` for example-time composition, not for defining reusable schema inheritance. Reusable schema inheritance belongs on `types[].superClass`.
-
-### Nested subprocess flow elements
-
-If an example resolves to `bpmn:SubProcess`, it may also declare `examples[].object.flowElements` to create internal nodes and connections together with the root subprocess.
-
-```yaml
-examples:
-  - description: Preprocess EEG data for a single subject.
-    object:
-      type: MapData
-      bpmn:name: Preprocess EEG (subject)
-      bpmn:width: 420
-      bpmn:height: 180
-      mixins:
-        - bpmn:SubProcess
-      flowElements:
-        - id: eeg_filter
-          type: MapData
-          bpmn:name: Filter signal
-          x: 70
-          y: 65
-        - id: eeg_clean
-          type: MapData
-          bpmn:name: Remove artifacts
-          x: 240
-          y: 65
-        - bpmn:type: bpmn:SequenceFlow
-          sourceRef: eeg_filter
-          targetRef: eeg_clean
-```
-
-
-Examples may declare promoted attributes explicitly using schema `attributes:` definitions.
-
-```yaml
-examples:
-  - description: Preprocess EEG data for a single subject.
-    attributes:
-      param1:
-        range: string
-        description: Example-specific promoted attribute.
-        ifabsent: "default_value"
-    object:
-      type: MapData
-      bpmn:name: EEGPrep
-```
-
-These attributes are not added back onto the original schema class. Instead, the modeler generates an example-scoped derived moddle type for that specific example object, so the extra attributes persist in the saved diagram (both the YAML and the BPMN XML serializations) without changing other `MapData` examples or the base class definition.
-
-If the same example also includes undeclared scalar properties such as `param1: value1`, those are inferred onto the same example-scoped derived type rather than onto the parent schema class.
-
-## Cross-schema references
-
-Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:DataOperationActivity`. The cognitive schema, for example, refers to `studyflow:DataOperationActivity#isDataOperation` when pinning the data-operation marker off for activities like `CognitiveTask`.
-
-## Common mistakes
-
-- Prefix mismatch: type references using the wrong prefix (for example `core:` vs local names, or the legacy `studyflow:` prefix).
-- Missing `type`: moddle properties without a type often fall back to string-like behavior and may produce unintended interfaces.
-- Mixing up `extends` and `superClass`: use `extends` to mix attributes onto an existing BPMN base; use `superClass` to define a new concrete type that inherits behavior.
-- Incorrect BPMN mapping: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
-- Invalid condition shape: malformed `condition.body` JSON disables conditional visibility.
-- Incorrect `redefines` owner: invalid targets are dropped.
-
-## Naming conventions
-
-Property names follow camelCase (`consentFormUri`, `completionCodeType`), except where a type mirrors an external tool's CLI one-to-one -- e.g. `PreprocessfMRI`'s `output_spaces` matches the corresponding fMRIPrep flag verbatim so configurations can be copy-pasted.
+Templates: a typical Galea session -- mount &rarr; impedance &rarr; calibration &rarr; baseline &rarr; VR task &rarr; unmount &rarr; export.
