@@ -11,6 +11,7 @@ definitions:
   xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Demo3_ExternalBot:
   type: bpmn:Process
+  documentation: A 1-back warm-up and a 2-back block played by an externally driven random-response bot.
   extensionElements:
     - type: studyflow:Study
   name: Random bot

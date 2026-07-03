@@ -14,7 +14,11 @@
  *   a pure choreography (only choreography tasks, events, gateways, sequence
  *   flows), rewrite it as a `bpmn:Choreography` root with declared
  *   participants; band attributes become participantRef order (top first) and
- *   initiatingParticipantRef, and are dropped from the wire.
+ *   initiatingParticipantRef, and are dropped from the wire. Each task's
+ *   exchange also becomes a `bpmn:MessageFlow` from the initiating to the
+ *   receiving participant — declared on the root (`messageFlows`) and
+ *   referenced from the task (`messageFlowRef`), completing the BPMN 2.0
+ *   choreography metamodel shape.
  * - **load** (`choreographyToProcessRoot` / `fromWireXml`): the inverse.
  *
  * Mixed diagrams (choreography tasks alongside plain tasks, pools, or data)
@@ -78,12 +82,16 @@ function retargetPlanes(definitions: any, from: any, to: any): void {
   }
 }
 
-function participantIdFor(name: string, taken: Set<string>): string {
-  const base = `Participant_${name.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'unnamed'}`;
+function uniqueId(base: string, taken: Set<string>): string {
   let id = base;
   for (let n = 2; taken.has(id); n++) id = `${base}_${n}`;
   taken.add(id);
   return id;
+}
+
+function participantIdFor(name: string, taken: Set<string>): string {
+  const slug = name.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'unnamed';
+  return uniqueId(`Participant_${slug}`, taken);
 }
 
 /**
@@ -106,8 +114,11 @@ export function processToChoreographyRoot(definitions: any): boolean {
   moveOnto(choreography, process, ['documentation', 'extensionElements']);
 
   // One declared participant per distinct band name; top band first per task.
+  // Generated ids must stay clear of the ids already in the diagram.
   const byName = new Map<string, any>();
-  const takenIds = new Set<string>();
+  const takenIds = new Set<string>(
+    (process.flowElements ?? []).map((el: any) => el.id).filter((id: any) => typeof id === 'string'),
+  );
   const participantFor = (name: string): any => {
     let participant = byName.get(name);
     if (!participant) {
@@ -118,19 +129,32 @@ export function processToChoreographyRoot(definitions: any): boolean {
     return participant;
   };
 
+  const messageFlows: any[] = [];
   for (const el of process.flowElements ?? []) {
     if (!isChoreographyTaskBo(el)) continue;
     // `get` resolves the schema defaults (Participant A/B, top) when unset.
     const top = participantFor(el.get('topParticipant') || 'Participant A');
     const bottom = participantFor(el.get('bottomParticipant') || 'Participant B');
+    const initiating = el.get('initiator') === 'bottom' ? bottom : top;
     el.set('participantRef', [top, bottom]);
-    el.set('initiatingParticipantRef', el.get('initiator') === 'bottom' ? bottom : top);
+    el.set('initiatingParticipantRef', initiating);
     el.set('topParticipant', undefined);
     el.set('bottomParticipant', undefined);
     el.set('initiator', undefined);
+
+    // The exchange itself: initiating participant -> receiving participant.
+    const messageFlow = model.create('bpmn:MessageFlow', {
+      id: uniqueId(`MessageFlow_${el.id}`, takenIds),
+      sourceRef: initiating,
+      targetRef: initiating === top ? bottom : top,
+    });
+    messageFlow.$parent = choreography;
+    el.set('messageFlowRef', [messageFlow]);
+    messageFlows.push(messageFlow);
   }
 
   choreography.set('participants', [...byName.values()]);
+  choreography.set('messageFlows', messageFlows);
   moveOnto(choreography, process, ['flowElements']);
 
   definitions.rootElements = rootElements.map((re: any) => (re === process ? choreography : re));
@@ -162,6 +186,8 @@ export function choreographyToProcessRoot(definitions: any): boolean {
     if (el.get('initiatingParticipantRef') === bottom && bottom !== top) el.set('initiator', 'bottom');
     el.set('participantRef', undefined);
     el.set('initiatingParticipantRef', undefined);
+    // The message flows die with the choreography root; drop the references.
+    el.set('messageFlowRef', undefined);
   }
 
   moveOnto(process, choreography, ['flowElements']);

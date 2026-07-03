@@ -28,7 +28,8 @@ import { LEGACY_STUDYFLOW_NS, STUDYFLOW_NS } from './constants';
  *     (no `values:` wrapper),
  *   - YAML-bodied config wrappers (`cognitive:Configurations`,
  *     `behaverse:BotConfigurations`, ...) inline their parsed body as nested
- *     YAML instead of a `value: |` string block,
+ *     YAML instead of a `value: |` string block, and value-typed YAML
+ *     properties (`studyflow:with`) inline their parsed mapping the same way,
  *   - diagram geometry attaches to the element it describes — `bounds` and
  *     `label` on shapes, `waypoint` on edges, plus DI-only flags and colors
  *     (`isMarkerVisible`, `bioc:stroke`, ...). DI ids are regenerated as
@@ -85,14 +86,58 @@ function localName(type: string | undefined): string | undefined {
   return type?.includes(':') ? type.split(':').pop() : type;
 }
 
+export type StudyflowMetadata = { id?: string; name?: string; description?: string };
+
+/** First non-empty text in a folded `documentation` value (string, list, or `{text}`). */
+function documentationText(value: unknown): string | undefined {
+  const items = Array.isArray(value) ? value : [value];
+  for (const item of items) {
+    if (typeof item === 'string' && item.trim()) return item.trim();
+    if (item && typeof item === 'object') {
+      const text = (item as { text?: unknown }).text;
+      if (typeof text === 'string' && text.trim()) return text.trim();
+    }
+  }
+  return undefined;
+}
+
 /**
- * Authored value-type of a body property. `toModdlePackages` flattens a
- * value-typed body's wire type to `String` (so moddle XML-escapes its text) but
- * preserves the original in `bodyValueType`, so YAML-body detection — which must
- * fold `YAMLString` bodies but not `MarkdownString` ones — survives the flatten.
+ * Lightweight title/description probe for file pickers and galleries.
+ *
+ * Reads the primary root element — Process, then Choreography, then
+ * Collaboration, then any root — without a moddle round-trip. Returns `{}`
+ * for YAML that parses to something other than a document; throws on
+ * unparseable YAML (mirroring how the XML path surfaces invalid input).
  */
-function bodyValueType(prop: any): string | undefined {
-  return prop.bodyValueType ?? prop.type;
+export function readStudyflowMetadata(yamlText: string): StudyflowMetadata {
+  const doc = yaml.load(yamlText);
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return {};
+
+  const roots = Object.entries(doc as YamlDoc).filter(
+    ([key, value]) => !RESERVED_DOC_KEYS.has(key) && !!value && typeof value === 'object' && !Array.isArray(value),
+  ) as Array<[string, Record<string, any>]>;
+
+  const byType = (name: string) => roots.find(([, el]) => localName(el.type) === name);
+  const primary = byType('Process') ?? byType('Choreography') ?? byType('Collaboration') ?? roots[0];
+  if (!primary) return {};
+
+  const [id, root] = primary;
+  return {
+    id,
+    name: typeof root.name === 'string' && root.name.trim() ? root.name.trim() : undefined,
+    description: documentationText(root.documentation),
+  };
+}
+
+/**
+ * Authored value-type of a property. `toModdlePackages` flattens non-attribute
+ * value-typed properties' wire type to `String` (so moddle XML-escapes their
+ * text) but preserves the original in `valueType`, so YAML detection — which
+ * must fold `YAMLString` values but not `MarkdownString` ones — survives the
+ * flatten.
+ */
+function valueTypeOf(prop: any): string | undefined {
+  return prop.valueType ?? prop.type;
 }
 
 /** The plane of the primary diagram is anchored here when not stated explicitly. */
@@ -133,7 +178,7 @@ function serializeValue(value: any, declaredType: string | undefined, ctx?: Seri
 function inlineYamlBody(el: any): Record<string, unknown> | undefined {
   const props: any[] = el.$descriptor?.properties ?? [];
   const body = props.find((p) => p.isBody);
-  if (!body || localName(bodyValueType(body)) !== 'YAMLString') return undefined;
+  if (!body || localName(valueTypeOf(body)) !== 'YAMLString') return undefined;
   if (typeof el[body.name] !== 'string' || el[body.name] === '') return undefined;
   if (Object.keys(el.$attrs ?? {}).length > 0) return undefined;
   for (const p of props) {
@@ -154,6 +199,29 @@ function inlineYamlBody(el: any): Record<string, unknown> | undefined {
   const byName = el.$descriptor?.propertiesByName ?? {};
   if (keys.length === 0 || 'type' in parsed) return undefined;
   if (keys.every((key) => key in byName)) return undefined;
+  return parsed as Record<string, unknown>;
+}
+
+/**
+ * Value-typed YAML properties (`studyflow:with`) inline their parsed mapping
+ * as nested YAML, like YAML-bodied wrappers do. Values that don't parse to a
+ * non-empty mapping stay strings, as do mappings carrying a `type` key — on
+ * load a `type` key means "build an element". Bodies are excluded: those fold
+ * at the wrapper level (`inlineYamlBody`) with its own ambiguity guards.
+ */
+function inlineYamlValue(value: any, prop: any): Record<string, unknown> | undefined {
+  if (prop.isBody || localName(valueTypeOf(prop)) !== 'YAMLString') return undefined;
+  if (typeof value !== 'string' || value === '') return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = yaml.load(value);
+  } catch {
+    return undefined;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const keys = Object.keys(parsed);
+  if (keys.length === 0 || 'type' in parsed) return undefined;
   return parsed as Record<string, unknown>;
 }
 
@@ -195,7 +263,7 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
       continue;
     }
 
-    out[p.name] = p.isReference ? value?.id : serializeValue(value, p.type, ctx);
+    out[p.name] = p.isReference ? value?.id : inlineYamlValue(value, p) ?? serializeValue(value, p.type, ctx);
   }
 
   // Raw XML attributes unknown to the schemas (e.g. template icon overrides).
@@ -393,6 +461,14 @@ class ModdleBuilder {
         continue;
       }
 
+      // Inlined YAML value: dump the mapping back into the property's string
+      // form (the reverse of `inlineYamlValue`).
+      if (!p.isBody && localName(valueTypeOf(p)) === 'YAMLString'
+          && raw && typeof raw === 'object' && !Array.isArray(raw) && !('type' in raw)) {
+        el.set(p.name, yaml.dump(raw, YAML_DUMP_OPTIONS));
+        continue;
+      }
+
       const value = this.buildValue(raw, p.type);
       if (isModdleElement(value)) value.$parent = el;
       el.set(p.name, value);
@@ -474,7 +550,7 @@ class ModdleBuilder {
   /** The YAML-typed body property of config-wrapper types (`cognitive:Configurations#value`). */
   private yamlBodyPropertyOf(typeName: string): any | undefined {
     const body = (this.descriptorOf(typeName)?.properties ?? []).find((p: any) => p.isBody);
-    return body && localName(bodyValueType(body)) === 'YAMLString' ? body : undefined;
+    return body && localName(valueTypeOf(body)) === 'YAMLString' ? body : undefined;
   }
 
   private allKeysDeclared(node: Record<string, unknown>, typeName: string): boolean {

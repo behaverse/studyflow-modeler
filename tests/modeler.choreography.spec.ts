@@ -77,6 +77,10 @@ test.describe('Studyflow choreography tasks', () => {
     expect(studyflowText).toContain('type: bpmn:Choreography');
     expect(studyflowText).toContain('participantRef');
     expect(studyflowText).toContain('initiatingParticipantRef');
+    // The exchange is declared per the BPMN 2.0 metamodel: a message flow on
+    // the root, referenced from the task.
+    expect(studyflowText).toContain('messageFlows');
+    expect(studyflowText).toContain('messageFlowRef');
     expect(studyflowText).toContain('name: Subject');
     expect(studyflowText).not.toContain('topParticipant');
   });

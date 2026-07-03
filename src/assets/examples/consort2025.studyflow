@@ -13,6 +13,7 @@ definitions:
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
 CONSORT_2025:
   type: bpmn:Process
+  documentation: A CONSORT 2025 participant flow from enrollment to analysis, with attrition as boundary error events.
   extensionElements:
     - type: studyflow:Study
   flowElements:

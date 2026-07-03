@@ -134,14 +134,14 @@ function collectValueTypes(models: SchemaModel[]): Set<string> {
  *   built-in `String`, so e.g. `isMany` MarkdownString lists
  *   (`inclusionCriteria`, `strata`, `Checklist.items`) silently lost their
  *   text on every load before this rewrite. The catalog keeps the authored
- *   type as the UI hint (markdown editor, YAML editor).
- * - Text bodies (`isBody`) typed with a value type are rewritten the same way.
- *   moddle's `BodySerializer` XML-escapes an element's text body only when the
- *   property's declared type is exactly `String` (not a `YAMLString`/
- *   `MarkdownString` subtype), so a config or `with` body carrying `<`/`&` —
- *   routine in stimuli — was written raw, producing invalid XML. The authored
- *   value-type is preserved in `bodyValueType` so the `.studyflow` YAML codec's
- *   inline-folding can still tell a YAML body from a markdown one.
+ *   type as the UI hint (markdown editor, YAML editor). The same goes for
+ *   text bodies (`isBody`): moddle's `BodySerializer` XML-escapes a body only
+ *   when the property's declared type is exactly `String` (not a
+ *   `YAMLString`/`MarkdownString` subtype), so a config body carrying `<`/`&`
+ *   — routine in stimuli — was written raw, producing invalid XML. The
+ *   authored value-type is preserved in `valueType` so the `.studyflow` YAML
+ *   codec's inline-folding can still tell a YAML value (config bodies, `with`
+ *   arguments) from a markdown one.
  *
  * The result is a fresh object per call: moddle mutates registered packages
  * in place (qualifying property names), so generated packages must never be
@@ -163,11 +163,11 @@ export function toModdlePackages(model: SchemaModel, allModels: SchemaModel[] = 
       if (property.isAttr || !property.type) continue;
       const qualified = property.type.includes(':') ? property.type : `${pkg.prefix}:${property.type}`;
       if (!valueTypes.has(qualified)) continue;
-      // Bodies keep their (qualified) authored value-type in `bodyValueType` so
-      // the YAML codec's inline-folding can still recognize a YAML body after
-      // the wire type is flattened to `String` (which is what makes moddle
-      // escape it).
-      if (property.isBody) property.bodyValueType = qualified;
+      // The (qualified) authored value-type survives in `valueType` so the
+      // YAML codec's inline-folding can still recognize a YAML body or value
+      // after the wire type is flattened to `String` (which is what makes
+      // moddle escape it).
+      property.valueType = qualified;
       property.type = 'String';
     }
   }

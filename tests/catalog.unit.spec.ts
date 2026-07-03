@@ -237,8 +237,8 @@ test.describe('catalog: type parity with moddle', () => {
           const bodyDesc = (descriptor.properties ?? []).find((p: any) => p.isBody);
           expect(bodyDesc?.name, `${entry.name}#${spec.name} bodyProp`).toBe(spec.bodyProp);
           // A value-typed body goes on the wire as `String` (so moddle escapes
-          // its markup), with the authored type preserved in `bodyValueType`.
-          const bodyType = bodyDesc?.bodyValueType ?? bodyDesc?.type;
+          // its markup), with the authored type preserved in `valueType`.
+          const bodyType = bodyDesc?.valueType ?? bodyDesc?.type;
           expect(bodyType, `${entry.name}#${spec.name} bodyType`).toBe(spec.bodyType);
         }
       }

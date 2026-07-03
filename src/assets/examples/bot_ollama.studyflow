@@ -11,6 +11,7 @@ definitions:
   xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Demo5_OllamaBot:
   type: bpmn:Process
+  documentation: A tired 1-back warm-up and an expert 2-back block played by a local Ollama LLM bot.
   extensionElements:
     - type: studyflow:Study
   name: LLM bot (Ollama)

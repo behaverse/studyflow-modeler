@@ -11,6 +11,7 @@ definitions:
   xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Cognitive_Battery:
   type: bpmn:Process
+  documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
   extensionElements:
     - type: studyflow:Study
   name: Within-subject cognitive battery

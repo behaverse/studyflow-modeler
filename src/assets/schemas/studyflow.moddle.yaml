@@ -166,14 +166,6 @@ types:
     description: A string that contains YAML-formatted content
     superClass:
       - String
-  - name: With
-    description: |
-      Wrapper carrying the YAML arguments block for an activity's `uses`
-      function as its text body (GitHub Actions' `with:`).
-    properties:
-      - name: value
-        isBody: true
-        type: YAMLString
   - name: BaseElement
     description: Extends BPMN's BaseElement to include common properties of the Studyflow.
     extends:
@@ -274,7 +266,8 @@ types:
         description: |
           YAML mapping of arguments passed to the `uses` function
           (GitHub Actions' `with:` block).
-        type: With
+        isAttr: false
+        type: YAMLString
         meta:
           order: 3
           categories:

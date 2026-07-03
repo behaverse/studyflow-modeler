@@ -11,6 +11,7 @@ definitions:
   xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 LabLink_Demo:
   type: bpmn:Process
+  documentation: A LabLink session with questionnaires, a 1-back warm-up, and random allocation across three N-back arms.
   extensionElements:
     - type: studyflow:Study
   name: EPSYLON LabLink - Study orchestration

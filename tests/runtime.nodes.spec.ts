@@ -129,6 +129,7 @@ const CHOREOGRAPHY_ROOT_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <bpmn2:choreography id="Chor_1">
     <bpmn2:participant id="P_Subject" name="Subject" />
     <bpmn2:participant id="P_Experimenter" name="Experimenter" />
+    <bpmn2:messageFlow id="MF_1" sourceRef="P_Experimenter" targetRef="P_Subject" />
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -137,6 +138,7 @@ const CHOREOGRAPHY_ROOT_XML = `<?xml version="1.0" encoding="UTF-8"?>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
       <bpmn2:participantRef>P_Subject</bpmn2:participantRef>
       <bpmn2:participantRef>P_Experimenter</bpmn2:participantRef>
+      <bpmn2:messageFlowRef>MF_1</bpmn2:messageFlowRef>
     </bpmn2:choreographyTask>
     <bpmn2:endEvent id="EndEvent_1">
       <bpmn2:incoming>F2</bpmn2:incoming>

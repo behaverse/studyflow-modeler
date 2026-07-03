@@ -51,6 +51,7 @@ export const BPMN_ANCESTORS: Record<string, string[]> = {
   'bpmn:TextAnnotation': ['bpmn:Artifact', 'bpmn:BaseElement'],
   'bpmn:Process': ['bpmn:FlowElementsContainer', 'bpmn:CallableElement', 'bpmn:RootElement', 'bpmn:BaseElement'],
   'bpmn:Collaboration': ['bpmn:RootElement', 'bpmn:BaseElement'],
+  'bpmn:Choreography': ['bpmn:Collaboration', 'bpmn:FlowElementsContainer', 'bpmn:RootElement', 'bpmn:BaseElement'],
   'bpmn:Expression': ['bpmn:BaseElement'],
   'bpmn:FormalExpression': ['bpmn:Expression', 'bpmn:BaseElement'],
 

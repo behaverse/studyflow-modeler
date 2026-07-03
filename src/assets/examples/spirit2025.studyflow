@@ -25,6 +25,7 @@ SPIRIT_2025_Collaboration:
       isHorizontal: true
 SPIRIT_2025:
   type: bpmn:Process
+  documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
   extensionElements:
     - type: studyflow:Study
   laneSets:

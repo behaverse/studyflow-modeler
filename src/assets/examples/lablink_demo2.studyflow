@@ -11,6 +11,7 @@ definitions:
   xmlns:omniprocess: https://w3id.org/omniprocess
 OmniProcessLabLinkDemo:
   type: bpmn:Process
+  documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
   extensionElements:
     - type: studyflow:Study
   name: EPSYLON LabLink - Modeling pipeline

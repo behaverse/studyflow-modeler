@@ -11,6 +11,7 @@ definitions:
   xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Demo4_LLMBot:
   type: bpmn:Process
+  documentation: A Claude bot plays a tired 1-back warm-up, an expert 2-back block, and a vision-based WhichOne task.
   extensionElements:
     - type: studyflow:Study
   name: LLM bot (Claude Code)

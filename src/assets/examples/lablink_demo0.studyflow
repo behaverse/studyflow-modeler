@@ -9,6 +9,7 @@ definitions:
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
 Demo0_FromScratch:
   type: bpmn:Process
+  documentation: A minimal start-to-end skeleton for building a LabLink study from scratch.
   extensionElements:
     - type: studyflow:Study
   name: EPSYLON LabLink - Build a study from scratch

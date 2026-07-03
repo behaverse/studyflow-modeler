@@ -11,6 +11,7 @@ definitions:
   xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Agent_Eval_Pool:
   type: bpmn:Process
+  documentation: Runs one 2-back protocol on random, Claude, and Ollama agents in parallel and compares their accuracy.
   extensionElements:
     - type: studyflow:Study
   name: LLM evaluation — agent actor pool

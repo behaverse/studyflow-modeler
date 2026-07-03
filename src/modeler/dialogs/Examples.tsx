@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { looksLikeXml, readStudyflowMetadata } from '@/lib/core/studyflowYaml';
 import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { dialog as d, examplesList as e } from '../styles';
@@ -23,26 +24,30 @@ function humanizeId(id: string): string {
   return id.replace(/[_-]+/g, ' ').trim();
 }
 
-function parseExampleMetadata(filename: string, xml: string): { title: string; description: string } {
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+function parseXmlExampleMetadata(text: string): { name?: string; id?: string; description?: string } {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
 
   const process = doc.getElementsByTagNameNS(NAMESPACES.bpmn, 'process')[0]
     ?? doc.getElementsByTagNameNS(NAMESPACES.core, 'study')[0];
+  if (!process) return {};
 
-  const fromName = process?.getAttribute('name')?.trim();
-  const fromId = process?.getAttribute('id');
-  const title = fromName
-    || (fromId ? humanizeId(fromId) : '')
+  return {
+    name: process.getAttribute('name')?.trim() || undefined,
+    id: process.getAttribute('id') ?? undefined,
+    description: Array.from(process.children).find(
+      (c) => c.namespaceURI === NAMESPACES.bpmn && c.localName === 'documentation',
+    )?.textContent?.trim() || undefined,
+  };
+}
+
+/** Examples ship as YAML `.studyflow`; `.bpmn`/`.svg` (and legacy files) are XML. */
+function parseExampleMetadata(filename: string, text: string): { title: string; description: string } {
+  const meta = looksLikeXml(text) ? parseXmlExampleMetadata(text) : readStudyflowMetadata(text);
+  const title = meta.name
+    || (meta.id ? humanizeId(meta.id) : '')
     || filename.replace(/\.[^/.]+$/, '');
-
-  const description = process
-    ? Array.from(process.children).find(
-        (c) => c.namespaceURI === NAMESPACES.bpmn && c.localName === 'documentation',
-      )?.textContent?.trim() ?? ''
-    : '';
-
-  return { title, description };
+  return { title, description: meta.description ?? '' };
 }
 
 function basename(path: string): string {

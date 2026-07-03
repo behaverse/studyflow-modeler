@@ -10,6 +10,7 @@ definitions:
   xmlns:datatrove: https://w3id.org/studyflow/datatrove
 FunctionCallDemo:
   type: bpmn:Process
+  documentation: Demonstrates function references by binding a Map to a python callable and fetching a script by URL.
   extensionElements:
     - type: studyflow:Study
   name: Function calls demo

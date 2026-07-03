@@ -9,6 +9,7 @@ definitions:
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
 Dyadic_Study:
   type: bpmn:Choreography
+  documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.
   extensionElements:
     - type: studyflow:Study
   name: Dyadic decision study
@@ -17,6 +18,16 @@ Dyadic_Study:
       name: Subject
     Participant_Experimenter:
       name: Experimenter
+  messageFlows:
+    MessageFlow_Consent:
+      sourceRef: Participant_Subject
+      targetRef: Participant_Experimenter
+    MessageFlow_Round:
+      sourceRef: Participant_Experimenter
+      targetRef: Participant_Subject
+    MessageFlow_Round2:
+      sourceRef: Participant_Subject
+      targetRef: Participant_Experimenter
   flowElements:
     Start:
       type: bpmn:StartEvent
@@ -45,6 +56,8 @@ Dyadic_Study:
         - Participant_Subject
         - Participant_Experimenter
       initiatingParticipantRef: Participant_Subject
+      messageFlowRef:
+        - MessageFlow_Consent
       bounds:
         x: 260
         "y": 175
@@ -61,6 +74,8 @@ Dyadic_Study:
         - Participant_Subject
         - Participant_Experimenter
       initiatingParticipantRef: Participant_Experimenter
+      messageFlowRef:
+        - MessageFlow_Round
       bounds:
         x: 480
         "y": 175
@@ -77,6 +92,8 @@ Dyadic_Study:
         - Participant_Subject
         - Participant_Experimenter
       initiatingParticipantRef: Participant_Subject
+      messageFlowRef:
+        - MessageFlow_Round2
       bounds:
         x: 700
         "y": 175

@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '../src/lib/core/studyflowYaml';
+import { looksLikeXml, readStudyflowMetadata, studyflowToXml, xmlToStudyflow } from '../src/lib/core/studyflowYaml';
 import { SCHEMAS } from '../src/lib/core/constants';
 import { parseStudyflow } from '../src/lib/core/parseStudyflow';
 import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
@@ -57,7 +57,7 @@ test.describe('studyflow YAML format', () => {
     ]);
   });
 
-  test('uses attribute and with body survive a load (function calls)', async () => {
+  test('uses attribute and with value survive a load (function calls)', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const text = readFileSync(path.join(EXAMPLES_DIR, 'function_call_demo.studyflow'), 'utf8');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
@@ -68,8 +68,9 @@ test.describe('studyflow YAML format', () => {
     const map = study.flowElements.find((el: any) => el.id === 'MapRT');
 
     expect(map.get('studyflow:uses')).toBe('python://pkg_for_st.do_map@1.2');
-    // The body is an inline YAML fold; compare parsed content, not whitespace.
-    expect(yaml.load(map.get('studyflow:with').get('value'))).toEqual({ column: 'rt', fn: 'median' });
+    // `with` is a value-typed YAML string (inlined as a mapping in the YAML
+    // form); compare parsed content, not whitespace.
+    expect(yaml.load(map.get('studyflow:with'))).toEqual({ column: 'rt', fn: 'median' });
 
     const fetch = study.flowElements.find((el: any) => el.id === 'FetchScript');
     expect(fetch.get('studyflow:uses')).toBe('https://example.org/scripts/clean.py@v2');
@@ -279,6 +280,53 @@ P:
     expect(looksLikeXml('﻿  <bpmn2:definitions>')).toBe(true);
     expect(looksLikeXml('studyflow: "1"\nelements: []')).toBe(false);
   });
+
+  test('metadata probe reads the primary root without a moddle round-trip', () => {
+    // Prefers the Process root and reads name + documentation.
+    expect(readStudyflowMetadata([
+      'id: my_study',
+      'definitions: { targetNamespace: x }',
+      'My_Collab:',
+      '  type: bpmn:Collaboration',
+      'My_Process:',
+      '  type: bpmn:Process',
+      '  name: Stroop battery',
+      '  documentation: Classic color-word interference protocol.',
+    ].join('\n'))).toEqual({
+      id: 'My_Process',
+      name: 'Stroop battery',
+      description: 'Classic color-word interference protocol.',
+    });
+
+    // Falls back to the Choreography root; documentation may fold as a list.
+    expect(readStudyflowMetadata([
+      'Dyadic_Study:',
+      '  type: bpmn:Choreography',
+      '  name: Dyadic decision study',
+      '  documentation:',
+      '    - text: Two-participant choreography.',
+    ].join('\n'))).toEqual({
+      id: 'Dyadic_Study',
+      name: 'Dyadic decision study',
+      description: 'Two-participant choreography.',
+    });
+
+    // Unnamed roots surface only the id; non-document YAML yields nothing.
+    expect(readStudyflowMetadata('SPIRIT_2025:\n  type: bpmn:Process')).toEqual({
+      id: 'SPIRIT_2025',
+      name: undefined,
+      description: undefined,
+    });
+    expect(readStudyflowMetadata('just a string')).toEqual({});
+  });
+
+  for (const file of examples) {
+    test(`${file}: metadata probe returns a usable title source`, () => {
+      const text = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
+      const meta = readStudyflowMetadata(text);
+      expect(meta.name || meta.id, `${file} should expose a name or root id`).toBeTruthy();
+    });
+  }
 
   for (const file of examples) {
     test(`${file}: shipped YAML is the fixed point of YAML -> XML -> YAML`, async () => {
