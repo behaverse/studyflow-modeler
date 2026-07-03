@@ -442,7 +442,7 @@ types:
       BDM, or a custom layout). Modeled as a data-operation activity (writer)
       so downstream analysis can consume it as a `Dataset`.
     superClass:
-      - omniprocess:Map
+      - datatrove:Map
     meta:
       icon: iconify mdi--database-arrow-down-outline
     properties:

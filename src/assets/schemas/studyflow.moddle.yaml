@@ -147,6 +147,14 @@ enumerations:
         value: poisson
       - name: Undefined
         value: undefined
+  - name: ChoreographyInitiatorEnum
+    isAbstract: true
+    description: Which participant band initiates a choreography interaction.
+    literalValues:
+      - name: Top participant
+        value: top
+      - name: Bottom participant
+        value: bottom
 types:
   - name: MarkdownString
     description: A string that contains markdown formatting
@@ -414,6 +422,50 @@ types:
         meta:
           categories:
             - Gantt
+  - name: ChoreographyTask
+    description: |
+      A choreography task: a single interaction between two participants,
+      rendered with a participant band above and below the task label (the
+      BPMN/chor-js choreography notation). The initiating participant's band is
+      drawn light; the receiving participant's band is shaded. Use it when the
+      interaction itself is the unit of analysis (e.g. a dyadic decision round,
+      an experimenter administering a task to a subject). Degrades to a plain
+      BPMN task in tools without choreography support.
+    superClass:
+      - bpmn:Task
+      - bpmn:BaseElement
+    meta:
+      icon: iconify fluent--people-team-24-regular
+      bpmnType: bpmn:Task
+      categories:
+        - Activities
+    properties:
+      - name: topParticipant
+        description: Name of the participant shown in the top band.
+        isAttr: true
+        type: String
+        default: Participant A
+        meta:
+          categories:
+            - Participants
+      - name: bottomParticipant
+        description: Name of the participant shown in the bottom band.
+        isAttr: true
+        type: String
+        default: Participant B
+        meta:
+          categories:
+            - Participants
+      - name: initiator
+        description: |
+          Which participant initiates the interaction. The initiating
+          participant's band is drawn light and the other is shaded.
+        isAttr: true
+        type: ChoreographyInitiatorEnum
+        default: top
+        meta:
+          categories:
+            - Participants
   - name: Event
     description: |
       Base class for BPMN events. Adds the same Gantt-axis temporal attributes

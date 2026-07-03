@@ -2,111 +2,22 @@
 
 name: OmniProcess
 prefix: omniprocess
-description: Studyflow extension for data processing pipelines - functional operations (map, filter, flatMap, reduce, compose) plus prefilled templates that bind an operation to a function via `uses` (group, split, anonymize, fMRIPrep, EEGPrep).
+description: Studyflow extension for brain and brain-data processing - modality-specific neuroimaging preprocessing pipelines (fMRIPrep, EEGPrep). Generic function-composition operations live in the `datatrove` schema, which these pipelines build on.
 uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
 xml:
   tagAlias: lowerCase
-version: 26.0612
+version: 26.0703
 associations: []
 enumerations: []
 types:
-  - name: Transform
-    description: Apply a function to each element in a data stream.
-    superClass:
-      - bpmn:ServiceTask
-      - bpmn:BaseElement
-    meta:
-      bpmnType: bpmn:ServiceTask
-    properties:
-      - name: isDataOperation
-        isAttr: true
-        type: Boolean
-        default: true
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-      - name: operationType
-        isAttr: true
-        default: transform
-        type: String
-        meta:
-          pinned: true
-  - name: Map
-    description: Map a function over a data stream, producing a new data stream.
-    superClass:
-      - omniprocess:Transform
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: map
-        redefines: omniprocess:Transform#operationType
-  - name: FlatMap
-    description: Map a one-to-many function over a data stream and flatten the results (e.g., unnest, expand events per trial, explode arrays).
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--arrow-expand-all
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: flatMap
-        redefines: omniprocess:Transform#operationType
-  - name: Reduce
-    description: Reduce a data stream to a single value.
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--sigma
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: reduce
-        redefines: omniprocess:Transform#operationType
-  - name: Filter
-    description: |
-      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--filter-variant
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: filter
-        redefines: omniprocess:Transform#operationType
-  - name: Compose
-    description: Compose two or more transformations into a single pipeline step.
-    superClass:
-      - omniprocess:Transform
-    meta:
-      icon: iconify mdi--function-variant
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: compose
-        redefines: omniprocess:Transform#operationType
   - name: PreprocessfMRI
     description: Preprocess fMRI data, including filtering, artifact removal, and normalization. Requires BIDS-formatted input.
     superClass:
-      - omniprocess:Map
+      - datatrove:Map
     meta:
       icon: iconify streamline--brain
+      bpmnType: bpmn:ServiceTask
       # Surface this type only via its `templates:` entry; never list it as a
       # standalone palette element so users always see the prefilled template.
       templateScopedType: true
@@ -146,7 +57,7 @@ types:
   - name: PreprocessEEG
     description: Preprocess EEG data, including filtering, artifact removal, and normalization.
     superClass:
-      - omniprocess:Map
+      - datatrove:Map
     meta:
       icon: iconify fluent--pulse-20-filled
       bpmnType: bpmn:SubProcess
@@ -202,50 +113,6 @@ types:
           categories:
             - EEGPrep
 templates:
-  # Parameterized operations: a generic operation type bound to a concrete
-  # function via `uses` (and arguments via `with`), instead of a dedicated
-  # schema type per operation.
-  - description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
-    object:
-      bpmn:name: Group
-      type: Map
-      bpmn:documentation: Partition a data stream into named groups by a key (e.g., participant, condition, block). A Map bound to a grouping function; set the key via `with`.
-      icon: iconify mdi--group
-      keywords:
-        - group
-        - groupby
-        - partition
-      operationType: group
-      uses: python://omniprocess.group
-      with: "key: participant"
-  - description: Partition data items into named subsets (e.g., train/test) with scikit-learn.
-    object:
-      bpmn:name: Split Data
-      type: Transform
-      bpmn:documentation: Partition data items into named subsets (e.g., train/test). Bound to scikit-learn's train_test_split; adjust sizes via `with`.
-      icon: iconify mdi--call-split
-      keywords:
-        - split
-        - train
-        - test
-        - holdout
-        - sklearn
-      operationType: splitData
-      uses: python://sklearn.model_selection.train_test_split
-      with: "test_size: 0.2"
-  - description: Remove or pseudonymize identifying fields.
-    object:
-      bpmn:name: Anonymize Data
-      type: Map
-      bpmn:documentation: Remove or pseudonymize identifying fields before sharing or further processing.
-      icon: iconify mdi--incognito
-      keywords:
-        - anonymize
-        - pseudonymize
-        - deidentify
-        - privacy
-      operationType: anonymizeData
-      uses: python://omniprocess.anonymize
   - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep
@@ -275,14 +142,14 @@ templates:
           x: 140
           y: 162
         - id: eeg_filter
-          type: omniprocess:Filter
+          type: datatrove:Filter
           bpmn:name: Filter signal
           icon: iconify bi--funnel
           isDataOperation: true
           x: 240
           y: 140
         - id: eeg_clean
-          type: omniprocess:Map
+          type: datatrove:Map
           bpmn:name: Remove artifacts
           icon: iconify bi--eraser
           isDataOperation: true

@@ -76,11 +76,11 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
-  test('adds a schema-backed omniprocess element and preserves operation defaults', async ({ page }) => {
+  test('adds a schema-backed datatrove element and preserves operation defaults', async ({ page }) => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
-    await addSchemaPaletteElement(page, 'OmniProcess', 'Map', { x: 320, y: 180 });
+    await addSchemaPaletteElement(page, 'DataTrove', 'Map', { x: 320, y: 180 });
 
     await page.route('https://api.iconify.design/**', async (route) => {
       await route.fulfill({
@@ -101,7 +101,7 @@ test.describe('Studyflow modeler palette flows', () => {
     // serialized onto the element.
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:serviceTask\b/);
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
-    expect(normalizedEmbeddedStudyflow).toContain('<omniprocess:map/>');
+    expect(normalizedEmbeddedStudyflow).toContain('<datatrove:map/>');
 
     const studyflowDownloadPromise = page.waitForEvent('download');
     await runPaletteCommand(page, 'Save As...', 'Studyflow...');
@@ -110,27 +110,27 @@ test.describe('Studyflow modeler palette flows', () => {
 
     // In YAML the wrapper stays bare; the pinned operation defaults live as
     // explicit values on the service task element.
-    expect(studyflowText).toContain('type: omniprocess:Map');
+    expect(studyflowText).toContain('type: datatrove:Map');
     expect(studyflowText).toContain('isDataOperation: true');
     expect(studyflowText).toContain('operationType: map');
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
-  test('adds a template-backed omniprocess operation with its function reference', async ({ page }) => {
+  test('adds a template-backed datatrove operation with its function reference', async ({ page }) => {
     await gotoModeler(page);
 
     // Group is a template (a Map bound to a grouping function), not a type.
-    await addSchemaPaletteElement(page, 'OmniProcess', 'Group', { x: 320, y: 180 });
+    await addSchemaPaletteElement(page, 'DataTrove', 'Group', { x: 320, y: 180 });
 
     const studyflowDownloadPromise = page.waitForEvent('download');
     await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    expect(studyflowText).toContain('type: omniprocess:Map');
+    expect(studyflowText).toContain('type: datatrove:Map');
     expect(studyflowText).toContain('name: Group');
     expect(studyflowText).toContain('operationType: group');
-    expect(studyflowText).toContain('uses: python://omniprocess.group');
+    expect(studyflowText).toContain('uses: python://datatrove.group');
     expect(studyflowText).toContain('key: participant');
   });
 
@@ -149,7 +149,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toContain('type: omniprocess:PreprocessEEG');
     expect(studyflowText).toContain('type: bpmn:SubProcess');
     expect(studyflowText).toContain('isDataOperation: true');
-    expect(studyflowText).toContain('type: omniprocess:Filter');
+    expect(studyflowText).toContain('type: datatrove:Filter');
     expect(studyflowText).toContain('name: EEGPrep');
   });
 });

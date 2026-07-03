@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:omniprocess="https://w3id.org/omniprocess" id="function_call_demo" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:datatrove="https://w3id.org/studyflow/datatrove" id="function_call_demo" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:process id="FunctionCallDemo" name="Function calls demo" isExecutable="true">
     <bpmn2:extensionElements>
       <studyflow:study />
@@ -10,7 +10,7 @@
     </bpmn2:startEvent>
     <bpmn2:serviceTask id="MapRT" name="Median RT per block" studyflow:isDataOperation="true" studyflow:operationType="map" studyflow:uses="python://pkg_for_st.do_map@1.2">
       <bpmn2:extensionElements>
-        <omniprocess:map />
+        <datatrove:map />
       </bpmn2:extensionElements>
       <studyflow:with>column: rt
 fn: median</studyflow:with>

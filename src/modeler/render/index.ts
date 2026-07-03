@@ -7,6 +7,7 @@ import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawEventWithIcon } from './events';
 import { drawDataStore } from './data';
 import { drawActivity } from './activities';
+import { drawChoreographyTask, isChoreographyTask } from './choreography';
 import { drawGateway } from './gateways';
 import type { BpmnRenderer, EventBus, Styles } from '../bpmn-js';
 
@@ -47,6 +48,7 @@ export default class StudyflowRenderer extends BaseRenderer {
       || extEntry?.icon
       || BPMN_ICON_OVERRIDES[element.type];
 
+    if (isChoreographyTask(element)) return drawChoreographyTask(parentNode, element, this.styles);
     if (is(element, 'bpmn:Event')) return drawEventWithIcon(parentNode, element, this.bpmnRenderer);
     if (is(element, 'bpmn:DataStoreReference')) return drawDataStore(parentNode, element, this.bpmnRenderer);
     if (is(element, 'bpmn:Activity')) return drawActivity(parentNode, element, this.bpmnRenderer, iconClass, !!templateIcon);

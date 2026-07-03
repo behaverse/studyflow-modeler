@@ -64,14 +64,14 @@
       </bpmn2:startEvent>
       <bpmn2:serviceTask id="EEG_FilterSignal" name="Filter signal" studyflow:isDataOperation="true" studyflow:operationType="map">
         <bpmn2:extensionElements>
-          <omniprocess:map />
+          <datatrove:map />
         </bpmn2:extensionElements>
         <bpmn2:incoming>Flow_EEG_Filter</bpmn2:incoming>
         <bpmn2:outgoing>Flow_EEG_Clean</bpmn2:outgoing>
       </bpmn2:serviceTask>
       <bpmn2:serviceTask id="EEG_RemoveArtifacts" name="Remove artifacts" studyflow:isDataOperation="true" studyflow:operationType="map">
         <bpmn2:extensionElements>
-          <omniprocess:map />
+          <datatrove:map />
         </bpmn2:extensionElements>
         <bpmn2:incoming>Flow_EEG_Clean</bpmn2:incoming>
         <bpmn2:outgoing>Flow_EEG_End</bpmn2:outgoing>
@@ -98,14 +98,14 @@
     <bpmn2:serviceTask id="FitModel" name="Fit model" studyflow:isDataOperation="true" studyflow:operationType="reduce">
       <bpmn2:documentation>Hierarchical Bayesian model of behavioral and neural features.</bpmn2:documentation>
       <bpmn2:extensionElements>
-        <omniprocess:reduce />
+        <datatrove:reduce />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_Features_FitModel</bpmn2:incoming>
       <bpmn2:outgoing>Flow_FitModel_Figures</bpmn2:outgoing>
     </bpmn2:serviceTask>
     <bpmn2:serviceTask id="GenerateFigures" name="Generate figures" studyflow:isDataOperation="true" studyflow:operationType="map">
       <bpmn2:extensionElements>
-        <omniprocess:map />
+        <datatrove:map />
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_FitModel_Figures</bpmn2:incoming>
       <bpmn2:outgoing>Flow_Figures_Manuscript</bpmn2:outgoing>

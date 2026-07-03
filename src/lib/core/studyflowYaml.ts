@@ -73,12 +73,61 @@ export function looksLikeXml(text: string): boolean {
 }
 
 /**
+ * Generic functional operators moved from `omniprocess` into the merged
+ * `datatrove` schema, leaving `omniprocess` for brain preprocessing only. Old
+ * qualified tag -> new qualified tag. The DataTrove read/write/corpus blocks
+ * kept their original `datatrove:` prefix and namespace, so they load natively
+ * and need no rewrite. Applied on load so pre-merge diagrams still open.
+ */
+const LEGACY_DATATROVE_TAGS: Record<string, string> = {
+  'omniprocess:transform': 'datatrove:transform',
+  'omniprocess:map': 'datatrove:map',
+  'omniprocess:flatMap': 'datatrove:flatMap',
+  'omniprocess:reduce': 'datatrove:reduce',
+  'omniprocess:filter': 'datatrove:filter',
+  'omniprocess:compose': 'datatrove:compose',
+};
+
+const DATATROVE_NS = 'https://w3id.org/studyflow/datatrove';
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Rewrite the moved element tags (`<omniprocess:map>` -> `<datatrove:map>`,
+ * ...) and declare the `datatrove` namespace on the root when the rewrite
+ * introduced it but it was not already bound. `omniprocess:preprocessfMRI`/
+ * `preprocessEEG` are not in the table and stay put. Idempotent.
+ */
+function migrateDatatroveTags(xml: string): string {
+  let out = xml;
+  for (const [oldTag, newTag] of Object.entries(LEGACY_DATATROVE_TAGS)) {
+    const escaped = escapeRegExp(oldTag);
+    // Element tags only: open/self-closing (`<tag ` / `<tag/` / `<tag>`) and
+    // closing (`</tag>`). The lookahead keeps prefixes like `omniprocess:mapX`
+    // from matching.
+    out = out.replace(new RegExp(`<${escaped}(?=[\\s/>])`, 'g'), `<${newTag}`);
+    out = out.replace(new RegExp(`</${escaped}(?=[\\s>])`, 'g'), `</${newTag}`);
+  }
+  if (out.includes('datatrove:') && !out.includes('xmlns:datatrove')) {
+    out = out.replace(
+      /(<[\w.-]+:definitions\b[^>]*?)(\s*\/?>)/,
+      `$1 xmlns:datatrove="${DATATROVE_NS}"$2`,
+    );
+  }
+  return out;
+}
+
+/**
  * Rewrite the unversioned core namespace written by older releases to the
  * current versioned one. Quote-bounded, so the sub-schema namespaces
- * (`.../studyflow/cognitive`, ...) are untouched. Idempotent.
+ * (`.../studyflow/cognitive`, ...) are untouched. Also migrates the generic
+ * operators moved from `omniprocess` into `datatrove`. Idempotent.
  */
 export function normalizeStudyflowXml(xml: string): string {
-  return xml.replace(/(["'])http:\/\/behaverse\.org\/schemas\/studyflow\1/g, `$1${STUDYFLOW_NS}$1`);
+  const nsFixed = xml.replace(/(["'])http:\/\/behaverse\.org\/schemas\/studyflow\1/g, `$1${STUDYFLOW_NS}$1`);
+  return migrateDatatroveTags(nsFixed);
 }
 
 function localName(type: string | undefined): string | undefined {

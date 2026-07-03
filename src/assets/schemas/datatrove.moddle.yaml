@@ -2,20 +2,18 @@
 
 name: DataTrove
 prefix: datatrove
-description: A studyflow extension for data transformation activities in the DataTrove ecosystem.
+description: Studyflow extension for composing functions over data streams - generic functional operations (transform, map, flatMap, reduce, filter, compose), the DataTrove read/write/corpus blocks (reader, writer, extractor, stats, tokens, dedup), and prefilled templates that bind an operation to a function via `uses` (group, split, anonymize).
 uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
-version: 26.0610
+version: 26.0703
 associations: []
 enumerations:
   - name: ReaderClassEnum
     isAbstract: true
     description: Specific class for the reader.
     literalValues:
-      # - name: Disk
-      #   value: BaseDiskReader
       - name: CSV
         value: CSVReader
       - name: HuggingFace Dataset
@@ -32,8 +30,6 @@ enumerations:
     isAbstract: true
     description: Specific class for the writer.
     literalValues:
-      # - name: Disk
-      #   value: DiskWriter
       - name: HuggingFace Dataset
         value: HuggingFaceDatasetWriter
       - name: JSONL (JSON Lines)
@@ -41,6 +37,102 @@ enumerations:
       - name: Parquet
         value: ParquetWriter
 types:
+  # ---------------------------------------------------------------------------
+  # Generic functional core: composing functions over a data stream.
+  # ---------------------------------------------------------------------------
+  - name: Transform
+    description: Apply a function to each element in a data stream.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: isDataOperation
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: operationType
+        isAttr: true
+        default: transform
+        type: String
+        meta:
+          pinned: true
+  - name: Map
+    description: Map a function over a data stream, producing a new data stream.
+    superClass:
+      - datatrove:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: map
+        redefines: datatrove:Transform#operationType
+  - name: FlatMap
+    description: Map a one-to-many function over a data stream and flatten the results (e.g., unnest, expand events per trial, explode arrays).
+    superClass:
+      - datatrove:Transform
+    meta:
+      icon: iconify mdi--arrow-expand-all
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: flatMap
+        redefines: datatrove:Transform#operationType
+  - name: Reduce
+    description: Reduce a data stream to a single value.
+    superClass:
+      - datatrove:Transform
+    meta:
+      icon: iconify mdi--sigma
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: reduce
+        redefines: datatrove:Transform#operationType
+  - name: Filter
+    description: |
+      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
+    superClass:
+      - datatrove:Transform
+    meta:
+      icon: iconify mdi--filter-variant
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: filter
+        redefines: datatrove:Transform#operationType
+  - name: Compose
+    description: Compose two or more transformations into a single pipeline step.
+    superClass:
+      - datatrove:Transform
+    meta:
+      icon: iconify mdi--function-variant
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: compose
+        redefines: datatrove:Transform#operationType
+  # ---------------------------------------------------------------------------
+  # DataTrove data references.
+  # ---------------------------------------------------------------------------
   - name: Document
     description: A single unit of text data with optional media attachments and metadata, mirroring DataTrove's Document record.
     superClass:
@@ -55,8 +147,6 @@ types:
         meta:
           categories:
             - DataTrove
-      # - name: id  # NOTE same as bpmn:id
-      #   type: String
       - name: media
         type: String
         isMany: true
@@ -69,17 +159,20 @@ types:
           categories:
             - DataTrove
   - name: DataFolder
-    description: a folder that contains multiple Documents. It can be used to represent a dataset or a collection of data.
+    description: A folder that contains multiple Documents. It can represent a dataset or a collection of data.
     superClass:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
     meta:
       icon: iconify fluent--folder-open-24-regular
       bpmnType: bpmn:DataObjectReference
+  # ---------------------------------------------------------------------------
+  # DataTrove read/write/corpus blocks.
+  # ---------------------------------------------------------------------------
   - name: Reader
-    description: read data from different formats and yield Document.
+    description: Read data from different formats and yield Documents.
     superClass:
-      - omniprocess:Transform
+      - datatrove:Transform
     meta:
       icon: iconify mdi--input
     properties:
@@ -89,7 +182,7 @@ types:
         meta:
           pinned: true
         default: map
-        redefines: omniprocess:Transform#operationType
+        redefines: datatrove:Transform#operationType
       - name: className
         type: ReaderClassEnum
         isAttr: true
@@ -107,9 +200,9 @@ types:
           categories:
             - DataTrove
   - name: Writer
-    description: write Document to different formats.
+    description: Write Documents to different formats.
     superClass:
-      - omniprocess:Transform
+      - datatrove:Transform
     meta:
       icon: iconify mdi--output
     properties:
@@ -119,7 +212,7 @@ types:
         meta:
           pinned: true
         default: write
-        redefines: omniprocess:Transform#operationType
+        redefines: datatrove:Transform#operationType
       - name: path
         description: Destination location to write to (e.g., a folder path, URL, or dataset identifier).
         isAttr: true
@@ -137,9 +230,9 @@ types:
           categories:
             - DataTrove
   - name: Extractor
-    description: extract text content from raw formats (such as webpage html).
+    description: Extract text content from raw formats (such as webpage HTML).
     superClass:
-      - omniprocess:Transform
+      - datatrove:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -147,23 +240,11 @@ types:
         meta:
           pinned: true
         default: map
-        redefines: omniprocess:Transform#operationType
-  - name: Filter
-    description: filter out (remove) some Documents based on specific rules/criteria.
-    superClass:
-      - omniprocess:Filter
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: filter
-        redefines: omniprocess:Filter#operationType
+        redefines: datatrove:Transform#operationType
   - name: Stats
-    description: blocks to collect statistics on the dataset.
+    description: Collect statistics on the dataset.
     superClass:
-      - omniprocess:Transform
+      - datatrove:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -171,11 +252,11 @@ types:
         meta:
           pinned: true
         default: map
-        redefines: omniprocess:Transform#operationType
+        redefines: datatrove:Transform#operationType
   - name: Tokens
-    description: blocks to tokenize data or count tokens.
+    description: Tokenize data or count tokens.
     superClass:
-      - omniprocess:Transform
+      - datatrove:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -183,11 +264,11 @@ types:
         meta:
           pinned: true
         default: map
-        redefines: omniprocess:Transform#operationType
+        redefines: datatrove:Transform#operationType
   - name: Dedup
-    description: blocks for deduplication.
+    description: Deduplication block.
     superClass:
-      - omniprocess:Transform
+      - datatrove:Transform
     properties:
       - name: operationType
         isAttr: true
@@ -195,4 +276,49 @@ types:
         meta:
           pinned: true
         default: map
-        redefines: omniprocess:Transform#operationType
+        redefines: datatrove:Transform#operationType
+templates:
+  # Parameterized operations: a generic operation type bound to a concrete
+  # function via `uses` (and arguments via `with`), instead of a dedicated
+  # schema type per operation.
+  - description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
+    object:
+      bpmn:name: Group
+      type: Map
+      bpmn:documentation: Partition a data stream into named groups by a key (e.g., participant, condition, block). A Map bound to a grouping function; set the key via `with`.
+      icon: iconify mdi--group
+      keywords:
+        - group
+        - groupby
+        - partition
+      operationType: group
+      uses: python://datatrove.group
+      with: "key: participant"
+  - description: Partition data items into named subsets (e.g., train/test) with scikit-learn.
+    object:
+      bpmn:name: Split Data
+      type: Transform
+      bpmn:documentation: Partition data items into named subsets (e.g., train/test). Bound to scikit-learn's train_test_split; adjust sizes via `with`.
+      icon: iconify mdi--call-split
+      keywords:
+        - split
+        - train
+        - test
+        - holdout
+        - sklearn
+      operationType: splitData
+      uses: python://sklearn.model_selection.train_test_split
+      with: "test_size: 0.2"
+  - description: Remove or pseudonymize identifying fields.
+    object:
+      bpmn:name: Anonymize Data
+      type: Map
+      bpmn:documentation: Remove or pseudonymize identifying fields before sharing or further processing.
+      icon: iconify mdi--incognito
+      keywords:
+        - anonymize
+        - pseudonymize
+        - deidentify
+        - privacy
+      operationType: anonymizeData
+      uses: python://datatrove.anonymize

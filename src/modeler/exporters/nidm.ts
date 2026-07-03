@@ -59,8 +59,10 @@ function isDataOperationActivity(bo: any): boolean {
   // `operation` enum value. Either being set marks this as an analysis step.
   if (readField(bo, 'isDataOperation') === true || readField(bo, 'isDataOperation') === 'true') return true;
   if (readField(bo, 'operation')) return true;
-  // The `omniprocess:` schema declares concrete operators (Transform/Map/...).
-  return typeof bo.$type === 'string' && bo.$type.startsWith('omniprocess:');
+  // The `datatrove:` schema declares concrete operators (Transform/Map/Filter/
+  // Reader/Writer/...); `omniprocess:` declares the brain preprocessing pipelines.
+  return typeof bo.$type === 'string'
+    && (bo.$type.startsWith('datatrove:') || bo.$type.startsWith('omniprocess:'));
 }
 
 function turtleId(id: string): string {
