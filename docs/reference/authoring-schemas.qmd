@@ -121,7 +121,7 @@ Studyflow-specific modeler behavior lives under `meta` on the property:
 
 Any activity can declare the function that implements it, GitHub-Actions style. Two properties on the core `studyflow:DataOperationActivity` trait (which mixes onto every `bpmn:Activity`) carry the call:
 
-- `uses` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), and `https://` (a script URL). Other schemes are allowed but flagged as unresolved. The ref/version split happens at the last `@`, so docker digests parse correctly.
+- `uses` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), and `https://` (a script URL). Other schemes are allowed but flagged as unresolved -- e.g. a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
 - `with` -- a YAML mapping of arguments passed to the function (GitHub Actions' `with:` block), carried as the text body of a `studyflow:With` wrapper. The inspector edits it under the Execution tab and reveals it once `uses` is set.
 
 ```yaml

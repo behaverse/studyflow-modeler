@@ -11,19 +11,47 @@
     id="spirit2025-example"
     targetNamespace="http://bpmn.io/schema/bpmn"
     xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:collaboration id="SPIRIT_2025_Collaboration">
+    <bpmn2:participant id="Participant_SPIRIT" name="SPIRIT 2025 trial protocol" processRef="SPIRIT_2025" />
+  </bpmn2:collaboration>
   <bpmn2:process id="SPIRIT_2025" isExecutable="false">
     <bpmn2:extensionElements>
       <studyflow:study />
     </bpmn2:extensionElements>
     <bpmn2:documentation>A SPIRIT 2025-compliant trial protocol scheduling enrollment, interventions, and outcome assessments.</bpmn2:documentation>
 
+    <bpmn2:laneSet id="LaneSet_SPIRIT">
+      <bpmn2:lane id="Lane_Enrolment" name="Enrolment">
+        <bpmn2:flowNodeRef>Protocol_Start</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Visit_Screening</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Eligibility_Gate</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>ScreenFail</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Visit_Baseline</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_Allocation" name="Allocation">
+        <bpmn2:flowNodeRef>Allocate_Gate</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_PostAllocation" name="Post-allocation">
+        <bpmn2:flowNodeRef>Activity_Intervention</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Activity_Control</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Visit_T1</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Visit_T2</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_Closeout" name="Close-out">
+        <bpmn2:flowNodeRef>Visit_Closeout</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>Protocol_End</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+    </bpmn2:laneSet>
+
     <bpmn2:startEvent id="Protocol_Start" name="Recruitment"
-        studyflow:consentFormUri="https://example.org/protocols/spirit2025/consent.pdf">
+        studyflow:consentFormUri="https://example.org/protocols/spirit2025/consent.pdf"
+        studyflow:onset="T0" studyflow:progress="done">
       <bpmn2:documentation>SPIRIT 2025 items 1-3 (administrative information): trial registration, protocol version, funding. Item 26a: informed consent.</bpmn2:documentation>
       <bpmn2:outgoing>Flow_Start_Screen</bpmn2:outgoing>
     </bpmn2:startEvent>
 
     <bpmn2:subProcess id="Visit_Screening" name="Screening visit (t = -t1)"
+        studyflow:onset="T0" studyflow:duration="1 week" studyflow:progress="done"
         studyflow:checklist="- [ ] SPIRIT 11a: eligibility screen&#10;- [ ] SPIRIT 11b: who recruits&#10;- [ ] SPIRIT 14: settings and locations&#10;- [ ] SPIRIT 26a: informed consent obtained&#10;- [ ] SPIRIT 27: confidentiality &amp; data handling">
       <bpmn2:documentation>Pre-enrollment screening visit. Captures the items SPIRIT requires before randomization (eligibility, consent, baseline demographics).</bpmn2:documentation>
       <bpmn2:incoming>Flow_Start_Screen</bpmn2:incoming>
@@ -54,6 +82,7 @@
     </bpmn2:endEvent>
 
     <bpmn2:subProcess id="Visit_Baseline" name="Baseline visit (t = 0)"
+        studyflow:onset="T0+2 weeks" studyflow:duration="1 week" studyflow:progress="done"
         studyflow:checklist="- [ ] SPIRIT 12: baseline demographics&#10;- [ ] SPIRIT 12: medical history&#10;- [ ] SPIRIT 12: vitals &amp; physical exam&#10;- [ ] SPIRIT 18a: primary outcome at baseline&#10;- [ ] SPIRIT 18b: secondary outcomes at baseline">
       <bpmn2:documentation>Baseline assessment immediately before allocation. Establishes the t=0 reference for all primary and secondary outcomes.</bpmn2:documentation>
       <bpmn2:incoming>Flow_Eligible_Yes</bpmn2:incoming>
@@ -75,6 +104,7 @@
     </bpmn2:exclusiveGateway>
 
     <bpmn2:task id="Activity_Intervention" name="Intervention: cognitive training"
+        studyflow:onset="T0+3 weeks" studyflow:duration="4 weeks" studyflow:progress="60%"
         studyflow:checklist="- [ ] SPIRIT 17a: intervention dose &amp; schedule&#10;- [ ] SPIRIT 17b: criteria for modification&#10;- [ ] SPIRIT 19: adherence monitoring">
       <bpmn2:documentation>SPIRIT 2025 item 17a: A description of the interventions for each group with sufficient detail to allow replication.</bpmn2:documentation>
       <bpmn2:extensionElements>
@@ -92,6 +122,7 @@ levels: [1, 2, 3, 4]
     </bpmn2:task>
 
     <bpmn2:task id="Activity_Control" name="Control: active sham"
+        studyflow:onset="T0+3 weeks" studyflow:duration="4 weeks" studyflow:progress="60%"
         studyflow:checklist="- [ ] SPIRIT 17a: control dose matched to intervention&#10;- [ ] SPIRIT 17b: criteria for modification&#10;- [ ] SPIRIT 19: adherence monitoring">
       <bpmn2:documentation>SPIRIT 2025 item 17a: Comparator condition matched on session count and duration to control for non-specific effects.</bpmn2:documentation>
       <bpmn2:extensionElements>
@@ -109,6 +140,7 @@ levels: [1]
     </bpmn2:task>
 
     <bpmn2:subProcess id="Visit_T1" name="Follow-up visit (t = t1, week 4)"
+        studyflow:onset="T0+6 weeks" studyflow:duration="1 week" studyflow:progress="in-progress"
         studyflow:checklist="- [ ] SPIRIT 18a: primary outcome reassessed&#10;- [ ] SPIRIT 18b: secondary outcomes reassessed&#10;- [ ] SPIRIT 22: adverse-event review&#10;- [ ] SPIRIT 19: adherence check">
       <bpmn2:documentation>Mid-trial assessment. Reassesses primary and secondary outcomes; reviews adherence and adverse events.</bpmn2:documentation>
       <bpmn2:incoming>Flow_Treatment_Visit1</bpmn2:incoming>
@@ -117,6 +149,7 @@ levels: [1]
     </bpmn2:subProcess>
 
     <bpmn2:subProcess id="Visit_T2" name="Primary endpoint visit (t = t2, week 12)"
+        studyflow:onset="T0+14 weeks" studyflow:duration="1 week" studyflow:progress="todo"
         studyflow:checklist="- [ ] SPIRIT 18a: primary outcome - endpoint analysis&#10;- [ ] SPIRIT 18b: secondary outcomes&#10;- [ ] SPIRIT 22: adverse events&#10;- [ ] SPIRIT 27: data lock for primary analysis">
       <bpmn2:documentation>SPIRIT 2025 item 12: When the primary outcome is measured. End of the active intervention phase.</bpmn2:documentation>
       <bpmn2:incoming>Flow_Visit1_Visit2</bpmn2:incoming>
@@ -124,6 +157,7 @@ levels: [1]
     </bpmn2:subProcess>
 
     <bpmn2:subProcess id="Visit_Closeout" name="Close-out (t = tx, week 24)"
+        studyflow:onset="T0+26 weeks" studyflow:duration="1 week" studyflow:progress="todo"
         studyflow:checklist="- [ ] SPIRIT 13: participant retention plan executed&#10;- [ ] SPIRIT 18a: durability of primary outcome&#10;- [ ] SPIRIT 22: adverse events final review&#10;- [ ] SPIRIT 31: results dissemination plan&#10;- [ ] SPIRIT 32: data sharing per plan">
       <bpmn2:documentation>SPIRIT 2025 item 13: Long-term follow-up to assess durability of effects. Participant exit interviews and final adverse-events review.</bpmn2:documentation>
       <bpmn2:incoming>Flow_Visit2_Closeout</bpmn2:incoming>
@@ -206,11 +240,26 @@ tableSchema:
   </bpmn2:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SPIRIT_2025_Protocol">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SPIRIT_2025_Collaboration">
+      <bpmndi:BPMNShape id="Participant_SPIRIT_di" bpmnElement="Participant_SPIRIT" isHorizontal="true">
+        <dc:Bounds x="140" y="60" width="810" height="900" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Enrolment_di" bpmnElement="Lane_Enrolment" isHorizontal="true">
+        <dc:Bounds x="170" y="60" width="780" height="230" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Allocation_di" bpmnElement="Lane_Allocation" isHorizontal="true">
+        <dc:Bounds x="170" y="290" width="780" height="100" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_PostAllocation_di" bpmnElement="Lane_PostAllocation" isHorizontal="true">
+        <dc:Bounds x="170" y="390" width="780" height="370" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Closeout_di" bpmnElement="Lane_Closeout" isHorizontal="true">
+        <dc:Bounds x="170" y="760" width="780" height="200" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Protocol_Start_di" bpmnElement="Protocol_Start">
-        <dc:Bounds x="172" y="92" width="36" height="36" />
+        <dc:Bounds x="214" y="92" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="162" y="73" width="56" height="14" />
+          <dc:Bounds x="204" y="73" width="56" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Visit_Screening_di" bpmnElement="Visit_Screening" isExpanded="false">
@@ -283,7 +332,7 @@ tableSchema:
       </bpmndi:BPMNShape>
 
       <bpmndi:BPMNEdge id="Flow_Start_Screen_di" bpmnElement="Flow_Start_Screen">
-        <di:waypoint x="208" y="110" />
+        <di:waypoint x="250" y="110" />
         <di:waypoint x="260" y="110" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Screen_Eligibility_di" bpmnElement="Flow_Screen_Eligibility">

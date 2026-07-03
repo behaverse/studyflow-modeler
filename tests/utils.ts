@@ -69,7 +69,7 @@ export async function setSelectedElementName(page: Page, value: string): Promise
 export async function uploadStudyflowDiagram(page: Page, filename = 'sample.studyflow'): Promise<void> {
   const diagramBuffer = readFileSync(path.join(process.cwd(), 'src/assets/examples/new_diagram.bpmn'));
 
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByTestId('open-file-input').setInputFiles({
     name: filename,
     mimeType: 'application/xml',
     buffer: diagramBuffer,

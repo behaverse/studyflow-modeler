@@ -31,7 +31,16 @@ export async function runOpenDiagram(modeler: any, command: OpenDiagramCommand):
   const xml = await toXml(modeler, command.filename, command.content);
 
   const result = await runImportXml(modeler, { type: 'import-xml', xml });
-  modeler.get('canvas').zoom('fit-viewport');
+
+  // Best-effort fit. bpmn-js's fit math can yield a non-finite scale for some
+  // valid diagrams (e.g. collaborations whose collapsed sub-process drilldown
+  // planes momentarily present a degenerate viewport). A failed auto-fit must
+  // not abort opening an otherwise-valid diagram.
+  try {
+    modeler.get('canvas').zoom('fit-viewport');
+  } catch (err) {
+    console.warn('Zoom to fit-viewport failed after open; leaving default zoom.', err);
+  }
 
   // Derive a name from the filename if the diagram didn't ship with one.
   const root = modeler.get('canvas').getRootElement();

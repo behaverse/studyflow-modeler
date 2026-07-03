@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { expect, test } from '@playwright/test';
 
 import { gotoModeler, readDownloadText, runPaletteCommand, uploadStudyflowDiagram } from './utils';
@@ -11,6 +14,26 @@ test.describe('Studyflow modeler file flows', () => {
 
     await expect(page.getByTitle('Click to edit diagram name')).toHaveText('sample');
     await expect(page.getByTestId('modeler-canvas')).toBeVisible();
+  });
+
+  test('imports a jsPsych timeline JSON via the dedicated command', async ({ page }) => {
+    await gotoModeler(page);
+
+    // 'Import jsPsych Timeline...' clicks its own hidden JSON-only <input>;
+    // plain 'Open File...' does not accept .json (any JSON could be anything).
+    await page.getByTestId('import-jspsych-input').setInputFiles({
+      name: 'flanker.timeline.json',
+      mimeType: 'application/json',
+      buffer: readFileSync(path.join(process.cwd(), 'tests/fixtures/flanker.timeline.json')),
+    });
+
+    // The timeline arrives converted: named after the file, one task per node
+    // (the leading consent node folds into the start event), chained start -> end.
+    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('flanker.timeline');
+    await expect(page.locator('.djs-element[data-element-id="Start"]')).toBeVisible();
+    await expect(page.locator('.djs-element[data-element-id="Flanker_test"]')).toBeVisible();
+    await expect(page.locator('.djs-element[data-element-id="End"]')).toBeVisible();
+    await expect(page.locator('.djs-element[data-element-id="Consent"]')).toHaveCount(0);
   });
 
   test('downloads the current diagram as a YAML studyflow file', async ({ page }) => {
@@ -36,7 +59,7 @@ test.describe('Studyflow modeler file flows', () => {
     await runPaletteCommand(page, 'Save As...', 'Studyflow...');
     const yamlText = await readDownloadText(await downloadPromise);
 
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.getByTestId('open-file-input').setInputFiles({
       name: 'roundtrip.studyflow',
       mimeType: 'text/yaml',
       buffer: Buffer.from(yamlText, 'utf8'),

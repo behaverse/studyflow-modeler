@@ -1,0 +1,47 @@
+[
+  {
+    "type": "html-button-response",
+    "name": "Consent",
+    "stimulus": "<p>Please read the <strong>consent form</strong> before continuing.</p>",
+    "choices": ["I agree"],
+    "consent_url": "https://example.org/protocols/flanker/consent.md",
+    "data": { "task": "consent" }
+  },
+  {
+    "type": "jsPsychHtmlKeyboardResponse",
+    "name": "Instructions",
+    "stimulus": "<p>Press <b>F</b> for a left-pointing center arrow and <b>J</b> for a right-pointing one. Respond as fast as you can.</p>",
+    "choices": ["f", "j"],
+    "post_trial_gap": 500
+  },
+  {
+    "type": "jsPsychHtmlKeyboardResponse",
+    "name": "Fixation",
+    "stimulus": "<div style=\"font-size:60px;\">+</div>",
+    "choices": "NO_KEYS",
+    "trial_duration": 500
+  },
+  {
+    "type": "html-keyboard-response",
+    "name": "Flanker test",
+    "timeline_variables": [
+      { "stimulus": "<<<<<", "correct_response": "f", "condition": "congruent" },
+      { "stimulus": ">>>>>", "correct_response": "j", "condition": "congruent" },
+      { "stimulus": "<<><<", "correct_response": "j", "condition": "incongruent" },
+      { "stimulus": ">><>>", "correct_response": "f", "condition": "incongruent" }
+    ],
+    "randomize_order": true,
+    "repetitions": 24,
+    "choices": ["f", "j"],
+    "trial_duration": 1500,
+    "n_trials": 96,
+    "InterStimulusInterval": 0.5,
+    "data": { "task": "flanker" }
+  },
+  {
+    "type": "html-button-response",
+    "name": "Debrief",
+    "stimulus": "<p>Thank you for participating.</p>",
+    "choices": ["Finish"]
+  }
+]

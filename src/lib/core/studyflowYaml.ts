@@ -85,6 +85,16 @@ function localName(type: string | undefined): string | undefined {
   return type?.includes(':') ? type.split(':').pop() : type;
 }
 
+/**
+ * Authored value-type of a body property. `toModdlePackages` flattens a
+ * value-typed body's wire type to `String` (so moddle XML-escapes its text) but
+ * preserves the original in `bodyValueType`, so YAML-body detection — which must
+ * fold `YAMLString` bodies but not `MarkdownString` ones — survives the flatten.
+ */
+function bodyValueType(prop: any): string | undefined {
+  return prop.bodyValueType ?? prop.type;
+}
+
 /** The plane of the primary diagram is anchored here when not stated explicitly. */
 function inferPlaneRoot(definitions: any): any | undefined {
   const roots: any[] = definitions.rootElements ?? [];
@@ -123,7 +133,7 @@ function serializeValue(value: any, declaredType: string | undefined, ctx?: Seri
 function inlineYamlBody(el: any): Record<string, unknown> | undefined {
   const props: any[] = el.$descriptor?.properties ?? [];
   const body = props.find((p) => p.isBody);
-  if (!body || localName(body.type) !== 'YAMLString') return undefined;
+  if (!body || localName(bodyValueType(body)) !== 'YAMLString') return undefined;
   if (typeof el[body.name] !== 'string' || el[body.name] === '') return undefined;
   if (Object.keys(el.$attrs ?? {}).length > 0) return undefined;
   for (const p of props) {
@@ -464,7 +474,7 @@ class ModdleBuilder {
   /** The YAML-typed body property of config-wrapper types (`cognitive:Configurations#value`). */
   private yamlBodyPropertyOf(typeName: string): any | undefined {
     const body = (this.descriptorOf(typeName)?.properties ?? []).find((p: any) => p.isBody);
-    return body && localName(body.type) === 'YAMLString' ? body : undefined;
+    return body && localName(bodyValueType(body)) === 'YAMLString' ? body : undefined;
   }
 
   private allKeysDeclared(node: Record<string, unknown>, typeName: string): boolean {

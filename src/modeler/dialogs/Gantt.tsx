@@ -27,14 +27,23 @@ type Row = TimingAttrs & {
 
 const ATTR_NAMES: (keyof TimingAttrs)[] = ['onset', 'duration', 'progress'];
 
-/** Walk up the parent chain to find the closest containing Lane or Pool (Participant). */
+/** Find the swimlane label for an element: its containing Lane, else Pool. */
 function findSwimlane(el: any): string {
+  // bpmn-js does not reparent flow nodes under their lane — lane membership is
+  // a semantic back-reference (`businessObject.lanes`), while `el.parent` is the
+  // enclosing pool. Prefer the lane so the Gantt groups by lane, not by pool.
+  const bo = el?.businessObject;
+  const lanes = bo?.get?.('lanes') ?? bo?.lanes;
+  if (Array.isArray(lanes) && lanes.length > 0) {
+    const lane = lanes[0];
+    return lane?.name || lane?.id || '(Lane)';
+  }
   let p = el?.parent;
   while (p) {
-    const bo = p.businessObject;
-    const type = bo?.$type;
+    const pbo = p.businessObject;
+    const type = pbo?.$type;
     if (type === 'bpmn:Lane' || type === 'bpmn:Participant') {
-      return bo.name || bo.id || `(${type.split(':')[1]})`;
+      return pbo.name || pbo.id || `(${type.split(':')[1]})`;
     }
     p = p.parent;
   }

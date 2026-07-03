@@ -4,6 +4,7 @@ import { runResolvePaletteSchemas, type ResolvePaletteSchemasCommand } from './p
 import { runPaletteActivateLasso, runPaletteOpenPopup, type PaletteActivateLassoCommand, type PaletteOpenPopupCommand } from './palette/paletteUi';
 
 import { runOpenDiagram, type OpenDiagramCommand } from './diagram/openDiagram';
+import { runImportJsPsych, type ImportJsPsychCommand } from './diagram/importJsPsych';
 import { runNewDiagram, type NewDiagramCommand } from './diagram/newDiagram';
 import { runSaveDiagram, type SaveDiagramCommand } from './diagram/saveDiagram';
 import { runPublishDiagram, type PublishDiagramCommand } from './diagram/publishDiagram';
@@ -26,6 +27,7 @@ export type DiagramCommand =
   | PaletteActivateLassoCommand
   | PaletteOpenPopupCommand
   | OpenDiagramCommand
+  | ImportJsPsychCommand
   | NewDiagramCommand
   | SaveDiagramCommand
   | PublishDiagramCommand
@@ -54,6 +56,7 @@ const HANDLERS: HandlerMap = {
   'palette-activate-lasso': runPaletteActivateLasso,
   'palette-open-popup': runPaletteOpenPopup,
   'open-diagram': runOpenDiagram,
+  'import-jspsych': runImportJsPsych,
   'new-diagram': runNewDiagram,
   'save-diagram': runSaveDiagram,
   'publish-diagram': runPublishDiagram,

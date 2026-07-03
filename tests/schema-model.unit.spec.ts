@@ -36,6 +36,10 @@ const VALUE_TYPE_SUPER_CLASSES = new Set(['String', 'Boolean', 'Integer', 'Float
  *    plain `String`. Before this, moddle silently dropped their text content
  *    on load (`inclusionCriteria`, `exclusionCriteria`, `strata`,
  *    `Checklist.items`, `Document.metadata`) — a data-loss bug.
+ * 3. Value-typed text bodies (`isBody`) go on the wire as `String` too, with
+ *    the authored type kept in `bodyValueType`. Before this, moddle wrote a
+ *    body carrying `<`/`&` raw (it only escapes bodies typed exactly `String`),
+ *    producing invalid XML.
  */
 function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, prefix: string): any {
   const schema: any = yaml.load(yamlContent);
@@ -46,9 +50,11 @@ function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, pre
       type.superClass.push('Element');
     }
     for (const p of type.properties ?? []) {
-      if (p.isAttr || p.isBody || typeof p.type !== 'string') continue;
+      if (p.isAttr || typeof p.type !== 'string') continue;
       const qualified = p.type.includes(':') ? p.type : `${prefix}:${p.type}`;
-      if (valueTypes.has(qualified)) p.type = 'String';
+      if (!valueTypes.has(qualified)) continue;
+      if (p.isBody) p.bodyValueType = qualified;
+      p.type = 'String';
     }
   }
   return schema;
@@ -94,6 +100,27 @@ test.describe('schema model: moddle package generation', () => {
     expect(propType(byPrefix.cognitive, 'StratifiedAllocationGateway', 'strata')).toBe('String');
     expect(propType(byPrefix.studyflow, 'Checklist', 'items')).toBe('String');
     expect(propType(byPrefix.datatrove, 'Document', 'metadata')).toBe('String');
+  });
+
+  test('value-typed bodies go on the wire as String, keeping the authored type', () => {
+    const byPrefix = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
+    const bodyProp = (pkg: any, typeName: string, propName: string) =>
+      pkg.types.find((t: any) => t.name === typeName)?.properties.find((p: any) => p.name === propName);
+
+    // moddle only escapes a body typed exactly `String`, so the wire type is
+    // flattened while `bodyValueType` records what the YAML codec needs to fold.
+    const configValue = bodyProp(byPrefix.cognitive, 'Configurations', 'value');
+    expect(configValue.type).toBe('String');
+    expect(configValue.bodyValueType).toBe('studyflow:YAMLString');
+
+    const withValue = bodyProp(byPrefix.studyflow, 'With', 'value');
+    expect(withValue.type).toBe('String');
+    expect(withValue.bodyValueType).toBe('studyflow:YAMLString');
+
+    // Markdown bodies flatten too (they escape the same way) but must NOT fold.
+    const instructions = bodyProp(byPrefix.galea, 'Mount', 'instructions');
+    expect(instructions.type).toBe('String');
+    expect(instructions.bodyValueType).toBe('studyflow:MarkdownString');
   });
 
   test('generated packages are fresh objects per call (moddle mutates them)', () => {

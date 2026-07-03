@@ -14,6 +14,7 @@ import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { useIsSimulating } from '../simulation/useIsSimulating';
 import { ExamplesDialog } from './Examples';
+import { TemplateGalleryDialog } from './TemplateGallery';
 import { PublishDialog } from './Publish';
 import { ChecklistDialog } from './Checklist';
 import { GanttDialog } from './Gantt';
@@ -74,6 +75,7 @@ export function CommandPalette({ ref }: Props) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [isExamplesOpen, setIsExamplesOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const [isGanttOpen, setIsGanttOpen] = useState(false);
@@ -83,6 +85,7 @@ export function CommandPalette({ ref }: Props) {
   const isSimulating = useIsSimulating(modeler);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsPsychInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +123,29 @@ export function CommandPalette({ ref }: Props) {
     e.target.value = '';
   };
 
+  const handleJsPsychFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      alert('Please select a jsPsych timeline JSON file.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = (loadEvent) => {
+      const content = (loadEvent.target as FileReader).result;
+      executeCommand(modeler, {
+        type: 'import-jspsych',
+        filename: file.name,
+        content,
+      }).catch((err: any) => {
+        alert(err?.message || 'Failed to import the jsPsych timeline.');
+        console.error(err);
+      });
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const commands: Command[] = useMemo(
     () => [
       {
@@ -149,12 +175,36 @@ export function CommandPalette({ ref }: Props) {
         },
       },
       {
+        id: 'new-from-template',
+        group: 'File',
+        label: 'New from Template...',
+        icon: 'iconify bi--grid-1x2',
+        action: () => setIsTemplatesOpen(true),
+      },
+      {
         id: 'open',
         group: 'File',
         label: 'Open File...',
         icon: 'iconify bi--folder2-open',
         shortcut: '3',
         action: () => fileInputRef.current?.click(),
+      },
+      {
+        id: 'import',
+        group: 'File',
+        label: 'Import...',
+        icon: 'iconify bi--box-arrow-in-down',
+        hint: 'submenu',
+        children: [
+          {
+            id: 'import-jspsych',
+            group: 'Import',
+            label: 'jsPsych Timeline...',
+            icon: 'iconify bi--filetype-json',
+            hint: '.json',
+            action: () => jsPsychInputRef.current?.click(),
+          },
+        ],
       },
       {
         id: 'examples',
@@ -403,15 +453,25 @@ export function CommandPalette({ ref }: Props) {
   return (
     <>
       <ExamplesDialog isOpen={isExamplesOpen} onClose={() => setIsExamplesOpen(false)} />
+      <TemplateGalleryDialog isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} />
       <PublishDialog isOpen={isPublishOpen} onClose={() => setIsPublishOpen(false)} />
       <ChecklistDialog isOpen={isChecklistOpen} onClose={() => setIsChecklistOpen(false)} />
       <GanttDialog isOpen={isGanttOpen} onClose={() => setIsGanttOpen(false)} />
       <input
         ref={fileInputRef}
         type="file"
-        accept=".xml,.bpmn,.studyflow,.svg"
+        accept={VALID_FILE_EXTENSIONS.join(',')}
+        data-testid="open-file-input"
         className="hidden"
         onChange={handleFileChange}
+      />
+      <input
+        ref={jsPsychInputRef}
+        type="file"
+        accept=".json"
+        data-testid="import-jspsych-input"
+        className="hidden"
+        onChange={handleJsPsychFileChange}
       />
       <Dialog open={isOpen} onClose={close} className={cp.root}>
         <div className={cp.backdrop} aria-hidden="true" />

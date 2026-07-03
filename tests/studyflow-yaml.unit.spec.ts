@@ -220,6 +220,52 @@ diagram:
     expect(process.flowElements.Start.bounds.x).toBe(160);
   });
 
+  test('a config body carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
+    // moddle escapes a text body only when it is typed exactly `String`; a raw
+    // `<`/`&` in a `cognitive:Configurations` (YAMLString) body used to produce
+    // invalid XML on the Save As > BPMN 2.0 XML path.
+    const doc = `
+id: escape_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: bpmn:Process
+  flowElements:
+    T1:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
+          configurations:
+            stimulus: "<p>&lt; L &amp; R <<< </p>"
+    End:
+      type: bpmn:EndEvent
+    F1:
+      type: bpmn:SequenceFlow
+      sourceRef: T1
+      targetRef: End
+`;
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const xml1 = await studyflowToXml(doc, moddle);
+
+    // The body markup is escaped, so the document is well-formed XML.
+    expect(xml1).toContain('&lt;');
+    expect(xml1).toContain('&amp;');
+    expect(xml1).not.toContain('<<<');
+
+    // Reading it back decodes the entities; the folded YAML preserves the value.
+    const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
+    const yaml1 = await xmlToStudyflow(xml1, moddle2);
+    const back: any = yaml.load(yaml1);
+    expect(back.P.flowElements.T1.extensionElements[0].configurations.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
+
+    // And it reaches a fixed point: XML -> YAML -> XML -> YAML is stable.
+    const moddle3 = new BpmnModdle(structuredClone(packages)) as any;
+    const xml2 = await studyflowToXml(yaml1, moddle3);
+    const moddle4 = new BpmnModdle(structuredClone(packages)) as any;
+    expect(await xmlToStudyflow(xml2, moddle4)).toBe(yaml1);
+  });
+
   test('sniffer distinguishes XML from YAML', () => {
     expect(looksLikeXml('<?xml version="1.0"?>\n<definitions/>')).toBe(true);
     expect(looksLikeXml('﻿  <bpmn2:definitions>')).toBe(true);
