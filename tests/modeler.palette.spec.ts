@@ -50,7 +50,7 @@ test.describe('Studyflow modeler palette flows', () => {
     });
 
     const svgDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'SVG...');
+    await runPaletteCommand(page, 'Export...', 'SVG...');
     const svgDownload = await svgDownloadPromise;
     const svgText = await readDownloadText(svgDownload);
 
@@ -91,7 +91,7 @@ test.describe('Studyflow modeler palette flows', () => {
     });
 
     const svgDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'SVG...');
+    await runPaletteCommand(page, 'Export...', 'SVG...');
     const svgDownload = await svgDownloadPromise;
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);

@@ -1,10 +1,10 @@
 import { getFillColor, getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
-import { getAttribute, getExtensionType } from '@/lib/core/extensions';
+import { getAttribute } from '@/lib/core/extensions';
 import type { Styles } from '../bpmn-js';
 
-/** Qualified type of the choreography-task extension wrapper. */
-export const CHOREOGRAPHY_TASK_TYPE = 'studyflow:ChoreographyTask';
+/** BPMN element type; the studyflow trait contributes the band attributes. */
+export const CHOREOGRAPHY_TASK_TYPE = 'bpmn:ChoreographyTask';
 
 /** Nominal height of each participant band (shrinks for very short tasks). */
 export const CHOREOGRAPHY_BAND_HEIGHT = 20;
@@ -15,9 +15,10 @@ const CORNER_RADIUS = 10;
 /** Fill used for the non-initiating (receiving) participant band. */
 const RECEIVING_BAND_FILL = '#ededed';
 
-/** True when the element is a studyflow choreography task. */
+/** True when the element (djs shape or business object) is a choreography task. */
 export function isChoreographyTask(element: any): boolean {
-  return getExtensionType(element) === CHOREOGRAPHY_TASK_TYPE;
+  const type = element?.type ?? element?.businessObject?.$type ?? element?.$type;
+  return type === CHOREOGRAPHY_TASK_TYPE;
 }
 
 /** Actual band height for an element, clamped so the middle name band survives. */
@@ -31,6 +32,32 @@ function fit(text: string, maxWidth: number, fontSize: number): string {
   const maxChars = Math.max(1, Math.floor((maxWidth - 8) / perChar));
   if (text.length <= maxChars) return text;
   return text.slice(0, Math.max(1, maxChars - 1)).trimEnd() + '…';
+}
+
+/** Greedy word-wrap into at most `maxLines` lines; overflow is ellipsized. */
+function wrap(text: string, maxWidth: number, fontSize: number, maxLines: number): string[] {
+  const perChar = fontSize * 0.58;
+  const maxChars = Math.max(1, Math.floor((maxWidth - 8) / perChar));
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  for (let i = 0; i < words.length; i++) {
+    const candidate = current ? `${current} ${words[i]}` : words[i];
+    if (candidate.length <= maxChars || !current) {
+      current = candidate;
+      continue;
+    }
+    if (lines.length === maxLines - 1) {
+      // Last permitted line: keep the rest so `fit` ellipsizes it below.
+      current = `${current} ${words.slice(i).join(' ')}`;
+      break;
+    }
+    lines.push(fit(current, maxWidth, fontSize));
+    current = words[i];
+  }
+  if (current) lines.push(fit(current, maxWidth, fontSize));
+  return lines;
 }
 
 /** Centered text line inside a band/region. */
@@ -138,11 +165,18 @@ export function drawChoreographyTask(
   });
   svgAppend(parentGfx, border);
 
-  // Text: participants in the bands, task name in the middle.
+  // Text: participants in the bands, task name (wrapped) in the middle.
   drawText(parentGfx, topName, width / 2, bandHeight / 2, width, stroke, 11, '400');
   drawText(parentGfx, bottomName, width / 2, height - bandHeight / 2, width, stroke, 11, '400');
   if (name) {
-    drawText(parentGfx, name, width / 2, height / 2, width, stroke, 12, '600');
+    const lineHeight = 15;
+    const middleHeight = height - 2 * bandHeight;
+    const maxLines = Math.max(1, Math.min(3, Math.floor(middleHeight / lineHeight)));
+    const lines = wrap(name, width, 12, maxLines);
+    const firstY = height / 2 - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((line, i) => {
+      drawText(parentGfx, line, width / 2, firstY + i * lineHeight, width, stroke, 12, '600');
+    });
   }
 
   return border;

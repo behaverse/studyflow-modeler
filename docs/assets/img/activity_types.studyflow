@@ -1,147 +1,235 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
-  <bpmn2:process id="Study_1" isExecutable="false">
-    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements><bpmn2:task id="CognitiveTest_1wfxwob" name="Cognitive Test">
-      <bpmn2:extensionElements><cognitive:cognitiveTask /></bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_0t25gsx</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_1uby65v</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_179ufev</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_1m4sl9n</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Questionnaire_07lo5v1" name="Questionnaire">
-      <bpmn2:extensionElements><cognitive:questionnaire /></bpmn2:extensionElements><bpmn2:incoming>Flow_0noilkj</bpmn2:incoming>
-    </bpmn2:task>
-    <bpmn2:task id="Instruction_05452k7" name="Instruction">
-      <bpmn2:extensionElements><cognitive:instruction /></bpmn2:extensionElements><bpmn2:incoming>Flow_0n8nnfp</bpmn2:incoming>
-    </bpmn2:task>
-    <bpmn2:task id="Activity_0zctxq8" name="Video Game">
-      <bpmn2:extensionElements><cognitive:videoGame /></bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_1m4sl9n</bpmn2:incoming>
-    </bpmn2:task>
-    <bpmn2:task id="Activity_0kov43v" name="Rest">
-      <bpmn2:extensionElements><cognitive:rest /></bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_1uby65v</bpmn2:incoming>
-    </bpmn2:task>
-    <behaverse:behaverseTask id="Activity_1yrc7zh" name="Behaverse Test&#10;(Generic)" instrument="behaverse">
-      <bpmn2:incoming>Flow_179ufev</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_1h590ia</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_1m2gbjk</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_1qdmact</bpmn2:outgoing>
-    </behaverse:behaverseTask>
-    <behaverse:behaverseTask id="Activity_07qsdel" name="Behaverse&#10;N-Back Test" instrument="behaverse" scene="NB">
-      <bpmn2:incoming>Flow_1m2gbjk</bpmn2:incoming>
-    </behaverse:behaverseTask>
-    <behaverse:behaverseTask id="Activity_1vjubeo" name="Behaverse&#10;Target Hit Test" instrument="behaverse" scene="TH">
-      <bpmn2:incoming>Flow_1qdmact</bpmn2:incoming>
-    </behaverse:behaverseTask>
-    <behaverse:behaverseTask id="Activity_18wc4x8" name="Behaverse&#10;Digit Span" instrument="behaverse" scene="DS">
-      <bpmn2:incoming>Flow_1h590ia</bpmn2:incoming>
-    </behaverse:behaverseTask>
-    <bpmn2:task id="Activity_1a2aku7" name="Activity">
-      <bpmn2:outgoing>Flow_0n8nnfp</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_0t25gsx</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_0noilkj</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:sequenceFlow id="Flow_0n8nnfp" sourceRef="Activity_1a2aku7" targetRef="Instruction_05452k7" />
-    <bpmn2:sequenceFlow id="Flow_0t25gsx" sourceRef="Activity_1a2aku7" targetRef="CognitiveTest_1wfxwob" />
-    <bpmn2:sequenceFlow id="Flow_0noilkj" sourceRef="Activity_1a2aku7" targetRef="Questionnaire_07lo5v1" />
-    <bpmn2:sequenceFlow id="Flow_1h590ia" sourceRef="Activity_1yrc7zh" targetRef="Activity_18wc4x8" />
-    <bpmn2:sequenceFlow id="Flow_1m2gbjk" sourceRef="Activity_1yrc7zh" targetRef="Activity_07qsdel" />
-    <bpmn2:sequenceFlow id="Flow_1qdmact" sourceRef="Activity_1yrc7zh" targetRef="Activity_1vjubeo" />
-    <bpmn2:sequenceFlow id="Flow_1uby65v" sourceRef="CognitiveTest_1wfxwob" targetRef="Activity_0kov43v" />
-    <bpmn2:sequenceFlow id="Flow_179ufev" sourceRef="CognitiveTest_1wfxwob" targetRef="Activity_1yrc7zh" />
-    <bpmn2:sequenceFlow id="Flow_1m4sl9n" sourceRef="CognitiveTest_1wfxwob" targetRef="Activity_0zctxq8" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
-      <bpmndi:BPMNShape id="Instruction_05452k7_di" bpmnElement="Instruction_05452k7">
-        <dc:Bounds x="340" y="100" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_1a2aku7_di" bpmnElement="Activity_1a2aku7">
-        <dc:Bounds x="450" y="-10" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="CognitiveTest_1wfxwob_di" bpmnElement="CognitiveTest_1wfxwob">
-        <dc:Bounds x="450" y="100" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Questionnaire_07lo5v1_di" bpmnElement="Questionnaire_07lo5v1">
-        <dc:Bounds x="560" y="100" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0pqblf5" bpmnElement="Activity_0kov43v">
-        <dc:Bounds x="340" y="210" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_04eb17v" bpmnElement="Activity_1yrc7zh">
-        <dc:Bounds x="450" y="210" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0fce136" bpmnElement="Activity_0zctxq8">
-        <dc:Bounds x="560" y="210" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0ysn0q5" bpmnElement="Activity_18wc4x8">
-        <dc:Bounds x="340" y="320" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_1mfzhpp" bpmnElement="Activity_07qsdel">
-        <dc:Bounds x="450" y="320" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0ho9sa8" bpmnElement="Activity_1vjubeo">
-        <dc:Bounds x="560" y="320" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0n8nnfp_di" bpmnElement="Flow_0n8nnfp">
-        <di:waypoint x="500" y="70" />
-        <di:waypoint x="500" y="85" />
-        <di:waypoint x="390" y="85" />
-        <di:waypoint x="390" y="100" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0t25gsx_di" bpmnElement="Flow_0t25gsx">
-        <di:waypoint x="500" y="70" />
-        <di:waypoint x="500" y="100" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0noilkj_di" bpmnElement="Flow_0noilkj">
-        <di:waypoint x="500" y="70" />
-        <di:waypoint x="500" y="85" />
-        <di:waypoint x="610" y="85" />
-        <di:waypoint x="610" y="100" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1h590ia_di" bpmnElement="Flow_1h590ia">
-        <di:waypoint x="500" y="290" />
-        <di:waypoint x="500" y="305" />
-        <di:waypoint x="390" y="305" />
-        <di:waypoint x="390" y="320" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1m2gbjk_di" bpmnElement="Flow_1m2gbjk">
-        <di:waypoint x="500" y="290" />
-        <di:waypoint x="500" y="320" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1qdmact_di" bpmnElement="Flow_1qdmact">
-        <di:waypoint x="500" y="290" />
-        <di:waypoint x="500" y="305" />
-        <di:waypoint x="610" y="305" />
-        <di:waypoint x="610" y="320" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1uby65v_di" bpmnElement="Flow_1uby65v">
-        <di:waypoint x="500" y="180" />
-        <di:waypoint x="500" y="195" />
-        <di:waypoint x="390" y="195" />
-        <di:waypoint x="390" y="210" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_179ufev_di" bpmnElement="Flow_179ufev">
-        <di:waypoint x="500" y="180" />
-        <di:waypoint x="500" y="210" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1m4sl9n_di" bpmnElement="Flow_1m4sl9n">
-        <di:waypoint x="500" y="180" />
-        <di:waypoint x="500" y="195" />
-        <di:waypoint x="610" y="195" />
-        <di:waypoint x="610" y="210" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: sample-diagram
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
+Study_1:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+    CognitiveTest_1wfxwob:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+      name: Cognitive Test
+      incoming:
+        - Flow_0t25gsx
+      outgoing:
+        - Flow_1uby65v
+        - Flow_179ufev
+        - Flow_1m4sl9n
+      bounds:
+        x: 450
+        "y": 100
+        width: 100
+        height: 80
+      label: {}
+    Questionnaire_07lo5v1:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+      name: Questionnaire
+      incoming:
+        - Flow_0noilkj
+      bounds:
+        x: 560
+        "y": 100
+        width: 100
+        height: 80
+      label: {}
+    Instruction_05452k7:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Instruction
+      name: Instruction
+      incoming:
+        - Flow_0n8nnfp
+      bounds:
+        x: 340
+        "y": 100
+        width: 100
+        height: 80
+      label: {}
+    Activity_0zctxq8:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:VideoGame
+      name: Video Game
+      incoming:
+        - Flow_1m4sl9n
+      bounds:
+        x: 560
+        "y": 210
+        width: 100
+        height: 80
+      label: {}
+    Activity_0kov43v:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Rest
+      name: Rest
+      incoming:
+        - Flow_1uby65v
+      bounds:
+        x: 340
+        "y": 210
+        width: 100
+        height: 80
+      label: {}
+    Activity_1a2aku7:
+      type: bpmn:Task
+      name: Activity
+      outgoing:
+        - Flow_0n8nnfp
+        - Flow_0t25gsx
+        - Flow_0noilkj
+      bounds:
+        x: 450
+        "y": -10
+        width: 100
+        height: 80
+      label: {}
+    Flow_0n8nnfp:
+      type: bpmn:SequenceFlow
+      sourceRef: Activity_1a2aku7
+      targetRef: Instruction_05452k7
+      waypoint:
+        - x: 500
+          "y": 70
+        - x: 500
+          "y": 85
+        - x: 390
+          "y": 85
+        - x: 390
+          "y": 100
+    Flow_0t25gsx:
+      type: bpmn:SequenceFlow
+      sourceRef: Activity_1a2aku7
+      targetRef: CognitiveTest_1wfxwob
+      waypoint:
+        - x: 500
+          "y": 70
+        - x: 500
+          "y": 100
+    Flow_0noilkj:
+      type: bpmn:SequenceFlow
+      sourceRef: Activity_1a2aku7
+      targetRef: Questionnaire_07lo5v1
+      waypoint:
+        - x: 500
+          "y": 70
+        - x: 500
+          "y": 85
+        - x: 610
+          "y": 85
+        - x: 610
+          "y": 100
+    Flow_1h590ia:
+      type: bpmn:SequenceFlow
+      waypoint:
+        - x: 500
+          "y": 290
+        - x: 500
+          "y": 305
+        - x: 390
+          "y": 305
+        - x: 390
+          "y": 320
+    Flow_1m2gbjk:
+      type: bpmn:SequenceFlow
+      waypoint:
+        - x: 500
+          "y": 290
+        - x: 500
+          "y": 320
+    Flow_1qdmact:
+      type: bpmn:SequenceFlow
+      waypoint:
+        - x: 500
+          "y": 290
+        - x: 500
+          "y": 305
+        - x: 610
+          "y": 305
+        - x: 610
+          "y": 320
+    Flow_1uby65v:
+      type: bpmn:SequenceFlow
+      sourceRef: CognitiveTest_1wfxwob
+      targetRef: Activity_0kov43v
+      waypoint:
+        - x: 500
+          "y": 180
+        - x: 500
+          "y": 195
+        - x: 390
+          "y": 195
+        - x: 390
+          "y": 210
+    Flow_179ufev:
+      type: bpmn:SequenceFlow
+      sourceRef: CognitiveTest_1wfxwob
+      waypoint:
+        - x: 500
+          "y": 180
+        - x: 500
+          "y": 210
+    Flow_1m4sl9n:
+      type: bpmn:SequenceFlow
+      sourceRef: CognitiveTest_1wfxwob
+      targetRef: Activity_0zctxq8
+      waypoint:
+        - x: 500
+          "y": 180
+        - x: 500
+          "y": 195
+        - x: 610
+          "y": 195
+        - x: 610
+          "y": 210
+  isExecutable: false
+diagram:
+  - id: BPMNDiagram_1
+    plane:
+      id: BPMNPlane_1
+      bpmnElement: Study_1
+      planeElement:
+        BPMNShape_04eb17v:
+          type: bpmndi:BPMNShape
+          bounds:
+            x: 450
+            "y": 210
+            width: 100
+            height: 80
+          label: {}
+        BPMNShape_0ysn0q5:
+          type: bpmndi:BPMNShape
+          bounds:
+            x: 340
+            "y": 320
+            width: 100
+            height: 80
+          label: {}
+        BPMNShape_1mfzhpp:
+          type: bpmndi:BPMNShape
+          bounds:
+            x: 450
+            "y": 320
+            width: 100
+            height: 80
+          label: {}
+        BPMNShape_0ho9sa8:
+          type: bpmndi:BPMNShape
+          bounds:
+            x: 560
+            "y": 320
+            width: 100
+            height: 80
+          label: {}

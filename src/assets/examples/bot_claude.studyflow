@@ -1,193 +1,265 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="demo4_llm_bot" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Demo4_LLMBot" name="LLM bot (Claude Code)">
-    <bpmn2:extensionElements>
-      <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:documentation>Claude-powered LLM bot completing two N-Back blocks via text stimuli and a WhichOne visual task via screenshots.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Start">
-      <bpmn2:outgoing>Flow_Start_Warmup</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:task id="Warmup_1Back" name="1-Back warm-up (tired)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="bot">
-        <behaverse:botConfigurations>ResponseSource: llm
-LLM:
-  Provider: claude
-  Model: claude-haiku-4-5
-Prompt: |
-  You are a tired participant near the end of a long 1-back session.
-  Aim for about 80% accuracy. Occasionally miss matches when your
-  attention drifts. Never explain; reply with exactly Match or NonMatch.
-Speed: 20
-SkipInstructions: true
-AutoClickInstructions: true
-SkipFocusArea: true
-OverrideTemporalParameters: true
-StimulusDisplayDuration: 0.3
-InterStimulusInterval: 0.3
-TrialForeperiod: 0.1
-overrideUserInputParameters: true
-playerPaced: true
-useNonMatchButton: true
-maxResponseTime: 120</behaverse:botConfigurations>
-        <cognitive:configurations>Blocks:
-  Demo4_Warmup:
-    Name: Demo4_Warmup
-    Inherits: Default
-    Parameters:
-      NValue: 1
-      Feature: Letters
-      Streams:
-        - Feature:
-            Reference: Feature
-          StimulusValue:
-            Generate: OncePerBlock
-            Sequence:
-              Type: Ordered
-              Values: [3, 1, 2, 1, 3, 2, 3, 2]
-      StreamSize: 8
-      FeatureValuesCount: 3
-      MaxResponseTime: 30
-      StimulusDisplayDuration: 0.5
-      InterStimulusInterval: 1.5
-Timelines:
-  Demo4_Warmup:
-    Name: Demo4_Warmup
-    blocks:
-      - name: Demo4_Warmup
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Start_Warmup</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Warmup_Main</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Main_2Back" name="2-Back main (expert)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="bot">
-        <behaverse:botConfigurations>ResponseSource: llm
-LLM:
-  Provider: claude
-  Model: claude-haiku-4-5
-Prompt: |
-  You are an attentive, expert participant in a 2-back task.
-  Respond Match if the current letter is identical to the letter shown
-  exactly two trials ago, otherwise NonMatch. Aim for near-perfect
-  accuracy. Reply with exactly Match or NonMatch; no explanation.
-Speed: 20
-SkipInstructions: true
-AutoClickInstructions: true
-SkipFocusArea: true
-OverrideTemporalParameters: true
-StimulusDisplayDuration: 0.3
-InterStimulusInterval: 0.3
-TrialForeperiod: 0.1
-overrideUserInputParameters: true
-playerPaced: true
-useNonMatchButton: true
-maxResponseTime: 120</behaverse:botConfigurations>
-        <cognitive:configurations>Blocks:
-  Demo4_Main:
-    Name: Demo4_Main
-    Inherits: Default
-    Parameters:
-      NValue: 2
-      Feature: Letters
-      Streams:
-        - Feature:
-            Reference: Feature
-          StimulusValue:
-            Generate: OncePerBlock
-            Sequence:
-              Type: Ordered
-              Values: [3, 1, 2, 1, 3, 2, 3, 2, 1, 2, 3, 1]
-      StreamSize: 12
-      FeatureValuesCount: 3
-      MaxResponseTime: 30
-      StimulusDisplayDuration: 0.5
-      InterStimulusInterval: 1.5
-Timelines:
-  Demo4_Main:
-    Name: Demo4_Main
-    blocks:
-      - name: Demo4_Main
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Warmup_Main</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Main_Visual</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Visual_WhichOne" name="WhichOne (vision)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="WO" agentType="bot">
-        <behaverse:botConfigurations>ResponseSource: llm
-IncludeScreenshot: true
-LLM:
-  Provider: claude
-  Model: claude-haiku-4-5
-Prompt: |
-  You will see a screenshot from the WhichOne task. Two stimuli appear
-  on the left and right of the screen; one matches a target shown above.
-  Reply with exactly `Left` or `Right`; nothing else.
-Speed: 5
-SkipInstructions: true
-AutoClickInstructions: true
-SkipFocusArea: true</behaverse:botConfigurations>
-        <cognitive:configurations>Timelines:
-  SimonTask:
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Main_Visual</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Visual_End</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:endEvent id="End" name="Done">
-      <bpmn2:incoming>Flow_Visual_End</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_Start_Warmup" sourceRef="Start" targetRef="Warmup_1Back" />
-    <bpmn2:sequenceFlow id="Flow_Warmup_Main" sourceRef="Warmup_1Back" targetRef="Main_2Back" />
-    <bpmn2:sequenceFlow id="Flow_Main_Visual" sourceRef="Main_2Back" targetRef="Visual_WhichOne" />
-    <bpmn2:sequenceFlow id="Flow_Visual_End" sourceRef="Visual_WhichOne" targetRef="End" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Demo4_LLMBot">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="160" y="180" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="166" y="223" width="24" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Warmup_1Back_di" bpmnElement="Warmup_1Back">
-        <dc:Bounds x="260" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Main_2Back_di" bpmnElement="Main_2Back">
-        <dc:Bounds x="450" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Visual_WhichOne_di" bpmnElement="Visual_WhichOne">
-        <dc:Bounds x="640" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="830" y="180" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="837" y="223" width="22" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_Start_Warmup_di" bpmnElement="Flow_Start_Warmup">
-        <di:waypoint x="196" y="198" />
-        <di:waypoint x="260" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Warmup_Main_di" bpmnElement="Flow_Warmup_Main">
-        <di:waypoint x="380" y="198" />
-        <di:waypoint x="450" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Main_Visual_di" bpmnElement="Flow_Main_Visual">
-        <di:waypoint x="570" y="198" />
-        <di:waypoint x="640" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Visual_End_di" bpmnElement="Flow_Visual_End">
-        <di:waypoint x="760" y="198" />
-        <di:waypoint x="830" y="198" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: demo4_llm_bot
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
+Demo4_LLMBot:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  name: LLM bot (Claude Code)
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Start
+      outgoing:
+        - Flow_Start_Warmup
+      bounds:
+        x: 160
+        "y": 180
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 166
+          "y": 223
+          width: 24
+          height: 14
+    Warmup_1Back:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Blocks:
+              Demo4_Warmup:
+                Name: Demo4_Warmup
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 30
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 1.5
+            Timelines:
+              Demo4_Warmup:
+                Name: Demo4_Warmup
+                blocks:
+                  - name: Demo4_Warmup
+          scene: NB
+          agentType: bot
+          botConfigurations:
+            ResponseSource: llm
+            LLM:
+              Provider: claude
+              Model: claude-haiku-4-5
+            Prompt: |
+              You are a tired participant near the end of a long 1-back session.
+              Aim for about 80% accuracy. Occasionally miss matches when your
+              attention drifts. Never explain; reply with exactly Match or NonMatch.
+            Speed: 20
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+            overrideUserInputParameters: true
+            playerPaced: true
+            useNonMatchButton: true
+            maxResponseTime: 120
+      name: 1-Back warm-up (tired)
+      incoming:
+        - Flow_Start_Warmup
+      outgoing:
+        - Flow_Warmup_Main
+      bounds:
+        x: 260
+        "y": 158
+        width: 120
+        height: 80
+    Main_2Back:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Blocks:
+              Demo4_Main:
+                Name: Demo4_Main
+                Inherits: Default
+                Parameters:
+                  NValue: 2
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                            - 1
+                            - 2
+                            - 3
+                            - 1
+                  StreamSize: 12
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 30
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 1.5
+            Timelines:
+              Demo4_Main:
+                Name: Demo4_Main
+                blocks:
+                  - name: Demo4_Main
+          scene: NB
+          agentType: bot
+          botConfigurations:
+            ResponseSource: llm
+            LLM:
+              Provider: claude
+              Model: claude-haiku-4-5
+            Prompt: |
+              You are an attentive, expert participant in a 2-back task.
+              Respond Match if the current letter is identical to the letter shown
+              exactly two trials ago, otherwise NonMatch. Aim for near-perfect
+              accuracy. Reply with exactly Match or NonMatch; no explanation.
+            Speed: 20
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+            overrideUserInputParameters: true
+            playerPaced: true
+            useNonMatchButton: true
+            maxResponseTime: 120
+      name: 2-Back main (expert)
+      incoming:
+        - Flow_Warmup_Main
+      outgoing:
+        - Flow_Main_Visual
+      bounds:
+        x: 450
+        "y": 158
+        width: 120
+        height: 80
+    Visual_WhichOne:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Timelines:
+              SimonTask: null
+          scene: WO
+          agentType: bot
+          botConfigurations:
+            ResponseSource: llm
+            IncludeScreenshot: true
+            LLM:
+              Provider: claude
+              Model: claude-haiku-4-5
+            Prompt: |
+              You will see a screenshot from the WhichOne task. Two stimuli appear
+              on the left and right of the screen; one matches a target shown above.
+              Reply with exactly `Left` or `Right`; nothing else.
+            Speed: 5
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+      name: WhichOne (vision)
+      incoming:
+        - Flow_Main_Visual
+      outgoing:
+        - Flow_Visual_End
+      bounds:
+        x: 640
+        "y": 158
+        width: 120
+        height: 80
+    End:
+      type: bpmn:EndEvent
+      name: Done
+      incoming:
+        - Flow_Visual_End
+      bounds:
+        x: 830
+        "y": 180
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 837
+          "y": 223
+          width: 22
+          height: 14
+    Flow_Start_Warmup:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Warmup_1Back
+      waypoint:
+        - x: 196
+          "y": 198
+        - x: 260
+          "y": 198
+    Flow_Warmup_Main:
+      type: bpmn:SequenceFlow
+      sourceRef: Warmup_1Back
+      targetRef: Main_2Back
+      waypoint:
+        - x: 380
+          "y": 198
+        - x: 450
+          "y": 198
+    Flow_Main_Visual:
+      type: bpmn:SequenceFlow
+      sourceRef: Main_2Back
+      targetRef: Visual_WhichOne
+      waypoint:
+        - x: 570
+          "y": 198
+        - x: 640
+          "y": 198
+    Flow_Visual_End:
+      type: bpmn:SequenceFlow
+      sourceRef: Visual_WhichOne
+      targetRef: End
+      waypoint:
+        - x: 760
+          "y": 198
+        - x: 830
+          "y": 198

@@ -1,58 +1,120 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
-  <bpmn2:process id="Study_1" isExecutable="false">
-    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements><bpmn2:task id="Task_1par6fb" name="task">
-      <bpmn2:incoming>Flow_0kd6150</bpmn2:incoming>
-    </bpmn2:task>
-    <bpmn2:boundaryEvent id="Event_0by1glv" attachedToRef="Task_1par6fb">
-      <bpmn2:timerEventDefinition id="TimerEventDefinition_0pbd6tu" />
-    </bpmn2:boundaryEvent>
-    <bpmn2:sequenceFlow id="Flow_0kd6150" sourceRef="Event_0wgqyxm" targetRef="Task_1par6fb" />
-    <bpmn2:intermediateCatchEvent id="Event_0wgqyxm">
-      <bpmn2:outgoing>Flow_0kd6150</bpmn2:outgoing>
-      <bpmn2:timerEventDefinition id="TimerEventDefinition_0nae9zo" />
-    </bpmn2:intermediateCatchEvent>
-    <bpmn2:textAnnotation id="TextAnnotation_0p02u12">
-      <bpmn2:text>Start Time</bpmn2:text>
-    </bpmn2:textAnnotation>
-    <bpmn2:association id="Association_0xra4ye" associationDirection="None" sourceRef="Event_0wgqyxm" targetRef="TextAnnotation_0p02u12" />
-    <bpmn2:textAnnotation id="TextAnnotation_18y6j0e">
-      <bpmn2:text>End Time</bpmn2:text>
-    </bpmn2:textAnnotation>
-    <bpmn2:association id="Association_12pr0gl" associationDirection="None" sourceRef="Event_0by1glv" targetRef="TextAnnotation_18y6j0e" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
-      <bpmndi:BPMNShape id="Task_1par6fb_di" bpmnElement="Task_1par6fb">
-        <dc:Bounds x="440" y="280" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_1mttd4h_di" bpmnElement="Event_0wgqyxm" bioc:stroke="#8cb26e" bioc:fill="#d9e7d6" color:background-color="#d9e7d6" color:border-color="#8cb26e">
-        <dc:Bounds x="372" y="302" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Association_0xra4ye_di" bpmnElement="Association_0xra4ye" bioc:stroke="#8cb26e" color:border-color="#8cb26e">
-        <di:waypoint x="401" y="306" />
-        <di:waypoint x="448" y="250" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Association_12pr0gl_di" bpmnElement="Association_12pr0gl" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
-        <di:waypoint x="551" y="306" />
-        <di:waypoint x="598" y="250" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="Event_0by1glv_di" bpmnElement="Event_0by1glv" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="522" y="302" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0kd6150_di" bpmnElement="Flow_0kd6150">
-        <di:waypoint x="408" y="320" />
-        <di:waypoint x="440" y="320" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="TextAnnotation_0p02u12_di" bpmnElement="TextAnnotation_0p02u12" bioc:stroke="#8cb26e" bioc:fill="#d9e7d6" color:background-color="#d9e7d6" color:border-color="#8cb26e">
-        <dc:Bounds x="410" y="220" width="100" height="30" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="TextAnnotation_18y6j0e_di" bpmnElement="TextAnnotation_18y6j0e" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
-        <dc:Bounds x="560" y="220" width="100" height="30" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: sample-diagram
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bioc: http://bpmn.io/schema/bpmn/biocolor/1.0
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:color: http://www.omg.org/spec/BPMN/non-normative/color/1.0
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
+Study_1:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+    Task_1par6fb:
+      type: bpmn:Task
+      name: task
+      incoming:
+        - Flow_0kd6150
+      bounds:
+        x: 440
+        "y": 280
+        width: 100
+        height: 80
+      label: {}
+    Event_0by1glv:
+      type: bpmn:BoundaryEvent
+      eventDefinitions:
+        TimerEventDefinition_0pbd6tu:
+          type: bpmn:TimerEventDefinition
+      attachedToRef: Task_1par6fb
+      bounds:
+        x: 522
+        "y": 302
+        width: 36
+        height: 36
+      stroke: "#ac5a54"
+      fill: "#f1d0cd"
+      background-color: "#f1d0cd"
+      border-color: "#ac5a54"
+    Flow_0kd6150:
+      type: bpmn:SequenceFlow
+      sourceRef: Event_0wgqyxm
+      targetRef: Task_1par6fb
+      waypoint:
+        - x: 408
+          "y": 320
+        - x: 440
+          "y": 320
+    Event_0wgqyxm:
+      type: bpmn:IntermediateCatchEvent
+      outgoing:
+        - Flow_0kd6150
+      eventDefinitions:
+        TimerEventDefinition_0nae9zo:
+          type: bpmn:TimerEventDefinition
+      bounds:
+        x: 372
+        "y": 302
+        width: 36
+        height: 36
+      stroke: "#8cb26e"
+      fill: "#d9e7d6"
+      background-color: "#d9e7d6"
+      border-color: "#8cb26e"
+  artifacts:
+    TextAnnotation_0p02u12:
+      type: bpmn:TextAnnotation
+      text: Start Time
+      bounds:
+        x: 410
+        "y": 220
+        width: 100
+        height: 30
+      label: {}
+      stroke: "#8cb26e"
+      fill: "#d9e7d6"
+      background-color: "#d9e7d6"
+      border-color: "#8cb26e"
+    Association_0xra4ye:
+      type: bpmn:Association
+      associationDirection: None
+      sourceRef: Event_0wgqyxm
+      targetRef: TextAnnotation_0p02u12
+      waypoint:
+        - x: 401
+          "y": 306
+        - x: 448
+          "y": 250
+      stroke: "#8cb26e"
+      border-color: "#8cb26e"
+    TextAnnotation_18y6j0e:
+      type: bpmn:TextAnnotation
+      text: End Time
+      bounds:
+        x: 560
+        "y": 220
+        width: 100
+        height: 30
+      label: {}
+      stroke: "#ac5a54"
+      fill: "#f1d0cd"
+      background-color: "#f1d0cd"
+      border-color: "#ac5a54"
+    Association_12pr0gl:
+      type: bpmn:Association
+      associationDirection: None
+      sourceRef: Event_0by1glv
+      targetRef: TextAnnotation_18y6j0e
+      waypoint:
+        - x: 551
+          "y": 306
+        - x: 598
+          "y": 250
+      stroke: "#ac5a54"
+      border-color: "#ac5a54"
+  isExecutable: false

@@ -23,15 +23,19 @@ Choreography is the right construct when:
 
 For single-participant studies, ordinary BPMN tasks and pools/lanes are simpler. Choreography earns its keep when the *interaction itself* is the unit of analysis.
 
+## In the modeler
+
+The modeler ships a **Choreography Task** element (palette, under *Activities*). It is BPMN's native `bpmn:choreographyTask` on the wire, so other BPMN tooling recognizes the element type as-is. It renders with the standard choreography notation: a participant band above and below the task name, with the initiating participant's band drawn light and the other shaded. The bands are editable either in the inspector's *Participants* tab or directly on the canvas by double-clicking a band (double-clicking the middle edits the task name, as usual).
+
+Containment follows the BPMN 2.0 spec: a diagram made purely of interactions (choreography tasks, events, gateways) is saved under a `bpmn:Choreography` root, with the participants declared once and referenced per task via `participantRef` (top band first) and `initiatingParticipantRef`. Mixing choreography tasks into an ordinary process flow is also allowed -- BPMN has no standard construct for that, so such diagrams keep the process containment and carry the participants as studyflow-namespaced attributes (`topParticipant`, `bottomParticipant`, `initiator`) instead. The bundled *Dyadic decision study* example (`choreography_demo.studyflow`) shows the spec-clean form in context.
+
 ## Pattern: dyadic decision study
 
 A common pattern: two participants take turns making decisions that depend on each other's previous responses. Each round is a choreography task with one initiator and one responder. Across rounds, the initiator alternates.
 
-::: {.callout-note appearance="simple" title="Diagram (TODO)"}
-A fully worked dyadic-decision diagram should live at `docs/assets/img/examples/dyadic-decision.svg`. The figure above (`choreography.bpmn.png`) illustrates the choreography-task notation that the diagram would extend.
-:::
+![A dyadic decision study: consent, then two decision rounds whose initiator alternates (light band = initiator). Rendered from the bundled `choreography_demo.studyflow` example.](../assets/img/examples/dyadic-decision.svg)
 
-The corresponding `.studyflow` file uses one `Choreography` activity per round, listing the two `ParticipantRef`s and which one is the `InitiatingParticipant`. See the [Specification](../reference/spec.qmd) for the grammar.
+The corresponding `.studyflow` file uses one `ChoreographyTask` activity per round, naming the two participants and which one initiates. See the [Specification](../reference/spec.qmd) for the grammar.
 
 ## Pattern: experimenter-driven protocol
 

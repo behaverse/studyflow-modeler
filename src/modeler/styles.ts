@@ -356,6 +356,12 @@ export const commandPalette = {
   searchIcon: 'iconify bi--search text-stone-400 text-[14px] shrink-0',
   searchInput: `flex-1 bg-transparent text-[14px] ${text.primary} placeholder-stone-400 focus:outline-none`,
 
+  /** Breadcrumb row shown while inside a submenu (Back / parent label). */
+  breadcrumbRow: 'px-3 py-1.5 text-[11px] text-stone-500 flex items-center gap-2 border-b border-black/[0.04]',
+  breadcrumbBack: 'hover:text-stone-900 inline-flex items-center gap-1',
+  breadcrumbDivider: 'text-stone-300',
+  breadcrumbLabel: 'text-stone-700 font-medium',
+
   /** Scrollable list area below the search input. */
   list: 'max-h-[55vh] overflow-y-auto p-1.5',
   empty: 'text-[13px] text-stone-500 italic py-8 text-center',
@@ -370,6 +376,8 @@ export const commandPalette = {
   itemIcon: 'text-[15px] text-stone-500 shrink-0 w-5 text-center',
   itemLabel: 'flex-1 truncate',
   itemHint: 'text-[11px] font-mono text-stone-400 shrink-0',
+  /** Chevron marking commands that open a sub-palette. */
+  itemChevron: 'iconify bi--chevron-right text-stone-400 text-[10px] ml-1',
 } as const;
 
 // --- Examples-dialog list cards

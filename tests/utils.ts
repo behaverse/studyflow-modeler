@@ -17,7 +17,7 @@ export async function openCommandPalette(page: Page): Promise<void> {
 
 /**
  * Open the command palette and click through one or more entries
- * (e.g. 'Save As...' then 'SVG...' for submenu commands).
+ * (e.g. 'Export...' then 'SVG...' for submenu commands).
  */
 export async function runPaletteCommand(page: Page, ...labels: string[]): Promise<void> {
   await openCommandPalette(page);

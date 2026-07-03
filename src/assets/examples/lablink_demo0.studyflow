@@ -1,36 +1,56 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="demo0" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Demo0_FromScratch" name="EPSYLON LabLink - Build a study from scratch">
-    <bpmn2:extensionElements>
-      <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:documentation>EPSYLON LabLink 2026 talk: building a study from scratch.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Participant arrives">
-      <bpmn2:outgoing>Flow_Start_End</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:endEvent id="End" name="Done">
-      <bpmn2:incoming>Flow_Start_End</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_Start_End" sourceRef="Start" targetRef="End" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Demo0_FromScratch">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="200" y="200" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="178" y="243" width="82" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="600" y="200" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="608" y="243" width="22" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_Start_End_di" bpmnElement="Flow_Start_End">
-        <di:waypoint x="236" y="218" />
-        <di:waypoint x="600" y="218" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: demo0
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+Demo0_FromScratch:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  name: EPSYLON LabLink - Build a study from scratch
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Participant arrives
+      outgoing:
+        - Flow_Start_End
+      bounds:
+        x: 200
+        "y": 200
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 178
+          "y": 243
+          width: 82
+          height: 14
+    End:
+      type: bpmn:EndEvent
+      name: Done
+      incoming:
+        - Flow_Start_End
+      bounds:
+        x: 600
+        "y": 200
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 608
+          "y": 243
+          width: 22
+          height: 14
+    Flow_Start_End:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: End
+      waypoint:
+        - x: 236
+          "y": 218
+        - x: 600
+          "y": 218

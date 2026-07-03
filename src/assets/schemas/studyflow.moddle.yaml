@@ -119,6 +119,8 @@ enumerations:
     isAbstract: true
     description: Execution environment in which the study runs.
     literalValues:
+      - name: Browser
+        value: browser
       - name: Cloud
         value: cloud
       - name: Local
@@ -378,6 +380,19 @@ types:
             body:
               redirectTo: $set
               completionCodeType: static
+      - name: attritionCount
+        description: |
+          Run-time participant-flow count for this exit: how many participants
+          left the study through this event. Left empty at registration; the
+          runner writes it as actors exit, so the diff between the registered
+          and as-run files carries exactly these counts (CONSORT-style
+          attrition reporting).
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+          categories:
+            - Reporting
   - name: Activity
     description: Base class for all the activities in the Studyflow. Adds the Gantt-axis temporal attributes that the Gantt view consumes.
     extends:
@@ -424,21 +439,19 @@ types:
             - Gantt
   - name: ChoreographyTask
     description: |
-      A choreography task: a single interaction between two participants,
-      rendered with a participant band above and below the task label (the
-      BPMN/chor-js choreography notation). The initiating participant's band is
-      drawn light; the receiving participant's band is shaded. Use it when the
-      interaction itself is the unit of analysis (e.g. a dyadic decision round,
-      an experimenter administering a task to a subject). Degrades to a plain
-      BPMN task in tools without choreography support.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
+      Trait on BPMN's native ChoreographyTask element: a single interaction
+      between two participants, rendered with a participant band above and
+      below the task label (the BPMN/chor-js choreography notation). The
+      initiating participant's band is drawn light; the receiving participant's
+      band is shaded. Use it when the interaction itself is the unit of
+      analysis (e.g. a dyadic decision round, an experimenter administering a
+      task to a subject). The simplified two-band participant model lives in
+      studyflow-namespaced attributes, so the element stays a standard
+      `bpmn:choreographyTask` on the wire.
+    extends:
+      - bpmn:ChoreographyTask
     meta:
       icon: iconify fluent--people-team-24-regular
-      bpmnType: bpmn:Task
-      categories:
-        - Activities
     properties:
       - name: topParticipant
         description: Name of the participant shown in the top band.

@@ -106,6 +106,46 @@ fn: median</studyflow:with>
   </studyflow:study>
 </bpmn2:definitions>`;
 
+const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-choreography" targetNamespace="http://bpmn.io/schema/bpmn">
+  <studyflow:study id="Study_1" isExecutable="false">
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>F1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:choreographyTask id="Choreo_1" name="First decision round" studyflow:topParticipant="Subject" studyflow:bottomParticipant="Experimenter" studyflow:initiator="bottom">
+      <bpmn2:incoming>F1</bpmn2:incoming>
+      <bpmn2:outgoing>F2</bpmn2:outgoing>
+    </bpmn2:choreographyTask>
+    <bpmn2:endEvent id="EndEvent_1">
+      <bpmn2:incoming>F2</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Choreo_1" />
+    <bpmn2:sequenceFlow id="F2" sourceRef="Choreo_1" targetRef="EndEvent_1" />
+  </studyflow:study>
+</bpmn2:definitions>`;
+
+const CHOREOGRAPHY_ROOT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-choreography-root" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:choreography id="Chor_1">
+    <bpmn2:participant id="P_Subject" name="Subject" />
+    <bpmn2:participant id="P_Experimenter" name="Experimenter" />
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>F1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:choreographyTask id="Choreo_1" name="First decision round" initiatingParticipantRef="P_Experimenter">
+      <bpmn2:incoming>F1</bpmn2:incoming>
+      <bpmn2:outgoing>F2</bpmn2:outgoing>
+      <bpmn2:participantRef>P_Subject</bpmn2:participantRef>
+      <bpmn2:participantRef>P_Experimenter</bpmn2:participantRef>
+    </bpmn2:choreographyTask>
+    <bpmn2:endEvent id="EndEvent_1">
+      <bpmn2:incoming>F2</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Choreo_1" />
+    <bpmn2:sequenceFlow id="F2" sourceRef="Choreo_1" targetRef="EndEvent_1" />
+  </bpmn2:choreography>
+</bpmn2:definitions>`;
+
 const BAD_FUNCTION_REF_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-bad-function-ref" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="Study_1" isExecutable="false">
@@ -220,5 +260,41 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByText(/Invalid 'uses' function reference/)).toBeVisible();
     // The run halts at validation; the bound task never renders.
     await expect(page.getByRole('heading', { name: 'Broken reference' })).toBeHidden();
+  });
+
+  test('a choreography task shows both participants and marks the initiator', async ({ page }) => {
+    await runStudyflow(page, 'runner-stages-choreography', CHOREOGRAPHY_XML);
+
+    await page.getByRole('button', { name: 'Begin' }).click();
+
+    await expect(page.getByRole('heading', { name: 'First decision round' })).toBeVisible();
+    const participants = page.getByTestId('choreography-participants');
+    await expect(participants).toContainText('Subject');
+    await expect(participants).toContainText('Experimenter');
+    // initiator="bottom" -> the Experimenter row carries the initiates badge.
+    await expect(participants.getByText('initiates')).toHaveCount(1);
+    await expect(
+      participants.locator('div', { hasText: 'Experimenter' }).getByText('initiates'),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+  });
+
+  test('a spec-clean bpmn:Choreography root runs with participants resolved from refs', async ({ page }) => {
+    await runStudyflow(page, 'runner-stages-choreography-root', CHOREOGRAPHY_ROOT_XML);
+
+    await page.getByRole('button', { name: 'Begin' }).click();
+
+    await expect(page.getByRole('heading', { name: 'First decision round' })).toBeVisible();
+    const participants = page.getByTestId('choreography-participants');
+    await expect(participants).toContainText('Subject');
+    await expect(participants).toContainText('Experimenter');
+    await expect(
+      participants.locator('div', { hasText: 'Experimenter' }).getByText('initiates'),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
   });
 });

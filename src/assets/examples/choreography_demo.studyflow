@@ -1,68 +1,136 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" id="choreography_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Dyadic_Study" name="Dyadic decision study" isExecutable="false">
-    <bpmn2:extensionElements>
-      <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:documentation>A two-participant study modeled with choreography tasks. Each choreography task is an interaction between a Subject and an Experimenter; the initiating participant's band is drawn light. See the "Multi-agent collaboration" guide.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Both arrive">
-      <bpmn2:outgoing>Flow_Start_Consent</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:task id="Consent" name="Give consent">
-      <bpmn2:extensionElements>
-        <studyflow:choreographyTask topParticipant="Subject" bottomParticipant="Experimenter" initiator="top" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>The subject initiates by giving informed consent while the experimenter witnesses.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_Start_Consent</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Consent_Round</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Round" name="First decision round">
-      <bpmn2:extensionElements>
-        <studyflow:choreographyTask topParticipant="Subject" bottomParticipant="Experimenter" initiator="bottom" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>The experimenter initiates a decision round; the subject responds. Across rounds the initiator alternates.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_Consent_Round</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Round_End</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:endEvent id="End" name="Debrief">
-      <bpmn2:incoming>Flow_Round_End</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_Start_Consent" sourceRef="Start" targetRef="Consent" />
-    <bpmn2:sequenceFlow id="Flow_Consent_Round" sourceRef="Consent" targetRef="Round" />
-    <bpmn2:sequenceFlow id="Flow_Round_End" sourceRef="Round" targetRef="End" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Dyadic_Study">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="160" y="202" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="150" y="245" width="56" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Consent_di" bpmnElement="Consent">
-        <dc:Bounds x="260" y="175" width="150" height="90" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Round_di" bpmnElement="Round">
-        <dc:Bounds x="480" y="175" width="150" height="90" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="700" y="202" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="702" y="245" width="34" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_Start_Consent_di" bpmnElement="Flow_Start_Consent">
-        <di:waypoint x="196" y="220" />
-        <di:waypoint x="260" y="220" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Consent_Round_di" bpmnElement="Flow_Consent_Round">
-        <di:waypoint x="410" y="220" />
-        <di:waypoint x="480" y="220" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Round_End_di" bpmnElement="Flow_Round_End">
-        <di:waypoint x="630" y="220" />
-        <di:waypoint x="700" y="220" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: choreography_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+Dyadic_Study:
+  type: bpmn:Choreography
+  extensionElements:
+    - type: studyflow:Study
+  name: Dyadic decision study
+  participants:
+    Participant_Subject:
+      name: Subject
+    Participant_Experimenter:
+      name: Experimenter
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Both arrive
+      outgoing:
+        - Flow_Start_Consent
+      bounds:
+        x: 160
+        "y": 202
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 150
+          "y": 245
+          width: 56
+          height: 14
+    Consent:
+      type: bpmn:ChoreographyTask
+      name: Give consent
+      incoming:
+        - Flow_Start_Consent
+      outgoing:
+        - Flow_Consent_Round
+      participantRef:
+        - Participant_Subject
+        - Participant_Experimenter
+      initiatingParticipantRef: Participant_Subject
+      bounds:
+        x: 260
+        "y": 175
+        width: 150
+        height: 90
+    Round:
+      type: bpmn:ChoreographyTask
+      name: First decision round
+      incoming:
+        - Flow_Consent_Round
+      outgoing:
+        - Flow_Round_Round2
+      participantRef:
+        - Participant_Subject
+        - Participant_Experimenter
+      initiatingParticipantRef: Participant_Experimenter
+      bounds:
+        x: 480
+        "y": 175
+        width: 150
+        height: 90
+    Round2:
+      type: bpmn:ChoreographyTask
+      name: Second decision round
+      incoming:
+        - Flow_Round_Round2
+      outgoing:
+        - Flow_Round2_End
+      participantRef:
+        - Participant_Subject
+        - Participant_Experimenter
+      initiatingParticipantRef: Participant_Subject
+      bounds:
+        x: 700
+        "y": 175
+        width: 150
+        height: 90
+    End:
+      type: bpmn:EndEvent
+      name: Debrief
+      incoming:
+        - Flow_Round2_End
+      bounds:
+        x: 920
+        "y": 202
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 922
+          "y": 245
+          width: 34
+          height: 14
+    Flow_Start_Consent:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Consent
+      waypoint:
+        - x: 196
+          "y": 220
+        - x: 260
+          "y": 220
+    Flow_Consent_Round:
+      type: bpmn:SequenceFlow
+      sourceRef: Consent
+      targetRef: Round
+      waypoint:
+        - x: 410
+          "y": 220
+        - x: 480
+          "y": 220
+    Flow_Round_Round2:
+      type: bpmn:SequenceFlow
+      sourceRef: Round
+      targetRef: Round2
+      waypoint:
+        - x: 630
+          "y": 220
+        - x: 700
+          "y": 220
+    Flow_Round2_End:
+      type: bpmn:SequenceFlow
+      sourceRef: Round2
+      targetRef: End
+      waypoint:
+        - x: 850
+          "y": 220
+        - x: 920
+          "y": 220

@@ -10,11 +10,15 @@ type Band = 'top' | 'bottom' | 'name';
 /** The transient field we stamp onto the element from the double-click position. */
 type ChoreoShape = { _choreoBand?: Band; x: number; y: number; height: number };
 
+const FONT_FAMILY = '"IBM Plex Sans", Helvetica, sans-serif';
+
 /**
- * Extends bpmn-js label editing so the participant bands of a choreography task
- * are editable in place. Double-clicking a band edits `topParticipant` /
- * `bottomParticipant`; double-clicking the middle edits the task name (default
- * bpmn-js behaviour). Bound as `labelEditingProvider`, this replaces the stock
+ * Extends bpmn-js label editing so choreography tasks are editable in place.
+ * Double-clicking a participant band edits `topParticipant` /
+ * `bottomParticipant`; double-clicking the middle edits the task name. All
+ * three regions need custom bounds: `bpmn:ChoreographyTask` is not a
+ * `bpmn:Task`, so the stock provider would otherwise create a zero-size
+ * editing box. Bound as `labelEditingProvider`, this replaces the stock
  * provider and delegates every non-choreography case to it via `super`.
  */
 export default class ChoreographyLabelEditing extends LabelEditingProvider {
@@ -25,6 +29,8 @@ export default class ChoreographyLabelEditing extends LabelEditingProvider {
 
   private choreoCanvas: any;
   private choreoModeling: any;
+  /** Band of the in-flight editing session; consumed by `update`. */
+  private activeBand: Band | undefined;
 
   constructor(
     eventBus: any, bpmnFactory: any, canvas: any, directEditing: any,
@@ -63,47 +69,57 @@ export default class ChoreographyLabelEditing extends LabelEditingProvider {
     return null;
   }
 
-  /** Screen-space bounds of a participant band, for positioning the text box. */
-  private bandBounds(element: any, band: 'top' | 'bottom') {
+  /** Screen-space bounds of one editing region of a choreography task. */
+  private regionBounds(element: any, band: Band) {
     const canvas = this.choreoCanvas;
     const bbox = canvas.getAbsoluteBBox(element);
     const zoom = canvas.zoom();
     const bandHeight = choreographyBandHeight(element) * zoom;
-    const y = band === 'top' ? bbox.y : bbox.y + bbox.height - bandHeight;
+
+    const region = band === 'name'
+      ? { y: bbox.y + bandHeight, height: bbox.height - 2 * bandHeight }
+      : { y: band === 'top' ? bbox.y : bbox.y + bbox.height - bandHeight, height: bandHeight };
+
     return {
-      bounds: { x: bbox.x, y, width: bbox.width, height: bandHeight },
+      bounds: { x: bbox.x, y: region.y, width: bbox.width, height: region.height },
       style: {
-        fontFamily: '"IBM Plex Sans", Helvetica, sans-serif',
-        fontWeight: '400',
-        fontSize: (11 * zoom) + 'px',
+        fontFamily: FONT_FAMILY,
+        fontWeight: band === 'name' ? '600' : '400',
+        fontSize: ((band === 'name' ? 12 : 11) * zoom) + 'px',
         lineHeight: 1.2,
       },
     };
   }
 
   activate(element: any): any {
-    const band: Band | undefined = element?._choreoBand;
-    const attr = band && ChoreographyLabelEditing.attrFor(band);
-    if (isChoreographyTask(element) && attr && band !== 'name') {
-      const { bounds, style } = this.bandBounds(element, band as 'top' | 'bottom');
-      return {
-        text: getAttribute(element, attr) ?? '',
-        bounds,
-        style,
-        options: { centerVertically: true },
-      };
+    if (!isChoreographyTask(element)) {
+      this.activeBand = undefined;
+      return super.activate(element);
     }
-    return super.activate(element);
+
+    const band: Band = element._choreoBand ?? 'name';
+    delete element._choreoBand;
+    this.activeBand = band;
+
+    const attr = ChoreographyLabelEditing.attrFor(band);
+    const text = attr ? (getAttribute(element, attr) ?? '') : (element.businessObject?.name ?? '');
+    const { bounds, style } = this.regionBounds(element, band);
+    return { text, bounds, style, options: { centerVertically: true } };
   }
 
   update(element: any, newLabel: any, activeContextText: any, bounds: any): void {
-    const band: Band | undefined = element?._choreoBand;
-    const attr = band && ChoreographyLabelEditing.attrFor(band);
-    if (isChoreographyTask(element) && attr && band !== 'name') {
+    const attr = isChoreographyTask(element) && this.activeBand
+      ? ChoreographyLabelEditing.attrFor(this.activeBand)
+      : null;
+    this.activeBand = undefined;
+
+    if (attr) {
       const value = typeof newLabel === 'string' ? newLabel.trim() : '';
       setAttribute(element, attr, value, this.choreoModeling);
       return;
     }
+    // The name band (and every non-choreography element) keeps the stock
+    // behaviour: `modeling.updateLabel` handles bpmn:FlowElement names.
     super.update(element, newLabel, activeContextText, bounds);
   }
 }

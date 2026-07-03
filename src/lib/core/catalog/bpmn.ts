@@ -16,6 +16,7 @@ export const BPMN_ANCESTORS: Record<string, string[]> = {
   'bpmn:ReceiveTask': ['bpmn:Task', 'bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:BusinessRuleTask': ['bpmn:Task', 'bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:CallActivity': ['bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:ChoreographyTask': ['bpmn:ChoreographyActivity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:SubProcess': ['bpmn:Activity', 'bpmn:FlowElementsContainer', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:Transaction': ['bpmn:SubProcess', 'bpmn:Activity', 'bpmn:FlowElementsContainer', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:AdHocSubProcess': ['bpmn:SubProcess', 'bpmn:Activity', 'bpmn:FlowElementsContainer', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
@@ -55,6 +56,7 @@ export const BPMN_ANCESTORS: Record<string, string[]> = {
 
   // Abstract bases
   'bpmn:Activity': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
+  'bpmn:ChoreographyActivity': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:CatchEvent': ['bpmn:Event', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:ThrowEvent': ['bpmn:Event', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:Event': ['bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],

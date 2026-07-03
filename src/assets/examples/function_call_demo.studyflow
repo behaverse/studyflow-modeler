@@ -1,65 +1,109 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:datatrove="https://w3id.org/studyflow/datatrove" id="function_call_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="FunctionCallDemo" name="Function calls demo" isExecutable="true">
-    <bpmn2:extensionElements>
-      <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:documentation>Demonstrates GitHub-Actions-style function calls on activities that represent code: a `uses` reference plus a `with` argument block.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Start">
-      <bpmn2:outgoing>Flow_Start_Map</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:serviceTask id="MapRT" name="Median RT per block" studyflow:isDataOperation="true" studyflow:operationType="map" studyflow:uses="python://pkg_for_st.do_map@1.2">
-      <bpmn2:extensionElements>
-        <datatrove:map />
-      </bpmn2:extensionElements>
-      <studyflow:with>column: rt
-fn: median</studyflow:with>
-      <bpmn2:incoming>Flow_Start_Map</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Map_Fetch</bpmn2:outgoing>
-    </bpmn2:serviceTask>
-    <bpmn2:task id="FetchScript" name="Fetch cleaning script" studyflow:uses="https://example.org/scripts/clean.py@v2">
-      <bpmn2:incoming>Flow_Map_Fetch</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Fetch_End</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:endEvent id="End" name="Done">
-      <bpmn2:incoming>Flow_Fetch_End</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_Start_Map" sourceRef="Start" targetRef="MapRT" />
-    <bpmn2:sequenceFlow id="Flow_Map_Fetch" sourceRef="MapRT" targetRef="FetchScript" />
-    <bpmn2:sequenceFlow id="Flow_Fetch_End" sourceRef="FetchScript" targetRef="End" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="FunctionCallDemo">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="162" y="182" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="168" y="225" width="24" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="MapRT_di" bpmnElement="MapRT">
-        <dc:Bounds x="260" y="160" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="FetchScript_di" bpmnElement="FetchScript">
-        <dc:Bounds x="420" y="160" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="582" y="182" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="589" y="225" width="24" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_Start_Map_di" bpmnElement="Flow_Start_Map">
-        <di:waypoint x="198" y="200" />
-        <di:waypoint x="260" y="200" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Map_Fetch_di" bpmnElement="Flow_Map_Fetch">
-        <di:waypoint x="360" y="200" />
-        <di:waypoint x="420" y="200" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Fetch_End_di" bpmnElement="Flow_Fetch_End">
-        <di:waypoint x="520" y="200" />
-        <di:waypoint x="582" y="200" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: function_call_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:datatrove: https://w3id.org/studyflow/datatrove
+FunctionCallDemo:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  name: Function calls demo
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Start
+      outgoing:
+        - Flow_Start_Map
+      bounds:
+        x: 162
+        "y": 182
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 168
+          "y": 225
+          width: 24
+          height: 14
+    MapRT:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Map
+      name: Median RT per block
+      incoming:
+        - Flow_Start_Map
+      outgoing:
+        - Flow_Map_Fetch
+      isDataOperation: true
+      uses: python://pkg_for_st.do_map@1.2
+      with:
+        column: rt
+        fn: median
+      studyflow:operationType: map
+      bounds:
+        x: 260
+        "y": 160
+        width: 100
+        height: 80
+    FetchScript:
+      type: bpmn:Task
+      name: Fetch cleaning script
+      incoming:
+        - Flow_Map_Fetch
+      outgoing:
+        - Flow_Fetch_End
+      uses: https://example.org/scripts/clean.py@v2
+      bounds:
+        x: 420
+        "y": 160
+        width: 100
+        height: 80
+    End:
+      type: bpmn:EndEvent
+      name: Done
+      incoming:
+        - Flow_Fetch_End
+      bounds:
+        x: 582
+        "y": 182
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 589
+          "y": 225
+          width: 24
+          height: 14
+    Flow_Start_Map:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: MapRT
+      waypoint:
+        - x: 198
+          "y": 200
+        - x: 260
+          "y": 200
+    Flow_Map_Fetch:
+      type: bpmn:SequenceFlow
+      sourceRef: MapRT
+      targetRef: FetchScript
+      waypoint:
+        - x: 360
+          "y": 200
+        - x: 420
+          "y": 200
+    Flow_Fetch_End:
+      type: bpmn:SequenceFlow
+      sourceRef: FetchScript
+      targetRef: End
+      waypoint:
+        - x: 520
+          "y": 200
+        - x: 582
+          "y": 200
+  isExecutable: true

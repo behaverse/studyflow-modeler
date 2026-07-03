@@ -17,6 +17,7 @@ export default class ResizableTasks extends RuleProvider {
       return is(shape, 'bpmn:Task')
         || is(shape, 'bpmn:SubProcess')
         || is(shape, 'bpmn:CallActivity')
+        || is(shape, 'bpmn:ChoreographyTask')
         || this._bpmnRules.canResize(shape, newBounds);
     });
   }

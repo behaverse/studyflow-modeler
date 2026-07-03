@@ -42,6 +42,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
       { label: 'Script', bpmnType: BPMN.ScriptTask, icon: 'iconify bpmn--script-task' },
       { label: 'Service', bpmnType: BPMN.ServiceTask, icon: 'iconify bpmn--service-task' },
       { label: 'Manual', bpmnType: BPMN.ManualTask, icon: 'iconify bpmn--manual-task' },
+      { label: 'Choreography Task', bpmnType: BPMN.ChoreographyTask, icon: 'iconify fluent--people-team-24-regular' },
     ],
   },
   {

@@ -1,167 +1,274 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="cognitive_battery" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Cognitive_Battery" name="Within-subject cognitive battery" isExecutable="false">
-    <bpmn2:extensionElements>
-      <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:documentation>A single-session, within-subject cognitive battery. Every participant completes all four tasks; the presentation order is counterbalanced across participants (e.g., a Latin square) to control for fatigue and practice effects.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Participant arrives" studyflow:consentFormUri="https://example.org/protocols/cognitive-battery/consent.pdf">
-      <bpmn2:outgoing>Flow_Start_Instructions</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:task id="Instructions" name="Instructions &amp; practice" studyflow:checklist="- [ ] Informed consent signed&#10;- [ ] Task instructions shown&#10;- [ ] Practice trials passed">
-      <bpmn2:documentation>Consent, general instructions, and short practice blocks for each task before the scored battery begins.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_Start_Instructions</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Instructions_NB</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Task_NBack" name="Working memory (N-Back)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="human" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>2-back working-memory task with letter stimuli.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_Instructions_NB</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_NB_DS</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Task_DigitSpan" name="Verbal span (Digit Span)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="DS" agentType="human" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>Forward and backward digit span to index verbal short-term and working memory.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_NB_DS</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_DS_Break</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:intermediateCatchEvent id="Break" name="Self-paced break">
-      <bpmn2:documentation>Optional rest between the first and second halves of the battery. The participant resumes when ready.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_DS_Break</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Break_SART</bpmn2:outgoing>
-      <bpmn2:timerEventDefinition id="TimerDef_Break" />
-    </bpmn2:intermediateCatchEvent>
-    <bpmn2:task id="Task_SART" name="Sustained attention (SART)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="SART" agentType="human" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>Sustained Attention to Response Task: withhold responses to rare no-go targets.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_Break_SART</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_SART_WO</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Task_WhichOne" name="Visual WM (Which One)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="WO" agentType="human" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>Which One visual working-memory task with a change-detection response.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_SART_WO</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_WO_Survey</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Survey" name="Post-battery survey">
-      <bpmn2:extensionElements>
-        <cognitive:questionnaire instrument="nasa-tlx" />
-      </bpmn2:extensionElements>
-      <bpmn2:documentation>Self-report workload and strategy questionnaire (e.g., NASA-TLX) administered once the cognitive tasks are complete.</bpmn2:documentation>
-      <bpmn2:incoming>Flow_WO_Survey</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Survey_End</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:dataStoreReference id="Dataset_Battery" name="Battery trial data">
-      <bpmn2:extensionElements>
-        <studyflow:dataset format="bdm" bdmDataLevel="trials" />
-      </bpmn2:extensionElements>
-    </bpmn2:dataStoreReference>
-    <bpmn2:endEvent id="End" name="Session complete">
-      <bpmn2:incoming>Flow_Survey_End</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="Flow_Start_Instructions" sourceRef="Start" targetRef="Instructions" />
-    <bpmn2:sequenceFlow id="Flow_Instructions_NB" sourceRef="Instructions" targetRef="Task_NBack" />
-    <bpmn2:sequenceFlow id="Flow_NB_DS" sourceRef="Task_NBack" targetRef="Task_DigitSpan" />
-    <bpmn2:sequenceFlow id="Flow_DS_Break" sourceRef="Task_DigitSpan" targetRef="Break" />
-    <bpmn2:sequenceFlow id="Flow_Break_SART" sourceRef="Break" targetRef="Task_SART" />
-    <bpmn2:sequenceFlow id="Flow_SART_WO" sourceRef="Task_SART" targetRef="Task_WhichOne" />
-    <bpmn2:sequenceFlow id="Flow_WO_Survey" sourceRef="Task_WhichOne" targetRef="Survey" />
-    <bpmn2:sequenceFlow id="Flow_Survey_End" sourceRef="Survey" targetRef="End" />
-    <bpmn2:association id="Assoc_Survey_Data" associationDirection="One" sourceRef="Survey" targetRef="Dataset_Battery" />
-    <bpmn2:association id="Assoc_WO_Data" associationDirection="One" sourceRef="Task_WhichOne" targetRef="Dataset_Battery" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Cognitive_Battery">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="160" y="180" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="146" y="223" width="66" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Instructions_di" bpmnElement="Instructions">
-        <dc:Bounds x="250" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_NBack_di" bpmnElement="Task_NBack">
-        <dc:Bounds x="420" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_DigitSpan_di" bpmnElement="Task_DigitSpan">
-        <dc:Bounds x="590" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Break_di" bpmnElement="Break">
-        <dc:Bounds x="762" y="180" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="741" y="223" width="78" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_SART_di" bpmnElement="Task_SART">
-        <dc:Bounds x="850" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_WhichOne_di" bpmnElement="Task_WhichOne">
-        <dc:Bounds x="1020" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Survey_di" bpmnElement="Survey">
-        <dc:Bounds x="1190" y="158" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Dataset_Battery_di" bpmnElement="Dataset_Battery">
-        <dc:Bounds x="1195" y="330" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1180" y="385" width="80" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="1360" y="180" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1338" y="223" width="82" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_Start_Instructions_di" bpmnElement="Flow_Start_Instructions">
-        <di:waypoint x="196" y="198" />
-        <di:waypoint x="250" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Instructions_NB_di" bpmnElement="Flow_Instructions_NB">
-        <di:waypoint x="370" y="198" />
-        <di:waypoint x="420" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_NB_DS_di" bpmnElement="Flow_NB_DS">
-        <di:waypoint x="540" y="198" />
-        <di:waypoint x="590" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_DS_Break_di" bpmnElement="Flow_DS_Break">
-        <di:waypoint x="710" y="198" />
-        <di:waypoint x="762" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Break_SART_di" bpmnElement="Flow_Break_SART">
-        <di:waypoint x="798" y="198" />
-        <di:waypoint x="850" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_SART_WO_di" bpmnElement="Flow_SART_WO">
-        <di:waypoint x="970" y="198" />
-        <di:waypoint x="1020" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_WO_Survey_di" bpmnElement="Flow_WO_Survey">
-        <di:waypoint x="1140" y="198" />
-        <di:waypoint x="1190" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Survey_End_di" bpmnElement="Flow_Survey_End">
-        <di:waypoint x="1310" y="198" />
-        <di:waypoint x="1360" y="198" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Assoc_Survey_Data_di" bpmnElement="Assoc_Survey_Data">
-        <di:waypoint x="1240" y="238" />
-        <di:waypoint x="1226" y="330" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Assoc_WO_Data_di" bpmnElement="Assoc_WO_Data">
-        <di:waypoint x="1080" y="238" />
-        <di:waypoint x="1200" y="345" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: cognitive_battery
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
+Cognitive_Battery:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  name: Within-subject cognitive battery
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Participant arrives
+      outgoing:
+        - Flow_Start_Instructions
+      consentFormUri: https://example.org/protocols/cognitive-battery/consent.pdf
+      bounds:
+        x: 160
+        "y": 180
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 146
+          "y": 223
+          width: 66
+          height: 27
+    Instructions:
+      type: bpmn:Task
+      checklist: |-
+        - [ ] Informed consent signed
+        - [ ] Task instructions shown
+        - [ ] Practice trials passed
+      name: Instructions & practice
+      incoming:
+        - Flow_Start_Instructions
+      outgoing:
+        - Flow_Instructions_NB
+      bounds:
+        x: 250
+        "y": 158
+        width: 120
+        height: 80
+    Task_NBack:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: NB
+      name: Working memory (N-Back)
+      incoming:
+        - Flow_Instructions_NB
+      outgoing:
+        - Flow_NB_DS
+      bounds:
+        x: 420
+        "y": 158
+        width: 120
+        height: 80
+    Task_DigitSpan:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: DS
+      name: Verbal span (Digit Span)
+      incoming:
+        - Flow_NB_DS
+      outgoing:
+        - Flow_DS_Break
+      bounds:
+        x: 590
+        "y": 158
+        width: 120
+        height: 80
+    Break:
+      type: bpmn:IntermediateCatchEvent
+      name: Self-paced break
+      incoming:
+        - Flow_DS_Break
+      outgoing:
+        - Flow_Break_SART
+      eventDefinitions:
+        TimerDef_Break:
+          type: bpmn:TimerEventDefinition
+      bounds:
+        x: 762
+        "y": 180
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 741
+          "y": 223
+          width: 78
+          height: 14
+    Task_SART:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: SART
+      name: Sustained attention (SART)
+      incoming:
+        - Flow_Break_SART
+      outgoing:
+        - Flow_SART_WO
+      bounds:
+        x: 850
+        "y": 158
+        width: 120
+        height: 80
+    Task_WhichOne:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: WO
+      name: Visual WM (Which One)
+      incoming:
+        - Flow_SART_WO
+      outgoing:
+        - Flow_WO_Survey
+      bounds:
+        x: 1020
+        "y": 158
+        width: 120
+        height: 80
+    Survey:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: nasa-tlx
+      name: Post-battery survey
+      incoming:
+        - Flow_WO_Survey
+      outgoing:
+        - Flow_Survey_End
+      bounds:
+        x: 1190
+        "y": 158
+        width: 120
+        height: 80
+    Dataset_Battery:
+      type: bpmn:DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: bdm
+          bdmDataLevel: trials
+      name: Battery trial data
+      bounds:
+        x: 1195
+        "y": 330
+        width: 50
+        height: 50
+      label:
+        bounds:
+          x: 1180
+          "y": 385
+          width: 80
+          height: 14
+    End:
+      type: bpmn:EndEvent
+      name: Session complete
+      incoming:
+        - Flow_Survey_End
+      bounds:
+        x: 1360
+        "y": 180
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 1338
+          "y": 223
+          width: 82
+          height: 14
+    Flow_Start_Instructions:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Instructions
+      waypoint:
+        - x: 196
+          "y": 198
+        - x: 250
+          "y": 198
+    Flow_Instructions_NB:
+      type: bpmn:SequenceFlow
+      sourceRef: Instructions
+      targetRef: Task_NBack
+      waypoint:
+        - x: 370
+          "y": 198
+        - x: 420
+          "y": 198
+    Flow_NB_DS:
+      type: bpmn:SequenceFlow
+      sourceRef: Task_NBack
+      targetRef: Task_DigitSpan
+      waypoint:
+        - x: 540
+          "y": 198
+        - x: 590
+          "y": 198
+    Flow_DS_Break:
+      type: bpmn:SequenceFlow
+      sourceRef: Task_DigitSpan
+      targetRef: Break
+      waypoint:
+        - x: 710
+          "y": 198
+        - x: 762
+          "y": 198
+    Flow_Break_SART:
+      type: bpmn:SequenceFlow
+      sourceRef: Break
+      targetRef: Task_SART
+      waypoint:
+        - x: 798
+          "y": 198
+        - x: 850
+          "y": 198
+    Flow_SART_WO:
+      type: bpmn:SequenceFlow
+      sourceRef: Task_SART
+      targetRef: Task_WhichOne
+      waypoint:
+        - x: 970
+          "y": 198
+        - x: 1020
+          "y": 198
+    Flow_WO_Survey:
+      type: bpmn:SequenceFlow
+      sourceRef: Task_WhichOne
+      targetRef: Survey
+      waypoint:
+        - x: 1140
+          "y": 198
+        - x: 1190
+          "y": 198
+    Flow_Survey_End:
+      type: bpmn:SequenceFlow
+      sourceRef: Survey
+      targetRef: End
+      waypoint:
+        - x: 1310
+          "y": 198
+        - x: 1360
+          "y": 198
+  artifacts:
+    Assoc_Survey_Data:
+      type: bpmn:Association
+      associationDirection: One
+      sourceRef: Survey
+      targetRef: Dataset_Battery
+      waypoint:
+        - x: 1240
+          "y": 238
+        - x: 1226
+          "y": 330
+    Assoc_WO_Data:
+      type: bpmn:Association
+      associationDirection: One
+      sourceRef: Task_WhichOne
+      targetRef: Dataset_Battery
+      waypoint:
+        - x: 1080
+          "y": 238
+        - x: 1200
+          "y": 345
+  isExecutable: false

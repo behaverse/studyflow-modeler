@@ -35,6 +35,7 @@ export const BPMN = {
   SendTask: 'bpmn:SendTask',
   ReceiveTask: 'bpmn:ReceiveTask',
   BusinessRuleTask: 'bpmn:BusinessRuleTask',
+  ChoreographyTask: 'bpmn:ChoreographyTask',
   CallActivity: 'bpmn:CallActivity',
   SubProcess: 'bpmn:SubProcess',
   Activity: 'bpmn:Activity',

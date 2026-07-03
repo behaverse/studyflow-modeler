@@ -1,334 +1,517 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="lablink_demo" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="LabLink_Demo" name="EPSYLON LabLink - Study orchestration">
-    <bpmn2:extensionElements>
-      <studyflow:study />
-    </bpmn2:extensionElements>
-    <bpmn2:documentation>EPSYLON LabLink 2026 talk: orchestrates a complete session covering consent, questionnaires, warm-up cogntive tasks, and randomly-assigned groups.</bpmn2:documentation>
-    <bpmn2:startEvent id="Start" name="Welcome" studyflow:consentFormUri="https://example.org/protocols/lablink/consent.md">
-      <bpmn2:outgoing>Flow_Start_Welcome</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:task id="Welcome_Instruction" name="Welcome">
-      <bpmn2:extensionElements>
-        <cognitive:instruction content="# Welcome to the LabLink demo&#10;&#10;You will complete two short questionnaires (PHQ-9 and GAD-7), a 1-back warm-up, and one randomly-assigned N-back arm. The session takes about 15 minutes.&#10;&#10;Press **Continue** when you are ready." />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Start_Welcome</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Welcome_PHQ9</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="PHQ_9_baseline" name="PHQ-9">
-      <bpmn2:extensionElements>
-        <cognitive:questionnaire instrument="phq-9" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Welcome_PHQ9</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_PHQ9_GAD7</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="GAD_7_baseline" name="GAD-7">
-      <bpmn2:extensionElements>
-        <cognitive:questionnaire instrument="gad-7" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_PHQ9_GAD7</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_GAD7_Warmup</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Warmup_1Back" name="1-Back&#10;(warm-up)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="bot">
-        <behaverse:botConfigurations>autoResponse: Valid
-Speed: 100
-SkipInstructions: true
-AutoClickInstructions: true
-SkipFocusArea: true
-OverrideTemporalParameters: true
-StimulusDisplayDuration: 0.3
-InterStimulusInterval: 0.3
-TrialForeperiod: 0.1</behaverse:botConfigurations>
-        <cognitive:configurations>Blocks:
-  LabLink_InlineBlock:
-    Name: LabLink_InlineBlock
-    Inherits: Default
-    Parameters:
-      NValue: 1
-      Feature: Letters
-      Streams:
-        - Feature:
-            Reference: Feature
-          StimulusValue:
-            Generate: OncePerBlock
-            Sequence:
-              Type: Ordered
-              Values: [3, 1, 2, 1, 3, 2, 3, 2]
-      StreamSize: 8
-      FeatureValuesCount: 3
-      MaxResponseTime: 3
-      StimulusDisplayDuration: 0.5
-      InterStimulusInterval: 2.2
-Timelines:
-  LabLink_Inline:
-    Name: LabLink_Inline
-    blocks:
-      - name: LabLink_InlineBlock
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_GAD7_Warmup</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Warmup_Allocate</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:exclusiveGateway id="Allocate" name="Random allocation">
-      <bpmn2:extensionElements>
-        <cognitive:randomGateway />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Warmup_Allocate</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_To_Dual</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_To_XCIT</bpmn2:outgoing>
-      <bpmn2:outgoing>Flow_To_Demo</bpmn2:outgoing>
-    </bpmn2:exclusiveGateway>
-    <bpmn2:task id="Arm_Dual2Back" name="2-Back&#10;(Symbols)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="bot">
-        <behaverse:botConfigurations>autoResponse: Valid
-Speed: 100
-SkipInstructions: true
-AutoClickInstructions: true
-SkipFocusArea: true
-OverrideTemporalParameters: true
-StimulusDisplayDuration: 0.3
-InterStimulusInterval: 0.3
-TrialForeperiod: 0.1</behaverse:botConfigurations>
-        <cognitive:configurations>Timelines:
-  XCIT_NB_05:
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_To_Dual</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Dual_PostPHQ9</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Arm_XCIT_NB_03" name="2-Back&#10;(Digits, human)">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="human">
-        <cognitive:configurations>Timelines:
-  XCIT_NB_02:
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_To_XCIT</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_XCIT_PostPHQ9</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Arm_Demo" name="1-Back">
-      <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="bot">
-        <behaverse:botConfigurations>autoResponse: Valid
-Speed: 100
-SkipInstructions: true
-AutoClickInstructions: true
-SkipFocusArea: true
-OverrideTemporalParameters: true
-StimulusDisplayDuration: 0.3
-InterStimulusInterval: 0.3
-TrialForeperiod: 0.1</behaverse:botConfigurations>
-        <cognitive:configurations>Blocks:
-  LabLink_InlineBlock:
-    Name: LabLink_InlineBlock
-    Inherits: Default
-    Parameters:
-      NValue: 1
-      Feature: Letters
-      Streams:
-        - Feature:
-            Reference: Feature
-          StimulusValue:
-            Generate: OncePerBlock
-            Sequence:
-              Type: Ordered
-              Values: [3, 1, 2, 1, 3, 2, 3, 2]
-      StreamSize: 8
-      FeatureValuesCount: 3
-      MaxResponseTime: 3
-      StimulusDisplayDuration: 0.5
-      InterStimulusInterval: 2.2
-Timelines:
-  LabLink_Inline:
-    Name: LabLink_Inline
-    blocks:
-      - name: LabLink_InlineBlock
-</cognitive:configurations>
-      </behaverse:task>
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_To_Demo</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_Demo_BDI2</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="BDI_II" name="BDI-II">
-      <bpmn2:extensionElements>
-        <cognitive:questionnaire instrument="bdi-ii" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Demo_BDI2</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_BDI2_PostPHQ9</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="PHQ_9_followup" name="PHQ-9">
-      <bpmn2:extensionElements>
-        <cognitive:questionnaire instrument="phq-9" />
-      </bpmn2:extensionElements>
-      <bpmn2:incoming>Flow_Dual_PostPHQ9</bpmn2:incoming>
-      <bpmn2:incoming>Flow_XCIT_PostPHQ9</bpmn2:incoming>
-      <bpmn2:incoming>Flow_BDI2_PostPHQ9</bpmn2:incoming>
-      <bpmn2:outgoing>Flow_PostPHQ9_End</bpmn2:outgoing>
-      <bpmn2:dataOutputAssociation id="DataOutput_Session">
-        <bpmn2:targetRef>SessionData</bpmn2:targetRef>
-      </bpmn2:dataOutputAssociation>
-    </bpmn2:task>
-    <bpmn2:endEvent id="End" name="End" studyflow:redirectTo="https://behaverse.org/studyflow-modeler/docs/" studyflow:completionCodeType="dynamic">
-      <bpmn2:incoming>Flow_PostPHQ9_End</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:dataStoreReference id="SessionData" name="Session data">
-      <bpmn2:extensionElements>
-        <studyflow:dataset format="bdm" />
-      </bpmn2:extensionElements>
-    </bpmn2:dataStoreReference>
-    <bpmn2:sequenceFlow id="Flow_Start_Welcome" sourceRef="Start" targetRef="Welcome_Instruction" />
-    <bpmn2:sequenceFlow id="Flow_Welcome_PHQ9" sourceRef="Welcome_Instruction" targetRef="PHQ_9_baseline" />
-    <bpmn2:sequenceFlow id="Flow_PHQ9_GAD7" sourceRef="PHQ_9_baseline" targetRef="GAD_7_baseline" />
-    <bpmn2:sequenceFlow id="Flow_GAD7_Warmup" sourceRef="GAD_7_baseline" targetRef="Warmup_1Back" />
-    <bpmn2:sequenceFlow id="Flow_Warmup_Allocate" sourceRef="Warmup_1Back" targetRef="Allocate" />
-    <bpmn2:sequenceFlow id="Flow_To_Dual" name="Difficult" sourceRef="Allocate" targetRef="Arm_Dual2Back" />
-    <bpmn2:sequenceFlow id="Flow_To_XCIT" name="Easy" sourceRef="Allocate" targetRef="Arm_XCIT_NB_03" />
-    <bpmn2:sequenceFlow id="Flow_To_Demo" name="Control" sourceRef="Allocate" targetRef="Arm_Demo" />
-    <bpmn2:sequenceFlow id="Flow_Dual_PostPHQ9" sourceRef="Arm_Dual2Back" targetRef="PHQ_9_followup" />
-    <bpmn2:sequenceFlow id="Flow_XCIT_PostPHQ9" sourceRef="Arm_XCIT_NB_03" targetRef="PHQ_9_followup" />
-    <bpmn2:sequenceFlow id="Flow_Demo_BDI2" sourceRef="Arm_Demo" targetRef="BDI_II" />
-    <bpmn2:sequenceFlow id="Flow_BDI2_PostPHQ9" sourceRef="BDI_II" targetRef="PHQ_9_followup" />
-    <bpmn2:sequenceFlow id="Flow_PostPHQ9_End" sourceRef="PHQ_9_followup" targetRef="End" />
-  </bpmn2:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="LabLink_Demo">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="180" y="200" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="186" y="243" width="24" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Welcome_Instruction_di" bpmnElement="Welcome_Instruction">
-        <dc:Bounds x="270" y="178" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="PHQ_9_di" bpmnElement="PHQ_9_baseline">
-        <dc:Bounds x="420" y="178" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="GAD_7_di" bpmnElement="GAD_7_baseline">
-        <dc:Bounds x="570" y="178" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Warmup_1Back_di" bpmnElement="Warmup_1Back">
-        <dc:Bounds x="720" y="178" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Allocate_di" bpmnElement="Allocate" isMarkerVisible="true">
-        <dc:Bounds x="905" y="193" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="865" y="176" width="49" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Arm_Dual2Back_di" bpmnElement="Arm_Dual2Back">
-        <dc:Bounds x="1050" y="60" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Arm_XCIT_NB_03_di" bpmnElement="Arm_XCIT_NB_03">
-        <dc:Bounds x="1050" y="178" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Arm_Demo_di" bpmnElement="Arm_Demo">
-        <dc:Bounds x="1050" y="295" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BDI_II_di" bpmnElement="BDI_II">
-        <dc:Bounds x="1200" y="295" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="PostPHQ_9_di" bpmnElement="PHQ_9_followup">
-        <dc:Bounds x="1390" y="178" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="1572" y="200" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1580" y="243" width="20" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="SessionData_di" bpmnElement="SessionData">
-        <dc:Bounds x="1425" y="430" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1413" y="485" width="74" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_Start_Welcome_di" bpmnElement="Flow_Start_Welcome">
-        <di:waypoint x="216" y="218" />
-        <di:waypoint x="270" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Welcome_PHQ9_di" bpmnElement="Flow_Welcome_PHQ9">
-        <di:waypoint x="390" y="218" />
-        <di:waypoint x="420" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_PHQ9_GAD7_di" bpmnElement="Flow_PHQ9_GAD7">
-        <di:waypoint x="540" y="218" />
-        <di:waypoint x="570" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_GAD7_Warmup_di" bpmnElement="Flow_GAD7_Warmup">
-        <di:waypoint x="690" y="218" />
-        <di:waypoint x="720" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Warmup_Allocate_di" bpmnElement="Flow_Warmup_Allocate">
-        <di:waypoint x="840" y="218" />
-        <di:waypoint x="905" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_To_Dual_di" bpmnElement="Flow_To_Dual">
-        <di:waypoint x="930" y="193" />
-        <di:waypoint x="930" y="100" />
-        <di:waypoint x="1050" y="100" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="961" y="83" width="39" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_To_XCIT_di" bpmnElement="Flow_To_XCIT">
-        <di:waypoint x="955" y="218" />
-        <di:waypoint x="1050" y="218" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="969" y="200" width="23" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_To_Demo_di" bpmnElement="Flow_To_Demo">
-        <di:waypoint x="930" y="243" />
-        <di:waypoint x="930" y="335" />
-        <di:waypoint x="1050" y="335" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="962" y="319" width="37" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Dual_PostPHQ9_di" bpmnElement="Flow_Dual_PostPHQ9">
-        <di:waypoint x="1170" y="100" />
-        <di:waypoint x="1350" y="100" />
-        <di:waypoint x="1350" y="218" />
-        <di:waypoint x="1390" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_XCIT_PostPHQ9_di" bpmnElement="Flow_XCIT_PostPHQ9">
-        <di:waypoint x="1170" y="218" />
-        <di:waypoint x="1390" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Demo_BDI2_di" bpmnElement="Flow_Demo_BDI2">
-        <di:waypoint x="1170" y="335" />
-        <di:waypoint x="1200" y="335" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_BDI2_PostPHQ9_di" bpmnElement="Flow_BDI2_PostPHQ9">
-        <di:waypoint x="1320" y="335" />
-        <di:waypoint x="1350" y="335" />
-        <di:waypoint x="1350" y="218" />
-        <di:waypoint x="1390" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_PostPHQ9_End_di" bpmnElement="Flow_PostPHQ9_End">
-        <di:waypoint x="1510" y="218" />
-        <di:waypoint x="1572" y="218" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataOutput_Session_di" bpmnElement="DataOutput_Session">
-        <di:waypoint x="1450" y="258" />
-        <di:waypoint x="1450" y="430" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn2:definitions>
+id: lablink_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:di: http://www.omg.org/spec/DD/20100524/DI
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
+LabLink_Demo:
+  type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
+  name: EPSYLON LabLink - Study orchestration
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Welcome
+      outgoing:
+        - Flow_Start_Welcome
+      consentFormUri: https://example.org/protocols/lablink/consent.md
+      bounds:
+        x: 180
+        "y": 200
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 186
+          "y": 243
+          width: 24
+          height: 14
+    Welcome_Instruction:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Instruction
+          content: >-
+            # Welcome to the LabLink demo
+
+
+            You will complete two short questionnaires (PHQ-9 and GAD-7), a 1-back warm-up, and one randomly-assigned
+            N-back arm. The session takes about 15 minutes.
+
+
+            Press **Continue** when you are ready.
+      name: Welcome
+      incoming:
+        - Flow_Start_Welcome
+      outgoing:
+        - Flow_Welcome_PHQ9
+      bounds:
+        x: 270
+        "y": 178
+        width: 120
+        height: 80
+      label: {}
+    PHQ_9_baseline:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: phq-9
+      name: PHQ-9
+      incoming:
+        - Flow_Welcome_PHQ9
+      outgoing:
+        - Flow_PHQ9_GAD7
+      bounds:
+        x: 420
+        "y": 178
+        width: 120
+        height: 80
+      label: {}
+    GAD_7_baseline:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: gad-7
+      name: GAD-7
+      incoming:
+        - Flow_PHQ9_GAD7
+      outgoing:
+        - Flow_GAD7_Warmup
+      bounds:
+        x: 570
+        "y": 178
+        width: 120
+        height: 80
+      label: {}
+    Warmup_1Back:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Blocks:
+              LabLink_InlineBlock:
+                Name: LabLink_InlineBlock
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 3
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 2.2
+            Timelines:
+              LabLink_Inline:
+                Name: LabLink_Inline
+                blocks:
+                  - name: LabLink_InlineBlock
+          scene: NB
+          agentType: bot
+          botConfigurations:
+            autoResponse: Valid
+            Speed: 100
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+      name: |-
+        1-Back
+        (warm-up)
+      incoming:
+        - Flow_GAD7_Warmup
+      outgoing:
+        - Flow_Warmup_Allocate
+      bounds:
+        x: 720
+        "y": 178
+        width: 120
+        height: 80
+      label: {}
+    Allocate:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+      name: Random allocation
+      incoming:
+        - Flow_Warmup_Allocate
+      outgoing:
+        - Flow_To_Dual
+        - Flow_To_XCIT
+        - Flow_To_Demo
+      bounds:
+        x: 905
+        "y": 193
+        width: 50
+        height: 50
+      isMarkerVisible: true
+      label:
+        bounds:
+          x: 865
+          "y": 176
+          width: 49
+          height: 27
+    Arm_Dual2Back:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Timelines:
+              XCIT_NB_05: null
+          scene: NB
+          agentType: bot
+          botConfigurations:
+            autoResponse: Valid
+            Speed: 100
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+      name: |-
+        2-Back
+        (Symbols)
+      incoming:
+        - Flow_To_Dual
+      outgoing:
+        - Flow_Dual_PostPHQ9
+      bounds:
+        x: 1050
+        "y": 60
+        width: 120
+        height: 80
+      label: {}
+    Arm_XCIT_NB_03:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Timelines:
+              XCIT_NB_02: null
+          scene: NB
+      name: |-
+        2-Back
+        (Digits, human)
+      incoming:
+        - Flow_To_XCIT
+      outgoing:
+        - Flow_XCIT_PostPHQ9
+      bounds:
+        x: 1050
+        "y": 178
+        width: 120
+        height: 80
+      label: {}
+    Arm_Demo:
+      type: bpmn:Task
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Blocks:
+              LabLink_InlineBlock:
+                Name: LabLink_InlineBlock
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 3
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 2.2
+            Timelines:
+              LabLink_Inline:
+                Name: LabLink_Inline
+                blocks:
+                  - name: LabLink_InlineBlock
+          scene: NB
+          agentType: bot
+          botConfigurations:
+            autoResponse: Valid
+            Speed: 100
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+      name: 1-Back
+      incoming:
+        - Flow_To_Demo
+      outgoing:
+        - Flow_Demo_BDI2
+      bounds:
+        x: 1050
+        "y": 295
+        width: 120
+        height: 80
+      label: {}
+    BDI_II:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: bdi-ii
+      name: BDI-II
+      incoming:
+        - Flow_Demo_BDI2
+      outgoing:
+        - Flow_BDI2_PostPHQ9
+      bounds:
+        x: 1200
+        "y": 295
+        width: 120
+        height: 80
+      label: {}
+    PHQ_9_followup:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: phq-9
+      name: PHQ-9
+      incoming:
+        - Flow_Dual_PostPHQ9
+        - Flow_XCIT_PostPHQ9
+        - Flow_BDI2_PostPHQ9
+      outgoing:
+        - Flow_PostPHQ9_End
+      dataOutputAssociations:
+        DataOutput_Session:
+          targetRef: SessionData
+          waypoint:
+            - x: 1450
+              "y": 258
+            - x: 1450
+              "y": 430
+      bounds:
+        x: 1390
+        "y": 178
+        width: 120
+        height: 80
+      label: {}
+    End:
+      type: bpmn:EndEvent
+      name: End
+      incoming:
+        - Flow_PostPHQ9_End
+      redirectTo: https://behaverse.org/studyflow-modeler/docs/
+      completionCodeType: dynamic
+      bounds:
+        x: 1572
+        "y": 200
+        width: 36
+        height: 36
+      label:
+        bounds:
+          x: 1580
+          "y": 243
+          width: 20
+          height: 14
+    SessionData:
+      type: bpmn:DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: bdm
+      name: Session data
+      bounds:
+        x: 1425
+        "y": 430
+        width: 50
+        height: 50
+      label:
+        bounds:
+          x: 1413
+          "y": 485
+          width: 74
+          height: 14
+    Flow_Start_Welcome:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Welcome_Instruction
+      waypoint:
+        - x: 216
+          "y": 218
+        - x: 270
+          "y": 218
+    Flow_Welcome_PHQ9:
+      type: bpmn:SequenceFlow
+      sourceRef: Welcome_Instruction
+      targetRef: PHQ_9_baseline
+      waypoint:
+        - x: 390
+          "y": 218
+        - x: 420
+          "y": 218
+    Flow_PHQ9_GAD7:
+      type: bpmn:SequenceFlow
+      sourceRef: PHQ_9_baseline
+      targetRef: GAD_7_baseline
+      waypoint:
+        - x: 540
+          "y": 218
+        - x: 570
+          "y": 218
+    Flow_GAD7_Warmup:
+      type: bpmn:SequenceFlow
+      sourceRef: GAD_7_baseline
+      targetRef: Warmup_1Back
+      waypoint:
+        - x: 690
+          "y": 218
+        - x: 720
+          "y": 218
+    Flow_Warmup_Allocate:
+      type: bpmn:SequenceFlow
+      sourceRef: Warmup_1Back
+      targetRef: Allocate
+      waypoint:
+        - x: 840
+          "y": 218
+        - x: 905
+          "y": 218
+    Flow_To_Dual:
+      type: bpmn:SequenceFlow
+      name: Difficult
+      sourceRef: Allocate
+      targetRef: Arm_Dual2Back
+      waypoint:
+        - x: 930
+          "y": 193
+        - x: 930
+          "y": 100
+        - x: 1050
+          "y": 100
+      label:
+        bounds:
+          x: 961
+          "y": 83
+          width: 39
+          height: 14
+    Flow_To_XCIT:
+      type: bpmn:SequenceFlow
+      name: Easy
+      sourceRef: Allocate
+      targetRef: Arm_XCIT_NB_03
+      waypoint:
+        - x: 955
+          "y": 218
+        - x: 1050
+          "y": 218
+      label:
+        bounds:
+          x: 969
+          "y": 200
+          width: 23
+          height: 14
+    Flow_To_Demo:
+      type: bpmn:SequenceFlow
+      name: Control
+      sourceRef: Allocate
+      targetRef: Arm_Demo
+      waypoint:
+        - x: 930
+          "y": 243
+        - x: 930
+          "y": 335
+        - x: 1050
+          "y": 335
+      label:
+        bounds:
+          x: 962
+          "y": 319
+          width: 37
+          height: 14
+    Flow_Dual_PostPHQ9:
+      type: bpmn:SequenceFlow
+      sourceRef: Arm_Dual2Back
+      targetRef: PHQ_9_followup
+      waypoint:
+        - x: 1170
+          "y": 100
+        - x: 1350
+          "y": 100
+        - x: 1350
+          "y": 218
+        - x: 1390
+          "y": 218
+    Flow_XCIT_PostPHQ9:
+      type: bpmn:SequenceFlow
+      sourceRef: Arm_XCIT_NB_03
+      targetRef: PHQ_9_followup
+      waypoint:
+        - x: 1170
+          "y": 218
+        - x: 1390
+          "y": 218
+    Flow_Demo_BDI2:
+      type: bpmn:SequenceFlow
+      sourceRef: Arm_Demo
+      targetRef: BDI_II
+      waypoint:
+        - x: 1170
+          "y": 335
+        - x: 1200
+          "y": 335
+    Flow_BDI2_PostPHQ9:
+      type: bpmn:SequenceFlow
+      sourceRef: BDI_II
+      targetRef: PHQ_9_followup
+      waypoint:
+        - x: 1320
+          "y": 335
+        - x: 1350
+          "y": 335
+        - x: 1350
+          "y": 218
+        - x: 1390
+          "y": 218
+    Flow_PostPHQ9_End:
+      type: bpmn:SequenceFlow
+      sourceRef: PHQ_9_followup
+      targetRef: End
+      waypoint:
+        - x: 1510
+          "y": 218
+        - x: 1572
+          "y": 218

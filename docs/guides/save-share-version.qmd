@@ -11,7 +11,7 @@ Files saved by older versions of the modeler are BPMN 2.0 XML; they still open (
 
 In the [Modeler app](modeler-app.qmd), use *File &rarr; Save As &rarr; Studyflow*. The file is written to your local Downloads folder (browsers can't write arbitrary paths).
 
-To save a rendered image alongside the source file, use *File &rarr; Save As &rarr; SVG* or *PNG*. Keep the SVG when you can -- it embeds cleanly in papers and scales without quality loss.
+To save a rendered image alongside the source file, use *File &rarr; Export &rarr; SVG* or *PNG*. Keep the SVG when you can -- it embeds cleanly in papers and scales without quality loss.
 
 ## Where to put it in a repository
 

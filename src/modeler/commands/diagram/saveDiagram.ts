@@ -1,6 +1,7 @@
 import { Canvg } from 'canvg';
 import download from 'downloadjs';
 import { xmlToStudyflow } from '@/lib/core/studyflowYaml';
+import { toWireXml } from '@/lib/core/choreographyRoot';
 import { getDiagramName } from '../../diagramName';
 import { exportToLinkML } from '../../exporters/linkml';
 import { exportToNidm } from '../../exporters/nidm';
@@ -105,9 +106,12 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
   const filename = getDiagramName(modeler) ?? 'diagram';
 
   // Native `.studyflow` files are YAML (see `lib/core/studyflowYaml`).
+  // Pure-choreography diagrams leave the app as a spec-clean bpmn:Choreography
+  // root (see `lib/core/choreographyRoot`); `toWireXml` is a no-op otherwise.
   if (fileType === 'studyflow') {
     const { xml } = await modeler.saveXML({ format: true });
-    const yamlText = await xmlToStudyflow(xml, modeler.get('moddle'));
+    const wireXml = await toWireXml(xml, modeler.get('moddle'));
+    const yamlText = await xmlToStudyflow(wireXml, modeler.get('moddle'));
     download(yamlText, `${filename}.studyflow`, 'text/yaml');
     return;
   }
@@ -115,7 +119,8 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
   // Raw BPMN 2.0 XML, for interop with other BPMN tooling.
   if (fileType === 'bpmn') {
     const { xml } = await modeler.saveXML({ format: true });
-    download(new Blob([xml], { type: 'application/xml;charset=utf-8' }), `${filename}.bpmn`, 'application/xml');
+    const wireXml = await toWireXml(xml, modeler.get('moddle'));
+    download(new Blob([wireXml], { type: 'application/xml;charset=utf-8' }), `${filename}.bpmn`, 'application/xml');
     return;
   }
 
@@ -138,9 +143,10 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
   }
 
   const [{ svg }, { xml }] = await Promise.all([modeler.saveSVG(), modeler.saveXML()]);
+  const wireXml = await toWireXml(xml, modeler.get('moddle'));
   let svgClean = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
   svgClean = await embedIconsInSvg(svgClean);
-  svgClean = embedStudyflowIntoSvg(svgClean, xml);
+  svgClean = embedStudyflowIntoSvg(svgClean, wireXml);
 
   if (fileType === 'png') {
     const png = await exportToPng(svgClean);

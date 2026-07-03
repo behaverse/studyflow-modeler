@@ -58,7 +58,7 @@ description: Design and execute studyflow diagrams using the Modeler webapp
   <figcaption>Completed diagram</figcaption>
 </figure>
 
-7. Save your diagram using the "Save As..." option in the "File" menu and pick a format: "Studyflow" writes the native YAML file (`*.studyflow`); the same menu also offers BPMN 2.0 XML, images (SVG, PNG), and the other export formats (LinkML, NIDM, ARTEM-IS).
+7. Save your diagram using the "Save As..." option in the "File" menu: "Studyflow" writes the native YAML file (`*.studyflow`) and "BPMN 2.0 XML" the interchange XML -- both can be reopened in the modeler. One-way outputs live under "Export...": images (SVG, PNG) and the metadata formats (LinkML, NIDM, ARTEM-IS).
 
 <figure class="centered max-w-md">
   ![Save as *.studyflow file (YAML format)](../assets/img/screenshots/7-save.png)
@@ -77,15 +77,15 @@ Press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd> to open the command palette, a
 
 | Key | Command |
 |---|---|
-| 1 | Run |
-| 2 | New |
-| 3 | Open File |
-| 4 | Examples |
-| 5 | Save As |
+| 1 | New |
+| 2 | Open File |
+| 3 | Save As |
+| 4 | Export |
+| 5 | Run |
 | 6 | Settings |
 | 0 | Reset Zoom |
 
-The palette also hosts the *View As...* commands (Checklist, Gantt) -- see [Views](../reference/views.qmd).
+The palette also hosts the *View as Checklist* and *View as Gantt* commands -- see [Views](../reference/views.qmd).
 
 ## Autosave
 

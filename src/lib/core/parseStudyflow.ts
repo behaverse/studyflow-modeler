@@ -1,5 +1,6 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import { looksLikeXml, normalizeStudyflowXml, studyflowToDefinitions } from './studyflowYaml';
+import { choreographyToProcessRoot } from './choreographyRoot';
 import { getExtensionType } from './extensions';
 import type { FlowNode, SequenceFlow } from './flow';
 
@@ -11,6 +12,7 @@ const FLOW_NODE_TYPES = new Set([
   'bpmn:ServiceTask',
   'bpmn:ScriptTask',
   'bpmn:ManualTask',
+  'bpmn:ChoreographyTask',
   'bpmn:ExclusiveGateway',
   'bpmn:InclusiveGateway',
   'bpmn:ParallelGateway',
@@ -32,6 +34,10 @@ export async function parseStudyflow(text: string, schemas: Record<string, any>)
   const definitions = looksLikeXml(text)
     ? (await moddle.fromXML(normalizeStudyflowXml(text))).rootElement
     : studyflowToDefinitions(text, moddle);
+
+  // Spec-clean choreography files ship a bpmn:Choreography root; fold it back
+  // to the process form the traversal below operates on.
+  choreographyToProcessRoot(definitions);
 
   const businessObject = (definitions as any)?.rootElements?.find(
     (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
