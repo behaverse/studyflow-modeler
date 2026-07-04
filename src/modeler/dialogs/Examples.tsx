@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { looksLikeXml, readStudyflowMetadata } from '@/lib/core/studyflowYaml';
+import { looksLikeXml, readStudyflowMetadata } from '@/lib/core/codec';
 import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { dialog as d, examplesList as e } from '../styles';

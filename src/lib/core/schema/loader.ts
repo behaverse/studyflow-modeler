@@ -1,6 +1,6 @@
-import { SCHEMAS } from './constants';
-import { buildCatalog, setCatalog } from './catalog';
-import { fromModdleYaml, toModdlePackages, type SchemaModel } from './schema';
+import { SCHEMAS } from '../constants';
+import { buildCatalog, setCatalog } from '../catalog';
+import { fromModdleYaml, toModdlePackages, type SchemaModel } from './index';
 
 const schemaFiles = import.meta.glob('@/assets/schemas/*.moddle.yaml', {
   query: '?raw',

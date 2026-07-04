@@ -1,5 +1,4 @@
 import type { FlowNode } from '@/lib/core/flow';
-import type { Studyflow } from '@/runner/studyflow';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { readString } from '../readAttribute';
@@ -35,19 +34,12 @@ function Instruction({ job, complete }: NodeProps<InstructionJob>) {
   );
 }
 
-function validateInstructions(studyflow: Studyflow): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  for (const node of studyflow.flowNodes.values()) {
-    if (node.extensionType !== 'cognitive:Instruction') continue;
-    const content = readString(node, 'content') ?? '';
-    if (!content.trim()) {
-      issues.push({
-        nodeId: node.id,
-        message: `Instruction '${node.id}' has no content.`,
-      });
-    }
+function validateInstruction(node: FlowNode): ValidationIssue[] {
+  const content = readString(node, 'content') ?? '';
+  if (!content.trim()) {
+    return [{ nodeId: node.id, message: `Instruction '${node.id}' has no content.` }];
   }
-  return issues;
+  return [];
 }
 
 registerNode({
@@ -55,5 +47,5 @@ registerNode({
   match: { extensionType: 'cognitive:Instruction' },
   toJob: (node) => ({ type: 'instruction', node, content: readString(node, 'content') ?? '' }),
   Component: Instruction,
-  validate: validateInstructions,
+  validateNode: validateInstruction,
 });

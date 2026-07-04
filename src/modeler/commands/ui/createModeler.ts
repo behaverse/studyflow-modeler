@@ -7,8 +7,8 @@ import {
 import GridModule from 'diagram-js-grid';
 
 import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
-import { normalizeStudyflowXml } from '@/lib/core/studyflowYaml';
-import { fromWireXml } from '@/lib/core/choreographyRoot';
+import { normalizeStudyflowXml } from '@/lib/core/codec';
+import { fromWireXml } from '@/lib/core/codec/choreography';
 import { StudyflowModelerModule } from '../..';
 import { clearAutosavedDiagram } from '../../settings/autosaveDiagram';
 

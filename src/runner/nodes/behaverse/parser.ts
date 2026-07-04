@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 import { getAttribute } from '@/lib/core/extensions';
 import type { FlowNode } from '@/lib/core/flow';
-import type { BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
+import { BEHAVERSE_TASK_TYPE, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
 
 /** Read a behaverse attribute: resolved value, namespaced raw value, then bare raw value. */
 export function readBehaverseAttribute(bo: any, attributeName: string): string | undefined {
@@ -27,7 +27,7 @@ export function readBehaverseBody(bo: any, propertyName: string): string | undef
 }
 
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
-  if (node.extensionType !== 'behaverse:Task') return null;
+  if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
 
   const scene = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
   if (!scene || scene === 'undefined') {

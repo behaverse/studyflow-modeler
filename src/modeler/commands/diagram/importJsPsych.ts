@@ -1,5 +1,5 @@
 import { buildStudyflowXml, importJsPsychTimeline } from '@/lib/core/import';
-import { loadSchemas } from '@/lib/core/schemas';
+import { loadSchemas } from '@/lib/core/schema/loader';
 import { getSettings } from '../../settings/store';
 import { runOpenDiagram } from './openDiagram';
 

@@ -44,13 +44,18 @@ export function findByType(type: string): NodeDefinition | undefined {
 }
 
 export function validate(studyflow: Studyflow, manifest?: Manifest): ValidationIssue[] {
-  return getRegisteredNodes().flatMap((n) => n.validate?.(studyflow, manifest) ?? []);
+  const issues = getRegisteredNodes().flatMap((n) => n.validate?.(studyflow, manifest) ?? []);
+  for (const node of studyflow.flowNodes.values()) {
+    const def = findByFlowNode(node);
+    if (def?.validateNode) issues.push(...def.validateNode(node, studyflow, manifest));
+  }
+  return issues;
 }
 
 /** Drives whether the runner pre-fetches the Unity manifest. */
 export function requiresBehaverseRuntime(studyflow: Studyflow): boolean {
   for (const node of studyflow.flowNodes.values()) {
-    if (node.extensionType === 'behaverse:Task') return true;
+    if (findByFlowNode(node)?.type === 'behaverse') return true;
   }
   return false;
 }

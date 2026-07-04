@@ -314,6 +314,8 @@ types:
         type: String
         meta:
           pinned: false
+          # Overlay icon drawn on the event when this attribute is set.
+          icon: iconify fluent--shield-task-24-regular
           optional: true
           categories:
             - Privacy
@@ -347,6 +349,8 @@ types:
         type: String
         meta:
           optional: true
+          # Overlay icon drawn on the event when this attribute is set.
+          icon: iconify fluent--arrow-exit-24-regular
           categories:
             - Completion
       - name: completionCodeType

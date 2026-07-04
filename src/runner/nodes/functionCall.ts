@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 
 import { getAttribute } from '@/lib/core/extensions';
-import { KNOWN_SCHEMES, parseFunctionRef, type FunctionRef } from '@/lib/core/functionRef';
+import { KNOWN_SCHEMES, parseFunctionRef, type FunctionRef } from '@/lib/core/parsers/functionRef';
 import type { FlowNode } from '@/lib/core/flow';
 import type { Studyflow } from '@/runner/studyflow';
 import type { ValidationIssue } from './types';

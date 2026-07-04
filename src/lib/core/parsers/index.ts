@@ -1,8 +1,8 @@
 import { BpmnModdle } from 'bpmn-moddle';
-import { looksLikeXml, normalizeStudyflowXml, studyflowToDefinitions } from './studyflowYaml';
-import { choreographyToProcessRoot } from './choreographyRoot';
-import { getExtensionType } from './extensions';
-import type { FlowNode, SequenceFlow } from './flow';
+import { looksLikeXml, normalizeStudyflowXml, studyflowToDefinitions } from '../codec';
+import { choreographyToProcessRoot } from '../codec/choreography';
+import { getExtensionType } from '../extensions';
+import type { FlowNode, SequenceFlow } from '../flow';
 
 const FLOW_NODE_TYPES = new Set([
   'bpmn:StartEvent',

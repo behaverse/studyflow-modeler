@@ -1,7 +1,13 @@
+import { getCatalog } from '@/lib/core/catalog';
+import { getAttribute, getExtensionType } from '@/lib/core/extensions';
 import { drawIcon } from './utils';
 import type { BpmnRenderer } from '../bpmn-js';
 
-/** Render a bpmn:Event with optional overlay. */
+/**
+ * Render a bpmn:Event with attribute-driven overlays: any instance attribute
+ * that declares `meta.icon` in its schema draws that icon when it has a value
+ * (e.g. `consentFormUri` on start events, `redirectTo` on end events).
+ */
 export function drawEventWithIcon(
   parentNode: SVGElement,
   element: any,
@@ -9,12 +15,12 @@ export function drawEventWithIcon(
 ): SVGElement {
   const circle = bpmnRenderer.handlers[element.type](parentNode, element);
 
-  // TODO hardcoded icons, should be based on element type and attributes
-  if (element.businessObject.get('redirectTo')) {
-    drawIcon(parentNode, element, 'iconify fluent--arrow-exit-24-regular', 6, 6, 24);
-  }
-  if (element.businessObject.get('consentFormUri')) {
-    drawIcon(parentNode, element, 'iconify fluent--shield-task-24-regular', 6, 6, 24);
+  const typeName = getExtensionType(element) ?? element.businessObject?.$type;
+  for (const attr of getCatalog().instanceAttributesOf(typeName)) {
+    const icon = attr.meta?.icon;
+    if (typeof icon !== 'string' || !icon) continue;
+    if (!getAttribute(element, attr.name)) continue;
+    drawIcon(parentNode, element, icon, 6, 6, 24);
   }
   return circle;
 }

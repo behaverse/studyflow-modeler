@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { AttributeField } from './field';
+import { AttributeField } from './AttributeField';
 import { t } from '../../i18n';
 import { inspector as s } from '../styles';
 

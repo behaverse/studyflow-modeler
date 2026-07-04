@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { FlowNode } from '@/lib/core/flow';
-import type { Studyflow } from '@/runner/studyflow';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { readString } from '../readAttribute';
@@ -94,19 +93,15 @@ function Start({ job, log, setVariable, complete, abort }: NodeProps<StartJob>) 
   );
 }
 
-function validateStartEvents(studyflow: Studyflow): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  for (const node of studyflow.flowNodes.values()) {
-    if (node.type !== 'bpmn:StartEvent') continue;
-    const consentFormUri = readString(node, 'consentFormUri') ?? '';
-    if (consentFormUri && !/^(https?:|\/)/i.test(consentFormUri)) {
-      issues.push({
-        nodeId: node.id,
-        message: `consentFormUri '${consentFormUri}' does not look like a URL or absolute path.`,
-      });
-    }
+function validateStartEvent(node: FlowNode): ValidationIssue[] {
+  const consentFormUri = readString(node, 'consentFormUri') ?? '';
+  if (consentFormUri && !/^(https?:|\/)/i.test(consentFormUri)) {
+    return [{
+      nodeId: node.id,
+      message: `consentFormUri '${consentFormUri}' does not look like a URL or absolute path.`,
+    }];
   }
-  return issues;
+  return [];
 }
 
 registerNode({
@@ -119,5 +114,5 @@ registerNode({
     studyName: node.businessObject?.name || undefined,
   }),
   Component: Start,
-  validate: validateStartEvents,
+  validateNode: validateStartEvent,
 });

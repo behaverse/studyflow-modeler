@@ -1,4 +1,4 @@
-import { looksLikeXml, studyflowToXml } from '@/lib/core/studyflowYaml';
+import { looksLikeXml, studyflowToXml } from '@/lib/core/codec';
 import { runImportXml } from './importXml';
 import { runUpdateAttribute } from '../attributes/updateAttribute';
 

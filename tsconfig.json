@@ -2,7 +2,7 @@
   "compilerOptions": {
     "types": ["node", "react", "json-schema", "./src/declarations"],
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
 

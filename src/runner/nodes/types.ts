@@ -38,5 +38,12 @@ export interface NodeDefinition<J extends { type: string; node: FlowNode } = { t
   match: NodeMatcher;
   toJob: (node: FlowNode) => J | null;
   Component: ComponentType<NodeProps<J>>;
+  /**
+   * Per-node validation. The registry calls this only for nodes this module
+   * `match`es, so implementations never re-check the node's type — `match`
+   * is the single source of "which nodes are mine".
+   */
+  validateNode?: (node: FlowNode, studyflow: Studyflow, manifest?: Manifest) => ValidationIssue[];
+  /** Flow-level validation for cross-type concerns (e.g. function calls). */
   validate?: (studyflow: Studyflow, manifest?: Manifest) => ValidationIssue[];
 }

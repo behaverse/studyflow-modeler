@@ -6,6 +6,10 @@ import { spawn } from 'node:child_process'
  * production static bundle has no server, so LLM bot mode requires either dev
  * mode or a sidecar process exposing the same endpoint.
  *
+ * This is the server counterpart of `../providers/claude.ts` (the browser-side
+ * provider that POSTs here). It runs in the Vite dev-server process (Node), so
+ * it must only ever be imported from `vite.config.ts` - never from browser code.
+ *
  * Request:  { system: string, user: string, model: string,
  *             image?: { mediaType: string, data: string } }
  * Response: { response: string }

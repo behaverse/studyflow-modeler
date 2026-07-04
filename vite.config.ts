@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { claudeProxyPlugin } from './tools/claude-proxy/index.mjs'
+import { claudeProxyPlugin } from './src/runner/nodes/behaverse/llm/claude-proxy/index.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 

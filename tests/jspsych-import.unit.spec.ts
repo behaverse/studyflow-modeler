@@ -10,11 +10,11 @@ import {
   parseTimeline,
   type JsPsychNode,
 } from '../src/lib/core/import';
-import { parseFunctionRef } from '../src/lib/core/functionRef';
+import { parseFunctionRef } from '../src/lib/core/parsers/functionRef';
 import { SCHEMAS } from '../src/lib/core/constants';
-import { parseStudyflow } from '../src/lib/core/parseStudyflow';
+import { parseStudyflow } from '../src/lib/core/parsers';
 import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
-import { looksLikeXml } from '../src/lib/core/studyflowYaml';
+import { looksLikeXml } from '../src/lib/core/codec';
 
 /**
  * jsPsych -> Studyflow importer.

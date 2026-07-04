@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { FlowNode } from '@/lib/core/flow';
-import type { Studyflow } from '@/runner/studyflow';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { readString } from '../readAttribute';
@@ -147,19 +146,12 @@ function Questionnaire({ job, log, setVariable, complete }: NodeProps<Questionna
   );
 }
 
-function validateQuestionnaires(studyflow: Studyflow): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  for (const node of studyflow.flowNodes.values()) {
-    if (node.extensionType !== 'cognitive:Questionnaire') continue;
-    const instrument = readString(node, 'instrument') ?? '';
-    if (!instrument.trim()) {
-      issues.push({
-        nodeId: node.id,
-        message: `Questionnaire '${node.id}' has no instrument set.`,
-      });
-    }
+function validateQuestionnaire(node: FlowNode): ValidationIssue[] {
+  const instrument = readString(node, 'instrument') ?? '';
+  if (!instrument.trim()) {
+    return [{ nodeId: node.id, message: `Questionnaire '${node.id}' has no instrument set.` }];
   }
-  return issues;
+  return [];
 }
 
 registerNode({
@@ -167,5 +159,5 @@ registerNode({
   match: { extensionType: 'cognitive:Questionnaire' },
   toJob: (node) => ({ type: 'questionnaire', node, instrument: readString(node, 'instrument') }),
   Component: Questionnaire,
-  validate: validateQuestionnaires,
+  validateNode: validateQuestionnaire,
 });

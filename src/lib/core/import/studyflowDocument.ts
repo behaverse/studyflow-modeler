@@ -18,7 +18,7 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { xmlToStudyflow } from '../studyflowYaml';
+import { xmlToStudyflow } from '../codec';
 import type { ImportedStudy, ImportedTask } from './jspsych';
 
 /** Deterministic horizontal layout; mirrors the geometry bundled examples use. */

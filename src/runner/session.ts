@@ -1,4 +1,5 @@
 import type { FlowNode } from '@/lib/core/flow';
+import { getCatalog } from '@/lib/core/catalog';
 import { findByFlowNode } from './nodes';
 import type { Job } from './types';
 import type { Studyflow } from './studyflow';
@@ -73,9 +74,10 @@ export class Session {
     return this.firstOutgoingTarget(node);
   }
 
+  /** Schema-driven: gateway types declare `meta: {branching: random}`. */
   private isRandomGateway(node: FlowNode): boolean {
-    const ext = node.extensionType;
-    return ext === 'cognitive:RandomGateway' || ext === 'cognitive:StratifiedAllocationGateway';
+    if (!node.extensionType) return false;
+    return getCatalog().getType(node.extensionType)?.meta?.branching === 'random';
   }
 
   private isExclusiveGateway(node: FlowNode): boolean {

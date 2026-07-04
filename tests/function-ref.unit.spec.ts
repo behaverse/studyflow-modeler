@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { KNOWN_SCHEMES, parseFunctionRef } from '../src/lib/core/functionRef';
+import { KNOWN_SCHEMES, parseFunctionRef } from '../src/lib/core/parsers/functionRef';
 
 /**
  * Unit tests for the `uses` function-reference grammar:

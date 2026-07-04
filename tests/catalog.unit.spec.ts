@@ -301,3 +301,38 @@ test.describe('catalog: templates and enums', () => {
     }
   });
 });
+
+test.describe('catalog: runner semantics', () => {
+  // The runner Session picks a random outgoing branch for any type declaring
+  // `meta: {branching: random}` (see src/runner/session.ts). Pin the two
+  // gateway types that rely on it so the schema contract cannot regress.
+  test('allocation gateways declare random branching', () => {
+    for (const name of ['cognitive:RandomGateway', 'cognitive:StratifiedAllocationGateway']) {
+      expect(catalog.getType(name)?.meta?.branching, name).toBe('random');
+    }
+  });
+
+  test('plain BPMN gateways do not declare random branching', () => {
+    for (const entry of catalog.allTypes()) {
+      if (entry.meta?.branching === undefined) continue;
+      expect(['random'], `${entry.name} meta.branching`).toContain(entry.meta.branching);
+    }
+  });
+});
+
+test.describe('catalog: renderer semantics', () => {
+  // The event renderer draws an overlay icon for any instance attribute that
+  // declares `meta.icon` and has a value (see src/modeler/render/events.ts).
+  // Pin the two attributes that rely on it so the schema contract cannot regress.
+  test('event overlay attributes declare their icons', () => {
+    const cases = [
+      { bpmnType: 'bpmn:StartEvent', attr: 'consentFormUri' },
+      { bpmnType: 'bpmn:EndEvent', attr: 'redirectTo' },
+    ];
+    for (const { bpmnType, attr } of cases) {
+      const spec = catalog.instanceAttributesOf(bpmnType).find((a) => a.name === attr);
+      expect(spec, `${bpmnType}#${attr}`).toBeTruthy();
+      expect(typeof spec!.meta?.icon, `${bpmnType}#${attr} meta.icon`).toBe('string');
+    }
+  });
+});

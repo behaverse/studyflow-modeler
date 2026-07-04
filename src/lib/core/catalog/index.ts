@@ -1,5 +1,6 @@
 export * from './types';
-export { buildCatalog, TypeCatalog, HIDDEN_SCHEMA_TYPES } from './compile';
+export { buildCatalog, TypeCatalog } from './compile';
+export { HIDDEN_SCHEMA_TYPES } from './palette';
 export { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from './bpmn';
 
 import { buildCatalog, TypeCatalog } from './compile';

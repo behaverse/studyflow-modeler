@@ -22,7 +22,7 @@
  * attribute is `uses`.
  */
 
-import { parseFunctionRef } from '../functionRef';
+import { parseFunctionRef } from '../parsers/functionRef';
 
 /** A single jsPsych timeline entry (a trial or a nested procedure). */
 export type JsPsychNode = Record<string, unknown>;

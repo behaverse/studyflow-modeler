@@ -1,6 +1,6 @@
-import { getCatalog, type AttributeSpec } from './catalog';
-import { BPMN, CORE_PREFIXES } from './constants';
-import { splitQName, toLocalName } from './naming';
+import { getCatalog, type AttributeSpec } from '../catalog';
+import { BPMN, CORE_PREFIXES } from '../constants';
+import { splitQName, toLocalName } from '../naming';
 
 /**
  * Schema-attribute access on BPMN elements.

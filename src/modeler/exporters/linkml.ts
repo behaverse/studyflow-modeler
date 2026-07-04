@@ -8,6 +8,7 @@
 
 import * as yaml from 'js-yaml';
 import { getDiagramName } from '../diagramName';
+import { forEachBusinessObject, readField } from './common';
 
 const STUDYFLOW_NS = 'https://behaverse.org/schemas/studyflow/';
 
@@ -31,32 +32,11 @@ const DATA_ELEMENT_TYPES = new Set([
   'studyflow:DataStorage',
 ]);
 
-/** Read a value from either the BO or its $attrs bag. */
-function readField(bo: any, name: string): unknown {
-  if (bo == null) return undefined;
-  const direct = bo[name];
-  if (direct !== undefined && direct !== null && direct !== '') return direct;
-  if (typeof bo.get === 'function') {
-    const v = bo.get(name);
-    if (v !== undefined && v !== null && v !== '') return v;
-  }
-  const attrs = bo.$attrs;
-  if (attrs) {
-    for (const key of Object.keys(attrs)) {
-      const local = key.includes(':') ? key.split(':')[1] : key;
-      if (local === name) return attrs[key];
-    }
-  }
-  return undefined;
-}
-
 function toIdentifier(s: string): string {
   return s.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'Element';
 }
 
-function readDataElement(el: any): DataElement | null {
-  const bo = el.businessObject;
-  if (!bo) return null;
+function readDataElement(bo: any, el: any): DataElement | null {
   const type = bo.$type as string;
   if (!DATA_ELEMENT_TYPES.has(type)) return null;
 
@@ -90,30 +70,20 @@ function readDataElement(el: any): DataElement | null {
 }
 
 function collectDataElements(modeler: any): DataElement[] {
-  const elementRegistry = modeler.get('elementRegistry');
   const out: DataElement[] = [];
-  elementRegistry.forEach((el: any) => {
-    if (el.type === 'label') return;
-    const item = readDataElement(el);
+  forEachBusinessObject(modeler, (bo, el) => {
+    const item = readDataElement(bo, el);
     if (item) out.push(item);
   });
   return out;
 }
 
+/** Types whose `schema` reference ranges over another exported class. */
+const SCHEMA_RANGE_TYPES = new Set(['studyflow:Dataset', 'studyflow:Table']);
+
 /** Map a Studyflow type to a LinkML range hint for the auto-generated class. */
 function rangeForStudyflowType(type: string): string | undefined {
-  switch (type) {
-    case 'studyflow:Schema':      return undefined;
-    case 'studyflow:Dataset':     return 'Schema';
-    case 'studyflow:Table':       return 'Schema';
-    case 'studyflow:Array':       return undefined;
-    case 'studyflow:Snapshot':    return undefined;
-    case 'studyflow:Timeseries':  return undefined;
-    case 'studyflow:EventMarker': return undefined;
-    case 'studyflow:DataCatalog': return undefined;
-    case 'studyflow:DataStorage': return undefined;
-    default:                      return undefined;
-  }
+  return SCHEMA_RANGE_TYPES.has(type) ? 'Schema' : undefined;
 }
 
 export function exportToLinkML(modeler: any): string {

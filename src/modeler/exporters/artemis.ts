@@ -15,26 +15,9 @@
  */
 
 import { getDiagramName } from '../diagramName';
+import { forEachBusinessObject, readField } from './common';
 
 type GenericRecord = Record<string, unknown>;
-
-function readField(bo: any, name: string): unknown {
-  if (bo == null) return undefined;
-  const direct = bo[name];
-  if (direct !== undefined && direct !== null && direct !== '') return direct;
-  if (typeof bo.get === 'function') {
-    const v = bo.get(name);
-    if (v !== undefined && v !== null && v !== '') return v;
-  }
-  const attrs = bo.$attrs;
-  if (attrs) {
-    for (const key of Object.keys(attrs)) {
-      const local = key.includes(':') ? key.split(':')[1] : key;
-      if (local === name) return attrs[key];
-    }
-  }
-  return undefined;
-}
 
 function isEegRelevant(bo: any): boolean {
   if (!bo) return false;
@@ -52,7 +35,6 @@ function isEegRelevant(bo: any): boolean {
 }
 
 export function exportToArtemis(modeler: any): string {
-  const elementRegistry = modeler.get('elementRegistry');
   const diagramName = getDiagramName(modeler) ?? 'studyflow_export';
 
   const acquisition: GenericRecord[] = [];
@@ -63,10 +45,7 @@ export function exportToArtemis(modeler: any): string {
 
   let foundEegSignal = false;
 
-  elementRegistry.forEach((el: any) => {
-    if (el.type === 'label') return;
-    const bo = el.businessObject;
-    if (!bo) return;
+  forEachBusinessObject(modeler, (bo) => {
     const t = bo.$type as string | undefined;
     if (!t) return;
 

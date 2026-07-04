@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAttribute } from '@/lib/core/extensions';
 import type { FlowNode } from '@/lib/core/flow';
-import type { Studyflow } from '@/runner/studyflow';
 import type { NodeProps, ValidationIssue } from '@/runner/nodes/types';
 import { NodePanel } from '../NodePanel';
 import { readString } from '../readAttribute';
@@ -102,26 +101,23 @@ function End({ job, log, setVariable, complete }: NodeProps<EndJob>) {
   );
 }
 
-function validateEndEvents(studyflow: Studyflow): ValidationIssue[] {
+function validateEndEvent(node: FlowNode): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const node of studyflow.flowNodes.values()) {
-    if (node.type !== 'bpmn:EndEvent') continue;
-    const redirectTo = readString(node, 'redirectTo') ?? '';
-    const completionCodeType = readCompletionCodeType(node);
-    const completionCode = readString(node, 'completionCode') ?? '';
+  const redirectTo = readString(node, 'redirectTo') ?? '';
+  const completionCodeType = readCompletionCodeType(node);
+  const completionCode = readString(node, 'completionCode') ?? '';
 
-    if (completionCodeType === 'static' && !completionCode) {
-      issues.push({
-        nodeId: node.id,
-        message: `EndEvent '${node.id}' uses static completionCode but no completionCode value is set.`,
-      });
-    }
-    if (redirectTo.includes('{COMPLETION_CODE}') && completionCodeType === 'none') {
-      issues.push({
-        nodeId: node.id,
-        message: `EndEvent '${node.id}': redirectTo references {COMPLETION_CODE} but completionCodeType is 'none'.`,
-      });
-    }
+  if (completionCodeType === 'static' && !completionCode) {
+    issues.push({
+      nodeId: node.id,
+      message: `EndEvent '${node.id}' uses static completionCode but no completionCode value is set.`,
+    });
+  }
+  if (redirectTo.includes('{COMPLETION_CODE}') && completionCodeType === 'none') {
+    issues.push({
+      nodeId: node.id,
+      message: `EndEvent '${node.id}': redirectTo references {COMPLETION_CODE} but completionCodeType is 'none'.`,
+    });
   }
   return issues;
 }
@@ -137,5 +133,5 @@ registerNode({
     completionCode: readString(node, 'completionCode'),
   }),
   Component: End,
-  validate: validateEndEvents,
+  validateNode: validateEndEvent,
 });

@@ -6,7 +6,7 @@ import {
   isExtensionPrefix,
 } from '@/lib/core/extensions';
 import { toLocalName } from '@/lib/core/naming';
-import { isAttributeVisible } from './field';
+import { isAttributeVisible } from './AttributeField';
 
 /** Canonical tab order; unlisted categories follow in insertion order. */
 const CATEGORY_ORDER = [

@@ -12,6 +12,7 @@
  */
 
 import { getDiagramName } from '../diagramName';
+import { forEachBusinessObject, readField } from './common';
 
 const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .
 @prefix nidm:  <http://purl.org/nidash/nidm#> .
@@ -35,24 +36,6 @@ const DATA_ELEMENT_TYPES = new Set([
   'studyflow:EventMarker',
 ]);
 
-function readField(bo: any, name: string): unknown {
-  if (bo == null) return undefined;
-  const direct = bo[name];
-  if (direct !== undefined && direct !== null && direct !== '') return direct;
-  if (typeof bo.get === 'function') {
-    const v = bo.get(name);
-    if (v !== undefined && v !== null && v !== '') return v;
-  }
-  const attrs = bo.$attrs;
-  if (attrs) {
-    for (const key of Object.keys(attrs)) {
-      const local = key.includes(':') ? key.split(':')[1] : key;
-      if (local === name) return attrs[key];
-    }
-  }
-  return undefined;
-}
-
 function isDataOperationActivity(bo: any): boolean {
   if (!bo) return false;
   // Studyflow's DataOperationActivity uses an `isDataOperation` flag plus an
@@ -74,17 +57,12 @@ function escape(s: string): string {
 }
 
 export function exportToNidm(modeler: any): string {
-  const elementRegistry = modeler.get('elementRegistry');
   const diagramName = getDiagramName(modeler) ?? 'studyflow_export';
 
   const activities: Activity[] = [];
   const entities = new Map<string, Entity>();
 
-  elementRegistry.forEach((el: any) => {
-    if (el.type === 'label') return;
-    const bo = el.businessObject;
-    if (!bo) return;
-
+  forEachBusinessObject(modeler, (bo) => {
     if (DATA_ELEMENT_TYPES.has(bo.$type)) {
       entities.set(bo.id, {
         id: bo.id,

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FlowNode } from '@/lib/core/flow';
 import type { NodeProps } from '@/runner/nodes/types';
-import type { BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
+import { BEHAVERSE_TASK_TYPE, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
 import { runOnUnity, waitForReady } from './bridge';
 import { buildBehaverseIframeSrc } from './iframe';
 import { getBehaverseTaskPayload } from './parser';
-import { validateStudyflow as validateBehaverseStudyflow } from './validator';
+import { validateBehaverseNode } from './validator';
 import { nodeStyles } from '../styles';
 import { registerNode } from '../registry';
 
@@ -106,8 +106,8 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
 
 registerNode({
   type: 'behaverse',
-  match: { extensionType: 'behaverse:Task' },
+  match: { extensionType: BEHAVERSE_TASK_TYPE },
   toJob: behaverseToJob,
   Component: Behaverse,
-  validate: (studyflow, manifest) => manifest ? validateBehaverseStudyflow(studyflow, manifest) : [],
+  validateNode: (node, _studyflow, manifest) => manifest ? validateBehaverseNode(node, manifest) : [],
 });

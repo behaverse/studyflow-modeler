@@ -1,7 +1,7 @@
 import { Canvg } from 'canvg';
 import download from 'downloadjs';
-import { xmlToStudyflow } from '@/lib/core/studyflowYaml';
-import { toWireXml } from '@/lib/core/choreographyRoot';
+import { xmlToStudyflow } from '@/lib/core/codec';
+import { toWireXml } from '@/lib/core/codec/choreography';
 import { getDiagramName } from '../../diagramName';
 import { exportToLinkML } from '../../exporters/linkml';
 import { exportToNidm } from '../../exporters/nidm';
@@ -107,7 +107,7 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
 
   // Native `.studyflow` files are YAML (see `lib/core/studyflowYaml`).
   // Pure-choreography diagrams leave the app as a spec-clean bpmn:Choreography
-  // root (see `lib/core/choreographyRoot`); `toWireXml` is a no-op otherwise.
+  // root (see `lib/core/codec/choreography`); `toWireXml` is a no-op otherwise.
   if (fileType === 'studyflow') {
     const { xml } = await modeler.saveXML({ format: true });
     const wireXml = await toWireXml(xml, modeler.get('moddle'));

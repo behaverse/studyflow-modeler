@@ -212,6 +212,9 @@ types:
     meta:
       icon: iconify streamline-flex--dice-5
       bpmnType: bpmn:ExclusiveGateway
+      # Runner branching semantics: pick an outgoing branch at random instead
+      # of evaluating conditions. Read from the catalog by the runner Session.
+      branching: random
     properties:
       - name: algorithm
         description: Algorithm used for the assignment.
@@ -247,6 +250,7 @@ types:
     meta:
       icon: iconify mdi--layers-outline
       bpmnType: bpmn:ExclusiveGateway
+      branching: random
     properties:
       - name: stratificationVariable
         description: |

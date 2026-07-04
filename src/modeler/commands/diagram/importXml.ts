@@ -1,5 +1,5 @@
-import { normalizeStudyflowXml } from '@/lib/core/studyflowYaml';
-import { fromWireXml } from '@/lib/core/choreographyRoot';
+import { normalizeStudyflowXml } from '@/lib/core/codec';
+import { fromWireXml } from '@/lib/core/codec/choreography';
 
 export type ImportXmlCommand = {
   type: 'import-xml';

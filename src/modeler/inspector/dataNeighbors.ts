@@ -1,6 +1,9 @@
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
+import { getCatalog, isBpmnSubtypeOf } from '@/lib/core/catalog';
 import { getExtensionType } from '@/lib/core/extensions';
 
+/** BPMN 2.0 data element kinds (frozen spec). Schema types count as data
+ *  elements when their catalog `bpmnType` resolves into one of these. */
 const DATA_BPMN_TYPES = [
   'bpmn:DataObject',
   'bpmn:DataObjectReference',
@@ -9,20 +12,11 @@ const DATA_BPMN_TYPES = [
   'bpmn:DataOutput',
 ];
 
-const DATA_STUDYFLOW_TYPES = new Set([
-  'studyflow:Dataset',
-  'studyflow:Schema',
-  'studyflow:DataStorage',
-  'studyflow:DataObjectReference',
-  'studyflow:Array',
-  'studyflow:Snapshot',
-]);
-
 function isDataElement(element: any): boolean {
   if (!element) return false;
   if (DATA_BPMN_TYPES.some((t) => is(element, t))) return true;
-  const ext = getExtensionType(element);
-  return !!ext && DATA_STUDYFLOW_TYPES.has(ext);
+  const bpmnType = getCatalog().bpmnTypeOf(getExtensionType(element));
+  return !!bpmnType && DATA_BPMN_TYPES.some((t) => isBpmnSubtypeOf(bpmnType, t));
 }
 
 function nameOf(element: any): string | undefined {

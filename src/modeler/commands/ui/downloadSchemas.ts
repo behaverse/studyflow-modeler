@@ -1,5 +1,5 @@
 import { getSettings } from '../../settings/store';
-import { loadSchemas } from '@/lib/core/schemas';
+import { loadSchemas } from '@/lib/core/schema/loader';
 
 export type DownloadSchemasCommand = {
   type: 'download-schemas';

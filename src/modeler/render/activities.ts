@@ -18,6 +18,8 @@ export function drawActivity(
     : element.type;
   const activity = bpmnRenderer.handlers[handlerType](parentNode, element);
 
+  // Behaverse tasks show their scene abbreviation (e.g. "NB") as a text marker
+  // instead of an icon — a display convention of that instrument, not schema data.
   let iconMarker: string | undefined;
   let iconSize = 24;
   if (getAttribute(element, 'instrument') === 'behaverse' && !preservePrimaryIcon) {

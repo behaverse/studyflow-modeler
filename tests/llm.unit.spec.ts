@@ -4,6 +4,7 @@ import { callClaude } from '../src/runner/nodes/behaverse/llm/providers/claude';
 import { callOllama } from '../src/runner/nodes/behaverse/llm/providers/ollama';
 import { selectResponse } from '../src/runner/nodes/behaverse/llm/bot';
 import { RUNNER_ONLY_BOT_KEYS } from '../src/runner/nodes/behaverse/types';
+import { botForUnity } from '../src/runner/nodes/behaverse/botPolicy';
 import type { LLMBotInput, LLMProviderConfig, ProviderRequest } from '../src/runner/nodes/behaverse/llm/types';
 
 const NB_INPUT: LLMBotInput = {
@@ -194,23 +195,16 @@ test('RUNNER_ONLY_BOT_KEYS: covers the keys the runner consumes that Unity must 
 });
 
 test('botForUnity: strips runner-only keys and rewrites ResponseSource=llm -> external', async () => {
-  // Bridge isn't exported; exercise the logic indirectly by importing and
-  // re-running the same transformation steps. Documents the contract:
-  // Unity needs ResponseSource="external" to emit AwaitingResponse events,
-  // and must never see LLM/Prompt (BotReflection throws on unknown fields).
-  const bot = {
+  // Documents the contract: Unity needs ResponseSource="external" to emit
+  // AwaitingResponse events, and must never see LLM/Prompt (BotReflection
+  // throws on unknown fields).
+  const result = botForUnity({
     ResponseSource: 'llm',
     LLM: { Provider: 'claude', Model: 'm' },
     Prompt: 'persona',
     IncludeScreenshot: true,
     Speed: 20,
-  };
-  const runnerOnly = new Set<string>(RUNNER_ONLY_BOT_KEYS);
-  const result: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(bot)) {
-    if (runnerOnly.has(k)) continue;
-    result[k] = k === 'ResponseSource' && v === 'llm' ? 'external' : v;
-  }
+  });
   expect(result).toEqual({
     ResponseSource: 'external',
     IncludeScreenshot: true,

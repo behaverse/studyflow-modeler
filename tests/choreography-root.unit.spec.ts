@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { fromWireXml, toWireXml } from '../src/lib/core/choreographyRoot';
+import { fromWireXml, toWireXml } from '../src/lib/core/codec/choreography';
 import { SCHEMAS } from '../src/lib/core/constants';
 import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
 

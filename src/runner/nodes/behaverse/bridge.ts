@@ -1,77 +1,23 @@
-import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
-import { getLLMSettings } from '@/lib/core/runnerSettings';
-import { selectResponse } from '@/runner/nodes/behaverse/llm/bot';
-import type { LLMProviderConfig, TrialHistoryEntry } from '@/runner/nodes/behaverse/llm/types';
+/**
+ * Unity task orchestration: send a task to Unity, answer its trial-response
+ * requests via the bot policy, and resolve on completion. The wire protocol
+ * (topics, payload shapes, channel fan-in) lives in `unityTopics.ts`; the
+ * response policy (LLM / random, config resolution) in `botPolicy.ts`.
+ */
 
-/** Strip runner-only keys (e.g. `LLM`, `Prompt`) from the bot payload before
- *  sending to Unity; `BotReflection.Apply` throws on unknown field names.
- *  Also normalize `ResponseSource: llm` to `external`: Unity's per-game checks
- *  hardcode the string `"external"` to switch into runner-driven response mode,
- *  so `llm` (a runner-only discriminator) would silently fall back to internal. */
-function botForUnity(bot: BehaverseBotPayload | undefined): BehaverseBotPayload | undefined {
-  if (!bot) return undefined;
-  const runnerOnly = new Set<string>(RUNNER_ONLY_BOT_KEYS);
-  const stripped: BehaverseBotPayload = {};
-  for (const [k, v] of Object.entries(bot)) {
-    if (runnerOnly.has(k)) continue;
-    stripped[k] = k === 'ResponseSource' && v === 'llm' ? 'external' : v;
-  }
-  return Object.keys(stripped).length > 0 ? stripped : undefined;
-}
-
-type UnityInstance = {
-  SendMessage: (gameObjectName: string, methodName: string, value?: string | number) => void;
-};
-
-type UnityWindow = Window & { unityInstance?: UnityInstance };
-
-type TaskCompletion = {
-  TaskId: string;
-  TimelineId: string;
-  IsCompleted: boolean;
-};
-
-/** Resolve effective LLM provider/model from per-task botConfigurations.LLM over global settings. */
-function resolveLLMConfig(bot: BehaverseTaskPayload['bot']): LLMProviderConfig {
-  const settings = getLLMSettings();
-  const override = (bot && typeof bot === 'object' ? (bot as Record<string, unknown>).LLM : undefined);
-  const llmOverride = override && typeof override === 'object' && !Array.isArray(override)
-    ? (override as Record<string, unknown>)
-    : {};
-  const provider = llmOverride.Provider === 'ollama' || llmOverride.Provider === 'claude'
-    ? llmOverride.Provider
-    : settings.provider;
-  const model = typeof llmOverride.Model === 'string' && llmOverride.Model.length > 0
-    ? llmOverride.Model
-    : settings.model;
-  return {
-    provider,
-    model,
-    ollamaUrl: settings.ollamaUrl,
-    claudeProxyUrl: settings.claudeProxyUrl,
-  };
-}
-
-function readResponseSource(bot: BehaverseTaskPayload['bot']): 'internal' | 'external' | 'llm' {
-  if (!bot || typeof bot !== 'object') return 'internal';
-  const value = (bot as Record<string, unknown>).ResponseSource;
-  return value === 'external' || value === 'llm' ? value : 'internal';
-}
-
-function readPrompt(bot: BehaverseTaskPayload['bot']): string {
-  if (!bot || typeof bot !== 'object') return '';
-  const value = (bot as Record<string, unknown>).Prompt;
-  return typeof value === 'string' ? value : '';
-}
-
-// Unity dispatches each topic as both a CustomEvent and a parent-window postMessage.
-// Topic strings mirror the C# source of truth (browser_bridge.jslib).
-// Completion event is `studyflow:TaskCompleted` (ADR-0007: CognitiveTask vocabulary).
-const TASK_COMPLETED = 'studyflow:TaskCompleted';
-const AWAITING_RESPONSE = 'studyflow:AwaitingResponse';
-const READY = 'studyflow:Ready';
-
-type LogFn = (kind: 'info' | 'task' | 'ok' | 'error' | 'skip', message: string) => void;
+import type { BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
+import type { TrialHistoryEntry } from '@/runner/nodes/behaverse/llm/types';
+import { botForUnity, decideResponse, type LogFn } from './botPolicy';
+import {
+  AWAITING_RESPONSE,
+  READY,
+  TASK_COMPLETED,
+  subscribeUnityTopic,
+  type AwaitingResponseDetail,
+  type TaskCompletion,
+  type UnityInstance,
+  type UnityWindow,
+} from './unityTopics';
 
 /** Send a task to Unity and resolve when the matching TASK_COMPLETED event fires. */
 export function runOnUnity(
@@ -81,43 +27,10 @@ export function runOnUnity(
   log?: LogFn,
 ): Promise<TaskCompletion> {
   return new Promise((resolve, reject) => {
-    // Keys mirror C# field/JSON conventions (PascalCase, source of truth in Unity).
-    type AwaitingResponseDetail = {
-      RequestId: string;
-      TrialIndex: number;
-      Stimulus: { Value: string };
-      ResponseOptions: string[];
-      MaxResponseTime: number;  // seconds, matches Unity's MaxResponseTime config
-      /** `data:image/png;base64,...` set by Unity when `Bot.IncludeScreenshot = true`.
-       *  Forwarded to vision-capable LLM providers; ignored by `external`/`internal`. */
-      Screenshot?: string;
-    };
-
-    const matches = (detail: TaskCompletion | undefined): detail is TaskCompletion =>
-      !!detail
-      && detail.TaskId === payload.scene
-      && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
-
-    const onMessage = (e: MessageEvent) => {
-      const data = e.data as { type?: string; detail?: TaskCompletion } | undefined;
-      if (data?.type !== TASK_COMPLETED) return;
-      if (!matches(data.detail)) return;
-      cleanup();
-      resolve(data.detail);
-    };
-
-    const onCompleted = (e: Event) => {
-      const detail = (e as CustomEvent<TaskCompletion>).detail;
-      if (!matches(detail)) return;
-      cleanup();
-      resolve(detail);
-    };
-
-    const source = readResponseSource(payload.bot);
     const history: TrialHistoryEntry[] = [];
-    // Unity emits each AwaitingResponse as BOTH a CustomEvent and a window
-    // postMessage, so we receive every trial twice. Dedupe by RequestId to
-    // avoid double LLM calls (wasted tokens) and duplicate sidebar logs.
+    // Every topic arrives on multiple channels (see unityTopics.ts), so each
+    // trial is seen more than once. Dedupe by RequestId to avoid double LLM
+    // calls (wasted tokens) and duplicate sidebar logs.
     const seenRequestIds = new Set<string>();
 
     const sendResponse = (detail: AwaitingResponseDetail, response: string, agentId: string) => {
@@ -138,69 +51,31 @@ export function runOnUnity(
       }
     };
 
-    const handleAwaiting = async (detail: AwaitingResponseDetail | undefined) => {
+    const onAwaiting = async (detail: AwaitingResponseDetail | undefined) => {
       if (!detail || !Array.isArray(detail.ResponseOptions) || detail.ResponseOptions.length === 0) return;
       if (seenRequestIds.has(detail.RequestId)) return;
       seenRequestIds.add(detail.RequestId);
 
-      if (source === 'llm') {
-        const llmConfig = resolveLLMConfig(payload.bot);
-        log?.('task', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex}: querying...`);
-        const result = await selectResponse({
-          taskId: payload.scene,
-          taskConfig: payload.parameters,
-          prompt: readPrompt(payload.bot),
-          stimulus: detail.Stimulus,
-          responseOptions: detail.ResponseOptions,
-          trialIndex: detail.TrialIndex,
-          history,
-          ...(typeof detail.Screenshot === 'string' && detail.Screenshot.length > 0
-            ? { screenshot: detail.Screenshot }
-            : {}),
-        }, llmConfig);
-        if (result.source === 'llm') {
-          log?.('info', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex} -> "${result.response}"`);
-        } else if (result.error) {
-          log?.('error', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex} -> fall back to random "${result.response}": ${result.error}`);
-          console.warn(`[behaverse:llm] trial ${detail.TrialIndex} fell back to random: ${result.error}`);
-        }
-        // When the LLM actually answered, tag the response with `<provider>:<model>`
-        // so downstream telemetry can distinguish LLM-driven from random-fallback
-        // trials. On random fallback, keep the generic `bot` tag.
-        const agentId = result.source === 'llm' ? `${llmConfig.provider}:${llmConfig.model}` : 'bot';
-        sendResponse(detail, result.response, agentId);
-        return;
-      }
-
-      const response = detail.ResponseOptions[Math.floor(Math.random() * detail.ResponseOptions.length)];
-      sendResponse(detail, response, 'bot');
+      const decision = await decideResponse(payload, detail, history, log);
+      sendResponse(detail, decision.response, decision.agentId);
     };
 
-    const onAwaitingMessage = (e: MessageEvent) => {
-      const data = e.data as { type?: string; detail?: AwaitingResponseDetail } | undefined;
-      if (data?.type !== AWAITING_RESPONSE) return;
-      void handleAwaiting(data.detail);
+    const onCompleted = (detail: TaskCompletion | undefined) => {
+      const matches = !!detail
+        && detail.TaskId === payload.scene
+        && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
+      if (!matches) return;
+      cleanup();
+      resolve(detail);
     };
 
-    const onAwaiting = (e: Event) => {
-      void handleAwaiting((e as CustomEvent<AwaitingResponseDetail>).detail);
-    };
-
-    const cleanup = () => {
-      window.removeEventListener(TASK_COMPLETED, onCompleted as EventListener);
-      window.removeEventListener('message', onMessage);
-      getUnityWindow()?.removeEventListener(TASK_COMPLETED, onCompleted as EventListener);
-      window.removeEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
-      window.removeEventListener('message', onAwaitingMessage);
-      getUnityWindow()?.removeEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
-    };
-
-    window.addEventListener(TASK_COMPLETED, onCompleted as EventListener);
-    window.addEventListener('message', onMessage);
-    getUnityWindow()?.addEventListener(TASK_COMPLETED, onCompleted as EventListener);
-    window.addEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
-    window.addEventListener('message', onAwaitingMessage);
-    getUnityWindow()?.addEventListener(AWAITING_RESPONSE, onAwaiting as EventListener);
+    const unsubscribe = [
+      subscribeUnityTopic<TaskCompletion>(TASK_COMPLETED, getUnityWindow, onCompleted),
+      subscribeUnityTopic<AwaitingResponseDetail>(AWAITING_RESPONSE, getUnityWindow, (detail) => {
+        void onAwaiting(detail);
+      }),
+    ];
+    const cleanup = () => unsubscribe.forEach((off) => off());
 
     try {
       const unityPayload = { ...payload, bot: botForUnity(payload.bot) };

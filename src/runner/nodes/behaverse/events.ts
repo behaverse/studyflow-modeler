@@ -1,4 +1,5 @@
 import { recordEvents, type DataServerConfig } from '@/runner/dataServer';
+import { EVENT } from './unityTopics';
 
 /**
  * Telemetry recorder for the runner.
@@ -9,10 +10,6 @@ import { recordEvents, type DataServerConfig } from '@/runner/dataServer';
  * buffers those events and batch-POSTs them to the data-server via
  * {@link recordEvents}. The runner owns batching, retry, and delivery.
  */
-
-// PascalCase topic, mirroring the C# source of truth (browser_bridge.jslib) and
-// the topic constants in bridge.ts.
-const EVENT = 'studyflow:Event';
 
 // Match the batching the C# side used to do: flush at 64 events; bound memory at
 // 10k (drop-oldest) so a server outage can't grow the buffer without limit.
