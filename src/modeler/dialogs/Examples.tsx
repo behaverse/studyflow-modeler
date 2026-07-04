@@ -5,6 +5,7 @@ import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { dialog as d, examplesList as e } from '../styles';
 import { NAMESPACES } from '../constants';
+import { ICONS } from '@/icons';
 
 const exampleFiles = import.meta.glob(
   '@/assets/examples/*.{studyflow,bpmn,svg}',
@@ -135,7 +136,7 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
             <DialogTitle as="h3" className={`${d.title} pb-3`}>
               Example Diagrams
               <span className={d.closeButton} onClick={onClose}>
-                <i className="iconify bi--x-lg"></i>
+                <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
             <p className={`${d.body} pb-5`}>

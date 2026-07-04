@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useModeler } from '../useModeler';
-import { getExtensionElement } from '@/lib/core/extensions';
+import { StudyflowElement } from '@/lib/core/extensions';
 import { dialog as d } from '../styles';
 import { DialogHelp } from './DialogHelp';
+import { ICONS } from '@/icons';
 
 type TimingAttrs = {
   onset?: string;
@@ -52,7 +53,7 @@ function findSwimlane(el: any): string {
 
 function readTimingAttrs(bo: any): TimingAttrs {
   const out: TimingAttrs = {};
-  const ext = getExtensionElement(bo);
+  const ext = StudyflowElement.fromBusinessObject(bo).extension;
   for (const k of ATTR_NAMES) {
     const direct = bo?.[k];
     const fromExt = ext?.get?.(k) ?? ext?.[k];
@@ -213,7 +214,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
               </DialogHelp>
               <span className="flex-1" aria-hidden="true" />
               <span className={d.closeButton} onClick={onClose}>
-                <i className="iconify bi--x-lg"></i>
+                <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
             {rows.length === 0 ? (

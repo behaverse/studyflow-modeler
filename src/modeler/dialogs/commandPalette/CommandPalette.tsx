@@ -29,6 +29,7 @@ import {
   type PaletteDialogId,
 } from './types';
 import { useFilePicker } from './useFilePicker';
+import { ICONS } from '@/icons';
 
 /** Modal dialogs the palette can hand off to, keyed by `PaletteDialogId`. */
 const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<{ isOpen: boolean; onClose: () => void }>> = {
@@ -238,7 +239,7 @@ export function CommandPalette({ ref }: Props) {
                   className={cp.breadcrumbBack}
                   title="Back to main palette (Esc or Backspace)"
                 >
-                  <i className="iconify bi--arrow-left"></i>
+                  <i className={ICONS.arrowLeft}></i>
                   <span>Back</span>
                 </button>
                 <span className={cp.breadcrumbDivider}>/</span>

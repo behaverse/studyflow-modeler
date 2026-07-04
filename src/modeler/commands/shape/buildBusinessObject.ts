@@ -1,4 +1,4 @@
-import { createExtensionElement, getDefaults } from '@/lib/core/extensions';
+import { getDefaults, StudyflowElement } from '@/lib/core/extensions';
 import { toLocalName } from '@/lib/core/naming';
 
 export type BuildBusinessObjectOptions = {
@@ -35,7 +35,7 @@ export function buildBusinessObject(
 
   if (extensionType) {
     const defaults = getDefaults(extensionType);
-    createExtensionElement(bo, extensionType, moddle, defaults);
+    StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, moddle, defaults);
   }
 
   return bo;

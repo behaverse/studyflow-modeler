@@ -63,8 +63,7 @@ test('buildPrompt: SRM task with numeric response options renders cleanly', () =
 const CONFIG: LLMProviderConfig = {
   provider: 'ollama',
   model: 'llama3.2',
-  ollamaUrl: 'http://127.0.0.1:1',
-  claudeProxyUrl: '/api/llm/claude',
+  url: 'http://127.0.0.1:1',
 };
 
 test('selectResponse: falls back to a random response option when provider errors', async () => {

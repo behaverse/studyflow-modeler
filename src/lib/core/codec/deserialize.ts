@@ -1,17 +1,24 @@
 import * as yaml from 'js-yaml';
 
 import { LEGACY_STUDYFLOW_NS, STUDYFLOW_NS } from '../constants';
-import { toLocalName } from '../naming';
 import {
   RESERVED_DOC_KEYS,
-  YAML_DUMP_OPTIONS,
   inferPlaneRoot,
   isModdleElement,
   isPrimitiveTypeRef,
-  keyedMapToList,
-  valueTypeOf,
   type YamlDoc,
 } from './common';
+import { elementListProperty } from './foldings/element-list';
+import { keyedMapToList } from './foldings/id-keyed';
+import { extractInlineDi, type DiType } from './foldings/inline-di';
+import {
+  foldInlineBody,
+  foldInlineValue,
+  isYamlValueProperty,
+  qualifiesAsInlineBody,
+  qualifiesAsInlineValue,
+  yamlBodyProperty,
+} from './foldings/yaml-body';
 
 /**
  * The read direction of the codec: a parsed `.studyflow` YAML document builds
@@ -30,7 +37,7 @@ type PendingRef = {
 
 type InlineDi = {
   element: any;
-  type: 'bpmndi:BPMNShape' | 'bpmndi:BPMNEdge';
+  type: DiType;
   props: Record<string, unknown>;
 };
 
@@ -80,9 +87,10 @@ class ModdleBuilder {
 
       // Inlined YAML value: dump the mapping back into the property's string
       // form (the reverse of `inlineYamlValue`).
-      if (!p.isBody && toLocalName(valueTypeOf(p)) === 'YAMLString'
-          && raw && typeof raw === 'object' && !Array.isArray(raw) && !('type' in raw)) {
-        el.set(p.name, yaml.dump(raw, YAML_DUMP_OPTIONS));
+      if (isYamlValueProperty(p)
+          && raw && typeof raw === 'object' && !Array.isArray(raw)
+          && qualifiesAsInlineValue(raw as Record<string, unknown>)) {
+        el.set(p.name, foldInlineValue(raw as Record<string, unknown>));
         continue;
       }
 
@@ -159,43 +167,25 @@ class ModdleBuilder {
 
   /** The single isMany content property of list-wrapper types (`bpmn:ExtensionElements#values`). */
   private elementListPropertyOf(typeName: string): any | undefined {
-    const props: any[] = this.descriptorOf(typeName)?.properties ?? [];
-    const content = props.filter((p) => !p.isAttr && !p.isReference && !p.isBody);
-    return content.length === 1 && content[0].isMany ? content[0] : undefined;
+    return elementListProperty(this.descriptorOf(typeName));
   }
 
   /** The YAML-typed body property of config-wrapper types (`cognitive:Configurations#value`). */
   private yamlBodyPropertyOf(typeName: string): any | undefined {
-    const body = (this.descriptorOf(typeName)?.properties ?? []).find((p: any) => p.isBody);
-    return body && toLocalName(valueTypeOf(body)) === 'YAMLString' ? body : undefined;
-  }
-
-  private allKeysDeclared(node: Record<string, unknown>, typeName: string): boolean {
-    const byName = this.descriptorOf(typeName)?.propertiesByName ?? {};
-    return Object.keys(node).every((key) => key in byName);
+    return yamlBodyProperty(this.descriptorOf(typeName));
   }
 
   /**
-   * Pull inline diagram geometry off a semantic element node: `bounds` marks a
-   * shape, `waypoint` an edge; the remaining keys move along when they belong
-   * to the DI descriptor and not the element's own (colors, label, DI flags).
+   * Pull inline diagram geometry off a semantic element node (the reverse of the
+   * inline-DI folding), and stash it for `buildDiagrams` to attach to the plane.
    */
   private extractInlineDi(el: any, descriptor: any, props: Record<string, any>): void {
-    const byName = descriptor.propertiesByName ?? {};
-    const diType =
-      'bounds' in props && !byName['bounds'] ? ('bpmndi:BPMNShape' as const)
-      : 'waypoint' in props && !byName['waypoint'] ? ('bpmndi:BPMNEdge' as const)
-      : undefined;
-    if (!diType) return;
-
-    const diByName = this.descriptorOf(diType)?.propertiesByName ?? {};
-    const diProps: Record<string, unknown> = {};
-    for (const key of Object.keys(props)) {
-      if (key === 'id' || byName[key] || !diByName[key]) continue;
-      diProps[key] = props[key];
-      delete props[key];
-    }
-    this.inlineDi.push({ element: el, type: diType, props: diProps });
+    const extracted = extractInlineDi(
+      props,
+      descriptor.propertiesByName ?? {},
+      (type) => this.descriptorOf(type)?.propertiesByName ?? {},
+    );
+    if (extracted) this.inlineDi.push({ element: el, ...extracted });
   }
 
   private buildValue(raw: unknown, declaredType: string | undefined): unknown {
@@ -213,9 +203,9 @@ class ModdleBuilder {
       if ('type' in node) return this.build(node, declaredType);
       if (!isElementType) return raw;
       const body = this.yamlBodyPropertyOf(declaredType);
-      if (body && !this.allKeysDeclared(node, declaredType)) {
+      if (body && qualifiesAsInlineBody(node, this.descriptorOf(declaredType))) {
         // Inlined config body: dump the mapping back into the wrapper's YAML string.
-        return this.build({ type: declaredType, [body.name]: yaml.dump(node, YAML_DUMP_OPTIONS) }, declaredType);
+        return this.build({ type: declaredType, [body.name]: foldInlineBody(node) }, declaredType);
       }
       return this.build(node, declaredType);
     }

@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react';
+import { ICONS } from '@/icons';
 
 /**
  * Help icon for a dialog title. Hovering the icon reveals the tooltip below
@@ -18,7 +19,7 @@ export function DialogHelp({ children }: { children: ReactNode }) {
         aria-expanded={pinned}
         className="text-stone-400 hover:text-stone-700 cursor-pointer p-0.5 leading-none"
       >
-        <i className="iconify bi--patch-question text-base"></i>
+        <i className={`${ICONS.help} text-base`}></i>
       </button>
       <span
         className={

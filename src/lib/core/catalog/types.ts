@@ -15,6 +15,50 @@ export type NsInfo = {
   localName: string;
 };
 
+/**
+ * Typed view of an attribute's `meta:` block from the schema YAML. Authors may
+ * add arbitrary keys (the index signature keeps that valid), but the ones the
+ * inspector reads are named so consumers stop reaching into `any`.
+ */
+export interface AttributeMeta {
+  /** Named editor override, resolved against the inspector's editor registry. */
+  editor?: string;
+  /** Visibility predicate: the attribute shows only when every entry matches. */
+  condition?: { body?: Record<string, unknown> };
+  /** Inspector category tabs this attribute appears under. */
+  categories?: string[];
+  /** Sort order within a category (lower first). */
+  order?: number;
+  /** Pinned attributes carry a fixed value and never render. */
+  pinned?: boolean;
+  /** String attribute rendered with the optional-string editor. */
+  optional?: boolean;
+  /** Enum attribute that also accepts a free-form custom value. */
+  editable?: boolean;
+  icon?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Typed view of a type's `meta:` block. Free-form keys stay valid via the
+ * index signature; the named keys are those the app reads.
+ */
+export interface TypeMeta {
+  /** BPMN element type this schema type attaches to / is created as. */
+  bpmnType?: string;
+  /** Allow-list of connection targets; see `connectionVerdict`. */
+  connectsTo?: string[];
+  /** Gateway branch selection, e.g. `random`. */
+  branching?: string;
+  /** Materialized sub-flow for template types (raw node/connection descriptors). */
+  flowElements?: Record<string, any>[];
+  glob?: string;
+  core?: boolean;
+  templateScopedType?: string;
+  icon?: string;
+  [key: string]: unknown;
+}
+
 export type EnumLiteral = {
   name: string;
   value: unknown;
@@ -52,7 +96,7 @@ export type AttributeSpec = {
   description?: string;
   redefines?: string;
   replaces?: string;
-  meta?: Record<string, any>;
+  meta?: AttributeMeta;
 
   // Compiled lookups; everything below used to require moddle reflection.
   /** Local name of the inherited property this one redefines/replaces. */
@@ -83,7 +127,7 @@ export type TypeEntry = {
   style: TypeStyle;
   /** Trait refs: attributes mix onto these BPMN types and their subtypes. */
   extends: string[];
-  meta: Record<string, any>;
+  meta: TypeMeta;
   /**
    * BPMN element type created on the canvas for this type; null when the type
    * is not canvas-creatable (value/helper types such as body wrappers).

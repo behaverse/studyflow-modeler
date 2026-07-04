@@ -5,14 +5,12 @@ export type TrialHistoryEntry = {
   chosenResponse: string;
 };
 
-/** Provider identity + model. Either field can be missing; the bot resolves
- *  per-task `botConfigurations.LLM` over global settings. */
-export type LLMProviderConfig = {
-  provider: 'claude' | 'ollama';
-  model: string;
-  ollamaUrl: string;
-  claudeProxyUrl: string;
-};
+/** Provider identity + model + the active provider's endpoint. Discriminated on
+ *  `provider`: after narrowing, only that provider's endpoint field is present.
+ *  The bot resolves this from per-task `botConfigurations.LLM` over global settings. */
+export type LLMProviderConfig =
+  | { provider: 'claude'; model: string; proxyUrl: string }
+  | { provider: 'ollama'; model: string; url: string };
 
 /** Everything the bot needs to choose a response for one `AwaitingResponse`. */
 export type LLMBotInput = {

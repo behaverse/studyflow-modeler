@@ -62,7 +62,10 @@ export { studyflowToDefinitions } from './deserialize';
  * files may omit them.
  *
  * Layout: `serialize.ts` writes (moddle tree -> document), `deserialize.ts` reads
- * (document -> moddle tree), `common.ts` holds the shared folding helpers.
+ * (document -> moddle tree), and each of the four foldings above lives in one
+ * module under `foldings/` — its FOLD (serialize), UNFOLD (deserialize), and the
+ * shared "does this qualify to fold?" predicate co-located so the round-trip
+ * invariant sits in one place. `common.ts` holds the remaining shared plumbing.
  *
  * NOTE: this module reads and writes the serialized form and therefore may
  * use moddle's object model (`$descriptor`, `$attrs`) — the same exemption

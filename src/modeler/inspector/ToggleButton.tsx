@@ -1,4 +1,5 @@
 import { inspector as s } from '../styles';
+import { ICONS } from '@/icons';
 
 interface ToggleButtonProps {
   isInspectorVisible: boolean;
@@ -7,9 +8,7 @@ interface ToggleButtonProps {
 
 export function ToggleButton({ isInspectorVisible, onClick }: ToggleButtonProps) {
   const title = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
-  const icon = isInspectorVisible
-    ? 'iconify tabler--layout-sidebar-right-collapse-filled'
-    : 'iconify tabler--layout-sidebar-right-expand-filled';
+  const icon = isInspectorVisible ? ICONS.sidebarCollapse : ICONS.sidebarExpand;
 
   return (
     <button onClick={onClick} className={s.toggleButton} title={title}>

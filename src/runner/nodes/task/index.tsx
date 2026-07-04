@@ -12,6 +12,13 @@ declare module '@/runner/types' {
   }
 }
 
+const cn = {
+  field: 'flex flex-col gap-1',
+  defList: 'text-sm text-stone-700 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1',
+  term: 'text-stone-500',
+  monoValue: 'font-mono break-all',
+} as const;
+
 type TaskJob = {
   type: 'task';
   node: FlowNode;
@@ -25,32 +32,32 @@ function FunctionCallPanel({ node }: { node: FlowNode }) {
 
   return (
     <div className="border border-stone-200 rounded p-4 bg-stone-50 flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
+      <div className={cn.field}>
         <span className={nodeStyles.subtitle}>Would call</span>
         <code className={nodeStyles.codeBlock}>{call.functionRef}</code>
       </div>
       {resolved.parsed && (
-        <dl className="text-sm text-stone-700 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          <dt className="text-stone-500">scheme</dt>
+        <dl className={cn.defList}>
+          <dt className={cn.term}>scheme</dt>
           <dd className="font-mono">{resolved.parsed.scheme}</dd>
-          <dt className="text-stone-500">ref</dt>
-          <dd className="font-mono break-all">{resolved.parsed.ref}</dd>
+          <dt className={cn.term}>ref</dt>
+          <dd className={cn.monoValue}>{resolved.parsed.ref}</dd>
           {resolved.parsed.version && (
             <>
-              <dt className="text-stone-500">version</dt>
-              <dd className="font-mono break-all">{resolved.parsed.version}</dd>
+              <dt className={cn.term}>version</dt>
+              <dd className={cn.monoValue}>{resolved.parsed.version}</dd>
             </>
           )}
         </dl>
       )}
       {argEntries.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className={cn.field}>
           <span className={nodeStyles.subtitle}>arguments</span>
-          <dl className="text-sm text-stone-700 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          <dl className={cn.defList}>
             {argEntries.map(([key, value]) => (
               <div key={key} className="contents">
                 <dt className="font-mono text-stone-500">{key}</dt>
-                <dd className="font-mono break-all">{String(value)}</dd>
+                <dd className={cn.monoValue}>{String(value)}</dd>
               </div>
             ))}
           </dl>

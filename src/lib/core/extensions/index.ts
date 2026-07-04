@@ -1,5 +1,5 @@
 import { getCatalog, type AttributeSpec } from '../catalog';
-import { BPMN, CORE_PREFIXES } from '../constants';
+import { CORE_PREFIXES } from '../constants';
 import { splitQName, toLocalName } from '../naming';
 
 /**
@@ -13,7 +13,7 @@ import { splitQName, toLocalName } from '../naming';
  */
 
 /** bpmn-js elements carry the moddle object on `businessObject`. */
-function toBusinessObject(elementOrBO: any): any {
+export function toBusinessObject(elementOrBO: any): any {
   return elementOrBO?.businessObject ?? elementOrBO;
 }
 
@@ -113,32 +113,29 @@ export function getDefaults(typeName: string): Record<string, any> {
 }
 
 // ---------------------------------------------------------------------------
-// Extension wrapper (the schema element inside <bpmn:extensionElements>)
+// Extension wrapper — thin delegators to the StudyflowElement handle, which
+// owns this logic (see ./element). Kept for call sites that read the wrapper
+// without needing a handle.
 // ---------------------------------------------------------------------------
 
 /** First non-core extension wrapper on `<bpmn:extensionElements>`, or null. */
 export function getExtensionElement(elementOrBO: any): any {
-  const bo = toBusinessObject(elementOrBO);
-  const values = bo?.extensionElements?.values;
-  if (!values) return null;
-  return values.find((ext: any) => isExtensionPrefix(splitQName(ext.$type).prefix)) ?? null;
+  return StudyflowElement.fromBusinessObject(elementOrBO).extension;
 }
 
-/** `$type` of the wrapper inside `<bpmn:extensionElements>`; the wrapper is the single source of truth. */
+/** `$type` of the wrapper inside `<bpmn:extensionElements>`. */
 export function getExtensionType(elementOrBO: any): string | undefined {
-  return getExtensionElement(elementOrBO)?.$type;
+  return StudyflowElement.fromBusinessObject(elementOrBO).extensionType;
 }
 
 /** Attribute definitions declared on this element's extension wrapper, if any. */
 export function getExtensionAttributeDefinitions(elementOrBO: any): AttributeSpec[] {
-  const ext = getExtensionElement(elementOrBO);
-  return ext ? getAttributeDefinitions(ext) : [];
+  return StudyflowElement.fromBusinessObject(elementOrBO).extensionAttributes();
 }
 
 /** True when extension attributes are mixed onto the BO via schema traits. */
 export function hasTraitAttributes(element: any): boolean {
-  const bo = toBusinessObject(element);
-  return getAttributeDefinitions(bo).some((spec) => isExtensionPrefix(spec.ns?.prefix));
+  return StudyflowElement.fromBusinessObject(element).hasTraits;
 }
 
 /** Adds a wrapper inside `<bpmn:extensionElements>`; trait types write defaults straight to the BO. */
@@ -148,164 +145,36 @@ export function createExtensionElement(
   moddle: any,
   defaults: Record<string, any> = {},
 ): any {
-  const entry = getCatalog().getType(extensionType);
-
-  if (entry?.style === 'trait') {
-    for (const [name, value] of Object.entries(defaults)) {
-      setAttribute(bo, name, value);
-    }
-    return null;
-  }
-
-  if (!bo.extensionElements) {
-    const ext = moddle.create(BPMN.ExtensionElements, { values: [] });
-    ext.$parent = bo;
-    bo.extensionElements = ext;
-  }
-
-  const wrapper = moddle.create(extensionType, {});
-  wrapper.$parent = bo.extensionElements;
-  bo.extensionElements.values.push(wrapper);
-
-  for (const [name, value] of Object.entries(defaults)) {
-    setAttribute(bo, name, value);
-  }
-
-  return wrapper;
+  return StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, moddle, defaults);
 }
 
 // ---------------------------------------------------------------------------
-// Attribute reads and writes (resolution across BO and wrapper)
+// Attribute reads and writes — resolved by the StudyflowElement handle
 // ---------------------------------------------------------------------------
 
-type Resolved = {
-  bo: any;
-  ext: any;
-  attributeName: string | undefined;
-  target: any;
-  targetKind: 'business-object' | 'extension-element';
-};
+import {
+  StudyflowElement,
+  fromElement,
+  fromBusinessObject,
+  directWriter,
+  modelingWriter,
+  type Writer,
+} from './element';
 
-function resolveName(name: string | undefined, attrDef: AttributeSpec | undefined): string | undefined {
-  if (name === 'bpmn:id') return 'id';
-  if (name === 'bpmn:name') return 'name';
-  return attrDef?.name ?? attrDef?.ns?.localName ?? toLocalName(name);
-}
+export { StudyflowElement, fromElement, fromBusinessObject, directWriter, modelingWriter, type Writer };
 
-function resolveAttribute(elementOrBO: any, attributeName: string): Resolved {
-  const bo = toBusinessObject(elementOrBO);
-  const ext = getExtensionElement(bo);
-  const boDef = getAttributeDefinition(bo, attributeName);
-  const extDef = getAttributeDefinition(ext, attributeName);
-
-  // Extension redefines a BO attribute -> write under the redefined name.
-  if (extDef && ext) {
-    const redefined = extDef.redefinedName;
-    if (redefined && (boDef || hasTraitAttributes(bo))) {
-      return { bo, ext, attributeName: redefined, target: bo, targetKind: 'business-object' };
-    }
-  }
-
-  if (boDef) {
-    return {
-      bo, ext,
-      attributeName: resolveName(attributeName, boDef),
-      target: bo,
-      targetKind: 'business-object',
-    };
-  }
-
-  if (extDef && ext) {
-    return {
-      bo, ext,
-      attributeName: resolveName(attributeName, extDef),
-      target: ext,
-      targetKind: 'extension-element',
-    };
-  }
-
-  // Unknown attribute: pick a target that won't silently drop the write.
-  const useExt = !!ext && !hasTraitAttributes(bo);
-  return {
-    bo, ext,
-    attributeName: resolveName(attributeName, undefined),
-    target: useExt ? ext : bo,
-    targetKind: useExt ? 'extension-element' : 'business-object',
-  };
-}
-
-function read(target: any, name: string): any {
-  if (!target) return undefined;
-  return typeof target.get === 'function' ? target.get(name) : target[name];
-}
-
-/** Body-wrapped attribute (e.g. `cognitive:Configurations`): unwrap the value
- *  of the child element transparently. The body property is precompiled on
- *  the catalog spec, so no type-registry probing happens here. */
-function unwrapBodyValue(rawValue: any, attrDef: AttributeSpec | undefined): any {
-  if (!rawValue || typeof rawValue !== 'object' || !rawValue.$type) return rawValue;
-  if (!attrDef?.bodyProp) return rawValue;
-  const inner = read(rawValue, attrDef.bodyProp);
-  return inner ?? '';
-}
-
+/** Read a resolved attribute value off an element or business object.
+ *  Thin delegator to {@link StudyflowElement}. */
 export function getAttribute(elementOrBO: any, attributeName: string): any {
-  const r = resolveAttribute(elementOrBO, attributeName);
-  if (!r.target || !r.attributeName) return undefined;
-
-  // Pinned defaults on the wrapper take precedence over the BO value.
-  if (r.ext && r.target === r.bo) {
-    const extDef = getAttributeDefinition(r.ext, attributeName);
-    if (extDef) {
-      const extName = extDef.name ?? extDef.ns?.localName ?? r.attributeName;
-      const extValue = read(r.ext, extName);
-      if (extValue !== undefined) return unwrapBodyValue(extValue, extDef);
-    }
-  }
-
-  const value = read(r.target, r.attributeName);
-  const attrDef = getAttributeDefinition(r.target, r.attributeName);
-  return unwrapBodyValue(value, attrDef);
+  return StudyflowElement.fromBusinessObject(elementOrBO).read(attributeName);
 }
 
+/** Write a resolved attribute value. With `modeling`, writes through bpmn-js
+ *  (undo/redo) on the element; without it, mutates the business object directly.
+ *  Thin delegator to {@link StudyflowElement}. */
 export function setAttribute(element: any, attributeName: string, value: any, modeling?: any): void {
-  const r = resolveAttribute(element, attributeName);
-  if (!r.target || !r.attributeName) return;
-
-  const attrDef = getAttributeDefinition(r.target, r.attributeName);
-  const bodyProp = attrDef?.bodyProp;
-
-  // Body-wrapped attribute: keep the wrapper instance and update its body.
-  if (bodyProp && (typeof value === 'string' || value == null)) {
-    const existing = read(r.target, r.attributeName);
-
-    if (existing && typeof existing === 'object' && existing.$type) {
-      if (!modeling) {
-        if (typeof existing.set === 'function') existing.set(bodyProp, value ?? '');
-        else existing[bodyProp] = value ?? '';
-      } else {
-        modeling.updateModdleProperties(element, existing, { [bodyProp]: value ?? '' });
-      }
-      return;
-    }
-
-    // Need a fresh wrapper of the declared type so writes survive
-    // serialization; `$model` is the moddle instance attached to live elements.
-    const model = r.target?.$model ?? r.bo?.$model;
-    if (model && attrDef?.type) {
-      value = model.create(attrDef.type, { [bodyProp]: value ?? '' });
-    }
-  }
-
-  if (!modeling) {
-    if (typeof r.target.set === 'function') r.target.set(r.attributeName, value);
-    else r.target[r.attributeName] = value;
-    return;
-  }
-
-  if (r.targetKind === 'business-object') {
-    modeling.updateProperties(element, { [r.attributeName]: value });
-  } else {
-    modeling.updateModdleProperties(element, r.target, { [r.attributeName]: value });
-  }
+  const handle = modeling
+    ? StudyflowElement.fromElement(element, modeling)
+    : StudyflowElement.fromBusinessObject(element);
+  handle.write(attributeName, value);
 }

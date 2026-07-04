@@ -1,5 +1,7 @@
 // Modeler styling tokens and per-module themes; color tokens live in `src/assets/css/app.css`.
 
+import { ICONS } from '@/icons';
+
 // --- Token blocks
 
 /** Background-surface tokens. */
@@ -197,7 +199,7 @@ export const field = {
 
   label: 'flex items-center justify-between text-sm font-semibold',
   helpAnchor: 'relative group/help',
-  helpIcon: 'iconify bi--patch-question text-stone-400 cursor-help',
+  helpIcon: `${ICONS.help} text-stone-400 cursor-help`,
   helpTooltip: 'fixed w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
   helpTooltipWide: 'fixed max-w-md w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
   helpTooltipName: 'font-mono text-xs font-bold text-cream-50',
@@ -214,7 +216,7 @@ export const field = {
   comboInput: 'appearance-none px-2 py-1 pr-8 w-full rounded-md border border-black/[0.08] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400',
   comboChevronBtn: 'absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
   comboChevronIndicator: 'pointer-events-none absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500',
-  comboChevronIcon: 'iconify bi--caret-down text-[12px]',
+  comboChevronIcon: `${ICONS.caretDown} text-[12px]`,
   comboOptions: 'z-[240] mt-1 w-[var(--input-width)] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] py-1 focus:outline-none [--anchor-gap:4px]',
   comboOption: 'px-2.5 py-1 text-sm/6 text-stone-800 data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
 
@@ -276,7 +278,7 @@ export const modeler = {
   /** Loading-state container - full-height, canvas-colored. */
   loading: `flex flex-1 h-full text-center ${surface.canvas}`,
   loadingSpinner: 'm-auto animate-spin',
-  loadingIcon: 'iconify bi--arrow-repeat text-stone-500 text-[3rem]',
+  loadingIcon: `${ICONS.arrowRepeat} text-stone-500 text-[3rem]`,
   /** Modeler canvas (where bpmn-js renders). */
   canvas: `grow ${surface.canvas}`,
 } as const;
@@ -353,7 +355,7 @@ export const commandPalette = {
 
   /** Top input row with search icon. */
   searchRow: 'flex items-center gap-3 px-4 h-12 border-b border-black/[0.06]',
-  searchIcon: 'iconify bi--search text-stone-400 text-[14px] shrink-0',
+  searchIcon: `${ICONS.search} text-stone-400 text-[14px] shrink-0`,
   searchInput: `flex-1 bg-transparent text-[14px] ${text.primary} placeholder-stone-400 focus:outline-none`,
 
   /** Breadcrumb row shown while inside a submenu (Back / parent label). */
@@ -377,7 +379,7 @@ export const commandPalette = {
   itemLabel: 'flex-1 truncate',
   itemHint: 'text-[11px] font-mono text-stone-400 shrink-0',
   /** Chevron marking commands that open a sub-palette. */
-  itemChevron: 'iconify bi--chevron-right text-stone-400 text-[10px] ml-1',
+  itemChevron: `${ICONS.chevronRight} text-stone-400 text-[10px] ml-1`,
 } as const;
 
 // --- Examples-dialog list cards
@@ -411,7 +413,7 @@ export const settingsView = {
   backButton: `flex items-center justify-center w-8 h-8 ${radius.field}
                 ${text.muted} hover:text-stone-900 hover:bg-black/[0.05]
                 active:bg-black/[0.08] transition-colors cursor-pointer`,
-  backIcon: 'iconify bi--arrow-left text-[16px]',
+  backIcon: `${ICONS.arrowLeft} text-[16px]`,
 
   /** Two-column body: sidebar + content scroll area. Stacks vertically on
    * narrow viewports so the sidebar doesn't crowd out the content. */
@@ -467,7 +469,7 @@ export const settingsView = {
            border border-black/[0.08] bg-cream-100 text-[13px] text-stone-900
            focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer`,
   selectWrapper: 'relative',
-  selectChevron: 'iconify bi--caret-down pointer-events-none absolute top-2.5 right-2 text-stone-500 text-[12px]',
+  selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2 text-stone-500 text-[12px]`,
 
   /** API-key style input - recessed and monospace. */
   textInput: `px-2.5 py-1.5 w-72 max-w-full ${radius.field}

@@ -1,3 +1,4 @@
+import type { AttributeSpec } from '@/lib/core/catalog';
 import { StringInput } from './StringInput';
 import { CodeEditor } from './CodeEditor';
 import { BooleanInput } from './BooleanInput';
@@ -38,15 +39,16 @@ const INPUT_BY_TYPE: Record<string, any> = {
 /** The catalog precompiles enum membership and body-wrapper types (e.g. a
  *  `cognitive:Configurations` wrapper around `studyflow:YAMLString` renders
  *  with the same editor as a direct `studyflow:YAMLString` attribute). */
-function resolveInputType(attrDef: any): string {
+function resolveInputType(attrDef: AttributeSpec): string {
   const declaredType = attrDef.type || 'String';
   if (attrDef.isEnum) return 'Enum';
   if (attrDef.bodyType && INPUT_BY_TYPE[attrDef.bodyType]) return attrDef.bodyType;
   return declaredType;
 }
 
-export function pickInput(attrDef: any) {
-  const named = INPUT_BY_EDITOR_NAME[attrDef.meta?.editor];
+export function pickInput(attrDef: AttributeSpec) {
+  const editorName = attrDef.meta?.editor;
+  const named = editorName ? INPUT_BY_EDITOR_NAME[editorName] : undefined;
   if (named) return named;
 
   const declaredType = attrDef.type || 'String';

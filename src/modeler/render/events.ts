@@ -1,5 +1,5 @@
 import { getCatalog } from '@/lib/core/catalog';
-import { getAttribute, getExtensionType } from '@/lib/core/extensions';
+import { getAttribute, StudyflowElement } from '@/lib/core/extensions';
 import { drawIcon } from './utils';
 import type { BpmnRenderer } from '../bpmn-js';
 
@@ -15,7 +15,7 @@ export function drawEventWithIcon(
 ): SVGElement {
   const circle = bpmnRenderer.handlers[element.type](parentNode, element);
 
-  const typeName = getExtensionType(element) ?? element.businessObject?.$type;
+  const typeName = StudyflowElement.fromBusinessObject(element).extensionType ?? element.businessObject?.$type;
   for (const attr of getCatalog().instanceAttributesOf(typeName)) {
     const icon = attr.meta?.icon;
     if (typeof icon !== 'string' || !icon) continue;

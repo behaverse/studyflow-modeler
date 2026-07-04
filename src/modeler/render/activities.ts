@@ -4,6 +4,13 @@ import { drawIcon, drawIconText } from './utils';
 import { drawMarkers } from './markers';
 import type { BpmnRenderer } from '../bpmn-js';
 
+/** Icon/text-marker box size (px) drawn on an activity; the larger size gives a
+ *  longer scene abbreviation room to breathe. */
+const ICON_SIZE = 24;
+const ICON_SIZE_LARGE = 28;
+/** Scene abbreviations longer than this switch to the larger marker size. */
+const LONG_SCENE_LENGTH = 2;
+
 /** Render an activity (Task, SubProcess, etc.) with its resolved icon and markers. */
 export function drawActivity(
   parentNode: SVGElement,
@@ -21,11 +28,11 @@ export function drawActivity(
   // Behaverse tasks show their scene abbreviation (e.g. "NB") as a text marker
   // instead of an icon — a display convention of that instrument, not schema data.
   let iconMarker: string | undefined;
-  let iconSize = 24;
+  let iconSize = ICON_SIZE;
   if (getAttribute(element, 'instrument') === 'behaverse' && !preservePrimaryIcon) {
     const scene = getAttribute(element, 'scene')?.toUpperCase();
     iconMarker = scene === 'UNDEFINED' ? undefined : scene;
-    if (iconMarker && iconMarker.length > 2) iconSize = 28;
+    if (iconMarker && iconMarker.length > LONG_SCENE_LENGTH) iconSize = ICON_SIZE_LARGE;
   }
 
   drawIcon(parentNode, element, iconClass, 4, 4, iconSize);

@@ -1,5 +1,5 @@
 import type { FlowNode } from '@/lib/core/flow';
-import { getCatalog } from '@/lib/core/catalog';
+import { getCatalog, type TypeCatalog } from '@/lib/core/catalog';
 import { findByFlowNode } from './nodes';
 import type { Job } from './types';
 import type { Studyflow } from './studyflow';
@@ -14,6 +14,9 @@ export type SessionContext = {
   agentId?: string;
   /** Runner-session identifier. Stamped into `context.session`. */
   sessionId?: string;
+  /** Catalog used to classify gateways. Defaults to the ambient loaded catalog;
+   *  inject a specific one to traverse without the global (e.g. in tests). */
+  catalog?: TypeCatalog;
 };
 
 /** A single run of a {@link Studyflow} by a participant.
@@ -27,6 +30,7 @@ export class Session {
 
   private random: () => number;
   private variables: Record<string, unknown>;
+  private catalog: TypeCatalog;
 
   constructor(studyflow: Studyflow, context: SessionContext = {}) {
     this.studyflow = studyflow;
@@ -34,6 +38,7 @@ export class Session {
     this.sessionId = context.sessionId;
     this.random = context.seed != null ? mulberry32(context.seed) : Math.random;
     this.variables = { ...(context.variables ?? {}) };
+    this.catalog = context.catalog ?? getCatalog();
   }
 
   setVariable(name: string, value: unknown): void {
@@ -77,7 +82,7 @@ export class Session {
   /** Schema-driven: gateway types declare `meta: {branching: random}`. */
   private isRandomGateway(node: FlowNode): boolean {
     if (!node.extensionType) return false;
-    return getCatalog().getType(node.extensionType)?.meta?.branching === 'random';
+    return this.catalog.getType(node.extensionType)?.meta?.branching === 'random';
   }
 
   private isExclusiveGateway(node: FlowNode): boolean {

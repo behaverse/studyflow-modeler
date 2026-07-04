@@ -32,8 +32,8 @@ export async function selectResponse(
   try {
     const req = buildPrompt(input, config.model);
     const raw = config.provider === 'claude'
-      ? await callClaude(req, config.claudeProxyUrl)
-      : await callOllama(req, config.ollamaUrl);
+      ? await callClaude(req, config.proxyUrl)
+      : await callOllama(req, config.url);
     const chosen = matchResponseOption(raw, input.responseOptions);
     const wasInOptions = input.responseOptions.some(
       (a) => a.toLowerCase() === raw.trim().replace(/^[`"'\s]+|[`"'.\s]+$/g, '').toLowerCase(),

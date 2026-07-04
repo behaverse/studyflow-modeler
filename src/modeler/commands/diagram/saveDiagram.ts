@@ -6,6 +6,7 @@ import { getDiagramName } from '../../diagramName';
 import { exportToLinkML } from '../../exporters/linkml';
 import { exportToNidm } from '../../exporters/nidm';
 import { exportToArtemis } from '../../exporters/artemis';
+import { remoteIconSource, type IconSource } from './iconSource';
 
 /** All the formats under `Save As...`; `studyflow` (YAML) is the native one. */
 export type SaveFileType = 'studyflow' | 'bpmn' | 'svg' | 'png' | 'linkml' | 'nidm' | 'artemis';
@@ -15,28 +16,10 @@ export type SaveDiagramCommand = {
   fileType?: SaveFileType;
 };
 
-async function fetchIconSvg(iconClass: string) {
-  const parts = iconClass.split(' ');
-  const iconPart = parts.find((p: string) => p.includes('--'));
-  if (!iconPart) return null;
-
-  const [collection, iconName] = iconPart.split('--');
-  const response = await fetch(`https://api.iconify.design/${collection}/${iconName}.svg`);
-  if (!response.ok) return null;
-
-  const svgText = await response.text();
-  const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
-  const svgElement = svgDoc.querySelector('svg');
-  if (!svgElement) return null;
-
-  return {
-    content: svgElement.innerHTML,
-    viewBox: svgElement.getAttribute('viewBox') || '0 0 24 24',
-  };
-}
-
-async function embedIconsInSvg(svgString: string): Promise<string> {
+export async function embedIconsInSvg(
+  svgString: string,
+  source: IconSource = remoteIconSource,
+): Promise<string> {
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
   const foreignObjects = svgDoc.querySelectorAll('foreignObject.icon-container');
@@ -46,7 +29,7 @@ async function embedIconsInSvg(svgString: string): Promise<string> {
     const iconClass = iconDiv?.getAttribute('data-icon-class');
     if (!iconClass) continue;
 
-    const iconData = await fetchIconSvg(iconClass);
+    const iconData = await source.resolve(iconClass);
     if (!iconData) continue;
 
     const color = iconDiv?.getAttribute('data-icon-color')

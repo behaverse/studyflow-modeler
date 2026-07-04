@@ -43,12 +43,9 @@ export function resolveLLMConfig(bot: BehaverseTaskPayload['bot']): LLMProviderC
   const model = typeof llmOverride.Model === 'string' && llmOverride.Model.length > 0
     ? llmOverride.Model
     : settings.model;
-  return {
-    provider,
-    model,
-    ollamaUrl: settings.ollamaUrl,
-    claudeProxyUrl: settings.claudeProxyUrl,
-  };
+  return provider === 'claude'
+    ? { provider, model, proxyUrl: settings.claudeProxyUrl }
+    : { provider, model, url: settings.ollamaUrl };
 }
 
 /** Strip runner-only keys (e.g. `LLM`, `Prompt`) from the bot payload before

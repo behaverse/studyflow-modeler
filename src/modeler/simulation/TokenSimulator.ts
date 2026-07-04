@@ -1,4 +1,5 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { nextHops } from './flowWalk';
 import { computeSegLengths, samplePolyline, smootherstep, type Point } from './path';
 import { createTokenSvg, removeTokenSvg, updateTokenPosition, TOKEN_RADIUS } from './tokenVisual';
 
@@ -200,14 +201,14 @@ export default class TokenSimulator {
   }
 
   private _advanceFromElement(token: Token, element: any) {
-    if (is(element, 'bpmn:EndEvent')) {
+    const hop = nextHops(element);
+
+    if (hop.kind === 'end') {
       this._popToken(token);
       return;
     }
 
-    const outgoing = (element.outgoing || []).filter((c: any) => is(c, 'bpmn:SequenceFlow'));
-
-    if (outgoing.length === 0) {
+    if (hop.kind === 'deadend') {
       // Bounce in place at dead ends; fade the oldest once capped.
       const elId = element.id;
       const bouncingHere = this._tokens.filter((t) => t.bouncing && t.bounceElementId === elId);
@@ -221,18 +222,16 @@ export default class TokenSimulator {
       return;
     }
 
-    // Parallel/Inclusive gateways fork: reuse the token for the first branch, clone the rest.
-    const isFork = is(element, 'bpmn:ParallelGateway') || is(element, 'bpmn:InclusiveGateway');
-    if (isFork && outgoing.length > 1) {
-      this._sendTokenAlongFlow(token, outgoing[0]);
-      for (let i = 1; i < outgoing.length; i++) {
-        this._sendTokenAlongFlow(this._cloneToken(token), outgoing[i]);
+    if (hop.kind === 'fork') {
+      // Reuse the token for the first branch, clone the rest.
+      this._sendTokenAlongFlow(token, hop.flows[0]);
+      for (let i = 1; i < hop.flows.length; i++) {
+        this._sendTokenAlongFlow(this._cloneToken(token), hop.flows[i]);
       }
       return;
     }
 
-    const pick = outgoing.length > 1 ? outgoing[Math.floor(Math.random() * outgoing.length)] : outgoing[0];
-    this._sendTokenAlongFlow(token, pick);
+    this._sendTokenAlongFlow(token, hop.flows[0]);
   }
 
   /** Build a smooth path: current position -> flow waypoints -> target center. */

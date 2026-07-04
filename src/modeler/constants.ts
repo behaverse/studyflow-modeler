@@ -1,4 +1,5 @@
 import { BPMN } from '@/lib/core/constants';
+import { ICONS } from '@/icons';
 export { SCHEMAS, SCHEMA_NAMES, BPMN } from '@/lib/core/constants';
 
 export const NAMESPACES = {
@@ -26,50 +27,50 @@ export type PaletteGroup = {
 export const PALETTE_GROUPS: PaletteGroup[] = [
   {
     label: 'Events',
-    icon: 'iconify fluent--circle-16-regular',
+    icon: ICONS.circle,
     items: [
-      { label: 'Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-none' },
-      { label: 'Intermediate', bpmnType: BPMN.IntermediateThrowEvent, icon: 'iconify bpmn--intermediate-event-none' },
-      { label: 'End', bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-none' },
+      { label: 'Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: ICONS.bpmnStartEvent },
+      { label: 'Intermediate', bpmnType: BPMN.IntermediateThrowEvent, icon: ICONS.bpmnIntermediateEvent },
+      { label: 'End', bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent', icon: ICONS.bpmnEndEvent },
     ],
   },
   {
     label: 'Activities',
-    icon: 'iconify fluent--square-16-regular',
+    icon: ICONS.square,
     items: [
-      { label: 'Task', bpmnType: BPMN.Task, icon: 'iconify bpmn--task-none' },
-      { label: 'User', bpmnType: BPMN.UserTask, icon: 'iconify bpmn--user-task' },
-      { label: 'Script', bpmnType: BPMN.ScriptTask, icon: 'iconify bpmn--script-task' },
-      { label: 'Service', bpmnType: BPMN.ServiceTask, icon: 'iconify bpmn--service-task' },
-      { label: 'Manual', bpmnType: BPMN.ManualTask, icon: 'iconify bpmn--manual-task' },
-      { label: 'Choreography Task', bpmnType: BPMN.ChoreographyTask, icon: 'iconify fluent--people-team-24-regular' },
+      { label: 'Task', bpmnType: BPMN.Task, icon: ICONS.bpmnTask },
+      { label: 'User', bpmnType: BPMN.UserTask, icon: ICONS.bpmnUserTask },
+      { label: 'Script', bpmnType: BPMN.ScriptTask, icon: ICONS.bpmnScriptTask },
+      { label: 'Service', bpmnType: BPMN.ServiceTask, icon: ICONS.bpmnServiceTask },
+      { label: 'Manual', bpmnType: BPMN.ManualTask, icon: ICONS.bpmnManualTask },
+      { label: 'Choreography Task', bpmnType: BPMN.ChoreographyTask, icon: ICONS.peopleTeam },
     ],
   },
   {
     label: 'Gateways',
-    icon: 'iconify fluent--diamond-16-regular',
+    icon: ICONS.diamond,
     items: [
-      { label: 'Exclusive', bpmnType: BPMN.ExclusiveGateway, icon: 'iconify bpmn--gateway-xor' },
-      { label: 'Parallel', bpmnType: BPMN.ParallelGateway, icon: 'iconify bpmn--gateway-parallel' },
-      { label: 'Inclusive', bpmnType: BPMN.InclusiveGateway, icon: 'iconify bpmn--gateway-or' },
-      { label: 'Complex', bpmnType: BPMN.ComplexGateway, icon: 'iconify bpmn--gateway-complex' },
-      { label: 'Event Based', bpmnType: BPMN.EventBasedGateway, icon: 'iconify bpmn--gateway-eventbased' },
+      { label: 'Exclusive', bpmnType: BPMN.ExclusiveGateway, icon: ICONS.bpmnGatewayXor },
+      { label: 'Parallel', bpmnType: BPMN.ParallelGateway, icon: ICONS.bpmnGatewayParallel },
+      { label: 'Inclusive', bpmnType: BPMN.InclusiveGateway, icon: ICONS.bpmnGatewayOr },
+      { label: 'Complex', bpmnType: BPMN.ComplexGateway, icon: ICONS.bpmnGatewayComplex },
+      { label: 'Event Based', bpmnType: BPMN.EventBasedGateway, icon: ICONS.bpmnGatewayEventBased },
     ],
   },
   {
     label: 'Data',
-    icon: 'iconify fluent--database-16-regular',
+    icon: ICONS.database,
     items: [
-      { label: 'Data Object', bpmnType: BPMN.DataObjectReference, icon: 'iconify fluent--document-24-regular' },
+      { label: 'Data Object', bpmnType: BPMN.DataObjectReference, icon: ICONS.document },
     ],
   },
   {
     label: 'Containers',
-    icon: 'iconify mynaui--square-dashed',
+    icon: ICONS.squareDashed,
     items: [
-      { label: 'Group', bpmnType: BPMN.Group, icon: 'iconify bpmn--group' },
-      { label: 'SubProcess', bpmnType: BPMN.SubProcess, icon: 'iconify bpmn--subprocess-collapsed' },
-      { label: 'Pool', bpmnType: BPMN.Participant, icon: 'iconify bpmn--participant' },
+      { label: 'Group', bpmnType: BPMN.Group, icon: ICONS.bpmnGroup },
+      { label: 'SubProcess', bpmnType: BPMN.SubProcess, icon: ICONS.bpmnSubprocess },
+      { label: 'Pool', bpmnType: BPMN.Participant, icon: ICONS.bpmnParticipant },
     ],
   },
 ];
@@ -101,27 +102,27 @@ export const SVG_ICON_PATHS: Record<string, { viewBox: string; paths: string[] }
 
 /** Iconify class overrides keyed by BPMN type or marker name. */
 export const BPMN_ICON_OVERRIDES: Record<string, string> = {
-  'bpmn:ManualTask':        'iconify fluent--hand-left-24-regular rotate-90',
-  'bpmn:UserTask':          'iconify bi--person',
-  'bpmn:ServiceTask':       'iconify mdi--cog-outline',
-  'bpmn:ScriptTask':        'iconify fluent--script-24-regular',
-  'bpmn:SendTask':          'iconify bi--envelope-fill !ms-[2px] !w-5 !h-5',
-  'bpmn:ReceiveTask':       'iconify bi--envelope-open !ms-[2px] !w-5 !h-5',
-  'bpmn:BusinessRuleTask':  'iconify mdi--table',
-  'bpmn:ExclusiveGateway':  'iconify mdi--close',
-  'bpmn:ParallelGateway':   'iconify mdi--plus',
-  'bpmn:InclusiveGateway':  'iconify mdi--checkbox-blank-circle-outline',
-  'bpmn:ComplexGateway':    'iconify mdi--asterisk',
-  'bpmn:EventBasedGateway': 'iconify mdi--pentagon-outline',
-  'bpmn:DataObjectReference': 'iconify fluent--document-24-regular',
-  'subprocess':             'iconify mdi--plus-box-outline',
-  'adhoc':                  'iconify tabler--tilde',
-  'parallel':               'iconify solar--hamburger-menu-linear rotate-90',
-  'sequential':             'iconify solar--hamburger-menu-linear',
-  'loop':                   'iconify mdi--loop',
-  'compensation':           'iconify bpmn--compensation-marker',
-  'checklist':              'iconify mdi--checkbox-outline',
-  'function':               'iconify mdi--function',
+  'bpmn:ManualTask':        `${ICONS.handLeft} rotate-90`,
+  'bpmn:UserTask':          ICONS.person,
+  'bpmn:ServiceTask':       ICONS.cog,
+  'bpmn:ScriptTask':        ICONS.script,
+  'bpmn:SendTask':          `${ICONS.envelope} !ms-[2px] !w-5 !h-5`,
+  'bpmn:ReceiveTask':       `${ICONS.envelopeOpen} !ms-[2px] !w-5 !h-5`,
+  'bpmn:BusinessRuleTask':  ICONS.tableAlt,
+  'bpmn:ExclusiveGateway':  ICONS.closeAlt,
+  'bpmn:ParallelGateway':   ICONS.plusAlt,
+  'bpmn:InclusiveGateway':  ICONS.radioBlank,
+  'bpmn:ComplexGateway':    ICONS.asterisk,
+  'bpmn:EventBasedGateway': ICONS.pentagon,
+  'bpmn:DataObjectReference': ICONS.document,
+  'subprocess':             ICONS.plusBox,
+  'adhoc':                  ICONS.tilde,
+  'parallel':               `${ICONS.menu} rotate-90`,
+  'sequential':             ICONS.menu,
+  'loop':                   ICONS.loop,
+  'compensation':           ICONS.bpmnCompensationMarker,
+  'checklist':              ICONS.checkbox,
+  'function':               ICONS.function,
 };
 
 /** Icon lookup by bpmnType, sourced from PALETTE_GROUPS. */

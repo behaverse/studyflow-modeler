@@ -4,6 +4,7 @@ import { settingsView as s } from '../../styles';
 import { useApiKey } from '../useApiKey';
 import { getStoredUserEmail, setStoredUserEmail } from '../store';
 import { Row, SectionHeader } from './controls';
+import { ICONS } from '@/icons';
 
 const GOOGLE_LOGIN_URL = `${URLS.apiBase}/v1/auth/google/login`;
 const API_BASE_ORIGIN = (() => {
@@ -101,7 +102,7 @@ export function AccountSection() {
                 disabled={loginPending}
                 onClick={loginWithGoogle}
               >
-                <i className="iconify bi--google" aria-hidden="true" />
+                <i className={ICONS.google} aria-hidden="true" />
                 <span>{loginPending ? 'Waiting for Google...' : 'Login with Google'}</span>
               </button>
             ) : (

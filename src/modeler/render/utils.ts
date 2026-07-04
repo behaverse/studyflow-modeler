@@ -1,6 +1,13 @@
 import { getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
 
+// Text-marker layout: per-length x/y offsets (px) and font sizes (px) that
+// visually centre a 2-, 3-, or 4-char abbreviation inside the activity icon box.
+const MARKER_2CHAR = { x: 9, y: 20, fontSize: 11 };
+const MARKER_3CHAR = { x: 8, y: 22, fontSize: 11 };
+const MARKER_LONG = { x: 8.5, y: 21, fontSize: 8 }; // 4+ chars, truncated to 4
+const MARKER_MAX_CHARS = 4;
+
 /** Convert a CSS color string to a hex color code. */
 export function colorToHex(color: string): string | null {
   const context = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
@@ -96,9 +103,9 @@ export function drawIconText(
   let y: number;
   let fontSize: number;
 
-  if (marker.length === 2) { x = 9; y = 20; fontSize = 11; }
-  else if (marker.length === 3) { x = 8; y = 22; fontSize = 11; }
-  else { x = 8.5; y = 21; fontSize = 8; marker = marker.substring(0, 4); }
+  if (marker.length === 2) { ({ x, y, fontSize } = MARKER_2CHAR); }
+  else if (marker.length === 3) { ({ x, y, fontSize } = MARKER_3CHAR); }
+  else { ({ x, y, fontSize } = MARKER_LONG); marker = marker.substring(0, MARKER_MAX_CHARS); }
 
   const text = svgCreate('text', {
     x, y, fontSize,

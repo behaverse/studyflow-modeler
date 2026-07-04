@@ -10,6 +10,7 @@ import { PaletteIcon } from './components/PaletteIcon';
 import { Popup } from './components/Popup';
 import { SchemaPopup } from './components/SchemaPopup';
 import { palette } from '../styles';
+import { ICONS } from '@/icons';
 
 export function Palette({ className = '' }: { className?: string }) {
   const modeler = useModeler();
@@ -99,7 +100,7 @@ export function Palette({ className = '' }: { className?: string }) {
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton title="Select elements with lasso tool" onClick={handleLassoToolClick}>
-          <PaletteIcon icon="iconify material-symbols--ink-selection-rounded" size={22} />
+          <PaletteIcon icon={ICONS.inkSelection} size={22} />
         </PaletteButton>
         <span className={palette.tooltip}>Select multiple elements</span>
       </div>
@@ -141,7 +142,7 @@ export function Palette({ className = '' }: { className?: string }) {
               onMouseLeave={onMouseLeave}
             >
               <PaletteButton title={`More ${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
-                <PaletteIcon icon={schema.icon ?? 'iconify tabler--hexagon'} size={24} />
+                <PaletteIcon icon={schema.icon ?? ICONS.hexagon} size={24} />
                 <span className={palette.groupChevron} />
               </PaletteButton>
               <span className={palette.tooltip}>{schema.name} elements...</span>
@@ -161,7 +162,7 @@ export function Palette({ className = '' }: { className?: string }) {
           onMouseLeave={dragHandlers.onMouseUp}
           onClick={handleMoreElementsClick}
         >
-          <PaletteIcon icon="iconify bi--three-dots" size={22} />
+          <PaletteIcon icon={ICONS.threeDots} size={22} />
         </PaletteButton>
         <span className={palette.tooltip}>BPMN elements...</span>
       </div>

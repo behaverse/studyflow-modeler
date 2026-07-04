@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { dialog as d, examplesList as e } from '../styles';
+import { ICONS } from '@/icons';
 
 /**
  * Curated starting points for the "New from Template" picker. Unlike the raw
@@ -104,7 +105,7 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
             <DialogTitle as="h3" className={`${d.title} pb-3`}>
               New from Template
               <span className={d.closeButton} onClick={onClose}>
-                <i className="iconify bi--x-lg"></i>
+                <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
             <p className={`${d.body} pb-5`}>

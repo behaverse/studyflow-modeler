@@ -14,6 +14,7 @@ import { useModeler } from '../useModeler';
 import { executeCommand } from '../commands';
 import { dialog as s } from '../styles';
 import { URLS } from '../constants';
+import { ICONS } from '@/icons';
 
 type Status = string | ReactElement | undefined;
 
@@ -65,7 +66,7 @@ export function PublishDialog({ isOpen, onClose }: Props) {
             <DialogTitle as="h3" className={`${s.title} pb-6`}>
               Publish
               <span className={s.closeButton} onClick={onClose}>
-                <i className="iconify bi--x-lg"></i>
+                <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
             <form onSubmit={handlePublish}>

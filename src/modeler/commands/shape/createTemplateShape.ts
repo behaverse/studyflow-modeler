@@ -1,4 +1,4 @@
-import { createExtensionElement, getDefaults, setRawAttribute } from '@/lib/core/extensions';
+import { getDefaults, setRawAttribute, StudyflowElement } from '@/lib/core/extensions';
 import { toPrefix } from '@/lib/core/naming';
 
 type CreateTemplateShapeCommand = {
@@ -50,7 +50,7 @@ export function runCreateTemplateShape(
     bo.set('name', bpmnName);
   }
 
-  const ext = createExtensionElement(bo, extensionType, moddle, attributes);
+  const ext = StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, moddle, attributes);
 
   if (overrideIconClass) {
     const extPrefix = toPrefix(extensionType);

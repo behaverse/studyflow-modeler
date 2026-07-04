@@ -5,6 +5,7 @@ import { HelpTooltip } from './HelpTooltip';
 import { useAttributeState } from './hooks/useAttributeState';
 import { useInspectedElement } from './hooks/useInspectedElement';
 import { field as s } from '../styles';
+import { ICONS } from '@/icons';
 import { getInferredDataNeighbors } from './dataNeighbors';
 
 type Props = {
@@ -98,7 +99,7 @@ export function ArrayInput({ attrDef }: Props) {
               onClick={() => handleRemoveAt(i)}
               className={s.arrayRemoveBtn}
             >
-              <i className="iconify bi--x text-lg" />
+              <i className={`${ICONS.closeSmall} text-lg`} />
             </button>
           </div>
         ))}
@@ -111,7 +112,7 @@ export function ArrayInput({ attrDef }: Props) {
             onClick={handleAdd}
             className={s.arrayAddBtn}
           >
-            <i className="iconify bi--plus text-lg" />
+            <i className={`${ICONS.plus} text-lg`} />
           </button>
         )}
       </div>

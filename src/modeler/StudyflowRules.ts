@@ -1,13 +1,13 @@
 import RuleProvider from 'diagram-js/lib/features/rules/RuleProvider';
 import { getCatalog } from '@/lib/core/catalog';
-import { getExtensionType } from '@/lib/core/extensions';
+import { StudyflowElement } from '@/lib/core/extensions';
 
 /** Above bpmn-js's BpmnRules (priority 1000): schema rules win when declared. */
 const PRIORITY = 1500;
 
 /** Schema type identity of a canvas element: wrapper type, else the BPMN type. */
 function typeRefOf(element: any): string | undefined {
-  return getExtensionType(element) ?? element?.businessObject?.$type;
+  return StudyflowElement.fromBusinessObject(element).extensionType ?? element?.businessObject?.$type;
 }
 
 /**

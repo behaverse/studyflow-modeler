@@ -1,7 +1,7 @@
 import BaseRenderer from 'diagram-js/lib/draw/BaseRenderer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { getCatalog } from '@/lib/core/catalog';
-import { getExtensionType, getExtensionElement, getRawAttribute, hasTraitAttributes } from '@/lib/core/extensions';
+import { getRawAttribute, StudyflowElement } from '@/lib/core/extensions';
 import { toPrefix } from '@/lib/core/naming';
 import { BPMN_ICON_OVERRIDES } from '../constants';
 import { drawEventWithIcon } from './events';
@@ -34,12 +34,14 @@ export default class StudyflowRenderer extends BaseRenderer {
 
   canRender(element: any): boolean {
     if (element.type === 'label') return false; // fixes #15
-    return !!getExtensionElement(element) || hasTraitAttributes(element);
+    const el = StudyflowElement.fromBusinessObject(element);
+    return !!el.extension || el.hasTraits;
   }
 
   drawShape(parentNode: SVGElement, element: any): SVGElement {
-    const ext = getExtensionElement(element);
-    const extType = getExtensionType(element);
+    const el = StudyflowElement.fromBusinessObject(element);
+    const ext = el.extension;
+    const extType = el.extensionType;
     const extEntry = extType ? getCatalog().getType(extType) : undefined;
     const templateIcon = resolveTemplateIcon(ext || element.businessObject);
 

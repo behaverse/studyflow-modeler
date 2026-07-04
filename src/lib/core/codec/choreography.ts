@@ -50,6 +50,40 @@ function isChoreographyTaskBo(el: any): boolean {
   return el?.$type === CHOREOGRAPHY_TASK;
 }
 
+/**
+ * The one band<->participant correspondence, written once so both directions
+ * agree by construction:
+ *
+ *   - the two bands map to `participantRef` in order — top first, bottom second;
+ *   - `initiator` ('top' | 'bottom') names which band is the
+ *     `initiatingParticipantRef`; the other band receives.
+ *
+ * `bandsToRefs` (save) turns a resolved (top, bottom, initiator) triple into the
+ * ref shape the wire declares; `refsToBands` (load) reads that shape back into
+ * the band triple. They are exact inverses of each other.
+ */
+function bandsToRefs(
+  top: any,
+  bottom: any,
+  initiator: 'top' | 'bottom',
+): { participantRef: any[]; initiating: any; receiving: any } {
+  const initiating = initiator === 'bottom' ? bottom : top;
+  const receiving = initiating === top ? bottom : top;
+  return { participantRef: [top, bottom], initiating, receiving };
+}
+
+function refsToBands(
+  participantRef: any[],
+  initiatingParticipantRef: any,
+): { top: any; bottom: any; initiator: 'top' | 'bottom' } {
+  const [top, bottom] = participantRef;
+  // Only call it bottom-initiated when the ref unambiguously points at the
+  // bottom band (a self-choreography where top === bottom stays top-initiated).
+  const initiator: 'top' | 'bottom' =
+    initiatingParticipantRef === bottom && bottom !== top ? 'bottom' : 'top';
+  return { top, bottom, initiator };
+}
+
 /** True when every flow element fits a choreography and at least one is a choreography task. */
 function isPureChoreography(process: any): boolean {
   const flowElements = process?.flowElements ?? [];
@@ -135,8 +169,12 @@ export function processToChoreographyRoot(definitions: any): boolean {
     // `get` resolves the schema defaults (Participant A/B, top) when unset.
     const top = participantFor(el.get('topParticipant') || 'Participant A');
     const bottom = participantFor(el.get('bottomParticipant') || 'Participant B');
-    const initiating = el.get('initiator') === 'bottom' ? bottom : top;
-    el.set('participantRef', [top, bottom]);
+    const { participantRef, initiating, receiving } = bandsToRefs(
+      top,
+      bottom,
+      el.get('initiator') === 'bottom' ? 'bottom' : 'top',
+    );
+    el.set('participantRef', participantRef);
     el.set('initiatingParticipantRef', initiating);
     el.set('topParticipant', undefined);
     el.set('bottomParticipant', undefined);
@@ -146,7 +184,7 @@ export function processToChoreographyRoot(definitions: any): boolean {
     const messageFlow = model.create('bpmn:MessageFlow', {
       id: uniqueId(`MessageFlow_${el.id}`, takenIds),
       sourceRef: initiating,
-      targetRef: initiating === top ? bottom : top,
+      targetRef: receiving,
     });
     messageFlow.$parent = choreography;
     el.set('messageFlowRef', [messageFlow]);
@@ -179,11 +217,13 @@ export function choreographyToProcessRoot(definitions: any): boolean {
 
   for (const el of choreography.flowElements ?? []) {
     if (!isChoreographyTaskBo(el)) continue;
-    const refs = el.get('participantRef') ?? [];
-    const [top, bottom] = refs;
+    const { top, bottom, initiator } = refsToBands(
+      el.get('participantRef') ?? [],
+      el.get('initiatingParticipantRef'),
+    );
     if (top?.name) el.set('topParticipant', top.name);
     if (bottom?.name) el.set('bottomParticipant', bottom.name);
-    if (el.get('initiatingParticipantRef') === bottom && bottom !== top) el.set('initiator', 'bottom');
+    if (initiator === 'bottom') el.set('initiator', 'bottom');
     el.set('participantRef', undefined);
     el.set('initiatingParticipantRef', undefined);
     // The message flows die with the choreography root; drop the references.

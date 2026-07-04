@@ -4,10 +4,11 @@ import { useModeler } from '../useModeler';
 import { useInspectedElement } from './hooks/useInspectedElement';
 import { pickInput } from './inputs';
 import { getAttribute } from '@/lib/core/extensions';
+import type { AttributeSpec } from '@/lib/core/catalog';
 import { field as s } from '../styles';
 
 /** Whether an attribute definition renders in the inspector. */
-export function isAttributeVisible(attrDef: any, element: any): boolean {
+export function isAttributeVisible(attrDef: AttributeSpec | undefined, element: any): boolean {
   if (!attrDef || !element) return true;
   if (attrDef.meta?.pinned) return false;
   if (!attrDef.meta?.condition) return true;

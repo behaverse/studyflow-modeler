@@ -5,6 +5,15 @@ import { t } from '../../i18n';
 import { useAttributeState } from './hooks/useAttributeState';
 import { DATATYPES, parseBody, serialize, type Column, type SourceFormat } from './schemaFormats';
 import { codeEditor as s } from '../styles';
+import { ICONS } from '@/icons';
+
+/** Repeated Tailwind class strings, hoisted so each lives in one place. */
+const cn = {
+  cell: 'px-2 py-1.5',
+  monoInput: 'w-full bg-transparent focus:outline-none font-mono text-[12px]',
+  moveBtn: 'text-stone-400 hover:text-stone-900 disabled:opacity-30 px-1',
+  formatRadio: 'flex items-center gap-1.5',
+};
 
 /**
  * Tabular editor for a Schema element's `body` attribute. Replaces the raw
@@ -69,7 +78,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
         <div className={s.modalHeader}>
           <h3 className={s.modalTitle}>Edit columns; {t(attributeName)}</h3>
           <button className={s.modalClose} onClick={close}>
-            <i className="iconify bi--x-lg cursor-pointer"></i>
+            <i className={`${ICONS.close} cursor-pointer`}></i>
           </button>
         </div>
 
@@ -77,7 +86,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
           <div className={s.modalSection}>
             <div className="flex items-center justify-between gap-3 pb-2">
               <div className="flex items-center gap-3 text-sm">
-                <label className="flex items-center gap-1.5">
+                <label className={cn.formatRadio}>
                   <input
                     type="radio"
                     name="schema-format"
@@ -87,7 +96,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
                   />
                   CSVW JSON-LD
                 </label>
-                <label className="flex items-center gap-1.5">
+                <label className={cn.formatRadio}>
                   <input
                     type="radio"
                     name="schema-format"
@@ -117,9 +126,9 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
                 <thead>
                   <tr className="bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500">
                     <th className="px-2 py-1.5 w-8"></th>
-                    <th className="px-2 py-1.5">Name</th>
+                    <th className={cn.cell}>Name</th>
                     <th className="px-2 py-1.5 w-32">Datatype</th>
-                    <th className="px-2 py-1.5">Description</th>
+                    <th className={cn.cell}>Description</th>
                     <th className="px-2 py-1.5 w-14">Req.</th>
                     <th className="px-2 py-1.5 w-20"></th>
                   </tr>
@@ -135,20 +144,20 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
                     columns.map((c, idx) => (
                       <tr key={idx} className="border-t border-black/[0.04]">
                         <td className="px-2 py-1.5 text-stone-400 text-xs text-center">{idx + 1}</td>
-                        <td className="px-2 py-1.5">
+                        <td className={cn.cell}>
                           <input
                             type="text"
                             value={c.name}
                             onChange={(e) => updateColumn(idx, { name: e.target.value })}
-                            className="w-full bg-transparent focus:outline-none font-mono text-[12px]"
+                            className={cn.monoInput}
                             placeholder="column_name"
                           />
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className={cn.cell}>
                           <select
                             value={c.datatype}
                             onChange={(e) => updateColumn(idx, { datatype: e.target.value })}
-                            className="w-full bg-transparent focus:outline-none font-mono text-[12px]"
+                            className={cn.monoInput}
                           >
                             {!DATATYPES.includes(c.datatype) && <option value={c.datatype}>{c.datatype}</option>}
                             {DATATYPES.map((dt) => (
@@ -156,7 +165,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
                             ))}
                           </select>
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className={cn.cell}>
                           <input
                             type="text"
                             value={c.description}
@@ -178,7 +187,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
                             onClick={() => moveColumn(idx, -1)}
                             disabled={idx === 0}
                             title="Move up"
-                            className="text-stone-400 hover:text-stone-900 disabled:opacity-30 px-1"
+                            className={cn.moveBtn}
                           >
                             ↑
                           </button>
@@ -187,7 +196,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
                             onClick={() => moveColumn(idx, 1)}
                             disabled={idx === columns.length - 1}
                             title="Move down"
-                            className="text-stone-400 hover:text-stone-900 disabled:opacity-30 px-1"
+                            className={cn.moveBtn}
                           >
                             ↓
                           </button>
@@ -230,7 +239,7 @@ export function SchemaEditor({ attrDef }: { attrDef: any }) {
   return (
     <>
       <Button className={s.openButton} onClick={open}>
-        <i className="iconify bi--table pe-2"></i> Edit columns
+        <i className={`${ICONS.table} pe-2`}></i> Edit columns
       </Button>
       {modalOpen && createPortal(modal, document.body)}
     </>

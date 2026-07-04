@@ -1,10 +1,5 @@
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import {
-  getAttributeDefinition,
-  getAttributeDefinitions,
-  getExtensionAttributeDefinitions,
-  isExtensionPrefix,
-} from '@/lib/core/extensions';
+import { StudyflowElement, isExtensionPrefix } from '@/lib/core/extensions';
+import type { AttributeSpec } from '@/lib/core/catalog';
 import { toLocalName } from '@/lib/core/naming';
 import { isAttributeVisible } from './AttributeField';
 
@@ -29,7 +24,7 @@ const CATEGORY_ORDER = [
 ];
 
 /** Identity attributes (id, name) are always pinned to the top. */
-function isIdentity(attrDef: any): boolean {
+function isIdentity(attrDef: AttributeSpec): boolean {
   const name = attrDef?.ns?.name ?? attrDef?.name;
   const localName = attrDef?.ns?.localName ?? toLocalName(name);
   return (
@@ -42,25 +37,25 @@ function isIdentity(attrDef: any): boolean {
 }
 
 /** Visible attribute defs grouped by category; id/name first, then BO attrs, then extension attrs. */
-export function getAttributesByCategory(element: any): Record<string, any[]> {
-  const byCategory: Record<string, any[]> = {};
-  const bo = getBusinessObject(element);
-  const extAttrDefs = getExtensionAttributeDefinitions(element);
+export function getAttributesByCategory(element: any): Record<string, AttributeSpec[]> {
+  const byCategory: Record<string, AttributeSpec[]> = {};
+  const handle = StudyflowElement.fromBusinessObject(element);
+  const extAttrDefs = handle.extensionAttributes();
   const seen = new Set<string>();
 
   const overridden = new Set(
     extAttrDefs
-      .map((attrDef: any) => attrDef.redefinedName ?? attrDef.ns?.localName ?? attrDef.name)
-      .filter((name: string | undefined): name is string => Boolean(name))
+      .map((attrDef) => attrDef.redefinedName ?? attrDef.ns?.localName ?? attrDef.name)
+      .filter((name): name is string => Boolean(name))
   );
 
   const identity = [
-    getAttributeDefinition(bo, 'bpmn:id'),
-    getAttributeDefinition(bo, 'bpmn:name'),
-  ].filter(Boolean);
+    handle.attribute('bpmn:id'),
+    handle.attribute('bpmn:name'),
+  ].filter((d): d is AttributeSpec => Boolean(d));
 
-  const collect = (attrDefs: any[], predicate: (attrDef: any) => boolean) => {
-    attrDefs.forEach((attrDef: any) => {
+  const collect = (attrDefs: AttributeSpec[], predicate: (attrDef: AttributeSpec) => boolean) => {
+    attrDefs.forEach((attrDef) => {
       if (!predicate(attrDef)) return;
       if (!isAttributeVisible(attrDef, element)) return;
 
@@ -76,7 +71,7 @@ export function getAttributesByCategory(element: any): Record<string, any[]> {
 
   collect(identity, () => true);
 
-  collect(getAttributeDefinitions(bo), (attrDef: any) =>
+  collect(handle.attributes(), (attrDef: any) =>
     !overridden.has(attrDef.ns?.localName ?? attrDef.name)
     && !isIdentity(attrDef)
     && isExtensionPrefix(attrDef.ns?.prefix)

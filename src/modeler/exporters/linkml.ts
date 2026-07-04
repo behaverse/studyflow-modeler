@@ -7,8 +7,9 @@
  */
 
 import * as yaml from 'js-yaml';
+import { StudyflowElement } from '@/lib/core/extensions';
 import { getDiagramName } from '../diagramName';
-import { forEachBusinessObject, readField } from './common';
+import { forEachBusinessObject } from './common';
 
 const STUDYFLOW_NS = 'https://behaverse.org/schemas/studyflow/';
 
@@ -42,28 +43,26 @@ function readDataElement(bo: any, el: any): DataElement | null {
 
   const id = bo.id || el.id || `el_${Math.random().toString(36).slice(2, 8)}`;
   const name = (bo.name as string | undefined) || id;
-  const documentation = readField(bo, 'documentation') as string | undefined;
+  const element = StudyflowElement.fromBusinessObject(bo);
+  const documentation = element.read('documentation') as string | undefined;
 
+  // Read every catalog-declared attribute of this data element through the
+  // StudyflowElement handle. This replaces a hardcoded probe list that could
+  // drift from the schemas, and it reaches values stored on extension wrappers
+  // that a raw business-object read would miss.
   const attrs: Record<string, unknown> = {};
-  // Probe the union of known attribute names across the data-element classes.
-  const PROBES = [
-    'format', 'schemaRef', 'inlineSchema', 'rowCount',
-    'samplingRate', 'channelCount', 'units', 'recordingDuration',
-    'eventType', 'onset', 'offset', 'eventCount',
-    'catalog', 'storage', 'schema', 'bdmDataLevel', 'bidsDataType',
-    'url', 'source', 'version', 'dataset', 'state', 'body',
-  ];
-  for (const p of PROBES) {
-    const v = readField(bo, p);
-    if (v !== undefined && v !== null && v !== '') {
-      // Resolve moddle references to their id so YAML stays serializable.
-      if (typeof v === 'object' && (v as any).id) {
-        attrs[p] = (v as any).id;
-      } else if (typeof v === 'object') {
-        attrs[p] = JSON.stringify(v);
-      } else {
-        attrs[p] = v;
-      }
+  for (const spec of element.attributes()) {
+    const key = spec.ns.localName;
+    if (!key) continue;
+    const v = element.read(key);
+    if (v === undefined || v === null || v === '') continue;
+    // Resolve moddle references to their id so YAML stays serializable.
+    if (typeof v === 'object' && (v as any).id) {
+      attrs[key] = (v as any).id;
+    } else if (typeof v === 'object') {
+      attrs[key] = JSON.stringify(v);
+    } else {
+      attrs[key] = v;
     }
   }
   return { id, name, type, documentation, attrs };

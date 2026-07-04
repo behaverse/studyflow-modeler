@@ -1,14 +1,8 @@
-import * as yaml from 'js-yaml';
-
-import { toLocalName } from '../naming';
-import {
-  RESERVED_DOC_KEYS,
-  inferPlaneRoot,
-  isModdleElement,
-  keyItemsById,
-  valueTypeOf,
-  type YamlDoc,
-} from './common';
+import { RESERVED_DOC_KEYS, inferPlaneRoot, isModdleElement, type YamlDoc } from './common';
+import { unwrapElementList } from './foldings/element-list';
+import { keyItemsById } from './foldings/id-keyed';
+import { planDiFolding } from './foldings/inline-di';
+import { inlineYamlBody, inlineYamlValue } from './foldings/yaml-body';
 
 /**
  * The write direction of the codec: a moddle `bpmn:Definitions` tree walks
@@ -26,80 +20,11 @@ type SerializeContext = {
 
 function serializeValue(value: any, declaredType: string | undefined, ctx?: SerializeContext): unknown {
   if (!isModdleElement(value)) return value;
-  return inlineYamlBody(value) ?? unwrapElementList(value, ctx) ?? serializeElement(value, declaredType, ctx);
-}
-
-/**
- * Config wrappers whose whole content is a YAML body (`cognitive:Configurations`
- * and friends) inline that body as nested YAML. Bodies that don't parse to a
- * non-empty mapping — or that would be re-read as the wrapped form — stay wrapped.
- */
-function inlineYamlBody(el: any): Record<string, unknown> | undefined {
-  const props: any[] = el.$descriptor?.properties ?? [];
-  const body = props.find((p) => p.isBody);
-  if (!body || toLocalName(valueTypeOf(body)) !== 'YAMLString') return undefined;
-  if (typeof el[body.name] !== 'string' || el[body.name] === '') return undefined;
-  if (Object.keys(el.$attrs ?? {}).length > 0) return undefined;
-  for (const p of props) {
-    if (p === body) continue;
-    const value = el[p.name];
-    if (value !== undefined && value !== null && !(Array.isArray(value) && value.length === 0)) return undefined;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = yaml.load(el[body.name]);
-  } catch {
-    return undefined;
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
-
-  const keys = Object.keys(parsed);
-  const byName = el.$descriptor?.propertiesByName ?? {};
-  if (keys.length === 0 || 'type' in parsed) return undefined;
-  if (keys.every((key) => key in byName)) return undefined;
-  return parsed as Record<string, unknown>;
-}
-
-/**
- * Value-typed YAML properties (`studyflow:with`) inline their parsed mapping
- * as nested YAML, like YAML-bodied wrappers do. Values that don't parse to a
- * non-empty mapping stay strings, as do mappings carrying a `type` key — on
- * load a `type` key means "build an element". Bodies are excluded: those fold
- * at the wrapper level (`inlineYamlBody`) with its own ambiguity guards.
- */
-function inlineYamlValue(value: any, prop: any): Record<string, unknown> | undefined {
-  if (prop.isBody || toLocalName(valueTypeOf(prop)) !== 'YAMLString') return undefined;
-  if (typeof value !== 'string' || value === '') return undefined;
-
-  let parsed: unknown;
-  try {
-    parsed = yaml.load(value);
-  } catch {
-    return undefined;
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
-  const keys = Object.keys(parsed);
-  if (keys.length === 0 || 'type' in parsed) return undefined;
-  return parsed as Record<string, unknown>;
-}
-
-/**
- * List wrappers — types whose only content property is a single isMany list
- * (`bpmn:ExtensionElements#values`) — collapse to the plain list.
- */
-function unwrapElementList(el: any, ctx?: SerializeContext): unknown[] | undefined {
-  const props: any[] = el.$descriptor?.properties ?? [];
-  const content = props.filter((p) => !p.isAttr && !p.isReference && !p.isBody);
-  if (content.length !== 1 || !content[0].isMany) return undefined;
-  if (Object.keys(el.$attrs ?? {}).length > 0) return undefined;
-  for (const p of props) {
-    if (p === content[0]) continue;
-    if (el[p.name] !== undefined && el[p.name] !== null) return undefined;
-  }
-  const items = el[content[0].name];
-  if (!Array.isArray(items) || items.length === 0) return undefined;
-  return items.map((item: any) => serializeValue(item, undefined, ctx));
+  return (
+    inlineYamlBody(value)
+    ?? unwrapElementList(value, (item) => serializeValue(item, undefined, ctx))
+    ?? serializeElement(value, declaredType, ctx)
+  );
 }
 
 function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext): Record<string, unknown> {
@@ -141,37 +66,6 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
   return out;
 }
 
-/** DI reference properties point at other DI elements whose ids are regenerated on load. */
-const UNFOLDABLE_DI_KEYS = new Set(['sourceElement', 'targetElement', 'choreographyActivityShape']);
-
-/** Map semantic element ids to the DI payload of their planeElement (primary diagram only). */
-function planDiFolding(definitions: any): Map<string, Record<string, unknown>> {
-  const byId = new Map<string, Record<string, unknown>>();
-  const seen = new Set<string>();
-  for (const pe of definitions.diagrams?.[0]?.plane?.planeElement ?? []) {
-    const refId = pe?.bpmnElement?.id;
-    if (typeof refId !== 'string' || refId === '') continue;
-    if (seen.has(refId)) {
-      byId.delete(refId); // two planeElements for one element: ambiguous, keep both in `diagram:`
-      continue;
-    }
-    seen.add(refId);
-    const payload = foldablePayload(pe);
-    if (payload) byId.set(refId, payload);
-  }
-  return byId;
-}
-
-function foldablePayload(pe: any): Record<string, unknown> | undefined {
-  if (pe.$type !== 'bpmndi:BPMNShape' && pe.$type !== 'bpmndi:BPMNEdge') return undefined;
-  if (Object.keys(pe.$attrs ?? {}).length > 0) return undefined; // unclassifiable on load
-  const node = serializeElement(pe, pe.$type);
-  delete node.id; // regenerated as `<elementId>_di` on load
-  delete node.bpmnElement;
-  for (const key of Object.keys(node)) if (UNFOLDABLE_DI_KEYS.has(key)) return undefined;
-  return node;
-}
-
 /** Whatever DI did not fold inline: extra diagrams, exotic planeElements. */
 function serializeLeftoverDiagrams(definitions: any, ctx: SerializeContext): unknown[] {
   const diagrams: any[] = definitions.diagrams ?? [];
@@ -207,7 +101,10 @@ function isRedundantDiagramNode(node: Record<string, any>, inferredRootId: strin
 
 /** Serialize a `bpmn:Definitions` tree into the `.studyflow` YAML document. */
 export function definitionsToYamlDoc(definitions: any): YamlDoc {
-  const ctx: SerializeContext = { di: planDiFolding(definitions), foldedIds: new Set() };
+  const ctx: SerializeContext = {
+    di: planDiFolding(definitions, (el, declaredType) => serializeElement(el, declaredType)),
+    foldedIds: new Set(),
+  };
   const serialized = serializeElement(definitions, 'bpmn:Definitions', ctx);
   const { rootElements, diagrams: _diagrams, id, ...rest } = serialized;
   const diagram = serializeLeftoverDiagrams(definitions, ctx);

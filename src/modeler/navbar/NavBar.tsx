@@ -6,6 +6,7 @@ import { RunButton } from './actions/Run';
 import { CommandPalette, OPEN_PALETTE_SHORTCUT_LABEL } from '../dialogs';
 import { useDiagramName } from './useDiagramName';
 import { navbar, navBurgerBtnCls, navDividerCls } from '../styles';
+import { ICONS } from '@/icons';
 
 export function NavBar() {
   const modeler = useModeler();
@@ -35,7 +36,7 @@ export function NavBar() {
                 className={navBurgerBtnCls}
                 onClick={() => paletteRef.current?.open()}
               >
-                <i className="iconify bi--list text-lg"></i>
+                <i className={`${ICONS.list} text-lg`}></i>
               </button>
             </>
           )}

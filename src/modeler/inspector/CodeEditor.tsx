@@ -8,6 +8,7 @@ import 'prismjs/themes/prism.css';
 import { t } from '../../i18n';
 import { useAttributeState } from './hooks/useAttributeState';
 import { codeEditor as s } from '../styles';
+import { ICONS } from '@/icons';
 
 export function CodeEditor({ attrDef }: { attrDef: any }) {
   const { value, commit, attributeName } = useAttributeState<string>(attrDef, (raw) => raw || '');
@@ -35,7 +36,7 @@ export function CodeEditor({ attrDef }: { attrDef: any }) {
         <div className={s.modalHeader}>
           <h3 className={s.modalTitle}>Edit {t(attributeName)}</h3>
           <button className={s.modalClose} onClick={closeModal}>
-            <i className="iconify bi--x-lg cursor-pointer"></i>
+            <i className={`${ICONS.close} cursor-pointer`}></i>
           </button>
         </div>
         <div className={s.modalBody}>
@@ -70,7 +71,7 @@ export function CodeEditor({ attrDef }: { attrDef: any }) {
   return (
     <>
       <Button className={s.openButton} onClick={showEditorModal}>
-        <i className="iconify bi--pencil pe-2"></i> Edit {t(attributeName)}
+        <i className={`${ICONS.pencil} pe-2`}></i> Edit {t(attributeName)}
       </Button>
       {modalOpen && createPortal(modal, document.body)}
     </>

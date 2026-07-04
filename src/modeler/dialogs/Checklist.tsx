@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useModeler } from '../useModeler';
-import { getExtensionElement } from '@/lib/core/extensions';
+import { StudyflowElement } from '@/lib/core/extensions';
 import { dialog as d } from '../styles';
 import { DialogHelp } from './DialogHelp';
+import { ICONS } from '@/icons';
 
 type Item = {
   /** Raw label text after stripping the markdown bullet and checkbox marker. */
@@ -42,7 +43,7 @@ function parseChecklist(markdown: string): Item[] {
 /** Read the checklist attribute from a BO or its extension element (whichever has it). */
 function readChecklist(bo: any): string | undefined {
   if (typeof bo?.checklist === 'string' && bo.checklist.trim()) return bo.checklist;
-  const ext = getExtensionElement(bo);
+  const ext = StudyflowElement.fromBusinessObject(bo).extension;
   const fromExt = ext?.get?.('checklist') ?? ext?.checklist;
   if (typeof fromExt === 'string' && fromExt.trim()) return fromExt;
   return undefined;
@@ -100,7 +101,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
               </DialogHelp>
               <span className="flex-1" aria-hidden="true" />
               <span className={d.closeButton} onClick={onClose}>
-                <i className="iconify bi--x-lg"></i>
+                <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
             {totalCheckboxes > 0 && (

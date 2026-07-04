@@ -3,14 +3,15 @@ import { executeCommand } from '../commands';
 import {
   getAttribute,
   getAttributeDefinition,
-  getExtensionElement,
+  StudyflowElement,
 } from '@/lib/core/extensions';
+import { ICONS } from '@/icons';
 import type { EventBus, Injector, PopupMenu, Replace } from '../bpmn-js';
 
 /** True when the attribute definition pins `isDataOperation`. */
 function isDataOperationPinned(element: any): boolean {
   const bo = getBusinessObject(element);
-  const ext = getExtensionElement(bo);
+  const ext = StudyflowElement.fromBusinessObject(bo).extension;
   const attrDef = (ext && getAttributeDefinition(ext, 'isDataOperation'))
     || getAttributeDefinition(bo, 'isDataOperation');
   return attrDef?.meta?.pinned === true;
@@ -54,7 +55,7 @@ export default class ReplaceMenuProvider {
 
     return {
       title: 'Data Operator',
-      imageHtml: '<i class="iconify mdi--function"></i>',
+      imageHtml: `<i class="${ICONS.function}"></i>`,
       active: !!getAttribute(element, 'isDataOperation'),
       action: toggleDataOperation,
     };

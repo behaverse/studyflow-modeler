@@ -1,5 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { getExtensionType } from '@/lib/core/extensions';
+import { StudyflowElement } from '@/lib/core/extensions';
 import { runCreateTemplateConnection, runCreateTemplateShape } from '../../commands/shape';
 import type {
   Template,
@@ -68,7 +68,7 @@ export default class Templates {
   }
 
   get(element: any): Template | null {
-    const extType = getExtensionType(element);
+    const extType = StudyflowElement.fromBusinessObject(element).extensionType;
     if (!extType) return null;
     return this._templates.find((t) => t.extensionType === extType) ?? null;
   }

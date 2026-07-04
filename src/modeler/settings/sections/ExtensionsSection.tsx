@@ -3,6 +3,7 @@ import { SCHEMAS } from '../../constants';
 import { settingsView as s } from '../../styles';
 import { useSettings } from '../useSettings';
 import { Row, SectionHeader, ToggleControl } from './controls';
+import { ICONS } from '@/icons';
 
 export function ExtensionsSection() {
   const { settings, update } = useSettings();
@@ -34,7 +35,7 @@ export function ExtensionsSection() {
       {dirty && (
         <div className={s.group}>
           <p className={s.rowHelp}>
-            <i className="iconify bi--arrow-clockwise pe-1.5" /> Reload the page to apply changes.
+            <i className={`${ICONS.arrowClockwise} pe-1.5`} /> Reload the page to apply changes.
             <button
               type="button"
               className={`ms-2 ${s.inlineBtn}`}
