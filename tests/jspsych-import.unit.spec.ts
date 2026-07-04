@@ -9,12 +9,12 @@ import {
   jsPsychToStudyflow,
   parseTimeline,
   type JsPsychNode,
-} from '../src/lib/core/import';
-import { parseFunctionRef } from '../src/lib/core/parsers/functionRef';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { parseStudyflow } from '../src/lib/core/parsers';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
-import { looksLikeXml } from '../src/lib/core/codec';
+} from '../src/modeler/models/import';
+import { parseFunctionRef } from '../src/core/functionRef';
+import { SCHEMAS } from '../src/core/constants';
+import { parseStudyflow } from '../src/runner/models/parseStudyflow';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { looksLikeXml } from '../src/core/codec';
 
 /**
  * jsPsych -> Studyflow importer.

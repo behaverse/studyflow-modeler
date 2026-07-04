@@ -1,0 +1,41 @@
+import { useCallback, useRef } from 'react';
+import type { Job } from '@/runner/models/jobs';
+import type { Session } from '@/runner/controllers/session';
+import type { LogKind } from '@/runner/models/log';
+import type { NodeProps } from '@/runner/models/nodes/types';
+import { findByType } from '@/runner/controllers/nodes';
+
+export type NodeOutcome =
+  | { kind: 'complete'; result?: unknown }
+  | { kind: 'abort'; reason: string };
+
+type Props = {
+  job: Job;
+  session: Session;
+  log: (kind: LogKind, message: string) => void;
+  setVariable: (name: string, value: unknown) => void;
+  onResolve: (outcome: NodeOutcome) => void;
+};
+
+/** Mounts the component for the job's type; `onResolve` fires once per mount. */
+export function NodeRenderer({ job, session, log, setVariable, onResolve }: Props) {
+  const resolvedRef = useRef(false);
+
+  const resolveOnce = useCallback((outcome: NodeOutcome) => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    onResolve(outcome);
+  }, [onResolve]);
+
+  const complete = useCallback((result?: unknown) => resolveOnce({ kind: 'complete', result }), [resolveOnce]);
+  const abort = useCallback((reason: string) => resolveOnce({ kind: 'abort', reason }), [resolveOnce]);
+
+  const def = findByType(job.type);
+  if (!def) {
+    resolveOnce({ kind: 'abort', reason: `unknown-job-type:${job.type}` });
+    return null;
+  }
+
+  const Component = def.Component;
+  return <Component {...({ job, session, log, setVariable, complete, abort } as NodeProps<any>)} />;
+}

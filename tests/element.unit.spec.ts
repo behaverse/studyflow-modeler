@@ -4,10 +4,10 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/lib/core/catalog';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
-import { StudyflowElement, createExtensionElement } from '../src/lib/core/extensions';
+import { buildCatalog, setCatalog } from '../src/core/catalog';
+import { SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { StudyflowElement, createExtensionElement } from '../src/core/extensions';
 
 /**
  * Direct coverage of the StudyflowElement resolution table — reads and writes

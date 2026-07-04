@@ -63,6 +63,6 @@ The shared domain vocabulary for the Studyflow Modeler — a tool to design (`ap
 ## Flagged ambiguities
 
 - **"element" was overloaded four ways** — the bpmn-js canvas shape, the raw moddle **business object**, the runner's **flow node**, and the new **StudyflowElement** handle. Resolution: reserve bare **Element** for the bpmn-js shape only; use **Business object** for the raw moddle object, **Flow node** for the runner's view, and **StudyflowElement** for the catalog-aware handle.
-- **"bpmn-js element" as the canonical input was wrong** — the **Runner** has no bpmn-js **elements**, so they can't be the shared currency. Resolution: the **Business object** is the single canonical currency; the **Modeler** unwraps its **Element** at the seam.
+- **"bpmn-js element" as the canonical input was wrong** — the **Runner** has no bpmn-js **elements**, so they can't be the shared currency. Resolution: the **Business object** is the single canonical currency; the **Modeler** unwraps its **Element** at the boundary.
 - **"read-only" mischaracterized the runner-side handle** — default stamping at element creation writes to a fresh **business object** with no bpmn-js. Resolution: the split is not read-vs-write but *which writer* the handle carries (a bpmn-js-backed writer vs a direct one).
 - **Provider config carried both endpoints at once** — the type couldn't say which **Provider** was live. Resolution: a discriminated union keyed on **Provider**, carrying only the active provider's endpoint.

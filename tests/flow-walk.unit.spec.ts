@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { nextHops } from '../src/modeler/simulation/flowWalk';
+import { nextHops } from '../src/modeler/models/simulation/flowWalk';
 
 /**
  * Unit tests for the pure flow-walk decision extracted from TokenSimulator.

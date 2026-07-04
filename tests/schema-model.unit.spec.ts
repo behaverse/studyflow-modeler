@@ -4,9 +4,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { buildCatalog } from '../src/lib/core/catalog';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
+import { buildCatalog } from '../src/core/catalog';
+import { SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 
 /**
  * Schema-model pipeline guarantees.

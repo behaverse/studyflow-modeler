@@ -5,8 +5,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
+import { SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 
 /**
  * Schema design rules, checked without a browser.

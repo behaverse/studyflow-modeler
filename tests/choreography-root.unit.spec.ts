@@ -4,9 +4,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { fromWireXml, toWireXml } from '../src/lib/core/codec/choreography';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
+import { fromWireXml, toWireXml } from '../src/core/codec/choreography';
+import { SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 
 /**
  * Wire-format guarantees for choreography diagrams: saving a pure-choreography

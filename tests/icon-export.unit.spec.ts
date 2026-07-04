@@ -7,7 +7,7 @@ import { gotoModeler } from './utils';
  *
  * `embedIconsInSvg` normally resolves icon glyphs from the Iconify network API
  * (`remoteIconSource`). That makes export untestable offline. The injectable
- * `IconSource` seam lets us pass `bundledIconSource`, which resolves nothing,
+ * `IconSource` injection point lets us pass `bundledIconSource`, which resolves nothing,
  * so the transform runs fully offline: icon foreignObjects are left untouched
  * and the call must not throw.
  *
@@ -21,8 +21,8 @@ test.describe('SVG export icon embedding (offline)', () => {
     const result = await page.evaluate(async () => {
       // Vite dev-server root is `./src`, so modules are served without the `src/` prefix.
       // Paths are held in variables so tsc treats these as runtime dynamic imports.
-      const modPath = '/modeler/commands/diagram/saveDiagram.ts';
-      const iconPath = '/modeler/commands/diagram/iconSource.ts';
+      const modPath = '/modeler/models/exporters/svgEmbedding.ts';
+      const iconPath = '/modeler/infra/iconSource.ts';
       const mod = await import(modPath);
       const icons = await import(iconPath);
 

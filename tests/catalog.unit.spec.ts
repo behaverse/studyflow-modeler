@@ -4,9 +4,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '../src/lib/core/catalog';
-import { CORE_PREFIXES, SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
+import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '../src/core/catalog';
+import { CORE_PREFIXES, SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 
 /**
  * Cross-validates the compiled TypeCatalog against bpmn-moddle.

@@ -4,9 +4,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { xmlToStudyflow } from '../src/lib/core/codec';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
+import { xmlToStudyflow } from '../src/core/codec';
+import { SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 import {
   addPaletteElement,
   addSchemaPaletteElement,

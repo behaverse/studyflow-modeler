@@ -5,10 +5,10 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { buildCatalog, setCatalog } from '../src/lib/core/catalog';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
-import { exportToLinkML } from '../src/modeler/exporters/linkml';
+import { buildCatalog, setCatalog } from '../src/core/catalog';
+import { SCHEMAS } from '../src/core/constants';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { exportToLinkML } from '../src/modeler/models/exporters/linkml';
 
 /**
  * Regression for the linkml exporter after it moved from a hardcoded PROBES

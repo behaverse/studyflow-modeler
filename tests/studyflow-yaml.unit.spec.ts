@@ -5,10 +5,10 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, readStudyflowMetadata, studyflowToXml, xmlToStudyflow } from '../src/lib/core/codec';
-import { SCHEMAS } from '../src/lib/core/constants';
-import { parseStudyflow } from '../src/lib/core/parsers';
-import { fromModdleYaml, toModdlePackages } from '../src/lib/core/schema';
+import { looksLikeXml, readStudyflowMetadata, studyflowToXml, xmlToStudyflow } from '../src/core/codec';
+import { SCHEMAS } from '../src/core/constants';
+import { parseStudyflow } from '../src/runner/models/parseStudyflow';
+import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 
 /**
  * `.studyflow` YAML format guarantees, checked against every bundled example

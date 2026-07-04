@@ -24,9 +24,15 @@ npm run docs:build   # render to dist/docs/
 
 ## Project layout
 
-- `src/lib/core/` - shared library: moddle schema parsing, studyflow XML parsing, extension/attribute resolution.
-- `src/modeler/` - modeler app (bpmn-js + React inspector/palette/contextpad).
-- `src/runner/` - runner app (study traversal + per-node React renderers).
+Both apps follow a per-app MVC layout: each of `src/modeler/` and `src/runner/`
+splits into `models/` (framework-free domain logic — testable in isolation),
+`views/` (React components + bpmn-js custom renderers), `controllers/`
+(orchestration, command dispatch, event wiring), and `infra/` (framework glue:
+bpmn-js DI, constants, styles, contexts, storage). `src/core/` is the shared model.
+
+- `src/core/` - shared model: moddle schema parsing, studyflow XML parsing, extension/attribute resolution. No React or bpmn-js.
+- `src/modeler/{models,views,controllers,infra}/` - modeler app (bpmn-js + React inspector/palette/contextpad).
+- `src/runner/{models,views,controllers,infra}/` - runner app (study traversal + per-node React renderers).
 - `src/assets/schemas/` - moddle YAML schemas (`studyflow`, `cognitive`, `behaverse`, `omniprocess`, `datatrove`, `galea`).
 - `src/assets/examples/` - example diagrams loaded by the modeler.
 - `docs/` - Quarto site (reference, guides, examples).

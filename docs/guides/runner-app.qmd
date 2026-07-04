@@ -88,11 +88,11 @@ To record, configure a data server in the modeler's *Settings* (API key; the bas
 3. Records a SHA-256 hash of the diagram source alongside the events, so every data point is traceable to the exact study version that produced it.
 4. `PATCH`es the session with the final status and completion code when the run ends.
 
-If no server is configured (or the toggle is off), the run proceeds local-only -- nothing leaves the browser and the study still works end-to-end. See `src/runner/dataServer.ts` and `src/lib/core/runnerSettings.ts` for details.
+If no server is configured (or the toggle is off), the run proceeds local-only -- nothing leaves the browser and the study still works end-to-end. See `src/runner/infra/dataServer.ts` and `src/core/settings.ts` for details.
 
 ## Adding a new node kind
 
-The runner discovers node modules under `src/runner/nodes/<kind>/index.tsx` at startup. Each module calls `registerNode(...)` with a `match` predicate (typically `extensionType: 'myschema:MyType'`), a `toJob(node)` mapper, and a React `Component`. See `src/runner/nodes/README.md` for the full template -- adding a new node kind only requires creating one new folder.
+The runner discovers node modules under `src/runner/views/nodes/<kind>/index.tsx` at startup. Each module calls `registerNode(...)` with a `match` predicate (typically `extensionType: 'myschema:MyType'`), a `toJob(node)` mapper, and a React `Component`. See `src/runner/controllers/nodes/README.md` for the full template -- adding a new node kind only requires creating one new folder.
 
 ## Logs and debugging
 
