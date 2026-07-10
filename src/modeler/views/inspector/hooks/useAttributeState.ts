@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useModeler } from '@/modeler/views/useModeler';
 import { useInspectedElement } from '@/modeler/views/inspector/hooks/useInspectedElement';
 import { getAttribute } from '@/core/extensions';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 
 /** Shared state + commit wiring for inspector inputs; `parse` normalizes the raw moddle value. */
 export function useAttributeState<T>(

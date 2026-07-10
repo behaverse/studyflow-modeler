@@ -1,7 +1,7 @@
 import { looksLikeXml, studyflowToXml } from '@/core/codec';
 import { extractXmlFromSvg, filenameStem } from '@/modeler/models/diagramFile';
-import { runImportXml } from '@/modeler/controllers/commands/diagram/importXml';
-import { runUpdateAttribute } from '@/modeler/controllers/commands/attributes/updateAttribute';
+import { runImportXml } from '@/modeler/controllers/diagram/importXml';
+import { runUpdateAttribute } from '@/modeler/controllers/attributes/updateAttribute';
 
 export type OpenDiagramCommand = {
   type: 'open-diagram';

@@ -1,5 +1,5 @@
 import { useModeler } from '@/modeler/views/useModeler';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { useIsSimulating } from '@/modeler/views/simulation/useIsSimulating';
 
 // Left half of the Simulate/Run pair - only the left corners are rounded.

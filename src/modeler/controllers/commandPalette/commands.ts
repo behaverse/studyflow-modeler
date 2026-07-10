@@ -10,7 +10,7 @@
  * in display order; `0` mirrors the editor-wide Cmd/Ctrl+0 zoom-reset
  * convention.
  */
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { URLS } from '@/modeler/infra/constants';
 import { ICONS } from '@/icons';
 import type { PaletteCommand, PaletteDialogId } from '@/modeler/models/commandPalette/types';

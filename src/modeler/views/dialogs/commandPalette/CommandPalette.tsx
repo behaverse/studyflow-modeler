@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { SettingsViewContext } from '@/modeler/infra/contexts';
 import { useModeler } from '@/modeler/views/useModeler';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { useIsSimulating } from '@/modeler/views/simulation/useIsSimulating';
 import { commandPalette as cp } from '@/modeler/infra/styles';
 import { VALID_FILE_EXTENSIONS } from '@/modeler/infra/constants';

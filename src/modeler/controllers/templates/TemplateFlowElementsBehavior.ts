@@ -1,5 +1,5 @@
 import CommandInterceptor from 'diagram-js/lib/command/CommandInterceptor';
-import { runMaterializeTemplateFlow } from '@/modeler/controllers/commands/templates';
+import { runMaterializeTemplateFlow } from '@/modeler/controllers/templates/materializeTemplateFlow';
 import { TEMPLATE_FLOW_ELEMENTS } from '@/modeler/controllers/templates/Templates';
 import type Templates from '@/modeler/controllers/templates/Templates';
 

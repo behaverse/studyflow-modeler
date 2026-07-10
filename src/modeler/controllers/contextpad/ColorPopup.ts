@@ -1,4 +1,4 @@
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import type { Injector, PopupMenu } from '@/modeler/infra/bpmn-js.d';
 
 const COLORS: Array<{ label: string; fill: string | undefined; stroke: string | undefined }> = [

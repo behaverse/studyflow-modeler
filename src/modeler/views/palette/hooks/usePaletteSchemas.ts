@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { executeCommand } from '@/modeler/controllers/commands';
-import type { PaletteSchema } from '@/modeler/controllers/commands/palette/paletteSetup';
+import { executeCommand } from '@/modeler/controllers/commandBus';
+import type { PaletteSchema } from '@/modeler/controllers/palette/paletteSetup';
 
 /** Available palette schemas; rebuilt via `resolve-palette-schemas` when the modeler changes. */
 export function usePaletteSchemas(modeler: any): PaletteSchema[] {

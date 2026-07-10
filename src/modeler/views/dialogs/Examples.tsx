@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useModeler } from '@/modeler/views/useModeler';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { basename, parseExampleMetadata } from '@/modeler/models/dialogs/exampleMetadata';
 import { filenameStem } from '@/modeler/models/diagramFile';
 import { dialog as d, examplesList as e } from '@/modeler/infra/styles';

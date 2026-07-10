@@ -1,4 +1,4 @@
-import { runImportXml } from '@/modeler/controllers/commands/diagram/importXml';
+import { runImportXml } from '@/modeler/controllers/diagram/importXml';
 import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
 
 export type NewDiagramCommand = {

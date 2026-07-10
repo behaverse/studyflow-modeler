@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { getDiagramName } from '@/modeler/models/diagramName';
 
 const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';

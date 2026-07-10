@@ -1,5 +1,5 @@
 import { buildBusinessObject } from '@/modeler/models/shape/buildBusinessObject';
-import { primeHoverFromEvent } from '@/modeler/controllers/commands/palette/primeHover';
+import { primeHoverFromEvent } from '@/modeler/controllers/palette/primeHover';
 
 export type PaletteStartCreateCommand = {
   type: 'palette-start-create';

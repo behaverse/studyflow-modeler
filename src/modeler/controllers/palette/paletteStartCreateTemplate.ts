@@ -1,4 +1,4 @@
-import { primeHoverFromEvent } from '@/modeler/controllers/commands/palette/primeHover';
+import { primeHoverFromEvent } from '@/modeler/controllers/palette/primeHover';
 
 export type PaletteStartCreateTemplateCommand = {
   type: 'palette-start-create-template';

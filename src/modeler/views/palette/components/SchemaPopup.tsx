@@ -1,4 +1,4 @@
-import type { PaletteSchema } from '@/modeler/controllers/commands/palette/paletteSetup';
+import type { PaletteSchema } from '@/modeler/controllers/palette/paletteSetup';
 import type { PaletteDragHandlers } from '@/modeler/views/palette/hooks/usePaletteDrag';
 import { useFlyoutPosition } from '@/modeler/views/palette/hooks/useFlyoutPosition';
 import { getPaletteIconForBpmnType } from '@/modeler/infra/constants';

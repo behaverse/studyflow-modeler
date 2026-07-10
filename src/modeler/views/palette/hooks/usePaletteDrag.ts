@@ -1,7 +1,7 @@
 import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import type { PaletteEntry } from '@/modeler/infra/constants';
-import type { PaletteTemplate } from '@/modeler/controllers/commands/palette/paletteSetup';
+import type { PaletteTemplate } from '@/modeler/controllers/palette/paletteSetup';
 
 export type PaletteDraggable = PaletteEntry | (PaletteTemplate & { __template: true });
 

@@ -1,5 +1,5 @@
 import { is, getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import {
   getAttribute,
   getAttributeDefinition,

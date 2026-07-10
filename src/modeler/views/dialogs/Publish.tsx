@@ -11,7 +11,7 @@ import {
   Label,
 } from '@headlessui/react';
 import { useModeler } from '@/modeler/views/useModeler';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { dialog as s } from '@/modeler/infra/styles';
 import { URLS } from '@/modeler/infra/constants';
 import { ICONS } from '@/icons';

@@ -5,7 +5,7 @@ import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 import 'bpmn-js-color-picker/colors/color-picker.css';
 import { ModelerContext } from '@/modeler/infra/contexts';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { attachAutosave, getSettings, loadAutosavedDiagram } from '@/modeler/views/settings';
 import { modeler as s } from '@/modeler/infra/styles';
 

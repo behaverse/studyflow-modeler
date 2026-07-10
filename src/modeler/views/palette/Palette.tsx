@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useModeler } from '@/modeler/views/useModeler';
-import { executeCommand } from '@/modeler/controllers/commands';
+import { executeCommand } from '@/modeler/controllers/commandBus';
 import { PALETTE_GROUPS } from '@/modeler/infra/constants';
 import { t } from '@/i18n';
 import { usePaletteSchemas } from '@/modeler/views/palette/hooks/usePaletteSchemas';

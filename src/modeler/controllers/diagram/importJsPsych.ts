@@ -2,7 +2,7 @@ import { buildStudyflowXml, importJsPsychTimeline } from '@/modeler/models/impor
 import { filenameStem } from '@/modeler/models/diagramFile';
 import { loadSchemas } from '@/core/schema/loader';
 import { getSettings } from '@/modeler/infra/settings/store';
-import { runOpenDiagram } from '@/modeler/controllers/commands/diagram/openDiagram';
+import { runOpenDiagram } from '@/modeler/controllers/diagram/openDiagram';
 
 export type ImportJsPsychCommand = {
   type: 'import-jspsych';

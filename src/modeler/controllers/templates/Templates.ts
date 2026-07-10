@@ -1,6 +1,7 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { StudyflowElement } from '@/core/extensions';
-import { runCreateTemplateConnection, runCreateTemplateShape } from '@/modeler/controllers/commands/shape';
+import { runCreateTemplateConnection } from '@/modeler/controllers/templates/createTemplateConnection';
+import { runCreateTemplateShape } from '@/modeler/controllers/templates/createTemplateShape';
 import type {
   Template,
   TemplateFlowConnection,
