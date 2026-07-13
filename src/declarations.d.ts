@@ -1,6 +1,11 @@
 /// <reference types="vite/client" />
 /// <reference path="./assets/declarations.d.ts" />
 
+declare module 'bpmn-auto-layout' {
+  /** Add BPMN DI (a left-to-right layout) to a BPMN 2.0 XML string that has none. */
+  export function layoutProcess(xml: string): Promise<string>;
+}
+
 declare module 'bpmn-moddle' {
   export class BpmnModdle {
     constructor(packages?: Record<string, any>);

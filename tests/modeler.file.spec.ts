@@ -16,6 +16,25 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.getByTestId('modeler-canvas')).toBeVisible();
   });
 
+  test('opens a layout-less studyflow file (auto-layout supplies the DI)', async ({ page }) => {
+    await gotoModeler(page);
+
+    // A hand-written file with no BPMN DI. bpmn-js would abort this import with
+    // "no diagram to display"; the import path auto-lays it out so it renders.
+    await page.getByTestId('open-file-input').setInputFiles({
+      name: 'layoutless.studyflow',
+      mimeType: 'text/yaml',
+      buffer: readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow')),
+    });
+
+    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('Layout-less demo');
+    // Nodes across the branch — including the boundary event — are drawn.
+    await expect(page.locator('.djs-element[data-element-id="Enroll"]')).toBeVisible();
+    await expect(page.locator('.djs-element[data-element-id="Eligibility_Gateway"]')).toBeVisible();
+    await expect(page.locator('.djs-element[data-element-id="DidNotStart"]')).toBeVisible();
+    await expect(page.locator('.djs-element[data-element-id="Done"]')).toBeVisible();
+  });
+
   test('imports a jsPsych timeline JSON via the dedicated command', async ({ page }) => {
     await gotoModeler(page);
 

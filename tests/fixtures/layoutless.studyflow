@@ -1,0 +1,78 @@
+id: layoutless_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+
+Design:
+  type: bpmn:Process
+  name: Layout-less demo
+  isExecutable: true
+  extensionElements:
+    - type: studyflow:Study
+      seed: 42
+  flowElements:
+
+    Enroll:
+      type: bpmn:StartEvent
+      name: Enrolled
+
+    Screening:
+      type: bpmn:Task
+      name: Screening
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: screening
+
+    Eligibility_Gateway:
+      type: bpmn:ExclusiveGateway
+      name: Eligible?
+
+    Excluded:
+      type: bpmn:EndEvent
+      name: Excluded
+
+    Allocate:
+      type: bpmn:Task
+      name: Allocate
+
+    DidNotStart:
+      type: bpmn:BoundaryEvent
+      name: Did not start
+      attachedToRef: Allocate
+      cancelActivity: true
+
+    Done:
+      type: bpmn:EndEvent
+      name: Done
+
+    Aborted:
+      type: bpmn:EndEvent
+      name: Aborted
+
+    Flow_Enroll_Screening:
+      type: bpmn:SequenceFlow
+      sourceRef: Enroll
+      targetRef: Screening
+    Flow_Screening_Eligibility:
+      type: bpmn:SequenceFlow
+      sourceRef: Screening
+      targetRef: Eligibility_Gateway
+    Flow_Eligible:
+      type: bpmn:SequenceFlow
+      name: eligible
+      sourceRef: Eligibility_Gateway
+      targetRef: Allocate
+    Flow_Excluded:
+      type: bpmn:SequenceFlow
+      name: excluded
+      sourceRef: Eligibility_Gateway
+      targetRef: Excluded
+    Flow_Allocate_Done:
+      type: bpmn:SequenceFlow
+      sourceRef: Allocate
+      targetRef: Done
+    Flow_DidNotStart_Aborted:
+      type: bpmn:SequenceFlow
+      sourceRef: DidNotStart
+      targetRef: Aborted

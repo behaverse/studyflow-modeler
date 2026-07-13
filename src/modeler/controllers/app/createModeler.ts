@@ -9,6 +9,7 @@ import GridModule from 'diagram-js-grid';
 import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
 import { normalizeStudyflowXml } from '@/core/codec';
 import { fromWireXml } from '@/core/codec/choreography';
+import { ensureDiagramLayout } from '@/modeler/models/autoLayout';
 import { StudyflowModelerModule } from '@/modeler/infra';
 import { clearAutosavedDiagram } from '@/modeler/infra/settings/autosaveDiagram';
 
@@ -43,7 +44,8 @@ export async function runCreateModeler(_modeler: any, command: CreateModelerComm
   const provided = command.initialDiagramXml;
   if (provided) {
     try {
-      await modeler.importXML(await fromWireXml(normalizeStudyflowXml(provided), modeler.get('moddle')));
+      const wireXml = await fromWireXml(normalizeStudyflowXml(provided), modeler.get('moddle'));
+      await modeler.importXML(await ensureDiagramLayout(wireXml));
       return modeler;
     } catch (err) {
       // An autosaved or supplied diagram failed to import (schema drift, version
