@@ -1,0 +1,942 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: ML
+prefix: ml
+description: Studyflow extension for statistical and machine-learning pipelines - split, fit, predict, evaluate, validate, register, deploy, and monitor, plus the Model and Metric artifacts they exchange. Deliberately small - variants (5-fold CV, grid search, a random forest) are templates that bind a function via `uses`, not new types.
+uri: https://w3id.org/studyflow/ml
+icon: iconify tabler--hexagon-letter-m
+xml:
+  tagAlias: lowerCase
+version: 26.0714
+
+associations: []
+
+enumerations:
+  - name: SplitStrategyEnum
+    isAbstract: true
+    description: How rows are assigned to the train/validation/test partitions.
+    literalValues:
+      - name: Random
+        value: random
+      - name: Stratified
+        value: stratified
+        description: Preserves the class balance of `stratifyBy` in every partition.
+      - name: Grouped
+        value: group
+        description: Keeps every row sharing a `groupBy` key in the same partition - the guard against leaking a participant across the split.
+      - name: Time-ordered
+        value: time-series
+        description: Splits on time; the test set is always later than the train set.
+
+  - name: TaskTypeEnum
+    isAbstract: true
+    description: Learning task the model performs.
+    literalValues:
+      - name: Classification
+        value: classification
+      - name: Regression
+        value: regression
+      - name: Clustering
+        value: clustering
+      - name: Ranking
+        value: ranking
+      - name: Generation
+        value: generation
+      - name: Other
+        value: other
+
+  - name: ModelFormatEnum
+    isAbstract: true
+    description: On-disk format of a serialized model.
+    literalValues:
+      - name: joblib (scikit-learn)
+        value: joblib
+      - name: ONNX
+        value: onnx
+      - name: PyTorch
+        value: pytorch
+      - name: Safetensors
+        value: safetensors
+      - name: Hugging Face repo
+        value: huggingface
+      - name: PMML
+        value: pmml
+      - name: Other
+        value: other
+
+  - name: PredictModeEnum
+    isAbstract: true
+    description: Which estimator method the step calls.
+    literalValues:
+      - name: predict
+        value: predict
+      - name: predict_proba
+        value: predict_proba
+      - name: transform
+        value: transform
+      - name: decision_function
+        value: decision_function
+
+  - name: DataSplitEnum
+    isAbstract: true
+    description: Which partition a metric was computed on. Reporting it is what keeps a test score from being read as a training score.
+    literalValues:
+      - name: Train
+        value: train
+      - name: Validation
+        value: validation
+      - name: Test
+        value: test
+      - name: Held-out
+        value: holdout
+      - name: Live traffic
+        value: live
+
+  - name: MetricGoalEnum
+    isAbstract: true
+    description: Direction of improvement for a metric.
+    literalValues:
+      - name: Higher is better
+        value: max
+      - name: Lower is better
+        value: min
+
+  - name: DeploymentStageEnum
+    isAbstract: true
+    description: Lifecycle stage of a registered model version.
+    literalValues:
+      - name: None
+        value: none
+      - name: Staging
+        value: staging
+      - name: Production
+        value: production
+      - name: Archived
+        value: archived
+
+  - name: DeployStrategyEnum
+    isAbstract: true
+    description: How a new model version replaces the running one.
+    literalValues:
+      - name: Replace
+        value: replace
+      - name: Canary
+        value: canary
+      - name: Blue/green
+        value: blue-green
+      - name: Shadow
+        value: shadow
+        description: Serves traffic to the new model without using its answers - a live dry run.
+
+  - name: OnFailEnum
+    isAbstract: true
+    description: What a data-quality check does when an expectation fails.
+    literalValues:
+      - name: Fail the run
+        value: fail
+      - name: Warn and continue
+        value: warn
+      - name: Quarantine the failing rows
+        value: quarantine
+
+types:
+
+  # ===========================================================================
+  # Artifacts. Each inherits `uri`, `digest`, `version`, `persist`, and
+  # `producedBy` from the `exec:Artifact` trait, so a model is citable by
+  # content hash and traceable to the execution that fitted it.
+  # ===========================================================================
+  - name: Model
+    description: |
+      A fitted model. The artifact a training step produces, an evaluation step
+      scores, and a deployment step ships - carried by digest, so "which model
+      is in production" and "what data trained it" are answerable from the run
+      record rather than from memory.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--cube-outline
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: framework
+        description: Library that produced it (e.g. `scikit-learn`, `pytorch`, `statsmodels`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Model
+      - name: format
+        description: Serialization format.
+        isAttr: true
+        type: ModelFormatEnum
+        default: joblib
+        meta:
+          order: 2
+          categories:
+            - Model
+      - name: taskType
+        description: Learning task the model performs.
+        isAttr: true
+        type: TaskTypeEnum
+        default: classification
+        meta:
+          order: 3
+          categories:
+            - Model
+      - name: target
+        description: Name of the variable the model predicts.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Model
+      - name: hyperparameters
+        description: Hyperparameters the model was fitted with, as a YAML mapping.
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 5
+          categories:
+            - Model
+          editor: yaml
+      - name: registryUri
+        description: Registry entry for this version (e.g. an MLflow model URI, a Hugging Face repo).
+        isAttr: true
+        type: String
+        meta:
+          order: 6
+          categories:
+            - Model
+      - name: stage
+        description: Lifecycle stage of this version.
+        isAttr: true
+        type: DeploymentStageEnum
+        default: none
+        meta:
+          order: 7
+          categories:
+            - Model
+      - name: cardUri
+        description: |
+          Model card - intended use, training data, known limitations, evaluation
+          across groups. Naming it in the diagram is what keeps it from being the
+          step everyone skips.
+        isAttr: true
+        type: String
+        meta:
+          order: 8
+          categories:
+            - Documentation
+
+  - name: Metric
+    description: |
+      A measured quantity, with the partition it was measured on. `bpmn:name` is
+      the metric (`roc_auc`, `rmse`); `value` is empty in a spec and written by
+      the engine at run time.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--gauge
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: value
+        description: Measured value. Left empty when registering the study; written by the engine on the as-run record.
+        isAttr: true
+        type: Real
+        meta:
+          order: 1
+          categories:
+            - Metric
+          optional: true
+      - name: split
+        description: Partition the metric was computed on.
+        isAttr: true
+        type: DataSplitEnum
+        default: test
+        meta:
+          order: 2
+          categories:
+            - Metric
+      - name: goal
+        description: Direction of improvement. Gates and sweeps read this to know which way is better.
+        isAttr: true
+        type: MetricGoalEnum
+        default: max
+        meta:
+          order: 3
+          categories:
+            - Metric
+      - name: group
+        description: |
+          Subgroup this metric is restricted to, when the evaluation is sliced
+          (e.g. `site=Luxembourg`, `age_band=65+`). Empty means the whole partition.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Metric
+      - name: interval
+        description: Uncertainty around the value (e.g. `95% CI [0.78, 0.86]`, `SD 0.02`).
+        isAttr: true
+        type: String
+        meta:
+          order: 5
+          categories:
+            - Metric
+
+  - name: Report
+    description: |
+      A rendered result - an evaluation report, a fairness audit, a drift summary,
+      a figure. The output a human reads, as opposed to the metric a gate reads.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--file-chart-outline
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: kind
+        description: What the report covers (e.g. `evaluation`, `fairness`, `drift`, `error-analysis`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Report
+      - name: contentType
+        description: Media type of the rendered output (e.g. `text/html`, `image/png`).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Report
+
+  # ===========================================================================
+  # Steps. Each is an `exec:Step`, so it carries a typed signature, a runtime
+  # target, a cache policy, and a seed without redeclaring any of them.
+  # ===========================================================================
+  - name: Split
+    description: |
+      Partition a dataset into train/validation/test. `groupBy` is the one that
+      matters in human-subjects work: without it, rows from the same participant
+      land on both sides of the split and the test score is meaningless.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--call-split
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: isDataOperation
+        description: A split is a data operation; pinned so the marker always renders.
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: strategy
+        description: How rows are assigned to partitions.
+        isAttr: true
+        type: SplitStrategyEnum
+        default: random
+        meta:
+          order: 1
+          categories:
+            - Split
+      - name: testSize
+        description: Fraction of the data held out for testing.
+        isAttr: true
+        type: Real
+        default: 0.2
+        meta:
+          order: 2
+          categories:
+            - Split
+      - name: validationSize
+        description: Fraction held out for validation. Zero means no validation partition.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 3
+          categories:
+            - Split
+      - name: stratifyBy
+        description: Column whose distribution is preserved across partitions.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Split
+          condition:
+            language: json
+            body:
+              strategy: stratified
+      - name: groupBy
+        description: |
+          Column whose rows must not be split across partitions - typically
+          `participant_id`. Set this whenever a subject contributes many rows.
+        isAttr: true
+        type: String
+        meta:
+          order: 5
+          categories:
+            - Split
+          condition:
+            language: json
+            body:
+              strategy: group
+      - name: shuffle
+        description: Shuffle before splitting. Uses the scope-derived seed, so the split is reproducible.
+        isAttr: true
+        type: Boolean
+        default: true
+        meta:
+          order: 6
+          categories:
+            - Split
+
+  - name: Fit
+    description: |
+      Fit an estimator to training data, producing a `Model`. When `uses` is
+      empty, the engine resolves the call from `estimator`; set `uses` explicitly
+      to point at your own training function instead.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--school-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: isDataOperation
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: estimator
+        description: |
+          Importable estimator class (e.g. `sklearn.ensemble.RandomForestClassifier`,
+          `xgboost.XGBClassifier`, `statsmodels.api.MixedLM`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Fit
+      - name: hyperparameters
+        description: |
+          Estimator arguments, as a YAML mapping. Inside a `Sweep`, a value of
+          `$sweep` takes the current sweep point's value for that key.
+
+              n_estimators: 500
+              max_depth: $sweep
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 2
+          categories:
+            - Fit
+          editor: yaml
+      - name: target
+        description: Column the model is fitted to predict.
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Fit
+      - name: features
+        description: Columns used as predictors. Empty means every column except `target`.
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Fit
+      - name: taskType
+        description: Learning task, carried onto the produced `Model`.
+        isAttr: true
+        type: TaskTypeEnum
+        default: classification
+        meta:
+          order: 5
+          categories:
+            - Fit
+
+  - name: Predict
+    description: Apply a fitted model to data. Also covers `transform` for a fitted preprocessing step.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--play-box-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: isDataOperation
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: mode
+        description: Estimator method to call.
+        isAttr: true
+        type: PredictModeEnum
+        default: predict
+        meta:
+          order: 1
+          categories:
+            - Predict
+
+  - name: Evaluate
+    description: |
+      Score a model against a labelled partition. `groupBy` turns this into a
+      fairness audit - one metric per subgroup rather than one number over
+      everybody - which is a parameter here rather than a separate element,
+      because a fairness audit is an evaluation, not a different kind of step.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--check-decagram-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: isDataOperation
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: metrics
+        description: Metrics to compute (e.g. `roc_auc`, `f1_macro`, `rmse`, `calibration_error`).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Evaluate
+      - name: split
+        description: Partition being scored. Recorded on every `Metric` this step produces.
+        isAttr: true
+        type: DataSplitEnum
+        default: test
+        meta:
+          order: 2
+          categories:
+            - Evaluate
+      - name: groupBy
+        description: |
+          Compute metrics per subgroup of this column as well as overall
+          (e.g. `site`, `sex`, `age_band`). This is the fairness slice.
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Evaluate
+      - name: compareTo
+        description: |
+          Id of a baseline `Metric` element. The evaluation reports the delta, and
+          a downstream `exec:Gate` can require an improvement over it.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Evaluate
+          optional: true
+
+  - name: Validate
+    description: |
+      Check data against declared expectations before it is used. Placed before
+      training, it is the difference between a model that failed and a model that
+      silently learned from corrupt inputs.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--clipboard-check-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: isDataOperation
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: expectations
+        description: |
+          Expectations the data must satisfy, as a YAML mapping. Checked against
+          the input's `studyflow:Schema` when one is attached.
+
+              row_count: {min: 100}
+              columns:
+                rt: {type: number, min: 0, max: 10000, nulls: 0}
+                accuracy: {type: number, min: 0, max: 1}
+              unique: [trial_id]
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 1
+          categories:
+            - Validate
+          editor: yaml
+      - name: onFail
+        description: What to do when an expectation fails.
+        isAttr: true
+        type: OnFailEnum
+        default: fail
+        meta:
+          order: 2
+          categories:
+            - Validate
+
+  - name: Register
+    description: |
+      Record a model version in a registry, with the run that produced it. The
+      point where a fitted artifact acquires a name a deployment can refer to.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--bookmark-check-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: registry
+        description: Registry endpoint (e.g. an MLflow tracking URI, a Hugging Face org).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Registry
+      - name: modelName
+        description: Name the version is registered under.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Registry
+      - name: stage
+        description: Stage to move the new version to on registration.
+        isAttr: true
+        type: DeploymentStageEnum
+        default: staging
+        meta:
+          order: 3
+          categories:
+            - Registry
+
+  - name: Deploy
+    description: |
+      Ship a model version to a serving target. Side-effecting, so it never reuses
+      a cached execution - `cache` is pinned to `never`.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--rocket-launch-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: cache
+        description: Deployment is a side effect on the world; it is never skipped or replayed from cache.
+        isAttr: true
+        type: exec:CachePolicyEnum
+        default: never
+        redefines: exec:Step#cache
+        meta:
+          pinned: true
+      - name: endpoint
+        description: Serving target (e.g. a KServe InferenceService, a Seldon pipeline, an endpoint name).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Deploy
+      - name: strategy
+        description: How the new version takes over from the running one.
+        isAttr: true
+        type: DeployStrategyEnum
+        default: replace
+        meta:
+          order: 2
+          categories:
+            - Deploy
+      - name: trafficPercent
+        description: Share of traffic the new version receives at first.
+        isAttr: true
+        type: Integer
+        default: 100
+        meta:
+          order: 3
+          categories:
+            - Deploy
+          condition:
+            language: json
+            body:
+              strategy: canary
+
+  - name: Monitor
+    description: |
+      Watch a deployed model and raise a signal when it drifts. Attach a boundary
+      event to catch the signal and route back into retraining - which makes the
+      retraining loop a path on the diagram rather than a sentence in a runbook.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--monitor-eye
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: watches
+        description: Metric or statistic being watched (e.g. `roc_auc`, `psi(features)`, `prediction_drift`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Monitor
+      - name: threshold
+        description: Value at which the signal is raised.
+        isAttr: true
+        type: Real
+        meta:
+          order: 2
+          categories:
+            - Monitor
+      - name: window
+        description: Observation window (e.g. `7d`, `1000 requests`).
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Monitor
+      - name: schedule
+        description: How often the check runs (cron, or an interval such as `1d`).
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Monitor
+      - name: signal
+        description: Name of the signal raised on breach. A boundary event with the same name catches it.
+        isAttr: true
+        type: String
+        default: drift
+        meta:
+          order: 5
+          categories:
+            - Monitor
+
+templates:
+
+  - description: Group-aware train/test split - keeps every row from a participant on one side.
+    object:
+      bpmn:name: Train/test split
+      type: Split
+      bpmn:documentation: |
+        Holds out 20% for testing, grouped by participant so no subject appears in
+        both partitions. Bound to scikit-learn's `GroupShuffleSplit`; repoint
+        `uses` at your own splitter if you need a different one.
+      icon: iconify mdi--call-split
+      keywords:
+        - split
+        - train
+        - test
+        - holdout
+        - sklearn
+        - leakage
+      strategy: group
+      groupBy: participant_id
+      testSize: 0.2
+      uses: python://sklearn.model_selection.GroupShuffleSplit
+      signature: "in:\n  data: Table\nout:\n  train: Table\n  test: Table"
+
+  - description: Fit a random-forest classifier and produce a Model artifact.
+    object:
+      bpmn:name: Fit random forest
+      type: Fit
+      bpmn:documentation: Fits scikit-learn's RandomForestClassifier on the training partition.
+      icon: iconify mdi--forest
+      keywords:
+        - fit
+        - train
+        - randomforest
+        - sklearn
+        - classifier
+      estimator: sklearn.ensemble.RandomForestClassifier
+      hyperparameters: "n_estimators: 500\nmax_depth: null\nclass_weight: balanced"
+      taskType: classification
+      signature: "in:\n  train: Table\nout:\n  model: Model"
+
+  - description: Score a model on the test set, sliced by subgroup (a fairness audit).
+    object:
+      bpmn:name: Evaluate (sliced)
+      type: Evaluate
+      bpmn:documentation: |
+        Computes the listed metrics overall and per subgroup of `groupBy`, so a
+        model that performs well on average and badly on one site is visible
+        rather than hidden.
+      icon: iconify mdi--check-decagram-outline
+      keywords:
+        - evaluate
+        - score
+        - fairness
+        - metrics
+        - audit
+      metrics:
+        - roc_auc
+        - f1_macro
+        - calibration_error
+      split: test
+      groupBy: site
+      signature: "in:\n  model: Model\n  test: Table\nout:\n  metrics: Metric*\n  report: Report"
+
+  - description: 5-fold stratified cross-validation - fit and score once per fold, averaged.
+    object:
+      bpmn:name: Cross-validate (5-fold)
+      type: exec:ForEach
+      bpmn:documentation: |
+        One instance of fit-then-score per fold, opening a `fold` scope frame each
+        time. Fold assignment is drawn from the scope-derived seed, so the folds
+        are reproducible without pinning a global seed. Metrics are averaged back
+        into the parent scope.
+      icon: iconify mdi--layers-triple-outline
+      keywords:
+        - crossvalidation
+        - cv
+        - kfold
+        - folds
+        - stratified
+      iterate: folds
+      folds: "k: 5\nstratifyBy: label\ngroupBy: participant_id\nshuffle: true"
+      collect: reduce
+      reducer: python://numpy.mean
+      collectAs: cv_metrics
+      flowElements:
+        - id: cv_start
+          type: bpmn:StartEvent
+          bpmn:name: Fold
+          x: 150
+          y: 162
+        - id: cv_fit
+          type: Fit
+          bpmn:name: Fit on fold
+          estimator: sklearn.ensemble.RandomForestClassifier
+          x: 240
+          y: 140
+        - id: cv_eval
+          type: Evaluate
+          bpmn:name: Score fold
+          split: validation
+          x: 400
+          y: 140
+        - id: cv_end
+          type: bpmn:EndEvent
+          bpmn:name: Fold done
+          x: 560
+          y: 162
+        - type: bpmn:SequenceFlow
+          sourceRef: cv_start
+          targetRef: cv_fit
+        - type: bpmn:SequenceFlow
+          sourceRef: cv_fit
+          targetRef: cv_eval
+        - type: bpmn:SequenceFlow
+          sourceRef: cv_eval
+          targetRef: cv_end
+
+  - description: Grid search - sweep hyperparameters, fit and score each point, keep the best.
+    object:
+      bpmn:name: Grid search
+      type: exec:Sweep
+      bpmn:documentation: |
+        One instance of fit-then-score per point of the grid. Inside the sweep, a
+        hyperparameter set to `$sweep` takes the current point's value. The engine
+        records every point and reports the one that maximizes the objective.
+      icon: iconify mdi--tune-variant
+      keywords:
+        - gridsearch
+        - sweep
+        - hyperparameter
+        - tuning
+        - multirun
+      grid: "strategy: grid\nspace:\n  max_depth: [2, 4, 8, 16]\n  n_estimators: [100, 500]\nobjective:\n  metric: roc_auc\n  goal: max"
+      collect: list
+      collectAs: trials
+      flowElements:
+        - id: sweep_fit
+          type: Fit
+          bpmn:name: Fit at point
+          estimator: sklearn.ensemble.RandomForestClassifier
+          hyperparameters: "max_depth: $sweep\nn_estimators: $sweep"
+          x: 200
+          y: 140
+        - id: sweep_eval
+          type: Evaluate
+          bpmn:name: Score point
+          split: validation
+          x: 380
+          y: 140
+        - type: bpmn:SequenceFlow
+          sourceRef: sweep_fit
+          targetRef: sweep_eval
+
+  - description: Promotion gate - deploy only when the candidate beats the model in production.
+    object:
+      bpmn:name: Beats production?
+      type: exec:Gate
+      bpmn:documentation: |
+        The promotion policy, in the diagram rather than in a script: the candidate
+        ships only if it improves on the deployed baseline and clears an absolute
+        floor. Reviewers can check the policy without reading code.
+      icon: iconify mdi--gate-arrow-right
+      keywords:
+        - gate
+        - promote
+        - threshold
+        - deploy
+        - policy
+      criterion: metrics.roc_auc >= 0.80 and metrics.roc_auc > baseline.roc_auc
+      rationale: |
+        0.80 is the floor agreed with the clinical team; beating the deployed
+        baseline prevents a regression from shipping on a lucky split.
+
+  - description: Drift monitor with a retraining trigger.
+    object:
+      bpmn:name: Monitor drift
+      type: Monitor
+      bpmn:documentation: |
+        Checks live performance daily over a 7-day window. On breach it raises the
+        `drift` signal - attach a boundary event to this task and route it back to
+        training to close the retraining loop on the diagram.
+      icon: iconify mdi--monitor-eye
+      keywords:
+        - monitor
+        - drift
+        - retrain
+        - production
+      watches: roc_auc
+      threshold: 0.75
+      window: 7d
+      schedule: 0 6 * * *
+      signal: drift

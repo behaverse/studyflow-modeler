@@ -1,0 +1,232 @@
+id: agent_eval
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  xmlns:exec: https://w3id.org/studyflow/exec
+  xmlns:ml: https://w3id.org/studyflow/ml
+  xmlns:agentic: https://w3id.org/studyflow/agentic
+Agent_Eval:
+  type: bpmn:Process
+  documentation: |
+    An agent-evaluation harness: for every item in an eval set, run a tool-using
+    agent, check its output, score it, and collect the results - with a sample
+    routed to human raters.
+
+    The point of the diagram is the line down the middle of it. Everything outside
+    the Agent follows a path the diagram fixes: fan out, guard, judge, collect.
+    Inside the Agent, nothing does - the model picks which tool to call and when,
+    and stops when it decides it is done. That is the difference between a workflow
+    and an agent, and here it is the difference between a plain sub-process and an
+    ad-hoc one, which is the element BPMN has always used to mean "order decided at
+    run time".
+
+    Two consequences follow from drawing it this way:
+
+    - The agent's tools are the activities inside it. A tool that is not drawn is a
+      capability nobody reviewed.
+    - Every model call, tool call, and routing decision is one execution in the run
+      log. A non-deterministic run is still replayable, because a replay reads the
+      recorded decisions instead of asking the model again.
+  extensionElements:
+    - type: studyflow:Study
+  name: Agent evaluation harness
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Start eval
+      outgoing:
+        - Flow_Start_Each
+    Eval_Set:
+      type: bpmn:DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+      name: Eval set
+    Rubric:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: agentic:Prompt
+          template: |
+            Score the answer 1-5 on: factual support from the retrieved passages,
+            completeness against the question, and absence of unsupported claims.
+            A 5 requires every claim to be traceable to a passage.
+      version: "3"
+      name: Scoring rubric
+    Per_Item:
+      type: bpmn:SubProcess
+      documentation: |
+        One instance per item, each in its own scope with its own derived seed. The
+        instances are independent, so this is also the unit of parallelism - raise
+        `maxConcurrency` and it is the same diagram running wider.
+      extensionElements:
+        - type: exec:ForEach
+      name: For each eval item
+      incoming:
+        - Flow_Start_Each
+      outgoing:
+        - Flow_Each_Agreement
+      over: items
+      itemVar: question
+      maxConcurrency: 16
+      collect: concat
+      collectAs: scores
+      flowElements:
+        Research_Agent:
+          type: bpmn:AdHocSubProcess
+          documentation: |
+            An ad-hoc sub-process: the model chooses which of the tools below to call,
+            and how many times, until it can answer. `deterministic` is pinned false -
+            the engine records each choice rather than assuming it can re-derive it.
+          extensionElements:
+            - type: agentic:Agent
+              maxTurns: 8
+              model: claude-opus-4-8
+              systemPrompt: |
+                Answer the question using the corpus. Search before you answer, cite
+                the passages you used, and say so plainly when the corpus does not
+                support an answer.
+          name: Research agent
+          outgoing:
+            - Flow_Agent_Check
+          until: answer is not null
+          flowElements:
+            Search:
+              type: bpmn:ServiceTask
+              extensionElements:
+                - type: agentic:Retriever
+                  index: study_corpus
+                  topK: 8
+                  embeddingModel: voyage-3
+              name: Search corpus
+            Compute:
+              type: bpmn:ServiceTask
+              extensionElements:
+                - type: agentic:Tool
+                  kind: code
+                  purpose: |
+                    Run a short Python snippet over the trial table to check a claim
+                    numerically. Use it when the question turns on a statistic.
+              name: Run analysis
+              uses: python://lab.tools.analyze
+        Check_Output:
+          type: bpmn:ServiceTask
+          extensionElements:
+            - type: agentic:Guardrail
+              policy: |
+                Every claim in the answer must be supported by a retrieved passage.
+                Reject answers that cite passages the retriever never returned.
+          name: Groundedness check
+          incoming:
+            - Flow_Agent_Check
+          outgoing:
+            - Flow_Check_Score
+        Score:
+          type: bpmn:ServiceTask
+          documentation: |
+            Three independent judgements per item, taken because one judge's score is
+            noise. The judge model is named on the diagram: it is part of the measuring
+            instrument, and swapping it moves the numbers.
+          extensionElements:
+            - type: agentic:Judge
+              rubric: |
+                Apply the scoring rubric. Give the score and one sentence of
+                justification naming the deciding criterion.
+              model: claude-opus-4-8
+              jurors: 3
+          name: Judge answer
+          incoming:
+            - Flow_Check_Score
+          outgoing:
+            - Flow_Score_Sample
+        Sample:
+          type: bpmn:ExclusiveGateway
+          extensionElements:
+            - type: cognitive:RandomGateway
+          name: Sample for human review?
+          incoming:
+            - Flow_Score_Sample
+          outgoing:
+            - Flow_Sample_Human
+            - Flow_Sample_Done
+        Human_Rating:
+          type: bpmn:UserTask
+          documentation: |
+            The human half of the evaluation. Two raters per sampled item, so
+            agreement between them - and between them and the model judge - is
+            computable rather than assumed.
+          extensionElements:
+            - type: agentic:HumanFeedback
+              rubric: |
+                Score the answer against the same rubric the model judge used.
+              scale: 1-5 Likert
+              raters: 2
+          name: Human rating
+          incoming:
+            - Flow_Sample_Human
+          outgoing:
+            - Flow_Human_Done
+        Item_Done:
+          type: bpmn:EndEvent
+          name: Item scored
+          incoming:
+            - Flow_Sample_Done
+            - Flow_Human_Done
+        Flow_Agent_Check:
+          type: bpmn:SequenceFlow
+          sourceRef: Research_Agent
+          targetRef: Check_Output
+        Flow_Check_Score:
+          type: bpmn:SequenceFlow
+          sourceRef: Check_Output
+          targetRef: Score
+        Flow_Score_Sample:
+          type: bpmn:SequenceFlow
+          sourceRef: Score
+          targetRef: Sample
+        Flow_Sample_Human:
+          type: bpmn:SequenceFlow
+          name: sampled
+          sourceRef: Sample
+          targetRef: Human_Rating
+        Flow_Sample_Done:
+          type: bpmn:SequenceFlow
+          name: not sampled
+          sourceRef: Sample
+          targetRef: Item_Done
+        Flow_Human_Done:
+          type: bpmn:SequenceFlow
+          sourceRef: Human_Rating
+          targetRef: Item_Done
+    Agreement:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: ml:Evaluate
+          metrics:
+            - mean_judge_score
+            - judge_human_agreement
+            - guardrail_block_rate
+          split: holdout
+      name: Score the eval
+      incoming:
+        - Flow_Each_Agreement
+      outgoing:
+        - Flow_Agreement_Done
+      uses: python://lab.eval.summarize
+    Done:
+      type: bpmn:EndEvent
+      name: Eval complete
+      incoming:
+        - Flow_Agreement_Done
+    Flow_Start_Each:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Per_Item
+    Flow_Each_Agreement:
+      type: bpmn:SequenceFlow
+      sourceRef: Per_Item
+      targetRef: Agreement
+    Flow_Agreement_Done:
+      type: bpmn:SequenceFlow
+      sourceRef: Agreement
+      targetRef: Done

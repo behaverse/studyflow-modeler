@@ -75,15 +75,23 @@ export class Session {
 
   private advance(node: FlowNode): string | undefined {
     if (node.outgoing.length === 0) return undefined;
-    if (this.isRandomGateway(node)) return this.pickRandomBranch(node);
+
+    // Model-driven routing needs an LLM call, which the browser runner cannot
+    // make mid-traversal. Refuse it rather than fall through to the condition
+    // arm below, which would silently take the default branch.
+    if (this.branchingMode(node) === 'model') {
+      throw new Error(`Model-driven routing (${node.id}) is not supported yet.`);
+    }
+    if (this.branchingMode(node) === 'random') return this.pickRandomBranch(node);
     if (this.isExclusiveGateway(node)) return this.pickConditionBranch(node) ?? this.pickDefaultBranch(node);
     return this.firstOutgoingTarget(node);
   }
 
-  /** Schema-driven: gateway types declare `meta: {branching: random}`. */
-  private isRandomGateway(node: FlowNode): boolean {
-    if (!node.extensionType) return false;
-    return this.catalog.getType(node.extensionType)?.meta?.branching === 'random';
+  /** Schema-driven: gateway types declare how they pick a branch via `meta: {branching}`. */
+  private branchingMode(node: FlowNode): string | undefined {
+    if (!node.extensionType) return undefined;
+    const mode = this.catalog.getType(node.extensionType)?.meta?.branching;
+    return typeof mode === 'string' ? mode : undefined;
   }
 
   private isExclusiveGateway(node: FlowNode): boolean {

@@ -1,0 +1,184 @@
+---
+title: Execution
+description: The executable semantics of a studyflow - the step contract, the scoped-token model, and the rules that run it
+order: 8
+---
+
+The [Specification](spec.qmd) says what a studyflow *is*. This page says what it *does*: the meaning of each element as an operation an engine performs, precise enough that two independent engines running the same `.studyflow` produce the same run.
+
+The design rests on one observation.
+
+::: {.callout-note appearance="simple" title="The unification"}
+A participant walking through a study, a fold in cross-validation, a point in a hyperparameter sweep, a shard of an HPC array job, and a turn of an agent loop are the same thing: **a token in a scope**.
+
+Studyflow already walks a participant through a graph. Give every activity a *contract* and every token a *scope*, and the same walk runs all five. There is no ML engine and no agent engine — there is one engine, and those are five ways of opening a scope.
+:::
+
+## The step contract
+
+An activity is executable when it answers six questions. Two are already part of the language ([`uses` and `with`](authoring-schemas.qmd)); the `exec` schema adds the rest.
+
+| Question | Carried by |
+| --- | --- |
+| What runs? | `uses` — `python://`, `docker://`, `https://`, `file://` |
+| With what arguments? | `with` — a YAML mapping |
+| Over what interface? | `signature` — typed `in:` and `out:` ports |
+| Where does it run? | `runsOn`, `scheduler`, `compute` |
+| May it be skipped? | `cache`, plus `deterministic` and `seed` |
+| What if it fails? | `retry`, `timeout`, and any attached boundary event |
+
+The contract is a trait on `bpmn:Activity`, so it applies to *every* activity — a cognitive task, a data transform, a model fit, an agent. A `cognitive:CognitiveTask` is a step whose `runsOn` is `browser` and whose implementation is a person. Nothing about it is special-cased.
+
+## Scopes and tokens
+
+A **token** is a triple $\tau = \langle n, \sigma, \beta \rangle$: the node it sits at, the scope it lives in, and its bindings (port name $\rightarrow$ artifact digest).
+
+A **scope** $\sigma = \langle f_1, \dots, f_k \rangle$ is a stack of frames. A frame is a `(kind, key, value)` triple, and the kinds are exactly the ways a run can widen:
+
+| Frame kind | Opened by | One instance per |
+| --- | --- | --- |
+| `participant` | a cohort run | subject |
+| `item` | `exec:ForEach` | element of a collection |
+| `shard` | `exec:ForEach`, `iterate: shards` | shard of the input |
+| `fold` | `iterate: folds` | cross-validation fold |
+| `config` | `exec:Sweep` | point of the sweep space |
+| `turn` | `exec:Repeat`, `agentic:Agent` | iteration of a loop |
+| `retry` | a failed attempt | attempt |
+
+Two tokens in different scopes never join. A binding made in $\sigma$ is visible in $\sigma$ and in every extension $\sigma \cdot f$, and a collector writes back into the parent.
+
+### Seeds are derived, not global
+
+Every random draw in scope $\sigma$ uses $\text{seed}(\sigma) = H(\text{rootSeed} \Vert \sigma)$.
+
+This is the reason scopes are worth having. Fold 3 draws the same shuffle whether or not fold 2 ran; participant `P07` sees the same randomization whether they enrolled first or hundredth; a sweep point is reproducible on its own without re-running the sweep. A single global seed cannot do any of this, because it makes every draw depend on the order of every draw before it.
+
+## Firing rules
+
+A run configuration is $\langle T, A, E, W \rangle$: a multiset of tokens, a content-addressed artifact store, an append-only execution log, and a set of suspended tokens. The log $E$ *is* the run — everything else can be rebuilt from it.
+
+**[Seq]** A token at a non-gateway node with one outgoing flow moves along it, keeping its scope.
+
+**[Branch]** At a gateway, the branch is chosen by the type's `meta.branching`:
+
+- `condition` — evaluate the outgoing `conditionExpression`s in $(\sigma, \beta)$; take the first that holds, else the default. (`exec:Gate`, plain exclusive gateways.)
+- `random` — draw from $\text{seed}(\sigma)$. (`cognitive:RandomGateway`, `cognitive:StratifiedAllocationGateway`.)
+- `model` — a classifier picks. (`agentic:Router`.)
+
+In all three cases the chosen branch is written to $E$. A replay reads the recorded branch; it does not re-draw or re-ask.
+
+**[Fork] / [Join]** A parallel gateway emits one token per outgoing flow in the same scope; the join consumes one token per incoming flow *with equal scope* and merges their bindings. Scope equality is what makes the join safe under fan-out: two tokens from different folds cannot accidentally synchronize.
+
+**[Expand]** An activity carrying a multi-instance marker computes its instance set $I$ from `iterate` — the collection named by `over`, the folds in `folds`, the points of `grid`, the shard count in `compute.array` — and emits one token per $i \in I$ at scope $\sigma \cdot (\textit{kind}, \textit{key}, i)$. With `sequential`, one at a time; otherwise up to `maxConcurrency` at once.
+
+**[Collect]** When every instance reaches the body's end, their outputs are joined per `collect` (`list`, `concat`, `reduce` with `reducer`, or `none`), bound to `collectAs` in the parent scope, and a single token continues.
+
+**[Loop]** An activity carrying a standard-loop marker re-enters its body at scope $\sigma \cdot (\textit{turn}, n, k{+}1)$ while `until` fails to hold and $k <$ `maxTurns`. On exhaustion, `onMaxTurns` decides between falling through and failing. **Always set `maxTurns`** — it is the only guaranteed termination bound in the language.
+
+**[Fire]** A step whose required input ports are all bound computes its cache key
+
+$$\kappa = H\big(\, n.\text{id},\; \text{digest}(\texttt{uses}),\; \texttt{with}{\downarrow}\sigma,\; \{\text{digest}(a) : a \in \text{inputs}\},\; \text{seed}(\sigma) \,\big)$$
+
+and then:
+
+- if `cache: reuse` and $E$ holds a successful execution with key $\kappa$ — **rebind its outputs and skip**;
+- otherwise dispatch to the executor for `runsOn`, append an `Execution` record to $E$, and register the outputs in $A$.
+
+`digest(uses)` is why the [`uses` grammar](authoring-schemas.qmd) carries `@version-or-digest`: `python://pkg.fn@1.2` keys on the version, `docker://img@sha256:…` on the digest, `https://…` on the hash of the fetched script. A step whose code moved is a step whose key moved, so it re-runs. This is `dvc repro` and Flyte caching, obtained from a field the language already had.
+
+**[Suspend] / [Resume]** A dispatch may return a wait handle instead of a result. The token parks in $W$, the run is checkpointed, and **the worker may exit**. An external event carrying the handle resumes it.
+
+This one rule covers a human approval that takes three days, a Slurm job that takes six hours, and a participant who closes the tab and comes back tomorrow. The browser runner has always suspended on every cognitive task while it waits for a person to respond; the only new thing is that a machine step can suspend too.
+
+## Determinism and replay
+
+A step declares whether it is a pure function of its inputs, arguments, and seed. Steps that are not — a human response, an LLM call above temperature 0, a wall-clock read, a model-driven route — set `deterministic: false`, and the engine **records their outcome in $E$ rather than assuming it can re-derive it**.
+
+A run is therefore replayable even though it is not deterministic: a replay reads recorded outcomes instead of re-drawing them. This is event-sourced durable execution, and it is what makes an agentic run debuggable — you can step through what the model actually did, not what it would probably do again.
+
+## Runtime targets
+
+`runsOn` selects an executor; it never changes what a step means. The same `ml:Fit` is the same operation whether it runs in a worker process, a container, or a Slurm array job.
+
+| `runsOn` | Executor |
+| --- | --- |
+| `browser` | the runner tab; React node components |
+| `local` | the worker's own process |
+| `container` | an OCI image named by `uses` |
+| `hpc` | submitted to `scheduler` with `compute`; **suspends** until the job reports |
+| `cloud` | a hosted queue |
+| `human` | **suspends** until a person answers |
+
+`inherit` (the default) resolves against the enclosing sub-process and finally `studyflow:Study#runtime`. Scaling out is a change of `runsOn` and `compute`, not a change of diagram.
+
+## Agents
+
+BPMN defines an **ad-hoc sub-process** as one whose contained activities execute *in an order determined at run time, rather than by the diagram*. That is, in the spec's own words, the distinction between an agent and a workflow. The element has been in BPMN since 2011.
+
+So `agentic:Agent` is a `bpmn:AdHocSubProcess`, and:
+
+- **the tools are the activities drawn inside it** — containment is the tool list;
+- **a tool is an ordinary step** — same `uses`, same signature, same log entry, so anything a studyflow can run, an agent can call;
+- **the turn loop is `exec:Repetition`** — `until` and `maxTurns`, the same construct as any other loop;
+- **`deterministic` is pinned false** — every model call and tool call lands in $E$.
+
+Everything *outside* an Agent follows a path the diagram fixes. Inside one, nothing does. Keeping that boundary visible is the point of drawing it: a reader can see at a glance which parts of a system are steered by a model.
+
+## Signatures
+
+`signature` declares the typed interface:
+
+```yaml
+in:
+  train: Table[features]      # Table conforming to the `features` Schema element
+  baseline: Model?            # optional
+out:
+  model: Model
+  metrics: Metric*            # a list
+```
+
+Types are the primitives (`Int` `Real` `Bool` `Str` `Path` `Uri` `Json` `Any`), the artifact types (`Table` `Dataset` `Array` `Timeseries` `Model` `Metric` `Report` `Prompt` `Document`), `T[schema_id]` pinning a [`studyflow:Schema`](data.qmd) element, `T?`, `T*`, and records. `T[S₁] <: T[S₂]` when `S₁` conforms to `S₂`, checked against the schema bodies.
+
+A port may also bind to a data element on the canvas — `train: {type: Table, from: features_table}` — which is what a data association draws.
+
+The older `inputs`/`outputs` string lists still work; they declare untyped ports.
+
+## Provenance: the as-run record
+
+A `.studyflow` file is a **plan** — `prov:Plan`, precisely. Running it produces a `.studyrun`: the same document, plus what actually happened.
+
+```yaml
+studyflow: sha256:9f2c…          # pins the exact plan
+run: 2026-07-14T09:12:03Z/a41f
+rootSeed: 42
+executions:
+  - key: sha256:1b7e…
+    node: Fit_Point
+    scope: {config: {max_depth: 8, n_estimators: 500}}
+    actor: {id: slurm://cluster/job/88213, type: agent}
+    used: [sha256:c31a…]          # prov:used
+    generated: [sha256:77de…]     # prov:wasGeneratedBy
+    metrics: {roc_auc: 0.83}
+    status: ok
+artifacts:
+  sha256:77de…: {type: Model, uri: s3://models/…, producedBy: sha256:1b7e…}
+```
+
+The mapping to [W3C PROV](https://www.w3.org/TR/prov-o/) is direct: an execution is a `prov:Activity`, an artifact a `prov:Entity`, a `cognitive:Actor` a `prov:Agent`, and the plan is `prov:hadPlan`. The prospective/retrospective distinction the scientific-workflow community formalized decades ago is the one Studyflow already draws between a spec and its data.
+
+Studyflow has done this in miniature all along: [`EndEvent#attritionCount`](elements.qmd) is left empty at registration and written by the runner as participants exit, so the diff between the registered file and the as-run file *is* the CONSORT attrition table. The as-run record generalizes that — the diff between plan and run is the result.
+
+## What the reference runner implements today
+
+The schema describes the full semantics; the browser runner implements the part a browser can. Being explicit about the gap:
+
+| | Status |
+| --- | --- |
+| Sequential walk, exclusive/random branching, condition expressions | implemented |
+| Human suspension (participant tasks) | implemented, on every cognitive task |
+| `uses` / `with` parsed and validated | implemented; **not executed** |
+| Parallel gateway, sub-process traversal | **not supported** — the runner refuses rather than guessing |
+| Model-driven routing (`agentic:Router`) | **not supported** — the runner refuses rather than silently taking the default branch |
+| Scopes, expansion, collection, caching, the as-run record | **not implemented** |
+
+Refusing is deliberate. A runner that silently took the default branch at a `Router` would produce a run that looks fine and means nothing.

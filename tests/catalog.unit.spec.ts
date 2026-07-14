@@ -312,10 +312,15 @@ test.describe('catalog: runner semantics', () => {
     }
   });
 
-  test('plain BPMN gateways do not declare random branching', () => {
+  // Every branching mode a schema declares must be one the Session has an arm
+  // for: `random` picks a seeded branch, `condition` evaluates the outgoing
+  // conditionExpressions, and `model` is refused outright. A mode the Session
+  // has never heard of would fall through to the condition arm and silently
+  // take the default branch, so the set is pinned here.
+  test('gateways only declare branching modes the runner implements', () => {
     for (const entry of catalog.allTypes()) {
       if (entry.meta?.branching === undefined) continue;
-      expect(['random'], `${entry.name} meta.branching`).toContain(entry.meta.branching);
+      expect(['random', 'condition', 'model'], `${entry.name} meta.branching`).toContain(entry.meta.branching);
     }
   });
 });

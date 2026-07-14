@@ -1,0 +1,924 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: Agentic
+prefix: agentic
+description: Studyflow extension for LLM and agent workflows. An Agent is a BPMN ad-hoc sub-process - the element BPMN already defines as "activities whose execution order is decided at run time, not predefined", which is exactly the line between an agent and a workflow. Tools are ordinary steps; routing, human approval, judging, and guardrails are drawn, not buried in code.
+uri: https://w3id.org/studyflow/agentic
+icon: iconify tabler--hexagon-letter-a
+xml:
+  tagAlias: lowerCase
+version: 26.0714
+
+associations: []
+
+enumerations:
+  - name: ProviderEnum
+    isAbstract: true
+    description: Model backend a step calls.
+    literalValues:
+      - name: Anthropic
+        value: anthropic
+      - name: OpenAI
+        value: openai
+      - name: Google
+        value: google
+      - name: Ollama (local)
+        value: ollama
+      - name: vLLM / self-hosted
+        value: vllm
+      - name: Other
+        value: other
+
+  - name: ToolChoiceEnum
+    isAbstract: true
+    description: How freely the model may call the tools available to it.
+    literalValues:
+      - name: Auto
+        value: auto
+        description: The model decides whether and which tool to call.
+      - name: Required
+        value: required
+        description: The model must call a tool on this turn.
+      - name: None
+        value: none
+        description: Tools are visible but may not be called.
+
+  - name: ToolKindEnum
+    isAbstract: true
+    description: What kind of capability a tool exposes.
+    literalValues:
+      - name: Function call
+        value: function
+      - name: Retrieval
+        value: retrieval
+      - name: Code execution
+        value: code
+      - name: Web search
+        value: search
+      - name: MCP server
+        value: mcp
+      - name: Ask a human
+        value: human
+        description: A tool whose implementation is a person. Suspends the run until they answer.
+      - name: Sub-flow
+        value: subflow
+        description: A tool whose implementation is another studyflow.
+
+  - name: GuardrailStageEnum
+    isAbstract: true
+    description: Whether a guardrail inspects what goes in or what comes out.
+    literalValues:
+      - name: Input
+        value: input
+      - name: Output
+        value: output
+
+  - name: GuardrailActionEnum
+    isAbstract: true
+    description: What a guardrail does when it trips.
+    literalValues:
+      - name: Block
+        value: block
+      - name: Redact
+        value: redact
+      - name: Warn and continue
+        value: warn
+      - name: Escalate to a human
+        value: escalate
+
+  - name: MemoryScopeEnum
+    isAbstract: true
+    description: |
+      How long a memory store lives. The scope kinds match the engine's scope
+      frames, so an agent's memory can be per-turn, per-run, or per-participant
+      without any extra machinery.
+    literalValues:
+      - name: Turn
+        value: turn
+      - name: Run
+        value: run
+      - name: Participant
+        value: participant
+      - name: Global
+        value: global
+
+  - name: OnTimeoutEnum
+    isAbstract: true
+    description: What happens when a human does not respond in time.
+    literalValues:
+      - name: Keep waiting
+        value: wait
+      - name: Approve by default
+        value: approve
+      - name: Reject by default
+        value: reject
+      - name: Escalate
+        value: escalate
+
+types:
+
+  # ===========================================================================
+  # The agent. BPMN's ad-hoc sub-process already means "the activities inside
+  # execute in an order determined at run time, not by the diagram". That is
+  # the definition of an agent, and it has been in the BPMN spec since 2011.
+  # So an Agent is not a new shape: it is that shape, with a model attached.
+  # The tools an agent may call are the activities drawn inside it.
+  # ===========================================================================
+  - name: Agent
+    description: |
+      A model-driven sub-process: the model chooses which contained activity to
+      call next, and in what order, until `until` holds or `maxTurns` is spent.
+      Draw the tools inside it - containment is the tool list.
+
+      This is the one element whose control flow is *not* given by the diagram.
+      Everything else in a studyflow follows a predefined path; an Agent does
+      not. Keeping that distinction visible is the point: a reader can see at a
+      glance which parts of a system are steered by a model and which are not.
+    superClass:
+      - bpmn:AdHocSubProcess
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--robot-outline
+      bpmnType: bpmn:AdHocSubProcess
+    properties:
+      - name: model
+        description: Model identifier (e.g. `claude-opus-4-8`, `gpt-5`, `llama-4-70b`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Agent
+      - name: provider
+        description: Backend the model is called through.
+        isAttr: true
+        type: ProviderEnum
+        default: anthropic
+        meta:
+          order: 2
+          categories:
+            - Agent
+      - name: systemPrompt
+        description: The agent's standing instructions, in markdown.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 3
+          categories:
+            - Agent
+          editor: markdown
+      - name: toolChoice
+        description: How freely the agent may call the tools drawn inside it.
+        isAttr: true
+        type: ToolChoiceEnum
+        default: auto
+        meta:
+          order: 4
+          categories:
+            - Agent
+      - name: tools
+        description: |
+          Tools available to the agent that are *not* drawn inside it - an MCP
+          server, a registry entry (e.g. `mcp://github`, `python://lab.tools.search`).
+          Prefer drawing tools on the canvas: an undrawn tool is an undocumented one.
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 5
+          categories:
+            - Agent
+      - name: temperature
+        description: |
+          Sampling temperature. Anything above 0 makes the agent non-deterministic,
+          so its choices are recorded in the run log and replayed from there rather
+          than re-drawn.
+        isAttr: true
+        type: Real
+        default: 1
+        meta:
+          order: 6
+          categories:
+            - Agent
+      - name: outputSchema
+        description: |
+          Id of a `studyflow:Schema` element the agent's final answer must conform
+          to. Turns a free-text answer into a typed artifact a downstream step can
+          consume.
+        isAttr: true
+        type: String
+        meta:
+          order: 7
+          categories:
+            - Agent
+          optional: true
+      - name: memory
+        description: Id of a `Memory` element the agent reads and writes across turns.
+        isAttr: true
+        type: String
+        meta:
+          order: 8
+          categories:
+            - Agent
+          optional: true
+      - name: deterministic
+        description: |
+          An agent chooses its own path, so it is never a pure function of its
+          inputs. Pinned false - the engine records each decision and replays it.
+        isAttr: true
+        type: Boolean
+        default: false
+        redefines: exec:Step#deterministic
+        meta:
+          pinned: true
+
+  - name: LLMCall
+    description: |
+      One model call: a prompt in, a response out. The unit that prompt-chaining
+      workflows are built from. Deterministic when `temperature` is 0 and a seed
+      is set; otherwise the response is recorded and replayed.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--message-processing-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: model
+        description: Model identifier.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Model call
+      - name: provider
+        description: Backend the model is called through.
+        isAttr: true
+        type: ProviderEnum
+        default: anthropic
+        meta:
+          order: 2
+          categories:
+            - Model call
+      - name: prompt
+        description: |
+          The prompt, in markdown. `{{name}}` placeholders are filled from the
+          step's input ports and the scope's bindings. Point `promptRef` at a
+          versioned `Prompt` artifact instead when the wording is itself under study.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 3
+          categories:
+            - Model call
+          editor: markdown
+      - name: promptRef
+        description: Id of a `Prompt` element to use instead of the inline `prompt`.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Model call
+          optional: true
+      - name: temperature
+        description: Sampling temperature. Set 0 for a reproducible call.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 5
+          categories:
+            - Model call
+      - name: maxTokens
+        description: Ceiling on the response length.
+        isAttr: true
+        type: Integer
+        meta:
+          order: 6
+          categories:
+            - Model call
+          optional: true
+      - name: outputSchema
+        description: Id of a `studyflow:Schema` element the response must conform to.
+        isAttr: true
+        type: String
+        meta:
+          order: 7
+          categories:
+            - Model call
+          optional: true
+
+  - name: Tool
+    description: |
+      A capability an agent may call. A tool is an ordinary step - it has the same
+      `uses`, `with`, and typed signature as any other activity - so anything a
+      studyflow can run, an agent can call, and every tool call lands in the run
+      log as its own execution.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--tools
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: kind
+        description: What kind of capability this exposes.
+        isAttr: true
+        type: ToolKindEnum
+        default: function
+        meta:
+          order: 1
+          categories:
+            - Tool
+      - name: purpose
+        description: |
+          What the tool does and when to use it, in the words the model will read.
+          This is the tool description the model sees - write it for the model, not
+          for the reviewer.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+          categories:
+            - Tool
+      - name: sideEffects
+        description: |
+          Whether calling this tool changes the world (sends a message, writes a
+          file, spends money). Side-effecting tools are never replayed from cache
+          and are the ones worth gating behind a `HumanApproval`.
+        isAttr: true
+        type: Boolean
+        default: false
+        meta:
+          order: 3
+          categories:
+            - Tool
+
+  - name: Retriever
+    description: |
+      Fetch context for a model call. Retrieval-augmented generation is the most
+      common compound-AI pattern by a wide margin, so it gets an element rather
+      than living inside a prompt.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--text-search
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: index
+        description: Index or collection searched (a vector store, a dataset id, a URL).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Retrieval
+      - name: topK
+        description: Number of passages returned.
+        isAttr: true
+        type: Integer
+        default: 5
+        meta:
+          order: 2
+          categories:
+            - Retrieval
+      - name: embeddingModel
+        description: Model used to embed the query. Changing it invalidates the cache - hence recording it.
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Retrieval
+      - name: reranker
+        description: Optional reranking model applied to the retrieved passages.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Retrieval
+          optional: true
+
+  - name: Router
+    description: |
+      A branch the model decides. Everything about it is an ordinary exclusive
+      gateway except who picks the branch: a classifier decides, and its choice
+      and stated reason are written to the run log, so a routing decision can be
+      audited after the fact.
+    superClass:
+      - bpmn:ExclusiveGateway
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--sign-direction
+      bpmnType: bpmn:ExclusiveGateway
+      # Read by the engine's branch selector, alongside `random` (RandomGateway)
+      # and `condition` (Gate). The chosen branch is recorded, never re-drawn.
+      branching: model
+    properties:
+      - name: model
+        description: Model that classifies the input and picks a branch.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Routing
+      - name: provider
+        isAttr: true
+        description: Backend the classifier is called through.
+        type: ProviderEnum
+        default: anthropic
+        meta:
+          order: 2
+          categories:
+            - Routing
+      - name: instructions
+        description: |
+          How to choose, in markdown. The branch names are the outgoing sequence
+          flows' labels, so the diagram and the classifier's options cannot drift apart.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 3
+          categories:
+            - Routing
+          editor: markdown
+      - name: fallback
+        description: Label of the branch taken when the classifier is unsure or fails.
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          categories:
+            - Routing
+
+  - name: Judge
+    description: |
+      Score an output against a rubric, producing a `ml:Metric`. Used on its own
+      to evaluate a model, and inside a `exec:Repeat` to close the
+      evaluator-optimizer loop: generate, judge, revise until the score clears
+      the bar.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--gavel
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: rubric
+        description: The criteria to score against, in markdown. Shown to the judge model verbatim.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+          categories:
+            - Judging
+          editor: markdown
+      - name: model
+        description: |
+          Judge model. Name it explicitly: a judge is part of the measuring
+          instrument, and swapping it changes the numbers.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Judging
+      - name: provider
+        isAttr: true
+        description: Backend the judge is called through.
+        type: ProviderEnum
+        default: anthropic
+        meta:
+          order: 3
+          categories:
+            - Judging
+      - name: scale
+        description: Range of the score (e.g. `1-5`, `0-1`, `pass/fail`).
+        isAttr: true
+        type: String
+        default: 1-5
+        meta:
+          order: 4
+          categories:
+            - Judging
+      - name: jurors
+        description: |
+          Number of independent judgements to take. Above 1, the score is the
+          majority or mean - the standard defence against a single judge's noise.
+        isAttr: true
+        type: Integer
+        default: 1
+        meta:
+          order: 5
+          categories:
+            - Judging
+
+  - name: Guardrail
+    description: |
+      A check on what enters or leaves a model call. Drawing it makes the safety
+      policy reviewable, and makes it obvious when there isn't one.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--shield-check-outline
+      bpmnType: bpmn:ServiceTask
+    properties:
+      - name: phase
+        description: Whether this inspects the input to a model call or its output.
+        isAttr: true
+        type: GuardrailStageEnum
+        default: output
+        meta:
+          order: 1
+          categories:
+            - Guardrail
+      - name: policy
+        description: What is being checked (e.g. `no PII`, `no tool call outside the allow-list`, `groundedness`).
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+          categories:
+            - Guardrail
+      - name: action
+        description: What happens when the check trips.
+        isAttr: true
+        type: GuardrailActionEnum
+        default: block
+        meta:
+          order: 3
+          categories:
+            - Guardrail
+
+  - name: HumanApproval
+    description: |
+      Stop and wait for a person to approve, reject, or edit before continuing.
+      The engine suspends the run here and checkpoints it - the process may exit
+      and resume days later on the reviewer's answer.
+
+      Studyflow has always had human-in-the-loop steps: a participant doing a
+      cognitive task *is* one. This is the same suspension, with a reviewer
+      instead of a subject.
+    superClass:
+      - bpmn:UserTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--account-check-outline
+      bpmnType: bpmn:UserTask
+    properties:
+      - name: runsOn
+        description: Approval is by definition a human step.
+        isAttr: true
+        type: exec:RuntimeTargetEnum
+        default: human
+        redefines: exec:Step#runsOn
+        meta:
+          pinned: true
+      - name: question
+        description: What the reviewer is being asked, in markdown. Shown with the artifact under review.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+          categories:
+            - Approval
+          editor: markdown
+      - name: approvers
+        description: Who may answer (a role, a list of people, a group).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Approval
+      - name: allowEdit
+        description: Let the reviewer amend the artifact rather than only accept or reject it.
+        isAttr: true
+        type: Boolean
+        default: true
+        meta:
+          order: 3
+          categories:
+            - Approval
+      - name: onTimeout
+        description: |
+          What happens when nobody answers within `exec:timeout`. Defaulting to
+          `approve` is almost always the wrong choice; it is offered so that
+          choosing it is explicit rather than accidental.
+        isAttr: true
+        type: OnTimeoutEnum
+        default: wait
+        meta:
+          order: 4
+          categories:
+            - Approval
+
+  - name: HumanFeedback
+    description: |
+      Collect a judgement from a person - a label, a preference between two
+      outputs, a rating against a rubric. The data-collection step behind
+      evaluation sets and preference tuning; it is the same element as a
+      `cognitive:Questionnaire`, pointed at a model's output instead of a stimulus.
+    superClass:
+      - bpmn:UserTask
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--comment-quote-outline
+      bpmnType: bpmn:UserTask
+    properties:
+      - name: runsOn
+        isAttr: true
+        description: Feedback is by definition a human step.
+        type: exec:RuntimeTargetEnum
+        default: human
+        redefines: exec:Step#runsOn
+        meta:
+          pinned: true
+      - name: rubric
+        description: What the rater is asked to judge, in markdown.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+          categories:
+            - Feedback
+          editor: markdown
+      - name: scale
+        description: Response format (e.g. `1-7 Likert`, `A/B preference`, `free text`).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Feedback
+      - name: raters
+        description: How many independent raters see each item. Above 1, agreement is computable.
+        isAttr: true
+        type: Integer
+        default: 1
+        meta:
+          order: 3
+          categories:
+            - Feedback
+
+  # ===========================================================================
+  # Artifacts.
+  # ===========================================================================
+  - name: Prompt
+    description: |
+      A prompt as a versioned artifact rather than a string in a script. Prompts
+      are the hyperparameters of an LLM system: if the wording is not versioned,
+      "the same pipeline" is not the same pipeline. Carries `digest` and `version`
+      from the `exec:Artifact` trait like any other artifact.
+    superClass:
+      - bpmn:DataObjectReference
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--text-box-outline
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: template
+        description: The prompt text, in markdown, with `{{name}}` placeholders.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+          categories:
+            - Prompt
+          editor: markdown
+      - name: variables
+        description: Placeholders the template expects, and their types, as a YAML mapping.
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 2
+          categories:
+            - Prompt
+          editor: yaml
+      - name: optimizedBy
+        description: |
+          Set when the prompt was produced by an optimizer rather than written by
+          hand (e.g. `dspy://BootstrapFewShot`), naming what compiled it. A prompt
+          nobody wrote still has a provenance.
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Provenance
+          optional: true
+
+  - name: Memory
+    description: |
+      State an agent carries across turns - conversation history, scratchpad,
+      retrieved facts. `scope` says how long it lives, using the same scope frames
+      the engine already tracks, so per-participant memory in a study and
+      per-run memory in a pipeline are one mechanism.
+    superClass:
+      - bpmn:DataStoreReference
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--memory
+      bpmnType: bpmn:DataStoreReference
+    properties:
+      - name: scope
+        description: How long the memory lives.
+        isAttr: true
+        type: MemoryScopeEnum
+        default: run
+        meta:
+          order: 1
+          categories:
+            - Memory
+      - name: backend
+        description: Where it is kept (e.g. `in-process`, `redis://`, a checkpointer).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Memory
+      - name: maxItems
+        description: Cap on retained items; older ones are summarized or dropped.
+        isAttr: true
+        type: Integer
+        meta:
+          order: 3
+          categories:
+            - Memory
+          optional: true
+
+templates:
+
+  - description: An autonomous agent with tools - the model decides what to call and when.
+    object:
+      bpmn:name: Agent (tool loop)
+      type: Agent
+      bpmn:documentation: |
+        An ad-hoc sub-process: the model chooses which of the contained tools to
+        call on each turn, until it decides it is done or the turn budget runs
+        out. Contrast with the workflow templates, where the diagram decides the
+        order and the model only fills in the steps.
+
+        Add tools by drawing them inside. The side-effecting ones belong behind a
+        Human approval.
+      icon: iconify mdi--robot-outline
+      keywords:
+        - agent
+        - autonomous
+        - tools
+        - loop
+        - adhoc
+      model: claude-opus-4-8
+      provider: anthropic
+      systemPrompt: |
+        You are a research assistant. Use the available tools to answer the
+        question. Stop as soon as you can answer it.
+      toolChoice: auto
+      maxTurns: 12
+      until: answer is not null
+      flowElements:
+        - id: agent_search
+          type: Retriever
+          bpmn:name: Search corpus
+          index: study_corpus
+          topK: 5
+          x: 200
+          y: 120
+        - id: agent_analyze
+          type: Tool
+          bpmn:name: Run analysis
+          kind: code
+          uses: python://lab.tools.analyze
+          x: 200
+          y: 230
+
+  - description: Evaluator-optimizer - generate, judge, revise until the score clears the bar.
+    object:
+      bpmn:name: Evaluator-optimizer
+      type: exec:Repeat
+      bpmn:documentation: |
+        The loop a plain DAG cannot express: a generator produces a draft, a judge
+        scores it against a rubric, and the loop re-enters with the critique until
+        the score clears the bar or the turn budget is spent. Each turn opens its
+        own scope frame, so every draft and every score is separately recorded.
+      icon: iconify mdi--autorenew
+      keywords:
+        - evaluator
+        - optimizer
+        - critique
+        - refine
+        - loop
+      until: score >= 4
+      maxTurns: 4
+      onMaxTurns: stop
+      flowElements:
+        - id: eo_generate
+          type: LLMCall
+          bpmn:name: Draft
+          model: claude-opus-4-8
+          temperature: 0.7
+          x: 200
+          y: 140
+        - id: eo_judge
+          type: Judge
+          bpmn:name: Score against rubric
+          model: claude-opus-4-8
+          scale: 1-5
+          jurors: 3
+          x: 380
+          y: 140
+        - type: bpmn:SequenceFlow
+          sourceRef: eo_generate
+          targetRef: eo_judge
+
+  - description: Model-decided routing - a classifier picks the branch, and its reason is logged.
+    object:
+      bpmn:name: Route by intent
+      type: Router
+      bpmn:documentation: |
+        The classifier's options are the outgoing branch labels, so the diagram and
+        the prompt cannot drift apart. The chosen branch and the stated reason go
+        into the run log; a replay takes the recorded branch rather than asking again.
+      icon: iconify mdi--sign-direction
+      keywords:
+        - router
+        - routing
+        - classify
+        - dispatch
+        - handoff
+      model: claude-haiku-4-5
+      instructions: |
+        Read the request and route it to exactly one branch, using the branch
+        labels on the outgoing flows. If none clearly applies, take the fallback.
+      fallback: escalate
+
+  - description: Human approval gate - stop, show the artifact, wait for a person.
+    object:
+      bpmn:name: Human approval
+      type: HumanApproval
+      bpmn:documentation: |
+        Suspends the run and checkpoints it. The worker may exit; the run resumes
+        when the reviewer answers, hours or days later. Put one of these in front
+        of every side-effecting tool call you would not want a model to make alone.
+      icon: iconify mdi--account-check-outline
+      keywords:
+        - approval
+        - human
+        - hitl
+        - review
+        - interrupt
+      question: |
+        Review the proposed action and approve, edit, or reject it.
+      allowEdit: true
+      timeout: 48h
+      onTimeout: wait
+
+  - description: Prompt chain with a quality gate between the steps.
+    object:
+      bpmn:name: Prompt chain
+      type: exec:Block
+      bpmn:documentation: |
+        The simplest compound pattern: decompose the task into fixed steps and
+        check the intermediate result before spending the next call on it. The
+        diagram decides the order - this is a workflow, not an agent.
+      icon: iconify mdi--link-variant
+      keywords:
+        - chain
+        - prompt
+        - sequential
+        - workflow
+      flowElements:
+        - id: chain_a
+          type: LLMCall
+          bpmn:name: Extract
+          model: claude-haiku-4-5
+          temperature: 0
+          x: 180
+          y: 140
+        - id: chain_gate
+          type: exec:Gate
+          bpmn:name: Complete?
+          criterion: extracted.fields_missing == 0
+          x: 340
+          y: 145
+        - id: chain_b
+          type: LLMCall
+          bpmn:name: Summarize
+          model: claude-opus-4-8
+          temperature: 0
+          x: 460
+          y: 140
+        - type: bpmn:SequenceFlow
+          sourceRef: chain_a
+          targetRef: chain_gate
+        - type: bpmn:SequenceFlow
+          sourceRef: chain_gate
+          targetRef: chain_b
