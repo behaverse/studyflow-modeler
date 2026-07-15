@@ -13,8 +13,6 @@ enumerations:
   - name: BehaverseSceneEnum
     isAbstract: true
     literalValues:
-      - name: Undefined
-        value: undefined
       - name: Belval Card Sorting (BCS)
         value: BCS
       - name: Belval Matrices (BM)
@@ -73,7 +71,7 @@ types:
     description: |
       Wrapper element carrying the bot configuration YAML body. Subclasses
       `cognitive:Configurations` purely so moddle serializes it under a distinct
-      element name (`<behaverse:botConfigurations>`) — without this, both the
+      element name (`<behaverse:botConfigurations>`) - without this, both the
       task `configurations` and `botConfigurations` properties would come out as
       `<cognitive:configurations>` siblings and the next load couldn't tell them
       apart.
@@ -109,9 +107,9 @@ types:
           Behaverse scene that delivers this task (e.g., `NB`, `UFOV`, `DS`). Maps to a task ID in the Behaverse at runtime.
         isAttr: true
         type: BehaverseSceneEnum
-        default: undefined
         meta:
           order: 1
+          editable: true
           categories:
             - Behaverse
       - name: configurations

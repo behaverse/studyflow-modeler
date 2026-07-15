@@ -26,8 +26,6 @@ enumerations:
         icon: iconify uil--flask
       - name: Kedro
         value: kedro
-      - name: Undefined
-        value: undefined
   - name: BDMDataLevelEnum
     isAbstract: true
     description: BDM level of the data (events, trials, models).
@@ -82,8 +80,6 @@ enumerations:
         value: arrow
       - name: JSON Lines
         value: jsonl
-      - name: Undefined
-        value: undefined
   - name: TimeseriesFormatEnum
     isAbstract: true
     description: On-disk format of a time-series recording.
@@ -100,8 +96,6 @@ enumerations:
         value: parquet
       - name: Zarr
         value: zarr
-      - name: Undefined
-        value: undefined
   - name: CompletionCodeTypeEnum
     isAbstract: true
     description: How the completion code is generated when the study ends.
@@ -147,8 +141,6 @@ enumerations:
         value: exponential
       - name: Poisson
         value: poisson
-      - name: Undefined
-        value: undefined
 types:
   - name: MarkdownString
     description: A string that contains markdown formatting
@@ -516,7 +508,6 @@ types:
         description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
         isAttr: true
         type: DatasetFormatEnum
-        default: undefined
         meta:
           categories:
             - Data
@@ -648,7 +639,6 @@ types:
         description: On-disk format of the time-series file (edf, bdf, fif, set, parquet, zarr).
         isAttr: true
         type: TimeseriesFormatEnum
-        default: undefined
         meta:
           categories:
             - Data

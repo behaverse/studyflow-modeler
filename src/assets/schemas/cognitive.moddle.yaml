@@ -50,8 +50,6 @@ enumerations:
         value: dass-21
       - name: PANAS
         value: panas
-      - name: Other
-        value: other
   - name: ActorTypeEnum
     isAbstract: true
     description: |
@@ -164,19 +162,19 @@ types:
         meta:
           pinned: true
   - name: Instruction
-    description: A passive information display.
+    description: |
+      A passive information display shown to the participant (e.g., task
+      instructions, a briefing or debrief screen). Not a questionnaire and not a
+      data operation - just content to read before continuing.
     superClass:
-      - cognitive:Questionnaire
+      - bpmn:Task
+      - bpmn:BaseElement
     meta:
       icon: iconify material-symbols--info-outline-rounded
+      bpmnType: bpmn:Task
       categories:
         - Activities
     properties:
-      - name: instrument
-        redefines: cognitive:Questionnaire#instrument
-        isAttr: true
-        type: String
-        default: instruction
       - name: content
         description: Instruction content in markdown format.
         isAttr: true
@@ -184,6 +182,14 @@ types:
         meta:
           categories:
             - Content
+      - name: isDataOperation
+        description: Instruction is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
+        isAttr: true
+        type: Boolean
+        default: false
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
   - name: RandomGateway
     description: |
       Randomly assigns participants to one of the outgoing branches according
@@ -331,10 +337,13 @@ types:
         meta:
           categories:
             - Actor
-      - name: model
+      - name: spec
         description: |
-          Model identifier when actorType is llm (e.g., `gpt-4`, `claude-opus-4-7`,
-          `gemini-2.5-pro`). Free text so any provider can be named.
+          Identifier of the non-human actor: a model id when actorType is `llm`
+          (e.g., `gpt-4`, `claude-opus-4-8`, `gemini-2.5-pro`), a software-agent
+          specification when `agent` (e.g., a CogEnv profile, a checkpoint hash),
+          or an instrument/device id when `instrument` (e.g., an LSL stream name,
+          a device serial). Free text so any provider or device can be named.
         isAttr: true
         type: String
         meta:
@@ -343,7 +352,10 @@ types:
           condition:
             language: json
             body:
-              actorType: llm
+              actorType:
+                - llm
+                - agent
+                - instrument
       - name: promptTemplate
         description: |
           Optional prompt template applied to the LLM actor each turn. Use
@@ -358,32 +370,6 @@ types:
             language: json
             body:
               actorType: llm
-      - name: agentSpec
-        description: |
-          Optional URI or identifier of a software-agent specification when
-          actorType is agent (e.g., a CogEnv profile, a checkpoint hash).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Actor
-          condition:
-            language: json
-            body:
-              actorType: agent
-      - name: instrumentSpec
-        description: |
-          Optional identifier of an instrument or recording device when
-          actorType is instrument (e.g., an LSL stream name, a device serial).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Actor
-          condition:
-            language: json
-            body:
-              actorType: instrument
 
 templates:
   # A video game paradigm is not its own element type - it is a CognitiveTask

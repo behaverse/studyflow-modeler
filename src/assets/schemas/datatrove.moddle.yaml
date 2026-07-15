@@ -172,14 +172,10 @@ types:
         meta:
           categories:
             - DataTrove
-  - name: DataFolder
-    description: A folder that contains multiple Documents. It can represent a dataset or a collection of data.
-    superClass:
-      - bpmn:DataObjectReference
-      - bpmn:BaseElement
-    meta:
-      icon: iconify fluent--folder-open-24-regular
-      bpmnType: bpmn:DataObjectReference
+  # (There is no DataFolder type: a collection of Documents is BPMN's own
+  # `bpmn:DataObjectReference` with `isCollection: true` - the native collection
+  # marker (the parallel-bars glyph) - not a zero-property subclass that only
+  # renamed the native element.)
   # ---------------------------------------------------------------------------
   # DataTrove read/write/corpus blocks.
   # ---------------------------------------------------------------------------
