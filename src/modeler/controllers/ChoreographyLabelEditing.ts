@@ -1,5 +1,6 @@
 import LabelEditingProvider from 'bpmn-js/lib/features/label-editing/LabelEditingProvider';
-import { getAttribute, setAttribute } from '@/core/extensions';
+import { readChoreographyBands } from '@/core/codec/choreography';
+import { ensureChoreographyParticipants } from '@/modeler/models/choreographyParticipants';
 import { choreographyBandHeight, isChoreographyTask } from '@/modeler/models/render/choreography';
 
 /** Runs before bpmn-js's own dblclick handler so the band is known on activate. */
@@ -14,12 +15,14 @@ const FONT_FAMILY = '"IBM Plex Sans", Helvetica, sans-serif';
 
 /**
  * Extends bpmn-js label editing so choreography tasks are editable in place.
- * Double-clicking a participant band edits `topParticipant` /
- * `bottomParticipant`; double-clicking the middle edits the task name. All
- * three regions need custom bounds: `bpmn:ChoreographyTask` is not a
- * `bpmn:Task`, so the stock provider would otherwise create a zero-size
- * editing box. Bound as `labelEditingProvider`, this replaces the stock
- * provider and delegates every non-choreography case to it via `super`.
+ * Double-clicking a participant band edits the name of the referenced
+ * `bpmn:Participant` (BPMN's own `participantRef`, top band first); the middle
+ * edits the task name. A task that has no participants yet gets two default
+ * ones materialized as root elements on first edit. All three regions need
+ * custom bounds: `bpmn:ChoreographyTask` is not a `bpmn:Task`, so the stock
+ * provider would otherwise create a zero-size editing box. Bound as
+ * `labelEditingProvider`, this replaces the stock provider and delegates every
+ * non-choreography case to it via `super`.
  */
 export default class ChoreographyLabelEditing extends LabelEditingProvider {
   static $inject = [
@@ -29,6 +32,7 @@ export default class ChoreographyLabelEditing extends LabelEditingProvider {
 
   private choreoCanvas: any;
   private choreoModeling: any;
+  private choreoBpmnFactory: any;
   /** Band of the in-flight editing session; consumed by `update`. */
   private activeBand: Band | undefined;
 
@@ -39,6 +43,7 @@ export default class ChoreographyLabelEditing extends LabelEditingProvider {
     super(eventBus, bpmnFactory, canvas, directEditing, modeling, resizeHandles, textRenderer);
     this.choreoCanvas = canvas;
     this.choreoModeling = modeling;
+    this.choreoBpmnFactory = bpmnFactory;
 
     eventBus.on('element.dblclick', BAND_STAMP_PRIORITY, (event: any) => {
       const element = event.element as ChoreoShape | undefined;
@@ -63,11 +68,6 @@ export default class ChoreographyLabelEditing extends LabelEditingProvider {
     return 'name';
   }
 
-  private static attrFor(band: Band): 'topParticipant' | 'bottomParticipant' | null {
-    if (band === 'top') return 'topParticipant';
-    if (band === 'bottom') return 'bottomParticipant';
-    return null;
-  }
 
   /** Screen-space bounds of one editing region of a choreography task. */
   private regionBounds(element: any, band: Band) {
@@ -101,21 +101,23 @@ export default class ChoreographyLabelEditing extends LabelEditingProvider {
     delete element._choreoBand;
     this.activeBand = band;
 
-    const attr = ChoreographyLabelEditing.attrFor(band);
-    const text = attr ? (getAttribute(element, attr) ?? '') : (element.businessObject?.name ?? '');
+    const bands = readChoreographyBands(element.businessObject);
+    const text = band === 'top' ? bands.top
+      : band === 'bottom' ? bands.bottom
+      : (element.businessObject?.name ?? '');
     const { bounds, style } = this.regionBounds(element, band);
     return { text, bounds, style, options: { centerVertically: true } };
   }
 
   update(element: any, newLabel: any, activeContextText: any, bounds: any): void {
-    const attr = isChoreographyTask(element) && this.activeBand
-      ? ChoreographyLabelEditing.attrFor(this.activeBand)
-      : null;
+    const band = isChoreographyTask(element) ? this.activeBand : undefined;
     this.activeBand = undefined;
 
-    if (attr) {
+    if (band === 'top' || band === 'bottom') {
       const value = typeof newLabel === 'string' ? newLabel.trim() : '';
-      setAttribute(element, attr, value, this.choreoModeling);
+      const [top, bottom] = ensureChoreographyParticipants(element, this.choreoModeling, this.choreoBpmnFactory);
+      const participant = band === 'top' ? top : bottom;
+      this.choreoModeling.updateModdleProperties(element, participant, { name: value });
       return;
     }
     // The name band (and every non-choreography element) keeps the stock

@@ -106,15 +106,22 @@ fn: median</studyflow:with>
   </studyflow:study>
 </bpmn2:definitions>`;
 
+/** Native canvas form: the task carries participantRef into a headless collaboration. */
 const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-choreography" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:collaboration id="Participants_1">
+    <bpmn2:participant id="P_Subject" name="Subject" />
+    <bpmn2:participant id="P_Experimenter" name="Experimenter" />
+  </bpmn2:collaboration>
   <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <bpmn2:choreographyTask id="Choreo_1" name="First decision round" studyflow:topParticipant="Subject" studyflow:bottomParticipant="Experimenter" studyflow:initiator="bottom">
+    <bpmn2:choreographyTask id="Choreo_1" name="First decision round" initiatingParticipantRef="P_Experimenter">
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
+      <bpmn2:participantRef>P_Subject</bpmn2:participantRef>
+      <bpmn2:participantRef>P_Experimenter</bpmn2:participantRef>
     </bpmn2:choreographyTask>
     <bpmn2:endEvent id="EndEvent_1">
       <bpmn2:incoming>F2</bpmn2:incoming>
@@ -273,7 +280,7 @@ test.describe('Studyflow runtime nodes', () => {
     const participants = page.getByTestId('choreography-participants');
     await expect(participants).toContainText('Subject');
     await expect(participants).toContainText('Experimenter');
-    // initiator="bottom" -> the Experimenter row carries the initiates badge.
+    // initiatingParticipantRef -> the Experimenter row carries the initiates badge.
     await expect(participants.getByText('initiates')).toHaveCount(1);
     await expect(
       participants.locator('div', { hasText: 'Experimenter' }).getByText('initiates'),

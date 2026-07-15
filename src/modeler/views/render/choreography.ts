@@ -1,6 +1,6 @@
 import { getFillColor, getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
-import { getAttribute } from '@/core/extensions';
+import { readChoreographyBands } from '@/core/codec/choreography';
 import { CORNER_RADIUS, bandPath, choreographyBandHeight, fit, wrap } from '@/modeler/models/render/choreography';
 import type { Styles } from '@/modeler/infra/bpmn-js.d';
 
@@ -48,9 +48,7 @@ export function drawChoreographyTask(
   const stroke = getStrokeColor(element);
   const fill = getFillColor(element);
 
-  const initiator = getAttribute(element, 'initiator') || 'top';
-  const topName = getAttribute(element, 'topParticipant') || 'Participant A';
-  const bottomName = getAttribute(element, 'bottomParticipant') || 'Participant B';
+  const { top: topName, bottom: bottomName, initiator } = readChoreographyBands(element.businessObject);
   const name = element.businessObject?.name || '';
 
   const outerStyle = styles.computeStyle({}, {

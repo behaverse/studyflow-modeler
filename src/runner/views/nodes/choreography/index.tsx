@@ -1,7 +1,7 @@
 import type { FlowNode } from '@/runner/models/flow';
 import type { NodeProps } from '@/runner/models/nodes/types';
 import { NodePanel } from '@/runner/views/nodes/NodePanel';
-import { readString } from '@/runner/models/nodes/readAttribute';
+import { readChoreographyBands } from '@/core/codec/choreography';
 import { nodeStyles } from '@/runner/infra/nodes/styles';
 import { registerNode } from '@/runner/controllers/nodes/registry';
 
@@ -61,12 +61,9 @@ function Choreography({ job, complete }: NodeProps<ChoreographyJob>) {
 registerNode({
   type: 'choreography',
   match: { bpmnType: 'bpmn:ChoreographyTask' },
-  toJob: (node) => ({
-    type: 'choreography',
-    node,
-    topParticipant: readString(node, 'topParticipant') ?? 'Participant A',
-    bottomParticipant: readString(node, 'bottomParticipant') ?? 'Participant B',
-    initiator: readString(node, 'initiator') ?? 'top',
-  }),
+  toJob: (node) => {
+    const { top, bottom, initiator } = readChoreographyBands(node.businessObject);
+    return { type: 'choreography', node, topParticipant: top, bottomParticipant: bottom, initiator };
+  },
   Component: Choreography,
 });

@@ -53,15 +53,15 @@ test.describe('Inspector loop tab', () => {
     await expect(canvas.locator(PARALLEL_MARKER)).toHaveCount(0);
 
     // Undo (one step per edit): sequential -> parallel, then back to standard.
+    // The empty-canvas click moves focus off the inspector inputs so the undo
+    // keys reach the modeler; the selection (and inspector) stay on the task.
     await canvas.click({ position: { x: 60, y: 60 } });
     await page.keyboard.press('ControlOrMeta+z');
     await expect(canvas.locator(PARALLEL_MARKER)).toHaveCount(1);
     await page.keyboard.press('ControlOrMeta+z');
     await expect(canvas.locator(LOOP_MARKER)).toHaveCount(1);
 
-    // The inspector reflects the undone model when the element is reselected.
-    await canvas.click({ position: { x: 340, y: 180 } });
-    await inspector.getByRole('tab', { name: 'Loop' }).click();
+    // The still-open Loop tab reflects the undone model.
     await expect(page.getByTestId('loop-kind')).toContainText('Loop (repeat)');
     await expect(page.locator('input[name="loopCondition"]')).toHaveValue('score < 0.9');
     await expect(page.locator('input[name="loopMaximum"]')).toHaveValue('5');

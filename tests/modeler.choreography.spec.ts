@@ -38,7 +38,8 @@ test.describe('Studyflow choreography tasks', () => {
     expect(bandFills).toHaveLength(2);
     expect(bandFills[0]).not.toBe(bandFills[1]);
 
-    // Double-click the TOP band -> edits topParticipant in place.
+    // Double-click the TOP band -> edits the top participant's name in place
+    // (materializing the participants on first edit).
     // (x is offset from center so the clicks miss the selection's resize handles.)
     const box = (await shape.boundingBox())!;
     const bandX = box.x + box.width * 0.3;
@@ -49,7 +50,7 @@ test.describe('Studyflow choreography tasks', () => {
     await page.keyboard.press('Enter');
     await expect(visual).toContainText('Subject');
 
-    // Double-click the BOTTOM band -> edits bottomParticipant in place.
+    // Double-click the BOTTOM band -> edits the bottom participant's name in place.
     await page.mouse.dblclick(bandX, box.y + box.height - 8);
     await expect(editor).toHaveText('Participant B');
     await editor.fill('Experimenter');

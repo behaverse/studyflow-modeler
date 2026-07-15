@@ -149,14 +149,6 @@ enumerations:
         value: poisson
       - name: Undefined
         value: undefined
-  - name: ChoreographyInitiatorEnum
-    isAbstract: true
-    description: Which participant band initiates a choreography interaction.
-    literalValues:
-      - name: Top participant
-        value: top
-      - name: Bottom participant
-        value: bottom
 types:
   - name: MarkdownString
     description: A string that contains markdown formatting
@@ -425,46 +417,19 @@ types:
             - Gantt
   - name: ChoreographyTask
     description: |
-      Trait on BPMN's native ChoreographyTask element: a single interaction
-      between two participants, rendered with a participant band above and
-      below the task label (the BPMN/chor-js choreography notation). The
-      initiating participant's band is drawn light; the receiving participant's
-      band is shaded. Use it when the interaction itself is the unit of
-      analysis (e.g. a dyadic decision round, an experimenter administering a
-      task to a subject). The simplified two-band participant model lives in
-      studyflow-namespaced attributes, so the element stays a standard
-      `bpmn:choreographyTask` on the wire.
+      Icon/label trait on BPMN's native ChoreographyTask element: a single
+      interaction between two participants, rendered with a participant band
+      above and below the task label (the BPMN choreography notation). The
+      participants are BPMN's own `participantRef` (top band = first ref,
+      bottom = second) and the initiating one is `initiatingParticipantRef`
+      (its band is drawn light, the other shaded) - no studyflow-specific
+      participant attributes. Use it when the interaction itself is the unit
+      of analysis (e.g. a dyadic decision round, an experimenter administering
+      a task to a subject).
     extends:
       - bpmn:ChoreographyTask
     meta:
       icon: iconify fluent--people-team-24-regular
-    properties:
-      - name: topParticipant
-        description: Name of the participant shown in the top band.
-        isAttr: true
-        type: String
-        default: Participant A
-        meta:
-          categories:
-            - Participants
-      - name: bottomParticipant
-        description: Name of the participant shown in the bottom band.
-        isAttr: true
-        type: String
-        default: Participant B
-        meta:
-          categories:
-            - Participants
-      - name: initiator
-        description: |
-          Which participant initiates the interaction. The initiating
-          participant's band is drawn light and the other is shaded.
-        isAttr: true
-        type: ChoreographyInitiatorEnum
-        default: top
-        meta:
-          categories:
-            - Participants
   - name: Event
     description: |
       Base class for BPMN events. Adds the same Gantt-axis temporal attributes
@@ -544,9 +509,13 @@ types:
           categories:
             - Data
       - name: storage
-        description: Identifier of the `DataStorage` where this dataset is physically stored.
+        description: |
+          The `bpmn:DataStoreReference` where this dataset is physically stored -
+          BPMN's own construct for persistent storage (it points at a
+          `bpmn:DataStore`). There is no studyflow storage type; the native one
+          carries the same meaning.
         isAttr: true
-        type: DataStorage
+        type: bpmn:DataStoreReference
         meta:
           categories:
             - Data
@@ -591,15 +560,10 @@ types:
             language: json
             body:
               format: bids
-  - name: DataStorage
-    description: |
-      Persistent physical storage of data (database, filesystem, object store, etc.).
-      `DataStore` can be referenced using `DataStoreReference`.
-    superClass:
-      - bpmn:DataStoreReference
-      - bpmn:BaseElement
-    meta:
-      bpmnType: bpmn:DataStoreReference
+  # (There is no studyflow DataStorage type: persistent physical storage is
+  # BPMN's own `bpmn:DataStore` / `bpmn:DataStoreReference` - a zero-property
+  # `studyflow:DataStorage` renamed the native element and added nothing, so
+  # `Dataset#storage` references the native `bpmn:DataStoreReference` directly.)
   # (There is no studyflow DataObjectReference trait: BPMN's own `dataState`
   # already annotates the state of any data element - a `bpmn:DataState` child
   # whose `name` is the state, e.g. `dataState: {name: processed}`. The former

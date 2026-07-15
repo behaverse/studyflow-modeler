@@ -30,7 +30,6 @@ const DATA_ELEMENT_TYPES = new Set([
   'studyflow:Timeseries',
   'studyflow:EventMarker',
   'studyflow:DataCatalog',
-  'studyflow:DataStorage',
 ]);
 
 function toIdentifier(s: string): string {
