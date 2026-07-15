@@ -29,9 +29,7 @@ type Entity = { id: string; name: string; type: string; format?: string };
 const DATA_ELEMENT_TYPES = new Set([
   'studyflow:Dataset',
   'studyflow:Table',
-  'studyflow:Array',
   'studyflow:Schema',
-  'studyflow:Snapshot',
   'studyflow:Timeseries',
   'studyflow:EventMarker',
 ]);
@@ -43,9 +41,9 @@ function isDataOperationActivity(bo: any): boolean {
   if (readField(bo, 'isDataOperation') === true || readField(bo, 'isDataOperation') === 'true') return true;
   if (readField(bo, 'operation')) return true;
   // The `datatrove:` schema declares concrete operators (Transform/Map/Filter/
-  // Reader/Writer/...); `omniprocess:` declares the brain preprocessing pipelines.
-  return typeof bo.$type === 'string'
-    && (bo.$type.startsWith('datatrove:') || bo.$type.startsWith('omniprocess:'));
+  // Reader/Writer/...). Neuroimaging preprocessing (fMRIPrep/EEGPrep) is now
+  // datatrove templates, so it is covered by the same prefix.
+  return typeof bo.$type === 'string' && bo.$type.startsWith('datatrove:');
 }
 
 function turtleId(id: string): string {

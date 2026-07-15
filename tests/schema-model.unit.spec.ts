@@ -35,7 +35,7 @@ const VALUE_TYPE_SUPER_CLASSES = new Set(['String', 'Boolean', 'Integer', 'Float
  * 2. Non-attribute properties typed with a value type go on the wire as
  *    plain `String`. Before this, moddle silently dropped their text content
  *    on load (`inclusionCriteria`, `exclusionCriteria`, `strata`,
- *    `Checklist.items`, `Document.metadata`) — a data-loss bug.
+ *    `Document.metadata`) — a data-loss bug.
  * 3. All flattened properties keep the authored type in `valueType` (bodies
  *    included). Before the flatten, moddle wrote a body carrying `<`/`&` raw
  *    (it only escapes bodies typed exactly `String`), producing invalid XML;
@@ -98,7 +98,6 @@ test.describe('schema model: moddle package generation', () => {
     expect(propType(byPrefix.cognitive, 'EligibilityGateway', 'inclusionCriteria')).toBe('String');
     expect(propType(byPrefix.cognitive, 'EligibilityGateway', 'exclusionCriteria')).toBe('String');
     expect(propType(byPrefix.cognitive, 'StratifiedAllocationGateway', 'strata')).toBe('String');
-    expect(propType(byPrefix.studyflow, 'Checklist', 'items')).toBe('String');
     expect(propType(byPrefix.datatrove, 'Document', 'metadata')).toBe('String');
   });
 
@@ -118,10 +117,10 @@ test.describe('schema model: moddle package generation', () => {
     expect(withProp.type).toBe('String');
     expect(withProp.valueType).toBe('studyflow:YAMLString');
 
-    // Markdown bodies flatten too (they escape the same way) but must NOT fold.
-    const instructions = prop(byPrefix.galea, 'Mount', 'instructions');
-    expect(instructions.type).toBe('String');
-    expect(instructions.valueType).toBe('studyflow:MarkdownString');
+    // Markdown value properties flatten too (they escape the same way) but must NOT fold.
+    const systemPrompt = prop(byPrefix.agentic, 'Agent', 'systemPrompt');
+    expect(systemPrompt.type).toBe('String');
+    expect(systemPrompt.valueType).toBe('studyflow:MarkdownString');
   });
 
   test('generated packages are fresh objects per call (moddle mutates them)', () => {

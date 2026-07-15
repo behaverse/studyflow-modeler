@@ -144,9 +144,9 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await studyflowDownloadPromise;
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    // The EEGPrep template now expands into a subprocess pipeline
-    // (filter signal -> remove artifacts) of data-operation service tasks.
-    expect(studyflowText).toContain('type: omniprocess:PreprocessEEG');
+    // EEGPrep is now a template (not a type) that expands into a plain
+    // subprocess pipeline (filter signal -> remove artifacts) of data-operation
+    // service tasks - no dedicated omniprocess element type.
     expect(studyflowText).toContain('type: bpmn:SubProcess');
     expect(studyflowText).toContain('isDataOperation: true');
     expect(studyflowText).toContain('type: datatrove:Filter');

@@ -756,7 +756,7 @@ templates:
 
   - description: Sweep a hyperparameter grid and keep the point that maximizes the objective.
     object:
-      bpmn:name: Hyperparameter sweep
+      bpmn:name: Hyperparameter Optimization
       type: Sweep
       bpmn:documentation: |
         One instance of the body per point of the space. The engine records every

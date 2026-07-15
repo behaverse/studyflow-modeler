@@ -2,7 +2,7 @@
 
 name: DataTrove
 prefix: datatrove
-description: Studyflow extension for composing functions over data streams - generic functional operations (transform, map, flatMap, reduce, filter, compose), the DataTrove read/write/corpus blocks (reader, writer, extractor, stats, tokens, dedup), and prefilled templates that bind an operation to a function via `implementation` (group, split, anonymize).
+description: Studyflow extension for composing functions over data streams - generic functional operations (transform, map, flatMap, reduce, filter, compose) and the read/write blocks (reader, writer). Corpus operations (extract, stats, tokenize, dedup) and higher-level ones (group, split, anonymize) are prefilled templates that bind a function via `implementation`, not classes.
 uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
@@ -243,54 +243,10 @@ types:
         meta:
           categories:
             - DataTrove
-  - name: Extractor
-    description: Extract text content from raw formats (such as webpage HTML).
-    superClass:
-      - datatrove:Transform
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: map
-        redefines: datatrove:Transform#operationType
-  - name: Stats
-    description: Collect statistics on the dataset.
-    superClass:
-      - datatrove:Transform
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: map
-        redefines: datatrove:Transform#operationType
-  - name: Tokens
-    description: Tokenize data or count tokens.
-    superClass:
-      - datatrove:Transform
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: map
-        redefines: datatrove:Transform#operationType
-  - name: Dedup
-    description: Deduplication block.
-    superClass:
-      - datatrove:Transform
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: map
-        redefines: datatrove:Transform#operationType
+  # (There is no Extractor / Stats / Tokens / Dedup type: each was a
+  # `datatrove:Transform` subclass that pinned `operationType` with no unique
+  # attribute - i.e. a `Map`/`Reduce` under a different name. They are templates
+  # below, binding a concrete function via `implementation`, not classes.)
 templates:
   # Parameterized operations: a generic operation type bound to a concrete
   # function via `implementation` (and arguments via `with`), instead of a dedicated
@@ -336,3 +292,57 @@ templates:
         - privacy
       operationType: anonymizeData
       implementation: python://datatrove.anonymize
+  - description: Extract text content from raw formats (e.g., webpage HTML).
+    object:
+      bpmn:name: Extract text
+      type: Map
+      bpmn:documentation: Extract clean text from raw documents (HTML, PDF, ...). A Map bound to an extractor; set the source format via `with`.
+      icon: iconify mdi--text-recognition
+      keywords:
+        - extract
+        - text
+        - html
+        - trafilatura
+      operationType: extract
+      implementation: python://datatrove.extract
+  - description: Collect summary statistics over a data stream.
+    object:
+      bpmn:name: Collect stats
+      type: Reduce
+      bpmn:documentation: Reduce a data stream to summary statistics (counts, lengths, token histograms). Set what to collect via `with`.
+      icon: iconify mdi--chart-box-outline
+      keywords:
+        - stats
+        - statistics
+        - summary
+        - profile
+      operationType: stats
+      implementation: python://datatrove.stats
+  - description: Tokenize documents or count tokens.
+    object:
+      bpmn:name: Tokenize
+      type: Map
+      bpmn:documentation: Tokenize text (or count tokens) with a named tokenizer. Set the tokenizer via `with`.
+      icon: iconify mdi--format-letter-matches
+      keywords:
+        - tokenize
+        - tokens
+        - tokenizer
+        - count
+      operationType: tokenize
+      implementation: python://datatrove.tokenize
+      with: "tokenizer: gpt2"
+  - description: Remove duplicate or near-duplicate documents.
+    object:
+      bpmn:name: Deduplicate
+      type: Map
+      bpmn:documentation: Drop duplicate or near-duplicate documents (exact, minhash, or sentence-level). Set the method via `with`.
+      icon: iconify mdi--content-duplicate
+      keywords:
+        - dedup
+        - deduplicate
+        - duplicate
+        - minhash
+      operationType: dedup
+      implementation: python://datatrove.dedup
+      with: "method: minhash"

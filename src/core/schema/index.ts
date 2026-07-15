@@ -132,7 +132,7 @@ function collectValueTypes(models: SchemaModel[]): Set<string> {
  * - Non-attribute properties typed with a value type are rewritten to plain
  *   `String` on the wire. moddle only stores element text content for the
  *   built-in `String`, so e.g. `isMany` MarkdownString lists
- *   (`inclusionCriteria`, `strata`, `Checklist.items`) silently lost their
+ *   (`inclusionCriteria`, `strata`) silently lost their
  *   text on every load before this rewrite. The catalog keeps the authored
  *   type as the UI hint (markdown editor, YAML editor). The same goes for
  *   text bodies (`isBody`): moddle's `BodySerializer` XML-escapes a body only

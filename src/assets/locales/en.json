@@ -54,7 +54,7 @@
   "over": "Collection",
   "itemVar": "Item variable",
   "folds": "Folds",
-  "grid": "Sweep space",
+  "grid": "Grid",
   "sequential": "Sequential",
   "maxConcurrency": "Max concurrency",
   "collect": "Collect",

@@ -3,12 +3,20 @@
 name: Galea
 prefix: galea
 description: |
-  Studyflow extension for modeling experiments using the OpenBCI Galea VR headset. Defines a `GaleaSession` container plus per-phase activities (mount, impedance check, sensor calibration, resting baseline, VR task, unmount, export) and a `GaleaRecording` dataset variant carrying multimodal acquisition metadata (EEG, EMG, EOG, EDA, PPG, eye-tracking, head IMU).
+  Studyflow extension for experiments on the OpenBCI Galea VR headset. It adds
+  only the two nouns BPMN has no equivalent for - `GaleaSession` (device-level
+  configuration: HMD, streaming protocol, active modalities, electrode type) and
+  `GaleaRecording` (the multimodal biosignal + VR dataset a session produces).
+  The phases of a session - mount, signal-quality check, calibration, resting
+  baseline, VR task, unmount, export - are not element types: they are ordinary
+  BPMN tasks preset by the `Galea VR session` template, each carrying its
+  parameters in `configurations` or `documentation`. This is the same
+  "parameterize, don't proliferate" rule the exec/ml/agentic layers follow.
 uri: http://behaverse.org/schemas/studyflow/galea
 icon: iconify mdi--virtual-reality
 xml:
   tagAlias: lowerCase
-version: 26.0610
+version: 26.0715
 associations: []
 
 enumerations:
@@ -71,32 +79,6 @@ enumerations:
       - name: OpenBCI GUI
         value: openbci_gui
 
-  - name: BaselineConditionEnum
-    isAbstract: true
-    description: Resting-state baseline condition.
-    literalValues:
-      - name: Eyes open
-        value: eyes_open
-      - name: Eyes closed
-        value: eyes_closed
-      - name: Eyes open / closed alternating blocks
-        value: alternating
-
-  - name: SignalQualityCheckEnum
-    isAbstract: true
-    description: How signal quality is verified before recording starts.
-    literalValues:
-      - name: Per-channel impedance (kΩ threshold)
-        value: impedance
-      - name: RMS amplitude check
-        value: rms
-      - name: Spectral profile (alpha bump)
-        value: spectral
-      - name: Manual visual inspection
-        value: visual
-      - name: Skip (no check)
-        value: skip
-
 types:
   - name: GaleaSession
     description: |
@@ -146,347 +128,15 @@ types:
           categories:
             - Galea
 
-  # ---------- Phase 1: fitting ----------
-  - name: Mount
-    description: |
-      Fit the Galea headset on the participant. Includes adjusting the VR HMD
-      straps, and positioning the EEG electrode array.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--head-plus-outline
-      bpmnType: bpmn:Task
-    properties:
-      - name: usesGel
-        description: Apply conductive gel or saline before fitting (relevant for wet/hybrid montage).
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          categories:
-            - Mount
-      - name: estimatedDurationMinutes
-        description: Estimated duration of the mount procedure, in minutes.
-        isAttr: true
-        type: Real
-        default: 10
-        meta:
-          categories:
-            - Mount
-      - name: instructions
-        description: Step-by-step mount instructions in markdown, shown to the experimenter or participant.
-        isBody: true
-        type: studyflow:MarkdownString
-        meta:
-          categories:
-            - Mount
-      - name: isDataOperation
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-
-  # ---------- Phase 2: signal quality gate ----------
-  - name: ImpedanceCheck
-    description: |
-      Verify that EEG/EMG/EOG electrodes have acceptable contact impedance
-      (or pass the chosen quality test) before any recording starts. Fails
-      the run, or routes back to `Mount`, when too many channels exceed
-      the threshold.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--resistor
-      bpmnType: bpmn:Task
-    properties:
-      - name: method
-        description: How signal quality is verified.
-        isAttr: true
-        type: SignalQualityCheckEnum
-        default: impedance
-        meta:
-          categories:
-            - QualityCheck
-      - name: impedanceThresholdKOhm
-        description: Maximum acceptable per-channel impedance (kΩ). Channels above this fail the check.
-        isAttr: true
-        type: Real
-        default: 50
-        meta:
-          categories:
-            - QualityCheck
-          condition:
-            language: json
-            body:
-              method: impedance
-      - name: maxFailedChannels
-        description: Maximum number of channels allowed to fail before the whole check fails.
-        isAttr: true
-        type: Integer
-        default: 2
-        meta:
-          categories:
-            - QualityCheck
-      - name: isDataOperation
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-
-  # ---------- Phase 3: per-sensor calibration ----------
-  - name: SensorCalibration
-    description: |
-      Per-sensor calibration before the experimental block starts. Typically
-      eye-tracker 5/9-point calibration plus optional EOG saccade calibration
-      and an EDA tonic baseline. The runtime persists the calibration profile
-      for downstream phases.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--target
-      bpmnType: bpmn:Task
-    properties:
-      - name: calibrateEyeTracker
-        description: Run the VR HMD eye-tracker calibration (e.g., 5- or 9-point).
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          categories:
-            - Calibration
-      - name: eyeTrackerPoints
-        description: Number of fixation points used for eye-tracker calibration.
-        isAttr: true
-        type: Integer
-        default: 9
-        meta:
-          categories:
-            - Calibration
-          condition:
-            language: json
-            body:
-              calibrateEyeTracker: true
-      - name: calibrateEOG
-        description: Run an EOG saccade-based calibration (look L/R/U/D).
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          categories:
-            - Calibration
-      - name: calibrateEDA
-        description: Capture an EDA tonic baseline before the experiment.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          categories:
-            - Calibration
-      - name: configurations
-        description: |
-          Calibration configuration in YAML (point grid, dwell times,
-          accept/reject thresholds, retry policy, etc.).
-        isBody: true
-        type: studyflow:YAMLString
-        meta:
-          categories:
-            - Calibration
-      - name: isDataOperation
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-
-  # ---------- Phase 4: resting-state baseline ----------
-  - name: BaselineRecording
-    description: |
-      Resting-state baseline recording (eyes open, closed, or alternating
-      blocks). Used as a reference signal for downstream analysis and as a
-      post-calibration recording quality check.
-    superClass:
-      - cognitive:Rest
-    meta:
-      icon: iconify mdi--brain
-      bpmnType: bpmn:Task
-    properties:
-      - name: condition
-        description: Resting-state condition.
-        isAttr: true
-        type: BaselineConditionEnum
-        default: eyes_closed
-        meta:
-          categories:
-            - Baseline
-      - name: durationSeconds
-        description: Total duration of the baseline recording, in seconds.
-        isAttr: true
-        type: Real
-        default: 120
-        meta:
-          categories:
-            - Baseline
-      - name: alternatingBlockSeconds
-        description: |
-          Length of each eyes-open / eyes-closed block when `condition` is `alternating`.
-        isAttr: true
-        type: Real
-        default: 30
-        meta:
-          categories:
-            - Baseline
-          condition:
-            language: json
-            body:
-              condition: alternating
-
-  # ---------- Phase 5: VR experimental task ----------
-  - name: GaleaTask
-    description: |
-      A VR cognitive task delivered through the Galea headset. Behaves like a
-      `cognitive:CognitiveTask` but pins `instrument` to `galea` and adds
-      VR-scene specific properties (scene id, locomotion mode, marker channel).
-    superClass:
-      - cognitive:CognitiveTask
-    meta:
-      icon: iconify mdi--virtual-reality
-      bpmnType: bpmn:Task
-    properties:
-      - name: instrument
-        default: galea
-        type: String
-        isAttr: true
-        redefines: cognitive:CognitiveTask#instrument
-        meta:
-          pinned: true
-      - name: sceneId
-        description: |
-          Identifier of the VR scene shipped with the Galea-compatible build
-          (e.g., `MOT_VR`, `RestingRoom`, `OddballVR`).
-        isAttr: true
-        type: String
-        meta:
-          order: 0
-          categories:
-            - Galea
-      - name: locomotion
-        description: Locomotion mode in the VR scene (`seated`, `room_scale`, `teleport`, `smooth`).
-        isAttr: true
-        type: String
-        default: seated
-        meta:
-          order: 1
-          categories:
-            - Galea
-      - name: triggerChannel
-        description: |
-          Stimulus marker channel sent alongside biosignals (e.g., LSL marker
-          stream name, parallel-port code, Unity event tag).
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Galea
-
-  # ---------- Phase 6: unmount & cleanup ----------
-  - name: Unmount
-    description: |
-      Remove the headset, clean the electrodes, and stop streams. The runtime
-      closes any open recording handles before this task completes.
-    superClass:
-      - bpmn:Task
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--head-minus-outline
-      bpmnType: bpmn:Task
-    properties:
-      - name: stopsStreams
-        description: |
-          Whether the runtime should stop streaming and close recording
-          handles when this task starts.
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          pinned: true
-          categories:
-            - Unmount
-      - name: instructions
-        description: Step-by-step unmount and electrode-cleaning instructions, in markdown.
-        isBody: true
-        type: studyflow:MarkdownString
-        meta:
-          categories:
-            - Unmount
-      - name: isDataOperation
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-
-  # ---------- Phase 7: export to a structured dataset ----------
-  - name: GaleaExport
-    description: |
-      Persist the multimodal Galea recording to a structured dataset (BIDS,
-      BDM, or a custom layout). Modeled as a data-operation activity (writer)
-      so downstream analysis can consume it as a `Dataset`.
-    superClass:
-      - datatrove:Map
-    meta:
-      icon: iconify mdi--database-arrow-down-outline
-    properties:
-      - name: format
-        description: On-disk dataset format produced by the export.
-        isAttr: true
-        type: String
-        default: bids
-        meta:
-          categories:
-            - Export
-      - name: includeRaw
-        description: Include the raw broadband recording (e.g., EEG `.bdf` / `.edf`) alongside derivatives.
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          categories:
-            - Export
-      - name: includeEyeTracking
-        description: Export the eye-tracking gaze and pupil stream.
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          categories:
-            - Export
-      - name: configurations
-        description: |
-          Export configuration in YAML (path templates, anonymization rules,
-          derivative selection, sidecar JSON content, etc.).
-        isBody: true
-        type: studyflow:YAMLString
-        meta:
-          categories:
-            - Export
-
   # ---------- Recording dataset variant ----------
   - name: GaleaRecording
     description: |
       Multimodal biosignal + VR recording produced by a Galea session.
-      Specializes `studyflow:Dataset` to carry the active modality list,
-      EEG channel count, and per-modality sampling rates so downstream
-      data-operation activities can consume it without re-discovering the layout.
+      Specializes `studyflow:Dataset` to carry the active modality list and the
+      EEG channel count / sampling rate that downstream data-operation
+      activities need without re-discovering the layout. Per-stream details
+      (e.g. eye-tracking rate) belong on the wired `studyflow:Timeseries`
+      elements, which already carry `samplingRate`, `channelCount`, and `units`.
     superClass:
       - studyflow:Dataset
     meta:
@@ -517,21 +167,20 @@ types:
         meta:
           categories:
             - Galea
-      - name: eyeTrackingSamplingRateHz
-        description: Eye-tracker sampling rate, in Hz (e.g., 90, 120).
-        isAttr: true
-        type: Real
-        default: 90
-        meta:
-          categories:
-            - Galea
 
 templates:
-  - description: A typical Galea session - mount -> impedance -> calibration -> baseline -> VR task -> unmount -> export
+  - description: A typical Galea session - mount -> impedance -> calibration -> baseline -> VR task -> unmount -> export. Each phase is a generic BPMN task; edit its `configurations`/documentation for the specifics.
     object:
       type: GaleaSession
       bpmn:name: Galea VR session
-      bpmn:documentation: A typical Galea VR/EEG session covering the full subject lifecycle from headset fitting through data export.
+      bpmn:documentation: A typical Galea VR/EEG session covering the full subject lifecycle from headset fitting through data export. Phases are ordinary tasks - repoint or reconfigure any of them without a Galea-specific element type.
+      icon: iconify mdi--virtual-reality
+      keywords:
+        - galea
+        - vr
+        - eeg
+        - openbci
+        - session
       vrDevice: quest_pro
       streamProtocol: lsl
       modalities:
@@ -550,56 +199,78 @@ templates:
           x: 100
           y: 200
         - id: galea_mount
-          type: galea:Mount
+          type: bpmn:ManualTask
           bpmn:name: Mount headset
+          icon: iconify mdi--head-plus-outline
+          bpmn:documentation: |
+            Fit the Galea headset: adjust the VR HMD straps and position the EEG
+            electrode array. Apply conductive gel or saline first for a wet/hybrid
+            montage. Estimated duration ~10 min.
           x: 200
           y: 178
-          usesGel: true
-          estimatedDurationMinutes: 10
         - id: galea_impedance
-          type: galea:ImpedanceCheck
+          type: bpmn:ManualTask
           bpmn:name: Impedance check
+          icon: iconify mdi--resistor
+          bpmn:documentation: |
+            Verify electrode contact before recording. Default gate: per-channel
+            impedance below 50 kΩ, at most 2 channels allowed to fail. On failure,
+            route back to Mount. (Alternatives: RMS amplitude, spectral profile,
+            or visual inspection.)
           x: 360
           y: 178
-          method: impedance
-          impedanceThresholdKOhm: 50
-          maxFailedChannels: 2
         - id: galea_calibration
-          type: galea:SensorCalibration
+          type: bpmn:ManualTask
           bpmn:name: Calibrate sensors
+          icon: iconify mdi--target
+          bpmn:documentation: |
+            Per-sensor calibration before the experimental block: VR eye-tracker
+            (5- or 9-point), optional EOG saccade calibration (look L/R/U/D), and
+            an optional EDA tonic baseline. The runtime persists the calibration
+            profile for downstream phases.
           x: 520
           y: 178
-          calibrateEyeTracker: true
-          eyeTrackerPoints: 9
-          calibrateEOG: true
-          calibrateEDA: true
         - id: galea_baseline
-          type: galea:BaselineRecording
+          type: cognitive:Rest
           bpmn:name: Resting baseline
+          icon: iconify mdi--brain
+          configurations: |
+            condition: eyes_closed   # eyes_open | eyes_closed | alternating
+            durationSeconds: 120
+            alternatingBlockSeconds: 30
           x: 680
           y: 178
-          condition: eyes_closed
-          durationSeconds: 120
         - id: galea_task
-          type: galea:GaleaTask
+          type: cognitive:CognitiveTask
           bpmn:name: VR task
+          icon: iconify mdi--virtual-reality
+          instrument: galea
+          configurations: |
+            sceneId: MOT_VR          # VR scene shipped with the Galea build
+            locomotion: seated       # seated | room_scale | teleport | smooth
+            triggerChannel: markers  # stimulus marker stream sent with biosignals
           x: 840
           y: 178
-          sceneId: MOT_VR
-          locomotion: seated
         - id: galea_unmount
-          type: galea:Unmount
+          type: bpmn:ManualTask
           bpmn:name: Unmount and clean
+          icon: iconify mdi--head-minus-outline
+          bpmn:documentation: |
+            Remove the headset, clean the electrodes, and stop streams. The
+            runtime closes any open recording handles before this task completes.
           x: 1000
           y: 178
         - id: galea_export
-          type: galea:GaleaExport
+          type: datatrove:Writer
           bpmn:name: Export recording
+          icon: iconify mdi--database-arrow-down-outline
+          path: bids/
+          bpmn:documentation: |
+            Persist the multimodal recording to a structured dataset (BIDS, BDM,
+            or custom). Include the raw broadband recording (EEG .bdf/.edf) and
+            the eye-tracking gaze/pupil stream alongside derivatives as needed.
           x: 1160
           y: 178
-          format: bids
-          includeRaw: true
-          includeEyeTracking: true
         - id: galea_end
           type: bpmn:EndEvent
           bpmn:name: End

@@ -24,7 +24,6 @@ function isEegRelevant(bo: any): boolean {
   const t = bo.$type as string | undefined;
   if (!t) return false;
   if (t.startsWith('galea:')) return true;
-  if (t === 'omniprocess:PreprocessEEG') return true;
   // Datasets / timeseries with EEG modality.
   if (t === 'studyflow:Dataset' && readField(bo, 'bidsDataType') === 'eeg') return true;
   if (t === 'studyflow:Timeseries') return true;
@@ -76,22 +75,6 @@ export function exportToArtemis(modeler: any): string {
         sampling_rate_hz: readField(bo, 'samplingRate') ?? null,
         reference_channel: readField(bo, 'referenceChannel') ?? null,
         ground_channel: readField(bo, 'groundChannel') ?? null,
-      });
-      return;
-    }
-
-    if (t === 'omniprocess:PreprocessEEG') {
-      preprocessing.push({
-        element_id: bo.id,
-        label: bo.name ?? bo.id,
-        studyflow_type: t,
-        documentation: (readField(bo, 'documentation') as string | undefined) ?? null,
-        filters_high_pass_hz: readField(bo, 'highPass') ?? null,
-        filters_low_pass_hz: readField(bo, 'lowPass') ?? null,
-        notch_hz: readField(bo, 'notch') ?? null,
-        re_referencing: readField(bo, 'reReference') ?? null,
-        artifact_removal: readField(bo, 'artifactRemoval') ?? null,
-        configurations: readField(bo, 'configurations') ?? null,
       });
       return;
     }

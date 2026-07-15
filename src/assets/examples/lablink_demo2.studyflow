@@ -8,7 +8,6 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:datatrove: https://w3id.org/studyflow/datatrove
-  xmlns:omniprocess: https://w3id.org/omniprocess
 OmniProcessLabLinkDemo:
   type: bpmn:Process
   documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
@@ -148,7 +147,7 @@ OmniProcessLabLinkDemo:
     fMRIPrep:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: omniprocess:PreprocessfMRI
+        - type: datatrove:Map
       name: fMRIPrep
       incoming:
         - Flow_Split_fMRI
@@ -163,14 +162,11 @@ OmniProcessLabLinkDemo:
         height: 80
     EEGPrep:
       type: bpmn:SubProcess
-      extensionElements:
-        - type: omniprocess:PreprocessEEG
       name: EEGPrep
       incoming:
         - Flow_Split_EEG
       outgoing:
         - Flow_EEG_Join
-      isDataOperation: true
       flowElements:
         EEG_Start:
           type: bpmn:StartEvent
@@ -244,7 +240,7 @@ OmniProcessLabLinkDemo:
     CollectStats:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: datatrove:Stats
+        - type: datatrove:Reduce
       name: Collect features
       incoming:
         - Flow_Join_Stats

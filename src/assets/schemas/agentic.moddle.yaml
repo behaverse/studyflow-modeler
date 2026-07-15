@@ -12,23 +12,6 @@ version: 26.0715
 associations: []
 
 enumerations:
-  - name: ProviderEnum
-    isAbstract: true
-    description: Model backend a step calls.
-    literalValues:
-      - name: Anthropic
-        value: anthropic
-      - name: OpenAI
-        value: openai
-      - name: Google
-        value: google
-      - name: Ollama (local)
-        value: ollama
-      - name: vLLM / self-hosted
-        value: vllm
-      - name: Other
-        value: other
-
   - name: ToolChoiceEnum
     isAbstract: true
     description: How freely the model may call the tools available to it.
@@ -115,15 +98,6 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - Agent
-      - name: provider
-        description: Backend the model is called through.
-        isAttr: true
-        type: ProviderEnum
-        default: anthropic
-        meta:
-          order: 2
           categories:
             - Agent
       - name: systemPrompt
@@ -245,15 +219,6 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - Model call
-      - name: provider
-        description: Backend the model is called through.
-        isAttr: true
-        type: ProviderEnum
-        default: anthropic
-        meta:
-          order: 2
           categories:
             - Model call
       - name: prompt
@@ -492,7 +457,6 @@ templates:
         - loop
         - adhoc
       model: claude-opus-4-8
-      provider: anthropic
       systemPrompt: |
         You are a research assistant. Use the available tools to answer the
         question. Stop as soon as you can answer it.

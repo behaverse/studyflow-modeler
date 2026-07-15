@@ -118,24 +118,6 @@ types:
         redefines: studyflow:DataOperationActivity#isDataOperation
         meta:
           pinned: true
-  - name: VideoGame
-    description: |
-      An interactive video game used as an experimental paradigm or measurement
-      instrument. Configuration is provided as a YAML `configurations` block whose
-      shape depends on the game engine.
-    superClass:
-      - CognitiveTask
-    meta:
-      icon: iconify bi--controller
-      bpmnType: bpmn:Task
-    properties:
-      - name: configurations
-        description: Game configuration in YAML format (level set, difficulty, scoring, etc.).
-        type: Configurations
-        redefines: CognitiveTask#configurations
-        meta:
-          categories:
-            - Instrument
   - name: Rest
     description: |
       A rest period of inactivity or minimal activity. Often used for baseline
@@ -402,3 +384,23 @@ types:
             language: json
             body:
               actorType: instrument
+
+templates:
+  # A video game paradigm is not its own element type - it is a CognitiveTask
+  # whose instrument happens to be a game engine, preset here as a template
+  # (parameterize, don't proliferate).
+  - description: An interactive video game used as an experimental paradigm or measurement instrument.
+    object:
+      bpmn:name: Video Game
+      type: CognitiveTask
+      bpmn:documentation: An interactive video game used as an experimental paradigm or measurement instrument. Set the game engine in `instrument` and its level set / difficulty / scoring in `configurations`.
+      icon: iconify bi--controller
+      keywords:
+        - game
+        - videogame
+        - paradigm
+        - instrument
+      configurations: |
+        levels:
+        difficulty:
+        scoring:

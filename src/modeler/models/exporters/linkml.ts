@@ -1,9 +1,9 @@
 /**
  * LinkML exporter for the data elements of a Studyflow diagram.
  *
- * Walks Schema / Dataset / Table / Array / Snapshot / Timeseries / Event
- * elements and emits a LinkML schema instance. Classes carry a `class_uri`
- * pointing back to the Studyflow type.
+ * Walks Schema / Dataset / Table / Timeseries / Event elements and emits a
+ * LinkML schema instance. Classes carry a `class_uri` pointing back to the
+ * Studyflow type.
  */
 
 import * as yaml from 'js-yaml';
@@ -25,8 +25,6 @@ const DATA_ELEMENT_TYPES = new Set([
   'studyflow:Schema',
   'studyflow:Dataset',
   'studyflow:Table',
-  'studyflow:Array',
-  'studyflow:Snapshot',
   'studyflow:Timeseries',
   'studyflow:EventMarker',
   'studyflow:DataCatalog',
@@ -122,7 +120,7 @@ export function exportToLinkML(modeler: any): string {
   if (Object.keys(classes).length === 0) {
     doc.classes = {
       EmptyDataPlane: {
-        description: 'No Schema / Dataset / Table / Array / Snapshot / Timeseries / Event elements were found in this diagram. Add data-plane elements to populate the export.',
+        description: 'No Schema / Dataset / Table / Timeseries / Event elements were found in this diagram. Add data-plane elements to populate the export.',
       },
     };
   } else {

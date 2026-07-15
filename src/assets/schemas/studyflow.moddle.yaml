@@ -179,22 +179,6 @@ types:
         meta:
           categories:
             - Documentation
-  - name: Checklist
-    description: A checklist for the element.
-    superClass:
-      - bpmn:BaseElement
-    isAbstract: true
-    properties:
-      - name: items
-        description: Checklist items.
-        isAttr: false
-        type: MarkdownString
-        isMany: true
-        meta:
-          order: 1
-          categories:
-            - Documentation
-          pinned: false
   - name: Study
     description: Process definition for a Studyflow study.
     superClass:
@@ -227,7 +211,7 @@ types:
       Augments any BPMN Activity with the data-operation flag and
       input/output variable lists. Subtypes redefine `isDataOperation`
       to pin it (e.g. CognitiveTask fixes it to false,
-      omniprocess:Transform fixes it to true).
+      datatrove:Transform fixes it to true).
     extends:
       - bpmn:Activity
     isAbstract: true
@@ -577,49 +561,6 @@ types:
     properties:
       - name: url
         description: Base URL of the catalog.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Data
-  - name: Array
-    description: |
-      Multi-dimensional array/tensor structure (e.g., images, videos, fMRI). Expects a schema.
-    superClass:
-      - bpmn:BaseElement
-    isAbstract: false
-    properties:
-      - name: dataset
-        description: Identifier of the parent `Dataset`.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Data
-      - name: schema
-        description: URL/path/identifier of the array schema (dimensions/types/units).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Data
-  - name: Snapshot
-    description: |
-      Immutable version of a dataset/table/array associated with a point in the workflow
-      or a version control commit.
-    superClass:
-      - bpmn:BaseElement
-    isAbstract: false
-    properties:
-      - name: source
-        description: Identifier of the dataset/table/array being snapshotted.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Data
-      - name: version
-        description: Version identifier (e.g., tag, checksum, commit hash).
         isAttr: true
         type: String
         meta:

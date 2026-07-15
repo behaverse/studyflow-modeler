@@ -41,7 +41,13 @@ export function compileTemplates(prefix: string, rawSchema: RawType, catalog: Ty
     const attrs = extractAttributes(merged, RESERVED_TEMPLATE_KEYS);
 
     templates.push({
-      id: `${qualifiedName}::template:${index + 1}`,
+      // Scope the id by the *defining* schema prefix: a template may root at a
+      // plain `bpmn:` type or a foreign type (e.g. omniprocess rooting at
+      // `datatrove:Map`), so `${rootType}::template:${index}` alone collides
+      // across schemas (per-schema index + shared root type). The id must be
+      // globally unique because `palette-start-create-template` resolves it with
+      // a first-match lookup over every schema's templates.
+      id: `${prefix}::${qualifiedName}::template:${index + 1}`,
       name: merged.name ?? merged['bpmn:name'] ?? typeName,
       description: template.description ?? entry?.description ?? '',
       appliesTo: [bpmnType],
