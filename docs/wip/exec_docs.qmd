@@ -1,6 +1,6 @@
 ---
 title: Execution
-description: The executable semantics of a studyflow - the step contract, the scoped-token model, and the rules that run it
+description: The executable semantics of a studyflow - the tasks, the scoped-token model, and the rules
 order: 8
 ---
 
@@ -9,10 +9,28 @@ The [Specification](spec.qmd) says what a studyflow *is*. This page says what it
 The design rests on one observation.
 
 ::: {.callout-note appearance="simple" title="The unification"}
-A participant walking through a study, a fold in cross-validation, a point in a hyperparameter sweep, a shard of an HPC array job, and a turn of an agent loop are the same thing: **a token in a scope**.
+A participant walking through a study, a fold in cross-validation, a point in a hyperparameter grid, a shard of an HPC array job, and a turn of an agent loop are the same thing: **a token in a scope**.
 
-Studyflow already walks a participant through a graph. Give every activity a *contract* and every token a *scope*, and the same walk runs all five. There is no ML engine and no agent engine — there is one engine, and those are five ways of opening a scope.
 :::
+
+## The primitives
+
+The whole executable language is a small set of primitives, each an existing BPMN construct given a run-time meaning by the `exec` schema. This table *is* the language; everything domain-specific — a `Split`, a `Fit`, a `Retriever`, a `Judge` — is a **template** that binds a function onto one of these via [`uses`](authoring-schemas.qmd), not a type of its own.
+
+| Primitive | BPMN construct | `exec` element | Domain-specific things are… |
+| --- | --- | --- | --- |
+| typed **step** | activity + data associations | `Step` trait | a template binding `uses` (fit, evaluate, retrieve, judge) |
+| **artifact** with lineage | data object / store | `Artifact` trait | `ml:Model`, `ml:Metric`, `agentic:Prompt` |
+| **fan-out / sweep** | multi-instance marker | `ForEach`, `Sweep` | cross-validation, hyperparameter search |
+| **loop** | standard-loop marker | `Repeat` | evaluator-optimizer, retrain-on-drift |
+| **conditional gate** | exclusive gateway | `Gate` | a promotion gate |
+| **model-driven branch** | exclusive gateway | `agentic:Router` | — (irreducible) |
+| **model-driven sub-process** | ad-hoc sub-process | `agentic:Agent` | — (irreducible) |
+| **reusable component** | call activity | `Component` | a published sub-flow |
+| **config composition** | data object | `Parameters` | a study or experiment variant |
+| **human-in-the-loop** | user task | `agentic:HumanApproval` | feedback, labeling, preference collection |
+
+Two rows are genuinely new and cannot be a template — `Router` and `Agent` — because they change *who decides control flow*. The rest of the AI/ML surface is a binding of a row above. The reasoning behind that split is in [`exec_schema_review.md`](exec_schema_review.md).
 
 ## The step contract
 
@@ -22,12 +40,12 @@ An activity is executable when it answers six questions. Two are already part of
 | --- | --- |
 | What runs? | `uses` — `python://`, `docker://`, `https://`, `file://` |
 | With what arguments? | `with` — a YAML mapping |
-| Over what interface? | `signature` — typed `in:` and `out:` ports |
-| Where does it run? | `runsOn`, `scheduler`, `compute` |
-| May it be skipped? | `cache`, plus `deterministic` and `seed` |
-| What if it fails? | `retry`, `timeout`, and any attached boundary event |
+| Over what interface? | the data associations drawn on the canvas — native BPMN, nothing declared |
+| Where does it run? | `environment` |
+| May it be skipped? | `when` — a guard over the scope's bindings; false means skip |
+| What if it fails? | any attached boundary event |
 
-The contract is a trait on `bpmn:Activity`, so it applies to *every* activity — a cognitive task, a data transform, a model fit, an agent. A `cognitive:CognitiveTask` is a step whose `runsOn` is `browser` and whose implementation is a person. Nothing about it is special-cased.
+This applies to *every* activity — a cognitive task, a data transform, a model fit, an agent. A `cognitive:CognitiveTask` is a step whose `environment` is `browser`.
 
 ## Scopes and tokens
 
@@ -47,11 +65,15 @@ A **scope** $\sigma = \langle f_1, \dots, f_k \rangle$ is a stack of frames. A f
 
 Two tokens in different scopes never join. A binding made in $\sigma$ is visible in $\sigma$ and in every extension $\sigma \cdot f$, and a collector writes back into the parent.
 
-### Seeds are derived, not global
+## Variables
 
-Every random draw in scope $\sigma$ uses $\text{seed}(\sigma) = H(\text{rootSeed} \Vert \sigma)$.
+The Study/Experiment is the root scope for variables. Each frame adds a new layer of variables, and the language defines a few that are always present:
 
-This is the reason scopes are worth having. Fold 3 draws the same shuffle whether or not fold 2 ran; participant `P07` sees the same randomization whether they enrolled first or hundredth; a sweep point is reproducible on its own without re-running the sweep. A single global seed cannot do any of this, because it makes every draw depend on the order of every draw before it.
+| Variable | Value |
+| --- | --- |
+| `seed` | a deterministic integer derived from the root seed and the scope; used for random branching and model-driven routing |
+| `scope` | the current scope $\sigma$ |
+
 
 ## Firing rules
 
@@ -74,6 +96,8 @@ In all three cases the chosen branch is written to $E$. A replay reads the recor
 **[Collect]** When every instance reaches the body's end, their outputs are joined per `collect` (`list`, `concat`, `reduce` with `reducer`, or `none`), bound to `collectAs` in the parent scope, and a single token continues.
 
 **[Loop]** An activity carrying a standard-loop marker re-enters its body at scope $\sigma \cdot (\textit{turn}, n, k{+}1)$ while `until` fails to hold and $k <$ `maxTurns`. On exhaustion, `onMaxTurns` decides between falling through and failing. **Always set `maxTurns`** — it is the only guaranteed termination bound in the language.
+
+**[Skip]** A step carrying a `when` guard that does not hold in $(\sigma, \beta)$ does not fire: the skip is written to $E$, its outputs stay unbound, and the token moves on. The step-level form of a `Gate`, for skips that do not deserve a branch on the diagram.
 
 **[Fire]** A step whose required input ports are all bound computes its cache key
 
@@ -98,7 +122,7 @@ A run is therefore replayable even though it is not deterministic: a replay read
 
 ## Runtime targets
 
-`runsOn` selects an executor; it never changes what a step means. The same `ml:Fit` is the same operation whether it runs in a worker process, a container, or a Slurm array job.
+`environment` selects an executor; it never changes what a step means. The same `ml:Operation` bound to a fit function is the same operation whether it runs in a worker process, a container, or a Slurm array job.
 
 | `runsOn` | Executor |
 | --- | --- |
@@ -107,7 +131,6 @@ A run is therefore replayable even though it is not deterministic: a replay read
 | `container` | an OCI image named by `uses` |
 | `hpc` | submitted to `scheduler` with `compute`; **suspends** until the job reports |
 | `cloud` | a hosted queue |
-| `human` | **suspends** until a person answers |
 
 `inherit` (the default) resolves against the enclosing sub-process and finally `studyflow:Study#runtime`. Scaling out is a change of `runsOn` and `compute`, not a change of diagram.
 
@@ -118,30 +141,66 @@ BPMN defines an **ad-hoc sub-process** as one whose contained activities execute
 So `agentic:Agent` is a `bpmn:AdHocSubProcess`, and:
 
 - **the tools are the activities drawn inside it** — containment is the tool list;
-- **a tool is an ordinary step** — same `uses`, same signature, same log entry, so anything a studyflow can run, an agent can call;
+- **a tool is an ordinary step** — same `uses`, same wired data elements, same log entry, so anything a studyflow can run, an agent can call;
 - **the turn loop is `exec:Repetition`** — `until` and `maxTurns`, the same construct as any other loop;
 - **`deterministic` is pinned false** — every model call and tool call lands in $E$.
 
 Everything *outside* an Agent follows a path the diagram fixes. Inside one, nothing does. Keeping that boundary visible is the point of drawing it: a reader can see at a glance which parts of a system are steered by a model.
 
-## Signatures
+## The interface
 
-`signature` declares the typed interface:
+A step's interface is not declared anywhere — it is *drawn*, and it is *reused*:
 
-```yaml
-in:
-  train: Table[features]      # Table conforming to the `features` Schema element
-  baseline: Model?            # optional
-out:
-  model: Model
-  metrics: Metric*            # a list
-```
+- **Wiring is BPMN's own data association.** An input is a data element wired in by a `dataInputAssociation`; an output is one wired out by a `dataOutputAssociation`. The engine reads the associations the diagram already has; there is no parallel port declaration to keep in sync.
+- **Types live on the data elements, once.** `Table`, `Dataset`, `Timeseries`, `ml:Model`, `ml:Metric`, `agentic:Prompt`, `Blob` are element types the language already has — the type of a port is the type of the element on the other end of the wire. Schema conformance is the data element's own business (a `Dataset` names its [`studyflow:Schema`](data.qmd)); a step never re-asserts it.
+- **The callable's parameter list is the fine-grained contract.** `python://sklearn.ensemble.RandomForestClassifier` already declares what it accepts; the notation does not re-declare a function's own signature. `with` supplies arguments; wired elements and scope bindings supply data, matched by name.
+- **Scope plumbing is by name.** Values that never earn a canvas element (a fold's metrics, a loop's `scores`) travel as scope bindings under the names `collectAs`, `itemVar`, and the step's outputs give them. The core `inputs`/`outputs` string lists remain for declaring these explicitly when it helps a reader.
 
-Types are the primitives (`Int` `Real` `Bool` `Str` `Path` `Uri` `Json` `Any`), the artifact types (`Table` `Dataset` `Array` `Timeseries` `Model` `Metric` `Report` `Prompt` `Document`), `T[schema_id]` pinning a [`studyflow:Schema`](data.qmd) element, `T?`, `T*`, and records. `T[S₁] <: T[S₂]` when `S₁` conforms to `S₂`, checked against the schema bodies.
+This is the reuse rule applied to the interface itself: BPMN defines the wiring, the existing artifact types define the typing, and the callable defines the parameters. Nothing was added — an earlier `signature` YAML block that re-declared all three was cut.
 
-A port may also bind to a data element on the canvas — `train: {type: Table, from: features_table}` — which is what a data association draws.
+## Fitting
 
-The older `inputs`/`outputs` string lists still work; they declare untyped ports.
+Everything that learns is fitted by the same step, and the shape is drawn, not declared: a **trainable artifact** (`Model` or `Prompt`) wired in and back out by data associations — same element, new digest, `producedBy` recording the fit — **data** wired in, and `Metric`s out, each with a `goal` declaring which way is better.
+
+One shape covers what five ecosystems spell differently — every row is a template binding a function onto `ml:Operation`, not a class:
+
+| The fit | Trainable | Data | Objective | Template |
+| --- | --- | --- | --- | --- |
+| classical estimator | `Model` | `Table` | the estimator's loss | `Fit model` (scikit-learn) |
+| statistical formula | `Model` | `Table` | likelihood | `Fit formula` — `rt ~ condition + (1 \| participant_id)` |
+| fine-tune (SFT / LoRA) | `Model` (adapter) | `Dataset` | next-token loss | `Fine-tune` |
+| preference tuning | `Model` | preference `Table` | human preferences | `Preference-tune` (DPO) |
+| prompt optimization | `Prompt` | scored examples | a judge's `Metric` | `Optimize prompt` (DSPy-style compile) |
+
+Three consequences:
+
+- **A prompt is fitted like a model.** `agentic:Prompt` carries `digest`, `version`, and `producedBy` from the `Artifact` trait, so a compiled prompt has the same lineage as a fitted model — which execution produced it, from what data. Prompt lineage is model lineage.
+- **The objective can be a measurement the flow itself makes.** An LLM-as-judge or a human rating produces the `Metric` an optimizer maximizes — and the preference pairs DPO fits on are collected by `Pairwise preference`, whose raters can be the study's own participants. Collection, fitting, and serving are one diagram.
+- **The loops around fitting are the `exec` constructs, unchanged.** A hyperparameter search is a `Sweep` around a fitting step; cross-validation is `iterate: folds`; compile-until-it-clears is a `Repeat` whose `until` reads the eval's metric (see `agent_eval.studyflow`, where the optimizer is `when`-guarded to skip the first turn so the hand-written prompt gets a baseline); retrain-on-drift is a boundary signal routed back into the fit. The evaluator-optimizer is the degenerate case: the same `Repeat`, with the response rather than an artifact as the thing improved.
+
+## One meaning, two spellings: the native BPMN mapping
+
+Several `exec` fields name things BPMN 2.0 already has a construct for. That is deliberate — the field is the *compact authoring spelling*, the native construct is the *wire and interop form* — but it is only harmless if the equivalence is declared once and mirrored mechanically (the Stage 2 mirror), so no field carries a second meaning. This table is that declaration.
+
+| Studyflow field | Native BPMN construct | Note |
+| --- | --- | --- |
+| `until` | `standardLoopCharacteristics/loopCondition` | **negated** — BPMN loops *while* its condition holds; `until` stops when it does |
+| `until` (on an `Agent`) | `adHocSubProcess/completionCondition` | BPMN's own exit test for "order decided at run time" |
+| `maxTurns` | `loopMaximum` | identical |
+| `testBefore` | `testBefore` | identical, name for name |
+| `sequential` | `multiInstanceLoopCharacteristics/isSequential` | identical |
+| `over` / `itemVar` / `collectAs` | `loopDataInputRef` / `inputDataItem` / `loopDataOutputRef` | identical roles |
+| shard count (`compute.array`) | `loopCardinality` | instance count as an expression |
+| `Gate.criterion` | the pass flow's `conditionExpression` | the engine's [Branch] rule reads the flow; `criterion` is mirrored onto it |
+| Router fallback branch | the gateway's `default` flow | native; the Router has no fallback field |
+| `timeout` | a boundary timer's `timeDuration` | draw the boundary event when the timeout path deserves to be visible |
+| `retry` | error boundary event + re-entry | BPMN has no retry count; the prop is the compact form |
+| `Component.source` | `Definitions/imports` + `calledElement` | a registry URL in one field instead of an import block |
+| step interface | `dataInputAssociation` / `dataOutputAssociation` | fully native — nothing custom; a `signature` block that re-declared the wiring was cut |
+| `approvers` | `resources` → `PotentialOwner` | a name list instead of the resource-role machinery |
+| `iterate: folds` / `grid`, `collect: reduce`, `seed`, `cache`, `when`, `deterministic` | — | genuinely new; no native construct exists |
+
+Everything in the left column that has a right column is *one* semantic with two spellings. Everything marked "genuinely new" is the actual extension surface — deliberately small.
 
 ## Provenance: the as-run record
 
@@ -179,6 +238,6 @@ The schema describes the full semantics; the browser runner implements the part 
 | `uses` / `with` parsed and validated | implemented; **not executed** |
 | Parallel gateway, sub-process traversal | **not supported** — the runner refuses rather than guessing |
 | Model-driven routing (`agentic:Router`) | **not supported** — the runner refuses rather than silently taking the default branch |
-| Scopes, expansion, collection, caching, the as-run record | **not implemented** |
+| Scopes, expansion, collection, caching, skip guards (`when`), the as-run record | **not implemented** |
 
 Refusing is deliberate. A runner that silently took the default branch at a `Router` would produce a run that looks fine and means nothing.

@@ -13,7 +13,10 @@ Cognitive_Risk_Model:
     studyflow. Everything a reviewer needs to judge it is on the diagram: how the
     data was split, what was swept, what had to be true to ship, and who signed off.
 
-    Read the four things that usually hide in a notebook:
+    Every step is one generic `ml:Operation` bound to a function via `uses`, with
+    its arguments in `with` - there is no `Split` or `Fit` class, only a step that
+    runs `GroupShuffleSplit` or `RandomForestClassifier`. Read the four things that
+    usually hide in a notebook:
 
     1. The split is grouped by participant. Without that, trials from one subject
        land on both sides and the test score measures nothing.
@@ -42,50 +45,47 @@ Cognitive_Risk_Model:
     Check_Data:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: ml:Validate
-          expectations:
-            row_count:
-              min: 5000
-            columns:
-              rt:
-                type: number
-                min: 0
-                max: 10000
-                nulls: 0
-              accuracy:
-                type: number
-                min: 0
-                max: 1
-            unique:
-              - trial_id
+        - type: ml:Operation
       name: Validate trials
       incoming:
         - Flow_Start_Check
       outgoing:
         - Flow_Check_Split
-      signature:
-        in:
-          data: Table
-        out:
-          data: Table
+      dataInputAssociations:
+        Wire_Trials_Check:
+          sourceRef:
+            - Trials
+      uses: python://lab.data.validate
+      with:
+        on_fail: fail
+        expectations:
+          row_count:
+            min: 5000
+          columns:
+            rt:
+              type: number
+              min: 0
+              max: 10000
+              nulls: 0
+            accuracy:
+              type: number
+              min: 0
+              max: 1
+          unique:
+            - trial_id
     Split_Data:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: ml:Split
-          strategy: group
-          groupBy: participant_id
+        - type: ml:Operation
       name: Group split
       incoming:
         - Flow_Check_Split
       outgoing:
         - Flow_Split_Tune
       uses: python://sklearn.model_selection.GroupShuffleSplit
-      signature:
-        in:
-          data: Table
-        out:
-          train: Table
-          test: Table
+      with:
+        test_size: 0.2
+        groupBy: participant_id
     Tune:
       type: bpmn:SubProcess
       documentation: |
@@ -99,6 +99,9 @@ Cognitive_Risk_Model:
         - Flow_Drift_Tune
       outgoing:
         - Flow_Tune_Test
+      dataOutputAssociations:
+        Wire_Best_Model:
+          targetRef: Fitted_Model
       runsOn: hpc
       compute:
         cpus: 8
@@ -123,36 +126,28 @@ Cognitive_Risk_Model:
         Fit_Point:
           type: bpmn:ServiceTask
           extensionElements:
-            - type: ml:Fit
-              estimator: sklearn.ensemble.RandomForestClassifier
-              hyperparameters:
-                max_depth: $sweep
-                n_estimators: $sweep
-                class_weight: balanced
-              target: high_risk
+            - type: ml:Operation
           name: Fit at point
           outgoing:
             - Flow_Fit_Score
-          signature:
-            in:
-              train: Table
-            out:
-              model: Model
+          uses: python://sklearn.ensemble.RandomForestClassifier
+          with:
+            max_depth: $sweep
+            n_estimators: $sweep
+            class_weight: balanced
+            target: high_risk
         Score_Point:
           type: bpmn:ServiceTask
           extensionElements:
-            - type: ml:Evaluate
-              metrics:
-                - roc_auc
-              split: validation
+            - type: ml:Operation
           name: Score point
           incoming:
             - Flow_Fit_Score
-          signature:
-            in:
-              model: Model
-            out:
-              metrics: Metric*
+          uses: python://sklearn.metrics.roc_auc_score
+          with:
+            metrics:
+              - roc_auc
+            split: validation
         Flow_Fit_Score:
           type: bpmn:SequenceFlow
           sourceRef: Fit_Point
@@ -161,34 +156,37 @@ Cognitive_Risk_Model:
       type: bpmn:ServiceTask
       documentation: |
         Scored per site as well as overall. A model that is strong on average and
-        weak at one site is a finding, not a footnote - so the slice is a parameter
-        of the evaluation rather than a separate audit somebody remembers to run.
+        weak at one site is a finding, not a footnote - so the slice is a `groupBy`
+        in `with` rather than a separate audit somebody remembers to run.
       extensionElements:
-        - type: ml:Evaluate
-          metrics:
-            - roc_auc
-            - f1_macro
-            - calibration_error
-          groupBy: site
+        - type: ml:Operation
       name: Evaluate on held-out test
       incoming:
         - Flow_Tune_Test
       outgoing:
         - Flow_Test_Promote
-      signature:
-        in:
-          model: Model
-          test: Table
-        out:
-          metrics: Metric*
-          report: Report
+      dataInputAssociations:
+        Wire_Model_Test:
+          sourceRef:
+            - Fitted_Model
+      uses: python://sklearn.metrics.classification_report
+      with:
+        metrics:
+          - roc_auc
+          - f1_macro
+          - calibration_error
+        split: test
+        groupBy: site
     Fitted_Model:
       type: bpmn:DataObjectReference
+      documentation: |
+        Model card - intended use, training data, known limitations:
+        https://example.org/cards/cognitive-risk.md
       extensionElements:
         - type: ml:Model
           framework: scikit-learn
+          taskType: classification
           target: high_risk
-          cardUri: https://example.org/cards/cognitive-risk.md
       name: Candidate model
     Promote:
       type: bpmn:ExclusiveGateway
@@ -227,27 +225,32 @@ Cognitive_Risk_Model:
     Register_Model:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: ml:Register
-          registry: https://mlflow.example.org
-          modelName: cognitive-risk
-          stage: production
+        - type: ml:Operation
       name: Register version
       incoming:
         - Flow_SignOff_Register
       outgoing:
         - Flow_Register_Ship
+      uses: python://mlflow.register_model
+      with:
+        registry: https://mlflow.example.org
+        name: cognitive-risk
+        stage: production
     Ship:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: ml:Deploy
-          endpoint: kserve://cognitive-risk
-          strategy: canary
-          trafficPercent: 10
+        - type: ml:Operation
       name: Deploy
       incoming:
         - Flow_Register_Ship
       outgoing:
         - Flow_Ship_Watch
+      uses: python://lab.serving.deploy
+      with:
+        endpoint: kserve://cognitive-risk
+        strategy: canary
+        traffic_percent: 10
+      cache: never
     Watch:
       type: bpmn:ServiceTask
       documentation: |
@@ -255,16 +258,19 @@ Cognitive_Risk_Model:
         and routes back into the sweep - which makes the retraining loop a path on the
         diagram rather than a paragraph in a runbook.
       extensionElements:
-        - type: ml:Monitor
-          watches: roc_auc
-          threshold: 0.75
-          window: 7d
-          schedule: 0 6 * * *
+        - type: ml:Operation
       name: Monitor drift
       incoming:
         - Flow_Ship_Watch
       outgoing:
         - Flow_Watch_Done
+      uses: python://lab.serving.monitor
+      with:
+        watches: roc_auc
+        threshold: 0.75
+        window: 7d
+        schedule: 0 6 * * *
+        signal: drift
     Drift:
       type: bpmn:BoundaryEvent
       name: Drift detected

@@ -1,8 +1,8 @@
 # Executable Studyflow: plan
 
-How Studyflow becomes a language you can *run* — at scale, as human-in-the-loop, on HPC, agentically, or as a plain sklearn pipeline — without becoming a different language.
+How Studyflow becomes a language you can *run* — at scale, as human-in-the-loop, on HPC, agentic, or as a plain ML pipeline — without becoming a different language.
 
-The semantics are specified in [`docs/reference/execution.qmd`](docs/reference/execution.qmd). This document is the build order.
+The semantics are specified in [`exec_docs.qmd`](./exec_docs.qmd).
 
 ---
 
@@ -25,27 +25,33 @@ Two consequences shaped the schema:
 | call activity | reusable component |
 | data association | typed port binding |
 
-**Parameterize, don't proliferate.** This repo already contains both the wrong answer and the right one. `docs/assets/mlops.moddle.yaml` is 946 lines with one type per dplyr verb (`LeftJoinTables`, `SpreadColumns`, …) — abandoned. `datatrove.moddle.yaml` replaced it with six generic operations plus templates that bind a function via `uses`. The new schemas follow the second pattern: `ml` has ten types, and "5-fold stratified CV" is a *template*, not a class.
+**Parameterize, don't proliferate.** This repo already contains both the wrong answer and the right one. `docs/assets/mlops.moddle.yaml` is 946 lines with one type per dplyr verb (`LeftJoinTables`, `SpreadColumns`, …) — abandoned. `datatrove.moddle.yaml` replaced it with six generic operations plus templates that bind a function via `uses`. The AI/ML schemas follow the second pattern: the only new *nouns* are artifacts (`Model`, `Metric`, `Prompt`) and the two elements whose control flow a model steers (`Agent`, `Router`); every *verb* — split, fit, evaluate, deploy, retrieve, judge, guardrail — is a **template** binding a function onto a generic step, not a class. "5-fold stratified CV" is a template, not a class; so is "Fit random forest," so is "LLM-as-judge," and so is "Optimize prompt" — fitting a prompt is the same operation shape as fitting a forest.
+
+> An earlier draft of `ml`/`agentic` relapsed into the abandoned one-class-per-verb pattern (34 types, 24 enums, 2,725 lines — larger than the rest of the language). The collapse back onto `exec` + templates is recorded in [`exec_schema_review.md`](./exec_schema_review.md), which is the review that produced the schemas described below.
 
 ---
 
 ## What is already done
 
-Three schemas, registered in `src/core/constants.ts`, passing the full lint + moddle-registration suite (302 tests green):
+Three schemas, registered in `src/core/constants.ts`, passing the schema-lint + moddle-registration suite. `exec` is the general view; `ml` and `agentic` are thin packs of the few irreducible types plus a set of `uses`-bound templates.
 
-| Schema | Contents |
-| --- | --- |
-| **`exec`** (core) | `Step` / `Iteration` / `Repetition` / `Artifact` traits; `ForEach` `Sweep` `Repeat` `Block` `Component` `Gate` `Parameters` `Blob` |
-| **`ml`** | `Split` `Fit` `Predict` `Evaluate` `Validate` `Register` `Deploy` `Monitor` + `Model` `Metric` `Report` |
-| **`agentic`** | `Agent` (ad-hoc sub-process) `LLMCall` `Tool` `Retriever` `Router` `Judge` `Guardrail` `HumanApproval` `HumanFeedback` + `Prompt` `Memory` |
+| Schema | Types (classes) | Everything else is a template |
+| --- | --- | --- |
+| **`exec`** (core) | `Step` / `Iteration` / `Repetition` / `Artifact` traits; `ForEach` `Sweep` `Repeat` `Block` `Component` `Gate` `Parameters` `Blob` | shard-across-cluster, sweep, repeat-until |
+| **`ml`** | `Model` `Metric` (artifacts) + one generic `Operation` step | split, fit, fit-formula, fine-tune, preference-tune, optimize-prompt, predict, evaluate, validate, embed-corpus, register, deploy, monitor, CV, grid-search, promotion-gate |
+| **`agentic`** | `Agent` (ad-hoc sub-process) `Router` (`branching: model`) `LLMCall` `Tool` `HumanApproval` + `Prompt` `Memory` (artifacts) | retriever, judge, guardrail, human-feedback, pairwise-preference, evaluator-optimizer, prompt-chain |
 
-Plus two worked examples (`ml_pipeline.studyflow`, `agent_eval.studyflow`) that **round-trip losslessly through the existing codec with zero codec changes** — including a nested `bpmn:AdHocSubProcess`. The inspector, palette, templates, and auto-layout all pick the new types up from the catalog with no app changes.
+Plus two worked examples (`ml_pipeline.studyflow`, `agent_eval.studyflow`) that **round-trip losslessly through the existing codec with zero codec changes** — each is its own fixed point under YAML → XML → YAML, and the runner parses the same flow graph through both. Every ML/agent step in them is one generic `ml:Operation`/`agentic:Tool` bound via `uses`, not a bespoke class. The inspector, palette, templates, and auto-layout pick the types up from the catalog with no app changes.
+
+**Fitting is one notation across the whole surface** — a trainable artifact, data, and an objective in; the improved artifact and its `Metric`s out — realized entirely as templates over `ml:Operation`, so the trainable can be a classical estimator, a formula-specified statistical model, a LoRA adapter, or an `agentic:Prompt` (a DSPy-style compile). The step contract's sixth question ("may it be skipped?") is now `exec:Step#when`, which the fitting loop uses to skip the optimizer on the baseline turn. `agent_eval.studyflow` closes the loop on the diagram: the eval is wrapped in a `Repeat` that refits the agent's instructions until the judge's score clears the bar. Semantics in [`exec_docs.qmd`](./exec_docs.qmd) §Fitting.
 
 One runner change was needed and made: `agentic:Router` declares `meta.branching: model`, which the `Session` does not implement. It now **refuses** rather than falling through to the condition arm and silently taking the default branch (`src/runner/controllers/session.ts`).
 
-### Known cosmetic gap
+### Known cosmetic gaps
 
 `exec:ForEach` and `exec:Sweep` carry iteration *parameters* but do not yet set BPMN's native `loopCharacteristics`, so bpmn-js draws no ∥∥∥ marker. Fixed in Stage 2 by mirroring the trait onto the native marker — the marker is BPMN's (rendering, interop), the parameters are ours (semantics).
+
+Data associations authored in a DI-less `.studyflow` round-trip and parse, but the auto-layout does not yet give the association *edges* waypoints, so they are not drawn until a user wires them interactively. Same Stage 2 bucket: extend the missing-DI auto-layout to data-association edges.
 
 ---
 
@@ -87,8 +93,8 @@ export interface NodeDefinition<J> {
 
 - Parse nested `flowElements`; resolve boundary events to their `attachedToRef`.
 - Implement **[Fork]/[Join]** (the `ParallelGateway` that currently throws), **[Expand]/[Collect]**, **[Loop]**.
-- Modeler: mirror `iterate`/`until` onto `bpmn:multiInstanceLoopCharacteristics` / `bpmn:standardLoopCharacteristics` so the markers render and other BPMN tools read them.
-- Static check: validate every `signature` against its wiring, in the existing `NodeDefinition.validate` hook. **This is the highest-value single feature** — it turns "training data → fitted model → metric" into something the modeler can verify before anything runs.
+- Modeler: mirror every field that has a native BPMN twin onto it, per the mapping table in [`exec_docs.qmd`](./exec_docs.qmd): `iterate`/`sequential`/`over`/`itemVar`/`collectAs` → `multiInstanceLoopCharacteristics`, `until`/`maxTurns`/`testBefore` → `standardLoopCharacteristics` (`loopCondition` negated), an Agent's `until` → the ad-hoc sub-process's `completionCondition`, and `Gate.criterion` → the pass flow's `conditionExpression`. The markers render, other BPMN tools read them, and no field carries a second meaning.
+- Static check: type-check the wiring, in the existing `NodeDefinition.validate` hook — every data association connects a typed data element to a step, so "does a `Model` flow into the evaluate step?" is checkable from the drawn graph alone. **This is the highest-value single feature** — it turns "training data → fitted model → metric" into something the modeler can verify before anything runs.
 
 **Done when** `ml_pipeline.studyflow` expands its sweep into one instance per grid point, each with its own derived seed, and the fold/sweep/participant scopes are visible in the log.
 
@@ -129,7 +135,7 @@ The HPC story needs no new semantics: an array job is `iterate: shards`, and wai
 
 **`exec` is loaded as a core schema.** Executability is the semantics of the language, not an add-on — a cognitive task is a step whose implementation is a person. The cost: every activity's inspector gains Execution/Compute tabs. Flip `core: true` in `src/core/constants.ts` to make it opt-in.
 
-**Ports are a YAML block (`signature`), not `Port` elements with data associations.** This needed zero codec changes and round-trips today — proven, not assumed. The cost: ports have no canvas wires yet. Promoting them later is additive.
+**The interface is the diagram, not a declaration.** An earlier draft carried a `signature` YAML block per step; it was cut once it proved redundant three times over — BPMN's data associations already draw the wiring (and round-trip through the codec unchanged, proven in both examples), the artifact elements already carry the types, and the callable named by `uses` already declares its parameters. The cost: a port that deserves a type must earn a data element on the canvas. That is a feature — an interface a reviewer cannot see is an interface nobody reviewed.
 
 **Build the engine; treat emitters as an afterthought.** The alternative — compile studyflows to Airflow/CWL/LangGraph and run nothing ourselves — is cheaper and would work for any *one* of the three workloads. It cannot work for the union, which is exactly Studyflow's claim. The engine is small: the whole semantics is eleven rules.
 

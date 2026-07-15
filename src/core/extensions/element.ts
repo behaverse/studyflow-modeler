@@ -141,6 +141,17 @@ function readRaw(target: any, name: string): any {
   return typeof target.get === 'function' ? target.get(name) : target[name];
 }
 
+/** True when `name` holds an explicitly stored value on the moddle object.
+ *  moddle materializes descriptor defaults on the type's prototype; parsed and
+ *  written values become own properties, so own-ness tells the two apart. */
+function hasStoredValue(target: any, name: string): boolean {
+  if (!target || typeof target !== 'object') return false;
+  const property = target.$model?.getPropertyDescriptor?.(target, name);
+  if (property) return Object.prototype.hasOwnProperty.call(target, property.name);
+  if (target.$attrs && name in target.$attrs) return true;
+  return Object.prototype.hasOwnProperty.call(target, name);
+}
+
 /** Body-wrapped attribute (e.g. `cognitive:Configurations`): unwrap the value
  *  of the child element transparently. */
 function unwrapBodyValue(rawValue: any, attrDef: AttributeSpec | undefined): any {
@@ -256,13 +267,21 @@ export class StudyflowElement {
     const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
     if (!r.target || !r.attributeName) return undefined;
 
-    // Pinned defaults on the wrapper take precedence over the BO value.
+    // Wrapper precedence: a pinned redefinition always wins; otherwise a
+    // wrapper value wins only when it is explicitly stored, or when the BO has
+    // none stored either (a redefined default beats an inherited trait
+    // default). moddle materializes every descriptor default on the wrapper,
+    // so an unconditional read here would mask values stored on the BO.
     if (r.ext && r.target === r.bo) {
       const extDef = getAttributeDefinition(r.ext, attributeName);
       if (extDef) {
         const extName = extDef.name ?? extDef.ns?.localName ?? r.attributeName;
         const extValue = readRaw(r.ext, extName);
-        if (extValue !== undefined) return unwrapBodyValue(extValue, extDef);
+        const extWins =
+          extDef.meta?.pinned === true ||
+          hasStoredValue(r.ext, extName) ||
+          !hasStoredValue(r.bo, r.attributeName);
+        if (extValue !== undefined && extWins) return unwrapBodyValue(extValue, extDef);
       }
     }
 

@@ -2,12 +2,12 @@
 
 name: Exec
 prefix: exec
-description: The executable layer of Studyflow - the step contract (typed signature, runtime target, caching, determinism, retries) that turns any activity into a runnable step, plus the scope constructs (fan-out, sweep, repeat) that BPMN's multi-instance and loop markers stand for. Domain-neutral - it makes cognitive tasks, data operations, ML steps, and agents run under one semantics.
+description: The executable layer of Studyflow - the step contract (runtime target, caching, determinism, retries) that turns any activity into a runnable step, plus the scope constructs (fan-out, sweep, repeat) that BPMN's multi-instance and loop markers stand for. A step's interface is not declared here - it is the typed data elements wired to it by BPMN's own data associations. Domain-neutral - it makes cognitive tasks, data operations, ML steps, and agents run under one semantics.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
 xml:
   tagAlias: lowerCase
-version: 26.0714
+version: 26.0715
 
 associations: []
 
@@ -112,19 +112,6 @@ enumerations:
         value: none
         description: Discard instance outputs; the step ran for its side effects.
 
-  - name: SweepStrategyEnum
-    isAbstract: true
-    description: How points are drawn from the sweep space.
-    literalValues:
-      - name: Grid (full factorial)
-        value: grid
-      - name: Random search
-        value: random
-      - name: Bayesian optimization
-        value: bayesian
-      - name: Successive halving
-        value: halving
-
   - name: OnLimitEnum
     isAbstract: true
     description: What happens when a repeat block hits `maxTurns` without its exit condition holding.
@@ -144,9 +131,6 @@ enumerations:
       - name: In memory
         value: memory
         description: Passed between steps in the worker; never persisted. Not cacheable.
-      - name: Streamed
-        value: stream
-        description: Consumed lazily; only the digest of the stream manifest is recorded.
 
 types:
 
@@ -154,48 +138,24 @@ types:
   # The step contract. A trait on every BPMN activity, so a cognitive task, a
   # data operation, an ML step, and an agent are all executable under the same
   # six questions: what runs (studyflow:uses), with what arguments
-  # (studyflow:with), over what typed interface (signature), where (runsOn),
-  # under what reuse and failure policy (cache/retry/timeout), and with what
-  # source of randomness (seed/deterministic).
+  # (studyflow:with), over what interface (the data associations drawn on the
+  # canvas - native BPMN, nothing declared here), where (runsOn), under what
+  # reuse and failure policy (cache/retry/timeout), and with what source of
+  # randomness (seed/deterministic).
   # ===========================================================================
   - name: Step
     description: |
       Execution contract mixed onto every BPMN activity. `studyflow:uses` and
-      `studyflow:with` already say *what* runs and *with what arguments*; this
-      trait adds the rest of the contract the engine needs to actually run it
-      at scale: the typed interface, the runtime target, the reuse policy, the
-      failure policy, and the randomness source.
+      `studyflow:with` already say *what* runs and *with what arguments*; the
+      interface is not declared here at all - a step's inputs and outputs are
+      the typed data elements wired to it by BPMN's own data associations, and
+      the callable named by `uses` carries its own parameter list. This trait
+      adds only what neither the diagram nor the callable can say: the runtime
+      target, the reuse policy, the failure policy, and the randomness source.
     extends:
       - bpmn:Activity
     isAbstract: true
     properties:
-      - name: signature
-        description: |
-          Typed interface of the step, as a YAML mapping with `in:` and `out:`
-          entries. Each port is `name: Type`, or `name: {type: Type, from: <element id>}`
-          to bind an input to a data element on the canvas (`to:` for outputs).
-
-          Types: `Int` `Real` `Bool` `Str` `Path` `Uri` `Json` `Any`, the artifact
-          types (`Table` `Dataset` `Array` `Timeseries` `Model` `Metric` `Report`
-          `Prompt` `Document`), `T[schema_id]` to pin a schema element,
-          `T?` optional, `T*` list, and `{a: T, b: U}` records.
-
-          Example:
-
-              in:
-                train: Table[features]
-                params: Json?
-              out:
-                model: Model
-                metrics: Metric*
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 1
-          categories:
-            - Execution
-          editor: yaml
-
       - name: runsOn
         description: |
           Runtime target for this step. `inherit` resolves against the enclosing
@@ -301,11 +261,29 @@ types:
           editor: yaml
 
       - name: timeout
-        description: Wall-clock budget for one attempt (e.g. `30s`, `2h`, `PT4H`).
+        description: |
+          Wall-clock budget for one attempt (e.g. `30s`, `2h`, `PT4H`). The
+          shorthand for a boundary timer's `timeDuration`; draw the boundary
+          event instead when the timeout path deserves to be visible.
         isAttr: true
         type: String
         meta:
           order: 9
+          categories:
+            - Execution
+          optional: true
+
+      - name: when
+        description: |
+          Guard expression over the scope's bindings; the step runs only when it
+          holds (e.g. `scope.turn > 1`). A skipped step is recorded as skipped,
+          leaves its outputs unbound, and passes the token on - the step-level
+          form of a `Gate`, for skips that do not deserve a branch on the diagram
+          (CWL `when`, Nextflow `when`). Unset means always run.
+        isAttr: true
+        type: String
+        meta:
+          order: 10
           categories:
             - Execution
           optional: true
@@ -339,7 +317,7 @@ types:
       - name: over
         description: |
           Name of the input port (or variable) holding the collection to expand
-          over. Required when `iterate` is `items`.
+          over. Required when `iterate` is `items`. (BPMN: `loopDataInputRef`.)
         isAttr: true
         type: String
         meta:
@@ -352,7 +330,7 @@ types:
               iterate: items
 
       - name: itemVar
-        description: Name the current instance's element is bound to inside the scope.
+        description: Name the current instance's element is bound to inside the scope (BPMN's `inputDataItem`).
         isAttr: true
         type: String
         default: item
@@ -397,7 +375,7 @@ types:
               space:
                 lr: [0.001, 0.01, 0.1]
                 max_depth: [2, 4, 8]
-              samples: 20              # random / bayesian only
+              samples: 20              # random search only
               objective: {metric: val_auc, goal: max}
         isAttr: false
         type: studyflow:YAMLString
@@ -444,7 +422,7 @@ types:
             - Iteration
 
       - name: collectAs
-        description: Output port the joined result is bound to in the parent scope.
+        description: Output port the joined result is bound to in the parent scope (BPMN's `loopDataOutputRef`).
         isAttr: true
         type: String
         meta:
@@ -494,6 +472,9 @@ types:
         description: |
           Exit condition, evaluated against the scope's bindings after each turn.
           The loop ends on the first turn where it holds (e.g. `score >= 0.9`).
+          The native twin is the standard-loop marker's `loopCondition`, negated:
+          BPMN's loop *continues while* its condition holds, `until` stops when
+          it does. On an Agent, the native twin is `completionCondition`.
         isAttr: true
         type: String
         meta:
@@ -502,7 +483,7 @@ types:
             - Repeat
 
       - name: maxTurns
-        description: Hard ceiling on turns. Always set one - it is the only guaranteed termination bound.
+        description: Hard ceiling on turns (BPMN's `loopMaximum`). Always set one - it is the only guaranteed termination bound.
         isAttr: true
         type: Integer
         default: 10
@@ -664,9 +645,9 @@ types:
 
   - name: Block
     description: |
-      A named group of steps that runs as one unit, with its own typed signature.
-      The encapsulation primitive: a block hides its internals behind an interface,
-      so a reader sees "preprocess" and an author can open it. Nest freely - a
+      A named group of steps that runs as one unit. The encapsulation primitive:
+      a block hides its internals behind the data elements wired to it, so a
+      reader sees "preprocess" and an author can open it. Nest freely - a
       block's steps are steps.
     superClass:
       - bpmn:SubProcess
@@ -677,10 +658,10 @@ types:
 
   - name: Component
     description: |
-      A call to a sub-flow defined elsewhere, with a typed signature. The
-      reusability primitive: a preprocessing pipeline, a scoring protocol, or an
-      agent published once and called from many studies. Sets BPMN's
-      `calledElement` to the target flow.
+      A call to a sub-flow defined elsewhere. The reusability primitive: a
+      preprocessing pipeline, a scoring protocol, or an agent published once and
+      called from many studies. Sets BPMN's `calledElement` to the target flow;
+      its interface is the data elements wired to it, like any other step.
     superClass:
       - bpmn:CallActivity
       - bpmn:BaseElement
@@ -729,6 +710,9 @@ types:
         description: |
           Expression over the scope's bindings that must hold to take the pass
           branch (e.g. `metrics.auc >= 0.80 and metrics.auc >= baseline.auc`).
+          This is the authoring spelling of the pass flow's native
+          `conditionExpression` - the field the engine's branch rule reads -
+          and is mirrored onto it, so there is one rule, not two.
         isAttr: true
         type: String
         meta:
