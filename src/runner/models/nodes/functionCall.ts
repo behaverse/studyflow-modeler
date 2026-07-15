@@ -7,15 +7,15 @@ import type { Studyflow } from '@/runner/models/studyflow';
 import type { ValidationIssue } from '@/runner/models/nodes/types';
 import { readString } from '@/runner/models/nodes/readAttribute';
 
-/** The function call declared on an activity (`uses` + `with`), if any. */
+/** The function call declared on an activity (`implementation` + `with`), if any. */
 export type FunctionCall = {
   functionRef: string;
   argsYaml?: string;
 };
 
-/** Read the `uses`/`with` pair off a node; undefined when no `uses` is set. */
+/** Read the `implementation`/`with` pair off a node; undefined when no `implementation` is set. */
 export function readFunctionCall(node: FlowNode): FunctionCall | undefined {
-  const functionRef = readString(node, 'uses');
+  const functionRef = readString(node, 'implementation');
   if (!functionRef) return undefined;
   const withValue = getAttribute(node.businessObject, 'with');
   const argsYaml = typeof withValue === 'string' && withValue.trim() ? withValue : undefined;
@@ -52,7 +52,7 @@ export function resolveFunctionCall(call: FunctionCall): ResolvedFunctionCall {
   };
 }
 
-/** Validate every function call in the flow: the `uses` grammar and the `with` YAML. */
+/** Validate every function call in the flow: the `implementation` grammar and the `with` YAML. */
 export function validateFunctionCalls(studyflow: Studyflow): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
@@ -62,7 +62,7 @@ export function validateFunctionCalls(studyflow: Studyflow): ValidationIssue[] {
 
     const result = parseFunctionRef(call.functionRef);
     if (!result.ok) {
-      issues.push({ nodeId: node.id, message: `Invalid 'uses' function reference: ${result.error}` });
+      issues.push({ nodeId: node.id, message: `Invalid 'implementation' function reference: ${result.error}` });
     } else if (!KNOWN_SCHEMES.includes(result.value.scheme)) {
       issues.push({
         nodeId: node.id,

@@ -313,8 +313,8 @@ one property.
   unifying shape and the five-ecosystem table) and a [Skip] firing rule;
   `Prompt`'s description now states that prompt lineage is model lineage
   (`producedBy` written by the optimize step); `agent_eval.studyflow` wraps its
-  eval in a `Repeat` that refits the agent's instructions until the judge's
-  score clears the bar.
+  eval in a repeat-until loop that refits the agent's instructions until the
+  judge's score clears the bar.
 
 The unification this buys: **fit = improve a trainable artifact against data
 and an objective.** A scikit-learn fit, a mixed-effects formula, a LoRA
@@ -371,22 +371,82 @@ a boundary timer; `approvers` ↔ `PotentialOwner`; `Component#source` ↔
 - `approvers` vs. the resource-role machinery and `retry` vs. an error
   boundary + loop-back (BPMN has no retry count at all): the native forms
   remain heavier than one field, and both are named in the mapping table.
-- The zero-property anchors `Block` and `Repeat` were candidates to become
-  templates over plain `bpmn:SubProcess`, but the template compiler resolves a
-  template's root type through the catalog (`catalog.getType`), which only
-  holds schema types — a `bpmn:`-rooted template is silently dropped. Anchors
-  are what give palette entries and extension wrappers an identity; they stay,
-  and staying thin (zero properties) is exactly their job.
-- `studyflow:uses` overlaps `bpmn:ServiceTask#implementation`, but only
-  service/send/receive/user/rule tasks have `implementation` — `uses` applies
-  to every activity, so it cannot collapse onto the native field. An exporter
-  may mirror it for service tasks.
+**Reversed on a second push — two more cuts (2026-07-15, later the same day):**
 
-Net change: `exec` loses `signature` (843 lines), `agentic` loses
-`Router#fallback` (717 lines), `ml` sheds its template signature lines (540);
-type and enum counts are unchanged, and both examples now draw their dataflow
-as native associations instead of declaring it. The audit's standing rule for
-future fields: **name the native twin or be genuinely new** — the "genuinely
-new" list (`iterate: folds/grid`, `collect: reduce`, `seed`, `cache`, `when`,
-`deterministic`, the artifact lineage fields) is the real extension surface,
-and it is small.
+- **`exec:Block` and `exec:Repeat` are gone.** The first pass kept them because
+  the template compiler only resolved schema types; the right fix was to
+  extend the compiler (~10 lines: `compileTemplates` accepts `bpmn:`-rooted
+  template roots, `createTemplateShape` writes attributes through
+  `StudyflowElement` when there is no extension to stamp — which also fixed
+  plain-BPMN template children silently dropping their `bpmn:name`). A "block"
+  is a plain `bpmn:SubProcess`; a repeat is a sub-process with the `Repetition`
+  trait's `until`/`maxTurns` set — the Repeat inspector tab was already on
+  every activity. The "Repeat until", "Evaluator-optimizer", and "Prompt chain"
+  palette recipes survive as templates rooted at `bpmn:SubProcess`.
+- **`studyflow:uses` is gone; the reference lives in BPMN's own
+  `implementation`.** The first pass said `uses` could not collapse because it
+  was declared on every activity — which was the defect, not a constraint:
+  only the task types that execute something need a function reference, and
+  those are exactly the types BPMN gives `implementation` (service, user,
+  send, receive, rule tasks). The attribute is surfaced (with the
+  `<scheme>://<ref>[@version]` grammar documented) via `redefines` on the
+  three anchors that bind functions — `ml:Operation`, `agentic:Tool`,
+  `datatrove:Transform` — and the jsPsych importer now emits `bpmn:UserTask`
+  elements carrying the plugin reference in native `implementation`, which is
+  the BPMN-correct type for a human-answered trial anyway. `with` stays (BPMN
+  has no argument mapping); its inspector visibility now keys on
+  `implementation`.
+
+Net change across the full audit: `exec` loses `signature`, `Block`, and
+`Repeat` (12 → **10 types**, 825 lines); `studyflow` core loses `uses` (802
+lines); `agentic` loses `Router#fallback`; both examples draw their dataflow
+as native associations and bind their functions through native
+`implementation`. Template counts are unchanged — the cut types survive as
+recipes. The audit's standing rule for future fields: **name the native twin
+or be genuinely new** — the "genuinely new" list (`with`, `iterate:
+folds/grid`, `collect: reduce`, `seed`, `cache`, `when`, `deterministic`, the
+artifact lineage fields) is the real extension surface, and it is small.
+
+## 11. Addendum: native storage for loops, exit tests, and gate rules (2026-07-15)
+
+The last set of "compact spelling + Stage 2 mirror" fields is gone too — the
+native BPMN constructs are now *stored directly*, so there is nothing left to
+mirror:
+
+- **`exec:Repetition` deleted** (`until`, `maxTurns`, `onMaxTurns`,
+  `testBefore`, and `OnLimitEnum` with it). A cycle is a sub-process carrying
+  BPMN's own `standardLoopCharacteristics` — `loopCondition` (continue-while,
+  the native polarity, so the "negated mirror" hazard no longer exists),
+  `loopMaximum`, `testBefore`. `onMaxTurns` had no native twin and was
+  speculative: on exhaustion a BPMN loop simply exits.
+- **`exec:Iteration#sequential` deleted** — the multi-instance child's native
+  `isSequential` is the field. Bonus: the renderer already keyed loop markers
+  on native `loopCharacteristics`, so ↻ and ∥∥∥ now draw wherever the child is
+  present — the "no marker" cosmetic gap closed itself.
+- **`exec:Gate#criterion` deleted** — the rule is the pass flow's native
+  `conditionExpression` (already what the engine's [Branch] rule reads) plus
+  the gateway's native `default` flow for the reject path. `Gate` keeps only
+  `rationale`. The runner's parser now accepts the core's flattened
+  string-form conditions (it previously read only Expression elements — a
+  latent bug).
+- **`agentic:Agent`**: the exit test is the ad-hoc sub-process's own
+  `completionCondition`; `maxTurns` stays as the Agent's one custom loop field
+  (BPMN puts no ceiling on an ad-hoc sub-process).
+- **Two flattening traits** make the expression fields authorable as strings,
+  reusing the core's `conditionExpression` precedent exactly:
+  `exec:LoopCondition` (on `standardLoopCharacteristics`) and
+  `exec:CompletionCondition` (on `adHocSubProcess`). Sharp edge found on the
+  way: declaring such a redefine on the *wrapper* subtype (`agentic:Agent`)
+  corrupts moddle's serialization of the host's contained children — shadow
+  traits must live in a prefix that no wrapper on that element claims, which
+  is also why `CompletionCondition` sits in `exec`, not `agentic`.
+- **`createTemplateShape` materializes `loopCharacteristics`** from template
+  YAML, so "Repeat until", "Evaluator-optimizer", and the fan-out templates
+  preset the native child (and therefore the marker).
+
+Post-addendum figures: `exec` 794 lines, 11 types (5 traits), 6 enums;
+`agentic` 743 lines, 7 types, 4 enums. The custom surface of the executable
+layer is now exactly: `with`, `when`, `runsOn`/`scheduler`/`compute`, `cache`,
+`deterministic`, `seed`, `retry`, `timeout`, artifact lineage, the `Iteration`
+scope vocabulary, and `Agent#maxTurns` — each present only because BPMN has
+nothing for it.

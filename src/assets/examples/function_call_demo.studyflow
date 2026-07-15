@@ -41,10 +41,10 @@ FunctionCallDemo:
       outgoing:
         - Flow_Map_Fetch
       isDataOperation: true
-      uses: python://pkg_for_st.do_map@1.2
       with:
         column: rt
         fn: median
+      implementation: python://pkg_for_st.do_map@1.2
       studyflow:operationType: map
       bounds:
         x: 260
@@ -52,13 +52,13 @@ FunctionCallDemo:
         width: 100
         height: 80
     FetchScript:
-      type: bpmn:Task
+      type: bpmn:ServiceTask
       name: Fetch cleaning script
       incoming:
         - Flow_Map_Fetch
       outgoing:
         - Flow_Fetch_End
-      uses: https://example.org/scripts/clean.py@v2
+      implementation: https://example.org/scripts/clean.py@v2
       bounds:
         x: 420
         "y": 160

@@ -13,8 +13,8 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
     markers.push('checklist');
   }
 
-  const uses = getAttribute(element, 'uses');
-  if (getAttribute(element, 'isDataOperation') || (typeof uses === 'string' && uses.trim())) {
+  const implementation = getAttribute(element, 'implementation');
+  if (getAttribute(element, 'isDataOperation') || (typeof implementation === 'string' && implementation.trim())) {
     markers.push('function');
   }
 

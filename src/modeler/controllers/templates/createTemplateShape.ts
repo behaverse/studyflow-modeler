@@ -42,13 +42,30 @@ export function runCreateTemplateShape(
     ...(parent ? { parent } : {}),
   });
 
-  if (!extensionType) return shape;
-
   const bo = shape.businessObject;
   const bpmnName = attributes['bpmn:name'];
   if (bpmnName !== undefined) {
     delete attributes['bpmn:name'];
     bo.set('name', bpmnName);
+  }
+
+  // Native loop child (BPMN's own construct; also what makes bpmn-js draw the
+  // loop / multi-instance marker). Templates author it as a nested map.
+  const loop = attributes['loopCharacteristics'];
+  if (loop && typeof loop === 'object') {
+    delete attributes['loopCharacteristics'];
+    const { type: loopType = 'bpmn:StandardLoopCharacteristics', ...fields } = loop as Record<string, any>;
+    const lc = moddle.create(loopType, fields);
+    lc.$parent = bo;
+    bo.set('loopCharacteristics', lc);
+  }
+
+  if (!extensionType) {
+    // Plain BPMN root: no extension to stamp; attributes (trait fields like
+    // `until`, native ones like `implementation`) write straight through.
+    const handle = StudyflowElement.fromBusinessObject(bo);
+    for (const [name, value] of Object.entries(attributes)) handle.write(name, value);
+    return shape;
   }
 
   const ext = StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, moddle, attributes);

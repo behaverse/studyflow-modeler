@@ -281,7 +281,10 @@ test.describe('catalog: templates and enums', () => {
 
       for (const template of compiled) {
         expect(template.bpmnType, template.id).toMatch(/^bpmn:/);
-        expect(catalog.getType(template.extensionType), template.id).toBeTruthy();
+        // Templates rooted at a plain BPMN type stamp no extension.
+        if (template.extensionType !== undefined) {
+          expect(catalog.getType(template.extensionType), template.id).toBeTruthy();
+        }
         for (const el of template.flowElements ?? []) {
           if (el.kind === 'node') expect(el.bpmnType, `${template.id} node`).toMatch(/^bpmn:/);
         }

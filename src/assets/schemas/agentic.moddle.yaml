@@ -87,16 +87,16 @@ types:
   # execute in an order determined at run time, not by the diagram". That is the
   # definition of an agent, and it has been in the BPMN spec since 2011. So an
   # Agent is not a new shape: it is that shape, with a model attached. The tools
-  # it may call are the activities drawn inside it. The turn loop (`until`,
-  # `maxTurns`) is inherited from the `exec:Repetition` trait like any other loop.
+  # it may call are the activities drawn inside it. The exit test is BPMN's own
+  # `completionCondition` (flattened to an attribute below); `maxTurns` is the
+  # one custom field, because BPMN puts no ceiling on an ad-hoc sub-process.
   # ===========================================================================
   - name: Agent
     description: |
       A model-driven sub-process: the model chooses which contained activity to
-      call next, and in what order, until `until` holds or `maxTurns` is spent.
-      (`until` is the compact spelling of the ad-hoc sub-process's own
-      `completionCondition` - BPMN already defines the exit test; `maxTurns`
-      bounds it.) Draw the tools inside it - containment is the tool list.
+      call next, and in what order, until the ad-hoc sub-process's own
+      `completionCondition` holds or `maxTurns` is spent. Draw the tools inside
+      it - containment is the tool list.
 
       This is the one element whose control flow is *not* given by the diagram.
       Everything else in a studyflow follows a predefined path; an Agent does
@@ -156,6 +156,18 @@ types:
           order: 5
           categories:
             - Agent
+      - name: maxTurns
+        description: |
+          Hard ceiling on turns. The one custom loop field: BPMN puts no bound
+          on an ad-hoc sub-process, and this is the only guaranteed termination
+          bound an agent has. Always set it.
+        isAttr: true
+        type: Integer
+        default: 10
+        meta:
+          order: 7
+          categories:
+            - Agent
       - name: deterministic
         description: |
           An agent chooses its own path, so it is never a pure function of its
@@ -212,7 +224,7 @@ types:
   # ===========================================================================
   # Generic anchors. A model call and a tool call are the two atoms of the
   # layer; prompt-chaining, RAG, judging, and guardrails are all built from them.
-  # They inherit the full step contract (`uses`, `with`, `runsOn`, `cache`, ...)
+  # They inherit the full step contract (`implementation`, `with`, `runsOn`, `cache`, ...)
   # so a tool is an ordinary step and every call lands in the log.
   # ===========================================================================
   - name: LLMCall
@@ -277,12 +289,12 @@ types:
 
   - name: Tool
     description: |
-      A capability an agent may call. A tool is an ordinary step - same `uses`
+      A capability an agent may call. A tool is an ordinary step - same `implementation`
       and `with` as any other activity, same wired data elements as its
       interface - so anything a studyflow can run, an agent can call, and every
       tool call lands in the run log as its own execution. Retrieval, judging, and guardrails are templates
       over this type: a retriever is a Tool with `kind: retrieval`, a judge a Tool
-      whose `uses` scores against a rubric.
+      whose `implementation` scores against a rubric.
     superClass:
       - bpmn:ServiceTask
       - bpmn:BaseElement
@@ -290,6 +302,20 @@ types:
       icon: iconify mdi--tools
       bpmnType: bpmn:ServiceTask
     properties:
+      - name: implementation
+        description: |
+          Function or executable this step runs - BPMN's own attribute for
+          "the technology implementing this task", holding a versioned
+          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
+          `python://` (importable callable), `docker://` (image), `https://`
+          (script URL).
+        isAttr: true
+        type: String
+        redefines: bpmn:ServiceTask#implementation
+        meta:
+          order: 1
+          categories:
+            - Execution
       - name: kind
         description: What kind of capability this exposes.
         isAttr: true
@@ -472,13 +498,13 @@ templates:
         question. Stop as soon as you can answer it.
       toolChoice: auto
       maxTurns: 12
-      until: answer is not null
+      completionCondition: answer is not null
       flowElements:
         - id: agent_search
           type: Tool
           bpmn:name: Search corpus
           kind: retrieval
-          uses: python://lab.tools.search
+          implementation: python://lab.tools.search
           with: "index: study_corpus\ntopK: 5"
           x: 200
           y: 120
@@ -486,14 +512,14 @@ templates:
           type: Tool
           bpmn:name: Run analysis
           kind: code
-          uses: python://lab.tools.analyze
+          implementation: python://lab.tools.analyze
           x: 200
           y: 230
 
   - description: Evaluator-optimizer - generate, judge, revise until the score clears the bar.
     object:
       bpmn:name: Evaluator-optimizer
-      type: exec:Repeat
+      type: bpmn:SubProcess
       bpmn:documentation: |
         The loop a plain DAG cannot express: a generator produces a draft, a judge
         scores it against a rubric, and the loop re-enters with the critique until
@@ -506,9 +532,10 @@ templates:
         - critique
         - refine
         - loop
-      until: score >= 4
-      maxTurns: 4
-      onMaxTurns: stop
+      loopCharacteristics:
+        type: bpmn:StandardLoopCharacteristics
+        loopCondition: score < 4
+        loopMaximum: 4
       flowElements:
         - id: eo_generate
           type: LLMCall
@@ -521,7 +548,7 @@ templates:
           type: Tool
           bpmn:name: Score against rubric
           kind: function
-          uses: python://lab.judge
+          implementation: python://lab.judge
           with: "model: claude-opus-4-8\nscale: 1-5\njurors: 3"
           x: 380
           y: 140
@@ -569,7 +596,7 @@ templates:
         - vector
         - context
       kind: retrieval
-      uses: python://lab.rag.retrieve
+      implementation: python://lab.rag.retrieve
       with: "index: study_corpus\ntopK: 5\nembeddingModel: text-embedding-3-large"
 
   - description: LLM-as-judge - score an output against a rubric, producing a Metric.
@@ -589,7 +616,7 @@ templates:
         - llm-as-judge
         - score
       kind: function
-      uses: python://lab.judge
+      implementation: python://lab.judge
       with: "model: claude-opus-4-8\nscale: 1-5\njurors: 3\nrubric: |\n  Score 1-5 for factual accuracy against the source."
 
   - description: Guardrail - check what enters or leaves a model call, and act when it trips.
@@ -609,7 +636,7 @@ templates:
         - policy
       kind: function
       sideEffects: false
-      uses: python://lab.guardrail.check
+      implementation: python://lab.guardrail.check
       with: "phase: output\naction: block\npolicy: |\n  No PII; no tool call outside the allow-list."
 
   - description: Human approval gate - stop, show the artifact, wait for a person.
@@ -677,7 +704,7 @@ templates:
   - description: Prompt chain with a quality gate between the steps.
     object:
       bpmn:name: Prompt chain
-      type: exec:Block
+      type: bpmn:SubProcess
       bpmn:documentation: |
         The simplest compound pattern: decompose the task into fixed steps and
         check the intermediate result before spending the next call on it. The
@@ -699,7 +726,6 @@ templates:
         - id: chain_gate
           type: exec:Gate
           bpmn:name: Complete?
-          criterion: extracted.fields_missing == 0
           x: 340
           y: 145
         - id: chain_b

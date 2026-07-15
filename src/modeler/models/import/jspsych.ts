@@ -14,12 +14,12 @@
  *
  * `functionRef` is the versioned reference to the software that implements a
  * task (`<scheme>://<ref>[@<version>]`, the grammar `parseFunctionRef` reads).
- * The builder writes it to the general-purpose `studyflow:uses` activity
- * attribute, which spans any implementation kind - a jsPsych plugin
- * (`jspsych://...`), a container image (`docker://...`), a script URL
- * (`https://...`), an importable callable (`python://...`), and so on. The
- * field is named `functionRef` for the concept (as the runner does); the wire
- * attribute is `uses`.
+ * The builder writes it to BPMN's own `UserTask#implementation` attribute,
+ * which spans any implementation kind - a jsPsych plugin (`jspsych://...`),
+ * a container image (`docker://...`), a script URL (`https://...`), an
+ * importable callable (`python://...`), and so on. The field is named
+ * `functionRef` for the concept (as the runner does); the wire attribute is
+ * the native `implementation`.
  */
 
 import { parseFunctionRef } from '@/core/functionRef';
@@ -70,7 +70,7 @@ export type ImportedTask = {
   /** Human-readable label (`bpmn:name`). */
   name: string;
   instrument: 'jspsych';
-  /** `<scheme>://<ref>[@<version>]`, validated against the `uses` grammar. */
+  /** `<scheme>://<ref>[@<version>]`, validated against the `implementation` grammar. */
   functionRef: string;
   /** Inline configuration (serialized to the `configurations` YAML body). */
   configurations: Record<string, unknown>;

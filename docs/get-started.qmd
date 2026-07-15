@@ -27,7 +27,7 @@ The flow reads top-to-bottom:
 2. **Questionnaire activity**: a short demographics form. Studyflow's `Questionnaire` activity carries `language` and `text` attributes inspected in the right panel.
 3. **Cognitive task activity**: one block of a `CognitiveTask`. The icon distinguishes it from a generic BPMN task; the inspector shows task-specific parameters.
 4. **Data store (Dataset)**: the dataset where trial data is persisted. The flow from the task to the dataset is a *data association* (a dashed line), not a sequence flow.
-5. **Script activity**: a `Script` activity (a `Manual` or external script) that reads the dataset and computes summary statistics. Its type icon identifies it as a `Transform`; when the task also declares a function to run (`uses`), an *ƒ* marker appears at its bottom edge.
+5. **Script activity**: a `Script` activity (a `Manual` or external script) that reads the dataset and computes summary statistics. Its type icon identifies it as a `Transform`; when the task also declares a function to run (BPMN's `implementation` attribute), an *ƒ* marker appears at its bottom edge.
 6. **Data store (Report)**: the output of the analysis: a small report artifact.
 7. **End event**: the study terminates cleanly.
 

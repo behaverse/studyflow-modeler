@@ -57,7 +57,7 @@ test.describe('studyflow YAML format', () => {
     ]);
   });
 
-  test('uses attribute and with value survive a load (function calls)', async () => {
+  test('implementation attribute and with value survive a load (function calls)', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const text = readFileSync(path.join(EXAMPLES_DIR, 'function_call_demo.studyflow'), 'utf8');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
@@ -67,13 +67,13 @@ test.describe('studyflow YAML format', () => {
     );
     const map = study.flowElements.find((el: any) => el.id === 'MapRT');
 
-    expect(map.get('studyflow:uses')).toBe('python://pkg_for_st.do_map@1.2');
+    expect(map.get('implementation')).toBe('python://pkg_for_st.do_map@1.2');
     // `with` is a value-typed YAML string (inlined as a mapping in the YAML
     // form); compare parsed content, not whitespace.
     expect(yaml.load(map.get('studyflow:with'))).toEqual({ column: 'rt', fn: 'median' });
 
     const fetch = study.flowElements.find((el: any) => el.id === 'FetchScript');
-    expect(fetch.get('studyflow:uses')).toBe('https://example.org/scripts/clean.py@v2');
+    expect(fetch.get('implementation')).toBe('https://example.org/scripts/clean.py@v2');
     expect(fetch.get('studyflow:with')).toBeUndefined();
   });
 

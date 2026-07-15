@@ -77,18 +77,18 @@ Agent_Eval:
       documentation: |
         The fitting loop: evaluate the agent, and while the mean judge score is
         under the bar, refit its instructions from the scored items and evaluate
-        again - at most three compiles, and `until` ends the loop the moment the
-        eval clears. Nothing about the eval changes when it is used to improve
-        the thing it measures.
-      extensionElements:
-        - type: exec:Repeat
+        again - BPMN's own `loopCondition` keeps the loop running while the eval
+        is under the bar, and `loopMaximum` caps it at three compiles. Nothing
+        about the eval changes when it is used to improve the thing it measures.
       name: Eval-optimize loop
       incoming:
         - Flow_Start_Improve
       outgoing:
         - Flow_Improve_Done
-      until: metrics.mean_judge_score >= 4
-      maxTurns: 3
+      loopCharacteristics:
+        type: bpmn:StandardLoopCharacteristics
+        loopCondition: metrics.mean_judge_score < 4
+        loopMaximum: 3
       flowElements:
         Optimize_Prompt:
           type: bpmn:ServiceTask
@@ -111,13 +111,13 @@ Agent_Eval:
           dataOutputAssociations:
             Wire_Prompt_Out:
               targetRef: Agent_Prompt
-          uses: python://dspy.MIPROv2
           with:
             metric: judge_score
             trials: 30
             maxDemos: 4
           deterministic: false
           when: scope.turn > 1
+          implementation: python://dspy.MIPROv2
         Per_Item:
           type: bpmn:SubProcess
           documentation: |
@@ -131,6 +131,8 @@ Agent_Eval:
             - Flow_Optimize_Each
           outgoing:
             - Flow_Each_Agreement
+          loopCharacteristics:
+            type: bpmn:MultiInstanceLoopCharacteristics
           over: items
           itemVar: question
           maxConcurrency: 16
@@ -149,9 +151,9 @@ Agent_Eval:
                 optimizer last wrote, and the dependency is a line on the diagram.
               extensionElements:
                 - type: agentic:Agent
-                  maxTurns: 8
                   model: claude-opus-4-8
                   systemPrompt: "{{Agent_Prompt}}"
+                  maxTurns: 8
               name: Research agent
               outgoing:
                 - Flow_Agent_Check
@@ -159,7 +161,6 @@ Agent_Eval:
                 Wire_Prompt_Agent:
                   sourceRef:
                     - Agent_Prompt
-              until: answer is not null
               flowElements:
                 Search:
                   type: bpmn:ServiceTask
@@ -167,11 +168,11 @@ Agent_Eval:
                     - type: agentic:Tool
                       kind: retrieval
                   name: Search corpus
-                  uses: python://lab.rag.retrieve
                   with:
                     index: study_corpus
                     topK: 8
                     embeddingModel: voyage-3
+                  implementation: python://lab.rag.retrieve
                 Compute:
                   type: bpmn:ServiceTask
                   extensionElements:
@@ -181,7 +182,8 @@ Agent_Eval:
                         Run a short Python snippet over the trial table to check a claim
                         numerically. Use it when the question turns on a statistic.
                   name: Run analysis
-                  uses: python://lab.tools.analyze
+                  implementation: python://lab.tools.analyze
+              completionCondition: answer is not null
             Check_Output:
               type: bpmn:ServiceTask
               extensionElements:
@@ -191,13 +193,13 @@ Agent_Eval:
                 - Flow_Agent_Check
               outgoing:
                 - Flow_Check_Score
-              uses: python://lab.guardrail.check
               with:
                 phase: output
                 action: block
                 policy: |
                   Every claim in the answer must be supported by a retrieved passage.
                   Reject answers that cite passages the retriever never returned.
+              implementation: python://lab.guardrail.check
             Score:
               type: bpmn:ServiceTask
               documentation: |
@@ -211,13 +213,13 @@ Agent_Eval:
                 - Flow_Check_Score
               outgoing:
                 - Flow_Score_Sample
-              uses: python://lab.judge
               with:
                 model: claude-opus-4-8
                 jurors: 3
                 rubric: |
                   Apply the scoring rubric. Give the score and one sentence of
                   justification naming the deciding criterion.
+              implementation: python://lab.judge
             Sample:
               type: bpmn:ExclusiveGateway
               extensionElements:
@@ -287,13 +289,13 @@ Agent_Eval:
           name: Score the eval
           incoming:
             - Flow_Each_Agreement
-          uses: python://lab.eval.summarize
           with:
             metrics:
               - mean_judge_score
               - judge_human_agreement
               - guardrail_block_rate
             split: holdout
+          implementation: python://lab.eval.summarize
         Flow_Optimize_Each:
           type: bpmn:SequenceFlow
           sourceRef: Optimize_Prompt

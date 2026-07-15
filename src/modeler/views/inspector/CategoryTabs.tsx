@@ -1,8 +1,16 @@
 import { useState } from 'react';
+import type { ComponentType } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { AttributeField } from '@/modeler/views/inspector/AttributeField';
+import { LoopSection } from '@/modeler/views/inspector/LoopSection';
 import { t } from '@/i18n';
 import { inspector as s } from '@/modeler/infra/styles';
+
+/** Synthetic categories render a dedicated section over nested model state
+ *  instead of catalog attribute fields (they carry no attribute defs). */
+const SECTION_BY_CATEGORY: Record<string, ComponentType> = {
+  Loop: LoopSection,
+};
 
 type Props = {
   element: any;
@@ -35,16 +43,20 @@ export function CategoryTabs({ element, categories }: Props) {
         ))}
       </TabList>
       <TabPanels className={s.tabPanels}>
-        {categories.map(([name, attrDefs]) => (
-          <TabPanel key={name} className={s.tabPanel}>
-            {attrDefs.map((attrDef: any) => (
-              <AttributeField
-                key={element.id + attrDef.ns.prefix + ':' + attrDef.ns.name}
-                attrDef={attrDef}
-              />
-            ))}
-          </TabPanel>
-        ))}
+        {categories.map(([name, attrDefs]) => {
+          const Section = SECTION_BY_CATEGORY[name];
+          return (
+            <TabPanel key={name} className={s.tabPanel}>
+              {Section && <Section key={element.id} />}
+              {attrDefs.map((attrDef: any) => (
+                <AttributeField
+                  key={element.id + attrDef.ns.prefix + ':' + attrDef.ns.name}
+                  attrDef={attrDef}
+                />
+              ))}
+            </TabPanel>
+          );
+        })}
       </TabPanels>
     </TabGroup>
   );

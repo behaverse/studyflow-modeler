@@ -29,10 +29,13 @@ export function compileTemplates(prefix: string, rawSchema: RawType, catalog: Ty
 
     const typeName: string = merged.type;
     const qualifiedName = typeName.includes(':') ? typeName : `${prefix}:${typeName}`;
-    const entry = catalog.getType(qualifiedName);
-    if (!entry || entry.isAbstract) continue;
+    // A template may root at a plain BPMN type (a recipe over a native element,
+    // e.g. a `bpmn:SubProcess` with loop fields preset) — no extension involved.
+    const isBpmnRoot = typeName.startsWith('bpmn:');
+    const entry = isBpmnRoot ? undefined : catalog.getType(qualifiedName);
+    if (!isBpmnRoot && (!entry || entry.isAbstract)) continue;
 
-    const bpmnType = mixinData.bpmnTypeOverride ?? entry.bpmnType;
+    const bpmnType = mixinData.bpmnTypeOverride ?? (isBpmnRoot ? typeName : entry!.bpmnType);
     if (!bpmnType) continue;
 
     const attrs = extractAttributes(merged, RESERVED_TEMPLATE_KEYS);
@@ -40,14 +43,14 @@ export function compileTemplates(prefix: string, rawSchema: RawType, catalog: Ty
     templates.push({
       id: `${qualifiedName}::template:${index + 1}`,
       name: merged.name ?? merged['bpmn:name'] ?? typeName,
-      description: template.description ?? entry.description ?? '',
+      description: template.description ?? entry?.description ?? '',
       appliesTo: [bpmnType],
       elementType: { value: bpmnType },
       category: { id: prefix, name: capitalize(prefix) },
       keywords: merged.keywords ?? [],
-      extensionType: qualifiedName,
+      extensionType: isBpmnRoot ? undefined : qualifiedName,
       bpmnType,
-      iconClass: merged.icon ?? entry.icon,
+      iconClass: merged.icon ?? entry?.icon,
       overrideIconClass: merged.icon,
       templateAttributes: Object.keys(attrs).length > 0 ? attrs : undefined,
       flowElements: normalizeFlowElements(merged, prefix, catalog),

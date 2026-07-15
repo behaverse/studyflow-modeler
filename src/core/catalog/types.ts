@@ -197,7 +197,8 @@ export interface Template {
   keywords?: string[];
 
   // Studyflow-specific
-  extensionType: string;
+  /** Extension stamped on creation; absent for templates rooted at a plain BPMN type. */
+  extensionType?: string;
   bpmnType: string;
   iconClass?: string;
   overrideIconClass?: string;

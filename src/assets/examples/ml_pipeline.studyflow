@@ -13,10 +13,10 @@ Cognitive_Risk_Model:
     studyflow. Everything a reviewer needs to judge it is on the diagram: how the
     data was split, what was swept, what had to be true to ship, and who signed off.
 
-    Every step is one generic `ml:Operation` bound to a function via `uses`, with
-    its arguments in `with` - there is no `Split` or `Fit` class, only a step that
-    runs `GroupShuffleSplit` or `RandomForestClassifier`. Read the four things that
-    usually hide in a notebook:
+    Every step is one generic `ml:Operation` bound to a function via BPMN's own
+    `implementation` attribute, with its arguments in `with` - there is no `Split`
+    or `Fit` class, only a step that runs `GroupShuffleSplit` or
+    `RandomForestClassifier`. Read the four things that usually hide in a notebook:
 
     1. The split is grouped by participant. Without that, trials from one subject
        land on both sides and the test score measures nothing.
@@ -55,7 +55,6 @@ Cognitive_Risk_Model:
         Wire_Trials_Check:
           sourceRef:
             - Trials
-      uses: python://lab.data.validate
       with:
         on_fail: fail
         expectations:
@@ -73,6 +72,7 @@ Cognitive_Risk_Model:
               max: 1
           unique:
             - trial_id
+      implementation: python://lab.data.validate
     Split_Data:
       type: bpmn:ServiceTask
       extensionElements:
@@ -82,10 +82,10 @@ Cognitive_Risk_Model:
         - Flow_Check_Split
       outgoing:
         - Flow_Split_Tune
-      uses: python://sklearn.model_selection.GroupShuffleSplit
       with:
         test_size: 0.2
         groupBy: participant_id
+      implementation: python://sklearn.model_selection.GroupShuffleSplit
     Tune:
       type: bpmn:SubProcess
       documentation: |
@@ -102,6 +102,8 @@ Cognitive_Risk_Model:
       dataOutputAssociations:
         Wire_Best_Model:
           targetRef: Fitted_Model
+      loopCharacteristics:
+        type: bpmn:MultiInstanceLoopCharacteristics
       runsOn: hpc
       compute:
         cpus: 8
@@ -130,12 +132,12 @@ Cognitive_Risk_Model:
           name: Fit at point
           outgoing:
             - Flow_Fit_Score
-          uses: python://sklearn.ensemble.RandomForestClassifier
           with:
             max_depth: $sweep
             n_estimators: $sweep
             class_weight: balanced
             target: high_risk
+          implementation: python://sklearn.ensemble.RandomForestClassifier
         Score_Point:
           type: bpmn:ServiceTask
           extensionElements:
@@ -143,11 +145,11 @@ Cognitive_Risk_Model:
           name: Score point
           incoming:
             - Flow_Fit_Score
-          uses: python://sklearn.metrics.roc_auc_score
           with:
             metrics:
               - roc_auc
             split: validation
+          implementation: python://sklearn.metrics.roc_auc_score
         Flow_Fit_Score:
           type: bpmn:SequenceFlow
           sourceRef: Fit_Point
@@ -169,7 +171,6 @@ Cognitive_Risk_Model:
         Wire_Model_Test:
           sourceRef:
             - Fitted_Model
-      uses: python://sklearn.metrics.classification_report
       with:
         metrics:
           - roc_auc
@@ -177,6 +178,7 @@ Cognitive_Risk_Model:
           - calibration_error
         split: test
         groupBy: site
+      implementation: python://sklearn.metrics.classification_report
     Fitted_Model:
       type: bpmn:DataObjectReference
       documentation: |
@@ -192,7 +194,6 @@ Cognitive_Risk_Model:
       type: bpmn:ExclusiveGateway
       extensionElements:
         - type: exec:Gate
-          criterion: metrics.roc_auc >= 0.80 and metrics.roc_auc > baseline.roc_auc
           rationale: |
             0.80 is the floor agreed with the clinical team. Requiring an
             improvement on the deployed baseline stops a regression from shipping
@@ -203,6 +204,7 @@ Cognitive_Risk_Model:
       outgoing:
         - Flow_Promote_SignOff
         - Flow_Promote_Rejected
+      default: Flow_Promote_Rejected
     Sign_Off:
       type: bpmn:UserTask
       documentation: |
@@ -231,11 +233,11 @@ Cognitive_Risk_Model:
         - Flow_SignOff_Register
       outgoing:
         - Flow_Register_Ship
-      uses: python://mlflow.register_model
       with:
         registry: https://mlflow.example.org
         name: cognitive-risk
         stage: production
+      implementation: python://mlflow.register_model
     Ship:
       type: bpmn:ServiceTask
       extensionElements:
@@ -245,12 +247,12 @@ Cognitive_Risk_Model:
         - Flow_Register_Ship
       outgoing:
         - Flow_Ship_Watch
-      uses: python://lab.serving.deploy
       with:
         endpoint: kserve://cognitive-risk
         strategy: canary
         traffic_percent: 10
       cache: never
+      implementation: python://lab.serving.deploy
     Watch:
       type: bpmn:ServiceTask
       documentation: |
@@ -264,13 +266,13 @@ Cognitive_Risk_Model:
         - Flow_Ship_Watch
       outgoing:
         - Flow_Watch_Done
-      uses: python://lab.serving.monitor
       with:
         watches: roc_auc
         threshold: 0.75
         window: 7d
         schedule: 0 6 * * *
         signal: drift
+      implementation: python://lab.serving.monitor
     Drift:
       type: bpmn:BoundaryEvent
       name: Drift detected
@@ -310,6 +312,7 @@ Cognitive_Risk_Model:
     Flow_Promote_SignOff:
       type: bpmn:SequenceFlow
       name: pass
+      conditionExpression: metrics.roc_auc >= 0.80 and metrics.roc_auc > baseline.roc_auc
       sourceRef: Promote
       targetRef: Sign_Off
     Flow_Promote_Rejected:

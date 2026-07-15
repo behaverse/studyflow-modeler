@@ -92,12 +92,12 @@ const BOUND_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <bpmn2:task id="Bound_1" name="Median RT" studyflow:uses="python://pkg_for_st.do_map@1.2">
+    <bpmn2:serviceTask id="Bound_1" name="Median RT" implementation="python://pkg_for_st.do_map@1.2">
       <studyflow:with>column: rt
 fn: median</studyflow:with>
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
-    </bpmn2:task>
+    </bpmn2:serviceTask>
     <bpmn2:endEvent id="EndEvent_1">
       <bpmn2:incoming>F2</bpmn2:incoming>
     </bpmn2:endEvent>
@@ -154,10 +154,10 @@ const BAD_FUNCTION_REF_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <bpmn2:task id="Bad_1" name="Broken reference" studyflow:uses="python:/oops">
+    <bpmn2:serviceTask id="Bad_1" name="Broken reference" implementation="python:/oops">
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
-    </bpmn2:task>
+    </bpmn2:serviceTask>
     <bpmn2:endEvent id="EndEvent_1">
       <bpmn2:incoming>F2</bpmn2:incoming>
     </bpmn2:endEvent>
@@ -256,10 +256,10 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
   });
 
-  test('a malformed uses reference fails validation before the run starts', async ({ page }) => {
+  test('a malformed implementation reference fails validation before the run starts', async ({ page }) => {
     await runStudyflow(page, 'runner-stages-bad-function-ref', BAD_FUNCTION_REF_XML);
 
-    await expect(page.getByText(/Invalid 'uses' function reference/)).toBeVisible();
+    await expect(page.getByText(/Invalid 'implementation' function reference/)).toBeVisible();
     // The run halts at validation; the bound task never renders.
     await expect(page.getByRole('heading', { name: 'Broken reference' })).toBeHidden();
   });

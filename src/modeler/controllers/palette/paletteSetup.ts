@@ -27,7 +27,7 @@ export type PaletteTemplate = {
   description?: string;
   icon?: string;
   bpmnType: string;
-  extensionType: string;
+  extensionType?: string;
 };
 
 export type PaletteSchema = {

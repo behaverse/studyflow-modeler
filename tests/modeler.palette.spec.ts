@@ -130,7 +130,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toContain('type: datatrove:Map');
     expect(studyflowText).toContain('name: Group');
     expect(studyflowText).toContain('operationType: group');
-    expect(studyflowText).toContain('uses: python://datatrove.group');
+    expect(studyflowText).toContain('implementation: python://datatrove.group');
     expect(studyflowText).toContain('key: participant');
   });
 

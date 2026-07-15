@@ -29,7 +29,7 @@ enumerations:
         description: Runs in the worker's own process (in-band Python/JS callable).
       - name: Container
         value: container
-        description: Runs in the OCI image named by the activity's `uses` reference.
+        description: Runs in the OCI image named by the activity's `implementation` reference.
       - name: HPC cluster
         value: hpc
         description: Submitted to a batch scheduler; the step suspends until the job reports back.
@@ -57,7 +57,7 @@ enumerations:
     description: |
       Whether a completed execution with the same cache key may be reused
       instead of re-running the step. The key is a hash of the step identity,
-      the resolved `uses` digest, the resolved arguments, the input artifact
+      the resolved `implementation` digest, the resolved arguments, the input artifact
       digests, and the scope-derived seed.
     literalValues:
       - name: Reuse if unchanged
@@ -112,15 +112,6 @@ enumerations:
         value: none
         description: Discard instance outputs; the step ran for its side effects.
 
-  - name: OnLimitEnum
-    isAbstract: true
-    description: What happens when a repeat block hits `maxTurns` without its exit condition holding.
-    literalValues:
-      - name: Stop and continue
-        value: stop
-      - name: Fail the run
-        value: fail
-
   - name: PersistPolicyEnum
     isAbstract: true
     description: Where an artifact's bytes live between steps.
@@ -137,19 +128,20 @@ types:
   # ===========================================================================
   # The step contract. A trait on every BPMN activity, so a cognitive task, a
   # data operation, an ML step, and an agent are all executable under the same
-  # six questions: what runs (studyflow:uses), with what arguments
-  # (studyflow:with), over what interface (the data associations drawn on the
+  # six questions: what runs (BPMN's own `implementation`), with what
+  # arguments (studyflow:with), over what interface (the data associations drawn on the
   # canvas - native BPMN, nothing declared here), where (runsOn), under what
   # reuse and failure policy (cache/retry/timeout), and with what source of
   # randomness (seed/deterministic).
   # ===========================================================================
   - name: Step
     description: |
-      Execution contract mixed onto every BPMN activity. `studyflow:uses` and
-      `studyflow:with` already say *what* runs and *with what arguments*; the
+      Execution contract mixed onto every BPMN activity. BPMN's own
+      `implementation` attribute and `studyflow:with` already say *what* runs
+      and *with what arguments*; the
       interface is not declared here at all - a step's inputs and outputs are
       the typed data elements wired to it by BPMN's own data associations, and
-      the callable named by `uses` carries its own parameter list. This trait
+      the callable named by `implementation` carries its own parameter list. This trait
       adds only what neither the diagram nor the callable can say: the runtime
       target, the reuse policy, the failure policy, and the randomness source.
     extends:
@@ -389,18 +381,6 @@ types:
             body:
               iterate: grid
 
-      - name: sequential
-        description: |
-          Run instances one at a time. Mirrors BPMN's `isSequential` on the
-          multi-instance marker (the stacked bars are drawn horizontally when set).
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          order: 6
-          categories:
-            - Iteration
-
       - name: maxConcurrency
         description: Cap on instances in flight at once. Unset means the executor decides.
         isAttr: true
@@ -434,7 +414,7 @@ types:
       - name: reducer
         description: |
           Function used to fold instance outputs when `collect` is `reduce`,
-          in `uses` grammar (e.g. `python://numpy.mean`).
+          in the `implementation` reference grammar (e.g. `python://numpy.mean`).
         isAttr: true
         type: String
         meta:
@@ -458,59 +438,54 @@ types:
           categories:
             - Iteration
 
-  - name: Repetition
+  # There is no Repetition trait: cycles use BPMN's own standard-loop child
+  # (`loopCharacteristics` with `testBefore`, `loopCondition`, `loopMaximum`),
+  # which is also what makes the loop marker render. The one accommodation is
+  # below - `loopCondition` is flattened to a string attribute, the same
+  # treatment the core gives `conditionExpression`. Always set `loopMaximum`:
+  # it is the only guaranteed termination bound in a language with cycles.
+  # Same flattening for the ad-hoc sub-process's own exit test (an Agent's
+  # stop rule). Declared here rather than on the agentic wrapper: shadow
+  # attributes fold to node level only when no same-prefix wrapper claims them.
+  - name: CompletionCondition
     description: |
-      Parameters behind the BPMN standard-loop marker. The body re-enters in a
-      fresh `turn` scope frame until `until` holds or `maxTurns` is reached. This
-      is the one construct behind agent turn loops, evaluator-optimizer refinement,
-      and retraining-on-drift - the cycles a plain DAG cannot express.
+      Flattens the ad-hoc sub-process's own `completionCondition` to a plain
+      attribute, so an agent's exit test is authored as a string
+      (e.g. `answer is not null`).
     extends:
-      - bpmn:Activity
+      - bpmn:AdHocSubProcess
     isAbstract: true
     properties:
-      - name: until
+      - name: completionCondition
         description: |
-          Exit condition, evaluated against the scope's bindings after each turn.
-          The loop ends on the first turn where it holds (e.g. `score >= 0.9`).
-          The native twin is the standard-loop marker's `loopCondition`, negated:
-          BPMN's loop *continues while* its condition holds, `until` stops when
-          it does. On an Agent, the native twin is `completionCondition`.
+          BPMN's own exit test: the ad-hoc sub-process (an Agent) is complete
+          when this holds, evaluated over the scope's bindings after each turn.
         isAttr: true
-        type: String
+        type: bpmn:Expression
+        redefines: bpmn:AdHocSubProcess#completionCondition
         meta:
-          order: 1
           categories:
-            - Repeat
+            - Agent
 
-      - name: maxTurns
-        description: Hard ceiling on turns (BPMN's `loopMaximum`). Always set one - it is the only guaranteed termination bound.
-        isAttr: true
-        type: Integer
-        default: 10
-        meta:
-          order: 2
-          categories:
-            - Repeat
-
-      - name: onMaxTurns
-        description: What to do when the ceiling is reached without `until` holding.
-        isAttr: true
-        type: OnLimitEnum
-        default: stop
-        meta:
-          order: 3
-          categories:
-            - Repeat
-
-      - name: testBefore
+  - name: LoopCondition
+    description: |
+      Flattens the standard-loop marker's `loopCondition` from an expression
+      element to a plain attribute (as the core does for `conditionExpression`),
+      so it can be authored as a string. BPMN semantics unchanged: the loop
+      *continues while* it holds, and stops at `loopMaximum` regardless.
+    extends:
+      - bpmn:StandardLoopCharacteristics
+    isAbstract: true
+    properties:
+      - name: loopCondition
         description: |
-          Evaluate `until` before the first turn (a while-loop) rather than after
-          it (a do-while). Mirrors BPMN's `testBefore`.
+          Continue-while expression over the scope's bindings (e.g.
+          `score < 0.9` keeps refining until the score clears 0.9). Evaluated
+          after each turn, or before it with `testBefore`.
         isAttr: true
-        type: Boolean
-        default: false
+        type: bpmn:Expression
+        redefines: bpmn:StandardLoopCharacteristics#loopCondition
         meta:
-          order: 4
           categories:
             - Repeat
 
@@ -631,30 +606,10 @@ types:
           categories:
             - Iteration
 
-  - name: Repeat
-    description: |
-      Run the body until a condition holds or a turn ceiling is hit. The cyclic
-      construct: refinement loops, retraining on drift, and any
-      generate-check-revise pattern.
-    superClass:
-      - bpmn:SubProcess
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--repeat-variant
-      bpmnType: bpmn:SubProcess
-
-  - name: Block
-    description: |
-      A named group of steps that runs as one unit. The encapsulation primitive:
-      a block hides its internals behind the data elements wired to it, so a
-      reader sees "preprocess" and an author can open it. Nest freely - a
-      block's steps are steps.
-    superClass:
-      - bpmn:SubProcess
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--group
-      bpmnType: bpmn:SubProcess
+  # (There is no `Repeat` or `Block` element: a plain `bpmn:SubProcess` is the
+  # named group of steps, and a cycle is a sub-process carrying BPMN's own
+  # standard-loop child (`loopCondition`, `loopMaximum`) - not a type. The
+  # "Repeat until" template below presets one.)
 
   - name: Component
     description: |
@@ -671,7 +626,8 @@ types:
     properties:
       - name: source
         description: |
-          Where the called flow comes from, in `uses` grammar - a registry entry,
+          Where the called flow comes from, in the same reference grammar as
+          `implementation` - a registry entry,
           a URL, or a path (e.g. `https://registry.behaverse.org/flows/eegprep@2.1`).
         isAttr: true
         type: String
@@ -696,8 +652,11 @@ types:
     description: |
       A decision on a measured value: continue only when the criterion holds.
       Promotion gates ("deploy only if AUC exceeds the baseline"), data-quality
-      gates, and safety gates are all this element - the point being that the
-      criterion is visible in the diagram rather than buried in a script.
+      gates, and safety gates are all this element. The rule itself is BPMN's
+      own: type it as the pass flow's `conditionExpression` - the field the
+      engine's branch rule reads - and mark the reject flow as the gateway's
+      native `default`. This element adds only the `rationale` the reviewers
+      read; there is no second place to write the rule.
     superClass:
       - bpmn:ExclusiveGateway
       - bpmn:BaseElement
@@ -706,26 +665,12 @@ types:
       bpmnType: bpmn:ExclusiveGateway
       branching: condition
     properties:
-      - name: criterion
-        description: |
-          Expression over the scope's bindings that must hold to take the pass
-          branch (e.g. `metrics.auc >= 0.80 and metrics.auc >= baseline.auc`).
-          This is the authoring spelling of the pass flow's native
-          `conditionExpression` - the field the engine's branch rule reads -
-          and is mirrored onto it, so there is one rule, not two.
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          categories:
-            - Gate
-
       - name: rationale
         description: Why this threshold. Reviewers read this; the engine does not.
         isAttr: true
         type: studyflow:MarkdownString
         meta:
-          order: 2
+          order: 1
           categories:
             - Gate
 
@@ -801,6 +746,8 @@ templates:
         - slurm
         - parallel
       iterate: shards
+      loopCharacteristics:
+        type: bpmn:MultiInstanceLoopCharacteristics
       runsOn: hpc
       scheduler: slurm
       compute: "cpus: 4\nmemory: 16G\nwalltime: 02:00:00\narray: 128"
@@ -821,6 +768,8 @@ templates:
         - search
         - hyperparameter
         - multirun
+      loopCharacteristics:
+        type: bpmn:MultiInstanceLoopCharacteristics
       grid: "strategy: grid\nspace:\n  lr: [0.001, 0.01, 0.1]\n  max_depth: [2, 4, 8]\nobjective:\n  metric: val_auc\n  goal: max"
       collect: list
       collectAs: trials
@@ -828,16 +777,18 @@ templates:
   - description: Retry-until-good loop - run the body until a criterion holds or the turn budget runs out.
     object:
       bpmn:name: Repeat until
-      type: Repeat
+      type: bpmn:SubProcess
       bpmn:documentation: |
-        Re-enters the body in a fresh `turn` scope until `until` holds. Give every
-        loop a `maxTurns` - it is the only guaranteed termination bound.
+        Re-enters the body in a fresh `turn` scope while BPMN's own
+        `loopCondition` holds. Give every loop a `loopMaximum` - it is the only
+        guaranteed termination bound.
       icon: iconify mdi--repeat-variant
       keywords:
         - loop
         - repeat
         - until
         - cycle
-      until: score >= 0.9
-      maxTurns: 5
-      onMaxTurns: stop
+      loopCharacteristics:
+        type: bpmn:StandardLoopCharacteristics
+        loopCondition: score < 0.9
+        loopMaximum: 5

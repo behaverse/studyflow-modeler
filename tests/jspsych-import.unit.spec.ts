@@ -200,14 +200,14 @@ test.describe('jsPsychToStudyflow (serialization)', () => {
     expect(end.incoming).toHaveLength(1);
   });
 
-  test('each task node is a cognitive task with instrument, uses, and configurations', async () => {
+  test('each task node is a cognitive task with instrument, implementation, and configurations', async () => {
     const { studyflow } = await jsPsychToStudyflow(flankerTimeline(), buildPackages(), { jsPsychVersion: '8' });
     const parsed = await parseStudyflow(studyflow, buildPackages());
 
     const flanker = [...parsed.flowNodes.values()].find((n) => n.businessObject.name === 'Flanker test')!;
     expect(flanker.extensionType).toBe('cognitive:CognitiveTask');
-    // The versioned reference is the general-purpose studyflow:uses trait attribute.
-    expect(flanker.businessObject.get('studyflow:uses')).toBe('jspsych://html-keyboard-response@8');
+    // The versioned reference is BPMN's own UserTask#implementation attribute.
+    expect(flanker.businessObject.get('implementation')).toBe('jspsych://html-keyboard-response@8');
 
     const wrapper = flanker.businessObject.extensionElements.values[0];
     expect(wrapper.get('instrument')).toBe('jspsych');

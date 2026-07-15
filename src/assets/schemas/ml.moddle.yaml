@@ -2,7 +2,7 @@
 
 name: ML
 prefix: ml
-description: Studyflow extension for statistical and machine-learning pipelines. Deliberately small - the only new nouns are the Model and Metric artifacts; every verb (split, fit, evaluate, deploy, monitor, ...) is a template that binds a function via `uses` onto one generic `Operation` step, not a class of its own. Fitting is one shape everywhere - a trainable artifact, data, and an objective in; the improved artifact and its Metrics out - so a scikit-learn fit, a mixed-effects formula, a LoRA fine-tune, and a prompt compile are the same step bound to different functions, and the trainable may be a Model or an `agentic:Prompt`. Iteration, sweeps, gates, and provenance come from the `exec` core.
+description: Studyflow extension for statistical and machine-learning pipelines. Deliberately small - the only new nouns are the Model and Metric artifacts; every verb (split, fit, evaluate, deploy, monitor, ...) is a template that binds a function via `implementation` onto one generic `Operation` step, not a class of its own. Fitting is one shape everywhere - a trainable artifact, data, and an objective in; the improved artifact and its Metrics out - so a scikit-learn fit, a mixed-effects formula, a LoRA fine-tune, and a prompt compile are the same step bound to different functions, and the trainable may be a Model or an `agentic:Prompt`. Iteration, sweeps, gates, and provenance come from the `exec` core.
 uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
 xml:
@@ -149,18 +149,18 @@ types:
 
   # ===========================================================================
   # The one generic step. An `Operation` is a data-operation service task; it
-  # inherits the whole step contract (`uses`, `with`, `runsOn`, `cache`,
+  # inherits the whole step contract (`implementation`, `with`, `runsOn`, `cache`,
   # `seed`, ...) from `studyflow:DataOperationActivity` and `exec:Step`; its
   # interface is whatever typed data elements are wired to it on the canvas.
   # Split / Fit / Predict / Evaluate / Validate / Register / Deploy / Monitor are
-  # *templates* over this type that bind a concrete function via `uses` - the
+  # *templates* over this type that bind a concrete function via `implementation` - the
   # `datatrove` pattern, not a class per verb.
   # ===========================================================================
   - name: Operation
     description: |
       A statistical or machine-learning operation: one step that runs a function
-      (`uses`) over typed inputs and produces typed artifacts. The generic anchor
-      every ML template binds onto - what the step *does* is set by `uses`/`with`
+      (`implementation`) over typed inputs and produces typed artifacts. The generic anchor
+      every ML template binds onto - what the step *does* is set by `implementation`/`with`
       and named by the template, not by a dedicated class.
     superClass:
       - bpmn:ServiceTask
@@ -169,6 +169,20 @@ types:
       icon: iconify mdi--function-variant
       bpmnType: bpmn:ServiceTask
     properties:
+      - name: implementation
+        description: |
+          Function or executable this step runs - BPMN's own attribute for
+          "the technology implementing this task", holding a versioned
+          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
+          `python://` (importable callable), `docker://` (image), `https://`
+          (script URL).
+        isAttr: true
+        type: String
+        redefines: bpmn:ServiceTask#implementation
+        meta:
+          order: 1
+          categories:
+            - Execution
       - name: isDataOperation
         description: An ML operation is a data operation; pinned so the marker always renders.
         isAttr: true
@@ -188,7 +202,7 @@ templates:
         Holds out 20% for testing, grouped by participant so no subject appears
         in both partitions - the one split parameter that matters in
         human-subjects work. Bound to scikit-learn's `GroupShuffleSplit`; repoint
-        `uses` and edit `with` for a different splitter.
+        `implementation` and edit `with` for a different splitter.
       icon: iconify mdi--call-split
       keywords:
         - split
@@ -197,7 +211,7 @@ templates:
         - holdout
         - sklearn
         - leakage
-      uses: python://sklearn.model_selection.GroupShuffleSplit
+      implementation: python://sklearn.model_selection.GroupShuffleSplit
       with: "test_size: 0.2\ngroupBy: participant_id"
 
   - description: Fit an estimator and produce a Model artifact.
@@ -206,7 +220,7 @@ templates:
       type: Operation
       bpmn:documentation: |
         Fits scikit-learn's RandomForestClassifier on the training partition and
-        emits a `Model`. Change the estimator by editing `uses`; pass its
+        emits a `Model`. Change the estimator by editing `implementation`; pass its
         arguments (and `$sweep` placeholders inside a Sweep) through `with`.
       icon: iconify mdi--school-outline
       keywords:
@@ -215,7 +229,7 @@ templates:
         - estimator
         - sklearn
         - randomforest
-      uses: python://sklearn.ensemble.RandomForestClassifier
+      implementation: python://sklearn.ensemble.RandomForestClassifier
       with: "n_estimators: 500\nmax_depth: null\nclass_weight: balanced"
 
   - description: Fit a statistical model from a Wilkinson formula (mixed-effects).
@@ -226,7 +240,7 @@ templates:
         Model fitting in the notation behavioural research already speaks:
         `rt ~ condition + (1 | participant_id)` *is* the model, so it belongs on
         the diagram, not in a script. Bound to statsmodels' mixed-effects fit;
-        repoint `uses` at any formula interface (`lme4::lmer`, `bambi`) without
+        repoint `implementation` at any formula interface (`lme4::lmer`, `bambi`) without
         changing the shape of the step.
       icon: iconify mdi--math-integral
       keywords:
@@ -236,7 +250,7 @@ templates:
         - mixed
         - regression
         - statsmodels
-      uses: python://statsmodels.formula.api.mixedlm
+      implementation: python://statsmodels.formula.api.mixedlm
       with: "formula: rt ~ condition + (1 | participant_id)\nmethod: REML"
 
   - description: Fine-tune a language model on examples (SFT, LoRA adapter).
@@ -258,7 +272,7 @@ templates:
         - adapter
         - llm
         - train
-      uses: python://trl.SFTTrainer
+      implementation: python://trl.SFTTrainer
       with: "base_model: hf://meta-llama/llama-4-8b@1f4e02\nmethod: lora\nrank: 16\nepochs: 3\nlearning_rate: 2.0e-4"
 
   - description: Tune a model on human preference pairs (DPO).
@@ -279,7 +293,7 @@ templates:
         - preference
         - alignment
         - tune
-      uses: python://trl.DPOTrainer
+      implementation: python://trl.DPOTrainer
       with: "beta: 0.1\nepochs: 1"
 
   - description: Fit a prompt against a metric (DSPy-style compile) - the prompt is the trainable.
@@ -301,7 +315,7 @@ templates:
         - optimize
         - prompt
         - teleprompter
-      uses: python://dspy.MIPROv2
+      implementation: python://dspy.MIPROv2
       with: "metric: judge_score\ntrials: 30\nmaxDemos: 4"
 
   - description: Apply a fitted model to data (predict / predict_proba / transform).
@@ -318,7 +332,7 @@ templates:
         - inference
         - transform
         - score
-      uses: python://sklearn_pipeline.predict
+      implementation: python://sklearn_pipeline.predict
       with: "method: predict"
 
   - description: Score a model on a partition, sliced by subgroup (a fairness audit).
@@ -337,7 +351,7 @@ templates:
         - fairness
         - metrics
         - audit
-      uses: python://sklearn.metrics.classification_report
+      implementation: python://sklearn.metrics.classification_report
       with: "metrics: [roc_auc, f1_macro, calibration_error]\nsplit: test\ngroupBy: site"
 
   - description: Check data against declared expectations before it is used.
@@ -354,7 +368,7 @@ templates:
         - expectations
         - quality
         - greatexpectations
-      uses: python://lab.data.validate
+      implementation: python://lab.data.validate
       with: "on_fail: fail\nexpectations:\n  row_count: {min: 100}\n  columns:\n    rt: {type: number, min: 0, max: 10000, nulls: 0}\n  unique: [trial_id]"
 
   - description: Embed a corpus into a searchable index - the artifact a retriever reads.
@@ -375,7 +389,7 @@ templates:
         - vector
         - rag
         - corpus
-      uses: python://lab.rag.build_index
+      implementation: python://lab.rag.build_index
       with: "index: study_corpus\nembeddingModel: voyage-3\nchunk: {size: 512, overlap: 64}"
 
   - description: Record a model version in a registry, with the run that produced it.
@@ -391,7 +405,7 @@ templates:
         - registry
         - mlflow
         - version
-      uses: python://mlflow.register_model
+      implementation: python://mlflow.register_model
       with: "registry: mlflow\nname: cognitive_risk\nstage: staging"
 
   - description: Ship a model version to a serving target (side-effecting, never cached).
@@ -409,7 +423,7 @@ templates:
         - kserve
         - canary
       cache: never
-      uses: python://lab.serving.deploy
+      implementation: python://lab.serving.deploy
       with: "endpoint: cognitive-risk\nstrategy: canary\ntraffic_percent: 10"
 
   - description: Watch a deployed model and raise a signal when it drifts.
@@ -426,7 +440,7 @@ templates:
         - drift
         - retrain
         - production
-      uses: python://lab.serving.monitor
+      implementation: python://lab.serving.monitor
       with: "watches: roc_auc\nthreshold: 0.75\nwindow: 7d\nschedule: 0 6 * * *\nsignal: drift"
 
   - description: 5-fold stratified cross-validation - fit and score once per fold, averaged.
@@ -459,7 +473,7 @@ templates:
         - id: cv_fit
           type: Operation
           bpmn:name: Fit on fold
-          uses: python://sklearn.ensemble.RandomForestClassifier
+          implementation: python://sklearn.ensemble.RandomForestClassifier
           x: 240
           y: 140
         - id: cv_eval
@@ -505,7 +519,7 @@ templates:
         - id: sweep_fit
           type: Operation
           bpmn:name: Fit at point
-          uses: python://sklearn.ensemble.RandomForestClassifier
+          implementation: python://sklearn.ensemble.RandomForestClassifier
           with: "max_depth: $sweep\nn_estimators: $sweep"
           x: 200
           y: 140
@@ -526,7 +540,10 @@ templates:
       bpmn:documentation: |
         The promotion policy, in the diagram rather than in a script: the candidate
         ships only if it improves on the deployed baseline and clears an absolute
-        floor. Reviewers can check the policy without reading code.
+        floor. Type the rule on the outgoing pass flow's native
+        `conditionExpression` (e.g. `metrics.roc_auc >= 0.80 and metrics.roc_auc
+        > baseline.roc_auc`) and mark the reject flow as the gateway's `default`.
+        Reviewers can check the policy without reading code.
       icon: iconify mdi--gate-arrow-right
       keywords:
         - gate
@@ -534,7 +551,6 @@ templates:
         - threshold
         - deploy
         - policy
-      criterion: metrics.roc_auc >= 0.80 and metrics.roc_auc > baseline.roc_auc
       rationale: |
         0.80 is the floor agreed with the clinical team; beating the deployed
         baseline prevents a regression from shipping on a lucky split.

@@ -71,8 +71,12 @@ export async function parseStudyflow(text: string, schemas: Record<string, any>)
     const targetId = el.targetRef?.id;
     if (!sourceId || !targetId) continue;
 
-    const condition = el.conditionExpression?.body
-      ?? el.conditionExpression?.get?.('body');
+    // The core redefines `conditionExpression` to a flat string attribute;
+    // spec-BPMN files carry it as an Expression element with a body.
+    const rawCondition = el.conditionExpression;
+    const condition = typeof rawCondition === 'string'
+      ? rawCondition
+      : rawCondition?.body ?? rawCondition?.get?.('body');
 
     sequenceFlows.set(el.id, {
       id: el.id,

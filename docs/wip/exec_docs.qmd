@@ -15,14 +15,14 @@ A participant walking through a study, a fold in cross-validation, a point in a 
 
 ## The primitives
 
-The whole executable language is a small set of primitives, each an existing BPMN construct given a run-time meaning by the `exec` schema. This table *is* the language; everything domain-specific — a `Split`, a `Fit`, a `Retriever`, a `Judge` — is a **template** that binds a function onto one of these via [`uses`](authoring-schemas.qmd), not a type of its own.
+The whole executable language is a small set of primitives, each an existing BPMN construct given a run-time meaning by the `exec` schema. This table *is* the language; everything domain-specific — a `Split`, a `Fit`, a `Retriever`, a `Judge` — is a **template** that binds a function onto one of these via BPMN's own [`implementation`](authoring-schemas.qmd) attribute, not a type of its own.
 
 | Primitive | BPMN construct | `exec` element | Domain-specific things are… |
 | --- | --- | --- | --- |
-| typed **step** | activity + data associations | `Step` trait | a template binding `uses` (fit, evaluate, retrieve, judge) |
+| typed **step** | activity + data associations | `Step` trait | a template binding `implementation` (fit, evaluate, retrieve, judge) |
 | **artifact** with lineage | data object / store | `Artifact` trait | `ml:Model`, `ml:Metric`, `agentic:Prompt` |
 | **fan-out / sweep** | multi-instance marker | `ForEach`, `Sweep` | cross-validation, hyperparameter search |
-| **loop** | standard-loop marker | `Repeat` | evaluator-optimizer, retrain-on-drift |
+| **loop** | standard-loop marker | native `loopCharacteristics` on any sub-process | evaluator-optimizer, retrain-on-drift |
 | **conditional gate** | exclusive gateway | `Gate` | a promotion gate |
 | **model-driven branch** | exclusive gateway | `agentic:Router` | — (irreducible) |
 | **model-driven sub-process** | ad-hoc sub-process | `agentic:Agent` | — (irreducible) |
@@ -34,11 +34,11 @@ Two rows are genuinely new and cannot be a template — `Router` and `Agent` —
 
 ## The step contract
 
-An activity is executable when it answers six questions. Two are already part of the language ([`uses` and `with`](authoring-schemas.qmd)); the `exec` schema adds the rest.
+An activity is executable when it answers six questions. Two the language reuses ([BPMN's `implementation` and studyflow's `with`](authoring-schemas.qmd)); the `exec` schema adds the rest.
 
 | Question | Carried by |
 | --- | --- |
-| What runs? | `uses` — `python://`, `docker://`, `https://`, `file://` |
+| What runs? | `implementation` — BPMN's own attribute on the task types that execute code; `python://`, `docker://`, `https://`, `file://` |
 | With what arguments? | `with` — a YAML mapping |
 | Over what interface? | the data associations drawn on the canvas — native BPMN, nothing declared |
 | Where does it run? | `environment` |
@@ -60,7 +60,7 @@ A **scope** $\sigma = \langle f_1, \dots, f_k \rangle$ is a stack of frames. A f
 | `shard` | `exec:ForEach`, `iterate: shards` | shard of the input |
 | `fold` | `iterate: folds` | cross-validation fold |
 | `config` | `exec:Sweep` | point of the sweep space |
-| `turn` | `exec:Repeat`, `agentic:Agent` | iteration of a loop |
+| `turn` | sub-processes with a standard-loop child, `agentic:Agent` | iteration of a loop |
 | `retry` | a failed attempt | attempt |
 
 Two tokens in different scopes never join. A binding made in $\sigma$ is visible in $\sigma$ and in every extension $\sigma \cdot f$, and a collector writes back into the parent.
@@ -91,24 +91,24 @@ In all three cases the chosen branch is written to $E$. A replay reads the recor
 
 **[Fork] / [Join]** A parallel gateway emits one token per outgoing flow in the same scope; the join consumes one token per incoming flow *with equal scope* and merges their bindings. Scope equality is what makes the join safe under fan-out: two tokens from different folds cannot accidentally synchronize.
 
-**[Expand]** An activity carrying a multi-instance marker computes its instance set $I$ from `iterate` — the collection named by `over`, the folds in `folds`, the points of `grid`, the shard count in `compute.array` — and emits one token per $i \in I$ at scope $\sigma \cdot (\textit{kind}, \textit{key}, i)$. With `sequential`, one at a time; otherwise up to `maxConcurrency` at once.
+**[Expand]** An activity carrying a multi-instance marker computes its instance set $I$ from `iterate` — the collection named by `over`, the folds in `folds`, the points of `grid`, the shard count in `compute.array` — and emits one token per $i \in I$ at scope $\sigma \cdot (\textit{kind}, \textit{key}, i)$. With the multi-instance child's native `isSequential`, one at a time; otherwise up to `maxConcurrency` at once.
 
 **[Collect]** When every instance reaches the body's end, their outputs are joined per `collect` (`list`, `concat`, `reduce` with `reducer`, or `none`), bound to `collectAs` in the parent scope, and a single token continues.
 
-**[Loop]** An activity carrying a standard-loop marker re-enters its body at scope $\sigma \cdot (\textit{turn}, n, k{+}1)$ while `until` fails to hold and $k <$ `maxTurns`. On exhaustion, `onMaxTurns` decides between falling through and failing. **Always set `maxTurns`** — it is the only guaranteed termination bound in the language.
+**[Loop]** An activity carrying BPMN's standard-loop child re-enters its body at scope $\sigma \cdot (\textit{turn}, n, k{+}1)$ while its native `loopCondition` holds and $k <$ `loopMaximum` (`testBefore` checks before the first turn). On an `Agent`, the exit test is the ad-hoc sub-process's own `completionCondition` and the ceiling is the Agent's `maxTurns`. On exhaustion the loop simply exits. **Always set the ceiling** — it is the only guaranteed termination bound in the language.
 
 **[Skip]** A step carrying a `when` guard that does not hold in $(\sigma, \beta)$ does not fire: the skip is written to $E$, its outputs stay unbound, and the token moves on. The step-level form of a `Gate`, for skips that do not deserve a branch on the diagram.
 
 **[Fire]** A step whose required input ports are all bound computes its cache key
 
-$$\kappa = H\big(\, n.\text{id},\; \text{digest}(\texttt{uses}),\; \texttt{with}{\downarrow}\sigma,\; \{\text{digest}(a) : a \in \text{inputs}\},\; \text{seed}(\sigma) \,\big)$$
+$$\kappa = H\big(\, n.\text{id},\; \text{digest}(\texttt{implementation}),\; \texttt{with}{\downarrow}\sigma,\; \{\text{digest}(a) : a \in \text{inputs}\},\; \text{seed}(\sigma) \,\big)$$
 
 and then:
 
 - if `cache: reuse` and $E$ holds a successful execution with key $\kappa$ — **rebind its outputs and skip**;
 - otherwise dispatch to the executor for `runsOn`, append an `Execution` record to $E$, and register the outputs in $A$.
 
-`digest(uses)` is why the [`uses` grammar](authoring-schemas.qmd) carries `@version-or-digest`: `python://pkg.fn@1.2` keys on the version, `docker://img@sha256:…` on the digest, `https://…` on the hash of the fetched script. A step whose code moved is a step whose key moved, so it re-runs. This is `dvc repro` and Flyte caching, obtained from a field the language already had.
+`digest(implementation)` is why the [reference grammar](authoring-schemas.qmd) carries `@version-or-digest`: `python://pkg.fn@1.2` keys on the version, `docker://img@sha256:…` on the digest, `https://…` on the hash of the fetched script. A step whose code moved is a step whose key moved, so it re-runs. This is `dvc repro` and Flyte caching, obtained from a field the language already had.
 
 **[Suspend] / [Resume]** A dispatch may return a wait handle instead of a result. The token parks in $W$, the run is checkpointed, and **the worker may exit**. An external event carrying the handle resumes it.
 
@@ -128,7 +128,7 @@ A run is therefore replayable even though it is not deterministic: a replay read
 | --- | --- |
 | `browser` | the runner tab; React node components |
 | `local` | the worker's own process |
-| `container` | an OCI image named by `uses` |
+| `container` | an OCI image named by `implementation` |
 | `hpc` | submitted to `scheduler` with `compute`; **suspends** until the job reports |
 | `cloud` | a hosted queue |
 
@@ -141,7 +141,7 @@ BPMN defines an **ad-hoc sub-process** as one whose contained activities execute
 So `agentic:Agent` is a `bpmn:AdHocSubProcess`, and:
 
 - **the tools are the activities drawn inside it** — containment is the tool list;
-- **a tool is an ordinary step** — same `uses`, same wired data elements, same log entry, so anything a studyflow can run, an agent can call;
+- **a tool is an ordinary step** — same `implementation`, same wired data elements, same log entry, so anything a studyflow can run, an agent can call;
 - **the turn loop is `exec:Repetition`** — `until` and `maxTurns`, the same construct as any other loop;
 - **`deterministic` is pinned false** — every model call and tool call lands in $E$.
 
@@ -176,31 +176,25 @@ Three consequences:
 
 - **A prompt is fitted like a model.** `agentic:Prompt` carries `digest`, `version`, and `producedBy` from the `Artifact` trait, so a compiled prompt has the same lineage as a fitted model — which execution produced it, from what data. Prompt lineage is model lineage.
 - **The objective can be a measurement the flow itself makes.** An LLM-as-judge or a human rating produces the `Metric` an optimizer maximizes — and the preference pairs DPO fits on are collected by `Pairwise preference`, whose raters can be the study's own participants. Collection, fitting, and serving are one diagram.
-- **The loops around fitting are the `exec` constructs, unchanged.** A hyperparameter search is a `Sweep` around a fitting step; cross-validation is `iterate: folds`; compile-until-it-clears is a `Repeat` whose `until` reads the eval's metric (see `agent_eval.studyflow`, where the optimizer is `when`-guarded to skip the first turn so the hand-written prompt gets a baseline); retrain-on-drift is a boundary signal routed back into the fit. The evaluator-optimizer is the degenerate case: the same `Repeat`, with the response rather than an artifact as the thing improved.
+- **The loops around fitting are the `exec` constructs, unchanged.** A hyperparameter search is a `Sweep` around a fitting step; cross-validation is `iterate: folds`; compile-until-it-clears is a repeat-until sub-process whose native `loopCondition` reads the eval's metric (see `agent_eval.studyflow`, where the optimizer is `when`-guarded to skip the first turn so the hand-written prompt gets a baseline); retrain-on-drift is a boundary signal routed back into the fit. The evaluator-optimizer is the degenerate case: the same repeat-until loop, with the response rather than an artifact as the thing improved.
 
-## One meaning, two spellings: the native BPMN mapping
+## Native BPMN, used directly
 
-Several `exec` fields name things BPMN 2.0 already has a construct for. That is deliberate — the field is the *compact authoring spelling*, the native construct is the *wire and interop form* — but it is only harmless if the equivalence is declared once and mirrored mechanically (the Stage 2 mirror), so no field carries a second meaning. This table is that declaration.
+Where BPMN 2.0 already has the construct, the language stores it natively — no custom field, no mirror. The full inventory:
 
-| Studyflow field | Native BPMN construct | Note |
-| --- | --- | --- |
-| `until` | `standardLoopCharacteristics/loopCondition` | **negated** — BPMN loops *while* its condition holds; `until` stops when it does |
-| `until` (on an `Agent`) | `adHocSubProcess/completionCondition` | BPMN's own exit test for "order decided at run time" |
-| `maxTurns` | `loopMaximum` | identical |
-| `testBefore` | `testBefore` | identical, name for name |
-| `sequential` | `multiInstanceLoopCharacteristics/isSequential` | identical |
-| `over` / `itemVar` / `collectAs` | `loopDataInputRef` / `inputDataItem` / `loopDataOutputRef` | identical roles |
-| shard count (`compute.array`) | `loopCardinality` | instance count as an expression |
-| `Gate.criterion` | the pass flow's `conditionExpression` | the engine's [Branch] rule reads the flow; `criterion` is mirrored onto it |
-| Router fallback branch | the gateway's `default` flow | native; the Router has no fallback field |
-| `timeout` | a boundary timer's `timeDuration` | draw the boundary event when the timeout path deserves to be visible |
-| `retry` | error boundary event + re-entry | BPMN has no retry count; the prop is the compact form |
-| `Component.source` | `Definitions/imports` + `calledElement` | a registry URL in one field instead of an import block |
-| step interface | `dataInputAssociation` / `dataOutputAssociation` | fully native — nothing custom; a `signature` block that re-declared the wiring was cut |
-| `approvers` | `resources` → `PotentialOwner` | a name list instead of the resource-role machinery |
-| `iterate: folds` / `grid`, `collect: reduce`, `seed`, `cache`, `when`, `deterministic` | — | genuinely new; no native construct exists |
+| Concern | Native construct, used as-is |
+| --- | --- |
+| what runs | `implementation` on service / user / send / receive / rule tasks |
+| step interface | `dataInputAssociation` / `dataOutputAssociation` to typed data elements |
+| loop | `standardLoopCharacteristics` — `loopCondition` (continue-while), `loopMaximum`, `testBefore` |
+| fan-out | `multiInstanceLoopCharacteristics` — `isSequential`, `loopCardinality`; both children are what render the ↻ / ∥∥∥ markers |
+| agent exit test | the ad-hoc sub-process's `completionCondition` |
+| gate rule | the pass flow's `conditionExpression` + the gateway's `default` flow (`Gate` adds only `rationale`) |
+| reusable call | `calledElement` on a call activity |
 
-Everything in the left column that has a right column is *one* semantic with two spellings. Everything marked "genuinely new" is the actual extension surface — deliberately small.
+Two accommodations, both following the core's `conditionExpression` precedent: `loopCondition` and `completionCondition` are flattened from expression *elements* to plain string *attributes* (`exec:LoopCondition` / `exec:CompletionCondition` traits), so they can be authored and inspected as text. And two loop-adjacent fields are genuinely custom because BPMN has no equivalent: `Agent#maxTurns` (an ad-hoc sub-process has no native turn ceiling) and the `Iteration` trait's scope vocabulary (`iterate: folds/grid`, `folds`, `grid`, `collect`, `collectAs`, `reducer`, `over`, `itemVar`, `maxConcurrency`, `failFast`).
+
+What remains custom across the whole executable layer: `with`, `when`, `runsOn`/`scheduler`/`compute`, `cache`, `deterministic`, `seed`, `retry`, `timeout`, the artifact lineage fields, the `Iteration` vocabulary, and `Agent#maxTurns`. Each is there because BPMN has nothing for it.
 
 ## Provenance: the as-run record
 
@@ -235,7 +229,7 @@ The schema describes the full semantics; the browser runner implements the part 
 | --- | --- |
 | Sequential walk, exclusive/random branching, condition expressions | implemented |
 | Human suspension (participant tasks) | implemented, on every cognitive task |
-| `uses` / `with` parsed and validated | implemented; **not executed** |
+| `implementation` / `with` parsed and validated | implemented; **not executed** |
 | Parallel gateway, sub-process traversal | **not supported** — the runner refuses rather than guessing |
 | Model-driven routing (`agentic:Router`) | **not supported** — the runner refuses rather than silently taking the default branch |
 | Scopes, expansion, collection, caching, skip guards (`when`), the as-run record | **not implemented** |

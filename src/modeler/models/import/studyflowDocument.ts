@@ -3,9 +3,10 @@
  *
  * Assembles the intermediate model into a moddle Definitions tree: a start
  * event (carrying `studyflow:consentFormUri` when the timeline had consent),
- * one `bpmn:Task` per imported task with a `cognitive:cognitiveTask` wrapper
- * (`instrument`, inline `configurations`) and a `studyflow:uses` reference
- * naming the implementing software, an end event, and the sequence flows
+ * one `bpmn:UserTask` per imported task with a `cognitive:cognitiveTask`
+ * wrapper (`instrument`, inline `configurations`) and the native
+ * `implementation` reference naming the implementing software, an end event,
+ * and the sequence flows
  * chaining them. A trivial left-to-right auto-layout supplies the BPMN DI so
  * the file opens rendered in the modeler and any BPMN tool.
  *
@@ -135,14 +136,16 @@ function buildTask(moddle: any, task: ImportedTask): any {
     configurations: moddle.create('cognitive:Configurations', { value: configYaml }),
   });
 
-  const el = moddle.create('bpmn:Task', {
+  // A jsPsych trial is a user task (a human responds), and BPMN's own
+  // `UserTask#implementation` is exactly "the technology implementing it" —
+  // so the versioned plugin reference (jspsych://...) goes in the native
+  // attribute, nothing custom.
+  const el = moddle.create('bpmn:UserTask', {
     id: task.id,
     name: task.name,
+    implementation: task.functionRef,
     extensionElements: moddle.create('bpmn:ExtensionElements', { values: [cognitiveTask] }),
   });
-  // Versioned reference to the implementing software: the general-purpose
-  // `studyflow:uses` trait on the activity (jspsych://, docker://, https://, ...).
-  el.set('studyflow:uses', task.functionRef);
   return el;
 }
 

@@ -7,7 +7,7 @@ uri: http://behaverse.org/schemas/studyflow/v1
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase
-version: 26.0613
+version: 26.0715
 
 associations: []
 enumerations:
@@ -249,23 +249,12 @@ types:
           order: 1
           categories:
             - Execution
-      - name: uses
-        description: |
-          Function or executable this activity runs, GitHub-Actions style:
-          `<scheme>://<ref>[@<version-or-digest>]`. Schemes: `python://`
-          (importable callable, e.g. `python://pkg_for_st.do_map@1.2`),
-          `docker://` (image, e.g. `docker://ghcr.io/lab/img@sha256:...`),
-          `https://` (script URL). Other schemes are allowed.
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Execution
       - name: with
         description: |
-          YAML mapping of arguments passed to the `uses` function
-          (GitHub Actions' `with:` block).
+          YAML mapping of arguments passed to the function named by the
+          activity's `implementation` (GitHub Actions' `with:` block). The
+          function reference itself is BPMN's own `implementation` attribute
+          on the task types that execute something - not a studyflow field.
         isAttr: false
         type: YAMLString
         meta:
@@ -275,7 +264,7 @@ types:
           condition:
             language: json
             body:
-              uses: $set
+              implementation: $set
       - name: inputs
         description: Names of variables consumed by this activity.
         isAttr: false
@@ -611,21 +600,11 @@ types:
       - bpmn:BaseElement
     meta:
       bpmnType: bpmn:DataStoreReference
-  - name: DataObjectReference
-    description: |
-      Represents data produced/consumed within a process instance. Can be used to model
-      internal data nodes in sub-processes and annotate state (e.g., raw/processed).
-    extends:
-      - bpmn:DataObjectReference
-    isAbstract: true
-    properties:
-      - name: state
-        description: Optional state annotation (e.g., raw, processed, validated).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Data
+  # (There is no studyflow DataObjectReference trait: BPMN's own `dataState`
+  # already annotates the state of any data element - a `bpmn:DataState` child
+  # whose `name` is the state, e.g. `dataState: {name: processed}`. The former
+  # `studyflow:DataObjectReference#state` string attribute duplicated it and is
+  # dropped in favour of the native field.)
   - name: DataCatalog
     description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
     superClass:

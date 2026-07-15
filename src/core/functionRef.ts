@@ -1,5 +1,5 @@
 /**
- * Parser for the `uses` attribute on activities: a reference to the function
+ * Parser for the `implementation` attribute on executable tasks: a reference to the function
  * (or container image, or script) that implements the activity.
  *
  * Grammar (GitHub-Actions inspired):

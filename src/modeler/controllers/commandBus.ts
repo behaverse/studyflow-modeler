@@ -28,7 +28,10 @@ import {
 } from '@/modeler/controllers/diagram';
 
 import { runCreateShape, runSetColor, type CreateShapeCommand, type SetColorCommand } from '@/modeler/controllers/shape';
-import { runUpdateAttribute, type UpdateAttributeCommand } from '@/modeler/controllers/attributes';
+import {
+  runUpdateAttribute, type UpdateAttributeCommand,
+  runUpdateLoopCharacteristics, type UpdateLoopCharacteristicsCommand,
+} from '@/modeler/controllers/attributes';
 
 import {
   runCreateModeler, type CreateModelerCommand,
@@ -56,6 +59,7 @@ export type ControllerCommand =
   | OpenRunnerCommand
   | ImportXmlCommand
   | UpdateAttributeCommand
+  | UpdateLoopCharacteristicsCommand
   | CreateShapeCommand
   | SetColorCommand;
 
@@ -85,6 +89,7 @@ const HANDLERS: HandlerMap = {
   'open-runner': runOpenRunner,
   'import-xml': runImportXml,
   'update-attribute': runUpdateAttribute,
+  'update-loop-characteristics': runUpdateLoopCharacteristics,
   'create-shape': runCreateShape,
   'set-color': runSetColor,
 };
