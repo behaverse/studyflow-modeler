@@ -18,13 +18,12 @@ type Schema = {
 export const SCHEMAS: Schema[] = [
   { prefix: 'studyflow', name: 'Core', description: 'Generic research elements and data infrastructure.', core: true },
   { prefix: 'exec', name: 'Exec', description: 'The executable layer: step contract, scopes, artifacts.', core: true },
-  { prefix: 'cognitive', name: 'Cognitive', description: 'Cognitive and behavioral research elements.', core: true },
-  { prefix: 'behaverse', name: 'Behaverse', description: 'Cognitive tasks (Behaverse assessments).' },
+  { prefix: 'cognitive', name: 'Cognitive', description: 'Cognitive and behavioral research elements, including Behaverse assessment tasks.', core: true },
   { prefix: 'ml', name: 'ML', description: 'Statistical and machine-learning pipelines: the Model and Metric artifacts, plus a generic Operation step that verb templates bind a function onto — one fitting notation from classical estimators and formulas to fine-tuning and prompt optimization.' },
   { prefix: 'agentic', name: 'Agentic', description: 'LLM and agent workflows: agents, model-driven routing, model/tool calls, human approval, and prompt/memory artifacts.' },
   { prefix: 'datatrove', name: 'DataTrove', description: 'Function-composition operations over data streams, plus the DataTrove read/write/corpus family.' },
   { prefix: 'omniprocess', name: 'OmniProcess', description: 'Brain and brain-data processing (fMRIPrep, EEGPrep).' },
-  { prefix: 'galea', name: 'Galea', description: 'Experimental elements for the OpenBCI Galea VR headset.' },
+  { prefix: 'openbci', name: 'OpenBCI', description: 'Biosignal acquisition with OpenBCI boards (Cyton, Ganglion, Galea VR headset).' },
 ];
 
 export const SCHEMA_NAMES = SCHEMAS.map((s) => s.prefix);

@@ -48,7 +48,7 @@ The key fields:
 - **`SkipInstructions`** -- skip the instruction screens, which the bot does not need.
 - **`MaxResponseTime`** -- LLM round-trips are slower than human key presses; bump `MaxResponseTime` in the task's `configurations` (and/or `maxResponseTime` in `botConfigurations`) so the bot is not timed out mid-request.
 
-See the property descriptions in `src/assets/schemas/behaverse.moddle.yaml` for the full vocabulary.
+See the `BehaverseTask` property descriptions in `src/assets/schemas/cognitive.moddle.yaml` for the full vocabulary.
 
 ## Shipped examples
 

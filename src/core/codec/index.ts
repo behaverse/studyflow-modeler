@@ -33,7 +33,7 @@ export { studyflowToDefinitions } from '@/core/codec/deserialize';
  *   - `bpmn:ExtensionElements` collapses to the plain list of its `values`
  *     (no `values:` wrapper),
  *   - YAML-bodied config wrappers (`cognitive:Configurations`,
- *     `behaverse:BotConfigurations`, ...) inline their parsed body as nested
+ *     `cognitive:BotConfigurations`, ...) inline their parsed body as nested
  *     YAML instead of a `value: |` string block, and value-typed YAML
  *     properties (`studyflow:with`) inline their parsed mapping the same way,
  *   - diagram geometry attaches to the element it describes — `bounds` and

@@ -54,7 +54,7 @@ Gateway behavior:
 | **End**               | `bpmn:EndEvent`                                        | Issues a completion code (`none`/`static`/`dynamic`) and redirects via `redirectTo` if set.    |
 | **Instruction**       | `cognitive:Instruction`                                | Renders the markdown `content`; participant clicks *Continue*.                                 |
 | **Questionnaire**     | `cognitive:Questionnaire`                              | Renders the chosen `instrument` (PHQ-9, GAD-7, BDI-II ship as built-ins) and stores responses. |
-| **Behaverse Task**    | `behaverse:BehaverseTask`                              | Embeds the Behaverse Unity runtime in an iframe and bridges messages.                          |
+| **Behaverse Task**    | `cognitive:BehaverseTask`                              | Embeds the Behaverse Unity runtime in an iframe and bridges messages.                          |
 | **Generic Task**      | Any `bpmn:Task` / `UserTask` / `ServiceTask` / etc.    | Fallback step with a *Continue* button.                                                        |
 
 Other element kinds (data references, score gateways, sub-processes that aren't traversed inline, etc.) are skipped at run time -- they affect modeling and analysis, not execution.

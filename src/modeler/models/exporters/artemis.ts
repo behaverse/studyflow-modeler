@@ -23,7 +23,7 @@ function isEegRelevant(bo: any): boolean {
   if (!bo) return false;
   const t = bo.$type as string | undefined;
   if (!t) return false;
-  if (t.startsWith('galea:')) return true;
+  if (t.startsWith('openbci:')) return true;
   // Datasets / timeseries with EEG modality.
   if (t === 'studyflow:Dataset' && readField(bo, 'bidsDataType') === 'eeg') return true;
   if (t === 'studyflow:Timeseries') return true;
@@ -63,11 +63,12 @@ export function exportToArtemis(modeler: any): string {
     }
     foundEegSignal = true;
 
-    if (t === 'galea:GaleaSession' || t === 'galea:GaleaRecording') {
+    if (t === 'openbci:OpenBCISession' || t === 'openbci:OpenBCIRecording') {
       acquisition.push({
         element_id: bo.id,
         label: bo.name ?? bo.id,
         studyflow_type: t,
+        device: readField(bo, 'device') ?? null,
         vr_device: readField(bo, 'vrDevice') ?? null,
         stream_protocol: readField(bo, 'streamProtocol') ?? null,
         electrode_type: readField(bo, 'electrodeType') ?? null,
@@ -138,7 +139,7 @@ export function exportToArtemis(modeler: any): string {
       compensation: null,
     },
     task: tasks.length > 0 ? tasks : { not_applicable: true, notes: 'No cognitive task or questionnaire elements found.' },
-    acquisition: acquisition.length > 0 ? acquisition : { not_applicable: !foundEegSignal, notes: foundEegSignal ? 'EEG-relevant elements found but no Galea session/recording. Fill in manually.' : 'No EEG acquisition elements in this diagram.' },
+    acquisition: acquisition.length > 0 ? acquisition : { not_applicable: !foundEegSignal, notes: foundEegSignal ? 'EEG-relevant elements found but no OpenBCI session/recording. Fill in manually.' : 'No EEG acquisition elements in this diagram.' },
     preprocessing: preprocessing.length > 0 ? preprocessing : { not_applicable: !foundEegSignal, notes: 'No PreprocessEEG activities found.' },
     analysis: analysis.length > 0 ? analysis : { not_applicable: true, notes: 'No data-operation activities found.' },
     datasets: datasets.length > 0 ? datasets : { not_applicable: true, notes: 'No EEG/timeseries datasets found.' },

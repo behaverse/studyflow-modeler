@@ -1,0 +1,876 @@
+id: kitchensink
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
+  xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:exec: https://w3id.org/studyflow/exec
+  xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  xmlns:ml: https://w3id.org/studyflow/ml
+  xmlns:agentic: https://w3id.org/studyflow/agentic
+  xmlns:datatrove: https://w3id.org/studyflow/datatrove
+  xmlns:openbci: http://behaverse.org/schemas/studyflow/openbci
+Kitchen_Sink:
+  type: bpmn:Process
+  documentation: >-
+    Element catalog: one live instance of every palette-visible element type, one labelled band per schema. Read top to
+    bottom: the BPMN 2.0 base that Studyflow inherits (events, gateways, activities, data), then the studyflow core and
+    the domain extensions that specialize it. Attribute values echo the paper's example study (consent form, completion
+    code, eligibility criteria, N-back scene, BDM trials dataset). Pool/choreography types (cognitive:Actor,
+    openbci:OpenBCISession, studyflow:ChoreographyTask) and the template presets
+    (cognitive/datatrove/omniprocess/ml/agentic/openbci) are covered in kitchensink.cheatsheet.md.
+  extensionElements:
+    - type: studyflow:Study
+  name: Studyflow element catalog (kitchen sink)
+  flowElements:
+    Ev_Start:
+      type: bpmn:StartEvent
+      name: Start
+      consentFormUri: consent.md
+      bounds:
+        x: 167
+        "y": 121
+        width: 36
+        height: 36
+    Ev_End:
+      type: bpmn:EndEvent
+      name: End
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+      completionCodeType: dynamic
+      bounds:
+        x: 347
+        "y": 121
+        width: 36
+        height: 36
+    Ev_Throw:
+      type: bpmn:IntermediateThrowEvent
+      name: Intermediate throw
+      bounds:
+        x: 527
+        "y": 121
+        width: 36
+        height: 36
+    Ev_Catch:
+      type: bpmn:IntermediateCatchEvent
+      name: Intermediate catch
+      bounds:
+        x: 707
+        "y": 121
+        width: 36
+        height: 36
+    Ev_Boundary:
+      type: bpmn:BoundaryEvent
+      name: Boundary
+      attachedToRef: Act_Task
+      bounds:
+        x: 887
+        "y": 121
+        width: 36
+        height: 36
+    Gw_Exclusive:
+      type: bpmn:ExclusiveGateway
+      name: Exclusive
+      bounds:
+        x: 160
+        "y": 294
+        width: 50
+        height: 50
+    Gw_Parallel:
+      type: bpmn:ParallelGateway
+      name: Parallel
+      bounds:
+        x: 340
+        "y": 294
+        width: 50
+        height: 50
+    Gw_Inclusive:
+      type: bpmn:InclusiveGateway
+      name: Inclusive
+      bounds:
+        x: 520
+        "y": 294
+        width: 50
+        height: 50
+    Gw_EventBased:
+      type: bpmn:EventBasedGateway
+      name: Event-based
+      bounds:
+        x: 700
+        "y": 294
+        width: 50
+        height: 50
+    Gw_Complex:
+      type: bpmn:ComplexGateway
+      name: Complex
+      bounds:
+        x: 880
+        "y": 294
+        width: 50
+        height: 50
+    Act_Task:
+      type: bpmn:Task
+      name: Task
+      bounds:
+        x: 125
+        "y": 459
+        width: 120
+        height: 80
+    Act_UserTask:
+      type: bpmn:UserTask
+      name: User task
+      bounds:
+        x: 305
+        "y": 459
+        width: 120
+        height: 80
+    Act_ServiceTask:
+      type: bpmn:ServiceTask
+      name: Service task
+      bounds:
+        x: 485
+        "y": 459
+        width: 120
+        height: 80
+    Act_ScriptTask:
+      type: bpmn:ScriptTask
+      name: Script task
+      bounds:
+        x: 665
+        "y": 459
+        width: 120
+        height: 80
+    Act_ManualTask:
+      type: bpmn:ManualTask
+      name: Manual task
+      bounds:
+        x: 845
+        "y": 459
+        width: 120
+        height: 80
+    Act_SendTask:
+      type: bpmn:SendTask
+      name: Send task
+      bounds:
+        x: 1025
+        "y": 459
+        width: 120
+        height: 80
+    Act_ReceiveTask:
+      type: bpmn:ReceiveTask
+      name: Receive task
+      bounds:
+        x: 1205
+        "y": 459
+        width: 120
+        height: 80
+    Act_BusinessRuleTask:
+      type: bpmn:BusinessRuleTask
+      name: Business rule task
+      bounds:
+        x: 125
+        "y": 569
+        width: 120
+        height: 80
+    Act_CallActivity:
+      type: bpmn:CallActivity
+      name: Call activity
+      bounds:
+        x: 305
+        "y": 569
+        width: 120
+        height: 80
+      isExpanded: false
+    Act_SubProcess:
+      type: bpmn:SubProcess
+      name: Sub-process
+      bounds:
+        x: 485
+        "y": 569
+        width: 120
+        height: 80
+      isExpanded: false
+    Act_Transaction:
+      type: bpmn:Transaction
+      name: Transaction
+      bounds:
+        x: 665
+        "y": 569
+        width: 120
+        height: 80
+      isExpanded: false
+    Act_AdHoc:
+      type: bpmn:AdHocSubProcess
+      name: Ad-hoc sub-process
+      bounds:
+        x: 845
+        "y": 569
+        width: 120
+        height: 80
+      isExpanded: false
+    Bd_DataObject:
+      type: bpmn:DataObjectReference
+      name: Data object
+      bounds:
+        x: 160
+        "y": 764
+        width: 50
+        height: 50
+    Bd_DataStore:
+      type: bpmn:DataStoreReference
+      name: Data store
+      bounds:
+        x: 340
+        "y": 764
+        width: 50
+        height: 50
+    Sf_Dataset:
+      type: bpmn:DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: bdm
+          bdmDataLevel: trials
+      name: Dataset
+      bounds:
+        x: 160
+        "y": 944
+        width: 50
+        height: 50
+    Sf_Schema:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: studyflow:Schema
+          format: csvw
+      name: Schema
+      bounds:
+        x: 340
+        "y": 944
+        width: 50
+        height: 50
+    Sf_Table:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: studyflow:Table
+          format: parquet
+      name: Table
+      bounds:
+        x: 520
+        "y": 944
+        width: 50
+        height: 50
+    Sf_Timeseries:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: studyflow:Timeseries
+          format: edf
+      name: Timeseries
+      bounds:
+        x: 700
+        "y": 944
+        width: 50
+        height: 50
+    Sf_EventMarker:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: studyflow:EventMarker
+          eventType: stimulus
+      name: Event marker
+      bounds:
+        x: 880
+        "y": 944
+        width: 50
+        height: 50
+    Ex_ForEach:
+      type: bpmn:SubProcess
+      extensionElements:
+        - type: exec:ForEach
+      name: For-each (fan-out)
+      bounds:
+        x: 125
+        "y": 1109
+        width: 120
+        height: 80
+      isExpanded: false
+    Ex_Sweep:
+      type: bpmn:SubProcess
+      extensionElements:
+        - type: exec:Sweep
+      name: Sweep
+      bounds:
+        x: 305
+        "y": 1109
+        width: 120
+        height: 80
+      isExpanded: false
+    Ex_Component:
+      type: bpmn:CallActivity
+      extensionElements:
+        - type: exec:Component
+          source: registry://flows/eegprep@2.1
+      name: Component
+      bounds:
+        x: 485
+        "y": 1109
+        width: 120
+        height: 80
+      isExpanded: false
+    Ex_Gate:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: exec:Gate
+      name: Gate
+      bounds:
+        x: 700
+        "y": 1124
+        width: 50
+        height: 50
+    Ex_Parameters:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: exec:Parameters
+      name: Parameters
+      bounds:
+        x: 880
+        "y": 1124
+        width: 50
+        height: 50
+    Ex_Blob:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: exec:Blob
+          contentType: image/png
+      name: Blob
+      bounds:
+        x: 1060
+        "y": 1124
+        width: 50
+        height: 50
+    Cg_CognitiveTask:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
+      name: Cognitive task
+      uri: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      bounds:
+        x: 125
+        "y": 1289
+        width: 120
+        height: 80
+    Cg_Rest:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Rest
+      name: Rest
+      bounds:
+        x: 305
+        "y": 1289
+        width: 120
+        height: 80
+    Cg_Questionnaire:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: phq-9
+      name: Questionnaire
+      bounds:
+        x: 485
+        "y": 1289
+        width: 120
+        height: 80
+    Cg_Instruction:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:Instruction
+      name: Instruction
+      bounds:
+        x: 665
+        "y": 1289
+        width: 120
+        height: 80
+    Cg_Behaverse:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:BehaverseTask
+          scene: NB
+      name: Behaverse task
+      bounds:
+        x: 845
+        "y": 1289
+        width: 120
+        height: 80
+    Cg_Random:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+      name: Random gateway
+      bounds:
+        x: 160
+        "y": 1414
+        width: 50
+        height: 50
+    Cg_Stratified:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: cognitive:StratifiedAllocationGateway
+          stratificationVariable: age_band
+      name: Stratified allocation
+      bounds:
+        x: 340
+        "y": 1414
+        width: 50
+        height: 50
+    Cg_Eligibility:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: cognitive:EligibilityGateway
+          inclusionCriteria:
+            - Aged 18 to 65 years
+            - Normal or corrected-to-normal vision
+          exclusionCriteria:
+            - Prior exposure to the battery
+            - Failed comprehension check
+      name: Eligibility gateway
+      bounds:
+        x: 520
+        "y": 1414
+        width: 50
+        height: 50
+    Ml_Operation:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: ml:Operation
+          implementation: python://sklearn.ensemble.RandomForestClassifier
+      name: Operation
+      bounds:
+        x: 125
+        "y": 1579
+        width: 120
+        height: 80
+    Ml_Model:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: ml:Model
+          framework: scikit-learn
+          taskType: classification
+      name: Model
+      bounds:
+        x: 340
+        "y": 1594
+        width: 50
+        height: 50
+    Ml_Metric:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: ml:Metric
+      name: Metric
+      bounds:
+        x: 520
+        "y": 1594
+        width: 50
+        height: 50
+    Ob_Recording:
+      type: bpmn:DataStoreReference
+      extensionElements:
+        - type: openbci:OpenBCIRecording
+          format: bdm
+      name: OpenBCI recording
+      bounds:
+        x: 765
+        "y": 1594
+        width: 50
+        height: 50
+    Ag_Agent:
+      type: bpmn:AdHocSubProcess
+      extensionElements:
+        - type: agentic:Agent
+          model: claude-opus-4-8
+          maxTurns: 8
+      name: Agent
+      bounds:
+        x: 125
+        "y": 1759
+        width: 120
+        height: 80
+      isExpanded: false
+    Ag_Router:
+      type: bpmn:ExclusiveGateway
+      extensionElements:
+        - type: agentic:Router
+          model: claude-haiku-4-5
+      name: Router
+      bounds:
+        x: 340
+        "y": 1774
+        width: 50
+        height: 50
+    Ag_LLMCall:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: agentic:LLMCall
+          model: claude-opus-4-8
+      name: LLM call
+      bounds:
+        x: 485
+        "y": 1759
+        width: 120
+        height: 80
+    Ag_Tool:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: agentic:Tool
+          implementation: python://lab.rag.retrieve
+          kind: retrieval
+      name: Tool
+      bounds:
+        x: 665
+        "y": 1759
+        width: 120
+        height: 80
+    Ag_HumanApproval:
+      type: bpmn:UserTask
+      extensionElements:
+        - type: agentic:HumanApproval
+      name: Human approval
+      bounds:
+        x: 845
+        "y": 1759
+        width: 120
+        height: 80
+    Ag_Prompt:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: agentic:Prompt
+          version: "1"
+      name: Prompt
+      bounds:
+        x: 1060
+        "y": 1774
+        width: 50
+        height: 50
+    Ag_Memory:
+      type: bpmn:DataStoreReference
+      extensionElements:
+        - type: agentic:Memory
+          scope: participant
+      name: Memory
+      bounds:
+        x: 1240
+        "y": 1774
+        width: 50
+        height: 50
+    Dt_Transform:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Transform
+          implementation: python://lab.transform
+      name: Transform
+      bounds:
+        x: 125
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_Map:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Map
+      name: Map
+      bounds:
+        x: 305
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_FlatMap:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:FlatMap
+      name: FlatMap
+      bounds:
+        x: 485
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_Reduce:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Reduce
+      name: Reduce
+      bounds:
+        x: 665
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_Filter:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Filter
+      name: Filter
+      bounds:
+        x: 845
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_Compose:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Compose
+      name: Compose
+      bounds:
+        x: 1025
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_Reader:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Reader
+          className: CSVReader
+          path: data/raw/
+      name: Reader
+      bounds:
+        x: 1205
+        "y": 1939
+        width: 120
+        height: 80
+    Dt_Writer:
+      type: bpmn:ServiceTask
+      extensionElements:
+        - type: datatrove:Writer
+          path: data/out/
+          className: ParquetWriter
+      name: Writer
+      bounds:
+        x: 125
+        "y": 2049
+        width: 120
+        height: 80
+    Dt_Document:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: datatrove:Document
+      name: Document
+      bounds:
+        x: 340
+        "y": 2064
+        width: 50
+        height: 50
+  artifacts:
+    Bd_Annotation:
+      type: bpmn:TextAnnotation
+      text: A free-form note. Groups (these labelled bands) are artifacts too.
+      name: Text annotation
+      bounds:
+        x: 485
+        "y": 764
+        width: 120
+        height: 50
+    Group_BpmnEvents:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_BpmnEvents
+      bounds:
+        x: 60
+        "y": 60
+        width: 1300
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 68
+          width: 1280
+          height: 20
+    Group_BpmnGateways:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_BpmnGateways
+      bounds:
+        x: 60
+        "y": 240
+        width: 1300
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 248
+          width: 1280
+          height: 20
+    Group_BpmnActivities:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_BpmnActivities
+      bounds:
+        x: 60
+        "y": 420
+        width: 1300
+        height: 264
+      label:
+        bounds:
+          x: 70
+          "y": 428
+          width: 1280
+          height: 20
+    Group_BpmnData:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_BpmnData
+      bounds:
+        x: 60
+        "y": 710
+        width: 1300
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 718
+          width: 1280
+          height: 20
+    Group_Studyflow:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_Studyflow
+      bounds:
+        x: 60
+        "y": 890
+        width: 1300
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 898
+          width: 1280
+          height: 20
+    Group_Exec:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_Exec
+      bounds:
+        x: 60
+        "y": 1070
+        width: 1300
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 1078
+          width: 1280
+          height: 20
+    Group_Cognitive:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_Cognitive
+      bounds:
+        x: 60
+        "y": 1250
+        width: 1300
+        height: 264
+      label:
+        bounds:
+          x: 70
+          "y": 1258
+          width: 1280
+          height: 20
+    Group_Ml:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_Ml
+      bounds:
+        x: 60
+        "y": 1540
+        width: 575
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 1548
+          width: 555
+          height: 20
+    Group_OpenBCI:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_OpenBCI
+      bounds:
+        x: 665
+        "y": 1540
+        width: 250
+        height: 154
+      label:
+        bounds:
+          x: 675
+          "y": 1548
+          width: 230
+          height: 20
+    Group_Agentic:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_Agentic
+      bounds:
+        x: 60
+        "y": 1720
+        width: 1300
+        height: 154
+      label:
+        bounds:
+          x: 70
+          "y": 1728
+          width: 1280
+          height: 20
+    Group_Datatrove:
+      type: bpmn:Group
+      categoryValueRef: CategoryValue_Datatrove
+      bounds:
+        x: 60
+        "y": 1900
+        width: 1300
+        height: 264
+      label:
+        bounds:
+          x: 70
+          "y": 1908
+          width: 1280
+          height: 20
+  isExecutable: false
+Category_BpmnEvents:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_BpmnEvents:
+      value: BPMN · Events
+Category_BpmnGateways:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_BpmnGateways:
+      value: BPMN · Gateways
+Category_BpmnActivities:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_BpmnActivities:
+      value: BPMN · Activities
+Category_BpmnData:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_BpmnData:
+      value: BPMN · Data & artifacts
+Category_Studyflow:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_Studyflow:
+      value: studyflow · Core data elements (BDM, BIDS, Psych-DS, CSVW)
+Category_Exec:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_Exec:
+      value: exec · Execution & scope
+Category_Cognitive:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_Cognitive:
+      value: cognitive · Domain activities & research gateways (incl. Behaverse)
+Category_Ml:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_Ml:
+      value: ml · Statistical & ML pipelines
+Category_OpenBCI:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_OpenBCI:
+      value: openbci · OpenBCI biosignals
+Category_Agentic:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_Agentic:
+      value: agentic · LLM & agent workflows
+Category_Datatrove:
+  type: bpmn:Category
+  categoryValue:
+    CategoryValue_Datatrove:
+      value: datatrove · Data-stream operations

@@ -107,7 +107,7 @@ test.describe('studyflow YAML format', () => {
 
     // Config wrappers inline their YAML body (no `value: |` string block).
     const ext = process.flowElements.Warmup_1Back.extensionElements[0];
-    expect(ext.type).toBe('behaverse:Task');
+    expect(ext.type).toBe('cognitive:BehaverseTask');
     expect(ext.configurations.Blocks.Demo5_Warmup.Parameters.NValue).toBe(1);
     expect(ext.botConfigurations.LLM.Provider).toBe('ollama');
 
@@ -182,7 +182,7 @@ elements:
         id: T1
         extensionElements:
           values:
-            - type: behaverse:Task
+            - type: cognitive:BehaverseTask
               scene: NB
               configurations:
                 value: |

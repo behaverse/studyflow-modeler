@@ -8,7 +8,6 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
-  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Cognitive_Battery:
   type: bpmn:Process
   documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
@@ -52,7 +51,7 @@ Cognitive_Battery:
     Task_NBack:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           scene: NB
       name: Working memory (N-Back)
       incoming:
@@ -67,7 +66,7 @@ Cognitive_Battery:
     Task_DigitSpan:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           scene: DS
       name: Verbal span (Digit Span)
       incoming:
@@ -103,7 +102,7 @@ Cognitive_Battery:
     Task_SART:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           scene: SART
       name: Sustained attention (SART)
       incoming:
@@ -118,7 +117,7 @@ Cognitive_Battery:
     Task_WhichOne:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           scene: WO
       name: Visual WM (Which One)
       incoming:

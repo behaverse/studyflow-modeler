@@ -3,14 +3,14 @@ import { getAttribute } from '@/core/extensions';
 import type { FlowNode } from '@/runner/models/flow';
 import { BEHAVERSE_TASK_TYPE, type BehaverseTaskPayload } from '@/runner/models/nodes/behaverse/types';
 
-/** Read a behaverse attribute: resolved value, namespaced raw value, then bare raw value. */
+/** Read a Behaverse-task attribute: resolved value, namespaced raw value, then bare raw value. */
 export function readBehaverseAttribute(bo: any, attributeName: string): string | undefined {
   const resolved = getAttribute(bo, attributeName);
   if (typeof resolved === 'string' && resolved.length > 0) return resolved;
 
   const rawAttrs = bo?.$attrs;
   if (rawAttrs && typeof rawAttrs === 'object') {
-    const namespaced = rawAttrs[`behaverse:${attributeName}`];
+    const namespaced = rawAttrs[`cognitive:${attributeName}`];
     if (typeof namespaced === 'string' && namespaced.length > 0) return namespaced;
     const bare = rawAttrs[attributeName];
     if (typeof bare === 'string' && bare.length > 0) return bare;

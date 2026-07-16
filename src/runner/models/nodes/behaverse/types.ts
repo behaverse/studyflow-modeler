@@ -37,7 +37,7 @@
 export type BehaverseBotPayload = Record<string, unknown>;
 
 /** The schema type this module handles; single source for match + guards. */
-export const BEHAVERSE_TASK_TYPE = 'behaverse:Task';
+export const BEHAVERSE_TASK_TYPE = 'cognitive:BehaverseTask';
 
 /** Keys in `botConfigurations` YAML that are consumed by the studyflow runner and must
  *  NOT be forwarded to Unity's `BotReflection.Apply` - that helper throws on

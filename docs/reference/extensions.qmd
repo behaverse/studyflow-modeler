@@ -1,6 +1,6 @@
 ---
 title: Extensions
-description: The optional extension schemas -- Behaverse, OmniProcess, DataTrove, Galea -- and what each provides
+description: The optional extension schemas -- OmniProcess, DataTrove, OpenBCI -- and what each provides
 order: 5
 ---
 
@@ -10,13 +10,7 @@ Studyflow elements ship in layered moddle schemas (see [Authoring schemas](autho
 
 Open *Settings &rarr; Extensions* in the modeler to toggle the optional schemas. Disabled schemas are excluded from the palette and not recognized when opening diagrams; reload the page to apply changes. Core schemas cannot be disabled.
 
-## Behaverse
-
-Standardized cognitive testing with the [Behaverse](https://behaverse.org) Unity runtime.
-
-- **`Task`** (Behaverse Task) -- a Behaverse assessment, identified by `scene` (e.g. `NB`, `UFOV`) with task-specific YAML `configurations`. `agentType` selects a `human` or `bot` participant; `botConfigurations` configures the bot (see [LLM and bot participants](../guides/llm-bots.qmd)).
-
-Templates: two N-Back templates -- one referencing a built-in timeline by name (e.g. `XCIT_NB_01`), one with inline block overrides merged over the per-scene baseline at runtime (see [Running a studyflow](../guides/runner-app.qmd)).
+> **Note:** Behaverse assessment tasks are no longer a separate extension. `BehaverseTask` (formerly `behaverse:Task`) and its `BehaverseScene`/`AgentType` enums are now part of the always-loaded **`cognitive`** core schema -- see [Elements](elements.qmd).
 
 ## OmniProcess
 
@@ -46,18 +40,13 @@ Large-scale text/data processing pipelines mirroring the [DataTrove](https://git
 - **`Tokens`** -- tokenize data or count tokens.
 - **`Dedup`** -- deduplication blocks.
 
-## Galea
+## OpenBCI
 
-The full VR/EEG session lifecycle for the Galea headset.
+Biosignal acquisition with [OpenBCI](https://openbci.com) hardware. The `device` attribute selects the board -- **Cyton** (8-channel), **Cyton + Daisy** (16-channel), **Ganglion** (4-channel), or **Galea** (the VR headset) -- so Galea is one supported device rather than the whole schema.
 
-- **`GaleaSession`** -- pool/container for a complete session.
-- **`Mount`** -- fit the headset on the participant.
-- **`ImpedanceCheck`** -- verify electrode contact quality.
-- **`SensorCalibration`** -- calibrate sensors (eye tracking, EMG, ...).
-- **`BaselineRecording`** -- resting-state baseline (eyes open/closed).
-- **`GaleaTask`** -- a VR task recorded during the session.
-- **`Unmount`** -- remove the headset and end acquisition.
-- **`GaleaExport`** -- export the recorded data (path templates, anonymization).
-- **`GaleaRecording`** -- the multimodal dataset produced by a session; specializes `studyflow:Dataset` with modality lists and sampling rates.
+- **`OpenBCISession`** -- pool/container for a complete acquisition session. Carries `device` (which board), `streamProtocol` (`lsl` / `brainflow` / `openbci_gui`), `modalities` (EEG/EMG/ECG/EOG/EDA/PPG/eye-tracking/head-IMU/audio), and `electrodeType` (`dry` / `wet` / `hybrid`). The VR head-mounted display (`vrDevice`) appears only when `device` is `galea`.
+- **`OpenBCIRecording`** -- the biosignal dataset produced by a session; specializes `studyflow:Dataset` with a modality list, `eegChannels`, and `eegSamplingRateHz`.
 
-Templates: a typical Galea session -- mount &rarr; impedance &rarr; calibration &rarr; baseline &rarr; VR task &rarr; unmount &rarr; export.
+The session phases -- mount, impedance check, calibration, baseline, task, unmount, export -- are not element types: they are ordinary BPMN tasks preset by the session templates, each carrying its parameters in `configurations`/`documentation`.
+
+Templates: a **Cyton EEG session** (non-VR: mount &rarr; impedance &rarr; baseline &rarr; task &rarr; export) and a **Galea VR session** (mount &rarr; impedance &rarr; calibration &rarr; baseline &rarr; VR task &rarr; unmount &rarr; export).

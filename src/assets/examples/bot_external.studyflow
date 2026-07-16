@@ -8,7 +8,6 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
-  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Demo3_ExternalBot:
   type: bpmn:Process
   documentation: A 1-back warm-up and a 2-back block played by an externally driven random-response bot.
@@ -35,7 +34,7 @@ Demo3_ExternalBot:
     Warmup_1Back:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               Demo3_Warmup:
@@ -95,7 +94,7 @@ Demo3_ExternalBot:
     Main_2Back:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               Demo3_Main:

@@ -8,7 +8,6 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
-  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 Agent_Eval_Pool:
   type: bpmn:Process
   documentation: Runs one 2-back protocol on random, Claude, and Ollama agents in parallel and compares their accuracy.
@@ -55,7 +54,7 @@ Agent_Eval_Pool:
     Agent_Random:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               Eval_2Back:
@@ -119,7 +118,7 @@ Agent_Eval_Pool:
     Agent_Claude:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               Eval_2Back:
@@ -195,7 +194,7 @@ Agent_Eval_Pool:
     Agent_Ollama:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               Eval_2Back:

@@ -1,0 +1,453 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: OpenBCI
+prefix: openbci
+description: |
+  Studyflow extension for experiments that acquire biosignals with OpenBCI
+  hardware. It adds only the two nouns BPMN has no equivalent for -
+  `OpenBCISession` (device-level configuration: which OpenBCI board, streaming
+  protocol, active modalities, electrode type) and `OpenBCIRecording` (the
+  biosignal dataset a session produces). The `device` attribute selects the
+  board - Cyton, Cyton+Daisy, Ganglion, or the Galea VR headset - so Galea is
+  one supported device rather than the whole schema; VR-only fields (the
+  head-mounted display) appear only when `device` is `galea`. The phases of a
+  session - mount, signal-quality check, calibration, baseline, task, unmount,
+  export - are not element types: they are ordinary BPMN tasks preset by the
+  session templates, each carrying its parameters in `configurations` or
+  `documentation`. This is the same "parameterize, don't proliferate" rule the
+  exec/ml/agentic layers follow.
+uri: http://behaverse.org/schemas/studyflow/openbci
+icon: iconify mdi--chip
+xml:
+  tagAlias: lowerCase
+version: 26.0716
+associations: []
+
+enumerations:
+  - name: OpenBCIDeviceEnum
+    isAbstract: true
+    description: |
+      OpenBCI acquisition board. Determines channel count and which modalities
+      are available (e.g. only Galea adds eye tracking and a head IMU).
+      Properties typed with this enum may also accept custom identifiers.
+    literalValues:
+      - name: Cyton (8-channel)
+        value: cyton
+      - name: Cyton + Daisy (16-channel)
+        value: cyton_daisy
+      - name: Ganglion (4-channel)
+        value: ganglion
+      - name: Galea (VR headset)
+        value: galea
+        description: OpenBCI Galea - a VR head-mounted display integrating EEG/EMG/EOG/EDA/PPG and eye tracking.
+
+  - name: OpenBCIModalityEnum
+    isAbstract: true
+    description: Biosignal/sensor modality recorded by an OpenBCI board.
+    literalValues:
+      - name: EEG (electroencephalography)
+        value: eeg
+      - name: EMG (electromyography)
+        value: emg
+      - name: ECG (electrocardiography)
+        value: ecg
+      - name: EOG (electrooculography)
+        value: eog
+      - name: EDA (electrodermal activity)
+        value: eda
+      - name: PPG (photoplethysmography / heart rate)
+        value: ppg
+      - name: Eye tracking (camera-based gaze and pupil)
+        value: eye_tracking
+        description: Galea only.
+      - name: Head IMU
+        value: head_imu
+        description: Galea only.
+      - name: Audio
+        value: audio
+
+  - name: OpenBCIElectrodeTypeEnum
+    isAbstract: true
+    description: EEG electrode contact medium used in the montage.
+    literalValues:
+      - name: Dry
+        value: dry
+      - name: Wet (saline / gel)
+        value: wet
+      - name: Hybrid (dry + wet ring)
+        value: hybrid
+
+  - name: VRDeviceEnum
+    isAbstract: true
+    description: |
+      VR head-mounted display, relevant only for the Galea device. Properties
+      typed with this enum may also accept custom identifiers.
+    literalValues:
+      - name: Meta Quest Pro
+        value: quest_pro
+      - name: Meta Quest 3
+        value: quest_3
+      - name: Valve Index
+        value: valve_index
+      - name: Varjo XR-3
+        value: varjo_xr3
+
+  - name: OpenBCIStreamProtocolEnum
+    isAbstract: true
+    description: |
+      Streaming protocol used to acquire data from the OpenBCI board.
+      Properties typed with this enum may also accept custom identifiers.
+    literalValues:
+      - name: LSL (Lab Streaming Layer)
+        value: lsl
+      - name: BrainFlow
+        value: brainflow
+      - name: OpenBCI GUI
+        value: openbci_gui
+
+types:
+  - name: OpenBCISession
+    description: |
+      A single acquisition session with an OpenBCI board, modeled as a BPMN
+      pool. Carries the device-level configuration (which board, streaming
+      protocol, active modalities, electrode type, and - for Galea - the VR
+      HMD) shared by every phase inside the session.
+    superClass:
+      - bpmn:Participant
+      - bpmn:BaseElement
+    meta:
+      icon: iconify mdi--chip
+      bpmnType: bpmn:Participant
+    properties:
+      - name: device
+        description: OpenBCI acquisition board used in this session. Pick a listed option or type a custom identifier.
+        isAttr: true
+        type: OpenBCIDeviceEnum
+        default: cyton
+        meta:
+          order: 0
+          editable: true
+          categories:
+            - OpenBCI
+      - name: streamProtocol
+        description: Streaming protocol used to acquire data from the board. Pick a listed option or type a custom identifier.
+        isAttr: true
+        type: OpenBCIStreamProtocolEnum
+        default: lsl
+        meta:
+          order: 1
+          editable: true
+          categories:
+            - OpenBCI
+      - name: modalities
+        description: Biosignal/sensor modalities active in this session.
+        isAttr: false
+        isMany: true
+        type: OpenBCIModalityEnum
+        meta:
+          order: 2
+          categories:
+            - OpenBCI
+      - name: electrodeType
+        description: EEG electrode contact medium used in the montage.
+        isAttr: true
+        type: OpenBCIElectrodeTypeEnum
+        default: dry
+        meta:
+          order: 3
+          categories:
+            - OpenBCI
+      - name: vrDevice
+        description: |
+          VR head-mounted display paired with the Galea biosensor module. Only
+          meaningful when `device` is `galea`. Pick a listed option or type a
+          custom identifier.
+        isAttr: true
+        type: VRDeviceEnum
+        default: quest_pro
+        meta:
+          order: 4
+          editable: true
+          categories:
+            - OpenBCI
+          condition:
+            language: json
+            body:
+              device: galea
+
+  # ---------- Recording dataset variant ----------
+  - name: OpenBCIRecording
+    description: |
+      Biosignal recording produced by an OpenBCI session. Specializes
+      `studyflow:Dataset` to carry the active modality list and the EEG channel
+      count / sampling rate that downstream data-operation activities need
+      without re-discovering the layout. Per-stream details (e.g. eye-tracking
+      rate on Galea) belong on the wired `studyflow:Timeseries` elements, which
+      already carry `samplingRate`, `channelCount`, and `units`.
+    superClass:
+      - studyflow:Dataset
+    meta:
+      icon: iconify mdi--database
+      bpmnType: bpmn:DataStoreReference
+    properties:
+      - name: modalities
+        description: Biosignal/sensor modalities included in this recording.
+        isAttr: false
+        isMany: true
+        type: OpenBCIModalityEnum
+        meta:
+          categories:
+            - OpenBCI
+      - name: eegChannels
+        description: |
+          Number of EEG channels recorded. Depends on the board: 4 (Ganglion),
+          8 (Cyton), 16 (Cyton + Daisy), or ~8-10 (Galea).
+        isAttr: true
+        type: Integer
+        default: 8
+        meta:
+          categories:
+            - OpenBCI
+      - name: eegSamplingRateHz
+        description: EEG sampling rate, in Hz (e.g., 200 on Ganglion, 250 on Cyton/Galea).
+        isAttr: true
+        type: Real
+        default: 250
+        meta:
+          categories:
+            - OpenBCI
+
+templates:
+  - description: A plain OpenBCI EEG session with a Cyton board - mount -> impedance -> baseline -> task -> export. No VR. Each phase is a generic BPMN task; edit its `configurations`/documentation for the specifics.
+    object:
+      type: OpenBCISession
+      bpmn:name: Cyton EEG session
+      bpmn:documentation: A non-VR OpenBCI EEG session on a Cyton board, covering headset fitting through data export. Phases are ordinary tasks - repoint or reconfigure any of them without an OpenBCI-specific element type.
+      icon: iconify mdi--chip
+      keywords:
+        - openbci
+        - cyton
+        - eeg
+        - session
+        - biosignal
+      device: cyton
+      streamProtocol: openbci_gui
+      modalities:
+        - eeg
+      electrodeType: wet
+      flowElements:
+        - id: cyton_start
+          type: bpmn:StartEvent
+          bpmn:name: Start
+          x: 100
+          y: 200
+        - id: cyton_mount
+          type: bpmn:ManualTask
+          bpmn:name: Mount cap & electrodes
+          icon: iconify mdi--head-plus-outline
+          bpmn:documentation: |
+            Fit the EEG cap and place the electrode montage. Apply conductive gel
+            or saline for a wet montage. Estimated duration ~10 min.
+          x: 200
+          y: 178
+        - id: cyton_impedance
+          type: bpmn:ManualTask
+          bpmn:name: Impedance check
+          icon: iconify mdi--resistor
+          bpmn:documentation: |
+            Verify electrode contact before recording. Default gate: per-channel
+            impedance below 50 kΩ. On failure, route back to Mount.
+          x: 360
+          y: 178
+        - id: cyton_baseline
+          type: cognitive:Rest
+          bpmn:name: Resting baseline
+          icon: iconify mdi--brain
+          configurations: |
+            condition: eyes_closed   # eyes_open | eyes_closed | alternating
+            durationSeconds: 120
+          x: 520
+          y: 178
+        - id: cyton_task
+          type: cognitive:CognitiveTask
+          bpmn:name: Cognitive task
+          icon: iconify bi--puzzle
+          instrument: psychopy
+          configurations: |
+            triggerChannel: markers  # stimulus marker stream sent with biosignals
+          x: 680
+          y: 178
+        - id: cyton_unmount
+          type: bpmn:ManualTask
+          bpmn:name: Unmount and clean
+          icon: iconify mdi--head-minus-outline
+          bpmn:documentation: Remove the cap, clean the electrodes, and stop streams.
+          x: 840
+          y: 178
+        - id: cyton_export
+          type: datatrove:Writer
+          bpmn:name: Export recording
+          icon: iconify mdi--database-arrow-down-outline
+          path: bids/
+          bpmn:documentation: Persist the EEG recording to a structured dataset (BIDS, BDM, or custom).
+          x: 1000
+          y: 178
+        - id: cyton_end
+          type: bpmn:EndEvent
+          bpmn:name: End
+          x: 1160
+          y: 200
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_start
+          targetRef: cyton_mount
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_mount
+          targetRef: cyton_impedance
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_impedance
+          targetRef: cyton_baseline
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_baseline
+          targetRef: cyton_task
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_task
+          targetRef: cyton_unmount
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_unmount
+          targetRef: cyton_export
+        - type: bpmn:SequenceFlow
+          sourceRef: cyton_export
+          targetRef: cyton_end
+
+  - description: A typical Galea VR session - mount -> impedance -> calibration -> baseline -> VR task -> unmount -> export. Galea is the OpenBCI device that adds a VR HMD, eye tracking, and a head IMU. Each phase is a generic BPMN task; edit its `configurations`/documentation for the specifics.
+    object:
+      type: OpenBCISession
+      bpmn:name: Galea VR session
+      bpmn:documentation: A typical Galea VR/EEG session covering the full subject lifecycle from headset fitting through data export. Galea is one OpenBCI device (the VR headset); phases are ordinary tasks - repoint or reconfigure any of them without a device-specific element type.
+      icon: iconify mdi--virtual-reality
+      keywords:
+        - galea
+        - openbci
+        - vr
+        - eeg
+        - session
+      device: galea
+      streamProtocol: lsl
+      modalities:
+        - eeg
+        - emg
+        - eog
+        - eda
+        - ppg
+        - eye_tracking
+        - head_imu
+      electrodeType: hybrid
+      vrDevice: quest_pro
+      flowElements:
+        - id: galea_start
+          type: bpmn:StartEvent
+          bpmn:name: Start
+          x: 100
+          y: 200
+        - id: galea_mount
+          type: bpmn:ManualTask
+          bpmn:name: Mount headset
+          icon: iconify mdi--head-plus-outline
+          bpmn:documentation: |
+            Fit the Galea headset: adjust the VR HMD straps and position the EEG
+            electrode array. Apply conductive gel or saline first for a wet/hybrid
+            montage. Estimated duration ~10 min.
+          x: 200
+          y: 178
+        - id: galea_impedance
+          type: bpmn:ManualTask
+          bpmn:name: Impedance check
+          icon: iconify mdi--resistor
+          bpmn:documentation: |
+            Verify electrode contact before recording. Default gate: per-channel
+            impedance below 50 kΩ, at most 2 channels allowed to fail. On failure,
+            route back to Mount. (Alternatives: RMS amplitude, spectral profile,
+            or visual inspection.)
+          x: 360
+          y: 178
+        - id: galea_calibration
+          type: bpmn:ManualTask
+          bpmn:name: Calibrate sensors
+          icon: iconify mdi--target
+          bpmn:documentation: |
+            Per-sensor calibration before the experimental block: VR eye-tracker
+            (5- or 9-point), optional EOG saccade calibration (look L/R/U/D), and
+            an optional EDA tonic baseline. The runtime persists the calibration
+            profile for downstream phases.
+          x: 520
+          y: 178
+        - id: galea_baseline
+          type: cognitive:Rest
+          bpmn:name: Resting baseline
+          icon: iconify mdi--brain
+          configurations: |
+            condition: eyes_closed   # eyes_open | eyes_closed | alternating
+            durationSeconds: 120
+            alternatingBlockSeconds: 30
+          x: 680
+          y: 178
+        - id: galea_task
+          type: cognitive:CognitiveTask
+          bpmn:name: VR task
+          icon: iconify mdi--virtual-reality
+          instrument: galea
+          configurations: |
+            sceneId: MOT_VR          # VR scene shipped with the Galea build
+            locomotion: seated       # seated | room_scale | teleport | smooth
+            triggerChannel: markers  # stimulus marker stream sent with biosignals
+          x: 840
+          y: 178
+        - id: galea_unmount
+          type: bpmn:ManualTask
+          bpmn:name: Unmount and clean
+          icon: iconify mdi--head-minus-outline
+          bpmn:documentation: |
+            Remove the headset, clean the electrodes, and stop streams. The
+            runtime closes any open recording handles before this task completes.
+          x: 1000
+          y: 178
+        - id: galea_export
+          type: datatrove:Writer
+          bpmn:name: Export recording
+          icon: iconify mdi--database-arrow-down-outline
+          path: bids/
+          bpmn:documentation: |
+            Persist the multimodal recording to a structured dataset (BIDS, BDM,
+            or custom). Include the raw broadband recording (EEG .bdf/.edf) and
+            the eye-tracking gaze/pupil stream alongside derivatives as needed.
+          x: 1160
+          y: 178
+        - id: galea_end
+          type: bpmn:EndEvent
+          bpmn:name: End
+          x: 1320
+          y: 200
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_start
+          targetRef: galea_mount
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_mount
+          targetRef: galea_impedance
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_impedance
+          targetRef: galea_calibration
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_calibration
+          targetRef: galea_baseline
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_baseline
+          targetRef: galea_task
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_task
+          targetRef: galea_unmount
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_unmount
+          targetRef: galea_export
+        - type: bpmn:SequenceFlow
+          sourceRef: galea_export
+          targetRef: galea_end

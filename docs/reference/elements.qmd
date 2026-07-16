@@ -26,8 +26,8 @@ Within a *Study* element, you can define various elements. In addition to the st
 Studyflow elements ship in a layered set of moddle schemas:
 
 - **`core`** (always loaded): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `DataOperationActivity`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- **`cognitive`** (always loaded): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`).
-- **`behaverse`**, **`omniprocess`**, **`datatrove`**, **`galea`** (optional): domain extensions enabled from the modeler's schema palette.
+- **`cognitive`** (always loaded): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`, `Actor`). `BehaverseTask` (formerly the separate `behaverse` schema) is a `CognitiveTask` whose `instrument` is pinned to `behaverse`, delivered by the Behaverse Unity runtime.
+- **`omniprocess`**, **`datatrove`**, **`openbci`** (optional): domain extensions enabled from the modeler's schema palette.
 
 See [Extensions](extensions.qmd) for the element catalogs of the optional extensions, and [Authoring schemas](authoring-schemas.qmd) for how to author your own schema.
 

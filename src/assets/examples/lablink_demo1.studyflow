@@ -8,7 +8,6 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
-  xmlns:behaverse: http://behaverse.org/schemas/studyflow/behaverse
 LabLink_Demo:
   type: bpmn:Process
   documentation: A LabLink session with questionnaires, a 1-back warm-up, and random allocation across three N-back arms.
@@ -92,7 +91,7 @@ LabLink_Demo:
     Warmup_1Back:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               LabLink_InlineBlock:
@@ -178,7 +177,7 @@ LabLink_Demo:
     Arm_Dual2Back:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Timelines:
               XCIT_NB_05: null
@@ -210,7 +209,7 @@ LabLink_Demo:
     Arm_XCIT_NB_03:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Timelines:
               XCIT_NB_02: null
@@ -231,7 +230,7 @@ LabLink_Demo:
     Arm_Demo:
       type: bpmn:Task
       extensionElements:
-        - type: behaverse:Task
+        - type: cognitive:BehaverseTask
           configurations:
             Blocks:
               LabLink_InlineBlock:

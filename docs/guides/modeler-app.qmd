@@ -102,7 +102,7 @@ The *Settings* view (palette shortcut <kbd>6</kbd>) groups configuration into se
 
 ## Schema palette
 
-Element types ship in layered schemas. `core` and `cognitive` are always loaded; the domain extensions -- *Behaverse*, *OmniProcess*, *DataTrove*, *Galea* -- can be enabled or disabled under *Settings &rarr; Extensions*. Disabled schemas are excluded from the palette and not recognized when opening diagrams (reload the page to apply changes). See [Extensions](../reference/extensions.qmd) for what each extension provides.
+Element types ship in layered schemas. `core` and `cognitive` are always loaded (Behaverse assessment tasks are part of `cognitive`); the domain extensions -- *OmniProcess*, *DataTrove*, *OpenBCI* -- can be enabled or disabled under *Settings &rarr; Extensions*. Disabled schemas are excluded from the palette and not recognized when opening diagrams (reload the page to apply changes). See [Extensions](../reference/extensions.qmd) for what each extension provides.
 
 ## Export formats
 
