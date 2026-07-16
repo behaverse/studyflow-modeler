@@ -60,6 +60,20 @@ export function runCreateTemplateShape(
     bo.set('loopCharacteristics', lc);
   }
 
+  // Native event-definition children (timer, message, conditional, ...; also
+  // what makes bpmn-js draw the trigger marker on an event). Templates author
+  // them as a nested list, like `loopCharacteristics`.
+  const eventDefinitions = attributes['eventDefinitions'];
+  if (Array.isArray(eventDefinitions)) {
+    delete attributes['eventDefinitions'];
+    bo.set('eventDefinitions', eventDefinitions.map((definition: Record<string, any>) => {
+      const { type: definitionType, ...fields } = definition;
+      const eventDefinition = moddle.create(definitionType, fields);
+      eventDefinition.$parent = bo;
+      return eventDefinition;
+    }));
+  }
+
   if (!extensionType) {
     // Plain BPMN root: no extension to stamp; attributes (trait fields like
     // `until`, native ones like `implementation`) write straight through.

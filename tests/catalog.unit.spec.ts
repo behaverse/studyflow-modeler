@@ -307,10 +307,11 @@ test.describe('catalog: templates and enums', () => {
 
 test.describe('catalog: runner semantics', () => {
   // The runner Session picks a random outgoing branch for any type declaring
-  // `meta: {branching: random}` (see src/runner/session.ts). Pin the two
-  // gateway types that rely on it so the schema contract cannot regress.
+  // `meta: {branching: random}` (see src/runner/session.ts). Pin the gateway
+  // type that relies on it so the schema contract cannot regress. (Stratified
+  // allocation is a RandomGateway with `stratifyBy` set, not its own type.)
   test('allocation gateways declare random branching', () => {
-    for (const name of ['cognitive:RandomGateway', 'cognitive:StratifiedAllocationGateway']) {
+    for (const name of ['cognitive:RandomGateway']) {
       expect(catalog.getType(name)?.meta?.branching, name).toBe('random');
     }
   });

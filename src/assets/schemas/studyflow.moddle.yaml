@@ -7,7 +7,7 @@ uri: http://behaverse.org/schemas/studyflow/v1
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 xml:
   tagAlias: lowerCase
-version: 26.0715
+version: 26.0716
 
 associations: []
 enumerations:
@@ -191,6 +191,30 @@ types:
         isAttr: false
         isMany: true
         type: String
+      - name: version
+        description: |
+          Human-facing version of the study spec (e.g. `1.2`, a git tag). The
+          registered, as-run, and amended forms of a study are the same file at
+          different versions; diffing two versions is the audit trail.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+          categories:
+            - Documentation
+      - name: seed
+        description: |
+          Root seed for runs of this study. Every step and scope frame derives
+          its own seed from it (see `exec:Step#seed`), so a fold, a sweep
+          point, and a participant are each reproducible on their own. Pin it
+          to make whole runs replayable; leave it unset and the engine draws a
+          fresh run seed and records it on the as-run file.
+        isAttr: true
+        type: Integer
+        meta:
+          optional: true
+          categories:
+            - Execution
       - name: isExecutable
         redefines: bpmn:Process#isExecutable
         isAttr: true
@@ -340,13 +364,13 @@ types:
           left the study through this event. Left empty at registration; the
           runner writes it as actors exit, so the diff between the registered
           and as-run files carries exactly these counts (CONSORT-style
-          attrition reporting).
+          attrition reporting). Written by the runner - not edited by hand.
         isAttr: true
         type: String
         meta:
-          optional: true
+          readonly: true
           categories:
-            - Reporting
+            - Run record
   - name: Activity
     description: Base class for all the activities in the Studyflow. Adds the Gantt-axis temporal attributes that the Gantt view consumes.
     extends:

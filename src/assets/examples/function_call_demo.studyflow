@@ -8,6 +8,7 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:datatrove: https://w3id.org/studyflow/datatrove
+  xmlns:exec: https://w3id.org/studyflow/exec
 FunctionCallDemo:
   type: bpmn:Process
   documentation: Demonstrates function references by binding a Map to a python callable and fetching a script by URL.

@@ -9,6 +9,10 @@ import { supportsLoopCharacteristics } from '@/modeler/models/inspector/loopChar
  *  attribute fields; they stay in the result even with no attributes. */
 const SYNTHETIC_CATEGORIES = new Set(['Loop']);
 
+/** Engine-written run state (`meta.readonly` attributes). Always the last
+ *  tab, so run records sit apart from the fields people author. */
+const RUN_RECORD_CATEGORY = 'Run record';
+
 /** Canonical tab order; unlisted categories follow in insertion order. */
 const CATEGORY_ORDER = [
   'General',
@@ -99,6 +103,7 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   }
 
   const orderIndex = (category: string) => {
+    if (category === RUN_RECORD_CATEGORY) return Number.POSITIVE_INFINITY;
     const i = CATEGORY_ORDER.indexOf(category);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };

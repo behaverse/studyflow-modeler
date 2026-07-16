@@ -84,7 +84,7 @@ A run configuration is $\langle T, A, E, W \rangle$: a multiset of tokens, a con
 **[Branch]** At a gateway, the branch is chosen by the type's `meta.branching`:
 
 - `condition` — evaluate the outgoing `conditionExpression`s in $(\sigma, \beta)$; take the first that holds, else the default. (`exec:Gate`, plain exclusive gateways.)
-- `random` — draw from $\text{seed}(\sigma)$. (`cognitive:RandomGateway`, `cognitive:StratifiedAllocationGateway`.)
+- `random` — draw from $\text{seed}(\sigma)$. (`cognitive:RandomGateway`, with or without `stratifyBy`.)
 - `model` — a classifier picks. (`agentic:Router`.)
 
 In all three cases the chosen branch is written to $E$. A replay reads the recorded branch; it does not re-draw or re-ask.

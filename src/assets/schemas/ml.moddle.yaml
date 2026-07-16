@@ -7,7 +7,7 @@ uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
 xml:
   tagAlias: lowerCase
-version: 26.0715
+version: 26.0716
 
 associations: []
 
@@ -120,14 +120,16 @@ types:
       bpmnType: bpmn:DataObjectReference
     properties:
       - name: value
-        description: Measured value. Left empty when registering the study; written by the engine on the as-run record.
+        description: |
+          Measured value. Left empty when registering the study; written by
+          the engine on the as-run record - not edited by hand.
         isAttr: true
         type: Real
         meta:
           order: 1
           categories:
-            - Metric
-          optional: true
+            - Run record
+          readonly: true
       - name: split
         description: Partition the metric was computed on.
         isAttr: true
@@ -169,20 +171,8 @@ types:
       icon: iconify mdi--function-variant
       bpmnType: bpmn:ServiceTask
     properties:
-      - name: implementation
-        description: |
-          Function or executable this step runs - BPMN's own attribute for
-          "the technology implementing this task", holding a versioned
-          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
-          `python://` (importable callable), `docker://` (image), `https://`
-          (script URL).
-        isAttr: true
-        type: String
-        redefines: bpmn:ServiceTask#implementation
-        meta:
-          order: 1
-          categories:
-            - Execution
+      # `implementation` (the versioned function reference) comes from the
+      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
       - name: isDataOperation
         description: An ML operation is a data operation; pinned so the marker always renders.
         isAttr: true
@@ -413,15 +403,17 @@ templates:
       bpmn:name: Deploy
       type: Operation
       bpmn:documentation: |
-        Deployment is a side effect on the world, so `cache` is set to `never` -
-        it is not skipped or replayed. Endpoint and rollout strategy (`replace`,
-        `canary`, `shadow`, ...) go in `with`.
+        Deployment is a side effect on the world, so `sideEffects` is set and
+        `cache` is `never` - it is not skipped, replayed, or blindly retried.
+        Endpoint and rollout strategy (`replace`, `canary`, `shadow`, ...) go
+        in `with`.
       icon: iconify mdi--rocket-launch-outline
       keywords:
         - deploy
         - serve
         - kserve
         - canary
+      sideEffects: true
       cache: never
       implementation: python://lab.serving.deploy
       with: "endpoint: cognitive-risk\nstrategy: canary\ntraffic_percent: 10"

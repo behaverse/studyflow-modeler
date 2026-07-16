@@ -5,6 +5,7 @@ import { BooleanInput } from '@/modeler/views/inspector/BooleanInput';
 import { EnumInput } from '@/modeler/views/inspector/EnumInput';
 import { ArrayInput } from '@/modeler/views/inspector/ArrayInput';
 import { OptionalStringInput } from '@/modeler/views/inspector/OptionalStringInput';
+import { ReadonlyInput } from '@/modeler/views/inspector/ReadonlyInput';
 import { SchemaEditor } from '@/modeler/views/inspector/SchemaEditor';
 
 /**
@@ -47,6 +48,9 @@ function resolveInputType(attrDef: AttributeSpec): string {
 }
 
 export function pickInput(attrDef: AttributeSpec) {
+  // Engine-written fields (`meta.readonly`) are display-only, whatever their type.
+  if (attrDef.meta?.readonly) return ReadonlyInput;
+
   const editorName = attrDef.meta?.editor;
   const named = editorName ? INPUT_BY_EDITOR_NAME[editorName] : undefined;
   if (named) return named;

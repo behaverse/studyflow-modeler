@@ -90,6 +90,30 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.locator('.djs-element[data-element-id^="StartEvent"]').first()).toBeVisible();
   });
 
+  test('exported PNG embeds the diagram and opens again (UI round trip)', async ({ page }) => {
+    await gotoModeler(page);
+
+    const downloadPromise = page.waitForEvent('download');
+    await runPaletteCommand(page, 'Export...', 'PNG...');
+    const download = await downloadPromise;
+    await expect(download.suggestedFilename()).toBe('diagram.png');
+
+    const filePath = await download.path();
+    if (!filePath) throw new Error('Downloaded file path is unavailable.');
+    const pngBuffer = readFileSync(filePath);
+    // Still a real PNG (the studyflow XML rides in a metadata chunk).
+    expect(pngBuffer.subarray(1, 4).toString('ascii')).toBe('PNG');
+
+    await page.getByTestId('open-file-input').setInputFiles({
+      name: 'roundtrip.png',
+      mimeType: 'image/png',
+      buffer: pngBuffer,
+    });
+
+    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('roundtrip');
+    await expect(page.locator('.djs-element[data-element-id^="StartEvent"]').first()).toBeVisible();
+  });
+
   test('exports raw BPMN 2.0 XML', async ({ page }) => {
     await gotoModeler(page);
 

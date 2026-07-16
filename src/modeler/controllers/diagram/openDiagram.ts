@@ -1,19 +1,26 @@
 import { looksLikeXml, studyflowToXml } from '@/core/codec';
 import { extractXmlFromSvg, filenameStem } from '@/modeler/models/diagramFile';
+import { extractXmlFromPng } from '@/modeler/models/exporters/pngEmbedding';
 import { runImportXml } from '@/modeler/controllers/diagram/importXml';
 import { runUpdateAttribute } from '@/modeler/controllers/attributes/updateAttribute';
 
 export type OpenDiagramCommand = {
   type: 'open-diagram';
   filename: string;
-  content: string;
+  /** Text for XML/YAML/SVG sources; raw bytes for exported `.png` files. */
+  content: string | ArrayBuffer;
 };
 
 /** `.studyflow` content is sniffed: YAML (current format) or BPMN XML (legacy files, `.bpmn`, `.xml`). */
-async function toXml(modeler: any, filename: string, content: string): Promise<string> {
-  if (filename.toLowerCase().endsWith('.svg')) return extractXmlFromSvg(content);
-  if (looksLikeXml(content)) return content;
-  return studyflowToXml(content, modeler.get('moddle'));
+async function toXml(modeler: any, filename: string, content: string | ArrayBuffer): Promise<string> {
+  if (filename.toLowerCase().endsWith('.png')) {
+    if (typeof content === 'string') throw new Error('PNG diagrams must be opened as binary data.');
+    return extractXmlFromPng(content);
+  }
+  const text = typeof content === 'string' ? content : new TextDecoder().decode(content);
+  if (filename.toLowerCase().endsWith('.svg')) return extractXmlFromSvg(text);
+  if (looksLikeXml(text)) return text;
+  return studyflowToXml(text, modeler.get('moddle'));
 }
 
 export async function runOpenDiagram(modeler: any, command: OpenDiagramCommand): Promise<any> {

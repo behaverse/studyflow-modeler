@@ -97,7 +97,7 @@ test.describe('schema model: moddle package generation', () => {
 
     expect(propType(byPrefix.cognitive, 'EligibilityGateway', 'inclusionCriteria')).toBe('String');
     expect(propType(byPrefix.cognitive, 'EligibilityGateway', 'exclusionCriteria')).toBe('String');
-    expect(propType(byPrefix.cognitive, 'StratifiedAllocationGateway', 'strata')).toBe('String');
+    expect(propType(byPrefix.cognitive, 'RandomGateway', 'strata')).toBe('String');
     expect(propType(byPrefix.datatrove, 'Document', 'metadata')).toBe('String');
   });
 

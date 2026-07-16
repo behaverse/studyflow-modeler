@@ -7,7 +7,10 @@ type FilePickerOptions = {
   /** Filename check (lowercased); rejected files surface `invalidMessage`. */
   isValid: (filename: string) => boolean;
   invalidMessage: string;
-  /** Receives the file's text content; a rejected promise surfaces its message. */
+  /** Filename check (lowercased) for files read as ArrayBuffer instead of text (e.g. `.png`). */
+  isBinary?: (filename: string) => boolean;
+  /** Receives the file's content (text, or ArrayBuffer for binary files);
+   *  a rejected promise surfaces its message. */
   onText: (filename: string, content: string | ArrayBuffer | null) => Promise<unknown> | unknown;
   failureMessage: string;
 };
@@ -38,7 +41,11 @@ export function useFilePicker(options: FilePickerOptions) {
         console.error(err);
       }
     };
-    reader.readAsText(file);
+    if (options.isBinary?.(file.name.toLowerCase())) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
     e.target.value = '';
   };
 

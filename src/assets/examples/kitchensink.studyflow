@@ -412,8 +412,8 @@ Kitchen_Sink:
     Cg_Stratified:
       type: bpmn:ExclusiveGateway
       extensionElements:
-        - type: cognitive:StratifiedAllocationGateway
-          stratificationVariable: age_band
+        - type: cognitive:RandomGateway
+          stratifyBy: age_band
       name: Stratified allocation
       bounds:
         x: 340

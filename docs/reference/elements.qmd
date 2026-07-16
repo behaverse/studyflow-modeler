@@ -26,7 +26,7 @@ Within a *Study* element, you can define various elements. In addition to the st
 Studyflow elements ship in a layered set of moddle schemas:
 
 - **`core`** (always loaded): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `DataOperationActivity`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- **`cognitive`** (always loaded): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`, `Actor`). `BehaverseTask` (formerly the separate `behaverse` schema) is a `CognitiveTask` whose `instrument` is pinned to `behaverse`, delivered by the Behaverse Unity runtime.
+- **`cognitive`** (always loaded): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor`). `BehaverseTask` (formerly the separate `behaverse` schema) is a `CognitiveTask` whose `instrument` is pinned to `behaverse`, delivered by the Behaverse Unity runtime.
 - **`omniprocess`**, **`datatrove`**, **`openbci`** (optional): domain extensions enabled from the modeler's schema palette.
 
 See [Extensions](extensions.qmd) for the element catalogs of the optional extensions, and [Authoring schemas](authoring-schemas.qmd) for how to author your own schema.
@@ -72,7 +72,7 @@ In addition, the abstract `DataOperationActivity` augments any BPMN activity wit
 
 Two additional gateways are provided by the `cognitive` schema (no dedicated icons -- they render as exclusive gateways with distinguishing markers in the modeler):
 
-- **`StratifiedAllocationGateway`** -- stratified random assignment. Partitions the cohort by a `stratificationVariable` (e.g. `age_band`, `sex`, `baseline_score`) and allocates independently within each stratum. Useful when the design requires balanced allocation across covariates.
+- Stratified random assignment is a `RandomGateway` with `stratifyBy` set (e.g. `age_band`, `sex`, `baseline_score`): the cohort is partitioned by that variable and allocation runs independently within each stratum. Useful when the design requires balanced allocation across covariates; preset as the `Stratified allocation` palette template.
 - **`EligibilityGateway`** -- encodes inclusion/exclusion criteria. Participants meeting `inclusionCriteria` (and none of `exclusionCriteria`) proceed; others are routed to a screen-out branch. Criteria are markdown lists.
 
 For control-flow gateways, Studyflow also uses standard BPMN gateways (`ExclusiveGateway`, `ParallelGateway`, `InclusiveGateway`).
@@ -117,5 +117,5 @@ Each visual element in the modeler maps to a type definition in one of the Study
 
 - Event elements (`StartEvent`, `EndEvent`) live in `core.moddle.yaml` and extend the corresponding BPMN event types.
 - Activity elements (`Instruction`, `Questionnaire`, `CognitiveTask`, `VideoGame`, `Rest`) live in `cognitive.moddle.yaml` and map to `bpmn:Task` with domain attributes shown in the inspector.
-- Gateway elements (`RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`) live in `cognitive.moddle.yaml` and map to `bpmn:ExclusiveGateway`.
+- Gateway elements (`RandomGateway`, `EligibilityGateway`) live in `cognitive.moddle.yaml` and map to `bpmn:ExclusiveGateway`.
 - Data elements (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`) live in `core.moddle.yaml`; tabular and tensor structures map onto BPMN data references.

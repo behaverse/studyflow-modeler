@@ -2,12 +2,12 @@
 
 name: Exec
 prefix: exec
-description: The executable layer of Studyflow - the step contract (runtime target, caching, determinism, retries) that turns any activity into a runnable step, plus the scope constructs (fan-out, sweep, repeat) that BPMN's multi-instance and loop markers stand for. A step's interface is not declared here - it is the typed data elements wired to it by BPMN's own data associations. Domain-neutral - it makes cognitive tasks, data operations, ML steps, and agents run under one semantics.
+description: The executable layer of Studyflow - the step contract (runtime target, environment, secrets, caching, side effects, determinism, retries) that turns any activity into a runnable step, plus the scope constructs (fan-out, sweep, repeat) that BPMN's multi-instance and loop markers stand for. Triggers, sensors, and delays stay native BPMN - a timer start event is a schedule, a conditional catch event a sensor, a message start event an external event. A step's interface is not declared here - it is the typed data elements wired to it by BPMN's own data associations. Domain-neutral - it makes cognitive tasks, data operations, ML steps, and agents run under one semantics.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
 xml:
   tagAlias: lowerCase
-version: 26.0715
+version: 26.0716
 
 associations: []
 
@@ -122,6 +122,12 @@ enumerations:
       - name: In memory
         value: memory
         description: Passed between steps in the worker; never persisted. Not cacheable.
+      - name: Streamed
+        value: stream
+        description: |
+          Consumed as it is produced - a pipe between streaming operators (the
+          natural mode between datatrove steps). Never persisted; to cache or
+          cite a stream, land it in a stored artifact first.
 
 types:
 
@@ -195,6 +201,43 @@ types:
             - Compute
           editor: yaml
 
+      - name: environment
+        description: |
+          Execution-environment capture, as a YAML mapping - the hermeticity
+          that makes a step insensitive to the host it runs on, and the
+          prerequisite for a cache hit meaning anything. A `docker://`
+          implementation already pins its image by digest; this field captures
+          what that cannot: the lockfile for in-process steps, environment
+          variables, and the base image for script steps. Resolves like
+          `runsOn`: unset inherits the enclosing scope's environment.
+
+              image: ghcr.io/lab/analysis@sha256:4f2a...
+              lockfile: uv.lock
+              env:
+                OMP_NUM_THREADS: "8"
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 5
+          categories:
+            - Compute
+          editor: yaml
+
+      - name: secrets
+        description: |
+          Names of secrets this step needs (API keys, tokens, database
+          credentials), injected by the executor at run time. Referenced by
+          name only, so the spec stays shareable and the value never lands in
+          the file, a diff, or the run log (the GitHub Actions / Flyte
+          secrets model).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 6
+          categories:
+            - Compute
+
       - name: cache
         description: |
           Reuse policy. With `reuse`, a step whose cache key matches a recorded
@@ -204,7 +247,22 @@ types:
         type: CachePolicyEnum
         default: reuse
         meta:
-          order: 5
+          order: 7
+          categories:
+            - Execution
+
+      - name: sideEffects
+        description: |
+          Whether this step changes the world outside the run (sends a message,
+          writes to a registry, deploys, spends money). Side-effecting steps
+          are never replayed from cache, retry only when the failure clearly
+          happened before the effect (at-most-once rather than at-least-once),
+          and are the ones worth gating behind a human approval.
+        isAttr: true
+        type: Boolean
+        default: false
+        meta:
+          order: 8
           categories:
             - Execution
 
@@ -219,7 +277,7 @@ types:
         type: Boolean
         default: true
         meta:
-          order: 6
+          order: 9
           categories:
             - Execution
 
@@ -231,7 +289,7 @@ types:
         isAttr: true
         type: Integer
         meta:
-          order: 7
+          order: 10
           categories:
             - Execution
           optional: true
@@ -247,7 +305,7 @@ types:
         isAttr: false
         type: studyflow:YAMLString
         meta:
-          order: 8
+          order: 11
           categories:
             - Execution
           editor: yaml
@@ -260,7 +318,7 @@ types:
         isAttr: true
         type: String
         meta:
-          order: 9
+          order: 12
           categories:
             - Execution
           optional: true
@@ -275,10 +333,118 @@ types:
         isAttr: true
         type: String
         meta:
-          order: 10
+          order: 13
           categories:
             - Execution
           optional: true
+
+  # ===========================================================================
+  # The implementation reference. BPMN's own `implementation` attribute
+  # ("the technology implementing this task") is redefined once, here, with
+  # the versioned reference grammar every executable step uses - so an ML
+  # operation, a data operation, and an agent tool do not each re-declare it.
+  # ===========================================================================
+  - name: Implementation
+    description: |
+      Surfaces BPMN's own `implementation` attribute on every service-style
+      step, holding a versioned reference in one grammar:
+      `<scheme>://<ref>[@<version-or-digest>]`. Declared once so the reference
+      grammar - and the fact that a pinned digest lands in the cache key -
+      is the same for every step that runs something.
+    extends:
+      - bpmn:ServiceTask
+    isAbstract: true
+    properties:
+      - name: implementation
+        description: |
+          Function or executable this step runs - BPMN's own attribute for
+          "the technology implementing this task", holding a versioned
+          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
+          `python://` (importable callable), `docker://` (image), `https://`
+          (script URL).
+        isAttr: true
+        type: String
+        redefines: bpmn:ServiceTask#implementation
+        meta:
+          order: 1
+          categories:
+            - Execution
+
+  # ===========================================================================
+  # Triggers, sensors, and delays are native BPMN, not studyflow concepts: a
+  # timer start event is a schedule, a message start event an external event
+  # or webhook, a conditional catch event a sensor (Airflow's most-used
+  # primitive, drawn as BPMN's own shape), a timer catch event a delay, and a
+  # plain start event a manual run. What launches or holds a run is part of
+  # the model (the lesson running from cron through GitHub Actions `on:`
+  # blocks) - and BPMN already draws all of it. The one accommodation, as for
+  # `loopCondition` and `completionCondition`, is flattening the event
+  # definitions' expressions to plain attributes.
+  # ===========================================================================
+  - name: Timer
+    description: |
+      Flattens the timer event definition's expressions from elements to plain
+      attributes, so schedules and delays are authored as strings. BPMN
+      semantics unchanged. On a start event, `timeCycle` launches runs on a
+      schedule; on an intermediate catch event, `timeDuration` is a delay (a
+      cooldown, a polling backoff) and `timeDate` a fixed wake-up.
+    extends:
+      - bpmn:TimerEventDefinition
+    isAbstract: true
+    properties:
+      - name: timeCycle
+        description: |
+          When to fire, repeatedly: a cron five-field expression (e.g.
+          `0 6 * * 1`, Mondays at 06:00 - the format that has survived from
+          Vixie cron into Kubernetes CronJobs and GitHub Actions) or an
+          ISO 8601 repeating interval (e.g. `R/PT24H`).
+        isAttr: true
+        type: bpmn:Expression
+        redefines: bpmn:TimerEventDefinition#timeCycle
+        meta:
+          categories:
+            - Trigger
+      - name: timeDuration
+        description: |
+          How long to wait, as an ISO 8601 duration (e.g. `PT1H`). The
+          drawn-out form of a step's `timeout` when the wait deserves its own
+          shape on the diagram.
+        isAttr: true
+        type: bpmn:Expression
+        redefines: bpmn:TimerEventDefinition#timeDuration
+        meta:
+          categories:
+            - Trigger
+      - name: timeDate
+        description: Fire once, at a fixed time (ISO 8601, e.g. `2026-09-01T06:00Z`).
+        isAttr: true
+        type: bpmn:Expression
+        redefines: bpmn:TimerEventDefinition#timeDate
+        meta:
+          categories:
+            - Trigger
+
+  - name: Condition
+    description: |
+      Flattens the conditional event definition's `condition` to a plain
+      attribute. A conditional catch event is the workflow sensor: the token
+      waits here until the condition over the scope's bindings holds - data
+      arrived, a file landed, a metric crossed a line - then passes. Airflow's
+      sensor and the reconciliation trigger, drawn as BPMN's own shape.
+    extends:
+      - bpmn:ConditionalEventDefinition
+    isAbstract: true
+    properties:
+      - name: condition
+        description: |
+          Expression over the scope's bindings; the event fires when it holds
+          (e.g. `raw_sessions.rowCount > 0`).
+        isAttr: true
+        type: bpmn:Expression
+        redefines: bpmn:ConditionalEventDefinition#condition
+        meta:
+          categories:
+            - Trigger
 
   # ===========================================================================
   # Scope expansion. These two traits carry the parameters behind BPMN's
@@ -546,15 +712,15 @@ types:
       - name: producedBy
         description: |
           Cache key of the execution that generated this artifact. Left empty in a
-          spec; written by the engine on the as-run record. This is PROV's
-          `wasGeneratedBy` edge.
+          spec; written by the engine on the as-run record - not edited by
+          hand. This is PROV's `wasGeneratedBy` edge.
         isAttr: true
         type: String
         meta:
           order: 5
           categories:
-            - Provenance
-          optional: true
+            - Run record
+          readonly: true
 
   # ===========================================================================
   # Concrete elements.
@@ -730,6 +896,69 @@ types:
             - Artifact
 
 templates:
+  - description: Launch the flow on a schedule - BPMN's own timer start event, with a cron or ISO 8601 cycle.
+    object:
+      bpmn:name: Scheduled start
+      type: bpmn:StartEvent
+      bpmn:documentation: |
+        A native BPMN timer start event. `timeCycle` holds a cron five-field
+        expression (`0 6 * * *`) or an ISO 8601 repeating interval (`R/PT24H`).
+        Each firing is an ordinary run: same seed derivation, same caching,
+        same as-run record - so a nightly re-run only re-executes the steps
+        whose inputs changed. The other launch conditions are also native
+        BPMN: a message start event for external events, a conditional start
+        event for data arrival, a plain start event for manual runs.
+      icon: iconify mdi--clock-start
+      keywords:
+        - schedule
+        - cron
+        - trigger
+        - timer
+        - nightly
+        - periodic
+      eventDefinitions:
+        - type: bpmn:TimerEventDefinition
+          timeCycle: "0 6 * * *"
+
+  - description: Wait for data - a sensor that holds the token until a condition over the bindings holds.
+    object:
+      bpmn:name: Wait for data
+      type: bpmn:IntermediateCatchEvent
+      bpmn:documentation: |
+        A native BPMN conditional catch event: the run pauses here until the
+        `condition` holds (data arrived, a metric crossed a line), then
+        continues. The workflow sensor - poll cadence is the executor's
+        business, the condition is the model's.
+      icon: iconify mdi--radar
+      keywords:
+        - sensor
+        - wait
+        - condition
+        - data
+        - poll
+      eventDefinitions:
+        - type: bpmn:ConditionalEventDefinition
+          condition: raw_sessions.rowCount > 0
+
+  - description: Wait for a duration - a drawn delay (cooldown, rate limit, settling time).
+    object:
+      bpmn:name: Wait
+      type: bpmn:IntermediateCatchEvent
+      bpmn:documentation: |
+        A native BPMN timer catch event holding the token for `timeDuration`
+        (ISO 8601, e.g. `PT1H`). The drawn form of a delay, for when the wait
+        is part of the protocol rather than an implementation detail.
+      icon: iconify mdi--timer-sand
+      keywords:
+        - wait
+        - delay
+        - timer
+        - cooldown
+        - backoff
+      eventDefinitions:
+        - type: bpmn:TimerEventDefinition
+          timeDuration: PT1H
+
   - description: Shard a large input across an HPC array job - one task per shard, results concatenated.
     object:
       bpmn:name: Shard across cluster

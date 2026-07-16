@@ -9,7 +9,7 @@ This page is for **contributors** extending the Studyflow language with new elem
 Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
 
 - `core.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`DataOperationActivity` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `StratifiedAllocationGateway`, `EligibilityGateway`). Split out of `core` so adopters can swap the cognitive layer without touching the core.
+- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `EligibilityGateway`). Split out of `core` so adopters can swap the cognitive layer without touching the core.
 - `datatrove.moddle.yaml`, `openbci.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions you can enable from the modeler's schema palette.
 
 ## Core structure

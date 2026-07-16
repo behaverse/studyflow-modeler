@@ -78,7 +78,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
 export const SETTINGS_STORAGE_KEY = 'studyflow-modeler:settings:v1';
 export const AUTOSAVE_DIAGRAM_STORAGE_KEY = 'studyflow-modeler:autosave-diagram:v1';
 
-export const VALID_FILE_EXTENSIONS = ['.xml', '.bpmn', '.svg', '.studyflow'];
+export const VALID_FILE_EXTENSIONS = ['.xml', '.bpmn', '.svg', '.png', '.studyflow'];
 
 export const URLS = {
   githubRepo: 'https://github.com/behaverse/studyflow-modeler',

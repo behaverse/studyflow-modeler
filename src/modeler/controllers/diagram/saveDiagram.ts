@@ -6,6 +6,7 @@ import { exportToLinkML } from '@/modeler/models/exporters/linkml';
 import { exportToNidm } from '@/modeler/models/exporters/nidm';
 import { exportToArtemis } from '@/modeler/models/exporters/artemis';
 import { embedIconsInSvg, embedStudyflowIntoSvg, exportToPng } from '@/modeler/models/exporters/svgEmbedding';
+import { dataUrlToBytes, embedStudyflowIntoPng } from '@/modeler/models/exporters/pngEmbedding';
 import { remoteIconSource } from '@/modeler/infra/iconSource';
 
 /** All the formats under `Save As...`; `studyflow` (YAML) is the native one. */
@@ -64,8 +65,10 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
   svgClean = embedStudyflowIntoSvg(svgClean, wireXml);
 
   if (fileType === 'png') {
-    const png = await exportToPng(svgClean);
-    download(png, `${filename}.png`, 'image/png');
+    // Same round-trip contract as SVG: the studyflow XML rides along in an
+    // iTXt metadata chunk, so the exported image opens back into the modeler.
+    const png = embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svgClean)), wireXml);
+    download(new Blob([png as BlobPart], { type: 'image/png' }), `${filename}.png`, 'image/png');
   } else {
     download(new Blob([svgClean], { type: 'image/svg+xml;charset=utf-8' }), `${filename}.svg`, 'image/svg+xml');
   }

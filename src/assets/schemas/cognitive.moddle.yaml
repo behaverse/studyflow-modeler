@@ -341,7 +341,13 @@ types:
   - name: RandomGateway
     description: |
       Randomly assigns participants to one of the outgoing branches according
-      to a probability distribution.
+      to a probability distribution. Set `stratifyBy` for stratified
+      randomization: the cohort is partitioned into strata by that variable
+      and assignment is performed independently within each stratum, balancing
+      allocation across branches. (There is no separate stratified gateway
+      type - stratification is a parameter of random assignment, the same
+      `stratifyBy` a cross-validation split uses; see the `Stratified
+      allocation` template.)
     superClass:
       - bpmn:ExclusiveGateway
       - bpmn:BaseElement
@@ -374,27 +380,15 @@ types:
             language: json
             body:
               algorithm: probabilistic
-  - name: StratifiedAllocationGateway
-    description: |
-      Stratified random assignment of participants. The cohort is partitioned
-      into strata based on a stratification variable (e.g., age band, sex,
-      baseline score), and assignment is performed independently within each
-      stratum to balance allocation across branches.
-    superClass:
-      - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--layers-outline
-      bpmnType: bpmn:ExclusiveGateway
-      branching: random
-    properties:
-      - name: stratificationVariable
+      - name: stratifyBy
         description: |
-          Name of the variable used to partition participants into strata
-          (e.g., `age_band`, `sex`, `baseline_score`).
+          Name of the variable that partitions the cohort into strata (e.g.,
+          `age_band`, `sex`, `baseline_score`). When set, assignment runs
+          independently within each stratum. Unset means simple randomization.
         isAttr: true
         type: String
         meta:
+          optional: true
           categories:
             - Assignment
       - name: strata
@@ -407,29 +401,10 @@ types:
         meta:
           categories:
             - Assignment
-      - name: algorithm
-        description: Algorithm used for the assignment within each stratum.
-        isAttr: true
-        type: studyflow:AssignmentAlgorithmEnum
-        default: probabilistic
-        meta:
-          categories:
-            - Assignment
-      - name: probabilityFunction
-        description: |
-          Probability mass function that defines the per-stratum discrete
-          distribution. Defaults to `uniform`. Pick a listed option or type a custom identifier.
-        isAttr: true
-        type: studyflow:ProbabilityDistributionEnum
-        default: uniform
-        meta:
-          editable: true
-          categories:
-            - Assignment
           condition:
             language: json
             body:
-              algorithm: probabilistic
+              stratifyBy: $set
   - name: EligibilityGateway
     description: |
       Decision gateway encoding inclusion and/or exclusion criteria for
@@ -520,6 +495,28 @@ types:
               actorType: llm
 
 templates:
+  # Stratified allocation is not its own gateway type - it is a RandomGateway
+  # with `stratifyBy` set (parameterize, don't proliferate).
+  - description: Stratified random assignment - allocate independently within each stratum to balance covariates across arms.
+    object:
+      bpmn:name: Stratified allocation
+      type: RandomGateway
+      bpmn:documentation: |
+        Partitions the cohort by `stratifyBy` and randomizes within each
+        stratum, so allocation stays balanced across the covariate. List the
+        strata (one entry per stratum, e.g. `age_band: 18-29`) in `strata`.
+      icon: iconify mdi--layers-outline
+      keywords:
+        - stratified
+        - allocation
+        - randomization
+        - covariate
+        - balance
+      stratifyBy: age_band
+      strata:
+        - "age_band: 18-29"
+        - "age_band: 30-44"
+        - "age_band: 45-65"
   # A video game paradigm is not its own element type - it is a CognitiveTask
   # whose instrument happens to be a game engine, preset here as a template
   # (parameterize, don't proliferate).

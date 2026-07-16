@@ -199,8 +199,8 @@ SPIRIT_2025:
     Allocate_Gate:
       type: bpmn:ExclusiveGateway
       extensionElements:
-        - type: cognitive:StratifiedAllocationGateway
-          stratificationVariable: age_band
+        - type: cognitive:RandomGateway
+          stratifyBy: age_band
           strata:
             - "age_band: 18-29"
             - "age_band: 30-44"

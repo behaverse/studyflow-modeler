@@ -41,7 +41,7 @@ After loading, the runner:
 
 Gateway behavior:
 
-- **`RandomGateway`** / **`StratifiedAllocationGateway`** -- pick one outgoing branch uniformly at random (seeded by `?seed`). The stratified variant is currently treated as a random pick; stratification logic is reserved for future work.
+- **`RandomGateway`** -- pick one outgoing branch uniformly at random (seeded by `?seed`). A gateway with `stratifyBy` set (stratified allocation) is currently treated as a plain random pick; stratification logic is reserved for future work.
 - **Exclusive / Inclusive gateway** with `conditionExpression` on an outgoing sequence flow -- the first flow whose expression evaluates truthy wins. Conditions are evaluated against the runtime *variable bag* (nodes call `setVariable(name, value)` to write to it).
 - **No matching condition** -- the gateway's `default` flow is taken if set, otherwise the first un-conditioned outgoing flow, otherwise the first outgoing flow.
 - **`ParallelGateway`** -- not yet supported; the runner throws.

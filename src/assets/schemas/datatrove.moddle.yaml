@@ -7,7 +7,7 @@ uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
-version: 26.0715
+version: 26.0716
 associations: []
 enumerations:
   - name: ReaderClassEnum
@@ -48,20 +48,8 @@ types:
     meta:
       bpmnType: bpmn:ServiceTask
     properties:
-      - name: implementation
-        description: |
-          Function or executable this step runs - BPMN's own attribute for
-          "the technology implementing this task", holding a versioned
-          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
-          `python://` (importable callable), `docker://` (image), `https://`
-          (script URL).
-        isAttr: true
-        type: String
-        redefines: bpmn:ServiceTask#implementation
-        meta:
-          order: 1
-          categories:
-            - Execution
+      # `implementation` (the versioned function reference) comes from the
+      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
       - name: isDataOperation
         isAttr: true
         type: Boolean

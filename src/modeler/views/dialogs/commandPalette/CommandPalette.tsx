@@ -72,10 +72,12 @@ export function CommandPalette({ ref }: Props) {
     accept: VALID_FILE_EXTENSIONS.join(','),
     testId: 'open-file-input',
     isValid: (name) => VALID_FILE_EXTENSIONS.some((ext) => name.endsWith(ext)),
-    invalidMessage: 'Please select a valid XML, SVG, or Studyflow file.',
+    invalidMessage: 'Please select a valid XML, SVG, PNG, or Studyflow file.',
+    // Exported PNGs carry the diagram in a metadata chunk; they must arrive as bytes.
+    isBinary: (name) => name.endsWith('.png'),
     failureMessage: 'Failed to open diagram.',
     onText: (filename, content) =>
-      executeCommand(modeler, { type: 'open-diagram', filename, content }),
+      executeCommand(modeler, { type: 'open-diagram', filename, content: content ?? '' }),
   });
 
   const jsPsychPicker = useFilePicker({

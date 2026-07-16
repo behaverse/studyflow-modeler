@@ -7,7 +7,7 @@ uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 xml:
   tagAlias: lowerCase
-version: 26.0715
+version: 26.0716
 
 associations: []
 
@@ -267,20 +267,8 @@ types:
       icon: iconify mdi--tools
       bpmnType: bpmn:ServiceTask
     properties:
-      - name: implementation
-        description: |
-          Function or executable this step runs - BPMN's own attribute for
-          "the technology implementing this task", holding a versioned
-          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
-          `python://` (importable callable), `docker://` (image), `https://`
-          (script URL).
-        isAttr: true
-        type: String
-        redefines: bpmn:ServiceTask#implementation
-        meta:
-          order: 1
-          categories:
-            - Execution
+      # `implementation` (the versioned function reference) comes from the
+      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
       - name: kind
         description: What kind of capability this exposes.
         isAttr: true
@@ -301,18 +289,8 @@ types:
           order: 2
           categories:
             - Tool
-      - name: sideEffects
-        description: |
-          Whether calling this tool changes the world (sends a message, writes a
-          file, spends money). Side-effecting tools are never replayed from cache
-          and are the ones worth gating behind a `HumanApproval`.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          order: 3
-          categories:
-            - Tool
+      # `sideEffects` (never replayed from cache; gate behind HumanApproval)
+      # comes from the `exec:Step` contract - declared once there.
 
   # ===========================================================================
   # Human-in-the-loop. Studyflow has always suspended on human steps: a
