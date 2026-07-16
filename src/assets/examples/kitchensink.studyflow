@@ -19,7 +19,7 @@ Kitchen_Sink:
     the domain extensions that specialize it. Attribute values echo the paper's example study (consent form, completion
     code, eligibility criteria, N-back scene, BDM trials dataset). Pool/choreography types (cognitive:Actor,
     openbci:OpenBCISession, studyflow:ChoreographyTask) and the template presets
-    (cognitive/datatrove/omniprocess/ml/agentic/openbci) are covered in kitchensink.cheatsheet.md.
+    (cognitive/datatrove/omniprocess/ml/agentic/openbci) are covered in kitchensink.md.
   extensionElements:
     - type: studyflow:Study
   name: Studyflow element catalog (kitchen sink)
@@ -350,8 +350,8 @@ Kitchen_Sink:
       extensionElements:
         - type: cognitive:CognitiveTask
           instrument: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
       name: Cognitive task
-      uri: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
       bounds:
         x: 125
         "y": 1289

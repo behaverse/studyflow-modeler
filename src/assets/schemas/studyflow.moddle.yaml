@@ -355,13 +355,6 @@ types:
     meta:
       icon: iconify bpmn--task-none
     properties:
-      - name: uri
-        description: Link to the activity.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - General
       - name: onset
         description: |
           Optional onset (start time) of the activity. Free-form string so it can

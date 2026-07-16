@@ -166,6 +166,19 @@ types:
           editable: true
           categories:
             - Instrument
+      - name: implementation
+        description: |
+          External software that delivers this task - the same attribute name
+          and versioned-reference grammar as BPMN's own `implementation` on
+          service-style tasks: `<scheme>://<ref>[@<version-or-digest>]`, e.g.
+          an `https://` URL of a versioned jsPsych plugin, a `python://`
+          callable, or a `docker://` image. The runner administers whatever
+          the reference resolves to.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Instrument
       - name: configurations
         description: |
           Instrument-specific configuration in YAML format (e.g., number of

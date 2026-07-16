@@ -152,7 +152,13 @@ The **StartEvent** and **EndEvent** carry core attributes:
 Every element also inherits two documentation attributes from the core
 `BaseElement` trait: **`documentation`** (Markdown description) and
 **`checklist`** (Markdown checklist). Activities/Events also carry Gantt fields
-**`onset`**, **`duration`**, **`progress`** and activities carry **`uri`**.
+**`onset`**, **`duration`**, **`progress`**.
+
+Steps that run external software name it with an **`implementation`**
+attribute — BPMN's own attribute (and versioned-reference grammar,
+`scheme://ref@version`) on service-style tasks, which `ml:Operation` and the
+datatrove operations redefine, and which `cognitive:CognitiveTask` mirrors on
+its wrapper for plain tasks (e.g. a versioned jsPsych plugin URL).
 
 ### Core data infrastructure
 
@@ -224,7 +230,7 @@ participant-assignment gateways. Icon set: schema badge **C**.
 
 | Wrapper | BPMN base | Icon | Key attributes |
 |---|---|---|---|
-| `cognitive:CognitiveTask` | `bpmn:Task` | `bi--puzzle` | `instrument` (InstrumentEnum, editable), `configurations` (YAML body). |
+| `cognitive:CognitiveTask` | `bpmn:Task` | `bi--puzzle` | `instrument` (InstrumentEnum, editable), `implementation` (versioned external reference, `scheme://ref@version`), `configurations` (YAML body). |
 | `cognitive:Rest` | `bpmn:Task` | `solar--armchair-2-linear` | `configurations` (e.g. duration, eyes-open/closed). |
 | `cognitive:Questionnaire` | `bpmn:Task` | `fluent--clipboard-text-edit-32-regular` | `instrument` (QuestionnaireInstrumentEnum, editable). |
 | `cognitive:Instruction` | `bpmn:Task` | `material-symbols--info-outline-rounded` | `content` (Markdown). |
