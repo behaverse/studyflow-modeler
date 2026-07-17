@@ -1,0 +1,308 @@
+id: sklearn_pipeline
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
+  xmlns:exec: https://w3id.org/studyflow/exec
+  xmlns:functional: https://w3id.org/studyflow/functional
+Sklearn_Pipeline:
+  type: bpmn:Process
+  documentation: |
+    A complete scikit-learn pipeline - load a sample dataset, build a
+    PCA + classifier estimator, cross-validate it, fit it on all the data if
+    it is good enough, and store both the scores and the fitted model. This
+    file is written to be *run*: a small Python engine can execute it by
+    walking the flow and, at each step, importing the callable named by
+    `implementation`, calling it with the keyword arguments in `with` and the
+    wired data elements as its data arguments, and binding the result to the
+    wired outputs. Every callable is plain scikit-learn.
+
+    1. Every step is one Python call, written machine-readably. `with` holds
+       the call's arguments as plain YAML the runner evaluates with four
+       rules: the reserved key `args` lists positional arguments; `$Name`
+       (or `$Name.attr`) is the current value of the wired data element
+       `Name`; a mapping that itself has an `implementation` key is a nested
+       call, resolved first (import it, call it with its own `with`); every
+       other value is a literal keyword argument. The runner then executes
+       `implementation(*args, **kwargs)` and binds the return value to the
+       wired outputs. So the build step below *is*
+       `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1.0))`, and
+       the fitting step *is* `Pipeline.fit(pipeline, X=..., y=...)` -
+       `sklearn.pipeline.Pipeline.fit` is the real importable unbound
+       method, with the wired pipeline as its first argument. The steps root
+       at the generic `functional` operations (a fit is a `functional:Reduce`
+       - rows in, one artifact out) while speaking sklearn's own verbs:
+       load, build, crossValidate, fit, save.
+    2. Cross-validation is scikit-learn's business, not the workflow's:
+       `cross_validate(estimator, X, y, cv=5)` takes the same wired estimator
+       and runs the folds itself, refitting PCA inside each fold on that
+       fold's training split - no leakage, and no fold machinery for the
+       engine to implement.
+    3. The decision to fit at all is a native `bpmn:ExclusiveGateway`. The
+       rule is typed on the pass flow's own `conditionExpression` - a Python
+       expression over the run's variables - and the reject flow is the
+       gateway's native `default`. The rationale for the threshold lives in
+       the gateway's documentation, where reviewers read it.
+    4. State is data. Each step's outputs bind to the wired data elements and
+       flow onward; a data element with a `uri` is also loaded/saved there
+       (`cv_metrics`, the fitted model). The engine passes everything else in
+       memory.
+
+    The ml schema contributes no element types to this diagram - only palette
+    presets that bind the generic `functional` operations (Transform, Map,
+    Reduce) to concrete sklearn functions. That is the design rule across the
+    exec/ml/agentic layers: when a "new element" would just be a generic
+    operation bound to a function, it is a template over a core element, not
+    a class.
+  extensionElements:
+    - type: studyflow:Study
+  name: sklearn pipeline (PCA + cross-validated classifier)
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      name: Run analysis
+      outgoing:
+        - Flow_Start_Load
+    Load_Data:
+      type: bpmn:ServiceTask
+      documentation: |
+        Loads scikit-learn's bundled handwritten-digits dataset
+        (1797 samples, 64 pixel features), loaded as a data frame:
+        `load_digits(as_frame=True)`. Repoint `implementation` at
+        `fetch_openml` - or use `className`/`path` for files - when the real
+        data arrives; nothing else about the pipeline changes.
+      extensionElements:
+        - type: functional:Transform
+          operationType: load
+      name: Load digits dataset
+      incoming:
+        - Flow_Start_Load
+      outgoing:
+        - Flow_Load_Build
+      dataOutputAssociations:
+        Wire_Load_Digits:
+          targetRef: Digits
+      with:
+        as_frame: true
+      implementation: python://sklearn.datasets.load_digits
+    Digits:
+      type: bpmn:DataObjectReference
+      extensionElements:
+        - type: studyflow:Table
+          format: parquet
+          rowCount: 1797
+      name: Digits (features + target)
+    Build_Pipeline:
+      type: bpmn:ServiceTask
+      documentation: |
+        Builds the estimator. `make_pipeline` takes its steps positionally, so
+        they go under the reserved `args` key - and each step is a nested
+        call (a mapping with its own `implementation` and `with`), which the
+        runner resolves first. The whole step is exactly
+        `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1.0))`; the
+        result is an *unfitted* pipeline object - data like any other, wired
+        onward to cross-validation and to the fitting step, so both work on
+        exactly the same specification.
+      extensionElements:
+        - type: functional:Transform
+          operationType: build
+      name: Build PCA + SVC pipeline
+      incoming:
+        - Flow_Load_Build
+      outgoing:
+        - Flow_Build_CV
+      dataOutputAssociations:
+        Wire_Build_Pipeline:
+          targetRef: Pipeline_Spec
+      with:
+        args:
+          - implementation: python://sklearn.decomposition.PCA
+            with:
+              n_components: 16
+          - implementation: python://sklearn.svm.SVC
+            with:
+              kernel: rbf
+              C: 1
+      implementation: python://sklearn.pipeline.make_pipeline
+    Pipeline_Spec:
+      type: bpmn:DataObjectReference
+      documentation: |
+        The unfitted PCA+SVC pipeline returned by `make_pipeline` - the
+        estimator as data. Cross-validation clones and fits it per fold; the
+        fitting step fits it once on everything.
+      name: Pipeline (unfitted)
+    Cross_Validate:
+      type: bpmn:ServiceTask
+      documentation: |
+        The whole fit-and-score loop as one call:
+        `cross_validate(estimator, X, y, cv=5, scoring=["accuracy"])`. The
+        `$` arguments name the wired data elements - `$Pipeline_Spec` is the
+        built estimator, `$Digits.data`/`$Digits.target` the feature and
+        label columns of the wired table - so every argument is explicit and
+        machine-readable. PCA sits inside the estimator, so every fold refits
+        the projection on its own training split.
+      extensionElements:
+        - type: functional:Reduce
+          operationType: crossValidate
+      name: Cross-validate (5 folds)
+      incoming:
+        - Flow_Build_CV
+      outgoing:
+        - Flow_CV_Gate
+      dataInputAssociations:
+        Wire_Pipeline_CV:
+          sourceRef:
+            - Pipeline_Spec
+        Wire_Digits_CV:
+          sourceRef:
+            - Digits
+      dataOutputAssociations:
+        Wire_CV_Metrics:
+          targetRef: CV_Metrics
+      with:
+        estimator: $Pipeline_Spec
+        X: $Digits.data
+        "y": $Digits.target
+        cv: 5
+        scoring:
+          - accuracy
+        return_train_score: false
+      implementation: python://sklearn.model_selection.cross_validate
+    CV_Metrics:
+      type: bpmn:DataObjectReference
+      documentation: |
+        Per-fold scores from `cross_validate` (a dict of arrays). The `uri`
+        tells the engine to also save it there; without one it would only
+        flow in memory to the gateway.
+      uri: results/cv_metrics.json
+      name: cv_metrics
+    Good_Enough:
+      type: bpmn:ExclusiveGateway
+      documentation: |
+        Rationale: 0.90 mean accuracy is the pre-registered floor for the
+        digits benchmark; below it the projection or the kernel needs work,
+        and fitting a final model would only dignify a bad configuration.
+        The rule itself is on the `keep` flow's `conditionExpression`; the
+        `needs work` flow is the gateway's default.
+      name: Accurate enough?
+      incoming:
+        - Flow_CV_Gate
+      outgoing:
+        - Flow_Gate_Fit
+        - Flow_Gate_Reject
+      default: Flow_Gate_Reject
+    Fit_Model:
+      type: bpmn:ServiceTask
+      documentation: |
+        The fitting step. `sklearn.pipeline.Pipeline.fit` is the unbound
+        method, so the pipeline itself is the first *positional* argument
+        (`args`) and the call is exactly
+        `Pipeline.fit($Pipeline_Spec, X=$Digits.data, y=$Digits.target)` -
+        i.e. `pipeline.fit(X, y)`. `fit` returns the fitted pipeline, which
+        binds to the wired output. Cross-validation estimated the error; this
+        fit on all of the data is the model that ships, with PCA travelling
+        inside it.
+      extensionElements:
+        - type: functional:Reduce
+          operationType: fit
+      name: Fit pipeline (all data)
+      incoming:
+        - Flow_Gate_Fit
+      outgoing:
+        - Flow_Fit_Save
+      dataInputAssociations:
+        Wire_Pipeline_Fit:
+          sourceRef:
+            - Pipeline_Spec
+        Wire_Digits_Fit:
+          sourceRef:
+            - Digits
+      dataOutputAssociations:
+        Wire_Fit_Model:
+          targetRef: Final_Model
+      with:
+        args:
+          - $Pipeline_Spec
+        X: $Digits.data
+        "y": $Digits.target
+      implementation: python://sklearn.pipeline.Pipeline.fit
+    Final_Model:
+      type: bpmn:DataObjectReference
+      documentation: |
+        The fitted PCA+SVC pipeline - what `Pipeline.fit` returned. The model
+        card (intended use, training data, known limitations) belongs here in
+        the documentation; the hyperparameters are already recorded on the
+        build step's `with`.
+      uri: results/digits_pca_svc.joblib
+      name: Fitted pipeline
+    Save_Model:
+      type: bpmn:ServiceTask
+      documentation: |
+        Lands the model on disk, where a notebook or a serving job can pick
+        it up: `joblib.dump(value=$Final_Model, filename=..., compress=3)` -
+        joblib is scikit-learn's own recommended persistence, and `value` is
+        `dump`'s real first parameter, bound to the wired fitted pipeline.
+      extensionElements:
+        - type: functional:Transform
+          operationType: save
+      name: Save model (joblib)
+      incoming:
+        - Flow_Fit_Save
+      outgoing:
+        - Flow_Save_Done
+      dataInputAssociations:
+        Wire_Model_Save:
+          sourceRef:
+            - Final_Model
+      with:
+        value: $Final_Model
+        filename: results/digits_pca_svc.joblib
+        compress: 3
+      implementation: python://joblib.dump
+    Done:
+      type: bpmn:EndEvent
+      name: Results stored
+      incoming:
+        - Flow_Save_Done
+    Needs_Work:
+      type: bpmn:EndEvent
+      name: Below threshold
+      incoming:
+        - Flow_Gate_Reject
+    Flow_Start_Load:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Load_Data
+    Flow_Load_Build:
+      type: bpmn:SequenceFlow
+      sourceRef: Load_Data
+      targetRef: Build_Pipeline
+    Flow_Build_CV:
+      type: bpmn:SequenceFlow
+      sourceRef: Build_Pipeline
+      targetRef: Cross_Validate
+    Flow_CV_Gate:
+      type: bpmn:SequenceFlow
+      sourceRef: Cross_Validate
+      targetRef: Good_Enough
+    Flow_Gate_Fit:
+      type: bpmn:SequenceFlow
+      name: keep
+      conditionExpression: cv_metrics["test_accuracy"].mean() >= 0.90
+      sourceRef: Good_Enough
+      targetRef: Fit_Model
+    Flow_Gate_Reject:
+      type: bpmn:SequenceFlow
+      name: needs work
+      sourceRef: Good_Enough
+      targetRef: Needs_Work
+    Flow_Fit_Save:
+      type: bpmn:SequenceFlow
+      sourceRef: Fit_Model
+      targetRef: Save_Model
+    Flow_Save_Done:
+      type: bpmn:SequenceFlow
+      sourceRef: Save_Model
+      targetRef: Done
+  runtime: local
+  seed: "42"

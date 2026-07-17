@@ -30,6 +30,9 @@ const layoutlessXml = () => {
   return studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
 };
 
+/** Schema-aware moddle, as the modeler passes to `ensureDiagramLayout`. */
+const schemaModdle = () => new BpmnModdle(structuredClone(packages)) as any;
+
 test.describe('ensureDiagramLayout', () => {
   test('detects presence and absence of diagram interchange', () => {
     expect(hasDiagramInterchange('<bpmndi:BPMNDiagram id="d"><bpmndi:BPMNPlane/></bpmndi:BPMNDiagram>')).toBe(true);
@@ -41,7 +44,7 @@ test.describe('ensureDiagramLayout', () => {
     // Precondition: the converted file has no geometry — this is the failing case.
     expect(hasDiagramInterchange(xml)).toBe(false);
 
-    const laidOut = await ensureDiagramLayout(xml);
+    const laidOut = await ensureDiagramLayout(xml, schemaModdle());
 
     // A full DI tree is now present: a diagram, a plane, and a shape per node.
     expect(hasDiagramInterchange(laidOut)).toBe(true);
@@ -65,6 +68,53 @@ test.describe('ensureDiagramLayout', () => {
     );
     expect(hasDiagramInterchange(authored)).toBe(true);
     // No round-trip through auto-layout: the authored bytes are returned as-is.
-    expect(await ensureDiagramLayout(authored)).toBe(authored);
+    expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
+  });
+
+  test('draws data associations and places data elements next to their steps', async () => {
+    // sklearn_pipeline ships layout-less and wires its artifacts with data
+    // input/output associations — the case the data-flow pass exists for.
+    const xml = await studyflowToXml(
+      readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow'), 'utf8'),
+      new BpmnModdle(structuredClone(packages)) as any,
+    );
+    expect(hasDiagramInterchange(xml)).toBe(false);
+
+    const laidOut = await ensureDiagramLayout(xml, schemaModdle());
+
+    // Every data association got a DI edge with waypoints, so bpmn-js renders
+    // it and the inspector can infer the step's inputs/outputs from it.
+    for (const wire of [
+      'Wire_Load_Digits', 'Wire_Build_Pipeline', 'Wire_Pipeline_CV', 'Wire_Digits_CV',
+      'Wire_CV_Metrics', 'Wire_Pipeline_Fit', 'Wire_Digits_Fit', 'Wire_Fit_Model', 'Wire_Model_Save',
+    ]) {
+      expect(laidOut).toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${wire}"`));
+    }
+
+    // The data elements were moved out of the disconnected left column into a
+    // band beneath the steps they are wired to.
+    const { rootElement: definitions } = await (new BpmnModdle() as any).fromXML(laidOut);
+    const shapes = new Map<string, any>();
+    for (const diagram of definitions.diagrams ?? []) {
+      for (const di of diagram.plane?.get('planeElement') ?? []) {
+        if (di.$type === 'bpmndi:BPMNShape' && di.bpmnElement?.id) shapes.set(di.bpmnElement.id, di.bounds);
+      }
+    }
+    const digits = shapes.get('Digits')!;
+    const load = shapes.get('Load_Data')!;
+    const save = shapes.get('Save_Model')!;
+    expect(digits.y).toBeGreaterThan(load.y + load.height); // below the flow band
+    expect(digits.x).toBeGreaterThan(load.x); // pulled toward its consumers, off the left column
+    const model = shapes.get('Final_Model')!;
+    expect(model.y).toBeGreaterThan(save.y); // likewise for the produced artifact
+
+    // The semantic tree is re-read from the original XML with the schema-aware
+    // moddle, so extension *child elements* survive too — bpmn-auto-layout's
+    // own plain-moddle round-trip would silently drop `<studyflow:with>`
+    // (the step arguments) from every laid-out import.
+    expect(laidOut).toContain('implementation="python://sklearn.datasets.load_digits"');
+    expect(laidOut).toContain('operationType="crossValidate"');
+    expect(laidOut).toContain('<studyflow:with>');
+    expect(laidOut).toContain('as_frame: true');
   });
 });

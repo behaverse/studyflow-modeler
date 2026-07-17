@@ -2,355 +2,32 @@
 
 name: Exec
 prefix: exec
-description: The executable layer of Studyflow - the step contract (runtime target, environment, secrets, caching, side effects, determinism, retries) that turns any activity into a runnable step, plus the scope constructs (fan-out, sweep, repeat) that BPMN's multi-instance and loop markers stand for. Triggers, sensors, and delays stay native BPMN - a timer start event is a schedule, a conditional catch event a sensor, a message start event an external event. A step's interface is not declared here - it is the typed data elements wired to it by BPMN's own data associations. Domain-neutral - it makes cognitive tasks, data operations, ML steps, and agents run under one semantics.
+description: The minimal executable layer of Studyflow - just enough for a small Python engine to run a diagram. A step is one Python call - BPMN's own `implementation` names the importable callable, `studyflow:with` carries its keyword arguments, and the data associations drawn on the canvas are its inputs and outputs; the engine imports, calls, and binds. Branching is a native gateway's `conditionExpression`; loops are BPMN's own standard-loop child; schedules, sensors, and delays are native BPMN events with their expressions flattened to plain attributes. One data noun (`Parameters`, a named configuration group) and one artifact field (`uri`, where an artifact's bytes live) - nothing an engine would not read. (Fan-out over a collection - map/reduce over activities - lives in the `functional` schema.)
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
 xml:
   tagAlias: lowerCase
-version: 26.0716
+version: 26.0717
 
 associations: []
 
-enumerations:
-  - name: RuntimeTargetEnum
-    isAbstract: true
-    description: |
-      Where a step executes. `inherit` (the default) falls back to the enclosing
-      scope and finally to `studyflow:Study#runtime`. The target selects an
-      executor; it never changes what the step means.
-    literalValues:
-      - name: Inherit from parent
-        value: inherit
-      - name: Browser (participant device)
-        value: browser
-        description: Runs in the runner tab. Human-facing steps live here.
-      - name: Local process
-        value: local
-        description: Runs in the worker's own process (in-band Python/JS callable).
-      - name: Container
-        value: container
-        description: Runs in the OCI image named by the activity's `implementation` reference.
-      - name: HPC cluster
-        value: hpc
-        description: Submitted to a batch scheduler; the step suspends until the job reports back.
-      - name: Cloud
-        value: cloud
-      - name: Human
-        value: human
-        description: Suspends the run and waits for a person. The default for BPMN user tasks.
-
-  - name: SchedulerEnum
-    isAbstract: true
-    description: Batch scheduler used when `runsOn` is `hpc`.
-    literalValues:
-      - name: Slurm
-        value: slurm
-      - name: PBS/Torque
-        value: pbs
-      - name: SGE
-        value: sge
-      - name: Kubernetes
-        value: kubernetes
-
-  - name: CachePolicyEnum
-    isAbstract: true
-    description: |
-      Whether a completed execution with the same cache key may be reused
-      instead of re-running the step. The key is a hash of the step identity,
-      the resolved `implementation` digest, the resolved arguments, the input artifact
-      digests, and the scope-derived seed.
-    literalValues:
-      - name: Reuse if unchanged
-        value: reuse
-        description: Skip the step when a successful execution with the same key exists.
-      - name: Always re-run
-        value: refresh
-        description: Re-run and overwrite the cached execution.
-      - name: Never cache
-        value: never
-        description: Re-run and do not record a reusable execution (side-effecting steps).
-
-  - name: IterationKindEnum
-    isAbstract: true
-    description: |
-      What a multi-instance marker expands over. Every kind opens one scope
-      frame per instance, so a fold, a sweep point, a shard, and a participant
-      are the same construct with different frame kinds.
-    literalValues:
-      - name: None (single instance)
-        value: none
-      - name: Items in a collection
-        value: items
-        description: One instance per element of the collection named by `over` (map / fan-out).
-      - name: Cross-validation folds
-        value: folds
-        description: One instance per fold; the split is described by `folds`.
-      - name: Points in a config grid
-        value: grid
-        description: One instance per point of the space described by `grid` (hyperparameter sweep).
-      - name: Participants
-        value: participants
-        description: One instance per participant in the pool (a cohort run).
-      - name: Shards
-        value: shards
-        description: One instance per shard of the input; the classic HPC array job.
-
-  - name: CollectPolicyEnum
-    isAbstract: true
-    description: How instance outputs are joined back into the parent scope.
-    literalValues:
-      - name: List
-        value: list
-        description: Collect one entry per instance, in instance order.
-      - name: Concatenate
-        value: concat
-        description: Concatenate tabular/streaming outputs into one artifact.
-      - name: Reduce
-        value: reduce
-        description: Fold the outputs with the function named in `reducer` (e.g. mean of fold metrics).
-      - name: None
-        value: none
-        description: Discard instance outputs; the step ran for its side effects.
-
-  - name: PersistPolicyEnum
-    isAbstract: true
-    description: Where an artifact's bytes live between steps.
-    literalValues:
-      - name: Store (content-addressed)
-        value: store
-        description: Written to the artifact store and addressable by digest. Cacheable and citable.
-      - name: In memory
-        value: memory
-        description: Passed between steps in the worker; never persisted. Not cacheable.
-      - name: Streamed
-        value: stream
-        description: |
-          Consumed as it is produced - a pipe between streaming operators (the
-          natural mode between datatrove steps). Never persisted; to cache or
-          cite a stream, land it in a stored artifact first.
+enumerations: []
 
 types:
 
   # ===========================================================================
-  # The step contract. A trait on every BPMN activity, so a cognitive task, a
-  # data operation, an ML step, and an agent are all executable under the same
-  # six questions: what runs (BPMN's own `implementation`), with what
-  # arguments (studyflow:with), over what interface (the data associations drawn on the
-  # canvas - native BPMN, nothing declared here), where (runsOn), under what
-  # reuse and failure policy (cache/retry/timeout), and with what source of
-  # randomness (seed/deterministic).
-  # ===========================================================================
-  - name: Step
-    description: |
-      Execution contract mixed onto every BPMN activity. BPMN's own
-      `implementation` attribute and `studyflow:with` already say *what* runs
-      and *with what arguments*; the
-      interface is not declared here at all - a step's inputs and outputs are
-      the typed data elements wired to it by BPMN's own data associations, and
-      the callable named by `implementation` carries its own parameter list. This trait
-      adds only what neither the diagram nor the callable can say: the runtime
-      target, the reuse policy, the failure policy, and the randomness source.
-    extends:
-      - bpmn:Activity
-    isAbstract: true
-    properties:
-      - name: runsOn
-        description: |
-          Runtime target for this step. `inherit` resolves against the enclosing
-          sub-process and finally `studyflow:Study#runtime`.
-        isAttr: true
-        type: RuntimeTargetEnum
-        default: inherit
-        meta:
-          order: 2
-          categories:
-            - Compute
-
-      - name: scheduler
-        description: Batch scheduler to submit to. Only meaningful when `runsOn` is `hpc`.
-        isAttr: true
-        type: SchedulerEnum
-        default: slurm
-        meta:
-          order: 3
-          categories:
-            - Compute
-          condition:
-            language: json
-            body:
-              runsOn: hpc
-
-      - name: compute
-        description: |
-          Compute request, as a YAML mapping. Interpreted by the executor for the
-          chosen `runsOn`; unknown keys pass through to the scheduler. (Named
-          `compute` rather than `resources` because BPMN's Activity already owns
-          `resources` for resource-role assignment.)
-
-              cpus: 8
-              gpus: 1
-              memory: 32G
-              walltime: 04:00:00
-              partition: gpu
-              array: 128        # shard count when iterating over shards
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 4
-          categories:
-            - Compute
-          editor: yaml
-
-      - name: environment
-        description: |
-          Execution-environment capture, as a YAML mapping - the hermeticity
-          that makes a step insensitive to the host it runs on, and the
-          prerequisite for a cache hit meaning anything. A `docker://`
-          implementation already pins its image by digest; this field captures
-          what that cannot: the lockfile for in-process steps, environment
-          variables, and the base image for script steps. Resolves like
-          `runsOn`: unset inherits the enclosing scope's environment.
-
-              image: ghcr.io/lab/analysis@sha256:4f2a...
-              lockfile: uv.lock
-              env:
-                OMP_NUM_THREADS: "8"
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 5
-          categories:
-            - Compute
-          editor: yaml
-
-      - name: secrets
-        description: |
-          Names of secrets this step needs (API keys, tokens, database
-          credentials), injected by the executor at run time. Referenced by
-          name only, so the spec stays shareable and the value never lands in
-          the file, a diff, or the run log (the GitHub Actions / Flyte
-          secrets model).
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          order: 6
-          categories:
-            - Compute
-
-      - name: cache
-        description: |
-          Reuse policy. With `reuse`, a step whose cache key matches a recorded
-          successful execution is skipped and its outputs are rebound - the
-          `dvc repro` / Flyte behaviour that makes re-running a pipeline cheap.
-        isAttr: true
-        type: CachePolicyEnum
-        default: reuse
-        meta:
-          order: 7
-          categories:
-            - Execution
-
-      - name: sideEffects
-        description: |
-          Whether this step changes the world outside the run (sends a message,
-          writes to a registry, deploys, spends money). Side-effecting steps
-          are never replayed from cache, retry only when the failure clearly
-          happened before the effect (at-most-once rather than at-least-once),
-          and are the ones worth gating behind a human approval.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          order: 8
-          categories:
-            - Execution
-
-      - name: deterministic
-        description: |
-          Asserts that the step is a pure function of its inputs, arguments, and
-          seed. Non-deterministic steps (a human response, an LLM call at
-          temperature > 0, a wall-clock read) must set this to `false`; the
-          engine then records their outcome in the run log so a replay reproduces
-          it rather than re-drawing it.
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          order: 9
-          categories:
-            - Execution
-
-      - name: seed
-        description: |
-          Root seed for this step. Leave unset to derive it from the run seed and
-          the current scope - which is what makes a fold, a sweep point, and a
-          participant each reproducible on their own.
-        isAttr: true
-        type: Integer
-        meta:
-          order: 10
-          categories:
-            - Execution
-          optional: true
-
-      - name: retry
-        description: |
-          Failure policy, as a YAML mapping. Retries re-enter the step in a fresh
-          `retry` scope frame, so each attempt is recorded separately.
-
-              max: 3
-              backoff: exponential   # fixed | linear | exponential
-              on: [TransientError, Timeout]
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 11
-          categories:
-            - Execution
-          editor: yaml
-
-      - name: timeout
-        description: |
-          Wall-clock budget for one attempt (e.g. `30s`, `2h`, `PT4H`). The
-          shorthand for a boundary timer's `timeDuration`; draw the boundary
-          event instead when the timeout path deserves to be visible.
-        isAttr: true
-        type: String
-        meta:
-          order: 12
-          categories:
-            - Execution
-          optional: true
-
-      - name: when
-        description: |
-          Guard expression over the scope's bindings; the step runs only when it
-          holds (e.g. `scope.turn > 1`). A skipped step is recorded as skipped,
-          leaves its outputs unbound, and passes the token on - the step-level
-          form of a `Gate`, for skips that do not deserve a branch on the diagram
-          (CWL `when`, Nextflow `when`). Unset means always run.
-        isAttr: true
-        type: String
-        meta:
-          order: 13
-          categories:
-            - Execution
-          optional: true
-
-  # ===========================================================================
   # The implementation reference. BPMN's own `implementation` attribute
   # ("the technology implementing this task") is redefined once, here, with
-  # the versioned reference grammar every executable step uses - so an ML
-  # operation, a data operation, and an agent tool do not each re-declare it.
+  # the versioned reference grammar every executable step uses. The engine
+  # imports the callable it names and calls it with `with` plus the wired
+  # inputs; there is no other step contract.
   # ===========================================================================
   - name: Implementation
     description: |
       Surfaces BPMN's own `implementation` attribute on every service-style
       step, holding a versioned reference in one grammar:
       `<scheme>://<ref>[@<version-or-digest>]`. Declared once so the reference
-      grammar - and the fact that a pinned digest lands in the cache key -
-      is the same for every step that runs something.
+      grammar is the same for every step that runs something.
     extends:
       - bpmn:ServiceTask
     isAbstract: true
@@ -372,12 +49,9 @@ types:
 
   # ===========================================================================
   # Triggers, sensors, and delays are native BPMN, not studyflow concepts: a
-  # timer start event is a schedule, a message start event an external event
-  # or webhook, a conditional catch event a sensor (Airflow's most-used
-  # primitive, drawn as BPMN's own shape), a timer catch event a delay, and a
-  # plain start event a manual run. What launches or holds a run is part of
-  # the model (the lesson running from cron through GitHub Actions `on:`
-  # blocks) - and BPMN already draws all of it. The one accommodation, as for
+  # timer start event is a schedule, a message start event an external event,
+  # a conditional catch event a sensor, a timer catch event a delay, and a
+  # plain start event a manual run. The one accommodation, as for
   # `loopCondition` and `completionCondition`, is flattening the event
   # definitions' expressions to plain attributes.
   # ===========================================================================
@@ -386,8 +60,8 @@ types:
       Flattens the timer event definition's expressions from elements to plain
       attributes, so schedules and delays are authored as strings. BPMN
       semantics unchanged. On a start event, `timeCycle` launches runs on a
-      schedule; on an intermediate catch event, `timeDuration` is a delay (a
-      cooldown, a polling backoff) and `timeDate` a fixed wake-up.
+      schedule; on an intermediate catch event, `timeDuration` is a delay and
+      `timeDate` a fixed wake-up.
     extends:
       - bpmn:TimerEventDefinition
     isAbstract: true
@@ -395,9 +69,8 @@ types:
       - name: timeCycle
         description: |
           When to fire, repeatedly: a cron five-field expression (e.g.
-          `0 6 * * 1`, Mondays at 06:00 - the format that has survived from
-          Vixie cron into Kubernetes CronJobs and GitHub Actions) or an
-          ISO 8601 repeating interval (e.g. `R/PT24H`).
+          `0 6 * * 1`, Mondays at 06:00) or an ISO 8601 repeating interval
+          (e.g. `R/PT24H`).
         isAttr: true
         type: bpmn:Expression
         redefines: bpmn:TimerEventDefinition#timeCycle
@@ -405,10 +78,7 @@ types:
           categories:
             - Trigger
       - name: timeDuration
-        description: |
-          How long to wait, as an ISO 8601 duration (e.g. `PT1H`). The
-          drawn-out form of a step's `timeout` when the wait deserves its own
-          shape on the diagram.
+        description: How long to wait, as an ISO 8601 duration (e.g. `PT1H`).
         isAttr: true
         type: bpmn:Expression
         redefines: bpmn:TimerEventDefinition#timeDuration
@@ -428,16 +98,15 @@ types:
     description: |
       Flattens the conditional event definition's `condition` to a plain
       attribute. A conditional catch event is the workflow sensor: the token
-      waits here until the condition over the scope's bindings holds - data
-      arrived, a file landed, a metric crossed a line - then passes. Airflow's
-      sensor and the reconciliation trigger, drawn as BPMN's own shape.
+      waits here until the condition over the run's variables holds - data
+      arrived, a metric crossed a line - then passes.
     extends:
       - bpmn:ConditionalEventDefinition
     isAbstract: true
     properties:
       - name: condition
         description: |
-          Expression over the scope's bindings; the event fires when it holds
+          Expression over the run's variables; the event fires when it holds
           (e.g. `raw_sessions.rowCount > 0`).
         isAttr: true
         type: bpmn:Expression
@@ -446,173 +115,13 @@ types:
           categories:
             - Trigger
 
-  # ===========================================================================
-  # Scope expansion. These two traits carry the parameters behind BPMN's
-  # multi-instance and standard-loop markers. The marker stays native BPMN, so
-  # bpmn-js renders it and other BPMN tools read it; the parameters live here.
-  # ===========================================================================
-  - name: Iteration
-    description: |
-      Parameters behind the BPMN multi-instance marker. Expanding an activity
-      opens one scope frame per instance; instances are independent, may run in
-      parallel, and are joined by `collect` when they all finish. Folds, sweep
-      points, shards, participants, and items are the same construct with
-      different frame kinds.
-    extends:
-      - bpmn:Activity
-    isAbstract: true
-    properties:
-      - name: iterate
-        description: What to expand over. `none` leaves the activity single-instance.
-        isAttr: true
-        type: IterationKindEnum
-        default: none
-        meta:
-          order: 1
-          categories:
-            - Iteration
-
-      - name: over
-        description: |
-          Name of the input port (or variable) holding the collection to expand
-          over. Required when `iterate` is `items`. (BPMN: `loopDataInputRef`.)
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Iteration
-          condition:
-            language: json
-            body:
-              iterate: items
-
-      - name: itemVar
-        description: Name the current instance's element is bound to inside the scope (BPMN's `inputDataItem`).
-        isAttr: true
-        type: String
-        default: item
-        meta:
-          order: 3
-          categories:
-            - Iteration
-          condition:
-            language: json
-            body:
-              iterate: items
-
-      - name: folds
-        description: |
-          Cross-validation split, as a YAML mapping. The fold assignment is drawn
-          from the scope-derived seed, so it is reproducible without pinning a
-          global seed.
-
-              k: 5
-              stratifyBy: label
-              groupBy: participant_id    # keeps a participant's rows in one fold
-              shuffle: true
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 4
-          categories:
-            - Iteration
-          editor: yaml
-          condition:
-            language: json
-            body:
-              iterate: folds
-
-      - name: grid
-        description: |
-          Sweep space, as a YAML mapping. `strategy` picks how points are drawn;
-          `objective` names the metric an adaptive strategy optimizes and lets the
-          engine report the winning point.
-
-              strategy: grid
-              space:
-                lr: [0.001, 0.01, 0.1]
-                max_depth: [2, 4, 8]
-              samples: 20              # random search only
-              objective: {metric: val_auc, goal: max}
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 5
-          categories:
-            - Iteration
-          editor: yaml
-          condition:
-            language: json
-            body:
-              iterate: grid
-
-      - name: maxConcurrency
-        description: Cap on instances in flight at once. Unset means the executor decides.
-        isAttr: true
-        type: Integer
-        meta:
-          order: 7
-          categories:
-            - Iteration
-          optional: true
-
-      - name: collect
-        description: How instance outputs are joined back into the parent scope.
-        isAttr: true
-        type: CollectPolicyEnum
-        default: list
-        meta:
-          order: 8
-          categories:
-            - Iteration
-
-      - name: collectAs
-        description: Output port the joined result is bound to in the parent scope (BPMN's `loopDataOutputRef`).
-        isAttr: true
-        type: String
-        meta:
-          order: 9
-          categories:
-            - Iteration
-          optional: true
-
-      - name: reducer
-        description: |
-          Function used to fold instance outputs when `collect` is `reduce`,
-          in the `implementation` reference grammar (e.g. `python://numpy.mean`).
-        isAttr: true
-        type: String
-        meta:
-          order: 10
-          categories:
-            - Iteration
-          condition:
-            language: json
-            body:
-              collect: reduce
-
-      - name: failFast
-        description: |
-          Abort the remaining instances as soon as one fails. When false, failed
-          instances are recorded and excluded from the collected result.
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          order: 11
-          categories:
-            - Iteration
-
-  # There is no Repetition trait: cycles use BPMN's own standard-loop child
-  # (`loopCharacteristics` with `testBefore`, `loopCondition`, `loopMaximum`),
-  # which is also what makes the loop marker render. The one accommodation is
-  # below - `loopCondition` is flattened to a string attribute, the same
-  # treatment the core gives `conditionExpression`. Always set `loopMaximum`:
-  # it is the only guaranteed termination bound in a language with cycles.
-  # Same flattening for the ad-hoc sub-process's own exit test (an Agent's
-  # stop rule). Declared here rather than on the agentic wrapper: shadow
-  # attributes fold to node level only when no same-prefix wrapper claims them.
+  # Cycles use BPMN's own standard-loop child (`loopCharacteristics` with
+  # `testBefore`, `loopCondition`, `loopMaximum`), which is also what makes
+  # the loop marker render. The one accommodation is below - `loopCondition`
+  # is flattened to a string attribute, the same treatment the core gives
+  # `conditionExpression`. Always set `loopMaximum`: it is the only
+  # guaranteed termination bound in a language with cycles. Same flattening
+  # for the ad-hoc sub-process's own exit test (an Agent's stop rule).
   - name: CompletionCondition
     description: |
       Flattens the ad-hoc sub-process's own `completionCondition` to a plain
@@ -625,7 +134,7 @@ types:
       - name: completionCondition
         description: |
           BPMN's own exit test: the ad-hoc sub-process (an Agent) is complete
-          when this holds, evaluated over the scope's bindings after each turn.
+          when this holds, evaluated over the run's variables after each turn.
         isAttr: true
         type: bpmn:Expression
         redefines: bpmn:AdHocSubProcess#completionCondition
@@ -645,7 +154,7 @@ types:
     properties:
       - name: loopCondition
         description: |
-          Continue-while expression over the scope's bindings (e.g.
+          Continue-while expression over the run's variables (e.g.
           `score < 0.9` keeps refining until the score clears 0.9). Evaluated
           after each turn, or before it with `testBefore`.
         isAttr: true
@@ -656,195 +165,36 @@ types:
             - Repeat
 
   # ===========================================================================
-  # Artifacts. A trait on every BPMN data element, so the Dataset, Table,
-  # Timeseries, and EventMarker that already exist - and the Model and Metric
-  # the ML layer adds - all become content-addressed, versioned, and traceable
-  # to the execution that produced them (W3C PROV: entity <- wasGeneratedBy).
+  # Artifacts. One field on every BPMN data element: where the bytes live.
+  # The engine passes wired data in memory and loads/saves an artifact at its
+  # `uri` when one is set - nothing more.
   # ===========================================================================
   - name: Artifact
     description: |
-      Content-addressing and lineage, mixed onto every BPMN data element. `digest`
-      is what the cache keys on and what a citation pins; `producedBy` is written
-      by the engine at run time, so the as-run file is the spec plus these fields.
+      Storage location, mixed onto every BPMN data element. Unset means the
+      value only flows in memory between steps; set, the engine reads/writes
+      the artifact there.
     extends:
       - bpmn:ItemAwareElement
     isAbstract: true
     properties:
       - name: uri
-        description: Where the bytes live (`s3://`, `file://`, a registry URI, a DOI).
+        description: Where the bytes live (`results/model.joblib`, `s3://...`, a URL).
         isAttr: true
         type: String
         meta:
           order: 1
           categories:
             - Artifact
-
-      - name: digest
-        description: |
-          Content hash, `sha256:<hex>`. Identity of the artifact: two artifacts with
-          the same digest are the same artifact, wherever they live.
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Artifact
-
-      - name: version
-        description: Human-facing version or tag (a git ref, a registry version, a DOI version).
-        isAttr: true
-        type: String
-        meta:
-          order: 3
-          categories:
-            - Artifact
-
-      - name: persist
-        description: Whether the bytes are stored, held in memory, or streamed.
-        isAttr: true
-        type: PersistPolicyEnum
-        default: store
-        meta:
-          order: 4
-          categories:
-            - Artifact
-
-      - name: producedBy
-        description: |
-          Cache key of the execution that generated this artifact. Left empty in a
-          spec; written by the engine on the as-run record - not edited by
-          hand. This is PROV's `wasGeneratedBy` edge.
-        isAttr: true
-        type: String
-        meta:
-          order: 5
-          categories:
-            - Run record
-          readonly: true
 
   # ===========================================================================
-  # Concrete elements.
+  # The one concrete element: a named configuration group the engine passes
+  # to steps like any other wired data.
   # ===========================================================================
-  - name: ForEach
-    description: |
-      Fan out over a collection: one instance of the body per item, joined when
-      all finish. Sharding a large input across an HPC array job and mapping a
-      preprocessing step over subjects are the same element with different
-      `iterate` values.
-    superClass:
-      - bpmn:SubProcess
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--arrow-split-vertical
-      bpmnType: bpmn:SubProcess
-    properties:
-      - name: iterate
-        description: Fixed to `items`; switch to `shards` to expand over input shards instead.
-        isAttr: true
-        type: IterationKindEnum
-        default: items
-        redefines: exec:Iteration#iterate
-        meta:
-          categories:
-            - Iteration
-
-  - name: Sweep
-    description: |
-      Fan out over a configuration space: one instance of the body per point.
-      The experiment-variation construct ML research actually uses - and the same
-      element as `cognitive:RandomGateway`, one scope level up: that assigns a
-      participant to a cell of the design, this assigns a run to one.
-    superClass:
-      - bpmn:SubProcess
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--tune-variant
-      bpmnType: bpmn:SubProcess
-    properties:
-      - name: iterate
-        description: Fixed to `grid`; the space and strategy are set in `grid`.
-        isAttr: true
-        type: IterationKindEnum
-        default: grid
-        redefines: exec:Iteration#iterate
-        meta:
-          pinned: true
-          categories:
-            - Iteration
-
-  # (There is no `Repeat` or `Block` element: a plain `bpmn:SubProcess` is the
-  # named group of steps, and a cycle is a sub-process carrying BPMN's own
-  # standard-loop child (`loopCondition`, `loopMaximum`) - not a type. The
-  # "Repeat until" template below presets one.)
-
-  - name: Component
-    description: |
-      A call to a sub-flow defined elsewhere. The reusability primitive: a
-      preprocessing pipeline, a scoring protocol, or an agent published once and
-      called from many studies. Sets BPMN's `calledElement` to the target flow;
-      its interface is the data elements wired to it, like any other step.
-    superClass:
-      - bpmn:CallActivity
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--package-variant-closed
-      bpmnType: bpmn:CallActivity
-    properties:
-      - name: source
-        description: |
-          Where the called flow comes from, in the same reference grammar as
-          `implementation` - a registry entry,
-          a URL, or a path (e.g. `https://registry.behaverse.org/flows/eegprep@2.1`).
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          categories:
-            - Component
-
-      - name: digest
-        description: |
-          Content hash of the exact called flow, resolved at first run. Pinning a
-          component is what keeps a study reproducible when the component moves on.
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Component
-          optional: true
-
-  - name: Gate
-    description: |
-      A decision on a measured value: continue only when the criterion holds.
-      Promotion gates ("deploy only if AUC exceeds the baseline"), data-quality
-      gates, and safety gates are all this element. The rule itself is BPMN's
-      own: type it as the pass flow's `conditionExpression` - the field the
-      engine's branch rule reads - and mark the reject flow as the gateway's
-      native `default`. This element adds only the `rationale` the reviewers
-      read; there is no second place to write the rule.
-    superClass:
-      - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--gate-arrow-right
-      bpmnType: bpmn:ExclusiveGateway
-      branching: condition
-    properties:
-      - name: rationale
-        description: Why this threshold. Reviewers read this; the engine does not.
-        isAttr: true
-        type: studyflow:MarkdownString
-        meta:
-          order: 1
-          categories:
-            - Gate
-
   - name: Parameters
     description: |
-      A named configuration group. Composing these - a base config plus the
-      overrides a variant needs - is how a study or an experiment varies without
-      duplicating the flow (the role Hydra's config groups play in ML research).
+      A named configuration group - a dict of values wired to the steps that
+      read it, so a study varies by editing data, not the flow.
     superClass:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
@@ -862,39 +212,6 @@ types:
             - Parameters
           editor: yaml
 
-      - name: basedOn
-        description: |
-          Id of a `Parameters` element this one overrides, forming a defaults
-          chain. Later entries win, key by key.
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Parameters
-          optional: true
-
-  - name: Blob
-    description: |
-      A typed artifact with no more specific type - a file, a checkpoint, a
-      figure, an archive. Use `Dataset`, `Table`, `Model`, or `Metric` when the
-      shape is known; use this when it is not.
-    superClass:
-      - bpmn:DataObjectReference
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--file-outline
-      bpmnType: bpmn:DataObjectReference
-    properties:
-      - name: contentType
-        description: Media type of the content (e.g. `image/png`, `application/octet-stream`).
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          categories:
-            - Artifact
-
 templates:
   - description: Launch the flow on a schedule - BPMN's own timer start event, with a cron or ISO 8601 cycle.
     object:
@@ -903,11 +220,9 @@ templates:
       bpmn:documentation: |
         A native BPMN timer start event. `timeCycle` holds a cron five-field
         expression (`0 6 * * *`) or an ISO 8601 repeating interval (`R/PT24H`).
-        Each firing is an ordinary run: same seed derivation, same caching,
-        same as-run record - so a nightly re-run only re-executes the steps
-        whose inputs changed. The other launch conditions are also native
-        BPMN: a message start event for external events, a conditional start
-        event for data arrival, a plain start event for manual runs.
+        The other launch conditions are also native BPMN: a message start
+        event for external events, a conditional start event for data arrival,
+        a plain start event for manual runs.
       icon: iconify mdi--clock-start
       keywords:
         - schedule
@@ -920,15 +235,14 @@ templates:
         - type: bpmn:TimerEventDefinition
           timeCycle: "0 6 * * *"
 
-  - description: Wait for data - a sensor that holds the token until a condition over the bindings holds.
+  - description: Wait for data - a sensor that holds the token until a condition over the variables holds.
     object:
       bpmn:name: Wait for data
       type: bpmn:IntermediateCatchEvent
       bpmn:documentation: |
         A native BPMN conditional catch event: the run pauses here until the
         `condition` holds (data arrived, a metric crossed a line), then
-        continues. The workflow sensor - poll cadence is the executor's
-        business, the condition is the model's.
+        continues.
       icon: iconify mdi--radar
       keywords:
         - sensor
@@ -959,58 +273,13 @@ templates:
         - type: bpmn:TimerEventDefinition
           timeDuration: PT1H
 
-  - description: Shard a large input across an HPC array job - one task per shard, results concatenated.
-    object:
-      bpmn:name: Shard across cluster
-      type: ForEach
-      bpmn:documentation: |
-        Fan out over input shards, one scheduler array task per shard. Set the
-        shard count in `resources.array`; the body runs once per shard with the
-        shard index bound in scope.
-      icon: iconify mdi--server-network
-      keywords:
-        - shard
-        - array
-        - hpc
-        - slurm
-        - parallel
-      iterate: shards
-      loopCharacteristics:
-        type: bpmn:MultiInstanceLoopCharacteristics
-      runsOn: hpc
-      scheduler: slurm
-      compute: "cpus: 4\nmemory: 16G\nwalltime: 02:00:00\narray: 128"
-      collect: concat
-      collectAs: results
-
-  - description: Sweep a hyperparameter grid and keep the point that maximizes the objective.
-    object:
-      bpmn:name: Hyperparameter Optimization
-      type: Sweep
-      bpmn:documentation: |
-        One instance of the body per point of the space. The engine records every
-        point's metrics and reports the winner under `objective`.
-      icon: iconify mdi--tune-variant
-      keywords:
-        - sweep
-        - grid
-        - search
-        - hyperparameter
-        - multirun
-      loopCharacteristics:
-        type: bpmn:MultiInstanceLoopCharacteristics
-      grid: "strategy: grid\nspace:\n  lr: [0.001, 0.01, 0.1]\n  max_depth: [2, 4, 8]\nobjective:\n  metric: val_auc\n  goal: max"
-      collect: list
-      collectAs: trials
-
   - description: Retry-until-good loop - run the body until a criterion holds or the turn budget runs out.
     object:
       bpmn:name: Repeat until
       type: bpmn:SubProcess
       bpmn:documentation: |
-        Re-enters the body in a fresh `turn` scope while BPMN's own
-        `loopCondition` holds. Give every loop a `loopMaximum` - it is the only
-        guaranteed termination bound.
+        Re-enters the body while BPMN's own `loopCondition` holds. Give every
+        loop a `loopMaximum` - it is the only guaranteed termination bound.
       icon: iconify mdi--repeat-variant
       keywords:
         - loop
@@ -1021,3 +290,23 @@ templates:
         type: bpmn:StandardLoopCharacteristics
         loopCondition: score < 0.9
         loopMaximum: 5
+
+  - description: Gate - continue only when a measured value clears the criterion.
+    object:
+      bpmn:name: Gate
+      type: bpmn:ExclusiveGateway
+      bpmn:documentation: |
+        A decision on a measured value: promotion gates ("keep the model only
+        if accuracy clears the bar"), data-quality gates, and safety gates are
+        all a native exclusive gateway. The rule is BPMN's own: type it as the
+        pass flow's `conditionExpression` - the field the engine's branch rule
+        reads - and mark the reject flow as the gateway's native `default`.
+        Write the rationale for the threshold here in `documentation`, where
+        reviewers read it; there is no second place to write the rule.
+      icon: iconify mdi--gate-arrow-right
+      keywords:
+        - gate
+        - threshold
+        - promote
+        - policy
+        - quality

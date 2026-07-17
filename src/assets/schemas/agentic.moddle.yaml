@@ -2,12 +2,12 @@
 
 name: Agentic
 prefix: agentic
-description: Studyflow extension for LLM and agent workflows. Two elements are genuinely new - `Agent` (a BPMN ad-hoc sub-process, "activities whose order is decided at run time", which is the line between an agent and a workflow) and `Router` (a gateway whose branch a model picks). `LLMCall`, `Tool`, and `HumanApproval` are generic anchors; retrieval, judging, and guardrails are templates over `Tool`, not classes.
+description: Studyflow extension for LLM and agent workflows, kept to what an engine calling a model API (Ollama, Claude, OpenAI) actually reads. Two elements are genuinely new - `Agent` (a BPMN ad-hoc sub-process, "activities whose order is decided at run time", which is the line between an agent and a workflow) and `Router` (a gateway whose branch a model picks). `LLMCall` is one model call; `Tool` is a capability an agent may call (an ordinary step - `implementation` + `with`); `HumanApproval` pauses for a person; `Prompt` and `Memory` are the data the calls read and the state they carry.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 xml:
   tagAlias: lowerCase
-version: 26.0716
+version: 26.0717
 
 associations: []
 
@@ -49,10 +49,7 @@ enumerations:
 
   - name: MemoryScopeEnum
     isAbstract: true
-    description: |
-      How long a memory store lives. The scope kinds match the engine's scope
-      frames, so an agent's memory can be per-turn, per-run, or per-participant
-      without any extra machinery.
+    description: How long a memory store lives.
     literalValues:
       - name: Turn
         value: turn
@@ -71,7 +68,7 @@ types:
   # definition of an agent, and it has been in the BPMN spec since 2011. So an
   # Agent is not a new shape: it is that shape, with a model attached. The tools
   # it may call are the activities drawn inside it. The exit test is BPMN's own
-  # `completionCondition` (flattened to an attribute below); `maxTurns` is the
+  # `completionCondition` (flattened to an attribute by exec); `maxTurns` is the
   # one custom field, because BPMN puts no ceiling on an ad-hoc sub-process.
   # ===========================================================================
   - name: Agent
@@ -93,7 +90,7 @@ types:
       bpmnType: bpmn:AdHocSubProcess
     properties:
       - name: model
-        description: Model identifier (e.g. `claude-opus-4-8`, `gpt-5`, `llama-4-70b`).
+        description: Model identifier (e.g. `claude-opus-4-8`, `gpt-5`, `ollama/llama3.3`).
         isAttr: true
         type: String
         meta:
@@ -119,10 +116,7 @@ types:
           categories:
             - Agent
       - name: temperature
-        description: |
-          Sampling temperature. Anything above 0 makes the agent non-deterministic,
-          so its choices are recorded in the run log and replayed from there rather
-          than re-drawn.
+        description: Sampling temperature.
         isAttr: true
         type: Real
         default: 1
@@ -142,31 +136,19 @@ types:
           order: 7
           categories:
             - Agent
-      - name: deterministic
-        description: |
-          An agent chooses its own path, so it is never a pure function of its
-          inputs. Pinned false - the engine records each decision and replays it.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: exec:Step#deterministic
-        meta:
-          pinned: true
 
   # ===========================================================================
   # The model-driven branch. Everything about it is an ordinary exclusive
   # gateway except who picks the branch: a classifier decides. The engine's
-  # branch selector reads `meta.branching` (alongside `random` and `condition`);
-  # the chosen branch and its stated reason are written to the run log, so a
-  # routing decision can be audited after the fact.
+  # branch selector reads `meta.branching` (alongside `random` and `condition`).
   # ===========================================================================
   - name: Router
     description: |
       A branch the model decides. The classifier's options are the outgoing
       sequence flows' labels, so the diagram and the model's choices cannot drift
-      apart. The chosen branch is recorded, never re-drawn on replay. When the
-      classifier is unsure or fails, the gateway's own default flow is taken -
-      BPMN's native escape hatch, so there is no separate fallback field.
+      apart. When the classifier is unsure or fails, the gateway's own default
+      flow is taken - BPMN's native escape hatch, so there is no separate
+      fallback field.
     superClass:
       - bpmn:ExclusiveGateway
       - bpmn:BaseElement
@@ -197,15 +179,14 @@ types:
 
   # ===========================================================================
   # Generic anchors. A model call and a tool call are the two atoms of the
-  # layer; prompt-chaining, RAG, judging, and guardrails are all built from them.
-  # They inherit the full step contract (`implementation`, `with`, `runsOn`, `cache`, ...)
-  # so a tool is an ordinary step and every call lands in the log.
+  # layer; prompt-chaining and agent loops are built from them. A tool is an
+  # ordinary step (`implementation` + `with` + wired data), so anything a
+  # studyflow can run, an agent can call.
   # ===========================================================================
   - name: LLMCall
     description: |
       One model call: a prompt in, a response out. The unit prompt-chaining
-      workflows are built from. Deterministic when `temperature` is 0 and a seed
-      is set; otherwise the response is recorded and replayed.
+      workflows are built from - for the engine, one request to the model API.
     superClass:
       - bpmn:ServiceTask
       - bpmn:BaseElement
@@ -214,7 +195,7 @@ types:
       bpmnType: bpmn:ServiceTask
     properties:
       - name: model
-        description: Model identifier.
+        description: Model identifier (e.g. `ollama/llama3.3`, `claude-opus-4-8`).
         isAttr: true
         type: String
         meta:
@@ -224,7 +205,7 @@ types:
       - name: prompt
         description: |
           The prompt, in markdown. `{{name}}` placeholders are filled from the
-          data elements wired to the step (by name) and the scope's bindings.
+          data elements wired to the step (by name) and the run's variables.
           Wire a `Prompt` element in instead when the wording is itself under study.
         isAttr: false
         type: studyflow:MarkdownString
@@ -256,10 +237,7 @@ types:
     description: |
       A capability an agent may call. A tool is an ordinary step - same `implementation`
       and `with` as any other activity, same wired data elements as its
-      interface - so anything a studyflow can run, an agent can call, and every
-      tool call lands in the run log as its own execution. Retrieval, judging, and guardrails are templates
-      over this type: a retriever is a Tool with `kind: retrieval`, a judge a Tool
-      whose `implementation` scores against a rubric.
+      interface - so anything a studyflow can run, an agent can call.
     superClass:
       - bpmn:ServiceTask
       - bpmn:BaseElement
@@ -289,21 +267,18 @@ types:
           order: 2
           categories:
             - Tool
-      # `sideEffects` (never replayed from cache; gate behind HumanApproval)
-      # comes from the `exec:Step` contract - declared once there.
 
   # ===========================================================================
   # Human-in-the-loop. Studyflow has always suspended on human steps: a
   # participant doing a cognitive task is one. HumanApproval is the same
-  # suspension with a reviewer instead of a subject - and the anchor for any
-  # human-judgement step (feedback, labeling, preference) via templates.
+  # suspension with a reviewer instead of a subject.
   # ===========================================================================
   - name: HumanApproval
     description: |
       Stop and wait for a person to approve, reject, or edit before continuing.
-      The engine suspends the run here and checkpoints it - the process may exit
-      and resume days later on the reviewer's answer. Put one in front of every
-      side-effecting tool call you would not want a model to make alone.
+      The engine pauses the run here and resumes on the reviewer's answer. Put
+      one in front of every side-effecting tool call you would not want a
+      model to make alone.
     superClass:
       - bpmn:UserTask
       - bpmn:BaseElement
@@ -311,14 +286,6 @@ types:
       icon: iconify mdi--account-check-outline
       bpmnType: bpmn:UserTask
     properties:
-      - name: runsOn
-        description: Approval is by definition a human step.
-        isAttr: true
-        type: exec:RuntimeTargetEnum
-        default: human
-        redefines: exec:Step#runsOn
-        meta:
-          pinned: true
       - name: question
         description: What the reviewer is being asked, in markdown. Shown with the artifact under review.
         isAttr: false
@@ -328,42 +295,15 @@ types:
           categories:
             - Approval
           editor: markdown
-      - name: approvers
-        description: Who may answer (a role, a list of people, a group).
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Approval
-      - name: onTimeout
-        description: |
-          What happens when nobody answers within `exec:timeout` (e.g. `wait`,
-          `escalate`, `approve`, `reject`). Free text; `approve` is almost always
-          the wrong choice, so it is not the default. The drawn-out native
-          spelling is a boundary timer whose flow leads where you choose -
-          use that instead when the timeout path deserves to be visible.
-        isAttr: true
-        type: String
-        default: wait
-        meta:
-          order: 3
-          categories:
-            - Approval
 
   # ===========================================================================
   # Artifacts.
   # ===========================================================================
   - name: Prompt
     description: |
-      A prompt as a versioned artifact rather than a string in a script. Prompts
-      are the hyperparameters of an LLM system: if the wording is not versioned,
-      "the same pipeline" is not the same pipeline. Carries `digest` and `version`
-      from the `exec:Artifact` trait - and because prompts are hyperparameters,
-      they can be *fitted*: the ml `Optimize prompt` step takes one in and writes
-      an improved version out, with `producedBy` recording the execution that
-      compiled it. Prompt lineage is model lineage.
+      A prompt as an artifact rather than a string in a script - wired into the
+      calls that read it, so "the same pipeline" really is the same pipeline
+      and a wording change is a visible edit to one data element.
     superClass:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
@@ -380,22 +320,13 @@ types:
           categories:
             - Prompt
           editor: markdown
-      - name: variables
-        description: Placeholders the template expects, and their types, as a YAML mapping.
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 2
-          categories:
-            - Prompt
-          editor: yaml
 
   - name: Memory
     description: |
       State an agent carries across turns - conversation history, scratchpad,
-      retrieved facts. `scope` says how long it lives, using the same scope frames
-      the engine already tracks, so per-participant memory in a study and per-run
-      memory in a pipeline are one mechanism. Where it is kept goes in `documentation`.
+      retrieved facts. `scope` says how long it lives, so per-participant
+      memory in a study and per-run memory in a pipeline are one mechanism.
+      Where it is kept goes in `documentation`.
     superClass:
       - bpmn:DataStoreReference
       - bpmn:BaseElement
@@ -425,8 +356,8 @@ templates:
         out. Contrast with the workflow templates, where the diagram decides the
         order and the model only fills in the steps.
 
-        Add tools by drawing them inside. The side-effecting ones belong behind a
-        Human approval.
+        Add tools by drawing them inside - each is an ordinary step bound to a
+        real callable. The side-effecting ones belong behind a Human approval.
       icon: iconify mdi--robot-outline
       keywords:
         - agent
@@ -434,7 +365,7 @@ templates:
         - tools
         - loop
         - adhoc
-      model: claude-opus-4-8
+      model: ollama/llama3.3
       systemPrompt: |
         You are a research assistant. Use the available tools to answer the
         question. Stop as soon as you can answer it.
@@ -444,29 +375,25 @@ templates:
       flowElements:
         - id: agent_search
           type: Tool
-          bpmn:name: Search corpus
-          kind: retrieval
-          implementation: python://lab.tools.search
-          with: "index: study_corpus\ntopK: 5"
+          bpmn:name: Search Wikipedia
+          kind: search
+          purpose: |
+            Look up background facts. Use it when the question needs knowledge
+            you do not already have.
+          implementation: python://wikipedia.search
+          with: "results: 5"
           x: 200
-          y: 120
-        - id: agent_analyze
-          type: Tool
-          bpmn:name: Run analysis
-          kind: code
-          implementation: python://lab.tools.analyze
-          x: 200
-          y: 230
+          y: 140
 
   - description: Evaluator-optimizer - generate, judge, revise until the score clears the bar.
     object:
       bpmn:name: Evaluator-optimizer
       type: bpmn:SubProcess
       bpmn:documentation: |
-        The loop a plain DAG cannot express: a generator produces a draft, a judge
-        scores it against a rubric, and the loop re-enters with the critique until
-        the score clears the bar or the turn budget is spent. Each turn opens its
-        own scope frame, so every draft and every score is separately recorded.
+        The loop a plain DAG cannot express: a generator produces a draft, a
+        judge scores it against a rubric, and the loop re-enters with the
+        critique until the score clears the bar or the turn budget is spent -
+        BPMN's own `loopCondition` and `loopMaximum` carry the loop.
       icon: iconify mdi--autorenew
       keywords:
         - evaluator
@@ -482,16 +409,17 @@ templates:
         - id: eo_generate
           type: LLMCall
           bpmn:name: Draft
-          model: claude-opus-4-8
+          model: ollama/llama3.3
           temperature: 0.7
           x: 200
           y: 140
         - id: eo_judge
-          type: Tool
-          bpmn:name: Score against rubric
-          kind: function
-          implementation: python://lab.judge
-          with: "model: claude-opus-4-8\nscale: 1-5\njurors: 3"
+          type: LLMCall
+          bpmn:name: Judge the draft
+          model: claude-opus-4-8
+          prompt: |
+            Score the draft 1-5 against the rubric and name the deciding
+            criterion. Reply as `score: <n>` on the first line.
           x: 380
           y: 140
         - type: bpmn:SequenceFlow
@@ -504,10 +432,9 @@ templates:
       type: Router
       bpmn:documentation: |
         The classifier's options are the outgoing branch labels, so the diagram and
-        the prompt cannot drift apart. The chosen branch and the stated reason go
-        into the run log; a replay takes the recorded branch rather than asking again.
-        Mark one outgoing flow as the gateway's default - BPMN's own mechanism - and
-        it is taken when the classifier is unsure or fails.
+        the prompt cannot drift apart. Mark one outgoing flow as the gateway's
+        default - BPMN's own mechanism - and it is taken when the classifier is
+        unsure or fails.
       icon: iconify mdi--sign-direction
       keywords:
         - router
@@ -521,74 +448,14 @@ templates:
         labels on the outgoing flows. If none clearly applies, say so; the
         default branch is taken.
 
-  - description: Retrieval-augmented context - fetch top-k passages for a model call.
-    object:
-      bpmn:name: Retrieve context
-      type: Tool
-      bpmn:documentation: |
-        RAG is the most common compound-AI pattern by a wide margin, so it earns a
-        palette entry - but it is an ordinary Tool with `kind: retrieval`, not a
-        class. Set the index, `topK`, and embedding model in `with`; changing the
-        embedding model invalidates the cache, which is why it is recorded.
-      icon: iconify mdi--text-search
-      keywords:
-        - retrieve
-        - rag
-        - search
-        - vector
-        - context
-      kind: retrieval
-      implementation: python://lab.rag.retrieve
-      with: "index: study_corpus\ntopK: 5\nembeddingModel: text-embedding-3-large"
-
-  - description: LLM-as-judge - score an output against a rubric, producing a Metric.
-    object:
-      bpmn:name: Judge (LLM-as-judge)
-      type: Tool
-      bpmn:documentation: |
-        A judge is part of the measuring instrument, so name the judge model
-        explicitly (swapping it changes the numbers) and take several independent
-        judgements (`jurors > 1`) as the standard defence against a single judge's
-        noise. All of that lives in `with`; the score comes out as a `ml:Metric`.
-      icon: iconify mdi--gavel
-      keywords:
-        - judge
-        - rubric
-        - evaluate
-        - llm-as-judge
-        - score
-      kind: function
-      implementation: python://lab.judge
-      with: "model: claude-opus-4-8\nscale: 1-5\njurors: 3\nrubric: |\n  Score 1-5 for factual accuracy against the source."
-
-  - description: Guardrail - check what enters or leaves a model call, and act when it trips.
-    object:
-      bpmn:name: Guardrail
-      type: Tool
-      bpmn:documentation: |
-        Drawing the guardrail makes the safety policy reviewable, and makes it
-        obvious when there isn't one. The phase (input/output), the policy, and
-        what to do when it trips (block / redact / warn / escalate) go in `with`.
-      icon: iconify mdi--shield-check-outline
-      keywords:
-        - guardrail
-        - safety
-        - pii
-        - moderation
-        - policy
-      kind: function
-      sideEffects: false
-      implementation: python://lab.guardrail.check
-      with: "phase: output\naction: block\npolicy: |\n  No PII; no tool call outside the allow-list."
-
   - description: Human approval gate - stop, show the artifact, wait for a person.
     object:
       bpmn:name: Human approval
       type: HumanApproval
       bpmn:documentation: |
-        Suspends the run and checkpoints it. The worker may exit; the run resumes
-        when the reviewer answers, hours or days later. Put one of these in front
-        of every side-effecting tool call you would not want a model to make alone.
+        Pauses the run until the reviewer answers. Put one of these in front
+        of every side-effecting tool call you would not want a model to make
+        alone.
       icon: iconify mdi--account-check-outline
       keywords:
         - approval
@@ -598,50 +465,6 @@ templates:
         - interrupt
       question: |
         Review the proposed action and approve, edit, or reject it.
-      timeout: 48h
-      onTimeout: wait
-
-  - description: Collect a human judgement - a label, a preference, a rating against a rubric.
-    object:
-      bpmn:name: Human feedback
-      type: HumanApproval
-      bpmn:documentation: |
-        The data-collection step behind evaluation sets and preference tuning - the
-        same suspension as an approval, pointed at a model's output instead of a
-        proposed action. The rubric, the response format, and how many raters see
-        each item go in `with`; with more than one rater, agreement is computable.
-      icon: iconify mdi--comment-quote-outline
-      keywords:
-        - feedback
-        - rating
-        - preference
-        - label
-        - annotation
-      question: |
-        Rate this output against the rubric.
-      with: "scale: 1-7 Likert\nraters: 3\nrubric: |\n  How helpful is this answer?"
-
-  - description: Ask a person which of two answers is better - the table preference tuning fits on.
-    object:
-      bpmn:name: Pairwise preference
-      type: HumanApproval
-      bpmn:documentation: |
-        Two candidate answers, one question: which is better? The collected
-        pairs are exactly the table the ml `Preference-tune` step consumes. In a
-        study, the raters can be the participants themselves - preference
-        collection is a task like any other, so recruitment, consent, and
-        assignment come from the core language rather than an annotation
-        vendor. More than one rater per pair makes agreement computable.
-      icon: iconify mdi--compare-horizontal
-      keywords:
-        - preference
-        - pairwise
-        - dpo
-        - rlhf
-        - annotation
-      question: |
-        Which answer is better? Choose A or B and name the deciding difference.
-      with: "format: pairwise\nraters: 3\nsampling: balanced"
 
   - description: Prompt chain with a quality gate between the steps.
     object:
@@ -666,14 +489,15 @@ templates:
           x: 180
           y: 140
         - id: chain_gate
-          type: exec:Gate
+          type: bpmn:ExclusiveGateway
+          icon: iconify mdi--gate-arrow-right
           bpmn:name: Complete?
           x: 340
           y: 145
         - id: chain_b
           type: LLMCall
           bpmn:name: Summarize
-          model: claude-opus-4-8
+          model: ollama/llama3.3
           temperature: 0
           x: 460
           y: 140

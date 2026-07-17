@@ -115,67 +115,56 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     return undefined;
   };
 
-  test('a stored trait value is not masked by the wrapper default (Ship cache=never)', async () => {
-    const definitions = await loadExample('ml_pipeline.studyflow');
-    const ship = findInDefinitions(definitions, 'Ship');
-    expect(ship).toBeTruthy();
-    // The value is stored on the business object...
-    expect(ship.get('exec:cache')).toBe('never');
-    // ...and the resolved read must return it, not the materialized `reuse`.
-    expect(getAttribute(ship, 'exec:cache')).toBe('never');
-  });
-
-  test('a stored false is not masked by a true wrapper default (Optimize_Prompt deterministic)', async () => {
+  test('a stored trait value is not masked by defaults (Per_Item iterate=items)', async () => {
     const definitions = await loadExample('agent_eval.studyflow');
-    const step = findInDefinitions(definitions, 'Optimize_Prompt');
-    expect(step).toBeTruthy();
-    expect(step.get('exec:deterministic')).toBe(false);
-    expect(getAttribute(step, 'exec:deterministic')).toBe(false);
+    const each = findInDefinitions(definitions, 'Per_Item');
+    expect(each).toBeTruthy();
+    // The value is stored on the business object (no wrapper involved)...
+    expect(each.get('functional:iterate')).toBe('items');
+    // ...and the resolved read must return it, not the trait default `none`.
+    expect(getAttribute(each, 'functional:iterate')).toBe('items');
+
+    // With a wrapper attached, its materialized trait defaults must not mask
+    // the stored business-object value either.
+    const bo = moddle.create('bpmn:ServiceTask', { id: 'Op_0' });
+    bo.set('functional:iterate', 'items');
+    createExtensionElement(bo, 'functional:Map', moddle, {});
+    expect(getAttribute(bo, 'functional:iterate')).toBe('items');
   });
 
   test('pinned wrapper defaults win over stale business-object values', () => {
-    // agentic:Agent pins deterministic=false; a stale true on the BO must not show.
-    const agent = moddle.create('bpmn:AdHocSubProcess', { id: 'Agent_1' });
-    agent.set('exec:deterministic', true);
-    createExtensionElement(agent, 'agentic:Agent', moddle, {});
-    expect(getAttribute(agent, 'exec:deterministic')).toBe(false);
-
-    // ml:Operation pins isDataOperation=true over the trait default (false).
-    const op = moddle.create('bpmn:ServiceTask', { id: 'Op_1' });
-    op.set('isDataOperation', false);
-    createExtensionElement(op, 'ml:Operation', moddle, {});
-    expect(getAttribute(op, 'isDataOperation')).toBe(true);
-
-    // datatrove subtypes pin operationType per verb.
+    // functional subtypes pin operationType per verb, and pin
+    // isDataOperation=true over the trait default (false).
     const map = moddle.create('bpmn:ServiceTask', { id: 'Map_1' });
-    createExtensionElement(map, 'datatrove:Map', moddle, {});
+    map.set('isDataOperation', false);
+    createExtensionElement(map, 'functional:Map', moddle, {});
     expect(getAttribute(map, 'operationType')).toBe('map');
+    expect(getAttribute(map, 'isDataOperation')).toBe(true);
   });
 
-  test('template-stamped values still appear (Deploy stamps cache=never)', () => {
+  test('template-stamped values still appear (Reader stamps a path)', () => {
     // Mirrors createTemplateShape: catalog defaults + templateAttributes are
     // stamped through ensureExtension at creation time.
-    const bo = moddle.create('bpmn:ServiceTask', { id: 'Deploy_1' });
+    const bo = moddle.create('bpmn:ServiceTask', { id: 'Reader_1' });
     const el = StudyflowElement.fromBusinessObject(bo);
-    el.ensureExtension('ml:Operation', moddle, {
-      ...getDefaults('ml:Operation'),
-      cache: 'never',
-      uses: 'python://lab.serving.deploy',
+    el.ensureExtension('datatrove:Reader', moddle, {
+      ...getDefaults('datatrove:Reader'),
+      className: 'CsvReader',
+      path: 'data/raw/',
     });
-    expect(el.read('cache')).toBe('never');
-    expect(el.read('uses')).toBe('python://lab.serving.deploy');
+    expect(el.read('className')).toBe('CsvReader');
+    expect(el.read('path')).toBe('data/raw/');
   });
 
-  test('redefined wrapper defaults beat trait defaults until a value is stored (ForEach iterate)', () => {
+  test('trait defaults apply on bare elements; stored values win (iterate)', () => {
+    // No wrapper types redefine `iterate` anymore (a fan-out is a native
+    // sub-process a template presets), so a bare element shows the
+    // functional:Iteration trait default until a value is stored.
     const bo = moddle.create('bpmn:SubProcess', { id: 'Each_1' });
-    createExtensionElement(bo, 'exec:ForEach', moddle, {});
-    // Nothing stored anywhere: the ForEach redefinition (`items`) must beat
-    // the exec:Iteration trait default (`none`).
-    expect(getAttribute(bo, 'iterate')).toBe('items');
+    expect(getAttribute(bo, 'iterate')).toBe('none');
 
-    // An explicitly stored value beats the non-pinned redefined default.
     const el = StudyflowElement.fromBusinessObject(bo);
-    el.write('iterate', 'shards');
-    expect(el.read('iterate')).toBe('shards');
+    el.write('iterate', 'items');
+    expect(el.read('iterate')).toBe('items');
   });
 });

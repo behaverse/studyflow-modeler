@@ -5,8 +5,8 @@ definitions:
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
   xmlns:exec: https://w3id.org/studyflow/exec
-  xmlns:ml: https://w3id.org/studyflow/ml
   xmlns:agentic: https://w3id.org/studyflow/agentic
+  xmlns:functional: https://w3id.org/studyflow/functional
 Agent_Eval:
   type: bpmn:Process
   documentation: |
@@ -27,13 +27,12 @@ Agent_Eval:
 
     - The agent's tools are the activities inside it. A tool that is not drawn is a
       capability nobody reviewed.
-    - Every model call, tool call, and routing decision is one execution in the run
-      log. A non-deterministic run is still replayable, because a replay reads the
-      recorded decisions instead of asking the model again.
+    - Every step is one call the engine makes - a model request, a tool
+      function, a judge - with its data arriving over the wires.
     - The eval is also the fitness function. The outer loop refits the agent's
-      instructions - an ml Operation whose trainable is a Prompt artifact - from
-      each round's scores, so "evaluate the agent" and "improve the agent" are the
-      same diagram.
+      instructions - a plain service task bound to `python://dspy.MIPROv2`, whose
+      trainable is a Prompt artifact - from each round's scores, so "evaluate the
+      agent" and "improve the agent" are the same diagram.
   extensionElements:
     - type: studyflow:Study
   name: Agent evaluation harness
@@ -56,21 +55,19 @@ Agent_Eval:
             Score the answer 1-5 on: factual support from the retrieved passages,
             completeness against the question, and absence of unsupported claims.
             A 5 requires every claim to be traceable to a passage.
-      version: "3"
       name: Scoring rubric
     Agent_Prompt:
       type: bpmn:DataObjectReference
       documentation: |
-        The agent's instructions as a versioned artifact - the trainable of this
-        flow. Version 1 is written by hand; every later version is written by the
-        optimizer, with `producedBy` recording the compile that produced it.
+        The agent's instructions as an artifact - the trainable of this flow.
+        The first wording is written by hand; each optimizer round overwrites
+        it with a better one.
       extensionElements:
         - type: agentic:Prompt
           template: |
             Answer the question using the corpus. Search before you answer, cite
             the passages you used, and say so plainly when the corpus does not
             support an answer.
-      version: "1"
       name: Agent instructions
     Improve:
       type: bpmn:SubProcess
@@ -87,20 +84,18 @@ Agent_Eval:
         - Flow_Improve_Done
       loopCharacteristics:
         type: bpmn:StandardLoopCharacteristics
-        loopCondition: metrics.mean_judge_score < 4
+        loopCondition: mean_judge_score < 4
         loopMaximum: 3
       flowElements:
         Optimize_Prompt:
           type: bpmn:ServiceTask
           documentation: |
             The fitting step: last round's scored items are the trainset, the
-            judge's score is the objective, and the agent's instructions are the
-            trainable. Skipped on the first turn (`when`), so the hand-written
-            prompt gets a baseline eval before anything is changed. The optimizer
-            calls models, so `deterministic` is false and its outcome is recorded
-            rather than re-derived.
-          extensionElements:
-            - type: ml:Operation
+            judge's score is the objective, and the agent's instructions are
+            the trainable - `MIPROv2(metric, num_trials,
+            max_bootstrapped_demos)` compiling the wired Prompt. On the first
+            turn there are no scores yet, so the optimizer passes the
+            hand-written prompt through and the baseline gets evaluated first.
           name: Optimize prompt
           outgoing:
             - Flow_Optimize_Each
@@ -111,21 +106,18 @@ Agent_Eval:
           dataOutputAssociations:
             Wire_Prompt_Out:
               targetRef: Agent_Prompt
+          isDataOperation: true
           with:
             metric: judge_score
-            trials: 30
-            maxDemos: 4
-          deterministic: false
-          when: scope.turn > 1
+            num_trials: 30
+            max_bootstrapped_demos: 4
           implementation: python://dspy.MIPROv2
         Per_Item:
           type: bpmn:SubProcess
           documentation: |
-            One instance per item, each in its own scope with its own derived seed. The
-            instances are independent, so this is also the unit of parallelism - raise
-            `maxConcurrency` and it is the same diagram running wider.
-          extensionElements:
-            - type: exec:ForEach
+            One instance per item of the eval set, with the current item bound
+            as `question`. The instances are independent, so this is also the
+            unit of parallelism.
           name: For each eval item
           incoming:
             - Flow_Optimize_Each
@@ -133,9 +125,9 @@ Agent_Eval:
             - Flow_Each_Agreement
           loopCharacteristics:
             type: bpmn:MultiInstanceLoopCharacteristics
+          iterate: items
           over: items
           itemVar: question
-          maxConcurrency: 16
           collect: concat
           collectAs: scores
           flowElements:
@@ -166,60 +158,60 @@ Agent_Eval:
                   type: bpmn:ServiceTask
                   extensionElements:
                     - type: agentic:Tool
-                      kind: retrieval
-                  name: Search corpus
+                      kind: search
+                      purpose: |
+                        Look up background facts. Use it when the question needs
+                        knowledge you do not already have.
+                  name: Search Wikipedia
                   with:
-                    index: study_corpus
-                    topK: 8
-                    embeddingModel: voyage-3
-                  implementation: python://lab.rag.retrieve
+                    results: 8
+                  implementation: python://wikipedia.search
                 Compute:
                   type: bpmn:ServiceTask
                   extensionElements:
                     - type: agentic:Tool
                       kind: code
                       purpose: |
-                        Run a short Python snippet over the trial table to check a claim
-                        numerically. Use it when the question turns on a statistic.
+                        Evaluate a pandas expression over the trial table to check a
+                        claim numerically. Use it when the question turns on a statistic.
                   name: Run analysis
-                  implementation: python://lab.tools.analyze
+                  implementation: python://pandas.eval
               completionCondition: answer is not null
             Check_Output:
               type: bpmn:ServiceTask
+              documentation: |
+                A model checks the answer before it is scored: every claim must
+                be supported by a retrieved passage. A guardrail is an ordinary
+                model call with a strict prompt, not a special element.
               extensionElements:
-                - type: agentic:Tool
+                - type: agentic:LLMCall
+                  model: claude-haiku-4-5
+                  prompt: |
+                    Check the answer against the retrieved passages. Every claim
+                    must be supported by one; reject answers that cite passages
+                    the retriever never returned. Reply `pass` or `fail: <why>`.
               name: Groundedness check
               incoming:
                 - Flow_Agent_Check
               outgoing:
                 - Flow_Check_Score
-              with:
-                phase: output
-                action: block
-                policy: |
-                  Every claim in the answer must be supported by a retrieved passage.
-                  Reject answers that cite passages the retriever never returned.
-              implementation: python://lab.guardrail.check
             Score:
               type: bpmn:ServiceTask
               documentation: |
-                Three independent judgements per item, taken because one judge's score is
-                noise. The judge model is named on the diagram: it is part of the measuring
-                instrument, and swapping it moves the numbers.
+                The judge model is named on the diagram: it is part of the
+                measuring instrument, and swapping it moves the numbers.
               extensionElements:
-                - type: agentic:Tool
+                - type: agentic:LLMCall
+                  model: claude-opus-4-8
+                  prompt: |
+                    Apply the scoring rubric ({{Rubric}}). Give the score 1-5 and
+                    one sentence of justification naming the deciding criterion.
+                    Reply as `score: <n>` on the first line.
               name: Judge answer
               incoming:
                 - Flow_Check_Score
               outgoing:
                 - Flow_Score_Sample
-              with:
-                model: claude-opus-4-8
-                jurors: 3
-                rubric: |
-                  Apply the scoring rubric. Give the score and one sentence of
-                  justification naming the deciding criterion.
-              implementation: python://lab.judge
             Sample:
               type: bpmn:ExclusiveGateway
               extensionElements:
@@ -284,18 +276,15 @@ Agent_Eval:
               targetRef: Item_Done
         Agreement:
           type: bpmn:ServiceTask
-          extensionElements:
-            - type: ml:Operation
+          documentation: |
+            Reduces the collected per-item scores to the round's mean judge
+            score - the objective the optimizer maximizes and the loop
+            condition reads.
           name: Score the eval
           incoming:
             - Flow_Each_Agreement
-          with:
-            metrics:
-              - mean_judge_score
-              - judge_human_agreement
-              - guardrail_block_rate
-            split: holdout
-          implementation: python://lab.eval.summarize
+          isDataOperation: true
+          implementation: python://numpy.mean
         Flow_Optimize_Each:
           type: bpmn:SequenceFlow
           sourceRef: Optimize_Prompt

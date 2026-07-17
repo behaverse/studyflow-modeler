@@ -17,11 +17,12 @@ type Schema = {
 
 export const SCHEMAS: Schema[] = [
   { prefix: 'studyflow', name: 'Core', description: 'Generic research elements and data infrastructure.', core: true },
-  { prefix: 'exec', name: 'Exec', description: 'The executable layer: step contract, scopes, artifacts.', core: true },
+  { prefix: 'exec', name: 'Exec', description: 'The minimal executable layer: the implementation reference, loop/sensor flattenings, artifact uri, and Parameters — just enough for a Python engine to run a diagram.', core: true },
+  { prefix: 'functional', name: 'Functional', description: 'The functional-programming vocabulary: transform, map, reduce, and filter over data, plus the fan-out behind the multi-instance marker — the generic anchors domain schemas bind their verbs onto.', core: true },
   { prefix: 'cognitive', name: 'Cognitive', description: 'Cognitive and behavioral research elements, including Behaverse assessment tasks.', core: true },
-  { prefix: 'ml', name: 'ML', description: 'Statistical and machine-learning pipelines: the Model and Metric artifacts, plus a generic Operation step that verb templates bind a function onto — one fitting notation from classical estimators and formulas to fine-tuning and prompt optimization.' },
+  { prefix: 'ml', name: 'ML', description: 'Statistical and machine-learning pipelines as presets over the datatrove data operations — no element types; loading is a Reader, PCA a Map, fitting and scoring a Reduce, saving a Writer, each bound to a function via `implementation`.' },
   { prefix: 'agentic', name: 'Agentic', description: 'LLM and agent workflows: agents, model-driven routing, model/tool calls, human approval, and prompt/memory artifacts.' },
-  { prefix: 'datatrove', name: 'DataTrove', description: 'Function-composition operations over data streams, plus the DataTrove read/write/corpus family.' },
+  { prefix: 'datatrove', name: 'DataTrove', description: 'The datatrove library\'s own pipeline blocks: Reader/Writer IO steps and presets over its processing blocks.' },
   { prefix: 'omniprocess', name: 'OmniProcess', description: 'Brain and brain-data processing (fMRIPrep, EEGPrep).' },
   { prefix: 'openbci', name: 'OpenBCI', description: 'Biosignal acquisition with OpenBCI boards (Cyton, Ganglion, Galea VR headset).' },
 ];

@@ -63,7 +63,12 @@ test.describe('Studyflow choreography tasks', () => {
     await page.keyboard.press('Enter');
     await expect(visual).toContainText('Give consent');
 
-    // Undo reverts the last edit through the command stack.
+    // Undo reverts the last edit through the command stack. Enter commits the
+    // rename synchronously, but bpmn-js hands focus back to the canvas via a
+    // debounced Canvas#restoreFocus, and the keyboard listens on the canvas
+    // SVG only - an undo pressed before focus lands there is silently lost.
+    await expect(editor).toBeHidden();
+    await expect(page.getByTestId('modeler-canvas').locator('svg[tabindex]')).toBeFocused();
     await page.keyboard.press('ControlOrMeta+z');
     await expect(visual).not.toContainText('Give consent');
     await expect(visual).toContainText('Subject');

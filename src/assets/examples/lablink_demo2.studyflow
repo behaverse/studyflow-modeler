@@ -8,6 +8,7 @@ definitions:
   xmlns:di: http://www.omg.org/spec/DD/20100524/DI
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:datatrove: https://w3id.org/studyflow/datatrove
+  xmlns:functional: https://w3id.org/studyflow/functional
 OmniProcessLabLinkDemo:
   type: bpmn:Process
   documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
@@ -112,7 +113,7 @@ OmniProcessLabLinkDemo:
     QCFilter:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: datatrove:Filter
+        - type: functional:Filter
       name: Drop QC failures
       incoming:
         - Flow_Read_Filter
@@ -147,7 +148,7 @@ OmniProcessLabLinkDemo:
     fMRIPrep:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: datatrove:Map
+        - type: functional:Map
       name: fMRIPrep
       incoming:
         - Flow_Split_fMRI
@@ -176,7 +177,7 @@ OmniProcessLabLinkDemo:
         EEG_FilterSignal:
           type: bpmn:ServiceTask
           extensionElements:
-            - type: datatrove:Map
+            - type: functional:Map
           name: Filter signal
           incoming:
             - Flow_EEG_Filter
@@ -187,7 +188,7 @@ OmniProcessLabLinkDemo:
         EEG_RemoveArtifacts:
           type: bpmn:ServiceTask
           extensionElements:
-            - type: datatrove:Map
+            - type: functional:Map
           name: Remove artifacts
           incoming:
             - Flow_EEG_Clean
@@ -240,7 +241,7 @@ OmniProcessLabLinkDemo:
     CollectStats:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: datatrove:Reduce
+        - type: functional:Reduce
       name: Collect features
       incoming:
         - Flow_Join_Stats
@@ -256,7 +257,7 @@ OmniProcessLabLinkDemo:
     FitModel:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: datatrove:Reduce
+        - type: functional:Reduce
       name: Fit model
       incoming:
         - Flow_Features_FitModel
@@ -272,7 +273,7 @@ OmniProcessLabLinkDemo:
     GenerateFigures:
       type: bpmn:ServiceTask
       extensionElements:
-        - type: datatrove:Map
+        - type: functional:Map
       name: Generate figures
       incoming:
         - Flow_FitModel_Figures

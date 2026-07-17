@@ -5,15 +5,15 @@ prefix: omniprocess
 description: |
   Brain and brain-data processing presets - modality-specific neuroimaging
   preprocessing (fMRIPrep, EEGPrep). These are not element types: they are
-  templates over the generic `datatrove` data operations, binding a container
+  templates over the generic `functional` operations, binding a container
   image via `implementation` and its parameters via `with`. A preprocessing
   pipeline is data (a template), not metamodel - the same rule the exec/ml
-  layers follow. Generic function-composition operations live in `datatrove`.
+  layers follow. Generic function-composition operations live in `functional`.
 uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
 xml:
   tagAlias: lowerCase
-version: 26.0715
+version: 26.0717
 associations: []
 enumerations: []
 types: []
@@ -21,7 +21,7 @@ templates:
   - description: Preprocess fMRI data for a single subject (fMRIPrep in a container).
     object:
       bpmn:name: fMRIPrep
-      type: datatrove:Map
+      type: functional:Map
       bpmn:documentation: "Preprocess fMRI data: filtering, artifact removal, and normalization. Requires BIDS-formatted input."
       icon: iconify streamline--brain
       keywords:
@@ -61,14 +61,14 @@ templates:
           x: 140
           y: 162
         - id: eeg_filter
-          type: datatrove:Filter
+          type: functional:Filter
           bpmn:name: Filter signal
           icon: iconify bi--funnel
           isDataOperation: true
           x: 240
           y: 140
         - id: eeg_clean
-          type: datatrove:Map
+          type: functional:Map
           bpmn:name: Remove artifacts
           icon: iconify bi--eraser
           isDataOperation: true

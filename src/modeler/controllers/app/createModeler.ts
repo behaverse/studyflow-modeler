@@ -45,7 +45,7 @@ export async function runCreateModeler(_modeler: any, command: CreateModelerComm
   if (provided) {
     try {
       const wireXml = await fromWireXml(normalizeStudyflowXml(provided), modeler.get('moddle'));
-      await modeler.importXML(await ensureDiagramLayout(wireXml));
+      await modeler.importXML(await ensureDiagramLayout(wireXml, modeler.get('moddle')));
       return modeler;
     } catch (err) {
       // An autosaved or supplied diagram failed to import (schema drift, version

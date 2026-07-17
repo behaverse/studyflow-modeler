@@ -50,7 +50,49 @@ My_Study:
 
 `incoming`/`outgoing` may be omitted — they are derived from each flow's
 `sourceRef`/`targetRef` on load. Diagram geometry (`bounds`, `waypoint`) is
-optional; the modeler auto-lays-out files that ship without it.
+optional; the modeler auto-lays-out files that ship without it — including the
+data flow: each data element is placed next to the steps it is wired to and its
+associations are drawn as dashed edges.
+
+**Data flow is the step interface.** Wire a data element to a step with
+`dataInputAssociations` (element → step) and `dataOutputAssociations`
+(step → element); the step's *Inputs*/*Outputs* in the inspector are **inferred
+from these wires** (shown read-only, marked "Inferred") — they are not typed in
+by hand:
+
+```yaml
+Fit:
+  type: bpmn:ServiceTask
+  dataInputAssociations:
+    Wire_Trials_Fit:
+      sourceRef:
+        - Trials          # data element feeding this step
+  dataOutputAssociations:
+    Wire_Fit_Model:
+      targetRef: Model    # artifact this step produces
+```
+
+**The calling convention.** A step is one Python call:
+`implementation(*args, **kwargs)`, with the return value bound to the wired
+outputs. `with` holds the arguments as plain YAML the runner evaluates with
+four rules:
+
+1. the reserved key **`args`** lists positional arguments;
+2. **`$Name`** (or `$Name.attr`) is the current value of the wired data
+   element `Name`;
+3. a mapping that itself has an **`implementation`** key is a **nested
+   call**, resolved first (import, call with its own `with`);
+4. everything else is a literal keyword argument.
+
+```yaml
+Fit:
+  implementation: python://sklearn.pipeline.Pipeline.fit
+  with:
+    args:
+      - $Pipeline           # the unbound method's first argument (self)
+    X: $Trials.data         # attributes of wired elements
+    y: $Trials.target
+```
 
 ### The schema stack
 
@@ -58,15 +100,16 @@ optional; the modeler auto-lays-out files that ship without it.
 |---|---|---|
 | `bpmn` | `.../BPMN/20100524/MODEL` | The BPMN 2.0 base: events, gateways, activities, data, artifacts, pools. |
 | `studyflow` | `http://behaverse.org/schemas/studyflow/v1` | The study container + core data infrastructure (Dataset, Table, Timeseries…). **core** |
-| `exec` | `https://w3id.org/studyflow/exec` | The executable layer: the step contract, scopes (fan-out/sweep), artifacts. **core** |
+| `exec` | `https://w3id.org/studyflow/exec` | The minimal executable layer: `implementation` + loop/sensor flattenings + artifact `uri` (+ `Parameters`). **core** |
+| `functional` | `https://w3id.org/studyflow/functional` | Function composition: Transform/Map/Reduce/Filter + the fan-out behind the multi-instance marker. **core** |
 | `cognitive` | `http://behaverse.org/schemas/studyflow/cognitive` | Cognitive tasks, Behaverse assessment tasks, questionnaires, instructions, assignment gateways, actors. **core** |
-| `ml` | `https://w3id.org/studyflow/ml` | Statistical/ML pipelines: Model & Metric artifacts + a generic Operation. |
+| `ml` | `https://w3id.org/studyflow/ml` | Statistical/ML pipelines — templates only, no types; sklearn verbs as presets over functional ops (load, split, build, fit, cross-validate…). |
 | `agentic` | `https://w3id.org/studyflow/agentic` | LLM/agent workflows: Agent, Router, LLM/Tool calls, human approval, Prompt/Memory. |
-| `datatrove` | `https://w3id.org/studyflow/datatrove` | Function composition over data streams + read/write blocks. |
+| `datatrove` | `https://w3id.org/studyflow/datatrove` | The datatrove library's own blocks: Reader/Writer IO + processing presets. |
 | `omniprocess` | `https://w3id.org/omniprocess` | Neuroimaging preprocessing presets (fMRIPrep, EEGPrep) — templates only. |
 | `openbci` | `http://behaverse.org/schemas/studyflow/openbci` | Biosignal acquisition with OpenBCI boards (Cyton, Ganglion, Galea VR headset). |
 
-A recurring design rule across `exec`/`ml`/`agentic`/`datatrove`/`omniprocess`/`openbci`:
+A recurring design rule across `exec`/`functional`/`ml`/`agentic`/`datatrove`/`omniprocess`/`openbci`:
 **parameterize, don't proliferate**. A verb that is just a generic step bound to
 a function (extract, tokenize, fit, deploy, fMRIPrep…) is shipped as a *template*
 preset, not a distinct element type. Templates are listed per schema below.
@@ -101,12 +144,12 @@ groups (Events, Activities, Gateways, Data, Containers).
 |---|---|
 | `bpmn:Task` | Generic abstract task. |
 | `bpmn:UserTask` | Performed by a human. |
-| `bpmn:ServiceTask` | Performed by software (the base for ml/agentic/datatrove steps). |
+| `bpmn:ServiceTask` | Performed by software (the base for functional/ml/agentic steps). |
 | `bpmn:ScriptTask` | Runs an inline script. |
 | `bpmn:ManualTask` | Done outside the system (e.g. fit a headset). |
 | `bpmn:SendTask` / `bpmn:ReceiveTask` | Send / wait-for a message. |
 | `bpmn:BusinessRuleTask` | Evaluates a decision/rule. |
-| `bpmn:CallActivity` | Calls another process (base for `exec:Component`). |
+| `bpmn:CallActivity` | Calls another process by reference. |
 | `bpmn:SubProcess` | Named group of steps; collapses/expands; carries loop markers. |
 | `bpmn:Transaction` | Sub-process with transactional (compensating) semantics. |
 | `bpmn:AdHocSubProcess` | Steps run in a **runtime-decided** order (base for `agentic:Agent`). |
@@ -156,9 +199,10 @@ Every element also inherits two documentation attributes from the core
 
 Steps that run external software name it with an **`implementation`**
 attribute — BPMN's own attribute (and versioned-reference grammar,
-`scheme://ref@version`) on service-style tasks, which `ml:Operation` and the
-datatrove operations redefine, and which `cognitive:CognitiveTask` mirrors on
-its wrapper for plain tasks (e.g. a versioned jsPsych plugin URL).
+`scheme://ref@version`) on service-style tasks, declared once by the
+`exec:Implementation` trait (so the functional/ml presets simply fill it in),
+and which `cognitive:CognitiveTask` mirrors on its wrapper for plain tasks
+(e.g. a versioned jsPsych plugin URL).
 
 ### Core data infrastructure
 
@@ -184,20 +228,23 @@ Trials:
 
 ---
 
-## exec — the executable layer
+## exec — the minimal executable layer
 
-Turns any activity into a runnable step, and carries the scope constructs behind
-BPMN's multi-instance/loop markers. Icon set: schema badge **E**.
+Just enough for a small Python engine to run a diagram: a step is one Python
+call (`implementation` names the importable callable, `with` its kwargs, the
+wires its data), plus the loop/sensor flattenings. Everything here is a
+**trait** on a native BPMN element except `Parameters`. Icon set: schema
+badge **E**.
 
 ### Traits (mixed onto many elements — not placed on their own)
-- **`exec:Step`** (on every activity): `runsOn` (RuntimeTargetEnum), `scheduler`
-  (SchedulerEnum, if `hpc`), `compute` (YAML), `cache` (CachePolicyEnum),
-  `deterministic` (Boolean), `seed`, `retry` (YAML), `timeout`, `when` (guard expr).
-- **`exec:Iteration`** (behind the multi-instance marker): `iterate`
-  (IterationKindEnum), `over`, `itemVar`, `folds` (YAML), `grid` (YAML),
-  `maxConcurrency`, `collect` (CollectPolicyEnum), `collectAs`, `reducer`, `failFast`.
-- **`exec:Artifact`** (on every data element): `uri`, `digest`, `version`,
-  `persist` (PersistPolicyEnum), `producedBy`.
+- **`exec:Implementation`** (on every service-style task): surfaces BPMN's own
+  `implementation` attribute with the versioned reference grammar
+  (`python://pkg.callable@1.2`, `docker://image@sha`, `https://script`).
+- **`exec:Artifact`** (on every data element): `uri` — where the engine
+  loads/saves the artifact; unset, the value only flows in memory.
+- **`exec:Timer`** / **`exec:Condition`**: flatten the timer / conditional
+  event definitions to plain attributes (`timeCycle`, `timeDuration`,
+  `timeDate`, `condition`).
 - **`exec:CompletionCondition`** / **`exec:LoopCondition`**: flatten the ad-hoc
   sub-process exit test / standard-loop condition to a string attribute
   (`completionCondition`, `loopCondition`).
@@ -206,20 +253,59 @@ BPMN's multi-instance/loop markers. Icon set: schema badge **E**.
 
 | Wrapper | BPMN base | Icon | Key attributes |
 |---|---|---|---|
-| `exec:ForEach` | `bpmn:SubProcess` | `mdi--arrow-split-vertical` | Fan out one body instance per item; `iterate` (`items`→`shards`). |
-| `exec:Sweep` | `bpmn:SubProcess` | `mdi--tune-variant` | One body instance per config point; `iterate` pinned `grid`; space in `grid`. |
-| `exec:Component` | `bpmn:CallActivity` | `mdi--package-variant-closed` | Call a published sub-flow; `source` (ref grammar), `digest`. |
-| `exec:Gate` | `bpmn:ExclusiveGateway` | `mdi--gate-arrow-right` | Continue only if the pass flow's `conditionExpression` holds; `rationale` (Markdown). |
-| `exec:Parameters` | `bpmn:DataObjectReference` | `mdi--tune` | `values` (YAML), `basedOn` (defaults chain). |
-| `exec:Blob` | `bpmn:DataObjectReference` | `mdi--file-outline` | `contentType`. A typed artifact with no more specific type. |
+| `exec:Parameters` | `bpmn:DataObjectReference` | `mdi--tune` | `values` (YAML) — a config dict wired to the steps that read it. |
 
-### Templates
-**Shard across cluster** (ForEach, `iterate: shards`, `runsOn: hpc`) ·
-**Hyperparameter Optimization** (Sweep) ·
-**Repeat until** (SubProcess + standard loop, `loopCondition` + `loopMaximum`).
+### Templates (presets over native elements)
+**Scheduled start** (timer start event, cron `timeCycle`) ·
+**Wait for data** (conditional catch event — the sensor) ·
+**Wait** (timer catch event, `timeDuration`) ·
+**Repeat until** (`bpmn:SubProcess` + standard loop, `loopCondition` +
+`loopMaximum`) ·
+**Gate** (`bpmn:ExclusiveGateway` — rule on the pass flow's
+`conditionExpression`, reject flow as `default`, rationale in documentation).
 
 Cycles use BPMN's own standard-loop child (`loopCharacteristics` with
 `loopCondition`, `loopMaximum`) — there is no `Repeat` element.
+
+---
+
+## functional — function composition
+
+The functional-programming vocabulary: apply, map, reduce, and filter over
+data, and the fan-out behind BPMN's multi-instance marker. These are the
+generic anchors the domain schemas (ml, datatrove, omniprocess) bind their own
+verbs onto. Icon set: schema badge **F**.
+
+| Wrapper | BPMN base | Icon | Notes |
+|---|---|---|---|
+| `functional:Transform` | `bpmn:ServiceTask` | — | Apply a function to data; `implementation`; `isDataOperation` pinned true. |
+| `functional:Map` | `bpmn:ServiceTask` | — | Map over each element → new stream (`operationType: map`). |
+| `functional:Reduce` | `bpmn:ServiceTask` | `mdi--sigma` | Reduce a stream to one value (a statistic, a fitted model). |
+| `functional:Filter` | `bpmn:ServiceTask` | `mdi--filter-variant` | Keep elements matching a predicate. |
+
+There is no FlatMap or Compose type — each is a `Transform` bound to a
+different function, which is what `implementation` is for.
+
+### The fan-out trait
+**`functional:Iteration`** (behind the multi-instance marker, on any
+activity): `iterate` (IterationKindEnum: none/items), `over`, `itemVar`,
+`collect` (CollectPolicyEnum: list/concat/reduce/none), `collectAs`,
+`reducer` — map and reduce applied to activities instead of rows.
+
+### Templates
+**For each** (`bpmn:SubProcess`, `iterate: items`, `collect: list`) ·
+**Group** (`Map` bound to `itertools.groupby`, `key=`).
+
+```yaml
+Per_Subject:
+  type: bpmn:SubProcess          # native element, no wrapper
+  name: For each subject
+  loopCharacteristics:
+    type: bpmn:MultiInstanceLoopCharacteristics
+  iterate: items                 # functional:Iteration trait attributes
+  over: subjects
+  collect: concat
+```
 
 ---
 
@@ -284,36 +370,59 @@ See `bot_claude.studyflow`, `bot_ollama.studyflow`, `bot_external.studyflow`,
 
 ## ml — statistical & ML pipelines
 
-Two artifact nouns plus one generic `Operation` step; every verb (split, fit,
-evaluate, deploy…) is a template that binds a function to `Operation`. Icon
-set: schema badge **M**.
+**Templates only — this schema declares no element types** (the omniprocess
+pattern). An ML pipeline is a data pipeline, so every step preset binds a
+**functional operation** to a concrete sklearn function: building an
+estimator is a `functional:Transform` (an unfitted estimator on a wire),
+fitting/scoring a `functional:Reduce` (rows in, one artifact out) —
+with the function in BPMN's own `implementation` and arguments in `with`.
+Cross-validation and sweeps are a native `bpmn:SubProcess` with the exec
+iteration attributes; a model or metric is a native data object made citable
+by the exec `Artifact` trait. A scikit-learn fit, a mixed-effects formula, and
+a prompt compile are the same Reduce bound to different functions. Icon set:
+schema badge **M**.
 
-| Wrapper | BPMN base | Icon | Key attributes |
-|---|---|---|---|
-| `ml:Operation` | `bpmn:ServiceTask` | `mdi--function-variant` | `implementation` (ref grammar); `isDataOperation` pinned true. Interface = wired data elements; args in `with`. |
-| `ml:Model` | `bpmn:DataObjectReference` | `mdi--cube-outline` | `framework`, `format`, `taskType`, `target`, `hyperparameters` (YAML). |
-| `ml:Metric` | `bpmn:DataObjectReference` | `mdi--gauge` | `value` (written at run time), `split` (DataSplitEnum), `goal` (MetricGoalEnum). |
+**Step templates** (functional operations, `operationType` in parentheses):
+Load sample dataset (Reader, `load`, `sklearn.datasets.load_digits`) ·
+Train/test split (Transform, `splitData`, group-aware `GroupShuffleSplit`) ·
+Reduce dimensions (Map, `project`, `sklearn.decomposition.PCA`) ·
+Build estimator (Transform, `build`, `make_pipeline(PCA(...), SVC(...))`) ·
+Fit estimator (Reduce, `fit`, `sklearn.pipeline.Pipeline.fit` — the unbound
+method; the wired estimator is its first argument) · Formula model
+(Transform, `build`, `mixedlm(formula, data, groups)`) · Evaluate (Reduce,
+`evaluate`, `classification_report(output_dict=True)`) · Cross-validate
+(Reduce, `crossValidate`, `cross_validate(estimator, X, y, cv, scoring)` —
+estimator by wire) · Grid search (Transform, `build`,
+`GridSearchCV(estimator, param_grid, cv)` — fit the search object with Fit
+estimator) · Save model (Writer with `path`,
+`joblib.dump(model, path, compress)`).
 
-**Templates** (all `ml:Operation` unless noted): Train/test split · Fit model ·
-Fit formula (Wilkinson/mixed-effects) · Fine-tune (SFT/LoRA) · Preference-tune
-(DPO) · Optimize prompt (DSPy) · Predict · Evaluate (sliced) · Validate data ·
-Embed corpus · Register model · Deploy (`cache: never`) · Monitor drift ·
-Cross-validate 5-fold (`exec:ForEach`) · Grid search (`exec:Sweep`) ·
-Beats production? (`exec:Gate`).
+Estimators are data: constructors build them (unfitted, on a wire), `.fit`
+unbound methods train them. Folds and sweeps are scikit-learn's business, not
+workflow constructs — put preprocessing inside the estimator
+(`make_pipeline(PCA(...), SVC(...))`) and `cross_validate`/`GridSearchCV`
+refit it per fold without leakage.
+
+**Artifact templates** (all `bpmn:DataObjectReference`): Model (set `uri` to
+keep it on disk; the model card goes in documentation) · Metric (`bpmn:name`
+is the measure).
 
 ```yaml
 Fit:
   type: bpmn:ServiceTask
   name: Fit model
   extensionElements:
-    - type: ml:Operation
+    - type: functional:Reduce    # fitting is a reduction over rows
+      operationType: fit
   implementation: python://sklearn.ensemble.RandomForestClassifier
   with:
     n_estimators: 500
     class_weight: balanced
 ```
 
-See `ml_pipeline.studyflow`.
+See `sklearn_pipeline.studyflow` — a complete worked pipeline (load digits →
+cross-validated PCA + SVC → threshold gate → fit final → store results) built
+from these presets.
 
 ---
 
@@ -325,17 +434,20 @@ templates over `Tool`. Icon set: schema badge **A**.
 
 | Wrapper | BPMN base | Icon | Key attributes |
 |---|---|---|---|
-| `agentic:Agent` | `bpmn:AdHocSubProcess` | `mdi--robot-outline` | `model`, `systemPrompt` (Markdown), `toolChoice` (ToolChoiceEnum), `temperature`, `maxTurns`, `completionCondition`; `deterministic` pinned false. Tools = activities drawn inside. |
+| `agentic:Agent` | `bpmn:AdHocSubProcess` | `mdi--robot-outline` | `model`, `systemPrompt` (Markdown), `toolChoice` (ToolChoiceEnum), `temperature`, `maxTurns`, `completionCondition`. Tools = activities drawn inside. |
 | `agentic:Router` | `bpmn:ExclusiveGateway` | `mdi--sign-direction` | `model`, `instructions` (Markdown). Branch labels = outgoing flow names; falls back to `default`. |
-| `agentic:LLMCall` | `bpmn:ServiceTask` | `mdi--message-processing-outline` | `model`, `prompt` (Markdown), `temperature`, `maxTokens`. |
-| `agentic:Tool` | `bpmn:ServiceTask` | `mdi--tools` | `implementation`, `kind` (ToolKindEnum), `purpose` (Markdown), `sideEffects` (Boolean). |
-| `agentic:HumanApproval` | `bpmn:UserTask` | `mdi--account-check-outline` | `question` (Markdown), `approvers` (String[]), `onTimeout`; `runsOn` pinned `human`. |
-| `agentic:Prompt` | `bpmn:DataObjectReference` | `mdi--text-box-outline` | `template` (Markdown, `{{name}}` placeholders), `variables` (YAML). |
+| `agentic:LLMCall` | `bpmn:ServiceTask` | `mdi--message-processing-outline` | `model`, `prompt` (Markdown), `temperature`, `maxTokens` — one request to the model API. |
+| `agentic:Tool` | `bpmn:ServiceTask` | `mdi--tools` | `implementation`, `kind` (ToolKindEnum), `purpose` (Markdown — the description the model reads). |
+| `agentic:HumanApproval` | `bpmn:UserTask` | `mdi--account-check-outline` | `question` (Markdown) — the engine pauses until a person answers. |
+| `agentic:Prompt` | `bpmn:DataObjectReference` | `mdi--text-box-outline` | `template` (Markdown, `{{name}}` placeholders). |
 | `agentic:Memory` | `bpmn:DataStoreReference` | `mdi--memory` | `scope` (MemoryScopeEnum). |
 
-**Templates:** Agent (tool loop) · Evaluator-optimizer · Route by intent ·
-Retrieve context (RAG) · Judge (LLM-as-judge) · Guardrail · Human approval ·
-Human feedback · Pairwise preference · Prompt chain.
+**Templates:** Agent (tool loop — a real `wikipedia.search` tool inside) ·
+Evaluator-optimizer (draft + judge as two LLMCalls in a standard loop) ·
+Route by intent · Human approval · Prompt chain. A guardrail or an
+LLM-as-judge is an ordinary `LLMCall` with a strict prompt, and RAG retrieval
+is a `Tool` bound to your index's query function — none of them needs its own
+template.
 
 ```yaml
 Research_Agent:
@@ -349,37 +461,33 @@ Research_Agent:
   flowElements:
     Search:
       type: bpmn:ServiceTask
-      extensionElements: [{ type: agentic:Tool, kind: retrieval }]
-      implementation: python://lab.rag.retrieve
+      extensionElements: [{ type: agentic:Tool, kind: search }]
+      implementation: python://wikipedia.search
 ```
 
 See `agent_eval.studyflow`, `agent_eval_pool.studyflow`.
 
 ---
 
-## datatrove — data-stream operations
+## datatrove — DataTrove library blocks
 
-A generic functional core (transform/map/…), read/write blocks, and a Document
-reference. Corpus ops (extract, stats, tokenize, dedup) are templates. Icon set:
-schema badge **D**.
+The datatrove library's own pipeline blocks: the Reader/Writer IO steps
+(specializing `functional:Transform`) and presets over its processing blocks.
+Icon set: schema badge **D**.
 
 | Wrapper | BPMN base | Icon | Notes |
 |---|---|---|---|
-| `datatrove:Transform` | `bpmn:ServiceTask` | — | Apply a function per element; `implementation`; `isDataOperation` pinned true. |
-| `datatrove:Map` | `bpmn:ServiceTask` | — | Map → new stream (`operationType: map`). |
-| `datatrove:FlatMap` | `bpmn:ServiceTask` | `mdi--arrow-expand-all` | One-to-many + flatten. |
-| `datatrove:Reduce` | `bpmn:ServiceTask` | `mdi--sigma` | Reduce a stream to a value. |
-| `datatrove:Filter` | `bpmn:ServiceTask` | `mdi--filter-variant` | Keep elements matching a predicate. |
-| `datatrove:Compose` | `bpmn:ServiceTask` | `mdi--function-variant` | Compose several transforms into one step. |
-| `datatrove:Reader` | `bpmn:ServiceTask` | `mdi--input` | `className` (ReaderClassEnum), `path`. |
-| `datatrove:Writer` | `bpmn:ServiceTask` | `mdi--output` | `className` (WriterClassEnum), `path`. |
-| `datatrove:Document` | `bpmn:DataObjectReference` | `fluent--document-text-24-regular` | `text`, `media` (String[]), `metadata` (YAML). |
+| `datatrove:Reader` | `bpmn:ServiceTask` | `mdi--input` | `className` (ReaderClassEnum — `datatrove.pipeline.readers` classes, e.g. `CsvReader`), `path` (datatrove's `data_folder`). |
+| `datatrove:Writer` | `bpmn:ServiceTask` | `mdi--output` | `className` (WriterClassEnum — `datatrove.pipeline.writers` classes), `path` (datatrove's `output_folder`). |
 
-A collection of Documents is a native `bpmn:DataObjectReference` with
-`isCollection: true` — not a distinct type.
+A record or a collection is a native `bpmn:DataObjectReference` (with
+`isCollection: true` for the collection marker). Corpus building (extract,
+stats, tokenize, dedup) is the datatrove library's own business — bind its
+blocks directly when a study needs one, e.g. a `functional:Map` running
+`python://datatrove.pipeline.extractors.Trafilatura`.
 
-**Templates:** Group · Split Data (`sklearn.train_test_split`) · Anonymize Data ·
-Extract text · Collect stats · Tokenize · Deduplicate.
+**Templates:** Anonymize Data (`functional:Map` bound to
+`datatrove.pipeline.formatters.PIIFormatter`, `remove_emails=/remove_ips=`).
 
 See `function_call_demo.studyflow`, `lablink_demo2.studyflow`.
 
@@ -387,10 +495,10 @@ See `function_call_demo.studyflow`, `lablink_demo2.studyflow`.
 
 ## omniprocess — neuroimaging preprocessing
 
-No element types of its own — only templates over `datatrove` operations. Icon
+No element types of its own — only templates over `functional` operations. Icon
 set: schema badge **O**.
 
-**Templates:** *fMRIPrep* (`datatrove:Map` bound to `docker://nipreps/fmriprep`)
+**Templates:** *fMRIPrep* (`functional:Map` bound to `docker://nipreps/fmriprep`)
 · *EEGPrep* (`bpmn:SubProcess`: filter → remove artifacts).
 
 ---
@@ -447,10 +555,10 @@ jsonl · `TimeseriesFormat`: edf, bdf, fif, set, parquet, zarr ·
 hpc · `AssignmentAlgorithm`: probabilistic, round-robin · `ProbabilityDistribution`:
 uniform, normal, exponential, poisson.
 
-**exec** — `RuntimeTarget`: inherit, browser, local, container, hpc, cloud, human
-· `Scheduler`: slurm, pbs, sge, kubernetes · `CachePolicy`: reuse, refresh, never
-· `IterationKind`: none, items, folds, grid, participants, shards · `CollectPolicy`:
-list, concat, reduce, none · `PersistPolicy`: store, memory.
+**exec** — no enumerations.
+
+**functional** — `IterationKind`: none, items · `CollectPolicy`: list, concat,
+reduce, none.
 
 **cognitive** — `Instrument` *(editable)*: psychopy, jspsych, labjs, opensesame ·
 `QuestionnaireInstrument` *(editable)*: phq-9, gad-7, bdi-ii, stai, pss, who-5,
@@ -458,12 +566,12 @@ bfi, dass-21, panas · `ActorType`: human, llm, agent, instrument ·
 `BehaverseScene` *(editable)*: BCS, BM, BSAC, DS, ML, MOT, NB, OC, OOO, PC, RE,
 RSAC, SART, SMC, SOS, SRM, SRT, SS, TH, TOVA, UFOV, WO · `AgentType`: human, bot.
 
-**ml** — `DataSplit`: train, validation, test, holdout, live · `MetricGoal`: max, min.
+**ml** — no enumerations (templates only).
 
 **agentic** — `ToolChoice`: auto, required, none · `ToolKind`: function, retrieval,
 code, search, mcp, human, subflow · `MemoryScope`: turn, run, participant, global.
 
-**datatrove** — `ReaderClass`: CSVReader, HuggingFaceDatasetReader, IpcReader,
+**datatrove** — `ReaderClass`: CsvReader, HuggingFaceDatasetReader, IpcReader,
 JsonlReader, ParquetReader, WarcReader · `WriterClass`: HuggingFaceDatasetWriter,
 JsonlWriter, ParquetWriter.
 
@@ -483,12 +591,12 @@ brainflow, openbci_gui.
 |---|---|
 | `kitchensink.studyflow` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
 | `cognitive_battery.studyflow` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `ml_pipeline.studyflow` | ml Operations, exec Sweep/Gate, agentic HumanApproval, boundary drift-retrain loop. |
-| `agent_eval.studyflow` | agentic Agent/Tool, exec ForEach, ml Optimize-prompt loop, RandomGateway sampling. |
+| `sklearn_pipeline.studyflow` | **The execution/ML guide** — functional operations bound to sklearn via `implementation`, one-call CV, threshold gate, stored artifacts. |
+| `agent_eval.studyflow` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
 | `agent_eval_pool.studyflow` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
 | `choreography_demo.studyflow` | Choreography root, participants, message flows, ChoreographyTasks. |
 | `consort2025.studyflow` | Groups + Categories, boundary error events (attrition), colors. |
 | `spirit2025.studyflow` | Collaboration + pool + lanes, checklists, Gantt fields. |
-| `function_call_demo.studyflow` | datatrove Map bound to a python callable; script-by-URL. |
+| `function_call_demo.studyflow` | functional Map bound to a python callable; script-by-URL. |
 | `lablink_demo0/1/2.studyflow` | Skeleton → orchestration → modeling pipeline (BIDS, fMRIPrep/EEGPrep). |
 | `bot_claude / bot_ollama / bot_external.studyflow` | Behaverse bot `agentType`/`botConfigurations` variants. |

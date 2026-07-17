@@ -2,197 +2,74 @@
 
 name: ML
 prefix: ml
-description: Studyflow extension for statistical and machine-learning pipelines. Deliberately small - the only new nouns are the Model and Metric artifacts; every verb (split, fit, evaluate, deploy, monitor, ...) is a template that binds a function via `implementation` onto one generic `Operation` step, not a class of its own. Fitting is one shape everywhere - a trainable artifact, data, and an objective in; the improved artifact and its Metrics out - so a scikit-learn fit, a mixed-effects formula, a LoRA fine-tune, and a prompt compile are the same step bound to different functions, and the trainable may be a Model or an `agentic:Prompt`. Iteration, sweeps, gates, and provenance come from the `exec` core.
+description: >-
+  Statistical and machine-learning pipelines in scikit-learn's own terminology
+  (load, split, build, fit, evaluate, cross-validate, save), as presets over
+  the generic `functional` operations - this schema declares no element types
+  at all. An ML pipeline is a data pipeline the engine can run one Python
+  call at a time, and estimators are data: building one is a call
+  (`make_pipeline(PCA(16), SVC())` - a `functional:Transform` whose output is
+  the unfitted estimator on a wire), fitting is a call
+  (`sklearn.pipeline.Pipeline.fit`, the unbound method, with the wired
+  estimator as its first argument - a `functional:Reduce`: rows in, one
+  fitted artifact out). Every `implementation` is a real importable callable,
+  every `with` holds that callable's actual keyword arguments, and the data
+  it reads and writes arrives over the wires. Cross-validation and
+  hyperparameter search are scikit-learn's own `cross_validate` and
+  `GridSearchCV` - not workflow constructs; a promotion rule is a native
+  gateway's own `conditionExpression`.
 uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
 xml:
   tagAlias: lowerCase
-version: 26.0716
+version: 26.0717
 
 associations: []
-
-enumerations:
-  - name: DataSplitEnum
-    isAbstract: true
-    description: Which partition a metric was computed on. Reporting it is what keeps a test score from being read as a training score.
-    literalValues:
-      - name: Train
-        value: train
-      - name: Validation
-        value: validation
-      - name: Test
-        value: test
-      - name: Held-out
-        value: holdout
-      - name: Live traffic
-        value: live
-
-  - name: MetricGoalEnum
-    isAbstract: true
-    description: Direction of improvement for a metric. Gates and sweeps read this to know which way is better.
-    literalValues:
-      - name: Higher is better
-        value: max
-      - name: Lower is better
-        value: min
-
-types:
-
-  # ===========================================================================
-  # Artifacts - the two nouns ML genuinely adds. Each inherits `uri`, `digest`,
-  # `version`, `persist`, and `producedBy` from the `exec:Artifact` trait, so a
-  # model is citable by content hash and traceable to the execution that fitted
-  # it (W3C PROV: entity <- wasGeneratedBy).
-  # ===========================================================================
-  - name: Model
-    description: |
-      A fitted model. The artifact a training step produces, an evaluation step
-      scores, and a deployment step ships - carried by digest, so "which model
-      is in production" and "what data trained it" are answerable from the run
-      record rather than from memory.
-    superClass:
-      - bpmn:DataObjectReference
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--cube-outline
-      bpmnType: bpmn:DataObjectReference
-    properties:
-      - name: framework
-        description: Library that produced it (e.g. `scikit-learn`, `pytorch`, `statsmodels`).
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-          categories:
-            - Model
-      - name: format
-        description: |
-          Serialization format (e.g. `joblib`, `onnx`, `pytorch`, `safetensors`,
-          `huggingface`). Free text so any format can be named.
-        isAttr: true
-        type: String
-        meta:
-          order: 2
-          categories:
-            - Model
-      - name: taskType
-        description: |
-          Learning task the model performs (e.g. `classification`, `regression`,
-          `clustering`, `ranking`, `generation`).
-        isAttr: true
-        type: String
-        meta:
-          order: 3
-          categories:
-            - Model
-      - name: target
-        description: Name of the variable the model predicts.
-        isAttr: true
-        type: String
-        meta:
-          order: 4
-          categories:
-            - Model
-      - name: hyperparameters
-        description: |
-          Hyperparameters the model was fitted with, as a YAML mapping. The model
-          card (intended use, training data, known limitations) belongs in
-          `documentation`; the registry version belongs in `uri`.
-        isAttr: false
-        type: studyflow:YAMLString
-        meta:
-          order: 5
-          categories:
-            - Model
-          editor: yaml
-
-  - name: Metric
-    description: |
-      A measured quantity, with the partition it was measured on. `bpmn:name` is
-      the metric (`roc_auc`, `rmse`); `value` is empty in a spec and written by
-      the engine at run time. Slice a fairness audit or an uncertainty interval
-      into `documentation`.
-    superClass:
-      - bpmn:DataObjectReference
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--gauge
-      bpmnType: bpmn:DataObjectReference
-    properties:
-      - name: value
-        description: |
-          Measured value. Left empty when registering the study; written by
-          the engine on the as-run record - not edited by hand.
-        isAttr: true
-        type: Real
-        meta:
-          order: 1
-          categories:
-            - Run record
-          readonly: true
-      - name: split
-        description: Partition the metric was computed on.
-        isAttr: true
-        type: DataSplitEnum
-        default: test
-        meta:
-          order: 2
-          categories:
-            - Metric
-      - name: goal
-        description: Direction of improvement. Gates and sweeps read this to know which way is better.
-        isAttr: true
-        type: MetricGoalEnum
-        default: max
-        meta:
-          order: 3
-          categories:
-            - Metric
-
-  # ===========================================================================
-  # The one generic step. An `Operation` is a data-operation service task; it
-  # inherits the whole step contract (`implementation`, `with`, `runsOn`, `cache`,
-  # `seed`, ...) from `studyflow:DataOperationActivity` and `exec:Step`; its
-  # interface is whatever typed data elements are wired to it on the canvas.
-  # Split / Fit / Predict / Evaluate / Validate / Register / Deploy / Monitor are
-  # *templates* over this type that bind a concrete function via `implementation` - the
-  # `datatrove` pattern, not a class per verb.
-  # ===========================================================================
-  - name: Operation
-    description: |
-      A statistical or machine-learning operation: one step that runs a function
-      (`implementation`) over typed inputs and produces typed artifacts. The generic anchor
-      every ML template binds onto - what the step *does* is set by `implementation`/`with`
-      and named by the template, not by a dedicated class.
-    superClass:
-      - bpmn:ServiceTask
-      - bpmn:BaseElement
-    meta:
-      icon: iconify mdi--function-variant
-      bpmnType: bpmn:ServiceTask
-    properties:
-      # `implementation` (the versioned function reference) comes from the
-      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
-      - name: isDataOperation
-        description: An ML operation is a data operation; pinned so the marker always renders.
-        isAttr: true
-        type: Boolean
-        default: true
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
+enumerations: []
+types: []
 
 templates:
+
+  # ===========================================================================
+  # Steps - functional operations bound to sklearn functions. `operationType`
+  # names the ML verb (load, splitData, build, fit, evaluate, crossValidate,
+  # save); `implementation` + `with` say what actually runs.
+  # ===========================================================================
+  - description: Load a bundled sample dataset (scikit-learn's digits) as a table.
+    object:
+      bpmn:name: Load sample dataset
+      type: functional:Transform
+      bpmn:documentation: |
+        Loads one of scikit-learn's bundled datasets - the standard way to
+        make a pipeline runnable before the real data exists. Repoint
+        `implementation` at `load_iris`, `fetch_openml`, or your own loader
+        (or use a `datatrove:Reader` for files); the step's shape does not
+        change. Wire its output to a `studyflow:Table` so downstream steps
+        have a typed artifact to read.
+      icon: iconify mdi--database-import-outline
+      keywords:
+        - load
+        - dataset
+        - sample
+        - sklearn
+        - digits
+        - iris
+      operationType: load
+      implementation: python://sklearn.datasets.load_digits
+      with: "as_frame: true"
 
   - description: Group-aware train/test split - keeps every row from a participant on one side.
     object:
       bpmn:name: Train/test split
-      type: Operation
+      type: functional:Transform
       bpmn:documentation: |
         Holds out 20% for testing, grouped by participant so no subject appears
         in both partitions - the one split parameter that matters in
-        human-subjects work. Bound to scikit-learn's `GroupShuffleSplit`; repoint
-        `implementation` and edit `with` for a different splitter.
+        human-subjects work. Bound to scikit-learn's
+        `GroupShuffleSplit(n_splits, test_size)`; the group labels
+        (participant ids) are not configuration - they arrive as a wired data
+        input (`split(X, y, groups)`). Repoint `implementation` at
+        `train_test_split` or another splitter when grouping does not matter.
       icon: iconify mdi--call-split
       keywords:
         - split
@@ -201,37 +78,98 @@ templates:
         - holdout
         - sklearn
         - leakage
+      operationType: splitData
       implementation: python://sklearn.model_selection.GroupShuffleSplit
-      with: "test_size: 0.2\ngroupBy: participant_id"
+      with: "n_splits: 1\ntest_size: 0.2"
 
-  - description: Fit an estimator and produce a Model artifact.
+  - description: Project features onto fewer dimensions (PCA) before fitting.
     object:
-      bpmn:name: Fit model
-      type: Operation
+      bpmn:name: Reduce dimensions
+      type: functional:Map
       bpmn:documentation: |
-        Fits scikit-learn's RandomForestClassifier on the training partition and
-        emits a `Model`. Change the estimator by editing `implementation`; pass its
-        arguments (and `$sweep` placeholders inside a Sweep) through `with`.
+        Builds a PCA projector for mapping rows into a lower-dimensional
+        space. Usually it belongs *inside* the estimator -
+        `make_pipeline(PCA(...), SVC(...))` - so cross-validation refits it
+        per fold without leakage; standalone, fit-and-apply it with a "Fit
+        estimator" step bound to `sklearn.decomposition.PCA.fit_transform`.
+      icon: iconify mdi--arrow-collapse
+      keywords:
+        - pca
+        - dimensionality
+        - reduce
+        - projection
+        - features
+      operationType: project
+      implementation: python://sklearn.decomposition.PCA
+      with: "n_components: 16\nwhiten: false"
+
+  - description: Build an estimator - constructors are calls, and estimators are data.
+    object:
+      bpmn:name: Build estimator
+      type: functional:Transform
+      bpmn:documentation: |
+        Builds an *unfitted* estimator that flows down a wire like any table:
+        `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1.0))`.
+        `make_pipeline` takes its steps positionally, so they go under the
+        reserved `args` key, and each step is a nested call - a mapping with
+        its own `implementation` and `with`, which the runner resolves first.
+        Wire the result into "Cross-validate" and "Fit estimator" so both
+        work on exactly the same specification; bind any constructor the same
+        way (`sklearn.ensemble.RandomForestClassifier` with its kwargs in
+        `with`) when a single estimator is enough.
       icon: iconify mdi--school-outline
+      keywords:
+        - build
+        - estimator
+        - pipeline
+        - sklearn
+        - classifier
+        - model
+      operationType: build
+      implementation: python://sklearn.pipeline.make_pipeline
+      with: "args:\n  - implementation: python://sklearn.decomposition.PCA\n    with:\n      n_components: 16\n  - implementation: python://sklearn.svm.SVC\n    with:\n      kernel: rbf\n      C: 1.0"
+
+  - description: Fit an estimator on data - the call that actually trains the model.
+    object:
+      bpmn:name: Fit estimator
+      type: functional:Reduce
+      bpmn:documentation: |
+        The fitting call. `sklearn.pipeline.Pipeline.fit` is the unbound
+        method, so name the wired elements in `with` - the estimator as the
+        first positional argument, the data as keywords:
+
+            args:
+              - $MyPipeline
+            X: $MyTable.data
+            y: $MyTable.target
+
+        That is exactly `pipeline.fit(X, y)`; `fit` returns the fitted
+        estimator, which binds to the wired output. For a bare estimator,
+        bind its own class's method the same way
+        (`sklearn.ensemble.RandomForestClassifier.fit`,
+        `sklearn.model_selection.GridSearchCV.fit`).
+      icon: iconify mdi--sigma
       keywords:
         - fit
         - train
         - estimator
         - sklearn
-        - randomforest
-      implementation: python://sklearn.ensemble.RandomForestClassifier
-      with: "n_estimators: 500\nmax_depth: null\nclass_weight: balanced"
+        - model
+      operationType: fit
+      implementation: python://sklearn.pipeline.Pipeline.fit
 
-  - description: Fit a statistical model from a Wilkinson formula (mixed-effects).
+  - description: Build a statistical model from a Wilkinson formula (mixed-effects).
     object:
-      bpmn:name: Fit formula
-      type: Operation
+      bpmn:name: Formula model
+      type: functional:Transform
       bpmn:documentation: |
-        Model fitting in the notation behavioural research already speaks:
-        `rt ~ condition + (1 | participant_id)` *is* the model, so it belongs on
-        the diagram, not in a script. Bound to statsmodels' mixed-effects fit;
-        repoint `implementation` at any formula interface (`lme4::lmer`, `bambi`) without
-        changing the shape of the step.
+        Model specification in the notation behavioural research already
+        speaks: the formula *is* the model, so it belongs on the diagram, not
+        in a script. `mixedlm(formula, data, groups)` builds the mixed model
+        over the wired table; fit it with a "Fit estimator" step bound to
+        `statsmodels.regression.mixed_linear_model.MixedLM.fit`. Repoint
+        `implementation` at any formula interface (`lme4::lmer`, `bambi`)
+        without changing the shape of the step.
       icon: iconify mdi--math-integral
       keywords:
         - formula
@@ -240,309 +178,131 @@ templates:
         - mixed
         - regression
         - statsmodels
+      operationType: build
       implementation: python://statsmodels.formula.api.mixedlm
-      with: "formula: rt ~ condition + (1 | participant_id)\nmethod: REML"
+      with: "formula: rt ~ condition\ngroups: participant_id"
 
-  - description: Fine-tune a language model on examples (SFT, LoRA adapter).
+  - description: Score a model on held-out data - reduce predictions to a metrics report.
     object:
-      bpmn:name: Fine-tune
-      type: Operation
+      bpmn:name: Evaluate
+      type: functional:Reduce
       bpmn:documentation: |
-        The same fitting step with a language model as the estimator: examples
-        in, an improved Model out - here a LoRA adapter, so the artifact stays
-        small and the base is named in `with` with a pinned revision, which puts
-        it in the cache key: a moved base is a re-run fit, not a silently
-        different model. Distillation is this step fed by a Predict step - the
-        teacher labels the trainset first.
-      icon: iconify mdi--layers-edit
-      keywords:
-        - finetune
-        - sft
-        - lora
-        - adapter
-        - llm
-        - train
-      implementation: python://trl.SFTTrainer
-      with: "base_model: hf://meta-llama/llama-4-8b@1f4e02\nmethod: lora\nrank: 16\nepochs: 3\nlearning_rate: 2.0e-4"
-
-  - description: Tune a model on human preference pairs (DPO).
-    object:
-      bpmn:name: Preference-tune
-      type: Operation
-      bpmn:documentation: |
-        Direct preference optimization: pairs of answers with a judgement of
-        which is better in, a model that prefers the better ones out. The pairs
-        are data like any other - the agentic `Pairwise preference` step collects
-        exactly this table, and its raters can be the study's own participants:
-        the study collects the preferences, the pipeline fits on them, the agent
-        runs the result.
-      icon: iconify mdi--thumbs-up-down-outline
-      keywords:
-        - dpo
-        - rlhf
-        - preference
-        - alignment
-        - tune
-      implementation: python://trl.DPOTrainer
-      with: "beta: 0.1\nepochs: 1"
-
-  - description: Fit a prompt against a metric (DSPy-style compile) - the prompt is the trainable.
-    object:
-      bpmn:name: Optimize prompt
-      type: Operation
-      bpmn:documentation: |
-        Prompts are the hyperparameters of an LLM system, and this is the step
-        that fits them: a Prompt, a trainset, and a metric in; a better Prompt
-        out - a new version of the same artifact, whose `producedBy` records the
-        execution that compiled it. The metric is usually a judge's score: point
-        `metric` at what an LLM-as-judge or human-feedback step measures, and
-        the optimizer maximizes what the eval checks. Bound to DSPy's MIPROv2;
-        any optimizer with a compile(prompt, data, metric) shape drops in.
-      icon: iconify mdi--auto-fix
-      keywords:
-        - dspy
-        - compile
-        - optimize
-        - prompt
-        - teleprompter
-      implementation: python://dspy.MIPROv2
-      with: "metric: judge_score\ntrials: 30\nmaxDemos: 4"
-
-  - description: Apply a fitted model to data (predict / predict_proba / transform).
-    object:
-      bpmn:name: Predict
-      type: Operation
-      bpmn:documentation: |
-        Runs a fitted model over new rows. Choose the estimator method in `with`
-        (`method: predict_proba` for scores, `transform` for a fitted
-        preprocessing step).
-      icon: iconify mdi--play-box-outline
-      keywords:
-        - predict
-        - inference
-        - transform
-        - score
-      implementation: python://sklearn_pipeline.predict
-      with: "method: predict"
-
-  - description: Score a model on a partition, sliced by subgroup (a fairness audit).
-    object:
-      bpmn:name: Evaluate (sliced)
-      type: Operation
-      bpmn:documentation: |
-        Computes the listed metrics overall and per subgroup of `groupBy`, so a
-        model that performs well on average and badly on one site is visible
-        rather than hidden. A fairness audit is an evaluation with a `groupBy`,
-        not a different kind of step.
+        Reduce predictions to a metrics report -
+        `classification_report(y_true, y_pred, output_dict=True)`, with the
+        true and predicted labels arriving as wired data inputs. For a
+        fairness audit, put a Group step (by site, by demographic) upstream
+        and this same evaluation runs per subgroup.
       icon: iconify mdi--check-decagram-outline
       keywords:
         - evaluate
         - score
-        - fairness
         - metrics
+        - report
         - audit
+      operationType: evaluate
       implementation: python://sklearn.metrics.classification_report
-      with: "metrics: [roc_auc, f1_macro, calibration_error]\nsplit: test\ngroupBy: site"
+      with: "output_dict: true"
 
-  - description: Check data against declared expectations before it is used.
+  - description: Cross-validate an estimator in one call (scikit-learn's cross_validate).
     object:
-      bpmn:name: Validate data
-      type: Operation
+      bpmn:name: Cross-validate
+      type: functional:Reduce
       bpmn:documentation: |
-        Placed before training, this is the difference between a model that failed
-        and a model that silently learned from corrupt inputs. Expectations go in
-        `with`; on failure the step raises, unless `on_fail: warn`.
-      icon: iconify mdi--clipboard-check-outline
-      keywords:
-        - validate
-        - expectations
-        - quality
-        - greatexpectations
-      implementation: python://lab.data.validate
-      with: "on_fail: fail\nexpectations:\n  row_count: {min: 100}\n  columns:\n    rt: {type: number, min: 0, max: 10000, nulls: 0}\n  unique: [trial_id]"
-
-  - description: Embed a corpus into a searchable index - the artifact a retriever reads.
-    object:
-      bpmn:name: Embed corpus
-      type: Operation
-      bpmn:documentation: |
-        Builds the index the agentic `Retrieve context` step reads - its
-        `with.index` names what this step produces. The embedding model is part
-        of the retrieval instrument (swapping it silently changes what
-        "relevant" means), so it is named here and lands in the cache key. Feed
-        it from a datatrove Reader/Filter chain: preparing the corpus is data
-        work; this step is where it becomes retrievable.
-      icon: iconify mdi--database-search-outline
-      keywords:
-        - embed
-        - index
-        - vector
-        - rag
-        - corpus
-      implementation: python://lab.rag.build_index
-      with: "index: study_corpus\nembeddingModel: voyage-3\nchunk: {size: 512, overlap: 64}"
-
-  - description: Record a model version in a registry, with the run that produced it.
-    object:
-      bpmn:name: Register model
-      type: Operation
-      bpmn:documentation: |
-        The point where a fitted artifact acquires a name a deployment can refer
-        to. Registry endpoint and target stage go in `with`.
-      icon: iconify mdi--bookmark-check-outline
-      keywords:
-        - register
-        - registry
-        - mlflow
-        - version
-      implementation: python://mlflow.register_model
-      with: "registry: mlflow\nname: cognitive_risk\nstage: staging"
-
-  - description: Ship a model version to a serving target (side-effecting, never cached).
-    object:
-      bpmn:name: Deploy
-      type: Operation
-      bpmn:documentation: |
-        Deployment is a side effect on the world, so `sideEffects` is set and
-        `cache` is `never` - it is not skipped, replayed, or blindly retried.
-        Endpoint and rollout strategy (`replace`, `canary`, `shadow`, ...) go
-        in `with`.
-      icon: iconify mdi--rocket-launch-outline
-      keywords:
-        - deploy
-        - serve
-        - kserve
-        - canary
-      sideEffects: true
-      cache: never
-      implementation: python://lab.serving.deploy
-      with: "endpoint: cognitive-risk\nstrategy: canary\ntraffic_percent: 10"
-
-  - description: Watch a deployed model and raise a signal when it drifts.
-    object:
-      bpmn:name: Monitor drift
-      type: Operation
-      bpmn:documentation: |
-        Checks live performance on a schedule. On breach it raises a signal -
-        attach a boundary event to this task and route it back to training to
-        close the retraining loop on the diagram rather than in a runbook.
-      icon: iconify mdi--monitor-eye
-      keywords:
-        - monitor
-        - drift
-        - retrain
-        - production
-      implementation: python://lab.serving.monitor
-      with: "watches: roc_auc\nthreshold: 0.75\nwindow: 7d\nschedule: 0 6 * * *\nsignal: drift"
-
-  - description: 5-fold stratified cross-validation - fit and score once per fold, averaged.
-    object:
-      bpmn:name: Cross-validate (5-fold)
-      type: exec:ForEach
-      bpmn:documentation: |
-        One instance of fit-then-score per fold, opening a `fold` scope frame each
-        time. Fold assignment is drawn from the scope-derived seed, so the folds
-        are reproducible without pinning a global seed. Metrics are averaged back
-        into the parent scope.
+        The whole fit-and-score loop as one call -
+        `cross_validate(estimator, X, y, cv, scoring)`. Build the estimator
+        with "Build estimator", wire it and the data in, and name them in
+        `with` as `estimator: $MyPipeline`, `X: $MyTable.data`,
+        `y: $MyTable.target`; the per-fold scores leave as the wired output.
+        Folds are scikit-learn's business, not the workflow's: put
+        preprocessing inside the estimator (`make_pipeline`) and every fold
+        refits it without leakage.
       icon: iconify mdi--layers-triple-outline
       keywords:
         - crossvalidation
         - cv
         - kfold
-        - folds
-        - stratified
-      iterate: folds
-      folds: "k: 5\nstratifyBy: label\ngroupBy: participant_id\nshuffle: true"
-      collect: reduce
-      reducer: python://numpy.mean
-      collectAs: cv_metrics
-      flowElements:
-        - id: cv_start
-          type: bpmn:StartEvent
-          bpmn:name: Fold
-          x: 150
-          y: 162
-        - id: cv_fit
-          type: Operation
-          bpmn:name: Fit on fold
-          implementation: python://sklearn.ensemble.RandomForestClassifier
-          x: 240
-          y: 140
-        - id: cv_eval
-          type: Operation
-          bpmn:name: Score fold
-          with: "split: validation"
-          x: 400
-          y: 140
-        - id: cv_end
-          type: bpmn:EndEvent
-          bpmn:name: Fold done
-          x: 560
-          y: 162
-        - type: bpmn:SequenceFlow
-          sourceRef: cv_start
-          targetRef: cv_fit
-        - type: bpmn:SequenceFlow
-          sourceRef: cv_fit
-          targetRef: cv_eval
-        - type: bpmn:SequenceFlow
-          sourceRef: cv_eval
-          targetRef: cv_end
+        - sklearn
+        - validate
+      operationType: crossValidate
+      implementation: python://sklearn.model_selection.cross_validate
+      with: "cv: 5\nscoring: [accuracy, f1_macro]\nreturn_train_score: false"
 
-  - description: Grid search - sweep hyperparameters, fit and score each point, keep the best.
+  - description: Build a hyperparameter grid search (scikit-learn's GridSearchCV).
     object:
       bpmn:name: Grid search
-      type: exec:Sweep
+      type: functional:Transform
       bpmn:documentation: |
-        One instance of fit-then-score per point of the grid. Inside the sweep, a
-        hyperparameter set to `$sweep` takes the current point's value. The engine
-        records every point and reports the one that maximizes the objective.
+        Hyperparameter search, scikit-learn style:
+        `GridSearchCV(estimator, param_grid, cv, scoring)` wraps the wired
+        base estimator in a search object - which is itself an estimator, so
+        fit it with a "Fit estimator" step bound to
+        `sklearn.model_selection.GridSearchCV.fit`. Fitting runs the sweep
+        and keeps the winner (`best_estimator_`, `cv_results_`). The sweep is
+        scikit-learn's business, not a workflow construct.
       icon: iconify mdi--tune-variant
       keywords:
         - gridsearch
         - sweep
         - hyperparameter
         - tuning
-        - multirun
-      grid: "strategy: grid\nspace:\n  max_depth: [2, 4, 8, 16]\n  n_estimators: [100, 500]\nobjective:\n  metric: roc_auc\n  goal: max"
-      collect: list
-      collectAs: trials
-      flowElements:
-        - id: sweep_fit
-          type: Operation
-          bpmn:name: Fit at point
-          implementation: python://sklearn.ensemble.RandomForestClassifier
-          with: "max_depth: $sweep\nn_estimators: $sweep"
-          x: 200
-          y: 140
-        - id: sweep_eval
-          type: Operation
-          bpmn:name: Score point
-          with: "split: validation"
-          x: 380
-          y: 140
-        - type: bpmn:SequenceFlow
-          sourceRef: sweep_fit
-          targetRef: sweep_eval
+        - sklearn
+      operationType: build
+      implementation: python://sklearn.model_selection.GridSearchCV
+      with: "param_grid:\n  C: [0.1, 1, 10]\n  kernel: [linear, rbf]\ncv: 5\nscoring: accuracy"
 
-  - description: Promotion gate - deploy only when the candidate beats the model in production.
+  - description: Persist a fitted model to disk.
     object:
-      bpmn:name: Beats production?
-      type: exec:Gate
+      bpmn:name: Save model
+      type: functional:Transform
       bpmn:documentation: |
-        The promotion policy, in the diagram rather than in a script: the candidate
-        ships only if it improves on the deployed baseline and clears an absolute
-        floor. Type the rule on the outgoing pass flow's native
-        `conditionExpression` (e.g. `metrics.roc_auc >= 0.80 and metrics.roc_auc
-        > baseline.roc_auc`) and mark the reject flow as the gateway's `default`.
-        Reviewers can check the policy without reading code.
-      icon: iconify mdi--gate-arrow-right
+        Lands the fitted model on disk (a file a notebook or a serving job
+        can pick up): `joblib.dump(model, filename, compress=3)` - joblib is
+        scikit-learn's own recommended persistence - with the wired model as
+        the value and `filename` in `with`.
+      icon: iconify mdi--content-save-outline
       keywords:
-        - gate
-        - promote
-        - threshold
-        - deploy
-        - policy
-      rationale: |
-        0.80 is the floor agreed with the clinical team; beating the deployed
-        baseline prevents a regression from shipping on a lucky split.
+        - save
+        - store
+        - persist
+        - joblib
+        - export
+      operationType: save
+      implementation: python://joblib.dump
+      with: "filename: results/model.joblib\ncompress: 3"
+
+  # ===========================================================================
+  # Artifacts. Native data objects; `uri` (from the exec Artifact trait) says
+  # where the engine loads/saves them.
+  # ===========================================================================
+  - description: A fitted model as an artifact - a data object the fitting step writes.
+    object:
+      bpmn:name: Model
+      type: bpmn:DataObjectReference
+      bpmn:documentation: |
+        The artifact a fitting step produces, an evaluation scores, and a
+        Writer saves. Set `uri` to keep it on disk; the model card (intended
+        use, training data, known limitations) goes here in `documentation`;
+        hyperparameters live on the fitting step's `with`.
+      icon: iconify mdi--cube-outline
+      keywords:
+        - model
+        - artifact
+        - estimator
+        - checkpoint
+
+  - description: A measured quantity - name it after the metric.
+    object:
+      bpmn:name: Metric
+      type: bpmn:DataObjectReference
+      bpmn:documentation: |
+        A native data object whose `bpmn:name` is the metric (`accuracy`,
+        `rmse`). The measuring step writes its value at run time; note the
+        partition it was computed on (train / validation / test) here, so a
+        test score is never read as a training score.
+      icon: iconify mdi--gauge
+      keywords:
+        - metric
+        - score
+        - measure
+        - auc
+        - accuracy

@@ -1,0 +1,243 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: Functional
+prefix: functional
+description: The functional-programming vocabulary of Studyflow - transform, map, reduce, and filter over data, and the fan-out behind BPMN's multi-instance marker. These are the generic anchors every domain layer binds its verbs onto (an ML fit is a `Reduce` over rows, a preprocessing pass a `Map` over subjects); what a step actually does is the real importable callable in `implementation` with its keyword arguments in `with`, and the data it reads and writes arrives over the wires. Domain schemas keep their own terminology and root their presets here.
+uri: https://w3id.org/studyflow/functional
+icon: iconify tabler--hexagon-letter-f
+xml:
+  tagAlias: lowerCase
+version: 26.0717
+
+associations: []
+
+enumerations:
+  - name: IterationKindEnum
+    isAbstract: true
+    description: What a multi-instance marker expands over.
+    literalValues:
+      - name: None (single instance)
+        value: none
+      - name: Items in a collection
+        value: items
+        description: One instance per element of the collection named by `over` (map / fan-out).
+
+  - name: CollectPolicyEnum
+    isAbstract: true
+    description: How instance outputs are joined back into the parent scope.
+    literalValues:
+      - name: List
+        value: list
+        description: Collect one entry per instance, in instance order.
+      - name: Concatenate
+        value: concat
+        description: Concatenate tabular/streaming outputs into one artifact.
+      - name: Reduce
+        value: reduce
+        description: Fold the outputs with the function named in `reducer` (e.g. mean of scores).
+      - name: None
+        value: none
+        description: Discard instance outputs; the step ran for its side effects.
+
+types:
+  # ---------------------------------------------------------------------------
+  # The functional core: composing functions over data.
+  # ---------------------------------------------------------------------------
+  - name: Transform
+    description: Apply a function to data - the generic step every operation specializes.
+    superClass:
+      - bpmn:ServiceTask
+      - bpmn:BaseElement
+    meta:
+      bpmnType: bpmn:ServiceTask
+    properties:
+      # `implementation` (the versioned function reference) comes from the
+      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
+      - name: isDataOperation
+        isAttr: true
+        type: Boolean
+        default: true
+        redefines: studyflow:DataOperationActivity#isDataOperation
+        meta:
+          pinned: true
+      - name: operationType
+        isAttr: true
+        default: transform
+        type: String
+        meta:
+          pinned: true
+  - name: Map
+    description: Map a function over each element of a data stream, producing a new stream.
+    superClass:
+      - functional:Transform
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: map
+        redefines: functional:Transform#operationType
+  - name: Reduce
+    description: Reduce a data stream to a single value (a statistic, a fitted model, a report).
+    superClass:
+      - functional:Transform
+    meta:
+      icon: iconify mdi--sigma
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: reduce
+        redefines: functional:Transform#operationType
+  - name: Filter
+    description: |
+      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
+    superClass:
+      - functional:Transform
+    meta:
+      icon: iconify mdi--filter-variant
+    properties:
+      - name: operationType
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
+        default: filter
+        redefines: functional:Transform#operationType
+  # (There is no FlatMap or Compose type: both are a `Transform` bound to a
+  # different function, which is what `implementation` is for. A record or a
+  # collection is BPMN's own `bpmn:DataObjectReference` - with
+  # `isCollection: true` for the native collection marker.)
+
+  # ---------------------------------------------------------------------------
+  # Fan-out. This trait carries the parameters behind BPMN's multi-instance
+  # marker: run the activity once per item of a collection and join the
+  # results - map and reduce, applied to activities instead of rows. The
+  # marker stays native BPMN, so bpmn-js renders it and other BPMN tools read
+  # it.
+  # ---------------------------------------------------------------------------
+  - name: Iteration
+    description: |
+      Parameters behind the BPMN multi-instance marker. Expanding an activity
+      runs one instance per element of the collection named by `over`;
+      instances are independent, and `collect` joins their outputs when all
+      finish.
+    extends:
+      - bpmn:Activity
+    isAbstract: true
+    properties:
+      - name: iterate
+        description: What to expand over. `none` leaves the activity single-instance.
+        isAttr: true
+        type: IterationKindEnum
+        default: none
+        meta:
+          order: 1
+          categories:
+            - Iteration
+
+      - name: over
+        description: |
+          Name of the input port (or variable) holding the collection to expand
+          over. Required when `iterate` is `items`. (BPMN: `loopDataInputRef`.)
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Iteration
+          condition:
+            language: json
+            body:
+              iterate: items
+
+      - name: itemVar
+        description: Name the current instance's element is bound to inside the scope (BPMN's `inputDataItem`).
+        isAttr: true
+        type: String
+        default: item
+        meta:
+          order: 3
+          categories:
+            - Iteration
+          condition:
+            language: json
+            body:
+              iterate: items
+
+      - name: collect
+        description: How instance outputs are joined back into the parent scope.
+        isAttr: true
+        type: CollectPolicyEnum
+        default: list
+        meta:
+          order: 4
+          categories:
+            - Iteration
+
+      - name: collectAs
+        description: Output port the joined result is bound to in the parent scope (BPMN's `loopDataOutputRef`).
+        isAttr: true
+        type: String
+        meta:
+          order: 5
+          categories:
+            - Iteration
+          optional: true
+
+      - name: reducer
+        description: |
+          Function used to fold instance outputs when `collect` is `reduce`,
+          in the `implementation` reference grammar (e.g. `python://numpy.mean`).
+        isAttr: true
+        type: String
+        meta:
+          order: 6
+          categories:
+            - Iteration
+          condition:
+            language: json
+            body:
+              collect: reduce
+
+templates:
+  - description: Fan out over a collection - one instance of the body per item, joined when all finish.
+    object:
+      bpmn:name: For each
+      type: bpmn:SubProcess
+      bpmn:documentation: |
+        A native sub-process whose multi-instance marker the iteration trait
+        parameterizes: one instance per element of the collection named by
+        `over`, joined by `collect` when all finish - the map step of a
+        pipeline (per participant, per file, per eval item).
+      icon: iconify mdi--arrow-split-vertical
+      keywords:
+        - foreach
+        - map
+        - fanout
+        - items
+        - parallel
+      loopCharacteristics:
+        type: bpmn:MultiInstanceLoopCharacteristics
+      iterate: items
+      collect: list
+
+  - description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
+    object:
+      bpmn:name: Group
+      type: Map
+      bpmn:documentation: |
+        Partition a data stream into named groups by a key (e.g., participant,
+        condition, block). Bound to Python's own `itertools.groupby(iterable,
+        key)` - the stream is sorted by the key first, as groupby requires.
+      icon: iconify mdi--group
+      keywords:
+        - group
+        - groupby
+        - partition
+      operationType: group
+      implementation: python://itertools.groupby
+      with: "key: participant"

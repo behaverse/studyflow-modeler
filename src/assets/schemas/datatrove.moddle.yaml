@@ -2,20 +2,29 @@
 
 name: DataTrove
 prefix: datatrove
-description: Studyflow extension for composing functions over data streams - generic functional operations (transform, map, flatMap, reduce, filter, compose) and the read/write blocks (reader, writer). Corpus operations (extract, stats, tokenize, dedup) and higher-level ones (group, split, anonymize) are prefilled templates that bind a function via `implementation`, not classes.
+description: >-
+  Studyflow extension for the datatrove library's own pipeline blocks - the
+  Reader and Writer IO steps (`datatrove.pipeline.readers` /
+  `datatrove.pipeline.writers` classes, with datatrove's
+  `data_folder`/`output_folder` as `path`) and presets that bind its
+  processing blocks (e.g. the PII formatter). The generic functional
+  operations these specialize live in the `functional` schema; corpus
+  building (extract, stats, tokenize, dedup) is the library's own business -
+  bind its blocks directly when a study needs one, e.g. a `functional:Map`
+  running `python://datatrove.pipeline.extractors.Trafilatura`.
 uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 xml:
   tagAlias: lowerCase
-version: 26.0716
+version: 26.0717
 associations: []
 enumerations:
   - name: ReaderClassEnum
     isAbstract: true
-    description: Specific class for the reader.
+    description: Reader class from `datatrove.pipeline.readers`, importable as named.
     literalValues:
       - name: CSV
-        value: CSVReader
+        value: CsvReader
       - name: HuggingFace Dataset
         value: HuggingFaceDatasetReader
       - name: IPC (Apache Arrow)
@@ -28,7 +37,7 @@ enumerations:
         value: WarcReader
   - name: WriterClassEnum
     isAbstract: true
-    description: Specific class for the writer.
+    description: Writer class from `datatrove.pipeline.writers`, importable as named.
     literalValues:
       - name: HuggingFace Dataset
         value: HuggingFaceDatasetWriter
@@ -37,140 +46,10 @@ enumerations:
       - name: Parquet
         value: ParquetWriter
 types:
-  # ---------------------------------------------------------------------------
-  # Generic functional core: composing functions over a data stream.
-  # ---------------------------------------------------------------------------
-  - name: Transform
-    description: Apply a function to each element in a data stream.
-    superClass:
-      - bpmn:ServiceTask
-      - bpmn:BaseElement
-    meta:
-      bpmnType: bpmn:ServiceTask
-    properties:
-      # `implementation` (the versioned function reference) comes from the
-      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
-      - name: isDataOperation
-        isAttr: true
-        type: Boolean
-        default: true
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
-      - name: operationType
-        isAttr: true
-        default: transform
-        type: String
-        meta:
-          pinned: true
-  - name: Map
-    description: Map a function over a data stream, producing a new data stream.
-    superClass:
-      - datatrove:Transform
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: map
-        redefines: datatrove:Transform#operationType
-  - name: FlatMap
-    description: Map a one-to-many function over a data stream and flatten the results (e.g., unnest, expand events per trial, explode arrays).
-    superClass:
-      - datatrove:Transform
-    meta:
-      icon: iconify mdi--arrow-expand-all
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: flatMap
-        redefines: datatrove:Transform#operationType
-  - name: Reduce
-    description: Reduce a data stream to a single value.
-    superClass:
-      - datatrove:Transform
-    meta:
-      icon: iconify mdi--sigma
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: reduce
-        redefines: datatrove:Transform#operationType
-  - name: Filter
-    description: |
-      Filter a data stream based on a condition. Elements that satisfy the predicate are kept; those that don't are removed.
-    superClass:
-      - datatrove:Transform
-    meta:
-      icon: iconify mdi--filter-variant
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: filter
-        redefines: datatrove:Transform#operationType
-  - name: Compose
-    description: Compose two or more transformations into a single pipeline step.
-    superClass:
-      - datatrove:Transform
-    meta:
-      icon: iconify mdi--function-variant
-    properties:
-      - name: operationType
-        isAttr: true
-        type: String
-        meta:
-          pinned: true
-        default: compose
-        redefines: datatrove:Transform#operationType
-  # ---------------------------------------------------------------------------
-  # DataTrove data references.
-  # ---------------------------------------------------------------------------
-  - name: Document
-    description: A single unit of text data with optional media attachments and metadata, mirroring DataTrove's Document record.
-    superClass:
-      - bpmn:DataObjectReference
-      - bpmn:BaseElement
-    meta:
-      icon: iconify fluent--document-text-24-regular
-      bpmnType: bpmn:DataObjectReference
-    properties:
-      - name: text
-        type: String
-        meta:
-          categories:
-            - DataTrove
-      - name: media
-        type: String
-        isMany: true
-        meta:
-          categories:
-            - DataTrove
-      - name: metadata
-        type: studyflow:YAMLString
-        meta:
-          categories:
-            - DataTrove
-  # (There is no DataFolder type: a collection of Documents is BPMN's own
-  # `bpmn:DataObjectReference` with `isCollection: true` - the native collection
-  # marker (the parallel-bars glyph) - not a zero-property subclass that only
-  # renamed the native element.)
-  # ---------------------------------------------------------------------------
-  # DataTrove read/write/corpus blocks.
-  # ---------------------------------------------------------------------------
   - name: Reader
-    description: Read data from different formats and yield Documents.
+    description: Read data from different formats and yield documents/rows.
     superClass:
-      - datatrove:Transform
+      - functional:Transform
     meta:
       icon: iconify mdi--input
     properties:
@@ -179,8 +58,8 @@ types:
         type: String
         meta:
           pinned: true
-        default: map
-        redefines: datatrove:Transform#operationType
+        default: read
+        redefines: functional:Transform#operationType
       - name: className
         type: ReaderClassEnum
         isAttr: true
@@ -191,16 +70,16 @@ types:
           categories:
             - DataTrove
       - name: path
-        description: Source location to read from (e.g., a folder path, glob pattern, URL, or dataset identifier).
+        description: Source location to read from - datatrove's `data_folder` argument (a folder path, glob pattern, URL, or dataset identifier).
         isAttr: true
         type: String
         meta:
           categories:
             - DataTrove
   - name: Writer
-    description: Write Documents to different formats.
+    description: Write documents/rows to different formats.
     superClass:
-      - datatrove:Transform
+      - functional:Transform
     meta:
       icon: iconify mdi--output
     properties:
@@ -210,9 +89,9 @@ types:
         meta:
           pinned: true
         default: write
-        redefines: datatrove:Transform#operationType
+        redefines: functional:Transform#operationType
       - name: path
-        description: Destination location to write to (e.g., a folder path, URL, or dataset identifier).
+        description: Destination location to write to - datatrove's `output_folder` argument (a folder path, URL, or dataset identifier).
         isAttr: true
         type: String
         meta:
@@ -227,47 +106,15 @@ types:
         meta:
           categories:
             - DataTrove
-  # (There is no Extractor / Stats / Tokens / Dedup type: each was a
-  # `datatrove:Transform` subclass that pinned `operationType` with no unique
-  # attribute - i.e. a `Map`/`Reduce` under a different name. They are templates
-  # below, binding a concrete function via `implementation`, not classes.)
 templates:
-  # Parameterized operations: a generic operation type bound to a concrete
-  # function via `implementation` (and arguments via `with`), instead of a dedicated
-  # schema type per operation.
-  - description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
-    object:
-      bpmn:name: Group
-      type: Map
-      bpmn:documentation: Partition a data stream into named groups by a key (e.g., participant, condition, block). A Map bound to a grouping function; set the key via `with`.
-      icon: iconify mdi--group
-      keywords:
-        - group
-        - groupby
-        - partition
-      operationType: group
-      implementation: python://datatrove.group
-      with: "key: participant"
-  - description: Partition data items into named subsets (e.g., train/test) with scikit-learn.
-    object:
-      bpmn:name: Split Data
-      type: Transform
-      bpmn:documentation: Partition data items into named subsets (e.g., train/test). Bound to scikit-learn's train_test_split; adjust sizes via `with`.
-      icon: iconify mdi--call-split
-      keywords:
-        - split
-        - train
-        - test
-        - holdout
-        - sklearn
-      operationType: splitData
-      implementation: python://sklearn.model_selection.train_test_split
-      with: "test_size: 0.2"
-  - description: Remove or pseudonymize identifying fields.
+  - description: Remove or pseudonymize identifying fields (datatrove's PII formatter).
     object:
       bpmn:name: Anonymize Data
-      type: Map
-      bpmn:documentation: Remove or pseudonymize identifying fields before sharing or further processing.
+      type: functional:Map
+      bpmn:documentation: |
+        Remove or pseudonymize identifying fields before sharing or further
+        processing. Bound to the datatrove library's `PIIFormatter` block,
+        which scrubs emails and IP addresses from each document's text.
       icon: iconify mdi--incognito
       keywords:
         - anonymize
@@ -275,58 +122,5 @@ templates:
         - deidentify
         - privacy
       operationType: anonymizeData
-      implementation: python://datatrove.anonymize
-  - description: Extract text content from raw formats (e.g., webpage HTML).
-    object:
-      bpmn:name: Extract text
-      type: Map
-      bpmn:documentation: Extract clean text from raw documents (HTML, PDF, ...). A Map bound to an extractor; set the source format via `with`.
-      icon: iconify mdi--text-recognition
-      keywords:
-        - extract
-        - text
-        - html
-        - trafilatura
-      operationType: extract
-      implementation: python://datatrove.extract
-  - description: Collect summary statistics over a data stream.
-    object:
-      bpmn:name: Collect stats
-      type: Reduce
-      bpmn:documentation: Reduce a data stream to summary statistics (counts, lengths, token histograms). Set what to collect via `with`.
-      icon: iconify mdi--chart-box-outline
-      keywords:
-        - stats
-        - statistics
-        - summary
-        - profile
-      operationType: stats
-      implementation: python://datatrove.stats
-  - description: Tokenize documents or count tokens.
-    object:
-      bpmn:name: Tokenize
-      type: Map
-      bpmn:documentation: Tokenize text (or count tokens) with a named tokenizer. Set the tokenizer via `with`.
-      icon: iconify mdi--format-letter-matches
-      keywords:
-        - tokenize
-        - tokens
-        - tokenizer
-        - count
-      operationType: tokenize
-      implementation: python://datatrove.tokenize
-      with: "tokenizer: gpt2"
-  - description: Remove duplicate or near-duplicate documents.
-    object:
-      bpmn:name: Deduplicate
-      type: Map
-      bpmn:documentation: Drop duplicate or near-duplicate documents (exact, minhash, or sentence-level). Set the method via `with`.
-      icon: iconify mdi--content-duplicate
-      keywords:
-        - dedup
-        - deduplicate
-        - duplicate
-        - minhash
-      operationType: dedup
-      implementation: python://datatrove.dedup
-      with: "method: minhash"
+      implementation: python://datatrove.pipeline.formatters.PIIFormatter
+      with: "remove_emails: true\nremove_ips: true"
