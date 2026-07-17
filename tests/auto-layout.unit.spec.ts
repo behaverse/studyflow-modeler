@@ -85,8 +85,10 @@ test.describe('ensureDiagramLayout', () => {
     // Every data association got a DI edge with waypoints, so bpmn-js renders
     // it and the inspector can infer the step's inputs/outputs from it.
     for (const wire of [
-      'Wire_Load_Digits', 'Wire_Build_Pipeline', 'Wire_Pipeline_CV', 'Wire_Digits_CV',
-      'Wire_CV_Metrics', 'Wire_Pipeline_Fit', 'Wire_Digits_Fit', 'Wire_Fit_Model', 'Wire_Model_Save',
+      'Wire_Input_Features', 'Wire_Features', 'Wire_Input_Target', 'Wire_Target', 'Wire_Pipeline',
+      'Wire_Pipeline_CV', 'Wire_Features_CV', 'Wire_Target_CV', 'Wire_CV_Result', 'Wire_CV_Result_Report',
+      'Wire_Fold_Report', 'Wire_Fold_Report_Summary', 'Wire_CV_Summary', 'Wire_Pipeline_Fit',
+      'Wire_Features_Fit', 'Wire_Target_Fit', 'Wire_Fitted_Model',
     ]) {
       expect(laidOut).toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${wire}"`));
     }
@@ -100,21 +102,21 @@ test.describe('ensureDiagramLayout', () => {
         if (di.$type === 'bpmndi:BPMNShape' && di.bpmnElement?.id) shapes.set(di.bpmnElement.id, di.bounds);
       }
     }
-    const digits = shapes.get('Digits')!;
-    const load = shapes.get('Load_Data')!;
-    const save = shapes.get('Save_Model')!;
-    expect(digits.y).toBeGreaterThan(load.y + load.height); // below the flow band
-    expect(digits.x).toBeGreaterThan(load.x); // pulled toward its consumers, off the left column
+    const dataset = shapes.get('Input_Dataset')!;
+    const selectFeatures = shapes.get('Select_Features')!;
+    const summarize = shapes.get('Summarize_CV')!;
+    expect(dataset.y).toBeGreaterThan(selectFeatures.y + selectFeatures.height); // below the flow band
+    expect(dataset.x).toBeGreaterThan(selectFeatures.x); // pulled toward its consumers, off the left column
     const model = shapes.get('Final_Model')!;
-    expect(model.y).toBeGreaterThan(save.y); // likewise for the produced artifact
+    expect(model.y).toBeGreaterThan(summarize.y); // likewise for the produced artifact
 
     // The semantic tree is re-read from the original XML with the schema-aware
     // moddle, so extension *child elements* survive too — bpmn-auto-layout's
     // own plain-moddle round-trip would silently drop `<studyflow:with>`
     // (the step arguments) from every laid-out import.
-    expect(laidOut).toContain('implementation="python://sklearn.datasets.load_digits"');
+    expect(laidOut).toContain('implementation="python://sklearn.model_selection.cross_validate"');
     expect(laidOut).toContain('operationType="crossValidate"');
     expect(laidOut).toContain('<studyflow:with>');
-    expect(laidOut).toContain('as_frame: true');
+    expect(laidOut).toContain('precision_macro');
   });
 });

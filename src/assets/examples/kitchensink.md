@@ -420,7 +420,7 @@ Fit:
     class_weight: balanced
 ```
 
-See `sklearn_pipeline.studyflow` — a complete worked pipeline (load digits →
+See `sklearn_pipeline.studyflow` — a complete worked pipeline (external Parquet dataset →
 cross-validated PCA + SVC → threshold gate → fit final → store results) built
 from these presets.
 
@@ -591,7 +591,7 @@ brainflow, openbci_gui.
 |---|---|
 | `kitchensink.studyflow` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
 | `cognitive_battery.studyflow` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `sklearn_pipeline.studyflow` | **The execution/ML guide** — functional operations bound to sklearn via `implementation`, one-call CV, threshold gate, stored artifacts. |
+| `sklearn_pipeline.studyflow` | **The execution/ML guide** — external dataset input, PCA pipeline, one-call CV, persisted fold/summary reports, threshold gate, and a promoted model artifact. |
 | `agent_eval.studyflow` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
 | `agent_eval_pool.studyflow` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
 | `choreography_demo.studyflow` | Choreography root, participants, message flows, ChoreographyTasks. |
