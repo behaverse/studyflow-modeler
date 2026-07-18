@@ -18,27 +18,34 @@ import { CheckIcon } from '@/modeler/views/inspector/CheckIcon';
 import { HelpTooltip } from '@/modeler/views/inspector/HelpTooltip';
 import {
   getLoopCharacteristics,
-  LOOP_TYPE_BY_KIND,
+  LOOP_STATE_BY_KIND,
   loopKindOf,
   type LoopKind,
 } from '@/modeler/models/inspector/loopCharacteristics';
 import { field as s } from '@/modeler/infra/styles';
 
-const KIND_OPTIONS: LoopKind[] = ['none', 'standard', 'multi-instance'];
+/** BPMN's own four repetition states, in one selector. */
+const KIND_OPTIONS: LoopKind[] = ['none', 'loop', 'parallel', 'sequential'];
 
 const KIND_DESCRIPTION =
   'How this activity repeats, stored as BPMN\'s own loopCharacteristics child. '
-  + 'A standard loop (↻) re-runs the body while its condition holds; '
-  + 'a multi-instance (∥ / ≡) runs one instance per item of a collection.';
+  + 'A loop (↻) retries this one activity while its condition holds; '
+  + 'parallel (∥) and sequential (≡) fan out one instance per item of the '
+  + 'wired collection input. A repeat that spans several steps is drawn '
+  + 'control flow instead: a conditioned back-edge through a gateway '
+  + '(e.g. `score < 0.9 && state.visits.Gate_1 < 5`).';
 
 const LOOP_MAXIMUM_DESCRIPTION =
-  'Hard ceiling on iterations. Always set one — it is the only guaranteed termination bound.';
+  'Hard ceiling on iterations. Always set one — it is the loop\'s guaranteed termination bound.';
 
 const TEST_BEFORE_DESCRIPTION =
   'Evaluate the loop condition before each iteration (while-do) instead of after it (do-while).';
 
-const IS_SEQUENTIAL_DESCRIPTION =
-  'Run the instances one after another (≡) instead of concurrently (∥).';
+/** `loopCondition` is BPMN's own expression element; show its body. */
+function expressionText(value: any): string {
+  if (typeof value === 'string') return value;
+  return value?.body ?? '';
+}
 
 /**
  * "Loop" tab: edits the activity's `loopCharacteristics` child, which the
@@ -56,10 +63,12 @@ export function LoopSection() {
 
   const setKind = (next: LoopKind) => {
     if (next === kind) return;
+    const state = next === 'none' ? null : LOOP_STATE_BY_KIND[next];
     executeCommand(modeler, {
       type: 'update-loop-characteristics',
       element,
-      loopType: next === 'none' ? null : LOOP_TYPE_BY_KIND[next],
+      loopType: state?.loopType ?? null,
+      properties: state?.properties,
     });
   };
 
@@ -78,7 +87,7 @@ export function LoopSection() {
     if (Number.isFinite(parsed)) setField('loopMaximum', parsed);
   };
 
-  // The exec:LoopCondition trait flattens `loopCondition` to a string
+  // The exec:LoopCondition trait flattens `loopCondition` to a CEL string
   // attribute; reuse its schema description for the tooltip.
   const conditionDef = loopCharacteristics
     ? getAttributeDefinition(loopCharacteristics, 'loopCondition')
@@ -114,7 +123,7 @@ export function LoopSection() {
         </div>
       </Field>
 
-      {kind === 'standard' && (
+      {kind === 'loop' && (
         <>
           <Field className={s.field}>
             <Label className={s.label}>
@@ -125,7 +134,7 @@ export function LoopSection() {
               name="loopCondition"
               type="text"
               placeholder="score < 0.9"
-              value={loopCharacteristics.get('loopCondition') ?? ''}
+              value={expressionText(loopCharacteristics.get('loopCondition'))}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setField('loopCondition', e.target.value)}
               className={s.textInput}
             />
@@ -162,25 +171,6 @@ export function LoopSection() {
             </div>
           </Field>
         </>
-      )}
-
-      {kind === 'multi-instance' && (
-        <Field className={s.field}>
-          <div className={s.booleanRow}>
-            <span className={s.booleanGroup}>
-              <Checkbox
-                name="isSequential"
-                checked={loopCharacteristics.get('isSequential') === true}
-                onChange={(checked: boolean) => setField('isSequential', checked)}
-                className={s.checkbox}
-              >
-                <CheckIcon />
-              </Checkbox>
-              <Label className={s.label}>{t('isSequential')}</Label>
-            </span>
-            <HelpTooltip name="isSequential" description={IS_SEQUENTIAL_DESCRIPTION} wide={false} />
-          </div>
-        </Field>
       )}
     </div>
   );

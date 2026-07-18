@@ -77,7 +77,7 @@ Also note that, while experimental data is generally assumed to be tabular, `Dat
 
 ## Data operations
 
-Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. An operator can be implemented as a usual BPMN task (e.g. script task or service task), and the operator marker serves as a semantic annotation indicating that the task is performing a specific type of data transformation. In the schemas, this is encoded by the abstract `DataOperationActivity` type, which augments any BPMN activity with the `isDataOperation` flag and `inputs`/`outputs` variable lists.
+Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. An operator can be implemented as a usual BPMN task (e.g. script task or service task), and the operator marker serves as a semantic annotation indicating that the task is performing a specific type of data transformation. This is derived, not stored: a step counts as a data operation when it names a data verb (`operationType`) or runs software (`implementation`) without being a participant-facing instrument. The `arguments` mapping comes from the abstract `Arguments` trait, and the operation's inputs and outputs are auto-detected from the data association edges drawn on the diagram.
 
 <figure class="centered max-w-2xl">
 <div style="max-width: 160px;">
@@ -200,7 +200,6 @@ Study RTAnalysis
       targetRef trials_summary      # external
 
     Task t1
-      isDataOperation true
       inputs [trials_in]
       outputs [trials_out]
       @op compose

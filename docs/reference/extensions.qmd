@@ -24,7 +24,7 @@ Generic data-operation activities for preprocessing and analysis pipelines (see 
 - **`Compose`** -- bundle several operations into one logical pipeline step.
 - **`PreprocessfMRI`**, **`PreprocessEEG`** -- template-scoped preprocessing types, surfaced only via templates.
 
-Templates: operations that are really "a generic operation plus a function" ship as prefilled templates rather than dedicated types -- **Group** (a `Map` bound to `python://omniprocess.group`, grouping key via `with`), **Split Data** (a `Transform` bound to scikit-learn's `train_test_split`, sizes via `with`), and **Anonymize Data** (a `Map` bound to `python://omniprocess.anonymize`); the `uses` function reference is a prefilled default you can repoint at your own function. Plus the neuroimaging prefabs: an **fMRIPrep** task (`PreprocessfMRI` with fMRIPrep-style parameters such as `output_spaces`) and an **EEGPrep** subprocess (`PreprocessEEG` with `clean_artifacts`/ICA parameters).
+Templates: operations that are really "a generic operation plus a function" ship as prefilled templates rather than dedicated types -- **Group** (a `Map` bound to `python://omniprocess.group`, grouping key via `arguments`), **Split Data** (a `Transform` bound to scikit-learn's `train_test_split`, sizes via `arguments`), and **Anonymize Data** (a `Map` bound to `python://omniprocess.anonymize`); the `implementation` function reference is a prefilled default you can repoint at your own function. Plus the neuroimaging prefabs: an **fMRIPrep** task (`PreprocessfMRI` with fMRIPrep-style parameters such as `output_spaces`) and an **EEGPrep** subprocess (`PreprocessEEG` with `clean_artifacts`/ICA parameters).
 
 ## DataTrove
 

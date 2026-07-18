@@ -13,11 +13,11 @@ export type FunctionCall = {
   argsYaml?: string;
 };
 
-/** Read the `implementation`/`with` pair off a node; undefined when no `implementation` is set. */
+/** Read the `implementation`/`arguments` pair off a node; undefined when no `implementation` is set. */
 export function readFunctionCall(node: FlowNode): FunctionCall | undefined {
   const functionRef = readString(node, 'implementation');
   if (!functionRef) return undefined;
-  const withValue = getAttribute(node.businessObject, 'with');
+  const withValue = getAttribute(node.businessObject, 'arguments');
   const argsYaml = typeof withValue === 'string' && withValue.trim() ? withValue : undefined;
   return { functionRef, argsYaml };
 }
@@ -75,11 +75,11 @@ export function validateFunctionCalls(studyflow: Studyflow): ValidationIssue[] {
       try {
         loaded = yaml.load(call.argsYaml);
       } catch (err) {
-        issues.push({ nodeId: node.id, message: `Invalid 'with' YAML: ${(err as Error).message}` });
+        issues.push({ nodeId: node.id, message: `Invalid 'arguments' YAML: ${(err as Error).message}` });
         continue;
       }
       if (loaded == null || typeof loaded !== 'object' || Array.isArray(loaded)) {
-        issues.push({ nodeId: node.id, message: "'with' must be a YAML mapping of argument names to values." });
+        issues.push({ nodeId: node.id, message: "'arguments' must be a YAML mapping of argument names to values." });
       }
     }
   }

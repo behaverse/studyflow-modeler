@@ -96,7 +96,8 @@ export class TypeCatalog {
     if (!typeName || !attrName) return undefined;
     const local = toLocalName(attrName);
     return this.instanceAttributesOf(typeName).find(
-      (spec) => spec.name === attrName || spec.ns.name === attrName || spec.name === local,
+      (spec) => spec.name === attrName || spec.ns.name === attrName
+        || spec.name === local || spec.ns.localName === local,
     );
   }
 
@@ -360,7 +361,13 @@ class Compiler {
   }
 
   private compileAttribute(prefix: string, raw: RawType): AttributeSpec {
-    const ns: NsInfo = { name: `${prefix}:${raw.name}`, prefix, localName: raw.name };
+    // A property authored with an explicit prefix (`bpmn:loopCondition`)
+    // keeps that namespace - how a redefine stays a *bpmn* element on the
+    // wire instead of moving under the schema's prefix.
+    const sep = raw.name.indexOf(':');
+    const nsPrefix = sep > 0 ? raw.name.slice(0, sep) : prefix;
+    const nsLocal = sep > 0 ? raw.name.slice(sep + 1) : raw.name;
+    const ns: NsInfo = { name: `${nsPrefix}:${nsLocal}`, prefix: nsPrefix, localName: nsLocal };
     const type = this.qualifyTypeRef(raw.type ?? 'String', prefix);
     const redefinedName = parseRedefinedName(raw.redefines ?? raw.replaces);
 
@@ -388,6 +395,19 @@ class Compiler {
         spec.bodyProp = bodyProp.name;
         spec.bodyType = bodyProp.type;
       }
+    }
+    // BPMN expression children (conditionExpression, loopCondition, timers,
+    // ...) carry their text in the native `body`; fold them the same way so
+    // they read and write as flat strings everywhere.
+    if (!spec.isAttr && (type === 'bpmn:Expression' || type === 'bpmn:FormalExpression')) {
+      spec.bodyProp = 'body';
+      spec.bodyType = 'String';
+    }
+    // BPMN documentation children fold the same way (their `text` body),
+    // as a list of one.
+    if (!spec.isAttr && type === 'bpmn:Documentation') {
+      spec.bodyProp = 'text';
+      spec.bodyType = 'String';
     }
 
     return spec;

@@ -10,11 +10,13 @@ description: >-
   call at a time, and estimators are data: building one is a call
   (`make_pipeline(PCA(16), SVC())` - a `functional:Transform` whose output is
   the unfitted estimator on a wire), fitting is a call
-  (`sklearn.pipeline.Pipeline.fit`, the unbound method, with the wired
-  estimator as its first argument - a `functional:Reduce`: rows in, one
-  fitted artifact out). Every `implementation` is a real importable callable,
-  every `with` holds that callable's actual keyword arguments, and the data
-  it reads and writes arrives over the wires. Cross-validation and
+  (`sklearn.pipeline.Pipeline.fit`, the unbound method, its `self` wired in -
+  a `functional:Reduce`: rows in, one fitted artifact out). Every
+  `implementation` is a real importable callable, `arguments` holds its literal
+  keyword arguments, and each wired input binds to the callable parameter
+  named on its association (`estimator`, `X`, `y`, `self`), defaulting to
+  the wired element's name; `$Element.field` references reach into a wired
+  value when a callable needs a field. Cross-validation and
   hyperparameter search are scikit-learn's own `cross_validate` and
   `GridSearchCV` - not workflow constructs; a promotion rule is a native
   gateway's own `conditionExpression`.
@@ -33,7 +35,7 @@ templates:
   # ===========================================================================
   # Steps - functional operations bound to sklearn functions. `operationType`
   # names the ML verb (load, splitData, build, fit, evaluate, crossValidate,
-  # save); `implementation` + `with` say what actually runs.
+  # save); `implementation` + `arguments` say what actually runs.
   # ===========================================================================
   - description: Load a bundled sample dataset (scikit-learn's digits) as a table.
     object:
@@ -56,7 +58,7 @@ templates:
         - iris
       operationType: load
       implementation: python://sklearn.datasets.load_digits
-      with: "as_frame: true"
+      arguments: "as_frame: true"
 
   - description: Group-aware train/test split - keeps every row from a participant on one side.
     object:
@@ -68,7 +70,7 @@ templates:
         human-subjects work. Bound to scikit-learn's
         `GroupShuffleSplit(n_splits, test_size)`; the group labels
         (participant ids) are not configuration - they arrive as a wired data
-        input (`split(X, y, groups)`). Repoint `implementation` at
+        input (`parameter: groups`, exactly `split(X, y, groups)`). Repoint `implementation` at
         `train_test_split` or another splitter when grouping does not matter.
       icon: iconify mdi--call-split
       keywords:
@@ -80,7 +82,7 @@ templates:
         - leakage
       operationType: splitData
       implementation: python://sklearn.model_selection.GroupShuffleSplit
-      with: "n_splits: 1\ntest_size: 0.2"
+      arguments: "n_splits: 1\ntest_size: 0.2"
 
   - description: Project features onto fewer dimensions (PCA) before fitting.
     object:
@@ -101,7 +103,7 @@ templates:
         - features
       operationType: project
       implementation: python://sklearn.decomposition.PCA
-      with: "n_components: 16\nwhiten: false"
+      arguments: "n_components: 16\nwhiten: false"
 
   - description: Build an estimator - constructors are calls, and estimators are data.
     object:
@@ -112,11 +114,11 @@ templates:
         `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1.0))`.
         `make_pipeline` takes its steps positionally, so they go under the
         reserved `args` key, and each step is a nested call - a mapping with
-        its own `implementation` and `with`, which the runner resolves first.
+        its own `implementation` and `arguments`, which the runner resolves first.
         Wire the result into "Cross-validate" and "Fit estimator" so both
         work on exactly the same specification; bind any constructor the same
         way (`sklearn.ensemble.RandomForestClassifier` with its kwargs in
-        `with`) when a single estimator is enough.
+        `arguments`) when a single estimator is enough.
       icon: iconify mdi--school-outline
       keywords:
         - build
@@ -127,7 +129,7 @@ templates:
         - model
       operationType: build
       implementation: python://sklearn.pipeline.make_pipeline
-      with: "args:\n  - implementation: python://sklearn.decomposition.PCA\n    with:\n      n_components: 16\n  - implementation: python://sklearn.svm.SVC\n    with:\n      kernel: rbf\n      C: 1.0"
+      arguments: "args:\n  - implementation: python://sklearn.decomposition.PCA\n    arguments:\n      n_components: 16\n  - implementation: python://sklearn.svm.SVC\n    arguments:\n      kernel: rbf\n      C: 1.0"
 
   - description: Fit an estimator on data - the call that actually trains the model.
     object:
@@ -135,16 +137,12 @@ templates:
       type: functional:Reduce
       bpmn:documentation: |
         The fitting call. `sklearn.pipeline.Pipeline.fit` is the unbound
-        method, so name the wired elements in `with` - the estimator as the
-        first positional argument, the data as keywords:
-
-            args:
-              - $MyPipeline
-            X: $MyTable.data
-            y: $MyTable.target
-
-        That is exactly `pipeline.fit(X, y)`; `fit` returns the fitted
-        estimator, which binds to the wired output. For a bare estimator,
+        method: wire the estimator in with `parameter: self` and the data
+        with `parameter: X` and `parameter: y` - that is exactly
+        `pipeline.fit(X, y)`. When an argument is a *field* of a wired
+        element, use a scoped reference in `arguments` instead
+        (`y: $MyTable.target`). `fit` returns the fitted estimator, which
+        binds to the wired output. For a bare estimator,
         bind its own class's method the same way
         (`sklearn.ensemble.RandomForestClassifier.fit`,
         `sklearn.model_selection.GridSearchCV.fit`).
@@ -180,7 +178,7 @@ templates:
         - statsmodels
       operationType: build
       implementation: python://statsmodels.formula.api.mixedlm
-      with: "formula: rt ~ condition\ngroups: participant_id"
+      arguments: "formula: rt ~ condition\ngroups: participant_id"
 
   - description: Score a model on held-out data - reduce predictions to a metrics report.
     object:
@@ -201,7 +199,7 @@ templates:
         - audit
       operationType: evaluate
       implementation: python://sklearn.metrics.classification_report
-      with: "output_dict: true"
+      arguments: "output_dict: true"
 
   - description: Cross-validate an estimator in one call (scikit-learn's cross_validate).
     object:
@@ -210,9 +208,10 @@ templates:
       bpmn:documentation: |
         The whole fit-and-score loop as one call -
         `cross_validate(estimator, X, y, cv, scoring)`. Build the estimator
-        with "Build estimator", wire it and the data in, and name them in
-        `with` as `estimator: $MyPipeline`, `X: $MyTable.data`,
-        `y: $MyTable.target`; the per-fold scores leave as the wired output.
+        with "Build estimator", then wire it and the data in, naming the
+        callable's parameters on the wires: `parameter: estimator`,
+        `parameter: X`, `parameter: y`; the per-fold scores leave as the
+        wired output.
         Folds are scikit-learn's business, not the workflow's: put
         preprocessing inside the estimator (`make_pipeline`) and every fold
         refits it without leakage.
@@ -225,7 +224,7 @@ templates:
         - validate
       operationType: crossValidate
       implementation: python://sklearn.model_selection.cross_validate
-      with: "cv: 5\nscoring: [accuracy, f1_macro]\nreturn_train_score: false"
+      arguments: "cv: 5\nscoring: [accuracy, f1_macro]\nreturn_train_score: false"
 
   - description: Build a hyperparameter grid search (scikit-learn's GridSearchCV).
     object:
@@ -248,7 +247,7 @@ templates:
         - sklearn
       operationType: build
       implementation: python://sklearn.model_selection.GridSearchCV
-      with: "param_grid:\n  C: [0.1, 1, 10]\n  kernel: [linear, rbf]\ncv: 5\nscoring: accuracy"
+      arguments: "param_grid:\n  C: [0.1, 1, 10]\n  kernel: [linear, rbf]\ncv: 5\nscoring: accuracy"
 
   - description: Persist a fitted model to disk.
     object:
@@ -258,7 +257,9 @@ templates:
         Lands the fitted model on disk (a file a notebook or a serving job
         can pick up): `joblib.dump(model, filename, compress=3)` - joblib is
         scikit-learn's own recommended persistence - with the wired model as
-        the value and `filename` in `with`.
+        the value and `filename` in `arguments`. Often no step is needed at all:
+        set `uri` and `codec: joblib` on the model artifact itself and the
+        engine persists it when the fitting step writes it.
       icon: iconify mdi--content-save-outline
       keywords:
         - save
@@ -268,7 +269,7 @@ templates:
         - export
       operationType: save
       implementation: python://joblib.dump
-      with: "filename: results/model.joblib\ncompress: 3"
+      arguments: "filename: results/model.joblib\ncompress: 3"
 
   # ===========================================================================
   # Artifacts. Native data objects; `uri` (from the exec Artifact trait) says
@@ -280,10 +281,12 @@ templates:
       type: bpmn:DataObjectReference
       bpmn:documentation: |
         The artifact a fitting step produces, an evaluation scores, and a
-        Writer saves. Set `uri` to keep it on disk; the model card (intended
-        use, training data, known limitations) goes here in `documentation`;
-        hyperparameters live on the fitting step's `with`.
+        Writer saves. Set `uri` to keep it on disk - `codec: joblib` is
+        scikit-learn's own persistence; the model card (intended use,
+        training data, known limitations) goes here in `documentation`;
+        hyperparameters live on the fitting step's `arguments`.
       icon: iconify mdi--cube-outline
+      codec: joblib
       keywords:
         - model
         - artifact

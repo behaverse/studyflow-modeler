@@ -188,14 +188,6 @@ types:
         meta:
           categories:
             - Instrument
-      - name: isDataOperation
-        description: CognitiveTask is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
   - name: Rest
     description: |
       A rest period of inactivity or minimal activity. Often used for baseline
@@ -233,14 +225,6 @@ types:
           editable: true
           categories:
             - Instrument
-      - name: isDataOperation
-        description: Questionnaire is not a data operation.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
   - name: Instruction
     description: |
       A passive information display shown to the participant (e.g., task
@@ -262,14 +246,6 @@ types:
         meta:
           categories:
             - Content
-      - name: isDataOperation
-        description: Instruction is not a data operation; this pinned property fixes the value so the data-operation marker is never rendered.
-        isAttr: true
-        type: Boolean
-        default: false
-        redefines: studyflow:DataOperationActivity#isDataOperation
-        meta:
-          pinned: true
   - name: BehaverseTask
     description: |
       Specialized `CognitiveTask` for the Behaverse battery. It behaves like a

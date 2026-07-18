@@ -293,7 +293,8 @@ activity): `iterate` (IterationKindEnum: none/items), `over`, `itemVar`,
 `reducer` — map and reduce applied to activities instead of rows.
 
 ### Templates
-**For each** (`bpmn:SubProcess`, `iterate: items`, `collect: list`) ·
+**For each** (`bpmn:SubProcess`, native multi-instance marker) ·
+**Retry until** (`bpmn:Task`, standard-loop marker: `loopCondition` + `loopMaximum`) ·
 **Group** (`Map` bound to `itertools.groupby`, `key=`).
 
 ```yaml
@@ -302,9 +303,9 @@ Per_Subject:
   name: For each subject
   loopCharacteristics:
     type: bpmn:MultiInstanceLoopCharacteristics
-  iterate: items                 # functional:Iteration trait attributes
-  over: subjects
-  collect: concat
+  # fans out over the wired collection input; the association's `parameter`
+  # names the current item, and instance outputs assemble in order into the
+  # wired output - joining them differently is an explicit downstream step
 ```
 
 ---

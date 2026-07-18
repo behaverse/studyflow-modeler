@@ -103,7 +103,6 @@ OmniProcessLabLinkDemo:
               "y": 600
             - x: 470
               "y": 440
-      isDataOperation: true
       studyflow:operationType: map
       bounds:
         x: 420
@@ -119,7 +118,6 @@ OmniProcessLabLinkDemo:
         - Flow_Read_Filter
       outgoing:
         - Flow_Filter_Split
-      isDataOperation: true
       studyflow:operationType: filter
       bounds:
         x: 570
@@ -154,7 +152,6 @@ OmniProcessLabLinkDemo:
         - Flow_Split_fMRI
       outgoing:
         - Flow_fMRI_Join
-      isDataOperation: true
       studyflow:operationType: map
       bounds:
         x: 870
@@ -183,7 +180,6 @@ OmniProcessLabLinkDemo:
             - Flow_EEG_Filter
           outgoing:
             - Flow_EEG_Clean
-          isDataOperation: true
           studyflow:operationType: map
         EEG_RemoveArtifacts:
           type: bpmn:ServiceTask
@@ -194,7 +190,6 @@ OmniProcessLabLinkDemo:
             - Flow_EEG_Clean
           outgoing:
             - Flow_EEG_End
-          isDataOperation: true
           studyflow:operationType: map
         EEG_End:
           type: bpmn:EndEvent
@@ -247,7 +242,6 @@ OmniProcessLabLinkDemo:
         - Flow_Join_Stats
       outgoing:
         - Flow_Features_FitModel
-      isDataOperation: true
       studyflow:operationType: reduce
       bounds:
         x: 1150
@@ -263,7 +257,6 @@ OmniProcessLabLinkDemo:
         - Flow_Features_FitModel
       outgoing:
         - Flow_FitModel_Figures
-      isDataOperation: true
       studyflow:operationType: reduce
       bounds:
         x: 1300
@@ -279,7 +272,6 @@ OmniProcessLabLinkDemo:
         - Flow_FitModel_Figures
       outgoing:
         - Flow_Figures_Manuscript
-      isDataOperation: true
       studyflow:operationType: map
       bounds:
         x: 1450
@@ -304,7 +296,6 @@ OmniProcessLabLinkDemo:
               "y": 440
             - x: 1650
               "y": 540
-      isDataOperation: true
       studyflow:operationType: map
       bounds:
         x: 1600

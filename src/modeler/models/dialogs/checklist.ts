@@ -1,4 +1,4 @@
-import { StudyflowElement } from '@/core/extensions';
+import { getAttribute } from '@/core/extensions';
 
 export type Item = {
   /** Raw label text after stripping the markdown bullet and checkbox marker. */
@@ -34,13 +34,11 @@ export function parseChecklist(markdown: string): Item[] {
     .filter((item): item is Item => item !== null);
 }
 
-/** Read the checklist attribute from a BO or its extension element (whichever has it). */
+/** Read the element's checklist - the `studyflow:checklist`-marked
+ *  `bpmn:documentation` entry, resolved by the catalog view. */
 export function readChecklist(bo: any): string | undefined {
-  if (typeof bo?.checklist === 'string' && bo.checklist.trim()) return bo.checklist;
-  const ext = StudyflowElement.fromBusinessObject(bo).extension;
-  const fromExt = ext?.get?.('checklist') ?? ext?.checklist;
-  if (typeof fromExt === 'string' && fromExt.trim()) return fromExt;
-  return undefined;
+  const value = getAttribute(bo, 'checklist');
+  return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
 /** Build a checklist group from a diagram element, or `null` when it carries

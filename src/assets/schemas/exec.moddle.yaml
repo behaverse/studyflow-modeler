@@ -2,7 +2,24 @@
 
 name: Exec
 prefix: exec
-description: The minimal executable layer of Studyflow - just enough for a small Python engine to run a diagram. A step is one Python call - BPMN's own `implementation` names the importable callable, `studyflow:with` carries its keyword arguments, and the data associations drawn on the canvas are its inputs and outputs; the engine imports, calls, and binds. Branching is a native gateway's `conditionExpression`; loops are BPMN's own standard-loop child; schedules, sensors, and delays are native BPMN events with their expressions flattened to plain attributes. One data noun (`Parameters`, a named configuration group) and one artifact field (`uri`, where an artifact's bytes live) - nothing an engine would not read. (Fan-out over a collection - map/reduce over activities - lives in the `functional` schema.)
+description: >-
+  The minimal executable layer of Studyflow - what an engine reads to run a
+  diagram. A step's `implementation` is a versioned software reference
+  (`python://` importable callable, `docker://` image, `https://` script);
+  `studyflow:arguments` holds its literal keyword arguments; and the data
+  associations drawn on the canvas are its inputs and outputs - each wired
+  input binds to the callable parameter named on its association (defaulting
+  to the wired element's name), and the returned value binds to the wired
+  outputs. Inside `arguments`, a `$Element` / `$Element.field` value reaches into
+  wired data. Conditions - gateway, loop, sensor, completion - are CEL
+  expressions over the bound values, read by bare element name
+  (`CV_Summary.test_accuracy.mean >= 0.9`); the language is declared once by
+  BPMN's own `expressionLanguage` on `bpmn:Definitions`. Branching is a
+  native gateway; a loop is either BPMN's own standard-loop marker or a
+  drawn cycle back through a gateway, bounded by the engine's run state
+  (`state.visits.<gateway-id>`); fan-out is the multi-instance marker over a
+  wired collection; schedules, sensors, and delays are native BPMN events.
+  Studyflow coordinates the calls; it never encodes the computation itself.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
 xml:
@@ -16,11 +33,12 @@ enumerations: []
 types:
 
   # ===========================================================================
-  # The implementation reference. BPMN's own `implementation` attribute
-  # ("the technology implementing this task") is redefined once, here, with
-  # the versioned reference grammar every executable step uses. The engine
-  # imports the callable it names and calls it with `with` plus the wired
-  # inputs; there is no other step contract.
+  # The software reference. BPMN's own `implementation` attribute ("the
+  # technology implementing this task") is redefined once, here, with the
+  # versioned reference grammar every executable step uses. The engine
+  # resolves the reference, calls it with `arguments` plus the wired inputs, and
+  # binds the return value to the wired outputs; there is no other step
+  # contract.
   # ===========================================================================
   - name: Implementation
     description: |
@@ -32,13 +50,14 @@ types:
       - bpmn:ServiceTask
     isAbstract: true
     properties:
-      - name: implementation
+      - name: bpmn:implementation
         description: |
-          Function or executable this step runs - BPMN's own attribute for
-          "the technology implementing this task", holding a versioned
-          reference: `<scheme>://<ref>[@<version-or-digest>]`. Schemes:
-          `python://` (importable callable), `docker://` (image), `https://`
-          (script URL).
+          Software this step runs - BPMN's own attribute for "the technology
+          implementing this task", holding a versioned reference:
+          `<scheme>://<ref>[@<version-or-digest>]`. Schemes: `python://`
+          (importable callable), `docker://` (image), `https://` (script URL),
+          `file://` (local script). The scheme names *how* to execute; new
+          execution modes add schemes, not schema types.
         isAttr: true
         type: String
         redefines: bpmn:ServiceTask#implementation
@@ -48,47 +67,109 @@ types:
             - Execution
 
   # ===========================================================================
+  # Bindings. Inputs and outputs are never listed on a task: they are the
+  # data associations drawn on the canvas. Connect a data element to a task
+  # and it is an input; wire the task to a data element and it is an output.
+  # `parameter` below only *refines* that detection when the callable's
+  # parameter name differs from the wired element's name. It is the compact
+  # form of BPMN's own ioSpecification mechanism, and the two are losslessly
+  # interchangeable: exported `.bpmn` XML lowers every wired step to a full
+  # `ioSpecification` (a named `bpmn:DataInput` per input wire, one `result`
+  # `bpmn:DataOutput`, `inputSet`/`outputSet`), and importing standard files
+  # folds that structure back to this attribute. Field extraction on a wire
+  # is BPMN's own `transformation` expression, not a studyflow attribute.
+  # ===========================================================================
+  - name: InputBinding
+    description: |
+      Drawn binding: a data input association supplies its source element to
+      one named parameter of the step's callable.
+    extends:
+      - bpmn:DataInputAssociation
+    isAbstract: true
+    properties:
+      - name: parameter
+        description: |
+          Callable parameter that receives the wired value (e.g. `X`, `y`, or
+          `self` for an unbound method). Defaults to the wired element's name -
+          or, when the association targets a declared `bpmn:DataInput` of the
+          activity's ioSpecification, to that input's name (BPMN's native
+          mechanism; then this attribute is redundant). On a multi-instance
+          activity, the collection input's `parameter` names the current item
+          inside each instance (BPMN's `inputDataItem`).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Binding
+
+  - name: Transformation
+    description: |
+      Surfaces BPMN's own `transformation` expression on data associations: a
+      CEL expression applied to the wired value before it lands on the
+      target. On an output wire the step's return value is bound as `result`
+      (e.g. `result.test_accuracy` writes one field of it); unset, the whole
+      value flows unchanged.
+    extends:
+      - bpmn:DataInputAssociation
+      - bpmn:DataOutputAssociation
+    isAbstract: true
+    properties:
+      - name: bpmn:transformation
+        description: |
+          CEL expression over the wired value; what it evaluates to is what
+          lands on the target. On an output wire the step's return value is
+          bound as `result`. Unset, the value flows unchanged.
+        type: bpmn:FormalExpression
+        redefines: bpmn:DataAssociation#transformation
+        meta:
+          categories:
+            - Binding
+
+  # ===========================================================================
   # Triggers, sensors, and delays are native BPMN, not studyflow concepts: a
   # timer start event is a schedule, a message start event an external event,
   # a conditional catch event a sensor, a timer catch event a delay, and a
-  # plain start event a manual run. The one accommodation, as for
-  # `loopCondition` and `completionCondition`, is flattening the event
-  # definitions' expressions to plain attributes.
+  # plain start event a manual run. As for `loopCondition` and
+  # `completionCondition`, the event definitions' expressions are authored as
+  # flat strings and stored in BPMN's own expression-element form.
   # ===========================================================================
   - name: Timer
     description: |
-      Flattens the timer event definition's expressions from elements to plain
-      attributes, so schedules and delays are authored as strings. BPMN
-      semantics unchanged. On a start event, `timeCycle` launches runs on a
-      schedule; on an intermediate catch event, `timeDuration` is a delay and
-      `timeDate` a fixed wake-up.
+      Declares the timer event definition's expressions so schedules and
+      delays are authored as flat strings, stored in BPMN's own form (an
+      expression element, `xsi:type` tFormalExpression). On a start event,
+      `timeCycle` launches runs on a schedule; on an intermediate catch
+      event, `timeDuration` is a delay and `timeDate` a fixed wake-up.
     extends:
       - bpmn:TimerEventDefinition
     isAbstract: true
     properties:
-      - name: timeCycle
+      - name: bpmn:timeCycle
         description: |
           When to fire, repeatedly: a cron five-field expression (e.g.
           `0 6 * * 1`, Mondays at 06:00) or an ISO 8601 repeating interval
           (e.g. `R/PT24H`).
-        isAttr: true
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:TimerEventDefinition#timeCycle
         meta:
           categories:
             - Trigger
-      - name: timeDuration
+      - name: bpmn:timeDuration
         description: How long to wait, as an ISO 8601 duration (e.g. `PT1H`).
-        isAttr: true
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:TimerEventDefinition#timeDuration
         meta:
           categories:
             - Trigger
-      - name: timeDate
+      - name: bpmn:timeDate
         description: Fire once, at a fixed time (ISO 8601, e.g. `2026-09-01T06:00Z`).
-        isAttr: true
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:TimerEventDefinition#timeDate
         meta:
           categories:
@@ -96,47 +177,55 @@ types:
 
   - name: Condition
     description: |
-      Flattens the conditional event definition's `condition` to a plain
-      attribute. A conditional catch event is the workflow sensor: the token
-      waits here until the condition over the run's variables holds - data
-      arrived, a metric crossed a line - then passes.
+      Declares the conditional event definition's `condition`, authored as a
+      flat CEL string and stored as BPMN's own expression element. A
+      conditional catch event is the workflow sensor: the token waits here
+      until the condition over the run's variables holds - data arrived, a
+      metric crossed a line - then passes.
     extends:
       - bpmn:ConditionalEventDefinition
     isAbstract: true
     properties:
-      - name: condition
+      - name: bpmn:condition
         description: |
-          Expression over the run's variables; the event fires when it holds
-          (e.g. `raw_sessions.rowCount > 0`).
-        isAttr: true
+          CEL expression over the run's variables; the event fires when it
+          holds (e.g. `raw_sessions.rowCount > 0`).
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:ConditionalEventDefinition#condition
         meta:
           categories:
             - Trigger
 
-  # Cycles use BPMN's own standard-loop child (`loopCharacteristics` with
-  # `testBefore`, `loopCondition`, `loopMaximum`), which is also what makes
-  # the loop marker render. The one accommodation is below - `loopCondition`
-  # is flattened to a string attribute, the same treatment the core gives
-  # `conditionExpression`. Always set `loopMaximum`: it is the only
-  # guaranteed termination bound in a language with cycles. Same flattening
-  # for the ad-hoc sub-process's own exit test (an Agent's stop rule).
+  # Cycles come in two interchangeable forms, both BPMN's own. The compact
+  # form is the standard-loop marker (`loopCharacteristics` with
+  # `loopCondition`, `loopMaximum`, `testBefore`): one activity retried in
+  # place, the canvas ↻. The drawn form is a gateway whose conditioned
+  # back-edge returns upstream, exit as the gateway's native `default` - use
+  # it when the cycle spans several steps or the exit rule should be a
+  # visible edge, bounding it with the engine's run state
+  # (`state.visits.<gateway-id>`, the drawn counterpart of the marker's own
+  # loopCounter). The declarations below keep the marker's condition and the
+  # ad-hoc sub-process's exit test (an Agent's stop rule) authorable as flat
+  # CEL strings; on the wire they are BPMN's own expression elements
+  # (`xsi:type` tFormalExpression), not custom attributes.
   - name: CompletionCondition
     description: |
-      Flattens the ad-hoc sub-process's own `completionCondition` to a plain
-      attribute, so an agent's exit test is authored as a string
-      (e.g. `answer is not null`).
+      Declares the ad-hoc sub-process's own `completionCondition`, authored
+      as a flat CEL string (e.g. `answer != null`) and stored as BPMN's own
+      expression element.
     extends:
       - bpmn:AdHocSubProcess
     isAbstract: true
     properties:
-      - name: completionCondition
+      - name: bpmn:completionCondition
         description: |
           BPMN's own exit test: the ad-hoc sub-process (an Agent) is complete
           when this holds, evaluated over the run's variables after each turn.
-        isAttr: true
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:AdHocSubProcess#completionCondition
         meta:
           categories:
@@ -144,36 +233,39 @@ types:
 
   - name: LoopCondition
     description: |
-      Flattens the standard-loop marker's `loopCondition` from an expression
-      element to a plain attribute (as the core does for `conditionExpression`),
-      so it can be authored as a string. BPMN semantics unchanged: the loop
-      *continues while* it holds, and stops at `loopMaximum` regardless.
+      Declares the standard-loop marker's `loopCondition`, authored as a flat
+      CEL string and stored as BPMN's own expression element (as the core
+      does for `conditionExpression`). The loop *continues while* it holds,
+      and stops at `loopMaximum` regardless.
     extends:
       - bpmn:StandardLoopCharacteristics
     isAbstract: true
     properties:
-      - name: loopCondition
+      - name: bpmn:loopCondition
         description: |
-          Continue-while expression over the run's variables (e.g.
-          `score < 0.9` keeps refining until the score clears 0.9). Evaluated
+          Continue-while CEL expression over the run's bound values (e.g.
+          `score < 0.9` keeps retrying until the score clears 0.9). Evaluated
           after each turn, or before it with `testBefore`.
-        isAttr: true
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:StandardLoopCharacteristics#loopCondition
         meta:
           categories:
             - Repeat
 
   # ===========================================================================
-  # Artifacts. One field on every BPMN data element: where the bytes live.
-  # The engine passes wired data in memory and loads/saves an artifact at its
-  # `uri` when one is set - nothing more.
+  # Artifacts. Two fields on every BPMN data element: where the bytes live
+  # (`uri`) and how they are serialized (`codec`). The engine passes wired
+  # data in memory and loads/saves an artifact at its `uri` when one is set -
+  # nothing more.
   # ===========================================================================
   - name: Artifact
     description: |
-      Storage location, mixed onto every BPMN data element. Unset means the
-      value only flows in memory between steps; set, the engine reads/writes
-      the artifact there.
+      Storage contract, mixed onto every BPMN data element. Unset `uri` means
+      the value only flows in memory between steps; set, the engine
+      reads/writes the artifact there, using its declared `codec` (or the
+      engine's registered codec for the file extension).
     extends:
       - bpmn:ItemAwareElement
     isAbstract: true
@@ -184,6 +276,13 @@ types:
         type: String
         meta:
           order: 1
+          categories:
+            - Artifact
+      - name: codec
+        description: Serialization codec used to load/save the artifact (e.g. parquet, json, joblib, zarr).
+        isAttr: true
+        type: String
+        meta:
           categories:
             - Artifact
 
@@ -213,6 +312,21 @@ types:
           editor: yaml
 
 templates:
+  - description: Compose a hierarchical workflow with BPMN's native sub-process.
+    object:
+      bpmn:name: Composite workflow
+      type: bpmn:SubProcess
+      bpmn:documentation: |
+        A BPMN sub-process coordinates an internal workflow. It has no
+        `implementation`: its child flow elements are the work. Connect data
+        to its boundary with BPMN associations when the composite has explicit
+        inputs or outputs.
+      icon: iconify mdi--sitemap-outline
+      keywords:
+        - subprocess
+        - composite
+        - workflow
+        - hierarchy
   - description: Launch the flow on a schedule - BPMN's own timer start event, with a cron or ISO 8601 cycle.
     object:
       bpmn:name: Scheduled start
@@ -273,24 +387,6 @@ templates:
         - type: bpmn:TimerEventDefinition
           timeDuration: PT1H
 
-  - description: Retry-until-good loop - run the body until a criterion holds or the turn budget runs out.
-    object:
-      bpmn:name: Repeat until
-      type: bpmn:SubProcess
-      bpmn:documentation: |
-        Re-enters the body while BPMN's own `loopCondition` holds. Give every
-        loop a `loopMaximum` - it is the only guaranteed termination bound.
-      icon: iconify mdi--repeat-variant
-      keywords:
-        - loop
-        - repeat
-        - until
-        - cycle
-      loopCharacteristics:
-        type: bpmn:StandardLoopCharacteristics
-        loopCondition: score < 0.9
-        loopMaximum: 5
-
   - description: Gate - continue only when a measured value clears the criterion.
     object:
       bpmn:name: Gate
@@ -299,10 +395,16 @@ templates:
         A decision on a measured value: promotion gates ("keep the model only
         if accuracy clears the bar"), data-quality gates, and safety gates are
         all a native exclusive gateway. The rule is BPMN's own: type it as the
-        pass flow's `conditionExpression` - the field the engine's branch rule
-        reads - and mark the reject flow as the gateway's native `default`.
+        pass flow's `conditionExpression` - a CEL expression over the bound
+        values, the field the engine's branch rule reads - and mark the reject
+        flow as the gateway's native `default`.
         Write the rationale for the threshold here in `documentation`, where
         reviewers read it; there is no second place to write the rule.
+        A retry loop is this same gateway drawn into a cycle: condition the
+        back-edge (`score < 0.9 && state.visits.Gate_1 < 5` - the engine
+        exposes per-gateway visit counts in its run state) and keep the exit
+        as the `default`. For a one-activity retry, the standard-loop marker
+        on the activity is the compact equivalent.
       icon: iconify mdi--gate-arrow-right
       keywords:
         - gate
@@ -310,3 +412,56 @@ templates:
         - promote
         - policy
         - quality
+
+  - description: Retry-until-good loop, drawn - a cycle whose exit rule and budget are visible edges.
+    object:
+      bpmn:name: Repeat until
+      type: bpmn:SubProcess
+      bpmn:documentation: |
+        The promoted loop idiom, stamped as standard visual BPMN: do the
+        work, test it at the gateway, and take the conditioned back-edge
+        while the criterion fails - bounded by the engine's per-gateway
+        visit count - then leave through the exit. Mark the exit as the
+        gateway's native `default`, rename the pieces, and repoint the
+        condition; nothing here is studyflow-specific.
+      icon: iconify mdi--repeat-variant
+      keywords:
+        - loop
+        - repeat
+        - until
+        - retry
+        - cycle
+      flowElements:
+        - id: loop_start
+          type: bpmn:StartEvent
+          x: 140
+          y: 150
+        - id: loop_work
+          type: bpmn:Task
+          bpmn:name: Do the work
+          x: 220
+          y: 130
+        - id: loop_gate
+          type: bpmn:ExclusiveGateway
+          bpmn:name: Good enough?
+          x: 400
+          y: 140
+        - id: loop_done
+          type: bpmn:EndEvent
+          x: 520
+          y: 150
+        - type: bpmn:SequenceFlow
+          sourceRef: loop_start
+          targetRef: loop_work
+        - type: bpmn:SequenceFlow
+          sourceRef: loop_work
+          targetRef: loop_gate
+        - type: bpmn:SequenceFlow
+          bpmn:name: retry
+          conditionExpression: score < 0.9 && state.visits.loop_gate < 5
+          sourceRef: loop_gate
+          targetRef: loop_work
+        - type: bpmn:SequenceFlow
+          bpmn:name: good enough
+          sourceRef: loop_gate
+          targetRef: loop_done

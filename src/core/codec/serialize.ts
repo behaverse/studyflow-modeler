@@ -22,9 +22,64 @@ function serializeValue(value: any, declaredType: string | undefined, ctx?: Seri
   if (!isModdleElement(value)) return value;
   return (
     inlineYamlBody(value)
+    ?? inlineExpressionBody(value)
     ?? unwrapElementList(value, (item) => serializeValue(item, undefined, ctx))
     ?? serializeElement(value, declaredType, ctx)
   );
+}
+
+/** FOLD (serialize): a BPMN expression child whose only content is its `body`
+ *  (`<conditionExpression xsi:type="tFormalExpression">text</...>`) inlines
+ *  as the flat string the schemas document. */
+function inlineExpressionBody(el: any): string | undefined {
+  if (el.$type !== 'bpmn:FormalExpression' && el.$type !== 'bpmn:Expression') return undefined;
+  if (typeof el.body !== 'string' || el.body === '') return undefined;
+  // `xsi:type` is the instantiation marker the parser records, not content.
+  if (Object.keys(el.$attrs ?? {}).some((name) => name !== 'xsi:type')) return undefined;
+  return onlyBodySet(el, 'body') ? el.body : undefined;
+}
+
+/** FOLD (serialize): `bpmn:documentation` children carrying only their `text`
+ *  inline as flat strings under two keys - prose entries as `documentation`
+ *  (a single one as the string itself), the `studyflow:checklist`-marked
+ *  entry as `checklist`. */
+function inlineDocumentationEntries(
+  value: any[],
+): { documentation?: string | string[]; checklist?: string } | undefined {
+  const prose: string[] = [];
+  let checklist: string | undefined;
+  for (const item of value) {
+    if (!isModdleElement(item) || item.$type !== 'bpmn:Documentation') return undefined;
+    if (typeof item.text !== 'string' || item.text === '') return undefined;
+    if (Object.keys(item.$attrs ?? {}).length > 0) return undefined;
+    const marked = item.get('checklist') === true;
+    if (!onlyBodySet(item, 'text', marked ? ['checklist'] : [])) return undefined;
+    if (marked) {
+      if (checklist !== undefined) return undefined;
+      checklist = item.text;
+    } else {
+      prose.push(item.text);
+    }
+  }
+  return {
+    documentation: prose.length === 0 ? undefined : prose.length === 1 ? prose[0] : prose,
+    checklist,
+  };
+}
+
+/** True when every property other than `bodyName` (and `allowed` markers) is
+ *  unset or its declared default (moddle materializes defaults, e.g.
+ *  `textFormat: text/plain`). */
+function onlyBodySet(el: any, bodyName: string, allowed: string[] = []): boolean {
+  for (const p of el.$descriptor?.properties ?? []) {
+    if (p.name === bodyName || allowed.includes(p.name)) continue;
+    const value = el[p.name];
+    if (value === undefined || value === null) continue;
+    if (p.default !== undefined && value === p.default) continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    return false;
+  }
+  return true;
 }
 
 function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext): Record<string, unknown> {
@@ -35,19 +90,28 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
     const value = el[p.name];
     if (value === undefined || value === null) continue;
     if (p.default !== undefined && value === p.default) continue;
+    // A cross-namespace property (`bpmn:loopCondition` redefined from a
+    // schema) reads by its local name in YAML, like every other key.
+    const key = p.ns?.localName ?? p.name;
 
     if (p.isMany) {
       if (!Array.isArray(value) || value.length === 0) continue;
       if (p.isReference) {
-        out[p.name] = value.map((ref: any) => ref?.id);
+        out[key] = value.map((ref: any) => ref?.id);
+        continue;
+      }
+      const docs = inlineDocumentationEntries(value);
+      if (docs) {
+        if (docs.documentation !== undefined) out[key] = docs.documentation;
+        if (docs.checklist !== undefined) out['checklist'] = docs.checklist;
         continue;
       }
       const items = value.map((item: any) => serializeValue(item, p.type, ctx));
-      out[p.name] = keyItemsById(items) ?? items;
+      out[key] = keyItemsById(items) ?? items;
       continue;
     }
 
-    out[p.name] = p.isReference ? value?.id : inlineYamlValue(value, p) ?? serializeValue(value, p.type, ctx);
+    out[key] = p.isReference ? value?.id : inlineYamlValue(value, p) ?? serializeValue(value, p.type, ctx);
   }
 
   // Raw XML attributes unknown to the schemas (e.g. template icon overrides).

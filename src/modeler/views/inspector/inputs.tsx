@@ -26,6 +26,7 @@ const MarkdownStringInput = (inputProps: any) => <StringInput {...inputProps} is
 const INPUT_BY_EDITOR_NAME: Record<string, any> = {
   'csvw-table': SchemaEditor,
   'code': CodeEditor,
+  'markdown': MarkdownStringInput,
 };
 
 // `Enum` is a synthetic type produced by `resolveInputType` for enum-typed attributes.

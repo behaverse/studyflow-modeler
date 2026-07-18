@@ -93,8 +93,8 @@ const BOUND_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:serviceTask id="Bound_1" name="Median RT" implementation="python://pkg_for_st.do_map@1.2">
-      <studyflow:with>column: rt
-fn: median</studyflow:with>
+      <studyflow:arguments>column: rt
+fn: median</studyflow:arguments>
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
     </bpmn2:serviceTask>

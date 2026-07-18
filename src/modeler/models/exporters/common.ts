@@ -6,9 +6,16 @@
  * this module owns the mechanics they all share.
  */
 
-/** Read a value from the BO directly, via moddle `get`, or from its `$attrs` bag. */
+import { getAttribute } from '@/core/extensions';
+
+/** Read a value through the catalog (which unwraps body-wrapped children like
+ *  `bpmn:documentation`), falling back to the BO directly, moddle `get`, or
+ *  its `$attrs` bag. */
 export function readField(bo: any, name: string): unknown {
   if (bo == null) return undefined;
+  const resolved = getAttribute(bo, name);
+  if (resolved !== undefined && resolved !== null && resolved !== ''
+      && typeof resolved !== 'object') return resolved;
   const direct = bo[name];
   if (direct !== undefined && direct !== null && direct !== '') return direct;
   if (typeof bo.get === 'function') {

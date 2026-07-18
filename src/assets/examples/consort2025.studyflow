@@ -36,14 +36,14 @@ CONSORT_2025:
           height: 14
     Activity_Screening:
       type: bpmn:Task
-      extensionElements:
-        - type: cognitive:Questionnaire
-          instrument: screening
       checklist: |-
         - [ ] Demographic intake
         - [ ] Medical history
         - [ ] Vital signs
         - [ ] Baseline cognitive screen
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: screening
       name: Screening assessment
       incoming:
         - Flow_Start_Screening
@@ -159,14 +159,14 @@ CONSORT_2025:
           height: 14
     Activity_Followup_A:
       type: bpmn:Task
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          instrument: jspsych
       checklist: |-
         - [ ] Adherence visit
         - [ ] Outcome assessment 1
         - [ ] Outcome assessment 2
         - [ ] Adverse events review
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
       name: Follow-up
       incoming:
         - Flow_A_Followup
@@ -292,13 +292,13 @@ CONSORT_2025:
           height: 14
     Activity_Followup_B:
       type: bpmn:Task
-      extensionElements:
-        - type: cognitive:Rest
       checklist: |-
         - [ ] Adherence visit
         - [ ] Outcome assessment 1
         - [ ] Outcome assessment 2
         - [ ] Adverse events review
+      extensionElements:
+        - type: cognitive:Rest
       name: Follow-up
       incoming:
         - Flow_B_Followup

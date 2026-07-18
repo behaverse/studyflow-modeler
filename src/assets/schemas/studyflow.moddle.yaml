@@ -156,21 +156,32 @@ types:
       - bpmn:BaseElement
     isAbstract: true
     properties:
-      - name: documentation
-        description: Human-readable description for the element (or link to a detailed description).
+      - name: bpmn:documentation
+        description: |
+          Human-readable description for the element, in markdown - authored
+          as a flat string, stored as BPMN's own `<documentation>` child
+          element.
         redefines: bpmn:BaseElement#documentation
-        isAttr: true
-        type: MarkdownString
+        isMany: true
+        type: bpmn:Documentation
         meta:
+          editor: markdown
           categories:
             - Documentation
+  - name: ChecklistDocumentation
+    description: |
+      Marks one `bpmn:documentation` entry as the element's checklist:
+      markdown task items (`- [ ]` / `- [x]`) reviewers tick off. The text
+      lives in BPMN's own documentation container - every BPMN tool shows
+      it - and this one Boolean marker is the only extension involved.
+    extends:
+      - bpmn:Documentation
+    isAbstract: true
+    properties:
       - name: checklist
-        description: List of items to be checked off when completing the element, formatted in markdown.
+        description: True marks this documentation entry as the element's checklist.
         isAttr: true
-        type: MarkdownString
-        meta:
-          categories:
-            - Documentation
+        type: Boolean
   - name: Study
     description: Process definition for a Studyflow study.
     superClass:
@@ -222,31 +233,28 @@ types:
         default: true
         meta:
           pinned: true
-  - name: DataOperationActivity
+  - name: Arguments
     description: |
-      Augments any BPMN Activity with the data-operation flag and
-      input/output variable lists. Subtypes redefine `isDataOperation`
-      to pin it (e.g. CognitiveTask fixes it to false,
-      datatrove:Transform fixes it to true).
+      Augments any BPMN Activity with the `arguments` mapping. The activity's
+      inputs and outputs are never listed: they are detected from the data
+      associations drawn on the canvas - connect a data element to the task
+      and it is an input, wire the task to a data element and it is an output
+      (the association's `parameter` / `result` refine the binding when names
+      differ). Whether a step is a *data operation* is likewise derived, not
+      stored: it names a data verb (`operationType`) or runs software
+      (`implementation`) without being a participant-facing instrument.
     extends:
       - bpmn:Activity
     isAbstract: true
     properties:
-      - name: isDataOperation
-        description: Marks the activity as a data operation (e.g. transform, filter, reduce).
-        isAttr: true
-        type: Boolean
-        default: false
-        meta:
-          order: 1
-          categories:
-            - Execution
-      - name: with
+      - name: arguments
         description: |
-          YAML mapping of arguments passed to the function named by the
-          activity's `implementation` (GitHub Actions' `with:` block). The
-          function reference itself is BPMN's own `implementation` attribute
-          on the task types that execute something - not a studyflow field.
+          YAML mapping of keyword arguments passed to the software named by
+          the activity's `implementation` (the role GitHub Actions' `with:`
+          block plays). Values are literals or `$Element` / `$Element.field`
+          references into wired data (resolved by key, then attribute). Wired
+          inputs bind by parameter name automatically and need not be repeated
+          here; the reserved `args` list covers positional-only calls.
         isAttr: false
         type: YAMLString
         meta:
@@ -257,32 +265,6 @@ types:
             language: json
             body:
               implementation: $set
-      - name: inputs
-        description: Names of variables consumed by this activity.
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          order: 4
-          categories:
-            - Execution
-          condition:
-            language: json
-            body:
-              isDataOperation: true
-      - name: outputs
-        description: Names of variables produced by this activity.
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          order: 5
-          categories:
-            - Execution
-          condition:
-            language: json
-            body:
-              isDataOperation: true
   - name: StartEvent
     extends:
       - bpmn:StartEvent
@@ -304,11 +286,16 @@ types:
     extends:
       - bpmn:SequenceFlow
     properties:
-      - name: conditionExpression
+      - name: bpmn:conditionExpression
         description: |
-          Condition for sequence flows (e.g., in gateways). See `bpmn:conditionExpression` for BPMN's built-in expression type.
-        isAttr: true
+          Condition for sequence flows (e.g., in gateways): a CEL expression
+          over the run's bound values (`CV_Summary.test_accuracy.mean >= 0.9`),
+          authored as a flat string and stored as BPMN's own expression
+          element (`xsi:type` tFormalExpression). The language is declared by
+          BPMN's own `expressionLanguage` attribute on `bpmn:Definitions`.
         type: bpmn:Expression
+        xml:
+          serialize: xsi:type
         redefines: bpmn:SequenceFlow#conditionExpression
         meta:
           categories:

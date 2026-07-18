@@ -115,31 +115,31 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     return undefined;
   };
 
-  test('a stored trait value is not masked by defaults (Per_Item iterate=items)', async () => {
+  test('a stored trait value is not masked by defaults (Research_Agent completionCondition)', async () => {
     const definitions = await loadExample('agent_eval.studyflow');
-    const each = findInDefinitions(definitions, 'Per_Item');
-    expect(each).toBeTruthy();
-    // The value is stored on the business object (no wrapper involved)...
-    expect(each.get('functional:iterate')).toBe('items');
-    // ...and the resolved read must return it, not the trait default `none`.
-    expect(getAttribute(each, 'functional:iterate')).toBe('items');
+    const agent = findInDefinitions(definitions, 'Research_Agent');
+    expect(agent).toBeTruthy();
+    // The value is stored as BPMN's own expression element on the business
+    // object (no wrapper involved in the trait read)...
+    expect(agent.get('completionCondition')?.body).toBe('answer != null');
+    // ...and the resolved read unwraps it, not an empty trait default.
+    expect(getAttribute(agent, 'exec:completionCondition')).toBe('answer != null');
 
     // With a wrapper attached, its materialized trait defaults must not mask
     // the stored business-object value either.
-    const bo = moddle.create('bpmn:ServiceTask', { id: 'Op_0' });
-    bo.set('functional:iterate', 'items');
-    createExtensionElement(bo, 'functional:Map', moddle, {});
-    expect(getAttribute(bo, 'functional:iterate')).toBe('items');
+    const bo = moddle.create('bpmn:AdHocSubProcess', { id: 'Agent_0' });
+    StudyflowElement.fromBusinessObject(bo).write('completionCondition', 'answer != null');
+    createExtensionElement(bo, 'agentic:Agent', moddle, {});
+    expect(getAttribute(bo, 'exec:completionCondition')).toBe('answer != null');
   });
 
   test('pinned wrapper defaults win over stale business-object values', () => {
-    // functional subtypes pin operationType per verb, and pin
-    // isDataOperation=true over the trait default (false).
+    // functional subtypes pin operationType per verb; a stale value stored
+    // on the business object must not shadow the pinned wrapper default.
     const map = moddle.create('bpmn:ServiceTask', { id: 'Map_1' });
-    map.set('isDataOperation', false);
+    map.set('operationType', 'stale');
     createExtensionElement(map, 'functional:Map', moddle, {});
     expect(getAttribute(map, 'operationType')).toBe('map');
-    expect(getAttribute(map, 'isDataOperation')).toBe(true);
   });
 
   test('template-stamped values still appear (Reader stamps a path)', () => {
@@ -156,15 +156,14 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     expect(el.read('path')).toBe('data/raw/');
   });
 
-  test('trait defaults apply on bare elements; stored values win (iterate)', () => {
-    // No wrapper types redefine `iterate` anymore (a fan-out is a native
-    // sub-process a template presets), so a bare element shows the
-    // functional:Iteration trait default until a value is stored.
-    const bo = moddle.create('bpmn:SubProcess', { id: 'Each_1' });
-    expect(getAttribute(bo, 'iterate')).toBe('none');
+  test('trait defaults apply on bare elements; stored values win (completionCodeType)', () => {
+    // A bare end event shows the studyflow trait default until a value is
+    // stored.
+    const bo = moddle.create('bpmn:EndEvent', { id: 'End_1' });
+    expect(getAttribute(bo, 'completionCodeType')).toBe('none');
 
     const el = StudyflowElement.fromBusinessObject(bo);
-    el.write('iterate', 'items');
-    expect(el.read('iterate')).toBe('items');
+    el.write('completionCodeType', 'static');
+    expect(el.read('completionCodeType')).toBe('static');
   });
 });

@@ -1,4 +1,4 @@
-import { StudyflowElement, isExtensionPrefix } from '@/core/extensions';
+import { CHECKLIST_SPEC, StudyflowElement, isExtensionPrefix } from '@/core/extensions';
 import type { AttributeSpec } from '@/core/catalog';
 import { toLocalName } from '@/core/naming';
 import { isAttributeVisible } from '@/modeler/models/inspector/attributeVisibility';
@@ -82,13 +82,23 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
 
   collect(identity, () => true);
 
+  // Schema-declared attributes render; plain BPMN natives don't. A redefine
+  // that keeps BPMN's namespace (`bpmn:conditionExpression`) is still
+  // schema-declared - its `redefines` marks it.
+  const isDeclared = (attrDef: any) => isExtensionPrefix(attrDef.ns?.prefix) || !!attrDef.redefines;
+
   collect(handle.attributes(), (attrDef: any) =>
     !overridden.has(attrDef.ns?.localName ?? attrDef.name)
     && !isIdentity(attrDef)
-    && isExtensionPrefix(attrDef.ns?.prefix)
+    && isDeclared(attrDef)
   );
 
-  collect(extAttrDefs, (attrDef: any) => isExtensionPrefix(attrDef.ns?.prefix));
+  collect(extAttrDefs, isDeclared);
+
+  // `checklist` is a view over the element's `bpmn:documentation` list (its
+  // `studyflow:checklist`-marked entry), not a stored attribute - synthesize
+  // its field beside `documentation`.
+  collect([CHECKLIST_SPEC], () => true);
 
   // The Loop tab edits the `loopCharacteristics` child, which has no
   // catalog attributes on the element itself.

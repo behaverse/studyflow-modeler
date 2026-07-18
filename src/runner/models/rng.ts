@@ -12,8 +12,11 @@ export function mulberry32(seed: number): () => number {
 }
 
 /** Evaluate a sequence-flow condition expression against the runtime variable
- *  bag. Returns false on any error (missing vars, syntax) so a bad expression
- *  never halts traversal. */
+ *  bag. The authored contract language is CEL (`expressionLanguage` on
+ *  bpmn:Definitions); this in-browser simulator evaluates the JS-compatible
+ *  subset of it - comparisons, field access, `&&`/`||`/`!`, `!= null` - which
+ *  covers every condition the schemas ship. Returns false on any error
+ *  (missing vars, syntax) so a bad expression never halts traversal. */
 export function evaluateCondition(expression: string, variables: Record<string, unknown>): boolean {
   const compiled = new Function('variables', `with (variables) { return (${expression}); }`);
   try { return Boolean(compiled(variables)); } catch { return false; }

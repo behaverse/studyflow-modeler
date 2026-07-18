@@ -96,8 +96,8 @@ test.describe('Studyflow modeler palette flows', () => {
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
 
-    // Map is a service task; its operation defaults (isDataOperation,
-    // operationType="map") stay implicit in the schema rather than being
+    // Map is a service task; its pinned operation default
+    // (operationType="map") stays implicit in the schema rather than being
     // serialized onto the element.
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:serviceTask\b/);
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
@@ -111,7 +111,6 @@ test.describe('Studyflow modeler palette flows', () => {
     // In YAML the wrapper stays bare; the pinned operation defaults live as
     // explicit values on the service task element.
     expect(studyflowText).toContain('type: functional:Map');
-    expect(studyflowText).toContain('isDataOperation: true');
     expect(studyflowText).toContain('operationType: map');
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
@@ -148,7 +147,7 @@ test.describe('Studyflow modeler palette flows', () => {
     // subprocess pipeline (filter signal -> remove artifacts) of data-operation
     // service tasks - no dedicated omniprocess element type.
     expect(studyflowText).toContain('type: bpmn:SubProcess');
-    expect(studyflowText).toContain('isDataOperation: true');
+    expect(studyflowText).toContain('operationType: filter');
     expect(studyflowText).toContain('type: functional:Filter');
     expect(studyflowText).toContain('name: EEGPrep');
   });

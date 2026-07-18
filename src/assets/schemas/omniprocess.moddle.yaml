@@ -6,7 +6,7 @@ description: |
   Brain and brain-data processing presets - modality-specific neuroimaging
   preprocessing (fMRIPrep, EEGPrep). These are not element types: they are
   templates over the generic `functional` operations, binding a container
-  image via `implementation` and its parameters via `with`. A preprocessing
+  image via `implementation` and its parameters via `arguments`. A preprocessing
   pipeline is data (a template), not metamodel - the same rule the exec/ml
   layers follow. Generic function-composition operations live in `functional`.
 uri: https://w3id.org/omniprocess
@@ -31,7 +31,7 @@ templates:
         - bids
         - neuroimaging
       implementation: docker://nipreps/fmriprep@23.2.0
-      with: |
+      arguments: |
         output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
         skull_strip_t1w: force               # auto | force | skip
         use_aroma: false                     # ICA-AROMA denoising
@@ -43,7 +43,7 @@ templates:
       type: bpmn:SubProcess
       bpmn:documentation: |
         Preprocess EEG data: filtering, artifact removal, and normalization.
-        `clean_artifacts` parameters (edit on the child steps or in `with`):
+        `clean_artifacts` parameters (edit on the child steps or in `arguments`):
         flatline_criterion 5, highpass 1 Hz, lowpass 100 Hz, asr_criterion 20,
         ICA on, ICLabel on.
       icon: iconify fluent--pulse-20-filled
@@ -53,7 +53,6 @@ templates:
         - preprocess
         - cleanartifacts
         - neuroimaging
-      isDataOperation: true
       flowElements:
         - id: eeg_start
           type: bpmn:StartEvent
@@ -64,14 +63,12 @@ templates:
           type: functional:Filter
           bpmn:name: Filter signal
           icon: iconify bi--funnel
-          isDataOperation: true
           x: 240
           y: 140
         - id: eeg_clean
           type: functional:Map
           bpmn:name: Remove artifacts
           icon: iconify bi--eraser
-          isDataOperation: true
           x: 390
           y: 140
         - id: eeg_end

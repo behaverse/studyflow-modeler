@@ -60,22 +60,21 @@ function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {
 }
 
 test.describe('update-loop-characteristics command', () => {
-  test('adds a standard loop child with its fields', () => {
+  test('adds a multi-instance child with its fields', () => {
     const { modeler, calls } = fakeModeler();
     const element = activityElement();
 
     runUpdateLoopCharacteristics(modeler, {
       type: 'update-loop-characteristics',
       element,
-      loopType: 'bpmn:StandardLoopCharacteristics',
-      properties: { loopCondition: 'metrics.mean_judge_score < 4', loopMaximum: 3 },
+      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
+      properties: { isSequential: true },
     });
 
     const lc = element.businessObject.loopCharacteristics;
-    expect(lc.$type).toBe('bpmn:StandardLoopCharacteristics');
+    expect(lc.$type).toBe('bpmn:MultiInstanceLoopCharacteristics');
     expect(lc.$parent).toBe(element.businessObject);
-    expect(lc.get('loopCondition')).toBe('metrics.mean_judge_score < 4');
-    expect(lc.get('loopMaximum')).toBe(3);
+    expect(lc.get('isSequential')).toBe(true);
     expect(calls).toEqual(['updateProperties']);
   });
 
@@ -86,33 +85,31 @@ test.describe('update-loop-characteristics command', () => {
     runUpdateLoopCharacteristics(modeler, {
       type: 'update-loop-characteristics',
       element,
-      loopType: 'bpmn:StandardLoopCharacteristics',
+      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
     });
     const created = element.businessObject.loopCharacteristics;
 
     runUpdateLoopCharacteristics(modeler, {
       type: 'update-loop-characteristics',
       element,
-      loopType: 'bpmn:StandardLoopCharacteristics',
-      properties: { loopCondition: 'score < 0.9' },
+      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
+      properties: { isSequential: true },
     });
     runUpdateLoopCharacteristics(modeler, {
       type: 'update-loop-characteristics',
       element,
-      loopType: 'bpmn:StandardLoopCharacteristics',
-      properties: { loopMaximum: 5, testBefore: true },
+      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
+      properties: { isSequential: false },
     });
 
     const lc = element.businessObject.loopCharacteristics;
     expect(lc).toBe(created);
-    expect(lc.get('loopCondition')).toBe('score < 0.9');
-    expect(lc.get('loopMaximum')).toBe(5);
-    expect(lc.get('testBefore')).toBe(true);
+    expect(lc.get('isSequential')).toBe(false);
     // Child edits go through updateModdleProperties, not a child swap.
     expect(calls).toEqual(['updateProperties', 'updateModdleProperties', 'updateModdleProperties']);
   });
 
-  test('switches between standard and multi-instance', () => {
+  test('switches between loop and fan-out kinds', () => {
     const { modeler } = fakeModeler();
     const element = activityElement('bpmn:SubProcess', 'Per_Item');
 
@@ -122,7 +119,7 @@ test.describe('update-loop-characteristics command', () => {
       loopType: 'bpmn:StandardLoopCharacteristics',
       properties: { loopMaximum: 3 },
     });
-    expect(loopKindOf(element)).toBe('standard');
+    expect(loopKindOf(element)).toBe('loop');
 
     runUpdateLoopCharacteristics(modeler, {
       type: 'update-loop-characteristics',
@@ -130,11 +127,12 @@ test.describe('update-loop-characteristics command', () => {
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
     });
     const lc = element.businessObject.loopCharacteristics;
-    expect(loopKindOf(element)).toBe('multi-instance');
+    expect(loopKindOf(element)).toBe('parallel');
     expect(lc.$parent).toBe(element.businessObject);
     // A switch is a fresh child; the standard-loop fields do not leak over.
     expect(lc.get('loopMaximum')).toBeUndefined();
 
+    // Parallel -> sequential is a field write on the same child, not a swap.
     runUpdateLoopCharacteristics(modeler, {
       type: 'update-loop-characteristics',
       element,
@@ -142,7 +140,7 @@ test.describe('update-loop-characteristics command', () => {
       properties: { isSequential: true },
     });
     expect(element.businessObject.loopCharacteristics).toBe(lc);
-    expect(lc.get('isSequential')).toBe(true);
+    expect(loopKindOf(element)).toBe('sequential');
   });
 
   test('removes the child, and removal without one is a no-op', () => {
@@ -178,7 +176,7 @@ test.describe('update-loop-characteristics command', () => {
       type: 'update-loop-characteristics',
       element,
       loopType: 'bpmn:StandardLoopCharacteristics',
-      properties: { loopCondition: 'metrics.mean_judge_score < 4', loopMaximum: 3, testBefore: true },
+      properties: { loopCondition: 'score < 0.9', loopMaximum: 5, testBefore: true },
     });
 
     const process = moddle.create('bpmn:Process', {
@@ -190,11 +188,38 @@ test.describe('update-loop-characteristics command', () => {
     process.$parent = definitions;
 
     const { xml } = await moddle.toXML(definitions);
-    // exec:LoopCondition flattens the expression element to a plain string
-    // attribute, as in agent_eval.studyflow's Improve node.
-    expect(xml).toContain('exec:loopCondition="metrics.mean_judge_score &#60; 4"');
-    expect(xml).toContain('loopMaximum="3"');
+    // `loopCondition` serializes in BPMN's own form - an expression element
+    // with `xsi:type` - not a studyflow-namespaced attribute.
+    expect(xml).toContain('xsi:type="bpmn:tFormalExpression"');
+    expect(xml).toMatch(/<bpmn:loopCondition[^>]*>score (&lt;|&#60;) 0.9<\/bpmn:loopCondition>/);
+    expect(xml).toContain('loopMaximum="5"');
     expect(xml).toContain('testBefore="true"');
+  });
+
+  test('serializes the multi-instance child natively (canonical example shape)', async () => {
+    const { modeler } = fakeModeler();
+    const element = activityElement('bpmn:SubProcess', 'Per_Item');
+
+    runUpdateLoopCharacteristics(modeler, {
+      type: 'update-loop-characteristics',
+      element,
+      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
+      properties: { isSequential: true },
+    });
+
+    const process = moddle.create('bpmn:Process', {
+      id: 'P_1',
+      flowElements: [element.businessObject],
+    });
+    element.businessObject.$parent = process;
+    const definitions = moddle.create('bpmn:Definitions', { id: 'D_1', rootElements: [process] });
+    process.$parent = definitions;
+
+    const { xml } = await moddle.toXML(definitions);
+    // BPMN's own child, no studyflow vocabulary involved - as in
+    // agent_eval.studyflow's Per_Item node.
+    expect(xml).toContain('multiInstanceLoopCharacteristics');
+    expect(xml).toContain('isSequential="true"');
   });
 });
 

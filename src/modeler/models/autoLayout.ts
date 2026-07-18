@@ -14,7 +14,7 @@ import { BpmnModdle } from 'bpmn-moddle';
  * `ensureDiagramLayout` bridges that gap at the import boundary: when the XML
  * has no DI, `bpmn-auto-layout` synthesizes a left-to-right layout. Its output
  * is used for **geometry only**: bpmn-auto-layout parses with a plain
- * bpmn-moddle that silently drops extension child elements (`studyflow:with`,
+ * bpmn-moddle that silently drops extension child elements (`studyflow:arguments`,
  * a `Parameters` body, …), so the semantic tree is re-read from the *original*
  * XML with the schema-aware moddle and only the DI subtree is copied over.
  * Documents that already ship geometry are returned as-is, so authored

@@ -123,4 +123,4 @@ templates:
         - privacy
       operationType: anonymizeData
       implementation: python://datatrove.pipeline.formatters.PIIFormatter
-      with: "remove_emails: true\nremove_ips: true"
+      arguments: "remove_emails: true\nremove_ips: true"

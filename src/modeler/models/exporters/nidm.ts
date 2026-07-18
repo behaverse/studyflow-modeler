@@ -12,6 +12,7 @@
  */
 
 import { getDiagramName } from '@/modeler/models/diagramName';
+import { isDataOperationActivity } from '@/core/extensions';
 import { forEachBusinessObject, readField } from '@/modeler/models/exporters/common';
 
 const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .
@@ -34,17 +35,6 @@ const DATA_ELEMENT_TYPES = new Set([
   'studyflow:EventMarker',
 ]);
 
-function isDataOperationActivity(bo: any): boolean {
-  if (!bo) return false;
-  // Studyflow's DataOperationActivity uses an `isDataOperation` flag plus an
-  // `operation` enum value. Either being set marks this as an analysis step.
-  if (readField(bo, 'isDataOperation') === true || readField(bo, 'isDataOperation') === 'true') return true;
-  if (readField(bo, 'operation')) return true;
-  // The `datatrove:` schema declares concrete operators (Transform/Map/Filter/
-  // Reader/Writer/...). Neuroimaging preprocessing (fMRIPrep/EEGPrep) is now
-  // datatrove templates, so it is covered by the same prefix.
-  return typeof bo.$type === 'string' && bo.$type.startsWith('datatrove:');
-}
 
 function turtleId(id: string): string {
   return `core:${id.replace(/[^A-Za-z0-9_]/g, '_')}`;
@@ -90,7 +80,7 @@ export function exportToNidm(modeler: any): string {
         id: bo.id,
         name: bo.name || bo.id,
         type: bo.$type,
-        operation: readField(bo, 'operation') as string | undefined,
+        operation: readField(bo, 'operationType') as string | undefined,
         documentation: readField(bo, 'documentation') as string | undefined,
         inputs,
         outputs,

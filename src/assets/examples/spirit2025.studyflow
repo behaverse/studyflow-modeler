@@ -225,13 +225,13 @@ SPIRIT_2025:
           height: 14
     Activity_Intervention:
       type: bpmn:Task
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          instrument: jspsych
       checklist: |-
         - [ ] SPIRIT 17a: intervention dose & schedule
         - [ ] SPIRIT 17b: criteria for modification
         - [ ] SPIRIT 19: adherence monitoring
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
       name: "Intervention: cognitive training"
       incoming:
         - Flow_Arm_Treatment
@@ -247,12 +247,12 @@ SPIRIT_2025:
         height: 80
     Activity_Control:
       type: bpmn:Task
-      extensionElements:
-        - type: cognitive:Rest
       checklist: |-
         - [ ] SPIRIT 17a: control dose matched to intervention
         - [ ] SPIRIT 17b: criteria for modification
         - [ ] SPIRIT 19: adherence monitoring
+      extensionElements:
+        - type: cognitive:Rest
       name: "Control: active sham"
       incoming:
         - Flow_Arm_Control

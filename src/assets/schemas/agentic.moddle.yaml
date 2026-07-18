@@ -2,7 +2,7 @@
 
 name: Agentic
 prefix: agentic
-description: Studyflow extension for LLM and agent workflows, kept to what an engine calling a model API (Ollama, Claude, OpenAI) actually reads. Two elements are genuinely new - `Agent` (a BPMN ad-hoc sub-process, "activities whose order is decided at run time", which is the line between an agent and a workflow) and `Router` (a gateway whose branch a model picks). `LLMCall` is one model call; `Tool` is a capability an agent may call (an ordinary step - `implementation` + `with`); `HumanApproval` pauses for a person; `Prompt` and `Memory` are the data the calls read and the state they carry.
+description: Studyflow extension for LLM and agent workflows, kept to what an engine calling a model API (Ollama, Claude, OpenAI) actually reads. Two elements are genuinely new - `Agent` (a BPMN ad-hoc sub-process, "activities whose order is decided at run time", which is the line between an agent and a workflow) and `Router` (a gateway whose branch a model picks). `LLMCall` is one model call; `Tool` is a capability an agent may call (an ordinary step - `implementation` + `arguments`); `HumanApproval` pauses for a person; `Prompt` and `Memory` are the data the calls read and the state they carry.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 xml:
@@ -180,7 +180,7 @@ types:
   # ===========================================================================
   # Generic anchors. A model call and a tool call are the two atoms of the
   # layer; prompt-chaining and agent loops are built from them. A tool is an
-  # ordinary step (`implementation` + `with` + wired data), so anything a
+  # ordinary step (`implementation` + `arguments` + wired data), so anything a
   # studyflow can run, an agent can call.
   # ===========================================================================
   - name: LLMCall
@@ -236,7 +236,7 @@ types:
   - name: Tool
     description: |
       A capability an agent may call. A tool is an ordinary step - same `implementation`
-      and `with` as any other activity, same wired data elements as its
+      and `arguments` as any other activity, same wired data elements as its
       interface - so anything a studyflow can run, an agent can call.
     superClass:
       - bpmn:ServiceTask
@@ -371,7 +371,7 @@ templates:
         question. Stop as soon as you can answer it.
       toolChoice: auto
       maxTurns: 12
-      completionCondition: answer is not null
+      completionCondition: answer != null
       flowElements:
         - id: agent_search
           type: Tool
@@ -381,7 +381,7 @@ templates:
             Look up background facts. Use it when the question needs knowledge
             you do not already have.
           implementation: python://wikipedia.search
-          with: "results: 5"
+          arguments: "results: 5"
           x: 200
           y: 140
 
@@ -390,10 +390,11 @@ templates:
       bpmn:name: Evaluator-optimizer
       type: bpmn:SubProcess
       bpmn:documentation: |
-        The loop a plain DAG cannot express: a generator produces a draft, a
-        judge scores it against a rubric, and the loop re-enters with the
-        critique until the score clears the bar or the turn budget is spent -
-        BPMN's own `loopCondition` and `loopMaximum` carry the loop.
+        The loop a plain DAG cannot express, drawn as control flow: a
+        generator drafts, a judge scores it against a rubric, and the
+        conditioned back-edge returns the critique to the generator until the
+        score clears the bar or the visit budget is spent. Route your exit
+        flow from the gateway and mark it as its native `default`.
       icon: iconify mdi--autorenew
       keywords:
         - evaluator
@@ -401,10 +402,6 @@ templates:
         - critique
         - refine
         - loop
-      loopCharacteristics:
-        type: bpmn:StandardLoopCharacteristics
-        loopCondition: score < 4
-        loopMaximum: 4
       flowElements:
         - id: eo_generate
           type: LLMCall
@@ -422,9 +419,22 @@ templates:
             criterion. Reply as `score: <n>` on the first line.
           x: 380
           y: 140
+        - id: eo_gate
+          type: bpmn:ExclusiveGateway
+          bpmn:name: Good enough?
+          x: 560
+          y: 140
         - type: bpmn:SequenceFlow
           sourceRef: eo_generate
           targetRef: eo_judge
+        - type: bpmn:SequenceFlow
+          sourceRef: eo_judge
+          targetRef: eo_gate
+        - type: bpmn:SequenceFlow
+          bpmn:name: revise
+          conditionExpression: score < 4 && state.visits.eo_gate < 4
+          sourceRef: eo_gate
+          targetRef: eo_generate
 
   - description: Model-decided routing - a classifier picks the branch, and its reason is logged.
     object:

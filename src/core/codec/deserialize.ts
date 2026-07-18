@@ -61,8 +61,16 @@ class ModdleBuilder {
     const descriptor = this.moddle.getElementDescriptor(el);
     this.extractInlineDi(el, descriptor, props);
 
+    let checklistText: string | undefined;
     for (const [name, raw] of Object.entries(props)) {
       if (raw === undefined || raw === null) continue;
+      // `checklist: <markdown>` is the folded form of the
+      // `studyflow:checklist`-marked `bpmn:documentation` entry; applied
+      // after the loop so a `documentation` key cannot overwrite it.
+      if (name === 'checklist' && typeof raw === 'string' && descriptor.propertiesByName?.['documentation']) {
+        checklistText = raw;
+        continue;
+      }
       const p = descriptor.propertiesByName?.[name];
 
       if (!p) {
@@ -78,7 +86,10 @@ class ModdleBuilder {
       }
 
       if (p.isMany) {
-        const list = Array.isArray(raw) ? (raw as unknown[]) : keyedMapToList(raw);
+        // `documentation: <flat string>` is the folded list-of-one form.
+        const list = Array.isArray(raw) ? (raw as unknown[])
+          : typeof raw === 'string' && p.type === 'bpmn:Documentation' ? [raw]
+          : keyedMapToList(raw);
         const items = list.map((item) => this.buildValue(item, p.type));
         for (const item of items) if (isModdleElement(item)) item.$parent = el;
         el.set(p.name, items);
@@ -97,6 +108,12 @@ class ModdleBuilder {
       const value = this.buildValue(raw, p.type);
       if (isModdleElement(value)) value.$parent = el;
       el.set(p.name, value);
+    }
+
+    if (checklistText !== undefined) {
+      const entry = this.moddle.create('bpmn:Documentation', { checklist: true, text: checklistText });
+      entry.$parent = el;
+      el.get('documentation').push(entry);
     }
 
     if (typeof el.id === 'string' && el.id) this.byId.set(el.id, el);
@@ -213,6 +230,15 @@ class ModdleBuilder {
     if (typeof raw === 'string' && isElementType) {
       const body = this.yamlBodyPropertyOf(declaredType);
       if (body) return this.build({ type: declaredType, [body.name]: raw }, declaredType);
+      // A flat string for a BPMN expression property builds the concrete
+      // FormalExpression (the `xsi:type` form) around it.
+      if (declaredType === 'bpmn:Expression' || declaredType === 'bpmn:FormalExpression') {
+        return this.build({ type: 'bpmn:FormalExpression', body: raw }, declaredType);
+      }
+      // Likewise a flat string for a documentation entry.
+      if (declaredType === 'bpmn:Documentation') {
+        return this.build({ type: declaredType, text: raw }, declaredType);
+      }
     }
 
     return raw;

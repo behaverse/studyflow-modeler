@@ -4,15 +4,29 @@ import { toBusinessObject } from '@/core/extensions';
 /**
  * Loop state of an activity, read from BPMN's own `loopCharacteristics`
  * child (the construct behind the ↻ / ∥ / ≡ canvas markers). There is no
- * schema trait for this — see the note in exec.moddle.yaml next to
- * `exec:LoopCondition`.
+ * schema trait for the child itself; the four kinds are exactly BPMN's own
+ * states — no child, a standard loop (↻, one activity retried in place), or
+ * a multi-instance fan-out, parallel (∥) or sequential (≡). A repeat that
+ * spans several steps is drawn control flow instead: a conditioned
+ * back-edge through a gateway, bounded by `state.visits.<gateway-id>`.
  */
 
-export type LoopKind = 'none' | 'standard' | 'multi-instance';
+export type LoopKind = 'none' | 'loop' | 'parallel' | 'sequential';
 
-export const LOOP_TYPE_BY_KIND: Record<Exclude<LoopKind, 'none'>, string> = {
-  'standard': 'bpmn:StandardLoopCharacteristics',
-  'multi-instance': 'bpmn:MultiInstanceLoopCharacteristics',
+/** Child type and fields behind each authored kind. */
+export const LOOP_STATE_BY_KIND: Record<
+  Exclude<LoopKind, 'none'>,
+  { loopType: string; properties?: Record<string, any> }
+> = {
+  'loop': { loopType: 'bpmn:StandardLoopCharacteristics' },
+  'parallel': {
+    loopType: 'bpmn:MultiInstanceLoopCharacteristics',
+    properties: { isSequential: undefined },
+  },
+  'sequential': {
+    loopType: 'bpmn:MultiInstanceLoopCharacteristics',
+    properties: { isSequential: true },
+  },
 };
 
 /** Only activities may carry `loopCharacteristics` in BPMN 2.0. */
@@ -29,7 +43,8 @@ export function getLoopCharacteristics(element: any): any {
 export function loopKindOf(element: any): LoopKind {
   const loopCharacteristics = getLoopCharacteristics(element);
   if (!loopCharacteristics) return 'none';
-  return is(loopCharacteristics, 'bpmn:MultiInstanceLoopCharacteristics')
-    ? 'multi-instance'
-    : 'standard';
+  if (is(loopCharacteristics, 'bpmn:MultiInstanceLoopCharacteristics')) {
+    return loopCharacteristics.get('isSequential') === true ? 'sequential' : 'parallel';
+  }
+  return 'loop';
 }

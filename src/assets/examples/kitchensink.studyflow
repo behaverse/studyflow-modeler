@@ -2,6 +2,7 @@ id: kitchensink
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
   xmlns:bpmndi: http://www.omg.org/spec/BPMN/20100524/DI
   xmlns:dc: http://www.omg.org/spec/DD/20100524/DC
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
@@ -18,10 +19,11 @@ Kitchen_Sink:
     bottom: the BPMN 2.0 base that Studyflow inherits (events, gateways, activities, data), then the studyflow core and
     the domain extensions that specialize it. Attribute values echo the paper's example study (consent form, completion
     code, eligibility criteria, N-back scene, BDM trials dataset). The functional band's For-each is a native
-    sub-process whose meaning comes from the functional iterate trait - not a wrapper type. Pool/choreography types
-    (cognitive:Actor, openbci:OpenBCISession, studyflow:ChoreographyTask) and the template presets
-    (cognitive/functional/datatrove/omniprocess/ml/agentic/openbci - the ml and omniprocess schemas are templates only,
-    no types) are covered in kitchensink.md; sklearn_pipeline.studyflow shows the ml presets live.
+    sub-process carrying BPMN's own multi-instance marker, and Retry-until-good a task carrying the standard-loop marker
+    - not wrapper types. Pool/choreography types (cognitive:Actor, openbci:OpenBCISession, studyflow:ChoreographyTask)
+    and the template presets (cognitive/functional/datatrove/omniprocess/ml/agentic/openbci - the ml and omniprocess
+    schemas are templates only, no types) are covered in kitchensink.md; sklearn_pipeline.studyflow shows the ml presets
+    live.
   extensionElements:
     - type: studyflow:Study
   name: Studyflow element catalog (kitchen sink)
@@ -297,13 +299,24 @@ Kitchen_Sink:
       name: For-each (fan-out)
       loopCharacteristics:
         type: bpmn:MultiInstanceLoopCharacteristics
-      iterate: items
       bounds:
         x: 845
         "y": 1939
         width: 120
         height: 80
       isExpanded: false
+    Fn_Retry:
+      type: bpmn:Task
+      name: Retry-until-good (loop)
+      loopCharacteristics:
+        type: bpmn:StandardLoopCharacteristics
+        loopCondition: score < 0.9
+        loopMaximum: 5
+      bounds:
+        x: 1000
+        "y": 1939
+        width: 120
+        height: 80
     Cg_CognitiveTask:
       type: bpmn:Task
       extensionElements:

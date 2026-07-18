@@ -1,5 +1,6 @@
 import download from 'downloadjs';
 import { xmlToStudyflow } from '@/core/codec';
+import { toStandardBpmnXml } from '@/core/codec/io-specification';
 import { toWireXml } from '@/core/codec/choreography';
 import { getDiagramName } from '@/modeler/models/diagramName';
 import { exportToLinkML } from '@/modeler/models/exporters/linkml';
@@ -32,11 +33,13 @@ export async function runSaveDiagram(modeler: any, command: SaveDiagramCommand):
     return;
   }
 
-  // Raw BPMN 2.0 XML, for interop with other BPMN tooling.
+  // Raw BPMN 2.0 XML, for interop with other BPMN tooling: wired steps are
+  // lowered to the full standard `ioSpecification` form on the way out.
   if (fileType === 'bpmn') {
     const { xml } = await modeler.saveXML({ format: true });
     const wireXml = await toWireXml(xml, modeler.get('moddle'));
-    download(new Blob([wireXml], { type: 'application/xml;charset=utf-8' }), `${filename}.bpmn`, 'application/xml');
+    const standardXml = await toStandardBpmnXml(wireXml, modeler.get('moddle'));
+    download(new Blob([standardXml], { type: 'application/xml;charset=utf-8' }), `${filename}.bpmn`, 'application/xml');
     return;
   }
 

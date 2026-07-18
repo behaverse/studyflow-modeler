@@ -71,9 +71,9 @@ export async function parseStudyflow(text: string, schemas: Record<string, any>)
     const targetId = el.targetRef?.id;
     if (!sourceId || !targetId) continue;
 
-    // The core redefines `conditionExpression` to a flat string attribute;
-    // spec-BPMN files carry it as an Expression element with a body.
-    const rawCondition = el.conditionExpression;
+    // `conditionExpression` is BPMN's own expression element; older files
+    // may still carry it as a flat string attribute.
+    const rawCondition = el.get?.('conditionExpression') ?? el.conditionExpression;
     const condition = typeof rawCondition === 'string'
       ? rawCondition
       : rawCondition?.body ?? rawCondition?.get?.('body');

@@ -259,7 +259,11 @@ test.describe('catalog: type parity with moddle', () => {
         .filter((p: any) => isExtensionPrefix(p.ns?.prefix))
         .map((p: any) => p.ns.name)
         .sort();
-      const catalogNames = catalog.traitAttributesOf(target).map((spec) => spec.ns.name).sort();
+      // Redefines that keep BPMN's own namespace (`bpmn:conditionExpression`)
+      // are BPMN properties on both sides, not extension mixins.
+      const catalogNames = catalog.traitAttributesOf(target)
+        .filter((spec) => isExtensionPrefix(spec.ns.prefix))
+        .map((spec) => spec.ns.name).sort();
       expect(catalogNames, `${target} mixins`).toEqual(moddleNames);
     }
   });

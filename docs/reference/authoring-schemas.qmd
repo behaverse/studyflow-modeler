@@ -8,7 +8,7 @@ This page is for **contributors** extending the Studyflow language with new elem
 
 Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
 
-- `core.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`DataOperationActivity` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
+- `core.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`Arguments` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
 - `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `EligibilityGateway`). Split out of `core` so adopters can swap the cognitive layer without touching the core.
 - `datatrove.moddle.yaml`, `openbci.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions you can enable from the modeler's schema palette.
 
@@ -117,21 +117,21 @@ Studyflow-specific modeler behavior lives under `meta` on the property:
 - `meta.categories: [Privacy]` -- tab the property lives under in the inspector.
 - `meta.condition.language: json` + `meta.condition.body: { otherField: value }` -- visibility predicate; the property only appears when other fields match. A value of `$set` matches whenever the other field has any value.
 
-## Function calls (`uses` / `with`)
+## Function calls (`implementation` / `arguments`)
 
-Any activity can declare the function that implements it, GitHub-Actions style. Two properties on the core `studyflow:DataOperationActivity` trait (which mixes onto every `bpmn:Activity`) carry the call:
+Any activity can declare the software that implements it. BPMN's own `implementation` attribute (redefined once by the `exec` schema) carries the reference, and the core `studyflow:Arguments` trait (which mixes onto every `bpmn:Activity`) carries the arguments:
 
-- `uses` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), and `https://` (a script URL). Other schemes are allowed but flagged as unresolved -- e.g. a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
-- `with` -- a YAML mapping of arguments passed to the function (GitHub Actions' `with:` block), a `studyflow:YAMLString` value property. The inspector edits it under the Execution tab and reveals it once `uses` is set.
+- `implementation` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), `https://` (a script URL), and `file://` (a local script). Other schemes are allowed but flagged as unresolved -- e.g. a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
+- `arguments` -- a YAML mapping of literal keyword arguments passed to the callable, a `studyflow:YAMLString` value property. Values are literals or `$Element` / `$Element.field` references into wired data; the reserved `args` list covers positional-only calls. Wired inputs are not repeated here -- each data input association binds its element to the callable parameter named on the association (`parameter`, defaulting to the element's name). The inspector edits `arguments` under the Execution tab and reveals it once `implementation` is set.
 
 ```yaml
-uses: python://pkg_for_st.do_map@1.2
-with:
+implementation: python://pkg_for_st.do_map@1.2
+arguments:
   column: rt
   fn: median
 ```
 
-In the BPMN XML form, `uses` is an attribute on the activity (`studyflow:uses="..."`) and `with` is a `<studyflow:with>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `with` inlines as a nested mapping. An activity that carries a `uses` value shows a function marker on the canvas. The reference runner resolves and validates the call (the `uses` grammar and that `with` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/function_call_demo.studyflow` for a worked example.
+In the BPMN XML form, `implementation` is an attribute on the activity and `arguments` is a `<studyflow:arguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity that carries an `implementation` value shows a function marker on the canvas. The reference runner resolves and validates the call (the reference grammar and that `arguments` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/function_call_demo.studyflow` for a worked example.
 
 ## Examples
 
@@ -145,7 +145,6 @@ examples:
       type: MapData
       bpmn:name: Preprocess EEG (subject)
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      isDataOperation: true
       icon: iconify icon-park--eeg
 ```
 
@@ -161,7 +160,6 @@ examples:
       type: MapData
       bpmn:name: Preprocess EEG (subject)
       bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      isDataOperation: true
       icon: iconify icon-park--eeg
       mixins:
         - bpmn:SubProcess
@@ -221,7 +219,7 @@ If the same example also includes undeclared scalar properties such as `param1: 
 
 ## Cross-schema references
 
-Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:DataOperationActivity`. The cognitive schema, for example, refers to `studyflow:DataOperationActivity#isDataOperation` when pinning the data-operation marker off for activities like `CognitiveTask`.
+Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:Arguments`. The functional schema, for example, refers to `functional:Transform#operationType` when pinning a verb's `operationType` on subtypes like `Map`.
 
 ## Common mistakes
 

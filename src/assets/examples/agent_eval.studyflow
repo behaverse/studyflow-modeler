@@ -1,19 +1,20 @@
 id: agent_eval
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
+  expressionLanguage: https://github.com/google/cel-spec
   xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:cognitive: http://behaverse.org/schemas/studyflow/cognitive
   xmlns:exec: https://w3id.org/studyflow/exec
   xmlns:agentic: https://w3id.org/studyflow/agentic
-  xmlns:functional: https://w3id.org/studyflow/functional
 Agent_Eval:
   type: bpmn:Process
   documentation: |
     An agent-evaluation harness: for every item in an eval set, run a tool-using
     agent, check its output, score it, and collect the results - with a sample
-    routed to human raters, and the whole eval wrapped in a loop that refits the
-    agent's instructions until the score clears the bar.
+    routed to human raters, and the whole eval wrapped in a drawn loop that
+    refits the agent's instructions until the score clears the bar.
 
     The point of the diagram is the line down the middle of it. Everything outside
     the Agent follows a path the diagram fixes: fan out, guard, judge, collect.
@@ -29,10 +30,11 @@ Agent_Eval:
       capability nobody reviewed.
     - Every step is one call the engine makes - a model request, a tool
       function, a judge - with its data arriving over the wires.
-    - The eval is also the fitness function. The outer loop refits the agent's
-      instructions - a plain service task bound to `python://dspy.MIPROv2`, whose
-      trainable is a Prompt artifact - from each round's scores, so "evaluate the
-      agent" and "improve the agent" are the same diagram.
+    - The eval is also the fitness function. The optimization loop is drawn
+      control flow: a gateway routes back to the optimizer - a plain service
+      task bound to `python://dspy.MIPROv2`, whose trainable is a Prompt
+      artifact - while the mean judge score is under the bar, so "evaluate
+      the agent" and "improve the agent" are the same diagram.
   extensionElements:
     - type: studyflow:Study
   name: Agent evaluation harness
@@ -72,20 +74,19 @@ Agent_Eval:
     Improve:
       type: bpmn:SubProcess
       documentation: |
-        The fitting loop: evaluate the agent, and while the mean judge score is
-        under the bar, refit its instructions from the scored items and evaluate
-        again - BPMN's own `loopCondition` keeps the loop running while the eval
-        is under the bar, and `loopMaximum` caps it at three compiles. Nothing
-        about the eval changes when it is used to improve the thing it measures.
-      name: Eval-optimize loop
+        The optimization body: refit the agent's instructions from the last
+        round's scores, then re-run the eval. The loop around it is drawn
+        control flow - the `Good enough?` gateway routes back here while the
+        mean judge score is under the bar, bounded by the engine's visit
+        count - so the cycle, its exit rule, and its budget are all visible
+        on the diagram. Nothing about the eval changes when it is used to
+        improve the thing it measures.
+      name: Eval-optimize round
       incoming:
         - Flow_Start_Improve
+        - Flow_Refit
       outgoing:
-        - Flow_Improve_Done
-      loopCharacteristics:
-        type: bpmn:StandardLoopCharacteristics
-        loopCondition: mean_judge_score < 4
-        loopMaximum: 3
+        - Flow_Improve_Gate
       flowElements:
         Optimize_Prompt:
           type: bpmn:ServiceTask
@@ -103,11 +104,14 @@ Agent_Eval:
             Wire_Prompt_In:
               sourceRef:
                 - Agent_Prompt
+            Wire_Trainset:
+              sourceRef:
+                - Scores
+              parameter: trainset
           dataOutputAssociations:
             Wire_Prompt_Out:
               targetRef: Agent_Prompt
-          isDataOperation: true
-          with:
+          arguments:
             metric: judge_score
             num_trials: 30
             max_bootstrapped_demos: 4
@@ -115,21 +119,27 @@ Agent_Eval:
         Per_Item:
           type: bpmn:SubProcess
           documentation: |
-            One instance per item of the eval set, with the current item bound
-            as `question`. The instances are independent, so this is also the
-            unit of parallelism.
+            BPMN's own multi-instance marker fans this body out: one instance
+            per item of the wired eval set, the current item bound as
+            `question` by the input association, and the per-instance scores
+            assembled in instance order into the wired scores collection. The
+            instances are independent, so this is also the unit of
+            parallelism.
           name: For each eval item
           incoming:
             - Flow_Optimize_Each
           outgoing:
             - Flow_Each_Agreement
+          dataInputAssociations:
+            Wire_Items:
+              sourceRef:
+                - Eval_Set
+              parameter: question
+          dataOutputAssociations:
+            Wire_Scores:
+              targetRef: Scores
           loopCharacteristics:
             type: bpmn:MultiInstanceLoopCharacteristics
-          iterate: items
-          over: items
-          itemVar: question
-          collect: concat
-          collectAs: scores
           flowElements:
             Research_Agent:
               type: bpmn:AdHocSubProcess
@@ -163,7 +173,7 @@ Agent_Eval:
                         Look up background facts. Use it when the question needs
                         knowledge you do not already have.
                   name: Search Wikipedia
-                  with:
+                  arguments:
                     results: 8
                   implementation: python://wikipedia.search
                 Compute:
@@ -176,7 +186,7 @@ Agent_Eval:
                         claim numerically. Use it when the question turns on a statistic.
                   name: Run analysis
                   implementation: python://pandas.eval
-              completionCondition: answer is not null
+              completionCondition: answer != null
             Check_Output:
               type: bpmn:ServiceTask
               documentation: |
@@ -237,7 +247,7 @@ Agent_Eval:
                 - Flow_Sample_Human
               outgoing:
                 - Flow_Human_Done
-              with:
+              arguments:
                 rubric: |
                   Score the answer against the same rubric the model judge used.
                 scale: 1-5 Likert
@@ -278,12 +288,19 @@ Agent_Eval:
           type: bpmn:ServiceTask
           documentation: |
             Reduces the collected per-item scores to the round's mean judge
-            score - the objective the optimizer maximizes and the loop
-            condition reads.
+            score - the objective the optimizer maximizes and the loop's
+            gateway reads.
           name: Score the eval
           incoming:
             - Flow_Each_Agreement
-          isDataOperation: true
+          dataInputAssociations:
+            Wire_Scores_Mean:
+              sourceRef:
+                - Scores
+              parameter: a
+          dataOutputAssociations:
+            Wire_Mean:
+              targetRef: Mean_Score
           implementation: python://numpy.mean
         Flow_Optimize_Each:
           type: bpmn:SequenceFlow
@@ -293,6 +310,32 @@ Agent_Eval:
           type: bpmn:SequenceFlow
           sourceRef: Per_Item
           targetRef: Agreement
+    Scores:
+      type: bpmn:DataObjectReference
+      documentation: |
+        Per-item judge scores, one entry per instance of the fan-out,
+        assembled in instance order by BPMN's own multi-instance output.
+        Also next round's trainset.
+      name: Per-item scores
+    Mean_Score:
+      type: bpmn:DataObjectReference
+      documentation: The round's objective; the loop gateway reads it by name.
+      name: Mean judge score
+    Good_Enough:
+      type: bpmn:ExclusiveGateway
+      documentation: |
+        The drawn optimization loop: while the mean judge score is under the
+        bar, the `refit` back-edge returns to the eval-optimize round, and
+        the engine-provided visit count bounds it at three rounds. The exit
+        is the gateway's native `default`, so a spent budget still ends the
+        eval cleanly.
+      name: Good enough?
+      incoming:
+        - Flow_Improve_Gate
+      outgoing:
+        - Flow_Refit
+        - Flow_Improve_Done
+      default: Flow_Improve_Done
     Done:
       type: bpmn:EndEvent
       name: Eval complete
@@ -302,7 +345,18 @@ Agent_Eval:
       type: bpmn:SequenceFlow
       sourceRef: Start
       targetRef: Improve
-    Flow_Improve_Done:
+    Flow_Improve_Gate:
       type: bpmn:SequenceFlow
       sourceRef: Improve
+      targetRef: Good_Enough
+    Flow_Refit:
+      type: bpmn:SequenceFlow
+      name: refit
+      conditionExpression: Mean_Score < 4 && state.visits.Good_Enough < 3
+      sourceRef: Good_Enough
+      targetRef: Improve
+    Flow_Improve_Done:
+      type: bpmn:SequenceFlow
+      name: good enough
+      sourceRef: Good_Enough
       targetRef: Done

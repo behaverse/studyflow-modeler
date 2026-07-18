@@ -152,13 +152,29 @@ function hasStoredValue(target: any, name: string): boolean {
   return Object.prototype.hasOwnProperty.call(target, name);
 }
 
-/** Body-wrapped attribute (e.g. `cognitive:Configurations`): unwrap the value
- *  of the child element transparently. */
+/** Body-wrapped attribute (e.g. `cognitive:Configurations`, a BPMN
+ *  expression element, or the `bpmn:documentation` list): unwrap the child
+ *  element's value transparently. */
 function unwrapBodyValue(rawValue: any, attrDef: AttributeSpec | undefined): any {
-  if (!rawValue || typeof rawValue !== 'object' || !rawValue.$type) return rawValue;
   if (!attrDef?.bodyProp) return rawValue;
+  if (Array.isArray(rawValue) && attrDef.isMany) {
+    // The `studyflow:checklist`-marked entry is the element's checklist, a
+    // separate view - `documentation` reads the prose entries only.
+    const prose = rawValue.filter((item) => !isChecklistEntry(item));
+    const bodies = prose.map((item) =>
+      item && typeof item === 'object' && item.$type ? readRaw(item, attrDef.bodyProp!) : undefined);
+    if (bodies.some((body) => typeof body !== 'string')) return rawValue;
+    return bodies.length === 0 ? undefined : bodies.join('\n\n');
+  }
+  if (!rawValue || typeof rawValue !== 'object' || !rawValue.$type) return rawValue;
   const inner = readRaw(rawValue, attrDef.bodyProp);
   return inner ?? '';
+}
+
+/** True for the `bpmn:documentation` entry carrying the element's checklist
+ *  (the `studyflow:checklist="true"` marker; see `ChecklistDocumentation`). */
+function isChecklistEntry(item: any): boolean {
+  return !!item && typeof item === 'object' && !!item.$type && item.get?.('checklist') === true;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,9 +221,11 @@ export class StudyflowElement {
     return this.extension?.$type;
   }
 
-  /** True when extension attributes are mixed onto the business object via traits. */
+  /** True when schema-declared attributes are mixed onto the business object
+   *  via traits - extension-namespaced ones, or redefines that keep BPMN's
+   *  namespace (`bpmn:documentation`, `bpmn:conditionExpression`, ...). */
   get hasTraits(): boolean {
-    return this.attributes().some((spec) => isExtensionPrefix(spec.ns?.prefix));
+    return this.attributes().some((spec) => isExtensionPrefix(spec.ns?.prefix) || !!spec.redefines);
   }
 
   /** Attribute definitions declared on the extension wrapper, if any. */
@@ -262,6 +280,7 @@ export class StudyflowElement {
   /** Read an attribute by local or qualified name, resolving storage and
    *  unwrapping body-wrapped values. */
   read(attributeName: string): any {
+    if (toLocalName(attributeName) === 'checklist') return this.readChecklist();
     const bo = this.businessObject;
     const ext = findExtension(bo);
     const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
@@ -277,11 +296,14 @@ export class StudyflowElement {
       if (extDef) {
         const extName = extDef.name ?? extDef.ns?.localName ?? r.attributeName;
         const extValue = readRaw(r.ext, extName);
+        // moddle lazily initializes unset isMany properties to [] on read;
+        // an empty list is "no value", not a stored one that could win.
+        const extHasValue = extValue !== undefined && !(Array.isArray(extValue) && extValue.length === 0);
         const extWins =
           extDef.meta?.pinned === true ||
           hasStoredValue(r.ext, extName) ||
           !hasStoredValue(r.bo, r.attributeName);
-        if (extValue !== undefined && extWins) return unwrapBodyValue(extValue, extDef);
+        if (extHasValue && extWins) return unwrapBodyValue(extValue, extDef);
       }
     }
 
@@ -293,6 +315,7 @@ export class StudyflowElement {
   /** Write an attribute by name, resolving storage (business object, wrapper,
    *  or body-wrapped child) and applying via this handle's {@link Writer}. */
   write(attributeName: string, value: any): void {
+    if (toLocalName(attributeName) === 'checklist') return this.writeChecklist(value);
     const bo = this.businessObject;
     const ext = findExtension(bo);
     const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
@@ -303,19 +326,90 @@ export class StudyflowElement {
 
     // Body-wrapped attribute: keep the wrapper instance and update its body.
     if (bodyProp && (typeof value === 'string' || value == null)) {
+      // A body-carrying list (`bpmn:documentation`) folds as a list of one
+      // prose entry: update it in place, clear on empty, else replace -
+      // always preserving the checklist-marked entry alongside.
+      if (attrDef?.isMany) {
+        const existingList: any[] = Array.isArray(readRaw(r.target, r.attributeName))
+          ? readRaw(r.target, r.attributeName)
+          : [];
+        const kept = existingList.filter((item) => isChecklistEntry(item));
+        const prose = existingList.filter((item) => !isChecklistEntry(item));
+        if (value == null || value === '') {
+          this.writer.apply(this.element, r.target, r.targetKind, r.attributeName,
+            kept.length > 0 ? kept : undefined);
+          return;
+        }
+        if (prose.length === 1 && typeof prose[0] === 'object' && prose[0].$type) {
+          this.writer.applyModdle(this.element, prose[0], { [bodyProp]: value });
+          return;
+        }
+        const model = r.target?.$model ?? bo?.$model;
+        if (model && attrDef?.type) {
+          const child = model.create(attrDef.type, { [bodyProp]: value });
+          child.$parent = r.target;
+          this.writer.apply(this.element, r.target, r.targetKind, r.attributeName, [child, ...kept]);
+          return;
+        }
+      }
       const existing = readRaw(r.target, r.attributeName);
       if (existing && typeof existing === 'object' && existing.$type) {
         this.writer.applyModdle(this.element, existing, { [bodyProp]: value ?? '' });
         return;
       }
       // Fresh wrapper of the declared type so writes survive serialization.
+      // A declared `bpmn:Expression` gets a FormalExpression instance - the
+      // concrete type BPMN serializes with `xsi:type`.
       const model = r.target?.$model ?? bo?.$model;
       if (model && attrDef?.type) {
-        value = model.create(attrDef.type, { [bodyProp]: value ?? '' });
+        const wrapType = attrDef.type === 'bpmn:Expression' ? 'bpmn:FormalExpression' : attrDef.type;
+        const wrapped = model.create(wrapType, { [bodyProp]: value ?? '' });
+        wrapped.$parent = r.target;
+        value = wrapped;
       }
     }
 
     this.writer.apply(this.element, r.target, r.targetKind, r.attributeName, value);
+  }
+
+  // --- The checklist view ----------------------------------------------------
+  // An element's checklist is not stored as its own attribute: it is the
+  // `studyflow:checklist="true"`-marked entry of the element's
+  // `bpmn:documentation` list, so the text lives in BPMN's own container
+  // (see `ChecklistDocumentation` in the studyflow schema).
+
+  private readChecklist(): any {
+    const bo = this.businessObject;
+    const list = readRaw(bo, 'documentation');
+    const entry = Array.isArray(list) ? list.find((item) => isChecklistEntry(item)) : undefined;
+    if (entry) return readRaw(entry, 'text') ?? '';
+    // Legacy files carried `studyflow:checklist` as a raw element attribute.
+    const legacy = bo?.$attrs?.['studyflow:checklist'] ?? bo?.$attrs?.['checklist'];
+    return typeof legacy === 'string' && legacy ? legacy : undefined;
+  }
+
+  private writeChecklist(value: any): void {
+    const bo = this.businessObject;
+    const list: any[] = Array.isArray(readRaw(bo, 'documentation')) ? readRaw(bo, 'documentation') : [];
+    const entry = list.find((item) => isChecklistEntry(item));
+    const text = typeof value === 'string' ? value : '';
+    if (!text.trim()) {
+      if (entry) {
+        const remaining = list.filter((item) => item !== entry);
+        this.writer.apply(this.element, bo, 'business-object', 'documentation',
+          remaining.length > 0 ? remaining : undefined);
+      }
+      return;
+    }
+    if (entry) {
+      this.writer.applyModdle(this.element, entry, { text });
+      return;
+    }
+    const model = bo?.$model;
+    if (!model) return;
+    const created = model.create('bpmn:Documentation', { checklist: true, text });
+    created.$parent = bo;
+    this.writer.apply(this.element, bo, 'business-object', 'documentation', [...list, created]);
   }
 }
 

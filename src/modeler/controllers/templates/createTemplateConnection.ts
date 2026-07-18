@@ -1,4 +1,4 @@
-import { setRawAttribute } from '@/core/extensions';
+import { setRawAttribute, StudyflowElement } from '@/core/extensions';
 import { createWaypoints } from '@/modeler/models/shape/template';
 
 type CreateTemplateConnectionCommand = {
@@ -41,9 +41,10 @@ export function runCreateTemplateConnection(
     bo.set('name', bpmnName);
   }
 
+  const handle = StudyflowElement.fromBusinessObject(bo);
   for (const [key, value] of Object.entries(attributes)) {
     if (key.startsWith('bpmn:')) setRawAttribute(bo, key, value);
-    else bo.set(key, value);
+    else handle.write(key, value);
   }
 
   return connection;

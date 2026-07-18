@@ -76,6 +76,18 @@ export function setRawAttribute(target: any, attributeName: string, value: any):
 // Attribute definitions (catalog lookups)
 // ---------------------------------------------------------------------------
 
+/** The checklist is a *view* over the element's `bpmn:documentation` list
+ *  (its `studyflow:checklist="true"`-marked entry), not a stored attribute -
+ *  `StudyflowElement` routes its reads and writes. This spec gives the view
+ *  its inspector field and tooltip. */
+export const CHECKLIST_SPEC: AttributeSpec = {
+  name: 'checklist',
+  ns: { name: 'studyflow:checklist', prefix: 'studyflow', localName: 'checklist' },
+  type: 'String',
+  description: 'Items to check off when completing the element - markdown task items (`- [ ]` / `- [x]`), carried as a marked `bpmn:documentation` entry so every BPMN tool shows the text.',
+  meta: { editor: 'markdown', categories: ['Documentation'] },
+};
+
 /** BPMN-native identity attributes, addressable as `bpmn:id`/`bpmn:name`. */
 const BPMN_NATIVE_SPECS: Record<string, AttributeSpec> = {
   id: {
@@ -104,7 +116,23 @@ export function getAttributeDefinition(elementOrBO: any, name: string | undefine
   const spec = getCatalog().attributeOf(typeNameOf(elementOrBO), name);
   if (spec) return spec;
   const local = toLocalName(name);
+  if (local === 'checklist') return CHECKLIST_SPEC;
   return local ? BPMN_NATIVE_SPECS[local] : undefined;
+}
+
+/**
+ * Derived, not stored: a step counts as a data operation when it names a data
+ * verb (`operationType`) or runs software (`implementation`) without being a
+ * participant-facing instrument (`instrument`, e.g. a jsPsych task). Shared
+ * by the canvas marker and the NIDM/Artemis exporters, so the classification
+ * cannot drift between them.
+ */
+export function isDataOperationActivity(elementOrBO: any): boolean {
+  if (!elementOrBO) return false;
+  if (getAttribute(elementOrBO, 'operationType')) return true;
+  if (getAttribute(elementOrBO, 'instrument')) return false;
+  const implementation = getAttribute(elementOrBO, 'implementation');
+  return typeof implementation === 'string' && implementation.trim() !== '';
 }
 
 /** Default attribute values for a schema type, across its inheritance chain. */

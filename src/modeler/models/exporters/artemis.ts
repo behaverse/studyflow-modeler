@@ -15,6 +15,7 @@
  */
 
 import { getDiagramName } from '@/modeler/models/diagramName';
+import { isDataOperationActivity } from '@/core/extensions';
 import { forEachBusinessObject, readField } from '@/modeler/models/exporters/common';
 
 type GenericRecord = Record<string, unknown>;
@@ -49,12 +50,12 @@ export function exportToArtemis(modeler: any): string {
     if (!t) return;
 
     if (!isEegRelevant(bo)) {
-      // Also collect DataOperationActivity entries as analysis-block hints.
-      if (readField(bo, 'isDataOperation') === true || readField(bo, 'operation')) {
+      // Also collect derived data-operation entries as analysis-block hints.
+      if (isDataOperationActivity(bo)) {
         analysis.push({
           element_id: bo.id,
           label: bo.name ?? bo.id,
-          operation: readField(bo, 'operation') ?? null,
+          operation: readField(bo, 'operationType') ?? null,
           studyflow_type: t,
           documentation: (readField(bo, 'documentation') as string | undefined) ?? null,
         });

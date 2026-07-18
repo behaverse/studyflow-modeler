@@ -112,11 +112,11 @@ test.describe('ensureDiagramLayout', () => {
 
     // The semantic tree is re-read from the original XML with the schema-aware
     // moddle, so extension *child elements* survive too — bpmn-auto-layout's
-    // own plain-moddle round-trip would silently drop `<studyflow:with>`
+    // own plain-moddle round-trip would silently drop `<studyflow:arguments>`
     // (the step arguments) from every laid-out import.
     expect(laidOut).toContain('implementation="python://sklearn.model_selection.cross_validate"');
     expect(laidOut).toContain('operationType="crossValidate"');
-    expect(laidOut).toContain('<studyflow:with>');
+    expect(laidOut).toContain('<studyflow:arguments>');
     expect(laidOut).toContain('precision_macro');
   });
 });

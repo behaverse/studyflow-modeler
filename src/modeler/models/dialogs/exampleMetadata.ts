@@ -28,7 +28,8 @@ export function parseXmlExampleMetadata(
     name: process.getAttribute('name')?.trim() || undefined,
     id: process.getAttribute('id') ?? undefined,
     description: Array.from(process.children).find(
-      (c) => c.namespaceURI === ns.bpmn && c.localName === 'documentation',
+      (c) => c.namespaceURI === ns.bpmn && c.localName === 'documentation'
+        && c.getAttributeNS(ns.core, 'checklist') !== 'true',
     )?.textContent?.trim() || undefined,
   };
 }

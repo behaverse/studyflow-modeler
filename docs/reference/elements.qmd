@@ -19,13 +19,13 @@ The main element of a studyflow diagram is the *Study*, which serves as a contai
 ![**Study** represents the entire research project, including all the processes from experimental design to deployment and publication. It extends `bpmn:Process` and is the top-level container for all elements and workflows. Has `runtime` (`cloud`/`local`/`hpc`), `authors`, and the inherited `isExecutable` properties.](../assets/img/elements/study.svg)
 :::
 
-Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*. Every element also carries the core `BaseElement` attributes `documentation` (markdown) and `checklist` (markdown items).
+Within a *Study* element, you can define various elements. In addition to the standard BPMN elements, Studyflow introduces specialized elements for research workflows in cognitive sciences in four main categories: *events*, *activities*, *gateways*, and *data*. Every element also carries the core `BaseElement` `documentation` (markdown, stored as BPMN's own documentation entries); a checklist is a `studyflow:checklist`-marked documentation entry, so its items stay visible in any BPMN tool.
 
 ## Schemas
 
 Studyflow elements ship in a layered set of moddle schemas:
 
-- **`core`** (always loaded): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `DataOperationActivity`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
+- **`core`** (always loaded): `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, `Activity`, `Arguments`, plus the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
 - **`cognitive`** (always loaded): cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor`). `BehaverseTask` (formerly the separate `behaverse` schema) is a `CognitiveTask` whose `instrument` is pinned to `behaverse`, delivered by the Behaverse Unity runtime.
 - **`omniprocess`**, **`datatrove`**, **`openbci`** (optional): domain extensions enabled from the modeler's schema palette.
 
@@ -59,7 +59,7 @@ See [Extensions](extensions.qmd) for the element catalogs of the optional extens
 ![**Rest** periods are intervals of inactivity or minimal activity, often used for baseline measurements, breaks, or resting-state recordings (e.g. resting EEG/fMRI). `configurations` holds e.g. duration and eyes-open/closed.](../assets/img/elements/rest.svg)
 :::
 
-In addition, the abstract `DataOperationActivity` augments any BPMN activity with `isDataOperation`, `inputs`, and `outputs`. Subtypes pin the flag: `CognitiveTask`, `Questionnaire`, `VideoGame`, and `Rest` fix it to `false`; data operators from `omniprocess`/`datatrove` fix it to `true`.
+In addition, the abstract `Arguments` trait augments any BPMN activity with the `arguments` mapping. An activity's inputs and outputs are not listed anywhere: they are detected from the data associations drawn on the canvas (connect a data element to a task and it is an input; the association's `parameter`/`result` refine the binding). Whether a step is a *data operation* is derived the same way, not stored: it names a data verb (`operationType`) or runs software (`implementation`) without being a participant-facing instrument.
 
 ## Gateways
 

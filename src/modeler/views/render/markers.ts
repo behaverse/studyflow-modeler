@@ -1,5 +1,5 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { getAttribute } from '@/core/extensions';
+import { getAttribute, isDataOperationActivity } from '@/core/extensions';
 import { BPMN_ICON_OVERRIDES } from '@/modeler/infra/constants';
 import { drawIcon, removeDefaultMarkers } from '@/modeler/views/render/utils';
 
@@ -13,8 +13,7 @@ export function drawMarkers(parentNode: SVGElement, element: any): void {
     markers.push('checklist');
   }
 
-  const implementation = getAttribute(element, 'implementation');
-  if (getAttribute(element, 'isDataOperation') || (typeof implementation === 'string' && implementation.trim())) {
+  if (isDataOperationActivity(element)) {
     markers.push('function');
   }
 

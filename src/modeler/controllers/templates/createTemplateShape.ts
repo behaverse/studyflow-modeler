@@ -15,6 +15,14 @@ type CreateTemplateShapeCommand = {
   parent?: any;
 };
 
+/** Stamp template fields through the catalog-aware handle, so body-wrapped
+ *  values (BPMN expression elements like `timeCycle`, `loopCondition`) coerce
+ *  from the flat strings templates author. */
+function writeFields(target: any, fields: Record<string, any>): void {
+  const handle = StudyflowElement.fromBusinessObject(target);
+  for (const [name, value] of Object.entries(fields)) handle.write(name, value);
+}
+
 export function runCreateTemplateShape(
   command: CreateTemplateShapeCommand,
 ): any {
@@ -55,8 +63,9 @@ export function runCreateTemplateShape(
   if (loop && typeof loop === 'object') {
     delete attributes['loopCharacteristics'];
     const { type: loopType = 'bpmn:StandardLoopCharacteristics', ...fields } = loop as Record<string, any>;
-    const lc = moddle.create(loopType, fields);
+    const lc = moddle.create(loopType, {});
     lc.$parent = bo;
+    writeFields(lc, fields);
     bo.set('loopCharacteristics', lc);
   }
 
@@ -68,8 +77,9 @@ export function runCreateTemplateShape(
     delete attributes['eventDefinitions'];
     bo.set('eventDefinitions', eventDefinitions.map((definition: Record<string, any>) => {
       const { type: definitionType, ...fields } = definition;
-      const eventDefinition = moddle.create(definitionType, fields);
+      const eventDefinition = moddle.create(definitionType, {});
       eventDefinition.$parent = bo;
+      writeFields(eventDefinition, fields);
       return eventDefinition;
     }));
   }

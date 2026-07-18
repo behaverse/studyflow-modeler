@@ -7,7 +7,7 @@ import { YAML_DUMP_OPTIONS, valueTypeOf } from '@/core/codec/common';
  * Folding #1 — YAML-bodied config wrappers and value-typed YAML properties.
  *
  * `cognitive:Configurations` and friends carry their whole content in a single
- * `YAMLString` body property; `studyflow:with` carries it in a value-typed
+ * `YAMLString` body property; `studyflow:arguments` carries it in a value-typed
  * `YAMLString` property. On serialize the parsed body inlines as nested YAML
  * (instead of a `value: |` string block); on deserialize the nested mapping is
  * dumped back into that string property.
@@ -46,7 +46,7 @@ export function yamlBodyProperty(descriptor: any): any | undefined {
   return body && toLocalName(valueTypeOf(body)) === 'YAMLString' ? body : undefined;
 }
 
-/** True when a property is a value-typed (non-body) `YAMLString`, e.g. `studyflow:with`. */
+/** True when a property is a value-typed (non-body) `YAMLString`, e.g. `studyflow:arguments`. */
 export function isYamlValueProperty(prop: any): boolean {
   return !prop.isBody && toLocalName(valueTypeOf(prop)) === 'YAMLString';
 }
@@ -105,7 +105,7 @@ export function inlineYamlBody(el: any): Mapping | undefined {
 }
 
 /**
- * FOLD (serialize): a value-typed YAML property (`studyflow:with`) inlines its
+ * FOLD (serialize): a value-typed YAML property (`studyflow:arguments`) inlines its
  * parsed mapping as nested YAML. Bodies are excluded — those fold at the wrapper
  * level via {@link inlineYamlBody}. Returns undefined (keep the string) when the
  * value does not parse to a mapping that {@link qualifiesAsInlineValue}.

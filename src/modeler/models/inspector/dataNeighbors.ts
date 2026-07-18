@@ -1,6 +1,6 @@
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 import { getCatalog, isBpmnSubtypeOf } from '@/core/catalog';
-import { StudyflowElement } from '@/core/extensions';
+import { getAttribute, StudyflowElement } from '@/core/extensions';
 
 /** BPMN 2.0 data element kinds (frozen spec). Schema types count as data
  *  elements when their catalog `bpmnType` resolves into one of these. */
@@ -24,15 +24,29 @@ function nameOf(element: any): string | undefined {
   return bo?.name || bo?.id || element?.id;
 }
 
+export type DataNeighbor = {
+  /** Display name of the wired data element. */
+  name: string;
+  /** `parameter` (inputs) / the native `transformation` expression (outputs)
+   *  declared on the association; unset means the whole value flows, bound
+   *  by the element's name. */
+  binding?: string;
+};
+
+/** An activity's inputs and outputs are not listed anywhere - they are
+ *  detected from the data associations drawn on the canvas. */
 export function getInferredDataNeighbors(
   element: any,
   direction: 'inputs' | 'outputs',
-): string[] {
+): DataNeighbor[] {
   const edges = (direction === 'inputs' ? element?.incoming : element?.outgoing) ?? [];
   const otherEnd = direction === 'inputs' ? 'source' : 'target';
+  const bindingAttr = direction === 'inputs' ? 'parameter' : 'transformation';
   return edges
-    .map((edge: any) => edge?.[otherEnd])
-    .filter(isDataElement)
-    .map(nameOf)
-    .filter((n: string | undefined): n is string => !!n);
+    .filter((edge: any) => isDataElement(edge?.[otherEnd]))
+    .map((edge: any) => ({
+      name: nameOf(edge[otherEnd]),
+      binding: getAttribute(getBusinessObject(edge), bindingAttr) || undefined,
+    }))
+    .filter((n: DataNeighbor): n is DataNeighbor => !!n.name);
 }

@@ -1,7 +1,9 @@
 id: sklearn_pipeline
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
+  expressionLanguage: https://github.com/google/cel-spec
   xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
   xmlns:exec: https://w3id.org/studyflow/exec
   xmlns:functional: https://w3id.org/studyflow/functional
@@ -17,13 +19,15 @@ Sklearn_Pipeline:
 
     The executable contract is deliberately small. A daemon walks sequence
     flow; before an activity it materializes every wired input (loading a
-    `uri` when necessary), resolves `$Element` values in `with`, evaluates
-    nested `implementation` mappings, and calls
-    `implementation(*args, **kwargs)`. It binds the returned value to each
-    wired output and persists an output that has a `uri` using its declared
-    format (or the daemon's registered codec for a file extension). No step
-    relies on an implicit conversion of a scikit-learn `Bunch`, a NumPy array,
-    or a Python object to JSON.
+    `uri` when necessary) and binds it to the callable parameter named on its
+    association (`parameter: self`, `parameter: X`), defaulting to the wired
+    element's name. It resolves `$Element.field` references in `arguments`,
+    evaluates CEL condition expressions over the bound values, calls the
+    importable callable named by `implementation` with those arguments,
+    binds the returned value to the wired outputs, and
+    persists any output that declares a `uri` using its declared `codec`. No
+    step relies on an implicit conversion of a scikit-learn `Bunch`, a NumPy
+    array, or a Python object to JSON.
 
     PCA is constructed inside the pipeline. Therefore `cross_validate`
     clones the complete estimator and fits PCA separately in every training
@@ -56,11 +60,12 @@ Sklearn_Pipeline:
     Select_Features:
       type: bpmn:ServiceTask
       documentation: |
-        Turns the supplied table into the feature matrix expected by
-        scikit-learn: `DataFrame.drop(input_dataset, columns=["target"])`.
-        Keep this explicit rather than assuming that a table's `.data` field
-        exists; ordinary pandas and scikit-learn values then flow between
-        activities without daemon-specific object conventions.
+        Drops the label column from the wired table:
+        `DataFrame.drop(self=input_dataset, columns=["target"])` - the input
+        association names the unbound method's `self`. Keep this explicit
+        rather than assuming that a table exposes a special `.data` field;
+        ordinary pandas values then flow between activities without
+        daemon-specific object conventions.
       extensionElements:
         - type: functional:Transform
           operationType: selectFeatures
@@ -73,12 +78,11 @@ Sklearn_Pipeline:
         Wire_Input_Features:
           sourceRef:
             - Input_Dataset
+          parameter: self
       dataOutputAssociations:
         Wire_Features:
           targetRef: Features
-      with:
-        args:
-          - $Input_Dataset
+      arguments:
         columns:
           - target
       implementation: python://pandas.DataFrame.drop
@@ -93,9 +97,9 @@ Sklearn_Pipeline:
       type: bpmn:ServiceTask
       documentation: |
         Extracts the one-dimensional class-label vector:
-        `DataFrame.__getitem__(input_dataset, "target")`. This avoids treating
-        a table or a scikit-learn dataset wrapper as if it exposed a special
-        daemon-defined `target` attribute.
+        `DataFrame.get(self=input_dataset, key="target")`. This avoids
+        treating a table or a scikit-learn dataset wrapper as if it exposed a
+        special daemon-defined `target` attribute.
       extensionElements:
         - type: functional:Transform
           operationType: selectTarget
@@ -108,14 +112,13 @@ Sklearn_Pipeline:
         Wire_Input_Target:
           sourceRef:
             - Input_Dataset
+          parameter: self
       dataOutputAssociations:
         Wire_Target:
           targetRef: Target
-      with:
-        args:
-          - $Input_Dataset
-          - target
-      implementation: python://pandas.DataFrame.__getitem__
+      arguments:
+        key: target
+      implementation: python://pandas.DataFrame.get
     Target:
       type: bpmn:DataObjectReference
       documentation: One-dimensional class-label vector extracted from the input table.
@@ -125,8 +128,10 @@ Sklearn_Pipeline:
       documentation: |
         Builds the unfitted estimator:
         `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1))`.
-        Constructor calls are nested under the reserved positional `args`
-        key. The returned estimator is data, wired unchanged to both
+        `make_pipeline` takes its steps positionally, so they go under the
+        reserved `args` key, and each step is a nested call - a mapping with
+        its own `implementation` and `arguments`, which the runner resolves first.
+        The returned estimator is data, wired unchanged to both
         cross-validation and final fitting.
       extensionElements:
         - type: functional:Transform
@@ -139,13 +144,13 @@ Sklearn_Pipeline:
       dataOutputAssociations:
         Wire_Pipeline:
           targetRef: Pipeline_Spec
-      with:
+      arguments:
         args:
           - implementation: python://sklearn.decomposition.PCA
-            with:
+            arguments:
               n_components: 16
           - implementation: python://sklearn.svm.SVC
-            with:
+            arguments:
               kernel: rbf
               C: 1
       implementation: python://sklearn.pipeline.make_pipeline
@@ -156,10 +161,11 @@ Sklearn_Pipeline:
     Cross_Validate:
       type: bpmn:ServiceTask
       documentation: |
-        The complete leakage-safe validation loop:
-        `cross_validate(estimator, X, y, cv=5, scoring=[...])`. PCA is inside
-        `estimator`, so it is refit only on each fold's training partition.
-        The output is the real scikit-learn result dictionary; the following
+        The complete leakage-safe validation loop in one call:
+        `cross_validate(estimator, X, y, cv=5, scoring=[...])`, its
+        `estimator`, `X`, and `y` named on the input wires. PCA is inside the
+        estimator, so it is refit only on each fold's training partition. The
+        output is the real scikit-learn result dictionary; the following
         steps make its arrays into explicit, portable tabular reports.
       extensionElements:
         - type: functional:Reduce
@@ -173,19 +179,19 @@ Sklearn_Pipeline:
         Wire_Pipeline_CV:
           sourceRef:
             - Pipeline_Spec
+          parameter: estimator
         Wire_Features_CV:
           sourceRef:
             - Features
+          parameter: X
         Wire_Target_CV:
           sourceRef:
             - Target
+          parameter: "y"
       dataOutputAssociations:
         Wire_CV_Result:
           targetRef: CV_Result
-      with:
-        estimator: $Pipeline_Spec
-        X: $Features
-        "y": $Target
+      arguments:
         cv: 5
         scoring:
           - accuracy
@@ -201,10 +207,12 @@ Sklearn_Pipeline:
     Build_Fold_Report:
       type: bpmn:ServiceTask
       documentation: |
-        Converts the cross-validation result dictionary to a DataFrame. Each
-        row is one fold; columns include fit time, score time, and every
-        requested held-out metric. The Parquet output is a durable report a
-        person or downstream workflow can inspect without importing Python.
+        Converts the cross-validation result dictionary to a DataFrame -
+        `DataFrame(data=cv_result)` - with the wired dictionary bound to
+        `data`. Each row is one fold; columns include fit time, score time,
+        and every requested held-out metric. The Parquet output is a durable
+        report a person or downstream workflow can inspect without importing
+        Python.
       extensionElements:
         - type: functional:Transform
           operationType: report
@@ -217,12 +225,10 @@ Sklearn_Pipeline:
         Wire_CV_Result_Report:
           sourceRef:
             - CV_Result
+          parameter: data
       dataOutputAssociations:
         Wire_Fold_Report:
           targetRef: CV_Fold_Report
-      with:
-        args:
-          - $CV_Result
       implementation: python://pandas.DataFrame
     CV_Fold_Report:
       type: bpmn:DataObjectReference
@@ -231,14 +237,15 @@ Sklearn_Pipeline:
         - type: studyflow:Table
           format: parquet
       uri: results/cv_fold_metrics.parquet
+      codec: parquet
       name: CV fold metrics report
     Summarize_CV:
       type: bpmn:ServiceTask
       documentation: |
-        Produces `DataFrame.describe(cv_fold_report)`: count, mean, standard
-        deviation, quantiles, and extrema for each cross-validation metric.
-        The promotion gateway reads the same concrete report value that is
-        persisted for review.
+        Produces `DataFrame.describe(self=cv_fold_report)`: count, mean,
+        standard deviation, quantiles, and extrema for each cross-validation
+        metric. The promotion gateway reads the same concrete report value
+        that is persisted for review.
       extensionElements:
         - type: functional:Reduce
           operationType: summarize
@@ -251,28 +258,28 @@ Sklearn_Pipeline:
         Wire_Fold_Report_Summary:
           sourceRef:
             - CV_Fold_Report
+          parameter: self
       dataOutputAssociations:
         Wire_CV_Summary:
           targetRef: CV_Summary
-      with:
-        args:
-          - $CV_Fold_Report
       implementation: python://pandas.DataFrame.describe
     CV_Summary:
       type: bpmn:DataObjectReference
-      documentation: Summary report used for promotion; `mean` / `test_accuracy` is the held-out accuracy criterion.
+      documentation: Summary report used for promotion; the CEL gate reads `CV_Summary.test_accuracy.mean`.
       extensionElements:
         - type: studyflow:Table
           format: parquet
       uri: results/cv_metric_summary.parquet
+      codec: parquet
       name: CV metrics summary report
     Good_Enough:
       type: bpmn:ExclusiveGateway
       documentation: |
         The pre-registered promotion threshold is a mean held-out accuracy of
-        0.90. The pass expression is evaluated against the bound artifact
-        values; the default path records that the reports were generated but
-        no final model was promoted.
+        0.90. The pass rule is a CEL expression reading the bound summary by
+        name (`CV_Summary.test_accuracy.mean`, resolved by key then
+        attribute); the default path records that the reports were generated
+        but no final model was promoted.
       name: Accurate enough?
       incoming:
         - Flow_Summary_Gate
@@ -284,7 +291,8 @@ Sklearn_Pipeline:
       type: bpmn:ServiceTask
       documentation: |
         Fits the selected pipeline on all supplied observations:
-        `Pipeline.fit(pipeline, X=features, y=target)`. This happens only
+        `Pipeline.fit(self=pipeline, X=features, y=target)` - the unbound
+        method with every argument named on its wire. This happens only
         after cross-validation; it does not replace the validation estimate.
       extensionElements:
         - type: functional:Reduce
@@ -298,27 +306,27 @@ Sklearn_Pipeline:
         Wire_Pipeline_Fit:
           sourceRef:
             - Pipeline_Spec
+          parameter: self
         Wire_Features_Fit:
           sourceRef:
             - Features
+          parameter: X
         Wire_Target_Fit:
           sourceRef:
             - Target
+          parameter: "y"
       dataOutputAssociations:
         Wire_Fitted_Model:
           targetRef: Final_Model
-      with:
-        args:
-          - $Pipeline_Spec
-        X: $Features
-        "y": $Target
       implementation: python://sklearn.pipeline.Pipeline.fit
     Final_Model:
       type: bpmn:DataObjectReference
       documentation: |
-        Promoted PCA+SVC pipeline. A daemon persists this output with its
-        registered joblib codec; the model is not silently JSON-serialized.
+        Promoted PCA+SVC pipeline. The daemon persists this output at `uri`
+        with its declared joblib codec; the model is not silently
+        JSON-serialized.
       uri: results/digits_pca_svc.joblib
+      codec: joblib
       name: Fitted pipeline
     Done:
       type: bpmn:EndEvent
@@ -361,7 +369,7 @@ Sklearn_Pipeline:
     Flow_Gate_Fit:
       type: bpmn:SequenceFlow
       name: promote
-      conditionExpression: CV_Summary.loc["mean", "test_accuracy"] >= 0.90
+      conditionExpression: CV_Summary.test_accuracy.mean >= 0.90
       sourceRef: Good_Enough
       targetRef: Fit_Model
     Flow_Gate_Reject:
