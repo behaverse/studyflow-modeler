@@ -17,13 +17,54 @@ export async function openCommandPalette(page: Page): Promise<void> {
 
 /**
  * Open the command palette and click through one or more entries
- * (e.g. 'Export...' then 'SVG...' for submenu commands).
+ * (e.g. 'Import...' then 'jsPsych Timeline...' for submenu commands).
  */
 export async function runPaletteCommand(page: Page, ...labels: string[]): Promise<void> {
   await openCommandPalette(page);
   for (const label of labels) {
     await page.getByRole('dialog').getByText(label, { exact: true }).click();
   }
+}
+
+/** Serve every Iconify glyph locally so image exports don't touch the network. */
+export async function stubIconify(page: Page): Promise<void> {
+  await page.route('https://api.iconify.design/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>',
+    });
+  });
+}
+
+/** `aria-label` of each embed switch in the Export dialog, keyed by option id. */
+const EMBED_SWITCH_LABELS: Record<string, string> = {
+  studyflow: 'Embed Studyflow source',
+  drawio: 'Embed draw.io diagram',
+};
+
+/**
+ * Drive the Export dialog end to end: pick `format` (an `ExportFormatId` such
+ * as `studyflow` or `png`), flip any embed toggles named in `embed` — image
+ * formats only, both on by default — and return the resulting download.
+ */
+export async function exportDiagram(
+  page: Page,
+  format: string,
+  embed: Partial<Record<'studyflow' | 'drawio', boolean>> = {},
+): Promise<Download> {
+  await runPaletteCommand(page, 'Export...');
+  await expect(page.getByTestId('export-dialog')).toBeVisible();
+  await page.getByTestId(`export-format-${format}`).click();
+
+  for (const [id, on] of Object.entries(embed)) {
+    const toggle = page.getByRole('switch', { name: EMBED_SWITCH_LABELS[id] });
+    if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click();
+  }
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('export-submit').click();
+  return downloadPromise;
 }
 
 /** Click a tile (by its exact label) inside the currently open palette flyout. */
@@ -77,12 +118,17 @@ export async function uploadStudyflowDiagram(page: Page, filename = 'sample.stud
 }
 
 export async function readDownloadText(download: Download): Promise<string> {
+  return (await readDownload(download)).toString('utf8');
+}
+
+/** Raw bytes of a download, for binary formats (PNG). */
+export async function readDownload(download: Download): Promise<Buffer> {
   const filePath = await download.path();
   if (!filePath) {
     throw new Error('Downloaded file path is unavailable.');
   }
 
-  return readFileSync(filePath, 'utf8');
+  return readFileSync(filePath);
 }
 
 export function extractStudyflowFromSvg(svgText: string): string {

@@ -10,12 +10,13 @@ import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 import {
   addPaletteElement,
   addSchemaPaletteElement,
+  exportDiagram,
   extractStudyflowFromSvg,
   gotoModeler,
   normalizeXml,
   readDownloadText,
-  runPaletteCommand,
   setSelectedElementName,
+  stubIconify,
 } from './utils';
 
 /** Convert BPMN XML to studyflow YAML the same way the app does. */
@@ -41,17 +42,9 @@ test.describe('Studyflow modeler palette flows', () => {
     await setSelectedElementName(page, 'Review Task');
     await expect(page.getByTestId('modeler-canvas')).toContainText('Review Task');
 
-    await page.route('https://api.iconify.design/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'image/svg+xml',
-        body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>',
-      });
-    });
+    await stubIconify(page);
 
-    const svgDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Export...', 'SVG...');
-    const svgDownload = await svgDownloadPromise;
+    const svgDownload = await exportDiagram(page, 'svg');
     const svgText = await readDownloadText(svgDownload);
 
     expect(svgDownload.suggestedFilename()).toBe('diagram.svg');
@@ -64,9 +57,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizedEmbeddedStudyflow).toContain('name="Review Task"');
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
 
-    const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowDownload = await studyflowDownloadPromise;
+    const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
     expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow');
@@ -82,17 +73,9 @@ test.describe('Studyflow modeler palette flows', () => {
     await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
     await addSchemaPaletteElement(page, 'Functional', 'Map', { x: 320, y: 180 });
 
-    await page.route('https://api.iconify.design/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'image/svg+xml',
-        body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>',
-      });
-    });
+    await stubIconify(page);
 
-    const svgDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Export...', 'SVG...');
-    const svgDownload = await svgDownloadPromise;
+    const svgDownload = await exportDiagram(page, 'svg');
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
 
@@ -103,9 +86,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
     expect(normalizedEmbeddedStudyflow).toContain('<functional:map/>');
 
-    const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowDownload = await studyflowDownloadPromise;
+    const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
     // In YAML the wrapper stays bare; the pinned operation defaults live as
@@ -121,9 +102,7 @@ test.describe('Studyflow modeler palette flows', () => {
     // Group is a template (a Map bound to a grouping function), not a type.
     await addSchemaPaletteElement(page, 'Functional', 'Group', { x: 320, y: 180 });
 
-    const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowDownload = await studyflowDownloadPromise;
+    const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
     expect(studyflowText).toContain('type: functional:Map');
@@ -138,9 +117,7 @@ test.describe('Studyflow modeler palette flows', () => {
 
     await addSchemaPaletteElement(page, 'OmniProcess', 'EEGPrep', { x: 260, y: 200 });
 
-    const studyflowDownloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowDownload = await studyflowDownloadPromise;
+    const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
     // EEGPrep is now a template (not a type) that expands into a plain

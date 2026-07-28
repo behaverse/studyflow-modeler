@@ -17,6 +17,7 @@ import { commandPalette as cp } from '@/modeler/infra/styles';
 import { VALID_FILE_EXTENSIONS } from '@/modeler/infra/constants';
 import { ExamplesDialog } from '@/modeler/views/dialogs/Examples';
 import { TemplateGalleryDialog } from '@/modeler/views/dialogs/TemplateGallery';
+import { ExportDialog } from '@/modeler/views/dialogs/Export';
 import { PublishDialog } from '@/modeler/views/dialogs/Publish';
 import { ChecklistDialog } from '@/modeler/views/dialogs/Checklist';
 import { GanttDialog } from '@/modeler/views/dialogs/Gantt';
@@ -35,6 +36,7 @@ import { ICONS } from '@/icons';
 const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<{ isOpen: boolean; onClose: () => void }>> = {
   examples: ExamplesDialog,
   templates: TemplateGalleryDialog,
+  export: ExportDialog,
   publish: PublishDialog,
   checklist: ChecklistDialog,
   gantt: GanttDialog,

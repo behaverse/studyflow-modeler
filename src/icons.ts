@@ -26,7 +26,6 @@ export const ICONS = {
   gear: 'iconify bi--gear',
   cog: 'iconify mdi--cog-outline',
   list: 'iconify bi--list',
-  grid: 'iconify bi--grid-1x2',
   fullscreen: 'iconify bi--fullscreen',
   sidebarExpand: 'iconify tabler--layout-sidebar-right-expand-filled',
   sidebarCollapse: 'iconify tabler--layout-sidebar-right-collapse-filled',
@@ -54,7 +53,6 @@ export const ICONS = {
   filePng: 'iconify bi--filetype-png',
   fileJson: 'iconify bi--filetype-json',
   download: 'iconify bi--download',
-  boxArrowUp: 'iconify bi--box-arrow-up',
   boxArrowInDown: 'iconify bi--box-arrow-in-down',
 
   // --- People & accounts ---

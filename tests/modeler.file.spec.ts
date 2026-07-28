@@ -3,7 +3,15 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { gotoModeler, readDownloadText, runPaletteCommand, uploadStudyflowDiagram } from './utils';
+import {
+  exportDiagram,
+  gotoModeler,
+  readDownload,
+  readDownloadText,
+  runPaletteCommand,
+  stubIconify,
+  uploadStudyflowDiagram,
+} from './utils';
 
 test.describe('Studyflow modeler file flows', () => {
   test('opens a local legacy (BPMN XML) studyflow file', async ({ page }) => {
@@ -58,9 +66,7 @@ test.describe('Studyflow modeler file flows', () => {
   test('downloads the current diagram as a YAML studyflow file', async ({ page }) => {
     await gotoModeler(page);
 
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const download = await downloadPromise;
+    const download = await exportDiagram(page, 'studyflow');
 
     await expect(download.suggestedFilename()).toBe('diagram.studyflow');
     const content = await readDownloadText(download);
@@ -74,9 +80,7 @@ test.describe('Studyflow modeler file flows', () => {
   test('saved YAML studyflow file opens again (UI round trip)', async ({ page }) => {
     await gotoModeler(page);
 
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const yamlText = await readDownloadText(await downloadPromise);
+    const yamlText = await readDownloadText(await exportDiagram(page, 'studyflow'));
 
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'roundtrip.studyflow',
@@ -93,9 +97,7 @@ test.describe('Studyflow modeler file flows', () => {
   test('exported PNG embeds the diagram and opens again (UI round trip)', async ({ page }) => {
     await gotoModeler(page);
 
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Export...', 'PNG...');
-    const download = await downloadPromise;
+    const download = await exportDiagram(page, 'png');
     await expect(download.suggestedFilename()).toBe('diagram.png');
 
     const filePath = await download.path();
@@ -114,16 +116,90 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.locator('.djs-element[data-element-id^="StartEvent"]').first()).toBeVisible();
   });
 
+  test('the same exported PNG is also a draw.io diagram', async ({ page }) => {
+    await gotoModeler(page);
+
+    const filePath = await (await exportDiagram(page, 'png')).path();
+    if (!filePath) throw new Error('Downloaded file path is unavailable.');
+    const png = readFileSync(filePath);
+
+    // draw.io reads the `mxfile` tEXt chunk and gives up at the image data, so
+    // the payload has to be in front of the first IDAT.
+    const chunk = png.indexOf('mxfile', 0, 'ascii');
+    expect(chunk).toBeGreaterThan(0);
+    expect(chunk).toBeLessThan(png.indexOf('IDAT', 0, 'ascii'));
+
+    const text = png.subarray(chunk + 'mxfile'.length + 1, png.indexOf('IDAT', 0, 'ascii') - 8);
+    const diagram = decodeURIComponent(text.toString('latin1'));
+    expect(diagram).toContain('<mxfile host="studyflow-modeler">');
+    // The default diagram's start event arrives as draw.io's BPMN event shape.
+    expect(diagram).toMatch(/<mxCell id="StartEvent[^"]*"[^>]*shape=mxgraph\.bpmn\.event/);
+    expect(diagram).toContain('outline=standard;symbol=general;');
+  });
+
   test('exports raw BPMN 2.0 XML', async ({ page }) => {
     await gotoModeler(page);
 
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'BPMN 2.0 XML...');
-    const download = await downloadPromise;
+    const download = await exportDiagram(page, 'bpmn');
 
     await expect(download.suggestedFilename()).toBe('diagram.bpmn');
     const content = await readDownloadText(download);
     expect(content).toContain('<?xml');
     expect(content).toContain('bpmn');
+  });
+
+  test('exports a standalone draw.io file', async ({ page }) => {
+    await gotoModeler(page);
+
+    const download = await exportDiagram(page, 'drawio');
+
+    expect(download.suggestedFilename()).toBe('diagram.drawio');
+    const content = await readDownloadText(download);
+    expect(content).toContain('<mxfile host="studyflow-modeler">');
+    expect(content).toMatch(/<mxCell id="StartEvent[^"]*"[^>]*shape=mxgraph\.bpmn\.event/);
+  });
+
+  test('exported SVG carries the studyflow source and the draw.io diagram', async ({ page }) => {
+    await gotoModeler(page);
+    await stubIconify(page);
+
+    const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
+
+    expect(svgText).toContain('<studyflow>');
+    // draw.io's "editable SVG": the mxfile rides escaped in the root `content`.
+    expect(svgText).toContain('content="&lt;mxfile');
+  });
+
+  test('the embed options decide what an exported image carries', async ({ page }) => {
+    await gotoModeler(page);
+    await stubIconify(page);
+
+    // Both payloads by default: an iTXt chunk for the modeler, a tEXt
+    // `mxfile` chunk for draw.io.
+    const withBoth = await readDownload(await exportDiagram(page, 'png'));
+    expect(withBoth.includes('iTXt')).toBe(true);
+    expect(withBoth.includes('mxfile')).toBe(true);
+
+    // Turning both off leaves an ordinary picture and nothing else.
+    const plain = await readDownload(
+      await exportDiagram(page, 'png', { studyflow: false, drawio: false }),
+    );
+    expect(plain.subarray(1, 4).toString('ascii')).toBe('PNG');
+    expect(plain.includes('iTXt')).toBe(false);
+    expect(plain.includes('mxfile')).toBe(false);
+  });
+
+  test('New starts from the gallery, whose blank entry replaces the diagram', async ({ page }) => {
+    await gotoModeler(page);
+    await uploadStudyflowDiagram(page, 'sample.studyflow');
+    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('sample');
+
+    // 'New' is the template gallery now; the empty canvas is its first entry,
+    // so there is no separate blank-diagram command to go wrong.
+    await runPaletteCommand(page, 'New...');
+    await page.getByTestId('new-diagram-blank').click();
+
+    await expect(page.getByTitle('Click to edit diagram name')).not.toHaveText('sample');
+    await expect(page.locator('.djs-element[data-element-id="StartEvent_1"]')).toBeVisible();
   });
 });

@@ -256,7 +256,7 @@ exampleStudy:
 ```
 </details>
 
-The same model also serializes to standard **BPMN 2.0 XML** (*File &rarr; Save As &rarr; BPMN 2.0 XML* in the modeler) for interop with other BPMN tooling. Legacy `.studyflow` files use this XML form and still open in both the modeler and the runner. Note the two extension styles: new element types nest a wrapper element inside `extensionElements` (`<cognitive:questionnaire>`), while extensions of standard BPMN elements appear as namespaced attributes on the host element (`studyflow:consentFormUri` on `<bpmn:startEvent>`).
+The same model also serializes to standard **BPMN 2.0 XML** (*File &rarr; Export &rarr; BPMN 2.0 XML* in the modeler) for interop with other BPMN tooling. Legacy `.studyflow` files use this XML form and still open in both the modeler and the runner. Note the two extension styles: new element types nest a wrapper element inside `extensionElements` (`<cognitive:questionnaire>`), while extensions of standard BPMN elements appear as namespaced attributes on the host element (`studyflow:consentFormUri` on `<bpmn:startEvent>`).
 
 <details>
 <summary>**BPMN 2.0 XML** serialization (click to expand)</summary>

@@ -6,24 +6,37 @@ import { dialog as d, examplesList as e } from '@/modeler/infra/styles';
 import { ICONS } from '@/icons';
 
 /**
- * Curated starting points for the "New from Template" picker. Unlike the raw
- * Examples list (which enumerates every shipped diagram), this is a hand-picked,
- * ordered set with study-design framing. Each entry points at a shipped
- * `.studyflow` file that imports pre-validated through `open-diagram`.
+ * Curated starting points for the "New" picker. Unlike the raw Examples list
+ * (which enumerates every shipped diagram), this is a hand-picked, ordered set
+ * with study-design framing. Each file-backed entry points at a shipped
+ * `.studyflow` that imports pre-validated through `open-diagram`.
+ *
+ * The blank canvas is the first entry rather than a separate command: starting
+ * a diagram is one decision ("from what?"), so it is one dialog.
  */
 type Template = {
-  /** Basename in `@/assets/examples/`. */
-  filename: string;
+  /** Stable key; the basename in `@/assets/examples/` for file-backed entries. */
+  id: string;
   title: string;
   /** Short category chip. */
   category: string;
   description: string;
   /** Optional nudge toward a view/feature that showcases the template. */
   hint?: string;
+  /** Omitted by the blank entry, which dispatches `new-diagram` instead. */
+  filename?: string;
 };
 
 const TEMPLATES: Template[] = [
   {
+    id: 'blank',
+    title: 'Empty diagram',
+    category: 'Blank',
+    description:
+      'A bare canvas with a single start event. Build the flow from scratch with the element palette.',
+  },
+  {
+    id: 'consort2025.studyflow',
     filename: 'consort2025.studyflow',
     title: 'Randomized controlled trial',
     category: 'Clinical trial',
@@ -31,6 +44,7 @@ const TEMPLATES: Template[] = [
       'A CONSORT 2025-compliant parallel-group RCT: enrollment, eligibility screening, randomized allocation to two arms, follow-up, and analysis, with exclusion paths modeled as error events.',
   },
   {
+    id: 'cognitive_battery.studyflow',
     filename: 'cognitive_battery.studyflow',
     title: 'Within-subject cognitive battery',
     category: 'Cognitive',
@@ -38,6 +52,7 @@ const TEMPLATES: Template[] = [
       'A single-session battery in which every participant completes all four Behaverse tasks (N-Back, Digit Span, SART, Which One) in a counterbalanced order, followed by a post-battery survey.',
   },
   {
+    id: 'spirit2025.studyflow',
     filename: 'spirit2025.studyflow',
     title: 'Multi-session longitudinal study',
     category: 'Longitudinal',
@@ -46,6 +61,7 @@ const TEMPLATES: Template[] = [
     hint: 'Try View As → Gantt or Checklist',
   },
   {
+    id: 'agent_eval_pool.studyflow',
     filename: 'agent_eval_pool.studyflow',
     title: 'LLM evaluation study',
     category: 'AI evaluation',
@@ -75,19 +91,21 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
 
   const selectTemplate = async (template: Template) => {
     if (!modeler || busy) return;
-    const url = urlFor(template.filename);
-    if (!url) {
+
+    const url = template.filename ? urlFor(template.filename) : undefined;
+    if (template.filename && !url) {
       alert(`Template not found: ${template.filename}`);
       return;
     }
-    setBusy(template.filename);
+
+    setBusy(template.id);
     try {
-      const content = await fetch(url).then((r) => r.text());
-      await executeCommand(modeler, {
-        type: 'open-diagram',
-        filename: template.filename,
-        content,
-      });
+      if (template.filename && url) {
+        const content = await fetch(url).then((r) => r.text());
+        await executeCommand(modeler, { type: 'open-diagram', filename: template.filename, content });
+      } else {
+        await executeCommand(modeler, { type: 'new-diagram' });
+      }
       onClose();
     } catch (err: any) {
       alert(err?.message || 'Failed to load template.');
@@ -103,21 +121,23 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
         <div className={d.centerLayout}>
           <DialogPanel className={`${d.panelLg} ${d.panel}`}>
             <DialogTitle as="h3" className={`${d.title} pb-3`}>
-              New from Template
+              New Diagram
               <span className={d.closeButton} onClick={onClose}>
                 <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
             <p className={`${d.body} pb-5`}>
-              Start from a pre-validated study design. Your current diagram will be replaced.
+              Start from a blank canvas or a pre-validated study design. Your current diagram
+              will be replaced.
             </p>
             <ul className={e.list}>
               {TEMPLATES.map((template) => {
-                const isBusy = busy === template.filename;
+                const isBusy = busy === template.id;
                 return (
-                  <li key={template.filename}>
+                  <li key={template.id}>
                     <button
                       type="button"
+                      data-testid={`new-diagram-${template.id}`}
                       onClick={() => selectTemplate(template)}
                       disabled={!!busy}
                       className={e.item}

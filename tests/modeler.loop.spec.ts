@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { addPaletteElement, gotoModeler, readDownloadText, runPaletteCommand } from './utils';
+import { addPaletteElement, exportDiagram, gotoModeler, readDownloadText } from './utils';
 
 /**
  * The inspector's Loop tab: one selector over BPMN's own four repetition
@@ -70,9 +70,7 @@ test.describe('Inspector loop tab', () => {
     await expect(page.locator('input[name="loopMaximum"]')).toHaveValue('5');
 
     // Saved YAML carries the canonical nested shape.
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowText = await readDownloadText(await downloadPromise);
+    const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     expect(studyflowText).toContain('loopCharacteristics:');
     expect(studyflowText).toContain('type: bpmn:StandardLoopCharacteristics');
     expect(studyflowText).toContain('loopCondition: score < 0.9');
@@ -97,9 +95,7 @@ test.describe('Inspector loop tab', () => {
     await page.getByRole('option', { name: 'None' }).click();
     await expect(canvas.locator(SEQUENTIAL_MARKER)).toHaveCount(0);
 
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowText = await readDownloadText(await downloadPromise);
+    const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     expect(studyflowText).not.toContain('loopCharacteristics');
   });
 });

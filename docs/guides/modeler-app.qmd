@@ -9,7 +9,7 @@ description: Design and execute studyflow diagrams using the Modeler webapp
 
 - Drag-and-drop interface.
 - Predefined node types for common research elements (e.g., cognitive tests, video games, questionnaires, and instructions).
-- Export studyflow diagrams as BPMN 2.0 XML, PNG, or SVG.
+- Export studyflow diagrams as BPMN 2.0 XML, PNG, SVG, or draw.io -- exported images stay editable in both this modeler and draw.io.
 - Integration with *Behaverse Data Server* to execute diagrams directly from the modeler.
 - Simulation mode to test and debug diagrams.
 
@@ -58,7 +58,7 @@ description: Design and execute studyflow diagrams using the Modeler webapp
   <figcaption>Completed diagram</figcaption>
 </figure>
 
-7. Save your diagram using the "Save As..." option in the "File" menu: "Studyflow" writes the native YAML file (`*.studyflow`) and "BPMN 2.0 XML" the interchange XML -- both can be reopened in the modeler. One-way outputs live under "Export...": images (SVG, PNG) and the metadata formats (LinkML, NIDM, ARTEM-IS).
+7. Save your diagram with the "Export..." command in the "File" menu. Saving and exporting are the same dialog: pick a format, and for images set what gets embedded. "Studyflow" writes the native YAML file (`*.studyflow`) and is the one to keep as your source of truth.
 
 <figure class="centered max-w-md">
   ![Save as *.studyflow file (YAML format)](../assets/img/screenshots/7-save.png)
@@ -79,17 +79,16 @@ Press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd> to open the command palette, a
 |---|---|
 | 1 | New |
 | 2 | Open File |
-| 3 | Save As |
-| 4 | Export |
-| 5 | Run |
-| 6 | Settings |
+| 3 | Export |
+| 4 | Run |
+| 5 | Settings |
 | 0 | Reset Zoom |
 
 The palette also hosts the *View as Checklist* and *View as Gantt* commands -- see [Views](../reference/views.qmd).
 
 ## Autosave
 
-The modeler can save the current diagram to the browser's local storage as you edit, so the diagram survives reloads. Toggle this under *Settings &rarr; Editor &rarr; Auto-save diagram* (off or on for this browser). Autosave is local-only; use *Save As...* to keep a `.studyflow` file alongside your code and data.
+The modeler can save the current diagram to the browser's local storage as you edit, so the diagram survives reloads. Toggle this under *Settings &rarr; Editor &rarr; Auto-save diagram* (off or on for this browser). Autosave is local-only; use *File &rarr; Export &rarr; Studyflow* to keep a `.studyflow` file alongside your code and data.
 
 ## Settings
 
@@ -106,16 +105,24 @@ Element types ship in layered schemas. `core` and `cognitive` are always loaded 
 
 ## Export formats
 
-Besides saving the `.studyflow` file (YAML), the modeler exports the diagram in several formats (see `src/modeler/exporters/`):
+Every way a diagram leaves the app is one dialog -- *File &rarr; Export...* -- with the native `.studyflow` file as the default format rather than a separate "save" menu (see `src/modeler/models/exporters/`):
 
 | Format | What it is for |
 |---|---|
+| Studyflow (YAML) | The native source file. Diffs cleanly in Git; keep this one. |
 | BPMN 2.0 XML | The same diagram as standard BPMN XML, for interop with other BPMN tooling. |
 | SVG | Vector figure of the diagram, for manuscripts and web pages. |
 | PNG | Raster figure, for slides and quick sharing. |
+| draw.io | The diagram as editable draw.io shapes (see below). |
 | LinkML | The diagram's data elements as a LinkML schema, for data engineers and validation tooling. |
 | NIDM-Results (Turtle) | Analysis metadata as NIDM-Results RDF, for neuroimaging provenance tooling. |
 | ARTEM-IS (JSON) | EEG methods descriptor following the ARTEM-IS template, for EEG reporting. |
+
+### Editing a diagram in draw.io
+
+An exported image is not a flat picture. Both SVG and PNG carry two payloads, toggled under *Embed* in the Export dialog and both on by default: the **studyflow source**, so *File &rarr; Open* brings the figure straight back into the modeler, and a **draw.io diagram**, so the very same file opens in [draw.io](https://www.drawio.com) -- desktop or [app.diagrams.net](https://app.diagrams.net) -- as editable BPMN shapes. That is the route to take when a figure needs annotating for a paper or reshaping for a slide, and it means one file in your repository serves both purposes. Exporting the `draw.io` format writes the same diagram as a plain `.drawio` file, without the picture.
+
+Two things to know before going down that route. draw.io renders standard BPMN notation, so studyflow's own element icons become the plain BPMN shape they specialize -- a *Cognitive task* arrives as a task, an *Eligibility gateway* as an exclusive gateway. And the edit is one-way: re-saving from draw.io writes a draw.io file, which the modeler cannot reopen. Keep the `.studyflow` file as the source of truth and treat the draw.io copy as a figure.
 
 ## Simulation mode
 

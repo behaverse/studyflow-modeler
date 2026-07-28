@@ -65,6 +65,24 @@ export function embedStudyflowIntoSvg(svg: string, xml: string): string {
   return new XMLSerializer().serializeToString(svgDoc);
 }
 
+/**
+ * Embed a draw.io `<mxfile>` document (see `exporters/drawio`) into an SVG's
+ * root `content` attribute — the "editable SVG" form draw.io both writes and
+ * reads, so the exported figure opens there as a real diagram.
+ *
+ * The serializer escapes the attribute value, which is what turns the nested
+ * document into the `content="&lt;mxfile ...&gt;"` shape draw.io expects.
+ */
+export function embedDrawioIntoSvg(svg: string, mxfileXml: string): string {
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
+  const svgEl = svgDoc.querySelector('svg') || svgDoc.documentElement;
+
+  svgEl.setAttribute('content', mxfileXml.trim());
+
+  return new XMLSerializer().serializeToString(svgDoc);
+}
+
 /** Rasterize an SVG string to a PNG data URL, flattening onto a white background. */
 export async function exportToPng(svg: string): Promise<string> {
   const canvas = document.createElement('canvas');

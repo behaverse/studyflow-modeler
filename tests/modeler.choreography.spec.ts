@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 import {
   addPaletteElement,
+  exportDiagram,
   gotoModeler,
   readDownloadText,
-  runPaletteCommand,
 } from './utils';
 
 /**
@@ -76,9 +76,7 @@ test.describe('Studyflow choreography tasks', () => {
     // A pure-choreography diagram saves with spec-clean BPMN containment:
     // a bpmn:Choreography root with declared participants and participant
     // references, not studyflow band attributes on a process.
-    const downloadPromise = page.waitForEvent('download');
-    await runPaletteCommand(page, 'Save As...', 'Studyflow...');
-    const studyflowText = await readDownloadText(await downloadPromise);
+    const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
 
     expect(studyflowText).toContain('type: bpmn:Choreography');
     expect(studyflowText).toContain('participantRef');

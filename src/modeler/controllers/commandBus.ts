@@ -22,7 +22,7 @@ import {
   runImportJsPsych, type ImportJsPsychCommand,
   runImportXml, type ImportXmlCommand,
   runNewDiagram, type NewDiagramCommand,
-  runSaveDiagram, type SaveDiagramCommand,
+  runExportDiagram, type ExportDiagramCommand,
   runPublishDiagram, type PublishDiagramCommand,
   runResetZoom, type ResetZoomCommand,
 } from '@/modeler/controllers/diagram';
@@ -50,7 +50,7 @@ export type ControllerCommand =
   | OpenDiagramCommand
   | ImportJsPsychCommand
   | NewDiagramCommand
-  | SaveDiagramCommand
+  | ExportDiagramCommand
   | PublishDiagramCommand
   | ToggleSimulationCommand
   | ResetZoomCommand
@@ -80,7 +80,7 @@ const HANDLERS: HandlerMap = {
   'open-diagram': runOpenDiagram,
   'import-jspsych': runImportJsPsych,
   'new-diagram': runNewDiagram,
-  'save-diagram': runSaveDiagram,
+  'export-diagram': runExportDiagram,
   'publish-diagram': runPublishDiagram,
   'toggle-simulation': runToggleSimulation,
   'reset-zoom': runResetZoom,

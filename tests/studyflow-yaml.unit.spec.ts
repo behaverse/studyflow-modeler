@@ -232,7 +232,7 @@ diagram:
   test('a config body carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
     // moddle escapes a text body only when it is typed exactly `String`; a raw
     // `<`/`&` in a `cognitive:Configurations` (YAMLString) body used to produce
-    // invalid XML on the Save As > BPMN 2.0 XML path.
+    // invalid XML on the Export > BPMN 2.0 XML path.
     const doc = `
 id: escape_demo
 definitions:

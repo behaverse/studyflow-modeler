@@ -2,9 +2,13 @@
  * The single registry of palette commands.
  *
  * Order here is the order on screen: File -> Run -> View -> App. Within
- * File, commands follow the document lifecycle (create, open, save, exchange).
- * `Save As...` holds only round-trippable formats the modeler can reopen;
- * one-way outputs (images, schemas, metadata) live under `Export...`.
+ * File, commands follow the document lifecycle (create, open, export, publish).
+ *
+ * Getting a diagram in and out is deliberately three shapes, not a tree of
+ * format submenus: `Open File...` is the browser's own file dialog (it takes
+ * every format the modeler reads), `Import...` is a submenu for foreign
+ * formats that need their own converter, and `Export...` opens one dialog
+ * listing every output format with its options.
  *
  * Digit shortcuts fire only while the search box is empty and are assigned
  * in display order; `0` mirrors the editor-wide Cmd/Ctrl+0 zoom-reset
@@ -35,19 +39,11 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     {
       id: 'new',
       group: 'File',
-      label: 'New',
+      label: 'New...',
       icon: ICONS.fileNew,
       shortcut: '1',
-      action: () => {
-        const ok = window.confirm('Replace the current diagram with an empty one? This cannot be undone.');
-        if (ok) executeCommand(modeler, { type: 'new-diagram' }).catch(console.error);
-      },
-    },
-    {
-      id: 'new-from-template',
-      group: 'File',
-      label: 'New from Template...',
-      icon: ICONS.grid,
+      // The blank canvas is the first entry in the same gallery, so there is
+      // exactly one way to start a diagram.
       action: () => openDialog('templates'),
     },
     {
@@ -66,35 +62,18 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       action: () => openDialog('examples'),
     },
     {
-      id: 'import-jspsych',
+      id: 'import',
       group: 'File',
-      label: 'Import jsPsych Timeline...',
+      label: 'Import...',
       icon: ICONS.boxArrowInDown,
-      hint: '.json',
-      action: pickJsPsychFile,
-    },
-    {
-      id: 'save-as',
-      group: 'File',
-      label: 'Save As...',
-      icon: ICONS.download,
-      shortcut: '3',
       children: [
         {
-          id: 'save-studyflow',
-          group: 'Save As',
-          label: 'Studyflow...',
-          icon: ICONS.fileYaml,
-          hint: '.studyflow',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'studyflow' }),
-        },
-        {
-          id: 'save-bpmn',
-          group: 'Save As',
-          label: 'BPMN 2.0 XML...',
-          icon: ICONS.fileXml,
-          hint: '.bpmn',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'bpmn' }),
+          id: 'import-jspsych',
+          group: 'Import',
+          label: 'jsPsych Timeline...',
+          icon: ICONS.fileJson,
+          hint: '.json',
+          action: pickJsPsychFile,
         },
       ],
     },
@@ -102,50 +81,9 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'export',
       group: 'File',
       label: 'Export...',
-      icon: ICONS.boxArrowUp,
-      shortcut: '4',
-      children: [
-        {
-          id: 'export-svg',
-          group: 'Export',
-          label: 'SVG...',
-          icon: ICONS.fileSvg,
-          hint: '.svg',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'svg' }),
-        },
-        {
-          id: 'export-png',
-          group: 'Export',
-          label: 'PNG...',
-          icon: ICONS.filePng,
-          hint: '.png',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'png' }),
-        },
-        {
-          id: 'export-linkml',
-          group: 'Export',
-          label: 'Schema (data elements)...',
-          icon: ICONS.fileYaml,
-          hint: '.linkml.yaml',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'linkml' }),
-        },
-        {
-          id: 'export-nidm',
-          group: 'Export',
-          label: 'NIDM-Results (analysis)...',
-          icon: ICONS.diagram,
-          hint: '.nidm.ttl',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'nidm' }),
-        },
-        {
-          id: 'export-artemis',
-          group: 'Export',
-          label: 'ARTEM-IS (EEG methods)...',
-          icon: ICONS.fileJson,
-          hint: '.artemis.json',
-          action: () => executeCommand(modeler, { type: 'save-diagram', fileType: 'artemis' }),
-        },
-      ],
+      icon: ICONS.download,
+      shortcut: '3',
+      action: () => openDialog('export'),
     },
     {
       id: 'publish',
@@ -161,7 +99,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       group: 'Run',
       label: 'Run',
       icon: ICONS.playFill,
-      shortcut: '5',
+      shortcut: '4',
       action: () => executeCommand(modeler, { type: 'open-runner' }),
     },
     {
@@ -203,7 +141,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       group: 'App',
       label: 'Settings...',
       icon: ICONS.gear,
-      shortcut: '6',
+      shortcut: '5',
       action: openSettings,
     },
     {

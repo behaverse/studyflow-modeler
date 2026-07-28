@@ -5,10 +5,16 @@
  *
  * `iTXt` (not `tEXt`) because its text field is UTF-8; diagram names and
  * documentation are not restricted to Latin-1.
+ *
+ * The same file can carry a second, independent payload for draw.io — see
+ * {@link embedDrawioIntoPng} — so one exported `.png` reopens in the modeler
+ * *and* in draw.io. Both payloads are on by default and each is an
+ * independent toggle in the Export dialog (see `exporters/formats`).
  */
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const STUDYFLOW_KEYWORD = 'studyflow';
+const DRAWIO_KEYWORD = 'mxfile';
 
 /** CRC-32 as specified by the PNG standard (polynomial 0xEDB88320). */
 function crc32(bytes: Uint8Array): number {
@@ -50,21 +56,41 @@ export function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-/** Embed the diagram's BPMN XML into a PNG as a `studyflow` iTXt chunk
- *  (inserted before IEND) so a saved `.png` round-trips back into the modeler. */
-export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array {
+/** Wrap `data` in a PNG chunk of `type`: length, type, data, CRC-32. */
+function buildChunk(type: string, data: Uint8Array): Uint8Array {
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length);
+  chunk.set(new TextEncoder().encode(type), 4);
+  chunk.set(data, 8);
+  view.setUint32(8 + data.length, crc32(chunk.subarray(4, 8 + data.length)));
+  return chunk;
+}
+
+/** Splice `chunk` into `png` in front of the first chunk of type `before`. */
+function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string): Uint8Array {
   assertPngSignature(png);
-  let iendOffset = -1;
-  for (const chunk of pngChunks(png)) {
-    if (chunk.type === 'IEND') {
-      iendOffset = chunk.offset;
+  let offset = -1;
+  for (const existing of pngChunks(png)) {
+    if (existing.type === before) {
+      offset = existing.offset;
       break;
     }
   }
-  if (iendOffset < 0) {
+  if (offset < 0) {
     throw new Error('The selected file is not a valid PNG.');
   }
 
+  const out = new Uint8Array(png.length + chunk.length);
+  out.set(png.subarray(0, offset), 0);
+  out.set(chunk, offset);
+  out.set(png.subarray(offset), offset + chunk.length);
+  return out;
+}
+
+/** Embed the diagram's BPMN XML into a PNG as a `studyflow` iTXt chunk
+ *  (inserted before IEND) so a saved `.png` round-trips back into the modeler. */
+export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array {
   const encoder = new TextEncoder();
   const keyword = encoder.encode(STUDYFLOW_KEYWORD);
   const text = encoder.encode(xml);
@@ -74,18 +100,30 @@ export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array 
   data.set(keyword, 0);
   data.set(text, keyword.length + 5);
 
-  const chunk = new Uint8Array(12 + data.length);
-  const view = new DataView(chunk.buffer);
-  view.setUint32(0, data.length);
-  chunk.set(encoder.encode('iTXt'), 4);
-  chunk.set(data, 8);
-  view.setUint32(8 + data.length, crc32(chunk.subarray(4, 8 + data.length)));
+  return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND');
+}
 
-  const out = new Uint8Array(png.length + chunk.length);
-  out.set(png.subarray(0, iendOffset), 0);
-  out.set(chunk, iendOffset);
-  out.set(png.subarray(iendOffset), iendOffset + chunk.length);
-  return out;
+/**
+ * Embed a draw.io `<mxfile>` document (see `exporters/drawio`) into a PNG as a
+ * `tEXt` chunk keyed `mxfile`, which is what draw.io reads to reopen an
+ * exported image as an editable diagram.
+ *
+ * Two details are load-bearing. The chunk goes **before the first IDAT**:
+ * draw.io's PNG scanner stops at the image data, so a chunk parked next to
+ * IEND (where the `studyflow` one lives) is never seen. And the payload is
+ * `encodeURIComponent`-ed, which both matches what draw.io expects and leaves
+ * it pure ASCII — the one way a UTF-8 diagram name survives `tEXt`'s Latin-1
+ * text field without the compressed `zTXt` form.
+ */
+export function embedDrawioIntoPng(png: Uint8Array, mxfileXml: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const keyword = encoder.encode(DRAWIO_KEYWORD);
+  const text = encoder.encode(encodeURIComponent(mxfileXml));
+  const data = new Uint8Array(keyword.length + 1 + text.length);
+  data.set(keyword, 0);
+  data.set(text, keyword.length + 1);
+
+  return insertChunkBefore(png, buildChunk('tEXt', data), 'IDAT');
 }
 
 /** Extract the studyflow XML embedded in an exported PNG's `studyflow`
