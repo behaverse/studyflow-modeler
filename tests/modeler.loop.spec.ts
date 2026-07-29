@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { addPaletteElement, exportDiagram, gotoModeler, readDownloadText } from './utils';
+import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
 /**
  * The inspector's Loop tab: one selector over BPMN's own four repetition
@@ -56,12 +56,11 @@ test.describe('Inspector loop tab', () => {
     await expect(canvas.locator(PARALLEL_MARKER)).toHaveCount(0);
 
     // Undo (one step per edit): sequential -> parallel, then back to loop.
-    // The empty-canvas click moves focus off the inspector inputs so the undo
-    // keys reach the modeler; the selection (and inspector) stay on the task.
-    await canvas.click({ position: { x: 60, y: 60 } });
-    await page.keyboard.press('ControlOrMeta+z');
+    // The keys go to the canvas SVG, which the modeler's keyboard listens on,
+    // and the task stays selected — so the Loop tab below is still the one open.
+    await pressOnCanvas(page, 'ControlOrMeta+z');
     await expect(canvas.locator(PARALLEL_MARKER)).toHaveCount(1);
-    await page.keyboard.press('ControlOrMeta+z');
+    await pressOnCanvas(page, 'ControlOrMeta+z');
     await expect(canvas.locator(LOOP_MARKER)).toHaveCount(1);
 
     // The still-open Loop tab reflects the undone model.

@@ -1,14 +1,13 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '../src/core/catalog';
 import { studyflowToXml } from '../src/core/codec';
-import { SCHEMAS } from '../src/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
 import { StudyflowElement, createExtensionElement, getAttribute, getDefaults } from '../src/core/extensions';
+import { loadSchemaModels } from './schemas';
+import { exampleStudyflow } from './utils';
 
 /**
  * Direct coverage of the StudyflowElement resolution table — reads and writes
@@ -17,11 +16,8 @@ import { StudyflowElement, createExtensionElement, getAttribute, getDefaults } f
  * This is the logic that previously had no unit test.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
 
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 
 // Install the catalog the handle reads through, and a moddle to build objects with.
 setCatalog(buildCatalog(models));
@@ -88,11 +84,11 @@ test.describe('StudyflowElement', () => {
  * winning over anything on the business object.
  */
 test.describe('StudyflowElement.read — stored values vs wrapper defaults', () => {
-  const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
-
-  /** Load a bundled example through the codec into a moddle definitions tree. */
+  /** Load a bundled example through the codec into a moddle definitions tree.
+   *  Examples ship as PNGs of themselves, so the source is read back out of
+   *  the picture and round-tripped through the YAML form the modeler writes. */
   const loadExample = async (file: string): Promise<any> => {
-    const text = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
+    const text = await exampleStudyflow(file, moddle);
     const xml = await studyflowToXml(text, moddle);
     const { rootElement } = await moddle.fromXML(xml);
     return rootElement;
@@ -116,7 +112,7 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
   };
 
   test('a stored trait value is not masked by defaults (Research_Agent completionCondition)', async () => {
-    const definitions = await loadExample('agent_eval.studyflow');
+    const definitions = await loadExample('agent_eval.png');
     const agent = findInDefinitions(definitions, 'Research_Agent');
     expect(agent).toBeTruthy();
     // The value is stored as BPMN's own expression element on the business

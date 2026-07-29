@@ -1,14 +1,27 @@
 import { BPMN } from '@/core/constants';
+import { getCatalog } from '@/core/catalog';
 import { ICONS } from '@/icons';
-export { SCHEMAS, SCHEMA_NAMES, BPMN } from '@/core/constants';
+export { BPMN } from '@/core/constants';
+export { SCHEMAS, SCHEMA_NAMES } from '@/core/schema/loader';
 
-export const NAMESPACES = {
-  bpmn: 'http://www.omg.org/spec/BPMN/20100524/MODEL',
-  // Unversioned legacy namespace, as declared in the bundled XML examples
-  // (the current versioned URI lives in `core/constants.ts`).
-  core: 'http://behaverse.org/schemas/studyflow',
-  cognitive: 'http://behaverse.org/schemas/studyflow/cognitive',
-} as const;
+/** The BPMN 2.0 model namespace — fixed by the spec, not by any schema. */
+const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
+
+export type Namespaces = { bpmn: string; core: string; legacyCore?: string };
+
+/**
+ * Namespaces the raw-XML readers look under (they parse markup directly
+ * rather than through moddle, so they resolve URIs themselves). Read from the
+ * core schema's own `uri` / `legacyUris`, so a namespace bump is a schema edit.
+ */
+export function namespaces(): Namespaces {
+  const core = getCatalog().schemas.find((schema) => schema.core);
+  return {
+    bpmn: BPMN_NS,
+    core: core?.uri ?? '',
+    legacyCore: core?.legacyUris[0],
+  };
+}
 
 export type PaletteEntry = {
   label: string;
@@ -77,8 +90,10 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
 
 export const SETTINGS_STORAGE_KEY = 'studyflow-modeler:settings:v1';
 export const AUTOSAVE_DIAGRAM_STORAGE_KEY = 'studyflow-modeler:autosave-diagram:v1';
+export const INSPECTOR_WIDTH_STORAGE_KEY = 'studyflow-modeler:inspector-width:v1';
 
-export const VALID_FILE_EXTENSIONS = ['.xml', '.bpmn', '.svg', '.png', '.studyflow'];
+/** What the Open dialog accepts, from the format catalog (`exporters/formats`). */
+export { IMPORTABLE_EXTENSIONS as VALID_FILE_EXTENSIONS } from '@/modeler/models/exporters/formats';
 
 export const URLS = {
   githubRepo: 'https://github.com/behaverse/studyflow-modeler',

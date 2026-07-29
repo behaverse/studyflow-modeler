@@ -36,6 +36,13 @@ export type ExportFormat = {
    * an exported figure reopenable rather than a flat picture.
    */
   embeddable?: boolean;
+  /**
+   * The modeler reads this format back. Extra spellings the same reader
+   * accepts (`.xml` for BPMN) go in `alsoReads`, so the file picker's accept
+   * list is this catalog rather than a second list beside it.
+   */
+  importable?: boolean;
+  alsoReads?: string[];
 };
 
 export const EXPORT_FORMATS: ExportFormat[] = [
@@ -47,6 +54,7 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     mimeType: 'text/yaml;charset=utf-8',
     icon: ICONS.fileYaml,
     description: 'Native YAML source. Diffs cleanly in Git.',
+    importable: true,
   },
   {
     id: 'bpmn',
@@ -56,6 +64,8 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     mimeType: 'application/xml;charset=utf-8',
     icon: ICONS.fileXml,
     description: 'Standard BPMN, for interop with other BPMN tooling.',
+    importable: true,
+    alsoReads: ['.xml'],
   },
   {
     id: 'svg',
@@ -66,6 +76,7 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     icon: ICONS.fileSvg,
     description: 'Vector figure for manuscripts and web pages.',
     embeddable: true,
+    importable: true,
   },
   {
     id: 'png',
@@ -76,6 +87,7 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     icon: ICONS.filePng,
     description: 'Raster figure for slides and quick sharing.',
     embeddable: true,
+    importable: true,
   },
   {
     id: 'drawio',
@@ -114,6 +126,15 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     description: 'EEG methods descriptor following the ARTEM-IS template.',
   },
 ];
+
+/**
+ * Extensions the modeler opens — every format that declares `importable`, plus
+ * the extra spellings its reader accepts. The Open dialog's accept list and its
+ * drop-target check both read this, so a new readable format is one entry above.
+ */
+export const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS
+  .filter((format) => format.importable)
+  .flatMap((format) => [format.extension, ...(format.alsoReads ?? [])]);
 
 /** Groups in display order, each with its formats. */
 export const EXPORT_FORMAT_GROUPS: Array<[ExportFormatGroup, ExportFormat[]]> = (

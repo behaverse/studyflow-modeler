@@ -4,6 +4,7 @@ import { splitQName } from '@/core/naming';
 import {
   getAttributeDefinition,
   getAttributeDefinitions,
+  getRawAttribute,
   isExtensionPrefix,
   toBusinessObject,
 } from '@/core/extensions';
@@ -177,6 +178,36 @@ function isChecklistEntry(item: any): boolean {
   return !!item && typeof item === 'object' && !!item.$type && item.get?.('checklist') === true;
 }
 
+/** No value: undefined, null, the empty string, or an empty list. */
+function isEmptyValue(value: unknown): boolean {
+  if (value === undefined || value === null || value === '') return true;
+  return Array.isArray(value) && value.length === 0;
+}
+
+/**
+ * Value left by an older spelling of this attribute.
+ *
+ * A property may list the names it used to be written under in
+ * `meta.legacyNames`; a name the loaded schemas no longer declare survives in
+ * moddle's `$attrs`, so an old file keeps rendering and re-saves under the
+ * current spelling. This is the schema's own account of its history — nothing
+ * in the code knows which attributes were ever renamed.
+ */
+function readLegacyValue(target: any, attrDef: AttributeSpec | undefined): any {
+  const legacyNames = attrDef?.meta?.legacyNames;
+  if (!Array.isArray(legacyNames) || !target) return undefined;
+
+  for (const legacyName of legacyNames) {
+    if (typeof legacyName !== 'string') continue;
+    const raw = getRawAttribute(target, legacyName, attrDef?.ns?.prefix)
+      ?? (hasStoredValue(target, legacyName) ? readRaw(target, legacyName) : undefined);
+    if (isEmptyValue(raw)) continue;
+    // A scalar written before the property went many-valued reads as a list of one.
+    return attrDef?.isMany && !Array.isArray(raw) ? [raw] : raw;
+  }
+  return undefined;
+}
+
 // ---------------------------------------------------------------------------
 // The handle
 // ---------------------------------------------------------------------------
@@ -309,7 +340,8 @@ export class StudyflowElement {
 
     const value = readRaw(r.target, r.attributeName);
     const attrDef = getAttributeDefinition(r.target, r.attributeName);
-    return unwrapBodyValue(value, attrDef);
+    const resolved = unwrapBodyValue(value, attrDef);
+    return isEmptyValue(resolved) ? readLegacyValue(r.target, attrDef) ?? resolved : resolved;
   }
 
   /** Write an attribute by name, resolving storage (business object, wrapper,

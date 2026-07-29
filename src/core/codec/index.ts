@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 
-import { STUDYFLOW_NS } from '@/core/constants';
+import { getCatalog } from '@/core/catalog';
 import { toLocalName } from '@/core/naming';
 import { RESERVED_DOC_KEYS, YAML_DUMP_OPTIONS, type YamlDoc } from '@/core/codec/common';
 import { definitionsToYamlDoc } from '@/core/codec/serialize';
@@ -80,12 +80,24 @@ export function looksLikeXml(text: string): boolean {
 }
 
 /**
- * Rewrite the unversioned core namespace written by older releases to the
- * current versioned one. Quote-bounded, so the sub-schema namespaces
- * (`.../studyflow/cognitive`, ...) are untouched. Idempotent.
+ * Rewrite namespace URIs written by older releases to the ones the loaded
+ * schemas declare (`legacyUris` -> `uri` in each `*.moddle.yaml`).
+ *
+ * Quote-bounded, so a legacy URI that is a prefix of a current one (the
+ * unversioned core namespace against `.../studyflow/cognitive`) is untouched.
+ * Idempotent.
  */
 export function normalizeStudyflowXml(xml: string): string {
-  return xml.replace(/(["'])http:\/\/behaverse\.org\/schemas\/studyflow\1/g, `$1${STUDYFLOW_NS}$1`);
+  let out = xml;
+  for (const { from, to } of getCatalog().legacyUriRewrites()) {
+    if (from === to) continue;
+    out = out.replace(new RegExp(`(["'])${escapeRegExp(from)}\\1`, 'g'), `$1${to}$1`);
+  }
+  return out;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export type StudyflowMetadata = { id?: string; name?: string; description?: string };

@@ -5,9 +5,10 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToXml } from '../src/core/codec';
-import { SCHEMAS } from '../src/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
 import { ensureDiagramLayout, hasDiagramInterchange } from '../src/modeler/models/autoLayout';
+import { loadSchemaModels } from './schemas';
+import { exampleXml, withoutDiagramInterchange } from './utils';
 
 /**
  * Hand-written `.studyflow` files describe only the flow graph and carry no
@@ -17,10 +18,7 @@ import { ensureDiagramLayout, hasDiagramInterchange } from '../src/modeler/model
  * semantic tree or any extension.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
@@ -62,35 +60,41 @@ test.describe('ensureDiagramLayout', () => {
   });
 
   test('returns a diagram that already carries geometry unchanged', async () => {
-    const authored = await studyflowToXml(
-      readFileSync(path.join(process.cwd(), 'src/assets/examples/consort2025.studyflow'), 'utf8'),
-      new BpmnModdle(structuredClone(packages)) as any,
-    );
+    const authored = exampleXml('consort2025.png');
     expect(hasDiagramInterchange(authored)).toBe(true);
     // No round-trip through auto-layout: the authored bytes are returned as-is.
     expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
   });
 
   test('draws data associations and places data elements next to their steps', async () => {
-    // sklearn_pipeline ships layout-less and wires its artifacts with data
-    // input/output associations — the case the data-flow pass exists for.
-    const xml = await studyflowToXml(
-      readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow'), 'utf8'),
-      new BpmnModdle(structuredClone(packages)) as any,
-    );
+    // sklearn_pipeline wires its artifacts with data input/output associations
+    // — the case the data-flow pass exists for. Every shipped example carries
+    // the geometry it was rendered with, so drop it to reach the layout pass.
+    const xml = withoutDiagramInterchange(exampleXml('sklearn_pipeline.png'));
     expect(hasDiagramInterchange(xml)).toBe(false);
 
     const laidOut = await ensureDiagramLayout(xml, schemaModdle());
 
-    // Every data association got a DI edge with waypoints, so bpmn-js renders
-    // it and the inspector can infer the step's inputs/outputs from it.
+    // A wire between two drawn shapes gets a DI edge with waypoints, so
+    // bpmn-js renders it and the inspector can infer the step's data contract.
     for (const wire of [
-      'Wire_Input_Features', 'Wire_Features', 'Wire_Input_Target', 'Wire_Target', 'Wire_Pipeline',
-      'Wire_Pipeline_CV', 'Wire_Features_CV', 'Wire_Target_CV', 'Wire_CV_Result', 'Wire_CV_Result_Report',
-      'Wire_Fold_Report', 'Wire_Fold_Report_Summary', 'Wire_CV_Summary', 'Wire_Pipeline_Fit',
-      'Wire_Features_Fit', 'Wire_Target_Fit', 'Wire_Fitted_Model',
+      'Wire_Input_Features', 'Wire_Input_Target', 'Wire_Fold_Report',
+      'Wire_Fold_Report_Summary', 'Wire_CV_Summary', 'Wire_Fitted_Model',
     ]) {
       expect(laidOut).toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${wire}"`));
+    }
+
+    // A wire whose other end is a `bpmn:Property` gets none: BPMN never
+    // renders a property, so there is no shape to draw an edge to. The
+    // binding is still in the file — this is what keeps the canvas legible
+    // while the in-memory values stay explicit.
+    for (const wire of [
+      'Wire_Features', 'Wire_Target', 'Wire_Estimator', 'Wire_Estimator_CV',
+      'Wire_Features_CV', 'Wire_Target_CV', 'Wire_CV_Result', 'Wire_CV_Result_Report',
+      'Wire_Mean_Accuracy', 'Wire_Estimator_Fit', 'Wire_Features_Fit', 'Wire_Target_Fit',
+    ]) {
+      expect(laidOut).not.toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${wire}"`));
+      expect(laidOut).toMatch(new RegExp(`dataInputAssociation|dataOutputAssociation`));
     }
 
     // The data elements were moved out of the disconnected left column into a

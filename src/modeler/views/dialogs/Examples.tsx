@@ -1,15 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useModeler } from '@/modeler/views/useModeler';
 import { executeCommand } from '@/modeler/controllers/commandBus';
-import { basename, parseExampleMetadata } from '@/modeler/models/dialogs/exampleMetadata';
+import { basename, readExampleMetadata } from '@/modeler/models/dialogs/exampleMetadata';
+import {
+  compareExamples,
+  galleryCategories,
+  isInCategory,
+  primaryCategoryOf,
+} from '@/modeler/models/dialogs/exampleCatalog';
 import { filenameStem } from '@/modeler/models/diagramFile';
-import { dialog as d, examplesList as e } from '@/modeler/infra/styles';
-import { NAMESPACES } from '@/modeler/infra/constants';
+import { dialog as d, exampleGallery as g } from '@/modeler/infra/styles';
+import { namespaces } from '@/modeler/infra/constants';
 import { ICONS } from '@/icons';
 
+/**
+ * Every shipped example, as one PNG each: the card's picture *is* the diagram
+ * (its studyflow rides in a metadata chunk — see `exporters/pngEmbedding`), so
+ * the image the user is looking at is the file that opens when they click it.
+ *
+ * Titles, blurbs, and categories are read out of those same files, which is
+ * why adding an example is one drop into `@/assets/examples/` and nothing else.
+ */
 const exampleFiles = import.meta.glob(
-  '@/assets/examples/*.{studyflow,bpmn,svg}',
+  '@/assets/examples/*.png',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -17,21 +31,25 @@ type ExampleEntry = {
   filename: string;
   url: string;
   title: string;
-  description: string;
-  content?: string;
+  /** One sentence, from the diagram's own documentation. */
+  summary: string;
+  /** Shelves the diagram files itself under; a card appears under each. */
+  categories: string[];
   error?: string;
 };
 
+/** Cards before their diagrams have been read: the picture and the file name
+ *  are enough to paint the grid, and the rest arrives a moment later. */
 function buildInitialEntries(): ExampleEntry[] {
   return Object.entries(exampleFiles)
-    .filter(([path]) => !path.endsWith('new_diagram.bpmn'))
     .map(([path, url]) => {
       const filename = basename(path);
       return {
         filename,
         url,
         title: filenameStem(filename),
-        description: '',
+        summary: '',
+        categories: [],
       };
     })
     .sort((a, b) => a.filename.localeCompare(b.filename));
@@ -46,6 +64,7 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
   const [entries, setEntries] = useState<ExampleEntry[]>(buildInitialEntries);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [filter, setFilter] = useState('all');
   const modeler = useModeler();
 
   useEffect(() => {
@@ -53,20 +72,21 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
     let cancelled = false;
 
     (async () => {
-      const enriched = await Promise.all(
+      const read = await Promise.all(
         buildInitialEntries().map(async (entry) => {
           try {
-            const content = await fetch(entry.url).then((r) => r.text());
-            const { title, description } = parseExampleMetadata(entry.filename, content, NAMESPACES);
-            return { ...entry, title, description, content };
+            // The same bytes the <img> is showing; the browser serves both
+            // from one response.
+            const png = await fetch(entry.url).then((r) => r.arrayBuffer());
+            return { ...entry, ...readExampleMetadata(entry.filename, png, namespaces()) };
           } catch (err) {
-            console.error(`Failed to load example ${entry.filename}:`, err);
-            return { ...entry, error: 'Failed to read description.' };
+            console.error(`Failed to read example ${entry.filename}:`, err);
+            return { ...entry, error: 'Failed to read this example.' };
           }
         }),
       );
       if (!cancelled) {
-        setEntries(enriched);
+        setEntries(read.sort(compareExamples));
         setLoaded(true);
       }
     })();
@@ -76,11 +96,19 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
     };
   }, [isOpen, loaded]);
 
+  const categories = useMemo(
+    () => galleryCategories(entries.map((entry) => entry.categories)),
+    [entries],
+  );
+  const visible = filter === 'all'
+    ? entries
+    : entries.filter((entry) => isInCategory(entry.categories, filter));
+
   const selectExample = async (entry: ExampleEntry) => {
     if (!modeler || busy) return;
     setBusy(entry.filename);
     try {
-      const content = entry.content ?? (await fetch(entry.url).then((r) => r.text()));
+      const content = await fetch(entry.url).then((r) => r.arrayBuffer());
       await executeCommand(modeler, {
         type: 'open-diagram',
         filename: entry.filename,
@@ -99,47 +127,63 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
     <Dialog open={isOpen} onClose={onClose} className={d.root}>
       <div className={d.backdrop}>
         <div className={d.centerLayout}>
-          <DialogPanel className={`${d.panelLg} ${d.panel}`}>
+          <DialogPanel className={`${d.panelXl} ${d.panel}`} data-testid="examples-dialog">
             <DialogTitle as="h3" className={`${d.title} pb-3`}>
-              Example Diagrams
+              Examples
               <span className={d.closeButton} onClick={onClose}>
                 <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
-            <p className={`${d.body} pb-5`}>
-              Your current diagram will be replaced.
-            </p>
-            {entries.length === 0 ? (
-              <p className={e.empty}>No examples available.</p>
+
+            <div className={g.filters}>
+              {['all', ...categories].map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  data-testid={`example-filter-${category}`}
+                  aria-pressed={filter === category}
+                  onClick={() => setFilter(category)}
+                  className={`${g.chip} ${filter === category ? g.chipActive : g.chipIdle}`}
+                >
+                  {category === 'all' ? 'All' : category}
+                </button>
+              ))}
+            </div>
+
+            {visible.length === 0 ? (
+              <p className={g.empty}>No examples available.</p>
             ) : (
-              <ul className={e.list}>
-                {entries.map((entry) => {
-                  const isBusy = busy === entry.filename;
-                  return (
-                    <li key={entry.filename}>
-                      <button
-                        type="button"
-                        onClick={() => selectExample(entry)}
-                        disabled={!!busy}
-                        className={e.item}
-                      >
-                        <div className={e.itemHeader}>
-                          <span className={e.itemTitle}>{entry.title}</span>
-                          <span className={e.itemFilename}>{entry.filename}</span>
-                        </div>
-                        {entry.description && (
-                          <p className={e.itemDescription}>{entry.description}</p>
+              <ul className={g.grid}>
+                {visible.map((entry) => (
+                  <li key={entry.filename}>
+                    <button
+                      type="button"
+                      data-testid={`example-${filenameStem(entry.filename)}`}
+                      aria-label={entry.title}
+                      title={entry.filename}
+                      onClick={() => selectExample(entry)}
+                      disabled={!!busy}
+                      className={g.card}
+                    >
+                      <div className={g.thumb}>
+                        <img src={entry.url} alt="" loading="lazy" className={g.thumbImage} />
+                        {busy === entry.filename && (
+                          <span className={g.thumbBusy}>
+                            <i className={g.thumbSpinner}></i>
+                          </span>
                         )}
-                        {entry.error && (
-                          <p className={e.itemError}>{entry.error}</p>
+                      </div>
+                      <div className={g.body}>
+                        {entry.categories.length > 0 && (
+                          <span className={g.eyebrow}>{primaryCategoryOf(entry.categories)}</span>
                         )}
-                        {isBusy && (
-                          <p className={e.itemBusy}>Loading...</p>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
+                        <span className={g.title}>{entry.title}</span>
+                        {entry.summary && <span className={g.summary}>{entry.summary}</span>}
+                        {entry.error && <span className={g.error}>{entry.error}</span>}
+                      </div>
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </DialogPanel>

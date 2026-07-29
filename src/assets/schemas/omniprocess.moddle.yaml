@@ -11,6 +11,7 @@ description: |
   layers follow. Generic function-composition operations live in `functional`.
 uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
+order: 80  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717

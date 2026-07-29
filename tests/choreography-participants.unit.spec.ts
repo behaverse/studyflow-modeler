@@ -1,13 +1,11 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { readChoreographyBands } from '../src/core/codec/choreography';
 import { ensureChoreographyParticipants, swapChoreographyInitiator } from '../src/modeler/models/choreographyParticipants';
-import { SCHEMAS } from '../src/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
+import { loadSchemaModels } from './schemas';
 
 /**
  * Model-level guarantees for the choreography participant helpers the modeler's
@@ -17,10 +15,7 @@ import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
  * that applies moddle properties directly, so it needs no bpmn-js / DOM.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );

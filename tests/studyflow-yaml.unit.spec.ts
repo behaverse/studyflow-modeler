@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
@@ -6,17 +6,20 @@ import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { looksLikeXml, readStudyflowMetadata, studyflowToXml, xmlToStudyflow } from '../src/core/codec';
-import { SCHEMAS } from '../src/core/constants';
+import { exampleXml } from './utils';
 import { parseStudyflow } from '../src/runner/models/parseStudyflow';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
+import { buildCatalog, setCatalog } from '../src/core/catalog';
+import { loadSchemaModels } from './schemas';
 
 /**
  * `.studyflow` YAML format guarantees, checked against every bundled example
  * diagram (real studies with extension wrappers, traits, templates, nested
- * sub-process flows, colors, and DI geometry). Examples ship as YAML (the
- * format the modeler writes on save); `.bpmn` files stay XML:
+ * sub-process flows, colors, and DI geometry). Examples ship as PNGs with
+ * their BPMN XML embedded, so each one's YAML projection — the format the
+ * modeler writes on save — is what these check:
  *
- * 1. Fixed point: each shipped file is its own canonical serialization —
+ * 1. Fixed point: the projection is its own canonical serialization —
  *    YAML -> XML -> YAML yields the identical YAML, so nothing is lost or
  *    invented by either direction.
  * 2. Semantic equivalence: the runner's parser sees the same flow graph
@@ -24,24 +27,29 @@ import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
  *    serializations.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
 const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
 
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
+// The codec reads the schemas through the catalog (value types, and the
+// `legacyUris` -> `uri` rewrite an old file needs), exactly as the app does.
+setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
 
-const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.studyflow'));
+const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
+
+/** A shipped example as the `.studyflow` YAML the modeler writes for it. */
+function studyflowOf(file: string): Promise<string> {
+  return xmlToStudyflow(exampleXml(file), new BpmnModdle(structuredClone(packages)) as any);
+}
 
 test.describe('studyflow YAML format', () => {
   test('isMany value-typed lists survive a load (data-loss regression)', async () => {
     // Before toModdlePackages rewrote value-typed wire formats to String,
     // moddle silently dropped this text on every XML load.
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = readFileSync(path.join(EXAMPLES_DIR, 'spirit2025.studyflow'), 'utf8');
+    const text = await studyflowOf('spirit2025.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
@@ -59,7 +67,7 @@ test.describe('studyflow YAML format', () => {
 
   test('implementation attribute and arguments value survive a load (function calls)', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = readFileSync(path.join(EXAMPLES_DIR, 'function_call_demo.studyflow'), 'utf8');
+    const text = await studyflowOf('function_call_demo.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
@@ -81,7 +89,7 @@ test.describe('studyflow YAML format', () => {
     // Round the shipped YAML through XML so the folding path (xmlToStudyflow)
     // is what actually produces the document under test.
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = readFileSync(path.join(EXAMPLES_DIR, 'bot_ollama.studyflow'), 'utf8');
+    const text = await studyflowOf('bot_ollama.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle));
 
@@ -321,16 +329,15 @@ P:
   });
 
   for (const file of examples) {
-    test(`${file}: metadata probe returns a usable title source`, () => {
-      const text = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
-      const meta = readStudyflowMetadata(text);
+    test(`${file}: metadata probe returns a usable title source`, async () => {
+      const meta = readStudyflowMetadata(await studyflowOf(file));
       expect(meta.name || meta.id, `${file} should expose a name or root id`).toBeTruthy();
     });
   }
 
   for (const file of examples) {
-    test(`${file}: shipped YAML is the fixed point of YAML -> XML -> YAML`, async () => {
-      const text = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
+    test(`${file}: its YAML projection is the fixed point of YAML -> XML -> YAML`, async () => {
+      const text = await studyflowOf(file);
       expect(looksLikeXml(text)).toBe(false);
 
       const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
@@ -340,7 +347,7 @@ P:
     });
 
     test(`${file}: runner sees the same flow graph through both serializations`, async () => {
-      const yamlText = readFileSync(path.join(EXAMPLES_DIR, file), 'utf8');
+      const yamlText = await studyflowOf(file);
       const xml = await studyflowToXml(yamlText, new BpmnModdle(structuredClone(packages)) as any);
 
       const fromXmlGraph = await parseStudyflow(xml, structuredClone(packages));

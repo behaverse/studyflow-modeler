@@ -1,5 +1,5 @@
 import { parseStudyflow, type ParsedStudy } from '@/runner/models/parseStudyflow';
-import type { FlowNode, SequenceFlow } from '@/runner/models/flow';
+import type { FlowNode, Scope, SequenceFlow } from '@/runner/models/flow';
 
 /** Parsed studyflow document. Static BPMN structure only; no runtime state.
  *
@@ -10,6 +10,9 @@ export class Studyflow {
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
   startId?: string;
+  /** Declared state per container, keyed by owner id (BPMN 2.0 §10.4.7). */
+  scopes: Map<string, Scope>;
+  rootScopeId: string;
   /** SHA-256 hex of the raw studyflow XML. Stamped onto downstream events so
    *  every record can be pinned to the exact source document. */
   studyflowHash?: string;
@@ -27,6 +30,8 @@ export class Studyflow {
     this.flowNodes = data.flowNodes;
     this.sequenceFlows = data.sequenceFlows;
     this.startId = data.startId;
+    this.scopes = data.scopes;
+    this.rootScopeId = data.rootScopeId;
     this.studyflowHash = studyflowHash;
   }
 

@@ -34,8 +34,34 @@ bpmn-js DI, constants, styles, contexts, storage). `src/core/` is the shared mod
 - `src/modeler/{models,views,controllers,infra}/` - modeler app (bpmn-js + React inspector/palette/contextpad).
 - `src/runner/{models,views,controllers,infra}/` - runner app (study traversal + per-node React renderers).
 - `src/assets/schemas/` - moddle YAML schemas (`studyflow`, `cognitive`, `behaverse`, `omniprocess`, `datatrove`, `galea`).
-- `src/assets/examples/` - example diagrams loaded by the modeler.
+- `src/assets/examples/` - example diagrams (see below), plus `new_diagram.bpmn`, the blank template.
 - `docs/` - Quarto site (reference, guides, examples).
+
+## Examples
+
+Each example is a single `.png`: a picture of the diagram with the diagram
+itself embedded in it (a `studyflow` metadata chunk — see
+`models/exporters/pngEmbedding`). The Examples gallery shows the image and
+opens the file behind it, and dragging one into the modeler — or into draw.io,
+or an email — works the same way.
+
+Everything the gallery shows comes out of the diagram: its `name` is the card
+title, the first sentence of its `documentation` is the blurb, and
+`studyflow:category` on the root is the shelf it sits on (editable in the
+inspector's Documentation tab). The filter chips are whatever categories the
+shipped examples declare.
+
+To add one, drop a `.studyflow` into `src/assets/examples/` and render it —
+the PNG replaces it as the shipped file, and the YAML can then be deleted:
+
+```bash
+npm run examples:render
+```
+
+Re-run it after editing an example (open the PNG, edit, export PNG over it) or
+after a change to how diagrams are drawn. Pass names to redo only those:
+`npm run examples:render kitchensink`. It drives a headless Chromium through
+the app's own PNG export, so it needs network access for icon glyphs.
 
 ## UI Tests
 

@@ -25,7 +25,7 @@ Global LLM defaults live in the modeler's *Settings*: provider (`claude` or `oll
 
 ## botConfigurations
 
-A worked example from the shipped `bot_claude.studyflow` -- a "tired participant" persona playing a 1-back warm-up block:
+A worked example from the shipped `bot_claude.png` example diagram -- a "tired participant" persona playing a 1-back warm-up block:
 
 ```yaml
 ResponseSource: llm

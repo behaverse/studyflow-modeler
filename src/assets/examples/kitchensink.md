@@ -1,7 +1,7 @@
 # Studyflow element cheatsheet
 
 A complete reference to every element type across the studyflow moddle schemas,
-meant to be read next to **`kitchensink.studyflow`** — the companion diagram that
+meant to be read next to **`kitchensink.png`** — the companion diagram that
 places one live instance of each palette element in a labelled band per schema.
 Open that file in the modeler to see the shapes and icons; use this file for the
 attributes, enum values, and snippets a diagram can't show.
@@ -364,8 +364,8 @@ Task_NBack:
           XCIT_NB_01:
 ```
 
-See `bot_claude.studyflow`, `bot_ollama.studyflow`, `bot_external.studyflow`,
-`agent_eval_pool.studyflow`, `cognitive_battery.studyflow`.
+See the `bot_claude`, `bot_ollama`, `bot_external`, `agent_eval_pool`, and
+`cognitive_battery` examples.
 
 ---
 
@@ -421,7 +421,7 @@ Fit:
     class_weight: balanced
 ```
 
-See `sklearn_pipeline.studyflow` — a complete worked pipeline (external Parquet dataset →
+See the `sklearn_pipeline` example — a complete worked pipeline (external Parquet dataset →
 cross-validated PCA + SVC → threshold gate → fit final → store results) built
 from these presets.
 
@@ -466,7 +466,7 @@ Research_Agent:
       implementation: python://wikipedia.search
 ```
 
-See `agent_eval.studyflow`, `agent_eval_pool.studyflow`.
+See `agent_eval.png`, `agent_eval_pool.png`.
 
 ---
 
@@ -490,7 +490,7 @@ blocks directly when a study needs one, e.g. a `functional:Map` running
 **Templates:** Anonymize Data (`functional:Map` bound to
 `datatrove.pipeline.formatters.PIIFormatter`, `remove_emails=/remove_ips=`).
 
-See `function_call_demo.studyflow`, `lablink_demo2.studyflow`.
+See `function_call_demo.png`, `lablink_demo2.png`.
 
 ---
 
@@ -536,9 +536,9 @@ a plain Process, so they aren't in the single-Process companion diagram:
 
 | Element | Root needed | Example file |
 |---|---|---|
-| `bpmn:Participant` (Pool), `cognitive:Actor`, `openbci:OpenBCISession` | Collaboration | `spirit2025.studyflow` (pool + lanes) |
-| `bpmn:Lane` / `laneSet` | Collaboration (pool with lanes) | `spirit2025.studyflow` |
-| `bpmn:ChoreographyTask`, `studyflow:ChoreographyTask`, `participants`, `messageFlows` | Choreography | `choreography_demo.studyflow` |
+| `bpmn:Participant` (Pool), `cognitive:Actor`, `openbci:OpenBCISession` | Collaboration | `spirit2025.png` (pool + lanes) |
+| `bpmn:Lane` / `laneSet` | Collaboration (pool with lanes) | `spirit2025.png` |
+| `bpmn:ChoreographyTask`, `studyflow:ChoreographyTask`, `participants`, `messageFlows` | Choreography | `choreography_demo.png` |
 
 `cognitive:Actor` tags a pool as `human` / `llm` / `agent` / `instrument` so
 multi-agent studies can mix human and artificial participants under the same BPMN
@@ -590,14 +590,14 @@ brainflow, openbci_gui.
 
 | File | Shows |
 |---|---|
-| `kitchensink.studyflow` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
-| `cognitive_battery.studyflow` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `sklearn_pipeline.studyflow` | **The execution/ML guide** — external dataset input, PCA pipeline, one-call CV, persisted fold/summary reports, threshold gate, and a promoted model artifact. |
-| `agent_eval.studyflow` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
-| `agent_eval_pool.studyflow` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
-| `choreography_demo.studyflow` | Choreography root, participants, message flows, ChoreographyTasks. |
-| `consort2025.studyflow` | Groups + Categories, boundary error events (attrition), colors. |
-| `spirit2025.studyflow` | Collaboration + pool + lanes, checklists, Gantt fields. |
-| `function_call_demo.studyflow` | functional Map bound to a python callable; script-by-URL. |
-| `lablink_demo0/1/2.studyflow` | Skeleton → orchestration → modeling pipeline (BIDS, fMRIPrep/EEGPrep). |
-| `bot_claude / bot_ollama / bot_external.studyflow` | Behaverse bot `agentType`/`botConfigurations` variants. |
+| `kitchensink.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
+| `cognitive_battery.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
+| `sklearn_pipeline.png` | **The execution/ML guide** — external dataset input, PCA pipeline, one-call CV, persisted fold/summary reports, threshold gate, and a promoted model artifact. |
+| `agent_eval.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
+| `agent_eval_pool.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
+| `choreography_demo.png` | Choreography root, participants, message flows, ChoreographyTasks. |
+| `consort2025.png` | Groups + Categories, boundary error events (attrition), colors. |
+| `spirit2025.png` | Collaboration + pool + lanes, checklists, Gantt fields. |
+| `function_call_demo.png` | functional Map bound to a python callable; script-by-URL. |
+| `lablink_demo0/1/2.png` | Skeleton → orchestration → modeling pipeline (BIDS, fMRIPrep/EEGPrep). |
+| `bot_claude / bot_ollama / bot_external.png` | Behaverse bot `agentType`/`botConfigurations` variants. |

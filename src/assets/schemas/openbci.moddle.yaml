@@ -18,9 +18,14 @@ description: |
   exec/ml/agentic layers follow.
 uri: http://behaverse.org/schemas/studyflow/openbci
 icon: iconify mdi--chip
+order: 90  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0716
+categories:
+  - name: OpenBCI
+    order: 600
+
 associations: []
 
 enumerations:
@@ -187,6 +192,9 @@ types:
     superClass:
       - studyflow:Dataset
     meta:
+      roles:
+        - acquisition
+        - signal
       icon: iconify mdi--database
       bpmnType: bpmn:DataStoreReference
     properties:

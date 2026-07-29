@@ -39,7 +39,6 @@
   "configurations": "Configurations",
   "implementation": "Function",
   "arguments": "Arguments",
-
   "signature": "Signature",
   "runsOn": "Runs on",
   "scheduler": "Scheduler",
@@ -75,7 +74,6 @@
   "basedOn": "Based on",
   "source": "Source",
   "contentType": "Content type",
-
   "framework": "Framework",
   "taskType": "Task type",
   "target": "Target variable",
@@ -111,7 +109,6 @@
   "window": "Window",
   "schedule": "Schedule",
   "signal": "Signal",
-
   "model": "Model",
   "provider": "Provider",
   "systemPrompt": "System prompt",

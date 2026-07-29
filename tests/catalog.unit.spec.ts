@@ -1,12 +1,12 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '../src/core/catalog';
-import { CORE_PREFIXES, SCHEMAS } from '../src/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { inferRoles } from '../src/core/catalog/roles';
+import { CORE_PREFIXES } from '../src/core/constants';
+import { toModdlePackages } from '../src/core/schema';
+import { SCHEMAS, loadSchemaModels } from './schemas';
 
 /**
  * Cross-validates the compiled TypeCatalog against bpmn-moddle.
@@ -18,11 +18,8 @@ import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
  * `extends` traits, and the static BPMN ancestor table.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
 
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 
 // Production pipeline: SchemaModel -> catalog for the app, SchemaModel -> packages
 // for moddle. The two never share objects (moddle mutates its
@@ -346,6 +343,84 @@ test.describe('catalog: renderer semantics', () => {
       const spec = catalog.instanceAttributesOf(bpmnType).find((a) => a.name === attr);
       expect(spec, `${bpmnType}#${attr}`).toBeTruthy();
       expect(typeof spec!.meta?.icon, `${bpmnType}#${attr} meta.icon`).toBe('string');
+    }
+  });
+});
+
+test.describe('catalog: schema-declared vocabulary', () => {
+  /**
+   * Roles are how a consumer addresses a family of types without naming its
+   * members (see `core/catalog/roles`). Most fall out of the type graph, so
+   * these check the inference rather than a list: what BPMN calls item-aware
+   * is a data element, and declaring `instrument` makes a type one.
+   */
+  test('roles are inferred from the BPMN attach point and declared attributes', () => {
+    const dataElements = catalog.typeNamesWithRole('data-element');
+    for (const name of ['studyflow:Dataset', 'studyflow:Table', 'studyflow:Timeseries']) {
+      expect(dataElements, name).toContain(name);
+    }
+    // Inherited through `superClass`, without the subtype restating anything.
+    expect(dataElements, 'openbci:OpenBCIRecording specializes studyflow:Dataset')
+      .toContain('openbci:OpenBCIRecording');
+    // A type with no BPMN attach point can never be on a canvas, so it is not
+    // a data element however much it looks like one.
+    expect(dataElements).not.toContain('studyflow:DataCatalog');
+
+    const instruments = catalog.typeNamesWithRole('instrument');
+    expect(instruments).toContain('cognitive:CognitiveTask');
+    expect(instruments, 'inherited from CognitiveTask').toContain('cognitive:BehaverseTask');
+
+    // Every role a consumer asks about must actually be carried by something,
+    // or an exporter block is silently always empty.
+    for (const role of ['data-element', 'signal', 'instrument', 'acquisition']) {
+      expect(catalog.typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
+    }
+  });
+
+  test('every type declaring meta.roles adds something inference misses', () => {
+    // A declaration that only repeats an inferred role is dead weight in the
+    // schema — the point of inferring is that it does not have to be written.
+    for (const entry of catalog.allTypes()) {
+      const declared = entry.meta?.roles;
+      if (!Array.isArray(declared)) continue;
+      const inferred = new Set(inferRoles(entry.bpmnType, entry.attributes));
+      const added = declared.filter((role: string) => !inferred.has(role));
+      expect(added, `${entry.name} declares roles it already infers`).not.toHaveLength(0);
+    }
+  });
+
+  test('inspector categories come from the schemas, ordered and unique', () => {
+    const categories = catalog.categories();
+    const names = categories.map((c) => c.name);
+    expect(new Set(names).size, 'a category is declared once').toBe(names.length);
+    expect([...categories].sort((a, b) => a.order - b.order).map((c) => c.name)).toEqual(names);
+
+    // General leads and the engine-written run record trails, whatever schemas
+    // are loaded in between.
+    expect(names[0]).toBe('General');
+    expect(names[names.length - 1]).toBe('Run record');
+
+    // Synthetic tabs are drawn by their own section component, so they must
+    // survive having no attributes.
+    expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution', 'Loop']);
+  });
+
+  test('a value type declares the editor its attributes render with', () => {
+    // `meta.editor` on `studyflow:YAMLString` reaches every attribute of that
+    // type, including through a body wrapper - nothing in the inspector names
+    // a type.
+    const configurations = catalog.instanceAttributesOf('cognitive:BehaverseTask')
+      .find((spec) => spec.ns.localName === 'configurations');
+    expect(configurations, 'cognitive:BehaverseTask#configurations').toBeTruthy();
+    expect(configurations!.typeEditor, 'resolved through the Configurations wrapper').toBe('code');
+  });
+
+  test('legacy namespace rewrites come from the schemas that superseded them', () => {
+    const rewrites = catalog.legacyUriRewrites();
+    expect(rewrites.length, 'the core schema declares one').toBeGreaterThan(0);
+    for (const { from, to } of rewrites) {
+      expect(from, 'a legacy URI is never its own replacement').not.toBe(to);
+      expect(catalog.schemas.some((schema) => schema.uri === to)).toBe(true);
     }
   });
 });

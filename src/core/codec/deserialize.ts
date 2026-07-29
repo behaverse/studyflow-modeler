@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 
-import { LEGACY_STUDYFLOW_NS, STUDYFLOW_NS } from '@/core/constants';
+import { getCatalog } from '@/core/catalog';
 import {
   RESERVED_DOC_KEYS,
   inferPlaneRoot,
@@ -286,11 +286,15 @@ export function studyflowToDefinitions(yamlText: string, moddle: any): any {
   if (Array.isArray(doc.elements)) rootElements.push(...doc.elements);
   else if (doc.elements) rootElements.push(...keyedMapToList(doc.elements));
 
-  // Older files declare the unversioned core namespace; rewrite it so the
-  // declaration matches the registered (versioned) package.
+  // Older files declare superseded namespace URIs (each schema lists its own
+  // under `legacyUris`); rewrite them so the declarations match the registered
+  // packages.
+  const rewrites = new Map(getCatalog().legacyUriRewrites().map(({ from, to }) => [from, to]));
   const definitionAttrs: Record<string, unknown> = { ...((doc.definitions as Record<string, unknown>) ?? {}) };
   for (const [key, value] of Object.entries(definitionAttrs)) {
-    if (key.startsWith('xmlns') && value === LEGACY_STUDYFLOW_NS) definitionAttrs[key] = STUDYFLOW_NS;
+    if (!key.startsWith('xmlns') || typeof value !== 'string') continue;
+    const current = rewrites.get(value);
+    if (current) definitionAttrs[key] = current;
   }
 
   const builder = new ModdleBuilder(moddle);

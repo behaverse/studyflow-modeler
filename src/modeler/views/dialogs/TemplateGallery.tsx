@@ -9,7 +9,7 @@ import { ICONS } from '@/icons';
  * Curated starting points for the "New" picker. Unlike the raw Examples list
  * (which enumerates every shipped diagram), this is a hand-picked, ordered set
  * with study-design framing. Each file-backed entry points at a shipped
- * `.studyflow` that imports pre-validated through `open-diagram`.
+ * example PNG, which imports pre-validated through `open-diagram`.
  *
  * The blank canvas is the first entry rather than a separate command: starting
  * a diagram is one decision ("from what?"), so it is one dialog.
@@ -36,24 +36,24 @@ const TEMPLATES: Template[] = [
       'A bare canvas with a single start event. Build the flow from scratch with the element palette.',
   },
   {
-    id: 'consort2025.studyflow',
-    filename: 'consort2025.studyflow',
+    id: 'consort2025.png',
+    filename: 'consort2025.png',
     title: 'Randomized controlled trial',
     category: 'Clinical trial',
     description:
       'A CONSORT 2025-compliant parallel-group RCT: enrollment, eligibility screening, randomized allocation to two arms, follow-up, and analysis, with exclusion paths modeled as error events.',
   },
   {
-    id: 'cognitive_battery.studyflow',
-    filename: 'cognitive_battery.studyflow',
+    id: 'cognitive_battery.png',
+    filename: 'cognitive_battery.png',
     title: 'Within-subject cognitive battery',
     category: 'Cognitive',
     description:
       'A single-session battery in which every participant completes all four Behaverse tasks (N-Back, Digit Span, SART, Which One) in a counterbalanced order, followed by a post-battery survey.',
   },
   {
-    id: 'spirit2025.studyflow',
-    filename: 'spirit2025.studyflow',
+    id: 'spirit2025.png',
+    filename: 'spirit2025.png',
     title: 'Multi-session longitudinal study',
     category: 'Longitudinal',
     description:
@@ -61,8 +61,8 @@ const TEMPLATES: Template[] = [
     hint: 'Try View As → Gantt or Checklist',
   },
   {
-    id: 'agent_eval_pool.studyflow',
-    filename: 'agent_eval_pool.studyflow',
+    id: 'agent_eval_pool.png',
+    filename: 'agent_eval_pool.png',
     title: 'LLM evaluation study',
     category: 'AI evaluation',
     description:
@@ -71,7 +71,7 @@ const TEMPLATES: Template[] = [
 ];
 
 const templateFiles = import.meta.glob(
-  '@/assets/examples/*.studyflow',
+  '@/assets/examples/*.png',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -101,7 +101,8 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
     setBusy(template.id);
     try {
       if (template.filename && url) {
-        const content = await fetch(url).then((r) => r.text());
+        // An example is a PNG with its studyflow inside it, so it travels as bytes.
+        const content = await fetch(url).then((r) => r.arrayBuffer());
         await executeCommand(modeler, { type: 'open-diagram', filename: template.filename, content });
       } else {
         await executeCommand(modeler, { type: 'new-diagram' });
@@ -126,10 +127,6 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
                 <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
-            <p className={`${d.body} pb-5`}>
-              Start from a blank canvas or a pre-validated study design. Your current diagram
-              will be replaced.
-            </p>
             <ul className={e.list}>
               {TEMPLATES.map((template) => {
                 const isBusy = busy === template.id;

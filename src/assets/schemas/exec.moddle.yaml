@@ -22,9 +22,25 @@ description: >-
   Studyflow coordinates the calls; it never encodes the computation itself.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
+core: true   # backs the default elements; always loaded, cannot be disabled
+order: 20  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717
+
+categories:
+  - name: Trigger
+    order: 200
+  - name: Binding
+    order: 210
+  - name: Artifact
+    order: 220
+  - name: Repeat
+    order: 230
+  - name: Parameters
+    order: 240
+  - name: Agent
+    order: 250
 
 associations: []
 
@@ -120,6 +136,12 @@ types:
           lands on the target. On an output wire the step's return value is
           bound as `result`. Unset, the value flows unchanged.
         type: bpmn:FormalExpression
+        xml:
+          # BPMN's own serialization for this one: the element is named after
+          # the property (`<bpmn:transformation>`), not after its type. Without
+          # this the redefinition loses the base hint and writes
+          # `<bpmn:formalExpression>`, which no BPMN 2.0 XSD accepts here.
+          serialize: property
         redefines: bpmn:DataAssociation#transformation
         meta:
           categories:

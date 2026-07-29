@@ -110,6 +110,15 @@ function isPureChoreography(process: any): boolean {
   return hasChoreographyTask;
 }
 
+/**
+ * What a root element carries besides its flow, and so has to survive being
+ * rewritten from a process to a choreography and back. `id` and `name` are set
+ * on the new root directly; everything here moves across. A property missing
+ * from this list is silently lost on the next save, which is what made
+ * `category` (the gallery's shelf label) disappear from choreography diagrams.
+ */
+const ROOT_PROPERTIES = ['documentation', 'extensionElements', 'category'];
+
 function moveOnto(target: any, source: any, props: string[]): void {
   for (const prop of props) {
     const value = source.get(prop);
@@ -166,7 +175,7 @@ export function processToChoreographyRoot(definitions: any): boolean {
   const choreography = model.create('bpmn:Choreography', { id: process.id });
   if (process.name !== undefined) choreography.set('name', process.name);
   choreography.$parent = definitions;
-  moveOnto(choreography, process, ['documentation', 'extensionElements']);
+  moveOnto(choreography, process, ROOT_PROPERTIES);
 
   const takenIds = new Set<string>(
     [
@@ -240,7 +249,7 @@ export function choreographyToProcessRoot(definitions: any): boolean {
   const process = model.create('bpmn:Process', { id: choreography.id, isExecutable: false });
   if (choreography.name !== undefined) process.set('name', choreography.name);
   process.$parent = definitions;
-  moveOnto(process, choreography, ['documentation', 'extensionElements']);
+  moveOnto(process, choreography, ROOT_PROPERTIES);
 
   for (const el of choreography.flowElements ?? []) {
     if (!isChoreographyTaskBo(el)) continue;

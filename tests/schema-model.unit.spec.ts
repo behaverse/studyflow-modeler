@@ -5,8 +5,8 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { buildCatalog } from '../src/core/catalog';
-import { SCHEMAS } from '../src/core/constants';
 import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { SCHEMAS } from './schemas';
 
 /**
  * Schema-model pipeline guarantees.

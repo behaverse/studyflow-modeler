@@ -68,11 +68,29 @@ export type SchemaModel = {
   version?: string | number;
   description?: string;
   icon?: string;
+  /** Core schemas back the default elements and are always loaded. */
+  core?: boolean;
+  /** Load and display position; lower first, ties broken by prefix. */
+  order?: number;
+  /** Namespace URIs written by older releases, rewritten to `uri` on load. */
+  legacyUris?: string[];
+  /** Inspector tab order contributed by this schema (see `catalog/categories`). */
+  categories?: SchemaCategoryModel[];
   xml?: { tagAlias?: string };
   associations?: unknown[];
   types: SchemaTypeModel[];
   enumerations: SchemaEnumModel[];
   templates?: SchemaTemplateModel[];
+};
+
+export type SchemaCategoryModel = {
+  /** Category name, as written in a property's `meta.categories`. */
+  name: string;
+  /** Tab position; lower first. Unlisted categories sort after every listed one. */
+  order?: number;
+  description?: string;
+  /** Rendered by a dedicated section component, so the tab shows with no attributes. */
+  synthetic?: boolean;
 };
 
 /**

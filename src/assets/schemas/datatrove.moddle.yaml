@@ -14,9 +14,14 @@ description: >-
   running `python://datatrove.pipeline.extractors.Trafilatura`.
 uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
+order: 70  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717
+categories:
+  - name: DataTrove
+    order: 500
+
 associations: []
 enumerations:
   - name: ReaderClassEnum

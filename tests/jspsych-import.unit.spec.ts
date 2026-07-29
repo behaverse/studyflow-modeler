@@ -11,10 +11,10 @@ import {
   type JsPsychNode,
 } from '../src/modeler/models/import';
 import { parseFunctionRef } from '../src/core/functionRef';
-import { SCHEMAS } from '../src/core/constants';
 import { parseStudyflow } from '../src/runner/models/parseStudyflow';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
 import { looksLikeXml } from '../src/core/codec';
+import { loadSchemaModels } from './schemas';
 
 /**
  * jsPsych -> Studyflow importer.
@@ -24,12 +24,9 @@ import { looksLikeXml } from '../src/core/codec';
  * `parseStudyflow` so the emitted `.studyflow` is a real, openable flow graph.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
 const FIXTURES_DIR = path.join(process.cwd(), 'tests/fixtures');
 
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 // BpmnModdle mutates its packages in place, so hand every consumer its own clone.
 const buildPackages = (): Record<string, any> =>
   Object.fromEntries(models.map((model) => [model.prefix, toModdlePackages(model, models)]));

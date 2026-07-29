@@ -148,4 +148,23 @@ test.describe('PNG draw.io embedding', () => {
     expect(readTextChunk(png, 'mxfile')).toBe(mxfile);
     expect(chunkTypes(png)).toEqual(['IHDR', 'tEXt', 'IDAT', 'iTXt', 'IEND']);
   });
+
+  test('re-embedding replaces the payload instead of stacking a second one', () => {
+    // The readers take the *first* matching chunk, so an appended one would
+    // never be seen: reopening an exported image and exporting it again would
+    // silently keep the stale diagram.
+    const first = '<?xml version="1.0"?>\n<bpmn:definitions id="first" />';
+    const second = '<?xml version="1.0"?>\n<bpmn:definitions id="second" />';
+
+    const png = embedStudyflowIntoPng(embedStudyflowIntoPng(minimalPng(), first), second);
+
+    expect(extractXmlFromPng(png)).toBe(second);
+    expect(chunkTypes(png)).toEqual(['IHDR', 'IDAT', 'iTXt', 'IEND']);
+
+    // The same holds for the draw.io payload, and neither displaces the other.
+    const both = embedDrawioIntoPng(embedDrawioIntoPng(png, '<mxfile>a</mxfile>'), mxfile);
+    expect(readTextChunk(both, 'mxfile')).toBe(mxfile);
+    expect(extractXmlFromPng(both)).toBe(second);
+    expect(chunkTypes(both)).toEqual(['IHDR', 'tEXt', 'IDAT', 'iTXt', 'IEND']);
+  });
 });

@@ -5,9 +5,23 @@ prefix: cognitive
 description: Studyflow extension for cognitive and behavioral research - cognitive tasks, Behaverse assessment tasks, video-game paradigms, rest periods, questionnaires, instructions, and participant-assignment gateways.
 uri: http://behaverse.org/schemas/studyflow/cognitive
 icon: iconify tabler--hexagon-letter-c
+core: true   # backs the default elements; always loaded, cannot be disabled
+order: 40  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0716
+categories:
+  - name: Instrument
+    order: 300
+  - name: Behaverse
+    order: 310
+  - name: Actor
+    order: 320
+  - name: Assignment
+    order: 330
+  - name: Eligibility
+    order: 340
+
 associations: []
 enumerations:
   - name: InstrumentEnum

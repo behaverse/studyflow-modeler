@@ -70,9 +70,14 @@ export const navbar = {
 
   // Floating capsule (diagram name + menus). Centered in the safe area between
   // brand and inspector; shifts when `body.inspector-collapsed` widens it.
+  // The inspector is drag-resizable, so the safe area follows its published
+  // width (`--inspector-width`, set by the panel): the capsule keeps its
+  // hand-tuned position at the default width and slides left by half of
+  // whatever the panel gains, so a widened inspector never covers it.
   shell: `fixed top-2 left-1/2 -translate-x-1/2 z-50 flex items-center h-10
           max-w-[calc(100vw-32px)]
-          md:left-[calc(50%-72px)] md:max-w-[calc(100vw-464px)]
+          md:left-[calc(50%-72px-(var(--inspector-width,288px)-288px)/2)]
+          md:max-w-[calc(100vw-176px-var(--inspector-width,288px))]
           [body.inspector-collapsed_&]:md:left-[calc(50%+55px)]
           [body.inspector-collapsed_&]:md:max-w-[calc(100vw-220px)]
           ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
@@ -168,10 +173,24 @@ export const paletteFlyout = {
 
 export const inspector = {
   wrapper: 'fixed top-2 right-2 z-[220]',
-  panel: `relative w-72 ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
+  /** Width is set inline (see `models/inspector/panelWidth`) — the panel is
+   *  drag-resizable, so its size is state rather than a class. */
+  panel: `relative ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
           text-stone-900 max-h-[calc(100vh-80px)] overflow-y-auto`,
   panelHidden: 'hidden',
   panelBody: 'w-full',
+
+  /**
+   * Grab strip on the panel's left edge. Straddles the edge (`-translate-x-1/2`)
+   * so the cursor changes just before the pointer reaches the panel, and sits
+   * in the wrapper rather than the panel so scrolling the fields doesn't move
+   * it. The hairline it paints on hover is the only thing that shows.
+   */
+  resizeHandle: `absolute top-0 bottom-0 left-0 w-1.5 -translate-x-1/2 z-10 cursor-col-resize touch-none
+                 focus:outline-none group/resize
+                 after:absolute after:inset-y-3 after:left-1/2 after:w-px after:-translate-x-1/2
+                 after:bg-stone-900/0 hover:after:bg-stone-900/20 focus-visible:after:bg-stone-900/40
+                 after:transition-colors`,
 
   // Toggle is pinned to the viewport (rendered outside the panel); panel's
   // backdrop-filter would otherwise anchor `fixed` to the panel itself.
@@ -237,6 +256,38 @@ export const field = {
   arrayAddBtn: 'self-start w-7 h-7 flex items-center justify-center rounded-md text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
   arrayInferredInput: 'px-2 py-1 pr-16 w-full rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 placeholder-stone-400 focus:outline-none focus:border-black/[0.45]',
   arrayInferredLabel: 'pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 italic text-[11.5px] text-stone-400',
+
+  /* Data-flow field - one wire per row, read-only. Flex rather than an
+     absolutely placed tag, so a long name can never slide under the label. */
+  dataFlowRow: 'flex items-center gap-1.5',
+  dataFlowGroup: 'mt-2 first:mt-0',
+  dataFlowGroupHead: 'flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-stone-400 mb-1',
+  dataFlowAddBtn: 'w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
+  dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 truncate',
+  dataFlowBindInput: 'shrink-0 w-24 px-2 py-1 bg-black/[0.03] border-l border-black/[0.08] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
+  dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 truncate',
+  dataFlowTag: 'shrink-0 italic text-[11px] text-stone-400 whitespace-nowrap',
+
+  /* State field - one declaration per row, as a single segmented control:
+     name grows, type is a fixed segment, remove closes the row. The row owns
+     the border and the focus ring so the segments read as one field. */
+  stateRow: 'flex items-stretch rounded-md border border-black/[0.08] bg-cream-200 overflow-hidden focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-cream-400',
+  stateNameInput: 'flex-1 min-w-0 px-2 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
+  /* Type segment: a combobox, since `structureRef` is free text - the built-in
+     scalars and the diagram's own declared types are suggestions, not a list
+     to choose from. */
+  stateTypeField: 'relative shrink-0 flex items-stretch w-[8rem] border-l border-black/[0.08] bg-black/[0.03] focus-within:bg-black/[0.05]',
+  stateTypeInput: 'w-full min-w-0 pl-2 pr-6 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-600 placeholder-stone-400 placeholder:italic focus:outline-none',
+  stateTypeChevronBtn: 'absolute top-0 right-0 h-full w-5 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
+  stateTypeChevron: `${ICONS.caretDown} shrink-0 text-[11px] text-stone-500`,
+  /** Suggestions grow past the narrow field - a fully-qualified type is long. */
+  stateTypeOptions: 'z-[240] mt-1 w-max min-w-[var(--input-width)] max-w-[15rem] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] py-1 focus:outline-none [--anchor-gap:4px]',
+  stateTypeOption: 'px-2.5 py-1 font-mono text-[13px] text-stone-800 truncate data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
+  stateTypeUntyped: 'font-sans italic text-stone-400',
+  /** The typed-but-undeclared value inside a "Use <type>" option. */
+  stateTypeNew: 'font-sans text-stone-500',
+  stateRemoveBtn: 'shrink-0 w-7 flex items-center justify-center border-l border-black/[0.08] text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
+  stateNote: 'mt-1.5 text-[11.5px] italic text-stone-400',
 } as const;
 
 // --- Code-editor modal (inside the inspector)
@@ -382,7 +433,41 @@ export const commandPalette = {
   itemChevron: `${ICONS.chevronRight} text-stone-400 text-[10px] ml-1`,
 } as const;
 
-// --- Examples-dialog list cards
+// --- Examples gallery (preview card grid + category filter chips)
+
+export const exampleGallery = {
+  /** Filter row. Chips only — the category is the whole label, so no legend. */
+  filters: 'flex flex-wrap items-center gap-1.5 pb-4 shrink-0',
+  chip: `px-3 py-1 ${radius.pill} text-[12.5px] border transition-colors cursor-pointer`,
+  chipIdle: 'border-black/[0.06] text-stone-600 hover:bg-black/[0.04]',
+  chipActive: 'bg-stone-900 border-stone-900 text-cream-50',
+
+  grid: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5
+         flex-1 min-h-0 overflow-y-auto -mx-1 px-1 pb-1 content-start`,
+  empty: 'text-sm text-stone-500 italic py-10 text-center',
+
+  card: `group w-full h-full flex flex-col text-left overflow-hidden ${radius.card} ${surface.card}
+         border border-black/[0.06] hover:border-black/[0.14] hover:shadow-[0_2px_6px_rgba(0,0,0,0.05),0_12px_28px_rgba(0,0,0,0.09)]
+         disabled:cursor-not-allowed transition-all duration-200 cursor-pointer`,
+
+  /** Thumbnail frame. White like the exported PNG it holds, and a fixed aspect
+   *  so a 8:1 skeleton and a portrait trial protocol still line up in a row. */
+  thumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.06] flex items-center justify-center overflow-hidden',
+  thumbImage: 'max-h-full max-w-full object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-[1.04]',
+  thumbFallback: `${ICONS.diagram} text-[20px] text-stone-300`,
+  /** Veil over the thumbnail while the diagram imports. */
+  thumbBusy: 'absolute inset-0 flex items-center justify-center bg-white/70',
+  thumbSpinner: `${ICONS.arrowRepeat} text-stone-500 animate-spin`,
+
+  body: 'flex flex-col gap-1 px-3.5 py-3',
+  /** The card's shelf, as the diagram itself declares it. */
+  eyebrow: 'text-[10.5px] font-semibold uppercase tracking-[0.08em] text-stone-400',
+  title: 'text-[13.5px] font-semibold tracking-tight text-stone-900 line-clamp-2',
+  summary: 'text-[12.5px] leading-snug text-stone-500 line-clamp-2',
+  error: 'text-[12.5px] text-red-500',
+} as const;
+
+// --- "New diagram" template cards (text-only list)
 
 export const examplesList = {
   list: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 min-h-0 overflow-y-auto -mx-1 px-1 content-start',

@@ -1,38 +1,27 @@
 import { CHECKLIST_SPEC, StudyflowElement, isExtensionPrefix } from '@/core/extensions';
-import type { AttributeSpec } from '@/core/catalog';
+import { getCatalog, type AttributeSpec } from '@/core/catalog';
+import { UNDECLARED_CATEGORY_ORDER } from '@/core/catalog/categories';
 import { toLocalName } from '@/core/naming';
 import { isAttributeVisible } from '@/modeler/models/inspector/attributeVisibility';
 import { supportsLoopCharacteristics } from '@/modeler/models/inspector/loopCharacteristics';
+import { supportsStateProperties } from '@/modeler/models/inspector/stateProperties';
 
-/** Categories rendered by a dedicated section component over nested model
- *  state (see `SECTION_BY_CATEGORY` in the view layer), not by catalog
- *  attribute fields; they stay in the result even with no attributes. */
-const SYNTHETIC_CATEGORIES = new Set(['Loop']);
-
-/** Engine-written run state (`meta.readonly` attributes). Always the last
- *  tab, so run records sit apart from the fields people author. */
-const RUN_RECORD_CATEGORY = 'Run record';
-
-/** Canonical tab order; unlisted categories follow in insertion order. */
-const CATEGORY_ORDER = [
-  'General',
-  'Documentation',
-  'Gantt',
-  'Content',
-  'Data',
-  'Execution',
-  'Loop',
-  'Instrument',
-  'Behaverse',
-  'DataTrove',
-  'fMRIPrep',
-  'EEGPrep',
-  'Assignment',
-  'Eligibility',
-  'Privacy',
-  'Control',
-  'Completion',
-];
+/**
+ * Inspector tabs, ordered as the loaded schemas declare them (each schema's
+ * top-level `categories:` block; see `core/catalog/categories`). A category an
+ * attribute names but no schema declares still gets a tab — it just sorts
+ * after every declared one, so a schema is never *required* to declare.
+ *
+ * `synthetic` categories are rendered by a dedicated section component over
+ * nested BPMN state (see `SECTION_BY_CATEGORY` in the view layer) rather than
+ * by catalog attribute fields, so they stay in the result with no attributes.
+ */
+function declaredCategories(): Map<string, { order: number; synthetic: boolean }> {
+  return new Map(getCatalog().categories().map((category) => [
+    category.name,
+    { order: category.order, synthetic: category.synthetic },
+  ]));
+}
 
 /** Identity attributes (id, name) are always pinned to the top. */
 function isIdentity(attrDef: AttributeSpec): boolean {
@@ -104,6 +93,11 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   // catalog attributes on the element itself.
   if (supportsLoopCharacteristics(element)) byCategory['Loop'] ??= [];
 
+  // The Execution tab also carries the element's `bpmn:Property` children and
+  // its data associations, so it exists whenever the element may declare
+  // properties — the three element kinds BPMN allows to carry them.
+  if (supportsStateProperties(element)) byCategory['Execution'] ??= [];
+
   for (const attrDefs of Object.values(byCategory)) {
     attrDefs.sort((a: any, b: any) => {
       const orderA = a.meta?.order ?? Infinity;
@@ -112,15 +106,13 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
     });
   }
 
-  const orderIndex = (category: string) => {
-    if (category === RUN_RECORD_CATEGORY) return Number.POSITIVE_INFINITY;
-    const i = CATEGORY_ORDER.indexOf(category);
-    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-  };
+  const declared = declaredCategories();
 
   return Object.fromEntries(
     Object.entries(byCategory)
-      .filter(([name, v]) => v.length > 0 || SYNTHETIC_CATEGORIES.has(name))
-      .sort(([a], [b]) => orderIndex(a) - orderIndex(b))
+      .filter(([name, attrDefs]) => attrDefs.length > 0 || declared.get(name)?.synthetic === true)
+      .sort(([a], [b]) =>
+        (declared.get(a)?.order ?? UNDECLARED_CATEGORY_ORDER)
+        - (declared.get(b)?.order ?? UNDECLARED_CATEGORY_ORDER))
   );
 }

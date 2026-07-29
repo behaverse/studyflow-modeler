@@ -5,8 +5,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { SCHEMAS } from '../src/core/constants';
 import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { SCHEMAS } from './schemas';
 
 /**
  * Schema design rules, checked without a browser.
@@ -66,12 +66,28 @@ test.describe('schema lint', () => {
     expect(new Set(uris).size).toBe(uris.length);
   });
 
-  for (const { prefix, name: registryName } of SCHEMAS) {
+  test('the registry is exactly the schema files, core ones first', () => {
+    // The registry is derived from the files (`core/schema/registry`), so this
+    // checks the ordering rule rather than a hand-kept list: core schemas lead,
+    // and every file present is registered.
+    expect(SCHEMAS.map((s) => s.prefix).sort()).toEqual([...rawSchemas.keys()].sort());
+    const cores = SCHEMAS.filter((s) => s.core);
+    expect(cores.length, 'at least one core schema').toBeGreaterThan(0);
+    expect(SCHEMAS.slice(0, cores.length).every((s) => s.core), 'core schemas lead').toBe(true);
+    for (const entry of SCHEMAS) {
+      expect(entry.name, `${entry.prefix} name`).not.toBe('');
+      expect(entry.description, `${entry.prefix} blurb`).not.toBe('');
+      // The settings row shows one line, so the blurb must actually be one.
+      expect(entry.description.length, `${entry.prefix} blurb fits a row`).toBeLessThan(320);
+    }
+  });
+
+  for (const { prefix } of SCHEMAS) {
     test.describe(prefix, () => {
       const schema = rawSchemas.get(prefix)!;
 
-      test('declares required metadata matching the registry', () => {
-        expect(schema.name, 'name').toBe(registryName);
+      test('declares required metadata', () => {
+        expect(typeof schema.name, 'name').toBe('string');
         expect(schema.prefix, 'prefix matches filename').toBe(prefix);
         expect(schema.prefix).toBe(schema.prefix.toLowerCase());
         expect(typeof schema.description, 'description').toBe('string');
@@ -83,6 +99,31 @@ test.describe('schema lint', () => {
         )?.[1];
         expect(rawVersion, 'version is YY.MMDD').toMatch(/^\d{2}\.\d{4}$/);
         expect(schema.xml?.tagAlias, 'tagAlias').toBe('lowerCase');
+      });
+
+      test('every category an attribute names is declared by some schema', () => {
+        // A category no schema declares still gets a tab, but it sorts after
+        // every declared one - almost always an oversight rather than intent.
+        const declared = new Set(
+          [...rawSchemas.values()].flatMap((s) => (s.categories ?? []).map((c: any) => c.name)),
+        );
+        for (const type of schema.types ?? []) {
+          for (const property of type.properties ?? []) {
+            for (const category of property.meta?.categories ?? []) {
+              expect(declared, `${type.name}#${property.name} files under an undeclared "${category}"`)
+                .toContain(category);
+            }
+          }
+        }
+      });
+
+      test('declared categories have unique names and orders', () => {
+        const categories = schema.categories ?? [];
+        const names = categories.map((c: any) => c.name);
+        expect(new Set(names).size, `duplicate categories in ${names}`).toBe(names.length);
+        for (const category of categories) {
+          expect(typeof category.order, `${category.name} order`).toBe('number');
+        }
       });
 
       test('type and enumeration names are unique and PascalCase', () => {

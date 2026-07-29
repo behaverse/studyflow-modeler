@@ -48,6 +48,8 @@ export interface TypeMeta {
   bpmnType?: string;
   /** Allow-list of connection targets; see `connectionVerdict`. */
   connectsTo?: string[];
+  /** What kind of thing this type is; see {@link TypeRole}. Inherited by subtypes. */
+  roles?: TypeRole[];
   /** Gateway branch selection, e.g. `random`. */
   branching?: string;
   /** Materialized sub-flow for template types (raw node/connection descriptors). */
@@ -58,6 +60,29 @@ export interface TypeMeta {
   icon?: string;
   [key: string]: unknown;
 }
+
+/**
+ * What a schema type *is*, declared as `meta.roles` and inherited by subtypes.
+ *
+ * Roles are the vocabulary consumers ask about instead of naming types: an
+ * exporter walks "the data elements", not "Dataset, Table, Schema, Timeseries,
+ * EventMarker, DataCatalog". A schema can therefore add a type and have every
+ * consumer pick it up, which is the whole point of keeping the roles in the
+ * schema rather than in a list beside each consumer.
+ *
+ * The vocabulary is deliberately small and open: an unknown role is carried
+ * through untouched, so a schema may declare its own for its own tooling.
+ */
+export type TypeRole =
+  /** Data-plane element: a dataset, table, schema, recording, or catalog. */
+  | 'data-element'
+  /** Data element holding a sampled signal (time series, biosignal recording). */
+  | 'signal'
+  /** Participant-facing instrument: a cognitive task, questionnaire, or survey. */
+  | 'instrument'
+  /** Device- or session-level signal acquisition. */
+  | 'acquisition'
+  | (string & {});
 
 export type EnumLiteral = {
   name: string;
@@ -105,6 +130,14 @@ export type AttributeSpec = {
   bodyProp?: string;
   /** Declared type of that body property (e.g. `studyflow:YAMLString`). */
   bodyType?: string;
+  /**
+   * Editor the attribute's *value type* declares (`meta.editor` on
+   * `studyflow:YAMLString`, `studyflow:MarkdownString`, ...), resolved through
+   * any body wrapper. A per-attribute `meta.editor` still wins — this is the
+   * default a type carries so every attribute of it renders the same way
+   * without restating it.
+   */
+  typeEditor?: string;
   /** True when `type` refers to a schema enumeration. */
   isEnum?: boolean;
 };
@@ -140,6 +173,8 @@ export type TypeEntry = {
   attributes: AttributeSpec[];
   /** Default values across the inheritance chain, keyed by local name. */
   defaults: Record<string, unknown>;
+  /** Effective `meta.roles`: own plus every super type's. */
+  roles: TypeRole[];
   hiddenFromPalette: boolean;
   paletteLabel: string;
   paletteCategories: string[];
@@ -152,9 +187,29 @@ export type SchemaEntry = {
   icon?: string;
   /** Core schemas back the default elements and are always loaded. */
   core: boolean;
+  /** Namespace URI this schema's elements are written under. */
+  uri?: string;
+  /** URIs older releases wrote for the same schema; rewritten to `uri` on load. */
+  legacyUris: string[];
+  /** Inspector tab order this schema contributes (see `CategoryEntry`). */
+  categories: CategoryEntry[];
   types: TypeEntry[];
   enums: EnumEntry[];
   templates: Template[];
+};
+
+/**
+ * An inspector tab, as declared by the schema that owns it. Attributes join a
+ * tab by naming it in `meta.categories`; this entry decides where the tab
+ * sits and whether it shows when no attribute lands in it.
+ */
+export type CategoryEntry = {
+  name: string;
+  /** Tab position; lower first. Undeclared categories sort after declared ones. */
+  order: number;
+  description?: string;
+  /** Rendered by a dedicated section component, so it shows with no attributes. */
+  synthetic: boolean;
 };
 
 // ---------------------------------------------------------------------------

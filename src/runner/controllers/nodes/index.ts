@@ -2,43 +2,13 @@ import type { FlowNode } from '@/runner/models/flow';
 import type { Studyflow } from '@/runner/models/studyflow';
 import type { Manifest } from '@/runner/models/nodes/behaverse/types';
 import type { NodeDefinition, ValidationIssue } from '@/runner/models/nodes/types';
-import { getRegisteredNodes } from '@/runner/controllers/nodes/registry';
+import { findByFlowNode, getRegisteredNodes } from '@/runner/controllers/nodes/registry';
 
 // Auto-discover node modules (views/nodes/<node>/index.tsx); each calls
 // `registerNode` as a side effect.
 import.meta.glob('../../views/nodes/*/index.tsx', { eager: true });
 
-export { registerNode } from '@/runner/controllers/nodes/registry';
-
-/** bpmn:*Task subtypes claimed by the fallback node when no extensionType matches. */
-const BPMN_TASK_TYPES = new Set([
-  'bpmn:Task',
-  'bpmn:UserTask',
-  'bpmn:ServiceTask',
-  'bpmn:ScriptTask',
-  'bpmn:ManualTask',
-]);
-
-/** Precedence: extensionType -> bpmnType -> fallback; undefined for unsupported nodes (skipped). */
-export function findByFlowNode(node: FlowNode): NodeDefinition | undefined {
-  const nodes = getRegisteredNodes();
-
-  for (const def of nodes) {
-    if ('extensionType' in def.match && node.extensionType === def.match.extensionType) {
-      return def;
-    }
-  }
-  for (const def of nodes) {
-    if ('bpmnType' in def.match) {
-      const types = Array.isArray(def.match.bpmnType) ? def.match.bpmnType : [def.match.bpmnType];
-      if (types.includes(node.type)) return def;
-    }
-  }
-  if (BPMN_TASK_TYPES.has(node.type)) {
-    return nodes.find((d) => 'fallback' in d.match && d.match.fallback === 'task');
-  }
-  return undefined;
-}
+export { registerNode, findByFlowNode } from '@/runner/controllers/nodes/registry';
 
 export function findByType(type: string): NodeDefinition | undefined {
   return getRegisteredNodes().find((n) => n.type === type);

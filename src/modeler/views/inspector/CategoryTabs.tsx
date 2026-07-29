@@ -2,17 +2,17 @@ import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { AttributeField } from '@/modeler/views/inspector/AttributeField';
-import { DataFlowSection } from '@/modeler/views/inspector/DataFlowSection';
 import { LoopSection } from '@/modeler/views/inspector/LoopSection';
+import { ExecutionSection } from '@/modeler/views/inspector/ExecutionSection';
 import { t } from '@/i18n';
 import { inspector as s } from '@/modeler/infra/styles';
 
 /** Synthetic categories render a dedicated section over nested model state
- *  instead of catalog attribute fields (they carry no attribute defs).
- *  Execution additionally shows the data contract detected from the wires. */
+ *  instead of catalog attribute fields. Execution renders both its sections
+ *  (properties, then data associations) above its own attribute fields. */
 const SECTION_BY_CATEGORY: Record<string, ComponentType> = {
   Loop: LoopSection,
-  Execution: DataFlowSection,
+  Execution: ExecutionSection,
 };
 
 type Props = {

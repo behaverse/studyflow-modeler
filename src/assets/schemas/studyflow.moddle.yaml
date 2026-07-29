@@ -4,10 +4,53 @@ name: Core
 prefix: studyflow
 description: Core BPMN extension for modeling research processes - the study container, events, flows, generic activities, and the data-infrastructure types shared by every use case.
 uri: http://behaverse.org/schemas/studyflow/v1
+# Namespaces written by older releases. Still read so an old file stays
+# legible; rewritten to `uri` on load.
+legacyUris:
+  - http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
+core: true   # backs the default elements; always loaded, cannot be disabled
+order: 10  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0716
+
+# Inspector tabs this schema owns, in the order they appear. An attribute
+# joins a tab by naming it in `meta.categories`; a tab a schema names without
+# declaring lands after every declared one. `synthetic` tabs are drawn by a
+# dedicated section over nested BPMN state, so they show with no attributes.
+categories:
+  - name: General
+    order: 10
+    description: Identity and anything an attribute does not file elsewhere.
+  - name: Documentation
+    order: 20
+  - name: Gantt
+    order: 30
+  - name: Content
+    order: 40
+  - name: Data
+    order: 50
+  - name: Execution
+    order: 60
+    synthetic: true
+    description: The element's own `bpmn:Property` state and its data associations.
+  - name: Loop
+    order: 70
+    synthetic: true
+    description: The element's `loopCharacteristics` child.
+  - name: Environment
+    order: 80
+  - name: Privacy
+    order: 90
+  - name: Control
+    order: 100
+  - name: Completion
+    order: 110
+  - name: Run record
+    # Engine-written state (`meta.readonly`): always the last tab, so run
+    # records sit apart from the fields people author.
+    order: 9000
 
 associations: []
 enumerations:
@@ -129,6 +172,22 @@ enumerations:
         value: probabilistic
       - name: Round Robin
         value: round-robin
+  - name: ItemTypeEnum
+    isAbstract: true
+    description: |
+      Scalar types offered first when typing a `bpmn:Property` (the State tab).
+      A BPMN `itemSubjectRef` points at an `ItemDefinition` whose `structureRef`
+      is free text - `pandas.DataFrame` and `sklearn.pipeline.Pipeline` are as
+      valid as `string` - so this list seeds the picker rather than bounding it.
+    literalValues:
+      - name: string
+        value: string
+      - name: integer
+        value: integer
+      - name: number
+        value: number
+      - name: boolean
+        value: boolean
   - name: ProbabilityDistributionEnum
     isAbstract: true
     description: The random statistical distribution used for the assignment.
@@ -146,10 +205,16 @@ types:
     description: A string that contains markdown formatting
     superClass:
       - String
+    meta:
+      # Every attribute of this type gets the markdown editor; an attribute
+      # may still name a different one in its own `meta.editor`.
+      editor: markdown
   - name: YAMLString
     description: A string that contains YAML-formatted content
     superClass:
       - String
+    meta:
+      editor: code
   - name: BaseElement
     description: Extends BPMN's BaseElement to include common properties of the Studyflow.
     extends:
@@ -233,6 +298,37 @@ types:
         default: true
         meta:
           pinned: true
+  - name: Classification
+    description: |
+      Augments a diagram's root with the kind of thing it is. A study says so
+      itself: nothing outside the file - no gallery manifest, no index -
+      decides which shelf it belongs on, and the Examples gallery builds its
+      filter chips from whatever the shipped diagrams declare.
+    extends:
+      - bpmn:Process
+      - bpmn:Collaboration
+      - bpmn:Choreography
+    isAbstract: true
+    properties:
+      - name: categories
+        description: |
+          What kind of study this is, as short human labels (`Study designs`,
+          `Machine learning`, `AI agents`). Free text: they name shelves
+          rather than picking from a fixed list, so a new kind of study needs
+          no change anywhere else. A study may sit on more than one shelf.
+
+          The same list form a schema uses for `meta.categories` - one
+          spelling of "what is this filed under" across the whole system.
+        isMany: true
+        type: String
+        meta:
+          categories:
+            - Documentation
+          # Files written before the property went many-valued carried a
+          # single `studyflow:category` attribute; still read, written back
+          # as a list.
+          legacyNames:
+            - category
   - name: Arguments
     description: |
       Augments any BPMN Activity with the `arguments` mapping. The activity's
@@ -454,6 +550,8 @@ types:
       - bpmn:DataObjectReference
       - bpmn:BaseElement
     meta:
+      # An attribute that references a Schema (`Dataset#schema`) edits it as text.
+      editor: code
       bpmnType: bpmn:DataObjectReference
     properties:
       - name: format

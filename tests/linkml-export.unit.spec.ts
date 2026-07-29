@@ -1,14 +1,12 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { SCHEMAS } from '../src/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
 import { exportToLinkML } from '../src/modeler/models/exporters/linkml';
+import { loadSchemaModels } from './schemas';
 
 /**
  * Regression for the linkml exporter after it moved from a hardcoded PROBES
@@ -16,10 +14,7 @@ import { exportToLinkML } from '../src/modeler/models/exporters/linkml';
  * element's declared attributes must appear in the exported schema.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),

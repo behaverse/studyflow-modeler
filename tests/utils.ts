@@ -3,11 +3,50 @@ import path from 'node:path';
 
 import { expect, type Download, type Page } from '@playwright/test';
 
+import { xmlToStudyflow } from '../src/core/codec';
+import { extractXmlFromPng } from '../src/modeler/models/exporters/pngEmbedding';
+
+const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
+
+/** Raw bytes of a shipped example. Examples are PNGs of themselves: the image
+ *  carries the diagram, so this is both the picture and the source. */
+export function exampleFile(filename: string): Buffer {
+  return readFileSync(path.join(EXAMPLES_DIR, filename));
+}
+
+/** The BPMN XML inside a shipped example. */
+export function exampleXml(filename: string): string {
+  return extractXmlFromPng(exampleFile(filename));
+}
+
+/** ...and the `.studyflow` YAML the modeler writes for it. */
+export function exampleStudyflow(filename: string, moddle: any): Promise<string> {
+  return xmlToStudyflow(exampleXml(filename), moddle);
+}
+
+/** Strip diagram interchange, for the layout passes that only run without it. */
+export function withoutDiagramInterchange(xml: string): string {
+  return xml.replace(/\s*<bpmndi:BPMNDiagram[\s\S]*?<\/bpmndi:BPMNDiagram>/g, '');
+}
+
 export async function gotoModeler(page: Page): Promise<void> {
   await page.goto('/app');
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
+}
+
+/**
+ * Send a modeler shortcut (undo, delete, ...) to the diagram. The modeler's
+ * keyboard listens on the canvas SVG only, so a shortcut lands only while that
+ * node has focus; pressing on it focuses it directly. Clicking empty canvas
+ * focuses it too, but that gesture *clears the selection* - and with it any
+ * selection-dependent inspector tab. Only diagram-js's 400ms post-drag
+ * ghost-click trap (`Dragging#trapClickAndEnd`) ever hid that, which made the
+ * click deselect or not depending on how fast the preceding steps ran.
+ */
+export async function pressOnCanvas(page: Page, key: string): Promise<void> {
+  await page.getByTestId('modeler-canvas').locator('svg[tabindex]').press(key);
 }
 
 export async function openCommandPalette(page: Page): Promise<void> {

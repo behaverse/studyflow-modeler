@@ -286,3 +286,14 @@ svg text.bi {
 .palette-flyout-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.45);
 }
+
+/* --- Inspector resize: while the left edge is being dragged, the cursor
+   stays the resize cursor wherever the pointer wanders, and nothing under
+   it turns into a text selection. */
+body.resizing-inspector {
+  cursor: col-resize;
+  user-select: none;
+}
+body.resizing-inspector * {
+  cursor: col-resize !important;
+}

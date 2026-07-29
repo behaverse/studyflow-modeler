@@ -31,6 +31,8 @@ import { runCreateShape, runSetColor, type CreateShapeCommand, type SetColorComm
 import {
   runUpdateAttribute, type UpdateAttributeCommand,
   runUpdateLoopCharacteristics, type UpdateLoopCharacteristicsCommand,
+  runUpdateStateProperties, type UpdateStatePropertiesCommand,
+  runUpdateDataBinding, type UpdateDataBindingCommand,
 } from '@/modeler/controllers/attributes';
 
 import {
@@ -60,6 +62,8 @@ export type ControllerCommand =
   | ImportXmlCommand
   | UpdateAttributeCommand
   | UpdateLoopCharacteristicsCommand
+  | UpdateStatePropertiesCommand
+  | UpdateDataBindingCommand
   | CreateShapeCommand
   | SetColorCommand;
 
@@ -90,6 +94,8 @@ const HANDLERS: HandlerMap = {
   'import-xml': runImportXml,
   'update-attribute': runUpdateAttribute,
   'update-loop-characteristics': runUpdateLoopCharacteristics,
+  'update-state-properties': runUpdateStateProperties,
+  'update-data-binding': runUpdateDataBinding,
   'create-shape': runCreateShape,
   'set-color': runSetColor,
 };

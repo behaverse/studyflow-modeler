@@ -1,16 +1,19 @@
 import { splitQName, toLocalName } from '@/core/naming';
-import { SCHEMAS } from '@/core/constants';
 import type { SchemaModel } from '@/core/schema';
 import { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@/core/catalog/bpmn';
 import { humanizeLabel, isHiddenFromPalette, paletteCategories, trimBpmnSuffix } from '@/core/catalog/palette';
+import { compileCategories } from '@/core/catalog/categories';
+import { inferRoles } from '@/core/catalog/roles';
 import { compileTemplates } from '@/core/catalog/templates';
 import type {
   AttributeSpec,
+  CategoryEntry,
   EnumEntry,
   NsInfo,
   SchemaEntry,
   Template,
   TypeEntry,
+  TypeRole,
 } from '@/core/catalog/types';
 
 /** moddle built-ins: property type refs to these stay unqualified. */
@@ -29,6 +32,7 @@ export class TypeCatalog {
   /** Trait attribute lists per direct BPMN target type. */
   private traitsByTarget = new Map<string, AttributeSpec[][]>();
   private traitCache = new Map<string, AttributeSpec[]>();
+  private typesByRole = new Map<TypeRole, TypeEntry[]>();
 
   /** Resolve a qualified-name ref, trying `ownerPrefix` and then every schema for unqualified refs. */
   private resolveIn<T>(byName: Map<string, T>, ref: string, ownerPrefix?: string): T | undefined {
@@ -124,6 +128,53 @@ export class TypeCatalog {
   }
 
   /**
+   * Types declaring `role` (see {@link TypeRole}), across every loaded schema.
+   *
+   * This is how a consumer addresses a family of types without naming its
+   * members: an exporter asks for the data elements and picks up whatever the
+   * loaded schemas say those are.
+   */
+  typesWithRole(role: TypeRole): TypeEntry[] {
+    return this.typesByRole.get(role) ?? [];
+  }
+
+  /** Qualified names of every type declaring `role`. */
+  typeNamesWithRole(role: TypeRole): Set<string> {
+    return new Set(this.typesWithRole(role).map((type) => type.name));
+  }
+
+  /** Whether an instance of `typeName` carries `role`. */
+  hasRole(typeName: string | undefined, role: TypeRole): boolean {
+    if (!typeName) return false;
+    return this.typesByName.get(typeName)?.roles.includes(role) === true;
+  }
+
+  /**
+   * Inspector tab order, merged across schemas: declared categories by their
+   * `order`, then anything an attribute named without declaring.
+   */
+  categories(): CategoryEntry[] {
+    const merged = new Map<string, CategoryEntry>();
+    for (const schema of this.schemas) {
+      for (const category of schema.categories) {
+        // First declaration wins, so a core category keeps its slot even if a
+        // later schema mentions it again.
+        if (!merged.has(category.name)) merged.set(category.name, category);
+      }
+    }
+    return [...merged.values()].sort((a, b) => a.order - b.order);
+  }
+
+  /** Namespace URI rewrites for files written by older releases: legacy -> current. */
+  legacyUriRewrites(): Array<{ from: string; to: string }> {
+    return this.schemas.flatMap((schema) =>
+      schema.uri
+        ? schema.legacyUris.map((from) => ({ from, to: schema.uri as string }))
+        : [],
+    );
+  }
+
+  /**
    * Schema-driven connection rule: a type may declare `meta.connectsTo` with
    * an allow-list of targets (qualified type names, `bpmn:*` matched against
    * the target's BPMN type and ancestors, or `'*'`). Returns `'defer'` when
@@ -150,7 +201,14 @@ export class TypeCatalog {
   /** @internal compile-time registration */
   _register(schema: SchemaEntry, traits: Array<{ targets: string[]; attributes: AttributeSpec[] }>): void {
     this.schemas.push(schema);
-    for (const type of schema.types) this.typesByName.set(type.name, type);
+    for (const type of schema.types) {
+      this.typesByName.set(type.name, type);
+      for (const role of type.roles) {
+        const list = this.typesByRole.get(role) ?? [];
+        list.push(type);
+        this.typesByRole.set(role, list);
+      }
+    }
     for (const enumEntry of schema.enums) this.enumsByName.set(enumEntry.name, enumEntry);
     for (const trait of traits) {
       for (const target of trait.targets) {
@@ -191,7 +249,6 @@ export function buildCatalog(models: SchemaModel[]): TypeCatalog {
 
   for (const prefix of Object.keys(rawSchemas)) {
     const raw = rawSchemas[prefix];
-    const meta = SCHEMAS.find((s) => s.prefix === prefix);
 
     const types = (raw.types ?? []).map((rawType: RawType) => compiler.compileType(prefix, rawType));
     const enums = (raw.enumerations ?? []).map((rawEnum: RawType) => compileEnum(prefix, rawEnum));
@@ -201,7 +258,10 @@ export function buildCatalog(models: SchemaModel[]): TypeCatalog {
       name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : prefix,
       description: raw.description,
       icon: typeof raw.icon === 'string' ? raw.icon : undefined,
-      core: meta?.core === true,
+      core: raw.core === true,
+      uri: typeof raw.uri === 'string' ? raw.uri : undefined,
+      legacyUris: Array.isArray(raw.legacyUris) ? raw.legacyUris.filter((u: unknown) => typeof u === 'string') : [],
+      categories: compileCategories(raw.categories),
       types,
       enums,
       templates: [],
@@ -272,6 +332,11 @@ class Compiler {
       bpmnType,
       attributes,
       defaults,
+      // Inferred from the type's shape first; `meta.roles` only adds to it.
+      roles: [...new Set([
+        ...inferRoles(bpmnType, attributes),
+        ...this.effectiveRoles(qualified, new Set()),
+      ])],
       hiddenFromPalette: isHiddenFromPalette(rawType, style),
       paletteLabel: humanizeLabel(trimBpmnSuffix(rawType.name, bpmnType ?? '')),
       paletteCategories: paletteCategories(meta, bpmnType),
@@ -331,6 +396,31 @@ class Compiler {
     }
 
     return null;
+  }
+
+  /**
+   * Own `meta.roles` plus every super type's, so a schema that specializes
+   * `studyflow:Dataset` is a data element without restating it.
+   */
+  private effectiveRoles(qualified: string, stack: Set<string>): TypeRole[] {
+    if (stack.has(qualified)) return [];
+    stack.add(qualified);
+
+    const found = this.rawByName.get(qualified);
+    if (!found) return [];
+    const { prefix, raw } = found;
+
+    const roles = new Set<TypeRole>();
+    for (const ref of [...(raw.superClass ?? []), ...(raw.extends ?? [])]) {
+      if (typeof ref !== 'string' || ref.startsWith('bpmn:')) continue;
+      const resolved = this.resolveRef(ref, prefix);
+      if (!resolved) continue;
+      for (const role of this.effectiveRoles(resolved.qualified, stack)) roles.add(role);
+    }
+    for (const role of raw.meta?.roles ?? []) {
+      if (typeof role === 'string') roles.add(role);
+    }
+    return [...roles];
   }
 
   /** Own attributes plus inherited custom ones, with redefines applied. */
@@ -410,7 +500,19 @@ class Compiler {
       spec.bodyType = 'String';
     }
 
+    // The editor a value type declares for itself, resolved through any body
+    // wrapper — so `cognitive:Configurations` (wrapping a `YAMLString`) picks
+    // up the same editor as a direct `YAMLString` attribute.
+    spec.typeEditor = this.editorOfType(spec.bodyType) ?? this.editorOfType(type);
+
     return spec;
+  }
+
+  /** `meta.editor` declared by a schema *type*, for attributes of that type. */
+  private editorOfType(ref: string | undefined): string | undefined {
+    if (!ref || !ref.includes(':') || ref.startsWith('bpmn:')) return undefined;
+    const editor = this.rawByName.get(ref)?.raw.meta?.editor;
+    return typeof editor === 'string' ? editor : undefined;
   }
 
   /** Qualify a type ref like moddle does: built-ins stay bare, the rest get a prefix. */

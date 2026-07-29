@@ -9,15 +9,23 @@ import { ReadonlyInput } from '@/modeler/views/inspector/ReadonlyInput';
 import { SchemaEditor } from '@/modeler/views/inspector/SchemaEditor';
 
 /**
- * Input-component registry for the inspector. An attribute picks its editor
- * in precedence order:
+ * Input-component registry for the inspector — the one place that maps an
+ * editor *name* to a React component. Which editor an attribute wants is the
+ * schema's call, never this file's: an attribute names one in `meta.editor`,
+ * or its value type names one for every attribute of that type (`typeEditor`,
+ * resolved by the catalog through any body wrapper).
  *
- *   1. an explicit `meta.editor` name declared in the schema,
- *   2. its resolved value type (enum, body-wrapper drilling applied),
+ * Precedence:
+ *
+ *   1. `meta.readonly` — display-only, whatever the type,
+ *   2. an explicit `meta.editor` on the attribute,
  *   3. shape fallbacks (optional string, string list),
- *   4. `StringInput`.
+ *   4. enum / boolean,
+ *   5. the editor the value type declares,
+ *   6. `StringInput`.
  *
- * Adding an editor means registering it here — nothing else changes.
+ * Adding an editor means registering it here and naming it from a schema —
+ * no type name is written down on this side.
  */
 
 const MarkdownStringInput = (inputProps: any) => <StringInput {...inputProps} isMarkdown />;
@@ -29,31 +37,10 @@ const INPUT_BY_EDITOR_NAME: Record<string, any> = {
   'markdown': MarkdownStringInput,
 };
 
-// `Enum` is a synthetic type produced by `resolveInputType` for enum-typed attributes.
-const INPUT_BY_TYPE: Record<string, any> = {
-  Boolean: BooleanInput,
-  Enum: EnumInput,
-  'studyflow:Schema': CodeEditor,
-  'studyflow:MarkdownString': MarkdownStringInput,
-  'studyflow:YAMLString': CodeEditor,
-};
-
-/** The catalog precompiles enum membership and body-wrapper types (e.g. a
- *  `cognitive:Configurations` wrapper around `studyflow:YAMLString` renders
- *  with the same editor as a direct `studyflow:YAMLString` attribute). */
-function resolveInputType(attrDef: AttributeSpec): string {
-  const declaredType = attrDef.type || 'String';
-  if (attrDef.isEnum) return 'Enum';
-  if (attrDef.bodyType && INPUT_BY_TYPE[attrDef.bodyType]) return attrDef.bodyType;
-  return declaredType;
-}
-
 export function pickInput(attrDef: AttributeSpec) {
-  // Engine-written fields (`meta.readonly`) are display-only, whatever their type.
   if (attrDef.meta?.readonly) return ReadonlyInput;
 
-  const editorName = attrDef.meta?.editor;
-  const named = editorName ? INPUT_BY_EDITOR_NAME[editorName] : undefined;
+  const named = attrDef.meta?.editor ? INPUT_BY_EDITOR_NAME[attrDef.meta.editor] : undefined;
   if (named) return named;
 
   const declaredType = attrDef.type || 'String';
@@ -63,5 +50,8 @@ export function pickInput(attrDef: AttributeSpec) {
 
   if (isOptionalString) return OptionalStringInput;
   if (isStringList) return ArrayInput;
-  return INPUT_BY_TYPE[resolveInputType(attrDef)] ?? StringInput;
+  if (attrDef.isEnum) return EnumInput;
+  if (declaredType === 'Boolean') return BooleanInput;
+
+  return (attrDef.typeEditor ? INPUT_BY_EDITOR_NAME[attrDef.typeEditor] : undefined) ?? StringInput;
 }

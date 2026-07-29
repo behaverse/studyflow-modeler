@@ -2,8 +2,8 @@
  * NIDM-Results exporter (Turtle / ProvONE-style).
  *
  * Exports the analysis subprocess: each DataOperation activity (Map/Filter/
- * Reduce/etc.) becomes a `prov:Activity`, and each Dataset/Table referenced
- * as input or output becomes a `prov:Entity` with `prov:used` /
+ * Reduce/etc.) becomes a `prov:Activity`, and each element whose type declares
+ * the `data-element` role becomes a `prov:Entity` with `prov:used` /
  * `prov:wasGeneratedBy` associations. Non-analysis activities are skipped.
  *
  * Output is a minimal Turtle document that loads in any RDF tool; it contains
@@ -14,6 +14,7 @@
 import { getDiagramName } from '@/modeler/models/diagramName';
 import { isDataOperationActivity } from '@/core/extensions';
 import { forEachBusinessObject, readField } from '@/modeler/models/exporters/common';
+import { hasRole } from '@/modeler/models/exporters/dataElements';
 
 const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .
 @prefix nidm:  <http://purl.org/nidash/nidm#> .
@@ -26,15 +27,6 @@ const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .
 
 type Activity = { id: string; name: string; type: string; operation?: string; documentation?: string; inputs: string[]; outputs: string[]; };
 type Entity = { id: string; name: string; type: string; format?: string };
-
-const DATA_ELEMENT_TYPES = new Set([
-  'studyflow:Dataset',
-  'studyflow:Table',
-  'studyflow:Schema',
-  'studyflow:Timeseries',
-  'studyflow:EventMarker',
-]);
-
 
 function turtleId(id: string): string {
   return `core:${id.replace(/[^A-Za-z0-9_]/g, '_')}`;
@@ -51,7 +43,7 @@ export function exportToNidm(modeler: any): string {
   const entities = new Map<string, Entity>();
 
   forEachBusinessObject(modeler, (bo) => {
-    if (DATA_ELEMENT_TYPES.has(bo.$type)) {
+    if (hasRole(bo, 'data-element')) {
       entities.set(bo.id, {
         id: bo.id,
         name: bo.name || bo.id,

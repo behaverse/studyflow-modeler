@@ -22,6 +22,7 @@ description: >-
   gateway's own `conditionExpression`.
 uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
+order: 50  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717

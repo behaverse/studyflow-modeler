@@ -1,14 +1,13 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { SCHEMAS } from '../src/core/constants';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { toModdlePackages } from '../src/core/schema';
 import { buildCatalog, setCatalog } from '../src/core/catalog';
 import { studyflowToXml, xmlToStudyflow } from '../src/core/codec';
 import { toStandardBpmnXml } from '../src/core/codec/io-specification';
+import { loadSchemaModels } from './schemas';
+import { exampleStudyflow } from './utils';
 
 /**
  * The standard-BPMN I/O boundary passes: exported `.bpmn` XML carries the
@@ -18,24 +17,21 @@ import { toStandardBpmnXml } from '../src/core/codec/io-specification';
  * compact `parameter` form losslessly.
  */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
-const models = SCHEMAS.map(({ prefix }) =>
-  fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
-);
+const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
 
-const sklearnYaml = readFileSync(
-  path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow'),
-  'utf8',
-);
+/** The shipped example as `.studyflow` YAML, read out of the PNG it ships as. */
+function exampleYaml(filename: string): Promise<string> {
+  return exampleStudyflow(filename, new BpmnModdle(structuredClone(packages)) as any);
+}
 
 test.describe('standard-BPMN ioSpecification boundary', () => {
   test('lowering produces the complete standard structure', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const compactXml = await studyflowToXml(sklearnYaml, moddle);
+    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.png'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
     // The wired step's parameters became named DataInputs of an ioSpecification.
@@ -57,21 +53,18 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
 
   test('folding the standard form back yields the shipped compact YAML', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const compactXml = await studyflowToXml(sklearnYaml, moddle);
+    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.png'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
     const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);
-    expect(roundTripped).toBe(sklearnYaml);
+    expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline.png'));
   });
 
   test('a default-named binding folds back without a parameter attribute', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     // Wire_Prompt_In in agent_eval carries no `parameter` (binding defaults
     // to the element's name) - the round trip must not invent one.
-    const agentYaml = readFileSync(
-      path.join(process.cwd(), 'src/assets/examples/agent_eval.studyflow'),
-      'utf8',
-    );
+    const agentYaml = await exampleYaml('agent_eval.png');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);
     expect(standardXml).toContain('name="Agent instructions"');
     const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);

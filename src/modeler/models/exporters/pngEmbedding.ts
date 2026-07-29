@@ -67,11 +67,47 @@ function buildChunk(type: string, data: Uint8Array): Uint8Array {
   return chunk;
 }
 
-/** Splice `chunk` into `png` in front of the first chunk of type `before`. */
-function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string): Uint8Array {
+/** The keyword a text chunk is keyed under, or undefined for other chunk types. */
+function chunkKeyword(png: Uint8Array, chunk: PngChunk): string | undefined {
+  if (chunk.type !== 'iTXt' && chunk.type !== 'tEXt' && chunk.type !== 'zTXt') return undefined;
+  const data = png.subarray(chunk.offset + 8, chunk.offset + 8 + chunk.dataLength);
+  const end = data.indexOf(0);
+  return end < 0 ? undefined : new TextDecoder().decode(data.subarray(0, end));
+}
+
+/**
+ * Drop every text chunk already keyed `keyword`.
+ *
+ * Embedding is a *replace*: the readers take the first matching chunk, so a
+ * second one appended beside it would never be seen and the stale payload
+ * would keep winning. That matters whenever a PNG that already carries a
+ * diagram is re-embedded — reopening an exported image and exporting it again.
+ */
+function withoutTextChunks(png: Uint8Array, keyword: string): Uint8Array {
+  const drop = [...pngChunks(png)].filter((chunk) => chunkKeyword(png, chunk) === keyword);
+  if (drop.length === 0) return png;
+
+  const removed = drop.reduce((total, chunk) => total + chunk.dataLength + 12, 0);
+  const out = new Uint8Array(png.length - removed);
+  let read = 0;
+  let write = 0;
+  for (const chunk of drop) {
+    out.set(png.subarray(read, chunk.offset), write);
+    write += chunk.offset - read;
+    read = chunk.offset + chunk.dataLength + 12;
+  }
+  out.set(png.subarray(read), write);
+  return out;
+}
+
+/** Splice `chunk` into `png` in front of the first chunk of type `before`,
+ *  replacing any text chunk already keyed `keyword`. */
+function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string, keyword: string): Uint8Array {
   assertPngSignature(png);
+  const base = withoutTextChunks(png, keyword);
+
   let offset = -1;
-  for (const existing of pngChunks(png)) {
+  for (const existing of pngChunks(base)) {
     if (existing.type === before) {
       offset = existing.offset;
       break;
@@ -81,10 +117,10 @@ function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string): 
     throw new Error('The selected file is not a valid PNG.');
   }
 
-  const out = new Uint8Array(png.length + chunk.length);
-  out.set(png.subarray(0, offset), 0);
+  const out = new Uint8Array(base.length + chunk.length);
+  out.set(base.subarray(0, offset), 0);
   out.set(chunk, offset);
-  out.set(png.subarray(offset), offset + chunk.length);
+  out.set(base.subarray(offset), offset + chunk.length);
   return out;
 }
 
@@ -100,7 +136,7 @@ export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array 
   data.set(keyword, 0);
   data.set(text, keyword.length + 5);
 
-  return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND');
+  return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND', STUDYFLOW_KEYWORD);
 }
 
 /**
@@ -123,7 +159,7 @@ export function embedDrawioIntoPng(png: Uint8Array, mxfileXml: string): Uint8Arr
   data.set(keyword, 0);
   data.set(text, keyword.length + 1);
 
-  return insertChunkBefore(png, buildChunk('tEXt', data), 'IDAT');
+  return insertChunkBefore(png, buildChunk('tEXt', data), 'IDAT', DRAWIO_KEYWORD);
 }
 
 /** Extract the studyflow XML embedded in an exported PNG's `studyflow`
