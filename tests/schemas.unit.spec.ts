@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
+import { bpmnSelfAndAncestors } from '../src/core/catalog';
 import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
 import { SCHEMAS } from './schemas';
 
@@ -156,6 +157,49 @@ test.describe('schema lint', () => {
             expect(typeof p.name, `${t.name} property name`).toBe('string');
             expect(typeof p.type, `${t.name}.${p.name} type`).toBe('string');
             expect(resolves(p.type, schema), `${t.name}.${p.name} type ${p.type}`).toBe(true);
+          }
+        }
+      });
+
+      test('no superClass restates a BPMN ancestor the type already has', () => {
+        // `bpmn:BaseElement` is the root of the BPMN metamodel, so every BPMN
+        // type derives from it and naming it beside one is inert. It was listed
+        // on 21 types; the resolved attribute surface is identical without it.
+        for (const t of schema.types ?? []) {
+          const supers: string[] = t.superClass ?? [];
+          if (supers.length < 2) continue;
+          for (const ref of supers) {
+            const others = supers.filter((s) => s !== ref);
+            for (const other of others) {
+              expect(
+                bpmnSelfAndAncestors(other).includes(ref),
+                `${t.name} lists superClass ${ref}, already reached through ${other}`,
+              ).toBe(false);
+            }
+          }
+        }
+      });
+
+      test('no two traits declare the same property the same way', () => {
+        // The Gantt axis was copy-pasted: `onset`/`duration`/`progress` on a
+        // trait over `bpmn:Activity` and again on one over `bpmn:Event`, so
+        // growing the axis meant editing two places and the two prose
+        // descriptions had already drifted apart. A trait may extend several
+        // targets — `exec:Transformation` covers both data associations that
+        // way — which is the form to reach for instead.
+        //
+        // Same name alone is not the signal: `format` means different things on
+        // a Table and a Timeseries, and each has its own enum. Same name *and*
+        // type *and* tab is one property wearing two hats.
+        const seen = new Map<string, string>();
+        for (const t of schema.types ?? []) {
+          if (!t.extends?.length) continue;
+          for (const p of t.properties ?? []) {
+            if (p.redefines || p.replaces) continue;
+            const key = `${p.name}:${p.type}:${(p.meta?.categories ?? []).join('+')}`;
+            const first = seen.get(key);
+            expect(first, `${t.name}.${p.name} repeats ${first}.${p.name} verbatim`).toBeUndefined();
+            seen.set(key, t.name);
           }
         }
       });

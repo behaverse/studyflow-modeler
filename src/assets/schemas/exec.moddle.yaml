@@ -305,7 +305,6 @@ types:
       read it, so a study varies by editing data, not the flow.
     superClass:
       - bpmn:DataObjectReference
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--tune
       bpmnType: bpmn:DataObjectReference

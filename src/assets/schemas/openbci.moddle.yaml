@@ -116,7 +116,6 @@ types:
       HMD) shared by every phase inside the session.
     superClass:
       - bpmn:Participant
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--chip
       bpmnType: bpmn:Participant

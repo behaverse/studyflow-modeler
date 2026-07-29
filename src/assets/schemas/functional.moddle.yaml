@@ -32,7 +32,6 @@ types:
     description: Apply a function to data - the generic step every operation specializes.
     superClass:
       - bpmn:ServiceTask
-      - bpmn:BaseElement
     meta:
       bpmnType: bpmn:ServiceTask
     properties:

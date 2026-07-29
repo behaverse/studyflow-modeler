@@ -155,7 +155,6 @@ types:
       attention task). Concrete tasks are defined by the  `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
     superClass:
       - bpmn:Task
-      - bpmn:BaseElement
     meta:
       icon: iconify bi--puzzle
       bpmnType: bpmn:Task
@@ -214,7 +213,6 @@ types:
       A self-report instrument administered to a participant - either a standardized psychometric questionnaire (e.g., PHQ-9, GAD-7) or a custom form. The `instrument` identifies which questionnaire is shown.
     superClass:
       - bpmn:Task
-      - bpmn:BaseElement
     meta:
       icon: iconify fluent--clipboard-text-edit-32-regular
       bpmnType: bpmn:Task
@@ -235,7 +233,6 @@ types:
       data operation - just content to read before continuing.
     superClass:
       - bpmn:Task
-      - bpmn:BaseElement
     meta:
       icon: iconify material-symbols--info-outline-rounded
       bpmnType: bpmn:Task
@@ -329,7 +326,6 @@ types:
       allocation` template.)
     superClass:
       - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
     meta:
       icon: iconify streamline-flex--dice-5
       bpmnType: bpmn:ExclusiveGateway
@@ -392,7 +388,6 @@ types:
       screen-out branch.
     superClass:
       - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--filter-check-outline
       bpmnType: bpmn:ExclusiveGateway
@@ -426,7 +421,6 @@ types:
       pools without redefining the BPMN choreography primitive.
     superClass:
       - bpmn:Participant
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--account-group
       bpmnType: bpmn:Participant

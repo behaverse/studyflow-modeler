@@ -86,7 +86,6 @@ types:
       glance which parts of a system are steered by a model and which are not.
     superClass:
       - bpmn:AdHocSubProcess
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--robot-outline
       bpmnType: bpmn:AdHocSubProcess
@@ -153,7 +152,6 @@ types:
       fallback field.
     superClass:
       - bpmn:ExclusiveGateway
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--sign-direction
       bpmnType: bpmn:ExclusiveGateway
@@ -191,7 +189,6 @@ types:
       workflows are built from - for the engine, one request to the model API.
     superClass:
       - bpmn:ServiceTask
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--message-processing-outline
       bpmnType: bpmn:ServiceTask
@@ -242,7 +239,6 @@ types:
       interface - so anything a studyflow can run, an agent can call.
     superClass:
       - bpmn:ServiceTask
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--tools
       bpmnType: bpmn:ServiceTask
@@ -283,7 +279,6 @@ types:
       model to make alone.
     superClass:
       - bpmn:UserTask
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--account-check-outline
       bpmnType: bpmn:UserTask
@@ -308,7 +303,6 @@ types:
       and a wording change is a visible edit to one data element.
     superClass:
       - bpmn:DataObjectReference
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--text-box-outline
       bpmnType: bpmn:DataObjectReference
@@ -331,7 +325,6 @@ types:
       Where it is kept goes in `documentation`.
     superClass:
       - bpmn:DataStoreReference
-      - bpmn:BaseElement
     meta:
       icon: iconify mdi--memory
       bpmnType: bpmn:DataStoreReference

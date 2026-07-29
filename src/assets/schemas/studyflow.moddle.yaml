@@ -454,19 +454,28 @@ types:
           readonly: true
           categories:
             - Run record
-  - name: Activity
-    description: Base class for all the activities in the Studyflow. Adds the Gantt-axis temporal attributes that the Gantt view consumes.
+  - name: Scheduling
+    description: |
+      The Gantt axis, on anything that can sit on it. BPMN has no notion of
+      when a flow element happens in wall-clock or protocol time, so these
+      three attributes add one, and the Gantt view is their only consumer.
+
+      Declared once over both targets rather than per target: an activity is a
+      bar from `onset` for `duration`, an event the same attributes read as a
+      milestone - usually instantaneous, with a `duration` only when it stands
+      for an extended occurrence. Two copies of these three properties is two
+      places to change when the axis grows a fourth.
     extends:
       - bpmn:Activity
+      - bpmn:Event
     isAbstract: true
-    meta:
-      icon: iconify bpmn--task-none
     properties:
       - name: onset
         description: |
-          Optional onset (start time) of the activity. Free-form string so it can
-          carry an ISO 8601 timestamp, a relative offset (e.g., `T0+30min`), or a
-          label. Drives the Gantt view together with `duration`.
+          Optional onset - when this starts, or when the event occurs.
+          Free-form string so it can carry an ISO 8601 timestamp, a relative
+          offset (e.g., `T0+30min`), or a label. Drives the Gantt view
+          together with `duration`.
         isAttr: true
         type: String
         meta:
@@ -474,9 +483,10 @@ types:
             - Gantt
       - name: duration
         description: |
-          Optional duration of the activity (e.g., `30min`, `PT1H`, or a relative
-          unit). When set, the Gantt view places the bar at `onset` and extends
-          it by `duration`.
+          Optional duration (e.g., `30min`, `PT1H`, or a relative unit). The
+          Gantt view places the bar at `onset` and extends it by `duration`.
+          Events are usually instantaneous; set this only when one represents
+          an extended occurrence.
         isAttr: true
         type: String
         meta:
@@ -484,8 +494,8 @@ types:
             - Gantt
       - name: progress
         description: |
-          Optional progress indicator (percentage or a free-form label
-          such as `done`/`blocked`). The Gantt view shades the bar accordingly.
+          Optional progress indicator (percentage or a free-form label such as
+          `done`/`blocked`). The Gantt view shades the bar accordingly.
         isAttr: true
         type: String
         meta:
@@ -506,49 +516,12 @@ types:
       - bpmn:ChoreographyTask
     meta:
       icon: iconify fluent--people-team-24-regular
-  - name: Event
-    description: |
-      Base class for BPMN events. Adds the same Gantt-axis temporal attributes
-      as Activity so events (StartEvent, IntermediateEvent, EndEvent, ...) can
-      be placed on the Gantt as zero-duration milestones or as anchors with an
-      explicit duration when needed.
-    extends:
-      - bpmn:Event
-    isAbstract: true
-    properties:
-      - name: onset
-        description: |
-          Optional onset (occurrence time) of the event. Free-form string so it
-          can carry an ISO 8601 timestamp, a relative offset, or a label.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Gantt
-      - name: duration
-        description: |
-          Optional duration. Events are usually instantaneous (zero duration);
-          set this only when the event represents an extended occurrence.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Gantt
-      - name: progress
-        description: |
-          Optional progress indicator (percentage or label such as `done`).
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - Gantt
   - name: Schema
     description: |
       A formal description of the structure of a named collection of types.
       Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
     superClass:
       - bpmn:DataObjectReference
-      - bpmn:BaseElement
     meta:
       # An attribute that references a Schema (`Dataset#schema`) edits it as text.
       editor: code
@@ -573,7 +546,6 @@ types:
     description: Collection of data registered in a `DataCatalog` and stored in a `DataStore`. This can represent a table, array, or any structured dataset. The structure can be defined using an optional `Schema`.
     superClass:
       - bpmn:DataStoreReference
-      - bpmn:BaseElement
     isAbstract: false
     meta:
       icon: iconify bi--database
@@ -666,7 +638,6 @@ types:
       Table commits to row-and-column structure rather than an opaque collection.
     superClass:
       - bpmn:DataObjectReference
-      - bpmn:BaseElement
     isAbstract: false
     meta:
       icon: iconify bi--table
@@ -703,7 +674,6 @@ types:
       sampling rate are first-class so downstream operations can validate them.
     superClass:
       - bpmn:DataObjectReference
-      - bpmn:BaseElement
     isAbstract: false
     meta:
       icon: iconify mdi--chart-line
@@ -753,7 +723,6 @@ types:
       BPMN Activities and Events.
     superClass:
       - bpmn:DataObjectReference
-      - bpmn:BaseElement
     isAbstract: false
     meta:
       icon: iconify mdi--lightning-bolt-outline
