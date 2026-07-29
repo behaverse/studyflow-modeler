@@ -10,17 +10,6 @@ order: 40  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0716
-categories:
-  - name: Instrument
-    order: 300
-  - name: Behaverse
-    order: 310
-  - name: Actor
-    order: 320
-  - name: Assignment
-    order: 330
-  - name: Eligibility
-    order: 340
 
 associations: []
 enumerations:
@@ -179,7 +168,7 @@ types:
         meta:
           editable: true
           categories:
-            - Instrument
+            - General
       - name: implementation
         description: |
           External software that delivers this task - the same attribute name
@@ -192,7 +181,7 @@ types:
         type: String
         meta:
           categories:
-            - Instrument
+            - General
       - name: configurations
         description: |
           Instrument-specific configuration in YAML format (e.g., number of
@@ -201,7 +190,7 @@ types:
         type: Configurations
         meta:
           categories:
-            - Instrument
+            - General
   - name: Rest
     description: |
       A rest period of inactivity or minimal activity. Often used for baseline
@@ -219,7 +208,7 @@ types:
         redefines: CognitiveTask#configurations
         meta:
           categories:
-            - Instrument
+            - General
   - name: Questionnaire
     description: |
       A self-report instrument administered to a participant - either a standardized psychometric questionnaire (e.g., PHQ-9, GAD-7) or a custom form. The `instrument` identifies which questionnaire is shown.
@@ -238,7 +227,7 @@ types:
         meta:
           editable: true
           categories:
-            - Instrument
+            - General
   - name: Instruction
     description: |
       A passive information display shown to the participant (e.g., task
@@ -259,7 +248,7 @@ types:
         type: studyflow:MarkdownString
         meta:
           categories:
-            - Content
+            - General
   - name: BehaverseTask
     description: |
       Specialized `CognitiveTask` for the Behaverse battery. It behaves like a
@@ -294,7 +283,7 @@ types:
           order: 1
           editable: true
           categories:
-            - Behaverse
+            - General
       - name: configurations
         description: |
           `GameConfig` as YAML, embedded in the diagram and parsed to a JSON object on the modeler side. To run a timeline shipped with the build, list it by name only (no body) under `Timelines`, e.g. `Timelines:` then an indented `XCIT_NB_01:`. To run an inline timeline, give it its own `blocks` (plus any diverging `Blocks` and fields); inline definitions are merged at runtime over the per-task baseline shipped in `Resources/<scene>.json` - so the body only needs to carry what differs from the defaults (no need to repeat `Id`, `Scene`, `EnumDefinitions`, `ParameterInfos`, `Rules`, or unchanged blocks/timelines). New blocks should set `Inherits: Default` (or another baseline block from the per-task config) so they pick up HUD/feedback parameters without restating them.
@@ -303,7 +292,7 @@ types:
         meta:
           order: 2
           categories:
-            - Behaverse
+            - General
           widget: textarea
       - name: agentType
         description: |
@@ -314,7 +303,7 @@ types:
         meta:
           order: 4
           categories:
-            - Behaverse
+            - General
       - name: botConfigurations
         description: |
           YAML map of bot field overrides applied per task at scene-load time, e.g. `autoResponse: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentType` is `bot`. Three response sources: `ResponseSource: internal` (default, Unity's in-game bot), `external` (runner picks uniformly at random), `llm` (runner asks an LLM). For `llm`, add `LLM: { Provider: claude|ollama, Model: ... }` to override the global defaults, and `Prompt: |` with a free-form system prompt describing the simulated participant (persona, target accuracy, strategy, mistakes). Set `IncludeScreenshot: true` to make Unity attach a PNG of the current frame to every `AwaitingResponse` so a vision-capable LLM can read visual stimuli (required for WhichOne, PatternComparison, UFOV, etc.). Bump `MaxResponseTime` in `configurations` to give the LLM time to reply.
@@ -322,7 +311,7 @@ types:
         meta:
           order: 5
           categories:
-            - Behaverse
+            - General
           widget: textarea
           condition:
             language: json
@@ -355,7 +344,7 @@ types:
         default: probabilistic
         meta:
           categories:
-            - Assignment
+            - General
       - name: probabilityFunction
         description: |
           Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`. Pick a listed option or type a custom identifier.
@@ -365,7 +354,7 @@ types:
         meta:
           editable: true
           categories:
-            - Assignment
+            - General
           condition:
             language: json
             body:
@@ -380,7 +369,7 @@ types:
         meta:
           optional: true
           categories:
-            - Assignment
+            - General
       - name: strata
         description: |
           Definition of the strata used for allocation (one entry per stratum),
@@ -390,7 +379,7 @@ types:
         isMany: true
         meta:
           categories:
-            - Assignment
+            - General
           condition:
             language: json
             body:
@@ -417,7 +406,7 @@ types:
         isMany: true
         meta:
           categories:
-            - Eligibility
+            - General
       - name: exclusionCriteria
         description: |
           List of exclusion criteria (one entry per criterion), formatted in
@@ -427,7 +416,7 @@ types:
         isMany: true
         meta:
           categories:
-            - Eligibility
+            - General
   - name: Actor
     description: |
       A participant pool tagged with actor-type metadata so it can be flagged
@@ -449,7 +438,7 @@ types:
         default: human
         meta:
           categories:
-            - Actor
+            - General
       - name: spec
         description: |
           Identifier of the non-human actor: a model id when actorType is `llm`
@@ -461,7 +450,7 @@ types:
         type: String
         meta:
           categories:
-            - Actor
+            - General
           condition:
             language: json
             body:
@@ -478,7 +467,7 @@ types:
         type: studyflow:MarkdownString
         meta:
           categories:
-            - Actor
+            - General
           condition:
             language: json
             body:

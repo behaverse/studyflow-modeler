@@ -97,4 +97,41 @@ test.describe('choreography wire format', () => {
     expect(canvas).not.toContain('topParticipant');
     expect(canvas).not.toContain('messageFlowRef');
   });
+
+  test('what the root carries besides its flow survives both directions', async () => {
+    // Rewriting the root moves a fixed list of properties onto the new one, and
+    // anything missing from that list is dropped on the next save with no
+    // warning. It has happened twice — first to the gallery shelf as
+    // `category`, then again when that property went many-valued and became
+    // `categories`. This walks a full save/load cycle for everything the list
+    // is meant to carry, so the next property to join `Classification` fails
+    // here rather than in a diagram nobody re-opens.
+    const authored = CANVAS_XML.replace(
+      '<bpmn2:process id="Process_1" isExecutable="false">',
+      `<bpmn2:process id="Process_1" name="Dyadic decision study" isExecutable="false">
+    <bpmn2:documentation>A two-participant choreography.</bpmn2:documentation>
+    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
+    <studyflow:categories>Reference</studyflow:categories>
+    <studyflow:categories>Study designs</studyflow:categories>`,
+    ).replace(
+      'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"',
+      'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"',
+    );
+
+    const wire = await toWireXml(authored, moddle());
+    const { rootElement: saved } = await moddle().fromXML(wire);
+    const choreography = saved.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
+    expect(choreography.name).toBe('Dyadic decision study');
+    expect(choreography.get('categories')).toEqual(['Reference', 'Study designs']);
+    expect(choreography.documentation?.[0]?.text).toContain('two-participant');
+    expect(choreography.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
+
+    // And back: the canvas process the modeler edits carries the same.
+    const { rootElement: reloaded } = await moddle().fromXML(await fromWireXml(wire, moddle()));
+    const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
+    expect(process.name).toBe('Dyadic decision study');
+    expect(process.get('categories')).toEqual(['Reference', 'Study designs']);
+    expect(process.documentation?.[0]?.text).toContain('two-participant');
+    expect(process.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
+  });
 });

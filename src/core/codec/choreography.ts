@@ -115,9 +115,13 @@ function isPureChoreography(process: any): boolean {
  * rewritten from a process to a choreography and back. `id` and `name` are set
  * on the new root directly; everything here moves across. A property missing
  * from this list is silently lost on the next save, which is what made
- * `category` (the gallery's shelf label) disappear from choreography diagrams.
+ * `category` (the gallery's shelf label) disappear from choreography diagrams —
+ * and what made it disappear a second time when that property went
+ * many-valued and became `categories` (see `Classification#categories`) while
+ * this list still named only the old spelling. Both are listed: a file written
+ * before the change carries the attribute, and `moveOnto` skips what is unset.
  */
-const ROOT_PROPERTIES = ['documentation', 'extensionElements', 'category'];
+const ROOT_PROPERTIES = ['documentation', 'extensionElements', 'categories', 'category'];
 
 function moveOnto(target: any, source: any, props: string[]): void {
   for (const prop of props) {

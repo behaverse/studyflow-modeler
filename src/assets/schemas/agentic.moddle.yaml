@@ -10,19 +10,6 @@ xml:
   tagAlias: lowerCase
 version: 26.0717
 
-categories:
-  - name: Model call
-    order: 400
-  - name: Routing
-    order: 410
-  - name: Tool
-    order: 420
-  - name: Approval
-    order: 430
-  - name: Prompt
-    order: 440
-  - name: Memory
-    order: 450
 
 associations: []
 
@@ -111,7 +98,7 @@ types:
         meta:
           order: 1
           categories:
-            - Agent
+            - General
       - name: systemPrompt
         description: The agent's standing instructions, in markdown. Wire a `Prompt` element in (a data association) and reference it as `{{name}}` when the wording is itself under study.
         isAttr: false
@@ -119,7 +106,7 @@ types:
         meta:
           order: 3
           categories:
-            - Agent
+            - General
           editor: markdown
       - name: toolChoice
         description: How freely the agent may call the tools drawn inside it.
@@ -129,7 +116,7 @@ types:
         meta:
           order: 4
           categories:
-            - Agent
+            - General
       - name: temperature
         description: Sampling temperature.
         isAttr: true
@@ -138,7 +125,7 @@ types:
         meta:
           order: 5
           categories:
-            - Agent
+            - General
       - name: maxTurns
         description: |
           Hard ceiling on turns. The one custom loop field: BPMN puts no bound
@@ -150,7 +137,7 @@ types:
         meta:
           order: 7
           categories:
-            - Agent
+            - General
 
   # ===========================================================================
   # The model-driven branch. Everything about it is an ordinary exclusive
@@ -179,7 +166,7 @@ types:
         meta:
           order: 1
           categories:
-            - Routing
+            - General
       - name: instructions
         description: |
           How to choose, in markdown. The branch names are the outgoing sequence
@@ -189,7 +176,7 @@ types:
         meta:
           order: 2
           categories:
-            - Routing
+            - General
           editor: markdown
 
   # ===========================================================================
@@ -216,7 +203,7 @@ types:
         meta:
           order: 1
           categories:
-            - Model call
+            - General
       - name: prompt
         description: |
           The prompt, in markdown. `{{name}}` placeholders are filled from the
@@ -227,7 +214,7 @@ types:
         meta:
           order: 3
           categories:
-            - Model call
+            - General
           editor: markdown
       - name: temperature
         description: Sampling temperature. Set 0 for a reproducible call.
@@ -237,7 +224,7 @@ types:
         meta:
           order: 4
           categories:
-            - Model call
+            - General
       - name: maxTokens
         description: Ceiling on the response length.
         isAttr: true
@@ -245,7 +232,7 @@ types:
         meta:
           order: 5
           categories:
-            - Model call
+            - General
           optional: true
 
   - name: Tool
@@ -270,7 +257,7 @@ types:
         meta:
           order: 1
           categories:
-            - Tool
+            - General
       - name: purpose
         description: |
           What the tool does and when to use it, in the words the model will read.
@@ -281,7 +268,7 @@ types:
         meta:
           order: 2
           categories:
-            - Tool
+            - General
 
   # ===========================================================================
   # Human-in-the-loop. Studyflow has always suspended on human steps: a
@@ -308,7 +295,7 @@ types:
         meta:
           order: 1
           categories:
-            - Approval
+            - General
           editor: markdown
 
   # ===========================================================================
@@ -333,7 +320,7 @@ types:
         meta:
           order: 1
           categories:
-            - Prompt
+            - General
           editor: markdown
 
   - name: Memory
@@ -357,7 +344,7 @@ types:
         meta:
           order: 1
           categories:
-            - Memory
+            - General
 
 templates:
 

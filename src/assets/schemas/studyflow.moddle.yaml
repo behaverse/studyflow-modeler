@@ -15,42 +15,42 @@ xml:
   tagAlias: lowerCase
 version: 26.0716
 
-# Inspector tabs this schema owns, in the order they appear. An attribute
-# joins a tab by naming it in `meta.categories`; a tab a schema names without
-# declaring lands after every declared one. `synthetic` tabs are drawn by a
-# dedicated section over nested BPMN state, so they show with no attributes.
+# Inspector tabs, in the order they appear, declared here for every schema.
+# An attribute joins a tab by naming it in `meta.categories`; a tab a schema
+# names without declaring lands after every declared one. `synthetic` tabs are
+# drawn by a dedicated section over nested BPMN state, so they show with no
+# attributes.
+#
+# A tab has to earn its name. These five (plus the run record) are the
+# questions a modeller asks of any element, so they recur across every schema;
+# a tab holding one type's own fields would only repeat what the panel header
+# already says the element is, so those fields go to General. That is why an
+# OpenBCI recording has no "OpenBCI" tab and an LLM call has no "Model call"
+# tab: on those elements, their own fields *are* the general ones.
 categories:
   - name: General
     order: 10
-    description: Identity and anything an attribute does not file elsewhere.
+    description: What this element is — identity, and the fields particular to its type.
   - name: Documentation
     order: 20
+    description: Prose about the element — documentation, checklist, version, categories.
   - name: Gantt
     order: 30
-  - name: Content
-    order: 40
+    description: Where the element sits on the schedule — onset, duration, progress.
   - name: Data
-    order: 50
+    order: 40
+    description: What a value is and where it lives — format, schema, storage, uri, codec.
   - name: Execution
-    order: 60
+    order: 50
     synthetic: true
-    description: The element's own `bpmn:Property` state and its data associations.
-  - name: Loop
-    order: 70
-    synthetic: true
-    description: The element's `loopCharacteristics` child.
-  - name: Environment
-    order: 80
-  - name: Privacy
-    order: 90
-  - name: Control
-    order: 100
-  - name: Completion
-    order: 110
+    description: >-
+      What runs and how — its function and arguments, the data it reads and
+      writes, how often it repeats, and the `bpmn:Property` state it carries.
   - name: Run record
     # Engine-written state (`meta.readonly`): always the last tab, so run
     # records sit apart from the fields people author.
     order: 9000
+    description: What a run wrote back onto the element.
 
 associations: []
 enumerations:
@@ -261,7 +261,7 @@ types:
         default: cloud
         meta:
           categories:
-            - Environment
+            - Execution
       - name: authors
         description: Authors of the study.
         isAttr: false
@@ -377,7 +377,7 @@ types:
           icon: iconify fluent--shield-task-24-regular
           optional: true
           categories:
-            - Privacy
+            - General
   - name: SequenceFlow
     extends:
       - bpmn:SequenceFlow
@@ -395,7 +395,7 @@ types:
         redefines: bpmn:SequenceFlow#conditionExpression
         meta:
           categories:
-            - Control
+            - General
           pinned: false
   - name: EndEvent
     extends:
@@ -416,7 +416,7 @@ types:
           # Overlay icon drawn on the event when this attribute is set.
           icon: iconify fluent--arrow-exit-24-regular
           categories:
-            - Completion
+            - General
       - name: completionCodeType
         description: How the completion code is issued when the study ends.
         isAttr: true
@@ -424,7 +424,7 @@ types:
         default: none
         meta:
           categories:
-            - Completion
+            - General
           condition:
             language: json
             body:
@@ -435,7 +435,7 @@ types:
         type: String
         meta:
           categories:
-            - Completion
+            - General
           condition:
             language: json
             body:

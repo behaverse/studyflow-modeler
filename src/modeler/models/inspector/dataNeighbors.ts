@@ -90,6 +90,21 @@ function outerScopeOf(element: any, dataElement: any): string | undefined {
 }
 
 /**
+ * Whether BPMN gives this element the association list at all, asked of the
+ * metamodel rather than of a list kept here.
+ *
+ * The answer is asymmetric and worth honouring: a task has both lists, a start
+ * event only outputs (it produces what the process starts with), an end event
+ * only inputs, and a process or gateway neither. Offering a group the element
+ * cannot have invites a binding the file has nowhere to put.
+ */
+export function supportsDataAssociations(element: any, direction: 'inputs' | 'outputs'): boolean {
+  const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
+  const properties: any[] = getBusinessObject(element)?.$descriptor?.properties ?? [];
+  return properties.some((property: any) => property?.name === listName);
+}
+
+/**
  * An activity's inputs and outputs are not listed anywhere — they are the data
  * associations it carries.
  *
@@ -121,8 +136,9 @@ export function getInferredDataNeighbors(
 
       return ends
         .filter(isDataElement)
-        .map((end: any) => ({
-          name: nameOf(end),
+        .filter((end: any) => !!nameOf(end))
+        .map((end: any): DataNeighbor => ({
+          name: nameOf(end) as string,
           binding,
           declared: is(end, 'bpmn:Property'),
           kind: kindOf(end),
@@ -131,6 +147,5 @@ export function getInferredDataNeighbors(
           outerScope: is(end, 'bpmn:Property') ? undefined : outerScopeOf(element, end),
           associationId: association?.id,
         }));
-    })
-    .filter((n): n is DataNeighbor => !!n.name);
+    });
 }

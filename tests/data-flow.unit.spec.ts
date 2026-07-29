@@ -29,20 +29,15 @@ import { exampleXml } from './utils';
  *
  * A wire *is* allowed to go undrawn when it cannot be drawn: onto a
  * `bpmn:Property`, which BPMN never renders, or out of a collapsed sub-process
- * into an enclosing scope, whose shape lives on another plane. Those two are
- * the exemptions below — anything else is the file contradicting itself.
+ * into an enclosing scope, whose shape lives on another plane. And a diagram
+ * that joins nothing at all is a catalogue of shapes rather than a study, so
+ * an unwired data element there is a specimen, not an orphan. Each of those
+ * three exemptions is read off the file — none is a diagram named in a list
+ * here — and anything else is the file contradicting itself.
  */
 
 const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
-
-/**
- * The kitchensink is a cheatsheet, not a study: it places one instance of
- * every palette element in a labelled band, data elements included, so its
- * data shapes are specimens and wiring them would say something the file does
- * not mean.
- */
-const SHAPE_CATALOGUES = ['kitchensink.png'];
 
 const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(
@@ -87,6 +82,24 @@ function wiresOf(definitions: any): Array<{ association: any; step: any; dataEle
       .filter((association: any) => association.targetRef)
       .map((association: any) => ({ association, step, dataElement: association.targetRef })),
   ]);
+}
+
+/**
+ * Whether the diagram joins anything to anything — a sequence flow, a message
+ * flow, or a data association.
+ *
+ * A file that joins nothing is a catalogue of shapes rather than a study, and
+ * "who reads or writes this?" is not a question it is answering: the
+ * kitchensink places one instance of every palette element in a labelled band,
+ * data elements included, and wiring them would assert a flow it does not mean
+ * — its tasks and events are unconnected for the same reason. Read off the
+ * file rather than named in a list here, so a second catalogue needs no edit
+ * and a study that forgets a wire still fails.
+ */
+function connectsAnything(definitions: any): boolean {
+  if (wiresOf(definitions).length > 0) return true;
+  if (activities(definitions).some((el: any) => el.$type === 'bpmn:SequenceFlow')) return true;
+  return (definitions.rootElements ?? []).some((root: any) => (root.messageFlows ?? []).length > 0);
 }
 
 async function read(filename: string): Promise<Model> {
@@ -142,8 +155,15 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
     });
 
     test(`${filename} says who reads or writes each data element it draws`, async () => {
-      test.skip(SHAPE_CATALOGUES.includes(filename), 'a catalogue of shapes, not a study');
       const { definitions, planes } = await read(filename);
+
+      // A catalogue joins nothing at all, so its data shapes are specimens
+      // (see `connectsAnything`). What it must not do is wire *some* of them:
+      // half a data flow is the state a reader cannot tell from a mistake.
+      if (!connectsAnything(definitions)) {
+        expect(wiresOf(definitions), `${filename} joins nothing, yet wires data`).toEqual([]);
+        return;
+      }
 
       const wired = new Set(wiresOf(definitions).map(({ dataElement }) => dataElement?.id));
       const linked = new Set((definitions.rootElements ?? [])
@@ -191,18 +211,26 @@ test.describe('what the inspector reports for a step', () => {
     const { definitions } = await read('agent_eval.png');
 
     // The judge reads a rubric declared two levels out — the row has to say so,
-    // because there is no line to find on the canvas.
-    const [rubric] = getInferredDataNeighbors(elementById(definitions, 'Score'), 'inputs');
-    expect(rubric.name).toBe('Scoring rubric');
-    expect(rubric.kind).toBe('data object');
-    expect(rubric.outerScope).toBe('Agent evaluation harness');
-    expect(rubric.binding).toBe('rubric');
+    // because there is no line to find on the canvas. Asserted as a whole row
+    // so an example that loses the wire reports that, rather than throwing on
+    // a field of the input it no longer has.
+    expect(getInferredDataNeighbors(elementById(definitions, 'Score'), 'inputs')).toEqual([
+      expect.objectContaining({
+        name: 'Scoring rubric',
+        kind: 'data object',
+        outerScope: 'Agent evaluation harness',
+        binding: 'rubric',
+      }),
+    ]);
 
     // A wire between siblings is drawn, so naming the scope would be noise.
     const { definitions: sklearn } = await read('sklearn_pipeline.png');
-    const [dataset] = getInferredDataNeighbors(elementById(sklearn, 'Select_Features'), 'inputs');
-    expect(dataset.name).toBe('Input dataset (features + target)');
-    expect(dataset.outerScope).toBeUndefined();
+    expect(getInferredDataNeighbors(elementById(sklearn, 'Select_Features'), 'inputs')).toEqual([
+      expect.objectContaining({
+        name: 'Input dataset (features + target)',
+        outerScope: undefined,
+      }),
+    ]);
   });
 
   test('hides the property bpmn-js invents to hold a wire\'s target', async () => {

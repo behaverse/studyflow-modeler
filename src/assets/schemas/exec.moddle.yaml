@@ -28,19 +28,6 @@ xml:
   tagAlias: lowerCase
 version: 26.0717
 
-categories:
-  - name: Trigger
-    order: 200
-  - name: Binding
-    order: 210
-  - name: Artifact
-    order: 220
-  - name: Repeat
-    order: 230
-  - name: Parameters
-    order: 240
-  - name: Agent
-    order: 250
 
 associations: []
 
@@ -116,7 +103,7 @@ types:
         type: String
         meta:
           categories:
-            - Binding
+            - General
 
   - name: Transformation
     description: |
@@ -145,7 +132,7 @@ types:
         redefines: bpmn:DataAssociation#transformation
         meta:
           categories:
-            - Binding
+            - General
 
   # ===========================================================================
   # Triggers, sensors, and delays are native BPMN, not studyflow concepts: a
@@ -177,7 +164,7 @@ types:
         redefines: bpmn:TimerEventDefinition#timeCycle
         meta:
           categories:
-            - Trigger
+            - Execution
       - name: bpmn:timeDuration
         description: How long to wait, as an ISO 8601 duration (e.g. `PT1H`).
         type: bpmn:Expression
@@ -186,7 +173,7 @@ types:
         redefines: bpmn:TimerEventDefinition#timeDuration
         meta:
           categories:
-            - Trigger
+            - Execution
       - name: bpmn:timeDate
         description: Fire once, at a fixed time (ISO 8601, e.g. `2026-09-01T06:00Z`).
         type: bpmn:Expression
@@ -195,7 +182,7 @@ types:
         redefines: bpmn:TimerEventDefinition#timeDate
         meta:
           categories:
-            - Trigger
+            - Execution
 
   - name: Condition
     description: |
@@ -218,7 +205,7 @@ types:
         redefines: bpmn:ConditionalEventDefinition#condition
         meta:
           categories:
-            - Trigger
+            - Execution
 
   # Cycles come in two interchangeable forms, both BPMN's own. The compact
   # form is the standard-loop marker (`loopCharacteristics` with
@@ -251,7 +238,7 @@ types:
         redefines: bpmn:AdHocSubProcess#completionCondition
         meta:
           categories:
-            - Agent
+            - General
 
   - name: LoopCondition
     description: |
@@ -274,7 +261,7 @@ types:
         redefines: bpmn:StandardLoopCharacteristics#loopCondition
         meta:
           categories:
-            - Repeat
+            - Execution
 
   # ===========================================================================
   # Artifacts. Two fields on every BPMN data element: where the bytes live
@@ -299,14 +286,14 @@ types:
         meta:
           order: 1
           categories:
-            - Artifact
+            - Data
       - name: codec
         description: Serialization codec used to load/save the artifact (e.g. parquet, json, joblib, zarr).
         isAttr: true
         type: String
         meta:
           categories:
-            - Artifact
+            - Data
 
   # ===========================================================================
   # The one concrete element: a named configuration group the engine passes
@@ -330,7 +317,7 @@ types:
         meta:
           order: 1
           categories:
-            - Parameters
+            - Data
           editor: yaml
 
 templates:

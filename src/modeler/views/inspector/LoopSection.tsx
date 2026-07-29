@@ -20,6 +20,7 @@ import {
   getLoopCharacteristics,
   LOOP_STATE_BY_KIND,
   loopKindOf,
+  supportsLoopCharacteristics,
   type LoopKind,
 } from '@/modeler/models/inspector/loopCharacteristics';
 import { field as s } from '@/modeler/infra/styles';
@@ -48,11 +49,15 @@ function expressionText(value: any): string {
 }
 
 /**
- * "Loop" tab: edits the activity's `loopCharacteristics` child, which the
- * catalog-driven attribute fields cannot reach (they only resolve attributes
- * on the element and its extension wrapper). Values are read from the model
- * on every render, so undo/redo and external edits stay reflected; writes
- * dispatch `update-loop-characteristics`, one undo step each.
+ * Repetition, in the Execution tab: edits the activity's `loopCharacteristics`
+ * child, which the catalog-driven attribute fields cannot reach (they only
+ * resolve attributes on the element and its extension wrapper). Values are
+ * read from the model on every render, so undo/redo and external edits stay
+ * reflected; writes dispatch `update-loop-characteristics`, one undo step each.
+ *
+ * Only an activity repeats. The tab is shared with elements that do not — a
+ * process, an event — so this draws nothing for them rather than offering a
+ * control their BPMN type has nowhere to store.
  */
 export function LoopSection() {
   const element = useInspectedElement();
@@ -60,6 +65,8 @@ export function LoopSection() {
 
   const loopCharacteristics = getLoopCharacteristics(element);
   const kind = loopKindOf(element);
+
+  if (!supportsLoopCharacteristics(element)) return null;
 
   const setKind = (next: LoopKind) => {
     if (next === kind) return;

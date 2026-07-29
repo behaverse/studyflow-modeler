@@ -113,6 +113,26 @@ test.describe('gallery shelves', () => {
       expect(categoriesOf(shelvesOf(diagramOf(filename))), filename).not.toContain(UNCATEGORIZED);
     }
   });
+
+  test('each declares its shelf on one root, the one its plane draws', () => {
+    // A collaboration and the process it wraps are both roots. The modeler
+    // reads and writes whichever one the canvas shows, so a second declaration
+    // on the other root is not a harmless copy: it is a second answer, and
+    // editing the shelf in the app updates only one of them.
+    for (const filename of examples) {
+      const xml = diagramOf(filename);
+      const drawn = xml.match(/<bpmndi:BPMNPlane[^>]*bpmnElement="([^"]+)"/)?.[1];
+      expect(drawn, `${filename} draws no plane`).toBeTruthy();
+
+      const roots = [...xml.matchAll(/<bpmn2?:(process|collaboration|choreography)\b[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/bpmn2?:\1>/g)];
+      const declaring = roots
+        .filter(([, , , body]) => /<studyflow:categories>/.test(body))
+        .map(([, , id]) => id);
+
+      expect(declaring, `${filename} declares its shelf on ${declaring.length} roots`).toHaveLength(1);
+      expect(declaring[0], `${filename} declares its shelf on a root it does not draw`).toBe(drawn);
+    }
+  });
 });
 
 test.describe('card blurbs', () => {

@@ -12,10 +12,14 @@ export function HelpTooltip({
   name,
   description,
   wide = true,
+  testId,
 }: {
   name: string;
   description?: string;
   wide?: boolean;
+  /** Set where the bubble carries something the panel does not show
+   *  otherwise, so a test can reach the same explanation a reader hovers. */
+  testId?: string;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -63,6 +67,7 @@ export function HelpTooltip({
     <div
       className={s.helpAnchor}
       ref={anchorRef}
+      data-testid={testId}
       onMouseEnter={show}
       onMouseLeave={scheduleHide}
     >
@@ -70,6 +75,7 @@ export function HelpTooltip({
       {open && createPortal(
         <div
           ref={tipRef}
+          data-testid={testId ? `${testId}-bubble` : undefined}
           style={position ?? { visibility: 'hidden' }}
           className={wide ? s.helpTooltipWide : s.helpTooltip}
           onMouseEnter={show}

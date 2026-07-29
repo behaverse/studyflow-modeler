@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { AttributeField } from '@/modeler/views/inspector/AttributeField';
-import { LoopSection } from '@/modeler/views/inspector/LoopSection';
+import { AttributeFields } from '@/modeler/views/inspector/AttributeField';
 import { ExecutionSection } from '@/modeler/views/inspector/ExecutionSection';
 import { t } from '@/i18n';
 import { inspector as s } from '@/modeler/infra/styles';
 
-/** Synthetic categories render a dedicated section over nested model state
- *  instead of catalog attribute fields. Execution renders both its sections
- *  (properties, then data associations) above its own attribute fields. */
-const SECTION_BY_CATEGORY: Record<string, ComponentType> = {
-  Loop: LoopSection,
+/**
+ * Synthetic categories render a dedicated section over nested model state that
+ * catalog attribute fields cannot reach. Such a section is handed its
+ * category's fields and lays out the whole tab: where the fields belong among
+ * the parts it draws is a question about that tab, not a rule for every tab.
+ */
+const SECTION_BY_CATEGORY: Record<string, ComponentType<{ attrDefs: any[] }>> = {
   Execution: ExecutionSection,
 };
 
@@ -50,13 +51,9 @@ export function CategoryTabs({ element, categories }: Props) {
           const Section = SECTION_BY_CATEGORY[name];
           return (
             <TabPanel key={name} className={s.tabPanel}>
-              {Section && <Section key={element.id} />}
-              {attrDefs.map((attrDef: any) => (
-                <AttributeField
-                  key={element.id + attrDef.ns.prefix + ':' + attrDef.ns.name}
-                  attrDef={attrDef}
-                />
-              ))}
+              {Section
+                ? <Section key={element.id} attrDefs={attrDefs} />
+                : <AttributeFields attrDefs={attrDefs} />}
             </TabPanel>
           );
         })}

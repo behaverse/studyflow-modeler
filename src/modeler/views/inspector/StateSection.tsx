@@ -19,6 +19,11 @@ import {
 } from '@/modeler/models/inspector/stateProperties';
 import { field as s } from '@/modeler/infra/styles';
 
+/** Which of these leads the tooltip is the one thing about this element's
+ *  declarations that its own row cannot show. */
+const OPENS_A_SCOPE = 'This element opens a scope: what it declares lives for one instance of it.';
+const DECLARED_HERE = 'Declared on this element and read through the scope that contains it.';
+
 const SCOPE_DESCRIPTION =
   'The bpmn:Property children this element declares — BPMN\'s own construct '
   + 'for a value a run carries, typed by a bpmn:ItemDefinition. Unlike a data '
@@ -55,9 +60,26 @@ export function StateSection() {
       <div className={s.field}>
         <div className={s.label}>
           Properties
-          <HelpTooltip name="bpmn:Property" description={SCOPE_DESCRIPTION} />
+          <span className={s.labelActions}>
+            <button
+              type="button"
+              data-testid="add-property"
+              aria-label="Add a property"
+              title="Add a property"
+              onClick={() => dispatch({ action: 'add' })}
+              className={s.dataFlowAddBtn}
+            >
+              <i className={`${ICONS.plus} text-base`} />
+            </button>
+            <HelpTooltip
+              testId="state-scope-help"
+              name="bpmn:Property"
+              description={`${scoped ? OPENS_A_SCOPE : DECLARED_HERE} ${SCOPE_DESCRIPTION}`}
+            />
+          </span>
         </div>
 
+        {properties.length > 0 && (
         <div className={s.arrayList}>
           {properties.map((property) => (
             <div key={property.id} className={s.stateRow}>
@@ -88,24 +110,9 @@ export function StateSection() {
               </button>
             </div>
           ))}
-
-          <button
-            type="button"
-            data-testid="add-property"
-            aria-label="Add a property"
-            title="Add a property"
-            onClick={() => dispatch({ action: 'add' })}
-            className={s.arrayAddBtn}
-          >
-            <i className={`${ICONS.plus} text-lg`} />
-          </button>
         </div>
+        )}
 
-        <p className={s.stateNote} data-testid="state-scope-note">
-          {scoped
-            ? 'Opens a scope: these live for one instance of this container.'
-            : 'Declared on this element; read through the scope that contains it.'}
-        </p>
       </div>
     </div>
   );

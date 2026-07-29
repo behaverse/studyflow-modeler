@@ -25,7 +25,10 @@ test.describe('Inspector execution tab', () => {
 
     // Empty canvas selects the root: study-scoped state is declared here.
     await inspector.getByRole('tab', { name: 'Execution' }).click();
-    await expect(page.getByTestId('state-scope-note')).toContainText('Opens a scope');
+    // Whether declarations here bound a scope instance is the one thing the
+    // rows cannot show, so the section's help carries it.
+    await page.getByTestId('state-scope-help').hover();
+    await expect(page.getByTestId('state-scope-help-bubble')).toContainText('opens a scope');
 
     await page.getByTestId('add-property').click();
     await page.getByLabel('Property name (Property_1)').fill('arm');
@@ -60,7 +63,8 @@ test.describe('Inspector execution tab', () => {
     // An activity may carry properties (§10.3.1) but does not open a scope.
     await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
     await inspector.getByRole('tab', { name: 'Execution' }).click();
-    await expect(page.getByTestId('state-scope-note')).toContainText('read through the scope');
+    await page.getByTestId('state-scope-help').hover();
+    await expect(page.getByTestId('state-scope-help-bubble')).toContainText('read through the scope');
 
     await page.getByTestId('add-property').click();
     await page.getByLabel('Property name (Property_1)').fill('trial_index');
@@ -151,15 +155,18 @@ test.describe('Inspector execution tab', () => {
     await expect(page.getByLabel('Parameter for target')).toHaveValue('y');
     await expect(page.getByLabel('Parameter for estimator')).toHaveValue('');
 
-    // Rows carry BPMN's own name for what they bind, so a property is
-    // distinguishable from a drawn element at a glance.
-    await expect(dataFlow.getByText('property').first()).toBeVisible();
+    // What tells a property row from a drawn one is the row itself, not a
+    // word repeated down the column: a property is bound here, so its row
+    // edits and unbinds.
+    await expect(page.getByRole('button', { name: 'Unbind features' })).toBeVisible();
 
-    // A wire to something drawn is made by drawing it, so it stays read-only,
-    // and is marked with its own kind.
+    // A wire to something drawn is made by drawing it, so its row is inert —
+    // no parameter box, no unbind — and names its kind on hover.
     await page.locator('g[data-element-id="Summarize_CV"]').click();
     await expect(dataFlow).toContainText('CV fold metrics report → self');
-    await expect(dataFlow.getByText('data object').first()).toBeVisible();
+    await expect(page.getByLabel('Parameter for CV fold metrics report')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Unbind CV fold metrics report' })).toHaveCount(0);
+    await expect(dataFlow.getByTitle('CV fold metrics report → self (data object)')).toBeVisible();
   });
 
   test('a property is wired to a step from the inspector, and the wire persists', async ({ page }) => {

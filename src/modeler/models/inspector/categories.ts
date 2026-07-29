@@ -89,14 +89,13 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   // its field beside `documentation`.
   collect([CHECKLIST_SPEC], () => true);
 
-  // The Loop tab edits the `loopCharacteristics` child, which has no
-  // catalog attributes on the element itself.
-  if (supportsLoopCharacteristics(element)) byCategory['Loop'] ??= [];
-
-  // The Execution tab also carries the element's `bpmn:Property` children and
-  // its data associations, so it exists whenever the element may declare
-  // properties — the three element kinds BPMN allows to carry them.
-  if (supportsStateProperties(element)) byCategory['Execution'] ??= [];
+  // Execution is drawn from nested BPMN state no catalog attribute reaches:
+  // the `loopCharacteristics` child, the element's `bpmn:Property` children,
+  // and its data associations. Any one of them is reason enough for the tab —
+  // how often a step runs is part of how it runs, not a question of its own.
+  if (supportsLoopCharacteristics(element) || supportsStateProperties(element)) {
+    byCategory['Execution'] ??= [];
+  }
 
   for (const attrDefs of Object.values(byCategory)) {
     attrDefs.sort((a: any, b: any) => {

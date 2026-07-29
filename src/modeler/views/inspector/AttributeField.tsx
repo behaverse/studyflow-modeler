@@ -6,6 +6,19 @@ import { pickInput } from '@/modeler/views/inspector/inputs';
 import { isAttributeVisible } from '@/modeler/models/inspector/attributeVisibility';
 import { field as s } from '@/modeler/infra/styles';
 
+/** A category's catalog fields, in schema order. Sections that lay out their
+ *  own tab place this where the fields belong among their own parts. */
+export function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
+  const element = useInspectedElement();
+  return (
+    <>
+      {attrDefs.map((attrDef: any) => (
+        <AttributeField key={element.id + attrDef.ns.prefix + ':' + attrDef.ns.name} attrDef={attrDef} />
+      ))}
+    </>
+  );
+}
+
 export function AttributeField({ attrDef }: { attrDef: any }) {
   const element = useInspectedElement();
   const modeler = useModeler();

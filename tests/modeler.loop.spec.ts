@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
 /**
- * The inspector's Loop tab: one selector over BPMN's own four repetition
+ * Repetition, in the inspector's Execution tab: one selector over BPMN's own four repetition
  * states (none / loop ↻ / parallel ∥ / sequential ≡), stored as the
  * activity's `loopCharacteristics` child. It keeps the canvas marker in
  * sync, undoes as one step per edit, and serializes the canonical studyflow
@@ -15,7 +15,7 @@ const LOOP_MARKER = '[data-icon-class="iconify mdi--loop"]';
 const PARALLEL_MARKER = '[data-icon-class="iconify solar--hamburger-menu-linear rotate-90"]';
 const SEQUENTIAL_MARKER = '[data-icon-class="iconify solar--hamburger-menu-linear"]';
 
-test.describe('Inspector loop tab', () => {
+test.describe('Inspector repetition controls', () => {
   test('edits loopCharacteristics with live canvas markers, undo, and YAML round-trip', async ({ page }) => {
     await gotoModeler(page);
 
@@ -25,8 +25,10 @@ test.describe('Inspector loop tab', () => {
     const inspector = page.getByTestId('inspector-root');
     const canvas = page.getByTestId('modeler-canvas');
 
-    // Events don't get a Loop tab; activities do.
-    await inspector.getByRole('tab', { name: 'Loop' }).click();
+    // How often a step runs is part of how it runs, so this shares the tab
+    // with the function, the wires, and the properties. Only an activity
+    // repeats: on anything else the selector is absent, not empty.
+    await inspector.getByRole('tab', { name: 'Execution' }).click();
     const kind = page.getByTestId('loop-kind');
     await expect(kind).toContainText('None');
     await expect(canvas.locator(LOOP_MARKER)).toHaveCount(0);
@@ -81,7 +83,7 @@ test.describe('Inspector loop tab', () => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
-    await page.getByTestId('inspector-root').getByRole('tab', { name: 'Loop' }).click();
+    await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
 
     const canvas = page.getByTestId('modeler-canvas');
     const kind = page.getByTestId('loop-kind');

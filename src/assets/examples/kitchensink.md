@@ -72,6 +72,22 @@ Fit:
       targetRef: Model    # artifact this step produces
 ```
 
+Use these, not `bpmn:Association`. The artifact connector draws the same dashed
+line and carries none of the meaning: BPMN has it for pinning a note to a shape,
+so a step "writing" to a dataset over one has no data contract at all — the
+picture says something the file does not.
+
+**Two wires that have no line, both on purpose.** A wire onto a
+`bpmn:Property` never draws, because BPMN never draws a property. A wire that
+reaches out of a sub-process into an enclosing scope never draws either: scope
+resolution runs outward (§10.4.7), so a step may read a data element its
+container's container declares, but DI puts that element's shape on another
+plane and an edge cannot span two. Both are reported in the inspector — the
+second tagged with the scope it reaches into — and everything else is drawn.
+`agent_eval` is the second case throughout: its artifacts outlive each round of
+the optimization loop, so they are declared on the process and read from steps
+nested one and two levels down.
+
 **The calling convention.** A step is one Python call:
 `implementation(*args, **kwargs)`, with the return value bound to the wired
 outputs. `with` holds the arguments as plain YAML the runner evaluates with

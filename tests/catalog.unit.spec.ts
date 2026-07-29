@@ -402,7 +402,12 @@ test.describe('catalog: schema-declared vocabulary', () => {
 
     // Synthetic tabs are drawn by their own section component, so they must
     // survive having no attributes.
-    expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution', 'Loop']);
+    expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution']);
+
+    // A tab is a question asked of any element, so the set stays small and
+    // every schema files into it. One named after a single type would only
+    // repeat what the panel header already says the element is.
+    expect(names).toEqual(['General', 'Documentation', 'Gantt', 'Data', 'Execution', 'Run record']);
   });
 
   test('a value type declares the editor its attributes render with', () => {

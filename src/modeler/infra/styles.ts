@@ -217,6 +217,9 @@ export const field = {
   field: 'mx-2 pb-2',
 
   label: 'flex items-center justify-between text-sm font-semibold',
+  /** Right-hand end of a section label: its add button, then its help icon —
+   *  so help stays in the same place on every field, with or without one. */
+  labelActions: 'flex items-center gap-1',
   helpAnchor: 'relative group/help',
   helpIcon: `${ICONS.help} text-stone-400 cursor-help`,
   helpTooltip: 'fixed w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
@@ -260,13 +263,15 @@ export const field = {
   /* Data-flow field - one wire per row, read-only. Flex rather than an
      absolutely placed tag, so a long name can never slide under the label. */
   dataFlowRow: 'flex items-center gap-1.5',
-  dataFlowGroup: 'mt-2 first:mt-0',
-  dataFlowGroupHead: 'flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-stone-400 mb-1',
   dataFlowAddBtn: 'w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
   dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 truncate',
   dataFlowBindInput: 'shrink-0 w-24 px-2 py-1 bg-black/[0.03] border-l border-black/[0.08] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
   dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 truncate',
-  dataFlowTag: 'shrink-0 italic text-[11px] text-stone-400 whitespace-nowrap',
+  /* The scope a wire reaches into gets its own line: it is the longest thing
+     in the row and the rarest, and on one line it would squeeze the name it
+     is there to explain down to an ellipsis. */
+  dataFlowScoped: 'flex flex-col',
+  dataFlowScope: 'px-2 italic text-[11px] text-stone-400 truncate',
 
   /* State field - one declaration per row, as a single segmented control:
      name grows, type is a fixed segment, remove closes the row. The row owns
@@ -287,7 +292,6 @@ export const field = {
   /** The typed-but-undeclared value inside a "Use <type>" option. */
   stateTypeNew: 'font-sans text-stone-500',
   stateRemoveBtn: 'shrink-0 w-7 flex items-center justify-center border-l border-black/[0.08] text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
-  stateNote: 'mt-1.5 text-[11.5px] italic text-stone-400',
 } as const;
 
 // --- Code-editor modal (inside the inspector)

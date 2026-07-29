@@ -5,23 +5,31 @@ import { executeCommand } from '@/modeler/controllers/commandBus';
 import { useModeler } from '@/modeler/views/useModeler';
 import { HelpTooltip } from '@/modeler/views/inspector/HelpTooltip';
 import { useInspectedElement } from '@/modeler/views/inspector/hooks/useInspectedElement';
-import { getInferredDataNeighbors, type DataNeighbor } from '@/modeler/models/inspector/dataNeighbors';
+import {
+  getInferredDataNeighbors,
+  supportsDataAssociations,
+  type DataNeighbor,
+} from '@/modeler/models/inspector/dataNeighbors';
 import { getPropertiesInScope } from '@/modeler/models/inspector/stateProperties';
 import { field as s } from '@/modeler/infra/styles';
 
-const DESCRIPTION =
-  'This step\'s data associations. A wire to something drawn on the canvas is '
-  + 'made by drawing it, and shows here read-only. A property is never drawn, '
-  + 'so its wire is made here: add one with +, and it becomes an ordinary '
-  + 'bpmn:DataInputAssociation or bpmn:DataOutputAssociation on this step. '
-  + 'The second box is the binding — for an input, the callable parameter it '
-  + 'fills (blank binds by the property\'s own name); for an output, a '
-  + 'transformation over `result` that narrows what lands there. Only '
-  + 'properties in scope are offered: this element\'s own, then those of each '
-  + 'container around it. Each row is tagged with the BPMN kind it binds, and '
-  + 'with the container it comes from when that is not this one — a wire that '
-  + 'reaches out of a sub-process is valid BPMN, but its two ends are on '
+/** What both directions share, said once and appended to each. */
+const HOW_WIRES_ARE_MADE =
+  ' A wire to something drawn on the canvas is made by drawing it, and is '
+  + 'read-only here. A property is never drawn, so its wire is made here with '
+  + '+, which offers the properties in scope: this element\'s own, then those '
+  + 'of each container around it. A row tagged with another container is a '
+  + 'wire reaching out of this sub-process — valid BPMN, with its two ends on '
   + 'different planes, so there is no line to look for on the canvas.';
+
+const INPUT_DESCRIPTION =
+  'What this step reads. The second box is the callable parameter the value '
+  + 'fills; blank binds by the wired element\'s own name.' + HOW_WIRES_ARE_MADE;
+
+const OUTPUT_DESCRIPTION =
+  'Where this step\'s return value lands. The second box narrows it — an '
+  + 'expression over `result`, BPMN\'s own transformation; blank lands the '
+  + 'whole value.' + HOW_WIRES_ARE_MADE;
 
 type Direction = 'input' | 'output';
 
@@ -44,11 +52,15 @@ export function DataFlowSection() {
     input: getInferredDataNeighbors(element, 'inputs'),
     output: getInferredDataNeighbors(element, 'outputs'),
   };
+  const supported: Record<Direction, boolean> = {
+    input: supportsDataAssociations(element, 'inputs'),
+    output: supportsDataAssociations(element, 'outputs'),
+  };
 
-  // Nothing wired and nothing declarable: this step has no data contract to show.
-  if (inScope.length === 0 && neighbors.input.length === 0 && neighbors.output.length === 0) {
-    return null;
-  }
+  // Nothing wired, nothing declarable, or nowhere for a wire to live: this
+  // element has no data contract to show.
+  const empty = inScope.length === 0 && neighbors.input.length === 0 && neighbors.output.length === 0;
+  if (empty || (!supported.input && !supported.output)) return null;
 
   const dispatch = (command: any) =>
     executeCommand(modeler, { type: 'update-data-binding', element, ...command });
@@ -60,21 +72,25 @@ export function DataFlowSection() {
 
   const row = (direction: Direction, neighbor: DataNeighbor) => {
     // A drawn element is edited on the canvas; only show what it binds to.
+    // Which BPMN kind it is stays in the row's title: the row already shows
+    // it — a drawn element reads as a dashed, uneditable pill and a property
+    // as an editable field — and spelling it out on every row was the same
+    // word four times over.
     if (!neighbor.declared || !neighbor.associationId) {
       const label = neighbor.binding ? `${neighbor.name} → ${neighbor.binding}` : neighbor.name;
       return (
-        <div key={`${direction}-${neighbor.name}`} className={s.dataFlowRow}>
-          <span
-            className={s.dataFlowValue}
-            title={neighbor.outerScope
-              ? `${label} — declared in ${neighbor.outerScope}, so this wire is not drawn on this canvas`
-              : label}
-          >
-            {label}
-          </span>
-          <span className={s.dataFlowTag}>
-            {neighbor.outerScope ? `${neighbor.kind} in ${neighbor.outerScope}` : neighbor.kind}
-          </span>
+        <div key={`${direction}-${neighbor.name}`} className={s.dataFlowScoped}>
+          <div className={s.dataFlowRow}>
+            <span className={s.dataFlowValue} title={`${label} (${neighbor.kind})`}>{label}</span>
+          </div>
+          {neighbor.outerScope && (
+            <span
+              className={s.dataFlowScope}
+              title={`Declared in ${neighbor.outerScope}. BPMN draws that scope on another plane, so this wire has no line on this canvas.`}
+            >
+              in {neighbor.outerScope}
+            </span>
+          )}
         </div>
       );
     }
@@ -82,7 +98,7 @@ export function DataFlowSection() {
     const associationId = neighbor.associationId;
     return (
       <div key={associationId} className={s.stateRow}>
-        <span className={s.dataFlowFixed} title={neighbor.name}>{neighbor.name}</span>
+        <span className={s.dataFlowFixed} title={`${neighbor.name} (${neighbor.kind})`}>{neighbor.name}</span>
         <Input
           aria-label={`${direction === 'input' ? 'Parameter' : 'Transformation'} for ${neighbor.name}`}
           type="text"
@@ -92,7 +108,6 @@ export function DataFlowSection() {
             dispatch({ action: 'set-binding', direction, associationId, value: e.target.value })}
           className={s.dataFlowBindInput}
         />
-        <span className={s.dataFlowTag}>{neighbor.kind}</span>
         <button
           type="button"
           aria-label={`Unbind ${neighbor.name}`}
@@ -105,54 +120,57 @@ export function DataFlowSection() {
     );
   };
 
-  const group = (direction: Direction, label: string) => {
+  const group = (direction: Direction, label: string, description: string) => {
+    if (!supported[direction]) return null;
     const available = unbound(direction);
     return (
-      <div className={s.dataFlowGroup}>
-        <div className={s.dataFlowGroupHead}>
-          <span>{label}</span>
-          {available.length > 0 && (
-            <Listbox
-              value=""
-              onChange={(propertyId: string) => dispatch({ action: 'bind', direction, propertyId })}
-            >
-              <ListboxButton
-                data-testid={`bind-${direction}`}
-                aria-label={`Add ${direction} association`}
-                className={s.dataFlowAddBtn}
+      <div className={s.field}>
+        <div className={s.label}>
+          {label}
+          <span className={s.labelActions}>
+            {available.length > 0 && (
+              <Listbox
+                value=""
+                onChange={(propertyId: string) => dispatch({ action: 'bind', direction, propertyId })}
               >
-                <i className={`${ICONS.plus} text-base`} />
-              </ListboxButton>
-              <ListboxOptions anchor="bottom end" className={s.listboxOptions}>
-                {/* The study scope is the default home for a property, so
-                    naming it on every option is noise; an intermediate scope
-                    is worth calling out, because it bounds the lifetime. */}
-                {available.map((property) => (
-                  <ListboxOption key={property.id} value={property.id} className={s.comboOption}>
-                    {property.own || property.ownerIsRoot
-                      ? property.name
-                      : `${property.name} — ${property.ownerLabel}`}
-                  </ListboxOption>
-                ))}
-              </ListboxOptions>
-            </Listbox>
-          )}
+                <ListboxButton
+                  data-testid={`bind-${direction}`}
+                  aria-label={`Add ${direction} association`}
+                  className={s.dataFlowAddBtn}
+                >
+                  <i className={`${ICONS.plus} text-base`} />
+                </ListboxButton>
+                <ListboxOptions anchor="bottom end" className={s.listboxOptions}>
+                  {/* The study scope is the default home for a property, so
+                      naming it on every option is noise; an intermediate scope
+                      is worth calling out, because it bounds the lifetime. */}
+                  {available.map((property) => (
+                    <ListboxOption key={property.id} value={property.id} className={s.comboOption}>
+                      {property.own || property.ownerIsRoot
+                        ? property.name
+                        : `${property.name} — ${property.ownerLabel}`}
+                    </ListboxOption>
+                  ))}
+                </ListboxOptions>
+              </Listbox>
+            )}
+            <HelpTooltip
+              name={`bpmn:Data${direction === 'input' ? 'Input' : 'Output'}Association`}
+              description={description}
+            />
+          </span>
         </div>
-        <div className={s.arrayList}>{neighbors[direction].map((n) => row(direction, n))}</div>
+        {neighbors[direction].length > 0 && (
+          <div className={s.arrayList}>{neighbors[direction].map((n) => row(direction, n))}</div>
+        )}
       </div>
     );
   };
 
   return (
-    <div className={s.field}>
-      <div className={s.label}>
-        Data associations
-        <HelpTooltip name="bpmn:DataAssociation" description={DESCRIPTION} />
-      </div>
-      <div data-testid="data-flow-section">
-        {group('input', 'inputs')}
-        {group('output', 'outputs')}
-      </div>
+    <div data-testid="data-flow-section">
+      {group('input', 'Inputs', INPUT_DESCRIPTION)}
+      {group('output', 'Outputs', OUTPUT_DESCRIPTION)}
     </div>
   );
 }

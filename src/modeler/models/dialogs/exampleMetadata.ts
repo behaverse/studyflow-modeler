@@ -33,7 +33,7 @@ export type ExampleMetadata = {
   categories: string[];
 };
 
-/** Roots a diagram can have, in the order they answer "what is this diagram?". */
+/** Roots a diagram can have, when nothing better says which one it is. */
 const ROOT_TYPES = ['process', 'collaboration', 'choreography'];
 
 export function humanizeId(id: string): string {
@@ -44,15 +44,39 @@ export function basename(path: string): string {
   return path.split('/').pop() ?? path;
 }
 
-/** Root elements of a `bpmn:Definitions`, in the priority above. */
+/**
+ * Id of the element the diagram's first plane draws — which root *is* the
+ * diagram, as far as the canvas is concerned. Prefix-agnostic on the DI
+ * namespace, like `hasDiagramInterchange`.
+ */
+function planeRootId(doc: Document): string | undefined {
+  const plane = doc.getElementsByTagNameNS('*', 'BPMNPlane')[0];
+  return plane?.getAttribute('bpmnElement') ?? undefined;
+}
+
+/**
+ * Root elements of a `bpmn:Definitions`, the diagram's own first.
+ *
+ * A collaboration and the process it wraps are both roots, and they can carry
+ * different answers to the same question: the modeler reads and writes
+ * whichever one the canvas shows (`canvas.getRootElement()` — the collaboration
+ * for a pool diagram), so a card built from the other one shows a title or a
+ * shelf that no longer matches what the file says. The plane names the root the
+ * canvas shows, so ask it first and fall back to the type order only for a
+ * hand-written file that ships no DI.
+ */
 function rootsOf(doc: Document, ns: MetadataNamespaces): Element[] {
   const roots = [
     ...ROOT_TYPES.flatMap((type) => [...doc.getElementsByTagNameNS(ns.bpmn, type)]),
     ...doc.getElementsByTagNameNS(ns.core, 'study'),
     ...(ns.legacyCore ? [...doc.getElementsByTagNameNS(ns.legacyCore, 'study')] : []),
-  ];
-  // A sub-process is a `bpmn:process` in name only when it is not a root.
-  return roots.filter((el) => el.parentElement?.localName === 'definitions');
+  ]
+    // A sub-process is a `bpmn:process` in name only when it is not a root.
+    .filter((el) => el.parentElement?.localName === 'definitions');
+
+  const drawn = planeRootId(doc);
+  const primary = drawn ? roots.filter((el) => el.getAttribute('id') === drawn) : [];
+  return [...primary, ...roots.filter((el) => !primary.includes(el))];
 }
 
 /**
@@ -80,20 +104,30 @@ export function parseXmlExampleMetadata(
   if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
 
   const roots = rootsOf(doc, ns);
-  const primary = roots[0];
-  if (!primary) return { categories: [] };
+  if (roots.length === 0) return { categories: [] };
+
+  /**
+   * A card is built field by field, not from one root: the drawn root leads
+   * (see `rootsOf`), so it wins whenever two roots answer the same question
+   * differently, but a field it does not carry is read from the next root that
+   * does. A pool diagram splits them exactly this way — the collaboration is
+   * named and shelved, the process it wraps is documented — so asking a single
+   * root for everything drops half the card.
+   */
+  const firstOf = <T>(read: (root: Element) => T | undefined): T | undefined =>
+    roots.map(read).find((value) => value !== undefined);
 
   return {
-    name: primary.getAttribute('name')?.trim() || undefined,
-    id: primary.getAttribute('id') ?? undefined,
-    description: Array.from(primary.children).find(
+    name: firstOf((root) => root.getAttribute('name')?.trim() || undefined),
+    id: firstOf((root) => root.getAttribute('id') ?? undefined),
+    description: firstOf((root) => Array.from(root.children).find(
       (c) => c.namespaceURI === ns.bpmn && c.localName === 'documentation'
         && studyflowAttribute(c, ns, 'checklist') !== 'true',
-    )?.textContent?.trim() || undefined,
-    // A collaboration and the process it wraps are both roots, and the
-    // inspector writes to whichever one the canvas shows: take the categories
-    // from whichever root carries them.
-    categories: roots.map((root) => categoriesOf(root, ns)).find((list) => list.length > 0) ?? [],
+    )?.textContent?.trim() || undefined),
+    categories: firstOf((root) => {
+      const declared = categoriesOf(root, ns);
+      return declared.length > 0 ? declared : undefined;
+    }) ?? [],
   };
 }
 

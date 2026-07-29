@@ -18,9 +18,6 @@ order: 70  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717
-categories:
-  - name: DataTrove
-    order: 500
 
 associations: []
 enumerations:
@@ -73,14 +70,14 @@ types:
           It is determined by the format of the input.
         meta:
           categories:
-            - DataTrove
+            - General
       - name: path
         description: Source location to read from - datatrove's `data_folder` argument (a folder path, glob pattern, URL, or dataset identifier).
         isAttr: true
         type: String
         meta:
           categories:
-            - DataTrove
+            - General
   - name: Writer
     description: Write documents/rows to different formats.
     superClass:
@@ -101,7 +98,7 @@ types:
         type: String
         meta:
           categories:
-            - DataTrove
+            - General
       - name: className
         type: WriterClassEnum
         isAttr: true
@@ -110,7 +107,7 @@ types:
           It is determined by the format of the output.
         meta:
           categories:
-            - DataTrove
+            - General
 templates:
   - description: Remove or pseudonymize identifying fields (datatrove's PII formatter).
     object:

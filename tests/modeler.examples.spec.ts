@@ -36,6 +36,22 @@ test.describe('Examples gallery', () => {
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
   });
 
+  test('a pool diagram is read from both its roots', async ({ page }) => {
+    // A collaboration and the process it wraps are both roots, and they split
+    // the card between them: spirit2025 names and shelves the collaboration
+    // (the root the plane draws, and the one the modeler reads and writes) and
+    // documents the process inside it. Asking a single root for everything
+    // drops half the card — which is what the plain-XML reader cannot be
+    // tested for in Node, since it parses with DOMParser.
+    await gotoModeler(page);
+    await runPaletteCommand(page, 'Examples...');
+
+    const card = page.getByTestId('example-spirit2025');
+    await expect(card).toContainText('Study designs');              // collaboration
+    await expect(card).toContainText('SPIRIT 2025 trial protocol'); // collaboration
+    await expect(card).toContainText('A SPIRIT 2025 trial protocol in lanes'); // process
+  });
+
   test('category chips filter the gallery', async ({ page }) => {
     await gotoModeler(page);
     await runPaletteCommand(page, 'Examples...');
