@@ -66,6 +66,30 @@ test.describe('ensureDiagramLayout', () => {
     expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
   });
 
+  test('draws the data associations an authored layout left out', async () => {
+    // The worst case for a reader: a file that positions its shapes but never
+    // draws its wires. The step's inspector lists inputs and outputs, and the
+    // canvas shows data elements floating unattached next to it.
+    const complete = exampleXml('cognitive_battery.png');
+    const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="Wire_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
+    expect(stripped).toMatch(/dataOutputAssociation id="Wire_Survey_Data"/);
+    expect(stripped).not.toMatch(/BPMNEdge[^>]*bpmnElement="Wire_Survey_Data"/);
+
+    const repaired = await ensureDiagramLayout(stripped, schemaModdle());
+
+    // Both wires are drawn again, so what the inspector reports off the
+    // semantic model is what the canvas shows.
+    expect(repaired).toMatch(/BPMNEdge[^>]*bpmnElement="Wire_Survey_Data"/);
+    expect(repaired).toMatch(/BPMNEdge[^>]*bpmnElement="Wire_WhichOne_Data"/);
+    expect(repaired).toMatch(/<di:waypoint/);
+
+    // Repair adds edges; it does not re-lay-out. Every authored position is
+    // where its author put it.
+    for (const bounds of complete.match(/<dc:Bounds[^>]*\/>/g) ?? []) {
+      expect(repaired).toContain(bounds);
+    }
+  });
+
   test('draws data associations and places data elements next to their steps', async () => {
     // sklearn_pipeline wires its artifacts with data input/output associations
     // — the case the data-flow pass exists for. Every shipped example carries

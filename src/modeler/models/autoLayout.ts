@@ -27,6 +27,15 @@ import { BpmnModdle } from 'bpmn-moddle';
  * steps it is wired to and synthesizes the missing `BPMNEdge` DI for every
  * data input/output association, so the data flow renders and a step's
  * inputs/outputs can be read off the diagram.
+ *
+ * That last guarantee is not a property of files without geometry — it is a
+ * property of the canvas — so the edge half of the pass runs on authored
+ * layouts too. A hand-written file that positions its shapes but omits the
+ * association edges is the worst case for a reader: the step's inspector lists
+ * inputs and outputs that the picture shows no wire for, and the data elements
+ * float unattached. The edges are synthesized in place; authored positions are
+ * never touched, and a file whose wires are all drawn is returned byte-for-byte
+ * as it came in.
  */
 
 /**
@@ -45,7 +54,7 @@ export function hasDiagramInterchange(xml: string): boolean {
  * *child elements* on flow nodes may be dropped.
  */
 export async function ensureDiagramLayout(xml: string, moddle?: any): Promise<string> {
-  if (hasDiagramInterchange(xml)) return xml;
+  if (hasDiagramInterchange(xml)) return drawMissingDataFlow(xml, moddle ?? (new BpmnModdle() as any));
   try {
     const laidOut = await layoutProcess(xml);
     return await rebuildWithLayout(xml, laidOut, moddle ?? (new BpmnModdle() as any));
@@ -95,10 +104,37 @@ async function rebuildWithLayout(originalXml: string, laidOutXml: string, moddle
     .map((diagram: any) => copyDiagram(diagram, semanticById, moddle, definitions))
     .filter(Boolean);
 
-  layoutDataFlowTree(definitions, moddle);
+  layoutDataFlowTree(definitions, moddle, { place: true });
 
   const { xml } = await moddle.toXML(definitions, { format: true });
   return xml;
+}
+
+/**
+ * Add the `BPMNEdge` DI an authored layout is missing for its data
+ * associations, leaving every shape where its author put it.
+ *
+ * Nothing here decides what should be wired — the wires are already in the
+ * file. It only makes the ones between two drawn shapes visible, so what the
+ * inspector reads off the semantic model and what the canvas draws are the same
+ * set. A wire onto a `bpmn:Property` still gets no edge: BPMN never draws a
+ * property, so there is no shape to land on.
+ *
+ * Returns the original string when there was nothing to add, so importing a
+ * complete file neither re-serializes it nor perturbs its formatting.
+ */
+async function drawMissingDataFlow(xml: string, moddle: any): Promise<string> {
+  try {
+    const { rootElement: definitions } = await moddle.fromXML(xml);
+    if (!layoutDataFlowTree(definitions, moddle, { place: false })) return xml;
+    const { xml: repaired } = await moddle.toXML(definitions, { format: true });
+    return repaired;
+  } catch (err) {
+    // A document this pass cannot read is one the importer is about to reject
+    // with a better message; hand it back untouched.
+    console.warn('Could not draw the data flow of a diagram; importing as-is.', err);
+    return xml;
+  }
 }
 
 /** Every semantic element in the tree, keyed by id (processes, nested flow
@@ -163,10 +199,15 @@ function pickBounds(bounds: any): Bounds {
 /**
  * Place data elements next to the steps they are wired to and add the DI
  * edges for their associations, operating on the already-parsed tree.
+ *
+ * `place` is off when the diagram carries an authored layout: the edges are
+ * still needed, but where the shapes sit is the author's decision. Returns
+ * whether any edge was added.
  */
-function layoutDataFlowTree(definitions: any, moddle: any): void {
+function layoutDataFlowTree(definitions: any, moddle: any, { place }: { place: boolean }): boolean {
   const associations = collectDataAssociations(definitions);
-  if (associations.length === 0) return;
+  if (associations.length === 0) return false;
+  let added = false;
 
   for (const diagram of definitions.diagrams ?? []) {
     const plane = diagram.plane;
@@ -188,7 +229,7 @@ function layoutDataFlowTree(definitions: any, moddle: any): void {
     );
     if (local.length === 0) continue;
 
-    placeDataElements(local, shapesById);
+    if (place) placeDataElements(local, shapesById);
 
     for (const assoc of local) {
       if (!assoc.semantic.id || edgeIds.has(assoc.semantic.id)) continue;
@@ -205,8 +246,10 @@ function layoutDataFlowTree(definitions: any, moddle: any): void {
       });
       edge.$parent = plane;
       planeElements.push(edge);
+      added = true;
     }
   }
+  return added;
 }
 
 /**

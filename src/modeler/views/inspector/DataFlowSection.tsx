@@ -18,7 +18,10 @@ const DESCRIPTION =
   + 'fills (blank binds by the property\'s own name); for an output, a '
   + 'transformation over `result` that narrows what lands there. Only '
   + 'properties in scope are offered: this element\'s own, then those of each '
-  + 'container around it. Each row is tagged with the BPMN kind it binds.';
+  + 'container around it. Each row is tagged with the BPMN kind it binds, and '
+  + 'with the container it comes from when that is not this one — a wire that '
+  + 'reaches out of a sub-process is valid BPMN, but its two ends are on '
+  + 'different planes, so there is no line to look for on the canvas.';
 
 type Direction = 'input' | 'output';
 
@@ -58,15 +61,20 @@ export function DataFlowSection() {
   const row = (direction: Direction, neighbor: DataNeighbor) => {
     // A drawn element is edited on the canvas; only show what it binds to.
     if (!neighbor.declared || !neighbor.associationId) {
+      const label = neighbor.binding ? `${neighbor.name} → ${neighbor.binding}` : neighbor.name;
       return (
         <div key={`${direction}-${neighbor.name}`} className={s.dataFlowRow}>
           <span
             className={s.dataFlowValue}
-            title={neighbor.binding ? `${neighbor.name} → ${neighbor.binding}` : neighbor.name}
+            title={neighbor.outerScope
+              ? `${label} — declared in ${neighbor.outerScope}, so this wire is not drawn on this canvas`
+              : label}
           >
-            {neighbor.binding ? `${neighbor.name} → ${neighbor.binding}` : neighbor.name}
+            {label}
           </span>
-          <span className={s.dataFlowTag}>{neighbor.kind}</span>
+          <span className={s.dataFlowTag}>
+            {neighbor.outerScope ? `${neighbor.kind} in ${neighbor.outerScope}` : neighbor.kind}
+          </span>
         </div>
       );
     }

@@ -79,11 +79,29 @@ export function isScopeContainer(element: any): boolean {
   return is(element, 'bpmn:Process') || is(element, 'bpmn:SubProcess');
 }
 
-export function getStateProperties(element: any): StateProperty[] {
+/**
+ * The name bpmn-js gives the `bpmn:Property` it invents to satisfy the XSD.
+ *
+ * A `bpmn:DataInputAssociation` requires a `targetRef`, but drawing a wire from
+ * a data object to a step says nothing about what it lands on, so bpmn-js's
+ * `DataInputAssociationBehavior` parks the reference on a placeholder Property
+ * it adds to the activity. It is an artifact of the file format, not something
+ * the study declares: every wire drawn on the canvas would otherwise show up in
+ * the State tab as a variable nobody named, and be offered as a bind target in
+ * the data-flow list.
+ */
+const TARGET_REF_PLACEHOLDER = '__targetRef_placeholder';
+
+/** Declared `bpmn:Property` children, minus the ones no author wrote. */
+function declaredProperties(element: any): any[] {
   const businessObject = toBusinessObject(element);
   const properties = businessObject?.get?.('properties') ?? businessObject?.properties ?? [];
-  return (Array.isArray(properties) ? properties : [])
-    .filter((p: any) => p?.$type === 'bpmn:Property')
+  return (Array.isArray(properties) ? properties : []).filter((p: any) => p?.$type === 'bpmn:Property');
+}
+
+export function getStateProperties(element: any): StateProperty[] {
+  return declaredProperties(element)
+    .filter((p: any) => p.name !== TARGET_REF_PLACEHOLDER)
     .map((p: any) => ({
       id: p.id,
       name: typeof p.name === 'string' ? p.name : '',
@@ -134,9 +152,11 @@ export function getPropertiesInScope(element: any): ScopedProperty[] {
   return out;
 }
 
-/** Stable, readable, collision-free id for a new declaration. */
+/** Stable, readable, collision-free id for a new declaration. Counts the
+ *  hidden placeholder too — it is invisible, not absent, and two properties
+ *  sharing an id collapse into one on the next parse. */
 export function nextPropertyId(element: any): string {
-  const taken = new Set(getStateProperties(element).map((p) => p.id));
+  const taken = new Set(declaredProperties(element).map((p: any) => p.id));
   for (let i = 1; ; i += 1) {
     const candidate = `Property_${i}`;
     if (!taken.has(candidate)) return candidate;

@@ -55,10 +55,39 @@ export type DataNeighbor = {
   declared: boolean;
   /** BPMN's own name for the wired element: property, data object, data store. */
   kind: string;
+  /** Name of the container declaring the element, when that is not the step's
+   *  own — the wire then reaches out of this plane and cannot be drawn. Unset
+   *  for the ordinary case of a sibling on the same canvas. */
+  outerScope?: string;
   /** Id of the data association carrying this binding, so the inspector can
    *  edit or remove the wire it came from. */
   associationId?: string;
 };
+
+/** The process or sub-process an element is declared in. */
+function containerOf(element: any): any {
+  let node = getBusinessObject(element)?.$parent;
+  while (node && !is(node, 'bpmn:Process') && !is(node, 'bpmn:SubProcess')) node = node.$parent;
+  return node;
+}
+
+/**
+ * Where a wired element sits relative to the step, when that is worth saying.
+ *
+ * BPMN resolves a data association outward through the containers around a step
+ * (§10.4.7), so a task inside a sub-process may legitimately read a data object
+ * declared by the process around it. What it may *not* do is show that wire:
+ * DI draws a collapsed sub-process as one shape on its parent's plane and gives
+ * its contents a plane of their own, and an edge cannot span two planes. The
+ * association is real, the binding is real, and there is nowhere to draw it —
+ * so the inspector names the scope instead of listing a neighbour the reader
+ * then looks for on a canvas that will never have it.
+ */
+function outerScopeOf(element: any, dataElement: any): string | undefined {
+  const owner = containerOf(dataElement);
+  if (!owner || owner === containerOf(element)) return undefined;
+  return owner.name || owner.id;
+}
 
 /**
  * An activity's inputs and outputs are not listed anywhere — they are the data
@@ -97,6 +126,9 @@ export function getInferredDataNeighbors(
           binding,
           declared: is(end, 'bpmn:Property'),
           kind: kindOf(end),
+          // A property is never drawn wherever it lives, so its scope is the
+          // State tab's business; this is only about elements with a shape.
+          outerScope: is(end, 'bpmn:Property') ? undefined : outerScopeOf(element, end),
           associationId: association?.id,
         }));
     })
