@@ -221,17 +221,21 @@ The mapping to [W3C PROV](https://www.w3.org/TR/prov-o/) is direct: an execution
 
 Studyflow has done this in miniature all along: [`EndEvent#attritionCount`](elements.qmd) is left empty at registration and written by the runner as participants exit, so the diff between the registered file and the as-run file *is* the CONSORT attrition table. The as-run record generalizes that — the diff between plan and run is the result.
 
-## What the reference runner implements today
+## What the runners implement today
 
-The schema describes the full semantics; the browser runner implements the part a browser can. Being explicit about the gap:
+The schema describes the full semantics; two runners implement complementary halves of it. The **browser runner** (`src/runner/`) drives the participant-facing side — it suspends for a human and knows nothing of Python. The **Python runner** (`runner/python/`) executes the analysis side: it calls the software a step names and writes the as-run record. Being explicit about the gap:
 
-| | Status |
-| --- | --- |
-| Sequential walk, exclusive/random branching, condition expressions | implemented |
-| Human suspension (participant tasks) | implemented, on every cognitive task |
-| `implementation` / `with` parsed and validated | implemented; **not executed** |
-| Parallel gateway, sub-process traversal | **not supported** — the runner refuses rather than guessing |
-| Model-driven routing (`agentic:Router`) | **not supported** — the runner refuses rather than silently taking the default branch |
-| Scopes, expansion, collection, caching, skip guards (`when`), the as-run record | **not implemented** |
+| | Browser runner | Python runner |
+| --- | --- | --- |
+| Sequential walk, exclusive branching, condition expressions | implemented | implemented |
+| Human suspension (participant tasks) | implemented, on every cognitive task | **not supported** — it has no participant |
+| `implementation` / `arguments` | parsed and validated; **not executed** | **executed**, including nested calls and `$` references |
+| Artifacts (`uri`, `codec`) | — | implemented for csv, parquet, json, joblib, and figures |
+| The as-run record | **not implemented** | implemented — a `.studyrun` per run, written on failure too |
+| Parallel gateway, sub-process traversal | **not supported** — the runner refuses rather than guessing | **not supported** |
+| Model-driven routing (`agentic:Router`) | **not supported** — the runner refuses rather than silently taking the default branch | **not supported** |
+| Scopes, expansion, collection, caching, skip guards (`when`) | **not implemented** | **not implemented** |
 
 Refusing is deliberate. A runner that silently took the default branch at a `Router` would produce a run that looks fine and means nothing.
+
+`sklearn_pipeline` is the worked example the Python runner is checked against: it executes straight out of the shipped `.png` and leaves five artifacts and a run record behind. See `runner/python/README.md`.

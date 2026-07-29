@@ -1,0 +1,6 @@
+# Running the example from this directory writes its artifacts here: the input
+# table `make_inputs.py` materializes, and the reports, figure, and model the
+# diagram's `uri`s name. All of it is reproducible from the two commands in the
+# README, so none of it belongs in the repository.
+inputs/
+results/

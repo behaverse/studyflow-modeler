@@ -90,25 +90,57 @@ nested one and two levels down.
 
 **The calling convention.** A step is one Python call:
 `implementation(*args, **kwargs)`, with the return value bound to the wired
-outputs. `with` holds the arguments as plain YAML the runner evaluates with
-four rules:
+outputs. `arguments` holds what the wires do not supply — the call's *literal*
+configuration — as plain YAML the runner evaluates with three rules:
 
 1. the reserved key **`args`** lists positional arguments;
-2. **`$Name`** (or `$Name.attr`) is the current value of the wired data
-   element `Name`;
-3. a mapping that itself has an **`implementation`** key is a **nested
-   call**, resolved first (import, call with its own `with`);
-4. everything else is a literal keyword argument.
+2. a mapping that itself has an **`implementation`** key is a **nested
+   call**, resolved first (import, call with its own `arguments`);
+3. everything else is a literal keyword argument.
+
+The division of labour is the point: **anything the step reads is a wire, and
+`arguments` is only literals.** A `$Name` reference is also understood, for
+files that use it, but it says in an attribute what a wire says on the diagram —
+and only the wire reaches the inspector, the auto-layout, and the run record. So
+`stratify` in `sklearn_pipeline` is a third wire into the split rather than
+`stratify: $Target` in its arguments.
+
+That is also why `arguments` and `bpmn:Property` stay separate rather than
+collapsing into one thing. A property is *run state*: declared, typed, scoped,
+written by steps and read by conditions. An argument is *authored
+configuration*: `cv: 5`, `cmap: Blues` — fixed before the run and never
+touched by it. BPMN gives a Property no value slot, so folding literals into
+properties would need a custom `value` attribute (one custom attribute traded
+for another) and would turn every `cv: 5` into a typed declaration plus a wire,
+listed in the State tab beside the values a run actually carries.
+
+An input wire's `parameter` names the argument it fills, and two names are
+**positions** rather than keywords. `self` is the receiver of an unbound
+method: it binds first and positionally, because a library's first parameter is
+not always spelled `self` (scikit-learn's `@_fit_context` renames
+`Pipeline.fit`'s to `estimator`) and a diagram that named it would break on a
+decorator it cannot see. `*` appends in wire order, which is how data is wired
+into a callable whose arguments have no names at all — `train_test_split(*arrays)`.
 
 ```yaml
 Fit:
   implementation: python://sklearn.pipeline.Pipeline.fit
-  with:
-    args:
-      - $Pipeline           # the unbound method's first argument (self)
-    X: $Trials.data         # attributes of wired elements
-    y: $Trials.target
+  dataInputAssociations:
+    Wire_Estimator_Fit:
+      exec:parameter: self    # the receiver: bound first, positionally
+      sourceRef: [Estimator]
+    Wire_Features_Fit:
+      exec:parameter: X
+      sourceRef: [Features]
+  arguments:
+    y: $Trials.target         # attributes of wired elements
 ```
+
+`sklearn_pipeline` is this convention end to end, and it really runs: see
+`runner/python/` for a Python implementation of the contract that executes
+that example straight out of its `.png`, leaving five artifacts behind —
+including the held-out confusion matrix as a PNG, written by a `png` codec from
+the figure the plotting step returned.
 
 ### The schema stack
 
@@ -608,7 +640,7 @@ brainflow, openbci_gui.
 |---|---|
 | `kitchensink.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
 | `cognitive_battery.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `sklearn_pipeline.png` | **The execution/ML guide** — external dataset input, PCA pipeline, one-call CV, persisted fold/summary reports, threshold gate, and a promoted model artifact. |
+| `sklearn_pipeline.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `runner/python/`. |
 | `agent_eval.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
 | `agent_eval_pool.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
 | `choreography_demo.png` | Choreography root, participants, message flows, ChoreographyTasks. |

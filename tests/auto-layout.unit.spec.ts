@@ -104,6 +104,7 @@ test.describe('ensureDiagramLayout', () => {
     for (const wire of [
       'Wire_Input_Features', 'Wire_Input_Target', 'Wire_Fold_Report',
       'Wire_Fold_Report_Summary', 'Wire_CV_Summary', 'Wire_Fitted_Model',
+      'Wire_Model_Predict', 'Wire_Test_Report', 'Wire_Confusion_Matrix',
     ]) {
       expect(laidOut).toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${wire}"`));
     }
@@ -114,8 +115,13 @@ test.describe('ensureDiagramLayout', () => {
     // while the in-memory values stay explicit.
     for (const wire of [
       'Wire_Features', 'Wire_Target', 'Wire_Estimator', 'Wire_Estimator_CV',
-      'Wire_Features_CV', 'Wire_Target_CV', 'Wire_CV_Result', 'Wire_CV_Result_Report',
-      'Wire_Mean_Accuracy', 'Wire_Estimator_Fit', 'Wire_Features_Fit', 'Wire_Target_Fit',
+      'Wire_Features_Split', 'Wire_Target_Split', 'Wire_X_Train', 'Wire_X_Test',
+      'Wire_Y_Train', 'Wire_Y_Test', 'Wire_X_Train_CV', 'Wire_Y_Train_CV',
+      'Wire_CV_Result', 'Wire_CV_Result_Report', 'Wire_Mean_CV_Accuracy',
+      'Wire_Estimator_Fit', 'Wire_X_Train_Fit', 'Wire_Y_Train_Fit',
+      'Wire_X_Test_Predict', 'Wire_Predictions', 'Wire_Y_Test_Score',
+      'Wire_Predictions_Score', 'Wire_Test_Metrics', 'Wire_Test_Metrics_Report',
+      'Wire_Y_Test_Plot', 'Wire_Predictions_Plot',
     ]) {
       expect(laidOut).not.toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${wire}"`));
       expect(laidOut).toMatch(new RegExp(`dataInputAssociation|dataOutputAssociation`));
@@ -135,7 +141,7 @@ test.describe('ensureDiagramLayout', () => {
     const summarize = shapes.get('Summarize_CV')!;
     expect(dataset.y).toBeGreaterThan(selectFeatures.y + selectFeatures.height); // below the flow band
     expect(dataset.x).toBeGreaterThan(selectFeatures.x); // pulled toward its consumers, off the left column
-    const model = shapes.get('Final_Model')!;
+    const model = shapes.get('Fitted_Model')!;
     expect(model.y).toBeGreaterThan(summarize.y); // likewise for the produced artifact
 
     // The semantic tree is re-read from the original XML with the schema-aware

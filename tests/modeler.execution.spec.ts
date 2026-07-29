@@ -144,21 +144,21 @@ test.describe('Inspector execution tab', () => {
 
     const dataFlow = page.getByTestId('data-flow-section');
     await expect(dataFlow).toContainText('estimator');
-    await expect(dataFlow).toContainText('features');
-    await expect(dataFlow).toContainText('target');
+    await expect(dataFlow).toContainText('x_train');
+    await expect(dataFlow).toContainText('y_train');
     await expect(dataFlow).toContainText('cv_scores');
 
     // Each binding is editable in place: the second cell is the callable
     // parameter. `estimator` is blank because it binds by the property's own
     // name; the other two name a different parameter.
-    await expect(page.getByLabel('Parameter for features')).toHaveValue('X');
-    await expect(page.getByLabel('Parameter for target')).toHaveValue('y');
+    await expect(page.getByLabel('Parameter for x_train')).toHaveValue('X');
+    await expect(page.getByLabel('Parameter for y_train')).toHaveValue('y');
     await expect(page.getByLabel('Parameter for estimator')).toHaveValue('');
 
     // What tells a property row from a drawn one is the row itself, not a
     // word repeated down the column: a property is bound here, so its row
     // edits and unbinds.
-    await expect(page.getByRole('button', { name: 'Unbind features' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unbind x_train' })).toBeVisible();
 
     // A wire to something drawn is made by drawing it, so its row is inert —
     // no parameter box, no unbind — and names its kind on hover.

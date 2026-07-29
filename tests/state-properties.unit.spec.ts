@@ -74,16 +74,22 @@ test.describe('state as bpmn:Property', () => {
 
     // In-memory intermediates are declared, not drawn; only persisted
     // artifacts keep a shape on the canvas.
-    expect(xml).toContain('<bpmn:property id="Mean_Accuracy" itemSubjectRef="Item_Number" name="mean_accuracy" />');
+    expect(xml).toContain('<bpmn:property id="Mean_CV_Accuracy" itemSubjectRef="Item_Number" name="mean_cv_accuracy" />');
     expect(xml).toContain('<bpmn:itemDefinition id="Item_Estimator" structureRef="sklearn.pipeline.Pipeline" />');
 
     // `transformation` is named after the property, per BPMN's own
     // serialization hint — `<bpmn:formalExpression>` is not valid here.
-    expect(xml).toContain('<bpmn:transformation>result.test_accuracy.mean</bpmn:transformation>');
+    //
+    // The expression indexes the statistic rather than reaching for it as a
+    // field, because the step calls `DataFrame.describe`, which puts the
+    // statistics on the index: `.mean` would name the Series method and the
+    // gate downstream would compare a method to a number. The example really
+    // runs (see `runner/python/`), so this is load-bearing, not cosmetic.
+    expect(xml).toContain('<bpmn:transformation>result.test_accuracy[\'mean\']</bpmn:transformation>');
     expect(xml).not.toContain('<bpmn:formalExpression>');
 
     // The gate reads the declared name, not a path into a persisted file.
-    expect(xml).toContain('mean_accuracy &gt;= 0.90');
+    expect(xml).toContain('mean_cv_accuracy &gt;= 0.90');
   });
 
   test('bpmn:implementation stays on the step that runs software', async () => {

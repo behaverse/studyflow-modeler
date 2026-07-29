@@ -33,6 +33,25 @@ associations: []
 
 enumerations: []
 
+# Most of what follows redefines an attribute BPMN already has, which reads
+# like restating the standard until you know what a redefine is *for* here: it
+# is how a native attribute becomes visible. bpmn-moddle carries every BPMN
+# attribute already, and the inspector shows none of them — a field renders
+# only when a schema declares it (an extension-prefixed name, or a `redefines`
+# marking a native one as declared; see `getAttributesByCategory`). So these
+# traits are not copies of the metamodel. They are this layer's list of which
+# BPMN attributes a studyflow author edits, and the place its own semantics are
+# written down: that `implementation` holds a versioned `scheme://` reference,
+# that the four expression attributes are CEL, that they are authored as flat
+# strings and stored in BPMN's own expression elements. Delete one and the
+# field disappears from the panel while the attribute stays in the file.
+#
+# Nothing else here is a duplicate either: `parameter` and `uri`/`codec` are
+# additions BPMN has no equivalent for, and `Transformation` names both
+# association subclasses on purpose — targeting their `bpmn:DataAssociation`
+# ancestor instead drops the attribute from both, since the trait table
+# resolves upward from a concrete type and has no entry for that ancestor.
+
 types:
 
   # ===========================================================================
@@ -92,13 +111,24 @@ types:
     properties:
       - name: parameter
         description: |
-          Callable parameter that receives the wired value (e.g. `X`, `y`, or
-          `self` for an unbound method). Defaults to the wired element's name -
-          or, when the association targets a declared `bpmn:DataInput` of the
-          activity's ioSpecification, to that input's name (BPMN's native
-          mechanism; then this attribute is redundant). On a multi-instance
-          activity, the collection input's `parameter` names the current item
-          inside each instance (BPMN's `inputDataItem`).
+          Callable parameter that receives the wired value (e.g. `X`, `y`).
+          Defaults to the wired element's name - or, when the association
+          targets a declared `bpmn:DataInput` of the activity's ioSpecification,
+          to that input's name (BPMN's native mechanism; then this attribute is
+          redundant). On a multi-instance activity, the collection input's
+          `parameter` names the current item inside each instance (BPMN's
+          `inputDataItem`).
+
+          Two names are positions rather than keywords. `self` marks the
+          *receiver* of an unbound method (`pandas.DataFrame.drop`,
+          `sklearn.pipeline.Pipeline.fit`) and binds first and positionally. It
+          has to, because a library does not always call its first parameter
+          `self` - scikit-learn's `@_fit_context` decorator renames
+          `Pipeline.fit`'s to `estimator` - and a diagram that named it would
+          break on a decorator it cannot see. `*` appends the wired value to the
+          positional arguments, in wire order, which is the only way to wire
+          data into a callable whose arguments have no names at all
+          (`train_test_split(*arrays)`).
         isAttr: true
         type: String
         meta:
