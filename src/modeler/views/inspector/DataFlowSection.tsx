@@ -1,4 +1,4 @@
-import { Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react';
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions, Textarea } from '@headlessui/react';
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { ICONS } from '@/icons';
 import { executeCommand } from '@/modeler/controllers/commandBus';
@@ -21,12 +21,15 @@ const HOW_ASSOCIATIONS_ARE_MADE =
   + 'no line on this canvas.';
 
 const INPUT_DESCRIPTION =
-  'What this step reads, each bound to the callable parameter in the second '
-  + 'box (blank binds by the element\'s own name).' + HOW_ASSOCIATIONS_ARE_MADE;
+  'What this step reads, each row the assignment it performs: the slot on the '
+  + 'left receives the element on the right. A blank slot binds by the '
+  + 'element\'s own name; `self` and `*` bind positionally; the slot may carry '
+  + 'its own selection (`X = folds[\'train\']`).' + HOW_ASSOCIATIONS_ARE_MADE;
 
 const OUTPUT_DESCRIPTION =
-  'Where this step\'s return value lands, narrowed by an expression over '
-  + '`result` in the second box (blank lands the whole value).' + HOW_ASSOCIATIONS_ARE_MADE;
+  'Where this step\'s return value lands, each row the assignment it performs: '
+  + 'the element on the left receives the selection over `result` on the right '
+  + '(blank lands the whole value).' + HOW_ASSOCIATIONS_ARE_MADE;
 
 type Direction = 'input' | 'output';
 
@@ -80,8 +83,16 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
     // it — a drawn element reads as a dashed, uneditable pill and a property
     // as an editable field — and spelling it out on every row was the same
     // word four times over.
+    // Every row reads as the assignment it is — `receiver = value` — so the
+    // `=` between the cells is the binding grammar drawn out. On an input the
+    // slot receives the element (`X = x_train`); on an output the element
+    // receives the selection (`x_train = result[0]`).
     if (!neighbor.declared || !neighbor.associationId) {
-      const label = neighbor.binding ? `${neighbor.name} → ${neighbor.binding}` : neighbor.name;
+      const label = !neighbor.binding
+        ? neighbor.name
+        : direction === 'output'
+          ? `${neighbor.name} = ${neighbor.binding}`
+          : `${neighbor.binding} = ${neighbor.name}`;
       return (
         <div key={`${direction}-${neighbor.name}`} className={s.dataFlowScoped}>
           <div className={s.dataFlowRow}>
@@ -100,18 +111,39 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
     }
 
     const associationId = neighbor.associationId;
+    const name = (
+      <span className={s.dataFlowFixed} title={`${neighbor.name} (${neighbor.kind})`}>{neighbor.name}</span>
+    );
+    // The grammar's own `=`, drawn between the cells so the row reads as the
+    // assignment it is.
+    const equals = (
+      <span className={s.dataFlowEquals} aria-hidden="true">=</span>
+    );
+    const binding = (
+      // A textarea rather than an input, because an input cannot wrap: a long
+      // expression (`result.test_accuracy['mean']`) would clip at the box edge.
+      // This one grows downward instead, like the name cell beside it. The
+      // value itself stays one line — Enter is a no-op and pasted newlines
+      // collapse to spaces, since these are expressions, not prose.
+      <Textarea
+        aria-label={`Binding for ${neighbor.name}`}
+        rows={1}
+        // A blank input slot binds by the element's own name — the placeholder
+        // shows exactly that default; a blank output lands the whole `result`.
+        placeholder={direction === 'input' ? neighbor.name : 'result'}
+        value={neighbor.binding ?? ''}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+        onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+          dispatch({
+            action: 'set-binding', direction, associationId,
+            value: e.target.value.replace(/\s*\n\s*/g, ' '),
+          })}
+        className={s.dataFlowBindInput}
+      />
+    );
     return (
       <div key={associationId} className={s.stateRow}>
-        <span className={s.dataFlowFixed} title={`${neighbor.name} (${neighbor.kind})`}>{neighbor.name}</span>
-        <Input
-          aria-label={`${direction === 'input' ? 'Parameter' : 'Transformation'} for ${neighbor.name}`}
-          type="text"
-          placeholder={direction === 'input' ? 'parameter' : 'result…'}
-          value={neighbor.binding ?? ''}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            dispatch({ action: 'set-binding', direction, associationId, value: e.target.value })}
-          className={s.dataFlowBindInput}
-        />
+        {direction === 'output' ? <>{name}{equals}{binding}</> : <>{binding}{equals}{name}</>}
         <button
           type="button"
           aria-label={`Unbind ${neighbor.name}`}

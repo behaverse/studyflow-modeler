@@ -6,6 +6,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '../src/core/catalog';
 import { toModdlePackages } from '../src/core/schema';
+import { foldIoSpecification } from '../src/core/codec/io-specification';
 import { getInferredDataNeighbors } from '../src/modeler/models/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties } from '../src/modeler/models/inspector/stateProperties';
 import { loadSchemaModels } from './schemas';
@@ -105,6 +106,9 @@ function connectsAnything(definitions: any): boolean {
 async function read(filename: string): Promise<Model> {
   const moddle = new BpmnModdle(structuredClone(packages)) as any;
   const { rootElement: definitions } = await moddle.fromXML(exampleXml(filename));
+  // Shipped payloads carry the native ioSpecification form; the canvas the
+  // inspector reads holds the folded compact form, as the import boundary does.
+  foldIoSpecification(definitions);
 
   const planes: Array<Map<string, any>> = [];
   const edges = new Set<string>();

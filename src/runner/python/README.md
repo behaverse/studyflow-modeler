@@ -148,12 +148,12 @@ inspector panel that authored it:
 |---|---|
 | `exec:implementation` | `implementation` is BPMN's own attribute, redefined by the `exec` schema with the `scheme://ref[@version]` grammar |
 | `studyflow:type "bpmn:ServiceTask"` | the metamodel's spelling, which is what the catalog, the schemas (`extends: bpmn:DataInputAssociation`) and the templates (`type: bpmn:SubProcess`) all use; `serviceTask` is only how the XML tag is written |
-| `prov:hadRole` + `exec:parameter` on a `prov:Usage` | a `bpmn:dataInputAssociation` filling one named parameter — and a role on a usage is what PROV already means by that, so this one needed no extension |
-| `exec:transformation` beside them on the same `prov:Usage` | the association's `bpmn:transformation`. The two sit together because they are different axes: the role says which parameter was filled, the transformation says what value filled it |
+| `prov:hadRole` on a `prov:Usage` | the binding's slot — a role on a usage is what PROV already means by a named input, so the slot needed no extension |
+| `exec:binding` beside it on the same `prov:Usage` | the association's one binding, verbatim (`slot = selection`) — the role is its resolved slot, the selection is what value filled it |
 | `exec:transformation` on a `prov:Generation` | a `bpmn:dataOutputAssociation`'s own `transformation` expression, on the event that produced the value |
-| `studyflow:arguments` | that attribute verbatim, whose reserved `args` key holds the positional ones |
+| `exec:additionalArguments` | that attribute verbatim, whose reserved `args` key holds the positional ones |
 | `studyflow:conditionExpression`, `studyflow:sequenceFlow` | the `conditionExpression`s on a gateway's outgoing `bpmn:sequenceFlow`s, and the one it took — an extension because PROV has no notion of a choice |
-| `exec:uri`, `exec:codec` | the two `exec:Artifact` fields on the data element |
+| `exec:uri` | the one `exec:Artifact` field; `exec:format` is the element's own `format` (or the uri's extension), resolved at run time |
 | `studyflow:visits` | the engine's own run state, the thing a condition reads as `state.visits.<id>` |
 
 ## The log
@@ -229,8 +229,8 @@ already stated the mapping; this is that mapping made literal:
 | the `.studyflow` itself | a `prov:Entity` that is also a `prov:Plan`, copied into the run directory so it can be reopened |
 | a step execution | a `prov:Activity`, tied to the plan by `prov:wasAssociatedWith` / `prov:qualifiedAssociation` |
 | a data element | a `prov:Entity`, whether it is an artifact on disk or a value that only passed between steps |
-| a data input association | `prov:used`, qualified as a `prov:Usage` whose `prov:hadRole` is the `exec:parameter` it filled |
-| a data output association | `prov:wasGeneratedBy`, qualified as a `prov:Generation` carrying `exec:transformation` |
+| a data input association | `prov:used`, qualified as a `prov:Usage` whose `prov:hadRole` is the binding's slot |
+| a data output association | `prov:wasGeneratedBy`, qualified as a `prov:Generation` carrying `exec:binding` (the selection over `result`) |
 | the flow between two steps | `prov:wasInformedBy` — the walk is one token, so the order is provenance |
 | the runner | a `prov:SoftwareAgent` |
 
@@ -245,7 +245,7 @@ run:Fitted_Model a prov:Entity ;
     schema:contentSize "165309"^^xsd:int ;
     prov:atLocation "digits_pca_svc.joblib" ;
     exec:uri "digits_pca_svc.joblib" ;
-    exec:codec "joblib" ;
+    exec:format "joblib" ;
     prov:wasGeneratedBy run:Fit_Model-17 ;
     prov:wasDerivedFrom run:Estimator, run:X_Train, run:Y_Train ;
     prov:qualifiedGeneration [ a prov:Generation ;
@@ -271,11 +271,11 @@ one to read), `json` (PROV-JSON), `xml` (PROV-XML).
 entity(run:studyflow, [prov:type="prov:Plan", prov:atLocation="sklearn_pipeline.png",
                        schema:sha256="c304249db417…"])
 activity(run:run, 2026-07-30T07:27:41.003+00:00, 2026-07-30T07:27:42.022+00:00,
-         [prov:label="one run of the studyflow", studyflow:status="ok", studyflow:seed="42"])
+         [prov:label="one run of the studyflow", studyflow:status="ok", exec:seed="42"])
 wasAssociatedWith(run:run, run:runner, run:studyflow)
 entity(run:Fitted_Model, [prov:label="Fitted pipeline", exec:uri="digits_pca_svc.joblib",
-                          exec:codec="joblib", schema:sha256="a012babe…", schema:contentSize=165309])
-used(run:Fit_Model-17, run:X_Train, -, [prov:role="X", exec:parameter="X"])
+                          exec:format="joblib", schema:sha256="a012babe…", schema:contentSize=165309])
+used(run:Fit_Model-17, run:X_Train, -, [prov:role="X"])
 wasGeneratedBy(run:Fitted_Model, run:Fit_Model-17, -, [exec:transformation="result"])
 ```
 
@@ -400,15 +400,15 @@ before implementing it. In short:
 | In the studyflow | At run time |
 |---|---|
 | `implementation="python://pkg.mod.fn"` | the callable to import; the path may reach into a class, which is how an unbound method becomes a step |
-| a data input association | one argument, named by `exec:parameter`, defaulting to the associated element's name |
-| `bpmn:transformation` on an *input* association | narrows the source before that value fills the parameter (`folds['train']`) — a different axis from `exec:parameter`, which only chooses the slot |
-| `exec:parameter="self"` | the receiver of an unbound method — bound first and positionally |
-| `exec:parameter="*"` | appended to the positional arguments in declaration order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
-| `studyflow:arguments` | the *additional* arguments, as YAML — what the call needs beyond the associations that already filled its signature: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both a data association and `arguments` is refused rather than silently resolved |
-| a data output association | where the return value lands; `bpmn:transformation` narrows it as an expression over `result` |
-| `exec:uri` on a data element | an artifact: loaded before its first consumer, written after its producer, through `exec:codec` or the extension |
-| `exec:codec="png"` | a figure artifact: the plotting step returns scikit-learn's display object, the output association narrows it to a matplotlib figure with `result.figure_`, and the codec calls `savefig`. Nothing about plotting is a notation concept |
-| `exec:codec="csv"` | the example's tabular artifacts. A CSV has no schema, so the codec decides what happens to a frame's index: row numbers are dropped, a meaningful index is kept as a leading column (which is why the metric summary names `mean` in its first column), and a CSV read back gives columns rather than that index. Declaring `parquet` instead keeps the distinction — and needs `--with pyarrow` |
+| a data input association | one argument, its slot named by the association's `binding` (defaulting to the element's own name) — or, in the standard form the modeler saves, by the `ioSpecification` DataInput it targets |
+| the binding's *selection* | narrows the value: `binding="X = folds['train']"` on an input, `binding="result[0]"` on an output. The standard form spells the same selection as BPMN's own `transformation`, which the runner reads too |
+| slot `self` | the receiver of an unbound method — bound first and positionally |
+| slot `*` | appended to the positional arguments in declaration order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
+| `exec:additionalArguments` | the literal arguments, additional by name and contract — what the call needs beyond the associations that already filled its signature: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both a data association and `additionalArguments` is refused rather than silently resolved |
+| a data output association | where the return value lands, narrowed by the binding's selection over `result` |
+| `exec:uri` on a data element | an artifact: loaded before its first consumer, written after its producer, in the element's declared `format` or the one its extension implies |
+| a `.png` uri | a figure artifact: the plotting step returns scikit-learn's display object, the output binding narrows it to a matplotlib figure with `result.figure_`, and the format handler calls `savefig`. Nothing about plotting is a notation concept |
+| a `.csv` uri | the example's tabular artifacts. A CSV has no schema, so the handler decides what happens to a frame's index: row numbers are dropped, a meaningful index is kept as a leading column (which is why the metric summary names `mean` in its first column), and a CSV read back gives columns rather than that index. Declaring `format: parquet` on the element instead keeps the distinction — and needs `--with pyarrow` |
 | no `uri` (i.e. a `bpmn:Property`) | a value that only passes between steps in memory |
 | `conditionExpression` on a flow out of a gateway | the branch rule; the gateway's `default` when none holds |
 | `state.visits.<id>` | how often the walk reached an element, so a drawn cycle can bound itself |

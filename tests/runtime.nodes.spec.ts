@@ -87,14 +87,14 @@ const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn2:definitions>`;
 
 const BOUND_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-bound" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:exec="https://w3id.org/studyflow/exec" id="runner-stages-bound" targetNamespace="http://bpmn.io/schema/bpmn">
   <studyflow:study id="Study_1" isExecutable="false">
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:serviceTask id="Bound_1" name="Median RT" implementation="python://pkg_for_st.do_map@1.2">
-      <studyflow:arguments>column: rt
-fn: median</studyflow:arguments>
+      <exec:additionalArguments>column: rt
+fn: median</exec:additionalArguments>
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
     </bpmn2:serviceTask>

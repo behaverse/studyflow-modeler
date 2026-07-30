@@ -274,9 +274,20 @@ export const field = {
   /* Data-flow field - one association per row, read-only. Flex rather than an
      absolutely placed tag, so a long name can never slide under the label. */
   dataFlowRow: 'flex items-center gap-1.5',
-  dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 truncate',
-  dataFlowBindInput: 'shrink-0 w-24 px-2 py-1 bg-black/[0.03] border-l border-black/[0.08] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
-  dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 truncate',
+  /* Names wrap rather than truncate: an ellipsis hides exactly the end of a
+     name, which is where `..._report` and `..._train` differ, so the one thing
+     a reader is scanning for is the first thing an ellipsis eats. The row is
+     `items-stretch`, so a wrapped cell simply makes its row taller. */
+  /* Both cells are `flex-1 min-w-0`, so they split the row evenly around the
+     `=` between them: neither the element nor what it binds to is the lesser
+     half, and the glyph lands in the same place down the whole column. */
+  dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 break-words',
+  dataFlowBindInput: 'flex-1 min-w-0 px-2 py-1 bg-black/[0.03] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none resize-none [field-sizing:content] break-words',
+  /* The binding grammar's own `=`, drawn between the cells: every row reads as
+     the assignment it is, `receiver = value`. Pinned to the first line (same
+     py + line-height as the cells), so a wrapped expression grows below it. */
+  dataFlowEquals: 'shrink-0 self-start py-1 px-0.5 font-mono text-sm/6 text-stone-400 select-none',
+  dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 break-words',
   /* The scope a data association reaches into gets its own line: it is the longest thing
      in the row and the rarest, and on one line it would squeeze the name it
      is there to explain down to an ellipsis. */

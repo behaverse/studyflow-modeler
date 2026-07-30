@@ -369,7 +369,7 @@ templates:
             Look up background facts. Use it when the question needs knowledge
             you do not already have.
           implementation: python://wikipedia.search
-          arguments: "results: 5"
+          additionalArguments: "results: 5"
           x: 200
           y: 140
 

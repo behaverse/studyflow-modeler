@@ -13,7 +13,7 @@ core: true   # backs the default elements; always loaded, cannot be disabled
 order: 10  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0716
+version: 26.0730
 
 # Inspector tabs, in the order they appear, declared here for every schema.
 # An attribute joins a tab by naming it in `meta.categories`; a tab a schema
@@ -39,7 +39,7 @@ categories:
     description: Where the element sits on the schedule — onset, duration, progress.
   - name: Data
     order: 40
-    description: What a value is and where it lives — format, schema, storage, uri, codec.
+    description: What a value is and where it lives — format, schema, storage, uri.
   - name: Execution
     order: 50
     synthetic: true
@@ -277,17 +277,8 @@ types:
           optional: true
           categories:
             - Documentation
-      - name: seed
-        description: |
-          Root seed for runs of this study; every step derives its own from it.
-          Pin it to make runs replayable; leave it unset and the engine draws
-          one and records it on the as-run file.
-        isAttr: true
-        type: Integer
-        meta:
-          optional: true
-          categories:
-            - Execution
+      # `seed` lives in the exec schema (`exec:Seed`), with the rest of the
+      # executable layer.
       - name: isExecutable
         redefines: bpmn:Process#isExecutable
         isAttr: true
@@ -323,32 +314,8 @@ types:
           legacyNames:
             - categories
             - category
-  - name: Arguments
-    description: |
-      Augments any BPMN Activity with the `arguments` mapping - what the call
-      needs *beyond* its associated inputs and outputs, which are the data
-      associations drawn on the canvas.
-    extends:
-      - bpmn:Activity
-    isAbstract: true
-    properties:
-      - name: arguments
-        description: |
-          *Additional* literal arguments for the software named by
-          `implementation`, as YAML (the role GitHub Actions' `with:` plays).
-          The associations fill the signature first - each associated input binds to its
-          parameter - and these supply what is left over; the reserved `args`
-          key lists positional arguments.
-        isAttr: false
-        type: YAMLString
-        meta:
-          order: 3
-          categories:
-            - Execution
-          condition:
-            language: json
-            body:
-              implementation: $set
+  # The call configuration (`exec:additionalArguments`) lives in the exec
+  # schema, beside `implementation` — one call contract, one schema.
   - name: StartEvent
     extends:
       - bpmn:StartEvent

@@ -58,9 +58,12 @@ async function toExportableXml(modeler: any): Promise<string> {
   return toWireXml(xml, modeler.get('moddle'));
 }
 
-/** Rendered SVG with icon glyphs inlined, plus the XML that goes with it. */
+/** Rendered SVG with icon glyphs inlined, plus the XML that goes with it.
+ *  The embedded XML is the standard form — a shipped figure carries pure
+ *  BPMN, with the compact `binding` already lowered to `ioSpecification`. */
 async function renderSvg(modeler: any): Promise<{ svg: string; xml: string }> {
-  const [{ svg }, xml] = await Promise.all([modeler.saveSVG(), toExportableXml(modeler)]);
+  const [{ svg }, compactXml] = await Promise.all([modeler.saveSVG(), toExportableXml(modeler)]);
+  const xml = await toStandardBpmnXml(compactXml, modeler.get('moddle'));
   const cleaned = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
   return { svg: await embedIconsInSvg(cleaned, remoteIconSource), xml };
 }

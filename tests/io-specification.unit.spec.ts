@@ -14,7 +14,7 @@ import { exampleStudyflow } from './utils';
  * full `ioSpecification` structure (named DataInputs per association, a `result`
  * DataOutput, InputSet/OutputSet, natively retargeted associations, no
  * binding extension attributes), and reading that XML back folds it into the
- * compact `parameter` form losslessly.
+ * compact `binding` form losslessly.
  */
 
 const models = loadSchemaModels();
@@ -48,7 +48,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     // Associations retarget natively; the extension attribute is gone.
     expect(standardXml).toContain('<bpmn:targetRef>Cross_Validate_in_X</bpmn:targetRef>');
     expect(standardXml).toContain('<bpmn:sourceRef>Cross_Validate_result</bpmn:sourceRef>');
-    expect(standardXml).not.toContain('exec:parameter');
+    expect(standardXml).not.toContain('exec:binding');
   });
 
   test('folding the standard form back yields the shipped compact YAML', async () => {
@@ -60,9 +60,9 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline.png'));
   });
 
-  test('a default-named binding folds back without a parameter attribute', async () => {
+  test('a default-named binding folds back without a binding attribute', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    // DataInput_Prompt_In in agent_eval carries no `parameter` (binding defaults
+    // DataInput_Prompt_In in agent_eval carries no slot (binding defaults
     // to the element's name) - the round trip must not invent one.
     const agentYaml = await exampleYaml('agent_eval.png');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);

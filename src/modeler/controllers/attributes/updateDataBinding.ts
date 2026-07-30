@@ -112,20 +112,8 @@ export function runUpdateDataBinding(modeler: any, command: UpdateDataBindingCom
     return;
   }
 
-  // set-binding: an input names the callable's parameter (a plain string); an
-  // output narrows the return value through BPMN's own `transformation`
-  // expression element, so an empty value clears the child rather than
-  // storing an empty expression.
-  if (direction === 'input') {
-    modeling.updateModdleProperties(element, target, { parameter: command.value || undefined });
-    return;
-  }
-
-  if (!command.value) {
-    modeling.updateModdleProperties(element, target, { transformation: undefined });
-    return;
-  }
-  const expression = modeler.get('bpmnFactory').create('bpmn:FormalExpression', { body: command.value });
-  expression.$parent = target;
-  modeling.updateModdleProperties(element, target, { transformation: expression });
+  // set-binding: one attribute either way — `slot = selection`, each half
+  // optional (see `exec:Binding`). The `.bpmn` exporter is what lowers it to
+  // ioSpecification names and native `transformation` elements.
+  modeling.updateModdleProperties(element, target, { binding: command.value || undefined });
 }

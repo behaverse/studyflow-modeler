@@ -1,4 +1,5 @@
 import type { AttributeSpec } from '@/core/catalog';
+import { ChecklistInput } from '@/modeler/views/inspector/ChecklistInput';
 import { StringInput } from '@/modeler/views/inspector/StringInput';
 import { CodeEditor } from '@/modeler/views/inspector/CodeEditor';
 import { BooleanInput } from '@/modeler/views/inspector/BooleanInput';
@@ -35,6 +36,7 @@ const INPUT_BY_EDITOR_NAME: Record<string, any> = {
   'csvw-table': SchemaEditor,
   'code': CodeEditor,
   'markdown': MarkdownStringInput,
+  'checklist': ChecklistInput,
 };
 
 export function pickInput(attrDef: AttributeSpec) {

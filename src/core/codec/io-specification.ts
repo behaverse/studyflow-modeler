@@ -1,29 +1,27 @@
 /**
  * Standard-BPMN I/O lowering.
  *
- * Studyflow's compact form binds a data association to a callable parameter with one
- * extension attribute (`exec:parameter` on the data input association,
- * defaulting to the associated element's name) and treats the step's return value
- * as the implicit source of every output association. BPMN 2.0 spells the same
- * facts structurally: the activity declares an `ioSpecification` whose named
- * `bpmn:DataInput`s *are* the parameters (each input association targets
- * one), a `bpmn:DataOutput` carries the produced value (each output
- * association sources from it), and `inputSet`/`outputSet` group them.
+ * Studyflow's compact form carries one `exec:binding` attribute per data
+ * association — `slot = selection`, each half optional (see the exec schema).
+ * BPMN 2.0 spells the same facts structurally: the slot is the name of a
+ * declared `bpmn:DataInput` the association targets (the activity's
+ * `ioSpecification`), the produced value is a `bpmn:DataOutput` every output
+ * association sources from, and the selection is BPMN's own `transformation`
+ * expression on the association.
  *
  * The two forms are losslessly interchangeable, and each stays where it
  * serves best:
  *
- * - **lower** (`lowerIoSpecification` / `toStandardBpmnXml`): applied when
- *   `.bpmn` XML leaves the app, so exported files are complete standard BPMN
+ * - **lower** (`lowerIoSpecification` / `toStandardBpmnXml`): applied to
+ *   every XML that leaves the app — `.bpmn` exports, the YAML→XML projection,
+ *   the payload a figure embeds — so saved files are complete standard BPMN
  *   with no binding extension attributes.
  * - **fold** (`foldIoSpecification`, run by `xmlToStudyflow` and the XML
- *   import boundary): the inverse — DataInput names collapse back to
- *   `parameter` (omitted when equal to the associated element's name), the
+ *   import boundary): the inverse — DataInput names collapse back to the
+ *   binding's slot (omitted when equal to the associated element's name),
+ *   native `transformation` expressions collapse to its selection, the
  *   synthesized structure disappears, and the canvas/YAML keep the compact
  *   form.
- *
- * Field extraction on a data association is BPMN's own `transformation` expression and
- * needs no lowering — it is already the standard form.
  *
  * An activity whose multi-instance marker references its ioSpecification
  * (`loopDataInputRef`, `inputDataItem`, ...) or whose ioSpecification
@@ -31,6 +29,24 @@
  * fold: the codec serializes the native structure as-is rather than dropping
  * declared facts.
  */
+
+/** The two halves of a `binding` attribute: `slot = selection`, each optional. */
+export function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
+  const text = (value ?? '').trim();
+  if (!text) return {};
+  const slotOnly = /^(self|\*|[A-Za-z_]\w*)$/.exec(text);
+  if (slotOnly) return { slot: slotOnly[1] };
+  // `=` splits the halves; `==` belongs to the selection (a CEL comparison).
+  const both = /^(self|\*|[A-Za-z_]\w*)\s*=(?!=)\s*(\S.*)$/.exec(text);
+  if (both) return { slot: both[1], selection: both[2].trim() };
+  return { selection: text };
+}
+
+/** The one binding attribute back from its halves. */
+export function combineBinding(slot: string | undefined, selection: string | undefined): string | undefined {
+  if (slot && selection) return `${slot} = ${selection}`;
+  return slot || selection || undefined;
+}
 
 /** Sanitize a binding name into an XML id fragment. */
 function idSlug(name: string): string {
@@ -50,15 +66,27 @@ function forEachProcess(definitions: any, visit: (process: any) => void): void {
   }
 }
 
-/** The effective binding name of an input association in the compact form. */
-function effectiveParameter(assoc: any): string {
+/** The effective slot of an input association in the compact form. */
+function effectiveSlot(assoc: any): string {
   const source = assoc.sourceRef?.[0];
-  return assoc.get?.('parameter') || source?.name || source?.id || 'input';
+  return splitBinding(assoc.get?.('binding')).slot || source?.name || source?.id || 'input';
+}
+
+/** The selection half of an association's binding, as a native expression. */
+function lowerSelection(model: any, assoc: any): void {
+  const { selection } = splitBinding(assoc.get?.('binding'));
+  if (selection) {
+    const expression = model.create('bpmn:FormalExpression', { body: selection });
+    expression.$parent = assoc;
+    assoc.set('transformation', expression);
+  }
+  assoc.set('binding', undefined);
 }
 
 /**
  * LOWER: synthesize the standard `ioSpecification` structure on every associated
- * activity and retarget its associations natively. Mutates the tree.
+ * activity, retarget its associations natively, and turn each binding's
+ * selection into BPMN's own `transformation`. Mutates the tree.
  */
 export function lowerIoSpecification(definitions: any): boolean {
   const model = definitions?.$model;
@@ -74,22 +102,30 @@ export function lowerIoSpecification(definitions: any): boolean {
     const dataInputs: any[] = [];
     const usedIds = new Set<string>();
     for (const assoc of inputs) {
-      const name = effectiveParameter(assoc);
+      // An authored target (a `bpmn:Property` the value lands in) is a fact of
+      // the diagram, not ours to rewire onto a synthesized DataInput.
+      if (assoc.targetRef) continue;
+      const name = effectiveSlot(assoc);
       let id = `${activity.id}_in_${idSlug(name)}`;
       for (let n = 2; usedIds.has(id); n += 1) id = `${activity.id}_in_${idSlug(name)}_${n}`;
       usedIds.add(id);
       const dataInput = model.create('bpmn:DataInput', { id, name });
       dataInputs.push(dataInput);
       assoc.set('targetRef', dataInput);
-      assoc.set('parameter', undefined);
+      lowerSelection(model, assoc);
     }
 
     const dataOutputs: any[] = [];
-    if (outputs.length > 0) {
+    const implicitOutputs = outputs.filter((assoc: any) => !(assoc.sourceRef?.length));
+    if (implicitOutputs.length > 0) {
       const result = model.create('bpmn:DataOutput', { id: `${activity.id}_result`, name: 'result' });
       dataOutputs.push(result);
-      for (const assoc of outputs) assoc.set('sourceRef', [result]);
+      for (const assoc of implicitOutputs) {
+        assoc.set('sourceRef', [result]);
+        lowerSelection(model, assoc);
+      }
     }
+    if (dataInputs.length === 0 && dataOutputs.length === 0) return;
 
     const inputSet = model.create('bpmn:InputSet', {
       id: `${activity.id}_inputSet`,
@@ -122,9 +158,26 @@ export function lowerIoSpecification(definitions: any): boolean {
 export function foldIoSpecification(definitions: any): boolean {
   let changed = false;
 
+  // A native `transformation` becomes the binding's selection, joined to
+  // whatever slot the binding already carries.
+  const foldSelection = (assoc: any) => {
+    const expression = assoc.transformation?.body;
+    if (!expression) return;
+    const { slot } = splitBinding(assoc.get?.('binding'));
+    assoc.set('binding', combineBinding(slot, expression));
+    assoc.set('transformation', undefined);
+    changed = true;
+  };
+
   forEachProcess(definitions, (process) => forEachActivity(process, (activity) => {
     const io = activity.ioSpecification;
-    if (!io) return;
+    if (!io) {
+      // No structure to fold, but a foreign file may still spell selections
+      // natively; the compact form holds them in the binding.
+      for (const assoc of activity.dataInputAssociations ?? []) foldSelection(assoc);
+      for (const assoc of activity.dataOutputAssociations ?? []) foldSelection(assoc);
+      return;
+    }
 
     // A multi-instance marker referencing the ioSpecification carries facts
     // the compact form cannot hold - keep the native structure.
@@ -152,12 +205,16 @@ export function foldIoSpecification(definitions: any): boolean {
       if (!target || !declaredInputs.includes(target)) continue;
       const source = assoc.sourceRef?.[0];
       const defaultName = source?.name || source?.id;
-      if (target.name && target.name !== defaultName) assoc.set('parameter', target.name);
+      const slot = target.name && target.name !== defaultName ? target.name : undefined;
+      const selection = assoc.transformation?.body || undefined;
+      assoc.set('binding', combineBinding(slot, selection));
+      assoc.set('transformation', undefined);
       assoc.set('targetRef', undefined);
     }
     for (const assoc of activity.dataOutputAssociations ?? []) {
       const remaining = (assoc.sourceRef ?? []).filter((source: any) => !declaredOutputs.includes(source));
       if (remaining.length !== (assoc.sourceRef ?? []).length) assoc.set('sourceRef', remaining);
+      foldSelection(assoc);
     }
     activity.set('ioSpecification', undefined);
     changed = true;
@@ -174,9 +231,9 @@ export async function toStandardBpmnXml(xml: string, moddle: any): Promise<strin
 }
 
 /** XML import boundary: fold standard-form files to the compact form the
- *  canvas and YAML use. Cheap no-op when no ioSpecification is present. */
+ *  canvas and YAML use. Cheap no-op when neither spelling is present. */
 export async function fromStandardBpmnXml(xml: string, moddle: any): Promise<string> {
-  if (!/ioSpecification/i.test(xml)) return xml;
+  if (!/ioSpecification|:transformation[\s>]/i.test(xml)) return xml;
   const { rootElement } = await moddle.fromXML(xml);
   if (!foldIoSpecification(rootElement)) return xml;
   return (await moddle.toXML(rootElement, { format: true })).xml;

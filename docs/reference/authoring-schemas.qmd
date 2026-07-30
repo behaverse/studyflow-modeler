@@ -10,8 +10,8 @@ Studyflow uses direct moddle YAML as the authoring format for schema definitions
 
 | File | Prefix | What it declares |
 |---|---|---|
-| `studyflow.moddle.yaml` | `studyflow` | The core language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the `BaseElement`/`Scheduling`/`Arguments`/`Classification` traits, and the data-infrastructure types (`Schema`, `Dataset`, `DataCatalog`, `Table`, `Timeseries`, `EventMarker`). It also declares the inspector's tabs for every schema. **core** |
-| `exec.moddle.yaml` | `exec` | The executable layer: `implementation`, the association bindings (`parameter`, `transformation`), the timer/condition/loop expressions, artifact `uri`/`codec`, and `Parameters`. **core** |
+| `studyflow.moddle.yaml` | `studyflow` | The core language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the `BaseElement`/`Scheduling`/`Classification` traits, and the data-infrastructure types (`Schema`, `Dataset`, `DataCatalog`, `Table`, `Timeseries`, `EventMarker`). It also declares the inspector's tabs for every schema. **core** |
+| `exec.moddle.yaml` | `exec` | The executable layer: `implementation` and its `additionalArguments`, the run `seed`, the association `binding`, the timer/condition/loop expressions, artifact `uri` (its `format` belongs to the data types), and `Parameters`. **core** |
 | `functional.moddle.yaml` | `functional` | `Transform`, `Map`, `Reduce`, `Filter` -- the generic verbs domain layers root their presets on. **core** |
 | `cognitive.moddle.yaml` | `cognitive` | `CognitiveTask`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor`. Split out of the core so adopters can swap the cognitive layer. **core** |
 | `agentic.moddle.yaml` | `agentic` | LLM and agent workflows: `Agent`, `Router`, `LLMCall`, `Tool`, `HumanApproval`, `Prompt`, `Memory`. |
@@ -172,27 +172,25 @@ Studyflow-specific modeler behavior lives under `meta` on the property:
 Any activity can declare the software that implements it. BPMN's own `implementation` attribute (redefined once by the `exec` schema) carries the reference, and the core `studyflow:Arguments` trait (which mixes onto every `bpmn:Activity`) carries the arguments:
 
 - `implementation` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. Recognized schemes are `python://` (an importable callable, e.g. `python://sklearn.pipeline.Pipeline.fit`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), `https://` (a script URL), and `file://` (a local script). Other schemes are allowed but flagged as unresolved -- a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
-- `arguments` -- a `studyflow:YAMLString` holding the **additional** literal arguments (the role GitHub Actions' `with:` block plays). The associations fill the signature first -- each data input association binds its element to the callable parameter named on the association -- and `arguments` supplies what is left over. Anything the step *reads* is a data association, not an entry here; a name bound by both is an error rather than a precedence question. The reserved `args` key lists positional arguments, and a nested mapping carrying its own `implementation` is a call resolved before the outer one.
+- `additionalArguments` -- a `studyflow:YAMLString` holding the literal arguments (the role GitHub Actions' `with:` block plays), *additional* by name and by contract: the associations fill the signature first -- each data input association binds its element to the slot its `binding` names -- and this supplies what is left over. Anything the step *reads* is a data association, not an entry here; a name bound by both is an error rather than a precedence question. The reserved `args` key lists positional arguments, and a nested mapping carrying its own `implementation` is a call resolved before the outer one.
 
-An input association's `exec:parameter` names the argument its value fills, defaulting to the associated element's own name. Two names are positions rather than keywords: `self` binds the receiver of an unbound method (because a library does not always call its first parameter `self`), and `*` appends positionally in declaration order, which is the only way to feed data into a callable whose arguments have no names -- `train_test_split(*arrays)`.
-
-An association may also carry BPMN's own `bpmn:transformation`, and the two are different axes rather than two spellings of one thing: `exec:parameter` chooses *which* slot the value fills, `bpmn:transformation` chooses *what* value arrives. One renames, the other computes, and neither can express the other. On an output association the transformation narrows the return value with an expression over `result` -- which is how one call fills several properties. On an input association it narrows the source before that value fills the parameter, so the two compose: `exec:parameter: X` with `bpmn:transformation: folds['train']` puts the training half into `X`.
+A data association carries one `exec:binding` — `slot = selection`, each half optional. The slot names *which* callable parameter the value fills (blank binds by the element's own name; `self` binds an unbound method's receiver, `*` appends positionally, the only way into `train_test_split(*arrays)`); the selection narrows *what* value arrives, as member access and indexing (`folds['train']`). On an output association the drawn target is the slot, so the binding is a selection over `result` (`result[0]`) — which is how one call fills several properties. Selections coordinate, they never compute: anything that calculates is a step with its own `implementation`. Saved XML never carries the attribute — it lowers to BPMN's native `ioSpecification` + `transformation` spelling and folds back on open.
 
 ```yaml
 Fit:
   implementation: python://sklearn.pipeline.Pipeline.fit
   dataInputAssociations:
     Association_Estimator:
-      exec:parameter: self      # the receiver: bound first, positionally
+      binding: self             # the receiver: bound first, positionally
       sourceRef: [Estimator]
     Association_Features:
-      exec:parameter: X
+      binding: X
       sourceRef: [X_Train]
-  arguments:
+  additionalArguments:
     sample_weight: null         # what the associations did not supply
 ```
 
-The two axes on one association, when the step wants a slice of what the element
+Both halves in one attribute, when the step wants a slice of what the element
 holds rather than all of it:
 
 ```yaml
@@ -200,12 +198,11 @@ Score:
   implementation: python://sklearn.metrics.accuracy_score
   dataInputAssociations:
     Association_Truth:
-      exec:parameter: y_true          # which slot it fills
-      bpmn:transformation: folds['test']   # what value arrives
+      binding: y_true = folds['test']   # which slot, and what arrives there
       sourceRef: [Folds]
 ```
 
-In the BPMN XML form, `implementation` is an attribute on the activity and `arguments` is a `<studyflow:arguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
+In the BPMN XML form, `implementation` is an attribute on the activity and `additionalArguments` is an `<exec:additionalArguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
 
 The browser runner parses and validates the call but does not execute it. The Python runner in `src/runner/python/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `src/assets/examples/sklearn_pipeline.png` is the worked example it is checked against -- see `src/runner/python/README.md`.
 

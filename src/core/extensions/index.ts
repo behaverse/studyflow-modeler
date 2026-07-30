@@ -85,7 +85,7 @@ export const CHECKLIST_SPEC: AttributeSpec = {
   ns: { name: 'studyflow:checklist', prefix: 'studyflow', localName: 'checklist' },
   type: 'String',
   description: 'Items to check off when completing the element - markdown task items (`- [ ]` / `- [x]`), carried as a marked `bpmn:documentation` entry so every BPMN tool shows the text.',
-  meta: { editor: 'markdown', categories: ['Documentation'] },
+  meta: { editor: 'checklist', categories: ['Documentation'] },
 };
 
 /** BPMN-native identity attributes, addressable as `bpmn:id`/`bpmn:name`. */

@@ -39,6 +39,7 @@
   "configurations": "Configurations",
   "implementation": "Function",
   "arguments": "Arguments",
+  "additionalArguments": "Additional arguments",
   "signature": "Signature",
   "runsOn": "Runs on",
   "scheduler": "Scheduler",

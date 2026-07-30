@@ -46,7 +46,7 @@ templates:
         - iris
       operationType: load
       implementation: python://sklearn.datasets.load_digits
-      arguments: "as_frame: true"
+      additionalArguments: "as_frame: true"
 
   - description: Group-aware train/test split - keeps every row from a participant on one side.
     object:
@@ -70,7 +70,7 @@ templates:
         - leakage
       operationType: splitData
       implementation: python://sklearn.model_selection.GroupShuffleSplit
-      arguments: "n_splits: 1\ntest_size: 0.2"
+      additionalArguments: "n_splits: 1\ntest_size: 0.2"
 
   - description: Project features onto fewer dimensions (PCA) before fitting.
     object:
@@ -91,7 +91,7 @@ templates:
         - features
       operationType: project
       implementation: python://sklearn.decomposition.PCA
-      arguments: "n_components: 16\nwhiten: false"
+      additionalArguments: "n_components: 16\nwhiten: false"
 
   - description: Build an estimator - constructors are calls, and estimators are data.
     object:
@@ -117,7 +117,7 @@ templates:
         - model
       operationType: build
       implementation: python://sklearn.pipeline.make_pipeline
-      arguments: "args:\n  - implementation: python://sklearn.decomposition.PCA\n    arguments:\n      n_components: 16\n  - implementation: python://sklearn.svm.SVC\n    arguments:\n      kernel: rbf\n      C: 1.0"
+      additionalArguments: "args:\n  - implementation: python://sklearn.decomposition.PCA\n    arguments:\n      n_components: 16\n  - implementation: python://sklearn.svm.SVC\n    arguments:\n      kernel: rbf\n      C: 1.0"
 
   - description: Fit an estimator on data - the call that actually trains the model.
     object:
@@ -166,7 +166,7 @@ templates:
         - statsmodels
       operationType: build
       implementation: python://statsmodels.formula.api.mixedlm
-      arguments: "formula: rt ~ condition\ngroups: participant_id"
+      additionalArguments: "formula: rt ~ condition\ngroups: participant_id"
 
   - description: Score a model on held-out data - reduce predictions to a metrics report.
     object:
@@ -187,7 +187,7 @@ templates:
         - audit
       operationType: evaluate
       implementation: python://sklearn.metrics.classification_report
-      arguments: "output_dict: true"
+      additionalArguments: "output_dict: true"
 
   - description: Cross-validate an estimator in one call (scikit-learn's cross_validate).
     object:
@@ -212,7 +212,7 @@ templates:
         - validate
       operationType: crossValidate
       implementation: python://sklearn.model_selection.cross_validate
-      arguments: "cv: 5\nscoring: [accuracy, f1_macro]\nreturn_train_score: false"
+      additionalArguments: "cv: 5\nscoring: [accuracy, f1_macro]\nreturn_train_score: false"
 
   - description: Build a hyperparameter grid search (scikit-learn's GridSearchCV).
     object:
@@ -235,7 +235,7 @@ templates:
         - sklearn
       operationType: build
       implementation: python://sklearn.model_selection.GridSearchCV
-      arguments: "param_grid:\n  C: [0.1, 1, 10]\n  kernel: [linear, rbf]\ncv: 5\nscoring: accuracy"
+      additionalArguments: "param_grid:\n  C: [0.1, 1, 10]\n  kernel: [linear, rbf]\ncv: 5\nscoring: accuracy"
 
   - description: Persist a fitted model to disk.
     object:
@@ -246,8 +246,9 @@ templates:
         can pick up): `joblib.dump(model, filename, compress=3)` - joblib is
         scikit-learn's own recommended persistence - with the associated model as
         the value and `filename` in `arguments`. Often no step is needed at all:
-        set `uri` and `codec: joblib` on the model artifact itself and the
-        engine persists it when the fitting step writes it.
+        set `uri` on the model artifact itself (its `.joblib` extension is
+        the format) and the engine persists it when the fitting step writes
+        it.
       icon: iconify mdi--content-save-outline
       keywords:
         - save
@@ -257,7 +258,7 @@ templates:
         - export
       operationType: save
       implementation: python://joblib.dump
-      arguments: "filename: results/model.joblib\ncompress: 3"
+      additionalArguments: "filename: results/model.joblib\ncompress: 3"
 
   # ===========================================================================
   # Artifacts. Native data objects; `uri` (from the exec Artifact trait) says
@@ -269,12 +270,11 @@ templates:
       type: bpmn:DataObjectReference
       bpmn:documentation: |
         The artifact a fitting step produces, an evaluation scores, and a
-        Writer saves. Set `uri` to keep it on disk - `codec: joblib` is
+        Writer saves. Set `uri` to keep it on disk - a `.joblib` uri picks
         scikit-learn's own persistence; the model card (intended use,
         training data, known limitations) goes here in `documentation`;
         hyperparameters live on the fitting step's `arguments`.
       icon: iconify mdi--cube-outline
-      codec: joblib
       keywords:
         - model
         - artifact

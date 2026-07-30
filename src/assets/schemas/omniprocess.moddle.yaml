@@ -29,7 +29,7 @@ templates:
         - bids
         - neuroimaging
       implementation: docker://nipreps/fmriprep@23.2.0
-      arguments: |
+      additionalArguments: |
         output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
         skull_strip_t1w: force               # auto | force | skip
         use_aroma: false                     # ICA-AROMA denoising

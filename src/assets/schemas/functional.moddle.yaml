@@ -130,4 +130,4 @@ templates:
         - partition
       operationType: group
       implementation: python://itertools.groupby
-      arguments: "key: participant"
+      additionalArguments: "key: participant"

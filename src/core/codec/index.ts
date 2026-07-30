@@ -4,7 +4,7 @@ import { getCatalog } from '@/core/catalog';
 import { toLocalName } from '@/core/naming';
 import { RESERVED_DOC_KEYS, YAML_DUMP_OPTIONS, type YamlDoc } from '@/core/codec/common';
 import { definitionsToYamlDoc } from '@/core/codec/serialize';
-import { foldIoSpecification } from '@/core/codec/io-specification';
+import { foldIoSpecification, lowerIoSpecification } from '@/core/codec/io-specification';
 import { studyflowToDefinitions } from '@/core/codec/deserialize';
 
 export { studyflowToDefinitions } from '@/core/codec/deserialize';
@@ -36,7 +36,7 @@ export { studyflowToDefinitions } from '@/core/codec/deserialize';
  *   - YAML-bodied config wrappers (`cognitive:Configurations`,
  *     `cognitive:BotConfigurations`, ...) inline their parsed body as nested
  *     YAML instead of a `value: |` string block, and value-typed YAML
- *     properties (`studyflow:arguments`) inline their parsed mapping the same way,
+ *     properties (`exec:additionalArguments`) inline their parsed mapping the same way,
  *   - diagram geometry attaches to the element it describes — `bounds` and
  *     `label` on shapes, `waypoint` on edges, plus DI-only flags and colors
  *     (`isMarkerVisible`, `bioc:stroke`, ...). DI ids are regenerated as
@@ -161,6 +161,11 @@ export async function xmlToStudyflow(xml: string, moddle: any): Promise<string> 
 
 /** `.studyflow` YAML text -> BPMN 2.0 XML. */
 export async function studyflowToXml(yamlText: string, moddle: any): Promise<string> {
-  const { xml } = await moddle.toXML(studyflowToDefinitions(yamlText, moddle), { format: true });
+  const definitions = studyflowToDefinitions(yamlText, moddle);
+  // The XML projection is standard BPMN: the compact `binding` lowers to the
+  // native `ioSpecification` + `transformation` spelling on the way out, so
+  // no file ever carries the shorthand.
+  lowerIoSpecification(definitions);
+  const { xml } = await moddle.toXML(definitions, { format: true });
   return xml;
 }

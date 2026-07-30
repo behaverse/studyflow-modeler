@@ -46,9 +46,8 @@ function kindOf(element: any): string {
 export type DataNeighbor = {
   /** Display name of the associated data element. */
   name: string;
-  /** `parameter` (inputs) / the native `transformation` expression (outputs)
-   *  declared on the association; unset means the whole value flows, bound
-   *  by the element's name. */
+  /** The association's `binding` (`slot = selection`, each half optional);
+   *  unset means the whole value flows, bound by the element's name. */
   binding?: string;
   /** True when the other end is a `bpmn:Property` — declared on an element and
    *  never drawn, so this is the only place its association can be edited. */
@@ -122,7 +121,6 @@ export function getInferredDataNeighbors(
   const businessObject = getBusinessObject(element);
   const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
   const associations: any[] = businessObject?.get?.(listName) ?? businessObject?.[listName] ?? [];
-  const bindingAttr = direction === 'inputs' ? 'parameter' : 'transformation';
 
   return associations
     .flatMap((association: any) => {
@@ -131,8 +129,8 @@ export function getInferredDataNeighbors(
       const ends: any[] = direction === 'inputs'
         ? association?.sourceRef ?? []
         : [association?.targetRef].filter(Boolean);
-      const raw = getAttribute(association, bindingAttr);
-      const binding = (typeof raw === 'string' ? raw : raw?.body) || undefined;
+      const raw = getAttribute(association, 'binding');
+      const binding = (typeof raw === 'string' ? raw : undefined) || undefined;
 
       return ends
         .filter(isDataElement)

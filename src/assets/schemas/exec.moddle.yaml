@@ -4,7 +4,7 @@ name: Exec
 prefix: exec
 description: >-
   The minimal executable layer - what an engine reads to run a diagram: a step's
-  `implementation` and `arguments`, the associated data elements that are its inputs and outputs, and CEL conditions over the values they bind. Studyflow coordinates the calls;
+  `implementation` and `additionalArguments`, the associated data elements that are its inputs and outputs, and CEL conditions over the values they bind. Studyflow coordinates the calls;
   it never encodes the computation itself.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
@@ -12,7 +12,7 @@ core: true   # backs the default elements; always loaded, cannot be disabled
 order: 20  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0717
+version: 26.0730
 
 
 associations: []
@@ -32,11 +32,11 @@ enumerations: []
 # strings and stored in BPMN's own expression elements. Delete one and the
 # field disappears from the panel while the attribute stays in the file.
 #
-# Nothing else here is a duplicate either: `parameter` and `uri`/`codec` are
-# additions BPMN has no equivalent for, and `Transformation` names both
-# association subclasses on purpose — targeting their `bpmn:DataAssociation`
-# ancestor instead drops the attribute from both, since the trait table
-# resolves upward from a concrete type and has no entry for that ancestor.
+# Nothing else here is a duplicate either: `binding` and `uri` are
+# additions BPMN has no equivalent for. `Binding` names both association
+# subclasses on purpose — targeting their `bpmn:DataAssociation` ancestor
+# instead drops the attribute from both, since the trait table resolves
+# upward from a concrete type and has no entry for that ancestor.
 
 types:
 
@@ -44,7 +44,7 @@ types:
   # The software reference. BPMN's own `implementation` attribute ("the
   # technology implementing this task") is redefined once, here, with the
   # versioned reference grammar every executable step uses. The engine
-  # resolves the reference, calls it with `arguments` plus the associated inputs, and
+  # resolves the reference, calls it with `additionalArguments` plus the associated inputs, and
   # binds the return value to the associated outputs; there is no other step
   # contract.
   # ===========================================================================
@@ -69,72 +69,105 @@ types:
             - Execution
 
   # ===========================================================================
+  # The call's configuration. `additionalArguments` is plan, not data flow:
+  # the drawn associations are the ports that move values between steps, and
+  # this holds the literals that parameterize one call. It sits here beside
+  # `implementation` so the executable layer is one schema — reference,
+  # configuration, ports, artifacts — not split across two.
+  # ===========================================================================
+  - name: Arguments
+    description: |
+      Adds `additionalArguments` to every activity: the call's literal
+      configuration, beyond the associated inputs and outputs the drawn
+      associations bind. The name says the contract: these are *additional* -
+      the associations fill the signature first.
+    extends:
+      - bpmn:Activity
+    isAbstract: true
+    properties:
+      - name: additionalArguments
+        description: |
+          Literal arguments for the software named by `implementation`, as
+          YAML (the role GitHub Actions' `with:` plays) - additional to the
+          drawn associations, which fill the signature first; these supply
+          what is left over. The reserved `args` key lists positional
+          arguments.
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 3
+          categories:
+            - Execution
+          condition:
+            language: json
+            body:
+              implementation: $set
+
+  - name: Seed
+    description: |
+      Adds the run's root seed to the process - pinned in the plan, read by
+      the engine, echoed on the as-run record.
+    extends:
+      - bpmn:Process
+    isAbstract: true
+    properties:
+      - name: seed
+        description: |
+          Root seed for runs of this study; every step derives its own from it.
+          Pin it to make runs replayable; leave it unset and the engine draws
+          one and records it on the as-run file.
+        isAttr: true
+        type: Integer
+        meta:
+          optional: true
+          categories:
+            - Execution
+
+  # ===========================================================================
   # Bindings. Inputs and outputs are never listed on a task: they are the
   # data associations drawn on the canvas. Connect a data element to a task
   # and it is an input; connect the task to a data element and it is an output.
-  # `parameter` below only *refines* that detection when the callable's
-  # parameter name differs from the associated element's name. It is the compact
-  # form of BPMN's own ioSpecification mechanism, and the two are losslessly
-  # interchangeable: exported `.bpmn` XML lowers every associated step to a full
-  # `ioSpecification` (a named `bpmn:DataInput` per input association, one `result`
-  # `bpmn:DataOutput`, `inputSet`/`outputSet`), and importing standard files
-  # folds that structure back to this attribute. Field extraction on a data association
-  # is BPMN's own `transformation` expression, not a studyflow attribute.
+  # `binding` below only *refines* that detection, with one attribute per
+  # association: `slot = selection`, each half optional. The slot names
+  # *where* the value goes, the selection *what* value arrives; a selection
+  # is member access and indexing that routes a value between ports, never a
+  # computation - anything that computes is a step with its own
+  # `implementation`, drawn where a reader can see it. Wires coordinate,
+  # steps calculate.
+  #
+  # This is authoring shorthand over BPMN's own spelling, and the two are
+  # losslessly interchangeable: every saved XML form (.bpmn, the payload a
+  # figure embeds) lowers each associated step to a full `ioSpecification`
+  # (a named `bpmn:DataInput` per input association carrying the slot, one
+  # `result` `bpmn:DataOutput`, `inputSet`/`outputSet`) with the selection as
+  # BPMN's native `transformation` expression; opening any of them folds the
+  # structure back to this attribute. Files carry standard BPMN, people edit
+  # one field.
   # ===========================================================================
-  # An association can carry both of the traits below, and they answer different
-  # questions: `parameter` says *which* slot the value fills, `transformation`
-  # says *what* value arrives. One renames, the other computes; neither can
-  # express the other, which is why they are two fields and not one. Together
-  # they read as a sentence — `parameter: X` with `transformation: folds['train']`
-  # puts the training half into `X`.
-  - name: InputBinding
+  - name: Binding
     description: >-
-      Drawn binding: a data input association supplies its source element to one
-      named parameter of the step's callable.
-    extends:
-      - bpmn:DataInputAssociation
-    isAbstract: true
-    properties:
-      - name: parameter
-        description: |
-          Callable parameter the associated value fills (e.g. `X`, `y`); blank binds
-          by the associated element's own name. Two names are positions instead:
-          `self` is the receiver of an unbound method, and `*` appends
-          positionally in declaration order.
-          This chooses *where* the value goes and never alters the value itself;
-          to narrow or reshape it on the way in, add a `transformation`.
-        isAttr: true
-        type: String
-        meta:
-          categories:
-            - General
-
-  - name: Transformation
-    description: |
-      Surfaces BPMN's own `transformation` on data associations: an expression
-      applied to the associated value before it lands. It changes *what* value
-      flows and never which parameter receives it - that is `parameter`.
+      The one binding attribute of a drawn data association: which slot of the
+      call the value fills, and what selection of the source arrives there.
+      Authoring shorthand only - saved XML always carries the lowered
+      standard form instead.
     extends:
       - bpmn:DataInputAssociation
       - bpmn:DataOutputAssociation
     isAbstract: true
     properties:
-      - name: bpmn:transformation
+      - name: binding
         description: |
-          Expression over the associated value; what it evaluates to is what lands.
-          On an *input* association it narrows the source before that value fills
-          the parameter (`folds['train']`), leaving the parameter name to
-          `parameter`. On an *output* association it narrows the return value,
-          which is bound as `result` (`result[0]`) - which is how one call can
-          fill several data elements.
-        type: bpmn:FormalExpression
-        xml:
-          # BPMN's own serialization for this one: the element is named after
-          # the property (`<bpmn:transformation>`), not after its type. Without
-          # this the redefinition loses the base hint and writes
-          # `<bpmn:formalExpression>`, which no BPMN 2.0 XSD accepts here.
-          serialize: property
-        redefines: bpmn:DataAssociation#transformation
+          `slot = selection`, each half optional. On an *input* association the
+          slot is the callable parameter (`X`; blank binds by the element's own
+          name; `self` is an unbound method's receiver, `*` appends
+          positionally) and the selection narrows the source before it lands
+          (`X = folds['train']`; a bare selection like `folds['train']` keeps
+          the default slot). On an *output* association there is no slot - the
+          drawn target is it - so the whole value is a selection over `result`
+          (`result[0]`, `result.figure_`; blank lands the whole return value),
+          which is how one call fills several data elements.
+        isAttr: true
+        type: String
         meta:
           categories:
             - General
@@ -269,17 +302,21 @@ types:
             - Execution
 
   # ===========================================================================
-  # Artifacts. Two fields on every BPMN data element: where the bytes live
-  # (`uri`) and how they are serialized (`codec`). The engine passes associated
-  # data in memory and loads/saves an artifact at its `uri` when one is set -
-  # nothing more.
+  # Artifacts. One field on every BPMN data element: where the bytes live
+  # (`uri`). How they are laid out is `format` - the word the data types
+  # already own (Table, Dataset, Timeseries, and domain wrappers all declare
+  # one), so this schema does not declare a second: the engine reads the
+  # element's `format` wherever its schema put it, and falls back to what the
+  # `uri`'s file extension implies. The engine passes associated data in
+  # memory and loads/saves an artifact at its `uri` when one is set - nothing
+  # more.
   # ===========================================================================
   - name: Artifact
     description: |
       Storage contract, mixed onto every BPMN data element. Unset `uri` means
       the value only flows in memory between steps; set, the engine
-      reads/writes the artifact there, using its declared `codec` (or the
-      engine's registered codec for the file extension).
+      reads/writes the artifact there, in the element's declared `format` (or
+      the one the file extension implies).
     extends:
       - bpmn:ItemAwareElement
     isAbstract: true
@@ -290,13 +327,6 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - Data
-      - name: codec
-        description: Serialization codec used to load/save the artifact (e.g. parquet, json, joblib, zarr).
-        isAttr: true
-        type: String
-        meta:
           categories:
             - Data
 

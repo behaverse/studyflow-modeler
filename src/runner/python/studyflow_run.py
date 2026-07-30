@@ -13,7 +13,7 @@
 #   "scikit-learn>=1.4",
 #   "joblib>=1.3",
 #   "matplotlib>=3.8",
-#   # `codec="parquet"` also needs pandas' parquet engine: `--with pyarrow`.
+#   # `format="parquet"` also needs pandas' parquet engine: `--with pyarrow`.
 # ]
 # ///
 """A reference runner for the studyflow execution contract.
@@ -93,6 +93,23 @@ def bpmn_type(element: ET.Element) -> str:
     """The type as the modeler spells it (`bpmn:ServiceTask`), not as XML does."""
     tag = local(element)
     return f"bpmn:{tag[:1].upper()}{tag[1:]}"
+
+
+def split_binding(text: str | None) -> tuple[str | None, str | None]:
+    """`slot = selection` -> its halves, each optional (the exec:binding grammar).
+
+    A bare identifier (or `self`/`*`) is a slot; `=` splits the halves (`==`
+    belongs to the selection); anything else is a selection alone.
+    """
+    value = (text or "").strip()
+    if not value:
+        return None, None
+    if re.fullmatch(r"self|\*|[A-Za-z_]\w*", value):
+        return value, None
+    both = re.fullmatch(r"(self|\*|[A-Za-z_]\w*)\s*=(?!=)\s*(\S.*)", value)
+    if both:
+        return both.group(1), both.group(2).strip()
+    return None, value
 
 
 # ---------------------------------------------------------------------------
@@ -260,11 +277,20 @@ class Studyflow:
         raise ValueError(f"no start event in {(container or self.process).get('id')}")
 
     def artifact(self, element_id: str) -> tuple[str | None, str | None]:
-        """`uri` and `codec` of a data element, or (None, None)."""
+        """`uri` and `format` of a data element, or (None, None).
+
+        `format` belongs to whichever schema typed the element (a Table's, a
+        domain wrapper's), so it is read by local name across namespaces; the
+        exec layer adds only `uri`.
+        """
         element = self.elements.get(element_id)
         if element is None or local(element) not in DATA_ELEMENT_TAGS:
             return None, None
-        return element.get(f"{{{EXEC}}}uri"), element.get(f"{{{EXEC}}}codec")
+        fmt = next(
+            (v for k, v in element.attrib.items() if k.split("}")[-1] == "format"),
+            None,
+        )
+        return element.get(f"{{{EXEC}}}uri"), fmt
 
     def name_of(self, element_id: str) -> str:
         """The element's `bpmn:name`, or its id when it has none."""
@@ -276,47 +302,47 @@ class Studyflow:
 # Artifacts
 # ---------------------------------------------------------------------------
 
-def codec_for(uri: str, declared: str | None) -> str:
+def format_for(uri: str, declared: str | None) -> str:
     if declared:
         return declared
     return Path(uri).suffix.lstrip(".").lower()
 
 
-def load_artifact(path: Path, codec: str) -> Any:
-    if codec == "parquet":
+def load_artifact(path: Path, fmt: str) -> Any:
+    if fmt == "parquet":
         import pandas
         return pandas.read_parquet(path)
-    if codec == "csv":
+    if fmt == "csv":
         import pandas
         return pandas.read_csv(path)  # see save_artifact on the index
-    if codec == "json":
+    if fmt == "json":
         return json.loads(path.read_text())
-    if codec == "joblib":
+    if fmt == "joblib":
         import joblib
         return joblib.load(path)
-    raise ValueError(f"no codec for {codec!r} ({path})")
+    raise ValueError(f"no handler for format {fmt!r} ({path})")
 
 
-def save_artifact(value: Any, path: Path, codec: str) -> None:
+def save_artifact(value: Any, path: Path, fmt: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if codec == "parquet":
+    if fmt == "parquet":
         value.to_parquet(path)
-    elif codec == "csv":
+    elif fmt == "csv":
         # A CSV has no schema, so the index is a decision: row numbers are not
         # data and go, a meaningful index is what the rows are called and stays.
         import pandas
         positional = isinstance(value.index, pandas.RangeIndex)
         value.to_csv(path, index=not positional)
-    elif codec == "json":
+    elif fmt == "json":
         path.write_text(json.dumps(value, indent=2, default=str))
-    elif codec == "joblib":
+    elif fmt == "joblib":
         import joblib
         joblib.dump(value, path)
-    elif codec in ("png", "svg", "pdf"):
+    elif fmt in ("png", "svg", "pdf"):
         # A figure is an artifact like any other; `savefig` reads the suffix.
         value.savefig(path, dpi=150, bbox_inches="tight")
     else:
-        raise ValueError(f"no codec for {codec!r} ({path})")
+        raise ValueError(f"no handler for format {fmt!r} ({path})")
 
 
 # ---------------------------------------------------------------------------
@@ -513,8 +539,8 @@ class RunRecord:
         if "_clock" in entry:
             self.end(entry)
 
-    def artifact(self, element_id: str, uri: str, codec: str, path: Path, produced_by: str | None) -> None:
-        entry: dict[str, Any] = {"uri": uri, "codec": codec}
+    def artifact(self, element_id: str, uri: str, fmt: str, path: Path, produced_by: str | None) -> None:
+        entry: dict[str, Any] = {"uri": uri, "format": fmt}
         if path.exists():
             data = path.read_bytes()
             entry["bytes"] = len(data)
@@ -567,7 +593,7 @@ class RunRecord:
             "studyflow:status": self.status,
         }
         if self.seed is not None:
-            attributes["studyflow:seed"] = self.seed
+            attributes["exec:seed"] = self.seed
         if log:
             attributes["studyflow:log"] = log
         run = doc.activity("run:run", self.started, finished, attributes)
@@ -581,7 +607,7 @@ class RunRecord:
                 PROV_LABEL: label_of(element_id),
                 "prov:atLocation": artifact["uri"],
                 "exec:uri": artifact["uri"],
-                "exec:codec": artifact["codec"],
+                "exec:format": artifact["format"],
             }
             if "digest" in artifact:
                 attributes["schema:sha256"] = artifact["digest"].removeprefix("sha256:")
@@ -616,9 +642,9 @@ class RunRecord:
             }
             if entry.get("implementation"):
                 attributes["exec:implementation"] = entry["implementation"]
-            if entry.get("arguments"):
-                attributes["studyflow:arguments"] = json.dumps(
-                    entry["arguments"], default=str, ensure_ascii=False,
+            if entry.get("additionalArguments"):
+                attributes["exec:additionalArguments"] = json.dumps(
+                    entry["additionalArguments"], default=str, ensure_ascii=False,
                 )
             # PROV has no notion of a choice, so a branch is an extension —
             # where PROV is silent, not a core term bent to mean something else.
@@ -642,18 +668,16 @@ class RunRecord:
                 doc.wasInformedBy(activity, previous)
             previous = activity
 
-            # A `prov:Usage`'s `prov:role` *is* the `exec:parameter` it filled:
-            # PROV already had the place for a named input.
+            # A `prov:Usage`'s `prov:role` *is* the binding's slot: PROV
+            # already had the place for a named input. The authored `binding`
+            # rides beside it verbatim.
             for bound in entry.get("inputs", []):
                 source = entities.get(bound["sourceRef"])
                 if source is None:
                     continue
-                usage = {
-                    PROV_ROLE: bound["parameter"],
-                    "exec:parameter": bound["parameter"],
-                }
-                if bound.get("transformation"):
-                    usage["exec:transformation"] = bound["transformation"]
+                usage = {PROV_ROLE: bound["parameter"]}
+                if bound.get("binding"):
+                    usage["exec:binding"] = bound["binding"]
                 doc.used(activity, source, other_attributes=usage)
 
             for produced in entry.get("outputs", []):
@@ -661,7 +685,7 @@ class RunRecord:
                 if target is None:
                     continue
                 doc.wasGeneratedBy(target, activity, other_attributes={
-                    "exec:transformation": produced["transformation"],
+                    "exec:binding": produced["binding"],
                 })
                 for source_id in entry.get("used", []):
                     source = entities.get(source_id)
@@ -754,7 +778,7 @@ class RunRecord:
         for element_id, artifact in self.artifacts.items():
             properties: dict[str, Any] = {
                 "name": label_of(element_id),
-                "encodingFormat": artifact["codec"],
+                "encodingFormat": artifact["format"],
             }
             if "digest" in artifact:
                 properties["sha256"] = artifact["digest"].removeprefix("sha256:")
@@ -931,9 +955,7 @@ class Runner:
         self.values: dict[str, Any] = {}
         self.state = State()
         self.depth = 0
-        # An extension attribute serializes unprefixed, so `seed` is read
-        # plainly; the namespaced spelling is accepted too.
-        seed = studyflow.process.get("seed") or studyflow.process.get(f"{{{STUDYFLOW}}}seed")
+        seed = studyflow.process.get(f"{{{EXEC}}}seed")
         self.record = RunRecord(studyflow.plan, seed, started or datetime.now(timezone.utc))
 
     # -- the log ----------------------------------------------------------
@@ -975,17 +997,17 @@ class Runner:
             # in first, so the paths the provenance records are valid there by
             # construction rather than by a copy made afterwards.
             path = self.rundir / uri
-            codec = codec_for(uri, declared)
+            fmt = format_for(uri, declared)
             if not path.exists():
                 self.stage_input(element_id, uri, path)
-            value = load_artifact(path, codec)
+            value = load_artifact(path, fmt)
             self.values[element_id] = value
             # A boundary input: used but not produced, and its digest is what
             # makes the run reproducible.
-            self.record.artifact(element_id, uri, codec, path, None)
+            self.record.artifact(element_id, uri, fmt, path, None)
             self.event(
                 "artifact.loaded",
-                f"    load {uri}  {codec}, {human_bytes(path.stat().st_size)} → {summarize(value)}",
+                f"    load {uri}  {fmt}, {human_bytes(path.stat().st_size)} → {summarize(value)}",
             )
             return value
         raise KeyError(f"nothing has bound {element_id!r} and it declares no uri")
@@ -1077,15 +1099,29 @@ class Runner:
         keywords: dict[str, Any] = {}
         receiver: list[Any] = []
         used: list[str] = []
+        # The standard form names slots structurally: each input association
+        # targets a declared `bpmn:DataInput` whose `name` is the slot.
+        io_slots: dict[str, str] = {}
+        io = next((c for c in element if local(c) == "ioSpecification"), None)
+        if io is not None:
+            for declared_input in io:
+                if local(declared_input) == "dataInput" and declared_input.get("id"):
+                    io_slots[declared_input.get("id")] = declared_input.get("name") or ""
         for association in element:
             if local(association) != "dataInputAssociation":
                 continue
-            parameter = association.get(f"{{{EXEC}}}parameter")
-            # `transformation` and `parameter` are different axes: one is which
-            # value arrives, the other which parameter it fills. The expression
-            # reads the run's namespace, where the source is already bound.
-            narrow = next((c for c in association if local(c) == "transformation"), None)
-            lens = (narrow.text or "").strip() if narrow is not None else ""
+            # One `binding` per association: `slot = selection`, each half
+            # optional. The standard-BPMN spelling (a native `transformation`
+            # child, written by the .bpmn exporter) is read as the selection
+            # when the compact attribute carries none.
+            raw = association.get(f"{{{EXEC}}}binding")
+            slot, lens = split_binding(raw)
+            if not lens:
+                narrow = next((c for c in association if local(c) == "transformation"), None)
+                lens = (narrow.text or "").strip() if narrow is not None else ""
+            if not slot:
+                target = next((c for c in association if local(c) == "targetRef"), None)
+                slot = io_slots.get((target.text or "").strip()) if target is not None else None
             for source in association:
                 if local(source) != "sourceRef":
                     continue
@@ -1093,10 +1129,10 @@ class Runner:
                 value = self.value_of(source_id)
                 if lens:
                     value = self.evaluate(lens)
-                name = parameter or self.studyflow.names.get(source_id) or source_id
+                name = slot or self.studyflow.names.get(source_id) or source_id
                 if name in ("self", "*"):
-                    # Two parameter names are positions, not keywords. `self` is
-                    # an unbound method's receiver — naming it would tie the
+                    # Two slots are positions, not keywords. `self` is an
+                    # unbound method's receiver — naming it would tie the
                     # studyflow to what a library calls its first parameter,
                     # which is not always `self`. `*` appends positionally, the
                     # only way into a `*args` callable like `train_test_split`.
@@ -1108,34 +1144,34 @@ class Runner:
                     # associated twice is two bindings but one thing used.
                     used.append(source_id)
                 bound = {"parameter": name, "sourceRef": source_id}
-                if lens:
-                    bound["transformation"] = lens
+                if raw or lens:
+                    bound["binding"] = raw or lens
                 entry.setdefault("inputs", []).append({**bound, **describe(value)})
                 self.event(
                     "dataInputAssociation.bound",
                     f"    {name} ← {lens or self.studyflow.name_of(source_id)}  {summarize(value)}",
                 )
 
-        declared = element.find(f"{{{STUDYFLOW}}}arguments")
+        declared = element.find(f"{{{EXEC}}}additionalArguments")
         arguments = yaml.safe_load(declared.text) if declared is not None and declared.text else {}
         resolved = self.resolve_arguments(arguments or {})
         positional = receiver + resolved.get("__args__", [])
 
-        # `arguments` are *additional*: associations fill the signature and these
+        # `additionalArguments`: associations fill the signature and these
         # supply what is left, so a name in both is two answers for one
         # parameter — one drawn, one buried. Say so instead of picking.
         clashes = sorted(set(resolved) & set(keywords))
         if clashes:
             raise ValueError(
-                f"{element.get('id')}: {', '.join(clashes)} bound by both a data association and `arguments`. "
-                "Associations fill the signature; `arguments` adds to it — remove one.",
+                f"{element.get('id')}: {', '.join(clashes)} bound by both a data association and `additionalArguments`. "
+                "Associations fill the signature; `additionalArguments` adds to it — remove one.",
             )
         if resolved:
-            # `args` is the reserved key `studyflow:arguments` uses.
+            # `args` is the reserved key `additionalArguments` uses.
             recorded = {k: describe(v) for k, v in resolved.items() if k != "__args__"}
             if resolved.get("__args__"):
                 recorded["args"] = [describe(v) for v in resolved["__args__"]]
-            entry["arguments"] = recorded
+            entry["additionalArguments"] = recorded
         keywords.update({k: v for k, v in resolved.items() if k != "__args__"})
 
         if used:
@@ -1158,14 +1194,19 @@ class Runner:
             if target_ref is None:
                 continue
             target_id = (target_ref.text or "").strip()
-            transformation = next((c for c in association if local(c) == "transformation"), None)
-            expression = (transformation.text or "").strip() if transformation is not None else ""
+            # An output binding is a selection over `result` — the drawn target
+            # is the slot. The native `transformation` child is the same fact in
+            # the standard-BPMN spelling.
+            expression = (association.get(f"{{{EXEC}}}binding") or "").strip()
+            if not expression:
+                narrow = next((c for c in association if local(c) == "transformation"), None)
+                expression = (narrow.text or "").strip() if narrow is not None else ""
             bound_value = self.evaluate(expression, {"result": result}) if expression else result
             self.store(target_id, bound_value)
             entry.setdefault("generated", []).append(target_id)
             entry.setdefault("outputs", []).append({
                 "targetRef": target_id,
-                "transformation": expression or "result",
+                "binding": expression or "result",
                 **describe(bound_value),
             })
             self.event(
@@ -1174,15 +1215,15 @@ class Runner:
                 f"  {summarize(bound_value)}",
             )
 
-            uri, declared_codec = self.studyflow.artifact(target_id)
+            uri, declared_format = self.studyflow.artifact(target_id)
             if uri:
                 path = self.rundir / uri
-                codec = codec_for(uri, declared_codec)
-                save_artifact(bound_value, path, codec)
-                self.record.artifact(target_id, uri, codec, path, entry["node"])
+                fmt = format_for(uri, declared_format)
+                save_artifact(bound_value, path, fmt)
+                self.record.artifact(target_id, uri, fmt, path, entry["node"])
                 self.event(
                     "artifact.saved",
-                    f"    save {uri}  {codec}, {human_bytes(path.stat().st_size)}",
+                    f"    save {uri}  {fmt}, {human_bytes(path.stat().st_size)}",
                 )
 
     def next_element(self, element: ET.Element) -> ET.Element | None:

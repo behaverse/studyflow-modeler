@@ -156,9 +156,9 @@ test.describe('Inspector execution tab', () => {
     // Each binding is editable in place: the second cell is the callable
     // parameter. `estimator` is blank because it binds by the property's own
     // name; the other two name a different parameter.
-    await expect(page.getByLabel('Parameter for x_train')).toHaveValue('X');
-    await expect(page.getByLabel('Parameter for y_train')).toHaveValue('y');
-    await expect(page.getByLabel('Parameter for estimator')).toHaveValue('');
+    await expect(page.getByLabel('Binding for x_train')).toHaveValue('X');
+    await expect(page.getByLabel('Binding for y_train')).toHaveValue('y');
+    await expect(page.getByLabel('Binding for estimator')).toHaveValue('');
 
     // What tells a property row from a drawn one is the row itself, not a
     // word repeated down the column: a property is bound here, so its row
@@ -168,10 +168,10 @@ test.describe('Inspector execution tab', () => {
     // A data association to something drawn is made by drawing it, so its row is inert —
     // no parameter box, no unbind — and names its kind on hover.
     await page.locator('g[data-element-id="Summarize_CV"]').click();
-    await expect(inputs).toContainText('CV fold metrics report → self');
-    await expect(page.getByLabel('Parameter for CV fold metrics report')).toHaveCount(0);
+    await expect(inputs).toContainText('self = CV fold metrics report');
+    await expect(page.getByLabel('Binding for CV fold metrics report')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Unbind CV fold metrics report' })).toHaveCount(0);
-    await expect(inputs.getByTitle('CV fold metrics report → self (data object)')).toBeVisible();
+    await expect(inputs.getByTitle('self = CV fold metrics report (data object)')).toBeVisible();
   });
 
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
@@ -199,7 +199,7 @@ test.describe('Inspector execution tab', () => {
     await expect(page.getByRole('option', { name: 'features', exact: true })).toHaveCount(0);
 
     await page.getByRole('option', { name: 'x_train', exact: true }).click();
-    await page.getByLabel('Parameter for x_train').fill('X');
+    await page.getByLabel('Binding for x_train').fill('X');
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     // Found by its own key at whatever depth it sits, and delimited by
@@ -217,7 +217,7 @@ test.describe('Inspector execution tab', () => {
     // from one drawn on the canvas.
     expect(block).toContain('dataInputAssociations:');
     expect(block).toMatch(/sourceRef:\n\s+- X_Train/);
-    expect(block).toContain('parameter: X');
+    expect(block).toContain('binding: X');
 
     // The id names the BPMN type it creates, so this input association cannot
     // collide with the output association that already produces `x_train` —

@@ -78,11 +78,11 @@ test.describe('studyflow YAML format', () => {
     expect(map.get('implementation')).toBe('python://pkg_for_st.do_map@1.2');
     // `arguments` is a value-typed YAML string (inlined as a mapping in the YAML
     // form); compare parsed content, not whitespace.
-    expect(yaml.load(map.get('studyflow:arguments'))).toEqual({ column: 'rt', fn: 'median' });
+    expect(yaml.load(map.get('exec:additionalArguments'))).toEqual({ column: 'rt', fn: 'median' });
 
     const fetch = study.flowElements.find((el: any) => el.id === 'FetchScript');
     expect(fetch.get('implementation')).toBe('https://example.org/scripts/clean.py@v2');
-    expect(fetch.get('studyflow:arguments')).toBeUndefined();
+    expect(fetch.get('exec:additionalArguments')).toBeUndefined();
   });
 
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {

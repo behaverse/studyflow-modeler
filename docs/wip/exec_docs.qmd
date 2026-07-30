@@ -230,7 +230,7 @@ The schema describes the full semantics; two runners implement complementary hal
 | Sequential walk, exclusive branching, condition expressions | implemented | implemented |
 | Human suspension (participant tasks) | implemented, on every cognitive task | **not supported** — it has no participant |
 | `implementation` / `arguments` | parsed and validated; **not executed** | **executed**, including nested calls and `$` references |
-| Artifacts (`uri`, `codec`) | — | implemented for csv, parquet, json, joblib, and figures |
+| Artifacts (`uri`, `format`) | — | implemented for csv, parquet, json, joblib, and figures |
 | The as-run record | **not implemented** | implemented — a W3C PROV document per run (`provenance.jsonld`, or PROV-N/Turtle/PROV-JSON/PROV-XML), written on failure too, in a `runs/<timestamp>/` directory that also holds the artifacts, the inputs, a copy of the plan, a plain-text `studyflow.log` of the walk, and an `ro-crate-metadata.json` making the whole directory a validated Workflow Run RO-Crate |
 | Parallel gateway | **not supported** — the runner refuses rather than guessing | **not supported** |
 | Sub-process traversal | **not supported** — the runner refuses rather than guessing | implemented — one token, one level in, values unscoped per §10.4.7 |

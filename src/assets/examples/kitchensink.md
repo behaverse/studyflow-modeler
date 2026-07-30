@@ -91,8 +91,8 @@ nested one and two levels down.
 **The calling convention.** A step is one Python call:
 `implementation(*args, **kwargs)`, with the return value bound to the associated
 outputs. The associations fill the signature first — each associated input binds to its
-parameter — and `arguments` holds the *additional* literals the call still
-needs, as plain YAML the runner evaluates with three rules:
+parameter — and `additionalArguments` holds the literals the call still
+needs — additional by name and by contract, as plain YAML the runner evaluates with three rules:
 
 1. the reserved key **`args`** lists positional arguments;
 2. a mapping that itself has an **`implementation`** key is a **nested
@@ -100,14 +100,14 @@ needs, as plain YAML the runner evaluates with three rules:
 3. everything else is a literal keyword argument.
 
 The division of labour is the point: **the associations are the signature, and
-`arguments` is what comes after it.** Anything the step reads is a data association; a name
-bound by both a data association and `arguments` is an error, not a precedence question. A `$Name` reference is also understood, for
+`additionalArguments` is what comes after it.** Anything the step reads is a data association; a name
+bound by both a data association and `additionalArguments` is an error, not a precedence question. A `$Name` reference is also understood, for
 files that use it, but it says in an attribute what a data association says on the diagram —
 and only the association reaches the inspector, the auto-layout, and the run record. So
 `stratify` in `sklearn_pipeline` is a third association into the split rather than
-`stratify: $Target` in its arguments.
+`stratify: $Target` in its additionalArguments.
 
-That is also why `arguments` and `bpmn:Property` stay separate rather than
+That is also why `additionalArguments` and `bpmn:Property` stay separate rather than
 collapsing into one thing. A property is *run state*: declared, typed, scoped,
 written by steps and read by conditions. An argument is *authored
 configuration*: `cv: 5`, `cmap: Blues` — fixed before the run and never
@@ -116,8 +116,8 @@ properties would need a custom `value` attribute (one custom attribute traded
 for another) and would turn every `cv: 5` into a typed declaration plus a data association,
 listed in the State tab beside the values a run actually carries.
 
-An input association's `parameter` names the argument it fills, and two names are
-**positions** rather than keywords. `self` is the receiver of an unbound
+An input association's `binding` names the slot its value fills (`slot = selection`,
+each half optional), and two slots are **positions** rather than keywords. `self` is the receiver of an unbound
 method: it binds first and positionally, because a library's first parameter is
 not always spelled `self` (scikit-learn's `@_fit_context` renames
 `Pipeline.fit`'s to `estimator`) and a diagram that named it would break on a
@@ -129,28 +129,28 @@ Fit:
   implementation: python://sklearn.pipeline.Pipeline.fit
   dataInputAssociations:
     Association_Estimator_Fit:
-      exec:parameter: self    # the receiver: bound first, positionally
+      binding: self           # the receiver: bound first, positionally
       sourceRef: [Estimator]
     Association_Features_Fit:
-      exec:parameter: X
+      binding: X
       sourceRef: [Features]
-  arguments:
-    sample_weight: null      # additional: what the associations did not supply
+  additionalArguments:
+    sample_weight: null    # what the associations did not supply
 ```
 
-An association can also carry BPMN's own `transformation`, and it is a different
-axis rather than another way to spell `parameter`: `parameter` chooses *which*
-slot the value fills, `transformation` chooses *what* value arrives. One renames,
-the other computes. So `parameter: y_true` with
-`bpmn:transformation: folds['test']` puts the test half into `y_true`; on an
-output association the same field narrows the return value instead, as an
-expression over `result`.
+The binding's selection half chooses *what* value arrives, as member access and
+indexing: `binding: y_true = folds['test']` puts the test half into `y_true`.
+On an output association the drawn target is the slot, so the binding is a
+selection over `result` (`binding: result[0]`). Selections route values between
+ports; anything that computes is a step. In saved XML none of this is an
+extension: the binding lowers to BPMN's own `ioSpecification` and
+`transformation` and folds back on open.
 
 `sklearn_pipeline` is this convention end to end, and it really runs: see
 `src/runner/python/` for a Python implementation of the contract that executes
 that example straight out of its `.png`, leaving five artifacts behind —
-including the held-out confusion matrix as a PNG, written by a `png` codec from
-the figure the plotting step returned.
+including the held-out confusion matrix as a PNG, saved straight from the
+figure the plotting step returned (the `.png` uri names the format).
 
 ### The schema stack
 
@@ -650,6 +650,7 @@ brainflow, openbci_gui.
 |---|---|
 | `kitchensink.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
 | `cognitive_battery.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
+| `drawn_loop.png` | **The drawn-cycle guide** — the smallest loop the notation can draw: one printing step, a gateway, and a conditioned back-edge (`state.visits.Gate < 8`), bounded by the engine's own run state rather than any loop marker. Eight turns, then the native `default` edge exits. Runs: `uv run studyflow_run.py drawn_loop.png`. |
 | `sklearn_pipeline.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `src/runner/python/`. |
 | `agent_eval.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
 | `agent_eval_pool.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |

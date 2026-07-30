@@ -13,6 +13,8 @@ The shared domain vocabulary for the Studyflow Modeler — a tool to design (`ap
 | **Extension** | Schema-defined data attached to an element, in one of two storage styles below. | plugin, addon |
 | **Wrapper** | An extension stored as its own element inside `<bpmn:extensionElements>`. | container |
 | **Trait** | An extension whose attributes mix straight onto the business object. | mixin |
+| **Binding** | The contract of one data association: which *slot* of the call the value fills and what *selection* of the source arrives there (`slot = selection`, each half optional). Authored as one attribute; saved XML carries BPMN's own `ioSpecification` + `transformation` instead. | parameter, transformation, mapping |
+| **Selection** | The narrowing half of a binding — member access and indexing that route a value between ports (`result[0]`, `folds['train']`). Never a computation: wires coordinate, steps calculate. | transformation, expression, formula |
 
 ## Element representations
 
