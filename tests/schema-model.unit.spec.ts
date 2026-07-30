@@ -32,7 +32,7 @@ const VALUE_TYPE_SUPER_CLASSES = new Set(['String', 'Boolean', 'Integer', 'Float
  * divergences documented on `toModdlePackages`:
  *
  * 1. Value types (String subtypes) no longer get `Element` appended.
- * 2. Non-attribute properties typed with a value type go on the wire as
+ * 2. Non-attribute properties typed with a value type go on the association as
  *    plain `String`. Before this, moddle silently dropped their text content
  *    on load (`inclusionCriteria`, `exclusionCriteria`, `strata`,
  *    `Document.metadata`) — a data-loss bug.
@@ -90,7 +90,7 @@ test.describe('schema model: moddle package generation', () => {
     }
   });
 
-  test('data-loss-prone list properties go on the wire as String', () => {
+  test('data-loss-prone list properties go on the association as String', () => {
     const byPrefix = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
     const propType = (pkg: any, typeName: string, propName: string) =>
       pkg.types.find((t: any) => t.name === typeName)?.properties.find((p: any) => p.name === propName)?.type;
@@ -100,12 +100,12 @@ test.describe('schema model: moddle package generation', () => {
     expect(propType(byPrefix.cognitive, 'RandomGateway', 'strata')).toBe('String');
   });
 
-  test('value-typed bodies and values go on the wire as String, keeping the authored type', () => {
+  test('value-typed bodies and values go on the association as String, keeping the authored type', () => {
     const byPrefix = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
     const prop = (pkg: any, typeName: string, propName: string) =>
       pkg.types.find((t: any) => t.name === typeName)?.properties.find((p: any) => p.name === propName);
 
-    // moddle only escapes a body typed exactly `String`, so the wire type is
+    // moddle only escapes a body typed exactly `String`, so the association type is
     // flattened while `valueType` records what the YAML codec needs to fold.
     const configValue = prop(byPrefix.cognitive, 'Configurations', 'value');
     expect(configValue.type).toBe('String');

@@ -8,7 +8,7 @@ import { DataFlowSection } from '@/modeler/views/inspector/DataFlowSection';
  * and out of it, and last, how often the whole thing repeats.
  *
  * Declarations before use — the properties are what this element *has*, and the
- * two wire lists are where those values come from and go to, so they read
+ * two association lists are where those values come from and go to, so they read
  * together rather than with the state wedged between them. Repetition applies to
  * all of it, so it comes after rather than between.
  *

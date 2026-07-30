@@ -15,7 +15,7 @@ export function isModdleElement(value: unknown): value is Record<string, any> {
 
 /**
  * Authored value-type of a property. `toModdlePackages` flattens non-attribute
- * value-typed properties' wire type to `String` (so moddle XML-escapes their
+ * value-typed properties' association type to `String` (so moddle XML-escapes their
  * text) but preserves the original in `valueType`, so YAML detection — which
  * must fold `YAMLString` values but not `MarkdownString` ones — survives the
  * flatten.

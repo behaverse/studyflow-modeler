@@ -97,7 +97,7 @@ types:
           categories:
             - General
       - name: systemPrompt
-        description: The agent's standing instructions, in markdown. Wire a `Prompt` element in (a data association) and reference it as `{{name}}` when the wording is itself under study.
+        description: The agent's standing instructions, in markdown. Connect a `Prompt` element (via a data association) and reference it as `{{name}}`.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
@@ -175,7 +175,7 @@ types:
   # ===========================================================================
   # Generic anchors. A model call and a tool call are the two atoms of the
   # layer; prompt-chaining and agent loops are built from them. A tool is an
-  # ordinary step (`implementation` + `arguments` + wired data), so anything a
+  # ordinary step (`implementation` + `arguments` + associated data), so anything a
   # studyflow can run, an agent can call.
   # ===========================================================================
   - name: LLMCall
@@ -198,8 +198,8 @@ types:
             - General
       - name: prompt
         description: |
-          The prompt, in markdown; `{{name}}` is filled from the wired data and
-          the run's variables. Wire in a `Prompt` element instead when the
+          The prompt, in markdown; `{{name}}` is filled from the associated data and
+          the run's variables. Associate a `Prompt` element instead when the
           wording is itself under study.
         isAttr: false
         type: studyflow:MarkdownString
@@ -230,7 +230,7 @@ types:
   - name: Tool
     description: |
       A capability an agent may call. A tool is an ordinary step - same `implementation`
-      and `arguments` as any other activity, same wired data elements as its
+      and `arguments` as any other activity, same associated data elements as its
       interface - so anything a studyflow can run, an agent can call.
     superClass:
       - bpmn:ServiceTask
@@ -292,7 +292,7 @@ types:
   # ===========================================================================
   - name: Prompt
     description: |
-      A prompt as an artifact rather than a string in a script - wired into the
+      A prompt as an artifact rather than a string in a script - associated into the
       calls that read it, so "the same pipeline" really is the same pipeline
       and a wording change is a visible edit to one data element.
     superClass:

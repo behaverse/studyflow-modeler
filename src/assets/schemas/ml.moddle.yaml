@@ -34,7 +34,7 @@ templates:
         make a pipeline runnable before the real data exists. Repoint
         `implementation` at `load_iris`, `fetch_openml`, or your own loader
         (or use a `datatrove:Reader` for files); the step's shape does not
-        change. Wire its output to a `studyflow:Table` so downstream steps
+        change. Association its output to a `studyflow:Table` so downstream steps
         have a typed artifact to read.
       icon: iconify mdi--database-import-outline
       keywords:
@@ -57,7 +57,7 @@ templates:
         in both partitions - the one split parameter that matters in
         human-subjects work. Bound to scikit-learn's
         `GroupShuffleSplit(n_splits, test_size)`; the group labels
-        (participant ids) are not configuration - they arrive as a wired data
+        (participant ids) are not configuration - they arrive as a associated data
         input (`parameter: groups`, exactly `split(X, y, groups)`). Repoint `implementation` at
         `train_test_split` or another splitter when grouping does not matter.
       icon: iconify mdi--call-split
@@ -98,12 +98,12 @@ templates:
       bpmn:name: Build estimator
       type: functional:Transform
       bpmn:documentation: |
-        Builds an *unfitted* estimator that flows down a wire like any table:
+        Builds an *unfitted* estimator that flows down a data association like any table:
         `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1.0))`.
         `make_pipeline` takes its steps positionally, so they go under the
         reserved `args` key, and each step is a nested call - a mapping with
         its own `implementation` and `arguments`, which the runner resolves first.
-        Wire the result into "Cross-validate" and "Fit estimator" so both
+        Association the result into "Cross-validate" and "Fit estimator" so both
         work on exactly the same specification; bind any constructor the same
         way (`sklearn.ensemble.RandomForestClassifier` with its kwargs in
         `arguments`) when a single estimator is enough.
@@ -125,12 +125,12 @@ templates:
       type: functional:Reduce
       bpmn:documentation: |
         The fitting call. `sklearn.pipeline.Pipeline.fit` is the unbound
-        method: wire the estimator in with `parameter: self` and the data
+        method: association the estimator in with `parameter: self` and the data
         with `parameter: X` and `parameter: y` - that is exactly
-        `pipeline.fit(X, y)`. When an argument is a *field* of a wired
+        `pipeline.fit(X, y)`. When an argument is a *field* of a data associated
         element, use a scoped reference in `arguments` instead
         (`y: $MyTable.target`). `fit` returns the fitted estimator, which
-        binds to the wired output. For a bare estimator,
+        binds to the associated output. For a bare estimator,
         bind its own class's method the same way
         (`sklearn.ensemble.RandomForestClassifier.fit`,
         `sklearn.model_selection.GridSearchCV.fit`).
@@ -152,7 +152,7 @@ templates:
         Model specification in the notation behavioural research already
         speaks: the formula *is* the model, so it belongs on the diagram, not
         in a script. `mixedlm(formula, data, groups)` builds the mixed model
-        over the wired table; fit it with a "Fit estimator" step bound to
+        over the associated table; fit it with a "Fit estimator" step bound to
         `statsmodels.regression.mixed_linear_model.MixedLM.fit`. Repoint
         `implementation` at any formula interface (`lme4::lmer`, `bambi`)
         without changing the shape of the step.
@@ -175,7 +175,7 @@ templates:
       bpmn:documentation: |
         Reduce predictions to a metrics report -
         `classification_report(y_true, y_pred, output_dict=True)`, with the
-        true and predicted labels arriving as wired data inputs. For a
+        true and predicted labels arriving as associated data inputs. For a
         fairness audit, put a Group step (by site, by demographic) upstream
         and this same evaluation runs per subgroup.
       icon: iconify mdi--check-decagram-outline
@@ -196,10 +196,10 @@ templates:
       bpmn:documentation: |
         The whole fit-and-score loop as one call -
         `cross_validate(estimator, X, y, cv, scoring)`. Build the estimator
-        with "Build estimator", then wire it and the data in, naming the
-        callable's parameters on the wires: `parameter: estimator`,
+        with "Build estimator", then connect it and the data in, naming the
+        callable's parameters on the associations: `parameter: estimator`,
         `parameter: X`, `parameter: y`; the per-fold scores leave as the
-        wired output.
+        associated output.
         Folds are scikit-learn's business, not the workflow's: put
         preprocessing inside the estimator (`make_pipeline`) and every fold
         refits it without leakage.
@@ -220,7 +220,7 @@ templates:
       type: functional:Transform
       bpmn:documentation: |
         Hyperparameter search, scikit-learn style:
-        `GridSearchCV(estimator, param_grid, cv, scoring)` wraps the wired
+        `GridSearchCV(estimator, param_grid, cv, scoring)` wraps the associated
         base estimator in a search object - which is itself an estimator, so
         fit it with a "Fit estimator" step bound to
         `sklearn.model_selection.GridSearchCV.fit`. Fitting runs the sweep
@@ -244,7 +244,7 @@ templates:
       bpmn:documentation: |
         Lands the fitted model on disk (a file a notebook or a serving job
         can pick up): `joblib.dump(model, filename, compress=3)` - joblib is
-        scikit-learn's own recommended persistence - with the wired model as
+        scikit-learn's own recommended persistence - with the associated model as
         the value and `filename` in `arguments`. Often no step is needed at all:
         set `uri` and `codec: joblib` on the model artifact itself and the
         engine persists it when the fitting step writes it.

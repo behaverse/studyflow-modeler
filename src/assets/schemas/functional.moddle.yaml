@@ -86,9 +86,9 @@ types:
 
   # ---------------------------------------------------------------------------
   # (There is no fan-out trait either: the multi-instance marker is BPMN's own
-  # `loopCharacteristics` child, the collection is the wired data element, the
+  # `loopCharacteristics` child, the collection is the associated data element, the
   # per-instance item is named by the input association's `parameter`, and
-  # instance outputs assemble in order into the wired output. Joining them
+  # instance outputs assemble in order into the associated output. Joining them
   # differently - concatenating tables, folding to a statistic - is an
   # explicit downstream step, not workflow configuration.)
 
@@ -99,9 +99,9 @@ templates:
       type: bpmn:SubProcess
       bpmn:documentation: |
         A native sub-process with BPMN's own multi-instance marker: one
-        instance per element of the wired collection input (the association's
+        instance per element of the associated collection input (the association's
         `parameter` names the current item inside the body), instance outputs
-        assembled in order into the wired collection output - the map step of
+        assembled in order into the associated collection output - the map step of
         a pipeline (per participant, per file, per eval item). Joining the
         outputs differently (concatenate tables, fold to a statistic) is an
         explicit downstream step.

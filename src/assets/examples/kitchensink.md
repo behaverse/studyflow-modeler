@@ -51,24 +51,24 @@ My_Study:
 `incoming`/`outgoing` may be omitted — they are derived from each flow's
 `sourceRef`/`targetRef` on load. Diagram geometry (`bounds`, `waypoint`) is
 optional; the modeler auto-lays-out files that ship without it — including the
-data flow: each data element is placed next to the steps it is wired to and its
+data flow: each data element is placed next to the steps it is connected to and its
 associations are drawn as dashed edges.
 
-**Data flow is the step interface.** Wire a data element to a step with
+**Data flow is the step interface.** Connect a data element to a step with
 `dataInputAssociations` (element → step) and `dataOutputAssociations`
 (step → element); the step's *Inputs*/*Outputs* in the inspector are **inferred
-from these wires** (shown read-only, marked "Inferred") — they are not typed in
+from these associations** (shown read-only, marked "Inferred") — they are not typed in
 by hand:
 
 ```yaml
 Fit:
   type: bpmn:ServiceTask
   dataInputAssociations:
-    Wire_Trials_Fit:
+    Association_Trials_Fit:
       sourceRef:
         - Trials          # data element feeding this step
   dataOutputAssociations:
-    Wire_Fit_Model:
+    Association_Fit_Model:
       targetRef: Model    # artifact this step produces
 ```
 
@@ -77,8 +77,8 @@ line and carries none of the meaning: BPMN has it for pinning a note to a shape,
 so a step "writing" to a dataset over one has no data contract at all — the
 picture says something the file does not.
 
-**Two wires that have no line, both on purpose.** A wire onto a
-`bpmn:Property` never draws, because BPMN never draws a property. A wire that
+**Two associations that have no line, both on purpose.** A data association onto a
+`bpmn:Property` never draws, because BPMN never draws a property. A data association that
 reaches out of a sub-process into an enclosing scope never draws either: scope
 resolution runs outward (§10.4.7), so a step may read a data element its
 container's container declares, but DI puts that element's shape on another
@@ -89,8 +89,8 @@ the optimization loop, so they are declared on the process and read from steps
 nested one and two levels down.
 
 **The calling convention.** A step is one Python call:
-`implementation(*args, **kwargs)`, with the return value bound to the wired
-outputs. The wires fill the signature first — each wired input binds to its
+`implementation(*args, **kwargs)`, with the return value bound to the associated
+outputs. The associations fill the signature first — each associated input binds to its
 parameter — and `arguments` holds the *additional* literals the call still
 needs, as plain YAML the runner evaluates with three rules:
 
@@ -99,12 +99,12 @@ needs, as plain YAML the runner evaluates with three rules:
    call**, resolved first (import, call with its own `arguments`);
 3. everything else is a literal keyword argument.
 
-The division of labour is the point: **the wires are the signature, and
-`arguments` is what comes after it.** Anything the step reads is a wire; a name
-bound by both a wire and `arguments` is an error, not a precedence question. A `$Name` reference is also understood, for
-files that use it, but it says in an attribute what a wire says on the diagram —
-and only the wire reaches the inspector, the auto-layout, and the run record. So
-`stratify` in `sklearn_pipeline` is a third wire into the split rather than
+The division of labour is the point: **the associations are the signature, and
+`arguments` is what comes after it.** Anything the step reads is a data association; a name
+bound by both a data association and `arguments` is an error, not a precedence question. A `$Name` reference is also understood, for
+files that use it, but it says in an attribute what a data association says on the diagram —
+and only the association reaches the inspector, the auto-layout, and the run record. So
+`stratify` in `sklearn_pipeline` is a third association into the split rather than
 `stratify: $Target` in its arguments.
 
 That is also why `arguments` and `bpmn:Property` stay separate rather than
@@ -113,29 +113,29 @@ written by steps and read by conditions. An argument is *authored
 configuration*: `cv: 5`, `cmap: Blues` — fixed before the run and never
 touched by it. BPMN gives a Property no value slot, so folding literals into
 properties would need a custom `value` attribute (one custom attribute traded
-for another) and would turn every `cv: 5` into a typed declaration plus a wire,
+for another) and would turn every `cv: 5` into a typed declaration plus a data association,
 listed in the State tab beside the values a run actually carries.
 
-An input wire's `parameter` names the argument it fills, and two names are
+An input association's `parameter` names the argument it fills, and two names are
 **positions** rather than keywords. `self` is the receiver of an unbound
 method: it binds first and positionally, because a library's first parameter is
 not always spelled `self` (scikit-learn's `@_fit_context` renames
 `Pipeline.fit`'s to `estimator`) and a diagram that named it would break on a
-decorator it cannot see. `*` appends in wire order, which is how data is wired
+decorator it cannot see. `*` appends in declaration order, which is how data is associated
 into a callable whose arguments have no names at all — `train_test_split(*arrays)`.
 
 ```yaml
 Fit:
   implementation: python://sklearn.pipeline.Pipeline.fit
   dataInputAssociations:
-    Wire_Estimator_Fit:
+    Association_Estimator_Fit:
       exec:parameter: self    # the receiver: bound first, positionally
       sourceRef: [Estimator]
-    Wire_Features_Fit:
+    Association_Features_Fit:
       exec:parameter: X
       sourceRef: [Features]
   arguments:
-    sample_weight: null      # additional: what the wires did not supply
+    sample_weight: null      # additional: what the associations did not supply
 ```
 
 `sklearn_pipeline` is this convention end to end, and it really runs: see
@@ -282,7 +282,7 @@ Trials:
 
 Just enough for a small Python engine to run a diagram: a step is one Python
 call (`implementation` names the importable callable, `with` its kwargs, the
-wires its data), plus the loop/sensor flattenings. Everything here is a
+associations its data), plus the loop/sensor flattenings. Everything here is a
 **trait** on a native BPMN element except `Parameters`. Icon set: schema
 badge **E**.
 
@@ -303,7 +303,7 @@ badge **E**.
 
 | Wrapper | BPMN base | Icon | Key attributes |
 |---|---|---|---|
-| `exec:Parameters` | `bpmn:DataObjectReference` | `mdi--tune` | `values` (YAML) — a config dict wired to the steps that read it. |
+| `exec:Parameters` | `bpmn:DataObjectReference` | `mdi--tune` | `values` (YAML) — a config dict associated with the steps that read it. |
 
 ### Templates (presets over native elements)
 **Scheduled start** (timer start event, cron `timeCycle`) ·
@@ -353,9 +353,9 @@ Per_Subject:
   name: For each subject
   loopCharacteristics:
     type: bpmn:MultiInstanceLoopCharacteristics
-  # fans out over the wired collection input; the association's `parameter`
+  # fans out over the associated collection input; the association's `parameter`
   # names the current item, and instance outputs assemble in order into the
-  # wired output - joining them differently is an explicit downstream step
+  # associated output - joining them differently is an explicit downstream step
 ```
 
 ---
@@ -424,7 +424,7 @@ See the `bot_claude`, `bot_ollama`, `bot_external`, `agent_eval_pool`, and
 **Templates only — this schema declares no element types** (the omniprocess
 pattern). An ML pipeline is a data pipeline, so every step preset binds a
 **functional operation** to a concrete sklearn function: building an
-estimator is a `functional:Transform` (an unfitted estimator on a wire),
+estimator is a `functional:Transform` (an unfitted estimator on a data association),
 fitting/scoring a `functional:Reduce` (rows in, one artifact out) —
 with the function in BPMN's own `implementation` and arguments in `with`.
 Cross-validation and sweeps are a native `bpmn:SubProcess` with the exec
@@ -439,16 +439,16 @@ Train/test split (Transform, `splitData`, group-aware `GroupShuffleSplit`) ·
 Reduce dimensions (Map, `project`, `sklearn.decomposition.PCA`) ·
 Build estimator (Transform, `build`, `make_pipeline(PCA(...), SVC(...))`) ·
 Fit estimator (Reduce, `fit`, `sklearn.pipeline.Pipeline.fit` — the unbound
-method; the wired estimator is its first argument) · Formula model
+method; the associated estimator is its first argument) · Formula model
 (Transform, `build`, `mixedlm(formula, data, groups)`) · Evaluate (Reduce,
 `evaluate`, `classification_report(output_dict=True)`) · Cross-validate
 (Reduce, `crossValidate`, `cross_validate(estimator, X, y, cv, scoring)` —
-estimator by wire) · Grid search (Transform, `build`,
+estimator by association) · Grid search (Transform, `build`,
 `GridSearchCV(estimator, param_grid, cv)` — fit the search object with Fit
 estimator) · Save model (Writer with `path`,
 `joblib.dump(model, path, compress)`).
 
-Estimators are data: constructors build them (unfitted, on a wire), `.fit`
+Estimators are data: constructors build them (unfitted, on a data association), `.fit`
 unbound methods train them. Folds and sweeps are scikit-learn's business, not
 workflow constructs — put preprocessing inside the estimator
 (`make_pipeline(PCA(...), SVC(...))`) and `cross_validate`/`GridSearchCV`
@@ -574,7 +574,7 @@ task → unmount → export).
 > Note: `modalities` is an `isMany` enum. The moddle XML writer can serialize a
 > **single** enum value but not a repeated one, so the companion diagram's
 > OpenBCIRecording sets `format`/`eegChannels` only. In a real study, list
-> modalities on the wired `studyflow:Timeseries` elements (which carry
+> modalities on the associated `studyflow:Timeseries` elements (which carry
 > `samplingRate`/`channelCount`/`units`) or in `documentation`.
 
 ---

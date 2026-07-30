@@ -13,20 +13,20 @@ import {
 import { getPropertiesInScope } from '@/modeler/models/inspector/stateProperties';
 import { field as s } from '@/modeler/infra/styles';
 
-/** What both directions share, said once and appended to each. A drawn wire is
+/** What both directions share, said once and appended to each. A drawn edge is
  *  made by drawing it, so only the undrawable half needs explaining here. */
-const HOW_WIRES_ARE_MADE =
-  ' Drawn wires are read-only here; make a property\'s wire with +. A row '
+const HOW_ASSOCIATIONS_ARE_MADE =
+  ' Drawn associations are read-only here; make a property\'s association with +. A row '
   + 'tagged with another container reaches out of this sub-process, so it has '
   + 'no line on this canvas.';
 
 const INPUT_DESCRIPTION =
   'What this step reads, each bound to the callable parameter in the second '
-  + 'box (blank binds by the element\'s own name).' + HOW_WIRES_ARE_MADE;
+  + 'box (blank binds by the element\'s own name).' + HOW_ASSOCIATIONS_ARE_MADE;
 
 const OUTPUT_DESCRIPTION =
   'Where this step\'s return value lands, narrowed by an expression over '
-  + '`result` in the second box (blank lands the whole value).' + HOW_WIRES_ARE_MADE;
+  + '`result` in the second box (blank lands the whole value).' + HOW_ASSOCIATIONS_ARE_MADE;
 
 type Direction = 'input' | 'output';
 
@@ -43,7 +43,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
   const modeler = useModeler();
   const eventBus = modeler.get('eventBus');
 
-  // Wires change on the canvas and here alike - re-derive on any change.
+  // Associations change on the canvas and here alike - re-derive on any change.
   const [, setRevision] = useState(0);
   useEffect(() => {
     const bump = () => setRevision((r) => r + 1);
@@ -61,8 +61,8 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
     output: supportsDataAssociations(element, 'outputs'),
   };
 
-  // Nowhere for a wire of this direction to live (a start event has no inputs),
-  // or nothing wired and nothing declarable: no contract to show.
+  // Nowhere for a data association of this direction to live (a start event has no inputs),
+  // or nothing associated and nothing declarable: no contract to show.
   if (!supported[direction]) return null;
   if (neighbors[direction].length === 0 && inScope.length === 0) return null;
 
@@ -70,8 +70,8 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
     executeCommand(modeler, { type: 'update-data-binding', element, ...command });
 
   const unbound = (direction: Direction) => {
-    const wired = new Set(neighbors[direction].filter((n) => n.declared).map((n) => n.name));
-    return inScope.filter((property) => !wired.has(property.name));
+    const associated = new Set(neighbors[direction].filter((n) => n.declared).map((n) => n.name));
+    return inScope.filter((property) => !associated.has(property.name));
   };
 
   const row = (direction: Direction, neighbor: DataNeighbor) => {
@@ -90,7 +90,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
           {neighbor.outerScope && (
             <span
               className={s.dataFlowScope}
-              title={`Declared in ${neighbor.outerScope}. BPMN draws that scope on another plane, so this wire has no line on this canvas.`}
+              title={`Declared in ${neighbor.outerScope}. BPMN draws that scope on another plane, so this association has no line on this canvas.`}
             >
               in {neighbor.outerScope}
             </span>

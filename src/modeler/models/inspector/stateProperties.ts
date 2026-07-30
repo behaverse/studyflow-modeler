@@ -82,11 +82,11 @@ export function isScopeContainer(element: any): boolean {
 /**
  * The name bpmn-js gives the `bpmn:Property` it invents to satisfy the XSD.
  *
- * A `bpmn:DataInputAssociation` requires a `targetRef`, but drawing a wire from
+ * A `bpmn:DataInputAssociation` requires a `targetRef`, but drawing a data association from
  * a data object to a step says nothing about what it lands on, so bpmn-js's
  * `DataInputAssociationBehavior` parks the reference on a placeholder Property
  * it adds to the activity. It is an artifact of the file format, not something
- * the study declares: every wire drawn on the canvas would otherwise show up in
+ * the study declares: every association drawn on the canvas would otherwise show up in
  * the State tab as a variable nobody named, and be offered as a bind target in
  * the data-flow list.
  */

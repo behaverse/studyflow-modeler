@@ -11,7 +11,7 @@ import { exampleStudyflow } from './utils';
 
 /**
  * The standard-BPMN I/O boundary passes: exported `.bpmn` XML carries the
- * full `ioSpecification` structure (named DataInputs per wire, a `result`
+ * full `ioSpecification` structure (named DataInputs per association, a `result`
  * DataOutput, InputSet/OutputSet, natively retargeted associations, no
  * binding extension attributes), and reading that XML back folds it into the
  * compact `parameter` form losslessly.
@@ -34,7 +34,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.png'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
-    // The wired step's parameters became named DataInputs of an ioSpecification.
+    // The step with data associations's parameters became named DataInputs of an ioSpecification.
     expect(standardXml).toContain('<bpmn:ioSpecification id="Cross_Validate_io">');
     expect(standardXml).toContain('<bpmn:dataInput id="Cross_Validate_in_estimator" name="estimator" />');
     expect(standardXml).toContain('<bpmn:dataInput id="Cross_Validate_in_X" name="X" />');
@@ -62,7 +62,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
 
   test('a default-named binding folds back without a parameter attribute', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    // Wire_Prompt_In in agent_eval carries no `parameter` (binding defaults
+    // DataInput_Prompt_In in agent_eval carries no `parameter` (binding defaults
     // to the element's name) - the round trip must not invent one.
     const agentYaml = await exampleYaml('agent_eval.png');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);

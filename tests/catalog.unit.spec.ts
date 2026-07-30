@@ -214,11 +214,11 @@ test.describe('catalog: type parity with moddle', () => {
 
         for (const [name, spec] of catalogSpecs) {
           const desc = moddleExtension.get(name);
-          // Value types (String subtypes) go on the wire as plain String for
+          // Value types (String subtypes) go on the association as plain String for
           // non-attr properties (see toModdlePackages); the catalog keeps the
           // authored type as the UI hint.
-          const wireString = desc.type === 'String' && VALUE_TYPES.has(spec.type);
-          if (!wireString) expect(spec.type, `${qname}#${name} type`).toBe(desc.type);
+          const associationString = desc.type === 'String' && VALUE_TYPES.has(spec.type);
+          if (!associationString) expect(spec.type, `${qname}#${name} type`).toBe(desc.type);
           expect(spec.default, `${qname}#${name} default`).toEqual(desc.default);
           expect(!!spec.isMany, `${qname}#${name} isMany`).toBe(!!desc.isMany);
           expect(!!spec.isBody, `${qname}#${name} isBody`).toBe(!!desc.isBody);
@@ -233,7 +233,7 @@ test.describe('catalog: type parity with moddle', () => {
           const descriptor = moddle.registry.getEffectiveDescriptor(spec.type);
           const bodyDesc = (descriptor.properties ?? []).find((p: any) => p.isBody);
           expect(bodyDesc?.name, `${entry.name}#${spec.name} bodyProp`).toBe(spec.bodyProp);
-          // A value-typed body goes on the wire as `String` (so moddle escapes
+          // A value-typed body goes on the association as `String` (so moddle escapes
           // its markup), with the authored type preserved in `valueType`.
           const bodyType = bodyDesc?.valueType ?? bodyDesc?.type;
           expect(bodyType, `${entry.name}#${spec.name} bodyType`).toBe(spec.bodyType);

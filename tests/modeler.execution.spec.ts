@@ -7,11 +7,11 @@ import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownl
 
 /**
  * The inspector's Execution tab: `bpmn:Property` declarations, typed by a
- * shared `bpmn:ItemDefinition`, above the data associations that wire them
+ * shared `bpmn:ItemDefinition`, above the data associations that connect them
  * into the step.
  *
  * Properties are never drawn (BPMN 2.0 §10.3.1), so this tab is the only
- * place they are authored and the only place their wires can be made; what
+ * place they are authored and the only place their associations can be made; what
  * declares one also scopes it (§10.4.7). The tab is offered on processes,
  * activities, and events — the three element kinds the standard allows to
  * carry properties — and nowhere else.
@@ -138,7 +138,7 @@ test.describe('Inspector execution tab', () => {
     await page.getByTestId('modeler-canvas').hover();
     await page.mouse.wheel(0, -160);
 
-    // Every input of this step is a declared property, so it has no drawn wire
+    // Every input of this step is a declared property, so it has no drawn edge
     // at all. Reading the canvas would report an empty data contract; reading
     // the model reports the real one.
     await page.locator('g[data-element-id="Cross_Validate"]').click();
@@ -165,7 +165,7 @@ test.describe('Inspector execution tab', () => {
     // edits and unbinds.
     await expect(page.getByRole('button', { name: 'Unbind x_train' })).toBeVisible();
 
-    // A wire to something drawn is made by drawing it, so its row is inert —
+    // A data association to something drawn is made by drawing it, so its row is inert —
     // no parameter box, no unbind — and names its kind on hover.
     await page.locator('g[data-element-id="Summarize_CV"]').click();
     await expect(inputs).toContainText('CV fold metrics report → self');
@@ -174,7 +174,7 @@ test.describe('Inspector execution tab', () => {
     await expect(inputs.getByTitle('CV fold metrics report → self (data object)')).toBeVisible();
   });
 
-  test('a property is wired to a step from the inspector, and the wire persists', async ({ page }) => {
+  test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
     await gotoModeler(page);
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'sklearn_pipeline.png',
@@ -219,11 +219,13 @@ test.describe('Inspector execution tab', () => {
     expect(block).toMatch(/sourceRef:\n\s+- X_Train/);
     expect(block).toContain('parameter: X');
 
-    // `Wire_Features` is already taken by Select_Features' output wire, and
-    // BPMN ids are document-scoped: reusing it would make the two collapse
-    // into one on the next parse, losing this binding from the saved file.
-    expect(block).not.toMatch(/Wire_Features:\s*$/m);
-    expect(studyflowText.match(/Wire_Features:/g) ?? []).toHaveLength(1);
+    // The id names the BPMN type it creates, so this input association cannot
+    // collide with the output association that already produces `x_train` —
+    // `DataOutput_X_Train`. It has to be unique either way: BPMN ids are
+    // document-scoped, and two associations sharing one collapse into a single
+    // element on the next parse, losing this binding from the saved file.
+    expect(studyflowText.match(/DataInput_X_Train:/g) ?? []).toHaveLength(1);
+    expect(studyflowText).toContain('DataOutput_X_Train:');
   });
 
   test('a gateway gets no Execution tab', async ({ page }) => {

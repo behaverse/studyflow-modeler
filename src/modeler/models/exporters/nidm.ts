@@ -83,7 +83,7 @@ export function exportToNidm(modeler: any): string {
   if (activities.length === 0 && entities.size === 0) {
     return `${PREFIXES}
 # No data-operation activities or data-plane elements found in this diagram.
-# Add a Transform / Map / Filter / Reduce task wired to a Dataset to populate this export.
+# Add a Transform / Map / Filter / Reduce task associated with a Dataset to populate this export.
 
 <#diagram> a prov:Bundle ;
   dct:title "${escape(diagramName)}" ;

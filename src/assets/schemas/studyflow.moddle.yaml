@@ -326,7 +326,7 @@ types:
   - name: Arguments
     description: |
       Augments any BPMN Activity with the `arguments` mapping - what the call
-      needs *beyond* its wired inputs and outputs, which are the data
+      needs *beyond* its associated inputs and outputs, which are the data
       associations drawn on the canvas.
     extends:
       - bpmn:Activity
@@ -336,7 +336,7 @@ types:
         description: |
           *Additional* literal arguments for the software named by
           `implementation`, as YAML (the role GitHub Actions' `with:` plays).
-          The wires fill the signature first - each wired input binds to its
+          The associations fill the signature first - each associated input binds to its
           parameter - and these supply what is left over; the reserved `args`
           key lists positional arguments.
         isAttr: false

@@ -35,15 +35,15 @@ example:
   * A step is one call. `implementation` names it as `python://<import path>`;
     the import path may reach into a class (`pandas.DataFrame.drop`), which is
     how an unbound method becomes a step.
-  * Inputs are the step's data associations, not a list on the step. Each wired
+  * Inputs are the step's data associations, not a list on the step. Each associated
     input binds to the callable parameter named by the association's
-    `exec:parameter`, defaulting to the wired element's own name.
+    `exec:parameter`, defaulting to the associated element's own name.
   * `studyflow:arguments` is a YAML mapping of the remaining keyword arguments,
     with three rules on top of plain literals: the reserved key `args` holds
-    positional arguments, a `$Name` / `$Name.field` string reads a wired value,
+    positional arguments, a `$Name` / `$Name.field` string reads a associated value,
     and a nested mapping carrying its own `implementation` is a call to make
     first (which is how a pipeline gets its estimators).
-  * The return value binds to the wired outputs. An output association may
+  * The return value binds to the associated outputs. An output association may
     narrow it through BPMN's own `transformation`, an expression over `result`.
   * A data element with a `uri` is an artifact: it is loaded before its first
     consumer and written after its producer, through the `codec` it declares
@@ -436,7 +436,7 @@ class Runner:
         return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - see module docstring
 
     def value_of(self, element_id: str) -> Any:
-        """The current value of a wired element: what a step already produced,
+        """The current value of a associated element: what a step already produced,
         or the artifact at its `uri`."""
         if element_id in self.values:
             return self.values[element_id]
@@ -459,7 +459,7 @@ class Runner:
 
     # -- arguments --------------------------------------------------------
     def resolve_argument(self, value: Any) -> Any:
-        """`$Name` / `$Name.field` reads a wired value; a mapping with its own
+        """`$Name` / `$Name.field` reads a associated value; a mapping with its own
         `implementation` is a call to make first; anything else is a literal."""
         if isinstance(value, str) and value.startswith("$"):
             reference = value[1:]
@@ -519,8 +519,8 @@ class Runner:
                     # first parameter, which is not always `self` —
                     # scikit-learn's `@_fit_context` decorator, for one, renames
                     # `Pipeline.fit`'s to `estimator`. `*` appends to the
-                    # positional arguments in wire order, which is the only way
-                    # to wire data into a `*args` callable such as
+                    # positional arguments in declaration order, which is the only way
+                    # to feed data into a `*args` callable such as
                     # `train_test_split(*arrays)`, where the arguments have no
                     # names at all.
                     receiver.append(value)
@@ -538,15 +538,15 @@ class Runner:
         resolved = self.resolve_arguments(arguments or {})
         positional = receiver + resolved.pop("__args__", [])
 
-        # `arguments` are *additional*: the wires fill the signature first, and
+        # `arguments` are *additional*: the associations fill the signature first, and
         # these supply what is left. So a name in both is not a precedence
         # question to settle silently — it is two answers for one parameter, one
         # drawn and one buried in an attribute. Say so instead of picking.
         clashes = sorted(set(resolved) & set(keywords))
         if clashes:
             raise ValueError(
-                f"{element.get('id')}: {', '.join(clashes)} bound by both a wire and `arguments`. "
-                "Wires fill the signature; `arguments` adds to it — remove one.",
+                f"{element.get('id')}: {', '.join(clashes)} bound by both a data association and `arguments`. "
+                "Associations fill the signature; `arguments` adds to it — remove one.",
             )
         keywords.update(resolved)
 

@@ -13,7 +13,7 @@ The Behaverse Data Server can execute a `.studyflow` file as a live study: parti
 ## Publish from the modeler
 
 1. Sign in with your Behaverse API key.
-2. Confirm the diagram is valid: every start event has an outgoing flow, every end event has an incoming flow, gateways are fully wired. The modeler highlights validation issues in the inspector.
+2. Confirm the diagram is valid: every start event has an outgoing flow, every end event has an incoming flow, gateways are fully connected.
 3. Open *File &rarr; Publish*. The modeler uploads the `.studyflow` file to your account on the data server.
 
 <figure class="centered max-w-md">

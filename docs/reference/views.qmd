@@ -13,7 +13,7 @@ The Study view is **structural**. It shows what happens and in what order, but d
 
 - Methods sections that need to describe procedure.
 - Reviewers checking the logical structure of a study.
-- Pipeline authors wiring up data flow.
+- Pipeline authors connecting data flow.
 
 ## Timeline view
 

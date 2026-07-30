@@ -3,7 +3,7 @@ import { is } from 'bpmn-js/lib/util/ModelUtil';
 /**
  * Pure routing decision for the token simulator: given a BPMN element, decide
  * where a token flowing through it should go next. This encodes the flow-walk
- * logic only — the animation, SVG, and canvas wiring live in TokenSimulator.
+ * logic only — the animation, SVG, and canvas associating live in TokenSimulator.
  *
  * - `end`: the element is an EndEvent; the token is consumed (popped).
  * - `deadend`: no outgoing SequenceFlows; the token bounces in place.

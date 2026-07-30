@@ -6,7 +6,7 @@ The shared domain vocabulary for the Studyflow Modeler — a tool to design (`ap
 
 | Term | Definition | Aliases to avoid |
 | --- | --- | --- |
-| **Studyflow** | An experimental research workflow notation; its serialized form is a `.studyflow` YAML file, folded to/from BPMN 2.0 XML on the wire. | study, flow, workflow, process, diagram |
+| **Studyflow** | An experimental research workflow notation; its serialized form is a `.studyflow` YAML file, folded to/from BPMN 2.0 XML on the association. | study, flow, workflow, process, diagram |
 | **Schema** | A moddle YAML file that extends the BPMN 2.0 metamodel with the domain-specific types, attributes, and enumerations available to a Studyflow. | metamodel, model definition, ontology |
 | **Catalog** | The compiled, queryable form of the loaded schemas — the single source of what the app knows about types and attributes. | registry, type system |
 | **Attribute** | A named, catalog-declared property of an element, independent of where its value is stored. | property, field, prop |

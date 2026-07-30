@@ -39,23 +39,30 @@ function findPropertyInScope(businessObject: any, propertyId: string): any {
 }
 
 /**
- * Readable, collision-free id, in the shape the shipped examples use.
+ * Readable, collision-free id, named for the BPMN type it creates
+ * (`bpmn:DataInputAssociation` -> `DataInput_…`), as the shipped examples are.
  *
  * BPMN ids are scoped to the whole document, not to the activity: a diagram
- * that already wires `Features` somewhere else has claimed `Wire_Features`,
+ * that already associates `Features` somewhere else has claimed
+ * `DataInput_Features`,
  * and reusing it makes the two collapse into one on the next parse — the
  * binding would look right in the editor and be gone from the saved file. So
  * ask the model's own id registry, which tracks every id it imported or
  * issued, and only fall back to a local scan if it is unavailable.
  */
-function nextWireId(moddle: any, businessObject: any, propertyId: string): string {
+function nextAssociationId(
+  moddle: any,
+  businessObject: any,
+  propertyId: string,
+  direction: 'input' | 'output',
+): string {
   const local = new Set(
     [...associationsOf(businessObject, 'input'), ...associationsOf(businessObject, 'output')]
       .map((a: any) => a?.id),
   );
   const taken = (id: string) => local.has(id) || Boolean(moddle?.ids?.assigned?.(id));
 
-  const base = `Wire_${propertyId}`;
+  const base = `${direction === 'input' ? 'DataInput' : 'DataOutput'}_${propertyId}`;
   let id = base;
   for (let n = 2; taken(id); n += 1) id = `${base}_${n}`;
   return id;
@@ -64,7 +71,7 @@ function nextWireId(moddle: any, businessObject: any, propertyId: string): strin
 /**
  * Bind, unbind, or re-bind one declared variable on this step.
  *
- * A wire to a drawn data element is created by drawing it; a property has no
+ * A data association to a drawn data element is created by drawing it; a property has no
  * shape, so there is nothing to draw to and this is where its binding is made.
  * Both produce the same BPMN construct — a data association on the activity —
  * so a diagram authored either way serializes identically.
@@ -85,7 +92,7 @@ export function runUpdateDataBinding(modeler: any, command: UpdateDataBindingCom
     if (!property) return;
 
     const association = modeler.get('bpmnFactory').create(TYPE_BY_DIRECTION[direction], {
-      id: nextWireId(modeler.get('moddle'), businessObject, command.propertyId),
+      id: nextAssociationId(modeler.get('moddle'), businessObject, command.propertyId, direction),
       ...(direction === 'input' ? { sourceRef: [property] } : { targetRef: property }),
     });
     association.$parent = businessObject;

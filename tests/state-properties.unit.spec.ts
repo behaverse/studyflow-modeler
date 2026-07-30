@@ -68,7 +68,7 @@ test.describe('state as bpmn:Property', () => {
     for (const decl of stateDecls) expect(decl).not.toContain('studyflow:');
   });
 
-  test('an output wire narrows a return value into a property, in BPMN\'s own form', async () => {
+  test('an output association narrows a return value into a property, in BPMN\'s own form', async () => {
     const source = await exampleStudyflow('sklearn_pipeline.png', moddle());
     const xml = await studyflowToXml(source, moddle());
 
@@ -117,7 +117,7 @@ test.describe('state as bpmn:Property', () => {
     // ... battery-scoped state on the sub-process (BPMN §10.4.7 nesting) ...
     expect(battery.properties.map((p: any) => p.name)).toEqual(['failed_trials']);
 
-    // ... and the wires resolve to those declarations rather than to loose
+    // ... and the associations resolve to those declarations rather than to loose
     // strings, reaching up the scope chain for `arm` and staying inside the
     // battery for `failed_trials`.
     expect(trial.dataInputAssociations[0].sourceRef[0]).toBe(process.properties[0]);

@@ -172,13 +172,13 @@ before implementing it. In short:
 | In the diagram | At run time |
 |---|---|
 | `implementation="python://pkg.mod.fn"` | the callable to import; the path may reach into a class, which is how an unbound method becomes a step |
-| a data input association | one argument, named by `exec:parameter`, defaulting to the wired element's name |
+| a data input association | one argument, named by `exec:parameter`, defaulting to the associated element's name |
 | `exec:parameter="self"` | the receiver of an unbound method — bound first and positionally |
-| `exec:parameter="*"` | appended to the positional arguments in wire order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
-| `studyflow:arguments` | the *additional* arguments, as YAML — what the call needs beyond the wires that already filled its signature: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both a wire and `arguments` is refused rather than silently resolved |
+| `exec:parameter="*"` | appended to the positional arguments in declaration order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
+| `studyflow:arguments` | the *additional* arguments, as YAML — what the call needs beyond the associations that already filled its signature: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both a data association and `arguments` is refused rather than silently resolved |
 | a data output association | where the return value lands; `bpmn:transformation` narrows it as an expression over `result` |
 | `exec:uri` on a data element | an artifact: loaded before its first consumer, written after its producer, through `exec:codec` or the extension |
-| `exec:codec="png"` | a figure artifact: the plotting step returns scikit-learn's display object, the output wire narrows it to a matplotlib figure with `result.figure_`, and the codec calls `savefig`. Nothing about plotting is a notation concept |
+| `exec:codec="png"` | a figure artifact: the plotting step returns scikit-learn's display object, the output association narrows it to a matplotlib figure with `result.figure_`, and the codec calls `savefig`. Nothing about plotting is a notation concept |
 | `exec:codec="csv"` | the example's tabular artifacts. A CSV has no schema, so the codec decides what happens to a frame's index: row numbers are dropped, a meaningful index is kept as a leading column (which is why the metric summary names `mean` in its first column), and a CSV read back gives columns rather than that index. Declaring `parquet` instead keeps the distinction — and needs `--with pyarrow` |
 | no `uri` (i.e. a `bpmn:Property`) | a value that only passes between steps in memory |
 | `conditionExpression` on a flow out of a gateway | the branch rule; the gateway's `default` when none holds |

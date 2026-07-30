@@ -44,23 +44,23 @@ function kindOf(element: any): string {
 }
 
 export type DataNeighbor = {
-  /** Display name of the wired data element. */
+  /** Display name of the associated data element. */
   name: string;
   /** `parameter` (inputs) / the native `transformation` expression (outputs)
    *  declared on the association; unset means the whole value flows, bound
    *  by the element's name. */
   binding?: string;
   /** True when the other end is a `bpmn:Property` — declared on an element and
-   *  never drawn, so this is the only place its wire can be edited. */
+   *  never drawn, so this is the only place its association can be edited. */
   declared: boolean;
-  /** BPMN's own name for the wired element: property, data object, data store. */
+  /** BPMN's own name for the associated element: property, data object, data store. */
   kind: string;
   /** Name of the container declaring the element, when that is not the step's
-   *  own — the wire then reaches out of this plane and cannot be drawn. Unset
+   *  own — the association then reaches out of this plane and cannot be drawn. Unset
    *  for the ordinary case of a sibling on the same canvas. */
   outerScope?: string;
   /** Id of the data association carrying this binding, so the inspector can
-   *  edit or remove the wire it came from. */
+   *  edit or remove the association it came from. */
   associationId?: string;
 };
 
@@ -72,11 +72,11 @@ function containerOf(element: any): any {
 }
 
 /**
- * Where a wired element sits relative to the step, when that is worth saying.
+ * Where a associated element sits relative to the step, when that is worth saying.
  *
  * BPMN resolves a data association outward through the containers around a step
  * (§10.4.7), so a task inside a sub-process may legitimately read a data object
- * declared by the process around it. What it may *not* do is show that wire:
+ * declared by the process around it. What it may *not* do is show that association:
  * DI draws a collapsed sub-process as one shape on its parent's plane and gives
  * its contents a plane of their own, and an edge cannot span two planes. The
  * association is real, the binding is real, and there is nowhere to draw it —
@@ -109,8 +109,8 @@ export function supportsDataAssociations(element: any, direction: 'inputs' | 'ou
  * associations it carries.
  *
  * These are read from the business object rather than from canvas
- * connections, because only some of them are drawable. A wire to a data object
- * or store has a shape at both ends and renders; a wire to a `bpmn:Property`
+ * connections, because only some of them are drawable. A data association to a data object
+ * or store has a shape at both ends and renders; a data association to a `bpmn:Property`
  * has no shape to land on, since BPMN never draws properties. Reading the
  * semantic model shows both, so a step bound entirely to declared variables
  * still reports its data contract here instead of looking like it has none.

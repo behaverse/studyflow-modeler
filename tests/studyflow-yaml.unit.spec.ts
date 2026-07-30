@@ -46,7 +46,7 @@ function studyflowOf(file: string): Promise<string> {
 
 test.describe('studyflow YAML format', () => {
   test('isMany value-typed lists survive a load (data-loss regression)', async () => {
-    // Before toModdlePackages rewrote value-typed wire formats to String,
+    // Before toModdlePackages rewrote value-typed association formats to String,
     // moddle silently dropped this text on every XML load.
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const text = await studyflowOf('spirit2025.png');

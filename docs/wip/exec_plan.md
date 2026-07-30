@@ -51,7 +51,7 @@ One runner change was needed and made: `agentic:Router` declares `meta.branching
 
 ~~ForEach/Sweep draw no ∥∥∥ marker~~ — closed: the templates and examples now carry BPMN's own `loopCharacteristics` child, which is exactly what the renderer keys markers on. A sub-process someone builds by hand still needs the child added for the marker; the inspector cannot edit it yet.
 
-Data associations authored in a DI-less `.studyflow` round-trip and parse, but the auto-layout does not yet give the association *edges* waypoints, so they are not drawn until a user wires them interactively. Same Stage 2 bucket: extend the missing-DI auto-layout to data-association edges.
+Data associations authored in a DI-less `.studyflow` round-trip and parse, but the auto-layout does not yet give the association *edges* waypoints, so they are not drawn until a user connects them interactively. Same Stage 2 bucket: extend the missing-DI auto-layout to data-association edges.
 
 ---
 

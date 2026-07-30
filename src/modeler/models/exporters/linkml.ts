@@ -60,7 +60,7 @@ function rangeOf(spec: AttributeSpec): string {
   const target = getCatalog().getType(spec.type);
   if (target && getCatalog().hasRole(target.name, 'data-element')) return target.ns.localName;
 
-  // Value types (MarkdownString, YAMLString, ...) are strings on the wire; a
+  // Value types (MarkdownString, YAMLString, ...) are strings on the association; a
   // URL-ish name reads better as a `uri`.
   if (/^(uri|url)$/i.test(spec.ns.localName)) return 'uri';
   return 'string';

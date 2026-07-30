@@ -271,13 +271,13 @@ export const field = {
   arrayInferredInput: 'px-2 py-1 pr-16 w-full rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 placeholder-stone-400 focus:outline-none focus:border-black/[0.45]',
   arrayInferredLabel: 'pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 italic text-[11.5px] text-stone-400',
 
-  /* Data-flow field - one wire per row, read-only. Flex rather than an
+  /* Data-flow field - one association per row, read-only. Flex rather than an
      absolutely placed tag, so a long name can never slide under the label. */
   dataFlowRow: 'flex items-center gap-1.5',
   dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 truncate',
   dataFlowBindInput: 'shrink-0 w-24 px-2 py-1 bg-black/[0.03] border-l border-black/[0.08] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
   dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 truncate',
-  /* The scope a wire reaches into gets its own line: it is the longest thing
+  /* The scope a data association reaches into gets its own line: it is the longest thing
      in the row and the rarest, and on one line it would squeeze the name it
      is there to explain down to an ellipsis. */
   dataFlowScoped: 'flex flex-col',

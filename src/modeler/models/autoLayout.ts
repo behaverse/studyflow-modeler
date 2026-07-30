@@ -24,7 +24,7 @@ import { BpmnModdle } from 'bpmn-moddle';
  * nodes, sequence flows, and boundary events, but leaves data associations
  * without edges and drops data elements into a disconnected column. The
  * data-flow pass closes that gap — it moves each data element next to the
- * steps it is wired to and synthesizes the missing `BPMNEdge` DI for every
+ * steps it is associated with and synthesizes the missing `BPMNEdge` DI for every
  * data input/output association, so the data flow renders and a step's
  * inputs/outputs can be read off the diagram.
  *
@@ -32,9 +32,9 @@ import { BpmnModdle } from 'bpmn-moddle';
  * property of the canvas — so the edge half of the pass runs on authored
  * layouts too. A hand-written file that positions its shapes but omits the
  * association edges is the worst case for a reader: the step's inspector lists
- * inputs and outputs that the picture shows no wire for, and the data elements
+ * inputs and outputs that the picture shows no association for, and the data elements
  * float unattached. The edges are synthesized in place; authored positions are
- * never touched, and a file whose wires are all drawn is returned byte-for-byte
+ * never touched, and a file whose associations are all drawn is returned byte-for-byte
  * as it came in.
  */
 
@@ -114,10 +114,10 @@ async function rebuildWithLayout(originalXml: string, laidOutXml: string, moddle
  * Add the `BPMNEdge` DI an authored layout is missing for its data
  * associations, leaving every shape where its author put it.
  *
- * Nothing here decides what should be wired — the wires are already in the
+ * Nothing here decides what should be associated — the associations are already in the
  * file. It only makes the ones between two drawn shapes visible, so what the
  * inspector reads off the semantic model and what the canvas draws are the same
- * set. A wire onto a `bpmn:Property` still gets no edge: BPMN never draws a
+ * set. A data association onto a `bpmn:Property` still gets no edge: BPMN never draws a
  * property, so there is no shape to land on.
  *
  * Returns the original string when there was nothing to add, so importing a
@@ -197,7 +197,7 @@ function pickBounds(bounds: any): Bounds {
 }
 
 /**
- * Place data elements next to the steps they are wired to and add the DI
+ * Place data elements next to the steps they are associated with and add the DI
  * edges for their associations, operating on the already-parsed tree.
  *
  * `place` is off when the diagram carries an authored layout: the edges are
@@ -285,7 +285,7 @@ function collectDataAssociations(definitions: any): DataAssociation[] {
 }
 
 /**
- * Move each wired data element into a band beneath the steps that produce or
+ * Move each associated data element into a band beneath the steps that produce or
  * consume it: centered under the mean of its anchors, pushed below the lowest
  * of them, and nudged down when two data shapes would overlap.
  */

@@ -1,10 +1,10 @@
 /**
  * Standard-BPMN I/O lowering.
  *
- * Studyflow's compact form binds a wire to a callable parameter with one
+ * Studyflow's compact form binds a data association to a callable parameter with one
  * extension attribute (`exec:parameter` on the data input association,
- * defaulting to the wired element's name) and treats the step's return value
- * as the implicit source of every output wire. BPMN 2.0 spells the same
+ * defaulting to the associated element's name) and treats the step's return value
+ * as the implicit source of every output association. BPMN 2.0 spells the same
  * facts structurally: the activity declares an `ioSpecification` whose named
  * `bpmn:DataInput`s *are* the parameters (each input association targets
  * one), a `bpmn:DataOutput` carries the produced value (each output
@@ -18,11 +18,11 @@
  *   with no binding extension attributes.
  * - **fold** (`foldIoSpecification`, run by `xmlToStudyflow` and the XML
  *   import boundary): the inverse — DataInput names collapse back to
- *   `parameter` (omitted when equal to the wired element's name), the
+ *   `parameter` (omitted when equal to the associated element's name), the
  *   synthesized structure disappears, and the canvas/YAML keep the compact
  *   form.
  *
- * Field extraction on a wire is BPMN's own `transformation` expression and
+ * Field extraction on a data association is BPMN's own `transformation` expression and
  * needs no lowering — it is already the standard form.
  *
  * An activity whose multi-instance marker references its ioSpecification
@@ -50,14 +50,14 @@ function forEachProcess(definitions: any, visit: (process: any) => void): void {
   }
 }
 
-/** The effective binding name of an input wire in the compact form. */
+/** The effective binding name of an input association in the compact form. */
 function effectiveParameter(assoc: any): string {
   const source = assoc.sourceRef?.[0];
   return assoc.get?.('parameter') || source?.name || source?.id || 'input';
 }
 
 /**
- * LOWER: synthesize the standard `ioSpecification` structure on every wired
+ * LOWER: synthesize the standard `ioSpecification` structure on every associated
  * activity and retarget its associations natively. Mutates the tree.
  */
 export function lowerIoSpecification(definitions: any): boolean {
@@ -143,7 +143,7 @@ export function foldIoSpecification(definitions: any): boolean {
         if (declaredOutputs.includes(source)) referencedOutputs.add(source);
       }
     }
-    // Declared-but-unwired I/O is a fact the compact form would drop - keep
+    // Declared-but-unassociated I/O is a fact the compact form would drop - keep
     // the native structure for such (foreign) files.
     if (referencedInputs.size !== declaredInputs.length || referencedOutputs.size !== declaredOutputs.length) return;
 

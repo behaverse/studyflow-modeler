@@ -170,7 +170,7 @@ types:
     description: |
       Biosignal recording produced by an OpenBCI session: a `studyflow:Dataset`
       carrying the modality list and EEG layout downstream steps need. Per-stream
-      detail belongs on the wired `studyflow:Timeseries` elements.
+      detail belongs on the associated `studyflow:Timeseries` elements.
     superClass:
       - studyflow:Dataset
     meta:

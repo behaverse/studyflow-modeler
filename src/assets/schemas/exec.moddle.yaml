@@ -4,8 +4,7 @@ name: Exec
 prefix: exec
 description: >-
   The minimal executable layer - what an engine reads to run a diagram: a step's
-  `implementation` and `arguments`, the wires that are its inputs and outputs,
-  and CEL conditions over the values they bind. Studyflow coordinates the calls;
+  `implementation` and `arguments`, the associated data elements that are its inputs and outputs, and CEL conditions over the values they bind. Studyflow coordinates the calls;
   it never encodes the computation itself.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
@@ -45,21 +44,20 @@ types:
   # The software reference. BPMN's own `implementation` attribute ("the
   # technology implementing this task") is redefined once, here, with the
   # versioned reference grammar every executable step uses. The engine
-  # resolves the reference, calls it with `arguments` plus the wired inputs, and
-  # binds the return value to the wired outputs; there is no other step
+  # resolves the reference, calls it with `arguments` plus the associated inputs, and
+  # binds the return value to the associated outputs; there is no other step
   # contract.
   # ===========================================================================
   - name: Implementation
     description: |
-      Surfaces BPMN's own `implementation` on every service-style step, so the
-      reference grammar is the same wherever a step runs something.
+      Adds BPMN's own `implementation` to every service task, so the reference grammar is the same wherever a task runs something.
     extends:
       - bpmn:ServiceTask
     isAbstract: true
     properties:
       - name: bpmn:implementation
         description: |
-          Software this step runs, as `<scheme>://<ref>[@<version-or-digest>]`.
+          Software this task runs, as `<scheme>://<ref>[@<version-or-digest>]`.
           Schemes: `python://` (importable callable), `docker://` (image),
           `https://` or `file://` (script).
         isAttr: true
@@ -73,14 +71,14 @@ types:
   # ===========================================================================
   # Bindings. Inputs and outputs are never listed on a task: they are the
   # data associations drawn on the canvas. Connect a data element to a task
-  # and it is an input; wire the task to a data element and it is an output.
+  # and it is an input; connect the task to a data element and it is an output.
   # `parameter` below only *refines* that detection when the callable's
-  # parameter name differs from the wired element's name. It is the compact
+  # parameter name differs from the associated element's name. It is the compact
   # form of BPMN's own ioSpecification mechanism, and the two are losslessly
-  # interchangeable: exported `.bpmn` XML lowers every wired step to a full
-  # `ioSpecification` (a named `bpmn:DataInput` per input wire, one `result`
+  # interchangeable: exported `.bpmn` XML lowers every associated step to a full
+  # `ioSpecification` (a named `bpmn:DataInput` per input association, one `result`
   # `bpmn:DataOutput`, `inputSet`/`outputSet`), and importing standard files
-  # folds that structure back to this attribute. Field extraction on a wire
+  # folds that structure back to this attribute. Field extraction on a data association
   # is BPMN's own `transformation` expression, not a studyflow attribute.
   # ===========================================================================
   - name: InputBinding
@@ -93,10 +91,10 @@ types:
     properties:
       - name: parameter
         description: |
-          Callable parameter the wired value fills (e.g. `X`, `y`); blank binds
-          by the wired element's own name. Two names are positions instead:
+          Callable parameter the associated value fills (e.g. `X`, `y`); blank binds
+          by the associated element's own name. Two names are positions instead:
           `self` is the receiver of an unbound method, and `*` appends
-          positionally in wire order.
+          positionally in declaration order.
         isAttr: true
         type: String
         meta:
@@ -106,7 +104,7 @@ types:
   - name: Transformation
     description: |
       Surfaces BPMN's own `transformation` on data associations: an expression
-      applied to the wired value before it lands.
+      applied to the associated value before it lands.
     extends:
       - bpmn:DataInputAssociation
       - bpmn:DataOutputAssociation
@@ -114,8 +112,8 @@ types:
     properties:
       - name: bpmn:transformation
         description: |
-          Expression over the wired value; what it evaluates to is what lands.
-          On an output wire the return value is bound as `result`.
+          Expression over the associated value; what it evaluates to is what lands.
+          On an output association the return value is bound as `result`.
         type: bpmn:FormalExpression
         xml:
           # BPMN's own serialization for this one: the element is named after
@@ -211,7 +209,7 @@ types:
   # (`state.visits.<gateway-id>`, the drawn counterpart of the marker's own
   # loopCounter). The declarations below keep the marker's condition and the
   # ad-hoc sub-process's exit test (an Agent's stop rule) authorable as flat
-  # CEL strings; on the wire they are BPMN's own expression elements
+  # CEL strings; on the association they are BPMN's own expression elements
   # (`xsi:type` tFormalExpression), not custom attributes.
   - name: CompletionCondition
     description: |
@@ -259,7 +257,7 @@ types:
 
   # ===========================================================================
   # Artifacts. Two fields on every BPMN data element: where the bytes live
-  # (`uri`) and how they are serialized (`codec`). The engine passes wired
+  # (`uri`) and how they are serialized (`codec`). The engine passes associated
   # data in memory and loads/saves an artifact at its `uri` when one is set -
   # nothing more.
   # ===========================================================================
@@ -291,11 +289,11 @@ types:
 
   # ===========================================================================
   # The one concrete element: a named configuration group the engine passes
-  # to steps like any other wired data.
+  # to steps like any other associated data.
   # ===========================================================================
   - name: Parameters
     description: |
-      A named configuration group - a dict of values wired to the steps that
+      A named configuration group - a dict of values associated with the steps that
       read it, so a study varies by editing data, not the flow.
     superClass:
       - bpmn:DataObjectReference

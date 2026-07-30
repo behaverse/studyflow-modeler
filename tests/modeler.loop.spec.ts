@@ -26,7 +26,7 @@ test.describe('Inspector repetition controls', () => {
     const canvas = page.getByTestId('modeler-canvas');
 
     // How often a step runs is part of how it runs, so this shares the tab
-    // with the function, the wires, and the properties. Only an activity
+    // with the function, the associations, and the properties. Only an activity
     // repeats: on anything else the selector is absent, not empty.
     await inspector.getByRole('tab', { name: 'Execution' }).click();
     const kind = page.getByTestId('loop-kind');

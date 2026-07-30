@@ -74,8 +74,9 @@ async function buildPayload(
     case 'studyflow':
       return xmlToStudyflow(await toExportableXml(modeler), modeler.get('moddle'));
 
-    // Wired steps are lowered to the full standard `ioSpecification` form on
-    // the way out, so other BPMN tooling sees ordinary BPMN.
+    // Steps with data associations are lowered to the full standard
+    // `ioSpecification` form on the way out, so other BPMN tooling sees
+    // ordinary BPMN.
     case 'bpmn':
       return toStandardBpmnXml(await toExportableXml(modeler), modeler.get('moddle'));
 
