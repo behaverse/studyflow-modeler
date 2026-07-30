@@ -3,15 +3,9 @@
 name: DataTrove
 prefix: datatrove
 description: >-
-  Studyflow extension for the datatrove library's own pipeline blocks - the
-  Reader and Writer IO steps (`datatrove.pipeline.readers` /
-  `datatrove.pipeline.writers` classes, with datatrove's
-  `data_folder`/`output_folder` as `path`) and presets that bind its
-  processing blocks (e.g. the PII formatter). The generic functional
-  operations these specialize live in the `functional` schema; corpus
-  building (extract, stats, tokenize, dedup) is the library's own business -
-  bind its blocks directly when a study needs one, e.g. a `functional:Map`
-  running `python://datatrove.pipeline.extractors.Trafilatura`.
+  The datatrove library's own pipeline blocks: the Reader and Writer IO steps,
+  plus presets binding its processing blocks. The generic operations these
+  specialize live in `functional`.
 uri: https://w3id.org/studyflow/datatrove
 icon: iconify tabler--hexagon-letter-d
 order: 70  # registry position (load precedence + settings order)

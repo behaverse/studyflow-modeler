@@ -2,13 +2,10 @@
 
 name: OmniProcess
 prefix: omniprocess
-description: |
-  Brain and brain-data processing presets - modality-specific neuroimaging
-  preprocessing (fMRIPrep, EEGPrep). These are not element types: they are
-  templates over the generic `functional` operations, binding a container
-  image via `implementation` and its parameters via `arguments`. A preprocessing
-  pipeline is data (a template), not metamodel - the same rule the exec/ml
-  layers follow. Generic function-composition operations live in `functional`.
+description: >-
+  Neuroimaging preprocessing presets (fMRIPrep, EEGPrep). Not element types but
+  templates over the `functional` operations, binding a container image through
+  `implementation` and its parameters through `arguments`.
 uri: https://w3id.org/omniprocess
 icon: iconify tabler--hexagon-letter-o
 order: 80  # registry position (load precedence + settings order)

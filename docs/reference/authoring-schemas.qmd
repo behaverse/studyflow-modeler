@@ -6,11 +6,21 @@ order: 7
 
 This page is for **contributors** extending the Studyflow language with new element types or attributes. If you are a researcher or pipeline author using the modeler, see the [Elements](../reference/elements.qmd) reference instead.
 
-Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler:
+Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler. Five are **core** (`core: true` -- always loaded, cannot be disabled from the settings); the rest are domain extensions you can switch on:
 
-- `core.moddle.yaml` -- the core Studyflow language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the abstract `BaseElement`/`Activity`/`Arguments` bases, and the data-infrastructure types (`Dataset`, `DataStorage`, `DataCatalog`, `Schema`, `Array`, `Snapshot`).
-- `cognitive.moddle.yaml` -- cognitive and behavioral elements (`CognitiveTask`, `VideoGame`, `Rest`, `Questionnaire`, `Instruction`, `RandomGateway`, `EligibilityGateway`). Split out of `core` so adopters can swap the cognitive layer without touching the core.
-- `datatrove.moddle.yaml`, `openbci.moddle.yaml`, `omniprocess.moddle.yaml` -- domain extensions you can enable from the modeler's schema palette.
+| File | Prefix | What it declares |
+|---|---|---|
+| `studyflow.moddle.yaml` | `studyflow` | The core language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the `BaseElement`/`Scheduling`/`Arguments`/`Classification` traits, and the data-infrastructure types (`Schema`, `Dataset`, `DataCatalog`, `Table`, `Timeseries`, `EventMarker`). It also declares the inspector's tabs for every schema. **core** |
+| `exec.moddle.yaml` | `exec` | The executable layer: `implementation`, the wire bindings (`parameter`, `transformation`), the timer/condition/loop expressions, artifact `uri`/`codec`, and `Parameters`. **core** |
+| `functional.moddle.yaml` | `functional` | `Transform`, `Map`, `Reduce`, `Filter` -- the generic verbs domain layers root their presets on. **core** |
+| `cognitive.moddle.yaml` | `cognitive` | `CognitiveTask`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor`. Split out of the core so adopters can swap the cognitive layer. **core** |
+| `agentic.moddle.yaml` | `agentic` | LLM and agent workflows: `Agent`, `Router`, `LLMCall`, `Tool`, `HumanApproval`, `Prompt`, `Memory`. |
+| `ml.moddle.yaml` | `ml` | scikit-learn pipeline presets. Templates only -- it declares no types. |
+| `datatrove.moddle.yaml` | `datatrove` | The datatrove library's `Reader`/`Writer` IO blocks. |
+| `omniprocess.moddle.yaml` | `omniprocess` | Neuroimaging preprocessing presets (fMRIPrep, EEGPrep). Templates only. |
+| `openbci.moddle.yaml` | `openbci` | `OpenBCISession` and `OpenBCIRecording` for biosignal acquisition. |
+
+Note the core schema's `name` and `prefix` differ: it is named `Core` but prefixed `studyflow`, because the prefix appears in every saved file and the URI is the stable identifier old files are matched by.
 
 ## Core structure
 
@@ -18,19 +28,35 @@ Studyflow moddle YAML files follow this top-level layout:
 
 ```yaml
 name: Core
-prefix: core
+prefix: studyflow
 description: Core BPMN extension for modeling research processes.
 uri: http://behaverse.org/schemas/studyflow/v1   # version segment = studyflow format version
-icon: https://example.org/schema-icon.png    # optional, shown in the modeler
+legacyUris:                                      # optional: namespaces older releases wrote
+  - http://behaverse.org/schemas/studyflow       # still read, rewritten to `uri` on load
+icon: iconify tabler--hexagon-letter-s   # optional, shown in the modeler
+core: true          # optional: always loaded, cannot be disabled
+order: 10           # registry position (load precedence + settings order)
+version: 26.0716
 xml:
   tagAlias: lowerCase
+categories: []      # inspector tabs; only the core schema declares these
 associations: []
 enumerations: []
 types: []
-examples: []
+templates: []
 ```
 
-The `description` is shown in the schema palette. The optional `icon` (URL or `iconify <name>`) appears next to the schema name. The `uri` is the stable identifier existing files are matched by -- the core schema's URI intentionally keeps `studyflow` even though its prefix was renamed to `core`.
+The `description` is shown in the schema palette -- keep it to a sentence or two, since it renders in a tooltip. The optional `icon` (URL or `iconify <name>`) appears next to the schema name.
+
+## Inspector tabs (`categories`)
+
+A property names the tab it appears under in `meta.categories`. The tabs themselves are declared **once, in the core schema**, and every other schema files into them:
+
+`General` · `Documentation` · `Gantt` · `Data` · `Execution` · `Run record`
+
+A tab has to earn its name: these are the questions a modeller asks of *any* element, which is why they recur across schemas. A tab holding a single type's own fields would only repeat what the panel header already says the element is, so those fields go to `General` -- an OpenBCI recording has no "OpenBCI" tab and an LLM call has no "Model call" tab. Naming a category no schema declares still works, but it sorts after every declared one, so prefer the six above.
+
+`Execution` and `Run record` are special. `Execution` is `synthetic: true`: a dedicated section component draws it over nested BPMN state (properties, data associations, loop characteristics), so it appears even with no attributes filed under it. `Run record` is where engine-written fields go (`meta.readonly: true`), kept last so run records sit apart from what people author.
 
 ## Enumerations
 
@@ -57,7 +83,7 @@ Properties typed with an enum can opt into free-text entry alongside the enum va
 
 Each moddle type defines a domain element plus the properties shown in the inspector. Two relationships compose types:
 
-- **`extends`** -- pure mixin onto an existing BPMN class. Use it when you only want to *add* attributes to a BPMN base (e.g. extend `bpmn:StartEvent` with `consentFormUri`) without creating a new visual element.
+- **`extends`** -- pure mixin onto an existing BPMN class. Use it when you only want to *add* attributes to a BPMN base (e.g. extend `bpmn:StartEvent` with `consentFormUri`) without creating a new visual element. A type with `extends` and `isAbstract: true` is a **trait**: it is never placed on the canvas, it only contributes attributes to whatever it names.
 - **`superClass`** -- class inheritance. Use it when defining a new concrete element. List the BPMN base first (e.g. `bpmn:Task`, `bpmn:ExclusiveGateway`, `bpmn:DataStoreReference`) and add `bpmn:BaseElement` so the inspector picks up the standard metadata fields.
 
 Pair `superClass` with `meta.bpmnType` so the modeler knows which BPMN shape to render.
@@ -67,21 +93,19 @@ types:
   - name: StartEvent
     extends:
       - bpmn:StartEvent
-    meta:
-      icon: iconify bpmn--start-event
+    isAbstract: true
     properties:
       - name: consentFormUri
-        description: Link to the consent form. Untick to skip the consent step entirely.
+        description: Link to the consent form. Untick to skip the consent step.
         isAttr: true
         type: String
         meta:
-          pinned: false
           optional: true
           categories:
-            - Privacy
+            - General
 
   - name: RandomGateway
-    description: Randomly assigns participants to one of the outgoing branches.
+    description: Assigns participants to an outgoing branch at random.
     superClass:
       - bpmn:ExclusiveGateway
       - bpmn:BaseElement
@@ -95,8 +119,27 @@ types:
         default: probabilistic
         meta:
           categories:
-            - Assignment
+            - General
 ```
+
+### Redefining a BPMN attribute
+
+bpmn-moddle already carries every BPMN attribute, and the inspector shows **none** of them: a field renders only when a schema declares it. `redefines` is how a native attribute becomes editable -- and where this project writes down what it means:
+
+```yaml
+- name: Implementation
+  extends:
+    - bpmn:ServiceTask
+  isAbstract: true
+  properties:
+    - name: bpmn:implementation
+      description: Software this step runs, as `<scheme>://<ref>[@<version>]`.
+      isAttr: true
+      type: String
+      redefines: bpmn:ServiceTask#implementation
+```
+
+Delete that trait and the field disappears from the panel while the attribute stays in the file. So a schema's `redefines` list is not a copy of the BPMN metamodel -- it is this layer's list of which BPMN attributes a studyflow author edits.
 
 ### Property modifiers
 
@@ -106,130 +149,149 @@ Property entries carry moddle behavior directly:
 - `isBody: true` -- serialized as the element's text body in the BPMN XML form. Used for free-form content like YAML `configurations`.
 - `isMany: true` -- repeated property (rendered as a list in the inspector).
 - `default` -- initial value.
-- `redefines` -- override the type or default of an inherited property (e.g. `redefines: bpmn:Process#isExecutable`).
+- `redefines` -- override the type, default, or visibility of an inherited property (see above).
 - `replaces` -- replace an inherited property entirely.
+- `xml.serialize: property` / `xsi:type` -- how a complex-typed property is written. Needed when redefining BPMN's own expression elements, which are named after the property rather than the type.
 
 Studyflow-specific modeler behavior lives under `meta` on the property:
 
-- `meta.pinned: true` -- always visible in the inspector summary.
+- `meta.categories: [Data]` -- the tab the property lives under (see above).
+- `meta.order: 1` -- position within its tab; unordered properties sort after ordered ones.
+- `meta.pinned: true` -- always visible, even when the value is empty.
 - `meta.optional: true` -- the inspector shows a checkbox to opt the property in.
 - `meta.editable: true` -- enum properties also accept free-text entries.
-- `meta.categories: [Privacy]` -- tab the property lives under in the inspector.
+- `meta.editor: code` -- which input component edits it (`code`, `markdown`, `csvw-table`). A value *type* may name one for all its properties instead, which is how every `studyflow:YAMLString` gets the code editor.
+- `meta.readonly: true` -- display-only; written by the runner, not by hand.
+- `meta.legacyNames: [category]` -- earlier spellings still read from old files and rewritten on save.
 - `meta.condition.language: json` + `meta.condition.body: { otherField: value }` -- visibility predicate; the property only appears when other fields match. A value of `$set` matches whenever the other field has any value.
+
+`meta` on the *type* carries `icon`, `bpmnType`, `editor`, and `roles` -- a list of capability tags (`data-element`, `signal`, `instrument`, …) that lets the app find types by what they are rather than by name. Most roles are inferred from the type graph; declare one only when it adds something inference cannot see.
 
 ## Function calls (`implementation` / `arguments`)
 
 Any activity can declare the software that implements it. BPMN's own `implementation` attribute (redefined once by the `exec` schema) carries the reference, and the core `studyflow:Arguments` trait (which mixes onto every `bpmn:Activity`) carries the arguments:
 
-- `implementation` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. The runner recognizes `python://` (an importable callable, e.g. `python://pkg_for_st.do_map@1.2`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), `https://` (a script URL), and `file://` (a local script). Other schemes are allowed but flagged as unresolved -- e.g. a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
-- `arguments` -- a YAML mapping of literal keyword arguments passed to the callable, a `studyflow:YAMLString` value property. Values are literals or `$Element` / `$Element.field` references into wired data; the reserved `args` list covers positional-only calls. Wired inputs are not repeated here -- each data input association binds its element to the callable parameter named on the association (`parameter`, defaulting to the element's name). The inspector edits `arguments` under the Execution tab and reveals it once `implementation` is set.
+- `implementation` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. Recognized schemes are `python://` (an importable callable, e.g. `python://sklearn.pipeline.Pipeline.fit`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), `https://` (a script URL), and `file://` (a local script). Other schemes are allowed but flagged as unresolved -- a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
+- `arguments` -- a `studyflow:YAMLString` holding the **additional** literal arguments (the role GitHub Actions' `with:` block plays). The wires fill the signature first -- each data input association binds its element to the callable parameter named on the association -- and `arguments` supplies what is left over. Anything the step *reads* is a wire, not an entry here; a name bound by both is an error rather than a precedence question. The reserved `args` key lists positional arguments, and a nested mapping carrying its own `implementation` is a call resolved before the outer one.
+
+An input association's `exec:parameter` names the argument its value fills, defaulting to the wired element's own name. Two names are positions rather than keywords: `self` binds the receiver of an unbound method (because a library does not always call its first parameter `self`), and `*` appends positionally in wire order, which is the only way to wire data into a callable whose arguments have no names -- `train_test_split(*arrays)`. An output association's `bpmn:transformation` narrows the return value with an expression over `result`, which is how one call can fill several properties.
 
 ```yaml
-implementation: python://pkg_for_st.do_map@1.2
-arguments:
-  column: rt
-  fn: median
+Fit:
+  implementation: python://sklearn.pipeline.Pipeline.fit
+  dataInputAssociations:
+    Wire_Estimator:
+      exec:parameter: self      # the receiver: bound first, positionally
+      sourceRef: [Estimator]
+    Wire_Features:
+      exec:parameter: X
+      sourceRef: [X_Train]
+  arguments:
+    sample_weight: null         # what the wires did not supply
 ```
 
-In the BPMN XML form, `implementation` is an attribute on the activity and `arguments` is a `<studyflow:arguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity that carries an `implementation` value shows a function marker on the canvas. The reference runner resolves and validates the call (the reference grammar and that `arguments` parses as a YAML mapping) but does not execute it in the browser; execution is delegated to a downstream tool (a workflow engine, an evaluation harness, or a container runtime). See `src/assets/examples/function_call_demo.studyflow` for a worked example.
+In the BPMN XML form, `implementation` is an attribute on the activity and `arguments` is a `<studyflow:arguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
 
-## Examples
+The browser runner parses and validates the call but does not execute it. The Python runner in `runner/python/` does: it resolves the reference, materializes the wired inputs, calls it, and binds the return value, writing an as-run record per run. `src/assets/examples/sklearn_pipeline.png` is the worked example it is checked against -- see `runner/python/README.md`.
 
-Schemas may define top-level `examples` entries that appear in the modeler create/append menus.
-Each entry uses `object.type` to identify the schema type to instantiate, plus any default property values to apply.
+## Templates
+
+Schemas may define top-level `templates` entries -- preset elements that appear in the palette flyouts, the command palette, and the template gallery. Each entry uses `object.type` to name the schema type (or BPMN type) to instantiate, plus any default property values to apply.
+
+This is the mechanism behind a recurring design rule: **parameterize, don't proliferate.** A verb that is just a generic step bound to a function (extract, tokenize, fit, fMRIPrep…) ships as a template, not as a new element type. `ml` and `omniprocess` declare no types at all for this reason.
 
 ```yaml
-examples:
-  - description: Preprocess EEG data for a single subject.
+templates:
+  - description: Preprocess fMRI data for a single subject (fMRIPrep in a container).
     object:
-      type: MapData
-      bpmn:name: Preprocess EEG (subject)
-      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      icon: iconify icon-park--eeg
+      type: functional:Map
+      bpmn:name: fMRIPrep
+      bpmn:documentation: Runs fMRIPrep over one subject's BIDS directory.
+      icon: iconify icon-park--brain
+      keywords:              # matched by the command palette's search
+        - fmriprep
+        - preprocessing
+      implementation: docker://nipreps/fmriprep@sha256:...
+      arguments: |
+        output_spaces: MNI152NLin2009cAsym
 ```
 
-### Example mixins
+`keywords` is how a template is found by typing rather than by browsing; give each one the words a user would actually reach for.
 
-`examples[].object.mixins` lets an example compose additional defaults from other types.
-This is useful when the example should behave like a specialized BPMN shape without changing the underlying schema class.
+### Template mixins
+
+`object.mixins` lets a template compose additional defaults from other types. This is useful when the preset should behave like a specialized BPMN shape without changing the underlying schema class.
 
 ```yaml
-examples:
+templates:
   - description: Preprocess EEG data for a single subject.
     object:
-      type: MapData
-      bpmn:name: Preprocess EEG (subject)
-      bpmn:documentation: Preprocess EEG data, including filtering, artifact removal, and normalization.
-      icon: iconify icon-park--eeg
+      type: functional:Map
+      bpmn:name: Preprocess EEG
       mixins:
         - bpmn:SubProcess
 ```
 
-- Use `mixins` for example-time composition, not for defining reusable schema inheritance. Reusable schema inheritance belongs on `types[].superClass`.
+Use `mixins` for template-time composition, not for reusable schema inheritance -- that belongs on `types[].superClass`.
 
-### Nested subprocess flow elements
+### Nested flow elements
 
-If an example resolves to `bpmn:SubProcess`, it may also declare `examples[].object.flowElements` to create internal nodes and connections together with the root subprocess.
+A template that resolves to `bpmn:SubProcess` may declare `object.flowElements` to create internal nodes and connections along with the root sub-process. The `exec` schema's "Repeat until" template does this to stamp out a whole loop idiom -- a gateway, a conditioned back-edge, and an exit:
 
 ```yaml
-examples:
-  - description: Preprocess EEG data for a single subject.
+templates:
+  - description: Retry-until-good loop, drawn.
     object:
-      type: MapData
-      bpmn:name: Preprocess EEG (subject)
-      bpmn:width: 420
-      bpmn:height: 180
-      mixins:
-        - bpmn:SubProcess
+      bpmn:name: Repeat until
+      type: bpmn:SubProcess
       flowElements:
-        - id: eeg_filter
-          type: MapData
-          bpmn:name: Filter signal
-          x: 70
-          y: 65
-        - id: eeg_clean
-          type: MapData
-          bpmn:name: Remove artifacts
-          x: 240
-          y: 65
-        - bpmn:type: bpmn:SequenceFlow
-          sourceRef: eeg_filter
-          targetRef: eeg_clean
+        - id: loop_start
+          type: bpmn:StartEvent
+          x: 140
+          y: 150
+        - id: loop_work
+          type: bpmn:Task
+          bpmn:name: Do the work
+          x: 220
+          y: 130
+        - type: bpmn:SequenceFlow
+          sourceRef: loop_start
+          targetRef: loop_work
 ```
 
-
-Examples may declare promoted attributes explicitly using schema `attributes:` definitions.
+A template may also declare `object.attributes` for promoted attributes specific to that preset:
 
 ```yaml
-examples:
+templates:
   - description: Preprocess EEG data for a single subject.
-    attributes:
-      param1:
-        range: string
-        description: Example-specific promoted attribute.
-        ifabsent: "default_value"
     object:
-      type: MapData
+      type: functional:Map
       bpmn:name: EEGPrep
+      attributes:
+        param1:
+          range: string
+          description: Template-specific promoted attribute.
+          ifabsent: default_value
 ```
 
-These attributes are not added back onto the original schema class. Instead, the modeler generates an example-scoped derived moddle type for that specific example object, so the extra attributes persist in the saved diagram (both the YAML and the BPMN XML serializations) without changing other `MapData` examples or the base class definition.
-
-If the same example also includes undeclared scalar properties such as `param1: value1`, those are inferred onto the same example-scoped derived type rather than onto the parent schema class.
+These are not added back onto the schema class. The modeler generates a template-scoped derived moddle type for that object, so the extra attributes persist in the saved diagram (in both serializations) without changing other templates or the base class. Undeclared scalar properties on the object are inferred onto the same derived type.
 
 ## Cross-schema references
 
-Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:Arguments`. The functional schema, for example, refers to `functional:Transform#operationType` when pinning a verb's `operationType` on subtypes like `Map`.
+Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:Dataset`. The functional schema, for example, refers to `functional:Transform#operationType` when pinning a verb's `operationType` on subtypes like `Map`, and `openbci:OpenBCIRecording` extends `studyflow:Dataset`.
 
 ## Common mistakes
 
-- Prefix mismatch: type references using the wrong prefix (for example `core:` vs local names, or the legacy `studyflow:` prefix).
-- Missing `type`: moddle properties without a type often fall back to string-like behavior and may produce unintended interfaces.
-- Mixing up `extends` and `superClass`: use `extends` to mix attributes onto an existing BPMN base; use `superClass` to define a new concrete type that inherits behavior.
-- Incorrect BPMN mapping: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
-- Invalid condition shape: malformed `condition.body` JSON disables conditional visibility.
-- Incorrect `redefines` owner: invalid targets are dropped.
+- **Prefix mismatch**: the core schema is prefixed `studyflow`, not `core` -- its `name` is Core but nothing references it by that. Its unversioned URI is legacy and lives in `legacyUris`.
+- **Missing `type`**: moddle properties without a type fall back to string-like behavior and may produce unintended interfaces.
+- **Mixing up `extends` and `superClass`**: use `extends` to mix attributes onto an existing BPMN base; use `superClass` to define a new concrete type.
+- **Expecting a native BPMN attribute to appear**: it will not until a schema `redefines` it.
+- **Inventing a tab**: a category no schema declares sorts after every declared one. File the property under one of the six instead.
+- **Incorrect BPMN mapping**: omit or misconfigure `meta.bpmnType` and the element may no longer map to the intended BPMN shape.
+- **Invalid condition shape**: malformed `condition.body` JSON disables conditional visibility.
+- **Incorrect `redefines` owner**: invalid targets are dropped.
+- **A long `description`**: it renders in a tooltip, so keep it to one or two sentences. Rationale belongs in these docs or in a YAML comment.
 
 ## Naming conventions
 
-Property names follow camelCase (`consentFormUri`, `completionCodeType`), except where a type mirrors an external tool's CLI one-to-one -- e.g. `PreprocessfMRI`'s `output_spaces` matches the corresponding fMRIPrep flag verbatim so configurations can be copy-pasted.
+Property names follow camelCase (`consentFormUri`, `completionCodeType`), except where a value mirrors an external tool's CLI one-to-one -- e.g. the fMRIPrep template's `output_spaces` argument matches the corresponding flag verbatim, so configurations can be copy-pasted.

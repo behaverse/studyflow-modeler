@@ -16,9 +16,8 @@ enumerations:
   - name: InstrumentEnum
     isAbstract: true
     description: |
-      Software that delivers a cognitive task. Determines how the
-      task's `configurations` YAML is interpreted. Properties typed with this
-      enum may also accept custom identifiers when annotated with `meta.editable: true`.
+      Software that delivers a cognitive task, and so how its `configurations`
+      YAML is read. Custom identifiers are accepted too.
     literalValues:
       - name: PsychoPy
         value: psychopy
@@ -56,10 +55,8 @@ enumerations:
   - name: ActorTypeEnum
     isAbstract: true
     description: |
-      Kind of actor represented by a participant pool. Distinguishes human
-      participants from artificial agents and from instrumented apparatus.
-      Choreography tasks between any combination (human-human, human-llm,
-      human-instrument) use the same BPMN choreography primitive.
+      What a participant pool stands for: a human, an artificial agent, or an
+      instrument. Any combination interacts through the same BPMN primitive.
     literalValues:
       - name: Human
         value: human
@@ -161,7 +158,8 @@ types:
     properties:
       - name: instrument
         description: |
-          Software used to deliver the task. Determines how `configurations` are interpreted. Pick a listed option or type a custom identifier.
+          Software that delivers the task; it decides how `configurations` are
+          read. Pick a listed option or type a custom identifier.
         isAttr: true
         type: InstrumentEnum
         meta:
@@ -170,17 +168,14 @@ types:
             - General
       - name: implementation
         description: |
-          External software that delivers this task - the same attribute name
-          and versioned-reference grammar as BPMN's own `implementation` on
-          service-style tasks: `<scheme>://<ref>[@<version-or-digest>]`, e.g.
-          an `https://` URL of a versioned jsPsych plugin, a `python://`
-          callable, or a `docker://` image. The runner administers whatever
-          the reference resolves to.
+          External software that delivers this task, as
+          `<scheme>://<ref>[@<version-or-digest>]` - a versioned jsPsych plugin
+          URL, a `python://` callable, a `docker://` image.
         isAttr: true
         type: String
         meta:
           categories:
-            - General
+            - Execution
       - name: configurations
         description: |
           Instrument-specific configuration in YAML format (e.g., number of
@@ -189,12 +184,11 @@ types:
         type: Configurations
         meta:
           categories:
-            - General
+            - Execution
   - name: Rest
     description: |
-      A rest period of inactivity or minimal activity. Often used for baseline
-      measurements or breaks between activities. Can also represent
-      resting-state recordings (e.g., resting EEG/fMRI).
+      A period of inactivity: a break between activities, or a resting-state
+      recording (resting EEG/fMRI).
     superClass:
       - CognitiveTask
     meta:
@@ -207,7 +201,7 @@ types:
         redefines: CognitiveTask#configurations
         meta:
           categories:
-            - General
+            - Execution
   - name: Questionnaire
     description: |
       A self-report instrument administered to a participant - either a standardized psychometric questionnaire (e.g., PHQ-9, GAD-7) or a custom form. The `instrument` identifies which questionnaire is shown.
@@ -248,15 +242,9 @@ types:
             - General
   - name: BehaverseTask
     description: |
-      Specialized `CognitiveTask` for the Behaverse battery. It behaves like a
-      normal studyflow task, but its `instrument` is fixed to `behaverse` and
-      pinned (not editable in the inspector). At runtime, `scene` maps to the
-      Behaverse assessment task ID (e.g., `NB`, `UFOV`) and `configurations`
-      carries a `GameConfig` as YAML - the modeler parses it to a JSON object and
-      sends it nested inside the runtime payload. A timeline listed by name only
-      (no body) under `Timelines` runs one shipped with the build (e.g.
-      `XCIT_NB_01`); a timeline with its own `blocks` is run inline. Both go
-      through the same `configurations` mechanism.
+      A `CognitiveTask` from the Behaverse battery: `instrument` is pinned to
+      `behaverse`, `scene` names the assessment (`NB`, `UFOV`), and
+      `configurations` carries its `GameConfig` as YAML.
     superClass:
       - CognitiveTask
     meta:
@@ -283,13 +271,15 @@ types:
             - General
       - name: configurations
         description: |
-          `GameConfig` as YAML, embedded in the diagram and parsed to a JSON object on the modeler side. To run a timeline shipped with the build, list it by name only (no body) under `Timelines`, e.g. `Timelines:` then an indented `XCIT_NB_01:`. To run an inline timeline, give it its own `blocks` (plus any diverging `Blocks` and fields); inline definitions are merged at runtime over the per-task baseline shipped in `Resources/<scene>.json` - so the body only needs to carry what differs from the defaults (no need to repeat `Id`, `Scene`, `EnumDefinitions`, `ParameterInfos`, `Rules`, or unchanged blocks/timelines). New blocks should set `Inherits: Default` (or another baseline block from the per-task config) so they pick up HUD/feedback parameters without restating them.
+          `GameConfig` as YAML. Name a `Timelines:` entry with no body to run a
+          timeline shipped with the build; give it `blocks` to define one
+          inline, carrying only what differs from the per-task baseline.
         type: Configurations
         redefines: CognitiveTask#configurations
         meta:
           order: 2
           categories:
-            - General
+            - Execution
           widget: textarea
       - name: agentType
         description: |
@@ -303,12 +293,16 @@ types:
             - General
       - name: botConfigurations
         description: |
-          YAML map of bot field overrides applied per task at scene-load time, e.g. `autoResponse: Valid`, `Speed: 100`, `SkipInstructions: true`. Only used when `agentType` is `bot`. Three response sources: `ResponseSource: internal` (default, Unity's in-game bot), `external` (runner picks uniformly at random), `llm` (runner asks an LLM). For `llm`, add `LLM: { Provider: claude|ollama, Model: ... }` to override the global defaults, and `Prompt: |` with a free-form system prompt describing the simulated participant (persona, target accuracy, strategy, mistakes). Set `IncludeScreenshot: true` to make Unity attach a PNG of the current frame to every `AwaitingResponse` so a vision-capable LLM can read visual stimuli (required for WhichOne, PatternComparison, UFOV, etc.). Bump `MaxResponseTime` in `configurations` to give the LLM time to reply.
+          Bot overrides as YAML, used when `agentType` is `bot` (e.g.
+          `Speed: 100`, `SkipInstructions: true`). `ResponseSource` picks who
+          answers - `internal`, `external`, or `llm`, the last taking an `LLM:`
+          block, a `Prompt:` persona, and `IncludeScreenshot:` for visual
+          tasks.
         type: BotConfigurations
         meta:
           order: 5
           categories:
-            - General
+            - Execution
           widget: textarea
           condition:
             language: json
@@ -316,14 +310,9 @@ types:
               agentType: bot
   - name: RandomGateway
     description: |
-      Randomly assigns participants to one of the outgoing branches according
-      to a probability distribution. Set `stratifyBy` for stratified
-      randomization: the cohort is partitioned into strata by that variable
-      and assignment is performed independently within each stratum, balancing
-      allocation across branches. (There is no separate stratified gateway
-      type - stratification is a parameter of random assignment, the same
-      `stratifyBy` a cross-validation split uses; see the `Stratified
-      allocation` template.)
+      Assigns participants to an outgoing branch at random, by a probability
+      distribution. Set `stratifyBy` to randomize independently within strata -
+      stratification is a parameter here, not a separate gateway type.
     superClass:
       - bpmn:ExclusiveGateway
     meta:
@@ -343,7 +332,8 @@ types:
             - General
       - name: probabilityFunction
         description: |
-          Probability mass function that defines the discrete distribution of the random assignment. Defaults to `uniform`. Pick a listed option or type a custom identifier.
+          Discrete distribution the assignment draws from, `uniform` by
+          default. Pick a listed option or type a custom identifier.
         isAttr: true
         type: studyflow:ProbabilityDistributionEnum
         default: uniform
@@ -357,9 +347,9 @@ types:
               algorithm: probabilistic
       - name: stratifyBy
         description: |
-          Name of the variable that partitions the cohort into strata (e.g.,
-          `age_band`, `sex`, `baseline_score`). When set, assignment runs
-          independently within each stratum. Unset means simple randomization.
+          Variable that partitions the cohort into strata (`age_band`, `sex`).
+          Set, assignment runs within each stratum; unset, it is simple
+          randomization.
         isAttr: true
         type: String
         meta:
@@ -414,11 +404,9 @@ types:
             - General
   - name: Actor
     description: |
-      A participant pool tagged with actor-type metadata so it can be flagged
-      as human, LLM, software agent, or instrument. Renders as a standard BPMN
-      Pool; choreography tasks continue to use the standard BPMN ParticipantRef.
-      Multi-agent cognitive studies use this to disambiguate human-vs-artificial
-      pools without redefining the BPMN choreography primitive.
+      A participant pool tagged as human, LLM, software agent, or instrument.
+      Draws as an ordinary BPMN pool, so a mixed human/artificial study needs no
+      new choreography primitive.
     superClass:
       - bpmn:Participant
     meta:
@@ -454,9 +442,8 @@ types:
                 - instrument
       - name: promptTemplate
         description: |
-          Optional prompt template applied to the LLM actor each turn. Use
-          markdown; placeholders (e.g. `{{stimulus}}`, `{{history}}`) are
-          resolved by the runner adapter at execution time.
+          Prompt template applied to an LLM actor each turn, in markdown.
+          Placeholders like `{{stimulus}}` are filled by the runner.
         isAttr: true
         type: studyflow:MarkdownString
         meta:

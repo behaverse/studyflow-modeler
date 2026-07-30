@@ -90,16 +90,18 @@ nested one and two levels down.
 
 **The calling convention.** A step is one Python call:
 `implementation(*args, **kwargs)`, with the return value bound to the wired
-outputs. `arguments` holds what the wires do not supply — the call's *literal*
-configuration — as plain YAML the runner evaluates with three rules:
+outputs. The wires fill the signature first — each wired input binds to its
+parameter — and `arguments` holds the *additional* literals the call still
+needs, as plain YAML the runner evaluates with three rules:
 
 1. the reserved key **`args`** lists positional arguments;
 2. a mapping that itself has an **`implementation`** key is a **nested
    call**, resolved first (import, call with its own `arguments`);
 3. everything else is a literal keyword argument.
 
-The division of labour is the point: **anything the step reads is a wire, and
-`arguments` is only literals.** A `$Name` reference is also understood, for
+The division of labour is the point: **the wires are the signature, and
+`arguments` is what comes after it.** Anything the step reads is a wire; a name
+bound by both a wire and `arguments` is an error, not a precedence question. A `$Name` reference is also understood, for
 files that use it, but it says in an attribute what a wire says on the diagram —
 and only the wire reaches the inspector, the auto-layout, and the run record. So
 `stratify` in `sklearn_pipeline` is a third wire into the split rather than
@@ -133,7 +135,7 @@ Fit:
       exec:parameter: X
       sourceRef: [Features]
   arguments:
-    y: $Trials.target         # attributes of wired elements
+    sample_weight: null      # additional: what the wires did not supply
 ```
 
 `sklearn_pipeline` is this convention end to end, and it really runs: see

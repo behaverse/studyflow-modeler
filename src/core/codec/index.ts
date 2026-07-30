@@ -80,18 +80,25 @@ export function looksLikeXml(text: string): boolean {
 }
 
 /**
- * Rewrite namespace URIs written by older releases to the ones the loaded
- * schemas declare (`legacyUris` -> `uri` in each `*.moddle.yaml`).
+ * Rewrite what older releases wrote to what the loaded schemas declare: legacy
+ * namespace URIs (`legacyUris` -> `uri`) and legacy element names
+ * (`meta.legacyNames` -> the property's current name).
  *
- * Quote-bounded, so a legacy URI that is a prefix of a current one (the
- * unversioned core namespace against `.../studyflow/cognitive`) is untouched.
- * Idempotent.
+ * URI matching is quote-bounded, so a legacy URI that is a prefix of a current
+ * one (the unversioned core namespace against `.../studyflow/cognitive`) is
+ * untouched. Element matching is bounded by the tag delimiters, so a longer
+ * name that starts with a legacy one is untouched too. Idempotent.
  */
 export function normalizeStudyflowXml(xml: string): string {
   let out = xml;
   for (const { from, to } of getCatalog().legacyUriRewrites()) {
     if (from === to) continue;
     out = out.replace(new RegExp(`(["'])${escapeRegExp(from)}\\1`, 'g'), `$1${to}$1`);
+  }
+  for (const { from, to } of getCatalog().legacyElementRewrites()) {
+    // `<p:from ` / `<p:from>` / `<p:from/>` and the matching close tag.
+    out = out.replace(new RegExp(`<${escapeRegExp(from)}(?=[\\s/>])`, 'g'), `<${to}`);
+    out = out.replace(new RegExp(`</${escapeRegExp(from)}\\s*>`, 'g'), `</${to}>`);
   }
   return out;
 }

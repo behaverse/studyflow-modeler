@@ -2,7 +2,10 @@
 
 name: Agentic
 prefix: agentic
-description: Studyflow extension for LLM and agent workflows, kept to what an engine calling a model API (Ollama, Claude, OpenAI) actually reads. Two elements are genuinely new - `Agent` (a BPMN ad-hoc sub-process, "activities whose order is decided at run time", which is the line between an agent and a workflow) and `Router` (a gateway whose branch a model picks). `LLMCall` is one model call; `Tool` is a capability an agent may call (an ordinary step - `implementation` + `arguments`); `HumanApproval` pauses for a person; `Prompt` and `Memory` are the data the calls read and the state they carry.
+description: >-
+  LLM and agent workflows, kept to what an engine calling a model API actually
+  reads. Only two elements are new: `Agent`, an ad-hoc sub-process whose order a
+  model decides, and `Router`, a gateway whose branch it picks.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 order: 60  # registry position (load precedence + settings order)
@@ -75,15 +78,10 @@ types:
   # ===========================================================================
   - name: Agent
     description: |
-      A model-driven sub-process: the model chooses which contained activity to
-      call next, and in what order, until the ad-hoc sub-process's own
-      `completionCondition` holds or `maxTurns` is spent. Draw the tools inside
-      it - containment is the tool list.
-
-      This is the one element whose control flow is *not* given by the diagram.
-      Everything else in a studyflow follows a predefined path; an Agent does
-      not. Keeping that distinction visible is the point: a reader can see at a
-      glance which parts of a system are steered by a model and which are not.
+      A model-driven sub-process: the model picks which contained activity to
+      call next, until `completionCondition` holds or `maxTurns` is spent -
+      containment is the tool list. The one element whose control flow the
+      diagram does not fix.
     superClass:
       - bpmn:AdHocSubProcess
     meta:
@@ -127,9 +125,8 @@ types:
             - General
       - name: maxTurns
         description: |
-          Hard ceiling on turns. The one custom loop field: BPMN puts no bound
-          on an ad-hoc sub-process, and this is the only guaranteed termination
-          bound an agent has. Always set it.
+          Hard ceiling on turns. BPMN bounds an ad-hoc sub-process in no other
+          way, so this is an agent's only guaranteed stop - always set it.
         isAttr: true
         type: Integer
         default: 10
@@ -145,11 +142,9 @@ types:
   # ===========================================================================
   - name: Router
     description: |
-      A branch the model decides. The classifier's options are the outgoing
-      sequence flows' labels, so the diagram and the model's choices cannot drift
-      apart. When the classifier is unsure or fails, the gateway's own default
-      flow is taken - BPMN's native escape hatch, so there is no separate
-      fallback field.
+      A branch the model decides, choosing among the outgoing flows' own labels
+      so the diagram and its options cannot drift apart. An unsure or failed
+      classification takes the gateway's native `default`.
     superClass:
       - bpmn:ExclusiveGateway
     meta:
@@ -203,9 +198,9 @@ types:
             - General
       - name: prompt
         description: |
-          The prompt, in markdown. `{{name}}` placeholders are filled from the
-          data elements wired to the step (by name) and the run's variables.
-          Wire a `Prompt` element in instead when the wording is itself under study.
+          The prompt, in markdown; `{{name}}` is filled from the wired data and
+          the run's variables. Wire in a `Prompt` element instead when the
+          wording is itself under study.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
@@ -273,10 +268,9 @@ types:
   # ===========================================================================
   - name: HumanApproval
     description: |
-      Stop and wait for a person to approve, reject, or edit before continuing.
-      The engine pauses the run here and resumes on the reviewer's answer. Put
-      one in front of every side-effecting tool call you would not want a
-      model to make alone.
+      Pauses the run for a person to approve, reject, or edit, and resumes on
+      their answer. Put one before any tool call you would not want a model to
+      make alone.
     superClass:
       - bpmn:UserTask
     meta:
@@ -319,10 +313,9 @@ types:
 
   - name: Memory
     description: |
-      State an agent carries across turns - conversation history, scratchpad,
-      retrieved facts. `scope` says how long it lives, so per-participant
-      memory in a study and per-run memory in a pipeline are one mechanism.
-      Where it is kept goes in `documentation`.
+      State an agent carries across turns - history, scratchpad, retrieved
+      facts - with `scope` saying how long it lives. Where it is kept goes in
+      `documentation`.
     superClass:
       - bpmn:DataStoreReference
     meta:

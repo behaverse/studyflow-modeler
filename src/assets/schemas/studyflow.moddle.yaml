@@ -269,9 +269,8 @@ types:
         type: String
       - name: version
         description: |
-          Human-facing version of the study spec (e.g. `1.2`, a git tag). The
-          registered, as-run, and amended forms of a study are the same file at
-          different versions; diffing two versions is the audit trail.
+          Human-facing version of the study spec (e.g. `1.2`, a git tag).
+          Diffing two versions is the audit trail.
         isAttr: true
         type: String
         meta:
@@ -280,11 +279,9 @@ types:
             - Documentation
       - name: seed
         description: |
-          Root seed for runs of this study. Every step and scope frame derives
-          its own seed from it (see `exec:Step#seed`), so a fold, a sweep
-          point, and a participant are each reproducible on their own. Pin it
-          to make whole runs replayable; leave it unset and the engine draws a
-          fresh run seed and records it on the as-run file.
+          Root seed for runs of this study; every step derives its own from it.
+          Pin it to make runs replayable; leave it unset and the engine draws
+          one and records it on the as-run file.
         isAttr: true
         type: Integer
         meta:
@@ -310,47 +307,38 @@ types:
       - bpmn:Choreography
     isAbstract: true
     properties:
-      - name: categories
+      - name: tags
         description: |
-          What kind of study this is, as short human labels (`Study designs`,
-          `Machine learning`, `AI agents`). Free text: they name shelves
-          rather than picking from a fixed list, so a new kind of study needs
-          no change anywhere else. A study may sit on more than one shelf.
-
-          The same list form a schema uses for `meta.categories` - one
-          spelling of "what is this filed under" across the whole system.
+          What kind of study this is, as short free-text labels (`Study
+          designs`, `Machine learning`). A study may declare more than one.
         isMany: true
         type: String
         meta:
           categories:
             - Documentation
-          # Files written before the property went many-valued carried a
-          # single `studyflow:category` attribute; still read, written back
-          # as a list.
+          # Earlier spellings, still read and rewritten as `tags` on save:
+          # `categories` (renamed because that word also names the inspector's
+          # tabs and the palette's groups, which these are not), and before
+          # that a single `category` attribute.
           legacyNames:
+            - categories
             - category
   - name: Arguments
     description: |
-      Augments any BPMN Activity with the `arguments` mapping. The activity's
-      inputs and outputs are never listed: they are detected from the data
-      associations drawn on the canvas - connect a data element to the task
-      and it is an input, wire the task to a data element and it is an output
-      (the association's `parameter` / `result` refine the binding when names
-      differ). Whether a step is a *data operation* is likewise derived, not
-      stored: it names a data verb (`operationType`) or runs software
-      (`implementation`) without being a participant-facing instrument.
+      Augments any BPMN Activity with the `arguments` mapping - what the call
+      needs *beyond* its wired inputs and outputs, which are the data
+      associations drawn on the canvas.
     extends:
       - bpmn:Activity
     isAbstract: true
     properties:
       - name: arguments
         description: |
-          YAML mapping of keyword arguments passed to the software named by
-          the activity's `implementation` (the role GitHub Actions' `with:`
-          block plays). Values are literals or `$Element` / `$Element.field`
-          references into wired data (resolved by key, then attribute). Wired
-          inputs bind by parameter name automatically and need not be repeated
-          here; the reserved `args` list covers positional-only calls.
+          *Additional* literal arguments for the software named by
+          `implementation`, as YAML (the role GitHub Actions' `with:` plays).
+          The wires fill the signature first - each wired input binds to its
+          parameter - and these supply what is left over; the reserved `args`
+          key lists positional arguments.
         isAttr: false
         type: YAMLString
         meta:
@@ -405,10 +393,8 @@ types:
     properties:
       - name: redirectTo
         description: |
-          URL to redirect the user upon completion. Untick to skip the redirect.
-          Use `{COMPLETION_CODE}` as a placeholder that will be replaced with
-          the actual code at runtime
-          (e.g. `https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}`).
+          URL to send the participant to on completion; untick to skip it.
+          `{COMPLETION_CODE}` is replaced with the code at run time.
         isAttr: true
         type: String
         meta:
@@ -443,11 +429,9 @@ types:
               completionCodeType: static
       - name: attritionCount
         description: |
-          Run-time participant-flow count for this exit: how many participants
-          left the study through this event. Left empty at registration; the
-          runner writes it as actors exit, so the diff between the registered
-          and as-run files carries exactly these counts (CONSORT-style
-          attrition reporting). Written by the runner - not edited by hand.
+          How many participants left the study through this exit. Written by
+          the runner, not by hand, so the diff against the registered file is
+          the CONSORT attrition table.
         isAttr: true
         type: String
         meta:
@@ -456,15 +440,10 @@ types:
             - Run record
   - name: Scheduling
     description: |
-      The Gantt axis, on anything that can sit on it. BPMN has no notion of
-      when a flow element happens in wall-clock or protocol time, so these
-      three attributes add one, and the Gantt view is their only consumer.
-
-      Declared once over both targets rather than per target: an activity is a
-      bar from `onset` for `duration`, an event the same attributes read as a
-      milestone - usually instantaneous, with a `duration` only when it stands
-      for an extended occurrence. Two copies of these three properties is two
-      places to change when the axis grows a fourth.
+      The Gantt axis, on anything that can sit on it: BPMN says nothing about
+      when a flow element happens, and the Gantt view is these attributes' only
+      consumer. Declared once over both activities and events, since a
+      milestone is the same three attributes read as a point.
     extends:
       - bpmn:Activity
       - bpmn:Event
@@ -472,10 +451,8 @@ types:
     properties:
       - name: onset
         description: |
-          Optional onset - when this starts, or when the event occurs.
-          Free-form string so it can carry an ISO 8601 timestamp, a relative
-          offset (e.g., `T0+30min`), or a label. Drives the Gantt view
-          together with `duration`.
+          When this starts, or when the event occurs. Free text, so it can be
+          a timestamp, a relative offset (`T0+30min`), or a label.
         isAttr: true
         type: String
         meta:
@@ -483,10 +460,8 @@ types:
             - Gantt
       - name: duration
         description: |
-          Optional duration (e.g., `30min`, `PT1H`, or a relative unit). The
-          Gantt view places the bar at `onset` and extends it by `duration`.
-          Events are usually instantaneous; set this only when one represents
-          an extended occurrence.
+          How long it lasts (`30min`, `PT1H`); the Gantt bar starts at `onset`
+          and extends by this. Events need it only when not instantaneous.
         isAttr: true
         type: String
         meta:
@@ -503,15 +478,9 @@ types:
             - Gantt
   - name: ChoreographyTask
     description: |
-      Icon/label trait on BPMN's native ChoreographyTask element: a single
-      interaction between two participants, rendered with a participant band
-      above and below the task label (the BPMN choreography notation). The
-      participants are BPMN's own `participantRef` (top band = first ref,
-      bottom = second) and the initiating one is `initiatingParticipantRef`
-      (its band is drawn light, the other shaded) - no studyflow-specific
-      participant attributes. Use it when the interaction itself is the unit
-      of analysis (e.g. a dyadic decision round, an experimenter administering
-      a task to a subject).
+      One interaction between two participants, drawn with a band above and
+      below the label. Use it when the interaction itself is the unit of
+      analysis - a dyadic decision round, an experimenter administering a task.
     extends:
       - bpmn:ChoreographyTask
     meta:
@@ -543,7 +512,9 @@ types:
             - Data
           editor: csvw-table
   - name: Dataset
-    description: Collection of data registered in a `DataCatalog` and stored in a `DataStore`. This can represent a table, array, or any structured dataset. The structure can be defined using an optional `Schema`.
+    description: >-
+      A collection of data - table, array, or any structured dataset -
+      registered in a `DataCatalog`, optionally described by a `Schema`.
     superClass:
       - bpmn:DataStoreReference
     isAbstract: false
@@ -633,9 +604,8 @@ types:
             - Data
   - name: Table
     description: |
-      Tabular data element (rows + columns). Schema is typically described via CSVW
-      or LinkML and may be inline or referenced. Distinct from `Dataset` in that a
-      Table commits to row-and-column structure rather than an opaque collection.
+      Tabular data: rows and columns, described by CSVW or LinkML. Unlike a
+      `Dataset`, it commits to that structure rather than staying opaque.
     superClass:
       - bpmn:DataObjectReference
     isAbstract: false
@@ -716,11 +686,9 @@ types:
             - Data
   - name: EventMarker
     description: |
-      Sparse, time-stamped occurrences within a recording session (e.g., trial
-      markers, stimulus onsets, button presses). Companion to `Timeseries` for
-      continuous data and to `Dataset` for tabular trial data. The recording-time
-      fields here are distinct from the Gantt-axis `onset`/`duration` carried by
-      BPMN Activities and Events.
+      Sparse time-stamped occurrences in a recording - trial markers, stimulus
+      onsets, button presses. Its recording-time fields are not the Gantt axis's
+      `onset`/`duration`.
     superClass:
       - bpmn:DataObjectReference
     isAbstract: false

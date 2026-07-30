@@ -38,20 +38,22 @@ which prints the walk and leaves five artifacts plus a run record behind:
 ```
 sklearn pipeline (held-out evaluation, PCA, cross-validation)
   ○ Run analysis
-  ▸ Select feature columns  [Select_Features]
-      load inputs/digits.csv
-      self ← Input dataset (features + target)
-      call python://pandas.DataFrame.drop
-      features ← result
-  ▸ Split train / held-out test  [Split]
-      * ← features
-      * ← target
-      call python://sklearn.model_selection.train_test_split
-      x_train ← result[0]
-      x_test ← result[1]
-      y_train ← result[2]
-      y_test ← result[3]
-  ▸ Cross-validate on training set  [Cross_Validate]
+  ▣ Prepare the data
+    ▸ Select feature columns  [Select_Features]
+        load inputs/digits.csv
+        self ← Input dataset (features + target)
+        call python://pandas.DataFrame.drop
+        features ← result
+    ▸ Split train / held-out test  [Split]
+        * ← features
+        * ← target
+        call python://sklearn.model_selection.train_test_split
+        x_train ← result[0]
+        x_test ← result[1]
+        y_train ← result[2]
+        y_test ← result[3]
+  ▣ Select the model
+    ▸ Cross-validate on training set  [Cross_Validate]
       estimator ← estimator
       X ← x_train
       y ← y_train
@@ -84,12 +86,20 @@ quarter once — nothing is scored on data it was fitted on.
 
 `results/digits_pca_svc.joblib` is a real fitted
 `Pipeline(PCA(n_components=16), SVC(C=1))` — load it with joblib and it
-predicts. On the digits data the five training folds mean about 0.963 accuracy,
-so the gate promotes, and the held-out quarter then comes out at 0.989 (445 of
+predicts. On the digits data the five training folds mean about 0.989 accuracy,
+so the gate promotes, and the held-out quarter comes out at 0.989 too (445 of
 450 correct, which is what the confusion matrix shows). Raise the threshold
 above the CV mean and the run ends at "CV reports stored; test set untouched"
 instead — with the held-out data unread, which is the state you want to be able
 to go back from.
+
+That the two numbers agree is worth a note, because an earlier version of this
+example scored 0.963 in cross-validation. It cross-validated the *whole*
+dataset, and `load_digits` returns its rows in a near-sorted order that
+`StratifiedKFold` does not shuffle, so the folds were unrepresentative. The
+split now shuffles before anything is fitted, which is both the correct
+methodology and why the training-fold estimate finally agrees with the held-out
+result.
 
 ## The run record
 
@@ -115,11 +125,14 @@ executions:                        # in the order the walk reached them
     used: [Features, Target]       # prov:used
     generated: [X_Train, X_Test, Y_Train, Y_Test]
     durationMs: 21.4
+  - node: Prepare                    # a phase spans its children
+    kind: subProcess
+    durationMs: 7100.4
   - node: Good_Enough
     kind: exclusiveGateway
     conditions:
-      - {flow: Flow_Gate_Fit, expression: mean_cv_accuracy >= 0.90, held: true}
-    took: {flow: Flow_Gate_Fit, name: promote}
+      - {flow: Flow_Gate_Report, expression: mean_cv_accuracy >= 0.90, held: true}
+    took: {flow: Flow_Gate_Report, name: promote}
 artifacts:
   Fitted_Model:
     uri: results/digits_pca_svc.joblib
@@ -127,7 +140,7 @@ artifacts:
     bytes: 165309
     digest: sha256:a012babe…
     producedBy: Fit_Model
-state: {mean_cv_accuracy: {type: float, value: 0.963…}}
+state: {mean_cv_accuracy: {type: float, value: 0.988…}}
 visits: {Good_Enough: 1}
 ```
 
@@ -162,7 +175,7 @@ before implementing it. In short:
 | a data input association | one argument, named by `exec:parameter`, defaulting to the wired element's name |
 | `exec:parameter="self"` | the receiver of an unbound method — bound first and positionally |
 | `exec:parameter="*"` | appended to the positional arguments in wire order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
-| `studyflow:arguments` | the remaining keyword arguments as YAML: `args` for positional, `$Name`/`$Name.field` for wired values, a nested mapping with its own `implementation` for a call to make first |
+| `studyflow:arguments` | the *additional* arguments, as YAML — what the call needs beyond the wires that already filled its signature: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both a wire and `arguments` is refused rather than silently resolved |
 | a data output association | where the return value lands; `bpmn:transformation` narrows it as an expression over `result` |
 | `exec:uri` on a data element | an artifact: loaded before its first consumer, written after its producer, through `exec:codec` or the extension |
 | `exec:codec="png"` | a figure artifact: the plotting step returns scikit-learn's display object, the output wire narrows it to a matplotlib figure with `result.figure_`, and the codec calls `savefig`. Nothing about plotting is a notation concept |

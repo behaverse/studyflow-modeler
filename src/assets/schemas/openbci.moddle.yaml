@@ -2,20 +2,11 @@
 
 name: OpenBCI
 prefix: openbci
-description: |
-  Studyflow extension for experiments that acquire biosignals with OpenBCI
-  hardware. It adds only the two nouns BPMN has no equivalent for -
-  `OpenBCISession` (device-level configuration: which OpenBCI board, streaming
-  protocol, active modalities, electrode type) and `OpenBCIRecording` (the
-  biosignal dataset a session produces). The `device` attribute selects the
-  board - Cyton, Cyton+Daisy, Ganglion, or the Galea VR headset - so Galea is
-  one supported device rather than the whole schema; VR-only fields (the
-  head-mounted display) appear only when `device` is `galea`. The phases of a
-  session - mount, signal-quality check, calibration, baseline, task, unmount,
-  export - are not element types: they are ordinary BPMN tasks preset by the
-  session templates, each carrying its parameters in `configurations` or
-  `documentation`. This is the same "parameterize, don't proliferate" rule the
-  exec/ml/agentic layers follow.
+description: >-
+  Biosignal acquisition with OpenBCI hardware. It adds only the two nouns BPMN
+  lacks - `OpenBCISession` for the device configuration and `OpenBCIRecording`
+  for the dataset it produces - while a session's phases are ordinary BPMN tasks
+  preset by its templates.
 uri: http://behaverse.org/schemas/studyflow/openbci
 icon: iconify mdi--chip
 order: 90  # registry position (load precedence + settings order)
@@ -29,9 +20,8 @@ enumerations:
   - name: OpenBCIDeviceEnum
     isAbstract: true
     description: |
-      OpenBCI acquisition board. Determines channel count and which modalities
-      are available (e.g. only Galea adds eye tracking and a head IMU).
-      Properties typed with this enum may also accept custom identifiers.
+      OpenBCI acquisition board, which fixes the channel count and the
+      available modalities (only Galea adds eye tracking and a head IMU).
     literalValues:
       - name: Cyton (8-channel)
         value: cyton
@@ -160,9 +150,8 @@ types:
             - General
       - name: vrDevice
         description: |
-          VR head-mounted display paired with the Galea biosensor module. Only
-          meaningful when `device` is `galea`. Pick a listed option or type a
-          custom identifier.
+          VR headset paired with the Galea biosensor module; only meaningful
+          when `device` is `galea`.
         isAttr: true
         type: VRDeviceEnum
         default: quest_pro
@@ -179,12 +168,9 @@ types:
   # ---------- Recording dataset variant ----------
   - name: OpenBCIRecording
     description: |
-      Biosignal recording produced by an OpenBCI session. Specializes
-      `studyflow:Dataset` to carry the active modality list and the EEG channel
-      count / sampling rate that downstream data-operation activities need
-      without re-discovering the layout. Per-stream details (e.g. eye-tracking
-      rate on Galea) belong on the wired `studyflow:Timeseries` elements, which
-      already carry `samplingRate`, `channelCount`, and `units`.
+      Biosignal recording produced by an OpenBCI session: a `studyflow:Dataset`
+      carrying the modality list and EEG layout downstream steps need. Per-stream
+      detail belongs on the wired `studyflow:Timeseries` elements.
     superClass:
       - studyflow:Dataset
     meta:

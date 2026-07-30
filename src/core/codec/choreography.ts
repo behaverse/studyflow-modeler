@@ -114,14 +114,13 @@ function isPureChoreography(process: any): boolean {
  * What a root element carries besides its flow, and so has to survive being
  * rewritten from a process to a choreography and back. `id` and `name` are set
  * on the new root directly; everything here moves across. A property missing
- * from this list is silently lost on the next save, which is what made
- * `category` (the gallery's shelf label) disappear from choreography diagrams —
- * and what made it disappear a second time when that property went
- * many-valued and became `categories` (see `Classification#categories`) while
- * this list still named only the old spelling. Both are listed: a file written
- * before the change carries the attribute, and `moveOnto` skips what is unset.
+ * from this list is silently lost on the next save, which is what made the
+ * gallery's shelf label disappear from choreography diagrams — three times, once
+ * per spelling that label has had: `category`, then `categories`, then `tags`
+ * (see `Classification#tags`). Every spelling is listed, since `moveOnto` skips
+ * whatever is unset, and the round-trip test below is what catches the next one.
  */
-const ROOT_PROPERTIES = ['documentation', 'extensionElements', 'categories', 'category'];
+const ROOT_PROPERTIES = ['documentation', 'extensionElements', 'tags', 'categories', 'category'];
 
 function moveOnto(target: any, source: any, props: string[]): void {
   for (const prop of props) {

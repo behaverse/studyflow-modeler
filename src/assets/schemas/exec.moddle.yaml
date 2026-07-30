@@ -3,23 +3,10 @@
 name: Exec
 prefix: exec
 description: >-
-  The minimal executable layer of Studyflow - what an engine reads to run a
-  diagram. A step's `implementation` is a versioned software reference
-  (`python://` importable callable, `docker://` image, `https://` script);
-  `studyflow:arguments` holds its literal keyword arguments; and the data
-  associations drawn on the canvas are its inputs and outputs - each wired
-  input binds to the callable parameter named on its association (defaulting
-  to the wired element's name), and the returned value binds to the wired
-  outputs. Inside `arguments`, a `$Element` / `$Element.field` value reaches into
-  wired data. Conditions - gateway, loop, sensor, completion - are CEL
-  expressions over the bound values, read by bare element name
-  (`CV_Summary.test_accuracy.mean >= 0.9`); the language is declared once by
-  BPMN's own `expressionLanguage` on `bpmn:Definitions`. Branching is a
-  native gateway; a loop is either BPMN's own standard-loop marker or a
-  drawn cycle back through a gateway, bounded by the engine's run state
-  (`state.visits.<gateway-id>`); fan-out is the multi-instance marker over a
-  wired collection; schedules, sensors, and delays are native BPMN events.
-  Studyflow coordinates the calls; it never encodes the computation itself.
+  The minimal executable layer - what an engine reads to run a diagram: a step's
+  `implementation` and `arguments`, the wires that are its inputs and outputs,
+  and CEL conditions over the values they bind. Studyflow coordinates the calls;
+  it never encodes the computation itself.
 uri: https://w3id.org/studyflow/exec
 icon: iconify tabler--hexagon-letter-e
 core: true   # backs the default elements; always loaded, cannot be disabled
@@ -64,22 +51,17 @@ types:
   # ===========================================================================
   - name: Implementation
     description: |
-      Surfaces BPMN's own `implementation` attribute on every service-style
-      step, holding a versioned reference in one grammar:
-      `<scheme>://<ref>[@<version-or-digest>]`. Declared once so the reference
-      grammar is the same for every step that runs something.
+      Surfaces BPMN's own `implementation` on every service-style step, so the
+      reference grammar is the same wherever a step runs something.
     extends:
       - bpmn:ServiceTask
     isAbstract: true
     properties:
       - name: bpmn:implementation
         description: |
-          Software this step runs - BPMN's own attribute for "the technology
-          implementing this task", holding a versioned reference:
-          `<scheme>://<ref>[@<version-or-digest>]`. Schemes: `python://`
-          (importable callable), `docker://` (image), `https://` (script URL),
-          `file://` (local script). The scheme names *how* to execute; new
-          execution modes add schemes, not schema types.
+          Software this step runs, as `<scheme>://<ref>[@<version-or-digest>]`.
+          Schemes: `python://` (importable callable), `docker://` (image),
+          `https://` or `file://` (script).
         isAttr: true
         type: String
         redefines: bpmn:ServiceTask#implementation
@@ -102,33 +84,19 @@ types:
   # is BPMN's own `transformation` expression, not a studyflow attribute.
   # ===========================================================================
   - name: InputBinding
-    description: |
-      Drawn binding: a data input association supplies its source element to
-      one named parameter of the step's callable.
+    description: >-
+      Drawn binding: a data input association supplies its source element to one
+      named parameter of the step's callable.
     extends:
       - bpmn:DataInputAssociation
     isAbstract: true
     properties:
       - name: parameter
         description: |
-          Callable parameter that receives the wired value (e.g. `X`, `y`).
-          Defaults to the wired element's name - or, when the association
-          targets a declared `bpmn:DataInput` of the activity's ioSpecification,
-          to that input's name (BPMN's native mechanism; then this attribute is
-          redundant). On a multi-instance activity, the collection input's
-          `parameter` names the current item inside each instance (BPMN's
-          `inputDataItem`).
-
-          Two names are positions rather than keywords. `self` marks the
-          *receiver* of an unbound method (`pandas.DataFrame.drop`,
-          `sklearn.pipeline.Pipeline.fit`) and binds first and positionally. It
-          has to, because a library does not always call its first parameter
-          `self` - scikit-learn's `@_fit_context` decorator renames
-          `Pipeline.fit`'s to `estimator` - and a diagram that named it would
-          break on a decorator it cannot see. `*` appends the wired value to the
-          positional arguments, in wire order, which is the only way to wire
-          data into a callable whose arguments have no names at all
-          (`train_test_split(*arrays)`).
+          Callable parameter the wired value fills (e.g. `X`, `y`); blank binds
+          by the wired element's own name. Two names are positions instead:
+          `self` is the receiver of an unbound method, and `*` appends
+          positionally in wire order.
         isAttr: true
         type: String
         meta:
@@ -137,11 +105,8 @@ types:
 
   - name: Transformation
     description: |
-      Surfaces BPMN's own `transformation` expression on data associations: a
-      CEL expression applied to the wired value before it lands on the
-      target. On an output wire the step's return value is bound as `result`
-      (e.g. `result.test_accuracy` writes one field of it); unset, the whole
-      value flows unchanged.
+      Surfaces BPMN's own `transformation` on data associations: an expression
+      applied to the wired value before it lands.
     extends:
       - bpmn:DataInputAssociation
       - bpmn:DataOutputAssociation
@@ -149,9 +114,8 @@ types:
     properties:
       - name: bpmn:transformation
         description: |
-          CEL expression over the wired value; what it evaluates to is what
-          lands on the target. On an output wire the step's return value is
-          bound as `result`. Unset, the value flows unchanged.
+          Expression over the wired value; what it evaluates to is what lands.
+          On an output wire the return value is bound as `result`.
         type: bpmn:FormalExpression
         xml:
           # BPMN's own serialization for this one: the element is named after

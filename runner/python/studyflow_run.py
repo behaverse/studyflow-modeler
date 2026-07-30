@@ -57,8 +57,8 @@ Two honest limitations. Conditions and transformations are declared as CEL
 (`expressionLanguage` on `bpmn:Definitions`); this runner evaluates them with
 Python's own `eval` over a namespace holding just the run's values, which
 agrees with CEL on the expressions studyflow diagrams actually use (comparison,
-field access, indexing) and is not a CEL implementation. And it walks one token
-through a single process: no parallel gateways, no sub-processes, no
+field access, indexing) and is not a CEL implementation. And it walks one token:
+sub-processes are entered and walked, but there are no parallel gateways and no
 multi-instance fan-out. Both are the runner's limits, not the notation's.
 """
 
@@ -91,6 +91,9 @@ GATEWAY_TAGS = {
     "exclusiveGateway", "inclusiveGateway", "complexGateway", "eventBasedGateway",
 }
 # Elements the walk passes through without calling anything.
+# Containers whose children are a flow of their own.
+CONTAINER_TAGS = {"subProcess", "adHocSubProcess", "transaction"}
+
 PASSTHROUGH_TAGS = {"startEvent", "intermediateCatchEvent", "intermediateThrowEvent"}
 
 
@@ -141,15 +144,23 @@ class Diagram:
         # The plan's own bytes, so the run record can pin the exact document.
         self.plan = plan
         self.process = self._find_process()
-        self.elements: dict[str, ET.Element] = {}
-        for element in self.process:
-            if element.get("id"):
-                self.elements[element.get("id")] = element
 
-        self.flows = [e for e in self.process if local(e) == "sequenceFlow"]
+        # Indexed to any depth, so a step inside a sub-process is addressable
+        # exactly like one at the top: BPMN ids are unique per document, and a
+        # nested step reads the same properties as its parent's (§10.4.7).
+        self.elements: dict[str, ET.Element] = {}
         self.outgoing: dict[str, list[ET.Element]] = {}
-        for flow in self.flows:
-            self.outgoing.setdefault(flow.get("sourceRef"), []).append(flow)
+
+        def index(container: ET.Element) -> None:
+            for element in container:
+                if element.get("id"):
+                    self.elements[element.get("id")] = element
+                if local(element) == "sequenceFlow":
+                    self.outgoing.setdefault(element.get("sourceRef"), []).append(element)
+                if local(element) in CONTAINER_TAGS:
+                    index(element)
+
+        index(self.process)
 
         # A value is addressable by element id and, when it has one, by name —
         # the two spellings a condition or a `$ref` may use.
@@ -165,11 +176,11 @@ class Diagram:
                 return element
         raise ValueError("no process with a sequence flow to walk")
 
-    def start_event(self) -> ET.Element:
-        for element in self.process:
+    def start_event(self, container: ET.Element | None = None) -> ET.Element:
+        for element in container if container is not None else self.process:
             if local(element) == "startEvent":
                 return element
-        raise ValueError("no start event")
+        raise ValueError(f"no start event in {(container or self.process).get('id')}")
 
     def artifact(self, element_id: str) -> tuple[str | None, str | None]:
         """`uri` and `codec` of a data element, or (None, None)."""
@@ -476,18 +487,18 @@ class Runner:
         return resolved
 
     # -- one step ---------------------------------------------------------
-    def run_activity(self, element: ET.Element) -> None:
+    def run_activity(self, element: ET.Element, pad: str = "  ") -> None:
         element_id = element.get("id")
-        self.say(f"  ▸ {self.diagram.label(element_id)}  [{element_id}]")
+        self.say(f"{pad}▸ {self.diagram.label(element_id)}  [{element_id}]")
         entry = self.record.begin(element_id, self.diagram.label(element_id), local(element))
         try:
-            self.call_activity(element, entry)
+            self.call_activity(element, entry, pad)
         except BaseException as error:
             self.record.fail(entry, error)
             raise
         self.record.end(entry)
 
-    def call_activity(self, element: ET.Element, entry: dict) -> None:
+    def call_activity(self, element: ET.Element, entry: dict, pad: str = "  ") -> None:
         keywords: dict[str, Any] = {}
         receiver: list[Any] = []
         used: list[str] = []
@@ -520,12 +531,23 @@ class Runner:
                     "from": source_id,
                     **describe(value),
                 }
-                self.say(f"      {name} ← {self.diagram.label(source_id)}")
+                self.say(f"{pad}    {name} ← {self.diagram.label(source_id)}")
 
         body = element.find(f"{{{STUDYFLOW}}}arguments")
         arguments = yaml.safe_load(body.text) if body is not None and body.text else {}
         resolved = self.resolve_arguments(arguments or {})
         positional = receiver + resolved.pop("__args__", [])
+
+        # `arguments` are *additional*: the wires fill the signature first, and
+        # these supply what is left. So a name in both is not a precedence
+        # question to settle silently — it is two answers for one parameter, one
+        # drawn and one buried in an attribute. Say so instead of picking.
+        clashes = sorted(set(resolved) & set(keywords))
+        if clashes:
+            raise ValueError(
+                f"{element.get('id')}: {', '.join(clashes)} bound by both a wire and `arguments`. "
+                "Wires fill the signature; `arguments` adds to it — remove one.",
+            )
         keywords.update(resolved)
 
         if used:
@@ -533,11 +555,11 @@ class Runner:
 
         reference = element.get("implementation")
         if not reference:
-            self.say("      (no implementation — nothing to call)")
+            self.say(f"{pad}    (no implementation — nothing to call)")
             return
         target = resolve_callable(reference)
         entry["call"] = reference
-        self.say(f"      call {reference}")
+        self.say(f"{pad}    call {reference}")
         result = target(*positional, **keywords)
 
         for association in element:
@@ -552,9 +574,9 @@ class Runner:
             if transformation is not None and (transformation.text or "").strip():
                 expression = transformation.text.strip()
                 bound = self.evaluate(expression, {"result": result})
-                self.say(f"      {self.diagram.label(target_id)} ← {expression}")
+                self.say(f"{pad}    {self.diagram.label(target_id)} ← {expression}")
             else:
-                self.say(f"      {self.diagram.label(target_id)} ← result")
+                self.say(f"{pad}    {self.diagram.label(target_id)} ← result")
             self.store(target_id, bound)
             entry.setdefault("generated", []).append(target_id)
             entry.setdefault("bindings", {})[target_id] = describe(bound)
@@ -565,7 +587,7 @@ class Runner:
                 codec = codec_for(uri, declared)
                 save_artifact(bound, path, codec)
                 self.record.artifact(target_id, uri, codec, path, entry["node"])
-                self.say(f"      save {uri}")
+                self.say(f"{pad}    save {uri}")
 
     def next_element(self, element: ET.Element) -> ET.Element | None:
         element_id = element.get("id")
@@ -612,7 +634,19 @@ class Runner:
         return self.diagram.elements.get(flows[0].get("targetRef"))
 
     def run(self, max_steps: int = 1000) -> None:
-        element: ET.Element | None = self.diagram.start_event()
+        self.walk(self.diagram.start_event(), max_steps=max_steps)
+
+    def walk(self, element, depth: int = 0, max_steps: int = 1000) -> None:
+        """One token through one container, from `element` to its end event.
+
+        A sub-process is walked the same way, one level in: the token enters at
+        its start event, runs to its end event, and the parent flow resumes
+        after it. Values are not scoped with it — a nested step reads the
+        properties its containers declare, which is BPMN's own rule (§10.4.7)
+        and what lets the phases of a pipeline be sub-processes without
+        threading data through their boundaries.
+        """
+        pad = "  " * (depth + 1)
         steps = 0
         while element is not None:
             steps += 1
@@ -626,15 +660,26 @@ class Runner:
                 # Recorded like anything else: which end a run reached is the
                 # outcome, and this diagram has two that mean different things.
                 self.record.end(self.record.begin(element_id, self.diagram.label(element_id), tag))
-                self.say(f"  ■ {self.diagram.label(element_id)}")
+                self.say(f"{pad}■ {self.diagram.label(element_id)}")
                 return
             if tag in GATEWAY_TAGS:
-                self.say(f"  ◆ {self.diagram.label(element_id)}")
+                self.say(f"{pad}◆ {self.diagram.label(element_id)}")
+            elif tag in CONTAINER_TAGS:
+                # A phase: one recorded activity spanning its children, so the
+                # record reads the way the diagram does at both levels.
+                entry = self.record.begin(element_id, self.diagram.label(element_id), tag)
+                self.say(f"{pad}▣ {self.diagram.label(element_id)}")
+                try:
+                    self.walk(self.diagram.start_event(element), depth + 1, max_steps)
+                except BaseException as error:
+                    self.record.fail(entry, error)
+                    raise
+                self.record.end(entry)
             elif tag in PASSTHROUGH_TAGS:
                 self.record.end(self.record.begin(element_id, self.diagram.label(element_id), tag))
-                self.say(f"  ○ {self.diagram.label(element_id)}")
+                self.say(f"{pad}○ {self.diagram.label(element_id)}")
             else:
-                self.run_activity(element)
+                self.run_activity(element, pad)
 
             element = self.next_element(element)
 

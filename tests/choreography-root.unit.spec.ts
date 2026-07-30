@@ -111,8 +111,8 @@ test.describe('choreography wire format', () => {
       `<bpmn2:process id="Process_1" name="Dyadic decision study" isExecutable="false">
     <bpmn2:documentation>A two-participant choreography.</bpmn2:documentation>
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <studyflow:categories>Reference</studyflow:categories>
-    <studyflow:categories>Study designs</studyflow:categories>`,
+    <studyflow:tags>Reference</studyflow:tags>
+    <studyflow:tags>Study designs</studyflow:tags>`,
     ).replace(
       'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"',
       'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"',
@@ -122,7 +122,7 @@ test.describe('choreography wire format', () => {
     const { rootElement: saved } = await moddle().fromXML(wire);
     const choreography = saved.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
     expect(choreography.name).toBe('Dyadic decision study');
-    expect(choreography.get('categories')).toEqual(['Reference', 'Study designs']);
+    expect(choreography.get('tags')).toEqual(['Reference', 'Study designs']);
     expect(choreography.documentation?.[0]?.text).toContain('two-participant');
     expect(choreography.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
 
@@ -130,7 +130,7 @@ test.describe('choreography wire format', () => {
     const { rootElement: reloaded } = await moddle().fromXML(await fromWireXml(wire, moddle()));
     const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
     expect(process.name).toBe('Dyadic decision study');
-    expect(process.get('categories')).toEqual(['Reference', 'Study designs']);
+    expect(process.get('tags')).toEqual(['Reference', 'Study designs']);
     expect(process.documentation?.[0]?.text).toContain('two-participant');
     expect(process.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
   });

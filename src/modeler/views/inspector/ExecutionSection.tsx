@@ -4,9 +4,13 @@ import { StateSection } from '@/modeler/views/inspector/StateSection';
 import { DataFlowSection } from '@/modeler/views/inspector/DataFlowSection';
 
 /**
- * The Execution tab, in the order a step is read as one call: what runs, what
- * goes in, what comes out, how often it repeats, and what state it carries of
- * its own.
+ * The Execution tab: what runs, what state the element declares, what flows in
+ * and out of it, and last, how often the whole thing repeats.
+ *
+ * Declarations before use — the properties are what this element *has*, and the
+ * two wire lists are where those values come from and go to, so they read
+ * together rather than with the state wedged between them. Repetition applies to
+ * all of it, so it comes after rather than between.
  *
  * Function and its arguments are catalog fields (`bpmn:implementation`,
  * `arguments`); repetition is the `loopCharacteristics` child; inputs and
@@ -20,9 +24,10 @@ export function ExecutionSection({ attrDefs }: { attrDefs: any[] }) {
   return (
     <>
       <AttributeFields attrDefs={attrDefs} />
-      <DataFlowSection />
-      <LoopSection />
       <StateSection />
+      <DataFlowSection direction="input" />
+      <DataFlowSection direction="output" />
+      <LoopSection />
     </>
   );
 }

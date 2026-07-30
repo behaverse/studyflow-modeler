@@ -220,8 +220,14 @@ export const field = {
   /** Right-hand end of a section label: its add button, then its help icon —
    *  so help stays in the same place on every field, with or without one. */
   labelActions: 'flex items-center gap-1',
-  helpAnchor: 'relative group/help',
-  helpIcon: `${ICONS.help} text-stone-400 cursor-help`,
+  /** Add-an-item button for a section label. Boxed to the same 20x20 as the
+   *  help anchor beside it, with an icon of the same 16px, so the `+` and the
+   *  `?` are one row of equal targets rather than two sizes on two baselines. */
+  labelAddBtn: 'w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
+  /** Flex rather than inline: an inline icon aligns on the text baseline, which
+   *  left the `?` two pixels above the `+` next to it. */
+  helpAnchor: 'relative inline-flex items-center justify-center w-5 h-5 group/help',
+  helpIcon: `${ICONS.help} text-base text-stone-400 cursor-help`,
   helpTooltip: 'fixed w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
   helpTooltipWide: 'fixed max-w-md w-64 bg-stone-900 text-xs text-cream-200 p-2 rounded-lg shadow-xl z-[260]',
   helpTooltipName: 'font-mono text-xs font-bold text-cream-50',
@@ -245,6 +251,12 @@ export const field = {
   /* Listbox (non-editable enum) - button trigger styled like an input field. */
   listboxBtn: 'appearance-none px-2 py-1 pr-8 w-full text-left rounded-md border border-black/[0.08] bg-cream-200 text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer',
   listboxOptions: 'z-[240] mt-1 w-[var(--button-width)] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] py-1 focus:outline-none [--anchor-gap:4px]',
+  /* A menu hung off an icon-sized button. `listboxOptions` matches its
+     trigger's width, which is right for a full-width select and useless here:
+     the trigger is a 20px `+`, so the options would be 20px wide. Sized to its
+     own content instead, floored so short names still read as a menu and
+     ceilinged to the panel so a long one cannot run off the edge. */
+  labelMenuOptions: 'z-[240] mt-1 min-w-48 max-w-[min(20rem,calc(100vw-2rem))] w-max max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)] py-1 focus:outline-none [--anchor-gap:4px]',
 
   booleanRow: 'flex items-center justify-between',
   booleanGroup: 'flex items-center gap-2',
@@ -256,14 +268,12 @@ export const field = {
   arrayRow: 'relative',
   arrayInput: 'px-2 py-1 pr-7 w-full rounded-md border border-black/[0.08] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400',
   arrayRemoveBtn: 'absolute top-1/2 right-1.5 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
-  arrayAddBtn: 'self-start w-7 h-7 flex items-center justify-center rounded-md text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
   arrayInferredInput: 'px-2 py-1 pr-16 w-full rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 placeholder-stone-400 focus:outline-none focus:border-black/[0.45]',
   arrayInferredLabel: 'pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 italic text-[11.5px] text-stone-400',
 
   /* Data-flow field - one wire per row, read-only. Flex rather than an
      absolutely placed tag, so a long name can never slide under the label. */
   dataFlowRow: 'flex items-center gap-1.5',
-  dataFlowAddBtn: 'w-5 h-5 flex items-center justify-center rounded text-stone-400 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
   dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 truncate',
   dataFlowBindInput: 'shrink-0 w-24 px-2 py-1 bg-black/[0.03] border-l border-black/[0.08] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
   dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 truncate',

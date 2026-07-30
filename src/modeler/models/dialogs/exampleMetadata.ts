@@ -8,8 +8,8 @@ export { firstSentence };
  * What a gallery card says about a diagram, read from the diagram.
  *
  * Examples ship as PNGs with their studyflow inside them, so the picture and
- * the source are one file — and its title, blurb, and categories are
- * properties of the root element, not entries in a manifest kept beside it.
+ * the source are one file — and its title, blurb, and tags are properties of
+ * the root element, not entries in a manifest kept beside it.
  * Nothing here knows the examples: a diagram a user saves carries the same
  * three things.
  */
@@ -29,8 +29,8 @@ export type ExampleMetadata = {
   title: string;
   /** One sentence, from the root's `documentation`. */
   summary: string;
-  /** The root's `studyflow:categories`; empty when the diagram declares none. */
-  categories: string[];
+  /** The root's `studyflow:tags`; empty when the diagram declares none. */
+  tags: string[];
 };
 
 /** Roots a diagram can have, when nothing better says which one it is. */
@@ -80,18 +80,26 @@ function rootsOf(doc: Document, ns: MetadataNamespaces): Element[] {
 }
 
 /**
- * The shelves one root declares: `<studyflow:categories>` child elements, or
- * the single `studyflow:category` attribute files written before the property
- * went many-valued carry (see `Classification#categories.meta.legacyNames`).
+ * The tags one root declares, under every spelling the property has had:
+ * `<studyflow:tags>` children now, `<studyflow:categories>` before the word was
+ * needed for the inspector's tabs, and a single `studyflow:category` attribute
+ * before it went many-valued (see `Classification#tags.meta.legacyNames`).
+ *
+ * This reader parses markup directly rather than through moddle, so it does not
+ * pass the import boundary that rewrites the old spellings — it has to know
+ * them itself.
  */
-function categoriesOf(root: Element, ns: MetadataNamespaces): string[] {
-  const declared = Array.from(root.children)
-    .filter((child) => (child.namespaceURI === ns.core || child.namespaceURI === ns.legacyCore)
-      && child.localName === 'categories')
-    .map((child) => child.textContent?.trim() ?? '')
-    .filter(Boolean);
-  if (declared.length > 0) return declared;
+const TAG_ELEMENTS = ['tags', 'categories'];
 
+function tagsOf(root: Element, ns: MetadataNamespaces): string[] {
+  for (const localName of TAG_ELEMENTS) {
+    const declared = Array.from(root.children)
+      .filter((child) => (child.namespaceURI === ns.core || child.namespaceURI === ns.legacyCore)
+        && child.localName === localName)
+      .map((child) => child.textContent?.trim() ?? '')
+      .filter(Boolean);
+    if (declared.length > 0) return declared;
+  }
   const legacy = studyflowAttribute(root, ns, 'category')?.trim();
   return legacy ? [legacy] : [];
 }
@@ -99,12 +107,12 @@ function categoriesOf(root: Element, ns: MetadataNamespaces): string[] {
 export function parseXmlExampleMetadata(
   xml: string,
   ns: MetadataNamespaces,
-): { name?: string; id?: string; description?: string; categories: string[] } {
+): { name?: string; id?: string; description?: string; tags: string[] } {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
 
   const roots = rootsOf(doc, ns);
-  if (roots.length === 0) return { categories: [] };
+  if (roots.length === 0) return { tags: [] };
 
   /**
    * A card is built field by field, not from one root: the drawn root leads
@@ -124,14 +132,14 @@ export function parseXmlExampleMetadata(
       (c) => c.namespaceURI === ns.bpmn && c.localName === 'documentation'
         && studyflowAttribute(c, ns, 'checklist') !== 'true',
     )?.textContent?.trim() || undefined),
-    categories: firstOf((root) => {
-      const declared = categoriesOf(root, ns);
+    tags: firstOf((root) => {
+      const declared = tagsOf(root, ns);
       return declared.length > 0 ? declared : undefined;
     }) ?? [],
   };
 }
 
-/** Title, blurb, and shelves of an example, read out of its embedded diagram. */
+/** Title, blurb, and tags of an example, read out of its embedded diagram. */
 export function readExampleMetadata(
   filename: string,
   png: ArrayBuffer,
@@ -141,6 +149,6 @@ export function readExampleMetadata(
   return {
     title: meta.name || (meta.id ? humanizeId(meta.id) : '') || filenameStem(filename),
     summary: firstSentence(meta.description ?? ''),
-    categories: meta.categories,
+    tags: meta.tags,
   };
 }

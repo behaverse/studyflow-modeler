@@ -4,11 +4,11 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import {
-  categoriesOf,
+  tagsOf,
   compareExamples,
-  galleryCategories,
-  isInCategory,
-  UNCATEGORIZED,
+  galleryTags,
+  hasTag,
+  UNTAGGED,
 } from '../src/modeler/models/dialogs/exampleCatalog';
 import { firstSentence } from '../src/modeler/models/dialogs/exampleMetadata';
 import { extractXmlFromPng } from '../src/modeler/models/exporters/pngEmbedding';
@@ -28,16 +28,13 @@ function diagramOf(filename: string): string {
   return extractXmlFromPng(readFileSync(path.join(EXAMPLES_DIR, filename)));
 }
 
-/** The shelves a shipped diagram declares, under either spelling: the current
- *  `<studyflow:categories>` children or the legacy `studyflow:category`
- *  attribute (see `Classification#categories.meta.legacyNames`). */
-function shelvesOf(xml: string): string[] {
-  const declared = [...xml.matchAll(/<studyflow:categories>([\s\S]*?)<\/studyflow:categories>/g)]
+/** The tags a shipped diagram declares. Only the current spelling: what ships
+ *  is what the modeler writes today, and the older ones are the import
+ *  boundary's business (see `legacyElementRewrites`). */
+function tagsInFile(xml: string): string[] {
+  return [...xml.matchAll(/<studyflow:tags>([\s\S]*?)<\/studyflow:tags>/g)]
     .map((m) => m[1].trim())
     .filter(Boolean);
-  if (declared.length > 0) return declared;
-  const legacy = xml.match(/studyflow:category="([^"]+)"/)?.[1];
-  return legacy ? [legacy] : [];
 }
 
 /** First root element of the definitions, as raw markup. */
@@ -58,7 +55,7 @@ test.describe('shipped examples', () => {
       const xml = diagramOf(filename);
 
       expect(rootTag(xml), `${filename} has no named root`).toMatch(/ name="[^"]+"/);
-      expect(shelvesOf(xml), `${filename} declares no category — its card would fall to "${UNCATEGORIZED}"`)
+      expect(tagsInFile(xml), `${filename} declares no tag — its card would fall to "${UNTAGGED}"`)
         .not.toHaveLength(0);
 
       const documentation = xml.match(/<bpmn2?:documentation\b[^>]*>([\s\S]*?)<\/bpmn2?:documentation>/);
@@ -79,30 +76,30 @@ test.describe('shipped examples', () => {
 
 test.describe('gallery shelves', () => {
   test('are whatever the diagrams declare, alphabetical, with Other last', () => {
-    expect(galleryCategories([['Study designs'], ['AI agents'], ['Study designs']]))
+    expect(galleryTags([['Study designs'], ['AI agents'], ['Study designs']]))
       .toEqual(['AI agents', 'Study designs']);
-    // A diagram with no category still gets a shelf, and it sorts last.
-    expect(galleryCategories([['Reference'], undefined, ['AI agents']]))
-      .toEqual(['AI agents', 'Reference', UNCATEGORIZED]);
-    expect(categoriesOf(['  '])).toEqual([UNCATEGORIZED]);
-    expect(categoriesOf([])).toEqual([UNCATEGORIZED]);
+    // A diagram with no tag still gets a shelf, and it sorts last.
+    expect(galleryTags([['Reference'], undefined, ['AI agents']]))
+      .toEqual(['AI agents', 'Reference', UNTAGGED]);
+    expect(tagsOf(['  '])).toEqual([UNTAGGED]);
+    expect(tagsOf([])).toEqual([UNTAGGED]);
   });
 
   test('a diagram on several shelves appears under each', () => {
-    // The same list form a schema property uses for its `meta.categories`.
+    // Free-text labels, so a diagram may sit on more than one shelf.
     const card = ['AI agents', 'Reference'];
-    expect(galleryCategories([card])).toEqual(['AI agents', 'Reference']);
-    expect(isInCategory(card, 'AI agents')).toBe(true);
-    expect(isInCategory(card, 'Reference')).toBe(true);
-    expect(isInCategory(card, 'Study designs')).toBe(false);
+    expect(galleryTags([card])).toEqual(['AI agents', 'Reference']);
+    expect(hasTag(card, 'AI agents')).toBe(true);
+    expect(hasTag(card, 'Reference')).toBe(true);
+    expect(hasTag(card, 'Study designs')).toBe(false);
   });
 
   test('order cards by shelf, then by title', () => {
     const cards = [
-      { categories: [], title: 'Zebra' },
-      { categories: ['Study designs'], title: 'CONSORT 2025' },
-      { categories: ['AI agents'], title: 'Random bot' },
-      { categories: ['AI agents'], title: 'Agent evaluation harness' },
+      { tags: [], title: 'Zebra' },
+      { tags: ['Study designs'], title: 'CONSORT 2025' },
+      { tags: ['AI agents'], title: 'Random bot' },
+      { tags: ['AI agents'], title: 'Agent evaluation harness' },
     ];
     expect([...cards].sort(compareExamples).map((c) => c.title))
       .toEqual(['Agent evaluation harness', 'Random bot', 'CONSORT 2025', 'Zebra']);
@@ -110,11 +107,11 @@ test.describe('gallery shelves', () => {
 
   test('every shipped example lands on a real shelf', () => {
     for (const filename of examples) {
-      expect(categoriesOf(shelvesOf(diagramOf(filename))), filename).not.toContain(UNCATEGORIZED);
+      expect(tagsOf(tagsInFile(diagramOf(filename))), filename).not.toContain(UNTAGGED);
     }
   });
 
-  test('each declares its shelf on one root, the one its plane draws', () => {
+  test('each declares its tags on one root, the one its plane draws', () => {
     // A collaboration and the process it wraps are both roots. The modeler
     // reads and writes whichever one the canvas shows, so a second declaration
     // on the other root is not a harmless copy: it is a second answer, and
@@ -126,11 +123,11 @@ test.describe('gallery shelves', () => {
 
       const roots = [...xml.matchAll(/<bpmn2?:(process|collaboration|choreography)\b[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/bpmn2?:\1>/g)];
       const declaring = roots
-        .filter(([, , , body]) => /<studyflow:categories>/.test(body))
+        .filter(([, , , body]) => /<studyflow:tags>/.test(body))
         .map(([, , id]) => id);
 
-      expect(declaring, `${filename} declares its shelf on ${declaring.length} roots`).toHaveLength(1);
-      expect(declaring[0], `${filename} declares its shelf on a root it does not draw`).toBe(drawn);
+      expect(declaring, `${filename} declares its tags on ${declaring.length} roots`).toHaveLength(1);
+      expect(declaring[0], `${filename} declares its tags on a root it does not draw`).toBe(drawn);
     }
   });
 });

@@ -116,6 +116,42 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.locator('.djs-element[data-element-id^="StartEvent"]').first()).toBeVisible();
   });
 
+  test('the rasterizer pads the figure, so nothing at the edge is clipped', async ({ page }) => {
+    await gotoModeler(page);
+
+    // bpmn-js exports the tight bounding box of what is drawn, which cuts the
+    // outer half of a 2px stroke, the tip of an arrowhead, and any label that
+    // overhangs its shape. `exportToPng` grows the viewBox by 8 on every side
+    // and the frame by the same, so the margin appears without rescaling.
+    //
+    // Asserted against the rasterizer rather than by diffing two exports: the
+    // box bpmn-js reports for the same diagram is not stable across calls, so
+    // comparing one export's viewBox with another's PNG proves nothing.
+    const result = await page.evaluate(async () => {
+      // A runtime path Vite serves, not one TypeScript can resolve: keep the
+      // specifier in a variable so it stays opaque to the compiler.
+      const specifier = '/modeler/models/exporters/svgEmbedding.ts';
+      const mod: any = await import(/* @vite-ignore */ specifier);
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" '
+        + 'viewBox="412 240 36 36"><rect x="412" y="240" width="36" height="36" fill="black"/></svg>';
+      const url = await mod.exportToPng(svg);
+      const image = new Image();
+      await new Promise((resolve) => {
+        image.onload = resolve;
+        image.src = url;
+      });
+      return { root: mod.padSvg(svg).match(/<svg[^>]*>/)?.[0], width: image.width, height: image.height };
+    });
+
+    // The box moves out by the margin and grows by twice it; the frame follows,
+    // so the drawing keeps its scale and gains a border.
+    expect(result.root).toContain('viewBox="404 232 52 52"');
+    expect(result.root).toContain('width="52"');
+    expect(result.root).toContain('height="52"');
+    expect(result.width).toBe(52);
+    expect(result.height).toBe(52);
+  });
+
   test('the same exported PNG is also a draw.io diagram', async ({ page }) => {
     await gotoModeler(page);
 

@@ -46,7 +46,18 @@ export function ArrayInput({ attrDef }: Props) {
     <>
       <Label className={s.label}>
         {t(fullName)}
-        <HelpTooltip name={fullName} description={attrDef?.description} />
+        <span className={s.labelActions}>
+          <button
+            type="button"
+            aria-label="Add another item"
+            title="Add another item"
+            onClick={handleAdd}
+            className={s.labelAddBtn}
+          >
+            <i className={`${ICONS.plus} text-base`} />
+          </button>
+          <HelpTooltip name={fullName} description={attrDef?.description} />
+        </span>
       </Label>
 
       <div className={s.arrayList}>
@@ -70,16 +81,6 @@ export function ArrayInput({ attrDef }: Props) {
             </button>
           </div>
         ))}
-
-        <button
-          type="button"
-          aria-label="Add another item"
-          title="Add another item"
-          onClick={handleAdd}
-          className={s.arrayAddBtn}
-        >
-          <i className={`${ICONS.plus} text-lg`} />
-        </button>
       </div>
     </>
   );

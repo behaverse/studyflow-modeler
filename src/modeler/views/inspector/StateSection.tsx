@@ -25,14 +25,8 @@ const OPENS_A_SCOPE = 'This element opens a scope: what it declares lives for on
 const DECLARED_HERE = 'Declared on this element and read through the scope that contains it.';
 
 const SCOPE_DESCRIPTION =
-  'The bpmn:Property children this element declares — BPMN\'s own construct '
-  + 'for a value a run carries, typed by a bpmn:ItemDefinition. Unlike a data '
-  + 'object, a property is never drawn: it lives in the file, where the '
-  + 'runner, a validator, and any BPMN 2.0 tool can read it. What declares one '
-  + 'also scopes it: a property on the process is readable from every task and '
-  + 'sub-process, one on a sub-process only from inside it, and it is '
-  + 'discarded when that sub-process ends. Gateway conditions read these names '
-  + 'directly (e.g. `arm == "treatment"`).';
+  'The bpmn:Property children this element declares: values a run carries, '
+  + 'typed and never drawn. Conditions read them by name (`arm == "treatment"`).';
 
 /**
  * Properties, in the Execution tab: edits the element's `bpmn:Property`
@@ -67,7 +61,7 @@ export function StateSection() {
               aria-label="Add a property"
               title="Add a property"
               onClick={() => dispatch({ action: 'add' })}
-              className={s.dataFlowAddBtn}
+              className={s.labelAddBtn}
             >
               <i className={`${ICONS.plus} text-base`} />
             </button>

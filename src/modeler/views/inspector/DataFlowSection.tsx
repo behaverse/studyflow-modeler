@@ -13,28 +13,32 @@ import {
 import { getPropertiesInScope } from '@/modeler/models/inspector/stateProperties';
 import { field as s } from '@/modeler/infra/styles';
 
-/** What both directions share, said once and appended to each. */
+/** What both directions share, said once and appended to each. A drawn wire is
+ *  made by drawing it, so only the undrawable half needs explaining here. */
 const HOW_WIRES_ARE_MADE =
-  ' A wire to something drawn on the canvas is made by drawing it, and is '
-  + 'read-only here. A property is never drawn, so its wire is made here with '
-  + '+, which offers the properties in scope: this element\'s own, then those '
-  + 'of each container around it. A row tagged with another container is a '
-  + 'wire reaching out of this sub-process — valid BPMN, with its two ends on '
-  + 'different planes, so there is no line to look for on the canvas.';
+  ' Drawn wires are read-only here; make a property\'s wire with +. A row '
+  + 'tagged with another container reaches out of this sub-process, so it has '
+  + 'no line on this canvas.';
 
 const INPUT_DESCRIPTION =
-  'What this step reads. The second box is the callable parameter the value '
-  + 'fills; blank binds by the wired element\'s own name.' + HOW_WIRES_ARE_MADE;
+  'What this step reads, each bound to the callable parameter in the second '
+  + 'box (blank binds by the element\'s own name).' + HOW_WIRES_ARE_MADE;
 
 const OUTPUT_DESCRIPTION =
-  'Where this step\'s return value lands. The second box narrows it — an '
-  + 'expression over `result`, BPMN\'s own transformation; blank lands the '
-  + 'whole value.' + HOW_WIRES_ARE_MADE;
+  'Where this step\'s return value lands, narrowed by an expression over '
+  + '`result` in the second box (blank lands the whole value).' + HOW_WIRES_ARE_MADE;
 
 type Direction = 'input' | 'output';
 
-/** The step's data associations: drawn elements read-only, properties editable. */
-export function DataFlowSection() {
+/**
+ * One direction of a step's data associations: drawn elements read-only,
+ * properties editable.
+ *
+ * Rendered once per direction rather than as one block, so the Execution tab
+ * orders its sections itself: what the element declares, then what flows in,
+ * then what flows out.
+ */
+export function DataFlowSection({ direction }: { direction: Direction }) {
   const element = useInspectedElement();
   const modeler = useModeler();
   const eventBus = modeler.get('eventBus');
@@ -57,10 +61,10 @@ export function DataFlowSection() {
     output: supportsDataAssociations(element, 'outputs'),
   };
 
-  // Nothing wired, nothing declarable, or nowhere for a wire to live: this
-  // element has no data contract to show.
-  const empty = inScope.length === 0 && neighbors.input.length === 0 && neighbors.output.length === 0;
-  if (empty || (!supported.input && !supported.output)) return null;
+  // Nowhere for a wire of this direction to live (a start event has no inputs),
+  // or nothing wired and nothing declarable: no contract to show.
+  if (!supported[direction]) return null;
+  if (neighbors[direction].length === 0 && inScope.length === 0) return null;
 
   const dispatch = (command: any) =>
     executeCommand(modeler, { type: 'update-data-binding', element, ...command });
@@ -120,8 +124,7 @@ export function DataFlowSection() {
     );
   };
 
-  const group = (direction: Direction, label: string, description: string) => {
-    if (!supported[direction]) return null;
+  const group = (label: string, description: string) => {
     const available = unbound(direction);
     return (
       <div className={s.field}>
@@ -136,11 +139,11 @@ export function DataFlowSection() {
                 <ListboxButton
                   data-testid={`bind-${direction}`}
                   aria-label={`Add ${direction} association`}
-                  className={s.dataFlowAddBtn}
+                  className={s.labelAddBtn}
                 >
                   <i className={`${ICONS.plus} text-base`} />
                 </ListboxButton>
-                <ListboxOptions anchor="bottom end" className={s.listboxOptions}>
+                <ListboxOptions anchor="bottom end" className={s.labelMenuOptions}>
                   {/* The study scope is the default home for a property, so
                       naming it on every option is noise; an intermediate scope
                       is worth calling out, because it bounds the lifetime. */}
@@ -168,9 +171,10 @@ export function DataFlowSection() {
   };
 
   return (
-    <div data-testid="data-flow-section">
-      {group('input', 'Inputs', INPUT_DESCRIPTION)}
-      {group('output', 'Outputs', OUTPUT_DESCRIPTION)}
+    <div data-testid={`data-flow-${direction}s`}>
+      {direction === 'input'
+        ? group('Inputs', INPUT_DESCRIPTION)
+        : group('Outputs', OUTPUT_DESCRIPTION)}
     </div>
   );
 }

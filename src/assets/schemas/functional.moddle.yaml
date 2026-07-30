@@ -3,15 +3,9 @@
 name: Functional
 prefix: functional
 description: >-
-  The functional-programming vocabulary of Studyflow - transform, map, reduce,
-  and filter over data. These are the generic anchors every domain layer binds
-  its verbs onto (an ML fit is a `Reduce` over rows, a preprocessing pass a
-  `Map` over subjects); what a step actually does is the real software named
-  by `implementation` with its keyword arguments in `arguments`, and the data
-  it reads and writes is wired on the canvas. A fan-out is BPMN's own
-  multi-instance marker over a wired collection; a hierarchical workflow is
-  BPMN's native SubProcess. Domain schemas keep their own terminology and
-  root their presets here.
+  Transform, map, reduce, and filter over data - the generic anchors every domain
+  layer binds its verbs onto. What a step does is the software named by
+  `implementation`; a fan-out is BPMN's own multi-instance marker.
 uri: https://w3id.org/studyflow/functional
 icon: iconify tabler--hexagon-letter-f
 core: true   # backs the default elements; always loaded, cannot be disabled

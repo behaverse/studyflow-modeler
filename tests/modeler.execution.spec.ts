@@ -94,7 +94,9 @@ test.describe('Inspector execution tab', () => {
     await expect(page.locator('g[data-element-id="Cross_Validate"]')).toBeVisible();
 
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
-    await expect(page.getByTestId('property-type-Features')).toHaveValue('pandas.DataFrame');
+    // Read on the process, so it has to be one the process declares: the split
+    // parts cross phases, while `features` is scoped to `Prepare the data`.
+    await expect(page.getByTestId('property-type-X_Train')).toHaveValue('pandas.DataFrame');
 
     // Picking a type the diagram declares reuses its item definition.
     await page.getByTestId('add-property').click();
@@ -142,11 +144,14 @@ test.describe('Inspector execution tab', () => {
     await page.locator('g[data-element-id="Cross_Validate"]').click();
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
 
-    const dataFlow = page.getByTestId('data-flow-section');
-    await expect(dataFlow).toContainText('estimator');
-    await expect(dataFlow).toContainText('x_train');
-    await expect(dataFlow).toContainText('y_train');
-    await expect(dataFlow).toContainText('cv_scores');
+    // The two directions are separate sections, with the step's own
+    // declarations between them, so the tab reads as the call's shape.
+    const inputs = page.getByTestId('data-flow-inputs');
+    const outputs = page.getByTestId('data-flow-outputs');
+    await expect(inputs).toContainText('estimator');
+    await expect(inputs).toContainText('x_train');
+    await expect(inputs).toContainText('y_train');
+    await expect(outputs).toContainText('cv_scores');
 
     // Each binding is editable in place: the second cell is the callable
     // parameter. `estimator` is blank because it binds by the property's own
@@ -163,10 +168,10 @@ test.describe('Inspector execution tab', () => {
     // A wire to something drawn is made by drawing it, so its row is inert —
     // no parameter box, no unbind — and names its kind on hover.
     await page.locator('g[data-element-id="Summarize_CV"]').click();
-    await expect(dataFlow).toContainText('CV fold metrics report → self');
+    await expect(inputs).toContainText('CV fold metrics report → self');
     await expect(page.getByLabel('Parameter for CV fold metrics report')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Unbind CV fold metrics report' })).toHaveCount(0);
-    await expect(dataFlow.getByTitle('CV fold metrics report → self (data object)')).toBeVisible();
+    await expect(inputs.getByTitle('CV fold metrics report → self (data object)')).toBeVisible();
   });
 
   test('a property is wired to a step from the inspector, and the wire persists', async ({ page }) => {
@@ -186,21 +191,32 @@ test.describe('Inspector execution tab', () => {
     // Only properties in scope are offered, named plainly: the study scope is
     // the default home, so it is not spelled out on every option.
     await page.getByTestId('bind-input').click();
-    await expect(page.getByRole('option', { name: 'features', exact: true })).toBeVisible();
-    await page.getByRole('option', { name: 'features', exact: true }).click();
-    await page.getByLabel('Parameter for features').fill('X');
+    await expect(page.getByRole('option', { name: 'x_train', exact: true })).toBeVisible();
+
+    // And scope really bounds the list. This step is in `Select the model`, so
+    // `features` — declared by `Prepare the data`, discarded when that phase
+    // ended — is not something it could read (BPMN 2.0 §10.4.7).
+    await expect(page.getByRole('option', { name: 'features', exact: true })).toHaveCount(0);
+
+    await page.getByRole('option', { name: 'x_train', exact: true }).click();
+    await page.getByLabel('Parameter for x_train').fill('X');
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
+    // Found by its own key at whatever depth it sits, and delimited by
+    // indentation: the step lives inside a phase sub-process, and how deeply
+    // the example nests it is not what this is testing.
     const lines = studyflowText.split('\n');
-    const start = lines.findIndex((l) => l.startsWith('    Build_Pipeline:'));
+    const start = lines.findIndex((l) => /^\s+Build_Pipeline:\s*$/.test(l));
+    expect(start, 'the exported YAML declares Build_Pipeline').toBeGreaterThan(-1);
+    const depth = lines[start].search(/\S/);
     let end = start + 1;
-    while (end < lines.length && !/^    [A-Za-z_]/.test(lines[end])) end += 1;
+    while (end < lines.length && (lines[end].trim() === '' || lines[end].search(/\S/) > depth)) end += 1;
     const block = lines.slice(start, end).join('\n');
 
     // The binding is an ordinary data association on the step, indistinguishable
     // from one drawn on the canvas.
     expect(block).toContain('dataInputAssociations:');
-    expect(block).toMatch(/sourceRef:\n\s+- Features/);
+    expect(block).toMatch(/sourceRef:\n\s+- X_Train/);
     expect(block).toContain('parameter: X');
 
     // `Wire_Features` is already taken by Select_Features' output wire, and

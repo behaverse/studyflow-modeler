@@ -29,12 +29,9 @@ import { field as s } from '@/modeler/infra/styles';
 const KIND_OPTIONS: LoopKind[] = ['none', 'loop', 'parallel', 'sequential'];
 
 const KIND_DESCRIPTION =
-  'How this activity repeats, stored as BPMN\'s own loopCharacteristics child. '
-  + 'A loop (↻) retries this one activity while its condition holds; '
-  + 'parallel (∥) and sequential (≡) fan out one instance per item of the '
-  + 'wired collection input. A repeat that spans several steps is drawn '
-  + 'control flow instead: a conditioned back-edge through a gateway '
-  + '(e.g. `score < 0.9 && state.visits.Gate_1 < 5`).';
+  'How this activity repeats: a loop (↻) retries it while its condition holds, '
+  + 'while parallel (∥) and sequential (≡) fan out one instance per item of the '
+  + 'wired collection. A repeat spanning several steps is a drawn cycle instead.';
 
 const LOOP_MAXIMUM_DESCRIPTION =
   'Hard ceiling on iterations. Always set one — it is the loop\'s guaranteed termination bound.';

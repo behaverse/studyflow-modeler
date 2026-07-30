@@ -5,9 +5,9 @@ import { executeCommand } from '@/modeler/controllers/commandBus';
 import { basename, readExampleMetadata } from '@/modeler/models/dialogs/exampleMetadata';
 import {
   compareExamples,
-  galleryCategories,
-  isInCategory,
-  primaryCategoryOf,
+  galleryTags,
+  hasTag,
+  primaryTagOf,
 } from '@/modeler/models/dialogs/exampleCatalog';
 import { filenameStem } from '@/modeler/models/diagramFile';
 import { dialog as d, exampleGallery as g } from '@/modeler/infra/styles';
@@ -19,7 +19,7 @@ import { ICONS } from '@/icons';
  * (its studyflow rides in a metadata chunk — see `exporters/pngEmbedding`), so
  * the image the user is looking at is the file that opens when they click it.
  *
- * Titles, blurbs, and categories are read out of those same files, which is
+ * Titles, blurbs, and tags are read out of those same files, which is
  * why adding an example is one drop into `@/assets/examples/` and nothing else.
  */
 const exampleFiles = import.meta.glob(
@@ -34,7 +34,7 @@ type ExampleEntry = {
   /** One sentence, from the diagram's own documentation. */
   summary: string;
   /** Shelves the diagram files itself under; a card appears under each. */
-  categories: string[];
+  tags: string[];
   error?: string;
 };
 
@@ -49,7 +49,7 @@ function buildInitialEntries(): ExampleEntry[] {
         url,
         title: filenameStem(filename),
         summary: '',
-        categories: [],
+        tags: [],
       };
     })
     .sort((a, b) => a.filename.localeCompare(b.filename));
@@ -96,13 +96,13 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
     };
   }, [isOpen, loaded]);
 
-  const categories = useMemo(
-    () => galleryCategories(entries.map((entry) => entry.categories)),
+  const shelves = useMemo(
+    () => galleryTags(entries.map((entry) => entry.tags)),
     [entries],
   );
   const visible = filter === 'all'
     ? entries
-    : entries.filter((entry) => isInCategory(entry.categories, filter));
+    : entries.filter((entry) => hasTag(entry.tags, filter));
 
   const selectExample = async (entry: ExampleEntry) => {
     if (!modeler || busy) return;
@@ -136,16 +136,16 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
             </DialogTitle>
 
             <div className={g.filters}>
-              {['all', ...categories].map((category) => (
+              {['all', ...shelves].map((shelf) => (
                 <button
-                  key={category}
+                  key={shelf}
                   type="button"
-                  data-testid={`example-filter-${category}`}
-                  aria-pressed={filter === category}
-                  onClick={() => setFilter(category)}
-                  className={`${g.chip} ${filter === category ? g.chipActive : g.chipIdle}`}
+                  data-testid={`example-filter-${shelf}`}
+                  aria-pressed={filter === shelf}
+                  onClick={() => setFilter(shelf)}
+                  className={`${g.chip} ${filter === shelf ? g.chipActive : g.chipIdle}`}
                 >
-                  {category === 'all' ? 'All' : category}
+                  {shelf === 'all' ? 'All' : shelf}
                 </button>
               ))}
             </div>
@@ -174,8 +174,8 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
                         )}
                       </div>
                       <div className={g.body}>
-                        {entry.categories.length > 0 && (
-                          <span className={g.eyebrow}>{primaryCategoryOf(entry.categories)}</span>
+                        {entry.tags.length > 0 && (
+                          <span className={g.eyebrow}>{primaryTagOf(entry.tags)}</span>
                         )}
                         <span className={g.title}>{entry.title}</span>
                         {entry.summary && <span className={g.summary}>{entry.summary}</span>}

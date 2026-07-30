@@ -83,11 +83,50 @@ export function embedDrawioIntoSvg(svg: string, mxfileXml: string): string {
   return new XMLSerializer().serializeToString(svgDoc);
 }
 
+/**
+ * Margin added around the diagram before rasterizing, in diagram units.
+ *
+ * bpmn-js exports the tight bounding box of what is drawn, which cuts the outer
+ * half of a 2px stroke, the tip of an arrowhead, and any label that overhangs
+ * its shape. Eight units clears all three and still reads as a figure trimmed
+ * to its content.
+ */
+const EXPORT_PADDING = 8;
+
+/**
+ * Grow an SVG's viewBox (and the width/height that scale it) by `padding` on
+ * every side, so nothing drawn at the edge is clipped.
+ *
+ * Both are grown by the same amount so the scale is unchanged: the image gets
+ * larger by the margin rather than shrinking its contents into it.
+ */
+export function padSvg(svg: string, padding = EXPORT_PADDING): string {
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const el = doc.querySelector('svg') ?? doc.documentElement;
+
+  const box = (el.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number);
+  if (box.length !== 4 || box.some((n) => !Number.isFinite(n))) return svg;
+  const [minX, minY, width, height] = box;
+  el.setAttribute(
+    'viewBox',
+    `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`,
+  );
+
+  // width/height may carry a unit (`100%`, `620px`); only a bare number is ours
+  // to adjust, and without one the viewBox alone already decides the aspect.
+  for (const [name, along] of [['width', width], ['height', height]] as const) {
+    const declared = Number(el.getAttribute(name));
+    el.setAttribute(name, String((Number.isFinite(declared) && declared > 0 ? declared : along) + padding * 2));
+  }
+
+  return new XMLSerializer().serializeToString(doc);
+}
+
 /** Rasterize an SVG string to a PNG data URL, flattening onto a white background. */
 export async function exportToPng(svg: string): Promise<string> {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d')!;
-  const canvg = Canvg.fromString(context, svg);
+  const canvg = Canvg.fromString(context, padSvg(svg));
   await canvg.render();
 
   // White background under the rendered SVG so transparent areas don't appear black.

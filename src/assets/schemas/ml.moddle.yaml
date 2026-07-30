@@ -4,22 +4,9 @@ name: ML
 prefix: ml
 description: >-
   Statistical and machine-learning pipelines in scikit-learn's own terminology
-  (load, split, build, fit, evaluate, cross-validate, save), as presets over
-  the generic `functional` operations - this schema declares no element types
-  at all. An ML pipeline is a data pipeline the engine can run one Python
-  call at a time, and estimators are data: building one is a call
-  (`make_pipeline(PCA(16), SVC())` - a `functional:Transform` whose output is
-  the unfitted estimator on a wire), fitting is a call
-  (`sklearn.pipeline.Pipeline.fit`, the unbound method, its `self` wired in -
-  a `functional:Reduce`: rows in, one fitted artifact out). Every
-  `implementation` is a real importable callable, `arguments` holds its literal
-  keyword arguments, and each wired input binds to the callable parameter
-  named on its association (`estimator`, `X`, `y`, `self`), defaulting to
-  the wired element's name; `$Element.field` references reach into a wired
-  value when a callable needs a field. Cross-validation and
-  hyperparameter search are scikit-learn's own `cross_validate` and
-  `GridSearchCV` - not workflow constructs; a promotion rule is a native
-  gateway's own `conditionExpression`.
+  (load, split, build, fit, cross-validate, save), shipped as presets over the
+  `functional` operations - this schema declares no element types. Estimators are
+  data: building one is a call, and fitting is a call over rows.
 uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
 order: 50  # registry position (load precedence + settings order)
