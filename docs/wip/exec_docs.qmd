@@ -198,7 +198,7 @@ What remains custom across the whole executable layer: `with`, `when`, `runsOn`/
 
 ## Provenance: the as-run record
 
-A `.studyflow` file is a **plan** — `prov:Plan`, precisely. Running it produces a `.studyrun`: the same document, plus what actually happened.
+A `.studyflow` file is a **plan** — `prov:Plan`, precisely. Running it produces a W3C PROV document recording what actually happened. The sketch below is how that was first drafted, as a bespoke `.studyrun`; the Python runner instead writes real PROV (`provenance.jsonld`, via the `prov` reference library), because everything the sketch invented already had a term.
 
 ```yaml
 studyflow: sha256:9f2c…          # pins the exact plan
@@ -223,7 +223,7 @@ Studyflow has done this in miniature all along: [`EndEvent#attritionCount`](elem
 
 ## What the runners implement today
 
-The schema describes the full semantics; two runners implement complementary halves of it. The **browser runner** (`src/runner/`) drives the participant-facing side — it suspends for a human and knows nothing of Python. The **Python runner** (`runner/python/`) executes the analysis side: it calls the software a step names and writes the as-run record. Being explicit about the gap:
+The schema describes the full semantics; two runners implement complementary halves of it. The **browser runner** (`src/runner/`) drives the participant-facing side — it suspends for a human and knows nothing of Python. The **Python runner** (`src/runner/python/`) executes the analysis side: it calls the software a step names and writes the as-run record. Being explicit about the gap:
 
 | | Browser runner | Python runner |
 | --- | --- | --- |
@@ -231,11 +231,12 @@ The schema describes the full semantics; two runners implement complementary hal
 | Human suspension (participant tasks) | implemented, on every cognitive task | **not supported** — it has no participant |
 | `implementation` / `arguments` | parsed and validated; **not executed** | **executed**, including nested calls and `$` references |
 | Artifacts (`uri`, `codec`) | — | implemented for csv, parquet, json, joblib, and figures |
-| The as-run record | **not implemented** | implemented — a `.studyrun` per run, written on failure too |
-| Parallel gateway, sub-process traversal | **not supported** — the runner refuses rather than guessing | **not supported** |
+| The as-run record | **not implemented** | implemented — a W3C PROV document per run (`provenance.jsonld`, or PROV-N/Turtle/PROV-JSON/PROV-XML), written on failure too, in a `runs/<timestamp>/` directory that also holds the artifacts, the inputs, a copy of the plan, a plain-text `studyflow.log` of the walk, and an `ro-crate-metadata.json` making the whole directory a validated Workflow Run RO-Crate |
+| Parallel gateway | **not supported** — the runner refuses rather than guessing | **not supported** |
+| Sub-process traversal | **not supported** — the runner refuses rather than guessing | implemented — one token, one level in, values unscoped per §10.4.7 |
 | Model-driven routing (`agentic:Router`) | **not supported** — the runner refuses rather than silently taking the default branch | **not supported** |
 | Scopes, expansion, collection, caching, skip guards (`when`) | **not implemented** | **not implemented** |
 
 Refusing is deliberate. A runner that silently took the default branch at a `Router` would produce a run that looks fine and means nothing.
 
-`sklearn_pipeline` is the worked example the Python runner is checked against: it executes straight out of the shipped `.png` and leaves five artifacts and a run record behind. See `runner/python/README.md`.
+`sklearn_pipeline` is the worked example the Python runner is checked against: it executes straight out of the shipped `.png` — in one command, materializing its own boundary input — and leaves five artifacts, a run record, and a log behind. See `src/runner/python/README.md`.

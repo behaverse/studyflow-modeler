@@ -81,6 +81,12 @@ types:
   # folds that structure back to this attribute. Field extraction on a data association
   # is BPMN's own `transformation` expression, not a studyflow attribute.
   # ===========================================================================
+  # An association can carry both of the traits below, and they answer different
+  # questions: `parameter` says *which* slot the value fills, `transformation`
+  # says *what* value arrives. One renames, the other computes; neither can
+  # express the other, which is why they are two fields and not one. Together
+  # they read as a sentence — `parameter: X` with `transformation: folds['train']`
+  # puts the training half into `X`.
   - name: InputBinding
     description: >-
       Drawn binding: a data input association supplies its source element to one
@@ -95,6 +101,8 @@ types:
           by the associated element's own name. Two names are positions instead:
           `self` is the receiver of an unbound method, and `*` appends
           positionally in declaration order.
+          This chooses *where* the value goes and never alters the value itself;
+          to narrow or reshape it on the way in, add a `transformation`.
         isAttr: true
         type: String
         meta:
@@ -104,7 +112,8 @@ types:
   - name: Transformation
     description: |
       Surfaces BPMN's own `transformation` on data associations: an expression
-      applied to the associated value before it lands.
+      applied to the associated value before it lands. It changes *what* value
+      flows and never which parameter receives it - that is `parameter`.
     extends:
       - bpmn:DataInputAssociation
       - bpmn:DataOutputAssociation
@@ -113,7 +122,11 @@ types:
       - name: bpmn:transformation
         description: |
           Expression over the associated value; what it evaluates to is what lands.
-          On an output association the return value is bound as `result`.
+          On an *input* association it narrows the source before that value fills
+          the parameter (`folds['train']`), leaving the parameter name to
+          `parameter`. On an *output* association it narrows the return value,
+          which is bound as `result` (`result[0]`) - which is how one call can
+          fill several data elements.
         type: bpmn:FormalExpression
         xml:
           # BPMN's own serialization for this one: the element is named after

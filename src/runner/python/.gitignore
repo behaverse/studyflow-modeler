@@ -1,0 +1,7 @@
+# Running the example from this directory writes here: the boundary input table
+# the runner materializes, and one `runs/<timestamp>/` directory per run holding
+# that run's artifacts, its log, its provenance, its RO-Crate manifest, and
+# copies of the plan and the inputs. All of it is reproducible from the one
+# command in the README, so none of it belongs in the repository.
+digits.csv
+runs/

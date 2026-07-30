@@ -138,8 +138,16 @@ Fit:
     sample_weight: null      # additional: what the associations did not supply
 ```
 
+An association can also carry BPMN's own `transformation`, and it is a different
+axis rather than another way to spell `parameter`: `parameter` chooses *which*
+slot the value fills, `transformation` chooses *what* value arrives. One renames,
+the other computes. So `parameter: y_true` with
+`bpmn:transformation: folds['test']` puts the test half into `y_true`; on an
+output association the same field narrows the return value instead, as an
+expression over `result`.
+
 `sklearn_pipeline` is this convention end to end, and it really runs: see
-`runner/python/` for a Python implementation of the contract that executes
+`src/runner/python/` for a Python implementation of the contract that executes
 that example straight out of its `.png`, leaving five artifacts behind —
 including the held-out confusion matrix as a PNG, written by a `png` codec from
 the figure the plotting step returned.
@@ -642,7 +650,7 @@ brainflow, openbci_gui.
 |---|---|
 | `kitchensink.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
 | `cognitive_battery.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `sklearn_pipeline.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `runner/python/`. |
+| `sklearn_pipeline.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `src/runner/python/`. |
 | `agent_eval.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
 | `agent_eval_pool.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
 | `choreography_demo.png` | Choreography root, participants, message flows, ChoreographyTasks. |

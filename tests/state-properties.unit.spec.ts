@@ -84,7 +84,7 @@ test.describe('state as bpmn:Property', () => {
     // field, because the step calls `DataFrame.describe`, which puts the
     // statistics on the index: `.mean` would name the Series method and the
     // gate downstream would compare a method to a number. The example really
-    // runs (see `runner/python/`), so this is load-bearing, not cosmetic.
+    // runs (see `src/runner/python/`), so this is load-bearing, not cosmetic.
     expect(xml).toContain('<bpmn:transformation>result.test_accuracy[\'mean\']</bpmn:transformation>');
     expect(xml).not.toContain('<bpmn:formalExpression>');
 
