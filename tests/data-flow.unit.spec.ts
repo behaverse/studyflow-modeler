@@ -190,7 +190,7 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
     // each round of the optimization loop, and reads them from steps nested
     // one and two levels down. Legal BPMN (§10.4.7), and undrawable: the
     // inspector has to name the scope, since there is no line to follow.
-    const { definitions, planes } = await read('agent_eval.png');
+    const { definitions, planes } = await read('agent_eval.studyflow.png');
 
     const crossing = associationsOf(definitions)
       .filter(({ step, dataElement }) =>
@@ -212,7 +212,7 @@ function elementById(definitions: any, id: string): any {
 
 test.describe('what the inspector reports for a step', () => {
   test('names the scope a data association reaches into, and stays quiet about a sibling', async () => {
-    const { definitions } = await read('agent_eval.png');
+    const { definitions } = await read('agent_eval.studyflow.png');
 
     // The judge reads a rubric declared two levels out — the row has to say so,
     // because there is no line to find on the canvas. Asserted as a whole row
@@ -228,7 +228,7 @@ test.describe('what the inspector reports for a step', () => {
     ]);
 
     // A data association between siblings is drawn, so naming the scope would be noise.
-    const { definitions: sklearn } = await read('sklearn_pipeline.png');
+    const { definitions: sklearn } = await read('sklearn_pipeline.studyflow.png');
     expect(getInferredDataNeighbors(elementById(sklearn, 'Select_Features'), 'inputs')).toEqual([
       expect.objectContaining({
         name: 'Input dataset (features + target)',
@@ -242,7 +242,7 @@ test.describe('what the inspector reports for a step', () => {
     // required `targetRef` on a `bpmn:Property` named `__targetRef_placeholder`
     // — an artifact of the file format that no author declared. lablink_demo2
     // ships one, as every diagram drawn in the modeler would.
-    const { definitions } = await read('lablink_demo2.png');
+    const { definitions } = await read('lablink_demo2.studyflow.png');
     const step = elementById(definitions, 'ReadBIDS');
     expect(step.properties.map((p: any) => p.name)).toContain('__targetRef_placeholder');
 

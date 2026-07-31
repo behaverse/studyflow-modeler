@@ -1,8 +1,8 @@
 /**
  * Standard-BPMN I/O lowering.
  *
- * Studyflow's compact form carries one `exec:binding` attribute per data
- * association — `slot = selection`, each half optional (see the exec schema).
+ * Studyflow's compact form carries one `transformation` expression per data
+ * association — `slot = selection`, each half optional (see the studyflow schema).
  * BPMN 2.0 spells the same facts structurally: the slot is the name of a
  * declared `bpmn:DataInput` the association targets (the activity's
  * `ioSpecification`), the produced value is a `bpmn:DataOutput` every output
@@ -30,25 +30,25 @@
  * declared facts.
  */
 
-/** The two halves of a `binding` attribute: `slot = selection`, each optional. */
+/** The two halves of a compact transformation body: `slot = selection`, each optional. */
 export function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
   const text = (value ?? '').trim();
   if (!text) return {};
   const slotOnly = /^(self|\*|[A-Za-z_]\w*)$/.exec(text);
   if (slotOnly) return { slot: slotOnly[1] };
-  // `=` splits the halves; `==` belongs to the selection (a CEL comparison).
+  // `=` splits the halves; `==` belongs to the selection (a comparison).
   const both = /^(self|\*|[A-Za-z_]\w*)\s*=(?!=)\s*(\S.*)$/.exec(text);
   if (both) return { slot: both[1], selection: both[2].trim() };
   return { selection: text };
 }
 
-/** The one binding attribute back from its halves. */
+/** The one compact transformation body back from its halves. */
 export function combineBinding(slot: string | undefined, selection: string | undefined): string | undefined {
   if (slot && selection) return `${slot} = ${selection}`;
   return slot || selection || undefined;
 }
 
-/** Sanitize a binding name into an XML id fragment. */
+/** Sanitize a slot name into an XML id fragment. */
 function idSlug(name: string): string {
   return name.replace(/[^A-Za-z0-9_]+/g, '_');
 }
@@ -69,18 +69,18 @@ function forEachProcess(definitions: any, visit: (process: any) => void): void {
 /** The effective slot of an input association in the compact form. */
 function effectiveSlot(assoc: any): string {
   const source = assoc.sourceRef?.[0];
-  return splitBinding(assoc.get?.('binding')).slot || source?.name || source?.id || 'input';
+  return splitBinding(assoc.transformation?.body).slot || source?.name || source?.id || 'input';
 }
 
-/** The selection half of an association's binding, as a native expression. */
-function lowerSelection(model: any, assoc: any): void {
-  const { selection } = splitBinding(assoc.get?.('binding'));
-  if (selection) {
-    const expression = model.create('bpmn:FormalExpression', { body: selection });
-    expression.$parent = assoc;
-    assoc.set('transformation', expression);
-  }
-  assoc.set('binding', undefined);
+/** Narrow the compact transformation to its selection half — the slot has
+ *  moved into the synthesized DataInput's name. A slot-only body leaves no
+ *  expression behind. The element (and its `language`) is kept, not
+ *  recreated. */
+function lowerSelection(_model: any, assoc: any): void {
+  const expression = assoc.transformation;
+  const { selection } = splitBinding(expression?.body);
+  if (selection) expression.set('body', selection);
+  else assoc.set('transformation', undefined);
 }
 
 /**
@@ -158,26 +158,14 @@ export function lowerIoSpecification(definitions: any): boolean {
 export function foldIoSpecification(definitions: any): boolean {
   let changed = false;
 
-  // A native `transformation` becomes the binding's selection, joined to
-  // whatever slot the binding already carries.
-  const foldSelection = (assoc: any) => {
-    const expression = assoc.transformation?.body;
-    if (!expression) return;
-    const { slot } = splitBinding(assoc.get?.('binding'));
-    assoc.set('binding', combineBinding(slot, expression));
-    assoc.set('transformation', undefined);
-    changed = true;
-  };
+  const model = definitions?.$model;
 
   forEachProcess(definitions, (process) => forEachActivity(process, (activity) => {
     const io = activity.ioSpecification;
-    if (!io) {
-      // No structure to fold, but a foreign file may still spell selections
-      // natively; the compact form holds them in the binding.
-      for (const assoc of activity.dataInputAssociations ?? []) foldSelection(assoc);
-      for (const assoc of activity.dataOutputAssociations ?? []) foldSelection(assoc);
-      return;
-    }
+    // Without the structure there is nothing to fold: a native selection is
+    // already the compact spelling (the slot half only exists with a
+    // synthesized DataInput to carry it).
+    if (!io) return;
 
     // A multi-instance marker referencing the ioSpecification carries facts
     // the compact form cannot hold - keep the native structure.
@@ -206,15 +194,25 @@ export function foldIoSpecification(definitions: any): boolean {
       const source = assoc.sourceRef?.[0];
       const defaultName = source?.name || source?.id;
       const slot = target.name && target.name !== defaultName ? target.name : undefined;
+      // Rejoin the halves into the compact body; keep (or create) the
+      // expression element so its `language` rides along.
       const selection = assoc.transformation?.body || undefined;
-      assoc.set('binding', combineBinding(slot, selection));
-      assoc.set('transformation', undefined);
+      const fused = combineBinding(slot, selection);
+      if (fused && assoc.transformation) {
+        assoc.transformation.set('body', fused);
+      } else if (fused && model) {
+        const expression = model.create('bpmn:FormalExpression', { body: fused });
+        expression.$parent = assoc;
+        assoc.set('transformation', expression);
+      } else if (!fused) {
+        assoc.set('transformation', undefined);
+      }
       assoc.set('targetRef', undefined);
     }
     for (const assoc of activity.dataOutputAssociations ?? []) {
       const remaining = (assoc.sourceRef ?? []).filter((source: any) => !declaredOutputs.includes(source));
       if (remaining.length !== (assoc.sourceRef ?? []).length) assoc.set('sourceRef', remaining);
-      foldSelection(assoc);
+      // An output's selection is already the compact body — nothing to rejoin.
     }
     activity.set('ioSpecification', undefined);
     changed = true;

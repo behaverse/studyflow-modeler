@@ -1,7 +1,7 @@
 # Studyflow element cheatsheet
 
 A complete reference to every element type across the studyflow moddle schemas,
-meant to be read next to **`kitchensink.png`** — the companion diagram that
+meant to be read next to **`kitchensink.studyflow.png`** — the companion diagram that
 places one live instance of each palette element in a labelled band per schema.
 Open that file in the modeler to see the shapes and icons; use this file for the
 attributes, enum values, and snippets a diagram can't show.
@@ -116,7 +116,7 @@ properties would need a custom `value` attribute (one custom attribute traded
 for another) and would turn every `cv: 5` into a typed declaration plus a data association,
 listed in the State tab beside the values a run actually carries.
 
-An input association's `binding` names the slot its value fills (`slot = selection`,
+An input association's `transformation` names the slot its value fills (`slot = selection`,
 each half optional), and two slots are **positions** rather than keywords. `self` is the receiver of an unbound
 method: it binds first and positionally, because a library's first parameter is
 not always spelled `self` (scikit-learn's `@_fit_context` renames
@@ -129,21 +129,21 @@ Fit:
   implementation: python://sklearn.pipeline.Pipeline.fit
   dataInputAssociations:
     Association_Estimator_Fit:
-      binding: self           # the receiver: bound first, positionally
+      transformation: self           # the receiver: bound first, positionally
       sourceRef: [Estimator]
     Association_Features_Fit:
-      binding: X
+      transformation: X
       sourceRef: [Features]
   additionalArguments:
     sample_weight: null    # what the associations did not supply
 ```
 
-The binding's selection half chooses *what* value arrives, as member access and
-indexing: `binding: y_true = folds['test']` puts the test half into `y_true`.
-On an output association the drawn target is the slot, so the binding is a
-selection over `result` (`binding: result[0]`). Selections route values between
+The transformation's selection half chooses *what* value arrives, as member access and
+indexing: `transformation: y_true = folds['test']` puts the test half into `y_true`.
+On an output association the drawn target is the slot, so the body is a
+selection over `result` (`transformation: result[0]`). Selections route values between
 ports; anything that computes is a step. In saved XML none of this is an
-extension: the binding lowers to BPMN's own `ioSpecification` and
+extension: saved standard XML lowers it to BPMN's own `ioSpecification` and
 `transformation` and folds back on open.
 
 `sklearn_pipeline` is this convention end to end, and it really runs: see
@@ -157,8 +157,7 @@ figure the plotting step returned (the `.png` uri names the format).
 | Prefix | Namespace | What it adds |
 |---|---|---|
 | `bpmn` | `.../BPMN/20100524/MODEL` | The BPMN 2.0 base: events, gateways, activities, data, artifacts, pools. |
-| `studyflow` | `http://behaverse.org/schemas/studyflow/v1` | The study container + core data infrastructure (Dataset, Table, Timeseries…). **core** |
-| `exec` | `https://w3id.org/studyflow/exec` | The minimal executable layer: `implementation` + loop/sensor flattenings + artifact `uri` (+ `Parameters`). **core** |
+| `studyflow` | `http://behaverse.org/schemas/studyflow/v1` | The study container, core data infrastructure (Dataset, Table, Timeseries…), and the executable layer: `implementation` + loop/sensor flattenings + artifact `uri` (+ `Parameters`). **core** |
 | `functional` | `https://w3id.org/studyflow/functional` | Function composition: Transform/Map/Reduce/Filter + the fan-out behind the multi-instance marker. **core** |
 | `cognitive` | `http://behaverse.org/schemas/studyflow/cognitive` | Cognitive tasks, Behaverse assessment tasks, questionnaires, instructions, assignment gateways, actors. **core** |
 | `ml` | `https://w3id.org/studyflow/ml` | Statistical/ML pipelines — templates only, no types; sklearn verbs as presets over functional ops (load, split, build, fit, cross-validate…). |
@@ -167,7 +166,7 @@ figure the plotting step returned (the `.png` uri names the format).
 | `omniprocess` | `https://w3id.org/omniprocess` | Neuroimaging preprocessing presets (fMRIPrep, EEGPrep) — templates only. |
 | `openbci` | `http://behaverse.org/schemas/studyflow/openbci` | Biosignal acquisition with OpenBCI boards (Cyton, Ganglion, Galea VR headset). |
 
-A recurring design rule across `exec`/`functional`/`ml`/`agentic`/`datatrove`/`omniprocess`/`openbci`:
+A recurring design rule across `functional`/`ml`/`agentic`/`datatrove`/`omniprocess`/`openbci`:
 **parameterize, don't proliferate**. A verb that is just a generic step bound to
 a function (extract, tokenize, fit, deploy, fMRIPrep…) is shipped as a *template*
 preset, not a distinct element type. Templates are listed per schema below.
@@ -258,7 +257,7 @@ Every element also inherits two documentation attributes from the core
 Steps that run external software name it with an **`implementation`**
 attribute — BPMN's own attribute (and versioned-reference grammar,
 `scheme://ref@version`) on service-style tasks, declared once by the
-`exec:Implementation` trait (so the functional/ml presets simply fill it in),
+`studyflow:Implementation` trait (so the functional/ml presets simply fill it in),
 and which `cognitive:CognitiveTask` mirrors on its wrapper for plain tasks
 (e.g. a versioned jsPsych plugin URL).
 
@@ -286,41 +285,36 @@ Trials:
 
 ---
 
-## exec — the minimal executable layer
+## The executable layer (core)
 
 Just enough for a small Python engine to run a diagram: a step is one Python
 call (`implementation` names the importable callable, `with` its kwargs, the
 associations its data), plus the loop/sensor flattenings. Everything here is a
-**trait** on a native BPMN element except `Parameters`. Icon set: schema
-badge **E**.
+**trait** on a native BPMN element except `Parameters`. Formerly its own `exec`
+schema; merged into the core in 26.0731 (old files load unchanged).
 
 ### Traits (mixed onto many elements — not placed on their own)
-- **`exec:Implementation`** (on every service-style task): surfaces BPMN's own
-  `implementation` attribute with the versioned reference grammar
+- **`studyflow:Implementation`** (on every service-style task): surfaces BPMN's
+  own `implementation` attribute with the versioned reference grammar
   (`python://pkg.callable@1.2`, `docker://image@sha`, `https://script`).
-- **`exec:Artifact`** (on every data element): `uri` — where the engine
+- **`studyflow:Artifact`** (on every data element): `uri` — where the engine
   loads/saves the artifact; unset, the value only flows in memory.
-- **`exec:Timer`** / **`exec:Condition`**: flatten the timer / conditional
-  event definitions to plain attributes (`timeCycle`, `timeDuration`,
-  `timeDate`, `condition`).
-- **`exec:CompletionCondition`** / **`exec:LoopCondition`**: flatten the ad-hoc
-  sub-process exit test / standard-loop condition to a string attribute
-  (`completionCondition`, `loopCondition`).
+- **`studyflow:Timer`** / **`studyflow:Condition`**: flatten the timer /
+  conditional event definitions to plain attributes (`timeCycle`,
+  `timeDuration`, `timeDate`, `condition`).
+- **`studyflow:CompletionCondition`** / **`studyflow:LoopCondition`**: flatten
+  the ad-hoc sub-process exit test / standard-loop condition to a string
+  attribute (`completionCondition`, `loopCondition`).
 
 ### Concrete elements
 
 | Wrapper | BPMN base | Icon | Key attributes |
 |---|---|---|---|
-| `exec:Parameters` | `bpmn:DataObjectReference` | `mdi--tune` | `values` (YAML) — a config dict associated with the steps that read it. |
+| `studyflow:Parameters` | `bpmn:DataObjectReference` | `mdi--tune` | `values` (YAML) — a config dict associated with the steps that read it. |
 
-### Templates (presets over native elements)
-**Scheduled start** (timer start event, cron `timeCycle`) ·
-**Wait for data** (conditional catch event — the sensor) ·
-**Wait** (timer catch event, `timeDuration`) ·
-**Repeat until** (`bpmn:SubProcess` + standard loop, `loopCondition` +
-`loopMaximum`) ·
-**Gate** (`bpmn:ExclusiveGateway` — rule on the pass flow's
-`conditionExpression`, reject flow as `default`, rationale in documentation).
+Schedules, sensors, delays, gates, and drawn loops need no presets: a timer
+start event, a conditional catch event, a timer catch event, an exclusive
+gateway with a conditioned back-edge — all native BPMN, authored directly.
 
 Cycles use BPMN's own standard-loop child (`loopCharacteristics` with
 `loopCondition`, `loopMaximum`) — there is no `Repeat` element.
@@ -435,9 +429,9 @@ pattern). An ML pipeline is a data pipeline, so every step preset binds a
 estimator is a `functional:Transform` (an unfitted estimator on a data association),
 fitting/scoring a `functional:Reduce` (rows in, one artifact out) —
 with the function in BPMN's own `implementation` and arguments in `with`.
-Cross-validation and sweeps are a native `bpmn:SubProcess` with the exec
+Cross-validation and sweeps are a native `bpmn:SubProcess` with the core
 iteration attributes; a model or metric is a native data object made citable
-by the exec `Artifact` trait. A scikit-learn fit, a mixed-effects formula, and
+by the core `Artifact` trait. A scikit-learn fit, a mixed-effects formula, and
 a prompt compile are the same Reduce bound to different functions. Icon set:
 schema badge **M**.
 
@@ -524,7 +518,7 @@ Research_Agent:
       implementation: python://wikipedia.search
 ```
 
-See `agent_eval.png`, `agent_eval_pool.png`.
+See `agent_eval.studyflow.png`, `agent_eval_pool.studyflow.png`.
 
 ---
 
@@ -548,7 +542,7 @@ blocks directly when a study needs one, e.g. a `functional:Map` running
 **Templates:** Anonymize Data (`functional:Map` bound to
 `datatrove.pipeline.formatters.PIIFormatter`, `remove_emails=/remove_ips=`).
 
-See `function_call_demo.png`, `lablink_demo2.png`.
+See `function_call_demo.studyflow.png`, `lablink_demo2.studyflow.png`.
 
 ---
 
@@ -594,9 +588,9 @@ a plain Process, so they aren't in the single-Process companion diagram:
 
 | Element | Root needed | Example file |
 |---|---|---|
-| `bpmn:Participant` (Pool), `cognitive:Actor`, `openbci:OpenBCISession` | Collaboration | `spirit2025.png` (pool + lanes) |
-| `bpmn:Lane` / `laneSet` | Collaboration (pool with lanes) | `spirit2025.png` |
-| `bpmn:ChoreographyTask`, `studyflow:ChoreographyTask`, `participants`, `messageFlows` | Choreography | `choreography_demo.png` |
+| `bpmn:Participant` (Pool), `cognitive:Actor`, `openbci:OpenBCISession` | Collaboration | `spirit2025.studyflow.png` (pool + lanes) |
+| `bpmn:Lane` / `laneSet` | Collaboration (pool with lanes) | `spirit2025.studyflow.png` |
+| `bpmn:ChoreographyTask`, `studyflow:ChoreographyTask`, `participants`, `messageFlows` | Choreography | `choreography_demo.studyflow.png` |
 
 `cognitive:Actor` tags a pool as `human` / `llm` / `agent` / `instrument` so
 multi-agent studies can mix human and artificial participants under the same BPMN
@@ -614,7 +608,6 @@ jsonl · `TimeseriesFormat`: edf, bdf, fif, set, parquet, zarr ·
 hpc · `AssignmentAlgorithm`: probabilistic, round-robin · `ProbabilityDistribution`:
 uniform, normal, exponential, poisson.
 
-**exec** — no enumerations.
 
 **functional** — `IterationKind`: none, items · `CollectPolicy`: list, concat,
 reduce, none.
@@ -648,15 +641,15 @@ brainflow, openbci_gui.
 
 | File | Shows |
 |---|---|
-| `kitchensink.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
-| `cognitive_battery.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `drawn_loop.png` | **The drawn-cycle guide** — the smallest loop the notation can draw: one printing step, a gateway, and a conditioned back-edge (`state.visits.Gate < 8`), bounded by the engine's own run state rather than any loop marker. Eight turns, then the native `default` edge exits. Runs: `uv run studyflow_run.py drawn_loop.png`. |
-| `sklearn_pipeline.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `src/runner/python/`. |
-| `agent_eval.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
-| `agent_eval_pool.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
-| `choreography_demo.png` | Choreography root, participants, message flows, ChoreographyTasks. |
-| `consort2025.png` | Groups + Categories, boundary error events (attrition), colors. |
-| `spirit2025.png` | Collaboration + pool + lanes, checklists, Gantt fields. |
-| `function_call_demo.png` | functional Map bound to a python callable; script-by-URL. |
-| `lablink_demo0/1/2.png` | Skeleton → orchestration → modeling pipeline (BIDS, fMRIPrep/EEGPrep). |
-| `bot_claude / bot_ollama / bot_external.png` | Behaverse bot `agentType`/`botConfigurations` variants. |
+| `kitchensink.studyflow.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
+| `cognitive_battery.studyflow.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
+| `drawn_loop.studyflow.png` | **The drawn-cycle guide** — the smallest loop the notation can draw: one printing step, a gateway, and a conditioned back-edge (`state.trace.count('Gate') < 8`), bounded by the engine's own run state rather than any loop marker. Eight turns, then the native `default` edge exits. Runs: `uv run studyflow_run.py drawn_loop.studyflow.png`. |
+| `sklearn_pipeline.studyflow.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `src/runner/python/`. |
+| `agent_eval.studyflow.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
+| `agent_eval_pool.studyflow.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |
+| `choreography_demo.studyflow.png` | Choreography root, participants, message flows, ChoreographyTasks. |
+| `consort2025.studyflow.png` | Groups + Categories, boundary error events (attrition), colors. |
+| `spirit2025.studyflow.png` | Collaboration + pool + lanes, checklists, Gantt fields. |
+| `function_call_demo.studyflow.png` | functional Map bound to a python callable; script-by-URL. |
+| `lablink_demo0/1/2.studyflow.png` | Skeleton → orchestration → modeling pipeline (BIDS, fMRIPrep/EEGPrep). |
+| `bot_claude / bot_ollama / bot_external.studyflow.png` | Behaverse bot `agentType`/`botConfigurations` variants. |

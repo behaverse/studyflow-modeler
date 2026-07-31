@@ -87,9 +87,9 @@ test.describe('Inspector execution tab', () => {
     // A `structureRef` is any type name, so the picker suggests rather than
     // constrains: this diagram already declares pandas and sklearn types.
     await page.getByTestId('open-file-input').setInputFiles({
-      name: 'sklearn_pipeline.png',
+      name: 'sklearn_pipeline.studyflow.png',
       mimeType: 'image/png',
-      buffer: readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.png')),
+      buffer: readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow.png')),
     });
     await expect(page.locator('g[data-element-id="Cross_Validate"]')).toBeVisible();
 
@@ -124,10 +124,10 @@ test.describe('Inspector execution tab', () => {
     await gotoModeler(page);
 
     const source = readFileSync(
-      path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.png'),
+      path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow.png'),
     );
     await page.getByTestId('open-file-input').setInputFiles({
-      name: 'sklearn_pipeline.png',
+      name: 'sklearn_pipeline.studyflow.png',
       mimeType: 'image/png',
       buffer: source,
     });
@@ -177,9 +177,9 @@ test.describe('Inspector execution tab', () => {
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
     await gotoModeler(page);
     await page.getByTestId('open-file-input').setInputFiles({
-      name: 'sklearn_pipeline.png',
+      name: 'sklearn_pipeline.studyflow.png',
       mimeType: 'image/png',
-      buffer: readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.png')),
+      buffer: readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow.png')),
     });
     await expect(page.locator('g[data-element-id="Build_Pipeline"]')).toBeVisible();
     await page.getByTestId('modeler-canvas').hover();

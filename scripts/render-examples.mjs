@@ -1,8 +1,8 @@
 /**
- * Renders every shipped example to `src/assets/examples/<name>.png` — the file
- * *is* the example: a picture of the diagram with the diagram inside it (see
- * `models/exporters/pngEmbedding`). The gallery shows it, the modeler opens it,
- * and nothing else has to be kept in sync with it.
+ * Renders every shipped example to `src/assets/examples/<name>.studyflow.png` —
+ * the file *is* the example: a picture of the diagram with the diagram inside
+ * it (see `models/exporters/pngEmbedding`). The gallery shows it, the modeler
+ * opens it, and nothing else has to be kept in sync with it.
  *
  * Each example is rendered the way a user would: open it in the modeler, then
  * Export as PNG with the studyflow payload embedded.
@@ -10,10 +10,12 @@
  *     npm run examples:render                      # all examples
  *     npm run examples:render kitchensink          # just these
  *
- * The source of an example is its own `.png`, so re-running this refreshes the
- * images after a rendering change without touching the diagrams. A `.studyflow`
- * next to it wins, which is how a YAML diagram becomes an example: drop it in,
- * run this, delete the YAML.
+ * The source of an example is its own `.studyflow.png`, so re-running this
+ * refreshes the images after a rendering change without touching the diagrams.
+ * A `.studyflow` next to it wins, which is how a YAML diagram becomes an
+ * example: drop it in, run this, delete the YAML. A bare `.png` (the naming
+ * before the `.studyflow.png` convention) is read the same way and can be
+ * deleted once its renamed render is in place.
  *
  * Icon glyphs are fetched from Iconify during export (see `remoteIconSource`),
  * so this needs network access to render icons into the image.
@@ -55,12 +57,25 @@ async function startDevServer() {
   throw new Error('Timed out waiting for the dev server.');
 }
 
-/** The file an example is rendered from: its YAML if one is there, else itself. */
+/** An example filename's stem: `agent_eval.studyflow.png` -> `agent_eval`. */
+const stemOf = (filename) =>
+  filename.replace(/\.studyflow\.(png|yaml)$|\.studyflow$|\.png$/, '');
+
+/** The file an example is rendered from: its YAML if one is there (either
+ *  spelling), else its `.studyflow.png` (falling back to a pre-convention
+ *  bare `.png`). */
 function sourceOf(stem) {
-  const yamlPath = path.join(EXAMPLES_DIR, `${stem}.studyflow`);
-  return existsSync(yamlPath)
-    ? { file: `${stem}.studyflow`, path: yamlPath, mimeType: 'application/yaml' }
-    : { file: `${stem}.png`, path: path.join(EXAMPLES_DIR, `${stem}.png`), mimeType: 'image/png' };
+  for (const [suffix, mimeType] of [
+    ['.studyflow.yaml', 'application/yaml'],
+    ['.studyflow', 'application/yaml'],
+    ['.studyflow.png', 'image/png'],
+    ['.png', 'image/png'],
+  ]) {
+    const file = `${stem}${suffix}`;
+    const filePath = path.join(EXAMPLES_DIR, file);
+    if (existsSync(filePath)) return { file, path: filePath, mimeType };
+  }
+  throw new Error(`No source found for example "${stem}".`);
 }
 
 async function openExample(page, source) {
@@ -96,8 +111,8 @@ async function exportPng(page) {
 const only = process.argv.slice(2);
 const stems = [...new Set(
   readdirSync(EXAMPLES_DIR)
-    .filter((f) => f.endsWith('.studyflow') || f.endsWith('.png'))
-    .map((f) => path.parse(f).name),
+    .filter((f) => /\.studyflow(\.yaml|\.png)?$|\.png$/.test(f))
+    .map(stemOf),
 )]
   .filter((stem) => only.length === 0 || only.includes(stem))
   .sort();
@@ -119,8 +134,9 @@ try {
     try {
       await openExample(page, source);
       const png = await exportPng(page);
-      writeFileSync(path.join(EXAMPLES_DIR, `${stem}.png`), png);
-      const from = source.file.endsWith('.studyflow') ? ' (from .studyflow — delete it once happy)' : '';
+      writeFileSync(path.join(EXAMPLES_DIR, `${stem}.studyflow.png`), png);
+      const from = source.file.endsWith('.studyflow') ? ' (from .studyflow — delete it once happy)'
+        : source.file === `${stem}.png` ? ' (from bare .png — delete it once happy)' : '';
       console.log(`${(png.length / 1024).toFixed(0)} KB${from}`);
     } catch (err) {
       console.log(`failed: ${err.message}`);

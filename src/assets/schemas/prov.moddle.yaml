@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: Prov
+prefix: prov
+description: >-
+  The provenance trail - who acted on this studyflow, with what tool, when. A
+  minimal, hand-editable form of PROV: one `prov:activity` element per event,
+  appended to the diagram's primary root element as the file passes through
+  tools. The trail rides inside the document, so it travels wherever the
+  diagram does - `.studyflow.yaml`, `.bpmn`, and the XML embedded in exported
+  figures - and it *is* the run record: the runner stamps `executed` on the
+  copy it archives beside a run's artifacts and log.
+uri: https://w3id.org/studyflow/prov
+icon: iconify tabler--history
+core: true   # the trail is infrastructure, not a domain vocabulary; always loaded
+order: 15  # registry position (load precedence + settings order)
+xml:
+  tagAlias: lowerCase
+version: 26.0731
+
+associations: []
+
+enumerations: []
+
+# One type, deliberately: a trail is a log, and a log is a flat list of lines.
+# Every attribute names a fact PROV has a term for, and the mapping is written
+# beside it - so "this is a basic form of PROV" is checkable against this file
+# rather than claimed. The action vocabulary is open (a tool this schema never
+# heard of can stamp `converted`); the recommended terms are documented on
+# `action`. Trust is social, not cryptographic: the trail records what
+# participating tools say, and a person can correct it in any text editor -
+# which is the design, not a gap. Sealing a file cryptographically is a
+# packaging step (C2PA at an export boundary), not a notation concept.
+
+types:
+
+  - name: Activity
+    description: |
+      One entry of the provenance trail: somebody (`who`), using some tool
+      (`with`), did something (`action`) to this studyflow at some time
+      (`when`). Maps to a `prov:Activity` whose association carries the person
+      and whose delegation carries the tool; entries are ordered oldest first,
+      and each new event appends one line.
+    superClass:
+      - Element
+    properties:
+      - name: action
+        description: |
+          What happened, as one word - the activity's `prov:type`. Recommended
+          vocabulary: `created`, `modified`, `imported`, `executed`; open to
+          others (`converted`, `reviewed`) when a tool needs them.
+        isAttr: true
+        type: String
+      - name: when
+        description: |
+          When it happened, ISO 8601 UTC (`2026-07-31T09:12:04Z`) - the
+          activity's `prov:endedAtTime`.
+        isAttr: true
+        type: String
+      - name: who
+        description: |
+          Who acted - a name, email, or ORCID iri. Becomes a `prov:Person`
+          related to the activity by `prov:wasAssociatedWith`.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+      - name: with
+        description: |
+          The tool that acted, as `name/version` (`studyflow-modeler/26.0731`).
+          Becomes a `prov:SoftwareAgent` that `prov:actedOnBehalfOf` `who`.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+      - name: what
+        description: |
+          The element ids the action touched, space-separated - what the
+          activity `prov:used`. Omitted when the action concerns the whole
+          document.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+      - name: run
+        description: |
+          For an `executed` action: the run's id (the run directory's name),
+          linking this line to what the run left behind - the artifacts and
+          the log in that directory. Runs also record themselves per element:
+          each activity a run completed carries its own `executed` entry naming
+          that run, which is what makes partial re-runs possible - deleting an
+          element's entry (or the artifact it vouches for) invalidates exactly
+          that work, and the next run of the archived copy redoes it alone.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+      - name: seed
+        description: |
+          For an `executed` action: the run's root seed - the plan's pinned
+          value when it has one, drawn once by the engine when it does not.
+          Recorded here either way, which is what makes an unpinned run
+          replayable after the fact.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+      - name: note
+        description: One line of free text about the event (`rdfs:comment`).
+        isAttr: true
+        type: String
+        meta:
+          optional: true

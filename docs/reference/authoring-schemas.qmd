@@ -11,7 +11,6 @@ Studyflow uses direct moddle YAML as the authoring format for schema definitions
 | File | Prefix | What it declares |
 |---|---|---|
 | `studyflow.moddle.yaml` | `studyflow` | The core language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the `BaseElement`/`Scheduling`/`Classification` traits, and the data-infrastructure types (`Schema`, `Dataset`, `DataCatalog`, `Table`, `Timeseries`, `EventMarker`). It also declares the inspector's tabs for every schema. **core** |
-| `exec.moddle.yaml` | `exec` | The executable layer: `implementation` and its `additionalArguments`, the run `seed`, the association `binding`, the timer/condition/loop expressions, artifact `uri` (its `format` belongs to the data types), and `Parameters`. **core** |
 | `functional.moddle.yaml` | `functional` | `Transform`, `Map`, `Reduce`, `Filter` -- the generic verbs domain layers root their presets on. **core** |
 | `cognitive.moddle.yaml` | `cognitive` | `CognitiveTask`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor`. Split out of the core so adopters can swap the cognitive layer. **core** |
 | `agentic.moddle.yaml` | `agentic` | LLM and agent workflows: `Agent`, `Router`, `LLMCall`, `Tool`, `HumanApproval`, `Prompt`, `Memory`. |
@@ -169,22 +168,22 @@ Studyflow-specific modeler behavior lives under `meta` on the property:
 
 ## Function calls (`implementation` / `arguments`)
 
-Any activity can declare the software that implements it. BPMN's own `implementation` attribute (redefined once by the `exec` schema) carries the reference, and the core `studyflow:Arguments` trait (which mixes onto every `bpmn:Activity`) carries the arguments:
+Any activity can declare the software that implements it. BPMN's own `implementation` attribute (redefined once by the core schema) carries the reference, and the core `studyflow:Arguments` trait (which mixes onto every `bpmn:Activity`) carries the arguments:
 
 - `implementation` -- a scheme-prefixed reference, `<scheme>://<ref>[@<version-or-digest>]`. Recognized schemes are `python://` (an importable callable, e.g. `python://sklearn.pipeline.Pipeline.fit`), `docker://` (an image, e.g. `docker://ghcr.io/lab/img@sha256:...`), `https://` (a script URL), and `file://` (a local script). Other schemes are allowed but flagged as unresolved -- a cognitive task imported from jsPsych names its plugin as `jspsych://...`. The ref/version split happens at the last `@`, so docker digests parse correctly.
-- `additionalArguments` -- a `studyflow:YAMLString` holding the literal arguments (the role GitHub Actions' `with:` block plays), *additional* by name and by contract: the associations fill the signature first -- each data input association binds its element to the slot its `binding` names -- and this supplies what is left over. Anything the step *reads* is a data association, not an entry here; a name bound by both is an error rather than a precedence question. The reserved `args` key lists positional arguments, and a nested mapping carrying its own `implementation` is a call resolved before the outer one.
+- `additionalArguments` -- a `studyflow:YAMLString` holding the literal arguments (the role GitHub Actions' `with:` block plays), *additional* by name and by contract: the associations fill the signature first -- each data input association binds its element to the slot its `transformation` names -- and this supplies what is left over. Anything the step *reads* is a data association, not an entry here; a name bound by both is an error rather than a precedence question. The reserved `args` key lists positional arguments, and a nested mapping carrying its own `implementation` is a call resolved before the outer one.
 
-A data association carries one `exec:binding` — `slot = selection`, each half optional. The slot names *which* callable parameter the value fills (blank binds by the element's own name; `self` binds an unbound method's receiver, `*` appends positionally, the only way into `train_test_split(*arrays)`); the selection narrows *what* value arrives, as member access and indexing (`folds['train']`). On an output association the drawn target is the slot, so the binding is a selection over `result` (`result[0]`) — which is how one call fills several properties. Selections coordinate, they never compute: anything that calculates is a step with its own `implementation`. Saved XML never carries the attribute — it lowers to BPMN's native `ioSpecification` + `transformation` spelling and folds back on open.
+A data association carries one expression — BPMN's own `transformation` element, used as-is — whose body is `slot = selection`, each half optional. The slot names *which* callable parameter the value fills (blank binds by the element's own name; `self` binds an unbound method's receiver, `*` appends positionally, the only way into `train_test_split(*arrays)`); the selection narrows *what* value arrives, as member access and indexing (`folds['train']`). On an output association the drawn target is the slot, so the body is a selection over `result` (`result[0]`) — which is how one call fills several properties. Selections coordinate, they never compute: anything that calculates is a step with its own `implementation`. Saved standard XML splits the halves — the slot becomes the synthesized `DataInput`'s name, the body keeps the pure selection — and opening folds them back together. As an expression element it carries its own per-expression `language`.
 
 ```yaml
 Fit:
   implementation: python://sklearn.pipeline.Pipeline.fit
   dataInputAssociations:
     Association_Estimator:
-      binding: self             # the receiver: bound first, positionally
+      transformation: self             # the receiver: bound first, positionally
       sourceRef: [Estimator]
     Association_Features:
-      binding: X
+      transformation: X
       sourceRef: [X_Train]
   additionalArguments:
     sample_weight: null         # what the associations did not supply
@@ -198,13 +197,13 @@ Score:
   implementation: python://sklearn.metrics.accuracy_score
   dataInputAssociations:
     Association_Truth:
-      binding: y_true = folds['test']   # which slot, and what arrives there
+      transformation: y_true = folds['test']   # which slot, and what arrives there
       sourceRef: [Folds]
 ```
 
-In the BPMN XML form, `implementation` is an attribute on the activity and `additionalArguments` is an `<exec:additionalArguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
+In the BPMN XML form, `implementation` is an attribute on the activity and `additionalArguments` is a `<studyflow:additionalArguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
 
-The browser runner parses and validates the call but does not execute it. The Python runner in `src/runner/python/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `src/assets/examples/sklearn_pipeline.png` is the worked example it is checked against -- see `src/runner/python/README.md`.
+The browser runner parses and validates the call but does not execute it. The Python runner in `src/runner/python/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `src/assets/examples/sklearn_pipeline.studyflow.png` is the worked example it is checked against -- see `src/runner/python/README.md`.
 
 ## Templates
 
@@ -248,7 +247,7 @@ Use `mixins` for template-time composition, not for reusable schema inheritance 
 
 ### Nested flow elements
 
-A template that resolves to `bpmn:SubProcess` may declare `object.flowElements` to create internal nodes and connections along with the root sub-process. The `exec` schema's "Repeat until" template does this to stamp out a whole loop idiom -- a gateway, a conditioned back-edge, and an exit:
+A template that resolves to `bpmn:SubProcess` may declare `object.flowElements` to create internal nodes and connections along with the root sub-process — stamping out a whole idiom (a gateway, a conditioned back-edge, and an exit) in one gesture:
 
 ```yaml
 templates:

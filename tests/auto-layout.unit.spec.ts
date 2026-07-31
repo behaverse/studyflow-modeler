@@ -60,7 +60,7 @@ test.describe('ensureDiagramLayout', () => {
   });
 
   test('returns a diagram that already carries geometry unchanged', async () => {
-    const authored = exampleXml('consort2025.png');
+    const authored = exampleXml('consort2025.studyflow.png');
     expect(hasDiagramInterchange(authored)).toBe(true);
     // No round-trip through auto-layout: the authored bytes are returned as-is.
     expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
@@ -70,7 +70,7 @@ test.describe('ensureDiagramLayout', () => {
     // The worst case for a reader: a file that positions its shapes but never
     // draws its associations. The step's inspector lists inputs and outputs, and the
     // canvas shows data elements floating unattached next to it.
-    const complete = exampleXml('cognitive_battery.png');
+    const complete = exampleXml('cognitive_battery.studyflow.png');
     const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="DataOutput_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
     expect(stripped).toMatch(/dataOutputAssociation id="DataOutput_Survey_Data"/);
     expect(stripped).not.toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
@@ -94,7 +94,7 @@ test.describe('ensureDiagramLayout', () => {
     // sklearn_pipeline associations its artifacts with data input/output associations
     // — the case the data-flow pass exists for. Every shipped example carries
     // the geometry it was rendered with, so drop it to reach the layout pass.
-    const xml = withoutDiagramInterchange(exampleXml('sklearn_pipeline.png'));
+    const xml = withoutDiagramInterchange(exampleXml('sklearn_pipeline.studyflow.png'));
     expect(hasDiagramInterchange(xml)).toBe(false);
 
     const laidOut = await ensureDiagramLayout(xml, schemaModdle());
@@ -135,11 +135,11 @@ test.describe('ensureDiagramLayout', () => {
 
     // The semantic tree is re-read from the original XML with the schema-aware
     // moddle, so extension *child elements* survive too — bpmn-auto-layout's
-    // own plain-moddle round-trip would silently drop `<exec:additionalArguments>`
+    // own plain-moddle round-trip would silently drop `<studyflow:additionalArguments>`
     // (the step arguments) from every laid-out import.
     expect(laidOut).toContain('implementation="python://sklearn.model_selection.cross_validate"');
     expect(laidOut).toContain('operationType="crossValidate"');
-    expect(laidOut).toContain('<exec:additionalArguments>');
+    expect(laidOut).toContain('<studyflow:additionalArguments>');
     expect(laidOut).toContain('precision_macro');
   });
 });

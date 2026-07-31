@@ -4,6 +4,7 @@ import { useModeler } from '@/modeler/views/useModeler';
 import { useInspectedElement } from '@/modeler/views/inspector/hooks/useInspectedElement';
 import { pickInput } from '@/modeler/views/inspector/inputs';
 import { isAttributeVisible } from '@/modeler/models/inspector/attributeVisibility';
+import { elementKey } from '@/modeler/views/inspector/elementKey';
 import { field as s } from '@/modeler/infra/styles';
 
 /** A category's catalog fields, in schema order. Sections that lay out their
@@ -13,7 +14,7 @@ export function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
   return (
     <>
       {attrDefs.map((attrDef: any) => (
-        <AttributeField key={element.id + attrDef.ns.prefix + ':' + attrDef.ns.name} attrDef={attrDef} />
+        <AttributeField key={`${elementKey(element)}:${attrDef.ns.prefix}:${attrDef.ns.name}`} attrDef={attrDef} />
       ))}
     </>
   );

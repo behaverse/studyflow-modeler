@@ -37,9 +37,11 @@ export class Session {
   private scopes: ScopeChain;
   private catalog: TypeCatalog;
   private onDiagnostic?: (message: string) => void;
-  /** Per-node entry counts, exposed to conditions as `state.visits.<id>` —
-   *  the bound a drawn back-edge through a gateway is written against. */
-  private visits: Record<string, number> = {};
+  /** The ordered walk so far — every node id the token has reached. Exposed
+   *  to conditions as `state.trace`, with a Python-style `count` method so
+   *  the loop idiom `state.trace.count('Gate') < 8` reads the same in both
+   *  engines. */
+  private trace: string[] = [];
 
   constructor(studyflow: Studyflow, context: SessionContext = {}) {
     this.studyflow = studyflow;
@@ -81,7 +83,7 @@ export class Session {
       const node = this.studyflow.flowNodes.get(currentId);
       if (!node) throw new Error(`Dangling node reference: ${currentId}`);
 
-      this.visits[node.id] = (this.visits[node.id] ?? 0) + 1;
+      this.trace.push(node.id);
 
       // Entering a sub-process opens a scope instance and descends into its
       // own flow; the token resumes at the sub-process node when it ends.
@@ -162,7 +164,8 @@ export class Session {
   private pickConditionBranch(node: FlowNode): string | undefined {
     for (const flowId of node.outgoing) {
       const flow = this.studyflow.sequenceFlows.get(flowId);
-      if (flow?.conditionExpression && this.evalCondition(flow.conditionExpression, flowId)) {
+      if (flow?.conditionExpression
+        && this.evalCondition(flow.conditionExpression, flowId, flow.conditionLanguage)) {
         return flow.targetId;
       }
     }
@@ -183,13 +186,17 @@ export class Session {
   }
 
   /** Bindings a condition sees: the visible declarations, plus the engine's
-   *  own `state` (visit counts), which the diagram does not declare. */
+   *  own `state` (the walk's trace), which the diagram does not declare. */
   private conditionBindings(): Record<string, unknown> {
-    return { ...this.scopes.bindings(), state: { visits: { ...this.visits } } };
+    const entries = [...this.trace];
+    const trace = Object.assign(entries, {
+      count: (value: unknown): number => entries.filter((entry) => entry === value).length,
+    });
+    return { ...this.scopes.bindings(), state: { trace } };
   }
 
-  private evalCondition(expression: string, flowId: string): boolean {
-    const { value, error } = evaluateCondition(expression, this.conditionBindings());
+  private evalCondition(expression: string, flowId: string, language?: string): boolean {
+    const { value, error } = evaluateCondition(expression, this.conditionBindings(), language);
     if (error) this.diagnose(`condition on "${flowId}" did not evaluate (${error}); branch not taken`);
     return value;
   }

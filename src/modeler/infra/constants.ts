@@ -7,19 +7,18 @@ export { SCHEMAS, SCHEMA_NAMES } from '@/core/schema/loader';
 /** The BPMN 2.0 model namespace — fixed by the spec, not by any schema. */
 const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
 
-export type Namespaces = { bpmn: string; core: string; legacyCore?: string };
+export type Namespaces = { bpmn: string; core: string };
 
 /**
  * Namespaces the raw-XML readers look under (they parse markup directly
  * rather than through moddle, so they resolve URIs themselves). Read from the
- * core schema's own `uri` / `legacyUris`, so a namespace bump is a schema edit.
+ * core schema's own `uri`, so a namespace bump is a schema edit.
  */
 export function namespaces(): Namespaces {
   const core = getCatalog().schemas.find((schema) => schema.core);
   return {
     bpmn: BPMN_NS,
     core: core?.uri ?? '',
-    legacyCore: core?.legacyUris[0],
   };
 }
 

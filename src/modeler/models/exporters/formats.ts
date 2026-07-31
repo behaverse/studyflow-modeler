@@ -50,11 +50,15 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     id: 'studyflow',
     group: 'Diagram',
     label: 'Studyflow',
-    extension: '.studyflow',
+    // `.studyflow.*` is one convention across the family: the part before the
+    // last dot says what the file is, the part after it how it is encoded —
+    // and editors, Git hosts, and pipelines treat the `.yaml` half natively.
+    extension: '.studyflow.yaml',
     mimeType: 'text/yaml;charset=utf-8',
     icon: ICONS.fileYaml,
     description: 'Native YAML source. Diffs cleanly in Git.',
     importable: true,
+    alsoReads: ['.studyflow'],
   },
   {
     id: 'bpmn',
@@ -71,23 +75,28 @@ export const EXPORT_FORMATS: ExportFormat[] = [
     id: 'svg',
     group: 'Image',
     label: 'SVG',
-    extension: '.svg',
+    extension: '.studyflow.svg',
     mimeType: 'image/svg+xml;charset=utf-8',
     icon: ICONS.fileSvg,
     description: 'Vector figure for manuscripts and web pages.',
     embeddable: true,
     importable: true,
+    alsoReads: ['.svg'],
   },
   {
     id: 'png',
     group: 'Image',
     label: 'PNG',
-    extension: '.png',
+    // The double extension is the `.drawio.png` convention: it marks the
+    // image as a *source* that happens to render everywhere, so a copy that
+    // lost its payload to a re-encoding editor is recognizably a plain `.png`.
+    extension: '.studyflow.png',
     mimeType: 'image/png',
     icon: ICONS.filePng,
     description: 'Raster figure for slides and quick sharing.',
     embeddable: true,
     importable: true,
+    alsoReads: ['.png'],
   },
   {
     id: 'drawio',

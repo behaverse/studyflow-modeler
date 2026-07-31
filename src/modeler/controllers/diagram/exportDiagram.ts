@@ -11,6 +11,8 @@
  * or PNG, so the file stays a plain image everywhere else.
  */
 import download from 'downloadjs';
+import { stampTrailForExport } from '@/modeler/models/provenanceTrail';
+import { getStoredUserEmail } from '@/modeler/infra/settings/store';
 import { xmlToStudyflow } from '@/core/codec';
 import { toStandardBpmnXml } from '@/core/codec/io-specification';
 import { toWireXml } from '@/core/codec/choreography';
@@ -118,6 +120,17 @@ async function buildPayload(
 export async function runExportDiagram(modeler: any, command: ExportDiagramCommand): Promise<void> {
   const format = getExportFormat(command.format ?? 'studyflow');
   const embed = { ...DEFAULT_EMBED_OPTIONS, ...command.embed };
+
+  // Formats that carry the diagram itself (readable back, or embedding it)
+  // record the export on the provenance trail; derived documents (LinkML,
+  // NIDM, ...) describe the diagram without being it, so they leave no stamp.
+  if (format.importable || format.embeddable) {
+    stampTrailForExport(modeler, {
+      who: getStoredUserEmail(),
+      tool: `studyflow-modeler/${import.meta.env.APP_VERSION}`,
+    });
+  }
+
   const filename = exportFilename(getDiagramName(modeler) ?? 'diagram', format);
 
   const payload = await buildPayload(modeler, format, embed);

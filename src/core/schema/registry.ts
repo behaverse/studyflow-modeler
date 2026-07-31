@@ -60,5 +60,5 @@ export function buildRegistry(models: SchemaModel[]): SchemaRegistryEntry[] {
 
 /** Every namespace URI a file may declare for `model`, current spelling first. */
 export function schemaUris(model: SchemaModel): string[] {
-  return [model.uri, ...(model.legacyUris ?? [])].filter(Boolean);
+  return [model.uri].filter(Boolean);
 }

@@ -39,11 +39,12 @@ bpmn-js DI, constants, styles, contexts, storage). `src/core/` is the shared mod
 
 ## Examples
 
-Each example is a single `.png`: a picture of the diagram with the diagram
-itself embedded in it (a `studyflow` metadata chunk — see
-`models/exporters/pngEmbedding`). The Examples gallery shows the image and
-opens the file behind it, and dragging one into the modeler — or into draw.io,
-or an email — works the same way.
+Each example is a single `.studyflow.png`: a picture of the diagram with the
+diagram itself embedded in it (a `studyflow` metadata chunk — see
+`models/exporters/pngEmbedding`; the double extension marks the image as a
+source file, the `.drawio.png` convention). The Examples gallery shows the
+image and opens the file behind it, and dragging one into the modeler — or
+into draw.io, or an email — works the same way.
 
 Everything the gallery shows comes out of the diagram: its `name` is the card
 title, the first sentence of its `documentation` is the blurb, and
@@ -51,7 +52,7 @@ title, the first sentence of its `documentation` is the blurb, and
 inspector's Documentation tab). The filter chips are whatever categories the
 shipped examples declare.
 
-To add one, drop a `.studyflow` into `src/assets/examples/` and render it —
+To add one, drop a `.studyflow.yaml` into `src/assets/examples/` and render it —
 the PNG replaces it as the shipped file, and the YAML can then be deleted:
 
 ```bash

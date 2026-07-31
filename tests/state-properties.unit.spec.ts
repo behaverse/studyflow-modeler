@@ -69,7 +69,7 @@ test.describe('state as bpmn:Property', () => {
   });
 
   test('an output association narrows a return value into a property, in BPMN\'s own form', async () => {
-    const source = await exampleStudyflow('sklearn_pipeline.png', moddle());
+    const source = await exampleStudyflow('sklearn_pipeline.studyflow.png', moddle());
     const xml = await studyflowToXml(source, moddle());
 
     // In-memory intermediates are declared, not drawn; only persisted
@@ -95,7 +95,7 @@ test.describe('state as bpmn:Property', () => {
   test('bpmn:implementation stays on the step that runs software', async () => {
     const xml = await studyflowToXml(PROBE, moddle());
 
-    // BPMN declares `implementation` on service-style tasks, and exec's trait
+    // BPMN declares `implementation` on service-style tasks, and the core's trait
     // redefines it there. It must not drift onto the sub-process, which has no
     // such attribute in the BPMN XSD.
     expect(xml).toMatch(/<bpmn:serviceTask[^>]*implementation="python:\/\/battery\.run_trial@1\.0"/);

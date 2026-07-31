@@ -1,6 +1,6 @@
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 import { getCatalog, isBpmnSubtypeOf } from '@/core/catalog';
-import { getAttribute, StudyflowElement } from '@/core/extensions';
+import { StudyflowElement } from '@/core/extensions';
 
 /** BPMN 2.0 data element kinds (frozen spec). Schema types count as data
  *  elements when their catalog `bpmnType` resolves into one of these.
@@ -46,7 +46,7 @@ function kindOf(element: any): string {
 export type DataNeighbor = {
   /** Display name of the associated data element. */
   name: string;
-  /** The association's `binding` (`slot = selection`, each half optional);
+  /** The association's transformation body (`slot = selection`, each half optional);
    *  unset means the whole value flows, bound by the element's name. */
   binding?: string;
   /** True when the other end is a `bpmn:Property` — declared on an element and
@@ -129,7 +129,8 @@ export function getInferredDataNeighbors(
       const ends: any[] = direction === 'inputs'
         ? association?.sourceRef ?? []
         : [association?.targetRef].filter(Boolean);
-      const raw = getAttribute(association, 'binding');
+      const expression = association.get?.('transformation') ?? association.transformation;
+      const raw = expression?.get?.('body') ?? expression?.body;
       const binding = (typeof raw === 'string' ? raw : undefined) || undefined;
 
       return ends

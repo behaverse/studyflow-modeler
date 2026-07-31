@@ -47,7 +47,7 @@ test.describe('Studyflow modeler palette flows', () => {
     const svgDownload = await exportDiagram(page, 'svg');
     const svgText = await readDownloadText(svgDownload);
 
-    expect(svgDownload.suggestedFilename()).toBe('diagram.svg');
+    expect(svgDownload.suggestedFilename()).toBe('diagram.studyflow.svg');
     expect(svgText).toContain('Review Task');
     expect(svgText).toContain('<studyflow>');
 
@@ -60,7 +60,7 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow');
+    expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow.yaml');
     expect(studyflowText.startsWith('id:')).toBe(true);
     expect(studyflowText).toContain('name: Review Task');
     // The saved YAML and the SVG-embedded XML describe the same diagram.

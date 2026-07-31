@@ -4,7 +4,6 @@ import { splitQName } from '@/core/naming';
 import {
   getAttributeDefinition,
   getAttributeDefinitions,
-  getRawAttribute,
   isExtensionPrefix,
   toBusinessObject,
 } from '@/core/extensions';
@@ -178,36 +177,6 @@ function isChecklistEntry(item: any): boolean {
   return !!item && typeof item === 'object' && !!item.$type && item.get?.('checklist') === true;
 }
 
-/** No value: undefined, null, the empty string, or an empty list. */
-function isEmptyValue(value: unknown): boolean {
-  if (value === undefined || value === null || value === '') return true;
-  return Array.isArray(value) && value.length === 0;
-}
-
-/**
- * Value left by an older spelling of this attribute.
- *
- * A property may list the names it used to be written under in
- * `meta.legacyNames`; a name the loaded schemas no longer declare survives in
- * moddle's `$attrs`, so an old file keeps rendering and re-saves under the
- * current spelling. This is the schema's own account of its history — nothing
- * in the code knows which attributes were ever renamed.
- */
-function readLegacyValue(target: any, attrDef: AttributeSpec | undefined): any {
-  const legacyNames = attrDef?.meta?.legacyNames;
-  if (!Array.isArray(legacyNames) || !target) return undefined;
-
-  for (const legacyName of legacyNames) {
-    if (typeof legacyName !== 'string') continue;
-    const raw = getRawAttribute(target, legacyName, attrDef?.ns?.prefix)
-      ?? (hasStoredValue(target, legacyName) ? readRaw(target, legacyName) : undefined);
-    if (isEmptyValue(raw)) continue;
-    // A scalar written before the property went many-valued reads as a list of one.
-    return attrDef?.isMany && !Array.isArray(raw) ? [raw] : raw;
-  }
-  return undefined;
-}
-
 // ---------------------------------------------------------------------------
 // The handle
 // ---------------------------------------------------------------------------
@@ -340,8 +309,52 @@ export class StudyflowElement {
 
     const value = readRaw(r.target, r.attributeName);
     const attrDef = getAttributeDefinition(r.target, r.attributeName);
-    const resolved = unwrapBodyValue(value, attrDef);
-    return isEmptyValue(resolved) ? readLegacyValue(r.target, attrDef) ?? resolved : resolved;
+    return unwrapBodyValue(value, attrDef);
+  }
+
+  /** The expression element stored under `attributeName`, when there is one
+   *  (a `bpmn:FormalExpression` child); flat strings and empty fields have
+   *  none. */
+  private expressionElement(attributeName: string): any | undefined {
+    const bo = this.businessObject;
+    const ext = findExtension(bo);
+    const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
+    if (r.target && r.attributeName) {
+      const value = readRaw(r.target, r.attributeName);
+      if (value && typeof value === 'object' && value.$type) return value;
+    }
+    // The standard-loop marker's condition lives one hop down, on the
+    // `loopCharacteristics` child — the one expression the generic resolution
+    // does not reach (which is why the Loop section renders it itself).
+    const loop = bo?.loopCharacteristics;
+    const localName = toLocalName(attributeName);
+    if (loop && localName
+      && (getAttributeDefinition(loop, attributeName) ?? getAttributeDefinition(loop, localName))) {
+      const nested = readRaw(loop, localName);
+      if (nested && typeof nested === 'object' && nested.$type) return nested;
+    }
+    return undefined;
+  }
+
+  /** Whether `attributeName` currently holds an expression element. */
+  hasExpression(attributeName: string): boolean {
+    return Boolean(this.expressionElement(attributeName));
+  }
+
+  /** The per-expression `language` (BPMN's own FormalExpression field), or
+   *  undefined for "the evaluating engine's own language". */
+  expressionLanguage(attributeName: string): string | undefined {
+    const language = this.expressionElement(attributeName)?.get?.('language');
+    return typeof language === 'string' && language ? language : undefined;
+  }
+
+  /** Set (or clear) the expression's `language`. A field with no expression
+   *  yet has nothing to carry it — a no-op, not an error: the language is
+   *  validated only by the engine that eventually evaluates it. */
+  writeExpressionLanguage(attributeName: string, language: string | undefined): void {
+    const expression = this.expressionElement(attributeName);
+    if (!expression) return;
+    this.writer.applyModdle(this.element ?? expression, expression, { language: language || undefined });
   }
 
   /** Write an attribute by name, resolving storage (business object, wrapper,
@@ -384,9 +397,17 @@ export class StudyflowElement {
           return;
         }
       }
+      // An expression is its element: no text, no element. Presence is what
+      // the canvas marks (the conditional-flow diamond) and what engines
+      // check, so an emptied field removes the child rather than leaving an
+      // empty husk behind.
+      if (value == null || value.trim() === '') {
+        this.writer.apply(this.element, r.target, r.targetKind, r.attributeName, undefined);
+        return;
+      }
       const existing = readRaw(r.target, r.attributeName);
       if (existing && typeof existing === 'object' && existing.$type) {
-        this.writer.applyModdle(this.element, existing, { [bodyProp]: value ?? '' });
+        this.writer.applyModdle(this.element, existing, { [bodyProp]: value });
         return;
       }
       // Fresh wrapper of the declared type so writes survive serialization.
@@ -414,10 +435,7 @@ export class StudyflowElement {
     const bo = this.businessObject;
     const list = readRaw(bo, 'documentation');
     const entry = Array.isArray(list) ? list.find((item) => isChecklistEntry(item)) : undefined;
-    if (entry) return readRaw(entry, 'text') ?? '';
-    // Legacy files carried `studyflow:checklist` as a raw element attribute.
-    const legacy = bo?.$attrs?.['studyflow:checklist'] ?? bo?.$attrs?.['checklist'];
-    return typeof legacy === 'string' && legacy ? legacy : undefined;
+    return entry ? readRaw(entry, 'text') ?? '' : undefined;
   }
 
   private writeChecklist(value: any): void {

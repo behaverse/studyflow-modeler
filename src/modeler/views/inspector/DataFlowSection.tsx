@@ -78,15 +78,14 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
   };
 
   const row = (direction: Direction, neighbor: DataNeighbor) => {
-    // A drawn element is edited on the canvas; only show what it binds to.
-    // Which BPMN kind it is stays in the row's title: the row already shows
-    // it — a drawn element reads as a dashed, uneditable pill and a property
-    // as an editable field — and spelling it out on every row was the same
-    // word four times over.
-    // Every row reads as the assignment it is — `receiver = value` — so the
-    // `=` between the cells is the binding grammar drawn out. On an input the
-    // slot receives the element (`X = x_train`); on an output the element
-    // receives the selection (`x_train = result[0]`).
+    // A drawn element is auto-detected from the canvas and shown read-only —
+    // its wire is the editing surface (select it for name, id, and
+    // transformation). Only a `bpmn:Property` is edited here, because it has
+    // no drawn wire to select. Every row reads as the assignment it is —
+    // `receiver = value` — so the `=` between the cells is the transformation
+    // grammar drawn out. On an input the slot receives the element
+    // (`X = x_train`); on an output the element receives the selection
+    // (`x_train = result[0]`).
     if (!neighbor.declared || !neighbor.associationId) {
       const label = !neighbor.binding
         ? neighbor.name
@@ -126,7 +125,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
       // value itself stays one line — Enter is a no-op and pasted newlines
       // collapse to spaces, since these are expressions, not prose.
       <Textarea
-        aria-label={`Binding for ${neighbor.name}`}
+        aria-label={`Transformation for ${neighbor.name}`}
         rows={1}
         // A blank input slot binds by the element's own name — the placeholder
         // shows exactly that default; a blank output lands the whole `result`.

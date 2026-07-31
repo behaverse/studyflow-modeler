@@ -40,7 +40,7 @@ test.describe('Inspector repetition controls', () => {
     await expect(canvas.locator(LOOP_MARKER)).toHaveCount(1);
 
     const section = page.getByTestId('loop-section');
-    await page.locator('input[name="loopCondition"]').fill('score < 0.9');
+    await page.locator('textarea[name="loopCondition"]').fill('score < 0.9');
     await page.locator('input[name="loopMaximum"]').fill('5');
     // The only checkbox in loop mode is testBefore.
     await section.getByRole('checkbox').click();
@@ -67,7 +67,7 @@ test.describe('Inspector repetition controls', () => {
 
     // The still-open Loop tab reflects the undone model.
     await expect(page.getByTestId('loop-kind')).toContainText('Loop (repeat)');
-    await expect(page.locator('input[name="loopCondition"]')).toHaveValue('score < 0.9');
+    await expect(page.locator('textarea[name="loopCondition"]')).toHaveValue('score < 0.9');
     await expect(page.locator('input[name="loopMaximum"]')).toHaveValue('5');
 
     // Saved YAML carries the canonical nested shape.

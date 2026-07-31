@@ -6,6 +6,7 @@ import { BooleanInput } from '@/modeler/views/inspector/BooleanInput';
 import { EnumInput } from '@/modeler/views/inspector/EnumInput';
 import { ArrayInput } from '@/modeler/views/inspector/ArrayInput';
 import { OptionalStringInput } from '@/modeler/views/inspector/OptionalStringInput';
+import { ExpressionInput } from '@/modeler/views/inspector/ExpressionInput';
 import { ReadonlyInput } from '@/modeler/views/inspector/ReadonlyInput';
 import { SchemaEditor } from '@/modeler/views/inspector/SchemaEditor';
 
@@ -41,6 +42,8 @@ const INPUT_BY_EDITOR_NAME: Record<string, any> = {
 
 export function pickInput(attrDef: AttributeSpec) {
   if (attrDef.meta?.readonly) return ReadonlyInput;
+  // Every expression renders the same way, wherever it lives.
+  if (attrDef.meta?.expression) return ExpressionInput;
 
   const named = attrDef.meta?.editor ? INPUT_BY_EDITOR_NAME[attrDef.meta.editor] : undefined;
   if (named) return named;

@@ -73,7 +73,7 @@ types:
   # definition of an agent, and it has been in the BPMN spec since 2011. So an
   # Agent is not a new shape: it is that shape, with a model attached. The tools
   # it may call are the activities drawn inside it. The exit test is BPMN's own
-  # `completionCondition` (flattened to an attribute by exec); `maxTurns` is the
+  # `completionCondition` (flattened to an attribute by the core schema); `maxTurns` is the
   # one custom field, because BPMN puts no ceiling on an ad-hoc sub-process.
   # ===========================================================================
   - name: Agent
@@ -239,7 +239,7 @@ types:
       bpmnType: bpmn:ServiceTask
     properties:
       # `implementation` (the versioned function reference) comes from the
-      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
+      # `studyflow:Implementation` trait on bpmn:ServiceTask - declared once there.
       - name: kind
         description: What kind of capability this exposes.
         isAttr: true
@@ -420,7 +420,7 @@ templates:
           targetRef: eo_gate
         - type: bpmn:SequenceFlow
           bpmn:name: revise
-          conditionExpression: score < 4 && state.visits.eo_gate < 4
+          conditionExpression: score < 4 and state.trace.count('eo_gate') < 4
           sourceRef: eo_gate
           targetRef: eo_generate
 

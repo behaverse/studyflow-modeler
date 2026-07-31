@@ -185,7 +185,7 @@ test.describe('schema lint', () => {
         // trait over `bpmn:Activity` and again on one over `bpmn:Event`, so
         // growing the axis meant editing two places and the two prose
         // descriptions had already drifted apart. A trait may extend several
-        // targets — `exec:Transformation` covers both data associations that
+        // targets — `studyflow:Transformation` covers both data associations that
         // way — which is the form to reach for instead.
         //
         // Same name alone is not the signal: `format` means different things on

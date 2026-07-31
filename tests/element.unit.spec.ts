@@ -112,21 +112,21 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
   };
 
   test('a stored trait value is not masked by defaults (Research_Agent completionCondition)', async () => {
-    const definitions = await loadExample('agent_eval.png');
+    const definitions = await loadExample('agent_eval.studyflow.png');
     const agent = findInDefinitions(definitions, 'Research_Agent');
     expect(agent).toBeTruthy();
     // The value is stored as BPMN's own expression element on the business
     // object (no wrapper involved in the trait read)...
     expect(agent.get('completionCondition')?.body).toBe('answer != null');
     // ...and the resolved read unwraps it, not an empty trait default.
-    expect(getAttribute(agent, 'exec:completionCondition')).toBe('answer != null');
+    expect(getAttribute(agent, 'studyflow:completionCondition')).toBe('answer != null');
 
     // With a wrapper attached, its materialized trait defaults must not mask
     // the stored business-object value either.
     const bo = moddle.create('bpmn:AdHocSubProcess', { id: 'Agent_0' });
     StudyflowElement.fromBusinessObject(bo).write('completionCondition', 'answer != null');
     createExtensionElement(bo, 'agentic:Agent', moddle, {});
-    expect(getAttribute(bo, 'exec:completionCondition')).toBe('answer != null');
+    expect(getAttribute(bo, 'studyflow:completionCondition')).toBe('answer != null');
   });
 
   test('pinned wrapper defaults win over stale business-object values', () => {

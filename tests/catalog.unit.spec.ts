@@ -420,12 +420,4 @@ test.describe('catalog: schema-declared vocabulary', () => {
     expect(configurations!.typeEditor, 'resolved through the Configurations wrapper').toBe('code');
   });
 
-  test('legacy namespace rewrites come from the schemas that superseded them', () => {
-    const rewrites = catalog.legacyUriRewrites();
-    expect(rewrites.length, 'the core schema declares one').toBeGreaterThan(0);
-    for (const { from, to } of rewrites) {
-      expect(from, 'a legacy URI is never its own replacement').not.toBe(to);
-      expect(catalog.schemas.some((schema) => schema.uri === to)).toBe(true);
-    }
-  });
 });

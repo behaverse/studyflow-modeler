@@ -30,6 +30,14 @@ import {
 import { runCreateShape, runSetColor, type CreateShapeCommand, type SetColorCommand } from '@/modeler/controllers/shape';
 import {
   runUpdateAttribute, type UpdateAttributeCommand,
+} from '@/modeler/controllers/attributes/updateAttribute';
+import {
+  runUpdateExpressionLanguage, type UpdateExpressionLanguageCommand,
+} from '@/modeler/controllers/attributes/updateExpressionLanguage';
+import {
+  runUpdateTransformation, type UpdateTransformationCommand,
+} from '@/modeler/controllers/attributes/updateTransformation';
+import {
   runUpdateLoopCharacteristics, type UpdateLoopCharacteristicsCommand,
   runUpdateStateProperties, type UpdateStatePropertiesCommand,
   runUpdateDataBinding, type UpdateDataBindingCommand,
@@ -93,6 +101,8 @@ const HANDLERS: HandlerMap = {
   'open-runner': runOpenRunner,
   'import-xml': runImportXml,
   'update-attribute': runUpdateAttribute,
+  'update-expression-language': runUpdateExpressionLanguage,
+  'update-transformation': runUpdateTransformation,
   'update-loop-characteristics': runUpdateLoopCharacteristics,
   'update-state-properties': runUpdateStateProperties,
   'update-data-binding': runUpdateDataBinding,

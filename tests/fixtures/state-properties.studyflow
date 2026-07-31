@@ -1,7 +1,6 @@
 id: state_probe
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  expressionLanguage: https://github.com/google/cel-spec
   xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
   xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1

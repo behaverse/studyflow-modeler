@@ -15,6 +15,8 @@ export type SequenceFlow = {
   sourceId: string;
   targetId: string;
   conditionExpression?: string;
+  /** The expression's own `language` (BPMN's per-expression field); unset runs js here. */
+  conditionLanguage?: string;
   businessObject: any;
 };
 

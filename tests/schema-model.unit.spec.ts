@@ -112,7 +112,7 @@ test.describe('schema model: moddle package generation', () => {
     expect(configValue.valueType).toBe('studyflow:YAMLString');
 
     // `additionalArguments` is a value-typed YAML property (no wrapper element).
-    const withProp = prop(byPrefix.exec, 'Arguments', 'additionalArguments');
+    const withProp = prop(byPrefix.studyflow, 'Arguments', 'additionalArguments');
     expect(withProp.type).toBe('String');
     expect(withProp.valueType).toBe('studyflow:YAMLString');
 

@@ -185,6 +185,26 @@ export function getAttribute(elementOrBO: any, attributeName: string): any {
 /** Write a resolved attribute value. With `modeling`, writes through bpmn-js
  *  (undo/redo) on the element; without it, mutates the business object directly.
  *  Thin delegator to {@link StudyflowElement}. */
+export function hasExpression(element: any, attributeName: string): boolean {
+  return StudyflowElement.fromBusinessObject(toBusinessObject(element)).hasExpression(attributeName);
+}
+
+export function getExpressionLanguage(element: any, attributeName: string): string | undefined {
+  return StudyflowElement.fromBusinessObject(toBusinessObject(element)).expressionLanguage(attributeName);
+}
+
+export function setExpressionLanguage(
+  element: any,
+  attributeName: string,
+  language: string | undefined,
+  modeling?: any,
+): void {
+  const handle = modeling
+    ? StudyflowElement.fromElement(element, modeling)
+    : StudyflowElement.fromBusinessObject(element);
+  handle.writeExpressionLanguage(attributeName, language);
+}
+
 export function setAttribute(element: any, attributeName: string, value: any, modeling?: any): void {
   const handle = modeling
     ? StudyflowElement.fromElement(element, modeling)

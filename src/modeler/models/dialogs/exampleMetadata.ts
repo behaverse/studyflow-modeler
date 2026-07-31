@@ -15,14 +15,11 @@ export { firstSentence };
  */
 
 /** Namespace URIs the XML metadata reader looks under. Supplied by the caller
- *  so this module stays free of modeler-infra constants. `legacyCore` is the
- *  unversioned studyflow URI older files declare. */
-export type MetadataNamespaces = { bpmn: string; core: string; legacyCore?: string };
+ *  so this module stays free of modeler-infra constants. */
+export type MetadataNamespaces = { bpmn: string; core: string };
 
-/** A studyflow-namespaced attribute, under either spelling of the namespace. */
 function studyflowAttribute(el: Element, ns: MetadataNamespaces, name: string): string | null {
-  return el.getAttributeNS(ns.core, name)
-    ?? (ns.legacyCore ? el.getAttributeNS(ns.legacyCore, name) : null);
+  return el.getAttributeNS(ns.core, name);
 }
 
 export type ExampleMetadata = {
@@ -69,7 +66,6 @@ function rootsOf(doc: Document, ns: MetadataNamespaces): Element[] {
   const roots = [
     ...ROOT_TYPES.flatMap((type) => [...doc.getElementsByTagNameNS(ns.bpmn, type)]),
     ...doc.getElementsByTagNameNS(ns.core, 'study'),
-    ...(ns.legacyCore ? [...doc.getElementsByTagNameNS(ns.legacyCore, 'study')] : []),
   ]
     // A sub-process is a `bpmn:process` in name only when it is not a root.
     .filter((el) => el.parentElement?.localName === 'definitions');
@@ -79,29 +75,12 @@ function rootsOf(doc: Document, ns: MetadataNamespaces): Element[] {
   return [...primary, ...roots.filter((el) => !primary.includes(el))];
 }
 
-/**
- * The tags one root declares, under every spelling the property has had:
- * `<studyflow:tags>` children now, `<studyflow:categories>` before the word was
- * needed for the inspector's tabs, and a single `studyflow:category` attribute
- * before it went many-valued (see `Classification#tags.meta.legacyNames`).
- *
- * This reader parses markup directly rather than through moddle, so it does not
- * pass the import boundary that rewrites the old spellings — it has to know
- * them itself.
- */
-const TAG_ELEMENTS = ['tags', 'categories'];
-
+/** The tags one root declares, as `<studyflow:tags>` children. */
 function tagsOf(root: Element, ns: MetadataNamespaces): string[] {
-  for (const localName of TAG_ELEMENTS) {
-    const declared = Array.from(root.children)
-      .filter((child) => (child.namespaceURI === ns.core || child.namespaceURI === ns.legacyCore)
-        && child.localName === localName)
-      .map((child) => child.textContent?.trim() ?? '')
-      .filter(Boolean);
-    if (declared.length > 0) return declared;
-  }
-  const legacy = studyflowAttribute(root, ns, 'category')?.trim();
-  return legacy ? [legacy] : [];
+  return Array.from(root.children)
+    .filter((child) => child.namespaceURI === ns.core && child.localName === 'tags')
+    .map((child) => child.textContent?.trim() ?? '')
+    .filter(Boolean);
 }
 
 export function parseXmlExampleMetadata(

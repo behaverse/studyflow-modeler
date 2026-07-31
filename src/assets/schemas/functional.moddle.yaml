@@ -30,7 +30,7 @@ types:
       bpmnType: bpmn:ServiceTask
     properties:
       # `implementation` (the versioned function reference) comes from the
-      # `exec:Implementation` trait on bpmn:ServiceTask - declared once there.
+      # `studyflow:Implementation` trait on bpmn:ServiceTask - declared once there.
       - name: operationType
         isAttr: true
         default: transform

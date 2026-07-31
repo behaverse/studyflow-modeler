@@ -112,8 +112,20 @@ export function runUpdateDataBinding(modeler: any, command: UpdateDataBindingCom
     return;
   }
 
-  // set-binding: one attribute either way — `slot = selection`, each half
-  // optional (see `exec:Binding`). The `.bpmn` exporter is what lowers it to
-  // ioSpecification names and native `transformation` elements.
-  modeling.updateModdleProperties(element, target, { binding: command.value || undefined });
+  // set-binding: the association's one expression — `slot = selection`, each
+  // half optional — as the body of BPMN's own `transformation` element, used
+  // as-is. The `.bpmn` exporter splits the halves into ioSpecification names
+  // and pure-selection bodies.
+  const value = command.value || undefined;
+  const expression = target.get?.('transformation') ?? target.transformation;
+  if (!value) {
+    modeling.updateModdleProperties(element, target, { transformation: undefined });
+  } else if (expression) {
+    modeling.updateModdleProperties(element, expression, { body: value });
+  } else {
+    const moddle = modeler.get('moddle');
+    const created = moddle.create('bpmn:FormalExpression', { body: value });
+    created.$parent = target;
+    modeling.updateModdleProperties(element, target, { transformation: created });
+  }
 }

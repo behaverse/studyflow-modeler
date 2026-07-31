@@ -10,5 +10,7 @@ export function extractXmlFromSvg(svgText: string): string {
   return studyflowEl.innerHTML;
 }
 
-/** Filename without its extension. */
-export const filenameStem = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
+/** Filename without its extension — a compound `.studyflow.*` counts as one
+ *  extension, so an exported file's stem is the diagram name. */
+export const filenameStem = (filename: string): string =>
+  filename.replace(/\.studyflow\.(png|svg|yaml)$/i, '').replace(/\.[^/.]+$/, '');

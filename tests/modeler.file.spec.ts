@@ -68,13 +68,17 @@ test.describe('Studyflow modeler file flows', () => {
 
     const download = await exportDiagram(page, 'studyflow');
 
-    await expect(download.suggestedFilename()).toBe('diagram.studyflow');
+    await expect(download.suggestedFilename()).toBe('diagram.studyflow.yaml');
     const content = await readDownloadText(download);
     expect(content.startsWith('id:')).toBe(true);
     expect(content).toContain('\ndefinitions:');
     // Geometry folds into the elements; no separate bpmndi tree remains.
     expect(content).not.toContain('\ndiagram:');
     expect(content).toContain('bounds:');
+    // Leaving the app is an event in the file's life: the export stamped the
+    // provenance trail (a fresh diagram's first stamp is `created`).
+    expect(content).toContain('prov:Activity');
+    expect(content).toContain('action: created');
   });
 
   test('saved YAML studyflow file opens again (UI round trip)', async ({ page }) => {
@@ -98,7 +102,7 @@ test.describe('Studyflow modeler file flows', () => {
     await gotoModeler(page);
 
     const download = await exportDiagram(page, 'png');
-    await expect(download.suggestedFilename()).toBe('diagram.png');
+    await expect(download.suggestedFilename()).toBe('diagram.studyflow.png');
 
     const filePath = await download.path();
     if (!filePath) throw new Error('Downloaded file path is unavailable.');

@@ -7,7 +7,6 @@ import {
 import GridModule from 'diagram-js-grid';
 
 import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
-import { normalizeStudyflowXml } from '@/core/codec';
 import { fromWireXml } from '@/core/codec/choreography';
 import { fromStandardBpmnXml } from '@/core/codec/io-specification';
 import { ensureDiagramLayout } from '@/modeler/models/autoLayout';
@@ -46,7 +45,7 @@ export async function runCreateModeler(_modeler: any, command: CreateModelerComm
   if (provided) {
     try {
       const wireXml = await fromStandardBpmnXml(
-        await fromWireXml(normalizeStudyflowXml(provided), modeler.get('moddle')),
+        await fromWireXml(provided, modeler.get('moddle')),
         modeler.get('moddle'),
       );
       await modeler.importXML(await ensureDiagramLayout(wireXml, modeler.get('moddle')));
@@ -63,6 +62,6 @@ export async function runCreateModeler(_modeler: any, command: CreateModelerComm
       clearAutosavedDiagram();
     }
   }
-  await modeler.importXML(normalizeStudyflowXml(new_diagram));
+  await modeler.importXML(new_diagram);
   return modeler;
 }

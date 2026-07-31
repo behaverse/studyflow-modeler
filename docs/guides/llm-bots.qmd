@@ -25,7 +25,7 @@ Global LLM defaults live in the modeler's *Settings*: provider (`claude` or `oll
 
 ## botConfigurations
 
-A worked example from the shipped `bot_claude.png` example diagram -- a "tired participant" persona playing a 1-back warm-up block:
+A worked example from the shipped `bot_claude.studyflow.png` example diagram -- a "tired participant" persona playing a 1-back warm-up block:
 
 ```yaml
 ResponseSource: llm
@@ -54,9 +54,9 @@ See the `BehaverseTask` property descriptions in `src/assets/schemas/cognitive.m
 
 Three ready-to-run examples are available from the modeler's *Examples* menu (sources in `src/assets/examples/`):
 
-- `bot_claude.studyflow` -- Claude-powered bots with distinct personas, including a vision task via `IncludeScreenshot`.
-- `bot_ollama.studyflow` -- the same pattern against a local Ollama server.
-- `bot_external.studyflow` -- uniform random responses, no LLM required.
+- `bot_claude.studyflow.yaml` -- Claude-powered bots with distinct personas, including a vision task via `IncludeScreenshot`.
+- `bot_ollama.studyflow.yaml` -- the same pattern against a local Ollama server.
+- `bot_external.studyflow.yaml` -- uniform random responses, no LLM required.
 
 ## What's next
 

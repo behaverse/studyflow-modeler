@@ -30,7 +30,7 @@ function diagramOf(filename: string): string {
 
 /** The tags a shipped diagram declares. Only the current spelling: what ships
  *  is what the modeler writes today, and the older ones are the import
- *  boundary's business (see `legacyElementRewrites`). */
+ *  boundary's business. */
 function tagsInFile(xml: string): string[] {
   return [...xml.matchAll(/<studyflow:tags>([\s\S]*?)<\/studyflow:tags>/g)]
     .map((m) => m[1].trim())
@@ -68,7 +68,7 @@ test.describe('shipped examples', () => {
   test('opening one reopens the diagram it pictures', () => {
     // The payload is what `open-diagram` reads back out of a `.png`, so a card
     // click and a drag-and-drop of the same file are the same import.
-    const xml = diagramOf('cognitive_battery.png');
+    const xml = diagramOf('cognitive_battery.studyflow.png');
     expect(xml).toContain('id="Task_NBack"');
     expect(xml).toContain('name="Within-subject cognitive battery"');
   });

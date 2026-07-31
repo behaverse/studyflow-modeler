@@ -3,6 +3,8 @@ import type { ComponentType } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { AttributeFields } from '@/modeler/views/inspector/AttributeField';
 import { ExecutionSection } from '@/modeler/views/inspector/ExecutionSection';
+import { WireTransformationSection } from '@/modeler/views/inspector/WireTransformationSection';
+import { elementKey } from '@/modeler/views/inspector/elementKey';
 import { t } from '@/i18n';
 import { inspector as s } from '@/modeler/infra/styles';
 
@@ -52,8 +54,9 @@ export function CategoryTabs({ element, categories }: Props) {
           return (
             <TabPanel key={name} className={s.tabPanel}>
               {Section
-                ? <Section key={element.id} attrDefs={attrDefs} />
+                ? <Section key={elementKey(element)} attrDefs={attrDefs} />
                 : <AttributeFields attrDefs={attrDefs} />}
+              {name === 'General' ? <WireTransformationSection element={element} /> : null}
             </TabPanel>
           );
         })}

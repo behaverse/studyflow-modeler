@@ -15,6 +15,7 @@ import { executeCommand } from '@/modeler/controllers/commandBus';
 import { useModeler } from '@/modeler/views/useModeler';
 import { useInspectedElement } from '@/modeler/views/inspector/hooks/useInspectedElement';
 import { CheckIcon } from '@/modeler/views/inspector/CheckIcon';
+import { ExpressionRow } from '@/modeler/views/inspector/ExpressionInput';
 import { HelpTooltip } from '@/modeler/views/inspector/HelpTooltip';
 import {
   getLoopCharacteristics,
@@ -91,7 +92,7 @@ export function LoopSection() {
     if (Number.isFinite(parsed)) setField('loopMaximum', parsed);
   };
 
-  // The exec:LoopCondition trait flattens `loopCondition` to a CEL string
+  // The studyflow:LoopCondition trait flattens `loopCondition` to a flat string
   // attribute; reuse its schema description for the tooltip.
   const conditionDef = loopCharacteristics
     ? getAttributeDefinition(loopCharacteristics, 'loopCondition')
@@ -134,13 +135,21 @@ export function LoopSection() {
               {t('loopCondition')}
               <HelpTooltip name="loopCondition" description={conditionDef?.description} />
             </Label>
-            <Input
+            <ExpressionRow
               name="loopCondition"
-              type="text"
               placeholder="score < 0.9"
               value={expressionText(loopCharacteristics.get('loopCondition'))}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setField('loopCondition', e.target.value)}
-              className={s.textInput}
+              language={loopCharacteristics.get('loopCondition')?.get?.('language') ?? ''}
+              onCommit={(next) => setField('loopCondition', next)}
+              onCommitLanguage={(next) => {
+                const expression = loopCharacteristics.get('loopCondition');
+                if (expression) {
+                  executeCommand(modeler, {
+                    type: 'update-expression-language', element,
+                    attributeName: 'bpmn:loopCondition', language: next,
+                  });
+                }
+              }}
             />
           </Field>
           <Field className={s.field}>

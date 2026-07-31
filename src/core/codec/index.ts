@@ -1,6 +1,5 @@
 import * as yaml from 'js-yaml';
 
-import { getCatalog } from '@/core/catalog';
 import { toLocalName } from '@/core/naming';
 import { RESERVED_DOC_KEYS, YAML_DUMP_OPTIONS, type YamlDoc } from '@/core/codec/common';
 import { definitionsToYamlDoc } from '@/core/codec/serialize';
@@ -36,7 +35,7 @@ export { studyflowToDefinitions } from '@/core/codec/deserialize';
  *   - YAML-bodied config wrappers (`cognitive:Configurations`,
  *     `cognitive:BotConfigurations`, ...) inline their parsed body as nested
  *     YAML instead of a `value: |` string block, and value-typed YAML
- *     properties (`exec:additionalArguments`) inline their parsed mapping the same way,
+ *     properties (`studyflow:additionalArguments`) inline their parsed mapping the same way,
  *   - diagram geometry attaches to the element it describes — `bounds` and
  *     `label` on shapes, `waypoint` on edges, plus DI-only flags and colors
  *     (`isMarkerVisible`, `bioc:stroke`, ...). DI ids are regenerated as
@@ -55,8 +54,7 @@ export { studyflowToDefinitions } from '@/core/codec/deserialize';
  * ```
  *
  * The studyflow format version is identified by the core namespace URI
- * (`xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1`); the
- * unversioned URI written by older releases is rewritten on load.
+ * (`xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1`).
  *
  * Loading additionally derives missing `incoming`/`outgoing` lists on flow
  * nodes from each sequence flow's `sourceRef`/`targetRef`, so hand-written
@@ -74,37 +72,9 @@ export { studyflowToDefinitions } from '@/core/codec/deserialize';
  * else in the app.
  */
 
-/** True when the text is an XML document (legacy `.studyflow`, `.bpmn`, `.xml`). */
+/** True when the text is an XML document (`.bpmn`, `.xml`). */
 export function looksLikeXml(text: string): boolean {
   return /^\uFEFF?\s*</.test(text);
-}
-
-/**
- * Rewrite what older releases wrote to what the loaded schemas declare: legacy
- * namespace URIs (`legacyUris` -> `uri`) and legacy element names
- * (`meta.legacyNames` -> the property's current name).
- *
- * URI matching is quote-bounded, so a legacy URI that is a prefix of a current
- * one (the unversioned core namespace against `.../studyflow/cognitive`) is
- * untouched. Element matching is bounded by the tag delimiters, so a longer
- * name that starts with a legacy one is untouched too. Idempotent.
- */
-export function normalizeStudyflowXml(xml: string): string {
-  let out = xml;
-  for (const { from, to } of getCatalog().legacyUriRewrites()) {
-    if (from === to) continue;
-    out = out.replace(new RegExp(`(["'])${escapeRegExp(from)}\\1`, 'g'), `$1${to}$1`);
-  }
-  for (const { from, to } of getCatalog().legacyElementRewrites()) {
-    // `<p:from ` / `<p:from>` / `<p:from/>` and the matching close tag.
-    out = out.replace(new RegExp(`<${escapeRegExp(from)}(?=[\\s/>])`, 'g'), `<${to}`);
-    out = out.replace(new RegExp(`</${escapeRegExp(from)}\\s*>`, 'g'), `</${to}>`);
-  }
-  return out;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export type StudyflowMetadata = { id?: string; name?: string; description?: string };
@@ -152,7 +122,7 @@ export function readStudyflowMetadata(yamlText: string): StudyflowMetadata {
 
 /** BPMN 2.0 XML -> `.studyflow` YAML text. */
 export async function xmlToStudyflow(xml: string, moddle: any): Promise<string> {
-  const { rootElement: definitions } = await moddle.fromXML(normalizeStudyflowXml(xml));
+  const { rootElement: definitions } = await moddle.fromXML(xml);
   // Standard-form I/O (`ioSpecification`) collapses to the compact binding
   // attributes the YAML documents.
   foldIoSpecification(definitions);

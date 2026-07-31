@@ -8,7 +8,7 @@ import { toBusinessObject } from '@/core/extensions';
  * states — no child, a standard loop (↻, one activity retried in place), or
  * a multi-instance fan-out, parallel (∥) or sequential (≡). A repeat that
  * spans several steps is drawn control flow instead: a conditioned
- * back-edge through a gateway, bounded by `state.visits.<gateway-id>`.
+ * back-edge through a gateway, bounded by `state.trace.count('<gateway-id>')`.
  */
 
 export type LoopKind = 'none' | 'loop' | 'parallel' | 'sequential';

@@ -2,18 +2,18 @@
 
 name: Core
 prefix: studyflow
-description: Core BPMN extension for modeling research processes - the study container, events, flows, generic activities, and the data-infrastructure types shared by every use case.
+description: >-
+  Core BPMN extension for modeling research processes - the study container,
+  events, flows, generic activities, the data-infrastructure types shared by
+  every use case, and the executable layer an engine reads (`implementation`,
+  `transformation`, `uri`, `additionalArguments`, and the expression attributes).
 uri: http://behaverse.org/schemas/studyflow/v1
-# Namespaces written by older releases. Still read so an old file stays
-# legible; rewritten to `uri` on load.
-legacyUris:
-  - http://behaverse.org/schemas/studyflow
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
 core: true   # backs the default elements; always loaded, cannot be disabled
 order: 10  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0730
+version: 26.0731
 
 # Inspector tabs, in the order they appear, declared here for every schema.
 # An attribute joins a tab by naming it in `meta.categories`; a tab a schema
@@ -39,7 +39,7 @@ categories:
     description: Where the element sits on the schedule — onset, duration, progress.
   - name: Data
     order: 40
-    description: What a value is and where it lives — format, schema, storage, uri.
+    description: How a value is laid out — format and schema.
   - name: Execution
     order: 50
     synthetic: true
@@ -277,7 +277,7 @@ types:
           optional: true
           categories:
             - Documentation
-      # `seed` lives in the exec schema (`exec:Seed`), with the rest of the
+      # `seed` is declared by the `Seed` trait below, with the rest of the
       # executable layer.
       - name: isExecutable
         redefines: bpmn:Process#isExecutable
@@ -307,15 +307,8 @@ types:
         meta:
           categories:
             - Documentation
-          # Earlier spellings, still read and rewritten as `tags` on save:
-          # `categories` (renamed because that word also names the inspector's
-          # tabs and the palette's groups, which these are not), and before
-          # that a single `category` attribute.
-          legacyNames:
-            - categories
-            - category
-  # The call configuration (`exec:additionalArguments`) lives in the exec
-  # schema, beside `implementation` — one call contract, one schema.
+  # The call configuration (`additionalArguments`) is declared by the `Arguments`
+  # trait below, beside `implementation` — one call contract, one place.
   - name: StartEvent
     extends:
       - bpmn:StartEvent
@@ -339,11 +332,13 @@ types:
     properties:
       - name: bpmn:conditionExpression
         description: |
-          Condition for sequence flows (e.g., in gateways): a CEL expression
-          over the run's bound values (`CV_Summary.test_accuracy.mean >= 0.9`),
-          authored as a flat string and stored as BPMN's own expression
-          element (`xsi:type` tFormalExpression). The language is declared by
-          BPMN's own `expressionLanguage` attribute on `bpmn:Definitions`.
+          Condition for sequence flows (e.g., in gateways): an expression over
+          the run's bound values (`mean_cv_accuracy >= 0.9`), authored as a
+          flat string and stored as BPMN's own expression element (`xsi:type`
+          tFormalExpression). Python or JavaScript, named per expression by
+          BPMN's own `language` field; unset runs in the evaluating engine's
+          own language (Python in the reference runner, JavaScript in the
+          browser) and is checked only at run time.
         type: bpmn:Expression
         xml:
           serialize: xsi:type
@@ -352,6 +347,7 @@ types:
           categories:
             - General
           pinned: false
+          expression: true
   - name: EndEvent
     extends:
       - bpmn:EndEvent
@@ -691,3 +687,302 @@ types:
         meta:
           categories:
             - Data
+
+  # ===========================================================================
+  # The executable layer - what an engine reads to run a diagram: a step's
+  # `implementation` and `additionalArguments`, the associated data elements
+  # that are its inputs and outputs, and conditions over the values they
+  # bind. Studyflow coordinates the calls; it never encodes the computation.
+  #
+  # Most of these redefine an attribute BPMN already has, which reads like
+  # restating the standard until you know what a redefine is *for* here: it is
+  # how a native attribute becomes visible. bpmn-moddle carries every BPMN
+  # attribute already, and the inspector shows none of them - a field renders
+  # only when a schema declares it. `uri` is an addition BPMN has
+  # no equivalent for.
+  # ===========================================================================
+
+  # ===========================================================================
+  # The software reference. BPMN's own `implementation` attribute ("the
+  # technology implementing this task") is redefined once, here, with the
+  # versioned reference grammar every executable step uses. The engine
+  # resolves the reference, calls it with `additionalArguments` plus the associated inputs, and
+  # binds the return value to the associated outputs; there is no other step
+  # contract.
+  # ===========================================================================
+  - name: Implementation
+    description: |
+      Adds BPMN's own `implementation` to every service task, so the reference grammar is the same wherever a task runs something.
+    extends:
+      - bpmn:ServiceTask
+    isAbstract: true
+    properties:
+      - name: bpmn:implementation
+        description: |
+          Software this task runs, as `<scheme>://<ref>[@<version-or-digest>]`.
+          Schemes: `python://` (importable callable), `docker://` (image),
+          `https://` or `file://` (script).
+        isAttr: true
+        type: String
+        redefines: bpmn:ServiceTask#implementation
+        meta:
+          order: 1
+          categories:
+            - Execution
+
+  # ===========================================================================
+  # The call's configuration. `additionalArguments` is plan, not data flow:
+  # the drawn associations are the ports that move values between steps, and
+  # this holds the literals that parameterize one call. It sits here beside
+  # `implementation` so the executable layer is one schema — reference,
+  # configuration, ports, artifacts — not split across two.
+  # ===========================================================================
+  - name: Arguments
+    description: |
+      Adds `additionalArguments` to every activity: the call's literal
+      configuration, beyond the associated inputs and outputs the drawn
+      associations bind. The name says the contract: these are *additional* -
+      the associations fill the signature first.
+    extends:
+      - bpmn:Activity
+    isAbstract: true
+    properties:
+      - name: additionalArguments
+        description: |
+          Literal arguments for the software named by `implementation`, as
+          YAML (the role GitHub Actions' `with:` plays) - additional to the
+          drawn associations, which fill the signature first; these supply
+          what is left over. The reserved `args` key lists positional
+          arguments.
+        isAttr: false
+        type: YAMLString
+        meta:
+          order: 3
+          categories:
+            - Execution
+          condition:
+            language: json
+            body:
+              implementation: $set
+
+  - name: Seed
+    description: |
+      Adds the run's root seed to the process - pinned in the plan, read by
+      the engine, echoed on the as-run record.
+    extends:
+      - bpmn:Process
+    isAbstract: true
+    properties:
+      - name: seed
+        description: |
+          Root seed for runs of this study; every step derives its own from it.
+          Pin it to make runs replayable; leave it unset and the engine draws
+          one and records it on the as-run file.
+        isAttr: true
+        type: Integer
+        meta:
+          optional: true
+          categories:
+            - Execution
+
+  # ===========================================================================
+  # Bindings. Inputs and outputs are never listed on a task: they are the
+  # data associations drawn on the canvas. Connect a data element to a task
+  # and it is an input; connect the task to a data element and it is an
+  # output. BPMN's own `transformation` element on the association refines
+  # that detection - its body is `slot = selection`, each half optional. The
+  # slot names *where* the value goes, the selection *what* value arrives; a
+  # selection is member access and indexing that routes a value between
+  # ports, never a computation. Wires coordinate, steps calculate. Nothing to
+  # declare here: `transformation` is the standard's own element, used as-is,
+  # and it carries its own per-expression `language`.
+  # ===========================================================================
+
+  # ===========================================================================
+  # Triggers, sensors, and delays are native BPMN, not studyflow concepts: a
+  # timer start event is a schedule, a message start event an external event,
+  # a conditional catch event a sensor, a timer catch event a delay, and a
+  # plain start event a manual run. As for `loopCondition` and
+  # `completionCondition`, the event definitions' expressions are authored as
+  # flat strings and stored in BPMN's own expression-element form.
+  # ===========================================================================
+  - name: Timer
+    description: |
+      Declares the timer event definition's expressions so schedules and
+      delays are authored as flat strings, stored in BPMN's own form (an
+      expression element, `xsi:type` tFormalExpression). On a start event,
+      `timeCycle` launches runs on a schedule; on an intermediate catch
+      event, `timeDuration` is a delay and `timeDate` a fixed wake-up.
+    extends:
+      - bpmn:TimerEventDefinition
+    isAbstract: true
+    properties:
+      - name: bpmn:timeCycle
+        description: |
+          When to fire, repeatedly: a cron five-field expression (e.g.
+          `0 6 * * 1`, Mondays at 06:00) or an ISO 8601 repeating interval
+          (e.g. `R/PT24H`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:TimerEventDefinition#timeCycle
+        meta:
+          categories:
+            - Execution
+          expression: true
+      - name: bpmn:timeDuration
+        description: How long to wait, as an ISO 8601 duration (e.g. `PT1H`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:TimerEventDefinition#timeDuration
+        meta:
+          categories:
+            - Execution
+          expression: true
+      - name: bpmn:timeDate
+        description: Fire once, at a fixed time (ISO 8601, e.g. `2026-09-01T06:00Z`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:TimerEventDefinition#timeDate
+        meta:
+          categories:
+            - Execution
+          expression: true
+
+  - name: Condition
+    description: |
+      Declares the conditional event definition's `condition`, authored as a
+      flat string and stored as BPMN's own expression element. A
+      conditional catch event is the workflow sensor: the token waits here
+      until the condition over the run's variables holds - data arrived, a
+      metric crossed a line - then passes.
+    extends:
+      - bpmn:ConditionalEventDefinition
+    isAbstract: true
+    properties:
+      - name: bpmn:condition
+        description: |
+          Expression over the run's variables; the event fires when it
+          holds (e.g. `raw_sessions.rowCount > 0`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:ConditionalEventDefinition#condition
+        meta:
+          categories:
+            - Execution
+          expression: true
+
+  # Cycles come in two interchangeable forms, both BPMN's own. The compact
+  # form is the standard-loop marker (`loopCharacteristics` with
+  # `loopCondition`, `loopMaximum`, `testBefore`): one activity retried in
+  # place, the canvas ↻. The drawn form is a gateway whose conditioned
+  # back-edge returns upstream, exit as the gateway's native `default` - use
+  # it when the cycle spans several steps or the exit rule should be a
+  # visible edge, bounding it with the engine's run state
+  # (`state.trace.count('<gateway-id>')`, the drawn counterpart of the marker's own
+  # loopCounter). The declarations below keep the marker's condition and the
+  # ad-hoc sub-process's exit test (an Agent's stop rule) authorable as flat
+  # strings; on the association they are BPMN's own expression elements
+  # (`xsi:type` tFormalExpression), not custom attributes.
+  - name: CompletionCondition
+    description: |
+      Declares the ad-hoc sub-process's own `completionCondition`, authored
+      as a flat string (e.g. `answer is not None`) and stored as BPMN's own
+      expression element.
+    extends:
+      - bpmn:AdHocSubProcess
+    isAbstract: true
+    properties:
+      - name: bpmn:completionCondition
+        description: |
+          BPMN's own exit test: the ad-hoc sub-process (an Agent) is complete
+          when this holds, evaluated over the run's variables after each turn.
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:AdHocSubProcess#completionCondition
+        meta:
+          categories:
+            - General
+          expression: true
+
+  - name: LoopCondition
+    description: |
+      Declares the standard-loop marker's `loopCondition`, authored as a flat
+      string and stored as BPMN's own expression element (as the core
+      does for `conditionExpression`). The loop *continues while* it holds,
+      and stops at `loopMaximum` regardless.
+    extends:
+      - bpmn:StandardLoopCharacteristics
+    isAbstract: true
+    properties:
+      - name: bpmn:loopCondition
+        description: |
+          Continue-while expression over the run's bound values (e.g.
+          `score < 0.9` keeps retrying until the score clears 0.9). Evaluated
+          after each turn, or before it with `testBefore`.
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:StandardLoopCharacteristics#loopCondition
+        meta:
+          categories:
+            - Execution
+          expression: true
+
+  # ===========================================================================
+  # Artifacts. One field on every BPMN data element: where the bytes live
+  # (`uri`). How they are laid out is `format` - the word the data types
+  # already own (Table, Dataset, Timeseries, and domain wrappers all declare
+  # one), so this schema does not declare a second: the engine reads the
+  # element's `format` wherever its schema put it, and falls back to what the
+  # `uri`'s file extension implies. The engine passes associated data in
+  # memory and loads/saves an artifact at its `uri` when one is set - nothing
+  # more.
+  # ===========================================================================
+  - name: Artifact
+    description: |
+      Storage contract, mixed onto every BPMN data element. Unset `uri` means
+      the value only flows in memory between steps; set, the engine
+      reads/writes the artifact there, in the element's declared `format` (or
+      the one the file extension implies).
+    extends:
+      - bpmn:ItemAwareElement
+    isAbstract: true
+    properties:
+      - name: uri
+        description: Where the bytes live (`results/model.joblib`, `s3://...`, a URL).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - General
+
+  # ===========================================================================
+  # The one concrete element: a named configuration group the engine passes
+  # to steps like any other associated data.
+  # ===========================================================================
+  - name: Parameters
+    description: |
+      A named configuration group - a dict of values associated with the steps that
+      read it, so a study varies by editing data, not the flow.
+    superClass:
+      - bpmn:DataObjectReference
+    meta:
+      icon: iconify mdi--tune
+      bpmnType: bpmn:DataObjectReference
+    properties:
+      - name: values
+        description: The configuration itself, as a YAML mapping.
+        isAttr: false
+        type: YAMLString
+        meta:
+          order: 1
+          categories:
+            - Data
+          editor: yaml
+

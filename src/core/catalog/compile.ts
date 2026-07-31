@@ -165,45 +165,6 @@ export class TypeCatalog {
     return [...merged.values()].sort((a, b) => a.order - b.order);
   }
 
-  /** Namespace URI rewrites for files written by older releases: legacy -> current. */
-  legacyUriRewrites(): Array<{ from: string; to: string }> {
-    return this.schemas.flatMap((schema) =>
-      schema.uri
-        ? schema.legacyUris.map((from) => ({ from, to: schema.uri as string }))
-        : [],
-    );
-  }
-
-  /**
-   * Qualified element-name rewrites for files written by older releases, from
-   * the same `meta.legacyNames` an attribute uses.
-   *
-   * A renamed *attribute* needs no rewrite: an unknown one survives in moddle's
-   * `$attrs`, where `readLegacyValue` finds it. A renamed *element* does not —
-   * moddle reports "unknown type" and drops it, so an old file would open with
-   * that value silently gone and re-save without it. Rewriting the tag at the
-   * import boundary is what keeps such a rename lossless, and doing it from
-   * `legacyNames` keeps the history in the schema rather than in the code.
-   */
-  legacyElementRewrites(): Array<{ from: string; to: string }> {
-    const rewrites: Array<{ from: string; to: string }> = [];
-    for (const entry of this.allTypes()) {
-      for (const spec of entry.attributes ?? []) {
-        const legacyNames = (spec as any)?.meta?.legacyNames;
-        // Only properties that serialize as child elements can be affected.
-        if (spec.isAttr || !Array.isArray(legacyNames)) continue;
-        const prefix = spec.ns?.prefix;
-        const current = spec.ns?.localName;
-        if (!prefix || !current) continue;
-        for (const legacyName of legacyNames) {
-          if (typeof legacyName !== 'string' || legacyName === current) continue;
-          rewrites.push({ from: `${prefix}:${legacyName}`, to: `${prefix}:${current}` });
-        }
-      }
-    }
-    return [...new Map(rewrites.map((r) => [r.from, r])).values()];
-  }
-
   /**
    * Schema-driven connection rule: a type may declare `meta.connectsTo` with
    * an allow-list of targets (qualified type names, `bpmn:*` matched against

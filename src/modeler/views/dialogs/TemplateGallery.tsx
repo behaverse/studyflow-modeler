@@ -36,24 +36,24 @@ const TEMPLATES: Template[] = [
       'A bare canvas with a single start event. Build the flow from scratch with the element palette.',
   },
   {
-    id: 'consort2025.png',
-    filename: 'consort2025.png',
+    id: 'consort2025.studyflow.png',
+    filename: 'consort2025.studyflow.png',
     title: 'Randomized controlled trial',
     category: 'Clinical trial',
     description:
       'A CONSORT 2025-compliant parallel-group RCT: enrollment, eligibility screening, randomized allocation to two arms, follow-up, and analysis, with exclusion paths modeled as error events.',
   },
   {
-    id: 'cognitive_battery.png',
-    filename: 'cognitive_battery.png',
+    id: 'cognitive_battery.studyflow.png',
+    filename: 'cognitive_battery.studyflow.png',
     title: 'Within-subject cognitive battery',
     category: 'Cognitive',
     description:
       'A single-session battery in which every participant completes all four Behaverse tasks (N-Back, Digit Span, SART, Which One) in a counterbalanced order, followed by a post-battery survey.',
   },
   {
-    id: 'spirit2025.png',
-    filename: 'spirit2025.png',
+    id: 'spirit2025.studyflow.png',
+    filename: 'spirit2025.studyflow.png',
     title: 'Multi-session longitudinal study',
     category: 'Longitudinal',
     description:
@@ -61,8 +61,8 @@ const TEMPLATES: Template[] = [
     hint: 'Try View As → Gantt or Checklist',
   },
   {
-    id: 'agent_eval_pool.png',
-    filename: 'agent_eval_pool.png',
+    id: 'agent_eval_pool.studyflow.png',
+    filename: 'agent_eval_pool.studyflow.png',
     title: 'LLM evaluation study',
     category: 'AI evaluation',
     description:

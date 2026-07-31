@@ -72,8 +72,6 @@ export type SchemaModel = {
   core?: boolean;
   /** Load and display position; lower first, ties broken by prefix. */
   order?: number;
-  /** Namespace URIs written by older releases, rewritten to `uri` on load. */
-  legacyUris?: string[];
   /** Inspector tab order contributed by this schema (see `catalog/categories`). */
   categories?: SchemaCategoryModel[];
   xml?: { tagAlias?: string };

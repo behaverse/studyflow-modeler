@@ -31,7 +31,7 @@ const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
 
 const models = loadSchemaModels();
 // The codec reads the schemas through the catalog (value types, and the
-// `legacyUris` -> `uri` rewrite an old file needs), exactly as the app does.
+// full moddle registry), exactly as the app does.
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
@@ -49,7 +49,7 @@ test.describe('studyflow YAML format', () => {
     // Before toModdlePackages rewrote value-typed association formats to String,
     // moddle silently dropped this text on every XML load.
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = await studyflowOf('spirit2025.png');
+    const text = await studyflowOf('spirit2025.studyflow.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
@@ -67,7 +67,7 @@ test.describe('studyflow YAML format', () => {
 
   test('implementation attribute and arguments value survive a load (function calls)', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = await studyflowOf('function_call_demo.png');
+    const text = await studyflowOf('function_call_demo.studyflow.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
@@ -78,18 +78,18 @@ test.describe('studyflow YAML format', () => {
     expect(map.get('implementation')).toBe('python://pkg_for_st.do_map@1.2');
     // `arguments` is a value-typed YAML string (inlined as a mapping in the YAML
     // form); compare parsed content, not whitespace.
-    expect(yaml.load(map.get('exec:additionalArguments'))).toEqual({ column: 'rt', fn: 'median' });
+    expect(yaml.load(map.get('studyflow:additionalArguments'))).toEqual({ column: 'rt', fn: 'median' });
 
     const fetch = study.flowElements.find((el: any) => el.id === 'FetchScript');
     expect(fetch.get('implementation')).toBe('https://example.org/scripts/clean.py@v2');
-    expect(fetch.get('exec:additionalArguments')).toBeUndefined();
+    expect(fetch.get('studyflow:additionalArguments')).toBeUndefined();
   });
 
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
     // Round the shipped YAML through XML so the folding path (xmlToStudyflow)
     // is what actually produces the document under test.
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = await studyflowOf('bot_ollama.png');
+    const text = await studyflowOf('bot_ollama.studyflow.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle));
 
@@ -100,8 +100,7 @@ test.describe('studyflow YAML format', () => {
     expect(doc.diagram).toBeUndefined();
     expect(doc.elements).toBeUndefined();
 
-    // The format version rides on the core namespace; legacy (unversioned)
-    // declarations are rewritten on load, so only the versioned form survives.
+    // The format version rides on the core namespace.
     expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
 
     // Root elements and containment collections are keyed by id.
@@ -169,13 +168,13 @@ P:
     expect(graph.flowNodes.get('T1')?.outgoing).toEqual(['F2']);
   });
 
-  test('legacy YAML spelling (values/value wrappers + diagram section) still loads', async () => {
+  test('unfolded YAML spelling (values/value wrappers + diagram section) still loads', async () => {
     const legacy = `
 studyflow: "1"
 definitions:
   id: legacy_demo
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:studyflow: http://behaverse.org/schemas/studyflow
+  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
 elements:
   - type: bpmn:Process
     id: P
@@ -225,7 +224,7 @@ diagram:
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
-    // Re-saving normalizes the legacy spelling to the folded, id-keyed format.
+    // Re-saving normalizes the unfolded spelling to the folded, id-keyed format.
     const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle2));
     expect(doc.id).toBe('legacy_demo');

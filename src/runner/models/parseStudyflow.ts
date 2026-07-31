@@ -1,5 +1,5 @@
 import { BpmnModdle } from 'bpmn-moddle';
-import { looksLikeXml, normalizeStudyflowXml, studyflowToDefinitions } from '@/core/codec';
+import { looksLikeXml, studyflowToDefinitions } from '@/core/codec';
 import { choreographyToProcessRoot } from '@/core/codec/choreography';
 import { getExtensionType } from '@/core/extensions';
 import type { FlowNode, PropertyDecl, Scope, SequenceFlow } from '@/runner/models/flow';
@@ -55,7 +55,7 @@ function readProperties(container: any): PropertyDecl[] {
 export async function parseStudyflow(text: string, schemas: Record<string, any>): Promise<ParsedStudy> {
   const moddle = new BpmnModdle(schemas);
   const definitions = looksLikeXml(text)
-    ? (await moddle.fromXML(normalizeStudyflowXml(text))).rootElement
+    ? (await moddle.fromXML(text)).rootElement
     : studyflowToDefinitions(text, moddle);
 
   // Spec-clean choreography files ship a bpmn:Choreography root; fold it back
@@ -113,18 +113,22 @@ export async function parseStudyflow(text: string, schemas: Record<string, any>)
       const targetId = el.targetRef?.id;
       if (!sourceId || !targetId) continue;
 
-      // `conditionExpression` is BPMN's own expression element; older files
-      // may still carry it as a flat string attribute.
+      // `conditionExpression` is BPMN's own expression element, carrying its
+      // per-expression `language`; a flat string spelling has none.
       const rawCondition = el.get?.('conditionExpression') ?? el.conditionExpression;
       const condition = typeof rawCondition === 'string'
         ? rawCondition
         : rawCondition?.body ?? rawCondition?.get?.('body');
+      const conditionLanguage = typeof rawCondition === 'string'
+        ? undefined
+        : rawCondition?.language ?? rawCondition?.get?.('language');
 
       sequenceFlows.set(el.id, {
         id: el.id,
         sourceId,
         targetId,
         conditionExpression: typeof condition === 'string' ? condition : undefined,
+        conditionLanguage: typeof conditionLanguage === 'string' ? conditionLanguage : undefined,
         businessObject: el,
       });
 

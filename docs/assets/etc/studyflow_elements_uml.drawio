@@ -7,7 +7,7 @@
         <mxCell id="9ASu4l0TENPKFkWyeJPx-15" value="BDM" style="rounded=1;whiteSpace=wrap;html=1;arcSize=3;fillColor=#dae8fc;verticalAlign=top;fontStyle=1;dashed=1;align=center;fontFamily=Helvetica Neue;spacingTop=0;labelPosition=center;verticalLabelPosition=bottom;spacing=0;strokeWidth=2;strokeColor=#6c8ebf;fontColor=#3399FF;" parent="1" vertex="1">
           <mxGeometry x="780" y="240" width="420" height="390" as="geometry" />
         </mxCell>
-        <mxCell id="0bJIy5H0bycv_KVrB_Gu-24" value="StudyFlow" style="rounded=1;whiteSpace=wrap;html=1;arcSize=3;fillColor=#d5e8d4;verticalAlign=top;fontStyle=1;dashed=1;align=center;fontFamily=Helvetica Neue;spacingTop=0;labelPosition=center;verticalLabelPosition=bottom;spacing=0;strokeWidth=2;strokeColor=#82b366;fontColor=#4D9900;" parent="1" vertex="1">
+        <mxCell id="0bJIy5H0bycv_KVrB_Gu-24" value="Studyflow" style="rounded=1;whiteSpace=wrap;html=1;arcSize=3;fillColor=#d5e8d4;verticalAlign=top;fontStyle=1;dashed=1;align=center;fontFamily=Helvetica Neue;spacingTop=0;labelPosition=center;verticalLabelPosition=bottom;spacing=0;strokeWidth=2;strokeColor=#82b366;fontColor=#4D9900;" parent="1" vertex="1">
           <mxGeometry x="10" y="240" width="760" height="390" as="geometry" />
         </mxCell>
         <mxCell id="0bJIy5H0bycv_KVrB_Gu-50" value="Utility types and enumerations" style="rounded=1;whiteSpace=wrap;html=1;arcSize=3;fontStyle=1;align=center;verticalAlign=top;fontFamily=Helvetica Neue;fillColor=#A8CC96;strokeColor=#82b366;dashed=1;dashPattern=8 8;" parent="1" vertex="1">

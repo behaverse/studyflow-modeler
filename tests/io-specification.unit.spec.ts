@@ -31,7 +31,7 @@ function exampleYaml(filename: string): Promise<string> {
 test.describe('standard-BPMN ioSpecification boundary', () => {
   test('lowering produces the complete standard structure', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.png'), moddle);
+    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.studyflow.png'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
     // The step with data associations's parameters became named DataInputs of an ioSpecification.
@@ -48,29 +48,30 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     // Associations retarget natively; the extension attribute is gone.
     expect(standardXml).toContain('<bpmn:targetRef>Cross_Validate_in_X</bpmn:targetRef>');
     expect(standardXml).toContain('<bpmn:sourceRef>Cross_Validate_result</bpmn:sourceRef>');
-    expect(standardXml).not.toContain('exec:binding');
+    // The fused compact body never reaches standard XML — only pure selections do.
+    expect(standardXml).not.toContain('studyflow:binding');
   });
 
   test('folding the standard form back yields the shipped compact YAML', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.png'), moddle);
+    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.studyflow.png'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
     const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);
-    expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline.png'));
+    expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline.studyflow.png'));
   });
 
   test('a default-named binding folds back without a binding attribute', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     // DataInput_Prompt_In in agent_eval carries no slot (binding defaults
     // to the element's name) - the round trip must not invent one.
-    const agentYaml = await exampleYaml('agent_eval.png');
+    const agentYaml = await exampleYaml('agent_eval.studyflow.png');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);
     expect(standardXml).toContain('name="Agent instructions"');
     const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);
     // Namespace declarations are serializer bookkeeping: the lowered XML uses
-    // no exec-prefixed content (the `parameter` attributes became DataInputs),
-    // so `xmlns:exec` is not re-declared. Compare the semantic document.
+    // no compact binding attributes (the `parameter` attributes became
+    // DataInputs). Compare the semantic document.
     const withoutXmlns = (yamlText: string) => yamlText.replace(/^ {2}xmlns:[^\n]*\n/gm, '');
     expect(withoutXmlns(roundTripped)).toBe(withoutXmlns(agentYaml));
   });

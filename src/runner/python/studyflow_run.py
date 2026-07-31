@@ -3,9 +3,6 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #   "pyyaml>=6.0",
-#   "prov[xml]>=2.0",   # W3C PROV's reference implementation, for provenance.jsonld
-#   "rdflib>=6.0",      # PROV-O in RDF, and the shortcut properties prov omits
-#   "rocrate>=0.13",    # RO-Crate's own library, for ro-crate-metadata.json
 #   # Below here is not the runner's: it is what the shipped sklearn_pipeline
 #   # example's steps import when called, declared so the example needs no setup.
 #   # Another studyflow brings its own: `uv run --with <pkg> studyflow_run.py …`.
@@ -21,27 +18,31 @@
 It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean.
 
-    uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.png
+    uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.studyflow.png
 
 Each run writes `results/<timestamp>/`: the artifacts the studyflow's `uri`s
-name, a copy of the studyflow itself, `studyflow.log` (plain text, one line per
-event, for eyes and `grep`), `provenance.jsonld` (W3C PROV, for programs), and
-`ro-crate-metadata.json` (Workflow Run Crate, for handing the directory on).
+name, a copy of the studyflow itself — its provenance trail stamped `executed`,
+so the copy carries its own run record — and `studyflow.log` (plain text, one
+line per event, for eyes and `grep`).
 
-See README.md for the contract this implements and the terms it writes. Two
-limitations: conditions are declared as CEL but evaluated with Python's `eval`,
-which agrees with CEL on the expressions studyflows use and is not CEL; and it
-walks one token, so there are no parallel gateways and no multi-instance fan-out.
+See README.md for the contract this implements and the terms it writes.
+Expressions are Python or JavaScript: each expression element may carry
+BPMN's own per-expression `language` attribute, and one without it runs in the
+evaluating engine's own language — Python here, JavaScript in the browser
+runner. The check happens only when an engine actually evaluates. One
+limitation: the walk is one token, so there are no parallel gateways and no
+multi-instance fan-out.
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import importlib
-import importlib.metadata
 import json
 import logging
+import random
 import re
 import shutil
 import struct
@@ -50,28 +51,30 @@ import time
 import traceback
 import zlib
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any
 from xml.etree import ElementTree as ET
+from xml.sax.saxutils import quoteattr
 
 import yaml
-from prov.model import (
-    PROV_LABEL,
-    PROV_ROLE,
-    PROV_TYPE,
-    PROV_VALUE,
-    ProvDocument,
-)
-from rocrate.model.computationalworkflow import ComputationalWorkflow
-from rocrate.model.computerlanguage import ComputerLanguage
-from rocrate.model.contextentity import ContextEntity
-from rocrate.model.metadata import SUPPORTED_VERSIONS
-from rocrate.rocrate import ROCrate
 
 BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL"
-EXEC = "https://w3id.org/studyflow/exec"
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
+# The provenance trail's namespace (the modeler's `prov.moddle.yaml`).
+PROV_TRAIL = "https://w3id.org/studyflow/prov"
+
+
+def studyflow_attr(element: ET.Element, name: str) -> str | None:
+    """A studyflow-namespaced attribute of `element`."""
+    return element.get(f"{{{STUDYFLOW}}}{name}")
+
+
+def studyflow_child(element: ET.Element, name: str) -> ET.Element | None:
+    """A studyflow-namespaced child element of `element`."""
+    return element.find(f"{{{STUDYFLOW}}}{name}")
+
 
 DATA_ELEMENT_TAGS = {"dataObjectReference", "dataStoreReference", "dataObject", "dataStore"}
 END_TAGS = {"endEvent"}
@@ -96,7 +99,7 @@ def bpmn_type(element: ET.Element) -> str:
 
 
 def split_binding(text: str | None) -> tuple[str | None, str | None]:
-    """`slot = selection` -> its halves, each optional (the exec:binding grammar).
+    """`slot = selection` -> its halves, each optional (the transformation grammar).
 
     A bare identifier (or `self`/`*`) is a slot; `=` splits the halves (`==`
     belongs to the selection); anything else is a selection alone.
@@ -141,8 +144,13 @@ class ConsoleFormatter(logging.Formatter):
         return f"{getattr(record, 'indent', '')}{record.getMessage()}"
 
 
+QUIET = False
+
+
 def start_logging(directory: Path, quiet: bool) -> Path:
     """Open `studyflow.log` in the run directory — which is already named for the run."""
+    global QUIET
+    QUIET = quiet
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "studyflow.log"
 
@@ -176,6 +184,50 @@ def log_event(
 ) -> None:
     """Log one studyflow event under the studyflow noun it belongs to."""
     LOG.log(level, message, exc_info=exc_info, extra={"event": event, "indent": indent})
+
+
+class TeeStream:
+    """Pass writes through to the real stream, keeping a copy for the log."""
+
+    def __init__(self, original: Any, passthrough: bool) -> None:
+        self.original = original
+        self.passthrough = passthrough
+        self.pieces: list[str] = []
+
+    def write(self, text: str) -> int:
+        if self.passthrough:
+            self.original.write(text)
+        self.pieces.append(text)
+        return len(text)
+
+    def flush(self) -> None:
+        if self.passthrough:
+            self.original.flush()
+
+
+@contextmanager
+def captured_output(indent: str = ""):
+    """Tee a step's own console output into the log.
+
+    What a called function prints belongs in `studyflow.log` with everything
+    else the step did — running in a terminal and reading the log afterwards
+    must tell the same story. The terminal still gets it live (`--quiet`
+    silences that, never the file); the captured lines land in the file as
+    DEBUG `stdout` / `stderr` events once the step returns, so the console
+    handler (INFO) does not print them a second time. The runner's own log
+    lines bypass the tee: the console handler bound the real stream before
+    any step ran.
+    """
+    out = TeeStream(sys.stdout, passthrough=not QUIET)
+    err = TeeStream(sys.stderr, passthrough=not QUIET)
+    try:
+        with redirect_stdout(out), redirect_stderr(err):
+            yield
+    finally:
+        for event, stream in (("stdout", out), ("stderr", err)):
+            for line in "".join(stream.pieces).splitlines():
+                if line.strip():
+                    log_event(event, f"    {line}", level=logging.DEBUG, indent=indent)
 
 
 def human_bytes(count: int) -> str:
@@ -227,8 +279,108 @@ def studyflow_from_png(path: Path) -> str:
     raise ValueError(f"{path} carries no studyflow payload")
 
 
-def read_studyflow(path: Path) -> Studyflow:
+def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
+    """The write half of `studyflow_from_png`: replace the `studyflow` iTXt
+    chunk so a copied figure carries the stamped source. Mirrors the modeler's
+    `pngEmbedding.ts` - drop text chunks already keyed `studyflow`, splice the
+    new one in front of IEND."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("not a PNG")
+    # iTXt data: keyword NUL, compression flag + method (0 0 = uncompressed),
+    # empty language tag NUL, empty translated keyword NUL, UTF-8 text.
+    payload = b"studyflow\x00\x00\x00\x00\x00" + xml.encode()
+    chunk = (
+        struct.pack(">I", len(payload)) + b"iTXt" + payload
+        + struct.pack(">I", zlib.crc32(b"iTXt" + payload) & 0xFFFFFFFF)
+    )
+    out = bytearray(data[:8])
+    offset = 8
+    while offset + 8 <= len(data):
+        (length,) = struct.unpack(">I", data[offset:offset + 4])
+        kind = data[offset + 4:offset + 8]
+        body = data[offset + 8:offset + 8 + length]
+        keyword = body.partition(b"\x00")[0] if kind in (b"iTXt", b"tEXt", b"zTXt") else None
+        if kind == b"IEND":
+            out += chunk
+        if keyword != b"studyflow":
+            out += data[offset:offset + 12 + length]
+        offset += 12 + length
+    return bytes(out)
+
+
+def trail_timestamp(moment: datetime) -> str:
+    """ISO 8601 UTC at second precision - trail entries are log lines, not clocks."""
+    return moment.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+TRAIL_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
+
+
+def insert_element_entry(xml: str, element_id: str, replace_action: str | None = None, **fields: str) -> str:
+    """Append one `<prov:activity>` line under `element_id`'s `extensionElements`.
+
+    Anchored purely on the element (the wrapper is created as its first child
+    when absent, where BPMN wants it). With `replace_action`, an existing entry
+    of that action inside the element's own block is removed first — one
+    completion record per element, the latest run's. Works on the XML text
+    rather than the parsed tree on purpose: ElementTree rewrites every
+    namespace prefix on serialization, and a stamped copy should diff against
+    its source by the stamped lines alone.
+    """
+    definitions = re.search(r"<(?:[\w.-]+:)?definitions\b[^>]*>", xml)
+    if definitions is None:
+        return xml
+
+    bound = re.search(rf'xmlns:([\w.-]+)\s*=\s*"{re.escape(PROV_TRAIL)}"', xml)
+    if bound:
+        prefix = bound.group(1)
+    else:
+        prefix = "prov" if not re.search(r'xmlns:prov\s*=\s*"', xml) else "sfprov"
+        opening = definitions.group(0)
+        declared = opening[:-1].rstrip("/") + f' xmlns:{prefix}="{PROV_TRAIL}">'
+        xml = xml[:definitions.start()] + declared + xml[definitions.end():]
+
+    ordered = [(name, fields[name]) for name in TRAIL_FIELDS if fields.get(name)]
+    entry = f"<{prefix}:activity " + " ".join(f"{k}={quoteattr(v)}" for k, v in ordered) + " />"
+
+    element = re.search(rf'<((?:[\w.-]+:)?)[\w.-]+\b[^>]*\bid="{re.escape(element_id)}"[^>]*>', xml)
+    if element is None or element.group(0).endswith("/>"):
+        return xml  # absent, or self-closing and unable to hold children
+
+    line_start = xml.rfind("\n", 0, element.start()) + 1
+    lead = xml[line_start:element.start()]
+    indent = lead if lead.isspace() or lead == "" else ""
+
+    existing = re.match(r"\s*<((?:[\w.-]+:)?)extensionElements>", xml[element.end():])
+    if existing:
+        block_open_end = element.end() + existing.end()
+        close_tag = f"</{existing.group(1)}extensionElements>"
+        close_at = xml.index(close_tag, block_open_end)
+        block = xml[block_open_end:close_at]
+        if replace_action:
+            block = re.sub(
+                rf"\n[ \t]*<{re.escape(prefix)}:activity\b[^>]*\baction={re.escape(quoteattr(replace_action))}[^>]*/>",
+                "", block,
+            )
+        block = block.rstrip() + "\n" + indent + "    " + entry + "\n" + indent + "  "
+        return xml[:block_open_end] + block + xml[close_at:]
+
+    wrapper_prefix = element.group(1)
+    block = (
+        f"\n{indent}  <{wrapper_prefix}extensionElements>"
+        f"\n{indent}    {entry}"
+        f"\n{indent}  </{wrapper_prefix}extensionElements>"
+    )
+    return xml[:element.end()] + block + xml[element.end():]
+
+
+def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
     xml = studyflow_from_png(path) if path.suffix.lower() == ".png" else path.read_text()
+    if stamp:
+        # Stamped before anything digests it, so the sha256 the run record
+        # carries is true of the plan copied into the run directory.
+        probe = Studyflow(ET.fromstring(xml))
+        xml = insert_element_entry(xml, probe.process.get("id") or "", **stamp)
     return Studyflow(ET.fromstring(xml), plan=xml)
 
 
@@ -270,6 +422,29 @@ class Studyflow:
                 return element
         raise ValueError("no process with a sequence flow to walk")
 
+    def element_records(self) -> dict[str, str]:
+        """Per-element `executed` records: element id -> the run that did it.
+
+        Written onto each completed activity when a run archives its plan, so
+        an archived copy re-runs *partially*: recorded steps with their
+        artifacts still on disk are skipped. Deleting a record — or the
+        artifact it vouches for — invalidates exactly that work.
+        """
+        records: dict[str, str] = {}
+        process_id = self.process.get("id")
+        for element_id, element in self.elements.items():
+            if element_id == process_id:
+                continue
+            for ext in element:
+                if local(ext) != "extensionElements":
+                    continue
+                for child in ext:
+                    if child.tag == f"{{{PROV_TRAIL}}}activity" and child.get("action") == "executed":
+                        run = child.get("run")
+                        if run:
+                            records[element_id] = run
+        return records
+
     def start_event(self, container: ET.Element | None = None) -> ET.Element:
         for element in container if container is not None else self.process:
             if local(element) == "startEvent":
@@ -281,7 +456,7 @@ class Studyflow:
 
         `format` belongs to whichever schema typed the element (a Table's, a
         domain wrapper's), so it is read by local name across namespaces; the
-        exec layer adds only `uri`.
+        executable layer adds only `uri`.
         """
         element = self.elements.get(element_id)
         if element is None or local(element) not in DATA_ELEMENT_TAGS:
@@ -290,12 +465,13 @@ class Studyflow:
             (v for k, v in element.attrib.items() if k.split("}")[-1] == "format"),
             None,
         )
-        return element.get(f"{{{EXEC}}}uri"), fmt
+        return studyflow_attr(element, "uri"), fmt
 
     def name_of(self, element_id: str) -> str:
         """The element's `bpmn:name`, or its id when it has none."""
         element = self.elements.get(element_id)
         return (element.get("name") if element is not None else None) or element_id
+
 
 
 # ---------------------------------------------------------------------------
@@ -372,16 +548,16 @@ BOUNDARY_INPUTS: dict[str, Callable[[Path], None]] = {
 # The run
 # ---------------------------------------------------------------------------
 
-class Visits(dict):
-    """`state.visits.<id>`, attribute-readable so a drawn cycle can bound itself."""
-
-    def __getattr__(self, name: str) -> int:
-        return self.get(name, 0)
-
-
 class State:
+    """The engine's own run state, readable by expressions as `state`.
+
+    `trace` is the ordered walk so far — every element id the token has
+    reached. A drawn cycle bounds itself by counting its gateway in it:
+    `state.trace.count('Gate') < 8`.
+    """
+
     def __init__(self) -> None:
-        self.visits = Visits()
+        self.trace: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -415,102 +591,19 @@ def digest_of(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
-EXEC_TERMS = "https://w3id.org/studyflow/exec#"
-STUDYFLOW_TERMS = "http://behaverse.org/schemas/studyflow/v1#"
-SCHEMA_TERMS = "http://schema.org/"
-
-
-def qname(text: str) -> str:
-    """`text` as a QName local part: no leading digit, only `A-Za-z0-9_.-`."""
-    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", text)
-    return safe if re.match(r"[A-Za-z_]", safe) else f"_{safe}"
-
-
-# PROV-O in JSON-LD is the default: both are W3C Recommendations and it is still
-# JSON. PROV-JSON is a Note; PROV-N is the one to read rather than parse.
-PROV_FORMATS: dict[str, tuple[str, str | None]] = {
-    "jsonld": ("provenance.jsonld", "json-ld"),
-    "turtle": ("provenance.ttl", "turtle"),
-    "xml": ("provenance.provx", None),
-    "json": ("provenance.json", None),
-    "provn": ("provenance.provn", None),
-}
-
-# PROV-O states each relation twice — a shortcut and a qualified form that can
-# carry a role — and means them to coexist. `prov` writes only the qualified
-# form once a relation has attributes, and all of ours do, so `?a prov:used ?e`
-# would return nothing. These restore the shortcut, as
-# (qualified property, the property naming its target, shortcut to add).
-PROV_SHORTCUTS = [
-    ("qualifiedUsage", "entity", "used"),
-    ("qualifiedGeneration", "activity", "wasGeneratedBy"),
-    ("qualifiedDerivation", "entity", "wasDerivedFrom"),
-    ("qualifiedAssociation", "agent", "wasAssociatedWith"),
-]
-
-# Stacked: Process covers runs of tools, Workflow the one that orchestrated
-# them, Provenance each internal step. A studyflow run is all three.
-WRROC_PROFILES = [
-    ("https://w3id.org/ro/wfrun/process/0.5", "Process Run Crate", "0.5"),
-    ("https://w3id.org/ro/wfrun/workflow/0.5", "Workflow Run Crate", "0.5"),
-    ("https://w3id.org/ro/wfrun/provenance/0.5", "Provenance Run Crate", "0.5"),
-]
-
-SCHEMA = "http://schema.org/"
-RO_TERMS = "https://w3id.org/ro/terms/workflow-run#"
-BIOSCHEMAS_WORKFLOW = "https://bioschemas.org/profiles/ComputationalWorkflow/1.0-RELEASE"
-# Not ro-crate-py's own 1.2: the Workflow Run profiles are written against 1.1
-# and the validator holds them to it, so a 1.2 crate fails all three of them.
-# `--crate-version` takes 1.2, and 1.3 once ro-crate-py supports it.
-CRATE_VERSION = "1.1"
-
-
-class StudyflowWorkflow(ComputationalWorkflow):
-    """A workflow that is also a `HowTo`, so its flow nodes can be `HowToStep`s."""
-
-    TYPES: ClassVar[list[str]] = [
-        "File", "SoftwareSourceCode", "ComputationalWorkflow", "HowTo",
-    ]
-
-
-def action_status(status: str) -> dict:
-    kind = "CompletedActionStatus" if status == "ok" else "FailedActionStatus"
-    return {"@id": f"{SCHEMA}{kind}"}
-
-
-def software_version(implementation: str) -> str:
-    """The installed version of what a `python://` reference names."""
-    root = implementation.removeprefix("python://").split("@")[0].split(".")[0]
-    try:
-        return importlib.metadata.version(root)
-    except Exception:  # noqa: BLE001 - not installed as a distribution
-        return str(getattr(sys.modules.get(root), "__version__", "unknown"))
-
-
-def rdf_with_shortcuts(document: ProvDocument, rdf_form: str) -> str:
-    """`document` as RDF, with PROV-O's shortcut properties asserted too."""
-    from rdflib import Graph, Namespace
-
-    prov = Namespace("http://www.w3.org/ns/prov#")
-    graph = Graph().parse(
-        data=document.serialize(format="rdf", rdf_format="turtle"), format="turtle",
-    )
-    for qualified, target, shortcut in PROV_SHORTCUTS:
-        for subject, node in list(graph.subject_objects(prov[qualified])):
-            for value in graph.objects(node, prov[target]):
-                graph.add((subject, prov[shortcut], value))
-    return graph.serialize(format=rdf_form)
-
-
 class RunRecord:
-    """What a run of the plan did, written as W3C PROV and as an RO-Crate."""
+    """The run's own bookkeeping: step timings, failures, and the exit status.
+
+    The durable record is elsewhere — the trail stamped on the archived plan
+    says a run happened, and `studyflow.log` says what it did, in order. This
+    object carries what the walk itself needs back: durations for the log,
+    the digest the log's header pins, and the status the exit code reports.
+    """
 
     def __init__(self, plan: str, seed: str | None, started: datetime) -> None:
         self.plan_digest = digest_of(plan.encode())
         self.seed = seed
         self.started = started
-        self.executions: list[dict] = []
-        self.artifacts: dict[str, dict] = {}
         self.status = "ok"
 
     def begin(self, element_id: str, name: str, element_type: str) -> dict:
@@ -522,7 +615,6 @@ class RunRecord:
             "status": "ok",
         }
         entry["_clock"] = time.perf_counter()
-        self.executions.append(entry)
         return entry
 
     def end(self, entry: dict) -> None:
@@ -539,384 +631,7 @@ class RunRecord:
         if "_clock" in entry:
             self.end(entry)
 
-    def artifact(self, element_id: str, uri: str, fmt: str, path: Path, produced_by: str | None) -> None:
-        entry: dict[str, Any] = {"uri": uri, "format": fmt}
-        if path.exists():
-            data = path.read_bytes()
-            entry["bytes"] = len(data)
-            entry["digest"] = digest_of(data)
-        if produced_by:
-            entry["producedBy"] = produced_by
-        self.artifacts[element_id] = entry
 
-    def ended_at(self, entry: dict) -> datetime | None:
-        """When an execution stopped — a failed step ended too; status says which."""
-        if "durationMs" not in entry:
-            return None
-        started = datetime.fromisoformat(entry["startedAt"])
-        return started + timedelta(milliseconds=entry["durationMs"])
-
-    # -- PROV ---------------------------------------------------------------
-    def prov(
-        self,
-        values: dict[str, Any],
-        visits: dict[str, int],
-        label_of: Callable[[str], str],
-        run_id: str,
-        plan: str,
-        log: str | None = None,
-    ) -> ProvDocument:
-        """The run as a W3C PROV document, built with PROV's own library."""
-        finished = datetime.now(timezone.utc)
-        doc = ProvDocument()
-        doc.add_namespace("prov", "http://www.w3.org/ns/prov#")
-        doc.add_namespace("exec", EXEC_TERMS)
-        doc.add_namespace("studyflow", STUDYFLOW_TERMS)
-        doc.add_namespace("schema", SCHEMA_TERMS)
-        # One URN per run, so two runs of the same studyflow never collide.
-        doc.add_namespace("run", f"urn:studyflow:run:{qname(run_id)}:")
-
-        agent = doc.agent("run:runner", {
-            PROV_TYPE: "prov:SoftwareAgent",
-            PROV_LABEL: "studyflow_run.py — the studyflow reference runner",
-            "schema:runtimePlatform": f"python {sys.version.split()[0]}",
-        })
-        plan_entity = doc.entity("run:studyflow", {
-            PROV_TYPE: "prov:Plan",
-            PROV_LABEL: "the studyflow this run executed",
-            "prov:atLocation": plan,
-            "schema:sha256": self.plan_digest.removeprefix("sha256:"),
-        })
-
-        attributes: dict[Any, Any] = {
-            PROV_LABEL: "one run of the studyflow",
-            "studyflow:status": self.status,
-        }
-        if self.seed is not None:
-            attributes["exec:seed"] = self.seed
-        if log:
-            attributes["studyflow:log"] = log
-        run = doc.activity("run:run", self.started, finished, attributes)
-        # A qualified Association: "this activity followed that plan" — the whole
-        # prospective/retrospective claim in one triple.
-        doc.wasAssociatedWith(run, agent, plan=plan_entity)
-
-        entities: dict[str, Any] = {}
-        for element_id, artifact in self.artifacts.items():
-            attributes = {
-                PROV_LABEL: label_of(element_id),
-                "prov:atLocation": artifact["uri"],
-                "exec:uri": artifact["uri"],
-                "exec:format": artifact["format"],
-            }
-            if "digest" in artifact:
-                attributes["schema:sha256"] = artifact["digest"].removeprefix("sha256:")
-                attributes["schema:contentSize"] = artifact["bytes"]
-            entities[element_id] = doc.entity(f"run:{qname(element_id)}", attributes)
-
-        # A value with no `uri` is an entity too; omitting it would break the
-        # chain between the artifacts on either side of it.
-        for element_id, value in values.items():
-            if element_id in entities:
-                continue
-            described = describe(value)
-            attributes = {
-                PROV_LABEL: label_of(element_id),
-                "studyflow:type": described["type"],
-            }
-            if "shape" in described:
-                attributes["studyflow:shape"] = "×".join(str(n) for n in described["shape"])
-            if "size" in described:
-                attributes["studyflow:size"] = described["size"]
-            if "value" in described:
-                attributes[PROV_VALUE] = described["value"]
-            entities[element_id] = doc.entity(f"run:{qname(element_id)}", attributes)
-
-        previous = None
-        for index, entry in enumerate(self.executions):
-            attributes = {
-                PROV_LABEL: entry["name"],
-                "studyflow:node": entry["node"],
-                "studyflow:type": entry["type"],
-                "studyflow:status": entry["status"],
-            }
-            if entry.get("implementation"):
-                attributes["exec:implementation"] = entry["implementation"]
-            if entry.get("additionalArguments"):
-                attributes["exec:additionalArguments"] = json.dumps(
-                    entry["additionalArguments"], default=str, ensure_ascii=False,
-                )
-            # PROV has no notion of a choice, so a branch is an extension —
-            # where PROV is silent, not a core term bent to mean something else.
-            for evaluated in entry.get("conditionExpressions", []):
-                attributes["studyflow:conditionExpression"] = evaluated["conditionExpression"]
-                attributes["studyflow:held"] = evaluated["held"]
-            if entry.get("taken"):
-                attributes["studyflow:sequenceFlow"] = entry["taken"]["sequenceFlow"]
-            if entry.get("error"):
-                attributes["studyflow:error"] = (
-                    f"{entry['error']['type']}: {entry['error']['message']}"
-                )
-
-            activity = doc.activity(
-                f"run:{qname(entry['node'])}-{index}",
-                datetime.fromisoformat(entry["startedAt"]), self.ended_at(entry), attributes,
-            )
-            doc.wasAssociatedWith(activity, agent, plan=plan_entity)
-            if previous is not None:
-                # One token, so each activity was informed by the one before it.
-                doc.wasInformedBy(activity, previous)
-            previous = activity
-
-            # A `prov:Usage`'s `prov:role` *is* the binding's slot: PROV
-            # already had the place for a named input. The authored `binding`
-            # rides beside it verbatim.
-            for bound in entry.get("inputs", []):
-                source = entities.get(bound["sourceRef"])
-                if source is None:
-                    continue
-                usage = {PROV_ROLE: bound["parameter"]}
-                if bound.get("binding"):
-                    usage["exec:binding"] = bound["binding"]
-                doc.used(activity, source, other_attributes=usage)
-
-            for produced in entry.get("outputs", []):
-                target = entities.get(produced["targetRef"])
-                if target is None:
-                    continue
-                doc.wasGeneratedBy(target, activity, other_attributes={
-                    "exec:binding": produced["binding"],
-                })
-                for source_id in entry.get("used", []):
-                    source = entities.get(source_id)
-                    if source is not None:
-                        doc.wasDerivedFrom(target, source, activity=activity)
-
-        # `state.visits.<id>` is engine run state: a property of the run.
-        doc.entity("run:visits", {
-            PROV_LABEL: "how often the walk reached each element",
-            PROV_VALUE: json.dumps(dict(visits)),
-        })
-        doc.wasGeneratedBy("run:visits", run)
-
-        return doc
-
-    # -- RO-Crate -----------------------------------------------------------
-    def crate(
-        self,
-        values: dict[str, Any],
-        label_of: Callable[[str], str],
-        workflow: str,
-        workflow_name: str,
-        parts: dict[str, str],
-        version: str,
-        licence: str | None = None,
-    ) -> dict:
-        """The run directory as a Workflow Run RO-Crate, built with ro-crate-py.
-
-        Where PROV answers "what came from what", this answers "what is this
-        directory and how do I hand it on". A gateway is schema.org's own
-        `ChooseAction`, so unlike PROV it needs no extension here.
-        """
-        crate = ROCrate(gen_preview=False, version=version)
-        # `sha256` is a registered ro-terms property, not one of RO-Crate's own.
-        crate.metadata.extra_terms["sha256"] = f"{RO_TERMS}sha256"
-        crate.name = workflow_name
-        crate.description = (
-            f"One run of {workflow_name}, executed by the studyflow reference runner. "
-            f"Holds the studyflow that ran, the artifacts it produced, a log of the "
-            f"walk, and the run's W3C PROV provenance."
-        )
-        crate.datePublished = self.started
-        root = crate.dereference("./")
-
-        if licence:
-            crate.license = licence
-        else:
-            # RO-Crate requires a licence and the runner does not know one.
-            # Saying so is truthful; inventing one would be a lie.
-            crate.license = crate.add(ContextEntity(crate, "#licence-not-asserted", {
-                "@type": "CreativeWork",
-                "name": "Not asserted",
-                "description": (
-                    "These outputs carry whatever licence the studyflow and its input "
-                    "data carry. The runner does not know it; pass --license to state it."
-                ),
-            }))
-
-        # Both types: 1.2 wants `Profile`, the run profiles (written against
-        # 1.1, which had no `Profile`) want `CreativeWork`.
-        root["conformsTo"] = [
-            crate.add(ContextEntity(crate, uri, {
-                "@type": ["CreativeWork", "Profile"],
-                "name": name,
-                "version": profile_version,
-            }))
-            for uri, name, profile_version in WRROC_PROFILES
-        ]
-
-        language = crate.add(ComputerLanguage(crate, "#studyflow", {
-            "name": "Studyflow",
-            "alternateName": "BPMN 2.0 + studyflow schemas",
-            "identifier": {"@id": STUDYFLOW},
-            "url": {"@id": "https://github.com/behaverse/studyflow-modeler"},
-            "version": STUDYFLOW,
-        }))
-        main = crate.add_workflow(
-            dest_path=workflow, main=True, lang=language, cls=StudyflowWorkflow,
-            properties={
-                "name": workflow_name,
-                "description": "The studyflow this run executed — the picture is the program.",
-                "sha256": self.plan_digest.removeprefix("sha256:"),
-                "conformsTo": {"@id": BIOSCHEMAS_WORKFLOW},
-            },
-        )
-
-        # Every artifact is a part, boundary inputs included: `write_crate`
-        # copies those in, since a crate pointing outside itself is not one.
-        entities: dict[str, Any] = {}
-        for element_id, artifact in self.artifacts.items():
-            properties: dict[str, Any] = {
-                "name": label_of(element_id),
-                "encodingFormat": artifact["format"],
-            }
-            if "digest" in artifact:
-                properties["sha256"] = artifact["digest"].removeprefix("sha256:")
-                properties["contentSize"] = artifact["bytes"]
-            entities[element_id] = crate.add_file(
-                dest_path=artifact["uri"], properties=properties,
-            )
-
-        for path, description in parts.items():
-            crate.add_file(dest_path=path, properties={"description": description})
-
-        # A value that never became a file is a PropertyValue.
-        for element_id, value in values.items():
-            if element_id in entities:
-                continue
-            entities[element_id] = crate.add(ContextEntity(
-                crate, f"#{qname(element_id)}", {
-                    "@type": "PropertyValue",
-                    "name": label_of(element_id),
-                    "value": summarize(value),
-                },
-            ))
-
-        tools: dict[str, Any] = {}
-        steps: list[Any] = []
-        actions: list[Any] = []
-        for index, entry in enumerate(self.executions):
-            used = [entities[e] for e in entry.get("used", []) if e in entities]
-            made = [
-                entities[o["targetRef"]] for o in entry.get("outputs", [])
-                if o["targetRef"] in entities
-            ]
-            properties = {
-                "name": entry["name"],
-                "startTime": entry["startedAt"],
-                "actionStatus": action_status(entry["status"]),
-                "description": f"{entry['type']} {entry['node']}",
-            }
-            ended = self.ended_at(entry)
-            if ended:
-                properties["endTime"] = ended.isoformat(timespec="milliseconds")
-            if entry.get("error"):
-                properties["error"] = (
-                    f"{entry['error']['type']}: {entry['error']['message']}"
-                )
-
-            if entry.get("taken"):
-                # A gateway chose, and schema.org has the verb for it.
-                options = [
-                    crate.add(ContextEntity(crate, f"#flow-{qname(c['sequenceFlow'])}", {
-                        "@type": "PropertyValue",
-                        "name": c["sequenceFlow"],
-                        "value": c["conditionExpression"],
-                    }))
-                    for c in entry.get("conditionExpressions", [])
-                ]
-                taken = crate.add(ContextEntity(
-                    crate, f"#flow-{qname(entry['taken']['sequenceFlow'])}", {
-                        "@type": "PropertyValue",
-                        "name": entry["taken"]["sequenceFlow"],
-                        "value": entry["taken"].get("name") or "taken",
-                    },
-                ))
-                action = crate.add(ContextEntity(
-                    crate, f"#{qname(entry['node'])}-{index}",
-                    {"@type": "ChooseAction", **properties},
-                ))
-                if options:
-                    action["actionOption"] = options
-                action["result"] = taken
-                actions.append(action)
-                continue
-
-            implementation = entry.get("implementation")
-            if implementation:
-                tool = tools.get(implementation)
-                if tool is None:
-                    tool = crate.add(ContextEntity(crate, implementation, {
-                        "@type": "SoftwareApplication",
-                        "name": implementation.removeprefix("python://").split("@")[0],
-                        "url": implementation,
-                        # Which version actually ran — knowable only now.
-                        "version": software_version(implementation),
-                    }))
-                    tools[implementation] = tool
-            else:
-                # An element that calls nothing still happened.
-                tool = tools.setdefault("#engine", crate.add(ContextEntity(
-                    crate, "#engine", {
-                        "@type": "SoftwareApplication",
-                        "name": "studyflow_run.py",
-                        "description": "The runner itself, for elements that call nothing.",
-                        "url": "https://github.com/behaverse/studyflow-modeler",
-                        "version": f"python {sys.version.split()[0]}",
-                    },
-                )))
-
-            action = crate.add_action(
-                tool, identifier=f"#{qname(entry['node'])}-{index}",
-                object=used, result=made, properties=properties,
-            )
-            actions.append(action)
-
-            step = crate.add(ContextEntity(crate, f"#step-{qname(entry['node'])}-{index}", {
-                "@type": "HowToStep",
-                "position": index,
-                "name": entry["name"],
-                "workExample": tool,
-            }))
-            steps.append(step)
-            # The join Provenance Run Crate asks for: the engine took this step
-            # of the plan, and *that* execution is it.
-            crate.add(ContextEntity(crate, f"#control-{qname(entry['node'])}-{index}", {
-                "@type": "ControlAction",
-                "name": f"orchestrate {entry['name']}",
-                "instrument": step,
-                "object": action,
-            }))
-
-        if steps:
-            main["step"] = steps
-        if tools:
-            # Provenance Run Crate: the workflow must name the tools it ran.
-            main["hasPart"] = list(tools.values())
-
-        run = crate.add_action(
-            main, identifier="#run",
-            object=[e for e in entities.values()],
-            result=[entities[e] for e in self.artifacts if e in entities],
-            properties={
-                "name": f"Run of {workflow_name}",
-                "startTime": self.started.isoformat(timespec="milliseconds"),
-                "endTime": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
-                "actionStatus": action_status(self.status),
-            },
-        )
-        root["mentions"] = [run, *actions]
-        return crate.metadata.generate()
 
 
 def resolve_implementation(implementation: str) -> Any:
@@ -945,6 +660,8 @@ class Runner:
         rundir: Path | None = None,
         started: datetime | None = None,
         prepare_inputs: bool = True,
+        seed: str | None = None,
+        fresh: bool = False,
     ) -> None:
         self.studyflow = studyflow
         # Which root a `uri` resolves against says what kind of thing it names:
@@ -955,8 +672,15 @@ class Runner:
         self.values: dict[str, Any] = {}
         self.state = State()
         self.depth = 0
-        seed = studyflow.process.get(f"{{{EXEC}}}seed")
-        self.record = RunRecord(studyflow.plan, seed, started or datetime.now(timezone.utc))
+        # Steps a previous run already did (from the archived copy's own
+        # records); `--fresh` ignores them and re-runs everything.
+        self.prior_records = {} if fresh else studyflow.element_records()
+        self.completed: set[str] = set()
+        self.record = RunRecord(
+            studyflow.plan,
+            seed if seed is not None else studyflow_attr(studyflow.process, "seed"),
+            started or datetime.now(timezone.utc),
+        )
 
     # -- the log ----------------------------------------------------------
     @property
@@ -981,7 +705,24 @@ class Runner:
                 space[name] = value
         return space
 
-    def evaluate(self, expression: str, extra: dict[str, Any] | None = None) -> Any:
+    def evaluate(
+        self,
+        expression: str,
+        extra: dict[str, Any] | None = None,
+        language: str | None = None,
+    ) -> Any:
+        """Evaluate one expression in this engine's language, Python.
+
+        `language` is the expression element's own `language` attribute
+        (BPMN's per-FormalExpression field). Unset means "the engine's own";
+        anything that is not Python is refused here, at run time — the modeler
+        never polices it.
+        """
+        if language and language.lower() not in ("py", "python"):
+            raise ValueError(
+                f"a {language} expression — this runner evaluates Python "
+                "(the browser runner evaluates JavaScript)",
+            )
         space = self.namespace()
         space.update(extra or {})
         return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - see module docstring
@@ -994,7 +735,7 @@ class Runner:
         if uri:
             # Read from the run directory, always — the one root every `uri` in
             # this run resolves against. An input that lives elsewhere is staged
-            # in first, so the paths the provenance records are valid there by
+            # in first, so the paths the run record carries are valid there by
             # construction rather than by a copy made afterwards.
             path = self.rundir / uri
             fmt = format_for(uri, declared)
@@ -1002,9 +743,6 @@ class Runner:
                 self.stage_input(element_id, uri, path)
             value = load_artifact(path, fmt)
             self.values[element_id] = value
-            # A boundary input: used but not produced, and its digest is what
-            # makes the run reproducible.
-            self.record.artifact(element_id, uri, fmt, path, None)
             self.event(
                 "artifact.loaded",
                 f"    load {uri}  {fmt}, {human_bytes(path.stat().st_size)} → {summarize(value)}",
@@ -1065,13 +803,45 @@ class Runner:
         return resolved
 
     # -- one step ---------------------------------------------------------
+    def skip_activity(self, element: ET.Element, element_id: str, prior_run: str) -> bool:
+        """Load a recorded step's artifacts instead of calling it, if possible.
+
+        A step is skippable when a previous run recorded it *and* every one of
+        its outputs is an artifact (has a `uri`) still on disk. A step with a
+        memory-only output always re-runs — the notation already marks what is
+        durable. Any doubt falls through to a real run.
+        """
+        targets: list[str] = []
+        for association in element:
+            if local(association) != "dataOutputAssociation":
+                continue
+            target_ref = next((c for c in association if local(c) == "targetRef"), None)
+            target_id = (target_ref.text or "").strip() if target_ref is not None else ""
+            if not target_id:
+                continue
+            uri, _ = self.studyflow.artifact(target_id)
+            if not uri:
+                return False
+            targets.append(target_id)
+        try:
+            for target_id in targets:
+                self.value_of(target_id)
+        except BaseException:  # noqa: BLE001 - a failed load means a real run
+            return False
+        self.event("activity.skipped", f"↻ {element_id}  (outputs from run {prior_run})")
+        return True
+
     def run_activity(self, element: ET.Element) -> None:
         element_id = element.get("id")
+        prior_run = self.prior_records.get(element_id)
+        if prior_run and self.skip_activity(element, element_id, prior_run):
+            return
         name = self.studyflow.name_of(element_id)
-        self.event("activity.started", f"▸ {name}  [{element_id}]")
+        self.event("activity.started", f"▸ {element_id}")
         entry = self.record.begin(element_id, name, bpmn_type(element))
         try:
-            self.execute_activity(element, entry)
+            with captured_output(indent=self.indent):
+                self.execute_activity(element, entry)
         except BaseException as error:
             self.record.fail(entry, error)
             self.event(
@@ -1080,6 +850,7 @@ class Runner:
             )
             raise
         self.record.end(entry)
+        self.completed.add(element_id)
         self.event(
             "activity.finished", f"    {element_id} done in {entry['durationMs']}ms",
             level=logging.DEBUG,
@@ -1110,15 +881,14 @@ class Runner:
         for association in element:
             if local(association) != "dataInputAssociation":
                 continue
-            # One `binding` per association: `slot = selection`, each half
-            # optional. The standard-BPMN spelling (a native `transformation`
-            # child, written by the .bpmn exporter) is read as the selection
-            # when the compact attribute carries none.
-            raw = association.get(f"{{{EXEC}}}binding")
-            slot, lens = split_binding(raw)
-            if not lens:
-                narrow = next((c for c in association if local(c) == "transformation"), None)
-                lens = (narrow.text or "").strip() if narrow is not None else ""
+            # One `transformation` per association, its body `slot = selection`
+            # with each half optional. Saved standard XML splits the slot into
+            # the DataInput's name and keeps a pure selection; a hand-written
+            # file may still fuse them in the body, so the split is applied
+            # either way.
+            narrow = next((c for c in association if local(c) == "transformation"), None)
+            slot, lens = split_binding((narrow.text or "").strip() if narrow is not None else "")
+            lens_language = narrow.get("language") if narrow is not None else None
             if not slot:
                 target = next((c for c in association if local(c) == "targetRef"), None)
                 slot = io_slots.get((target.text or "").strip()) if target is not None else None
@@ -1128,7 +898,7 @@ class Runner:
                 source_id = (source.text or "").strip()
                 value = self.value_of(source_id)
                 if lens:
-                    value = self.evaluate(lens)
+                    value = self.evaluate(lens, language=lens_language)
                 name = slot or self.studyflow.names.get(source_id) or source_id
                 if name in ("self", "*"):
                     # Two slots are positions, not keywords. `self` is an
@@ -1140,19 +910,19 @@ class Runner:
                 else:
                     keywords[name] = value
                 if source_id not in used:
-                    # `used` is prov:used, a set of entities: an element
-                    # associated twice is two bindings but one thing used.
+                    # A set, not a list of bindings: an element associated
+                    # twice is two bindings but one thing used.
                     used.append(source_id)
                 bound = {"parameter": name, "sourceRef": source_id}
-                if raw or lens:
-                    bound["binding"] = raw or lens
+                if slot or lens:
+                    bound["transformation"] = f"{slot} = {lens}" if slot and lens else (slot or lens)
                 entry.setdefault("inputs", []).append({**bound, **describe(value)})
                 self.event(
                     "dataInputAssociation.bound",
                     f"    {name} ← {lens or self.studyflow.name_of(source_id)}  {summarize(value)}",
                 )
 
-        declared = element.find(f"{{{EXEC}}}additionalArguments")
+        declared = studyflow_child(element, "additionalArguments")
         arguments = yaml.safe_load(declared.text) if declared is not None and declared.text else {}
         resolved = self.resolve_arguments(arguments or {})
         positional = receiver + resolved.get("__args__", [])
@@ -1197,11 +967,13 @@ class Runner:
             # An output binding is a selection over `result` — the drawn target
             # is the slot. The native `transformation` child is the same fact in
             # the standard-BPMN spelling.
-            expression = (association.get(f"{{{EXEC}}}binding") or "").strip()
-            if not expression:
-                narrow = next((c for c in association if local(c) == "transformation"), None)
-                expression = (narrow.text or "").strip() if narrow is not None else ""
-            bound_value = self.evaluate(expression, {"result": result}) if expression else result
+            narrow = next((c for c in association if local(c) == "transformation"), None)
+            expression = (narrow.text or "").strip() if narrow is not None else ""
+            language = narrow.get("language") if narrow is not None else None
+            bound_value = (
+                self.evaluate(expression, {"result": result}, language=language)
+                if expression else result
+            )
             self.store(target_id, bound_value)
             entry.setdefault("generated", []).append(target_id)
             entry.setdefault("outputs", []).append({
@@ -1220,7 +992,6 @@ class Runner:
                 path = self.rundir / uri
                 fmt = format_for(uri, declared_format)
                 save_artifact(bound_value, path, fmt)
-                self.record.artifact(target_id, uri, fmt, path, entry["node"])
                 self.event(
                     "artifact.saved",
                     f"    save {uri}  {fmt}, {human_bytes(path.stat().st_size)}",
@@ -1242,7 +1013,8 @@ class Runner:
                     if condition is None or not (condition.text or "").strip():
                         continue
                     expression = condition.text.strip()
-                    verdict = self.evaluate(expression)
+                    language = condition.get("language")
+                    verdict = self.evaluate(expression, language=language)
                     entry.setdefault("conditionExpressions", []).append({
                         "sequenceFlow": flow.get("id"),
                         "conditionExpression": expression,
@@ -1258,8 +1030,7 @@ class Runner:
                         self.record.end(entry)
                         self.event(
                             "sequenceFlow.taken",
-                            f"    {expression} → {flow.get('name') or flow.get('id')}"
-                            f"  [{flow.get('id')}]",
+                            f"    {expression} → {flow.get('id')}",
                         )
                         return self.studyflow.elements.get(flow.get("targetRef"))
             except BaseException as error:
@@ -1283,7 +1054,7 @@ class Runner:
             self.record.end(entry)
             self.event(
                 "sequenceFlow.taken",
-                f"    default → {chosen.get('name') or chosen.get('id')}  [{chosen.get('id')}]",
+                f"    default → {chosen.get('id')}",
             )
             return self.studyflow.elements.get(chosen.get("targetRef"))
 
@@ -1319,7 +1090,7 @@ class Runner:
                     raise RuntimeError("step budget exhausted — is the flow cycling without an exit?")
                 self.depth = depth
                 element_id = element.get("id")
-                self.state.visits[element_id] = self.state.visits.get(element_id, 0) + 1
+                self.state.trace.append(element_id)
                 tag = local(element)
                 name = self.studyflow.name_of(element_id)
 
@@ -1327,15 +1098,15 @@ class Runner:
                     # Which end a run reached is the outcome, so it is recorded
                     # like anything else.
                     self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
-                    self.event("event.reached", f"■ {name}  [{element_id}]")
+                    self.event("event.reached", f"■ {element_id}")
                     return
                 if tag in GATEWAY_TAGS:
-                    self.event("gateway.reached", f"◆ {name}  [{element_id}]")
+                    self.event("gateway.reached", f"◆ {element_id}")
                 elif tag in CONTAINER_TAGS:
                     # A phase: one activity spanning its children, so the record
                     # reads the way the studyflow does at both levels.
                     entry = self.record.begin(element_id, name, bpmn_type(element))
-                    self.event("activity.started", f"▣ {name}  [{element_id}]")
+                    self.event("activity.started", f"▣ {element_id}")
                     try:
                         self.walk(self.studyflow.start_event(element), depth + 1, max_steps)
                     except BaseException as error:
@@ -1350,7 +1121,7 @@ class Runner:
                     )
                 elif tag in PASSTHROUGH_TAGS:
                     self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
-                    self.event("event.reached", f"○ {name}  [{element_id}]")
+                    self.event("event.reached", f"○ {element_id}")
                 else:
                     self.run_activity(element)
 
@@ -1363,54 +1134,34 @@ class Runner:
         """A path relative to the workdir the `uri`s resolve against."""
         return path.relative_to(self.workdir) if path.is_relative_to(self.workdir) else path
 
-    def write_provenance(self, source: Path, log: Path | None = None, form: str = "jsonld") -> Path:
-        """Write the run's PROV document, with a copy of the plan beside it."""
+    def archive_plan(self, source: Path) -> Path:
+        """Copy the studyflow into the run directory, trail and all.
+
+        The copy is written from the stamped plan (see `read_studyflow`), so
+        its provenance trail carries this run's own `executed` line — the run
+        record travels inside the studyflow itself, and the copy is a file you
+        can reopen rather than a digest of something that may since have been
+        edited.
+        """
         self.rundir.mkdir(parents=True, exist_ok=True)
-        # Copying the studyflow in makes the `prov:Plan` a file you can reopen,
-        # not a digest of something that may since have been edited.
+        # Each activity this run actually executed gets its own `executed`
+        # record (replacing an older one); skipped steps keep the record of
+        # the run that really produced their artifacts.
+        stamped = self.studyflow.plan
+        when = trail_timestamp(datetime.now(timezone.utc))
+        for element_id in sorted(self.completed):
+            stamped = insert_element_entry(
+                stamped, element_id, replace_action="executed",
+                action="executed", when=when, run=self.rundir.name,
+            )
         plan = self.rundir / source.name
         if not plan.exists():
-            shutil.copyfile(source, plan)
-
-        document = self.record.prov(
-            self.values, self.state.visits, self.studyflow.name_of,
-            run_id=self.rundir.name, plan=plan.name, log=log.name if log else None,
-        )
-        filename, rdf_form = PROV_FORMATS[form]
-        path = self.rundir / filename
-        if form == "provn":
-            path.write_text(document.get_provn() + "\n")
-        elif rdf_form:
-            path.write_text(rdf_with_shortcuts(document, rdf_form))
-        else:
-            document.serialize(str(path), format=form, indent=2)
-
-        self.event("provenance.written", f"  → {self.shown(path)}", level=logging.DEBUG)
-        return path
-
-    def write_crate(
-        self,
-        plan: Path,
-        parts: dict[str, str],
-        version: str,
-        licence: str | None = None,
-    ) -> Path:
-        """Make the run directory a Workflow Run RO-Crate.
-
-        Every part is already in place: inputs were staged in before they were
-        read, so nothing has to be gathered here to make the crate whole.
-        """
-        process = self.studyflow.process
-        document = self.record.crate(
-            self.values, self.studyflow.name_of,
-            workflow=plan.name,
-            workflow_name=process.get("name") or process.get("id"),
-            parts=parts, version=version, licence=licence,
-        )
-        path = self.rundir / "ro-crate-metadata.json"
-        path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n")
-        self.event("crate.written", f"  → {self.shown(path)}", level=logging.DEBUG)
-        return path
+            if source.suffix.lower() == ".png":
+                plan.write_bytes(embed_studyflow_into_png(source.read_bytes(), stamped))
+            else:
+                plan.write_text(stamped)
+        self.event("plan.archived", f"  → {self.shown(plan)}", level=logging.DEBUG)
+        return plan
 
     def finish(self) -> None:
         elapsed = (datetime.now(timezone.utc) - self.record.started).total_seconds() * 1000
@@ -1423,7 +1174,10 @@ class Runner:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("studyflow", type=Path, help="a .png with an embedded studyflow, or a .bpmn/.xml")
+    parser.add_argument(
+        "studyflow", type=Path,
+        help="a .studyflow.png with an embedded studyflow, or a .bpmn/.xml",
+    )
     parser.add_argument(
         "--workdir", type=Path, default=Path.cwd(),
         help="directory the input artifact uris are relative to (default: the current one)",
@@ -1438,23 +1192,8 @@ def main() -> int:
              "as a sortable UTC stamp)",
     )
     parser.add_argument(
-        "--prov-format", choices=sorted(PROV_FORMATS), default="jsonld",
-        help="serialization of the run's PROV document (default: jsonld, i.e. PROV-O as JSON-LD)",
-    )
-    parser.add_argument(
-        "--no-crate", action="store_true",
-        help="skip ro-crate-metadata.json; without it the run directory is not an RO-Crate",
-    )
-    parser.add_argument(
-        # Choices come from ro-crate-py's own list, so this gains 1.3 when it does.
-        "--crate-version", choices=sorted(SUPPORTED_VERSIONS), default=CRATE_VERSION,
-        help=f"RO-Crate specification version to write (default: {CRATE_VERSION}, "
-             "which is what the Workflow Run Crate profiles require)",
-    )
-    parser.add_argument(
-        "--license", default=None,
-        help="licence URL for the run's outputs, stated on the RO-Crate root "
-             "(default: a CreativeWork saying it is not asserted)",
+        "--fresh", action="store_true",
+        help="ignore the input's per-element run records and re-run every step",
     )
     parser.add_argument(
         "--no-prepare-inputs", action="store_true",
@@ -1473,10 +1212,39 @@ def main() -> int:
     rundir = args.workdir / args.runs_dir / run_id
     log = start_logging(rundir, args.quiet)
 
-    studyflow = read_studyflow(args.studyflow)
+    # The run's root seed: the plan's pinned value when it has one, drawn
+    # once when it does not — recorded on the trail either way, which is what
+    # makes an unpinned run replayable after the fact.
+    probe = read_studyflow(args.studyflow)
+    seed = studyflow_attr(probe.process, "seed") or str(random.SystemRandom().randrange(10**9))
+    try:
+        random.seed(int(seed))
+        import numpy  # noqa: PLC0415 - optional, only if the steps use it
+        numpy.random.seed(int(seed) % 2**32)
+    except Exception:  # noqa: BLE001, S110 - a non-numeric seed seeds nothing
+        pass
+
+    # The run is an event in the studyflow's life, so it stamps the trail like
+    # any other tool: one `executed` line, naming who ran it, with what seed,
+    # and which run directory holds the artifacts and the log. The input file
+    # is never touched — the stamp lands on the in-memory plan and the copy
+    # the run archives.
+    try:
+        user = getpass.getuser()
+    except OSError:
+        user = ""
+    studyflow = read_studyflow(args.studyflow, stamp={
+        "action": "executed",
+        "when": trail_timestamp(started),
+        "who": user,
+        "with": "studyflow_run.py",
+        "run": run_id,
+        "seed": seed,
+    })
     runner = Runner(
         studyflow, args.workdir, rundir=rundir, started=started,
         prepare_inputs=not args.no_prepare_inputs,
+        seed=seed, fresh=args.fresh,
     )
     try:
         runner.run()
@@ -1490,20 +1258,9 @@ def main() -> int:
         )
         runner.record.status = "error"
     finally:
-        # Written on the way out either way: a run that failed halfway is
-        # exactly when the order of what happened is worth having on disk.
-        provenance = runner.write_provenance(args.studyflow, log, args.prov_format)
-        if not args.no_crate:
-            # Last, so the crate can list the provenance file beside it.
-            runner.write_crate(
-                runner.rundir / args.studyflow.name,
-                parts={
-                    log.name: "What the run did, in order — one line per event.",
-                    provenance.name: "What the run was — its W3C PROV provenance.",
-                },
-                version=args.crate_version,
-                licence=args.license,
-            )
+        # Archived on the way out either way: a run that failed halfway is
+        # exactly when its stamped plan and log are worth having on disk.
+        runner.archive_plan(args.studyflow)
         runner.finish()
         logging.shutdown()
     return 0 if runner.record.status == "ok" else 1

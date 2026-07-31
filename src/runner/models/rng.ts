@@ -32,11 +32,12 @@ export type ConditionResult = {
 };
 
 /**
- * Evaluate a sequence-flow condition against the run's bindings. The authored
- * contract language is CEL (`expressionLanguage` on bpmn:Definitions); this
- * in-browser simulator evaluates the JS-compatible subset of it - comparisons,
- * field access, `&&`/`||`/`!`, `!= null` - which covers every condition the
- * schemas ship.
+ * Evaluate a sequence-flow condition against the run's bindings. Expressions
+ * are Python or JavaScript, each carrying BPMN's own per-expression
+ * `language` attribute when it needs to say which; one without it runs in
+ * the evaluating engine's own language — JavaScript here, Python in the
+ * reference runner. The check happens only now, at evaluation time; the
+ * modeler never polices it.
  *
  * Every identifier resolves through the bindings: the `has` trap claims all
  * names so `with` routes each lookup into `get`, where a name that no scope
@@ -47,7 +48,15 @@ export type ConditionResult = {
 export function evaluateCondition(
   expression: string,
   bindings: Record<string, unknown>,
+  language?: string,
 ): ConditionResult {
+  if (language && !['js', 'javascript'].includes(language.toLowerCase())) {
+    return {
+      value: false,
+      error: `a ${language} expression — this runner evaluates JavaScript `
+        + '(the reference runner evaluates Python)',
+    };
+  }
   const scope = new Proxy(bindings, {
     has: () => true,
     get: (target, key) => {

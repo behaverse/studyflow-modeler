@@ -178,7 +178,7 @@ test.describe('conditions over declared state', () => {
     expect(new UndeclaredReference('x').name).toBe('UndeclaredReference');
   });
 
-  test('state.visits bounds a drawn back-edge instead of silently failing', async () => {
+  test('state.trace bounds a drawn back-edge instead of silently failing', async () => {
     const LOOP = `${HEAD}Study:
   type: bpmn:Process
   properties:
@@ -212,7 +212,7 @@ test.describe('conditions over declared state', () => {
       type: bpmn:SequenceFlow
       sourceRef: Gate
       targetRef: Work
-      conditionExpression: state.visits.Gate < 3
+      conditionExpression: state.trace.count('Gate') < 3
     F_Out:
       type: bpmn:SequenceFlow
       sourceRef: Gate
@@ -229,7 +229,7 @@ test.describe('conditions over declared state', () => {
 
     // The back-edge is taken while the gateway's visit count is under the
     // bound, then the default branch exits. Before the engine populated
-    // `state.visits`, this condition threw and always took the exit.
+    // `state.trace`, this condition threw and always took the exit.
     expect(visited.filter((id) => id === 'Work')).toHaveLength(3);
     expect(visited[visited.length - 1]).toBe('Done');
     expect(diagnostics).toEqual([]);

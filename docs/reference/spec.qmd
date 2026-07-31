@@ -18,7 +18,7 @@ The main components of the $S$ tuple are described in the BPMN 2.1 specification
 - $N_G$ (gateways) is extended with a random gateway type (`RandomGateway`) for random assignment -- with an optional `stratifyBy` that balances allocation across covariate strata (stratified randomization) -- and an eligibility decision gateway (`EligibilityGateway`) that encodes inclusion/exclusion criteria.
 - $N_D$ (data objects) can be used to represent data collected during the study, such as participant responses, physiological measurements, or other relevant data. It also supports standard data formats (e.g., BIDS, BDM, Psych-DS, Kedro) and the related infrastructure types: `DataCatalog`, `DataStorage`, `Dataset`, `Schema`, `Array`, and `Snapshot`.
 - $\lambda$ (attributes) is extended to include attributes specific to experimental studies or data analysis, such as metadata (e.g., study name, version), event triggers (e.g., temporal, errors), gateway logic (e.g., randomization probabilities, conditional logics), and implementation details (e.g., links to external scripts or software). The studyflow `BaseElement` augments every element with `documentation` (markdown); a checklist is a `studyflow:checklist`-marked `bpmn:documentation` entry, so the items stay visible in any BPMN tool.
-- $E$ (edges) can include group assignments, indicating which paths participants should follow based on their assigned group. `SequenceFlow` carries an optional `conditionExpression` for gated branches; condition expressions are CEL (Common Expression Language), declared via BPMN's own `expressionLanguage` attribute on `Definitions`.
+- $E$ (edges) can include group assignments, indicating which paths participants should follow based on their assigned group. `SequenceFlow` carries an optional `conditionExpression` for gated branches; condition expressions are Python or JavaScript, named per expression by BPMN's own `language` field on the expression element — one without it runs in the evaluating engine's own language (Python in the reference runner, JavaScript in the browser).
 - $S$ can also include design patterns commonly used in experimental studies, such as counterbalancing, recruitment, exception handling, and data quality checks.
 
 
@@ -263,7 +263,7 @@ The same model also serializes to standard **BPMN 2.0 XML** (*File &rarr; Export
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="example-diagram">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="example-diagram">
   <bpmn:process id="exampleStudy">
     <bpmn:extensionElements>
       <studyflow:study />
