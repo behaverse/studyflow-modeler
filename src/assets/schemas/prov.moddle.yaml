@@ -47,14 +47,19 @@ types:
       - name: action
         description: |
           What happened, as one word - the activity's `prov:type`. Recommended
-          vocabulary: `created`, `modified`, `imported`, `executed`; open to
-          others (`converted`, `reviewed`) when a tool needs them.
+          vocabulary: `created`, `modified`, `imported`, `executed`,
+          `invalidated`; open to others (`converted`, `reviewed`) when a tool
+          needs them. `invalidated` (PROV's `prov:wasInvalidatedBy`) voids the
+          element's `executed` record of the same `run` without deleting it -
+          the step re-runs on the next partial re-run, and the history stays.
         isAttr: true
         type: String
       - name: when
         description: |
-          When it happened, ISO 8601 UTC (`2026-07-31T09:12:04Z`) - the
-          activity's `prov:endedAtTime`.
+          When it happened, ISO 8601 at second precision with the writer's
+          UTC offset (`2026-08-01T09:12:04+02:00`; older files carry `Z`) -
+          the activity's `prov:endedAtTime`. The offset keeps the instant
+          exact while preserving the writer's wall clock.
         isAttr: true
         type: String
       - name: who

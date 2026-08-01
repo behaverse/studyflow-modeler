@@ -37,7 +37,7 @@ Every run gets its own directory, named for when it started, and everything it
 writes lands in there:
 
 ```
-runs/20260730T075532Z/
+runs/20260801T093253+0200/
   sklearn_pipeline.studyflow.png    the studyflow that ran, copied in, its trail stamped `executed`
   digits.csv                   the boundary input it read, copied in
   cv_fold_metrics.csv          ┐
@@ -222,7 +222,8 @@ The `event` column is the grep handle, and its names are the notation's nouns:
 | `activity.started`, `activity.finished`, `activity.failed` | a task or sub-process is entered, leaves, or raises |
 | `implementation.resolved`, `implementation.missing` | the step's software is imported, or the step names none |
 | `dataInputAssociation.bound`, `dataOutputAssociation.bound` | one argument is filled, one return value lands |
-| `activity.skipped` | a recorded step's artifacts were loaded instead of re-computed (see partial re-runs) |
+| `activity.skipped` | a recorded step's artifacts were reused instead of re-computed (see partial re-runs) |
+| `activity.invalidated` | a recorded step re-ran because an input was re-made this run (the cascade in partial re-runs) |
 | `artifact.prepared`, `artifact.loaded`, `artifact.saved` | a boundary input is materialized, read, or a result written |
 | `gateway.reached`, `conditionExpression.evaluated`, `sequenceFlow.taken`, `gateway.stuck` | the branch, and what decided it |
 | `event.reached` | a start, intermediate, or end event |
@@ -283,23 +284,34 @@ that you can archive, deposit, or hand on.
 
 ### Partial re-runs
 
-A run also records itself *per element*: every activity it completed gets its
-own `executed` entry (`when`, `run`) in that element's `extensionElements` on
-the archived copy. Re-running the copy is therefore incremental:
+A run also records itself *per element*: every activity and event it completed
+gets its own `executed` entry (`when`, `run`), a gateway's entry adds the flow
+it took as `what`, and a data element records `created` (this run saved its
+artifact) or `imported` (a boundary input staged from outside) — each in that
+element's `extensionElements` on the archived copy. Re-running the copy is
+therefore incremental:
 
 ```bash
 uv run studyflow_run.py runs/<id>/sklearn_pipeline.studyflow.png --workdir runs/<id>
 ```
 
-A step is **skipped** — its artifacts loaded instead of re-computed — when its
-record is present and every one of its outputs is an artifact (`uri`) still on
-disk; a step with a memory-only output always re-runs. So the invalidation
-gestures are exactly the ones you'd guess: delete an artifact and its producer
-re-runs; delete an element's `executed` entry and that step re-runs; edit the
-plan and re-run only what the edit touches downstream of. Skipped elements keep
-the record of the run that really produced their artifacts, so the copy stays a
-truthful patchwork of which run made what. `--fresh` ignores every record and
-re-runs the whole flow.
+A step is **skipped** — its artifacts reused instead of re-computed — when its
+record is present, nothing it reads was re-made this run, and every one of its
+outputs is an artifact (`uri`) still on disk: an output some later step reads
+must load back into memory, while an output nothing reads (a terminal figure,
+say) only has to exist. A step with a memory-only output always re-runs — a
+routine recomputation of unchanged inputs that invalidates nothing. So the
+invalidation gestures are exactly the ones you'd guess: delete an artifact and
+its producer re-runs; delete an element's `executed` entry — or, keeping the
+history, append an `invalidated` line naming its run, which is what the
+modeler's Provenance view does — and that step re-runs; edit the plan and
+re-run only what the edit touches downstream of.
+**Invalidation cascades**: a step re-made by any of those gestures taints its
+outputs, so every recorded step that reads them re-runs too (logged as
+`activity.invalidated`) — refitting the model re-plots the confusion matrix.
+Skipped elements keep the record of the run that really produced their
+artifacts, so the copy stays a truthful patchwork of which run made what.
+`--fresh` ignores every record and re-runs the whole flow.
 
 ## Boundary inputs
 

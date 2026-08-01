@@ -60,4 +60,8 @@ export const BPMN = {
   RootElement: 'bpmn:RootElement',
 } as const;
 
-export const CORE_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xsi', 'xml']);
+/** Namespaces that are infrastructure, not domain vocabularies: their
+ *  elements never act as an element's extension wrapper, so the inspector
+ *  ignores them. `prov` is the provenance trail (its schema says `core:
+ *  true`) — trail entries are read by the Provenance view, not as fields. */
+export const CORE_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xsi', 'xml', 'prov']);

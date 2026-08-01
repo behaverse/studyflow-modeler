@@ -22,6 +22,7 @@ export type TrailStamp = {
   with?: string;
   what?: string;
   run?: string;
+  seed?: string;
   note?: string;
 };
 
@@ -45,9 +46,20 @@ export function readTrail(definitions: any): any[] {
   return values.filter((value) => value?.$type === 'prov:Activity');
 }
 
-/** ISO 8601 UTC at second precision — trail entries are log lines, not clocks. */
+/** ISO 8601 at second precision, in this machine's timezone. The numeric
+ *  offset (`2026-08-01T09:12:04+02:00`) keeps the instant exact while
+ *  preserving the writer's wall clock; older files carry `Z` stamps, and both
+ *  forms are valid ISO 8601 instants. */
 export function trailTimestamp(date: Date = new Date()): string {
-  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` +
+    `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+  );
 }
 
 /** Append one `<prov:activity>` to the primary root, creating the

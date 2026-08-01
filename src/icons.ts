@@ -34,6 +34,8 @@ export const ICONS = {
   arrowLeft: 'iconify bi--arrow-left',
   arrowRepeat: 'iconify bi--arrow-repeat',
   arrowClockwise: 'iconify bi--arrow-clockwise',
+  arrowCounterclockwise: 'iconify bi--arrow-counterclockwise',
+  history: 'iconify tabler--history',
   loop: 'iconify mdi--loop',
   asterisk: 'iconify mdi--asterisk',
   tilde: 'iconify tabler--tilde',

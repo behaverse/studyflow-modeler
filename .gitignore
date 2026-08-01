@@ -41,3 +41,4 @@ tmp/
 /playwright/.auth/
 
 *.pyc
+runs/

@@ -80,7 +80,10 @@ test.describe('provenance trail', () => {
 
     expect(reloaded).toHaveLength(1);
     expect(reloaded[0].action).toBe('created');
-    expect(reloaded[0].when).toBe('2026-07-31T10:00:00Z');
+    // The stamp is written in the machine's own timezone, so assert the
+    // instant and the offset shape rather than one fixed rendering.
+    expect(Date.parse(reloaded[0].when)).toBe(Date.parse('2026-07-31T10:00:00Z'));
+    expect(reloaded[0].when).toMatch(/(?:Z|[+-]\d{2}:\d{2})$/);
     // Unset facts stay unset, not empty strings.
     expect(reloaded[0].who).toBeUndefined();
   });

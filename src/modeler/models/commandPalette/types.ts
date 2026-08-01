@@ -23,7 +23,14 @@ export type PaletteCommand = {
 };
 
 /** Modal dialogs the palette hands off to (one open at a time). */
-export type PaletteDialogId = 'examples' | 'templates' | 'export' | 'publish' | 'checklist' | 'gantt';
+export type PaletteDialogId =
+  | 'examples'
+  | 'templates'
+  | 'export'
+  | 'publish'
+  | 'checklist'
+  | 'gantt'
+  | 'provenance';
 
 export function flattenCommands(commands: PaletteCommand[]): PaletteCommand[] {
   const out: PaletteCommand[] = [];

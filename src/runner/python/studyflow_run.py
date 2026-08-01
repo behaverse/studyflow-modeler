@@ -309,8 +309,13 @@ def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
 
 
 def trail_timestamp(moment: datetime) -> str:
-    """ISO 8601 UTC at second precision - trail entries are log lines, not clocks."""
-    return moment.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    """ISO 8601 at second precision, in the machine's own timezone.
+
+    The numeric offset (`2026-08-01T09:12:04+02:00`) keeps the instant exact
+    while preserving the runner's wall clock — what "9am" meant to whoever ran
+    it. Older files carry `Z` stamps; both forms are valid ISO 8601 instants.
+    """
+    return moment.astimezone().replace(microsecond=0).isoformat()
 
 
 TRAIL_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
@@ -319,11 +324,15 @@ TRAIL_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
 def insert_element_entry(xml: str, element_id: str, replace_action: str | None = None, **fields: str) -> str:
     """Append one `<prov:activity>` line under `element_id`'s `extensionElements`.
 
-    Anchored purely on the element (the wrapper is created as its first child
-    when absent, where BPMN wants it). With `replace_action`, an existing entry
-    of that action inside the element's own block is removed first — one
-    completion record per element, the latest run's. Works on the XML text
-    rather than the parsed tree on purpose: ElementTree rewrites every
+    Anchored purely on the element: BPMN's base-element sequence is
+    `documentation*` then `extensionElements?`, so the element's own wrapper is
+    whatever follows its documentation children — never a free search, which
+    could land on a nested child's block. A missing wrapper is created in that
+    same slot; an element may hold at most one, and a duplicate would be
+    dropped wholesale by moddle-based readers. With `replace_action`, an
+    existing entry of that action inside the element's own block is removed
+    first — one completion record per element, the latest run's. Works on the
+    XML text rather than the parsed tree on purpose: ElementTree rewrites every
     namespace prefix on serialization, and a stamped copy should diff against
     its source by the stamped lines alone.
     """
@@ -351,9 +360,20 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
     lead = xml[line_start:element.start()]
     indent = lead if lead.isspace() or lead == "" else ""
 
-    existing = re.match(r"\s*<((?:[\w.-]+:)?)extensionElements>", xml[element.end():])
+    cursor = element.end()
+    while True:
+        doc = re.match(r"\s*<((?:[\w.-]+:)?)documentation\b[^>]*>", xml[cursor:])
+        if doc is None:
+            break
+        if doc.group(0).endswith("/>"):
+            cursor += doc.end()
+        else:
+            close = f"</{doc.group(1)}documentation>"
+            cursor = xml.index(close, cursor + doc.end()) + len(close)
+
+    existing = re.match(r"\s*<((?:[\w.-]+:)?)extensionElements>", xml[cursor:])
     if existing:
-        block_open_end = element.end() + existing.end()
+        block_open_end = cursor + existing.end()
         close_tag = f"</{existing.group(1)}extensionElements>"
         close_at = xml.index(close_tag, block_open_end)
         block = xml[block_open_end:close_at]
@@ -371,7 +391,20 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
         f"\n{indent}    {entry}"
         f"\n{indent}  </{wrapper_prefix}extensionElements>"
     )
-    return xml[:element.end()] + block + xml[element.end():]
+    return xml[:cursor] + block + xml[cursor:]
+
+
+def output_targets(element: ET.Element) -> list[str]:
+    """Ids of the data elements the activity's output associations fill."""
+    targets: list[str] = []
+    for association in element:
+        if local(association) != "dataOutputAssociation":
+            continue
+        target_ref = next((c for c in association if local(c) == "targetRef"), None)
+        target_id = (target_ref.text or "").strip() if target_ref is not None else ""
+        if target_id:
+            targets.append(target_id)
+    return targets
 
 
 def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
@@ -416,6 +449,10 @@ class Studyflow:
             if name and re.fullmatch(r"[A-Za-z_]\w*", name):
                 self.names[element_id] = name
 
+        # Lazily built by `consumes` / `is_product`.
+        self._consumers: tuple[set[str], str] | None = None
+        self._products: set[str] | None = None
+
     def _find_process(self) -> ET.Element:
         for element in self.definitions:
             if local(element) == "process" and any(local(c) == "sequenceFlow" for c in element):
@@ -427,23 +464,99 @@ class Studyflow:
 
         Written onto each completed activity when a run archives its plan, so
         an archived copy re-runs *partially*: recorded steps with their
-        artifacts still on disk are skipped. Deleting a record — or the
-        artifact it vouches for — invalidates exactly that work.
+        artifacts still on disk are skipped. An `invalidated` entry voids the
+        element's `executed` record of the same `run` (or any run, when the
+        marker names none) without deleting it — the history stays, the step
+        re-runs. Deleting the record or the artifact it vouches for still
+        works too.
         """
         records: dict[str, str] = {}
         process_id = self.process.get("id")
         for element_id, element in self.elements.items():
             if element_id == process_id:
                 continue
+            executed: str | None = None
+            invalidated: set[str] = set()
+            invalidates_all = False
             for ext in element:
                 if local(ext) != "extensionElements":
                     continue
                 for child in ext:
-                    if child.tag == f"{{{PROV_TRAIL}}}activity" and child.get("action") == "executed":
-                        run = child.get("run")
+                    if child.tag != f"{{{PROV_TRAIL}}}activity":
+                        continue
+                    action = child.get("action")
+                    run = child.get("run")
+                    if action == "executed" and run:
+                        executed = run
+                    elif action == "invalidated":
                         if run:
-                            records[element_id] = run
+                            invalidated.add(run)
+                        else:
+                            invalidates_all = True
+            if executed and not invalidates_all and executed not in invalidated:
+                records[element_id] = executed
         return records
+
+    def activity_dependencies(self, element: ET.Element) -> tuple[set[str], str]:
+        """What an activity reads: its input associations' source ids, `$ref`
+        heads in `additionalArguments`, and the expression text its bindings
+        evaluate — the text is kept for name-based references."""
+        sources: set[str] = set()
+        texts: list[str] = []
+        for association in element:
+            if local(association) != "dataInputAssociation":
+                continue
+            for child in association:
+                if local(child) == "sourceRef" and child.text:
+                    sources.add(child.text.strip())
+                if local(child) == "transformation" and child.text:
+                    texts.append(child.text)
+        declared = studyflow_child(element, "additionalArguments")
+        if declared is not None and declared.text:
+            texts.append(declared.text)
+            sources.update(re.findall(r"\$([A-Za-z_]\w*)", declared.text))
+        return sources, " ".join(texts)
+
+    def is_product(self, element_id: str) -> bool:
+        """Whether any step's output association targets this data element.
+        Its complement is a boundary input: a file the studyflow only reads."""
+        if self._products is None:
+            products: set[str] = set()
+            for node in self.definitions.iter():
+                if local(node) == "dataOutputAssociation":
+                    for child in node:
+                        if local(child) == "targetRef" and child.text:
+                            products.add(child.text.strip())
+            self._products = products
+        return element_id in self._products
+
+    def consumes(self, element_id: str) -> bool:
+        """Whether any step reads this data element's value.
+
+        Read paths are `dataInputAssociation` sources, `$ref`s in
+        `additionalArguments`, and free identifiers in expression bodies
+        (transformations, conditions) — the latter two checked textually, by
+        id and identifier-like name. The bias is deliberate: a false positive
+        merely keeps the eager skip-probe load, never skips too much.
+        """
+        if self._consumers is None:
+            sources: set[str] = set()
+            texts: list[str] = []
+            for node in self.definitions.iter():
+                tag = local(node)
+                if tag == "dataInputAssociation":
+                    for child in node:
+                        if local(child) == "sourceRef" and child.text:
+                            sources.add(child.text.strip())
+                elif tag in ("transformation", "conditionExpression", "additionalArguments"):
+                    if node.text:
+                        texts.append(node.text)
+            self._consumers = (sources, " ".join(texts))
+        sources, expressions = self._consumers
+        if element_id in sources or element_id in expressions:
+            return True
+        name = self.names.get(element_id)
+        return bool(name and name in expressions)
 
     def start_event(self, container: ET.Element | None = None) -> ET.Element:
         for element in container if container is not None else self.process:
@@ -672,10 +785,22 @@ class Runner:
         self.values: dict[str, Any] = {}
         self.state = State()
         self.depth = 0
+        # When set, `event` collects lines instead of printing (see
+        # `deferred_events`); only the skip probe uses it.
+        self._deferred: list[tuple[str, str, int, str]] | None = None
         # Steps a previous run already did (from the archived copy's own
         # records); `--fresh` ignores them and re-runs everything.
         self.prior_records = {} if fresh else studyflow.element_records()
-        self.completed: set[str] = set()
+        # What this run did, per element kind, each element mapped to the
+        # moment it happened — the trail records `archive_plan` writes.
+        self.completed: dict[str, str] = {}
+        self.reached: dict[str, str] = {}
+        self.decisions: dict[str, tuple[str, str]] = {}
+        self.produced: dict[str, str] = {}
+        self.staged: dict[str, str] = {}
+        # Elements whose values this run re-made and may differ from what the
+        # records reflect — invalidation cascades through their consumers.
+        self.tainted: set[str] = set()
         self.record = RunRecord(
             studyflow.plan,
             seed if seed is not None else studyflow_attr(studyflow.process, "seed"),
@@ -689,7 +814,27 @@ class Runner:
         return "  " * (self.depth + 1)
 
     def event(self, event: str, message: str, *, level: int = logging.INFO) -> None:
+        if self._deferred is not None:
+            self._deferred.append((event, message, level, self.indent))
+            return
         log_event(event, message, level=level, indent=self.indent)
+
+    @contextmanager
+    def deferred_events(self):
+        """Buffer `event` lines; the yielded replay emits them later, verbatim."""
+        buffered: list[tuple[str, str, int, str]] = []
+        self._deferred = buffered
+        try:
+            yield lambda: [
+                log_event(event, message, level=level, indent=indent)
+                for event, message, level, indent in buffered
+            ]
+        finally:
+            self._deferred = None
+
+    def moment(self) -> str:
+        """Now, as a trail timestamp — every record carries its own moment."""
+        return trail_timestamp(datetime.now(timezone.utc))
 
     # -- values -----------------------------------------------------------
     def store(self, element_id: str, value: Any) -> None:
@@ -745,7 +890,7 @@ class Runner:
             self.values[element_id] = value
             self.event(
                 "artifact.loaded",
-                f"    load {uri}  {fmt}, {human_bytes(path.stat().st_size)} → {summarize(value)}",
+                f"    ▤ load {uri}  {fmt}, {human_bytes(path.stat().st_size)} → {summarize(value)}",
             )
             return value
         raise KeyError(f"nothing has bound {element_id!r} and it declares no uri")
@@ -756,9 +901,11 @@ class Runner:
         source = self.workdir / uri
         if source.exists() and not source.samefile(path.parent):
             shutil.copyfile(source, path)
+            if not self.studyflow.is_product(element_id):
+                self.staged[element_id] = self.moment()
             self.event(
                 "artifact.staged",
-                f"    stage {uri}  {human_bytes(path.stat().st_size)}, from {self.shown(source)}",
+                f"    ▤ stage {uri}  {human_bytes(path.stat().st_size)}, from {self.shown(source)}",
             )
             return
         build = BOUNDARY_INPUTS.get(uri) if self.prepare_inputs else None
@@ -769,9 +916,10 @@ class Runner:
                 "put it there.",
             )
         build(path)
+        self.staged[element_id] = self.moment()
         self.event(
             "artifact.prepared",
-            f"    prepare {uri}  {human_bytes(path.stat().st_size)}, a boundary input this studyflow ships",
+            f"    ▤ prepare {uri}  {human_bytes(path.stat().st_size)}, a boundary input this studyflow ships",
         )
 
     # -- arguments --------------------------------------------------------
@@ -803,41 +951,82 @@ class Runner:
         return resolved
 
     # -- one step ---------------------------------------------------------
-    def skip_activity(self, element: ET.Element, element_id: str, prior_run: str) -> bool:
-        """Load a recorded step's artifacts instead of calling it, if possible.
+    def stale_inputs(self, element: ET.Element) -> bool:
+        """Whether the step reads anything this run re-made — recorded outputs
+        of such a step describe values that no longer exist, so it re-runs."""
+        if not self.tainted:
+            return False
+        sources, expressions = self.studyflow.activity_dependencies(element)
+        if sources & self.tainted:
+            return True
+        for tainted_id in self.tainted:
+            name = self.studyflow.names.get(tainted_id)
+            if tainted_id in expressions:
+                return True
+            if name and (name in sources or name in expressions):
+                return True
+        return False
+
+    def skip_activity(self, element: ET.Element, element_id: str) -> str:
+        """Reuse a recorded step's artifacts instead of calling it, if possible.
 
         A step is skippable when a previous run recorded it *and* every one of
-        its outputs is an artifact (has a `uri`) still on disk. A step with a
-        memory-only output always re-runs — the notation already marks what is
-        durable. Any doubt falls through to a real run.
+        its outputs is an artifact (has a `uri`) still on disk. An output some
+        later step reads must load back into memory — a failed load means a
+        real run — while an output nothing reads only has to be there: a
+        figure's png has no loader, and needs none. Returns the verdict:
+        `skipped`, `volatile` (a memory-only output — routine recomputation),
+        or `invalid` (an artifact is gone or unreadable — the step's record
+        has been invalidated). Any doubt falls through to a real run.
         """
         targets: list[str] = []
-        for association in element:
-            if local(association) != "dataOutputAssociation":
-                continue
-            target_ref = next((c for c in association if local(c) == "targetRef"), None)
-            target_id = (target_ref.text or "").strip() if target_ref is not None else ""
-            if not target_id:
-                continue
+        for target_id in output_targets(element):
             uri, _ = self.studyflow.artifact(target_id)
             if not uri:
-                return False
+                return "volatile"
             targets.append(target_id)
         try:
             for target_id in targets:
-                self.value_of(target_id)
+                if self.studyflow.consumes(target_id):
+                    self.value_of(target_id)
+                else:
+                    self.ensure_artifact(target_id)
         except BaseException:  # noqa: BLE001 - a failed load means a real run
-            return False
-        self.event("activity.skipped", f"↻ {element_id}  (outputs from run {prior_run})")
-        return True
+            return "invalid"
+        return "skipped"
+
+    def ensure_artifact(self, element_id: str) -> None:
+        """The element's artifact present in the run directory, unloaded."""
+        uri, _ = self.studyflow.artifact(element_id)
+        path = self.rundir / uri
+        if not path.exists():
+            self.stage_input(element_id, uri, path)
 
     def run_activity(self, element: ET.Element) -> None:
         element_id = element.get("id")
         prior_run = self.prior_records.get(element_id)
-        if prior_run and self.skip_activity(element, element_id, prior_run):
-            return
+        stale = self.stale_inputs(element)
+        replay = None
+        verdict = None
+        if prior_run and not stale:
+            # The probe stages and loads before anyone knows whether the step
+            # is skipped (↻) or really runs (□); deferring its trace lets the
+            # step's own line print first, so the trace sits under it.
+            with self.deferred_events() as replay:
+                verdict = self.skip_activity(element, element_id)
+            if verdict == "skipped":
+                self.event("activity.skipped", f"↻ {element_id}  (outputs from run {prior_run})")
+                replay()
+                return
         name = self.studyflow.name_of(element_id)
-        self.event("activity.started", f"▸ {element_id}")
+        self.event("activity.started", f"□ {element_id}")
+        if replay:
+            replay()
+        if stale and prior_run:
+            self.event(
+                "activity.invalidated",
+                f"    run {prior_run}'s record superseded — an input was re-made this run",
+            )
         entry = self.record.begin(element_id, name, bpmn_type(element))
         try:
             with captured_output(indent=self.indent):
@@ -850,7 +1039,15 @@ class Runner:
             )
             raise
         self.record.end(entry)
-        self.completed.add(element_id)
+        self.completed[element_id] = self.moment()
+        # An invalidated step — stale inputs, a gone artifact, or a record
+        # deleted from a resumed copy — re-made its values: taint them so
+        # recorded consumers re-run too instead of reusing stale artifacts.
+        # A `volatile` re-run of untouched inputs recomputes the same values,
+        # so it taints nothing and downstream skips stay valid.
+        if stale or verdict == "invalid" or (prior_run is None and bool(self.prior_records)):
+            self.tainted.add(element_id)
+            self.tainted.update(output_targets(element))
         self.event(
             "activity.finished", f"    {element_id} done in {entry['durationMs']}ms",
             level=logging.DEBUG,
@@ -992,9 +1189,10 @@ class Runner:
                 path = self.rundir / uri
                 fmt = format_for(uri, declared_format)
                 save_artifact(bound_value, path, fmt)
+                self.produced[target_id] = self.moment()
                 self.event(
                     "artifact.saved",
-                    f"    save {uri}  {fmt}, {human_bytes(path.stat().st_size)}",
+                    f"    ▤ save {uri}  {fmt}, {human_bytes(path.stat().st_size)}",
                 )
 
     def next_element(self, element: ET.Element) -> ET.Element | None:
@@ -1028,6 +1226,7 @@ class Runner:
                     if verdict:
                         entry["taken"] = {"sequenceFlow": flow.get("id"), "name": flow.get("name")}
                         self.record.end(entry)
+                        self.decisions[element_id] = (flow.get("id"), self.moment())
                         self.event(
                             "sequenceFlow.taken",
                             f"    {expression} → {flow.get('id')}",
@@ -1052,6 +1251,7 @@ class Runner:
                 "sequenceFlow": chosen.get("id"), "name": chosen.get("name"), "default": True,
             }
             self.record.end(entry)
+            self.decisions[element_id] = (chosen.get("id"), self.moment())
             self.event(
                 "sequenceFlow.taken",
                 f"    default → {chosen.get('id')}",
@@ -1098,7 +1298,8 @@ class Runner:
                     # Which end a run reached is the outcome, so it is recorded
                     # like anything else.
                     self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
-                    self.event("event.reached", f"■ {element_id}")
+                    self.reached[element_id] = self.moment()
+                    self.event("event.reached", f"● {element_id}")
                     return
                 if tag in GATEWAY_TAGS:
                     self.event("gateway.reached", f"◆ {element_id}")
@@ -1115,12 +1316,14 @@ class Runner:
                     finally:
                         self.depth = depth
                     self.record.end(entry)
+                    self.completed[element_id] = self.moment()
                     self.event(
                         "activity.finished", f"  {element_id} done in {entry['durationMs']}ms",
                         level=logging.DEBUG,
                     )
                 elif tag in PASSTHROUGH_TAGS:
                     self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
+                    self.reached[element_id] = self.moment()
                     self.event("event.reached", f"○ {element_id}")
                 else:
                     self.run_activity(element)
@@ -1144,15 +1347,35 @@ class Runner:
         edited.
         """
         self.rundir.mkdir(parents=True, exist_ok=True)
-        # Each activity this run actually executed gets its own `executed`
-        # record (replacing an older one); skipped steps keep the record of
-        # the run that really produced their artifacts.
+        # Every element this run touched gets its own record, replacing that
+        # element's record of the same action: activities and events `executed`,
+        # gateways `executed` with the taken flow as `what`, data elements
+        # `created` (this run saved them) or `imported` (staged from outside).
+        # Each record carries the moment it actually happened, not archive
+        # time. Skipped steps keep the record of the run that did the work.
         stamped = self.studyflow.plan
-        when = trail_timestamp(datetime.now(timezone.utc))
-        for element_id in sorted(self.completed):
+        run = self.rundir.name
+        for element_id, when in sorted((self.completed | self.reached).items()):
             stamped = insert_element_entry(
                 stamped, element_id, replace_action="executed",
-                action="executed", when=when, run=self.rundir.name,
+                action="executed", when=when, run=run,
+            )
+        for element_id, (flow_id, when) in sorted(self.decisions.items()):
+            stamped = insert_element_entry(
+                stamped, element_id, replace_action="executed",
+                action="executed", when=when, what=flow_id, run=run,
+            )
+        for element_id, when in sorted(self.produced.items()):
+            stamped = insert_element_entry(
+                stamped, element_id, replace_action="created",
+                action="created", when=when, run=run,
+            )
+        for element_id, when in sorted(self.staged.items()):
+            if element_id in self.produced:
+                continue
+            stamped = insert_element_entry(
+                stamped, element_id, replace_action="imported",
+                action="imported", when=when, run=run,
             )
         plan = self.rundir / source.name
         if not plan.exists():
@@ -1189,7 +1412,7 @@ def main() -> int:
     parser.add_argument(
         "--run-id", default=None,
         help="name of this run's directory under --runs-dir (default: the start time, "
-             "as a sortable UTC stamp)",
+             "compact ISO 8601 with the machine's UTC offset)",
     )
     parser.add_argument(
         "--fresh", action="store_true",
@@ -1205,10 +1428,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    started = datetime.now(timezone.utc)
+    started = datetime.now(timezone.utc).astimezone()
     # One directory per run, named for when it started, so the files inside it
-    # need no timestamp and a second run cannot overwrite the first.
-    run_id = args.run_id or started.strftime("%Y%m%dT%H%M%SZ")
+    # need no timestamp and a second run cannot overwrite the first. The name
+    # is compact ISO 8601 in the machine's own timezone (`20260801T093253+0200`),
+    # the same wall clock the trail's `when` stamps carry.
+    run_id = args.run_id or started.strftime("%Y%m%dT%H%M%S%z")
     rundir = args.workdir / args.runs_dir / run_id
     log = start_logging(rundir, args.quiet)
 

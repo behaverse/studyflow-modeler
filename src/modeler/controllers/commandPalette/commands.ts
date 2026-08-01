@@ -134,6 +134,13 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       icon: ICONS.barChartSteps,
       action: () => openDialog('gantt'),
     },
+    {
+      id: 'view-provenance',
+      group: 'View',
+      label: 'View Provenance...',
+      icon: ICONS.history,
+      action: () => openDialog('provenance'),
+    },
 
     // --- App
     {

@@ -21,6 +21,7 @@ import { ExportDialog } from '@/modeler/views/dialogs/Export';
 import { PublishDialog } from '@/modeler/views/dialogs/Publish';
 import { ChecklistDialog } from '@/modeler/views/dialogs/Checklist';
 import { GanttDialog } from '@/modeler/views/dialogs/Gantt';
+import { ProvenanceDialog } from '@/modeler/views/dialogs/Provenance';
 import { buildPaletteCommands } from '@/modeler/controllers/commandPalette/commands';
 import {
   findCommand,
@@ -40,6 +41,7 @@ const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<{ isOpen: boolean; onCl
   publish: PublishDialog,
   checklist: ChecklistDialog,
   gantt: GanttDialog,
+  provenance: ProvenanceDialog,
 };
 
 function isBareKey(e: ReactKeyboardEvent, key: string): boolean {

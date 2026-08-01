@@ -50,6 +50,10 @@ import {
 } from '@/modeler/controllers/app';
 
 import { runToggleSimulation, type ToggleSimulationCommand } from '@/modeler/controllers/simulation/toggleSimulation';
+import {
+  runInvalidateProvenanceRecord, type InvalidateProvenanceRecordCommand,
+} from '@/modeler/controllers/provenance/invalidateRecord';
+import { runRedo, runUndo, type RedoCommand, type UndoCommand } from '@/modeler/controllers/app/history';
 
 export type ControllerCommand =
   | PaletteStartCreateCommand
@@ -73,7 +77,10 @@ export type ControllerCommand =
   | UpdateStatePropertiesCommand
   | UpdateDataBindingCommand
   | CreateShapeCommand
-  | SetColorCommand;
+  | SetColorCommand
+  | InvalidateProvenanceRecordCommand
+  | UndoCommand
+  | RedoCommand;
 
 /** Adding a new `ControllerCommand` fails compile until it's registered in HANDLERS. */
 type HandlerMap = {
@@ -108,6 +115,9 @@ const HANDLERS: HandlerMap = {
   'update-data-binding': runUpdateDataBinding,
   'create-shape': runCreateShape,
   'set-color': runSetColor,
+  'invalidate-provenance-record': runInvalidateProvenanceRecord,
+  'undo': runUndo,
+  'redo': runRedo,
 };
 
 /** Dispatch a typed `ControllerCommand`; `modeler` is any DI container with `.get(service)`. */
