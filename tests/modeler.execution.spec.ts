@@ -151,11 +151,6 @@ test.describe('Inspector execution tab', () => {
     await page.getByTitle('Open Select Model').click();
     await expect(page.locator('g[data-element-id="Cross_Validate"]')).toBeVisible();
 
-    // The steps lay out in one band along the top, where the floating navbar
-    // would swallow the click; pan the canvas down to clear it.
-    await page.getByTestId('modeler-canvas').hover();
-    await page.mouse.wheel(0, -160);
-
     // Every input of this step is a declared property, so it has no drawn edge
     // at all. Reading the canvas would report an empty data contract; reading
     // the model reports the real one.
@@ -206,8 +201,6 @@ test.describe('Inspector execution tab', () => {
     // on that sub-process's own plane — drill down before looking for it.
     await page.getByTitle('Open Select Model').click();
     await expect(page.locator('g[data-element-id="Build_Pipeline"]')).toBeVisible();
-    await page.getByTestId('modeler-canvas').hover();
-    await page.mouse.wheel(0, -160);
 
     await page.locator('g[data-element-id="Build_Pipeline"]').click();
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();

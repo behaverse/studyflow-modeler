@@ -227,11 +227,13 @@ test.describe('what the inspector reports for a step', () => {
       }),
     ]);
 
-    // A data association between siblings is drawn, so naming the scope would be noise.
+    // A data association between siblings is drawn, so naming the scope would be
+    // noise: the input table sits beside this step inside the `Prepare Data`
+    // phase, joined by an ordinary drawn association.
     const { definitions: sklearn } = await read('sklearn_pipeline.studyflow.png');
     expect(getInferredDataNeighbors(elementById(sklearn, 'Select_Features'), 'inputs')).toEqual([
       expect.objectContaining({
-        name: 'Input dataset (features + target)',
+        name: 'digits.csv',
         outerScope: undefined,
       }),
     ]);
