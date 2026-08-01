@@ -100,11 +100,14 @@ test.describe('Inspector execution tab', () => {
       mimeType: 'image/png',
       buffer: readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow.png')),
     });
-    await expect(page.locator('g[data-element-id="Cross_Validate"]')).toBeVisible();
+    // The example's phases are collapsed sub-processes, so most steps live on
+    // planes of their own; the `Select` phase shape is on the root plane, and
+    // its appearance is the imported-and-rendered signal.
+    await expect(page.locator('g[data-element-id="Select"]')).toBeVisible();
 
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
     // Read on the process, so it has to be one the process declares: the split
-    // parts cross phases, while `features` is scoped to `Prepare the data`.
+    // parts cross phases, while `features` is scoped to `Prepare Data`.
     await expect(page.getByTestId('property-type-X_Train')).toHaveValue('pandas.DataFrame');
 
     // Picking a type the diagram declares reuses its item definition.
@@ -140,6 +143,12 @@ test.describe('Inspector execution tab', () => {
       mimeType: 'image/png',
       buffer: source,
     });
+    await expect(page.locator('g[data-element-id="Select"]')).toBeVisible();
+
+    // `Cross_Validate` sits inside the collapsed `Select Model` phase, which
+    // DI gives a plane of its own — drill down to it through the shape's own
+    // affordance, as a reader would.
+    await page.getByTitle('Open Select Model').click();
     await expect(page.locator('g[data-element-id="Cross_Validate"]')).toBeVisible();
 
     // The steps lay out in one band along the top, where the floating navbar
@@ -162,12 +171,13 @@ test.describe('Inspector execution tab', () => {
     await expect(inputs).toContainText('y_train');
     await expect(outputs).toContainText('cv_scores');
 
-    // Each binding is editable in place: the second cell is the callable
-    // parameter. `estimator` is blank because it binds by the property's own
-    // name; the other two name a different parameter.
-    await expect(page.getByLabel('Binding for x_train')).toHaveValue('X');
-    await expect(page.getByLabel('Binding for y_train')).toHaveValue('y');
-    await expect(page.getByLabel('Binding for estimator')).toHaveValue('');
+    // Each binding is editable in place: the transformation cell carries the
+    // assignment's editable half (`slot = selection`, each half optional).
+    // `estimator` is blank because it binds by the property's own name; the
+    // other two name a different callable parameter.
+    await expect(page.getByLabel('Transformation for x_train')).toHaveValue('X');
+    await expect(page.getByLabel('Transformation for y_train')).toHaveValue('y');
+    await expect(page.getByLabel('Transformation for estimator')).toHaveValue('');
 
     // What tells a property row from a drawn one is the row itself, not a
     // word repeated down the column: a property is bound here, so its row
@@ -175,12 +185,12 @@ test.describe('Inspector execution tab', () => {
     await expect(page.getByRole('button', { name: 'Unbind x_train' })).toBeVisible();
 
     // A data association to something drawn is made by drawing it, so its row is inert —
-    // no parameter box, no unbind — and names its kind on hover.
+    // no transformation box, no unbind — and names its kind on hover.
     await page.locator('g[data-element-id="Summarize_CV"]').click();
-    await expect(inputs).toContainText('self = CV fold metrics report');
-    await expect(page.getByLabel('Binding for CV fold metrics report')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Unbind CV fold metrics report' })).toHaveCount(0);
-    await expect(inputs.getByTitle('self = CV fold metrics report (data object)')).toBeVisible();
+    await expect(inputs).toContainText('self = CV fold metrics');
+    await expect(page.getByLabel('Transformation for CV fold metrics')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Unbind CV fold metrics' })).toHaveCount(0);
+    await expect(inputs.getByTitle('self = CV fold metrics (data object)')).toBeVisible();
   });
 
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
@@ -190,6 +200,11 @@ test.describe('Inspector execution tab', () => {
       mimeType: 'image/png',
       buffer: readFileSync(path.join(process.cwd(), 'src/assets/examples/sklearn_pipeline.studyflow.png')),
     });
+    await expect(page.locator('g[data-element-id="Select"]')).toBeVisible();
+
+    // `Build_Pipeline` is a step of the collapsed `Select Model` phase, drawn
+    // on that sub-process's own plane — drill down before looking for it.
+    await page.getByTitle('Open Select Model').click();
     await expect(page.locator('g[data-element-id="Build_Pipeline"]')).toBeVisible();
     await page.getByTestId('modeler-canvas').hover();
     await page.mouse.wheel(0, -160);
@@ -202,13 +217,13 @@ test.describe('Inspector execution tab', () => {
     await page.getByTestId('bind-input').click();
     await expect(page.getByRole('option', { name: 'x_train', exact: true })).toBeVisible();
 
-    // And scope really bounds the list. This step is in `Select the model`, so
-    // `features` — declared by `Prepare the data`, discarded when that phase
+    // And scope really bounds the list. This step is in `Select Model`, so
+    // `features` — declared by `Prepare Data`, discarded when that phase
     // ended — is not something it could read (BPMN 2.0 §10.4.7).
     await expect(page.getByRole('option', { name: 'features', exact: true })).toHaveCount(0);
 
     await page.getByRole('option', { name: 'x_train', exact: true }).click();
-    await page.getByLabel('Binding for x_train').fill('X');
+    await page.getByLabel('Transformation for x_train').fill('X');
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     // Found by its own key at whatever depth it sits, and delimited by
@@ -226,7 +241,7 @@ test.describe('Inspector execution tab', () => {
     // from one drawn on the canvas.
     expect(block).toContain('dataInputAssociations:');
     expect(block).toMatch(/sourceRef:\n\s+- X_Train/);
-    expect(block).toContain('binding: X');
+    expect(block).toContain('transformation: X');
 
     // The id names the BPMN type it creates, so this input association cannot
     // collide with the output association that already produces `x_train` —
