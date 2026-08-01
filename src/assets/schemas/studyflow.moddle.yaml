@@ -13,7 +13,7 @@ core: true   # backs the default elements; always loaded, cannot be disabled
 order: 10  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0731
+version: 26.0801
 
 # Inspector tabs, in the order they appear, declared here for every schema.
 # An attribute joins a tab by naming it in `meta.categories`; a tab a schema
@@ -712,9 +712,15 @@ types:
   # ===========================================================================
   - name: Implementation
     description: |
-      Adds BPMN's own `implementation` to every service task, so the reference grammar is the same wherever a task runs something.
+      Adds BPMN's own `implementation` to every task type that natively
+      carries it, so the reference grammar is the same wherever a task runs
+      something.
     extends:
       - bpmn:ServiceTask
+      - bpmn:UserTask
+      - bpmn:SendTask
+      - bpmn:ReceiveTask
+      - bpmn:BusinessRuleTask
     isAbstract: true
     properties:
       - name: bpmn:implementation
@@ -724,11 +730,41 @@ types:
           `https://` or `file://` (script).
         isAttr: true
         type: String
+        # moddle resolves the target by attribute name within each extended
+        # type, so this one ref redefines each type's own native attribute.
         redefines: bpmn:ServiceTask#implementation
         meta:
           order: 1
           categories:
             - Execution
+
+  # A ScriptTask's computation is inline, as the standard defines it (§10.3.3):
+  # the native `script` child carries the code and `scriptFormat` names its
+  # language. No `implementation` here — software that lives outside the
+  # diagram is a service task. The redefine surfaces the script in the
+  # inspector; `scriptFormat` needs no field of its own, since the code
+  # editor's language select edits it (`languageAttr` below).
+  - name: Script
+    description: |
+      Surfaces BPMN's own inline script on script tasks: the code this step
+      runs, written in the diagram itself.
+    extends:
+      - bpmn:ScriptTask
+    isAbstract: true
+    properties:
+      - name: bpmn:script
+        description: |
+          The inline script this task runs. Its language is BPMN's own
+          `scriptFormat`, edited in the code editor's language select; left
+          unset, the evaluating engine's own language applies.
+        type: String
+        redefines: bpmn:ScriptTask#script
+        meta:
+          order: 1
+          categories:
+            - Execution
+          editor: code
+          languageAttr: bpmn:scriptFormat
 
   # ===========================================================================
   # The call's configuration. `additionalArguments` is plan, not data flow:

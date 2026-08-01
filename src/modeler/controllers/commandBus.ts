@@ -38,6 +38,9 @@ import {
   runUpdateTransformation, type UpdateTransformationCommand,
 } from '@/modeler/controllers/attributes/updateTransformation';
 import {
+  runUpdateChoreographyParticipants, type UpdateChoreographyParticipantsCommand,
+} from '@/modeler/controllers/attributes/updateChoreographyParticipants';
+import {
   runUpdateLoopCharacteristics, type UpdateLoopCharacteristicsCommand,
   runUpdateStateProperties, type UpdateStatePropertiesCommand,
   runUpdateDataBinding, type UpdateDataBindingCommand,
@@ -73,6 +76,7 @@ export type ControllerCommand =
   | OpenRunnerCommand
   | ImportXmlCommand
   | UpdateAttributeCommand
+  | UpdateChoreographyParticipantsCommand
   | UpdateLoopCharacteristicsCommand
   | UpdateStatePropertiesCommand
   | UpdateDataBindingCommand
@@ -110,6 +114,7 @@ const HANDLERS: HandlerMap = {
   'update-attribute': runUpdateAttribute,
   'update-expression-language': runUpdateExpressionLanguage,
   'update-transformation': runUpdateTransformation,
+  'update-choreography-participants': runUpdateChoreographyParticipants,
   'update-loop-characteristics': runUpdateLoopCharacteristics,
   'update-state-properties': runUpdateStateProperties,
   'update-data-binding': runUpdateDataBinding,

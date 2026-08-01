@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { AttributeFields } from '@/modeler/views/inspector/AttributeField';
+import { ChoreographyParticipantsSection } from '@/modeler/views/inspector/ChoreographyParticipantsSection';
 import { ExecutionSection } from '@/modeler/views/inspector/ExecutionSection';
 import { WireTransformationSection } from '@/modeler/views/inspector/WireTransformationSection';
 import { elementKey } from '@/modeler/views/inspector/elementKey';
@@ -56,7 +57,12 @@ export function CategoryTabs({ element, categories }: Props) {
               {Section
                 ? <Section key={elementKey(element)} attrDefs={attrDefs} />
                 : <AttributeFields attrDefs={attrDefs} />}
-              {name === 'General' ? <WireTransformationSection element={element} /> : null}
+              {name === 'General' ? (
+                <>
+                  <ChoreographyParticipantsSection element={element} />
+                  <WireTransformationSection element={element} />
+                </>
+              ) : null}
             </TabPanel>
           );
         })}

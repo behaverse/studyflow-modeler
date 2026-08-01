@@ -19,10 +19,7 @@ import {
 } from '@/modeler/models/inspector/stateProperties';
 import { field as s } from '@/modeler/infra/styles';
 
-/** Which of these leads the tooltip is the one thing about this element's
- *  declarations that its own row cannot show. */
 const OPENS_A_SCOPE = 'This element opens a scope: what it declares lives for one instance of it.';
-const DECLARED_HERE = 'Declared on this element and read through the scope that contains it.';
 
 const SCOPE_DESCRIPTION =
   'The bpmn:Property children this element declares: values a run carries, '
@@ -35,13 +32,18 @@ const SCOPE_DESCRIPTION =
  * and its extension wrapper, not native child collections). Values are read
  * from the model on every render, so undo/redo stays reflected; each write
  * dispatches `update-state-properties`, one undo step per edit.
+ *
+ * Declaring is the scope's act, so only a process or sub-process gets this
+ * list: a property on a leaf element would be visible to nobody else
+ * (§10.4.7). Steps bind declared properties in the data-flow sections below.
  */
 export function StateSection() {
   const element = useInspectedElement();
   const modeler = useModeler();
 
+  if (!isScopeContainer(element)) return null;
+
   const properties = getStateProperties(element);
-  const scoped = isScopeContainer(element);
   const types = itemTypeOptions(element);
 
   const dispatch = (command: any) =>
@@ -68,7 +70,7 @@ export function StateSection() {
             <HelpTooltip
               testId="state-scope-help"
               name="bpmn:Property"
-              description={`${scoped ? OPENS_A_SCOPE : DECLARED_HERE} ${SCOPE_DESCRIPTION}`}
+              description={`${OPENS_A_SCOPE} ${SCOPE_DESCRIPTION}`}
             />
           </span>
         </div>

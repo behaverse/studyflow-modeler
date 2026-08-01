@@ -56,15 +56,24 @@ test.describe('Inspector execution tab', () => {
     expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_integer');
   });
 
-  test('the tab follows what BPMN allows to carry properties, and edits undo', async ({ page }) => {
+  test('declaring is the scope\'s act: containers get the list, steps bind, and edits undo', async ({ page }) => {
     await gotoModeler(page);
     const inspector = page.getByTestId('inspector-root');
 
-    // An activity may carry properties (§10.3.1) but does not open a scope.
+    // A leaf activity may carry properties in BPMN (§10.3.1), but nobody else
+    // could read one (§10.4.7) — so a task offers no declaration list; it
+    // binds what enclosing scopes declare from the data-flow pickers instead.
     await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
     await inspector.getByRole('tab', { name: 'Execution' }).click();
+    await expect(inspector.getByRole('button', { name: 'Repeats' })).toBeVisible();
+    await expect(inspector.getByTestId('state-section')).toHaveCount(0);
+
+    // A sub-process opens a scope, so it declares.
+    await addPaletteElement(page, 'Containers', 'SubProcess', { x: 620, y: 400 });
+    await page.keyboard.press('Escape');
+    await inspector.getByRole('tab', { name: 'Execution' }).click();
     await page.getByTestId('state-scope-help').hover();
-    await expect(page.getByTestId('state-scope-help-bubble')).toContainText('read through the scope');
+    await expect(page.getByTestId('state-scope-help-bubble')).toContainText('opens a scope');
 
     await page.getByTestId('add-property').click();
     await page.getByLabel('Property name (Property_1)').fill('trial_index');
@@ -76,7 +85,7 @@ test.describe('Inspector execution tab', () => {
 
     // Each edit is one undo step, so the removal comes back with its name.
     // The keys go to the canvas SVG, which the modeler's keyboard listens on,
-    // and the task stays selected — so the Execution tab below is still open.
+    // and the sub-process stays selected — so the Execution tab below is still open.
     await pressOnCanvas(page, 'ControlOrMeta+z');
     await expect(page.getByLabel('Property name (Property_1)')).toHaveValue('trial_index');
   });

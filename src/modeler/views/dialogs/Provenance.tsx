@@ -116,8 +116,7 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
             )}
             {records.length === 0 ? (
               <p className="text-sm text-stone-500 italic">
-                This diagram carries no provenance trail yet. Entries are stamped when
-                the document is exported, imported, or run.
+                This diagram carries no provenance trail yet.
               </p>
             ) : (
               <ol className={`${d.panelBody} space-y-2`} data-testid="provenance-log">

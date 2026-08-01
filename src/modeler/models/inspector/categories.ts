@@ -4,7 +4,7 @@ import { UNDECLARED_CATEGORY_ORDER } from '@/core/catalog/categories';
 import { toLocalName } from '@/core/naming';
 import { isAttributeVisible } from '@/modeler/models/inspector/attributeVisibility';
 import { supportsLoopCharacteristics } from '@/modeler/models/inspector/loopCharacteristics';
-import { supportsStateProperties } from '@/modeler/models/inspector/stateProperties';
+import { isScopeContainer } from '@/modeler/models/inspector/stateProperties';
 
 /**
  * Inspector tabs, ordered as the loaded schemas declare them (each schema's
@@ -90,10 +90,12 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   collect([CHECKLIST_SPEC], () => true);
 
   // Execution is drawn from nested BPMN state no catalog attribute reaches:
-  // the `loopCharacteristics` child, the element's `bpmn:Property` children,
-  // and its data associations. Any one of them is reason enough for the tab —
-  // how often a step runs is part of how it runs, not a question of its own.
-  if (supportsLoopCharacteristics(element) || supportsStateProperties(element)) {
+  // an activity gets the tab for how it runs and what it binds (the
+  // `loopCharacteristics` child, its data associations), a scope container
+  // (process, sub-process) for the `bpmn:Property` state it declares. An
+  // event earns it only through its own attributes (timers) — a property on
+  // one would be visible to nobody else, so nothing here declares it.
+  if (supportsLoopCharacteristics(element) || isScopeContainer(element)) {
     byCategory['Execution'] ??= [];
   }
 

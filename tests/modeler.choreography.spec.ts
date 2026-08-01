@@ -88,4 +88,39 @@ test.describe('Studyflow choreography tasks', () => {
     expect(studyflowText).toContain('name: Subject');
     expect(studyflowText).not.toContain('topParticipant');
   });
+
+  test('participants are editable from the inspector', async ({ page }) => {
+    await gotoModeler(page);
+
+    await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.djs-direct-editing-content')).toBeHidden();
+
+    // The General tab offers the same fields the bands edit in place,
+    // pre-filled with the defaults of a task that has no participants yet.
+    const inspector = page.getByTestId('inspector-root');
+    const topInput = inspector.locator('input[name="choreography:top"]');
+    const bottomInput = inspector.locator('input[name="choreography:bottom"]');
+    await expect(topInput).toHaveValue('Participant A');
+    await expect(bottomInput).toHaveValue('Participant B');
+
+    const shape = page.locator('.djs-element[data-element-id^="ChoreographyTask_"]').first();
+    const visual = shape.locator('.djs-visual');
+
+    await topInput.fill('Subject');
+    await expect(visual).toContainText('Subject');
+    await bottomInput.fill('Experimenter');
+    await expect(visual).toContainText('Experimenter');
+
+    // Switching the initiator flips the band shading: the two fills swap.
+    const bandFills = () => visual.locator('path').evaluateAll(
+      (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
+    );
+    const before = await bandFills();
+    expect(before[0]).not.toBe(before[1]);
+
+    await inspector.getByRole('button', { name: 'Initiating participant' }).click();
+    await page.getByRole('option', { name: 'Experimenter' }).click();
+    await expect.poll(bandFills).toEqual([before[1], before[0]]);
+  });
 });
