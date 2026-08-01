@@ -94,7 +94,7 @@ export async function exportDiagram(
 ): Promise<Download> {
   await runPaletteCommand(page, 'Export...');
   await expect(page.getByTestId('export-dialog')).toBeVisible();
-  await page.getByTestId(`export-format-${format}`).click();
+  await page.getByTestId('export-format').selectOption(format);
 
   for (const [id, on] of Object.entries(embed)) {
     const toggle = page.getByRole('switch', { name: EMBED_SWITCH_LABELS[id] });

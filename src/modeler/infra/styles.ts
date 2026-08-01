@@ -506,31 +506,17 @@ export const examplesList = {
   itemBusy: 'text-xs text-stone-500 mt-1',
 } as const;
 
-// --- Export dialog (format picker + per-format options)
+// --- Export dialog (format dropdown + per-format options)
 
 export const exportDialog = {
-  /** Scrollable format list; the options and footer stay pinned below it. */
-  body: 'flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
-  groupLabel: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500 pt-4 first:pt-0 pb-2',
-  group: 'grid grid-cols-1 sm:grid-cols-2 gap-2',
-
-  /**
-   * One format card. Selection reads as a filled outline, not a radio dot.
-   * `formatIdle` and `formatSelected` are alternatives, never combined: both
-   * set `background` and `border-color`, and concatenating them would leave
-   * the winner to stylesheet order rather than to the selected state.
-   */
-  format: `w-full flex items-start gap-3 text-left ${radius.button}
-           border p-3 cursor-pointer transition-all`,
-  formatIdle: `${surface.card} border-black/[0.06] hover:border-black/[0.14]`,
-  formatSelected: 'bg-cream-300 border-stone-900/70',
-  formatIcon: 'text-[16px] text-stone-500 shrink-0 mt-0.5',
-  formatText: 'min-w-0 flex-1',
-  /** Label and description are spans (a button only takes phrasing content),
-   *  so they need an explicit `block` to stack. */
-  formatLabel: `block text-[13px] font-semibold tracking-tight ${text.primary}`,
-  formatExtension: 'font-mono text-[11px] font-normal text-stone-500 ms-1.5',
-  formatDescription: 'block text-[12px] leading-snug text-stone-600 mt-0.5',
+  /** "Format" label beside a dropdown grouped by format category. */
+  formatRow: 'flex items-center gap-3',
+  formatLabel: `text-[13px] font-medium ${text.secondary} shrink-0`,
+  selectWrapper: 'relative flex-1 min-w-0',
+  select: `appearance-none w-full px-2.5 py-1.5 pr-8 ${radius.field}
+           border border-black/[0.08] bg-cream-100 text-[13px] text-stone-900
+           focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer`,
+  selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2.5 text-stone-500 text-[12px]`,
 
   /** Embed options, shown only for formats that can carry a payload. */
   options: 'mt-4 pt-4 border-t border-black/[0.06] space-y-3',

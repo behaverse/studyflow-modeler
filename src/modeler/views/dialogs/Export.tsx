@@ -66,44 +66,36 @@ export function ExportDialog({ isOpen, onClose }: Props) {
     <Dialog open={isOpen} onClose={onClose} className={d.root}>
       <div className={d.backdrop}>
         <div className={d.centerLayout}>
-          <DialogPanel transition className={`${d.panelMd} ${d.panel}`} data-testid="export-dialog">
-            <DialogTitle as="h3" className={`${d.title} pb-3`}>
+          <DialogPanel transition className={`${d.panelSm} ${d.panel}`} data-testid="export-dialog">
+            <DialogTitle as="h3" className={`${d.title} pb-4`}>
               Export
               <span className={d.closeButton} onClick={onClose}>
                 <i className={ICONS.close}></i>
               </span>
             </DialogTitle>
-            <p className={`${d.body} pb-4`}>
-              Downloads to your browser's Downloads folder.
-            </p>
 
-            <div className={s.body}>
-              {EXPORT_FORMAT_GROUPS.map(([group, formats]) => (
-                <div key={group}>
-                  <div className={s.groupLabel}>{group}</div>
-                  <div className={s.group}>
-                    {formats.map((candidate) => (
-                      <button
-                        key={candidate.id}
-                        type="button"
-                        data-testid={`export-format-${candidate.id}`}
-                        aria-pressed={candidate.id === formatId}
-                        onClick={() => setFormatId(candidate.id)}
-                        className={`${s.format} ${candidate.id === formatId ? s.formatSelected : s.formatIdle}`}
-                      >
-                        <i className={`${candidate.icon} ${s.formatIcon}`}></i>
-                        <span className={s.formatText}>
-                          <span className={s.formatLabel}>
-                            {candidate.label}
-                            <span className={s.formatExtension}>{candidate.extension}</span>
-                          </span>
-                          <span className={s.formatDescription}>{candidate.description}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className={s.formatRow}>
+              <label htmlFor="export-format-select" className={s.formatLabel}>Format</label>
+              <div className={s.selectWrapper}>
+                <select
+                  id="export-format-select"
+                  data-testid="export-format"
+                  value={formatId}
+                  onChange={(e) => setFormatId(e.target.value as ExportFormatId)}
+                  className={s.select}
+                >
+                  {EXPORT_FORMAT_GROUPS.map(([group, formats]) => (
+                    <optgroup key={group} label={group}>
+                      {formats.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.label} ({candidate.extension})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <i className={s.selectChevron} aria-hidden="true" />
+              </div>
             </div>
 
             {format.embeddable && (
