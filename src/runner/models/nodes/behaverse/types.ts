@@ -30,9 +30,9 @@
  *   UFOV. Capturing the screen costs a synchronous readback; only enable
  *   when needed.
  *
- * Note: Unity has no infinite-wait flag today (see GameManager.AwaitExternal-
- * ResponseAsync). Bump `MaxResponseTime` in the inline `configurations` YAML
- * to give the LLM time to reply.
+ * Note: Unity has no infinite-wait flag today (see AssessmentRuntime.Await-
+ * ExternalResponseAsync). Bump `MaxResponseTime` in the inline `configurations`
+ * YAML to give the LLM time to reply.
  */
 export type BehaverseBotPayload = Record<string, unknown>;
 
@@ -52,6 +52,12 @@ export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt'] as const;
 export type BehaverseTaskPayload = {
   scene: string;
   timeline?: string;
+  /** Which config Unity's `Activity.ConfigMode` should read. Derived from the
+   *  `configurations` body, never authored: a body holding only by-name-only
+   *  (null-bodied) `Timelines` references is `builtin` and ships no
+   *  `parameters`; anything else is `inline`. Unity treats a missing value as
+   *  `builtin` and silently drops `parameters`, so the parser always sets it. */
+  configMode: 'builtin' | 'inline';
   parameters?: Record<string, unknown>;
   agentType: 'human' | 'bot';
   bot?: BehaverseBotPayload;

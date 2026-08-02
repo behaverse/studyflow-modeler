@@ -37,7 +37,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
     let cancelled = false;
     const src = buildBehaverseIframeSrc();
     if (iframeRef.current) {
-      // Fresh Unity instance per task: Application.Quit tears down GameManager.
+      // Fresh Unity instance per task: Application.Quit tears down the AssessmentRuntime.
       iframeRef.current.src = src;
     }
 

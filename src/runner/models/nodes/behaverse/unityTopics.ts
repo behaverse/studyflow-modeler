@@ -2,7 +2,7 @@
  * The Unity <-> runner wire protocol.
  *
  * Topic strings and payload shapes mirror the C# source of truth
- * (browser_bridge.jslib + GameManager). Unity dispatches each topic as BOTH a
+ * (browser_bridge.jslib + AssessmentRuntime). Unity dispatches each topic as BOTH a
  * CustomEvent (on the iframe window, forwarded to the parent) and a parent
  * postMessage; {@link subscribeUnityTopic} listens on all channels, so
  * handlers must be idempotent or dedupe by a request id.

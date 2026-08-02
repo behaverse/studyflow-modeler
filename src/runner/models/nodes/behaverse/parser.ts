@@ -43,6 +43,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   const payload: BehaverseTaskPayload = {
     scene,
     agentType,
+    configMode: 'builtin',
     metadata: { studyflowNodeId: node.id },
   };
 
@@ -60,14 +61,31 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
         `Behaverse task ${node.id}: \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
       );
     }
-    const parameters = parsed as Record<string, unknown>;
-    payload.parameters = parameters;
-    // First timeline key keys the bridge's completion matcher. A build-shipped
-    // timeline is listed by name only; an inline one carries its own definition.
+    const parameters = { ...(parsed as Record<string, unknown>) };
+    // First timeline key keys the bridge's completion matcher and names the
+    // timeline Unity runs. A build-shipped timeline is listed by name only; an
+    // inline one carries its own definition.
     const timelines = parameters.Timelines as Record<string, unknown> | undefined;
     if (timelines && typeof timelines === 'object') {
       const firstTimelineKey = Object.keys(timelines)[0];
       if (firstTimelineKey) payload.timeline = firstTimelineKey;
+      // Strip the by-name-only (null-bodied) entries from the wire parameters:
+      // `payload.timeline` already carries the chosen name, and Unity layers
+      // `parameters` over Resources/<scene>.json with null-merging semantics,
+      // so shipping `{Name: null}` would erase the build's definition of the
+      // very timeline the reference points at.
+      const inlineTimelines = Object.fromEntries(
+        Object.entries(timelines).filter(([, definition]) => definition != null),
+      );
+      if (Object.keys(inlineTimelines).length > 0) parameters.Timelines = inlineTimelines;
+      else delete parameters.Timelines;
+    }
+    // Whatever remains is a real override, so the payload switches to inline
+    // mode - Unity only reads `parameters` when told to. A body that held only
+    // builtin references stays in builtin mode and ships no parameters at all.
+    if (Object.keys(parameters).length > 0) {
+      payload.configMode = 'inline';
+      payload.parameters = parameters;
     }
   }
 

@@ -20,6 +20,18 @@ import {
   type UnityWindow,
 } from '@/runner/models/nodes/behaverse/unityTopics';
 
+/** GameObjects that receive runner SendMessages. The singleton was renamed
+ *  `GameManager` -> `AssessmentRuntime` in assessment-unity's config-migration
+ *  (July 2026), and exactly one of the two exists in any given build - so every
+ *  message goes to both names, and the absent one costs a harmless
+ *  "object not found" line in the Unity console. Drop `GameManager` once no
+ *  pre-migration WebGL build is served anymore. */
+const RUNTIME_OBJECTS = ['AssessmentRuntime', 'GameManager'] as const;
+
+function sendToRuntime(unity: UnityInstance, method: string, json: string): void {
+  for (const name of RUNTIME_OBJECTS) unity.SendMessage(name, method, json);
+}
+
 /** Send a task to Unity and resolve when the matching TASK_COMPLETED event fires. */
 export function runOnUnity(
   unity: UnityInstance,
@@ -40,7 +52,7 @@ export function runOnUnity(
       // happen on the LLM/random path but the InjectResponse contract allows it).
       const responseOptionIndex = detail.ResponseOptions.indexOf(response);
       try {
-        unity.SendMessage('GameManager', 'InjectResponse', JSON.stringify({
+        sendToRuntime(unity, 'InjectResponse', JSON.stringify({
           RequestId: detail.RequestId,
           Response: response,
           ResponseOptionIndex: responseOptionIndex,
@@ -80,7 +92,7 @@ export function runOnUnity(
 
     try {
       const unityPayload = { ...payload, bot: botForUnity(payload.bot) };
-      unity.SendMessage('GameManager', 'RunCognitiveTask', JSON.stringify(unityPayload));
+      sendToRuntime(unity, 'RunCognitiveTask', JSON.stringify(unityPayload));
     } catch (err) {
       cleanup();
       reject(err);
@@ -89,7 +101,7 @@ export function runOnUnity(
 }
 
 /** Wait for `studyflow:Ready` - the combined signal that Unity is loaded AND
- *  GameManager is up. Resolves with the `unityInstance` handle. */
+ *  the AssessmentRuntime is up. Resolves with the `unityInstance` handle. */
 export function waitForReady(
   getIframe: () => HTMLIFrameElement | null,
   timeoutMs = 60_000,

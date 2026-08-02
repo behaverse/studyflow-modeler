@@ -35,7 +35,16 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     }];
   }
 
-  if (!payload.parameters || Object.keys(payload.parameters).length === 0) {
+  // Validate what the author wrote, not the wire payload: the parser strips
+  // by-name-only timeline references out of `payload.parameters` (a pure-
+  // reference body ships none at all), so the authored YAML is re-read here.
+  // It parsed once already inside getBehaverseTaskPayload, so this cannot throw.
+  const rawConfigurations = readBehaverseBody(node.businessObject, 'configurations');
+  const authored = rawConfigurations && rawConfigurations.trim()
+    ? (yaml.load(rawConfigurations) as Record<string, unknown>)
+    : undefined;
+
+  if (!authored || Object.keys(authored).length === 0) {
     issues.push({
       nodeId: node.id,
       taskId: payload.scene,
@@ -45,7 +54,7 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     // A timeline listed by name only (null body) references one shipped with
     // the build, so validate it against the manifest. A timeline with its own
     // definition is run inline and won't be in the manifest - skip it.
-    const timelines = payload.parameters.Timelines as Record<string, unknown> | undefined;
+    const timelines = authored.Timelines as Record<string, unknown> | undefined;
     if (timelines && typeof timelines === 'object') {
       for (const [name, def] of Object.entries(timelines)) {
         if (def == null && !manifestTask.timelines.includes(name)) {
