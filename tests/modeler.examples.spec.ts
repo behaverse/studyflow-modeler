@@ -2,15 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { gotoModeler, runPaletteCommand } from './utils';
 
-/**
- * The Examples gallery: a card per shipped diagram, grouped into categories
- * and previewed by the diagram itself.
- *
- * The preview is the load-bearing part — it is what tells a newcomer what a
- * study *looks like* before opening it — so these check that the image really
- * renders (a broken `src` still lays out) and that a card opens the diagram it
- * pictures.
- */
+/** The Examples gallery: a card per shipped diagram, grouped into categories. */
 
 test.describe('Examples gallery', () => {
   test('a card previews its diagram and opens it', async ({ page }) => {
@@ -21,7 +13,6 @@ test.describe('Examples gallery', () => {
     await expect(dialog).toBeVisible();
 
     const card = page.getByTestId('example-cognitive_battery');
-    // Title and one-sentence blurb come from the diagram's own documentation.
     await expect(card).toContainText('Within-subject cognitive battery');
     await expect(card).toContainText('Chains N-Back, Digit Span, SART');
 
@@ -37,12 +28,7 @@ test.describe('Examples gallery', () => {
   });
 
   test('a pool diagram is read from both its roots', async ({ page }) => {
-    // A collaboration and the process it wraps are both roots, and they split
-    // the card between them: spirit2025 names and shelves the collaboration
-    // (the root the plane draws, and the one the modeler reads and writes) and
-    // documents the process inside it. Asking a single root for everything
-    // drops half the card — which is what the plain-XML reader cannot be
-    // tested for in Node, since it parses with DOMParser.
+    // spirit2025 splits its card across both roots: name/shelf on the collaboration, documentation on the process.
     await gotoModeler(page);
     await runPaletteCommand(page, 'Examples...');
 
@@ -56,7 +42,6 @@ test.describe('Examples gallery', () => {
     await gotoModeler(page);
     await runPaletteCommand(page, 'Examples...');
 
-    // Everything shows until a category is picked.
     await expect(page.getByTestId('example-consort2025')).toBeVisible();
     await expect(page.getByTestId('example-bot_claude')).toBeVisible();
 

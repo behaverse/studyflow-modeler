@@ -2,25 +2,18 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { readChoreographyBands } from '../src/core/codec/choreography';
-import { ensureChoreographyParticipants, swapChoreographyInitiator } from '../src/modeler/models/choreographyParticipants';
-import { toModdlePackages } from '../src/core/schema';
+import { readChoreographyBands } from '../src/core/document';
+import { ensureChoreographyParticipants, swapChoreographyInitiator } from '../src/modeler/bpmn/choreographyParticipants';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 
-/**
- * Model-level guarantees for the choreography participant helpers the modeler's
- * label editor and context pad drive: a fresh task materializes two
- * participants into a headless collaboration and references them natively, and
- * the initiator flip flips `initiatingParticipantRef`. Uses a fake `modeling`
- * that applies moddle properties directly, so it needs no bpmn-js / DOM.
- */
+/** Choreography participant helpers: materializing two participants, and flipping `initiatingParticipantRef`. */
 
 const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
 
-/** Minimal stand-ins for bpmn-js `modeling` and `bpmnFactory`. */
 const fakeModeling = {
   updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {
     for (const [k, v] of Object.entries(props)) target.set(k, v);
@@ -46,18 +39,14 @@ test('materializes two participants into a headless collaboration on first need'
   expect(top.name).toBe('Participant A');
   expect(bottom.name).toBe('Participant B');
 
-  // The task references them natively; they live in a collaboration root (a
-  // Participant is not a RootElement).
   expect(task.get('participantRef')).toEqual([top, bottom]);
   expect(task.get('initiatingParticipantRef')).toBe(top);
   const collaboration = definitions.get('rootElements').find((r: any) => r.$type === 'bpmn:Collaboration');
   expect(collaboration).toBeTruthy();
   expect(collaboration.get('participants')).toEqual([top, bottom]);
 
-  // The shared reader sees them as bands, top-initiated.
   expect(readChoreographyBands(task)).toEqual({ top: 'Participant A', bottom: 'Participant B', initiator: 'top' });
 
-  // Calling again is idempotent — no duplicate participants.
   ensureChoreographyParticipants(element, fakeModeling, bpmnFactory);
   expect(collaboration.get('participants')).toHaveLength(2);
 });

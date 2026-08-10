@@ -3,9 +3,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #   "pyyaml>=6.0",
-#   # Below here is not the runner's: it is what the shipped sklearn_pipeline
-#   # example's steps import when called, declared so the example needs no setup.
-#   # Another studyflow brings its own: `uv run --with <pkg> studyflow_run.py …`.
+#   # Below here belongs to the shipped sklearn_pipeline example, not the runner.
 #   "pandas>=2.0",
 #   "scikit-learn>=1.4",
 #   "joblib>=1.3",
@@ -16,22 +14,17 @@
 """A reference runner for the studyflow execution contract.
 
 It keeps one claim honest: a studyflow is executable as it stands, with no
-companion script telling an engine what the boxes mean.
+companion script telling an engine what the boxes mean. See README.md for the
+contract this implements and the terms it writes.
 
     uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.studyflow.png
 
-Each run writes `results/<timestamp>/`: the artifacts the studyflow's `uri`s
-name, a copy of the studyflow itself — its provenance trail stamped `executed`,
-so the copy carries its own run record — and `studyflow.log` (plain text, one
-line per event, for eyes and `grep`).
-
-See README.md for the contract this implements and the terms it writes.
-Expressions are Python or JavaScript: each expression element may carry
-BPMN's own per-expression `language` attribute, and one without it runs in the
-evaluating engine's own language — Python here, JavaScript in the browser
-runner. The check happens only when an engine actually evaluates. One
-limitation: the walk is one token, so there are no parallel gateways and no
-multi-instance fan-out.
+Each run writes `runs/<timestamp>/`: the artifacts the `uri`s name, a copy of
+the studyflow stamped `executed` (the copy carries its own run record), and
+`studyflow.log`. Expressions run in the evaluating engine's own language
+(Python here, JavaScript in the browser runner) unless BPMN's per-expression
+`language` attribute says otherwise. The walk is one token: no parallel
+gateways, no multi-instance fan-out.
 """
 
 from __future__ import annotations
@@ -62,17 +55,14 @@ import yaml
 
 BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
-# The provenance trail's namespace (the modeler's `prov.moddle.yaml`).
 PROV_TRAIL = "https://w3id.org/studyflow/prov"
 
 
 def studyflow_attr(element: ET.Element, name: str) -> str | None:
-    """A studyflow-namespaced attribute of `element`."""
     return element.get(f"{{{STUDYFLOW}}}{name}")
 
 
 def studyflow_child(element: ET.Element, name: str) -> ET.Element | None:
-    """A studyflow-namespaced child element of `element`."""
     return element.find(f"{{{STUDYFLOW}}}{name}")
 
 
@@ -81,29 +71,21 @@ END_TAGS = {"endEvent"}
 GATEWAY_TAGS = {
     "exclusiveGateway", "inclusiveGateway", "complexGateway", "eventBasedGateway",
 }
-# Containers whose children are a flow of their own.
 CONTAINER_TAGS = {"subProcess", "adHocSubProcess", "transaction"}
-# Elements the walk passes through without calling anything.
 PASSTHROUGH_TAGS = {"startEvent", "intermediateCatchEvent", "intermediateThrowEvent"}
 
 
 def local(element: ET.Element) -> str:
-    """Tag name without its namespace."""
     return element.tag.split("}")[-1]
 
 
 def bpmn_type(element: ET.Element) -> str:
-    """The type as the modeler spells it (`bpmn:ServiceTask`), not as XML does."""
     tag = local(element)
     return f"bpmn:{tag[:1].upper()}{tag[1:]}"
 
 
 def split_binding(text: str | None) -> tuple[str | None, str | None]:
-    """`slot = selection` -> its halves, each optional (the transformation grammar).
-
-    A bare identifier (or `self`/`*`) is a slot; `=` splits the halves (`==`
-    belongs to the selection); anything else is a selection alone.
-    """
+    """Grammar: `slot = selection`, either half optional; `==` belongs to the selection, not the split."""
     value = (text or "").strip()
     if not value:
         return None, None
@@ -115,22 +97,15 @@ def split_binding(text: str | None) -> tuple[str | None, str | None]:
     return None, value
 
 
-# ---------------------------------------------------------------------------
-# The log
-# ---------------------------------------------------------------------------
-
 LOG = logging.getLogger("studyflow")
 
 
 class RunLogFormatter(logging.Formatter):
-    """`time level event message`, the layout log4j and `.nextflow.log` settled on."""
-
     def format(self, record: logging.LogRecord) -> str:
         moment = datetime.fromtimestamp(record.created, timezone.utc).strftime("%H:%M:%S.%f")[:-3]
         event = getattr(record, "event", "message")
         message = f"{getattr(record, 'indent', '')}{record.getMessage()}"
-        # 29 = `conditionExpression.evaluated`, so every message starts in the
-        # same column and only the walk's indentation moves.
+        # 29 = len("conditionExpression.evaluated"), so every message starts in the same column.
         line = f"{moment} {record.levelname:<5} {event:<29} {message}"
         if record.exc_info:
             line += "\n" + self.formatException(record.exc_info)
@@ -138,8 +113,6 @@ class RunLogFormatter(logging.Formatter):
 
 
 class ConsoleFormatter(logging.Formatter):
-    """The same events at a terminal: message alone, indented as the walk nests."""
-
     def format(self, record: logging.LogRecord) -> str:
         return f"{getattr(record, 'indent', '')}{record.getMessage()}"
 
@@ -148,7 +121,6 @@ QUIET = False
 
 
 def start_logging(directory: Path, quiet: bool) -> Path:
-    """Open `studyflow.log` in the run directory — which is already named for the run."""
     global QUIET
     QUIET = quiet
     directory.mkdir(parents=True, exist_ok=True)
@@ -165,7 +137,6 @@ def start_logging(directory: Path, quiet: bool) -> Path:
     LOG.addHandler(to_file)
 
     if not quiet:
-        # `--quiet` silences the terminal, never the file.
         to_console = logging.StreamHandler(sys.stdout)
         to_console.setFormatter(ConsoleFormatter())
         to_console.setLevel(logging.INFO)
@@ -182,13 +153,10 @@ def log_event(
     indent: str = "",
     exc_info: BaseException | None = None,
 ) -> None:
-    """Log one studyflow event under the studyflow noun it belongs to."""
     LOG.log(level, message, exc_info=exc_info, extra={"event": event, "indent": indent})
 
 
 class TeeStream:
-    """Pass writes through to the real stream, keeping a copy for the log."""
-
     def __init__(self, original: Any, passthrough: bool) -> None:
         self.original = original
         self.passthrough = passthrough
@@ -207,17 +175,7 @@ class TeeStream:
 
 @contextmanager
 def captured_output(indent: str = ""):
-    """Tee a step's own console output into the log.
-
-    What a called function prints belongs in `studyflow.log` with everything
-    else the step did — running in a terminal and reading the log afterwards
-    must tell the same story. The terminal still gets it live (`--quiet`
-    silences that, never the file); the captured lines land in the file as
-    DEBUG `stdout` / `stderr` events once the step returns, so the console
-    handler (INFO) does not print them a second time. The runner's own log
-    lines bypass the tee: the console handler bound the real stream before
-    any step ran.
-    """
+    """Captured lines land as DEBUG, so the INFO console handler never prints them a second time."""
     out = TeeStream(sys.stdout, passthrough=not QUIET)
     err = TeeStream(sys.stderr, passthrough=not QUIET)
     try:
@@ -231,7 +189,6 @@ def captured_output(indent: str = ""):
 
 
 def human_bytes(count: int) -> str:
-    """A byte count as a person would say it."""
     size = float(count)
     for unit in ("B", "KB", "MB"):
         if size < 1024 or unit == "MB":
@@ -241,7 +198,6 @@ def human_bytes(count: int) -> str:
 
 
 def summarize(value: Any) -> str:
-    """`describe()` in one phrase — `pandas.DataFrame 1347×64`."""
     described = describe(value)
     if "shape" in described:
         return f"{described['type']} {'×'.join(str(n) for n in described['shape'])}"
@@ -252,12 +208,7 @@ def summarize(value: Any) -> str:
     return described["type"]
 
 
-# ---------------------------------------------------------------------------
-# Reading the studyflow
-# ---------------------------------------------------------------------------
-
 def studyflow_from_png(path: Path) -> str:
-    """The studyflow inside a PNG: the picture and the source are one file."""
     data = path.read_bytes()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError(f"{path} is not a PNG")
@@ -280,14 +231,10 @@ def studyflow_from_png(path: Path) -> str:
 
 
 def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
-    """The write half of `studyflow_from_png`: replace the `studyflow` iTXt
-    chunk so a copied figure carries the stamped source. Mirrors the modeler's
-    `pngEmbedding.ts` - drop text chunks already keyed `studyflow`, splice the
-    new one in front of IEND."""
+    """Mirrors the modeler's `pngEmbedding.ts`: drop text chunks keyed `studyflow`, splice before IEND."""
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError("not a PNG")
-    # iTXt data: keyword NUL, compression flag + method (0 0 = uncompressed),
-    # empty language tag NUL, empty translated keyword NUL, UTF-8 text.
+    # iTXt: keyword NUL, flag+method (0 0 = uncompressed), empty language NUL, empty keyword NUL, text.
     payload = b"studyflow\x00\x00\x00\x00\x00" + xml.encode()
     chunk = (
         struct.pack(">I", len(payload)) + b"iTXt" + payload
@@ -309,12 +256,7 @@ def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
 
 
 def trail_timestamp(moment: datetime) -> str:
-    """ISO 8601 at second precision, in the machine's own timezone.
-
-    The numeric offset (`2026-08-01T09:12:04+02:00`) keeps the instant exact
-    while preserving the runner's wall clock — what "9am" meant to whoever ran
-    it. Older files carry `Z` stamps; both forms are valid ISO 8601 instants.
-    """
+    """ISO 8601, second precision, local numeric offset. Older files carry `Z` stamps."""
     return moment.astimezone().replace(microsecond=0).isoformat()
 
 
@@ -322,20 +264,7 @@ TRAIL_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
 
 
 def insert_element_entry(xml: str, element_id: str, replace_action: str | None = None, **fields: str) -> str:
-    """Append one `<prov:activity>` line under `element_id`'s `extensionElements`.
-
-    Anchored purely on the element: BPMN's base-element sequence is
-    `documentation*` then `extensionElements?`, so the element's own wrapper is
-    whatever follows its documentation children — never a free search, which
-    could land on a nested child's block. A missing wrapper is created in that
-    same slot; an element may hold at most one, and a duplicate would be
-    dropped wholesale by moddle-based readers. With `replace_action`, an
-    existing entry of that action inside the element's own block is removed
-    first — one completion record per element, the latest run's. Works on the
-    XML text rather than the parsed tree on purpose: ElementTree rewrites every
-    namespace prefix on serialization, and a stamped copy should diff against
-    its source by the stamped lines alone.
-    """
+    """Text, not tree: ElementTree rewrites every namespace prefix, so a stamped copy would diff everywhere."""
     definitions = re.search(r"<(?:[\w.-]+:)?definitions\b[^>]*>", xml)
     if definitions is None:
         return xml
@@ -354,7 +283,7 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
 
     element = re.search(rf'<((?:[\w.-]+:)?)[\w.-]+\b[^>]*\bid="{re.escape(element_id)}"[^>]*>', xml)
     if element is None or element.group(0).endswith("/>"):
-        return xml  # absent, or self-closing and unable to hold children
+        return xml
 
     line_start = xml.rfind("\n", 0, element.start()) + 1
     lead = xml[line_start:element.start()]
@@ -395,7 +324,6 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
 
 
 def output_targets(element: ET.Element) -> list[str]:
-    """Ids of the data elements the activity's output associations fill."""
     targets: list[str] = []
     for association in element:
         if local(association) != "dataOutputAssociation":
@@ -410,24 +338,17 @@ def output_targets(element: ET.Element) -> list[str]:
 def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
     xml = studyflow_from_png(path) if path.suffix.lower() == ".png" else path.read_text()
     if stamp:
-        # Stamped before anything digests it, so the sha256 the run record
-        # carries is true of the plan copied into the run directory.
         probe = Studyflow(ET.fromstring(xml))
         xml = insert_element_entry(xml, probe.process.get("id") or "", **stamp)
     return Studyflow(ET.fromstring(xml), plan=xml)
 
 
 class Studyflow:
-    """The parts of a `bpmn:Definitions` this runner walks."""
-
     def __init__(self, definitions: ET.Element, plan: str = "") -> None:
         self.definitions = definitions
-        # The plan's own bytes, so the provenance can pin the exact document.
         self.plan = plan
         self.process = self._find_process()
 
-        # Indexed to any depth: BPMN ids are unique per document, and a nested
-        # step reads the same properties as its parent's (§10.4.7).
         self.elements: dict[str, ET.Element] = {}
         self.outgoing: dict[str, list[ET.Element]] = {}
 
@@ -442,14 +363,12 @@ class Studyflow:
 
         index(self.process)
 
-        # The identifier-like names an expression or a `$ref` may use.
         self.names: dict[str, str] = {}
         for element_id, element in self.elements.items():
             name = element.get("name")
             if name and re.fullmatch(r"[A-Za-z_]\w*", name):
                 self.names[element_id] = name
 
-        # Lazily built by `consumes` / `is_product`.
         self._consumers: tuple[set[str], str] | None = None
         self._products: set[str] | None = None
 
@@ -460,16 +379,7 @@ class Studyflow:
         raise ValueError("no process with a sequence flow to walk")
 
     def element_records(self) -> dict[str, str]:
-        """Per-element `executed` records: element id -> the run that did it.
-
-        Written onto each completed activity when a run archives its plan, so
-        an archived copy re-runs *partially*: recorded steps with their
-        artifacts still on disk are skipped. An `invalidated` entry voids the
-        element's `executed` record of the same `run` (or any run, when the
-        marker names none) without deleting it — the history stays, the step
-        re-runs. Deleting the record or the artifact it vouches for still
-        works too.
-        """
+        """Element id -> the run that executed it. An `invalidated` entry voids the matching `executed`."""
         records: dict[str, str] = {}
         process_id = self.process.get("id")
         for element_id, element in self.elements.items():
@@ -498,9 +408,6 @@ class Studyflow:
         return records
 
     def activity_dependencies(self, element: ET.Element) -> tuple[set[str], str]:
-        """What an activity reads: its input associations' source ids, `$ref`
-        heads in `additionalArguments`, and the expression text its bindings
-        evaluate — the text is kept for name-based references."""
         sources: set[str] = set()
         texts: list[str] = []
         for association in element:
@@ -518,8 +425,6 @@ class Studyflow:
         return sources, " ".join(texts)
 
     def is_product(self, element_id: str) -> bool:
-        """Whether any step's output association targets this data element.
-        Its complement is a boundary input: a file the studyflow only reads."""
         if self._products is None:
             products: set[str] = set()
             for node in self.definitions.iter():
@@ -531,14 +436,7 @@ class Studyflow:
         return element_id in self._products
 
     def consumes(self, element_id: str) -> bool:
-        """Whether any step reads this data element's value.
-
-        Read paths are `dataInputAssociation` sources, `$ref`s in
-        `additionalArguments`, and free identifiers in expression bodies
-        (transformations, conditions) — the latter two checked textually, by
-        id and identifier-like name. The bias is deliberate: a false positive
-        merely keeps the eager skip-probe load, never skips too much.
-        """
+        """Textual by id and name, deliberately over-broad: a false positive costs a load, never a wrong skip."""
         if self._consumers is None:
             sources: set[str] = set()
             texts: list[str] = []
@@ -565,12 +463,6 @@ class Studyflow:
         raise ValueError(f"no start event in {(container or self.process).get('id')}")
 
     def artifact(self, element_id: str) -> tuple[str | None, str | None]:
-        """`uri` and `format` of a data element, or (None, None).
-
-        `format` belongs to whichever schema typed the element (a Table's, a
-        domain wrapper's), so it is read by local name across namespaces; the
-        executable layer adds only `uri`.
-        """
         element = self.elements.get(element_id)
         if element is None or local(element) not in DATA_ELEMENT_TAGS:
             return None, None
@@ -581,15 +473,10 @@ class Studyflow:
         return studyflow_attr(element, "uri"), fmt
 
     def name_of(self, element_id: str) -> str:
-        """The element's `bpmn:name`, or its id when it has none."""
         element = self.elements.get(element_id)
         return (element.get("name") if element is not None else None) or element_id
 
 
-
-# ---------------------------------------------------------------------------
-# Artifacts
-# ---------------------------------------------------------------------------
 
 def format_for(uri: str, declared: str | None) -> str:
     if declared:
@@ -603,7 +490,7 @@ def load_artifact(path: Path, fmt: str) -> Any:
         return pandas.read_parquet(path)
     if fmt == "csv":
         import pandas
-        return pandas.read_csv(path)  # see save_artifact on the index
+        return pandas.read_csv(path)
     if fmt == "json":
         return json.loads(path.read_text())
     if fmt == "joblib":
@@ -617,8 +504,6 @@ def save_artifact(value: Any, path: Path, fmt: str) -> None:
     if fmt == "parquet":
         value.to_parquet(path)
     elif fmt == "csv":
-        # A CSV has no schema, so the index is a decision: row numbers are not
-        # data and go, a meaningful index is what the rows are called and stays.
         import pandas
         positional = isinstance(value.index, pandas.RangeIndex)
         value.to_csv(path, index=not positional)
@@ -628,64 +513,40 @@ def save_artifact(value: Any, path: Path, fmt: str) -> None:
         import joblib
         joblib.dump(value, path)
     elif fmt in ("png", "svg", "pdf"):
-        # A figure is an artifact like any other; `savefig` reads the suffix.
         value.savefig(path, dpi=150, bbox_inches="tight")
     else:
         raise ValueError(f"no handler for format {fmt!r} ({path})")
 
 
-# ---------------------------------------------------------------------------
-# Boundary inputs
-# ---------------------------------------------------------------------------
-
 def write_digits_table(path: Path) -> None:
-    """scikit-learn's digits set as the CSV `sklearn_pipeline` declares."""
     from sklearn.datasets import load_digits
 
     frame = load_digits(as_frame=True).frame
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Row numbers are not data: the 64 pixel columns and `target` are.
     frame.to_csv(path, index=False)
 
 
-# A boundary input is an artifact a run reads and no step produces, so the
-# notation cannot say how to make one. This is not part of the contract: it is
-# one shipped example's own input, keyed by its `uri`, so the example costs one
-# command rather than two. `--no-prepare-inputs` turns even this off.
+# Not part of the contract: a shipped example's boundary inputs, keyed by `uri`. `--no-prepare-inputs` skips them.
 BOUNDARY_INPUTS: dict[str, Callable[[Path], None]] = {
     "digits.csv": write_digits_table,
 }
 
 
-# ---------------------------------------------------------------------------
-# The run
-# ---------------------------------------------------------------------------
-
 class State:
-    """The engine's own run state, readable by expressions as `state`.
-
-    `trace` is the ordered walk so far — every element id the token has
-    reached. A drawn cycle bounds itself by counting its gateway in it:
-    `state.trace.count('Gate') < 8`.
-    """
+    """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`."""
 
     def __init__(self) -> None:
         self.trace: list[str] = []
 
 
-# ---------------------------------------------------------------------------
-# The as-run record
-# ---------------------------------------------------------------------------
-
 def plain(value: Any) -> Any:
-    """A numpy scalar as the Python number it stands for."""
     if hasattr(value, "item") and getattr(value, "shape", None) == ():
         return value.item()
     return value
 
 
 def describe(value: Any) -> dict:
-    """What a value *is*, never what it contains — type and size, not contents."""
+    """What a value *is*, never what it contains — no participant data reaches the record."""
     value = plain(value)
     kind = type(value)
     name = kind.__name__ if kind.__module__ == "builtins" else f"{kind.__module__}.{kind.__qualname__}"
@@ -705,14 +566,6 @@ def digest_of(data: bytes) -> str:
 
 
 class RunRecord:
-    """The run's own bookkeeping: step timings, failures, and the exit status.
-
-    The durable record is elsewhere — the trail stamped on the archived plan
-    says a run happened, and `studyflow.log` says what it did, in order. This
-    object carries what the walk itself needs back: durations for the log,
-    the digest the log's header pins, and the status the exit code reports.
-    """
-
     def __init__(self, plan: str, seed: str | None, started: datetime) -> None:
         self.plan_digest = digest_of(plan.encode())
         self.seed = seed
@@ -748,7 +601,6 @@ class RunRecord:
 
 
 def resolve_implementation(implementation: str) -> Any:
-    """Import what a step's `implementation` names, reaching into a class if it does."""
     if not implementation.startswith("python://"):
         raise ValueError(f"this runner only implements python://, not {implementation!r}")
     path = implementation[len("python://"):].split("@")[0]
@@ -777,29 +629,20 @@ class Runner:
         fresh: bool = False,
     ) -> None:
         self.studyflow = studyflow
-        # Which root a `uri` resolves against says what kind of thing it names:
-        # inputs are shared across runs, everything written belongs to this one.
+        # Inputs resolve against the shared workdir; everything written belongs to this run's dir.
         self.workdir = workdir
         self.rundir = rundir or workdir
         self.prepare_inputs = prepare_inputs
         self.values: dict[str, Any] = {}
         self.state = State()
         self.depth = 0
-        # When set, `event` collects lines instead of printing (see
-        # `deferred_events`); only the skip probe uses it.
         self._deferred: list[tuple[str, str, int, str]] | None = None
-        # Steps a previous run already did (from the archived copy's own
-        # records); `--fresh` ignores them and re-runs everything.
         self.prior_records = {} if fresh else studyflow.element_records()
-        # What this run did, per element kind, each element mapped to the
-        # moment it happened — the trail records `archive_plan` writes.
         self.completed: dict[str, str] = {}
         self.reached: dict[str, str] = {}
         self.decisions: dict[str, tuple[str, str]] = {}
         self.produced: dict[str, str] = {}
         self.staged: dict[str, str] = {}
-        # Elements whose values this run re-made and may differ from what the
-        # records reflect — invalidation cascades through their consumers.
         self.tainted: set[str] = set()
         self.record = RunRecord(
             studyflow.plan,
@@ -807,10 +650,8 @@ class Runner:
             started or datetime.now(timezone.utc),
         )
 
-    # -- the log ----------------------------------------------------------
     @property
     def indent(self) -> str:
-        """Console indentation for the container the walk is inside."""
         return "  " * (self.depth + 1)
 
     def event(self, event: str, message: str, *, level: int = logging.INFO) -> None:
@@ -821,7 +662,6 @@ class Runner:
 
     @contextmanager
     def deferred_events(self):
-        """Buffer `event` lines; the yielded replay emits them later, verbatim."""
         buffered: list[tuple[str, str, int, str]] = []
         self._deferred = buffered
         try:
@@ -833,15 +673,12 @@ class Runner:
             self._deferred = None
 
     def moment(self) -> str:
-        """Now, as a trail timestamp — every record carries its own moment."""
         return trail_timestamp(datetime.now(timezone.utc))
 
-    # -- values -----------------------------------------------------------
     def store(self, element_id: str, value: Any) -> None:
         self.values[element_id] = value
 
     def namespace(self) -> dict[str, Any]:
-        """What an expression sees: every bound value, by id and by name, plus `state`."""
         space: dict[str, Any] = {"state": self.state}
         for element_id, value in self.values.items():
             space[element_id] = value
@@ -856,13 +693,7 @@ class Runner:
         extra: dict[str, Any] | None = None,
         language: str | None = None,
     ) -> Any:
-        """Evaluate one expression in this engine's language, Python.
-
-        `language` is the expression element's own `language` attribute
-        (BPMN's per-FormalExpression field). Unset means "the engine's own";
-        anything that is not Python is refused here, at run time — the modeler
-        never polices it.
-        """
+        """`language` is BPMN's per-expression attribute; unset means Python here, anything else is refused."""
         if language and language.lower() not in ("py", "python"):
             raise ValueError(
                 f"a {language} expression — this runner evaluates Python "
@@ -873,15 +704,10 @@ class Runner:
         return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - see module docstring
 
     def value_of(self, element_id: str) -> Any:
-        """What a step already produced, or the artifact at the element's `uri`."""
         if element_id in self.values:
             return self.values[element_id]
         uri, declared = self.studyflow.artifact(element_id)
         if uri:
-            # Read from the run directory, always — the one root every `uri` in
-            # this run resolves against. An input that lives elsewhere is staged
-            # in first, so the paths the run record carries are valid there by
-            # construction rather than by a copy made afterwards.
             path = self.rundir / uri
             fmt = format_for(uri, declared)
             if not path.exists():
@@ -896,7 +722,6 @@ class Runner:
         raise KeyError(f"nothing has bound {element_id!r} and it declares no uri")
 
     def stage_input(self, element_id: str, uri: str, path: Path) -> None:
-        """Bring a boundary input into the run directory, by copy or by making it."""
         path.parent.mkdir(parents=True, exist_ok=True)
         source = self.workdir / uri
         if source.exists() and not source.samefile(path.parent):
@@ -922,7 +747,6 @@ class Runner:
             f"    ▤ prepare {uri}  {human_bytes(path.stat().st_size)}, a boundary input this studyflow ships",
         )
 
-    # -- arguments --------------------------------------------------------
     def resolve_argument(self, value: Any) -> Any:
         """`$Name` reads a bound value; a mapping with `implementation` is a call first."""
         if isinstance(value, str) and value.startswith("$"):
@@ -950,10 +774,7 @@ class Runner:
                 resolved[key] = self.resolve_argument(value)
         return resolved
 
-    # -- one step ---------------------------------------------------------
     def stale_inputs(self, element: ET.Element) -> bool:
-        """Whether the step reads anything this run re-made — recorded outputs
-        of such a step describe values that no longer exist, so it re-runs."""
         if not self.tainted:
             return False
         sources, expressions = self.studyflow.activity_dependencies(element)
@@ -968,17 +789,7 @@ class Runner:
         return False
 
     def skip_activity(self, element: ET.Element, element_id: str) -> str:
-        """Reuse a recorded step's artifacts instead of calling it, if possible.
-
-        A step is skippable when a previous run recorded it *and* every one of
-        its outputs is an artifact (has a `uri`) still on disk. An output some
-        later step reads must load back into memory — a failed load means a
-        real run — while an output nothing reads only has to be there: a
-        figure's png has no loader, and needs none. Returns the verdict:
-        `skipped`, `volatile` (a memory-only output — routine recomputation),
-        or `invalid` (an artifact is gone or unreadable — the step's record
-        has been invalidated). Any doubt falls through to a real run.
-        """
+        """Verdicts: `skipped`, `volatile` (a memory-only output), `invalid` (artifact gone or unreadable)."""
         targets: list[str] = []
         for target_id in output_targets(element):
             uri, _ = self.studyflow.artifact(target_id)
@@ -996,7 +807,6 @@ class Runner:
         return "skipped"
 
     def ensure_artifact(self, element_id: str) -> None:
-        """The element's artifact present in the run directory, unloaded."""
         uri, _ = self.studyflow.artifact(element_id)
         path = self.rundir / uri
         if not path.exists():
@@ -1009,9 +819,6 @@ class Runner:
         replay = None
         verdict = None
         if prior_run and not stale:
-            # The probe stages and loads before anyone knows whether the step
-            # is skipped (↻) or really runs (□); deferring its trace lets the
-            # step's own line print first, so the trace sits under it.
             with self.deferred_events() as replay:
                 verdict = self.skip_activity(element, element_id)
             if verdict == "skipped":
@@ -1040,11 +847,7 @@ class Runner:
             raise
         self.record.end(entry)
         self.completed[element_id] = self.moment()
-        # An invalidated step — stale inputs, a gone artifact, or a record
-        # deleted from a resumed copy — re-made its values: taint them so
-        # recorded consumers re-run too instead of reusing stale artifacts.
-        # A `volatile` re-run of untouched inputs recomputes the same values,
-        # so it taints nothing and downstream skips stay valid.
+        # Taint what was re-made, so recorded consumers re-run too; a `volatile` re-run taints nothing.
         if stale or verdict == "invalid" or (prior_run is None and bool(self.prior_records)):
             self.tainted.add(element_id)
             self.tainted.update(output_targets(element))
@@ -1054,12 +857,6 @@ class Runner:
         )
 
     def execute_activity(self, element: ET.Element, entry: dict) -> None:
-        """Fill the step's signature from its associations and `arguments`, call it, bind back.
-
-        Not `call_activity`: BPMN spells that `bpmn:CallActivity` and means a
-        step that invokes a reusable process by `calledElement`.
-        """
-        # Read first, recorded first: what a step *is* is the software it names.
         implementation = element.get("implementation")
         if implementation:
             entry["implementation"] = implementation
@@ -1067,8 +864,7 @@ class Runner:
         keywords: dict[str, Any] = {}
         receiver: list[Any] = []
         used: list[str] = []
-        # The standard form names slots structurally: each input association
-        # targets a declared `bpmn:DataInput` whose `name` is the slot.
+        # Standard form names slots structurally: an association targets a `bpmn:DataInput` whose `name` is the slot.
         io_slots: dict[str, str] = {}
         io = next((c for c in element if local(c) == "ioSpecification"), None)
         if io is not None:
@@ -1078,11 +874,6 @@ class Runner:
         for association in element:
             if local(association) != "dataInputAssociation":
                 continue
-            # One `transformation` per association, its body `slot = selection`
-            # with each half optional. Saved standard XML splits the slot into
-            # the DataInput's name and keeps a pure selection; a hand-written
-            # file may still fuse them in the body, so the split is applied
-            # either way.
             narrow = next((c for c in association if local(c) == "transformation"), None)
             slot, lens = split_binding((narrow.text or "").strip() if narrow is not None else "")
             lens_language = narrow.get("language") if narrow is not None else None
@@ -1098,17 +889,11 @@ class Runner:
                     value = self.evaluate(lens, language=lens_language)
                 name = slot or self.studyflow.names.get(source_id) or source_id
                 if name in ("self", "*"):
-                    # Two slots are positions, not keywords. `self` is an
-                    # unbound method's receiver — naming it would tie the
-                    # studyflow to what a library calls its first parameter,
-                    # which is not always `self`. `*` appends positionally, the
-                    # only way into a `*args` callable like `train_test_split`.
+                    # Positional, not keyword: `self` is an unbound method's receiver, `*` feeds a `*args` callable.
                     receiver.append(value)
                 else:
                     keywords[name] = value
                 if source_id not in used:
-                    # A set, not a list of bindings: an element associated
-                    # twice is two bindings but one thing used.
                     used.append(source_id)
                 bound = {"parameter": name, "sourceRef": source_id}
                 if slot or lens:
@@ -1124,9 +909,6 @@ class Runner:
         resolved = self.resolve_arguments(arguments or {})
         positional = receiver + resolved.get("__args__", [])
 
-        # `additionalArguments`: associations fill the signature and these
-        # supply what is left, so a name in both is two answers for one
-        # parameter — one drawn, one buried. Say so instead of picking.
         clashes = sorted(set(resolved) & set(keywords))
         if clashes:
             raise ValueError(
@@ -1134,7 +916,6 @@ class Runner:
                 "Associations fill the signature; `additionalArguments` adds to it — remove one.",
             )
         if resolved:
-            # `args` is the reserved key `additionalArguments` uses.
             recorded = {k: describe(v) for k, v in resolved.items() if k != "__args__"}
             if resolved.get("__args__"):
                 recorded["args"] = [describe(v) for v in resolved["__args__"]]
@@ -1161,9 +942,6 @@ class Runner:
             if target_ref is None:
                 continue
             target_id = (target_ref.text or "").strip()
-            # An output binding is a selection over `result` — the drawn target
-            # is the slot. The native `transformation` child is the same fact in
-            # the standard-BPMN spelling.
             narrow = next((c for c in association if local(c) == "transformation"), None)
             expression = (narrow.text or "").strip() if narrow is not None else ""
             language = narrow.get("language") if narrow is not None else None
@@ -1202,7 +980,6 @@ class Runner:
             return None
 
         if local(element) in GATEWAY_TAGS:
-            # Which way the run went, and on what, is what a reader most wants.
             entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
             default_id = element.get("default")
             try:
@@ -1264,8 +1041,6 @@ class Runner:
         process = self.studyflow.process
         name = process.get("name") or process.get("id")
         log_event("run.started", name)
-        # What pins the run, at DEBUG: the terminal keeps its clean header while
-        # the log stays self-describing.
         log_event(
             "run.started",
             f"  [{process.get('id')}]  studyflow {self.record.plan_digest}"
@@ -1275,12 +1050,7 @@ class Runner:
         self.walk(self.studyflow.start_event(), max_steps=max_steps)
 
     def walk(self, element, depth: int = 0, max_steps: int = 1000) -> None:
-        """One token through one container, from `element` to its end event.
-
-        A sub-process is walked the same way, one level in. Values are not
-        scoped with it — BPMN's own rule (§10.4.7), and what lets a pipeline's
-        phases be sub-processes without threading data through their boundaries.
-        """
+        """A sub-process is walked one level in, but values are not scoped with it (BPMN §10.4.7)."""
         outer, self.depth = self.depth, depth
         try:
             steps = 0
@@ -1295,8 +1065,6 @@ class Runner:
                 name = self.studyflow.name_of(element_id)
 
                 if tag in END_TAGS:
-                    # Which end a run reached is the outcome, so it is recorded
-                    # like anything else.
                     self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"● {element_id}")
@@ -1304,8 +1072,6 @@ class Runner:
                 if tag in GATEWAY_TAGS:
                     self.event("gateway.reached", f"◆ {element_id}")
                 elif tag in CONTAINER_TAGS:
-                    # A phase: one activity spanning its children, so the record
-                    # reads the way the studyflow does at both levels.
                     entry = self.record.begin(element_id, name, bpmn_type(element))
                     self.event("activity.started", f"▣ {element_id}")
                     try:
@@ -1332,27 +1098,12 @@ class Runner:
         finally:
             self.depth = outer
 
-    # -- what the run leaves behind ---------------------------------------
     def shown(self, path: Path) -> Path:
-        """A path relative to the workdir the `uri`s resolve against."""
         return path.relative_to(self.workdir) if path.is_relative_to(self.workdir) else path
 
     def archive_plan(self, source: Path) -> Path:
-        """Copy the studyflow into the run directory, trail and all.
-
-        The copy is written from the stamped plan (see `read_studyflow`), so
-        its provenance trail carries this run's own `executed` line — the run
-        record travels inside the studyflow itself, and the copy is a file you
-        can reopen rather than a digest of something that may since have been
-        edited.
-        """
         self.rundir.mkdir(parents=True, exist_ok=True)
-        # Every element this run touched gets its own record, replacing that
-        # element's record of the same action: activities and events `executed`,
-        # gateways `executed` with the taken flow as `what`, data elements
-        # `created` (this run saved them) or `imported` (staged from outside).
-        # Each record carries the moment it actually happened, not archive
-        # time. Skipped steps keep the record of the run that did the work.
+        # Skipped steps keep the record of the run that did the work.
         stamped = self.studyflow.plan
         run = self.rundir.name
         for element_id, when in sorted((self.completed | self.reached).items()):
@@ -1429,17 +1180,11 @@ def main() -> int:
     args = parser.parse_args()
 
     started = datetime.now(timezone.utc).astimezone()
-    # One directory per run, named for when it started, so the files inside it
-    # need no timestamp and a second run cannot overwrite the first. The name
-    # is compact ISO 8601 in the machine's own timezone (`20260801T093253+0200`),
-    # the same wall clock the trail's `when` stamps carry.
     run_id = args.run_id or started.strftime("%Y%m%dT%H%M%S%z")
     rundir = args.workdir / args.runs_dir / run_id
     log = start_logging(rundir, args.quiet)
 
-    # The run's root seed: the plan's pinned value when it has one, drawn
-    # once when it does not — recorded on the trail either way, which is what
-    # makes an unpinned run replayable after the fact.
+    # Root seed: the plan's pinned value, else drawn once — recorded either way, so an unpinned run replays.
     probe = read_studyflow(args.studyflow)
     seed = studyflow_attr(probe.process, "seed") or str(random.SystemRandom().randrange(10**9))
     try:
@@ -1449,11 +1194,7 @@ def main() -> int:
     except Exception:  # noqa: BLE001, S110 - a non-numeric seed seeds nothing
         pass
 
-    # The run is an event in the studyflow's life, so it stamps the trail like
-    # any other tool: one `executed` line, naming who ran it, with what seed,
-    # and which run directory holds the artifacts and the log. The input file
-    # is never touched — the stamp lands on the in-memory plan and the copy
-    # the run archives.
+    # The input file is never touched — the stamp lands on the archived copy.
     try:
         user = getpass.getuser()
     except OSError:
@@ -1474,17 +1215,12 @@ def main() -> int:
     try:
         runner.run()
     except BaseException as error:  # noqa: BLE001 - recorded and reported, not swallowed
-        # A studyflow that fails is not this program crashing: the failing step
-        # is already an execution with an error, and the traceback is already in
-        # the log. The terminal gets the sentence a person needs.
         log_event(
             "run.failed", f"  {type(error).__name__}: {error}",
             level=logging.ERROR, exc_info=error,
         )
         runner.record.status = "error"
     finally:
-        # Archived on the way out either way: a run that failed halfway is
-        # exactly when its stamped plan and log are worth having on disk.
         runner.archive_plan(args.studyflow)
         runner.finish()
         logging.shutdown()

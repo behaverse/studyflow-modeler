@@ -7,4 +7,6 @@ declare module '*.webp' { const value: string; export default value; }
 declare module '*.ico' { const value: string; export default value; }
 declare module '*.bpmn' { const value: string; export default value; }
 
-declare module '*.json' { const value: any; export default value; }
+// `*.json` is deliberately NOT declared here: `resolveJsonModule` gives an
+// imported JSON file its real inferred type, and an ambient `any` declaration
+// would shadow that — which is what erased `locales/en.json`'s key type.

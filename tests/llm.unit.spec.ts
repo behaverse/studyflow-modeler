@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { buildPrompt } from '../src/runner/models/nodes/behaverse/llm/prompt';
-import { callClaude } from '../src/runner/infra/nodes/behaverse/llm/providers/claude';
-import { callOllama } from '../src/runner/infra/nodes/behaverse/llm/providers/ollama';
-import { selectResponse } from '../src/runner/infra/nodes/behaverse/llm/bot';
-import { RUNNER_ONLY_BOT_KEYS } from '../src/runner/models/nodes/behaverse/types';
-import { botForUnity } from '../src/runner/models/nodes/behaverse/botConfig';
-import type { LLMBotInput, LLMProviderConfig, ProviderRequest } from '../src/runner/models/nodes/behaverse/llm/types';
+import { buildPrompt } from '../src/runner/nodes/behaverse/llm/prompt';
+import { callClaude, callOllama, selectResponse } from '../src/runner/nodes/behaverse/llm/bot';
+import { RUNNER_ONLY_BOT_KEYS } from '../src/runner/nodes/behaverse/types';
+import { botForUnity } from '../src/runner/nodes/behaverse/botConfig';
+import type { LLMBotInput, LLMProviderConfig, ProviderRequest } from '../src/runner/nodes/behaverse/llm/types';
 
 const NB_INPUT: LLMBotInput = {
   taskId: 'NB',
@@ -188,15 +186,12 @@ test('callOllama: attaches images on the user message when present', async () =>
 });
 
 test('RUNNER_ONLY_BOT_KEYS: covers the keys the runner consumes that Unity must not see', () => {
-  // Drives both the validator's flatness-exemption and the bridge's
-  // strip-before-SendMessage. Any new runner-only key needs to land here.
+  // Drives the validator's flatness exemption and the bridge's strip-before-SendMessage.
   expect(new Set(RUNNER_ONLY_BOT_KEYS)).toEqual(new Set(['LLM', 'Prompt']));
 });
 
 test('botForUnity: strips runner-only keys and rewrites ResponseSource=llm -> external', async () => {
-  // Documents the contract: Unity needs ResponseSource="external" to emit
-  // AwaitingResponse events, and must never see LLM/Prompt (BotReflection
-  // throws on unknown fields).
+  // Unity needs ResponseSource="external" to emit AwaitingResponse, and throws on LLM/Prompt (unknown fields).
   const result = botForUnity({
     ResponseSource: 'llm',
     LLM: { Provider: 'claude', Model: 'm' },

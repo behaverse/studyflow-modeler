@@ -4,19 +4,13 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { studyflowToXml } from '../src/core/codec';
-import { toModdlePackages } from '../src/core/schema';
-import { ensureDiagramLayout, hasDiagramInterchange } from '../src/modeler/models/autoLayout';
+import { studyflowToXml } from '../src/core/document';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { ensureDiagramLayout, hasDiagramInterchange } from '../src/modeler/diagram/autoLayout';
 import { loadSchemaModels } from './schemas';
 import { exampleXml, withoutDiagramInterchange } from './utils';
 
-/**
- * Hand-written `.studyflow` files describe only the flow graph and carry no
- * BPMN DI; bpmn-js aborts such an import with "no diagram to display".
- * `ensureDiagramLayout` closes that gap at the import boundary by synthesizing
- * a layout when — and only when — geometry is missing, without disturbing the
- * semantic tree or any extension.
- */
+/** Hand-written `.studyflow` files carry no BPMN DI, which bpmn-js alone aborts the import on. */
 
 const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(
@@ -28,7 +22,6 @@ const layoutlessXml = () => {
   return studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
 };
 
-/** Schema-aware moddle, as the modeler passes to `ensureDiagramLayout`. */
 const schemaModdle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 test.describe('ensureDiagramLayout', () => {
@@ -44,15 +37,12 @@ test.describe('ensureDiagramLayout', () => {
 
     const laidOut = await ensureDiagramLayout(xml, schemaModdle());
 
-    // A full DI tree is now present: a diagram, a plane, and a shape per node.
     expect(hasDiagramInterchange(laidOut)).toBe(true);
     expect(laidOut).toContain('BPMNPlane');
     expect(laidOut).toMatch(/BPMNShape[^>]*bpmnElement="Enroll"/);
     expect(laidOut).toMatch(/BPMNShape[^>]*bpmnElement="DidNotStart"/); // boundary event laid out too
     expect(laidOut).toMatch(/BPMNEdge[^>]*bpmnElement="Flow_Eligible"/);
 
-    // Auto-layout only *adds* geometry; the semantic tree and its studyflow /
-    // cognitive extensions survive untouched.
     expect(laidOut).toContain('studyflow:study');
     expect(laidOut).toContain('cognitive:questionnaire');
     expect(laidOut).toContain('instrument="screening"');
@@ -62,14 +52,11 @@ test.describe('ensureDiagramLayout', () => {
   test('returns a diagram that already carries geometry unchanged', async () => {
     const authored = exampleXml('consort2025.studyflow.png');
     expect(hasDiagramInterchange(authored)).toBe(true);
-    // No round-trip through auto-layout: the authored bytes are returned as-is.
     expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
   });
 
   test('draws the data associations an authored layout left out', async () => {
-    // The worst case for a reader: a file that positions its shapes but never
-    // draws its associations. The step's inspector lists inputs and outputs, and the
-    // canvas shows data elements floating unattached next to it.
+    // The worst case for a reader: a file that positions its shapes but never draws its associations.
     const complete = exampleXml('cognitive_battery.studyflow.png');
     const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="DataOutput_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
     expect(stripped).toMatch(/dataOutputAssociation id="DataOutput_Survey_Data"/);
@@ -77,30 +64,22 @@ test.describe('ensureDiagramLayout', () => {
 
     const repaired = await ensureDiagramLayout(stripped, schemaModdle());
 
-    // Both associations are drawn again, so what the inspector reports off the
-    // semantic model is what the canvas shows.
     expect(repaired).toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
     expect(repaired).toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_WhichOne_Data"/);
     expect(repaired).toMatch(/<di:waypoint/);
 
-    // Repair adds edges; it does not re-lay-out. Every authored position is
-    // where its author put it.
     for (const bounds of complete.match(/<dc:Bounds[^>]*\/>/g) ?? []) {
       expect(repaired).toContain(bounds);
     }
   });
 
   test('draws data associations and places data elements next to their steps', async () => {
-    // sklearn_pipeline associations its artifacts with data input/output associations
-    // — the case the data-flow pass exists for. Every shipped example carries
-    // the geometry it was rendered with, so drop it to reach the layout pass.
+    // sklearn_pipeline joins its artifacts with data input/output associations — the data-flow pass's case.
     const xml = withoutDiagramInterchange(exampleXml('sklearn_pipeline.studyflow.png'));
     expect(hasDiagramInterchange(xml)).toBe(false);
 
     const laidOut = await ensureDiagramLayout(xml, schemaModdle());
 
-    // A data association between two drawn shapes gets a DI edge with waypoints, so
-    // bpmn-js renders it and the inspector can infer the step's data contract.
     for (const association of [
       'DataOutput_Features', 'DataOutput_Target', 'DataInput_Features_Split',
       'DataInput_Target_Split', 'DataInput_Stratify', 'DataOutput_X_Train',
@@ -116,8 +95,6 @@ test.describe('ensureDiagramLayout', () => {
       expect(laidOut).toMatch(new RegExp(`dataInputAssociation|dataOutputAssociation`));
     }
 
-    // The data elements were moved out of the disconnected left column into a
-    // band beneath the steps they are associated with.
     const { rootElement: definitions } = await (new BpmnModdle() as any).fromXML(laidOut);
     const shapes = new Map<string, any>();
     for (const diagram of definitions.diagrams ?? []) {
@@ -133,10 +110,7 @@ test.describe('ensureDiagramLayout', () => {
     const model = shapes.get('Fitted_Model')!;
     expect(model.y).toBeGreaterThan(summarize.y); // likewise for the produced artifact
 
-    // The semantic tree is re-read from the original XML with the schema-aware
-    // moddle, so extension *child elements* survive too — bpmn-auto-layout's
-    // own plain-moddle round-trip would silently drop `<studyflow:additionalArguments>`
-    // (the step arguments) from every laid-out import.
+    // bpmn-auto-layout's own plain-moddle round-trip would silently drop extension child elements.
     expect(laidOut).toContain('implementation="python://sklearn.model_selection.cross_validate"');
     expect(laidOut).toContain('operationType="crossValidate"');
     expect(laidOut).toContain('<studyflow:additionalArguments>');

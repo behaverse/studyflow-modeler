@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { claudeProxyPlugin } from './src/runner/infra/nodes/behaverse/llm/claude-proxy/index.mjs'
+import { claudeProxyPlugin } from './src/runner/nodes/behaverse/llm/claude-proxy/index.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -44,8 +44,7 @@ function unityBuildPlugin(mountPath: string, buildDir: string): Plugin {
         }
         fs.stat(target, (err, stat) => {
           if (err || !stat.isFile()) return next()
-          // Strip Unity compression suffixes for content-type lookup, but emit
-          // the matching Content-Encoding so the browser decompresses natively.
+          // Strip Unity compression suffixes for content-type lookup; emit matching Content-Encoding.
           let lookupName = target
           if (target.endsWith('.gz')) {
             res.setHeader('Content-Encoding', 'gzip')

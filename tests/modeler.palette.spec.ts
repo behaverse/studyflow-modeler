@@ -4,8 +4,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { xmlToStudyflow } from '../src/core/codec';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
+import { xmlToStudyflow } from '../src/core/document';
+import { fromModdleYaml, toModdlePackages } from '../src/core/notation/schemaFile';
 import { SCHEMAS } from './schemas';
 import {
   addPaletteElement,
@@ -19,7 +19,6 @@ import {
   stubIconify,
 } from './utils';
 
-/** Convert BPMN XML to studyflow YAML the same way the app does. */
 async function toYaml(xml: string): Promise<string> {
   const schemaDir = path.join(process.cwd(), 'src/assets/schemas');
   const models = SCHEMAS.map(({ prefix }) =>
@@ -63,7 +62,6 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow.yaml');
     expect(studyflowText.startsWith('id:')).toBe(true);
     expect(studyflowText).toContain('name: Review Task');
-    // The saved YAML and the SVG-embedded XML describe the same diagram.
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
@@ -79,9 +77,7 @@ test.describe('Studyflow modeler palette flows', () => {
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
 
-    // Map is a service task; its pinned operation default
-    // (operationType="map") stays implicit in the schema rather than being
-    // serialized onto the element.
+    // Map's pinned default (operationType="map") stays implicit in the schema, not serialized onto the element.
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:serviceTask\b/);
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
     expect(normalizedEmbeddedStudyflow).toContain('<functional:map/>');
@@ -89,8 +85,6 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    // In YAML the wrapper stays bare; the pinned operation defaults live as
-    // explicit values on the service task element.
     expect(studyflowText).toContain('type: functional:Map');
     expect(studyflowText).toContain('operationType: map');
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
@@ -120,9 +114,7 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    // EEGPrep is now a template (not a type) that expands into a plain
-    // subprocess pipeline (filter signal -> remove artifacts) of data-operation
-    // service tasks - no dedicated omniprocess element type.
+    // EEGPrep is a template, not a type: it expands into a subprocess pipeline of data-operation service tasks.
     expect(studyflowText).toContain('type: bpmn:SubProcess');
     expect(studyflowText).toContain('operationType: filter');
     expect(studyflowText).toContain('type: functional:Filter');

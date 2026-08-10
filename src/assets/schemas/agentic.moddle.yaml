@@ -14,11 +14,9 @@ xml:
 version: 26.0717
 
 
-associations: []
 
 enumerations:
   - name: ToolChoiceEnum
-    isAbstract: true
     description: How freely the model may call the tools available to it.
     literalValues:
       - name: Auto
@@ -32,7 +30,6 @@ enumerations:
         description: Tools are visible but may not be called.
 
   - name: ToolKindEnum
-    isAbstract: true
     description: What kind of capability a tool exposes.
     literalValues:
       - name: Function call
@@ -53,7 +50,6 @@ enumerations:
         description: A tool whose implementation is another studyflow.
 
   - name: MemoryScopeEnum
-    isAbstract: true
     description: How long a memory store lives.
     literalValues:
       - name: Turn
@@ -94,16 +90,12 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - General
       - name: systemPrompt
         description: The agent's standing instructions, in markdown. Connect a `Prompt` element (via a data association) and reference it as `{{name}}`.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
           order: 3
-          categories:
-            - General
           editor: markdown
       - name: toolChoice
         description: How freely the agent may call the tools drawn inside it.
@@ -112,8 +104,6 @@ types:
         default: auto
         meta:
           order: 4
-          categories:
-            - General
       - name: temperature
         description: Sampling temperature.
         isAttr: true
@@ -121,8 +111,6 @@ types:
         default: 1
         meta:
           order: 5
-          categories:
-            - General
       - name: maxTurns
         description: |
           Hard ceiling on turns. BPMN bounds an ad-hoc sub-process in no other
@@ -132,8 +120,6 @@ types:
         default: 10
         meta:
           order: 7
-          categories:
-            - General
 
   # ===========================================================================
   # The model-driven branch. Everything about it is an ordinary exclusive
@@ -158,8 +144,6 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - General
       - name: instructions
         description: |
           How to choose, in markdown. The branch names are the outgoing sequence
@@ -168,8 +152,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 2
-          categories:
-            - General
           editor: markdown
 
   # ===========================================================================
@@ -194,8 +176,6 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - General
       - name: prompt
         description: |
           The prompt, in markdown; `{{name}}` is filled from the associated data and
@@ -205,8 +185,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 3
-          categories:
-            - General
           editor: markdown
       - name: temperature
         description: Sampling temperature. Set 0 for a reproducible call.
@@ -215,16 +193,12 @@ types:
         default: 0
         meta:
           order: 4
-          categories:
-            - General
       - name: maxTokens
         description: Ceiling on the response length.
         isAttr: true
         type: Integer
         meta:
           order: 5
-          categories:
-            - General
           optional: true
 
   - name: Tool
@@ -247,8 +221,6 @@ types:
         default: function
         meta:
           order: 1
-          categories:
-            - General
       - name: purpose
         description: |
           What the tool does and when to use it, in the words the model will read.
@@ -258,8 +230,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 2
-          categories:
-            - General
 
   # ===========================================================================
   # Human-in-the-loop. Studyflow has always suspended on human steps: a
@@ -283,8 +253,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
-          categories:
-            - General
           editor: markdown
 
   # ===========================================================================
@@ -307,8 +275,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
-          categories:
-            - General
           editor: markdown
 
   - name: Memory
@@ -329,8 +295,6 @@ types:
         default: run
         meta:
           order: 1
-          categories:
-            - General
 
 templates:
 

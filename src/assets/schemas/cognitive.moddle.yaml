@@ -11,10 +11,8 @@ xml:
   tagAlias: lowerCase
 version: 26.0716
 
-associations: []
 enumerations:
   - name: InstrumentEnum
-    isAbstract: true
     description: |
       Software that delivers a cognitive task, and so how its `configurations`
       YAML is read. Custom identifiers are accepted too.
@@ -27,8 +25,9 @@ enumerations:
         value: labjs
       - name: OpenSesame
         value: opensesame
+      - name: Behaverse
+        value: behaverse
   - name: QuestionnaireInstrumentEnum
-    isAbstract: true
     description: |
       Curated list of standardized questionnaires. This list is a starting
       point for common psychometric instruments; properties typed with this
@@ -53,7 +52,6 @@ enumerations:
       - name: PANAS
         value: panas
   - name: ActorTypeEnum
-    isAbstract: true
     description: |
       What a participant pool stands for: a human, an artificial agent, or an
       instrument. Any combination interacts through the same BPMN primitive.
@@ -69,7 +67,6 @@ enumerations:
         value: instrument
         description: Apparatus or recording device that participates in the study (e.g., an EEG amplifier triggering events).
   - name: BehaverseSceneEnum
-    isAbstract: true
     description: Behaverse assessment scene delivered by a `BehaverseTask`.
     literalValues:
       - name: Belval Card Sorting (BCS)
@@ -117,7 +114,6 @@ enumerations:
       - name: Which One (WO)
         value: WO
   - name: AgentTypeEnum
-    isAbstract: true
     description: |
       Whether a `BehaverseTask` is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
     literalValues:
@@ -164,8 +160,6 @@ types:
         type: InstrumentEnum
         meta:
           editable: true
-          categories:
-            - General
       - name: implementation
         description: |
           External software that delivers this task, as
@@ -186,6 +180,7 @@ types:
           categories:
             - Execution
   - name: Rest
+    # A class, not a template: the runner matches on the cognitive:Rest extension type.
     description: |
       A period of inactivity: a break between activities, or a resting-state
       recording (resting EEG/fMRI).
@@ -218,8 +213,6 @@ types:
         type: QuestionnaireInstrumentEnum
         meta:
           editable: true
-          categories:
-            - General
   - name: Instruction
     description: |
       A passive information display shown to the participant (e.g., task
@@ -230,16 +223,11 @@ types:
     meta:
       icon: iconify material-symbols--info-outline-rounded
       bpmnType: bpmn:Task
-      categories:
-        - Activities
     properties:
       - name: content
         description: Instruction content in markdown format.
         isAttr: true
         type: studyflow:MarkdownString
-        meta:
-          categories:
-            - General
   - name: BehaverseTask
     description: |
       A `CognitiveTask` from the Behaverse battery: `instrument` is pinned to
@@ -267,8 +255,6 @@ types:
         meta:
           order: 1
           editable: true
-          categories:
-            - General
       - name: configurations
         description: |
           `GameConfig` as YAML. Name a `Timelines:` entry with no body to run a
@@ -280,7 +266,6 @@ types:
           order: 2
           categories:
             - Execution
-          widget: textarea
       - name: agentType
         description: |
           Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
@@ -289,8 +274,6 @@ types:
         default: human
         meta:
           order: 4
-          categories:
-            - General
       - name: botConfigurations
         description: |
           Bot overrides as YAML, used when `agentType` is `bot` (e.g.
@@ -303,9 +286,7 @@ types:
           order: 5
           categories:
             - Execution
-          widget: textarea
           condition:
-            language: json
             body:
               agentType: bot
   - name: RandomGateway
@@ -327,9 +308,6 @@ types:
         isAttr: true
         type: studyflow:AssignmentAlgorithmEnum
         default: probabilistic
-        meta:
-          categories:
-            - General
       - name: probabilityFunction
         description: |
           Discrete distribution the assignment draws from, `uniform` by
@@ -339,10 +317,7 @@ types:
         default: uniform
         meta:
           editable: true
-          categories:
-            - General
           condition:
-            language: json
             body:
               algorithm: probabilistic
       - name: stratifyBy
@@ -354,8 +329,6 @@ types:
         type: String
         meta:
           optional: true
-          categories:
-            - General
       - name: strata
         description: |
           Definition of the strata used for allocation (one entry per stratum),
@@ -364,10 +337,7 @@ types:
         type: studyflow:MarkdownString
         isMany: true
         meta:
-          categories:
-            - General
           condition:
-            language: json
             body:
               stratifyBy: $set
   - name: EligibilityGateway
@@ -389,9 +359,6 @@ types:
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
-        meta:
-          categories:
-            - General
       - name: exclusionCriteria
         description: |
           List of exclusion criteria (one entry per criterion), formatted in
@@ -399,9 +366,6 @@ types:
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
-        meta:
-          categories:
-            - General
   - name: Actor
     description: |
       A participant pool tagged as human, LLM, software agent, or instrument.
@@ -418,9 +382,6 @@ types:
         isAttr: true
         type: ActorTypeEnum
         default: human
-        meta:
-          categories:
-            - General
       - name: spec
         description: |
           Identifier of the non-human actor: a model id when actorType is `llm`
@@ -431,10 +392,7 @@ types:
         isAttr: true
         type: String
         meta:
-          categories:
-            - General
           condition:
-            language: json
             body:
               actorType:
                 - llm
@@ -447,10 +405,7 @@ types:
         isAttr: true
         type: studyflow:MarkdownString
         meta:
-          categories:
-            - General
           condition:
-            language: json
             body:
               actorType: llm
 

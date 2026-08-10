@@ -24,6 +24,24 @@
   --color-cream-200: #f0ece1;
   --color-cream-300: #ebe6d4;
   --color-cream-400: #d8d2bc;
+
+  /*
+   * The app's typeface, and the `animate-wiggle` the homepage logo uses.
+   *
+   * Both lived in `tailwind.config.js`, which Tailwind v4 never loaded: v4
+   * needs an explicit `@config` directive and there was none anywhere in the
+   * repo. So `hover:animate-wiggle` on the logo did nothing, and the font
+   * override was inert — which is why the stack ended up hardcoded in three TS
+   * files and again in `homepage.css`. Declaring them here is what makes
+   * `font-sans` and `animate-wiggle` real utilities.
+   */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --animate-wiggle: wiggle 0.2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-5deg); }
+  50%      { transform: rotate(5deg); }
 }
 
 /*
@@ -33,7 +51,7 @@
  *      overrides below (canvas, breadcrumbs, watermark, .djs-popup,
  *      .djs-context-pad chips, etc.).
  *
- *   2. `src/modeler/styles.ts` - Tailwind class strings for every chrome
+ *   2. `src/modeler/ui/styles.ts` - Tailwind class strings for every chrome
  *      surface we render in React (navbar, palette, paletteFlyout,
  *      inspector, field, codeEditor) and the menu primitives.
  */

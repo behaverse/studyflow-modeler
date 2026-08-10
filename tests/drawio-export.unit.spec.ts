@@ -1,14 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { exportToDrawio } from '../src/modeler/models/exporters/drawio';
+import { exportToDrawio } from '../src/modeler/export/drawio';
 
-/**
- * The BPMN -> draw.io mapping, over a hand-built element registry (the real
- * canvas end is exercised in modeler.file.spec.ts). What matters here is that
- * each BPMN type reaches the draw.io stencil that draws its notation, that
- * geometry survives, and that document order keeps frames behind their
- * contents — draw.io paints in document order and has no z-index.
- */
+/** The BPMN -> draw.io mapping, over a hand-built element registry. */
 
 const ROOT = { id: 'Study_1', type: 'bpmn:Process', businessObject: { $type: 'bpmn:Process', name: 'My study' } };
 
@@ -58,7 +52,6 @@ function fakeModeler(elements: any[]): any {
   };
 }
 
-/** The `style` of the cell with `id`. */
 function styleOf(xml: string, id: string): string {
   const match = xml.match(new RegExp(`<mxCell id="${id}"[^>]*?style="([^"]*)"`));
   if (!match) throw new Error(`no cell ${id} in\n${xml}`);
@@ -75,7 +68,6 @@ test.describe('draw.io export', () => {
 
     expect(xml).toContain('<mxfile host="studyflow-modeler">');
     expect(xml).toContain('name="My study"');
-    // draw.io's own root and default layer, then the diagram's cells.
     expect(xml).toContain('<mxCell id="0" />');
     expect(xml).toContain('<mxCell id="1" parent="0" />');
     expect(cellIds(xml)).toEqual(['T1']);
@@ -116,7 +108,6 @@ test.describe('draw.io export', () => {
     expect(styleOf(xml, 'End')).toContain('outline=end;symbol=general;');
     expect(styleOf(xml, 'Timer')).toContain('outline=catching;symbol=timer;');
     expect(styleOf(xml, 'Throw')).toContain('outline=throwing;symbol=general;');
-    // A non-interrupting boundary event is the dashed double ring.
     expect(styleOf(xml, 'Bound')).toContain('outline=boundNonint;');
   });
 
@@ -131,7 +122,6 @@ test.describe('draw.io export', () => {
 
     expect(styleOf(xml, 'Ex')).toContain('gwType=exclusive;');
     expect(styleOf(xml, 'Par')).toContain('gwType=parallel;');
-    // The inclusive circle and event pentagon come from the event stencil.
     expect(styleOf(xml, 'Inc')).toContain('outline=standard;symbol=general;');
     expect(styleOf(xml, 'Evt')).toContain('outline=standard;symbol=multiple;');
   });
@@ -145,8 +135,7 @@ test.describe('draw.io export', () => {
       shape({ id: 'Loop', type: 'bpmn:SubProcess', collapsed: true, bo: { loopCharacteristics: { $type: 'bpmn:MultiInstanceLoopCharacteristics' } } }),
     ]));
 
-    // draw.io reads bpmnShapeType=subprocess as *event* sub-process and dashes
-    // the border, so a plain sub-process must not carry it.
+    // draw.io reads bpmnShapeType=subprocess as an *event* sub-process (dashed border), so a plain one omits it.
     expect(styleOf(xml, 'Sub')).not.toContain('bpmnShapeType');
     expect(styleOf(xml, 'Sub')).toContain('isLoopSub=1;');
     expect(styleOf(xml, 'Open')).not.toContain('isLoopSub=1;');
@@ -161,7 +150,6 @@ test.describe('draw.io export', () => {
 
     expect(xml).toContain('<mxCell id="F1" value="" style="edgeStyle=orthogonalEdgeStyle;');
     expect(xml).toContain('edge="1" parent="1" source="A" target="B"');
-    // The first and last waypoints sit on the shapes; draw.io re-derives those.
     expect(xml).toContain('<mxPoint x="50" y="0" />');
     expect(xml).toContain('<mxPoint x="50" y="90" />');
     expect(xml).not.toContain('<mxPoint x="0" y="0" />');
@@ -185,7 +173,6 @@ test.describe('draw.io export', () => {
     expect(styleOf(xml, 'Cond')).toContain('startArrow=diamondThin;');
     expect(styleOf(xml, 'Msg')).toContain('startArrow=oval;');
     expect(styleOf(xml, 'Msg')).toContain('dashed=1;');
-    // An undirected association has no arrow head at either end.
     expect(styleOf(xml, 'Assoc')).toContain('endArrow=none;');
   });
 
@@ -202,15 +189,11 @@ test.describe('draw.io export', () => {
     const pool = shape({ id: 'Pool', type: 'bpmn:Participant' });
     const lane = shape({ id: 'Lane', type: 'bpmn:Lane', parent: pool });
     const task = shape({ id: 'Task', type: 'bpmn:Task', parent: lane });
-    // A group is a plain artifact — a *sibling* of the elements drawn inside
-    // it — so nesting depth alone would let it paint over them.
     const group = shape({ id: 'Group', type: 'bpmn:Group' });
 
-    // Registry order is deliberately scrambled: paint order must come from the
-    // ranking, not from the order elements happen to arrive in.
+    // Registry order is deliberately scrambled: paint order must come from the ranking, not arrival order.
     const xml = exportToDrawio(fakeModeler([ROOT, task, group, lane, pool]));
 
-    // Frames outermost-first, then the group over them, then the flow element.
     expect(cellIds(xml)).toEqual(['Pool', 'Lane', 'Group', 'Task']);
   });
 
@@ -234,11 +217,9 @@ test.describe('draw.io export', () => {
     expect(xml).toContain('<mxCell id="Chor-band-top" value="Subject"');
     expect(xml).toContain('<mxCell id="Chor-body" value="Give consent"');
     expect(xml).toContain('<mxCell id="Chor-band-bottom" value="Experimenter"');
-    // The bands are children of the frame, and only the receiving one is shaded.
     expect(xml).toContain('parent="Chor"');
     expect(styleOf(xml, 'Chor-band-top')).toContain('fillColor=#ededed;');
     expect(styleOf(xml, 'Chor-band-bottom')).not.toContain('fillColor=#ededed;');
-    // Bands take the renderer's own height, and the body fills what is left.
     expect(xml).toContain('<mxGeometry x="0" y="0" width="100" height="20" as="geometry" />');
     expect(xml).toContain('<mxGeometry x="0" y="20" width="100" height="40" as="geometry" />');
   });
@@ -263,13 +244,9 @@ test.describe('draw.io export', () => {
       shape({ id: 'Grp', type: 'bpmn:Group', bo: { categoryValueRef: { value: 'Enrolment' } } }),
     ]));
 
-    // A cell value is HTML, inside an XML attribute, so text is escaped twice:
-    // `&amp;amp;` parses to `&amp;` and renders as `&`. The newline is the one
-    // thing that must survive as real markup, so it becomes `<br>` in between.
+    // A cell value is HTML inside an XML attribute — escaped twice: `&amp;amp;` parses to `&amp;`, renders `&`.
     expect(xml).toContain('value="Trial 1&lt;br&gt;Round &amp;quot;A&amp;quot; &amp;amp; B"');
-    // A literal < in a name must not reach draw.io as a tag.
     expect(xml).toContain('value="a &amp;lt;b&amp;gt; c"');
-    // A text annotation labels from `text`, a group from its category value.
     expect(xml).toContain('<mxCell id="Note" value="A free-form note."');
     expect(xml).toContain('<mxCell id="Grp" value="Enrolment"');
   });

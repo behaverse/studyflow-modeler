@@ -18,7 +18,6 @@ xml:
   tagAlias: lowerCase
 version: 26.0731
 
-associations: []
 
 enumerations: []
 
@@ -107,7 +106,11 @@ types:
           Recorded here either way, which is what makes an unpinned run
           replayable after the fact.
         isAttr: true
-        type: String
+        # Integer, matching `studyflow:Seed#seed` that this records. It was
+        # `String`, so the same value round-tripped between the plan and the run
+        # record under two declared types - and the runtime feeds it to
+        # `mulberry32`, which needs a number.
+        type: Integer
         meta:
           optional: true
       - name: note

@@ -1,9 +1,12 @@
 import js from '@eslint/js'
 import globals from 'globals'
-import tsParser from '@typescript-eslint/parser'
+import tseslint from 'typescript-eslint'
+import reactHooks from 'eslint-plugin-react-hooks'
 
+// Two enforced boundaries: core/ is framework-free, and modeler/ and runner/
+// never import each other (shared code goes to core/).
 export default [
-  { ignores: ['dist', 'docs'] },
+  { ignores: ['dist', 'docs', 'playwright-report', 'test-results'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -15,43 +18,77 @@ export default [
         sourceType: 'module',
       },
     },
-    settings: {},
-    plugins: {
-    },
     rules: {
       ...js.configs.recommended.rules,
-      'react/jsx-no-target-blank': 'off',
     },
   },
-  // Enforce the modeler/runner boundary: both depend on @/lib/core, never on each other.
-  // Uses @typescript-eslint/parser only as a parser - no rule plugin needed for this check.
+
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ['**/*.{ts,tsx}'],
+  })),
   {
-    files: ['src/runner/**/*.{ts,tsx}'],
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      parser: tsParser,
+      globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true }, sourceType: 'module' },
     },
     rules: {
+      // `tsc --noUnusedLocals` already reports these program-wide.
+      '@typescript-eslint/no-unused-vars': 'off',
+      // The moddle/bpmn-js boundary is genuinely untyped in places.
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+
+  {
+    files: ['src/modeler/**/*.{ts,tsx}', 'src/runner/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      ...reactHooks.configs['recommended-latest'].rules,
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/modeler/*', '@/modeler'], message: 'runner/ may not import from modeler/. Move shared code into src/lib/core/.' },
-          { group: ['../modeler/*', '../../modeler/*', '../../../modeler/*'], message: 'runner/ may not import from modeler/. Move shared code into src/lib/core/.' },
+          { group: ['@/modeler/*', '@/modeler', '@/runner/*', '@/runner'], message: 'modeler/ and runner/ may not import each other. Move shared code into src/core/.' },
+        ],
+      }],
+    },
+  },
+  // Each app may of course import itself; re-allow its own prefix.
+  {
+    files: ['src/modeler/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@/runner/*', '@/runner'], message: 'modeler/ may not import from runner/. Move shared code into src/core/.' },
         ],
       }],
     },
   },
   {
-    files: ['src/modeler/**/*.{ts,tsx}'],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: { ecmaFeatures: { jsx: true }, sourceType: 'module' },
-    },
+    files: ['src/runner/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/runner/*', '@/runner'], message: 'modeler/ may not import from runner/. Move shared code into src/lib/core/.' },
-          { group: ['../runner/*', '../../runner/*', '../../../runner/*'], message: 'modeler/ may not import from runner/. Move shared code into src/lib/core/.' },
+          { group: ['@/modeler/*', '@/modeler'], message: 'runner/ may not import from modeler/. Move shared code into src/core/.' },
         ],
+      }],
+    },
+  },
+
+  {
+    files: ['src/core/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: 'core/ is the shared framework-free model: no React.' },
+          { group: ['bpmn-js', 'bpmn-js/*', 'diagram-js', 'diagram-js/*'], message: 'core/ is the shared framework-free model: no bpmn-js or diagram-js.' },
+          { group: ['@/modeler/*', '@/modeler', '@/runner/*', '@/runner'], message: 'core/ may not depend on either app.' },
+        ],
+      }],
+      // Import bans miss services passed in as `any`; ban the names too.
+      'no-restricted-syntax': ['error', {
+        selector: 'Identifier[name=/^(modeling|bpmnFactory|elementRegistry|commandStack|eventBus|modeler|injector|popupMenu|contextPad)$/]',
+        message: 'core/ is the domain layer: it may not name a bpmn-js service, even as `any`. Accept a port (see `Writer`) and let modeler/ pass the adapter.',
       }],
     },
   },

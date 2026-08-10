@@ -30,8 +30,6 @@ name: Core
 prefix: studyflow
 description: Core BPMN extension for modeling research processes.
 uri: http://behaverse.org/schemas/studyflow/v1   # version segment = studyflow format version
-legacyUris:                                      # optional: namespaces older releases wrote
-  - http://behaverse.org/schemas/studyflow       # still read, rewritten to `uri` on load
 icon: iconify tabler--hexagon-letter-s   # optional, shown in the modeler
 core: true          # optional: always loaded, cannot be disabled
 order: 10           # registry position (load precedence + settings order)
@@ -39,11 +37,16 @@ version: 26.0716
 xml:
   tagAlias: lowerCase
 categories: []      # inspector tabs; only the core schema declares these
-associations: []
 enumerations: []
 types: []
 templates: []
 ```
+
+`uri` is required and validated at load: a file missing it, or reusing a
+`prefix` another file already claims, is rejected by name rather than silently
+producing an unnamespaced or half-overwritten schema. There is no namespace
+migration mechanism — a namespace bump is a breaking change to the saved files,
+not something a schema header can absorb.
 
 The `description` is shown in the schema palette -- keep it to a sentence or two, since it renders in a tooltip. The optional `icon` (URL or `iconify <name>`) appears next to the schema name.
 
@@ -293,7 +296,7 @@ Use the schema prefix to reference types from another schema, e.g. `studyflow:YA
 
 ## Common mistakes
 
-- **Prefix mismatch**: the core schema is prefixed `studyflow`, not `core` -- its `name` is Core but nothing references it by that. Its unversioned URI is legacy and lives in `legacyUris`.
+- **Prefix mismatch**: the core schema is prefixed `studyflow`, not `core` -- its `name` is Core but nothing references it by that.
 - **Missing `type`**: moddle properties without a type fall back to string-like behavior and may produce unintended interfaces.
 - **Mixing up `extends` and `superClass`**: use `extends` to mix attributes onto an existing BPMN base; use `superClass` to define a new concrete type.
 - **Expecting a native BPMN attribute to appear**: it will not until a schema `redefines` it.

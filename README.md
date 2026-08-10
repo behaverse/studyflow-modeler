@@ -8,12 +8,15 @@ Studyflow Modeler is a tool to design and run cognitive experiments using [Study
 
 ## Development
 
-If you already have Node.js installed, you can start both apps in dev mode by running:
+With Node.js **≥ 20.19** installed (`.nvmrc` pins 22), start both apps in dev mode:
 
 ```bash
 npm install
 npm run dev          # serves /app.html (modeler) and /run.html (runner)
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the test strategy, quality gates,
+and the schema-authoring loop.
 
 To run the documentation site locally:
 
@@ -24,16 +27,87 @@ npm run docs:build   # render to dist/docs/
 
 ## Project layout
 
-Both apps follow a per-app MVC layout: each of `src/modeler/` and `src/runner/`
-splits into `models/` (framework-free domain logic — testable in isolation),
-`views/` (React components + bpmn-js custom renderers), `controllers/`
-(orchestration, command dispatch, event wiring), and `infra/` (framework glue:
-bpmn-js DI, constants, styles, contexts, storage). `src/core/` is the shared model.
+**One folder per feature.** To change the palette you open `modeler/palette/`,
+and everything the palette is — its data, its React, its bpmn-js wiring, its
+commands — is in there. There is no `models/`, `views/`, or `controllers/` split
+to navigate; a feature is not spread across the tree.
 
-- `src/core/` - shared model: moddle schema parsing, studyflow XML parsing, extension/attribute resolution. No React or bpmn-js.
-- `src/modeler/{models,views,controllers,infra}/` - modeler app (bpmn-js + React inspector/palette/contextpad).
-- `src/runner/{models,views,controllers,infra}/` - runner app (study traversal + per-node React renderers).
-- `src/assets/schemas/` - moddle YAML schemas (`studyflow`, `cognitive`, `behaverse`, `omniprocess`, `datatrove`, `galea`).
+```
+src/core/          the shared model — no React, no bpmn-js
+  notation/        what a studyflow can contain: the *.moddle.yaml schemas
+                   parsed (schemaFile, loader, manifest) and compiled into the
+                   queryable type index (compile -> query, types, bpmn,
+                   palette, templates)
+  document/        reading and writing .studyflow files: YAML <-> BPMN XML
+                   (serialize, deserialize, format, shorthand, checklist) plus
+                   the two round-trip transforms (choreography, io-specification)
+  element/         attribute access on one element (handle, attributes, moddle)
+  constants.ts naming.ts implementation.ts settings.ts storage.ts
+
+src/modeler/       the editor — one folder per feature
+  app/             the shell: App, Modeler, contexts, notices, boot commands
+  bpmn/            bpmn-js glue: behaviors, the modeling updater, DI module,
+                   upstream type aliases
+  palette/ inspector/ draw/ export/ diagram/ templates/ simulation/
+  provenance/ checklist/ gantt/ examples/ navBar/ publish/ settings/
+  shape/ contextPad/ commandPalette/ import/ ui/
+  commandBus.ts constants.ts
+
+src/runner/        the executor
+  nodes/<type>/    one folder per node type: its view, validation, and bridge
+  flow.ts jobs.ts scope.ts studyflow.ts session.ts ...
+```
+
+Four file-naming rules, and they hold everywhere:
+
+| file | what it is |
+| --- | --- |
+| `<feature>/commands.ts` | every bus command the feature handles (`run*` handlers) |
+| `<feature>/module.ts` | its bpmn-js DI registration, if it has one |
+| `PascalCase.ts(x)` | one React view or one bpmn-js class, named after it |
+| everything else | named for what it does |
+
+App feature folders have no barrels. Each `core/` package instead has one
+entry module (`index.ts`) that is its public surface: `@/core/document` and
+`@/core/element` are the only paths anything outside them imports, and
+`notation`'s also hosts the catalog singleton and documents the boot sequence.
+
+Only two boundaries are enforced (by ESLint, in `eslint.config.js`):
+
+1. `core/` is framework-free — no React, no bpmn-js, no app imports. If it
+   touches a framework or the DOM, it cannot go there.
+2. `modeler/` and `runner/` never import each other. Shared code goes to `core/`.
+
+Inside a feature there is nothing further to police, which is the point: a
+feature owns its whole stack, so the compiler and the folder agree.
+
+Two conventions worth knowing:
+
+- **Commands.** Views dispatch by name and never call a handler directly. A
+  command's `type` *is* its handler's name — `{ type: 'SetColor' }` runs
+  `runSetColor` — so there is no registry to keep in step. Adding a command to
+  an existing feature is a single edit: export `run<Name>(modeler, command)`
+  from its `commands.ts` and give the command type `type: '<Name>'`. (A brand
+  new feature additionally adds itself to the `FEATURES` array in
+  `commandBus.ts` — one line; the types follow.) Dispatching a name no handler
+  matches fails to compile, dispatch results are typed from the handler's
+  return, and `tests/commands.unit.spec.ts` fails if a handler is never
+  dispatched. The name check compiles only where `tsc` runs — CI runs it on
+  every push.
+- **Schemas drive the modeler.** Dropping a `*.moddle.yaml` into
+  `src/assets/schemas/` gives you a palette entry, inspector fields and tabs,
+  connection rules, templates, and round-tripping, with no code — the full
+  meta-key vocabulary is in [src/assets/schemas/README.md](src/assets/schemas/README.md).
+  The runner is not there yet: executing a type still needs a node module under
+  `runner/nodes/<type>/`, and validation warns when a diagram uses a type no
+  module handles.
+- **Two UI technologies own different pixels.** React owns the palette,
+  nav bar, inspector, and dialogs; bpmn-js DI providers own the context pad,
+  append menu, and label editing. `src/modeler/bpmn/module.ts` is the single
+  registration list for everything bpmn-js-side — the right first file to read
+  for canvas behavior.
+
+- `src/assets/schemas/` - the moddle YAML schemas (`studyflow`, `cognitive`, `functional`, `prov`, `agentic`, `ml`, `openbci`, `datatrove`, `omniprocess`).
 - `src/assets/examples/` - example diagrams (see below), plus `new_diagram.bpmn`, the blank template.
 - `docs/` - Quarto site (reference, guides, examples).
 
@@ -41,15 +115,15 @@ bpmn-js DI, constants, styles, contexts, storage). `src/core/` is the shared mod
 
 Each example is a single `.studyflow.png`: a picture of the diagram with the
 diagram itself embedded in it (a `studyflow` metadata chunk — see
-`models/exporters/pngEmbedding`; the double extension marks the image as a
+`modeler/export/pngEmbedding`; the double extension marks the image as a
 source file, the `.drawio.png` convention). The Examples gallery shows the
 image and opens the file behind it, and dragging one into the modeler — or
 into draw.io, or an email — works the same way.
 
 Everything the gallery shows comes out of the diagram: its `name` is the card
 title, the first sentence of its `documentation` is the blurb, and
-`studyflow:category` on the root is the shelf it sits on (editable in the
-inspector's Documentation tab). The filter chips are whatever categories the
+`studyflow:tags` on the root are the shelves it sits on (editable in the
+inspector's Documentation tab). The filter chips are whatever tags the
 shipped examples declare.
 
 To add one, drop a `.studyflow.yaml` into `src/assets/examples/` and render it —
@@ -64,13 +138,17 @@ after a change to how diagrams are drawn. Pass names to redo only those:
 `npm run examples:render kitchensink`. It drives a headless Chromium through
 the app's own PNG export, so it needs network access for icon glyphs.
 
-## UI Tests
+## Tests
 
-To run the e2e tests:
+Playwright runs everything — the Node-side unit specs (`*.unit.spec.ts`) and
+the browser e2e suite. First e2e run needs `npx playwright install chromium`.
 
 ```bash
-npm run test:e2e
+npm test             # unit + e2e
 ```
+
+`npm run test:unit` is the fast lane (no dev server, ~1s); see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full test strategy.
 
 ## License
 

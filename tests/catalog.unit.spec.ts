@@ -2,66 +2,46 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '../src/core/catalog';
-import { inferRoles } from '../src/core/catalog/roles';
-import { CORE_PREFIXES } from '../src/core/constants';
-import { toModdlePackages } from '../src/core/schema';
+import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '../src/core/notation';
+import { NON_BPMN_SUPER_CLASSES } from '../src/core/notation/query';
+import { inferRoles } from '../src/core/notation/compile';
+import { NON_EXTENSION_PREFIXES } from '../src/core/constants';
+import { MODDLE_SIMPLE_TYPES, toModdlePackages } from '../src/core/notation/schemaFile';
 import { SCHEMAS, loadSchemaModels } from './schemas';
 
-/**
- * Cross-validates the compiled TypeCatalog against bpmn-moddle.
- *
- * The app reads all schema metadata from the catalog (plain data compiled
- * from the YAML); moddle only reads and writes the XML. These tests keep moddle as
- * the oracle so the catalog's static view can never drift from what moddle
- * actually serializes: attribute sets, types, defaults, inheritance,
- * `extends` traits, and the static BPMN ancestor table.
- */
+/** Cross-validates the compiled TypeCatalog against bpmn-moddle. */
 
 
 const models = loadSchemaModels();
 
-// Production pipeline: SchemaModel -> catalog for the app, SchemaModel -> packages
-// for moddle. The two never share objects (moddle mutates its
-// packages in place).
+// Catalog and moddle packages are built separately — they never share objects (moddle mutates in place).
 const catalog = buildCatalog(models);
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
 const moddle = new BpmnModdle(packages) as any;
 
-const PRIMITIVE_TYPES = new Set(['String', 'Boolean', 'Integer', 'Real', 'Element']);
-
-/** Qualified names of value types (String subtypes) across all schemas. */
 const VALUE_TYPES = new Set(
   models.flatMap((model) =>
     model.types
-      .filter((t) => (t.superClass ?? []).some((sc) => PRIMITIVE_TYPES.has(sc)))
+      .filter((t) => (t.superClass ?? []).some((sc) => MODDLE_SIMPLE_TYPES.has(sc)))
       .map((t) => `${model.prefix}:${t.name}`),
   ),
 );
 
 function isExtensionPrefix(prefix: string | undefined): boolean {
-  return !!prefix && !CORE_PREFIXES.has(prefix);
+  return !!prefix && !NON_EXTENSION_PREFIXES.has(prefix);
 }
 
-/** Concrete, standalone-instantiable schema types (same filter the app uses). */
 function concreteTypes(prefix: string): any[] {
-  return (packages[prefix].types ?? []).filter(
-    (t: any) =>
-      !t.extends
-      && !t.isAbstract
-      && !(t.superClass ?? []).some((s: string) => PRIMITIVE_TYPES.has(s)),
+  const model = models.find((m) => m.prefix === prefix)!;
+  return model.types.filter(
+    (t) => !t.extends && !t.isAbstract && !VALUE_TYPES.has(`${prefix}:${t.name}`),
   );
 }
 
-// ---------------------------------------------------------------------------
-// Legacy oracles: the moddle-reflection algorithms the catalog replaced.
-// Keep them byte-for-byte equivalent to the pre-catalog implementations so
-// behavior parity is checked, not just self-consistency.
-// ---------------------------------------------------------------------------
-
-const PRIMITIVE_SUPER_CLASSES = new Set(['Element', 'BaseElement', 'String', 'Boolean', 'Integer', 'Float', 'Double']);
+// Legacy oracles: verbatim ports of the pre-catalog moddle-reflection algorithms, kept as a migration net.
+const PRIMITIVE_SUPER_CLASSES = NON_BPMN_SUPER_CLASSES;
 
 function legacyResolveBpmnCreateType(typeRefOrSchema: any): string | null {
   const typeDef = typeof typeRefOrSchema === 'string' ? legacyResolveTypeSchema(typeRefOrSchema) : typeRefOrSchema;
@@ -120,13 +100,6 @@ function legacyResolveTypeSchema(typeRef: string, ownerPrefix?: string): any {
   return null;
 }
 
-/**
- * Defaults oracle: the extension-prefixed defaults moddle itself reports on
- * the type's effective descriptor. (The pre-catalog `getDefaults` walker is
- * not used as the oracle: it dropped same-package unqualified `superClass`
- * refs and redundantly collected BPMN-native defaults that moddle applies on
- * instantiation anyway.)
- */
 function moddleExtensionDefaults(typeName: string): Record<string, any> {
   let descriptor: any;
   try { descriptor = moddle.registry.getEffectiveDescriptor(typeName); } catch { return {}; }
@@ -136,10 +109,6 @@ function moddleExtensionDefaults(typeName: string): Record<string, any> {
   }
   return defaults;
 }
-
-// ---------------------------------------------------------------------------
-// Static BPMN table
-// ---------------------------------------------------------------------------
 
 test.describe('catalog: static BPMN ancestor table', () => {
   test('every listed ancestor is real according to bpmn-moddle', () => {
@@ -173,10 +142,6 @@ test.describe('catalog: static BPMN ancestor table', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Type-level parity
-// ---------------------------------------------------------------------------
-
 test.describe('catalog: type parity with moddle', () => {
   for (const { prefix } of SCHEMAS) {
     test(`${prefix}: bpmnType resolution matches the legacy walker`, () => {
@@ -205,7 +170,9 @@ test.describe('catalog: type parity with moddle', () => {
             .map((p: any) => [p.ns.name, p]),
         );
         const catalogSpecs = new Map(
-          catalog.instanceAttributesOf(qname).map((spec) => [spec.ns.name, spec]),
+          catalog.instanceAttributesOf(qname)
+            .filter((spec) => isExtensionPrefix(spec.ns.prefix))
+            .map((spec) => [spec.ns.name, spec]),
         );
 
         expect([...catalogSpecs.keys()].sort(), `${qname} attribute set`).toEqual(
@@ -214,9 +181,7 @@ test.describe('catalog: type parity with moddle', () => {
 
         for (const [name, spec] of catalogSpecs) {
           const desc = moddleExtension.get(name);
-          // Value types (String subtypes) go on the association as plain String for
-          // non-attr properties (see toModdlePackages); the catalog keeps the
-          // authored type as the UI hint.
+          // Value types serialize as plain String (see toModdlePackages); the catalog keeps the authored type.
           const associationString = desc.type === 'String' && VALUE_TYPES.has(spec.type);
           if (!associationString) expect(spec.type, `${qname}#${name} type`).toBe(desc.type);
           expect(spec.default, `${qname}#${name} default`).toEqual(desc.default);
@@ -233,8 +198,6 @@ test.describe('catalog: type parity with moddle', () => {
           const descriptor = moddle.registry.getEffectiveDescriptor(spec.type);
           const bodyDesc = (descriptor.properties ?? []).find((p: any) => p.isBody);
           expect(bodyDesc?.name, `${entry.name}#${spec.name} bodyProp`).toBe(spec.bodyProp);
-          // A value-typed body goes on the association as `String` (so moddle escapes
-          // its markup), with the authored type preserved in `valueType`.
           const bodyType = bodyDesc?.valueType ?? bodyDesc?.type;
           expect(bodyType, `${entry.name}#${spec.name} bodyType`).toBe(spec.bodyType);
         }
@@ -256,9 +219,7 @@ test.describe('catalog: type parity with moddle', () => {
         .filter((p: any) => isExtensionPrefix(p.ns?.prefix))
         .map((p: any) => p.ns.name)
         .sort();
-      // Redefines that keep BPMN's own namespace (`bpmn:conditionExpression`)
-      // are BPMN properties on both sides, not extension mixins.
-      const catalogNames = catalog.traitAttributesOf(target)
+      const catalogNames = catalog.instanceAttributesOf(target)
         .filter((spec) => isExtensionPrefix(spec.ns.prefix))
         .map((spec) => spec.ns.name).sort();
       expect(catalogNames, `${target} mixins`).toEqual(moddleNames);
@@ -266,23 +227,16 @@ test.describe('catalog: type parity with moddle', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Templates and enums
-// ---------------------------------------------------------------------------
 
 test.describe('catalog: templates and enums', () => {
   test('every schema template compiles with a resolvable type', () => {
     for (const { prefix } of SCHEMAS) {
       const declared = (packages[prefix].templates ?? []).filter((t: any) => t?.object?.type);
-      const implicit = (packages[prefix].types ?? []).filter(
-        (t: any) => !t.isAbstract && (t.meta?.flowElements?.length ?? 0) > 0,
-      );
       const compiled = catalog.schemaFor(prefix)?.templates ?? [];
-      expect(compiled.length, `${prefix} template count`).toBe(declared.length + implicit.length);
+      expect(compiled.length, `${prefix} template count`).toBe(declared.length);
 
       for (const template of compiled) {
         expect(template.bpmnType, template.id).toMatch(/^bpmn:/);
-        // Templates rooted at a plain BPMN type stamp no extension.
         if (template.extensionType !== undefined) {
           expect(catalog.getType(template.extensionType), template.id).toBeTruthy();
         }
@@ -307,21 +261,14 @@ test.describe('catalog: templates and enums', () => {
 });
 
 test.describe('catalog: runner semantics', () => {
-  // The runner Session picks a random outgoing branch for any type declaring
-  // `meta: {branching: random}` (see src/runner/session.ts). Pin the gateway
-  // type that relies on it so the schema contract cannot regress. (Stratified
-  // allocation is a RandomGateway with `stratifyBy` set, not its own type.)
+  // The runner Session randomizes branches for types declaring `meta.branching: random` (src/runner/session.ts).
   test('allocation gateways declare random branching', () => {
     for (const name of ['cognitive:RandomGateway']) {
       expect(catalog.getType(name)?.meta?.branching, name).toBe('random');
     }
   });
 
-  // Every branching mode a schema declares must be one the Session has an arm
-  // for: `random` picks a seeded branch, `condition` evaluates the outgoing
-  // conditionExpressions, and `model` is refused outright. A mode the Session
-  // has never heard of would fall through to the condition arm and silently
-  // take the default branch, so the set is pinned here.
+  // An unimplemented mode silently takes the default branch, so the declared set is pinned to the implemented arms.
   test('gateways only declare branching modes the runner implements', () => {
     for (const entry of catalog.allTypes()) {
       if (entry.meta?.branching === undefined) continue;
@@ -331,9 +278,7 @@ test.describe('catalog: runner semantics', () => {
 });
 
 test.describe('catalog: renderer semantics', () => {
-  // The event renderer draws an overlay icon for any instance attribute that
-  // declares `meta.icon` and has a value (see src/modeler/render/events.ts).
-  // Pin the two attributes that rely on it so the schema contract cannot regress.
+  // The event renderer overlays an icon for any set attribute declaring `meta.icon` (src/modeler/draw/Renderer.ts).
   test('event overlay attributes declare their icons', () => {
     const cases = [
       { bpmnType: 'bpmn:StartEvent', attr: 'consentFormUri' },
@@ -348,38 +293,25 @@ test.describe('catalog: renderer semantics', () => {
 });
 
 test.describe('catalog: schema-declared vocabulary', () => {
-  /**
-   * Roles are how a consumer addresses a family of types without naming its
-   * members (see `core/catalog/roles`). Most fall out of the type graph, so
-   * these check the inference rather than a list: what BPMN calls item-aware
-   * is a data element, and declaring `instrument` makes a type one.
-   */
   test('roles are inferred from the BPMN attach point and declared attributes', () => {
-    const dataElements = catalog.typeNamesWithRole('data-element');
+    const dataElements = new Set(catalog.typesWithRole('data-element').map((type) => type.name));
     for (const name of ['studyflow:Dataset', 'studyflow:Table', 'studyflow:Timeseries']) {
       expect(dataElements, name).toContain(name);
     }
-    // Inherited through `superClass`, without the subtype restating anything.
     expect(dataElements, 'openbci:OpenBCIRecording specializes studyflow:Dataset')
       .toContain('openbci:OpenBCIRecording');
-    // A type with no BPMN attach point can never be on a canvas, so it is not
-    // a data element however much it looks like one.
     expect(dataElements).not.toContain('studyflow:DataCatalog');
 
-    const instruments = catalog.typeNamesWithRole('instrument');
+    const instruments = new Set(catalog.typesWithRole('instrument').map((type) => type.name));
     expect(instruments).toContain('cognitive:CognitiveTask');
     expect(instruments, 'inherited from CognitiveTask').toContain('cognitive:BehaverseTask');
 
-    // Every role a consumer asks about must actually be carried by something,
-    // or an exporter block is silently always empty.
     for (const role of ['data-element', 'signal', 'instrument', 'acquisition']) {
       expect(catalog.typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
     }
   });
 
   test('every type declaring meta.roles adds something inference misses', () => {
-    // A declaration that only repeats an inferred role is dead weight in the
-    // schema — the point of inferring is that it does not have to be written.
     for (const entry of catalog.allTypes()) {
       const declared = entry.meta?.roles;
       if (!Array.isArray(declared)) continue;
@@ -395,25 +327,16 @@ test.describe('catalog: schema-declared vocabulary', () => {
     expect(new Set(names).size, 'a category is declared once').toBe(names.length);
     expect([...categories].sort((a, b) => a.order - b.order).map((c) => c.name)).toEqual(names);
 
-    // General leads and the engine-written run record trails, whatever schemas
-    // are loaded in between.
     expect(names[0]).toBe('General');
     expect(names[names.length - 1]).toBe('Run record');
 
-    // Synthetic tabs are drawn by their own section component, so they must
-    // survive having no attributes.
     expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution']);
 
-    // A tab is a question asked of any element, so the set stays small and
-    // every schema files into it. One named after a single type would only
-    // repeat what the panel header already says the element is.
     expect(names).toEqual(['General', 'Documentation', 'Gantt', 'Data', 'Execution', 'Run record']);
   });
 
   test('a value type declares the editor its attributes render with', () => {
-    // `meta.editor` on `studyflow:YAMLString` reaches every attribute of that
-    // type, including through a body wrapper - nothing in the inspector names
-    // a type.
+    // `meta.editor` on `studyflow:YAMLString` reaches every attribute of the type, even through a body wrapper.
     const configurations = catalog.instanceAttributesOf('cognitive:BehaverseTask')
       .find((spec) => spec.ns.localName === 'configurations');
     expect(configurations, 'cognitive:BehaverseTask#configurations').toBeTruthy();

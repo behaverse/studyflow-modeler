@@ -7,10 +7,7 @@ import {
   readDownloadText,
 } from './utils';
 
-/**
- * Choreography tasks: banded rendering (top/bottom participant bands with
- * initiator shading) and in-place band editing via double-click.
- */
+/** Choreography tasks: banded rendering with initiator shading, and in-place band editing. */
 test.describe('Studyflow choreography tasks', () => {
   test('creates a banded choreography task and edits participants in place', async ({ page }) => {
     await gotoModeler(page);
@@ -18,19 +15,16 @@ test.describe('Studyflow choreography tasks', () => {
     await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
     await expect(page.getByTestId('inspector-root')).toContainText('ChoreographyTask');
 
-    // bpmn-js auto-opens name editing after create; its overlay covers the
-    // bands, so dismiss it before double-clicking them.
+    // bpmn-js auto-opens name editing after create; its overlay covers the bands, so dismiss it first.
     await page.keyboard.press('Escape');
     await expect(page.locator('.djs-direct-editing-content')).toBeHidden();
 
     const shape = page.locator('.djs-element[data-element-id^="ChoreographyTask_"]').first();
     const visual = shape.locator('.djs-visual');
 
-    // Default participant bands render.
     await expect(visual).toContainText('Participant A');
     await expect(visual).toContainText('Participant B');
 
-    // Initiator defaults to top: the top band keeps the fill, the bottom band is shaded.
     // (tests are typechecked without the DOM lib, hence the `any`)
     const bandFills = await visual.locator('path').evaluateAll(
       (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
@@ -38,9 +32,6 @@ test.describe('Studyflow choreography tasks', () => {
     expect(bandFills).toHaveLength(2);
     expect(bandFills[0]).not.toBe(bandFills[1]);
 
-    // Double-click the TOP band -> edits the top participant's name in place
-    // (materializing the participants on first edit).
-    // (x is offset from center so the clicks miss the selection's resize handles.)
     const box = (await shape.boundingBox())!;
     const bandX = box.x + box.width * 0.3;
     await page.mouse.dblclick(bandX, box.y + 8);
@@ -50,39 +41,28 @@ test.describe('Studyflow choreography tasks', () => {
     await page.keyboard.press('Enter');
     await expect(visual).toContainText('Subject');
 
-    // Double-click the BOTTOM band -> edits the bottom participant's name in place.
     await page.mouse.dblclick(bandX, box.y + box.height - 8);
     await expect(editor).toHaveText('Participant B');
     await editor.fill('Experimenter');
     await page.keyboard.press('Enter');
     await expect(visual).toContainText('Experimenter');
 
-    // Double-click the MIDDLE -> default behaviour still edits the task name.
     await page.mouse.dblclick(bandX, box.y + box.height / 2);
     await editor.fill('Give consent');
     await page.keyboard.press('Enter');
     await expect(visual).toContainText('Give consent');
 
-    // Undo reverts the last edit through the command stack. Enter commits the
-    // rename synchronously, but bpmn-js hands focus back to the canvas via a
-    // debounced Canvas#restoreFocus, and the keyboard listens on the canvas
-    // SVG only - an undo pressed before focus lands there is silently lost.
     await expect(editor).toBeHidden();
     await expect(page.getByTestId('modeler-canvas').locator('svg[tabindex]')).toBeFocused();
     await page.keyboard.press('ControlOrMeta+z');
     await expect(visual).not.toContainText('Give consent');
     await expect(visual).toContainText('Subject');
 
-    // A pure-choreography diagram saves with spec-clean BPMN containment:
-    // a bpmn:Choreography root with declared participants and participant
-    // references, not studyflow band attributes on a process.
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
 
     expect(studyflowText).toContain('type: bpmn:Choreography');
     expect(studyflowText).toContain('participantRef');
     expect(studyflowText).toContain('initiatingParticipantRef');
-    // The exchange is declared per the BPMN 2.0 metamodel: a message flow on
-    // the root, referenced from the task.
     expect(studyflowText).toContain('messageFlows');
     expect(studyflowText).toContain('messageFlowRef');
     expect(studyflowText).toContain('name: Subject');
@@ -96,8 +76,6 @@ test.describe('Studyflow choreography tasks', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.djs-direct-editing-content')).toBeHidden();
 
-    // The General tab offers the same fields the bands edit in place,
-    // pre-filled with the defaults of a task that has no participants yet.
     const inspector = page.getByTestId('inspector-root');
     const topInput = inspector.locator('input[name="choreography:top"]');
     const bottomInput = inspector.locator('input[name="choreography:bottom"]');
@@ -112,7 +90,6 @@ test.describe('Studyflow choreography tasks', () => {
     await bottomInput.fill('Experimenter');
     await expect(visual).toContainText('Experimenter');
 
-    // Switching the initiator flips the band shading: the two fills swap.
     const bandFills = () => visual.locator('path').evaluateAll(
       (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
     );

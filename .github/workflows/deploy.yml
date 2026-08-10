@@ -1,7 +1,11 @@
 name: Deploy
 
+# Deploys only after the Test workflow succeeds on main (or on manual
+# dispatch), from the same pinned Node + `npm ci` tree the tests ran on.
 on:
-  push:
+  workflow_run:
+    workflows: ['Test']
+    types: [completed]
     branches: ['main']
   workflow_dispatch:
 
@@ -17,15 +21,16 @@ concurrency:
 jobs:
   build:
     name: Setup and Build
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: latest
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - uses: quarto-dev/quarto-actions/setup@v2
-      - run: npm install
+      - run: npm ci
       - run: npm run build
       - run: npm run docs:build
       - name: Fetch Unity WebGL build (latest release)

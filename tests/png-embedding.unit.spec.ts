@@ -4,14 +4,9 @@ import {
   embedDrawioIntoPng,
   embedStudyflowIntoPng,
   extractXmlFromPng,
-} from '../src/modeler/models/exporters/pngEmbedding';
+} from '../src/modeler/export/pngEmbedding';
 
-/**
- * Pure chunk-level coverage of the PNG round-trip contract (the browser end —
- * export via canvas, re-open via the file picker — is covered in
- * modeler.file.spec.ts). A minimal-but-well-formed PNG skeleton is enough:
- * embed/extract walk chunks by declared length and never decode pixels.
- */
+/** Pure chunk-level coverage of the PNG round-trip contract. */
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
@@ -44,7 +39,6 @@ function minimalPng(): Uint8Array {
   ]);
 }
 
-/** Walk the chunk list, as the readers under test (and draw.io) do. */
 function chunkTypes(png: Uint8Array): string[] {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
   const types: string[] = [];
@@ -56,7 +50,6 @@ function chunkTypes(png: Uint8Array): string[] {
   return types;
 }
 
-/** Raw text-field bytes of the first `tEXt` chunk carrying `keyword`. */
 function readTextChunkBytes(png: Uint8Array, keyword: string): Uint8Array {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
   for (let offset = PNG_SIGNATURE.length; offset + 8 <= png.length;) {
@@ -73,7 +66,6 @@ function readTextChunkBytes(png: Uint8Array, keyword: string): Uint8Array {
   throw new Error(`no tEXt chunk keyed ${keyword}`);
 }
 
-/** The text of the first `tEXt` chunk carrying `keyword`, URL-decoded. */
 function readTextChunk(png: Uint8Array, keyword: string): string {
   return decodeURIComponent(new TextDecoder().decode(readTextChunkBytes(png, keyword)));
 }
@@ -85,7 +77,6 @@ test.describe('PNG studyflow embedding', () => {
     const png = embedStudyflowIntoPng(minimalPng(), xml);
 
     expect(extractXmlFromPng(png)).toBe(xml);
-    // The signature and trailing IEND survive, so the file is still a PNG.
     expect(Array.from(png.subarray(0, 8))).toEqual(PNG_SIGNATURE);
     expect(String.fromCharCode(...png.subarray(png.length - 8, png.length - 4))).toBe('IEND');
   });
@@ -114,8 +105,7 @@ test.describe('PNG draw.io embedding', () => {
   const mxfile = '<mxfile host="studyflow-modeler"><diagram name="Étude — 実験" /></mxfile>';
 
   test('the mxfile chunk lands ahead of the image data', () => {
-    // draw.io stops scanning at the first IDAT, so a chunk parked next to IEND
-    // (where the studyflow one lives) would never be found.
+    // draw.io stops scanning at the first IDAT, so a chunk parked next to IEND would never be found.
     const png = embedDrawioIntoPng(minimalPng(), mxfile);
 
     const types = chunkTypes(png);
@@ -130,8 +120,7 @@ test.describe('PNG draw.io embedding', () => {
   });
 
   test('URL-encoding keeps the payload inside tEXt\'s Latin-1 text field', () => {
-    // `tEXt` cannot carry UTF-8, so the accented/CJK diagram name above only
-    // survives because encodeURIComponent leaves the payload pure ASCII.
+    // `tEXt` cannot carry UTF-8; the accented/CJK name survives only because encodeURIComponent yields pure ASCII.
     const bytes = readTextChunkBytes(embedDrawioIntoPng(minimalPng(), mxfile), 'mxfile');
 
     expect(bytes.length).toBeGreaterThan(0);
@@ -143,16 +132,13 @@ test.describe('PNG draw.io embedding', () => {
 
     const png = embedDrawioIntoPng(embedStudyflowIntoPng(minimalPng(), xml), mxfile);
 
-    // Each reader finds its own chunk, and the file is still a PNG.
     expect(extractXmlFromPng(png)).toBe(xml);
     expect(readTextChunk(png, 'mxfile')).toBe(mxfile);
     expect(chunkTypes(png)).toEqual(['IHDR', 'tEXt', 'IDAT', 'iTXt', 'IEND']);
   });
 
   test('re-embedding replaces the payload instead of stacking a second one', () => {
-    // The readers take the *first* matching chunk, so an appended one would
-    // never be seen: reopening an exported image and exporting it again would
-    // silently keep the stale diagram.
+    // Readers take the *first* matching chunk; an appended one would silently keep the stale diagram.
     const first = '<?xml version="1.0"?>\n<bpmn:definitions id="first" />';
     const second = '<?xml version="1.0"?>\n<bpmn:definitions id="second" />';
 
@@ -161,7 +147,6 @@ test.describe('PNG draw.io embedding', () => {
     expect(extractXmlFromPng(png)).toBe(second);
     expect(chunkTypes(png)).toEqual(['IHDR', 'IDAT', 'iTXt', 'IEND']);
 
-    // The same holds for the draw.io payload, and neither displaces the other.
     const both = embedDrawioIntoPng(embedDrawioIntoPng(png, '<mxfile>a</mxfile>'), mxfile);
     expect(readTextChunk(both, 'mxfile')).toBe(mxfile);
     expect(extractXmlFromPng(both)).toBe(second);

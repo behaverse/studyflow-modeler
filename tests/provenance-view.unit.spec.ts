@@ -1,20 +1,16 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { toModdlePackages } from '../src/core/schema';
+import { buildCatalog, setCatalog } from '../src/core/notation';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
 import { ICONS } from '../src/icons';
-import { runInvalidateProvenanceRecord } from '../src/modeler/controllers/provenance/invalidateRecord';
-import { collectProvenance, recordDetails, shapeIconOf } from '../src/modeler/models/dialogs/provenance';
-import { appendTrailEntry, primaryRoot } from '../src/modeler/models/provenanceTrail';
+import { runInvalidateProvenanceRecord } from '../src/modeler/provenance/commands';
+import { collectProvenance, recordDetails, shapeIconOf } from '../src/modeler/provenance/records';
+import { appendTrailEntry, primaryRoot } from '../src/modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 
-/**
- * The provenance view's model: the document trail merged with the per-element
- * `executed` records a run archives, ordered oldest first — one chronological
- * log of everything that happened to the studyflow.
- */
+/** The document trail merged with the per-element `executed` records a run archives, oldest first. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
@@ -52,9 +48,7 @@ function firstActivity(definitions: any): any {
   return el;
 }
 
-/** The services `runInvalidateProvenanceRecord` touches, over real moddle
- *  objects: a registry resolving ids to `{ businessObject }` shells, the
- *  real moddle factory, and a `modeling` applying updates in place. */
+/** The services `runInvalidateProvenanceRecord` touches, over real moddle objects. */
 function mockModeler(definitions: any) {
   const registry = new Map<string, any>();
   const index = (container: any) => {
@@ -106,8 +100,6 @@ test.describe('provenance view model', () => {
       ['executed', '2026-07-31T10:00:00Z', true],
     ]);
 
-    // Element records carry the element as their scope with one of the four
-    // palette shape icons; document lines carry the document icon.
     const elementRecord = records[1];
     expect(elementRecord.scopeId).toBe(task.id);
     expect(elementRecord.scopeLabel).toBe(task.name || task.id);
@@ -115,7 +107,6 @@ test.describe('provenance view model', () => {
     expect(elementRecord.icon).toBe(ICONS.square);
     expect(records[0].icon).toBe(ICONS.document);
 
-    // The run's replay facts surface as detail pairs, in display order.
     expect(recordDetails(records[2])).toEqual([
       ['run', 'run-001'],
       ['seed', '42'],
@@ -129,7 +120,6 @@ test.describe('provenance view model', () => {
     expect(shapeIconOf('bpmn:DataObjectReference')).toBe(ICONS.database);
     expect(shapeIconOf('bpmn:ServiceTask')).toBe(ICONS.square);
     expect(shapeIconOf('bpmn:SubProcess')).toBe(ICONS.square);
-    // Extension types follow the same naming conventions.
     expect(shapeIconOf('studyflow:CognitiveTask')).toBe(ICONS.square);
   });
 
@@ -155,10 +145,9 @@ test.describe('provenance view model', () => {
     const record = collectProvenance(definitions).find((r) => !r.isDocument)!;
 
     expect(runInvalidateProvenanceRecord(modeler as any, {
-      type: 'invalidate-provenance-record', elementId: record.scopeId, entry: record.entry,
+      type: 'InvalidateProvenanceRecord', elementId: record.scopeId, entry: record.entry,
     })).toBe(true);
 
-    // Nothing was deleted: the executed record stays, a marker joins it.
     expect(task.extensionElements.values.length).toBe(before + 1);
     const after = collectProvenance(definitions).filter((r) => !r.isDocument);
     const executed = after.find((r) => r.action === 'executed')!;
@@ -168,9 +157,8 @@ test.describe('provenance view model', () => {
     expect(marker.scopeId).toBe(task.id);
     expect(marker.when).toMatch(/(?:Z|[+-]\d{2}:\d{2})$/);
 
-    // A second invalidation of the same record says nothing new.
     expect(runInvalidateProvenanceRecord(modeler as any, {
-      type: 'invalidate-provenance-record', elementId: record.scopeId, entry: record.entry,
+      type: 'InvalidateProvenanceRecord', elementId: record.scopeId, entry: record.entry,
     })).toBe(false);
   });
 
@@ -209,6 +197,7 @@ test.describe('provenance view model', () => {
     expect(records[0].isDocument).toBe(false);
     expect(records[0].scopeId).toBe(task.id);
     expect(records[0].run).toBe('run-002');
-    expect(records[0].seed).toBe('7');
+    // A number, not '7': `prov:Activity#seed` is declared `Integer`, matching `studyflow:Seed#seed`.
+    expect(records[0].seed).toBe(7);
   });
 });

@@ -52,10 +52,8 @@ categories:
     order: 9000
     description: What a run wrote back onto the element.
 
-associations: []
 enumerations:
   - name: DatasetFormatEnum
-    isAbstract: true
     description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
     literalValues:
       - name: BDM (Behaverse Data Model)
@@ -70,7 +68,6 @@ enumerations:
       - name: Kedro
         value: kedro
   - name: BDMDataLevelEnum
-    isAbstract: true
     description: BDM level of the data (events, trials, models).
     literalValues:
       - name: Events
@@ -80,7 +77,6 @@ enumerations:
       - name: Models
         value: models
   - name: BIDSDataTypeEnum
-    isAbstract: true
     description: BIDS data type (e.g., anat, func, etc).
     literalValues:
       - name: anat (anatomical MRI)
@@ -110,7 +106,6 @@ enumerations:
       - name: pet (positron emission tomography)
         value: pet
   - name: TableFormatEnum
-    isAbstract: true
     description: On-disk format of a tabular dataset.
     literalValues:
       - name: CSV
@@ -124,7 +119,6 @@ enumerations:
       - name: JSON Lines
         value: jsonl
   - name: TimeseriesFormatEnum
-    isAbstract: true
     description: On-disk format of a time-series recording.
     literalValues:
       - name: EDF (European Data Format)
@@ -140,7 +134,6 @@ enumerations:
       - name: Zarr
         value: zarr
   - name: CompletionCodeTypeEnum
-    isAbstract: true
     description: How the completion code is generated when the study ends.
     literalValues:
       - name: None
@@ -153,7 +146,6 @@ enumerations:
         value: dynamic
         description: A code extracted from a URL pattern at runtime (e.g. Prolific).
   - name: RuntimeEnum
-    isAbstract: true
     description: Execution environment in which the study runs.
     literalValues:
       - name: Browser
@@ -165,7 +157,6 @@ enumerations:
       - name: HPC
         value: hpc
   - name: AssignmentAlgorithmEnum
-    isAbstract: true
     description: The scheduling algorithm used for the assignment.
     literalValues:
       - name: Probabilistic
@@ -173,7 +164,6 @@ enumerations:
       - name: Round Robin
         value: round-robin
   - name: ItemTypeEnum
-    isAbstract: true
     description: |
       Scalar types offered first when typing a `bpmn:Property` (the State tab).
       A BPMN `itemSubjectRef` points at an `ItemDefinition` whose `structureRef`
@@ -189,7 +179,6 @@ enumerations:
       - name: boolean
         value: boolean
   - name: ProbabilityDistributionEnum
-    isAbstract: true
     description: The random statistical distribution used for the assignment.
     literalValues:
       - name: Uniform
@@ -312,6 +301,7 @@ types:
   - name: StartEvent
     extends:
       - bpmn:StartEvent
+    isAbstract: true
     meta:
       icon: iconify bpmn--start-event
     properties:
@@ -320,15 +310,13 @@ types:
         isAttr: true
         type: String
         meta:
-          pinned: false
           # Overlay icon drawn on the event when this attribute is set.
           icon: iconify fluent--shield-task-24-regular
           optional: true
-          categories:
-            - General
   - name: SequenceFlow
     extends:
       - bpmn:SequenceFlow
+    isAbstract: true
     properties:
       - name: bpmn:conditionExpression
         description: |
@@ -344,13 +332,11 @@ types:
           serialize: xsi:type
         redefines: bpmn:SequenceFlow#conditionExpression
         meta:
-          categories:
-            - General
-          pinned: false
           expression: true
   - name: EndEvent
     extends:
       - bpmn:EndEvent
+    isAbstract: true
     meta:
       icon: iconify bpmn--end-event
     properties:
@@ -364,18 +350,13 @@ types:
           optional: true
           # Overlay icon drawn on the event when this attribute is set.
           icon: iconify fluent--arrow-exit-24-regular
-          categories:
-            - General
       - name: completionCodeType
         description: How the completion code is issued when the study ends.
         isAttr: true
         type: CompletionCodeTypeEnum
         default: none
         meta:
-          categories:
-            - General
           condition:
-            language: json
             body:
               redirectTo: $set
       - name: completionCode
@@ -383,10 +364,7 @@ types:
         isAttr: true
         type: String
         meta:
-          categories:
-            - General
           condition:
-            language: json
             body:
               redirectTo: $set
               completionCodeType: static
@@ -396,7 +374,7 @@ types:
           the runner, not by hand, so the diff against the registered file is
           the CONSORT attrition table.
         isAttr: true
-        type: String
+        type: Integer
         meta:
           readonly: true
           categories:
@@ -446,6 +424,7 @@ types:
       analysis - a dyadic decision round, an experimenter administering a task.
     extends:
       - bpmn:ChoreographyTask
+    isAbstract: true
     meta:
       icon: iconify fluent--people-team-24-regular
   - name: Schema
@@ -528,7 +507,6 @@ types:
           categories:
             - Data
           condition:
-            language: json
             body:
               format: bdm
       - name: bidsDataType
@@ -540,7 +518,6 @@ types:
           categories:
             - Data
           condition:
-            language: json
             body:
               format: bids
   # (There is no studyflow DataStorage type: persistent physical storage is
@@ -797,7 +774,6 @@ types:
           categories:
             - Execution
           condition:
-            language: json
             body:
               implementation: $set
 
@@ -941,8 +917,6 @@ types:
           serialize: xsi:type
         redefines: bpmn:AdHocSubProcess#completionCondition
         meta:
-          categories:
-            - General
           expression: true
 
   - name: LoopCondition
@@ -995,8 +969,6 @@ types:
         type: String
         meta:
           order: 1
-          categories:
-            - General
 
   # ===========================================================================
   # The one concrete element: a named configuration group the engine passes
@@ -1020,5 +992,5 @@ types:
           order: 1
           categories:
             - Data
-          editor: yaml
+          editor: code
 

@@ -5,33 +5,18 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, readStudyflowMetadata, studyflowToXml, xmlToStudyflow } from '../src/core/codec';
+import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '../src/core/document';
 import { exampleXml } from './utils';
-import { parseStudyflow } from '../src/runner/models/parseStudyflow';
-import { toModdlePackages } from '../src/core/schema';
-import { buildCatalog, setCatalog } from '../src/core/catalog';
+import { parseStudyflow } from '../src/runner/studyflow';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '../src/core/notation';
 import { loadSchemaModels } from './schemas';
 
-/**
- * `.studyflow` YAML format guarantees, checked against every bundled example
- * diagram (real studies with extension wrappers, traits, templates, nested
- * sub-process flows, colors, and DI geometry). Examples ship as PNGs with
- * their BPMN XML embedded, so each one's YAML projection — the format the
- * modeler writes on save — is what these check:
- *
- * 1. Fixed point: the projection is its own canonical serialization —
- *    YAML -> XML -> YAML yields the identical YAML, so nothing is lost or
- *    invented by either direction.
- * 2. Semantic equivalence: the runner's parser sees the same flow graph
- *    (nodes, types, extension types, edges, conditions) through both
- *    serializations.
- */
+/** Over every bundled example: YAML is a fixed point of YAML -> XML -> YAML, and both feed the runner alike. */
 
 const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
 
 const models = loadSchemaModels();
-// The codec reads the schemas through the catalog (value types, and the
-// full moddle registry), exactly as the app does.
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
@@ -39,15 +24,13 @@ const packages: Record<string, any> = Object.fromEntries(
 
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
 
-/** A shipped example as the `.studyflow` YAML the modeler writes for it. */
 function studyflowOf(file: string): Promise<string> {
   return xmlToStudyflow(exampleXml(file), new BpmnModdle(structuredClone(packages)) as any);
 }
 
 test.describe('studyflow YAML format', () => {
   test('isMany value-typed lists survive a load (data-loss regression)', async () => {
-    // Before toModdlePackages rewrote value-typed association formats to String,
-    // moddle silently dropped this text on every XML load.
+    // moddle silently drops value-typed list text unless the association format is String (see toModdlePackages).
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const text = await studyflowOf('spirit2025.studyflow.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
@@ -76,8 +59,7 @@ test.describe('studyflow YAML format', () => {
     const map = study.flowElements.find((el: any) => el.id === 'MapRT');
 
     expect(map.get('implementation')).toBe('python://pkg_for_st.do_map@1.2');
-    // `arguments` is a value-typed YAML string (inlined as a mapping in the YAML
-    // form); compare parsed content, not whitespace.
+    // `arguments` is a value-typed YAML string; compare parsed content, not whitespace.
     expect(yaml.load(map.get('studyflow:additionalArguments'))).toEqual({ column: 'rt', fn: 'median' });
 
     const fetch = study.flowElements.find((el: any) => el.id === 'FetchScript');
@@ -86,39 +68,31 @@ test.describe('studyflow YAML format', () => {
   });
 
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
-    // Round the shipped YAML through XML so the folding path (xmlToStudyflow)
-    // is what actually produces the document under test.
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const text = await studyflowOf('bot_ollama.studyflow.png');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle));
 
-    // The definitions id sits at the root; no version key, no bpmndi tree.
     expect(doc.id).toBe('demo5_ollama_bot');
     expect(doc.studyflow).toBeUndefined();
     expect(doc.definitions.id).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
     expect(doc.elements).toBeUndefined();
 
-    // The format version rides on the core namespace.
     expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
 
-    // Root elements and containment collections are keyed by id.
     const process = doc.Demo5_OllamaBot;
     expect(process.type).toBe('bpmn:Process');
     expect(process.flowElements.Start.id).toBeUndefined();
 
-    // extensionElements is a plain list (no `values:` wrapper).
     expect(Array.isArray(process.extensionElements)).toBe(true);
     expect(process.extensionElements[0].type).toBe('studyflow:Study');
 
-    // Config wrappers inline their YAML body (no `value: |` string block).
     const ext = process.flowElements.Warmup_1Back.extensionElements[0];
     expect(ext.type).toBe('cognitive:BehaverseTask');
     expect(ext.configurations.Blocks.Demo5_Warmup.Parameters.NValue).toBe(1);
     expect(ext.botConfigurations.LLM.Provider).toBe('ollama');
 
-    // Geometry lives on the element it describes.
     const start = process.flowElements.Start;
     expect(start.bounds).toMatchObject({ width: 36, height: 36 });
     expect(start.label.bounds).toBeDefined();
@@ -224,7 +198,6 @@ diagram:
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
-    // Re-saving normalizes the unfolded spelling to the folded, id-keyed format.
     const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle2));
     expect(doc.id).toBe('legacy_demo');
@@ -237,9 +210,7 @@ diagram:
   });
 
   test('a config body carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
-    // moddle escapes a text body only when it is typed exactly `String`; a raw
-    // `<`/`&` in a `cognitive:Configurations` (YAMLString) body used to produce
-    // invalid XML on the Export > BPMN 2.0 XML path.
+    // moddle escapes a text body only when it is typed exactly `String`; raw `<`/`&` would break the export.
     const doc = `
 id: escape_demo
 definitions:
@@ -264,18 +235,15 @@ P:
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     const xml1 = await studyflowToXml(doc, moddle);
 
-    // The body markup is escaped, so the document is well-formed XML.
     expect(xml1).toContain('&lt;');
     expect(xml1).toContain('&amp;');
     expect(xml1).not.toContain('<<<');
 
-    // Reading it back decodes the entities; the folded YAML preserves the value.
     const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
     const yaml1 = await xmlToStudyflow(xml1, moddle2);
     const back: any = yaml.load(yaml1);
     expect(back.P.flowElements.T1.extensionElements[0].configurations.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
 
-    // And it reaches a fixed point: XML -> YAML -> XML -> YAML is stable.
     const moddle3 = new BpmnModdle(structuredClone(packages)) as any;
     const xml2 = await studyflowToXml(yaml1, moddle3);
     const moddle4 = new BpmnModdle(structuredClone(packages)) as any;
@@ -287,52 +255,6 @@ P:
     expect(looksLikeXml('﻿  <bpmn2:definitions>')).toBe(true);
     expect(looksLikeXml('studyflow: "1"\nelements: []')).toBe(false);
   });
-
-  test('metadata probe reads the primary root without a moddle round-trip', () => {
-    // Prefers the Process root and reads name + documentation.
-    expect(readStudyflowMetadata([
-      'id: my_study',
-      'definitions: { targetNamespace: x }',
-      'My_Collab:',
-      '  type: bpmn:Collaboration',
-      'My_Process:',
-      '  type: bpmn:Process',
-      '  name: Stroop battery',
-      '  documentation: Classic color-word interference protocol.',
-    ].join('\n'))).toEqual({
-      id: 'My_Process',
-      name: 'Stroop battery',
-      description: 'Classic color-word interference protocol.',
-    });
-
-    // Falls back to the Choreography root; documentation may fold as a list.
-    expect(readStudyflowMetadata([
-      'Dyadic_Study:',
-      '  type: bpmn:Choreography',
-      '  name: Dyadic decision study',
-      '  documentation:',
-      '    - text: Two-participant choreography.',
-    ].join('\n'))).toEqual({
-      id: 'Dyadic_Study',
-      name: 'Dyadic decision study',
-      description: 'Two-participant choreography.',
-    });
-
-    // Unnamed roots surface only the id; non-document YAML yields nothing.
-    expect(readStudyflowMetadata('SPIRIT_2025:\n  type: bpmn:Process')).toEqual({
-      id: 'SPIRIT_2025',
-      name: undefined,
-      description: undefined,
-    });
-    expect(readStudyflowMetadata('just a string')).toEqual({});
-  });
-
-  for (const file of examples) {
-    test(`${file}: metadata probe returns a usable title source`, async () => {
-      const meta = readStudyflowMetadata(await studyflowOf(file));
-      expect(meta.name || meta.id, `${file} should expose a name or root id`).toBeTruthy();
-    });
-  }
 
   for (const file of examples) {
     test(`${file}: its YAML projection is the fixed point of YAML -> XML -> YAML`, async () => {

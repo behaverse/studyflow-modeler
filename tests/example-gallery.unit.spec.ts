@@ -9,35 +9,25 @@ import {
   galleryTags,
   hasTag,
   UNTAGGED,
-} from '../src/modeler/models/dialogs/exampleCatalog';
-import { firstSentence } from '../src/modeler/models/dialogs/exampleMetadata';
-import { extractXmlFromPng } from '../src/modeler/models/exporters/pngEmbedding';
+} from '../src/modeler/examples/catalog';
+import { firstSentence } from '../src/core/naming';
+import { extractXmlFromPng } from '../src/modeler/export/pngEmbedding';
 
-/**
- * Examples ship as one PNG each — the picture of a diagram with the diagram
- * inside it. Everything the gallery shows (title, one-sentence blurb, and the
- * shelf it sits on) is an attribute of that diagram, so these check the files
- * themselves: a card cannot be right if what it reads isn't there.
- */
+/** Examples ship as one PNG each — the picture of a diagram with the diagram inside it. */
 
 const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
 
-/** The embedded diagram of a shipped example. */
 function diagramOf(filename: string): string {
   return extractXmlFromPng(readFileSync(path.join(EXAMPLES_DIR, filename)));
 }
 
-/** The tags a shipped diagram declares. Only the current spelling: what ships
- *  is what the modeler writes today, and the older ones are the import
- *  boundary's business. */
 function tagsInFile(xml: string): string[] {
   return [...xml.matchAll(/<studyflow:tags>([\s\S]*?)<\/studyflow:tags>/g)]
     .map((m) => m[1].trim())
     .filter(Boolean);
 }
 
-/** First root element of the definitions, as raw markup. */
 function rootTag(xml: string): string {
   return xml.match(/<bpmn2?:(?:process|collaboration|choreography)\b[^>]*>/)?.[0] ?? '';
 }
@@ -66,8 +56,7 @@ test.describe('shipped examples', () => {
   });
 
   test('opening one reopens the diagram it pictures', () => {
-    // The payload is what `open-diagram` reads back out of a `.png`, so a card
-    // click and a drag-and-drop of the same file are the same import.
+    // The payload is what `open-diagram` reads out of a `.png`, so a card click and a drop are the same import.
     const xml = diagramOf('cognitive_battery.studyflow.png');
     expect(xml).toContain('id="Task_NBack"');
     expect(xml).toContain('name="Within-subject cognitive battery"');
@@ -78,7 +67,6 @@ test.describe('gallery shelves', () => {
   test('are whatever the diagrams declare, alphabetical, with Other last', () => {
     expect(galleryTags([['Study designs'], ['AI agents'], ['Study designs']]))
       .toEqual(['AI agents', 'Study designs']);
-    // A diagram with no tag still gets a shelf, and it sorts last.
     expect(galleryTags([['Reference'], undefined, ['AI agents']]))
       .toEqual(['AI agents', 'Reference', UNTAGGED]);
     expect(tagsOf(['  '])).toEqual([UNTAGGED]);
@@ -86,7 +74,6 @@ test.describe('gallery shelves', () => {
   });
 
   test('a diagram on several shelves appears under each', () => {
-    // Free-text labels, so a diagram may sit on more than one shelf.
     const card = ['AI agents', 'Reference'];
     expect(galleryTags([card])).toEqual(['AI agents', 'Reference']);
     expect(hasTag(card, 'AI agents')).toBe(true);
@@ -112,10 +99,6 @@ test.describe('gallery shelves', () => {
   });
 
   test('each declares its tags on one root, the one its plane draws', () => {
-    // A collaboration and the process it wraps are both roots. The modeler
-    // reads and writes whichever one the canvas shows, so a second declaration
-    // on the other root is not a harmless copy: it is a second answer, and
-    // editing the shelf in the app updates only one of them.
     for (const filename of examples) {
       const xml = diagramOf(filename);
       const drawn = xml.match(/<bpmndi:BPMNPlane[^>]*bpmnElement="([^"]+)"/)?.[1];
@@ -136,12 +119,10 @@ test.describe('card blurbs', () => {
   test('take the first sentence of the diagram\'s own documentation', () => {
     expect(firstSentence('A short study. It also does more.')).toBe('A short study.');
     expect(firstSentence('One line\nwrapped across two.')).toBe('One line wrapped across two.');
-    // Dotted type names and abbreviations are not sentence ends.
     expect(firstSentence('Reads a pandas.DataFrame and fits it. Then scores.'))
       .toBe('Reads a pandas.DataFrame and fits it.');
     expect(firstSentence('Runs a battery, e.g. an N-back block. Then a survey.'))
       .toBe('Runs a battery, e.g. an N-back block.');
-    // Nothing to cut: no terminator, or nothing documented at all.
     expect(firstSentence('An unfinished note')).toBe('An unfinished note');
     expect(firstSentence('')).toBe('');
   });

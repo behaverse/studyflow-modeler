@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { studyflowToXml, xmlToStudyflow } from '../src/core/codec';
-import { toModdlePackages } from '../src/core/schema';
+import { buildCatalog, setCatalog } from '../src/core/notation';
+import { inferPlaneRoot, studyflowToXml, xmlToStudyflow } from '../src/core/document';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
 import {
   appendTrailEntry,
   primaryRoot,
@@ -11,17 +11,12 @@ import {
   resetTrailStamping,
   stampTrailForExport,
   trailTimestamp,
-} from '../src/modeler/models/provenanceTrail';
+} from '../src/modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+import type { Modeler } from '../src/modeler/bpmn/types';
 
-/**
- * The provenance trail: appended as `<prov:activity>` extension elements on
- * the primary root, surviving both serializations (XML and the `.studyflow`
- * YAML), and stamped once per *fact* — an export with nothing new to record
- * leaves the trail alone, which is what keeps re-rendering the shipped
- * examples byte-stable.
- */
+/** `<prov:activity>` elements on the primary root, stamped once per *fact* so re-rendering stays byte-stable. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
@@ -35,8 +30,7 @@ async function definitionsOf(xml: string): Promise<any> {
   return rootElement;
 }
 
-/** Shipped examples may already carry a trail (rendering stamps them); these
- *  tests build their premises from a document that has none yet. */
+/** Shipped examples may already carry a trail (rendering stamps them); build premises from one with none. */
 function stripTrail(definitions: any): any {
   const ext = primaryRoot(definitions).extensionElements;
   if (ext) ext.values = ext.values.filter((value: any) => value.$type !== 'prov:Activity');
@@ -80,40 +74,34 @@ test.describe('provenance trail', () => {
 
     expect(reloaded).toHaveLength(1);
     expect(reloaded[0].action).toBe('created');
-    // The stamp is written in the machine's own timezone, so assert the
-    // instant and the offset shape rather than one fixed rendering.
+    // The stamp is written in the machine's own timezone; assert the instant and offset shape, not one rendering.
     expect(Date.parse(reloaded[0].when)).toBe(Date.parse('2026-07-31T10:00:00Z'));
     expect(reloaded[0].when).toMatch(/(?:Z|[+-]\d{2}:\d{2})$/);
-    // Unset facts stay unset, not empty strings.
     expect(reloaded[0].who).toBeUndefined();
   });
 
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('drawn_loop.studyflow.png')));
     const commandStack = { _stackIdx: -1 };
+    // A partial mock: `stampTrailForExport` only reads the document and two services.
     const modeler = {
       getDefinitions: () => definitions,
       get: (name: string, _strict?: boolean) =>
         ({ moddle, commandStack } as Record<string, any>)[name],
-    };
+    } as unknown as Modeler;
 
-    // A document with no trail owes its first export a `created` line.
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
     expect(readTrail(definitions)).toHaveLength(1);
 
-    // Exporting again without touching anything records nothing new.
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(1);
 
-    // An edit happened: the next export is a `modified` fact...
     commandStack._stackIdx = 3;
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('modified');
     expect(readTrail(definitions)).toHaveLength(2);
-    // ...and only the next one.
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
 
-    // Reopened (import clears the command stack): a trail-carrying document
-    // that nobody edits — the example render script — is left untouched.
+    // Reopened (import clears the command stack): a trail-carrying document nobody edits is left untouched.
     resetTrailStamping(modeler);
     commandStack._stackIdx = -1;
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
@@ -123,7 +111,6 @@ test.describe('provenance trail', () => {
   test('reads the drawn root, and omits unset facts from the entry', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('agent_eval_pool.studyflow.png')));
     const root = primaryRoot(definitions);
-    // The stamp lands on the root the DI plane draws.
     expect(root.id).toBe(definitions.diagrams[0].plane.bpmnElement.id);
 
     const entry = appendTrailEntry(definitions, moddle, {
@@ -134,5 +121,43 @@ test.describe('provenance trail', () => {
     });
     expect(entry.who).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(1);
+  });
+});
+
+test.describe('primary root agrees with the codec', () => {
+  const poolDefinitions = () => {
+    const process = moddle.create('bpmn:Process', { id: 'P_1', flowElements: [] });
+    const collaboration = moddle.create('bpmn:Collaboration', { id: 'C_1' });
+    return moddle.create('bpmn:Definitions', { rootElements: [process, collaboration] });
+  };
+
+  test('a pool diagram resolves to the same root on both sides', () => {
+    const definitions = poolDefinitions();
+    expect(primaryRoot(definitions)).toBe(inferPlaneRoot(definitions));
+  });
+
+  test('the element the DI plane names outranks the type order', () => {
+    const definitions = poolDefinitions();
+    const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
+    const plane = moddle.create('bpmndi:BPMNPlane', { bpmnElement: process });
+    definitions.diagrams = [moddle.create('bpmndi:BPMNDiagram', { plane })];
+
+    expect(primaryRoot(definitions)).toBe(process);
+    expect(inferPlaneRoot(definitions)).toBe(process);
+  });
+
+  test('a trail already on a non-primary root is still found, and appended to', () => {
+    const definitions = poolDefinitions();
+    const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
+    // Simulate a file written under the old Process-first rule.
+    const existing = moddle.create('prov:Activity', { action: 'created', when: '2026-01-01T00:00:00+00:00' });
+    process.extensionElements = moddle.create('bpmn:ExtensionElements', { values: [existing] });
+
+    expect(readTrail(definitions)).toHaveLength(1);
+
+    appendTrailEntry(definitions, moddle, { action: 'modified', when: '2026-01-02T00:00:00+00:00' });
+
+    expect(readTrail(definitions)).toHaveLength(2);
+    expect(process.extensionElements.values).toHaveLength(2);
   });
 });

@@ -2,24 +2,19 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { studyflowToXml } from '../src/core/codec';
-import { toModdlePackages } from '../src/core/schema';
-import { StudyflowElement, createExtensionElement, getAttribute, getDefaults } from '../src/core/extensions';
+import { buildCatalog, setCatalog } from '../src/core/notation';
+import { studyflowToXml } from '../src/core/document';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { StudyflowElement, getAttribute, getDefaults } from '../src/core/element';
+import { extensionValueWins } from '../src/core/element/handle';
 import { loadSchemaModels } from './schemas';
 import { exampleStudyflow } from './utils';
 
-/**
- * Direct coverage of the StudyflowElement resolution table — reads and writes
- * across the business object, an extension wrapper, and a body-wrapped child —
- * exercised with the DirectWriter (no bpmn-js), against plain moddle objects.
- * This is the logic that previously had no unit test.
- */
+/** The StudyflowElement resolution table across business object, extension wrapper, and body-wrapped child. */
 
 
 const models = loadSchemaModels();
 
-// Install the catalog the handle reads through, and a moddle to build objects with.
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
@@ -31,20 +26,19 @@ test.describe('StudyflowElement', () => {
     const bo = moddle.create('bpmn:Task', { id: 'Task_1', name: 'original' });
     const el = StudyflowElement.fromBusinessObject(bo);
 
-    expect(el.read('bpmn:name')).toBe('original');
-    el.write('bpmn:name', 'renamed');
-    expect(el.read('bpmn:name')).toBe('renamed');
+    expect(el.getAttribute('bpmn:name')).toBe('original');
+    el.setAttribute('bpmn:name', 'renamed');
+    expect(el.getAttribute('bpmn:name')).toBe('renamed');
     expect(bo.name).toBe('renamed');
   });
 
   test('resolves an attribute stored on an extension wrapper', () => {
     const bo = moddle.create('bpmn:Task', { id: 'Task_2' });
-    createExtensionElement(bo, 'cognitive:CognitiveTask', moddle, {});
+    StudyflowElement.fromBusinessObject(bo).ensureExtension('cognitive:CognitiveTask', moddle, {});
     const el = StudyflowElement.fromBusinessObject(bo);
 
-    // `instrument` lives on the cognitive:CognitiveTask wrapper, not the BO.
-    el.write('instrument', 'jsPsych');
-    expect(el.read('instrument')).toBe('jsPsych');
+    el.setAttribute('instrument', 'jsPsych');
+    expect(el.getAttribute('instrument')).toBe('jsPsych');
 
     const wrapper = bo.extensionElements.values.find((v: any) => v.$type === 'cognitive:CognitiveTask');
     expect(wrapper).toBeTruthy();
@@ -53,17 +47,16 @@ test.describe('StudyflowElement', () => {
 
   test('unwraps a body-wrapped attribute transparently on read', () => {
     const bo = moddle.create('bpmn:Task', { id: 'Task_3' });
-    createExtensionElement(bo, 'cognitive:CognitiveTask', moddle, {});
+    StudyflowElement.fromBusinessObject(bo).ensureExtension('cognitive:CognitiveTask', moddle, {});
     const el = StudyflowElement.fromBusinessObject(bo);
 
-    // `configurations` is a body wrapper (cognitive:Configurations#value).
-    el.write('configurations', 'trials: 10');
-    expect(el.read('configurations')).toBe('trials: 10');
+    el.setAttribute('configurations', 'trials: 10');
+    expect(el.getAttribute('configurations')).toBe('trials: 10');
   });
 
   test('attributes() lists the catalog-declared attributes of the wrapper', () => {
     const bo = moddle.create('bpmn:Task', { id: 'Task_4' });
-    const wrapper = createExtensionElement(bo, 'cognitive:CognitiveTask', moddle, {});
+    const wrapper = StudyflowElement.fromBusinessObject(bo).ensureExtension('cognitive:CognitiveTask', moddle, {});
     const names = StudyflowElement.fromBusinessObject(wrapper).attributes().map((a) => a.ns.localName);
     expect(names).toContain('instrument');
     expect(names).toContain('configurations');
@@ -72,21 +65,12 @@ test.describe('StudyflowElement', () => {
   test('fromBusinessObject accepts a bpmn-js element and unwraps it', () => {
     const bo = moddle.create('bpmn:Task', { id: 'Task_5', name: 'wrapped' });
     const fakeElement = { businessObject: bo };
-    expect(StudyflowElement.fromBusinessObject(fakeElement).read('bpmn:name')).toBe('wrapped');
+    expect(StudyflowElement.fromBusinessObject(fakeElement).getAttribute('bpmn:name')).toBe('wrapped');
   });
 });
 
-/**
- * Wrapper precedence on read. moddle materializes every descriptor default on
- * a wrapper instance (as prototype values), so a bare wrapper "has" a value
- * for each defaulted trait attribute. Those materialized defaults must not
- * mask a value stored on the business object; pinned redefinitions must keep
- * winning over anything on the business object.
- */
+/** moddle materializes descriptor defaults on a wrapper instance, so a bare wrapper "has" every trait default. */
 test.describe('StudyflowElement.read — stored values vs wrapper defaults', () => {
-  /** Load a bundled example through the codec into a moddle definitions tree.
-   *  Examples ship as PNGs of themselves, so the source is read back out of
-   *  the picture and round-tripped through the YAML form the modeler writes. */
   const loadExample = async (file: string): Promise<any> => {
     const text = await exampleStudyflow(file, moddle);
     const xml = await studyflowToXml(text, moddle);
@@ -115,32 +99,24 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     const definitions = await loadExample('agent_eval.studyflow.png');
     const agent = findInDefinitions(definitions, 'Research_Agent');
     expect(agent).toBeTruthy();
-    // The value is stored as BPMN's own expression element on the business
-    // object (no wrapper involved in the trait read)...
     expect(agent.get('completionCondition')?.body).toBe('answer != null');
-    // ...and the resolved read unwraps it, not an empty trait default.
     expect(getAttribute(agent, 'studyflow:completionCondition')).toBe('answer != null');
 
-    // With a wrapper attached, its materialized trait defaults must not mask
-    // the stored business-object value either.
     const bo = moddle.create('bpmn:AdHocSubProcess', { id: 'Agent_0' });
-    StudyflowElement.fromBusinessObject(bo).write('completionCondition', 'answer != null');
-    createExtensionElement(bo, 'agentic:Agent', moddle, {});
+    StudyflowElement.fromBusinessObject(bo).setAttribute('completionCondition', 'answer != null');
+    StudyflowElement.fromBusinessObject(bo).ensureExtension('agentic:Agent', moddle, {});
     expect(getAttribute(bo, 'studyflow:completionCondition')).toBe('answer != null');
   });
 
   test('pinned wrapper defaults win over stale business-object values', () => {
-    // functional subtypes pin operationType per verb; a stale value stored
-    // on the business object must not shadow the pinned wrapper default.
     const map = moddle.create('bpmn:ServiceTask', { id: 'Map_1' });
     map.set('operationType', 'stale');
-    createExtensionElement(map, 'functional:Map', moddle, {});
+    StudyflowElement.fromBusinessObject(map).ensureExtension('functional:Map', moddle, {});
     expect(getAttribute(map, 'operationType')).toBe('map');
   });
 
   test('template-stamped values still appear (Reader stamps a path)', () => {
-    // Mirrors createTemplateShape: catalog defaults + templateAttributes are
-    // stamped through ensureExtension at creation time.
+    // Mirrors createTemplateShape: catalog defaults + templateAttributes stamped through ensureExtension.
     const bo = moddle.create('bpmn:ServiceTask', { id: 'Reader_1' });
     const el = StudyflowElement.fromBusinessObject(bo);
     el.ensureExtension('datatrove:Reader', moddle, {
@@ -148,18 +124,85 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
       className: 'CsvReader',
       path: 'data/raw/',
     });
-    expect(el.read('className')).toBe('CsvReader');
-    expect(el.read('path')).toBe('data/raw/');
+    expect(el.getAttribute('className')).toBe('CsvReader');
+    expect(el.getAttribute('path')).toBe('data/raw/');
   });
 
   test('trait defaults apply on bare elements; stored values win (completionCodeType)', () => {
-    // A bare end event shows the studyflow trait default until a value is
-    // stored.
     const bo = moddle.create('bpmn:EndEvent', { id: 'End_1' });
     expect(getAttribute(bo, 'completionCodeType')).toBe('none');
 
     const el = StudyflowElement.fromBusinessObject(bo);
-    el.write('completionCodeType', 'static');
-    expect(el.read('completionCodeType')).toBe('static');
+    el.setAttribute('completionCodeType', 'static');
+    expect(el.getAttribute('completionCodeType')).toBe('static');
+  });
+});
+
+test.describe('extensionValueWins: wrapper vs business object', () => {
+  const spec = (over: Record<string, any> = {}) => ({
+    name: 'thing',
+    ns: { name: 'studyflow:thing', prefix: 'studyflow', localName: 'thing' },
+    type: 'String',
+    ...over,
+  }) as any;
+
+  const withStored = (values: Record<string, any>) => ({ ...values });
+  const withNothing = () => ({});
+
+  test('a pinned redefinition wins even when the BO has a stored value', () => {
+    expect(extensionValueWins(
+      spec({ meta: { pinned: true } }),
+      withStored({ thing: 'from wrapper' }),
+      'thing',
+      withStored({ thing: 'from bo' }),
+      'thing',
+    )).toBe(true);
+  });
+
+  test('an explicitly stored wrapper value wins over a stored BO value', () => {
+    expect(extensionValueWins(
+      spec(),
+      withStored({ thing: 'from wrapper' }),
+      'thing',
+      withStored({ thing: 'from bo' }),
+      'thing',
+    )).toBe(true);
+  });
+
+  test('a stored BO value beats a wrapper default', () => {
+    const wrapperWithOnlyADefault = Object.create({ thing: 'materialized default' });
+    expect(extensionValueWins(
+      spec(),
+      wrapperWithOnlyADefault,
+      'thing',
+      withStored({ thing: 'from bo' }),
+      'thing',
+    )).toBe(false);
+  });
+
+  test('a wrapper default wins when the BO stores nothing either', () => {
+    const wrapperWithOnlyADefault = Object.create({ thing: 'redefined default' });
+    expect(extensionValueWins(
+      spec(),
+      wrapperWithOnlyADefault,
+      'thing',
+      withNothing(),
+      'thing',
+    )).toBe(true);
+  });
+
+  test('an isMany property moddle initialized to [] is not a stored value', () => {
+    expect(extensionValueWins(
+      spec({ isMany: true }),
+      withStored({ things: [] }),
+      'things',
+      withStored({ things: ['from bo'] }),
+      'things',
+    )).toBe(false);
+  });
+
+  test('no wrapper definition means the business object, always', () => {
+    expect(extensionValueWins(undefined, withStored({ thing: 'x' }), 'thing', withNothing(), 'thing'))
+      .toBe(false);
   });
 });

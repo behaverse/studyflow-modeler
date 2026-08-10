@@ -2,21 +2,11 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { fromWireXml, toWireXml } from '../src/core/codec/choreography';
-import { toModdlePackages } from '../src/core/schema';
+import { fromWireXml, toWireXml } from '../src/core/document';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 
-/**
- * Wire-format guarantees for choreography diagrams: saving a pure-choreography
- * process emits the BPMN 2.0 metamodel shape — a `bpmn:Choreography` root with
- * declared participants, `participantRef`/`initiatingParticipantRef` on each
- * task, and the exchange as a `bpmn:MessageFlow` (`messageFlows` on the root,
- * `messageFlowRef` on the task) — and loading folds it back to the canvas
- * process form, where the same native references are preserved and the
- * participants are hosted in a headless `bpmn:Collaboration` (a `Participant`
- * is not a `RootElement`, so it needs a collaboration container; bpmn-js draws
- * no pool for a plane-less one).
- */
+/** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
 
 
 const models = loadSchemaModels();
@@ -58,21 +48,17 @@ test.describe('choreography wire format', () => {
     const choreography = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
     expect(choreography).toBeTruthy();
 
-    // Participants declared once on the choreography and referenced per task,
-    // top band first; the initiating participant is the Experimenter.
     const task = choreography.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
     expect(choreography.participants.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
     expect(task.participantRef.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
     expect(task.initiatingParticipantRef.name).toBe('Experimenter');
 
-    // The exchange itself: a message flow from initiating to receiving.
     expect(choreography.messageFlows).toHaveLength(1);
     const flow = choreography.messageFlows[0];
     expect(task.messageFlowRef?.[0]).toBe(flow);
     expect(flow.sourceRef.name).toBe('Experimenter');
     expect(flow.targetRef.name).toBe('Subject');
 
-    // The transient participant collaboration is consumed into the choreography.
     expect(rootElement.rootElements.some((re: any) => re.$type === 'bpmn:Collaboration')).toBe(false);
   });
 
@@ -85,27 +71,38 @@ test.describe('choreography wire format', () => {
     const collaboration = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Collaboration');
     const task = process.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
 
-    // The task keeps BPMN's own references; the participants live in the headless
-    // collaboration so those references still resolve on the canvas Process.
     expect(collaboration).toBeTruthy();
     expect(collaboration.participants.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
     expect(task.participantRef.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
     expect(task.initiatingParticipantRef.name).toBe('Experimenter');
 
-    // No studyflow band attributes are introduced, and the message flow that
-    // dies with the choreography root leaves no dangling reference.
     expect(canvas).not.toContain('topParticipant');
     expect(canvas).not.toContain('messageFlowRef');
   });
 
+  test('a root-level schema attribute the rewrite never heard of survives both directions', async () => {
+    const authored = CANVAS_XML.replace(
+      '<bpmn2:process id="Process_1" isExecutable="false">',
+      '<bpmn2:process id="Process_1" isExecutable="false" studyflow:signature="abc123">',
+    ).replace(
+      'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"',
+      'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"',
+    );
+
+    const wire = await toWireXml(authored, moddle());
+    expect(wire).toContain('studyflow:signature="abc123"');
+    const { rootElement: saved } = await moddle().fromXML(wire);
+    const choreography = saved.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
+    expect(choreography.$attrs['studyflow:signature']).toBe('abc123');
+
+    const { rootElement: reloaded } = await moddle().fromXML(await fromWireXml(wire, moddle()));
+    const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
+    expect(process.$attrs['studyflow:signature']).toBe('abc123');
+    expect(wire).not.toContain('isExecutable');
+  });
+
   test('what the root carries besides its flow survives both directions', async () => {
-    // Rewriting the root moves a fixed list of properties onto the new one, and
-    // anything missing from that list is dropped on the next save with no
-    // warning. It has happened twice — first to the gallery shelf as
-    // `category`, then again when that property went many-valued and became
-    // `categories`. This walks a full save/load cycle for everything the list
-    // is meant to carry, so the next property to join `Classification` fails
-    // here rather than in a diagram nobody re-opens.
+    // Root rewrite moves a fixed property list; anything missing from it is silently dropped on save.
     const authored = CANVAS_XML.replace(
       '<bpmn2:process id="Process_1" isExecutable="false">',
       `<bpmn2:process id="Process_1" name="Dyadic decision study" isExecutable="false">
@@ -126,7 +123,6 @@ test.describe('choreography wire format', () => {
     expect(choreography.documentation?.[0]?.text).toContain('two-participant');
     expect(choreography.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
 
-    // And back: the canvas process the modeler edits carries the same.
     const { rootElement: reloaded } = await moddle().fromXML(await fromWireXml(wire, moddle()));
     const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
     expect(process.name).toBe('Dyadic decision study');

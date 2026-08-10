@@ -111,7 +111,7 @@ That is also why `additionalArguments` and `bpmn:Property` stay separate rather 
 collapsing into one thing. A property is *run state*: declared, typed, scoped,
 written by steps and read by conditions. An argument is *authored
 configuration*: `cv: 5`, `cmap: Blues` — fixed before the run and never
-touched by it. BPMN gives a Property no value slot, so folding literals into
+touched by it. BPMN gives a Property no value slot, so shorthand form literals into
 properties would need a custom `value` attribute (one custom attribute traded
 for another) and would turn every `cv: 5` into a typed declaration plus a data association,
 listed in the State tab beside the values a run actually carries.
@@ -288,8 +288,8 @@ Trials:
 ## The executable layer (core)
 
 Just enough for a small Python engine to run a diagram: a step is one Python
-call (`implementation` names the importable callable, `with` its kwargs, the
-associations its data), plus the loop/sensor flattenings. Everything here is a
+call (`implementation` names the importable callable, `additionalArguments` its
+literals, the associations its data), plus the loop/sensor flattenings. Everything here is a
 **trait** on a native BPMN element except `Parameters`. Formerly its own `exec`
 schema; merged into the core in 26.0731 (old files load unchanged).
 
@@ -428,7 +428,8 @@ pattern). An ML pipeline is a data pipeline, so every step preset binds a
 **functional operation** to a concrete sklearn function: building an
 estimator is a `functional:Transform` (an unfitted estimator on a data association),
 fitting/scoring a `functional:Reduce` (rows in, one artifact out) —
-with the function in BPMN's own `implementation` and arguments in `with`.
+with the function in BPMN's own `implementation` and its literals in
+`additionalArguments`.
 Cross-validation and sweeps are a native `bpmn:SubProcess` with the core
 iteration attributes; a model or metric is a native data object made citable
 by the core `Artifact` trait. A scikit-learn fit, a mixed-effects formula, and
@@ -468,12 +469,12 @@ Fit:
     - type: functional:Reduce    # fitting is a reduction over rows
       operationType: fit
   implementation: python://sklearn.ensemble.RandomForestClassifier
-  with:
+  additionalArguments:
     n_estimators: 500
     class_weight: balanced
 ```
 
-See the `sklearn_pipeline` example — a complete worked pipeline (external Parquet dataset →
+See the `sklearn_pipeline` example — a complete worked pipeline (external CSV table →
 cross-validated PCA + SVC → threshold gate → fit final → store results) built
 from these presets.
 

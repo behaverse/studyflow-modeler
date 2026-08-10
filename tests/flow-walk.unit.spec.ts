@@ -1,18 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-import { nextHops } from '../src/modeler/models/simulation/flowWalk';
+import { nextHops } from '../src/modeler/simulation/flowWalk';
 
-/**
- * Unit tests for the pure flow-walk decision extracted from TokenSimulator.
- *
- * `is(element, 'bpmn:X')` resolves via `element.businessObject.$instanceOf(type)`
- * (see bpmn-js/lib/util/ModelUtil). We build minimal fakes whose `$instanceOf`
- * knows the BPMN type hierarchy for the types under test, so `nextHops` can call
- * `is()` unchanged.
- */
+/** The pure flow-walk decision extracted from TokenSimulator. */
 
-// Minimal BPMN type hierarchy: each concrete type reports itself plus its
-// supertypes so `is(el, 'bpmn:Gateway')` etc. behaves like the real moddle.
+// Minimal type hierarchy: each concrete type reports itself plus its supertypes, so `is()` behaves like moddle.
 const SUPERTYPES: Record<string, string[]> = {
   'bpmn:StartEvent': ['bpmn:StartEvent', 'bpmn:Event', 'bpmn:FlowNode'],
   'bpmn:EndEvent': ['bpmn:EndEvent', 'bpmn:Event', 'bpmn:FlowNode'],
@@ -48,7 +40,6 @@ test.describe('nextHops', () => {
   });
 
   test('outgoing present but none are sequence flows -> deadend', () => {
-    // e.g. an association or other non-SequenceFlow connection.
     const assoc = el('bpmn:Association', []);
     expect(nextHops(el('bpmn:Task', [assoc]))).toEqual({ kind: 'deadend' });
   });
@@ -94,7 +85,6 @@ test.describe('nextHops', () => {
   });
 
   test('fork only counts sequence flows toward the >1 threshold', () => {
-    // One sequence flow + one association: not a fork, plain advance.
     const f1 = flow('F1');
     const assoc = el('bpmn:Association', []);
     const hop = nextHops(el('bpmn:ParallelGateway', [f1, assoc]));

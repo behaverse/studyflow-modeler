@@ -5,25 +5,13 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { bpmnSelfAndAncestors } from '../src/core/catalog';
-import { fromModdleYaml, toModdlePackages } from '../src/core/schema';
-import { SCHEMAS } from './schemas';
+import { bpmnSelfAndAncestors, buildCatalog } from '../src/core/notation';
+import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '../src/core/notation/schemaFile';
+import { SCHEMAS, loadSchemaModels } from './schemas';
 
-/**
- * Schema design rules, checked without a browser.
- *
- * Layer 1 lints the raw `*.moddle.yaml` files: required metadata, naming
- * conventions, resolvable type references, sane defaults, valid redefines.
- *
- * Layer 2 feeds the parsed schemas through the same SchemaModel pipeline the modeler
- * uses (`fromModdleYaml` -> `toModdlePackages`) and registers them in a real bpmn-moddle
- * instance: every concrete type must instantiate, and every palette template
- * must only set properties its type actually declares.
- */
+/** Schema design rules, checked without a browser. */
 
 const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
-
-const PRIMITIVE_TYPES = new Set(['String', 'Boolean', 'Integer', 'Real', 'Element']);
 
 type RawSchema = any;
 
@@ -41,9 +29,8 @@ function localNames(schema: RawSchema): Set<string> {
   ]);
 }
 
-/** A type/enum reference is resolvable if it's a primitive, bpmn-owned, local, or in another loaded schema. */
 function resolves(ref: string, schema: RawSchema): boolean {
-  if (PRIMITIVE_TYPES.has(ref)) return true;
+  if (MODDLE_BUILTIN_TYPES.has(ref)) return true;
   const [prefix, name] = ref.includes(':') ? ref.split(':', 2) : [schema.prefix, ref];
   if (prefix === 'bpmn') return true; // validated for real in the moddle layer
   const target = rawSchemas.get(prefix);
@@ -55,10 +42,6 @@ function findType(ref: string, schema: RawSchema): RawSchema | undefined {
   return rawSchemas.get(prefix)?.types?.find((t: any) => t.name === name);
 }
 
-// ---------------------------------------------------------------------------
-// Layer 1: YAML lint
-// ---------------------------------------------------------------------------
-
 test.describe('schema lint', () => {
   test('prefixes and URIs are unique across schemas', () => {
     const prefixes = [...rawSchemas.values()].map((s) => s.prefix);
@@ -68,9 +51,6 @@ test.describe('schema lint', () => {
   });
 
   test('the registry is exactly the schema files, core ones first', () => {
-    // The registry is derived from the files (`core/schema/registry`), so this
-    // checks the ordering rule rather than a hand-kept list: core schemas lead,
-    // and every file present is registered.
     expect(SCHEMAS.map((s) => s.prefix).sort()).toEqual([...rawSchemas.keys()].sort());
     const cores = SCHEMAS.filter((s) => s.core);
     expect(cores.length, 'at least one core schema').toBeGreaterThan(0);
@@ -78,7 +58,6 @@ test.describe('schema lint', () => {
     for (const entry of SCHEMAS) {
       expect(entry.name, `${entry.prefix} name`).not.toBe('');
       expect(entry.description, `${entry.prefix} blurb`).not.toBe('');
-      // The settings row shows one line, so the blurb must actually be one.
       expect(entry.description.length, `${entry.prefix} blurb fits a row`).toBeLessThan(320);
     }
   });
@@ -103,8 +82,6 @@ test.describe('schema lint', () => {
       });
 
       test('every category an attribute names is declared by some schema', () => {
-        // A category no schema declares still gets a tab, but it sorts after
-        // every declared one - almost always an oversight rather than intent.
         const declared = new Set(
           [...rawSchemas.values()].flatMap((s) => (s.categories ?? []).map((c: any) => c.name)),
         );
@@ -136,9 +113,9 @@ test.describe('schema lint', () => {
         for (const n of names) expect(n, 'PascalCase').toMatch(/^[A-Z][A-Za-z0-9]*$/);
       });
 
-      test('enumerations are abstract and their literals are named', () => {
+      // No `isAbstract` assertion: `compileEnum` copies only name/description/literalValues, so it would be a no-op.
+      test('enumeration literals are named', () => {
         for (const e of schema.enumerations ?? []) {
-          expect(e.isAbstract, `${e.name} must be isAbstract`).toBe(true);
           for (const lit of e.literalValues ?? []) {
             expect(typeof lit.name, `${e.name} literal name`).toBe('string');
           }
@@ -162,9 +139,6 @@ test.describe('schema lint', () => {
       });
 
       test('no superClass restates a BPMN ancestor the type already has', () => {
-        // `bpmn:BaseElement` is the root of the BPMN metamodel, so every BPMN
-        // type derives from it and naming it beside one is inert. It was listed
-        // on 21 types; the resolved attribute surface is identical without it.
         for (const t of schema.types ?? []) {
           const supers: string[] = t.superClass ?? [];
           if (supers.length < 2) continue;
@@ -181,16 +155,7 @@ test.describe('schema lint', () => {
       });
 
       test('no two traits declare the same property the same way', () => {
-        // The Gantt axis was copy-pasted: `onset`/`duration`/`progress` on a
-        // trait over `bpmn:Activity` and again on one over `bpmn:Event`, so
-        // growing the axis meant editing two places and the two prose
-        // descriptions had already drifted apart. A trait may extend several
-        // targets — `studyflow:Transformation` covers both data associations that
-        // way — which is the form to reach for instead.
-        //
-        // Same name alone is not the signal: `format` means different things on
-        // a Table and a Timeseries, and each has its own enum. Same name *and*
-        // type *and* tab is one property wearing two hats.
+        // Same name alone is not the signal; same name *and* type *and* tab is one property wearing two hats.
         const seen = new Map<string, string>();
         for (const t of schema.types ?? []) {
           if (!t.extends?.length) continue;
@@ -216,7 +181,6 @@ test.describe('schema lint', () => {
             else if (p.type === 'Integer') {
               expect(Number.isInteger(p.default), label).toBe(true);
             } else if (p.type === 'Real') expect(typeof p.default, label).toBe('number');
-            // Strings and enum-backed simple types all serialize as strings.
             else expect(typeof p.default, label).toBe('string');
           }
         }
@@ -230,10 +194,7 @@ test.describe('schema lint', () => {
             const match = /^([^#]+)#(.+)$/.exec(ref);
             expect(match, `${t.name}.${p.name} redefines '${ref}' must be Type#property`).toBeTruthy();
             const [, typeRef, propName] = match!;
-            // bpmn-owned targets are validated against the real moddle
-            // descriptors in the registration layer below.
             if (typeRef.startsWith('bpmn:')) continue;
-            // The redefined property must exist somewhere up the superClass chain.
             const seen = new Set<string>();
             const declares = (typeName: string): boolean => {
               if (seen.has(typeName)) return false;
@@ -257,23 +218,9 @@ test.describe('schema lint', () => {
         }
       });
 
-      test('template-scoped types are surfaced by at least one template', () => {
-        const templateTypes = new Set(
-          (schema.templates ?? []).map((tpl: any) => String(tpl.object?.type).replace(/^.*:/, '')),
-        );
-        for (const t of schema.types ?? []) {
-          if (t.meta?.templateScopedType) {
-            expect(templateTypes.has(t.name), `${t.name} is templateScopedType but unused`).toBe(true);
-          }
-        }
-      });
     });
   }
 });
-
-// ---------------------------------------------------------------------------
-// Layer 2: moddle registration
-// ---------------------------------------------------------------------------
 
 test.describe('moddle registration', () => {
   const models = SCHEMAS.map(({ prefix }) =>
@@ -284,7 +231,6 @@ test.describe('moddle registration', () => {
   );
   const moddle = new BpmnModdle(packages) as any;
 
-  /** Property names a moddle instance of `qname` accepts (own + inherited + extends traits). */
   function knownProperties(qname: string): Set<string> {
     const instance = moddle.create(qname);
     const descriptor = moddle.getElementDescriptor(instance);
@@ -302,9 +248,8 @@ test.describe('moddle registration', () => {
 
     test(`${prefix}: every concrete type instantiates with its defaults`, () => {
       for (const t of schema.types ?? []) {
-        // `extends` traits and abstract/simple types are not standalone elements.
         if (t.extends || t.isAbstract) continue;
-        if ((t.superClass ?? []).some((s: string) => PRIMITIVE_TYPES.has(s))) continue;
+        if ((t.superClass ?? []).some((s: string) => MODDLE_SIMPLE_TYPES.has(s))) continue;
 
         const qname = `${prefix}:${t.name}`;
         const element = moddle.create(qname);
@@ -339,8 +284,7 @@ test.describe('moddle registration', () => {
     });
 
     test(`${prefix}: templates only set declared properties`, () => {
-      // Keys handled by the template expander itself rather than the moddle type
-      // (matches RESERVED_TEMPLATE_KEYS in the catalog compiler, plus flow-node keys).
+      // Keys the template expander handles itself (RESERVED_TEMPLATE_KEYS in the compiler, plus flow-node keys).
       const STRUCTURAL = new Set([
         'type', 'name', 'keywords', 'icon', 'attributes', 'mixins', 'flowElements',
         'x', 'y', 'id', 'sourceRef', 'targetRef',
@@ -377,4 +321,9 @@ test.describe('moddle registration', () => {
       }
     });
   }
+});
+
+test('the shipped schemas compile with no diagnostics', () => {
+  const catalog = buildCatalog(loadSchemaModels());
+  expect(catalog.diagnostics).toEqual([]);
 });

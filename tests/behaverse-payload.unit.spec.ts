@@ -1,32 +1,20 @@
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { toModdlePackages } from '../src/core/schema';
-import { parseStudyflow } from '../src/runner/models/parseStudyflow';
-import { getBehaverseTaskPayload } from '../src/runner/models/nodes/behaverse/parser';
-import type { FlowNode } from '../src/runner/models/flow';
+import { buildCatalog, setCatalog } from '../src/core/notation';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { parseStudyflow } from '../src/runner/studyflow';
+import { getBehaverseTaskPayload } from '../src/runner/nodes/behaverse/parser';
+import type { FlowNode } from '../src/runner/flow';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 
-/**
- * The `RunCognitiveTask` wire contract, from the runner side.
- *
- * Unity's `Activity.ConfigMode` decides whether `parameters` is read at all -
- * a missing value means `builtin` and the parameters are silently dropped -
- * and inline parameters are layered over `Resources/<scene>.json` with
- * null-merging semantics, so a by-name-only timeline reference shipped as
- * `{Name: null}` would erase the very definition it points at. The parser
- * therefore derives `configMode` from the authored `configurations` body and
- * strips the reference entries out of the wire parameters. These tests pin
- * that derivation.
- */
+/** The `RunCognitiveTask` wire contract, from the runner side. */
 
 const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
-// `getAttribute` resolves wrapper elements (cognitive:Configurations bodies)
-// through the catalog, so payload extraction needs it populated.
+// `getAttribute` resolves wrapper bodies through the catalog, so payload extraction needs it populated.
 setCatalog(buildCatalog(models));
 
 async function payloadsOf(xml: string): Promise<Map<string, ReturnType<typeof getBehaverseTaskPayload>>> {
@@ -79,8 +67,7 @@ test('an inline timeline definition runs inline and keeps its definition', async
 });
 
 test('inline overrides alongside a timeline reference ship without the reference entry', async () => {
-  // The reference names what to run (`timeline`); the stripped wire parameters
-  // leave the build's definition of it untouched under Unity's null-merge.
+  // Stripping the by-name reference leaves the build's own definition untouched under Unity's null-merge.
   const payloads = await payloadsOf(taskXml(
     'Blocks:\n  B1:\n    Name: B1\nTimelines:\n  XCIT_NB_01:\n',
   ));

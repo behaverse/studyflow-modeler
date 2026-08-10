@@ -1,13 +1,3 @@
-/**
- * Constants that are not the schemas' to declare: the BPMN 2.0 type names the
- * app refers to by symbol, and the namespace prefixes BPMN itself reserves.
- *
- * Everything that *is* a schema's own business — which schemas exist, their
- * names, blurbs, namespace URIs, and core flag — is read from the
- * `*.moddle.yaml` files; see `@/core/schema/loader` (`SCHEMAS`) and the
- * catalog (`legacyUriRewrites`, `categories`, `typesWithRole`).
- */
-
 export const BPMN = {
   Task: 'bpmn:Task',
   UserTask: 'bpmn:UserTask',
@@ -40,6 +30,7 @@ export const BPMN = {
   DataStoreReference: 'bpmn:DataStoreReference',
   DataObject: 'bpmn:DataObject',
   DataStore: 'bpmn:DataStore',
+  Property: 'bpmn:Property',
 
   SequenceFlow: 'bpmn:SequenceFlow',
   MessageFlow: 'bpmn:MessageFlow',
@@ -60,8 +51,18 @@ export const BPMN = {
   RootElement: 'bpmn:RootElement',
 } as const;
 
-/** Namespaces that are infrastructure, not domain vocabularies: their
- *  elements never act as an element's extension wrapper, so the inspector
- *  ignores them. `prov` is the provenance trail (its schema says `core:
- *  true`) — trail entries are read by the Provenance view, not as fields. */
-export const CORE_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xsi', 'xml', 'prov']);
+/** Namespaces that are not element extensions, so `isExtensionPrefix` rejects them (unrelated to a schema's `core` flag); `prov` is here because provenance wrappers are a trail the Provenance view reads, not element fields. */
+export const NON_EXTENSION_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xsi', 'xml', 'prov']);
+
+export const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
+
+/**
+ * The name bpmn-js gives the `bpmn:Property` it invents to satisfy the XSD. Both apps must
+ * filter it (hence it lives here): unfiltered, the modeler offers it as an unnamed State
+ * variable, and the runner records it to the data server as a phantom variable via `getVariables()`.
+ */
+const TARGET_REF_PLACEHOLDER = '__targetRef_placeholder';
+
+export function isDeclaredProperty(property: { $type?: string; name?: unknown }): boolean {
+  return property?.$type === BPMN.Property && property.name !== TARGET_REF_PLACEHOLDER;
+}

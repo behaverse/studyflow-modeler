@@ -1,16 +1,4 @@
-/**
- * Central registry of icon classes used across the modeler and runner.
- *
- * Every value is an Iconify class (`iconify <collection>--<name>`) consumed by
- * the app's icon rendering. Referencing these by name — `ICONS.close` rather
- * than the raw `'iconify bi--x-lg'` string inlined in a component — keeps the
- * icon set greppable, changeable in one place, and self-documenting.
- *
- * Element-type icons the schemas declare (via `meta.icon`) live in the schema
- * YAML, not here; this registry is for icons chosen in code.
- */
 export const ICONS = {
-  // --- Controls & chrome ---
   close: 'iconify bi--x-lg',
   closeSmall: 'iconify bi--x',
   closeAlt: 'iconify mdi--close',
@@ -40,12 +28,10 @@ export const ICONS = {
   asterisk: 'iconify mdi--asterisk',
   tilde: 'iconify tabler--tilde',
 
-  // --- Playback / run ---
   play: 'iconify bi--play',
   playFill: 'iconify bi--play-fill',
   stop: 'iconify bi--stop',
 
-  // --- Files & IO ---
   document: 'iconify fluent--document-24-regular',
   folderOpen: 'iconify bi--folder2-open',
   fileNew: 'iconify bi--file-earmark-plus',
@@ -57,7 +43,6 @@ export const ICONS = {
   download: 'iconify bi--download',
   boxArrowInDown: 'iconify bi--box-arrow-in-down',
 
-  // --- People & accounts ---
   person: 'iconify bi--person',
   peopleTeam: 'iconify fluent--people-team-24-regular',
   handLeft: 'iconify fluent--hand-left-24-regular',
@@ -66,7 +51,6 @@ export const ICONS = {
   google: 'iconify bi--google',
   github: 'iconify bi--github',
 
-  // --- Data & structure ---
   table: 'iconify bi--table',
   tableAlt: 'iconify mdi--table',
   database: 'iconify fluent--database-16-regular',
@@ -80,7 +64,6 @@ export const ICONS = {
   checkbox: 'iconify mdi--checkbox-outline',
   radioBlank: 'iconify mdi--checkbox-blank-circle-outline',
 
-  // --- Geometric primitives ---
   square: 'iconify fluent--square-16-regular',
   squareDashed: 'iconify mynaui--square-dashed',
   inkSelection: 'iconify material-symbols--ink-selection-rounded',
@@ -89,7 +72,6 @@ export const ICONS = {
   pentagon: 'iconify mdi--pentagon-outline',
   hexagon: 'iconify tabler--hexagon',
 
-  // --- BPMN element type icons ---
   bpmnTask: 'iconify bpmn--task-none',
   bpmnUserTask: 'iconify bpmn--user-task',
   bpmnServiceTask: 'iconify bpmn--service-task',

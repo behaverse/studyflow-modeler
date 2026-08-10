@@ -1,21 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { toModdlePackages } from '../src/core/schema';
-import { StudyflowElement, getAttribute } from '../src/core/extensions';
-import { getAttributesByCategory } from '../src/modeler/models/inspector/categories';
+import { buildCatalog, setCatalog } from '../src/core/notation';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { StudyflowElement, getAttribute } from '../src/core/element';
+import { getAttributesByCategory } from '../src/modeler/inspector/categories';
 import { loadSchemaModels } from './schemas';
 
-/**
- * The executable surface across the task family. The Implementation trait
- * redefines BPMN's own `implementation` attribute on every task type that
- * natively carries one, so the value serializes as the plain native
- * attribute. A ScriptTask carries its computation inline instead, as the
- * standard defines it: the native `script` child, surfaced by the Script
- * trait — no `implementation` there. Both read back through the same
- * `getAttribute` path the runner uses.
- */
+/** The executable surface across the task family. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
@@ -34,10 +26,9 @@ const NATIVE_TYPES = [
   'bpmn:BusinessRuleTask',
 ];
 
-/** Write `attribute` on a fresh task of `taskType` and serialize the diagram. */
 async function serialized(taskType: string, attribute: string, value: string): Promise<string> {
   const task = moddle.create(taskType, { id: 'T_1' });
-  StudyflowElement.fromBusinessObject(task).write(attribute, value);
+  StudyflowElement.fromBusinessObject(task).setAttribute(attribute, value);
   expect(getAttribute(task, attribute)).toBe(value);
 
   const process = moddle.create('bpmn:Process', { id: 'P_1', flowElements: [task] });

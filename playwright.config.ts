@@ -14,8 +14,15 @@ export default defineConfig({
     acceptDownloads: true,
   },
   projects: [
+    // Node-side unit specs, browserless; `test:unit` runs them via playwright.unit.config.ts.
     {
-      name: 'chromium',
+      name: 'unit',
+      testMatch: '**/*.unit.spec.ts',
+      fullyParallel: true,
+    },
+    {
+      name: 'e2e',
+      testIgnore: '**/*.unit.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
       },

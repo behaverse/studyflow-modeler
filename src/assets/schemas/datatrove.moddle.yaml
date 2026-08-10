@@ -13,10 +13,8 @@ xml:
   tagAlias: lowerCase
 version: 26.0717
 
-associations: []
 enumerations:
   - name: ReaderClassEnum
-    isAbstract: true
     description: Reader class from `datatrove.pipeline.readers`, importable as named.
     literalValues:
       - name: CSV
@@ -32,7 +30,6 @@ enumerations:
       - name: WARC
         value: WarcReader
   - name: WriterClassEnum
-    isAbstract: true
     description: Writer class from `datatrove.pipeline.writers`, importable as named.
     literalValues:
       - name: HuggingFace Dataset
@@ -62,16 +59,10 @@ types:
         description: |
           Specific reader class to use for reading data.
           It is determined by the format of the input.
-        meta:
-          categories:
-            - General
       - name: path
         description: Source location to read from - datatrove's `data_folder` argument (a folder path, glob pattern, URL, or dataset identifier).
         isAttr: true
         type: String
-        meta:
-          categories:
-            - General
   - name: Writer
     description: Write documents/rows to different formats.
     superClass:
@@ -90,18 +81,12 @@ types:
         description: Destination location to write to - datatrove's `output_folder` argument (a folder path, URL, or dataset identifier).
         isAttr: true
         type: String
-        meta:
-          categories:
-            - General
       - name: className
         type: WriterClassEnum
         isAttr: true
         description: |
           Specific writer class to use for writing data.
           It is determined by the format of the output.
-        meta:
-          categories:
-            - General
 templates:
   - description: Remove or pseudonymize identifying fields (datatrove's PII formatter).
     object:

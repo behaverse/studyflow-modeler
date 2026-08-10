@@ -14,11 +14,9 @@ xml:
   tagAlias: lowerCase
 version: 26.0716
 
-associations: []
 
 enumerations:
   - name: OpenBCIDeviceEnum
-    isAbstract: true
     description: |
       OpenBCI acquisition board, which fixes the channel count and the
       available modalities (only Galea adds eye tracking and a head IMU).
@@ -34,7 +32,6 @@ enumerations:
         description: OpenBCI Galea - a VR head-mounted display integrating EEG/EMG/EOG/EDA/PPG and eye tracking.
 
   - name: OpenBCIModalityEnum
-    isAbstract: true
     description: Biosignal/sensor modality recorded by an OpenBCI board.
     literalValues:
       - name: EEG (electroencephalography)
@@ -59,7 +56,6 @@ enumerations:
         value: audio
 
   - name: OpenBCIElectrodeTypeEnum
-    isAbstract: true
     description: EEG electrode contact medium used in the montage.
     literalValues:
       - name: Dry
@@ -70,7 +66,6 @@ enumerations:
         value: hybrid
 
   - name: VRDeviceEnum
-    isAbstract: true
     description: |
       VR head-mounted display, relevant only for the Galea device. Properties
       typed with this enum may also accept custom identifiers.
@@ -85,7 +80,6 @@ enumerations:
         value: varjo_xr3
 
   - name: OpenBCIStreamProtocolEnum
-    isAbstract: true
     description: |
       Streaming protocol used to acquire data from the OpenBCI board.
       Properties typed with this enum may also accept custom identifiers.
@@ -118,8 +112,6 @@ types:
         meta:
           order: 0
           editable: true
-          categories:
-            - General
       - name: streamProtocol
         description: Streaming protocol used to acquire data from the board. Pick a listed option or type a custom identifier.
         isAttr: true
@@ -128,8 +120,6 @@ types:
         meta:
           order: 1
           editable: true
-          categories:
-            - General
       - name: modalities
         description: Biosignal/sensor modalities active in this session.
         isAttr: false
@@ -137,8 +127,6 @@ types:
         type: OpenBCIModalityEnum
         meta:
           order: 2
-          categories:
-            - General
       - name: electrodeType
         description: EEG electrode contact medium used in the montage.
         isAttr: true
@@ -146,8 +134,6 @@ types:
         default: dry
         meta:
           order: 3
-          categories:
-            - General
       - name: vrDevice
         description: |
           VR headset paired with the Galea biosensor module; only meaningful
@@ -158,10 +144,7 @@ types:
         meta:
           order: 4
           editable: true
-          categories:
-            - General
           condition:
-            language: json
             body:
               device: galea
 
@@ -185,9 +168,6 @@ types:
         isAttr: false
         isMany: true
         type: OpenBCIModalityEnum
-        meta:
-          categories:
-            - General
       - name: eegChannels
         description: |
           Number of EEG channels recorded. Depends on the board: 4 (Ganglion),
@@ -195,17 +175,11 @@ types:
         isAttr: true
         type: Integer
         default: 8
-        meta:
-          categories:
-            - General
       - name: eegSamplingRateHz
         description: EEG sampling rate, in Hz (e.g., 200 on Ganglion, 250 on Cyton/Galea).
         isAttr: true
         type: Real
         default: 250
-        meta:
-          categories:
-            - General
 
 templates:
   - description: A plain OpenBCI EEG session with a Cyton board - mount -> impedance -> baseline -> task -> export. No VR. Each phase is a generic BPMN task; edit its `configurations`/documentation for the specifics.

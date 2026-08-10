@@ -1,0 +1,44 @@
+# A schema file whose only job is to exercise `meta.connectsTo` end to end.
+#
+# `connectsTo` is the schema-driven connection allow-list evaluated by
+# `TypeCatalog.connectionVerdict` and applied by `modeler/infra/bpmn/behaviors`.
+# No *shipped* schema declares it — deliberately: a declaration immediately
+# starts vetoing connections a user can draw today, so which flows a domain
+# actually forbids is a modelling decision, not a refactor. What was missing was
+# coverage of the real path, so this fixture is loaded the way the app loads a
+# schema (`fromModdleYaml` -> `buildCatalog`) rather than hand-built as an
+# object literal, which is what let the declared shape drift from the parsed one.
+name: Lab
+prefix: lab
+description: Connection-rule fixture. Not shipped.
+uri: http://example.org/schemas/lab/v1
+version: '26.0804'
+xml:
+  tagAlias: lowerCase
+enumerations: []
+types:
+  - name: Consent
+    description: Consent step. Only a survey or a gateway may follow it.
+    superClass:
+      - bpmn:Task
+    meta:
+      bpmnType: bpmn:Task
+      connectsTo:
+        - lab:Survey
+        - bpmn:Gateway
+
+  - name: Survey
+    description: Declares no rules, so the BPMN defaults decide.
+    superClass:
+      - bpmn:Task
+    meta:
+      bpmnType: bpmn:Task
+
+  - name: Debrief
+    description: Explicitly unconstrained.
+    superClass:
+      - bpmn:Task
+    meta:
+      bpmnType: bpmn:Task
+      connectsTo:
+        - '*'

@@ -12,7 +12,6 @@ order: 80  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717
-associations: []
 enumerations: []
 types: []
 templates:

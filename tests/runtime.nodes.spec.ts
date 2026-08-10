@@ -1,27 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/**
- * Stage a studyflow XML in localStorage under the given key (mimicking the
- * modeler's "Run" button), then navigate to the runtime.
- *
- * `addInitScript` runs before any other JS on the page, so localStorage is
- * already populated by the time Executor mounts and reads it.
- * (The modeler's Run button stages XML on a different page than the runtime
- * loads from, but in tests we don't have that intermediate context, so we
- * inject directly.)
- */
-async function runStudyflow(page: Page, key: string, xml: string): Promise<void> {
+import { diagramHandoffKey, type DiagramHandoffEnvelope } from '../src/core/storage';
+
+/** Stage a studyflow XML as a hand-off (mimicking the modeler's "Run" button), then open the runtime. */
+async function runStudyflow(page: Page, id: string, xml: string): Promise<void> {
+  const key = diagramHandoffKey(id);
+  const envelope: DiagramHandoffEnvelope = { createdAt: Date.now(), xml };
   await page.addInitScript(
-    ({ k, x }) => {
+    ({ k, v }) => {
       try {
-        localStorage.setItem(k, x);
+        localStorage.setItem(k, v);
       } catch {
         /* ignore */
       }
     },
-    { k: key, x: xml },
+    { k: key, v: JSON.stringify(envelope) },
   );
-  await page.goto(`/run.html?diagram_id=${key}&seed=42`);
+  await page.goto(`/run.html?diagram_id=${id}&seed=42`);
 }
 
 const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -175,9 +170,6 @@ const BAD_FUNCTION_REF_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 test.describe('Studyflow runtime nodes', () => {
   test('no-Unity flow advances through start, instruction, questionnaire, end', async ({ page }) => {
-    // Track whether the runtime attempted to fetch the Unity manifest. The
-    // refactor's whole point is that diagrams without behaverse tasks must
-    // not pay the manifest cost.
     let manifestFetched = false;
     page.on('request', (req) => {
       if (req.url().includes('/assessment-unity/StreamingAssets/Studyflow/manifest.json')) {
@@ -187,32 +179,25 @@ test.describe('Studyflow runtime nodes', () => {
 
     await runStudyflow(page, 'runner-stages-no-unity', NO_UNITY_XML);
 
-    // Start stage
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
     await page.getByRole('button', { name: 'Begin' }).click();
 
-    // Instruction stage
     await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
     await expect(page.getByText('Read this carefully.')).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    // Questionnaire stage - PHQ-9
     await expect(
       page.getByRole('heading', { name: 'Patient Health Questionnaire-9 (PHQ-9)' }),
     ).toBeVisible();
-    // Submit is disabled until every item is answered
     const submit = page.getByRole('button', { name: 'Submit' });
     await expect(submit).toBeDisabled();
     for (let i = 1; i <= 9; i += 1) {
-      // The radio inputs are sr-only (visual styling lives on the wrapping
-      // <label>), so a normal .check() can't reach them - use the force flag
-      // to dispatch the click directly on the input.
+      // The radios are sr-only (styling lives on the wrapping <label>), so .check() needs force to reach them.
       await page.locator(`input[name="phq9_${i}"][value="1"]`).check({ force: true });
     }
     await expect(submit).toBeEnabled();
     await submit.click();
 
-    // End stage - phase = done, no Unity manifest fetch
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
     expect(manifestFetched).toBe(false);
   });
@@ -228,9 +213,7 @@ test.describe('Studyflow runtime nodes', () => {
 
     await page.getByRole('button', { name: 'Decline' }).click();
 
-    // Run should never reach the Instruction stage.
     await expect(page.getByRole('heading', { name: 'Should not appear' })).toBeHidden();
-    // Phase chip in the logs panel reads "aborted".
     await expect(page.getByText('aborted', { exact: true })).toBeVisible();
   });
 
@@ -256,7 +239,6 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByRole('heading', { name: 'Median RT' })).toBeVisible();
     await expect(page.getByText('Would call')).toBeVisible();
     await expect(page.getByText('python://pkg_for_st.do_map@1.2', { exact: true })).toBeVisible();
-    // `with` arguments parsed and displayed.
     await expect(page.getByText('median', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -266,8 +248,10 @@ test.describe('Studyflow runtime nodes', () => {
   test('a malformed implementation reference fails validation before the run starts', async ({ page }) => {
     await runStudyflow(page, 'runner-stages-bad-function-ref', BAD_FUNCTION_REF_XML);
 
-    await expect(page.getByText(/Invalid 'implementation' function reference/)).toBeVisible();
-    // The run halts at validation; the bound task never renders.
+    // The reason appears on the terminal screen and in the log sidebar, so an unscoped text match hits two elements.
+    const invalid = page.getByTestId('runner-invalid');
+    await expect(invalid).toContainText(/Invalid 'implementation' function reference/);
+    await expect(invalid).toContainText('This study cannot run');
     await expect(page.getByRole('heading', { name: 'Broken reference' })).toBeHidden();
   });
 
@@ -280,7 +264,6 @@ test.describe('Studyflow runtime nodes', () => {
     const participants = page.getByTestId('choreography-participants');
     await expect(participants).toContainText('Subject');
     await expect(participants).toContainText('Experimenter');
-    // initiatingParticipantRef -> the Experimenter row carries the initiates badge.
     await expect(participants.getByText('initiates')).toHaveCount(1);
     await expect(
       participants.locator('div', { hasText: 'Experimenter' }).getByText('initiates'),
@@ -305,5 +288,43 @@ test.describe('Studyflow runtime nodes', () => {
 
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+  });
+
+  // `addInitScript` re-seeds on every navigation, including the reload, and would make this pass regardless.
+  test('a reload mid-run still finds the diagram', async ({ page }) => {
+    const id = 'runner-reload';
+    await page.goto('/run.html');
+    await page.evaluate(
+      ({ k, v }) => window.localStorage.setItem(k, v),
+      { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: NO_UNITY_XML }) },
+    );
+
+    await page.goto(`/run.html?diagram_id=${id}&seed=42`);
+    await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
+    await page.getByRole('button', { name: 'Begin' }).click();
+    await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
+  });
+
+  test('the hand-off is released once the run reaches a terminal state', async ({ page }) => {
+    const id = 'runner-cleanup';
+    await page.goto('/run.html');
+    await page.evaluate(
+      ({ k, v }) => window.localStorage.setItem(k, v),
+      { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: UNTYPED_TASK_XML }) },
+    );
+
+    await page.goto(`/run.html?diagram_id=${id}&seed=42`);
+    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+
+    const remaining = await page.evaluate(
+      (key) => window.localStorage.getItem(key),
+      diagramHandoffKey(id),
+    );
+    expect(remaining).toBeNull();
   });
 });

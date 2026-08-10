@@ -1,24 +1,16 @@
 
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog } from '../src/core/catalog';
-import { toModdlePackages } from '../src/core/schema';
-import { registerNode } from '../src/runner/controllers/nodes/registry';
-import { Session } from '../src/runner/controllers/session';
-import { Studyflow } from '../src/runner/models/studyflow';
-import { evaluateCondition, UndeclaredReference } from '../src/runner/models/rng';
-import type { FlowNode } from '../src/runner/models/flow';
+import { buildCatalog } from '../src/core/notation';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { registerNode } from '../src/runner/nodes/registry';
+import { Session } from '../src/runner/session';
+import { Studyflow } from '../src/runner/studyflow';
+import { evaluateCondition, UndeclaredReference } from '../src/runner/branching';
+import type { FlowNode } from '../src/runner/flow';
 import { loadSchemaModels } from './schemas';
 
-/**
- * Scoped state at run time.
- *
- * The notation says a run's variables are `bpmn:Property` declarations bound
- * by the scope instance that owns them (BPMN 2.0 §10.4.7): entering a
- * sub-process opens a frame, leaving closes it, and a read walks outward.
- * These tests pin that the session actually behaves that way, rather than
- * keeping one flat bag as it used to.
- */
+/** Scoped state at run time. */
 
 
 const models = loadSchemaModels();
@@ -27,14 +19,26 @@ const packages: Record<string, any> = Object.fromEntries(
 );
 const catalog = buildCatalog(models);
 
-// The real node modules are `.tsx` views discovered by a Vite glob, so this
-// Node-side program registers stand-ins: the walk is what is under test, not
-// what each node renders. Gateways deliberately match nothing — they route.
-const stub = (type: string, match: any) =>
-  registerNode({ type, match, toJob: (node: FlowNode) => ({ type, node }), Component: (() => null) as any });
-stub('start', { bpmnType: 'bpmn:StartEvent' });
-stub('end', { bpmnType: 'bpmn:EndEvent' });
-stub('task', { fallback: 'task' });
+// Real node modules are `.tsx` views discovered by a Vite glob; register stand-ins — the walk is under test.
+const nothing = () => null;
+registerNode({
+  type: 'start',
+  match: { bpmnType: 'bpmn:StartEvent' },
+  toJob: (node: FlowNode) => ({ type: 'start', node }),
+  Component: nothing,
+});
+registerNode({
+  type: 'end',
+  match: { bpmnType: 'bpmn:EndEvent' },
+  toJob: (node: FlowNode) => ({ type: 'end', node, completionCodeType: 'none' as const }),
+  Component: nothing,
+});
+registerNode({
+  type: 'task',
+  match: { fallback: 'task' },
+  toJob: (node: FlowNode) => ({ type: 'task', node }),
+  Component: nothing,
+});
 
 const load = (yaml: string) => Studyflow.parse(yaml, structuredClone(packages));
 
@@ -106,7 +110,6 @@ test.describe('scoped state', () => {
     expect(studyflow.scopes.get('Battery')?.parentId).toBe('Study');
     expect(studyflow.scopes.get('Battery')?.startId).toBe('Trial_Start');
 
-    // Nodes from every depth are traversable, each tagged with its scope.
     expect(studyflow.flowNodes.get('Trial')?.scopeId).toBe('Battery');
     expect(studyflow.flowNodes.get('Start')?.scopeId).toBe('Study');
   });
@@ -118,8 +121,6 @@ test.describe('scoped state', () => {
     const seen: string[] = [];
     for await (const job of session.traverse()) seen.push(job.node.id);
 
-    // The inner task runs; the inner end event closes the scope instead of
-    // ending the run, so the outer end event is still reached.
     expect(seen).toContain('Trial');
     expect(seen[seen.length - 1]).toBe('End');
   });
@@ -134,19 +135,15 @@ test.describe('scoped state', () => {
     await walk.next(); // Start
     await walk.next(); // Trial — inside the battery scope
 
-    // Inside the battery, the study's `arm` is visible without being copied in,
-    // and the battery's own declaration is writable.
     expect(session.getVariables().arm).toBe('treatment');
     session.setVariable('failed_trials', 3);
     expect(session.getVariables().failed_trials).toBe(3);
 
-    // Nothing here was undeclared: both names came from the file.
     expect(session.getUndeclaredVariables()).toEqual([]);
 
     await walk.next(); // inner end -> scope closes
     await walk.next(); // outer End
 
-    // The battery's state went out of scope with it; the study's did not.
     expect(session.getVariables().arm).toBe('treatment');
     expect(session.getVariables().failed_trials).toBeUndefined();
   });
@@ -227,11 +224,61 @@ test.describe('conditions over declared state', () => {
     const visited: string[] = [];
     for await (const job of session.traverse()) visited.push(job.node.id);
 
-    // The back-edge is taken while the gateway's visit count is under the
-    // bound, then the default branch exits. Before the engine populated
-    // `state.trace`, this condition threw and always took the exit.
     expect(visited.filter((id) => id === 'Work')).toHaveLength(3);
     expect(visited[visited.length - 1]).toBe('Done');
     expect(diagnostics).toEqual([]);
+  });
+
+  /** `__targetRef_placeholder` is bpmn-js's own invented `bpmn:Property` on the target activity. */
+  test('bpmn-js\'s targetRef placeholder is not a participant variable', async () => {
+    const WITH_PLACEHOLDER = `${HEAD}Study:
+  type: bpmn:Process
+  properties:
+    P_Arm:
+      name: arm
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      outgoing: [Flow_A]
+    Battery:
+      type: bpmn:SubProcess
+      incoming: [Flow_A]
+      outgoing: [Flow_B]
+      properties:
+        P_Placeholder:
+          name: __targetRef_placeholder
+      flowElements:
+        Trial_Start:
+          type: bpmn:StartEvent
+          outgoing: [Flow_T]
+        Trial_End:
+          type: bpmn:EndEvent
+          incoming: [Flow_T]
+        Flow_T:
+          type: bpmn:SequenceFlow
+          sourceRef: Trial_Start
+          targetRef: Trial_End
+    End:
+      type: bpmn:EndEvent
+      incoming: [Flow_B]
+    Flow_A:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Battery
+    Flow_B:
+      type: bpmn:SequenceFlow
+      sourceRef: Battery
+      targetRef: End
+`;
+
+    const studyflow = await load(WITH_PLACEHOLDER);
+
+    const batteryScope = studyflow.scopes.get('Battery');
+    expect(batteryScope, 'the sub-process must be a scope for this to be a real test').toBeTruthy();
+    expect(batteryScope!.properties.map((p) => p.name)).not.toContain('__targetRef_placeholder');
+
+    const session = new Session(studyflow, { catalog });
+    for await (const _job of session.traverse()) { /* drive to completion */ }
+    expect(Object.keys(session.getVariables())).not.toContain('__targetRef_placeholder');
   });
 });

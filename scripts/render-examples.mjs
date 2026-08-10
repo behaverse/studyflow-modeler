@@ -1,24 +1,6 @@
 /**
- * Renders every shipped example to `src/assets/examples/<name>.studyflow.png` —
- * the file *is* the example: a picture of the diagram with the diagram inside
- * it (see `models/exporters/pngEmbedding`). The gallery shows it, the modeler
- * opens it, and nothing else has to be kept in sync with it.
- *
- * Each example is rendered the way a user would: open it in the modeler, then
- * Export as PNG with the studyflow payload embedded.
- *
- *     npm run examples:render                      # all examples
- *     npm run examples:render kitchensink          # just these
- *
- * The source of an example is its own `.studyflow.png`, so re-running this
- * refreshes the images after a rendering change without touching the diagrams.
- * A `.studyflow` next to it wins, which is how a YAML diagram becomes an
- * example: drop it in, run this, delete the YAML. A bare `.png` (the naming
- * before the `.studyflow.png` convention) is read the same way and can be
- * deleted once its renamed render is in place.
- *
- * Icon glyphs are fetched from Iconify during export (see `remoteIconSource`),
- * so this needs network access to render icons into the image.
+ * `npm run examples:render [names...]` — re-renders each example to `<name>.studyflow.png` (the
+ * diagram is embedded in the picture) by driving the real modeler. Needs network for icon glyphs.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -61,9 +43,7 @@ async function startDevServer() {
 const stemOf = (filename) =>
   filename.replace(/\.studyflow\.(png|yaml)$|\.studyflow$|\.png$/, '');
 
-/** The file an example is rendered from: its YAML if one is there (either
- *  spelling), else its `.studyflow.png` (falling back to a pre-convention
- *  bare `.png`). */
+/** The file an example is rendered from: its YAML if present (either spelling), else its PNG. */
 function sourceOf(stem) {
   for (const [suffix, mimeType] of [
     ['.studyflow.yaml', 'application/yaml'],
@@ -92,8 +72,7 @@ async function openExample(page, source) {
   await page.waitForTimeout(500); // let icon <foreignObject>s settle before saveSVG
 }
 
-/** Export the open diagram as PNG (studyflow embedded, draw.io payload off to
- *  keep the shipped asset small) and return the downloaded bytes. */
+/** Export the open diagram as PNG (studyflow embedded, draw.io payload off) and return the bytes. */
 async function exportPng(page) {
   await page.getByRole('button', { name: 'Open command palette' }).click();
   await page.getByRole('dialog').getByText('Export...', { exact: true }).click();

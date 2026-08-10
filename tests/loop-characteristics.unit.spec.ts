@@ -2,22 +2,17 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/catalog';
-import { toModdlePackages } from '../src/core/schema';
-import { runUpdateLoopCharacteristics } from '../src/modeler/controllers/attributes/updateLoopCharacteristics';
+import { buildCatalog, setCatalog } from '../src/core/notation';
+import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { runUpdateLoopCharacteristics } from '../src/modeler/inspector/commands';
 import { loadSchemaModels } from './schemas';
 import {
   loopKindOf,
   supportsLoopCharacteristics,
-} from '../src/modeler/models/inspector/loopCharacteristics';
+} from '../src/modeler/inspector/loopCharacteristics';
+import type { Modeler } from '../src/modeler/bpmn/types';
 
-/**
- * The `update-loop-characteristics` command behind the inspector's Loop tab:
- * adds/removes/switches an activity's `loopCharacteristics` child and edits
- * its fields, routing every write through `modeling` (one undo step each).
- * Exercised against plain moddle objects with a recording fake of the two
- * modeling calls the handler is allowed to make.
- */
+/** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
 
 
 const models = loadSchemaModels();
@@ -28,8 +23,7 @@ const packages: Record<string, any> = Object.fromEntries(
 );
 const moddle = new BpmnModdle(packages) as any;
 
-/** Fake DI container: modeling applies writes like bpmn-js would (without the
- *  command stack) and records which handler each write went through. */
+/** Fake DI container: modeling applies writes like bpmn-js would and records the handler used. */
 function fakeModeler() {
   const calls: string[] = [];
   const services: Record<string, any> = {
@@ -47,7 +41,8 @@ function fakeModeler() {
       create: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
     },
   };
-  return { modeler: { get: (name: string) => services[name] }, calls };
+  // A partial mock: these handlers only resolve services.
+  return { modeler: { get: (name: string) => services[name] } as unknown as Modeler, calls };
 }
 
 function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {
@@ -60,7 +55,7 @@ test.describe('update-loop-characteristics command', () => {
     const element = activityElement();
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
       properties: { isSequential: true },
@@ -78,20 +73,20 @@ test.describe('update-loop-characteristics command', () => {
     const element = activityElement();
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
     });
     const created = element.businessObject.loopCharacteristics;
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
       properties: { isSequential: true },
     });
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
       properties: { isSequential: false },
@@ -100,7 +95,6 @@ test.describe('update-loop-characteristics command', () => {
     const lc = element.businessObject.loopCharacteristics;
     expect(lc).toBe(created);
     expect(lc.get('isSequential')).toBe(false);
-    // Child edits go through updateModdleProperties, not a child swap.
     expect(calls).toEqual(['updateProperties', 'updateModdleProperties', 'updateModdleProperties']);
   });
 
@@ -109,7 +103,7 @@ test.describe('update-loop-characteristics command', () => {
     const element = activityElement('bpmn:SubProcess', 'Per_Item');
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:StandardLoopCharacteristics',
       properties: { loopMaximum: 3 },
@@ -117,19 +111,17 @@ test.describe('update-loop-characteristics command', () => {
     expect(loopKindOf(element)).toBe('loop');
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
     });
     const lc = element.businessObject.loopCharacteristics;
     expect(loopKindOf(element)).toBe('parallel');
     expect(lc.$parent).toBe(element.businessObject);
-    // A switch is a fresh child; the standard-loop fields do not leak over.
     expect(lc.get('loopMaximum')).toBeUndefined();
 
-    // Parallel -> sequential is a field write on the same child, not a swap.
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
       properties: { isSequential: true },
@@ -143,19 +135,19 @@ test.describe('update-loop-characteristics command', () => {
     const element = activityElement();
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: null,
     });
     expect(calls).toEqual([]);
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
     });
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: null,
     });
@@ -168,7 +160,7 @@ test.describe('update-loop-characteristics command', () => {
     const element = activityElement();
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:StandardLoopCharacteristics',
       properties: { loopCondition: 'score < 0.9', loopMaximum: 5, testBefore: true },
@@ -183,8 +175,7 @@ test.describe('update-loop-characteristics command', () => {
     process.$parent = definitions;
 
     const { xml } = await moddle.toXML(definitions);
-    // `loopCondition` serializes in BPMN's own form - an expression element
-    // with `xsi:type` - not a studyflow-namespaced attribute.
+    // `loopCondition` serializes in BPMN's own form — an expression element with `xsi:type`, not a studyflow attribute.
     expect(xml).toContain('xsi:type="bpmn:tFormalExpression"');
     expect(xml).toMatch(/<bpmn:loopCondition[^>]*>score (&lt;|&#60;) 0.9<\/bpmn:loopCondition>/);
     expect(xml).toContain('loopMaximum="5"');
@@ -196,7 +187,7 @@ test.describe('update-loop-characteristics command', () => {
     const element = activityElement('bpmn:SubProcess', 'Per_Item');
 
     runUpdateLoopCharacteristics(modeler, {
-      type: 'update-loop-characteristics',
+      type: 'UpdateLoopCharacteristics',
       element,
       loopType: 'bpmn:MultiInstanceLoopCharacteristics',
       properties: { isSequential: true },
@@ -211,8 +202,6 @@ test.describe('update-loop-characteristics command', () => {
     process.$parent = definitions;
 
     const { xml } = await moddle.toXML(definitions);
-    // BPMN's own child, no studyflow vocabulary involved - as in
-    // agent_eval.studyflow's Per_Item node.
     expect(xml).toContain('multiInstanceLoopCharacteristics');
     expect(xml).toContain('isSequential="true"');
   });

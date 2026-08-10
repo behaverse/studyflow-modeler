@@ -1,0 +1,67 @@
+import type { FlowNode } from '@/runner/flow';
+import type { NodeProps } from '@/runner/nodes/types';
+import { NodePanel } from '@/runner/nodes/NodePanel';
+import { readChoreographyBands } from '@/core/document';
+import { nodeStyles } from '@/runner/nodes/styles';
+import { registerNode } from '@/runner/nodes/registry';
+
+declare module '@/runner/jobs' {
+  interface JobsByType {
+    choreography: ChoreographyJob;
+  }
+}
+
+type ChoreographyJob = {
+  type: 'choreography';
+  node: FlowNode;
+  topParticipant: string;
+  bottomParticipant: string;
+  initiator: string;
+};
+
+function ParticipantRow({ name, initiates }: { name: string; initiates: boolean }) {
+  return (
+    <div
+      className={`flex items-center justify-between rounded px-3 py-2 border ${
+        initiates ? 'bg-white border-stone-400' : 'bg-stone-100 border-stone-200'
+      }`}
+    >
+      <span className="font-medium text-stone-900">{name}</span>
+      {initiates && <span className="text-xs uppercase tracking-wide text-stone-500">initiates</span>}
+    </div>
+  );
+}
+
+function Choreography({ job, complete }: NodeProps<ChoreographyJob>) {
+  const title = job.node.businessObject?.name || 'Interaction';
+  const documentation = job.node.businessObject?.documentation?.[0]?.text || '';
+
+  return (
+    <NodePanel>
+      <h2 className={nodeStyles.title}>{title}</h2>
+      <span className={nodeStyles.subtitle}>
+        Interaction between {job.topParticipant} and {job.bottomParticipant}
+      </span>
+      <div className="flex flex-col gap-2" data-testid="choreography-participants">
+        <ParticipantRow name={job.topParticipant} initiates={job.initiator !== 'bottom'} />
+        <ParticipantRow name={job.bottomParticipant} initiates={job.initiator === 'bottom'} />
+      </div>
+      {documentation && <div className={nodeStyles.body}>{documentation}</div>}
+      <div className={nodeStyles.actions}>
+        <button type="button" className={nodeStyles.primaryButton} onClick={() => complete()}>
+          Continue
+        </button>
+      </div>
+    </NodePanel>
+  );
+}
+
+registerNode({
+  type: 'choreography',
+  match: { bpmnType: 'bpmn:ChoreographyTask' },
+  toJob: (node) => {
+    const { top, bottom, initiator } = readChoreographyBands(node.businessObject);
+    return { type: 'choreography', node, topParticipant: top, bottomParticipant: bottom, initiator };
+  },
+  Component: Choreography,
+});
