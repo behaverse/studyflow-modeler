@@ -1,11 +1,6 @@
-import { exportDiagramName } from '@/modeler/export/common';
 import * as yaml from 'js-yaml';
 import { getCatalog, type AttributeSpec } from '@/core/notation';
-import {
-  collectDataElements,
-  type ExportedElement,
-} from '@/modeler/export/dataElements';
-import type { Modeler } from '@/modeler/bpmn/types';
+import type { ExportedElement, ExportModel } from '@/modeler/export/model';
 
 const EXPORT_NS = 'https://behaverse.org/schemas/studyflow/';
 
@@ -34,13 +29,12 @@ function rangeOf(spec: AttributeSpec): string {
   return 'string';
 }
 
-export function exportToLinkML(modeler: Modeler): string {
-  const elements = collectDataElements(modeler);
-  const diagramName = exportDiagramName(modeler);
+export function exportToLinkML(model: ExportModel): string {
+  const diagramName = model.diagramName;
   const id = `${EXPORT_NS}exports/${toIdentifier(diagramName)}.linkml`;
 
   const classes: Record<string, unknown> = {};
-  for (const element of elements) {
+  for (const element of model.dataElements) {
     const className = toIdentifier(element.name);
     const key = classes[className] ? `${className}_${toIdentifier(element.id)}` : className;
     classes[key] = buildClass(element);

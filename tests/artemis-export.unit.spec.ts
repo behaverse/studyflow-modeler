@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { exportToArtemis } from '../src/modeler/export/artemis';
-import { fakeModeler, moddle, wrapperElement } from './exporterFixture';
+import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
 
 /** The ARTEM-IS report, over hand-built business objects. */
 
@@ -45,7 +45,7 @@ function eegDiagram(): any {
   });
   summarize.dataInputAssociations = [dataInput(cleaned)];
 
-  return fakeModeler([task, recording, cleaned, clean, summarize], { diagramName: 'EEG study' });
+  return fakeExportModel([task, recording, cleaned, clean, summarize], { diagramName: 'EEG study' });
 }
 
 function report(modeler: any): any {
@@ -95,12 +95,12 @@ test.describe('ARTEM-IS export', () => {
   });
 
   test('marks preprocessing not applicable only when the diagram has no EEG element', () => {
-    const noEeg = report(fakeModeler([moddle.create('bpmn:Task', { id: 'Task_1', name: 'Rest' })]));
+    const noEeg = report(fakeExportModel([moddle.create('bpmn:Task', { id: 'Task_1', name: 'Rest' })]));
     expect(noEeg.preprocessing.not_applicable).toBe(true);
     expect(noEeg.task.not_applicable).toBe(true);
 
     // An EEG element with nothing operating on it means a block to fill in by hand, not one that does not apply.
-    const unprocessed = report(fakeModeler([
+    const unprocessed = report(fakeExportModel([
       wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {
         id: 'EEG_1',
         name: 'Raw EEG',

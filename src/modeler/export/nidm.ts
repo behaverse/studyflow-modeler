@@ -1,12 +1,5 @@
-import { exportDiagramName } from '@/modeler/export/common';
 import { toLocalName } from '@/core/naming';
-import {
-  collectDataElements,
-  collectDataOperations,
-  type ExportedElement,
-  type ExportedOperation,
-} from '@/modeler/export/dataElements';
-import type { Modeler } from '@/modeler/bpmn/types';
+import type { ExportedElement, ExportModel } from '@/modeler/export/model';
 
 const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .
 @prefix nidm:  <http://purl.org/nidash/nidm#> .
@@ -34,16 +27,13 @@ function text(element: ExportedElement, name: string): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-export function exportToNidm(modeler: Modeler): string {
-  const diagramName = exportDiagramName(modeler);
+export function exportToNidm(model: ExportModel): string {
+  const diagramName = model.diagramName;
 
-  const entities = new Map<string, ExportedElement>(
-    collectDataElements(modeler).map((element) => [element.id, element]),
-  );
-  const activities: ExportedOperation[] = collectDataOperations(modeler)
-    .filter((activity) => !entities.has(activity.id));
+  const entities = model.dataElements;
+  const activities = model.operations.filter((activity) => !model.dataElementIds.has(activity.id));
 
-  if (activities.length === 0 && entities.size === 0) {
+  if (activities.length === 0 && entities.length === 0) {
     return `${PREFIXES}
 # No data-operation activities or data-plane elements found in this diagram.
 # Add a Transform / Map / Filter / Reduce task associated with a Dataset to populate this export.
@@ -60,7 +50,7 @@ export function exportToNidm(modeler: Modeler): string {
   lines.push(`  rdfs:comment "Studyflow analysis subprocess exported in NIDM-Results-aligned Turtle." .`);
   lines.push('');
 
-  for (const ent of entities.values()) {
+  for (const ent of entities) {
     const lex: string[] = [];
     lex.push(`${turtleId(ent.id)} a prov:Entity , ${turtleClass(ent.type, 'Entity')} ;`);
     lex.push(`  rdfs:label "${escape(ent.name)}"`);

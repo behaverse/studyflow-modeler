@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { exportToNidm } from '../src/modeler/export/nidm';
-import { fakeModeler, moddle, wrapperElement } from './exporterFixture';
+import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
 
 /** The NIDM-Results (Turtle) export, over hand-built business objects. */
 
@@ -54,7 +54,7 @@ function analysisDiagram(): any {
   filter.dataInputAssociations = [dataInput(recording)];
   filter.dataOutputAssociations = [dataOutput(table)];
 
-  return fakeModeler([recording, table, filter], { diagramName: 'EEG study' });
+  return fakeExportModel([recording, table, filter], { diagramName: 'EEG study' });
 }
 
 test.describe('NIDM export', () => {
@@ -67,7 +67,7 @@ test.describe('NIDM export', () => {
   });
 
   test('declares every prefix it uses in the empty-diagram placeholder', () => {
-    expectEveryPrefixDeclared(exportToNidm(fakeModeler([])));
+    expectEveryPrefixDeclared(exportToNidm(fakeExportModel([])));
   });
 
   test("writes an activity's operation as a core: predicate", () => {
@@ -96,7 +96,7 @@ test.describe('NIDM export', () => {
   });
 
   test('falls back to the placeholder bundle for a diagram with no data plane', () => {
-    const turtle = exportToNidm(fakeModeler([moddle.create('bpmn:Task', { id: 'Task_1', name: 'Rest' })]));
+    const turtle = exportToNidm(fakeExportModel([moddle.create('bpmn:Task', { id: 'Task_1', name: 'Rest' })]));
 
     expect(turtle).toContain('# No data-operation activities or data-plane elements found');
     expect(turtle).not.toContain('core:Task_1');

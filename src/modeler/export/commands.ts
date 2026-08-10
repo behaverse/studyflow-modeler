@@ -6,6 +6,7 @@ import { exportToDrawio } from '@/modeler/export/drawio';
 import { DEFAULT_EMBED_OPTIONS, exportFilename, getExportFormat, type EmbedOptions, type ExportFormatId } from '@/modeler/export/formats';
 import { remoteIconSource } from '@/modeler/export/iconSource';
 import { exportToLinkML } from '@/modeler/export/linkml';
+import { buildExportModel, type ExportModel } from '@/modeler/export/model';
 import { exportToNidm } from '@/modeler/export/nidm';
 import { dataUrlToBytes, embedDrawioIntoPng, embedStudyflowIntoPng } from '@/modeler/export/pngEmbedding';
 import { embedDrawioIntoSvg, embedIconsInSvg, embedStudyflowIntoSvg, exportToPng } from '@/modeler/export/svgEmbedding';
@@ -35,6 +36,8 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
   modeler: Modeler;
   embed: EmbedOptions;
   renderSvg: () => Promise<{ svg: string; xml: string }>;
+  /** The semantic view of the diagram, built on demand — only the interchange formats read it. */
+  exportModel: () => ExportModel;
 }) => Promise<BlobPart> | BlobPart> = {
   studyflow: async ({ modeler }) =>
     xmlToStudyflow(await toExportableXml(modeler), modeler.get('moddle')),
@@ -44,9 +47,9 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
     toStandardBpmnXml(await toExportableXml(modeler), modeler.get('moddle')),
 
   drawio: ({ modeler }) => exportToDrawio(modeler),
-  linkml: ({ modeler }) => exportToLinkML(modeler),
-  nidm: ({ modeler }) => exportToNidm(modeler),
-  artemis: ({ modeler }) => exportToArtemis(modeler),
+  linkml: ({ exportModel }) => exportToLinkML(exportModel()),
+  nidm: ({ exportModel }) => exportToNidm(exportModel()),
+  artemis: ({ exportModel }) => exportToArtemis(exportModel()),
 
   svg: async ({ modeler, embed, renderSvg }) => {
     const { svg, xml } = await renderSvg();
@@ -84,6 +87,7 @@ export async function runExportDiagram(modeler: Modeler, command: ExportDiagramC
     modeler,
     embed,
     renderSvg: () => renderSvg(modeler),
+    exportModel: () => buildExportModel(modeler),
   });
   download(new Blob([payload], { type: format.mimeType }), filename, format.mimeType);
 }

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { exportToLinkML } from '../src/modeler/export/linkml';
-import { fakeModeler, moddle, wrapperElement } from './exporterFixture';
+import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
 
 /** Every catalog-declared attribute of a data element must appear in the exported linkml schema. */
 
@@ -15,7 +15,7 @@ test('exportToLinkML collects a data element\'s catalog-declared attributes', ()
     format: 'parquet',
   });
 
-  const out = exportToLinkML(fakeModeler([table]));
+  const out = exportToLinkML(fakeExportModel([table]));
   const doc = yaml.load(out) as any;
 
   const cls = doc.classes.My_Table;
@@ -33,7 +33,7 @@ test('exportToLinkML collects data elements stored as extension wrappers', () =>
     format: 'edf',
   });
 
-  const doc = yaml.load(exportToLinkML(fakeModeler([recording]))) as any;
+  const doc = yaml.load(exportToLinkML(fakeExportModel([recording]))) as any;
 
   const cls = doc.classes.Raw_EEG;
   expect(cls, JSON.stringify(doc.classes)).toBeTruthy();

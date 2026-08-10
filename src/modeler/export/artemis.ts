@@ -1,24 +1,17 @@
-import { getAttribute } from '@/core/element';
-import { exportDiagramName, forEachBusinessObject } from '@/modeler/export/common';
-import {
-  collectDataOperations,
-  hasRole,
-  readExportedElement,
-  toSnakeCase,
-  type ExportedElement,
-  type ExportedOperation,
-} from '@/modeler/export/dataElements';
-import type { Modeler } from '@/modeler/bpmn/types';
+import { hasRole, type ExportedElement, type ExportModel } from '@/modeler/export/model';
 
 type GenericRecord = Record<string, unknown>;
 
 const EEG_DATA_TYPES = new Set(['eeg', 'ieeg']);
 
-function isEegRelevant(bo: any): boolean {
-  if (!bo?.$type) return false;
-  if (hasRole(bo, 'acquisition') || hasRole(bo, 'signal') || hasRole(bo, 'instrument')) return true;
-  return hasRole(bo, 'data-element')
-    && EEG_DATA_TYPES.has(String(getAttribute(bo, 'bidsDataType') ?? ''));
+function toSnakeCase(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
+function isEegRelevant(element: ExportedElement): boolean {
+  if (!element.type) return false;
+  if (hasRole(element, 'acquisition') || hasRole(element, 'signal') || hasRole(element, 'instrument')) return true;
+  return element.isDataElement && EEG_DATA_TYPES.has(String(element.attributes.bidsDataType ?? ''));
 }
 
 function toEntry(bo: ExportedElement): GenericRecord {
@@ -34,7 +27,7 @@ function toEntry(bo: ExportedElement): GenericRecord {
   return entry;
 }
 
-function toOperationEntry(operation: ExportedOperation): GenericRecord {
+function toOperationEntry(operation: ExportedElement): GenericRecord {
   return {
     element_id: operation.id,
     label: operation.name,
@@ -44,29 +37,27 @@ function toOperationEntry(operation: ExportedOperation): GenericRecord {
   };
 }
 
-export function exportToArtemis(modeler: Modeler): string {
-  const diagramName = exportDiagramName(modeler);
+export function exportToArtemis(model: ExportModel): string {
+  const diagramName = model.diagramName;
 
   const acquisition: GenericRecord[] = [];
   const tasks: GenericRecord[] = [];
   const datasets: GenericRecord[] = [];
   const eegElementIds = new Set<string>();
 
-  forEachBusinessObject(modeler, (bo, el) => {
-    if (!isEegRelevant(bo)) return;
-
-    const element = readExportedElement(bo, el?.id);
+  for (const element of model.elements) {
+    if (!isEegRelevant(element)) continue;
     eegElementIds.add(element.id);
 
     const entry = toEntry(element);
-    if (hasRole(bo, 'acquisition') && !hasRole(bo, 'data-element')) acquisition.push(entry);
-    else if (hasRole(bo, 'instrument')) tasks.push(entry);
+    if (hasRole(element, 'acquisition') && !element.isDataElement) acquisition.push(entry);
+    else if (hasRole(element, 'instrument')) tasks.push(entry);
     else datasets.push(entry);
-  });
+  }
 
   const preprocessing: GenericRecord[] = [];
   const analysis: GenericRecord[] = [];
-  for (const operation of collectDataOperations(modeler)) {
+  for (const operation of model.operations) {
     if (eegElementIds.has(operation.id)) continue;
     const touchesEeg = [...operation.inputs, ...operation.outputs].some((id) => eegElementIds.has(id));
     (touchesEeg ? preprocessing : analysis).push(toOperationEntry(operation));
