@@ -373,7 +373,7 @@ participant-assignment gateways. Icon set: schema badge **C**.
 | `cognitive:Rest` | `bpmn:Task` | `solar--armchair-2-linear` | `configurations` (e.g. duration, eyes-open/closed). |
 | `cognitive:Questionnaire` | `bpmn:Task` | `fluent--clipboard-text-edit-32-regular` | `instrument` (QuestionnaireInstrumentEnum, editable). |
 | `cognitive:Instruction` | `bpmn:Task` | `material-symbols--info-outline-rounded` | `content` (Markdown). |
-| `cognitive:BehaverseTask` | `bpmn:Task` | `bi--hexagon` | Behaverse assessment; `instrument` pinned `behaverse`. `scene` (BehaverseSceneEnum, editable), `configurations` (GameConfig YAML: `Blocks`, `Timelines`), `agentType` (AgentTypeEnum), `botConfigurations` (YAML, if `agentType: bot`). |
+| `cognitive:BehaverseTask` | `bpmn:Task` | `bi--hexagon` | Behaverse assessment; `instrument` pinned `behaverse`. `behaverseScene` (BehaverseSceneEnum), `configurations` (GameConfig YAML: `Blocks`, `Timelines`), `agentType` (AgentTypeEnum), `botConfigurations` (YAML, if `agentType: bot`). |
 | `cognitive:RandomGateway` | `bpmn:ExclusiveGateway` | `streamline-flex--dice-5` | `algorithm` (AssignmentAlgorithmEnum), `probabilityFunction` (ProbabilityDistributionEnum, editable). |
 | `cognitive:StratifiedAllocationGateway` | `bpmn:ExclusiveGateway` | `mdi--layers-outline` | `stratificationVariable`, `strata` (Markdown[]), `algorithm`, `probabilityFunction`. |
 | `cognitive:EligibilityGateway` | `bpmn:ExclusiveGateway` | `mdi--filter-check-outline` | `inclusionCriteria` (Markdown[]), `exclusionCriteria` (Markdown[]). |
@@ -410,7 +410,7 @@ Task_NBack:
   type: bpmn:Task
   extensionElements:
     - type: cognitive:BehaverseTask
-      scene: NB
+      behaverseScene: NB
       configurations: |
         Timelines:
           XCIT_NB_01:

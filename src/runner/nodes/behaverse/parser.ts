@@ -38,7 +38,7 @@ export function readBehaverseAttribute(bo: any, attributeName: string): string |
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
 
-  const scene = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
+  const scene = readBehaverseAttribute(node.businessObject, 'behaverseScene') ?? '';
   if (!scene || scene === 'undefined') {
     throw new Error(`Behaverse task ${node.id} has no scene.`);
   }

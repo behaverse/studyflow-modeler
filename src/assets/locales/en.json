@@ -31,7 +31,7 @@
   "outputs": "Outputs",
   "conditionExpression": "Condition",
   "sceneParameters": "Scene Parameters",
-  "scene": "Scene",
+  "behaverseScene": "Scene",
   "environment": "Environment",
   "authors": "Authors",
   "botConfigurations": "Bot configurations",

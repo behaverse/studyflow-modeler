@@ -37,7 +37,7 @@ function taskXml(configurations: string): string {
     </bpmn2:extensionElements>
     <bpmn2:task id="TheTask" name="The task">
       <bpmn2:extensionElements>
-        <cognitive:behaverseTask scene="NB" agentType="bot">
+        <cognitive:behaverseTask behaverseScene="NB" agentType="bot">
           <cognitive:configurations>${indented}</cognitive:configurations>
           <cognitive:botConfigurations>ResponseSource: external</cognitive:botConfigurations>
         </cognitive:behaverseTask>

@@ -37,6 +37,8 @@ const DEFAULT_SEED = 42;
 export type OpenRunnerCommand = {
   type: 'OpenRunner';
   seed?: number;
+  /** Tab claimed by the click handler; see `openRunnerTab`. Omit and this opens its own. */
+  target?: Window | null;
 };
 
 /** Reported in *this* tab: the runner tab either never opened or has nothing to read. */
@@ -47,11 +49,34 @@ function fail(message: string): never {
   throw new OpenRunnerError(message);
 }
 
+const POPUP_BLOCKED = 'Could not open the runner: the browser blocked the new tab. Allow pop-ups for this site and try again.';
+
+/**
+ * Claim the runner's tab. Call this *synchronously* from the click — a browser only honours
+ * `window.open` while the gesture that triggered it is still live, and serializing the diagram
+ * for the hand-off is async, so opening afterwards reads as an unprompted pop-up and is blocked.
+ * The tab starts blank and `runOpenRunner` points it at the runner once the hand-off is written.
+ */
+export function openRunnerTab(): Window | null {
+  return window.open('', '_blank');
+}
+
 export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand): Promise<void> {
-  const { xml } = await modeler.saveXML({ format: true });
+  // `undefined` means the caller never tried; `null` means it tried and the browser said no.
+  const target = command.target === undefined ? openRunnerTab() : command.target;
+  if (!target) fail(POPUP_BLOCKED);
+
+  let xml: string;
+  try {
+    ({ xml } = await modeler.saveXML({ format: true }));
+  } catch (err) {
+    target.close();
+    throw err;
+  }
 
   const { id, result } = createDiagramHandoff(xml);
   if (result !== 'ok') {
+    target.close();
     clearDiagramHandoff(id);
     fail(
       result === 'quota'
@@ -65,10 +90,14 @@ export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand
     seed: String(command.seed ?? DEFAULT_SEED),
   });
 
-  const opened = window.open(`./run.html?${params.toString()}`, '_blank', 'noopener');
-  if (!opened) {
+  // Absolute: the blank tab's own base URL is `about:blank`, which a relative path resolves against.
+  const url = new URL(`./run.html?${params.toString()}`, window.location.href).href;
+  try {
+    target.location.replace(url);
+  } catch {
+    // A tab the user closed while the diagram was serializing.
     clearDiagramHandoff(id);
-    fail('Could not open the runner: the browser blocked the new tab. Allow pop-ups for this site and try again.');
+    fail(POPUP_BLOCKED);
   }
 }
 

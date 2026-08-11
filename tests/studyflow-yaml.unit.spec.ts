@@ -164,7 +164,7 @@ elements:
         extensionElements:
           values:
             - type: cognitive:BehaverseTask
-              scene: NB
+              behaverseScene: NB
               configurations:
                 value: |
                   Timelines:

@@ -365,6 +365,19 @@ function EditableEnumCombobox({ name, ariaLabel, value, literalValues, onCommit 
     if (next !== value) onCommit(next);
   }
 
+  /**
+   * What blurring the input means. The field shows a literal's *label*, so committing the
+   * raw text would store the label ("N-Back (NB)") where the value ("NB") belongs; anything
+   * that matches no literal is the custom identifier an editable enum exists to accept.
+   */
+  function resolveTyped(text: string): string {
+    const typed = text.trim();
+    if (!typed) return '';
+    const match = literalValues.find((l) =>
+      l.name.toLowerCase() === typed.toLowerCase() || l.value.toLowerCase() === typed.toLowerCase());
+    return match ? match.value : typed;
+  }
+
   return (
     <div className={s.selectWrapper}>
       <Combobox
@@ -383,7 +396,10 @@ function EditableEnumCombobox({ name, ariaLabel, value, literalValues, onCommit 
           className={s.comboInput}
           displayValue={displayValue}
           onChange={(event) => setQuery(event.target.value)}
-          onBlur={(event) => commitIfChanged(event.target.value)}
+          onBlur={(event) => {
+            setQuery('');
+            commitIfChanged(resolveTyped(event.target.value));
+          }}
         />
         <ComboboxButton className={s.comboChevronBtn} aria-label="Show suggestions">
           <i className={s.comboChevronIcon} aria-hidden="true"></i>

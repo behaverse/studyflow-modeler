@@ -154,7 +154,7 @@ function drawActivity(
   let iconMarker: string | undefined;
   let iconSize = ICON_SIZE;
   if (getAttribute(element, 'instrument') === 'behaverse' && !preservePrimaryIcon) {
-    const scene = getAttribute(element, 'scene')?.toUpperCase();
+    const scene = getAttribute(element, 'behaverseScene')?.toUpperCase();
     iconMarker = scene === 'UNDEFINED' ? undefined : scene;
     if (iconMarker && iconMarker.length > LONG_SCENE_LENGTH) iconSize = ICON_SIZE_LARGE;
   }

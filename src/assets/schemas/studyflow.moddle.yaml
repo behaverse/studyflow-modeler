@@ -13,9 +13,10 @@ core: true   # backs the default elements; always loaded, cannot be disabled
 order: 10  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0801
+version: 26.0811
 
-# Inspector tabs, in the order they appear, declared here for every schema.
+# Inspector tabs, in the order they appear. These are the ones shared by every
+# schema; a schema may declare its own (as `cognitive` does with "Behaverse").
 # An attribute joins a tab by naming it in `meta.categories`; a tab a schema
 # names without declaring lands after every declared one. `synthetic` tabs are
 # drawn by a dedicated section over nested BPMN state, so they show with no
@@ -23,7 +24,7 @@ version: 26.0801
 #
 # A tab has to earn its name. These five (plus the run record) are the
 # questions a modeller asks of any element, so they recur across every schema;
-# a tab holding one type's own fields would only repeat what the panel header
+# a tab holding one type's own fields would mostly repeat what the panel header
 # already says the element is, so those fields go to General. That is why an
 # OpenBCI recording has no "OpenBCI" tab and an LLM call has no "Model call"
 # tab: on those elements, their own fields *are* the general ones.
@@ -33,7 +34,7 @@ categories:
     description: What this element is — identity, and the fields particular to its type.
   - name: Documentation
     order: 20
-    description: Prose about the element — documentation, checklist, version, categories.
+    description: Prose about the element — documentation, checklist, categories.
   - name: Gantt
     order: 30
     description: Where the element sits on the schedule — onset, duration, progress.
@@ -264,8 +265,6 @@ types:
         type: String
         meta:
           optional: true
-          categories:
-            - Documentation
       # `seed` is declared by the `Seed` trait below, with the rest of the
       # executable layer.
       - name: isExecutable

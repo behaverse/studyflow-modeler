@@ -2,6 +2,7 @@ import logo_image from '@/assets/img/logo.png';
 import { useState, useRef } from 'react';
 import { useModeler, useRequiredModeler } from '@/modeler/app/useModeler';
 import { executeCommand } from '@/modeler/commandBus';
+import { openRunnerTab } from '@/modeler/app/commands';
 import { notify } from '@/modeler/app/noticeStore';
 import { useIsSimulating } from '@/modeler/simulation/useIsSimulating';
 import { CommandPalette, OPEN_PALETTE_SHORTCUT_LABEL } from '@/modeler/commandPalette/CommandPalette';
@@ -71,9 +72,11 @@ function RunButton() {
 
   async function handleClick() {
     if (!modeler || busy) return;
+    // Claimed before the first `await`, while this click still counts as a user gesture.
+    const target = openRunnerTab();
     setBusy(true);
     try {
-      await executeCommand(modeler, { type: 'OpenRunner' });
+      await executeCommand(modeler, { type: 'OpenRunner', target });
     } catch (err) {
       notify('error', err instanceof Error ? err.message : 'Could not start the runner.');
     } finally {

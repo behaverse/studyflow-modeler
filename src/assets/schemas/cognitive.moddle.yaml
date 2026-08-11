@@ -9,7 +9,15 @@ core: true   # backs the default elements; always loaded, cannot be disabled
 order: 40  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0716
+version: 26.0811
+
+# Tabs this schema adds to the ones `studyflow` declares (see the note there).
+categories:
+  - name: Behaverse
+    order: 15
+    description: >-
+      How a `BehaverseTask` is delivered — which assessment scene the Behaverse
+      build runs, and who answers it.
 
 enumerations:
   - name: InstrumentEnum
@@ -231,7 +239,7 @@ types:
   - name: BehaverseTask
     description: |
       A `CognitiveTask` from the Behaverse battery: `instrument` is pinned to
-      `behaverse`, `scene` names the assessment (`NB`, `UFOV`), and
+      `behaverse`, `behaverseScene` names the assessment (`NB`, `UFOV`), and
       `configurations` carries its `GameConfig` as YAML.
     superClass:
       - CognitiveTask
@@ -247,14 +255,15 @@ types:
         meta:
           order: 0
           pinned: true
-      - name: scene
+      - name: behaverseScene
         description: |
           Behaverse scene that delivers this task (e.g., `NB`, `UFOV`, `DS`). Maps to a task ID in the Behaverse at runtime.
         isAttr: true
         type: BehaverseSceneEnum
         meta:
           order: 1
-          editable: true
+          categories:
+            - Behaverse
       - name: configurations
         description: |
           `GameConfig` as YAML. Name a `Timelines:` entry with no body to run a
@@ -274,6 +283,8 @@ types:
         default: human
         meta:
           order: 4
+          categories:
+            - Behaverse
       - name: botConfigurations
         description: |
           Bot overrides as YAML, used when `agentType` is `bot` (e.g.
@@ -456,7 +467,7 @@ templates:
     object:
       type: BehaverseTask
       bpmn:name: N-Back (XCIT_NB_01)
-      scene: NB
+      behaverseScene: NB
       configurations: |
         Timelines:
           XCIT_NB_01:
@@ -464,7 +475,7 @@ templates:
     object:
       type: BehaverseTask
       bpmn:name: N-Back (inline)
-      scene: NB
+      behaverseScene: NB
       configurations: |
         Blocks:
           LabLink_InlineBlock:

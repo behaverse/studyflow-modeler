@@ -1,4 +1,5 @@
 import { executeCommand } from '@/modeler/commandBus';
+import { openRunnerTab } from '@/modeler/app/commands';
 import { URLS } from '@/modeler/constants';
 import { ICONS } from '@/icons';
 import type { PaletteCommand, PaletteDialogId } from '@/modeler/commandPalette/types';
@@ -79,7 +80,8 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       label: 'Run',
       icon: ICONS.playFill,
       shortcut: '4',
-      action: () => executeCommand(modeler, { type: 'OpenRunner' }),
+      // `openRunnerTab()` first: the runner tab has to be claimed inside this gesture.
+      action: () => executeCommand(modeler, { type: 'OpenRunner', target: openRunnerTab() }),
     },
     {
       id: 'simulate',
