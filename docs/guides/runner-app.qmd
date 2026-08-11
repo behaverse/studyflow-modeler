@@ -32,31 +32,49 @@ Without `diagram`, the runner shows the file-upload landing screen. **Every othe
 
 ## Parameterizing a study
 
-A parameter binds to what the diagram itself declares, and only the diagram decides what that is:
+**A study carries its own values; a link overrides them.** This is the same model the reference runner in `src/runner/python/` implements: one value store per run, where what the run holds wins over what the element would otherwise supply. The places a value can live, highest precedence first:
 
-| Declared as | Bound by | Example |
+| Where | Declared as | Example |
 |---|---|---|
-| A `bpmn:Property` on the process | seeding the run's state, typed by the property's `itemSubjectRef` | `task`, `timeline` in the demo below |
-| An attribute of the study's own type (any extension schema, never native BPMN) | setting that attribute on the study, typed by the schema | `seed` -- `studyflow:seed`, an `Integer`, from the `Seed` trait |
-| Nothing | still bound as a run variable, and logged as undeclared | a typo, or a value a condition reads without declaring |
+| The link | any query parameter but `diagram` | `?task=NB` |
+| The study's own configuration | a `studyflow:Parameters` data object -- a `bpmn:DataObjectReference` whose `values` is a YAML mapping | `task: BCS` in the demo's `config` object |
+| The study itself | an attribute of its own type, from any extension schema (never native BPMN) | `studyflow:seed`, an `Integer` from the `Seed` trait |
 
-A bound value reaches the run three ways:
+`bpmn:Property` entries on the process declare **names the run may hold**, not values -- BPMN gives a property no value slot. Declaring one makes the name part of the study's state, so conditions may read it and the runner does not report it as undeclared. A name the study declares nowhere still binds, and is logged as undeclared -- a typo shows up rather than passing silently.
+
+**Which steps a config object reaches is drawn, not implied.** Connect it to a step with a `dataInputAssociation` and its values are that step's; leave it connected to nothing and they are the study's, read everywhere. Same rule as every other data element: the association is the interface, and an interface a reviewer cannot see is an interface nobody reviewed. A sub-process may carry its own config object the same way; the link parameterizes the study's, since that is what the study publishes.
+
+However it was bound, a value reaches the run three ways:
 
 1. **In the diagram**, before validation: any attribute containing `${name}` is substituted. A studyflow written this way is a template -- one diagram, many runs.
-2. **On the study**, when the name is one of its declared attributes: `?seed=42` *is* `studyflow:seed`, so a seed pinned in the diagram runs when the link gives none, and the link overrides it when it does. The engine reads the study's seed either way -- there is no runner-only seed.
-3. **In the run's state**, as an initial variable. Conditions on sequence flows read it like any other variable, and it is `PATCH`ed to the data server with the rest of the session's variables, so the record says which parameters produced it.
+2. **On the study**, when the name is one of its declared attributes: `?seed=42` *is* `studyflow:seed`, so a seed pinned in the diagram runs when the link gives none and the link overrides it when it does. The engine reads the study's seed either way -- there is no runner-only seed.
+3. **In the run's state**, as an initial variable. Conditions on sequence flows read it like any other variable, and it is `PATCH`ed to the data server with the rest of the session's variables, so the record says which values produced it.
 
-`${name}` with no value given is an error: the run stops before it starts and names what the link is missing, rather than delivering a task with an empty configuration. The shipped `behaverse` demo is the smallest example:
+An overriding value takes the type of the one it replaces (`blocks: 3` in a data object makes `?blocks=5` the number 5), and a declared attribute types it from the schema. `${name}` that nothing has bound is an error: the run stops before it starts and names what is missing, rather than delivering a task with an empty configuration.
+
+The shipped `behaverse` demo is the whole model in one file:
 
 ```yaml
 Behaverse_Demo:
   type: bpmn:Process
-  properties:
+  properties:                       # names this run holds
     P_Task: { name: task }
     P_Timeline: { name: timeline }
   flowElements:
+    Config:                         # the values it holds by default
+      type: bpmn:DataObjectReference
+      name: config
+      extensionElements:
+        - type: studyflow:Parameters
+          values: |
+            task: BCS
+            timeline: XCIT_BCS_02
     Task:
       type: bpmn:Task
+      dataInputAssociations:        # drawn: this step reads that config
+        In_Config:
+          sourceRef:
+            - Config
       extensionElements:
         - type: cognitive:BehaverseTask
           behaverseScene: ${task}
@@ -65,7 +83,7 @@ Behaverse_Demo:
               ${timeline}:
 ```
 
-`run.html?diagram=behaverse&task=BCS&timeline=XCIT_BCS_02&seed=42` then delivers `BCS` on timeline `XCIT_BCS_02` with the run seeded at 42.
+So `run.html?diagram=behaverse` delivers `BCS` on `XCIT_BCS_02`, and `run.html?diagram=behaverse&task=NB&timeline=XCIT_NB_01&seed=42` delivers `NB` on `XCIT_NB_01` seeded at 42 -- with both overrides named in the run log.
 
 ## What the runner does
 

@@ -13,9 +13,21 @@ Behaverse_Demo:
     P_Timeline:
       name: timeline
   flowElements:
+    Config:
+      type: bpmn:DataObjectReference
+      name: config
+      extensionElements:
+        - type: studyflow:Parameters
+          values: |
+            task: BCS
+            timeline: XCIT_BCS_02
     Task:
       type: bpmn:Task
       name: ${task} / ${timeline}
+      dataInputAssociations:
+        In_Config:
+          sourceRef:
+            - Config
       extensionElements:
         - type: cognitive:BehaverseTask
           behaverseScene: ${task}

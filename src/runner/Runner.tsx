@@ -200,7 +200,7 @@ export function Runner() {
         setPhase('loading');
         const schemas = await loadAllSchemas();
         const studyflow = await Studyflow.parse(xml, schemas, parameters);
-        const { values, undeclared, unbound } = studyflow.parameters;
+        const { values, overridden, undeclared, unbound } = studyflow.parameters;
         const agentId = `anon-${crypto.randomUUID().slice(0, 8)}`;
         const session = new Session(studyflow, {
           seed: studyflow.seed,
@@ -214,6 +214,9 @@ export function Runner() {
         setStudyflowName(studyflow.businessObject?.name || studyflow.businessObject?.id || null);
         addLog('info', `Parsed ${studyflow.flowNodes.size} flow nodes, ${studyflow.sequenceFlows.size} sequence flows.`);
 
+        for (const name of overridden) {
+          addLog('info', `Parameter '${name}' overrides the study's value: ${String(values[name])}.`);
+        }
         for (const name of undeclared) {
           addLog('skip', `Parameter '${name}' is not declared by this studyflow.`);
         }

@@ -1,6 +1,7 @@
 import { BpmnModdle } from 'bpmn-moddle';
+import * as yaml from 'js-yaml';
 import { choreographyToProcessRoot, looksLikeXml, studyflowToDefinitions } from '@/core/document';
-import { getExtensionType } from '@/core/element';
+import { getAttribute, getExtensionType } from '@/core/element';
 import { BPMN, isDeclaredProperty } from '@/core/constants';
 import type { FlowNode, SequenceFlow } from '@/runner/flow';
 import type { PropertyDecl, Scope } from '@/runner/scope';
@@ -210,13 +211,16 @@ export async function parseStudyflow(
 }
 
 const PARAMETER_REF = /\$\{\s*([^}\s]+)\s*\}/g;
+const PARAMETERS_TYPE = 'studyflow:Parameters';
 
 export type BoundParameters = {
-  /** Every value the run was launched with, typed by the declaration it bound to. */
+  /** What the run holds: the study's own values, with the ones it was launched with layered over them. */
   values: Record<string, unknown>;
-  /** Given, but declared by neither a `bpmn:Property` nor an attribute of the study. */
+  /** Names the link supplied that the study already carried a value for. */
+  overridden: string[];
+  /** Supplied, but declared by no `studyflow:Parameters`, `bpmn:Property`, or attribute of the study. */
   undeclared: string[];
-  /** `${name}` references the run was launched without a value for; the study cannot run until they are given. */
+  /** `${name}` references nothing has bound; the study cannot run until they are given. */
   unbound: string[];
 };
 
@@ -224,7 +228,8 @@ const NUMERIC_TYPE = /^(integer|int|long|short|byte|real|double|float|decimal|nu
 const BOOLEAN_TYPE = /^bool(ean)?$/;
 
 /** URL parameters arrive as text; the declaration they bind to says what they are. */
-function coerce(value: string, type: string | undefined): unknown {
+function coerce(value: unknown, type: string | undefined): unknown {
+  if (typeof value !== 'string') return value;
   const declared = (type ?? '').toLowerCase().replace(/^.*:/, '');
   if (NUMERIC_TYPE.test(declared)) {
     const number = Number(value);
@@ -232,6 +237,41 @@ function coerce(value: string, type: string | undefined): unknown {
   }
   if (BOOLEAN_TYPE.test(declared)) return value === 'true' || value === '1';
   return value;
+}
+
+/** An overriding value takes the type of the one it replaces — the study already said what this is. */
+function coerceLike(value: string, replaced: unknown): unknown {
+  if (typeof replaced === 'number') return coerce(value, 'number');
+  if (typeof replaced === 'boolean') return coerce(value, 'boolean');
+  return value;
+}
+
+/** The `studyflow:Parameters` data objects a container declares, keyed by element id. */
+function readParameterObjects(container: any): Map<string, Record<string, unknown>> {
+  const objects = new Map<string, Record<string, unknown>>();
+  for (const element of container?.flowElements ?? []) {
+    if (getExtensionType(element) !== PARAMETERS_TYPE) continue;
+    const text = getAttribute(element, 'values');
+    if (typeof text !== 'string' || !text.trim()) continue;
+    const parsed = yaml.load(text);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      objects.set(element.id, { ...(parsed as Record<string, unknown>) });
+    }
+  }
+  return objects;
+}
+
+/** Which data elements each step reads, from the associations drawn on the canvas. */
+function readInputSources(container: any): Map<string, string[]> {
+  const inputs = new Map<string, string[]>();
+  for (const element of container?.flowElements ?? []) {
+    const sources = (element.dataInputAssociations ?? [])
+      .flatMap((association: any) => association.sourceRef ?? [])
+      .map((source: any) => source?.id)
+      .filter((id: unknown): id is string => typeof id === 'string');
+    if (sources.length > 0) inputs.set(element.id, sources);
+  }
+  return inputs;
 }
 
 /** Attributes a parameter may set on the study: those an extension schema declares, e.g. `studyflow:seed`. */
@@ -251,55 +291,105 @@ function bindParameters(
   businessObject: any,
   given: Record<string, string>,
 ): BoundParameters {
+  const objects = readParameterObjects(businessObject);
   const properties = new Map(readProperties(businessObject).map((p) => [p.name, p.itemType]));
   const attributes = declaredAttributes(businessObject);
 
   const values: Record<string, unknown> = {};
+  const ambient: Record<string, unknown> = {};
+  const overridden: string[] = [];
   const undeclared: string[] = [];
+
   for (const [name, raw] of Object.entries(given)) {
-    if (properties.has(name)) {
-      values[name] = coerce(raw, properties.get(name));
-    } else if (attributes.has(name)) {
-      values[name] = coerce(raw, attributes.get(name));
-      businessObject.set(name, values[name]);
-    } else {
-      values[name] = raw;
-      undeclared.push(name);
+    const carriers = [...objects.values()].filter((carried) => name in carried);
+    if (carriers.length > 0) {
+      for (const carried of carriers) carried[name] = coerceLike(raw, carried[name]);
+      overridden.push(name);
+      continue;
+    }
+    const bound = properties.has(name) ? coerce(raw, properties.get(name))
+      : attributes.has(name) ? coerce(raw, attributes.get(name))
+      : raw;
+    if (!properties.has(name) && !attributes.has(name)) undeclared.push(name);
+    values[name] = bound;
+    ambient[name] = bound;
+  }
+
+  // An attribute of the study is one more place a value lives: the run's wins, the pinned one stands in.
+  for (const [name, type] of attributes) {
+    if (name in values) {
+      if (businessObject[name] !== undefined) overridden.push(name);
+      businessObject.set(name, coerce(values[name], type));
+    } else if (businessObject[name] !== undefined) {
+      values[name] = businessObject[name];
+      ambient[name] = businessObject[name];
     }
   }
 
   const unbound = new Set<string>();
-  const seen = new Set<object>();
 
-  const substitute = (text: string): string =>
-    text.replace(PARAMETER_REF, (ref, name: string) => {
-      const value = values[name];
-      if (value === undefined || value === '') {
-        unbound.add(name);
-        return ref;
-      }
-      return String(value);
-    });
-
-  const walk = (node: any): void => {
+  const substituteIn = (node: any, scope: Record<string, unknown>, seen: Set<object>): void => {
     if (!node || typeof node !== 'object' || seen.has(node)) return;
     seen.add(node);
     if (Array.isArray(node)) {
-      node.forEach(walk);
+      for (const item of node) substituteIn(item, scope, seen);
       return;
     }
+    const byName = node.$descriptor?.propertiesByName ?? {};
     for (const key of Object.keys(node)) {
-      // `$parent`, `$descriptor` and friends are moddle's own wiring, not authored content.
-      if (key.startsWith('$')) continue;
+      // `$parent` and friends are moddle's wiring; a reference belongs to the element it points at, not this one.
+      if (key.startsWith('$') || key === 'flowElements' || byName[key]?.isReference) continue;
       const value = node[key];
-      if (typeof value === 'string') node[key] = substitute(value);
-      else walk(value);
+      if (typeof value === 'string') {
+        node[key] = value.replace(PARAMETER_REF, (ref, name: string) => {
+          const bound = scope[name];
+          if (bound === undefined || bound === '') {
+            unbound.add(name);
+            return ref;
+          }
+          return String(bound);
+        });
+      } else {
+        substituteIn(value, scope, seen);
+      }
     }
     for (const [key, value] of Object.entries(node.$attrs ?? {})) {
-      if (typeof value === 'string') node.$attrs[key] = substitute(value);
+      if (typeof value !== 'string') continue;
+      node.$attrs[key] = value.replace(PARAMETER_REF, (ref, name: string) => {
+        const bound = scope[name];
+        if (bound === undefined || bound === '') {
+          unbound.add(name);
+          return ref;
+        }
+        return String(bound);
+      });
     }
   };
 
-  walk(definitions);
-  return { values, undeclared, unbound: [...unbound] };
+  /** A step reads what is wired into it; a data object wired nowhere is the study's own configuration. */
+  const bindContainer = (container: any, inherited: Record<string, unknown>): void => {
+    const carried = container === businessObject ? objects : readParameterObjects(container);
+    const inputs = readInputSources(container);
+    const wired = new Set([...inputs.values()].flat());
+
+    const scope = { ...inherited };
+    for (const [id, carriedValues] of carried) {
+      Object.assign(values, carriedValues);
+      if (!wired.has(id)) Object.assign(scope, carriedValues);
+    }
+
+    const seen = new Set<object>();
+    substituteIn(container, scope, seen);
+    for (const element of container.flowElements ?? []) {
+      const read = Object.assign({}, ...(inputs.get(element.id) ?? []).map((id) => carried.get(id) ?? {}));
+      const elementScope = { ...scope, ...read };
+      substituteIn(element, elementScope, new Set());
+      if (element.flowElements) bindContainer(element, elementScope);
+    }
+  };
+
+  bindContainer(businessObject, ambient);
+  substituteIn(definitions, ambient, new Set([businessObject]));
+
+  return { values, overridden: [...new Set(overridden)], undeclared, unbound: [...unbound] };
 }
