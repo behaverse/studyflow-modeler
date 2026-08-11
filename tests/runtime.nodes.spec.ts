@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { diagramHandoffKey, type DiagramHandoffEnvelope } from '../src/core/storage';
+import { gotoModeler } from './utils';
 
 /** Stage a studyflow XML as a hand-off (mimicking the modeler's "Run" button), then open the runtime. */
 async function runStudyflow(page: Page, id: string, xml: string): Promise<void> {
@@ -326,5 +327,19 @@ test.describe('Studyflow runtime nodes', () => {
       diagramHandoffKey(id),
     );
     expect(remaining).toBeNull();
+  });
+
+  // Every other case here opens `run.html` directly, so nothing covered the button that gets
+  // a person there. It has to claim its tab inside the click: serializing the diagram is
+  // async, and a `window.open` that lands after the await reads as an unprompted pop-up.
+  test('the Run button opens the runner in a new tab', async ({ page, context }) => {
+    await gotoModeler(page);
+
+    const runnerTab = context.waitForEvent('page');
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+
+    const runner = await runnerTab;
+    await expect(runner).toHaveURL(/run\.html\?diagram_id=[^&]+&seed=\d+$/);
+    await expect(runner).toHaveTitle('Behaverse Studyflow');
   });
 });

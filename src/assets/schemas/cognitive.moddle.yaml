@@ -263,7 +263,7 @@ types:
         meta:
           order: 1
           categories:
-            - Behaverse
+            - Execution
       - name: configurations
         description: |
           `GameConfig` as YAML. Name a `Timelines:` entry with no body to run a
@@ -284,7 +284,7 @@ types:
         meta:
           order: 4
           categories:
-            - Behaverse
+            - Execution
       - name: botConfigurations
         description: |
           Bot overrides as YAML, used when `agentType` is `bot` (e.g.
