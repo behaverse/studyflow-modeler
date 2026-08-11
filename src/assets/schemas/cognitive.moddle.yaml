@@ -239,8 +239,8 @@ types:
   - name: BehaverseTask
     description: |
       A `CognitiveTask` from the Behaverse battery: `instrument` is pinned to
-      `behaverse`, `behaverseScene` names the assessment (`NB`, `UFOV`), and
-      `configurations` carries its `GameConfig` as YAML.
+      `behaverse`, `behaverseScene` names the assessment (`NB`, `UFOV`) in place of the
+      inherited `implementation`, and `configurations` carries its `GameConfig` as YAML.
     superClass:
       - CognitiveTask
     meta:
@@ -254,6 +254,16 @@ types:
         redefines: CognitiveTask#instrument
         meta:
           order: 0
+          pinned: true
+      - name: implementation
+        description: |
+          Not authored here. `behaverseScene` already names what the Behaverse build runs,
+          so the generic implementation reference has nothing left to point at - pinned out
+          of the inspector rather than offered as a second, contradictory way to say it.
+        isAttr: true
+        type: String
+        redefines: CognitiveTask#implementation
+        meta:
           pinned: true
       - name: behaverseScene
         description: |

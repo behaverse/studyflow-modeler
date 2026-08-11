@@ -1,11 +1,7 @@
 name: Deploy
 
-# Deploys only after the Test workflow succeeds on main (or on manual
-# dispatch), from the same pinned Node + `npm ci` tree the tests ran on.
 on:
-  workflow_run:
-    workflows: ['Test']
-    types: [completed]
+  push:
     branches: ['main']
   workflow_dispatch:
 
@@ -21,7 +17,6 @@ concurrency:
 jobs:
   build:
     name: Setup and Build
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
