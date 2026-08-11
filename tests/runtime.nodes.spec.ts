@@ -17,7 +17,7 @@ async function runStudyflow(page: Page, id: string, xml: string): Promise<void> 
     },
     { k: key, v: JSON.stringify(envelope) },
   );
-  await page.goto(`/run.html?diagram_id=${id}&seed=42`);
+  await page.goto(`/run.html?diagram=${id}&seed=42`);
 }
 
 const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -300,7 +300,7 @@ test.describe('Studyflow runtime nodes', () => {
       { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: NO_UNITY_XML }) },
     );
 
-    await page.goto(`/run.html?diagram_id=${id}&seed=42`);
+    await page.goto(`/run.html?diagram=${id}&seed=42`);
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
 
     await page.reload();
@@ -317,7 +317,7 @@ test.describe('Studyflow runtime nodes', () => {
       { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: UNTYPED_TASK_XML }) },
     );
 
-    await page.goto(`/run.html?diagram_id=${id}&seed=42`);
+    await page.goto(`/run.html?diagram=${id}&seed=42`);
     await page.getByRole('button', { name: 'Begin' }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
@@ -339,7 +339,7 @@ test.describe('Studyflow runtime nodes', () => {
     await page.getByRole('button', { name: 'Run', exact: true }).click();
 
     const runner = await runnerTab;
-    await expect(runner).toHaveURL(/run\.html\?diagram_id=[^&]+&seed=\d+$/);
+    await expect(runner).toHaveURL(/run\.html\?diagram=[^&]+&seed=\d+$/);
     await expect(runner).toHaveTitle('Behaverse Studyflow');
   });
 });

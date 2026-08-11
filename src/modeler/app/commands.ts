@@ -86,7 +86,7 @@ export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand
   }
 
   const params = new URLSearchParams({
-    diagram_id: id,
+    diagram: id,
     seed: String(command.seed ?? DEFAULT_SEED),
   });
 

@@ -281,4 +281,34 @@ test.describe('conditions over declared state', () => {
     for await (const _job of session.traverse()) { /* drive to completion */ }
     expect(Object.keys(session.getVariables())).not.toContain('__targetRef_placeholder');
   });
+
+  test('a study with no start event starts at the node nothing flows into', async () => {
+    const ONE_STEP = `${HEAD}Study:
+  type: bpmn:Process
+  flowElements:
+    Only:
+      type: bpmn:Task
+`;
+    const session = new Session(await load(ONE_STEP), { catalog });
+
+    const visited: string[] = [];
+    for await (const job of session.traverse()) visited.push(job.node.id);
+    expect(visited).toEqual(['Only']);
+  });
+
+  test('two entry nodes and no start event stays an error rather than a guess', async () => {
+    const AMBIGUOUS = `${HEAD}Study:
+  type: bpmn:Process
+  flowElements:
+    First:
+      type: bpmn:Task
+    Second:
+      type: bpmn:Task
+`;
+    const session = new Session(await load(AMBIGUOUS), { catalog });
+
+    await expect((async () => {
+      for await (const _job of session.traverse()) { /* unreachable */ }
+    })()).rejects.toThrow(/No StartEvent/);
+  });
 });

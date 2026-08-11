@@ -10,25 +10,62 @@ The **Runner** is a companion to the [Modeler app](modeler-app.qmd) that walks a
 The runner lives at `run.html` (alongside the modeler at `app.html`). There are three ways to hand it a diagram:
 
 1. **From the Modeler** -- click *Run* in the toolbar. The current diagram is serialized to local storage, the runner opens in a new tab, and the seed is passed through the URL.
-2. **By URL** -- append `?studyflow_url=<absolute or relative URL>` to fetch a hosted `.studyflow` file:
+2. **By URL** -- append `?diagram=<absolute or relative URL>` to fetch a hosted `.studyflow` file:
    ```
-   run.html?studyflow_url=/assets/my-study.studyflow&seed=42
+   run.html?diagram=/assets/my-study.studyflow&seed=42
    ```
-3. **By file upload** -- open `run.html` directly. A landing screen lets you choose a `.studyflow`/`.bpmn`/`.xml` file from disk.
-
-The `seed` query parameter (integer) makes random branches deterministic, which is useful for pilot runs and reproducibility.
+3. **By demo** -- append `?diagram=<demo name>` to run a studyflow that ships with the app (the files in `src/assets/demos/`). `behaverse.studyflow` is a study of one Behaverse task and nothing else -- no start or end event, so the task is the whole screen -- whose task and timeline are properties of the study rather than fixed in the diagram:
+   ```
+   run.html?diagram=behaverse&task=BCS&timeline=XCIT_BCS_02
+   ```
+4. **By file upload** -- open `run.html` directly. A landing screen lets you choose a `.studyflow`/`.bpmn`/`.xml` file from disk.
 
 ## Launching a study
 
-The runner accepts three URL query parameters:
+The runner reads exactly one query parameter for itself:
 
 | Parameter | Purpose |
 |---|---|
-| `studyflow_url` | Absolute or relative URL of a hosted `.studyflow` file to fetch and run. |
-| `diagram_id` | Key of a diagram stored in the browser's local storage. Used when the runner is launched from the modeler's *Run* button; not useful across browsers or machines. |
-| `seed` | Integer RNG seed. Makes gateway draws (random/stratified branches) reproducible across runs. |
+| `diagram` | What to run, in one of three formats: a URL (anything with a scheme, a slash, or a `.studyflow`/`.bpmn`/`.xml`/`.yaml` suffix) is fetched; the name of a shipped demo is resolved to its file; anything else is read as the key of a diagram in the browser's local storage, which is how the modeler's *Run* button hands one over (not useful across browsers or machines). |
 
-`studyflow_url` and `diagram_id` are alternatives; if neither is given, the runner shows the file-upload landing screen.
+Without `diagram`, the runner shows the file-upload landing screen. **Every other query parameter belongs to the study, not to the runner** -- including `seed`.
+
+## Parameterizing a study
+
+A parameter binds to what the diagram itself declares, and only the diagram decides what that is:
+
+| Declared as | Bound by | Example |
+|---|---|---|
+| A `bpmn:Property` on the process | seeding the run's state, typed by the property's `itemSubjectRef` | `task`, `timeline` in the demo below |
+| An attribute of the study's own type (any extension schema, never native BPMN) | setting that attribute on the study, typed by the schema | `seed` -- `studyflow:seed`, an `Integer`, from the `Seed` trait |
+| Nothing | still bound as a run variable, and logged as undeclared | a typo, or a value a condition reads without declaring |
+
+A bound value reaches the run three ways:
+
+1. **In the diagram**, before validation: any attribute containing `${name}` is substituted. A studyflow written this way is a template -- one diagram, many runs.
+2. **On the study**, when the name is one of its declared attributes: `?seed=42` *is* `studyflow:seed`, so a seed pinned in the diagram runs when the link gives none, and the link overrides it when it does. The engine reads the study's seed either way -- there is no runner-only seed.
+3. **In the run's state**, as an initial variable. Conditions on sequence flows read it like any other variable, and it is `PATCH`ed to the data server with the rest of the session's variables, so the record says which parameters produced it.
+
+`${name}` with no value given is an error: the run stops before it starts and names what the link is missing, rather than delivering a task with an empty configuration. The shipped `behaverse` demo is the smallest example:
+
+```yaml
+Behaverse_Demo:
+  type: bpmn:Process
+  properties:
+    P_Task: { name: task }
+    P_Timeline: { name: timeline }
+  flowElements:
+    Task:
+      type: bpmn:Task
+      extensionElements:
+        - type: cognitive:BehaverseTask
+          behaverseScene: ${task}
+          configurations: |
+            Timelines:
+              ${timeline}:
+```
+
+`run.html?diagram=behaverse&task=BCS&timeline=XCIT_BCS_02&seed=42` then delivers `BCS` on timeline `XCIT_BCS_02` with the run seeded at 42.
 
 ## What the runner does
 
@@ -38,6 +75,8 @@ After loading, the runner:
 2. **Pre-fetches the Behaverse runtime manifest** if (and only if) the diagram contains a `BehaverseTask`. Other diagrams skip this network call.
 3. **Validates** the diagram. Each node kind contributes its own validator (missing required attributes, unsupported types, etc.). Issues are listed in the logs and the run is aborted with a `phase=invalid` status.
 4. **Traverses** the diagram starting at the `StartEvent`. Each node yields a *job*; the runner renders the corresponding component and waits for the participant to complete or skip it. On `EndEvent`, the run finishes with `phase=done`.
+
+A study may leave out its start and end events, as BPMN allows: it then starts at the node nothing flows into (an error, as before, if more than one node qualifies) and ends when nothing flows out. The `behaverse` demo is written that way, so the participant sees the task and nothing else -- no welcome screen to click through, no completion screen after. The cost is what those events carry: no consent step, no completion code, no redirect.
 
 Gateway behavior:
 

@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@/core/notation/loader';
 import { shouldRecordEvents, setRecordEvents } from '@/core/settings';
 import { clearDiagramHandoff, readDiagramHandoff } from '@/core/storage';
+import { readParameters, resolveRunSource } from '@/runner/source';
 import { Studyflow } from '@/runner/studyflow';
 import { Session } from '@/runner/session';
 import type { Job } from '@/runner/jobs';
@@ -93,13 +94,28 @@ function NodeRenderer({ job, session, log, onResolve }: NodeRendererProps) {
 
 type Log = { kind: LogKind; message: string };
 
+const demoFiles = import.meta.glob(
+  '@/assets/demos/*.studyflow',
+  { query: '?url', import: 'default', eager: true },
+) as Record<string, string>;
+
+/** `diagram=<name>` runs the shipped `<name>.studyflow`, parameterized by the rest of the query string. */
+const DEMOS: Record<string, string> = Object.fromEntries(
+  Object.entries(demoFiles).map(([path, url]) => [
+    path.split('/').pop()!.replace(/\.studyflow$/, ''),
+    url,
+  ]),
+);
+
 export function Runner() {
   const params = new URLSearchParams(window.location.search);
-  const studyflowUrl = params.get('studyflow_url') ?? '';
-  const diagramId = params.get('diagram_id') ?? '';
-  const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
+  const diagram = params.get('diagram') ?? '';
+  const source = resolveRunSource(diagram, DEMOS);
+  const handoffId = source?.kind === 'handoff' ? source.id : '';
+  const parameters = readParameters(params);
   const dataServerConfig = loadDataServerConfig();
 
+  const [seed, setSeed] = useState<number | undefined>();
   const [xml, setXml] = useState<string | null>(null);
   const [phase, setPhase] = useState('idle');
   const [log, setLog] = useState<Log[]>([]);
@@ -151,12 +167,13 @@ export function Runner() {
   /* eslint-disable react-hooks/set-state-in-effect -- one-shot boot: the source
      is a URL param, so the first render has nothing to derive this from. */
   useEffect(() => {
-    if (diagramId) {
-      const stored = readDiagramHandoff(diagramId);
+    if (!source) return;
+    if (source.kind === 'handoff') {
+      const stored = readDiagramHandoff(source.id);
       if (stored) {
         setXml(stored);
       } else {
-        addLog('error', `No studyflow found for diagram_id=${diagramId}.`);
+        addLog('error', `No studyflow found for diagram=${source.id}.`);
         setRunError(
           'The link has expired or was already used. Ask for a new link, or open the '
           + 'diagram in the modeler and press Run again.',
@@ -165,13 +182,12 @@ export function Runner() {
       }
       return;
     }
-    if (!studyflowUrl) return;
-    fetch(studyflowUrl).then((r) => r.text()).then(setXml).catch((err) => {
-      addLog('error', `Failed to fetch ${studyflowUrl}: ${err}`);
-      setRunError(`The studyflow at ${studyflowUrl} could not be loaded.`);
+    fetch(source.url).then((r) => r.text()).then(setXml).catch((err) => {
+      addLog('error', `Failed to fetch ${source.url}: ${err}`);
+      setRunError(`The studyflow at ${source.url} could not be loaded.`);
       setPhase('error');
     });
-  }, [diagramId, studyflowUrl]);
+  }, [diagram]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -183,17 +199,33 @@ export function Runner() {
       try {
         setPhase('loading');
         const schemas = await loadAllSchemas();
-        const studyflow = await Studyflow.parse(xml, schemas);
+        const studyflow = await Studyflow.parse(xml, schemas, parameters);
+        const { values, undeclared, unbound } = studyflow.parameters;
         const agentId = `anon-${crypto.randomUUID().slice(0, 8)}`;
         const session = new Session(studyflow, {
-          seed,
+          seed: studyflow.seed,
           agentId,
+          variables: values,
           onDiagnostic: (message: string) => addLog('error', message),
         });
         sessionRef.current = session;
         setSession(session);
+        setSeed(studyflow.seed);
         setStudyflowName(studyflow.businessObject?.name || studyflow.businessObject?.id || null);
         addLog('info', `Parsed ${studyflow.flowNodes.size} flow nodes, ${studyflow.sequenceFlows.size} sequence flows.`);
+
+        for (const name of undeclared) {
+          addLog('skip', `Parameter '${name}' is not declared by this studyflow.`);
+        }
+        if (unbound.length > 0) {
+          addLog('error', `Missing parameter(s): ${unbound.join(', ')}.`);
+          setRunError(
+            `This studyflow is parameterized and the link gave no value for: ${unbound.join(', ')}. `
+            + `Add them to the URL, e.g. &${unbound[0]}=...`,
+          );
+          setPhase('error');
+          return;
+        }
 
         if (studyflow.studyId) {
           dataServer.studyName = studyflow.studyId;
@@ -260,10 +292,10 @@ export function Runner() {
         await recorderRef.current?.flush();
         recorderRef.current?.stop();
         recorderRef.current = null;
-        if (diagramId) clearDiagramHandoff(diagramId);
+        if (handoffId) clearDiagramHandoff(handoffId);
       }
     })();
-  }, [xml, seed]);
+  }, [xml]);
 
   if (!xml) return <Help onFileLoaded={setXml} />;
 
@@ -363,10 +395,7 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
     <div className={layout.helpPage}>
       <h1 className={layout.helpTitle}>Studyflow</h1>
       <p className={layout.helpText}>
-        Upload a <code>.studyflow</code> file, or pass a <code>studyflow_url</code> query parameter.
-        Runs record sessions, variables, and telemetry events to the Behaverse data-server when
-        you enable “Record events” in the logs panel (off by default). The study name comes from
-        the studyflow's process <code>id</code>, and an agent id is generated automatically.
+        Upload a <code>.studyflow</code> file, or pass a <code>diagram</code> parameter (a URL to fetch or the id of a diagram).
       </p>
       <label className={layout.uploadButton}>
         <input
@@ -378,7 +407,8 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
         <span>Choose file...</span>
       </label>
       <pre className={layout.helpExample}>
-        run.html?studyflow_url=https://data.behaverse.org/v1/studies/pilot3/studyflow&seed=42
+        run?diagram=URL&seed=42{'\n\n'}
+        run?diagram=behaverse&task=BCS&timeline=XCIT_BCS_02
       </pre>
     </div>
   );

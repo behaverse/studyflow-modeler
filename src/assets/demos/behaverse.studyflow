@@ -1,0 +1,24 @@
+id: behaverse_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Behaverse_Demo:
+  type: bpmn:Process
+  name: Behaverse task
+  documentation: A single Behaverse assessment, run on its own. The task and its timeline are parameters of the study, so one diagram delivers any task the build ships. It carries no start or end event on purpose - nothing but the task itself is shown.
+  extensionElements:
+    - type: studyflow:Study
+  properties:
+    P_Task:
+      name: task
+    P_Timeline:
+      name: timeline
+  flowElements:
+    Task:
+      type: bpmn:Task
+      name: ${task} / ${timeline}
+      extensionElements:
+        - type: cognitive:BehaverseTask
+          behaverseScene: ${task}
+          configurations: |
+            Timelines:
+              ${timeline}:
