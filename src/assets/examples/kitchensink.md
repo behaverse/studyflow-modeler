@@ -158,15 +158,13 @@ figure the plotting step returned (the `.png` uri names the format).
 |---|---|---|
 | `bpmn` | `.../BPMN/20100524/MODEL` | The BPMN 2.0 base: events, gateways, activities, data, artifacts, pools. |
 | `studyflow` | `http://behaverse.org/schemas/studyflow/v1` | The study container, core data infrastructure (Dataset, Table, Timeseries…), and the executable layer: `implementation` + loop/sensor flattenings + artifact `uri` (+ `Parameters`). **core** |
-| `functional` | `https://w3id.org/studyflow/functional` | Function composition: Transform/Map/Reduce/Filter + the fan-out behind the multi-instance marker. **core** |
+| `functional` | `https://w3id.org/studyflow/functional` | Function composition: Transform/Map/Reduce/Filter + the fan-out behind the multi-instance marker + generic IO presets (read, write, anonymize). **core** |
 | `cognitive` | `http://behaverse.org/schemas/studyflow/cognitive` | Cognitive tasks, Behaverse assessment tasks, questionnaires, instructions, assignment gateways, actors. **core** |
 | `ml` | `https://w3id.org/studyflow/ml` | Statistical/ML pipelines — templates only, no types; sklearn verbs as presets over functional ops (load, split, build, fit, cross-validate…). |
 | `agentic` | `https://w3id.org/studyflow/agentic` | LLM/agent workflows: Agent, Router, LLM/Tool calls, human approval, Prompt/Memory. |
-| `datatrove` | `https://w3id.org/studyflow/datatrove` | The datatrove library's own blocks: Reader/Writer IO + processing presets. |
-| `omniprocess` | `https://w3id.org/omniprocess` | Neuroimaging preprocessing presets (fMRIPrep, EEGPrep) — templates only. |
-| `openbci` | `http://behaverse.org/schemas/studyflow/openbci` | Biosignal acquisition with OpenBCI boards (Cyton, Ganglion, Galea VR headset). |
+| `eeg` | `https://w3id.org/studyflow/eeg` | EEG & biosignal studies: acquisition Session/Recording (OpenBCI boards) + preprocessing presets (EEGPrep, fMRIPrep). |
 
-A recurring design rule across `functional`/`ml`/`agentic`/`datatrove`/`omniprocess`/`openbci`:
+A recurring design rule across `functional`/`ml`/`agentic`/`eeg`:
 **parameterize, don't proliferate**. A verb that is just a generic step bound to
 a function (extract, tokenize, fit, deploy, fMRIPrep…) is shipped as a *template*
 preset, not a distinct element type. Templates are listed per schema below.
@@ -215,7 +213,7 @@ groups (Events, Activities, Gateways, Data, Containers).
 | Element | Meaning |
 |---|---|
 | `bpmn:DataObjectReference` | A piece of data flowing between steps (base for Schema/Table/Model/Prompt…). |
-| `bpmn:DataStoreReference` | Persistent store (base for Dataset/Memory/OpenBCIRecording). |
+| `bpmn:DataStoreReference` | Persistent store (base for Dataset/Memory/Recording). |
 | `bpmn:Group` + `bpmn:Category` | A labelled region (the bands in the companion diagram are Groups). |
 | `bpmn:TextAnnotation` | A free-form note, optionally associated to an element. |
 | `bpmn:SequenceFlow` / `bpmn:Association` / `bpmn:MessageFlow` | Connections. |
@@ -325,7 +323,7 @@ Cycles use BPMN's own standard-loop child (`loopCharacteristics` with
 
 The functional-programming vocabulary: apply, map, reduce, and filter over
 data, and the fan-out behind BPMN's multi-instance marker. These are the
-generic anchors the domain schemas (ml, datatrove, omniprocess) bind their own
+generic anchors the domain schemas (ml, agentic, eeg) bind their own
 verbs onto. Icon set: schema badge **F**.
 
 | Wrapper | BPMN base | Icon | Notes |
@@ -347,7 +345,13 @@ activity): `iterate` (IterationKindEnum: none/items), `over`, `itemVar`,
 ### Templates
 **For each** (`bpmn:SubProcess`, native multi-instance marker) ·
 **Retry until** (`bpmn:Task`, standard-loop marker: `loopCondition` + `loopMaximum`) ·
-**Group** (`Map` bound to `itertools.groupby`, `key=`).
+**Group** (`Map` bound to `itertools.groupby`, `key=`) ·
+**Read data** (`Transform`, `read`, bound to `datatrove.pipeline.readers.CsvReader` —
+repoint at any reader/loader; source in `data_folder`) ·
+**Write data** (`Transform`, `write`, bound to `datatrove.pipeline.writers.ParquetWriter` —
+destination in `output_folder`) ·
+**Anonymize Data** (`Map` bound to `datatrove.pipeline.formatters.PIIFormatter`,
+`remove_emails=/remove_ips=`).
 
 ```yaml
 Per_Subject:
@@ -423,8 +427,8 @@ See the `bot_claude`, `bot_ollama`, `bot_external`, `agent_eval_pool`, and
 
 ## ml — statistical & ML pipelines
 
-**Templates only — this schema declares no element types** (the omniprocess
-pattern). An ML pipeline is a data pipeline, so every step preset binds a
+**Templates only — this schema declares no element types.** An ML pipeline is
+a data pipeline, so every step preset binds a
 **functional operation** to a concrete sklearn function: building an
 estimator is a `functional:Transform` (an unfitted estimator on a data association),
 fitting/scoring a `functional:Reduce` (rows in, one artifact out) —
@@ -523,60 +527,33 @@ See `agent_eval.studyflow.png`, `agent_eval_pool.studyflow.png`.
 
 ---
 
-## datatrove — DataTrove library blocks
+## eeg — EEG & biosignals
 
-The datatrove library's own pipeline blocks: the Reader/Writer IO steps
-(specializing `functional:Transform`) and presets over its processing blocks.
-Icon set: schema badge **D**.
-
-| Wrapper | BPMN base | Icon | Notes |
-|---|---|---|---|
-| `datatrove:Reader` | `bpmn:ServiceTask` | `mdi--input` | `className` (ReaderClassEnum — `datatrove.pipeline.readers` classes, e.g. `CsvReader`), `path` (datatrove's `data_folder`). |
-| `datatrove:Writer` | `bpmn:ServiceTask` | `mdi--output` | `className` (WriterClassEnum — `datatrove.pipeline.writers` classes), `path` (datatrove's `output_folder`). |
-
-A record or a collection is a native `bpmn:DataObjectReference` (with
-`isCollection: true` for the collection marker). Corpus building (extract,
-stats, tokenize, dedup) is the datatrove library's own business — bind its
-blocks directly when a study needs one, e.g. a `functional:Map` running
-`python://datatrove.pipeline.extractors.Trafilatura`.
-
-**Templates:** Anonymize Data (`functional:Map` bound to
-`datatrove.pipeline.formatters.PIIFormatter`, `remove_emails=/remove_ips=`).
-
-See `function_call_demo.studyflow.png`, `lablink_demo2.studyflow.png`.
-
----
-
-## omniprocess — neuroimaging preprocessing
-
-No element types of its own — only templates over `functional` operations. Icon
-set: schema badge **O**.
-
-**Templates:** *fMRIPrep* (`functional:Map` bound to `docker://nipreps/fmriprep`)
-· *EEGPrep* (`bpmn:SubProcess`: filter → remove artifacts).
-
----
-
-## openbci — OpenBCI biosignals
-
-Biosignal acquisition with OpenBCI hardware. The `device` attribute picks the
-board — **Cyton** (8-ch), **Cyton + Daisy** (16-ch), **Ganglion** (4-ch), or
-**Galea** (the VR headset) — so Galea is one supported device, not the whole
-schema. VR-only fields (`vrDevice`) appear only when `device` is `galea`.
-Session phases are ordinary BPMN tasks preset by a template. Icon set: chip.
+EEG and biosignal studies: the two nouns BPMN lacks — `Session` for the
+acquisition-device configuration and `Recording` for the dataset it produces —
+plus preprocessing shipped as implementation-bound templates. The `device`
+attribute picks the OpenBCI board — **Cyton** (8-ch), **Cyton + Daisy**
+(16-ch), **Ganglion** (4-ch), or **Galea** (the VR headset). Session phases
+are ordinary BPMN tasks preset by a template. Icon set: schema badge **E**.
 
 | Wrapper | BPMN base | Icon | Key attributes |
 |---|---|---|---|
-| `openbci:OpenBCISession` | `bpmn:Participant` *(pool)* | `mdi--chip` | `device` (OpenBCIDeviceEnum, editable), `streamProtocol` (OpenBCIStreamProtocolEnum, editable), `modalities` (OpenBCIModalityEnum[]), `electrodeType` (OpenBCIElectrodeTypeEnum), `vrDevice` (VRDeviceEnum, editable — only when `device: galea`). Needs a Collaboration root. |
-| `openbci:OpenBCIRecording` | `bpmn:DataStoreReference` | `mdi--database` | Specializes `studyflow:Dataset`; adds `modalities` (OpenBCIModalityEnum[]), `eegChannels` (4/8/16/~10 by board), `eegSamplingRateHz`. |
+| `eeg:Session` | `bpmn:Participant` *(pool)* | `mdi--chip` | `device` (DeviceEnum, editable), `modalities` (ModalityEnum[]). Needs a Collaboration root. |
+| `eeg:Recording` | `bpmn:DataStoreReference` | `mdi--database` | Specializes `studyflow:Dataset`; adds `modalities` (ModalityEnum[]), `channels` (4/8/16/~10 by board), `samplingRateHz`. |
 
-**Templates:** *Cyton EEG session* (non-VR: mount → impedance → baseline → task →
-export) · *Galea VR session* (mount → impedance → calibration → baseline → VR
-task → unmount → export).
+**Templates:** *EEG session* (mount → baseline → task → export) ·
+*EEGPrep* (`functional:Map` bound to `docker://sccn/eegprep`, `clean_artifacts`
+parameters in `additionalArguments`) · *fMRIPrep* (`functional:Map` bound to
+`docker://nipreps/fmriprep`).
+
+Generic data IO (read/write/anonymize) lives in the `functional` presets;
+corpus building (extract, tokenize, dedup) is a `functional:Map` bound to the
+library block that does it, e.g.
+`python://datatrove.pipeline.extractors.Trafilatura`.
 
 > Note: `modalities` is an `isMany` enum. The moddle XML writer can serialize a
 > **single** enum value but not a repeated one, so the companion diagram's
-> OpenBCIRecording sets `format`/`eegChannels` only. In a real study, list
+> Recording sets `format`/`channels` only. In a real study, list
 > modalities on the associated `studyflow:Timeseries` elements (which carry
 > `samplingRate`/`channelCount`/`units`) or in `documentation`.
 
@@ -589,7 +566,7 @@ a plain Process, so they aren't in the single-Process companion diagram:
 
 | Element | Root needed | Example file |
 |---|---|---|
-| `bpmn:Participant` (Pool), `cognitive:Actor`, `openbci:OpenBCISession` | Collaboration | `spirit2025.studyflow.png` (pool + lanes) |
+| `bpmn:Participant` (Pool), `cognitive:Actor`, `eeg:Session` | Collaboration | `spirit2025.studyflow.png` (pool + lanes) |
 | `bpmn:Lane` / `laneSet` | Collaboration (pool with lanes) | `spirit2025.studyflow.png` |
 | `bpmn:ChoreographyTask`, `studyflow:ChoreographyTask`, `participants`, `messageFlows` | Choreography | `choreography_demo.studyflow.png` |
 
@@ -624,15 +601,8 @@ RSAC, SART, SMC, SOS, SRM, SRT, SS, TH, TOVA, UFOV, WO · `AgentType`: human, bo
 **agentic** — `ToolChoice`: auto, required, none · `ToolKind`: function, retrieval,
 code, search, mcp, human, subflow · `MemoryScope`: turn, run, participant, global.
 
-**datatrove** — `ReaderClass`: CsvReader, HuggingFaceDatasetReader, IpcReader,
-JsonlReader, ParquetReader, WarcReader · `WriterClass`: HuggingFaceDatasetWriter,
-JsonlWriter, ParquetWriter.
-
-**openbci** — `OpenBCIDevice` *(editable)*: cyton, cyton_daisy, ganglion, galea ·
-`OpenBCIModality`: eeg, emg, ecg, eog, eda, ppg, eye_tracking, head_imu, audio ·
-`OpenBCIElectrodeType`: dry, wet, hybrid · `VRDevice` *(editable)*: quest_pro,
-quest_3, valve_index, varjo_xr3 · `OpenBCIStreamProtocol` *(editable)*: lsl,
-brainflow, openbci_gui.
+**eeg** — `Device` *(editable)*: cyton, cyton_daisy, ganglion, galea ·
+`Modality`: eeg, emg, ecg, eog, eda, ppg, eye_tracking, head_imu, audio.
 
 *(editable = the inspector lets you type a custom value in addition to the listed ones.)*
 

@@ -26,7 +26,7 @@ version: 26.0811
 # questions a modeller asks of any element, so they recur across every schema;
 # a tab holding one type's own fields would mostly repeat what the panel header
 # already says the element is, so those fields go to General. That is why an
-# OpenBCI recording has no "OpenBCI" tab and an LLM call has no "Model call"
+# EEG recording has no "EEG" tab and an LLM call has no "Model call"
 # tab: on those elements, their own fields *are* the general ones.
 categories:
   - name: General

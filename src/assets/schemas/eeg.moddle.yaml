@@ -1,0 +1,240 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: EEG
+prefix: eeg
+description: >-
+  EEG and biosignal studies. Adds only the two nouns BPMN lacks - `Session` for
+  the acquisition-device configuration (OpenBCI boards) and `Recording` for the
+  dataset it produces - while preprocessing (EEGPrep, fMRIPrep) ships as
+  templates binding a tool through `implementation`.
+uri: https://w3id.org/studyflow/eeg
+icon: iconify tabler--hexagon-letter-e
+order: 70  # registry position (load precedence + settings order)
+xml:
+  tagAlias: lowerCase
+version: 26.0812
+
+enumerations:
+  - name: DeviceEnum
+    description: |
+      Acquisition board, which fixes the channel count and the available
+      modalities. Properties typed with this enum may also accept custom
+      identifiers.
+    literalValues:
+      - name: Cyton (8-channel)
+        value: cyton
+      - name: Cyton + Daisy (16-channel)
+        value: cyton_daisy
+      - name: Ganglion (4-channel)
+        value: ganglion
+      - name: Galea (VR headset)
+        value: galea
+        description: OpenBCI Galea - a VR head-mounted display integrating EEG/EMG/EOG/EDA/PPG and eye tracking.
+
+  - name: ModalityEnum
+    description: Biosignal/sensor modality recorded in a session.
+    literalValues:
+      - name: EEG (electroencephalography)
+        value: eeg
+      - name: EMG (electromyography)
+        value: emg
+      - name: ECG (electrocardiography)
+        value: ecg
+      - name: EOG (electrooculography)
+        value: eog
+      - name: EDA (electrodermal activity)
+        value: eda
+      - name: PPG (photoplethysmography / heart rate)
+        value: ppg
+      - name: Eye tracking (camera-based gaze and pupil)
+        value: eye_tracking
+      - name: Head IMU
+        value: head_imu
+      - name: Audio
+        value: audio
+
+types:
+  - name: Session
+    description: |
+      A single acquisition session, modeled as a BPMN pool. Carries the
+      device-level configuration (which board and which modalities) shared by
+      every phase inside the session; everything else (electrodes, streaming
+      protocol, VR headset) belongs in the session's documentation or the
+      phases' own configuration.
+    superClass:
+      - bpmn:Participant
+    meta:
+      icon: iconify mdi--chip
+      bpmnType: bpmn:Participant
+    properties:
+      - name: device
+        description: Acquisition board used in this session. Pick a listed option or type a custom identifier.
+        isAttr: true
+        type: DeviceEnum
+        default: cyton
+        meta:
+          order: 0
+          editable: true
+      - name: modalities
+        description: Biosignal/sensor modalities active in this session.
+        isAttr: false
+        isMany: true
+        type: ModalityEnum
+        meta:
+          order: 1
+
+  - name: Recording
+    description: |
+      Biosignal recording produced by a session: a `studyflow:Dataset`
+      carrying the modality list and EEG layout downstream steps need.
+      Per-stream detail belongs on the associated `studyflow:Timeseries`
+      elements.
+    superClass:
+      - studyflow:Dataset
+    meta:
+      roles:
+        - acquisition
+        - signal
+      icon: iconify mdi--database
+      bpmnType: bpmn:DataStoreReference
+    properties:
+      - name: modalities
+        description: Biosignal/sensor modalities included in this recording.
+        isAttr: false
+        isMany: true
+        type: ModalityEnum
+      - name: channels
+        description: |
+          Number of EEG channels recorded. Depends on the board: 4 (Ganglion),
+          8 (Cyton), 16 (Cyton + Daisy), or ~8-10 (Galea).
+        isAttr: true
+        type: Integer
+        default: 8
+      - name: samplingRateHz
+        description: EEG sampling rate, in Hz (e.g., 200 on Ganglion, 250 on Cyton/Galea).
+        isAttr: true
+        type: Real
+        default: 250
+
+templates:
+  - description: An EEG acquisition session - mount -> baseline -> task -> export. Each phase is an ordinary BPMN task; edit or repoint any of them.
+    object:
+      type: Session
+      bpmn:name: EEG session
+      bpmn:documentation: An EEG session covering headset fitting through data export. Phases are ordinary tasks - repoint or reconfigure any of them without a device-specific element type.
+      icon: iconify mdi--chip
+      keywords:
+        - eeg
+        - openbci
+        - session
+        - biosignal
+        - acquisition
+      device: cyton
+      modalities:
+        - eeg
+      flowElements:
+        - id: eeg_start
+          type: bpmn:StartEvent
+          bpmn:name: Start
+          x: 100
+          y: 200
+        - id: eeg_mount
+          type: bpmn:ManualTask
+          bpmn:name: Mount cap & check impedance
+          icon: iconify mdi--head-plus-outline
+          bpmn:documentation: |
+            Fit the EEG cap, place the electrode montage, and verify contact
+            before recording (typical gate: per-channel impedance below 50 kΩ).
+          x: 200
+          y: 178
+        - id: eeg_baseline
+          type: cognitive:Rest
+          bpmn:name: Resting baseline
+          icon: iconify mdi--brain
+          configurations: |
+            condition: eyes_closed   # eyes_open | eyes_closed | alternating
+            durationSeconds: 120
+          x: 360
+          y: 178
+        - id: eeg_task
+          type: cognitive:CognitiveTask
+          bpmn:name: Cognitive task
+          icon: iconify bi--puzzle
+          instrument: psychopy
+          configurations: |
+            triggerChannel: markers  # stimulus marker stream sent with biosignals
+          x: 520
+          y: 178
+        - id: eeg_export
+          type: functional:Transform
+          bpmn:name: Export recording
+          icon: iconify mdi--database-arrow-down-outline
+          bpmn:documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
+          operationType: write
+          implementation: python://datatrove.pipeline.writers.ParquetWriter
+          additionalArguments: "output_folder: bids/"
+          x: 680
+          y: 178
+        - id: eeg_end
+          type: bpmn:EndEvent
+          bpmn:name: End
+          x: 840
+          y: 200
+        - type: bpmn:SequenceFlow
+          sourceRef: eeg_start
+          targetRef: eeg_mount
+        - type: bpmn:SequenceFlow
+          sourceRef: eeg_mount
+          targetRef: eeg_baseline
+        - type: bpmn:SequenceFlow
+          sourceRef: eeg_baseline
+          targetRef: eeg_task
+        - type: bpmn:SequenceFlow
+          sourceRef: eeg_task
+          targetRef: eeg_export
+        - type: bpmn:SequenceFlow
+          sourceRef: eeg_export
+          targetRef: eeg_end
+
+  - description: Preprocess EEG data (filtering, artifact removal) in one implementation-bound step.
+    object:
+      bpmn:name: EEGPrep
+      type: functional:Map
+      bpmn:documentation: |
+        Preprocess EEG data: filtering, artifact removal, and normalization in
+        one step, bound to the EEGLAB-based EEGPrep pipeline
+        (`clean_artifacts` under the hood - tune its parameters in
+        `additionalArguments`). Requires BIDS-formatted input.
+      icon: iconify fluent--pulse-20-filled
+      keywords:
+        - eeg
+        - eegprep
+        - preprocess
+        - cleanartifacts
+        - neuroimaging
+      implementation: docker://sccn/eegprep
+      additionalArguments: |
+        flatline_criterion: 5    # seconds of flatline tolerated per channel
+        highpass_hz: 1
+        lowpass_hz: 100
+        asr_criterion: 20        # ASR burst-removal cutoff
+        ica: true                # run ICA + ICLabel artifact classification
+
+  - description: Preprocess fMRI data for a single subject (fMRIPrep in a container).
+    object:
+      bpmn:name: fMRIPrep
+      type: functional:Map
+      bpmn:documentation: "Preprocess fMRI data: filtering, artifact removal, and normalization. Requires BIDS-formatted input."
+      icon: iconify streamline--brain
+      keywords:
+        - fmri
+        - fmriprep
+        - preprocess
+        - bids
+        - neuroimaging
+      implementation: docker://nipreps/fmriprep@23.2.0
+      additionalArguments: |
+        output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
+        skull_strip_t1w: force               # auto | force | skip
+        use_aroma: false                     # ICA-AROMA denoising
+        use_syn_sdc: false                   # fieldmap-less SDC (SyN)

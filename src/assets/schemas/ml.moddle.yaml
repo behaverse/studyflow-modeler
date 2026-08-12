@@ -12,7 +12,7 @@ icon: iconify tabler--hexagon-letter-m
 order: 50  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0717
+version: 26.0812
 
 enumerations: []
 types: []
@@ -32,8 +32,8 @@ templates:
         Loads one of scikit-learn's bundled datasets - the standard way to
         make a pipeline runnable before the real data exists. Repoint
         `implementation` at `load_iris`, `fetch_openml`, or your own loader
-        (or use a `datatrove:Reader` for files); the step's shape does not
-        change. Association its output to a `studyflow:Table` so downstream steps
+        (or use the functional "Read data" preset for files); the step's
+        shape does not change. Association its output to a `studyflow:Table` so downstream steps
         have a typed artifact to read.
       icon: iconify mdi--database-import-outline
       keywords:

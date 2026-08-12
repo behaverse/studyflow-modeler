@@ -106,18 +106,18 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toContain('key: participant');
   });
 
-  test('applies default schema values for omniprocess EEGPrep elements', async ({ page }) => {
+  test('applies default schema values for eeg EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 
-    await addSchemaPaletteElement(page, 'OmniProcess', 'EEGPrep', { x: 260, y: 200 });
+    await addSchemaPaletteElement(page, 'EEG', 'EEGPrep', { x: 260, y: 200 });
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    // EEGPrep is a template, not a type: it expands into a subprocess pipeline of data-operation service tasks.
-    expect(studyflowText).toContain('type: bpmn:SubProcess');
-    expect(studyflowText).toContain('operationType: filter');
-    expect(studyflowText).toContain('type: functional:Filter');
+    // EEGPrep is a template, not a type: a functional Map bound to the preprocessing tool.
+    expect(studyflowText).toContain('type: functional:Map');
     expect(studyflowText).toContain('name: EEGPrep');
+    expect(studyflowText).toContain('implementation: docker://sccn/eegprep');
+    expect(studyflowText).toContain('asr_criterion: 20');
   });
 });

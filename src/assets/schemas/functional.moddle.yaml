@@ -4,15 +4,16 @@ name: Functional
 prefix: functional
 description: >-
   Transform, map, reduce, and filter over data - the generic anchors every domain
-  layer binds its verbs onto. What a step does is the software named by
-  `implementation`; a fan-out is BPMN's own multi-instance marker.
+  layer binds its verbs onto - plus the generic IO presets (read, write,
+  anonymize). What a step does is the software named by `implementation`; a
+  fan-out is BPMN's own multi-instance marker.
 uri: https://w3id.org/studyflow/functional
 icon: iconify tabler--hexagon-letter-f
 core: true   # backs the default elements; always loaded, cannot be disabled
 order: 30  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0717
+version: 26.0812
 
 
 enumerations: []
@@ -113,6 +114,69 @@ templates:
         - parallel
       loopCharacteristics:
         type: bpmn:MultiInstanceLoopCharacteristics
+
+  - description: Read data from a file, folder, URL, or dataset into a stream of rows/documents.
+    object:
+      bpmn:name: Read data
+      type: Transform
+      bpmn:documentation: |
+        Read a source into a stream of rows/documents. Bound to the datatrove
+        library's `CsvReader`; repoint `implementation` at any of its readers
+        (`ParquetReader`, `JsonlReader`, `HuggingFaceDatasetReader`,
+        `WarcReader`) or your own loader without changing the step's shape.
+        The source location is the `data_folder` argument (a folder path, glob
+        pattern, URL, or dataset identifier).
+      icon: iconify mdi--input
+      keywords:
+        - read
+        - load
+        - import
+        - reader
+        - csv
+        - parquet
+        - jsonl
+      operationType: read
+      implementation: python://datatrove.pipeline.readers.CsvReader
+      additionalArguments: "data_folder: data/"
+
+  - description: Write a stream of rows/documents to a file, folder, URL, or dataset.
+    object:
+      bpmn:name: Write data
+      type: Transform
+      bpmn:documentation: |
+        Persist a stream of rows/documents. Bound to the datatrove library's
+        `ParquetWriter`; repoint `implementation` at any of its writers
+        (`JsonlWriter`, `HuggingFaceDatasetWriter`) or your own saver without
+        changing the step's shape. The destination is the `output_folder`
+        argument (a folder path, URL, or dataset identifier).
+      icon: iconify mdi--output
+      keywords:
+        - write
+        - save
+        - export
+        - writer
+        - persist
+      operationType: write
+      implementation: python://datatrove.pipeline.writers.ParquetWriter
+      additionalArguments: "output_folder: results/"
+
+  - description: Remove or pseudonymize identifying fields (datatrove's PII formatter).
+    object:
+      bpmn:name: Anonymize Data
+      type: Map
+      bpmn:documentation: |
+        Remove or pseudonymize identifying fields before sharing or further
+        processing. Bound to the datatrove library's `PIIFormatter` block,
+        which scrubs emails and IP addresses from each document's text.
+      icon: iconify mdi--incognito
+      keywords:
+        - anonymize
+        - pseudonymize
+        - deidentify
+        - privacy
+      operationType: anonymizeData
+      implementation: python://datatrove.pipeline.formatters.PIIFormatter
+      additionalArguments: "remove_emails: true\nremove_ips: true"
 
   - description: Partition a data stream into named groups by a key (e.g., participant, condition, block).
     object:

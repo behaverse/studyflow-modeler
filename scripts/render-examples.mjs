@@ -77,7 +77,7 @@ async function exportPng(page) {
   await page.getByRole('button', { name: 'Open command palette' }).click();
   await page.getByRole('dialog').getByText('Export...', { exact: true }).click();
   await page.getByTestId('export-dialog').waitFor();
-  await page.getByTestId('export-format-png').click();
+  await page.getByTestId('export-format').selectOption('png');
 
   const drawio = page.getByRole('switch', { name: 'Embed draw.io diagram' });
   if ((await drawio.getAttribute('aria-checked')) !== 'false') await drawio.click();

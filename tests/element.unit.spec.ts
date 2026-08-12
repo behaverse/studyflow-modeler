@@ -115,17 +115,17 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     expect(getAttribute(map, 'operationType')).toBe('map');
   });
 
-  test('template-stamped values still appear (Reader stamps a path)', () => {
+  test('template-stamped values still appear (a Recording stamps its layout)', () => {
     // Mirrors createTemplateShape: catalog defaults + templateAttributes stamped through ensureExtension.
-    const bo = moddle.create('bpmn:ServiceTask', { id: 'Reader_1' });
+    const bo = moddle.create('bpmn:DataStoreReference', { id: 'Recording_1' });
     const el = StudyflowElement.fromBusinessObject(bo);
-    el.ensureExtension('datatrove:Reader', moddle, {
-      ...getDefaults('datatrove:Reader'),
-      className: 'CsvReader',
-      path: 'data/raw/',
+    el.ensureExtension('eeg:Recording', moddle, {
+      ...getDefaults('eeg:Recording'),
+      channels: 16,
+      samplingRateHz: 125,
     });
-    expect(el.getAttribute('className')).toBe('CsvReader');
-    expect(el.getAttribute('path')).toBe('data/raw/');
+    expect(el.getAttribute('channels')).toBe(16);
+    expect(el.getAttribute('samplingRateHz')).toBe(125);
   });
 
   test('trait defaults apply on bare elements; stored values win (completionCodeType)', () => {

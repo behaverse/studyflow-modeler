@@ -298,8 +298,8 @@ test.describe('catalog: schema-declared vocabulary', () => {
     for (const name of ['studyflow:Dataset', 'studyflow:Table', 'studyflow:Timeseries']) {
       expect(dataElements, name).toContain(name);
     }
-    expect(dataElements, 'openbci:OpenBCIRecording specializes studyflow:Dataset')
-      .toContain('openbci:OpenBCIRecording');
+    expect(dataElements, 'eeg:Recording specializes studyflow:Dataset')
+      .toContain('eeg:Recording');
     expect(dataElements).not.toContain('studyflow:DataCatalog');
 
     const instruments = new Set(catalog.typesWithRole('instrument').map((type) => type.name));

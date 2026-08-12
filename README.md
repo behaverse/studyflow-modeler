@@ -107,7 +107,7 @@ Two conventions worth knowing:
   registration list for everything bpmn-js-side — the right first file to read
   for canvas behavior.
 
-- `src/assets/schemas/` - the moddle YAML schemas (`studyflow`, `cognitive`, `functional`, `prov`, `agentic`, `ml`, `openbci`, `datatrove`, `omniprocess`).
+- `src/assets/schemas/` - the moddle YAML schemas (`studyflow`, `cognitive`, `functional`, `prov`, `agentic`, `ml`, `eeg`).
 - `src/assets/examples/` - example diagrams (see below), plus `new_diagram.bpmn`, the blank template.
 - `docs/` - Quarto site (reference, guides, examples).
 

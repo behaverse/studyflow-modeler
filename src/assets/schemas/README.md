@@ -6,9 +6,9 @@ templates, connection rules, and round-tripping. This file is the vocabulary
 reference: every key the app actually reads, and where. If a key is not listed
 here, nothing consumes it — the compiler warns on the ones it can check.
 
-**Copying a file to start?** `openbci.moddle.yaml` is the exemplar domain
-pack: inheritance from core types, wrapper + trait styles, enums, conditions,
-roles. `studyflow.moddle.yaml` is the *core* schema — it declares app-wide
+**Copying a file to start?** `eeg.moddle.yaml` is the exemplar domain
+pack: inheritance from core types, wrapper + trait styles, enums, roles, and
+implementation-bound templates. `studyflow.moddle.yaml` is the *core* schema — it declares app-wide
 powers (inspector tab set, `bpmn:*` redefines, expression traits) a domain
 pack must not copy.
 
@@ -74,7 +74,7 @@ A template stamps a pre-configured element (or a small flow) into the canvas:
 `eventDefinitions`, and `mixins` (merge another template's attributes).
 Undeclared properties fail the schema lint. Prefer templates over new classes:
 a verb ("fit a model", "5-fold CV") is a template over a generic type, not a
-class — see the `ml` and `omniprocess` files.
+class — see the `ml` file and the `eeg`/`functional` template sections.
 
 ## Icons
 
