@@ -2,9 +2,9 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { readChoreographyBands } from '@behaverse/studyflow-core/document';
-import { ensureChoreographyParticipants, swapChoreographyInitiator } from '../src/modeler/bpmn/choreographyParticipants';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { readChoreographyBands } from '@core/document';
+import { ensureChoreographyParticipants, swapChoreographyInitiator } from '@modeler/bpmn/choreographyParticipants';
+import { toModdlePackages } from '@core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 
 /** Choreography participant helpers: materializing two participants, and flipping `initiatingParticipantRef`. */

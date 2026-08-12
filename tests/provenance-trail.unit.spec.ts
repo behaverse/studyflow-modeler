@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { inferPlaneRoot, studyflowToXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { inferPlaneRoot, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { toModdlePackages } from '@core/notation/schemaFile';
 import {
   appendTrailEntry,
   primaryRoot,
@@ -11,10 +11,10 @@ import {
   resetTrailStamping,
   stampTrailForExport,
   trailTimestamp,
-} from '../src/modeler/provenance/trail';
+} from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
-import type { Modeler } from '../src/modeler/bpmn/types';
+import type { Modeler } from '@modeler/bpmn/types';
 
 /** `<prov:activity>` elements on the primary root, stamped once per *fact* so re-rendering stays byte-stable. */
 

@@ -9,9 +9,9 @@ import {
   galleryTags,
   hasTag,
   UNTAGGED,
-} from '../src/modeler/examples/catalog';
-import { firstSentence } from '@behaverse/studyflow-core/naming';
-import { extractXmlFromPng } from '../src/modeler/export/pngEmbedding';
+} from '@modeler/examples/catalog';
+import { firstSentence } from '@core/naming';
+import { extractXmlFromPng } from '@core/document/png';
 
 /** Examples ship as one PNG each — the picture of a diagram with the diagram inside it. */
 

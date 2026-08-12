@@ -106,7 +106,7 @@ The verb-classes look load-bearing; they are not. Two facts from the code:
    (`grep -rE '(exec|ml|agentic):[A-Z]' src --include=*.ts` → none outside the
    schema files.) The modeler, runner, inspector, palette, templates, exporters,
    and auto-layout are **entirely catalog-driven**. They key on *generic*
-   attributes: `meta.branching` (`src/runner/session.ts:82`),
+   attributes: `meta.branching` (`packages/runner/src/session.ts:82`),
    `isDataOperation` (`nidm.ts`, `artemis.ts`, `ReplaceMenuProvider.ts`), and
    `uses` (`functionCall.ts`). No code says the word `Split` or `Agent`.
 

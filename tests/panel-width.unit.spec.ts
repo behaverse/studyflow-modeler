@@ -5,7 +5,7 @@ import {
   DEFAULT_PANEL_WIDTH,
   maxPanelWidth,
   MIN_PANEL_WIDTH,
-} from '../src/modeler/inspector/panelWidth';
+} from '@modeler/inspector/panelWidth';
 
 /** The inspector's width must stay usable at both ends: wide enough to read, never wide enough to take the canvas. */
 

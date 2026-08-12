@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { ICONS } from '../src/icons';
-import { runInvalidateProvenanceRecord } from '../src/modeler/provenance/commands';
-import { collectProvenance, recordDetails, shapeIconOf } from '../src/modeler/provenance/records';
-import { appendTrailEntry, primaryRoot } from '../src/modeler/provenance/trail';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { ICONS } from '@modeler/icons';
+import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
+import { collectProvenance, recordDetails, shapeIconOf } from '@modeler/provenance/records';
+import { appendTrailEntry, primaryRoot } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 

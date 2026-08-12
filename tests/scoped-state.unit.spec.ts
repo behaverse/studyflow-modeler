@@ -1,13 +1,13 @@
 
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog } from '@behaverse/studyflow-core/notation';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { registerNode } from '../src/runner/nodes/registry';
-import { Session } from '../src/runner/session';
-import { Studyflow } from '../src/runner/studyflow';
-import { evaluateCondition, UndeclaredReference } from '../src/runner/branching';
-import type { FlowNode } from '../src/runner/flow';
+import { buildCatalog } from '@core/notation';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { registerNode } from '@runner/nodes/registry';
+import { Session } from '@runner/session';
+import { Studyflow } from '@runner/studyflow';
+import { evaluateCondition, UndeclaredReference } from '@runner/branching';
+import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels } from './schemas';
 
 /** Scoped state at run time. */

@@ -2,11 +2,11 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { studyflowToXml } from '@behaverse/studyflow-core/document';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { StudyflowElement, getAttribute, getDefaults } from '@behaverse/studyflow-core/element';
-import { extensionValueWins } from '@behaverse/studyflow-core/element/handle';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { studyflowToXml } from '@core/document';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { StudyflowElement, getAttribute, getDefaults } from '@core/element';
+import { extensionValueWins } from '@core/element/handle';
 import { loadSchemaModels } from './schemas';
 import { exampleStudyflow } from './utils';
 

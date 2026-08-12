@@ -17,7 +17,7 @@ the modeler, the runner, and the CLI are consumers.
 The package is consumed as TypeScript source. Each consumer's bundler maps
 two specifiers (see the root `vite.config.ts` and `tsconfig.json`):
 
-- `@behaverse/studyflow-core/*` → `packages/core/src/*`
+- `@core/*` → `packages/core/src/*`
 - `#assets/*` → `assets/*` (repo root)
 
 Schema files are inlined at build time via `import.meta.glob(..., ?raw)` —

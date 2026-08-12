@@ -1,6 +1,6 @@
-import { toLocalName } from '@behaverse/studyflow-core/naming';
-import { MODDLE_BUILTIN_TYPES } from '@behaverse/studyflow-core/notation/schemaFile';
-import { bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@behaverse/studyflow-core/notation/bpmn';
+import { toLocalName } from '@core/naming';
+import { MODDLE_BUILTIN_TYPES } from '@core/notation/schemaFile';
+import { bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@core/notation/bpmn';
 import type {
   AttributeSpec,
   CategoryEntry,
@@ -9,7 +9,7 @@ import type {
   Template,
   TypeEntry,
   TypeRole,
-} from '@behaverse/studyflow-core/notation/types';
+} from '@core/notation/types';
 
 /** Super-class refs that never lead to a BPMN attach point: moddle built-ins, plus bare `BaseElement` (the metamodel root). */
 export const NON_BPMN_SUPER_CLASSES: ReadonlySet<string> = new Set([...MODDLE_BUILTIN_TYPES, 'BaseElement']);

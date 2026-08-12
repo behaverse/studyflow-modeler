@@ -4,7 +4,8 @@
 Studyflow Modeler is a tool to design and run cognitive experiments using [Studyflow diagrams](https://behaverse.org/projects/studyflows). It ships two browser apps backed by a shared core library:
 
 - **Modeler** (`app.html`) - visual editor for `.studyflow` (BPMN 2.0 XML) diagrams, with a pluggable schema palette covering cognitive, data, and domain-specific element types. Diagrams export to SVG, PNG, draw.io, LinkML, NIDM-Results, and ARTEM-IS; exported SVG and PNG carry both the studyflow source and a draw.io diagram, so one figure reopens in either editor.
-- **Runner** (`run.html`) - executes a `.studyflow` diagram end-to-end in the browser: parses the XML, validates it, and walks the flow node-by-node (consent, instructions, questionnaires, cognitive tasks, Behaverse tasks). Supports optional event recording to a Behaverse data server and LLM/bot-driven task execution.
+- **Runner** (`run/`) - executes a `.studyflow` diagram end-to-end in the browser: parses the XML, validates it, and walks the flow node-by-node (consent, instructions, questionnaires, cognitive tasks, Behaverse tasks). Supports optional event recording to a Behaverse data server and LLM/bot-driven task execution.
+- **CLI** (`packages/cli`) - a standalone `studyflow` binary to convert (`.studyflow` YAML ↔ BPMN XML ↔ `.studyflow.png`), validate, and inspect studyflow files headlessly.
 
 ## Development
 
@@ -12,7 +13,7 @@ With Node.js **≥ 20.19** installed (`.nvmrc` pins 22), start both apps in dev 
 
 ```bash
 npm install
-npm run dev          # serves /app.html (modeler) and /run.html (runner)
+npm run dev          # serves /app.html (modeler) and /run/ (runner)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the test strategy, quality gates,
@@ -44,7 +45,7 @@ packages/core/src/ the shared model (@behaverse/studyflow-core) — no React, no
   element/         attribute access on one element (handle, attributes, moddle)
   constants.ts naming.ts implementation.ts settings.ts storage.ts
 
-src/modeler/       the editor — one folder per feature
+packages/modeler/src/       the editor — one folder per feature
   app/             the shell: App, Modeler, contexts, notices, boot commands
   bpmn/            bpmn-js glue: behaviors, the modeling updater, DI module,
                    upstream type aliases
@@ -53,7 +54,7 @@ src/modeler/       the editor — one folder per feature
   shape/ contextPad/ commandPalette/ import/ ui/
   commandBus.ts constants.ts
 
-src/runner/        the executor
+packages/runner/src/        the executor
   nodes/<type>/    one folder per node type: its view, validation, and bridge
   flow.ts jobs.ts scope.ts studyflow.ts session.ts ...
 ```
@@ -69,7 +70,7 @@ Four file-naming rules, and they hold everywhere:
 
 App feature folders have no barrels. Each `core/` package instead has one
 entry module (`index.ts`) that is its public surface:
-`@behaverse/studyflow-core/document` and `@behaverse/studyflow-core/element`
+`@core/document` and `@core/element`
 are the only paths anything outside them imports, and `notation`'s also hosts
 the catalog singleton and documents the boot sequence.
 
@@ -104,7 +105,7 @@ Two conventions worth knowing:
   module handles.
 - **Two UI technologies own different pixels.** React owns the palette,
   nav bar, inspector, and dialogs; bpmn-js DI providers own the context pad,
-  append menu, and label editing. `src/modeler/bpmn/module.ts` is the single
+  append menu, and label editing. `packages/modeler/src/bpmn/module.ts` is the single
   registration list for everything bpmn-js-side — the right first file to read
   for canvas behavior.
 

@@ -6,7 +6,7 @@ Node **≥ 20.19** (Vite 7's floor; `.nvmrc` pins 22, CI uses the same file):
 
 ```bash
 npm install
-npm run dev          # serves /app.html (modeler) and /run.html (runner)
+npm run dev          # serves /app.html (modeler) and /run/ (runner)
 ```
 
 The dev server may print `[unity-build] … not found` at boot — that is the
@@ -40,7 +40,7 @@ The suite's conventions worth knowing:
   `catalog.unit.spec.ts` cross-validates the compiled catalog against
   bpmn-moddle itself.
 - Browser-side tests reach app internals through `window.__studyflowTest`
-  (`src/modeler/testHooks.ts`, dev-only) — never through dev-server URL
+  (`packages/modeler/src/testHooks.ts`, dev-only) — never through dev-server URL
   imports, which the compiler cannot check.
 
 ## Quality gates
@@ -59,7 +59,7 @@ Decisions we made once so nobody relitigates them in review:
 - `no-explicit-any` is a warning, not an error: the moddle/bpmn-js boundary is
   genuinely untyped. New code should prefer `ModdleElement`
   (`core/element/moddle.ts`) over `any` for moddle objects.
-- User-facing failure has one house rule (`src/modeler/app/noticeStore.ts`): inline in
+- User-facing failure has one house rule (`packages/modeler/src/app/noticeStore.ts`): inline in
   the open dialog when the failure is dialog-scoped, a `notify()` notice for
   everything else, never `alert()`, never console-only.
 
@@ -80,7 +80,7 @@ Iterating:
 ## Where things live
 
 The README's "Project layout" section is the map. Two entry points worth
-knowing before your first change: `src/modeler/bpmn/module.ts` is the single
+knowing before your first change: `packages/modeler/src/bpmn/module.ts` is the single
 registration list for everything bpmn-js-side (canvas renderers, context pad,
 behaviors), and `packages/core/src/notation/index.ts` documents the schema→catalog boot
 sequence at the top of the file.

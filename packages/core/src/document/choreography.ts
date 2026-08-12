@@ -1,6 +1,6 @@
-import { BPMN } from '@behaverse/studyflow-core/constants';
-import { getProperty, type ModdleElement, type Moddle } from '@behaverse/studyflow-core/element/moddle';
-import { applyXmlPasses } from '@behaverse/studyflow-core/document/format';
+import { BPMN } from '@core/constants';
+import { getProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
+import { applyXmlPasses } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 

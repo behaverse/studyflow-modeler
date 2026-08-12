@@ -105,7 +105,7 @@ Element types ship in layered schemas. `core` and `cognitive` are always loaded 
 
 ## Export formats
 
-Every way a diagram leaves the app is one dialog -- *File &rarr; Export...* -- with the native `.studyflow` file as the default format rather than a separate "save" menu (see `src/modeler/export/`):
+Every way a diagram leaves the app is one dialog -- *File &rarr; Export...* -- with the native `.studyflow` file as the default format rather than a separate "save" menu (see `packages/modeler/src/export/`):
 
 | Format | What it is for |
 |---|---|

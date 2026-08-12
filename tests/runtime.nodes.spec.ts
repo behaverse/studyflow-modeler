@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@behaverse/studyflow-core/storage';
+import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@core/storage';
 import { gotoModeler } from './utils';
 
 /** Stage a studyflow XML as a hand-off (mimicking the modeler's "Run" button), then open the runtime. */
@@ -17,7 +17,7 @@ async function runStudyflow(page: Page, id: string, xml: string): Promise<void> 
     },
     { k: key, v: JSON.stringify(envelope) },
   );
-  await page.goto(`/run.html?diagram=${id}&seed=42`);
+  await page.goto(`/run/?diagram=${id}&seed=42`);
 }
 
 const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -294,13 +294,13 @@ test.describe('Studyflow runtime nodes', () => {
   // `addInitScript` re-seeds on every navigation, including the reload, and would make this pass regardless.
   test('a reload mid-run still finds the diagram', async ({ page }) => {
     const id = 'runner-reload';
-    await page.goto('/run.html');
+    await page.goto('/run/');
     await page.evaluate(
       ({ k, v }) => window.localStorage.setItem(k, v),
       { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: NO_UNITY_XML }) },
     );
 
-    await page.goto(`/run.html?diagram=${id}&seed=42`);
+    await page.goto(`/run/?diagram=${id}&seed=42`);
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
 
     await page.reload();
@@ -311,13 +311,13 @@ test.describe('Studyflow runtime nodes', () => {
 
   test('the hand-off is released once the run reaches a terminal state', async ({ page }) => {
     const id = 'runner-cleanup';
-    await page.goto('/run.html');
+    await page.goto('/run/');
     await page.evaluate(
       ({ k, v }) => window.localStorage.setItem(k, v),
       { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: UNTYPED_TASK_XML }) },
     );
 
-    await page.goto(`/run.html?diagram=${id}&seed=42`);
+    await page.goto(`/run/?diagram=${id}&seed=42`);
     await page.getByRole('button', { name: 'Begin' }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
@@ -339,7 +339,7 @@ test.describe('Studyflow runtime nodes', () => {
     await page.getByRole('button', { name: 'Run', exact: true }).click();
 
     const runner = await runnerTab;
-    await expect(runner).toHaveURL(/run\.html\?diagram=[^&]+&seed=\d+$/);
+    await expect(runner).toHaveURL(/run\/\?diagram=[^&]+&seed=\d+$/);
     await expect(runner).toHaveTitle('Behaverse Studyflow');
   });
 });

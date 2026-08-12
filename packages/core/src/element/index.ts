@@ -1,12 +1,12 @@
-import { getCatalog } from '@behaverse/studyflow-core/notation';
+import { getCatalog } from '@core/notation';
 import {
   CHECKLIST_SPEC,
   getAttributeSpec,
   getRawAttribute,
   isExtensionPrefix,
   toBusinessObject,
-} from '@behaverse/studyflow-core/element/attributes';
-import { StudyflowElement, type AttributeUpdater } from '@behaverse/studyflow-core/element/handle';
+} from '@core/element/attributes';
+import { StudyflowElement, type AttributeUpdater } from '@core/element/handle';
 
 export {
   CHECKLIST_SPEC,
@@ -17,7 +17,7 @@ export {
   StudyflowElement,
   type AttributeUpdater,
 };
-export type { ModdleElement } from '@behaverse/studyflow-core/element/moddle';
+export type { ModdleElement } from '@core/element/moddle';
 
 /** Derived, not stored — shared by the canvas marker and the NIDM/Artemis exporters so it cannot drift. */
 export function isDataOperationActivity(elementOrBO: any): boolean {

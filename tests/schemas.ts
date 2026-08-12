@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { fromModdleYaml, type SchemaModel } from '@behaverse/studyflow-core/notation/schemaFile';
-import { buildManifest, sortSchemas, type SchemaInfo } from '@behaverse/studyflow-core/notation/manifest';
+import { fromModdleYaml, type SchemaModel } from '@core/notation/schemaFile';
+import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 
 /** The Node counterpart of `packages/core/src/notation/loader.ts`, which reads the same files through Vite's bundle. */
 

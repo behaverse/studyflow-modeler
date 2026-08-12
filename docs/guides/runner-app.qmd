@@ -32,7 +32,7 @@ Without `diagram`, the runner shows the file-upload landing screen. **Every othe
 
 ## Parameterizing a study
 
-**A study carries its own values; a link overrides them.** This is the same model the reference runner in `src/runner/python/` implements: one value store per run, where what the run holds wins over what the element would otherwise supply. The places a value can live, highest precedence first:
+**A study carries its own values; a link overrides them.** This is the same model the reference runner in `packages/runner-py/` implements: one value store per run, where what the run holds wins over what the element would otherwise supply. The places a value can live, highest precedence first:
 
 | Where | Declared as | Example |
 |---|---|---|
@@ -145,11 +145,11 @@ To record, configure a data server in the modeler's *Settings* (API key; the bas
 3. Records a SHA-256 hash of the diagram source alongside the events, so every data point is traceable to the exact study version that produced it.
 4. `PATCH`es the session with the final status and completion code when the run ends.
 
-If no server is configured (or the toggle is off), the run proceeds local-only -- nothing leaves the browser and the study still works end-to-end. See `src/runner/dataServer.ts` and `packages/core/src/settings.ts` for details.
+If no server is configured (or the toggle is off), the run proceeds local-only -- nothing leaves the browser and the study still works end-to-end. See `packages/runner/src/dataServer.ts` and `packages/core/src/settings.ts` for details.
 
 ## Adding a new node kind
 
-The runner discovers node modules under `src/runner/nodes/<kind>/index.tsx` at startup. Each module calls `registerNode(...)` with a `match` predicate (typically `extensionType: 'myschema:MyType'`), a `toJob(node)` mapper, and a React `Component`. See `src/runner/nodes/README.md` for the full template -- adding a new node kind only requires creating one new folder.
+The runner discovers node modules under `packages/runner/src/nodes/<kind>/index.tsx` at startup. Each module calls `registerNode(...)` with a `match` predicate (typically `extensionType: 'myschema:MyType'`), a `toJob(node)` mapper, and a React `Component`. See `packages/runner/src/nodes/README.md` for the full template -- adding a new node kind only requires creating one new folder.
 
 ## Logs and debugging
 

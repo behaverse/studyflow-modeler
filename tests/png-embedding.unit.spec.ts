@@ -4,7 +4,7 @@ import {
   embedDrawioIntoPng,
   embedStudyflowIntoPng,
   extractXmlFromPng,
-} from '../src/modeler/export/pngEmbedding';
+} from '@core/document/png';
 
 /** Pure chunk-level coverage of the PNG round-trip contract. */
 

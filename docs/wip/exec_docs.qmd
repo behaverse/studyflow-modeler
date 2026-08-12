@@ -223,7 +223,7 @@ Studyflow has done this in miniature all along: [`EndEvent#attritionCount`](elem
 
 ## What the runners implement today
 
-The schema describes the full semantics; two runners implement complementary halves of it. The **browser runner** (`src/runner/`) drives the participant-facing side — it suspends for a human and knows nothing of Python. The **Python runner** (`src/runner/python/`) executes the analysis side: it calls the software a step names and writes the as-run record. Being explicit about the gap:
+The schema describes the full semantics; two runners implement complementary halves of it. The **browser runner** (`packages/runner/src/`) drives the participant-facing side — it suspends for a human and knows nothing of Python. The **Python runner** (`packages/runner-py/`) executes the analysis side: it calls the software a step names and writes the as-run record. Being explicit about the gap:
 
 | | Browser runner | Python runner |
 | --- | --- | --- |
@@ -239,4 +239,4 @@ The schema describes the full semantics; two runners implement complementary hal
 
 Refusing is deliberate. A runner that silently took the default branch at a `Router` would produce a run that looks fine and means nothing.
 
-`sklearn_pipeline` is the worked example the Python runner is checked against: it executes straight out of the shipped `.png` — in one command, materializing its own boundary input — and leaves five artifacts, a run record, and a log behind. See `src/runner/python/README.md`.
+`sklearn_pipeline` is the worked example the Python runner is checked against: it executes straight out of the shipped `.png` — in one command, materializing its own boundary input — and leaves five artifacts, a run record, and a log behind. See `packages/runner-py/README.md`.

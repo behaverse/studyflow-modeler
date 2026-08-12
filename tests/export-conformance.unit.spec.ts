@@ -4,10 +4,10 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { exportToArtemis } from '../src/modeler/export/artemis';
-import { exportToLinkML } from '../src/modeler/export/linkml';
-import { exportToNidm } from '../src/modeler/export/nidm';
-import { buildExportModel, type ExportModel } from '../src/modeler/export/model';
+import { exportToArtemis } from '@modeler/export/artemis';
+import { exportToLinkML } from '@modeler/export/linkml';
+import { exportToNidm } from '@modeler/export/nidm';
+import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { fakeModeler, makeModdle } from './exporterFixture';
 import { exampleXml } from './utils';
 

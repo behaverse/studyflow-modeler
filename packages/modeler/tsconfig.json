@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "react", "json-schema", "./src/declarations"],
+    "paths": {
+      "@modeler/*": ["./src/*"],
+      "@core/*": ["../core/src/*"],
+      "#assets/*": ["../../assets/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "../core/src/declarations.d.ts"]
+}

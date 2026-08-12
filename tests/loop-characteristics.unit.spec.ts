@@ -2,15 +2,15 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { runUpdateLoopCharacteristics } from '../src/modeler/inspector/commands';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { runUpdateLoopCharacteristics } from '@modeler/inspector/commands';
 import { loadSchemaModels } from './schemas';
 import {
   loopKindOf,
   supportsLoopCharacteristics,
-} from '../src/modeler/inspector/loopCharacteristics';
-import type { Modeler } from '../src/modeler/bpmn/types';
+} from '@modeler/inspector/loopCharacteristics';
+import type { Modeler } from '@modeler/bpmn/types';
 
 /** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
 

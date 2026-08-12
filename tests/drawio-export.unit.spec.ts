@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { exportToDrawio } from '../src/modeler/export/drawio';
+import { exportToDrawio } from '@modeler/export/drawio';
 
 /** The BPMN -> draw.io mapping, over a hand-built element registry. */
 

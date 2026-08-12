@@ -42,34 +42,34 @@ export default [
   },
 
   {
-    files: ['src/modeler/**/*.{ts,tsx}', 'src/runner/**/*.{ts,tsx}'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}', 'packages/runner/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs['recommended-latest'].rules,
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/modeler/*', '@/modeler', '@/runner/*', '@/runner'], message: 'modeler/ and runner/ may not import each other. Move shared code into packages/core/.' },
+          { group: ['@modeler/*', '@runner/*'], message: 'modeler/ and runner/ may not import each other. Move shared code into packages/core/.' },
         ],
       }],
     },
   },
   // Each app may of course import itself; re-allow its own prefix.
   {
-    files: ['src/modeler/**/*.{ts,tsx}'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/runner/*', '@/runner'], message: 'modeler/ may not import from runner/. Move shared code into packages/core/.' },
+          { group: ['@runner/*'], message: 'modeler/ may not import from runner/. Move shared code into packages/core/.' },
         ],
       }],
     },
   },
   {
-    files: ['src/runner/**/*.{ts,tsx}'],
+    files: ['packages/runner/src/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/modeler/*', '@/modeler'], message: 'runner/ may not import from modeler/. Move shared code into packages/core/.' },
+          { group: ['@modeler/*'], message: 'runner/ may not import from modeler/. Move shared code into packages/core/.' },
         ],
       }],
     },
@@ -82,7 +82,7 @@ export default [
         patterns: [
           { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: 'core/ is the shared framework-free model: no React.' },
           { group: ['bpmn-js', 'bpmn-js/*', 'diagram-js', 'diagram-js/*'], message: 'core/ is the shared framework-free model: no bpmn-js or diagram-js.' },
-          { group: ['@/modeler/*', '@/modeler', '@/runner/*', '@/runner'], message: 'core/ may not depend on either app.' },
+          { group: ['@modeler/*', '@runner/*'], message: 'core/ may not depend on either app.' },
         ],
       }],
       // Import bans miss services passed in as `any`; ban the names too.

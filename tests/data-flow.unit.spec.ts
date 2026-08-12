@@ -4,11 +4,11 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { inlineIoSpecification } from '@behaverse/studyflow-core/document';
-import { getInferredDataNeighbors } from '../src/modeler/inspector/dataNeighbors';
-import { getPropertiesInScope, getStateProperties } from '../src/modeler/inspector/stateProperties';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { inlineIoSpecification } from '@core/document';
+import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
+import { getPropertiesInScope, getStateProperties } from '@modeler/inspector/stateProperties';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 

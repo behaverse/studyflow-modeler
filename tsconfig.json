@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
-    "types": ["node", "react", "json-schema", "./src/declarations"],
+    "types": ["node", "react", "json-schema", "vite/client"],
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
 
     "paths": {
-        "@/*": ["./src/*"],
-        "@behaverse/studyflow-core/*": ["./packages/core/src/*"],
-        "#assets/*": ["./assets/*"],
-        "#root/*": ["./*"]
+        "@core/*": ["./packages/core/src/*"],
+        "@modeler/*": ["./packages/modeler/src/*"],
+        "@runner/*": ["./packages/runner/src/*"],
+        "#assets/*": ["./assets/*"]
     },
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -29,6 +29,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "packages/core/src/**/*.ts", "vite.config.ts", "playwright.config.ts", "tests/**/*.ts"],
+  "include": ["tests/**/*.ts", "packages/core/src/declarations.d.ts", "packages/modeler/src/declarations.d.ts", "packages/modeler/src/testHooks.ts", "playwright.config.ts", "playwright.unit.config.ts"],
   "exclude": ["node_modules", "dist"],
 }

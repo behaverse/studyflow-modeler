@@ -1,5 +1,5 @@
-import { applyXmlPasses } from '@behaverse/studyflow-core/document/format';
-import type { Moddle } from '@behaverse/studyflow-core/element/moddle';
+import { applyXmlPasses } from '@core/document/format';
+import type { Moddle } from '@core/element/moddle';
 
 function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
   const text = (value ?? '').trim();

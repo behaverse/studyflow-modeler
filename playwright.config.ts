@@ -28,12 +28,25 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173/app',
-    reuseExistingServer: !process.env.CI,
-    stdout: 'ignore',
-    stderr: 'pipe',
-    timeout: 120 * 1000,
-  },
+  // Two dev servers, one origin: the modeler (4173) proxies /run and friends to
+  // the runner (4174), mirroring how the merged dist/ is served in production.
+  webServer: [
+    {
+      command: 'npm run dev -w @behaverse/studyflow-modeler -- --host 127.0.0.1 --port 4173',
+      url: 'http://127.0.0.1:4173/app.html',
+      env: { RUNNER_PORT: '4174' },
+      reuseExistingServer: !process.env.CI,
+      stdout: 'ignore',
+      stderr: 'pipe',
+      timeout: 120 * 1000,
+    },
+    {
+      command: 'npm run dev -w @behaverse/studyflow-runner -- --host 127.0.0.1 --port 4174',
+      url: 'http://127.0.0.1:4174/run/',
+      reuseExistingServer: !process.env.CI,
+      stdout: 'ignore',
+      stderr: 'pipe',
+      timeout: 120 * 1000,
+    },
+  ],
 });

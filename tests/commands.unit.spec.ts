@@ -4,23 +4,24 @@ import { join } from 'node:path';
 
 /** No registry catches an undispatched handler; a declaration ends in `;`, a dispatch in a comma or brace. */
 
-const SRC = join(process.cwd(), 'src');
+const SRC = join(process.cwd(), 'packages');
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
     const path = join(dir, entry);
+    if (entry === 'node_modules') return [];
     if (statSync(path).isDirectory()) return walk(path);
     return /\.tsx?$/.test(path) ? [path] : [];
   });
 }
 
 const sources = walk(SRC).map((path) => ({ path, text: readFileSync(path, 'utf8') }));
-const commandFiles = sources.filter(({ path }) => /modeler\/[a-zA-Z]+\/commands\.ts$/.test(path));
+const commandFiles = sources.filter(({ path }) => /modeler\/src\/[a-zA-Z]+\/commands\.ts$/.test(path));
 
 const handlers = commandFiles.flatMap(({ path, text }) =>
   [...text.matchAll(/^export (?:async )?function (run[A-Z]\w*)/gm)].map((m) => ({
     name: m[1].replace(/^run/, ''),
-    path: path.replace(SRC, 'src'),
+    path: path.replace(SRC, 'packages'),
   }))
 );
 

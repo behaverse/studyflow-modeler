@@ -1,9 +1,9 @@
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { StudyflowElement } from '@behaverse/studyflow-core/element';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { buildExportModel, type ExportModel } from '../src/modeler/export/model';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { StudyflowElement } from '@core/element';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { loadSchemaModels } from './schemas';
 
 /** The interchange exporters' fixture: the compiled catalog and moddle, plus an element-registry stand-in. */

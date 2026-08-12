@@ -1,15 +1,15 @@
-import { getCatalog, type AttributeSpec } from '@behaverse/studyflow-core/notation';
-import { CHECKLIST_MARKER, DOCUMENTATION_TYPE, isChecklistEntry } from '@behaverse/studyflow-core/document/shorthand';
-import { BPMN } from '@behaverse/studyflow-core/constants';
-import { splitQName, toLocalName } from '@behaverse/studyflow-core/naming';
-import { getProperty, setProperty, type ModdleElement, type Moddle } from '@behaverse/studyflow-core/element/moddle';
-// From the leaf module, not the `@behaverse/studyflow-core/element` barrel — the barrel imports this file (cycle).
+import { getCatalog, type AttributeSpec } from '@core/notation';
+import { CHECKLIST_MARKER, DOCUMENTATION_TYPE, isChecklistEntry } from '@core/document/shorthand';
+import { BPMN } from '@core/constants';
+import { splitQName, toLocalName } from '@core/naming';
+import { getProperty, setProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
+// From the leaf module, not the `@core/element` barrel — the barrel imports this file (cycle).
 import {
   getAttributeSpec,
   getAttributeSpecs,
   isExtensionPrefix,
   toBusinessObject,
-} from '@behaverse/studyflow-core/element/attributes';
+} from '@core/element/attributes';
 
 /**
  * Applies attribute updates to `target`, a moddle object owned by `element`

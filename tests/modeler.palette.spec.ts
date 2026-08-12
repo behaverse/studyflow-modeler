@@ -4,8 +4,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { xmlToStudyflow } from '@behaverse/studyflow-core/document';
-import { fromModdleYaml, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { xmlToStudyflow } from '@core/document';
+import { fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
 import { SCHEMAS } from './schemas';
 import {
   addPaletteElement,

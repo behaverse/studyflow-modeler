@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { parseStudyflow } from '../src/runner/studyflow';
-import { getBehaverseTaskPayload } from '../src/runner/nodes/behaverse/parser';
-import type { FlowNode } from '../src/runner/flow';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { parseStudyflow } from '@runner/studyflow';
+import { getBehaverseTaskPayload } from '@runner/nodes/behaverse/parser';
+import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 

@@ -1,5 +1,5 @@
-import { isModdleElement } from '@behaverse/studyflow-core/element/moddle';
-import { RESERVED_DOC_KEYS, inferPlaneRoot, type YamlDoc } from '@behaverse/studyflow-core/document/format';
+import { isModdleElement } from '@core/element/moddle';
+import { RESERVED_DOC_KEYS, inferPlaneRoot, type YamlDoc } from '@core/document/format';
 import {
   CHECKLIST_MARKER,
   inlineDocumentationEntries,
@@ -9,7 +9,7 @@ import {
   inlineYamlValue,
   keyItemsById,
   planInlineDi,
-} from '@behaverse/studyflow-core/document/shorthand';
+} from '@core/document/shorthand';
 
 type SerializeContext = {
   di: Map<string, Record<string, unknown>>;

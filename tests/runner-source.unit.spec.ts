@@ -3,12 +3,12 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { readParameters, resolveRunSource } from '../src/runner/source';
-import { parseStudyflow, Studyflow } from '../src/runner/studyflow';
-import { getBehaverseTaskPayload } from '../src/runner/nodes/behaverse/parser';
-import type { FlowNode } from '../src/runner/flow';
+import { buildCatalog, setCatalog } from '@core/notation';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { readParameters, resolveRunSource } from '@runner/source';
+import { parseStudyflow, Studyflow } from '@runner/studyflow';
+import { getBehaverseTaskPayload } from '@runner/nodes/behaverse/parser';
+import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels } from './schemas';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
@@ -22,7 +22,7 @@ setCatalog(buildCatalog(models));
 const DEMOS = { behaverse: '/assets/demos/behaverse.studyflow' };
 
 const demoSource = readFileSync(
-  path.join(process.cwd(), 'src/assets/demos/behaverse.studyflow'),
+  path.join(process.cwd(), 'assets/demos/behaverse.studyflow'),
   'utf8',
 );
 

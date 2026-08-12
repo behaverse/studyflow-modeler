@@ -1,5 +1,5 @@
-import { firstSentence } from '@behaverse/studyflow-core/naming';
-import type { SchemaModel } from '@behaverse/studyflow-core/notation/schemaFile';
+import { firstSentence } from '@core/naming';
+import type { SchemaModel } from '@core/notation/schemaFile';
 
 export type SchemaInfo = {
   prefix: string;

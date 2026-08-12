@@ -45,7 +45,7 @@ Plus two worked examples (`ml_pipeline.studyflow`, `agent_eval.studyflow`) that 
 
 **Fitting is one notation across the whole surface** — a trainable artifact, data, and an objective in; the improved artifact and its `Metric`s out — realized entirely as templates over `ml:Operation`, so the trainable can be a classical estimator, a formula-specified statistical model, a LoRA adapter, or an `agentic:Prompt` (a DSPy-style compile). The step contract's sixth question ("may it be skipped?") is now `exec:Step#when`, which the fitting loop uses to skip the optimizer on the baseline turn. `agent_eval.studyflow` closes the loop on the diagram: the eval is wrapped in a repeat-until sub-process that refits the agent's instructions until the judge's score clears the bar. Semantics in [`exec_docs.qmd`](./exec_docs.qmd) §Fitting.
 
-One runner change was needed and made: `agentic:Router` declares `meta.branching: model`, which the `Session` does not implement. It now **refuses** rather than falling through to the condition arm and silently taking the default branch (`src/runner/session.ts`).
+One runner change was needed and made: `agentic:Router` declares `meta.branching: model`, which the `Session` does not implement. It now **refuses** rather than falling through to the condition arm and silently taking the default branch (`packages/runner/src/session.ts`).
 
 ### Known cosmetic gaps
 
@@ -59,10 +59,10 @@ Data associations authored in a DI-less `.studyflow` round-trip and parse, but t
 
 *The one seam everything else hangs off.*
 
-Today the walk is React-bound: `NodeDefinition` (`src/runner/nodes/types.ts`) **requires** a `Component`, so a node can only be "run" by rendering it. That is why there is no headless runner.
+Today the walk is React-bound: `NodeDefinition` (`packages/runner/src/nodes/types.ts`) **requires** a `Component`, so a node can only be "run" by rendering it. That is why there is no headless runner.
 
 ```ts
-// src/runner/nodes/types.ts
+// packages/runner/src/nodes/types.ts
 export type Outcome =
   | { status: 'ok'; outputs?: Record<string, unknown> }
   | { status: 'suspend'; handle: string }        // human, HPC job, long tool call
@@ -89,7 +89,7 @@ export interface NodeDefinition<J> {
 
 ## Stage 2 — Scopes, expansion, and the graph the parser drops
 
-`src/runner/parseStudyflow.ts` has a hard-coded `FLOW_NODE_TYPES` set that **omits `bpmn:SubProcess`, `bpmn:AdHocSubProcess`, `bpmn:CallActivity`, and `bpmn:BoundaryEvent`**. Every sub-process in a diagram is silently skipped today. Nothing that follows works until the parser recurses.
+`packages/runner/src/parseStudyflow.ts` has a hard-coded `FLOW_NODE_TYPES` set that **omits `bpmn:SubProcess`, `bpmn:AdHocSubProcess`, `bpmn:CallActivity`, and `bpmn:BoundaryEvent`**. Every sub-process in a diagram is silently skipped today. Nothing that follows works until the parser recurses.
 
 - Parse nested `flowElements`; resolve boundary events to their `attachedToRef`.
 - Implement **[Fork]/[Join]** (the `ParallelGateway` that currently throws), **[Expand]/[Collect]**, **[Loop]**.
@@ -126,7 +126,7 @@ The HPC story needs no new semantics: an array job is `iterate: shards`, and wai
 ## Stage 5 — Provenance and interop
 
 - **`.studyrun`**: the plan plus its executions. Generalizes what `EndEvent#attritionCount` already does — the diff between the registered file and the as-run file *is* the result.
-- **PROV-O export**, alongside the existing NIDM/LinkML/ARTEM-IS exporters in `src/modeler/export/`.
+- **PROV-O export**, alongside the existing NIDM/LinkML/ARTEM-IS exporters in `packages/modeler/src/export/`.
 - **Emit bridges** (optional, and deliberately last): CWL for batch/HPC, LangGraph for agentic. Useful for adoption; not the point. No target system expresses study semantics *and* ML semantics *and* agent semantics, which is the whole reason to have the engine.
 
 ---

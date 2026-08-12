@@ -1,4 +1,4 @@
-import { splitQName, toLocalName } from '@behaverse/studyflow-core/naming';
+import { splitQName, toLocalName } from '@core/naming';
 import {
   MODDLE_BUILTIN_TYPES,
   type SchemaCategoryModel,
@@ -6,17 +6,17 @@ import {
   type SchemaModel,
   type SchemaPropertyModel,
   type SchemaTypeModel,
-} from '@behaverse/studyflow-core/notation/schemaFile';
-import { BPMN_ANCESTORS, isBpmnSubtypeOf } from '@behaverse/studyflow-core/notation/bpmn';
-import { humanizeLabel, isHiddenFromPalette, paletteCategories, trimBpmnSuffix } from '@behaverse/studyflow-core/notation/palette';
-import { compileTemplates } from '@behaverse/studyflow-core/notation/templates';
-import { EDITOR_NAMES, type EditorName } from '@behaverse/studyflow-core/notation/types';
+} from '@core/notation/schemaFile';
+import { BPMN_ANCESTORS, isBpmnSubtypeOf } from '@core/notation/bpmn';
+import { humanizeLabel, isHiddenFromPalette, paletteCategories, trimBpmnSuffix } from '@core/notation/palette';
+import { compileTemplates } from '@core/notation/templates';
+import { EDITOR_NAMES, type EditorName } from '@core/notation/types';
 import {
   NON_BPMN_SUPER_CLASSES,
   TypeCatalog,
   isSchemaSuperRef,
   mergeAttributeSpecs,
-} from '@behaverse/studyflow-core/notation/query';
+} from '@core/notation/query';
 import type {
   AttributeSpec,
   CategoryEntry,
@@ -25,7 +25,7 @@ import type {
   SchemaEntry,
   TypeEntry,
   TypeRole,
-} from '@behaverse/studyflow-core/notation/types';
+} from '@core/notation/types';
 
 export function buildCatalog(models: SchemaModel[]): TypeCatalog {
   const catalog = new TypeCatalog();

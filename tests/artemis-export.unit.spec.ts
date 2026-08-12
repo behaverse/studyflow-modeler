@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { exportToArtemis } from '../src/modeler/export/artemis';
+import { exportToArtemis } from '@modeler/export/artemis';
 import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
 
 /** The ARTEM-IS report, over hand-built business objects. */

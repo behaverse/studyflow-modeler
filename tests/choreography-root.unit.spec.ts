@@ -2,8 +2,8 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { fromWireXml, toWireXml } from '@behaverse/studyflow-core/document';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { fromWireXml, toWireXml } from '@core/document';
+import { toModdlePackages } from '@core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */

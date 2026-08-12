@@ -4,9 +4,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { studyflowToXml } from '@behaverse/studyflow-core/document';
-import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
-import { ensureDiagramLayout, hasDiagramInterchange } from '../src/modeler/diagram/autoLayout';
+import { studyflowToXml } from '@core/document';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { ensureDiagramLayout, hasDiagramInterchange } from '@modeler/diagram/autoLayout';
 import { loadSchemaModels } from './schemas';
 import { exampleXml, withoutDiagramInterchange } from './utils';
 

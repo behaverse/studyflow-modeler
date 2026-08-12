@@ -4,8 +4,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { buildCatalog } from '@behaverse/studyflow-core/notation';
-import { fromModdleYaml, isValueType, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildCatalog } from '@core/notation';
+import { fromModdleYaml, isValueType, toModdlePackages } from '@core/notation/schemaFile';
 import { SCHEMAS } from './schemas';
 
 /** The moddle package format is an *output* of the schema model, not the source format. */

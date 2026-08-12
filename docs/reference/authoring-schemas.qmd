@@ -206,7 +206,7 @@ Score:
 
 In the BPMN XML form, `implementation` is an attribute on the activity and `additionalArguments` is a `<studyflow:additionalArguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
 
-The browser runner parses and validates the call but does not execute it. The Python runner in `src/runner/python/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `assets/examples/sklearn_pipeline.studyflow.png` is the worked example it is checked against -- see `src/runner/python/README.md`.
+The browser runner parses and validates the call but does not execute it. The Python runner in `packages/runner-py/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `assets/examples/sklearn_pipeline.studyflow.png` is the worked example it is checked against -- see `packages/runner-py/README.md`.
 
 ## Templates
 

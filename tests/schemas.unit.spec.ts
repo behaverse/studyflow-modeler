@@ -5,8 +5,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { bpmnSelfAndAncestors, buildCatalog } from '@behaverse/studyflow-core/notation';
-import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { bpmnSelfAndAncestors, buildCatalog } from '@core/notation';
+import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
 import { SCHEMAS, loadSchemaModels } from './schemas';
 
 /** Schema design rules, checked without a browser. */

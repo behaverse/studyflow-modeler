@@ -1,0 +1,28 @@
+{
+  "name": "@behaverse/studyflow-cli",
+  "version": "26.0615",
+  "description": "Command-line tool for studyflow files: convert between formats, validate, inspect.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "studyflow": "./dist/studyflow.mjs"
+  },
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "studyflow": "node dist/studyflow.mjs"
+  },
+  "dependencies": {
+    "@behaverse/studyflow-core": "*",
+    "bpmn-moddle": "10.1.0",
+    "commander": "^14.0.2",
+    "js-yaml": "^4.3.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.9.5",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}

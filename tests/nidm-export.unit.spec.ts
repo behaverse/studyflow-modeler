@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { exportToNidm } from '../src/modeler/export/nidm';
+import { exportToNidm } from '@modeler/export/nidm';
 import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
 
 /** The NIDM-Results (Turtle) export, over hand-built business objects. */

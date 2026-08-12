@@ -1,12 +1,12 @@
 import * as yaml from 'js-yaml';
 
-import { isModdleElement, type Moddle } from '@behaverse/studyflow-core/element/moddle';
+import { isModdleElement, type Moddle } from '@core/element/moddle';
 import {
   RESERVED_DOC_KEYS,
   inferPlaneRoot,
   isPrimitiveTypeRef,
   type YamlDoc,
-} from '@behaverse/studyflow-core/document/format';
+} from '@core/document/format';
 import {
   CHECKLIST_MARKER,
   elementListProperty,
@@ -25,7 +25,7 @@ import {
   qualifiesAsInlineValue,
   yamlBodyProperty,
   type DiType,
-} from '@behaverse/studyflow-core/document/shorthand';
+} from '@core/document/shorthand';
 
 type PendingRef = {
   element: any;

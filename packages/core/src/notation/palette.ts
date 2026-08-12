@@ -1,7 +1,7 @@
-import { toLocalName } from '@behaverse/studyflow-core/naming';
-import { isValueType, type SchemaTypeModel } from '@behaverse/studyflow-core/notation/schemaFile';
-import { isBpmnSubtypeOf } from '@behaverse/studyflow-core/notation/bpmn';
-import type { TypeMeta, TypeStyle } from '@behaverse/studyflow-core/notation/types';
+import { toLocalName } from '@core/naming';
+import { isValueType, type SchemaTypeModel } from '@core/notation/schemaFile';
+import { isBpmnSubtypeOf } from '@core/notation/bpmn';
+import type { TypeMeta, TypeStyle } from '@core/notation/types';
 
 /** Already offered by the static palette groups; qualified, so only the core schema's are hidden. */
 export const HIDDEN_SCHEMA_TYPES = new Set([

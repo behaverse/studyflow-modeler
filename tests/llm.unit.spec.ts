@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { buildPrompt } from '../src/runner/nodes/behaverse/llm/prompt';
-import { callClaude, callOllama, selectResponse } from '../src/runner/nodes/behaverse/llm/bot';
-import { RUNNER_ONLY_BOT_KEYS } from '../src/runner/nodes/behaverse/types';
-import { botForUnity } from '../src/runner/nodes/behaverse/botConfig';
-import type { LLMBotInput, LLMProviderConfig, ProviderRequest } from '../src/runner/nodes/behaverse/llm/types';
+import { buildPrompt } from '@runner/nodes/behaverse/llm/prompt';
+import { callClaude, callOllama, selectResponse } from '@runner/nodes/behaverse/llm/bot';
+import { RUNNER_ONLY_BOT_KEYS } from '@runner/nodes/behaverse/types';
+import { botForUnity } from '@runner/nodes/behaverse/botConfig';
+import type { LLMBotInput, LLMProviderConfig, ProviderRequest } from '@runner/nodes/behaverse/llm/types';
 
 const NB_INPUT: LLMBotInput = {
   taskId: 'NB',

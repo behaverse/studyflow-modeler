@@ -3,8 +3,8 @@ import path from 'node:path';
 
 import { expect, type Download, type Page } from '@playwright/test';
 
-import { xmlToStudyflow } from '@behaverse/studyflow-core/document';
-import { extractXmlFromPng } from '../src/modeler/export/pngEmbedding';
+import { xmlToStudyflow } from '@core/document';
+import { extractXmlFromPng } from '@core/document/png';
 
 const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 
