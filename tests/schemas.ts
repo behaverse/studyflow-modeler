@@ -1,12 +1,12 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { fromModdleYaml, type SchemaModel } from '../src/core/notation/schemaFile';
-import { buildManifest, sortSchemas, type SchemaInfo } from '../src/core/notation/manifest';
+import { fromModdleYaml, type SchemaModel } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildManifest, sortSchemas, type SchemaInfo } from '@behaverse/studyflow-core/notation/manifest';
 
-/** The Node counterpart of `src/core/notation/loader.ts`, which reads the same files through Vite's bundle. */
+/** The Node counterpart of `packages/core/src/notation/loader.ts`, which reads the same files through Vite's bundle. */
 
-export const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
+export const SCHEMA_DIR = path.join(process.cwd(), 'assets/schemas');
 
 const SUFFIX = '.moddle.yaml';
 

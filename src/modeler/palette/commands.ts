@@ -1,4 +1,4 @@
-import { bpmnSelfAndAncestors, getCatalog } from '@/core/notation';
+import { bpmnSelfAndAncestors, getCatalog } from '@behaverse/studyflow-core/notation';
 import { PALETTE_BPMN_ICONS } from '@/modeler/palette/groups';
 import { buildBusinessObject } from '@/modeler/shape/buildBusinessObject';
 import type { Modeler } from '@/modeler/bpmn/types';

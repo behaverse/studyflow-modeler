@@ -1,4 +1,4 @@
-import { primaryRoots } from '@/core/document';
+import { primaryRoots } from '@behaverse/studyflow-core/document';
 import type { Modeler } from '@/modeler/bpmn/types';
 
 export type TrailStamp = {

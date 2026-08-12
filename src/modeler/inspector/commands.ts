@@ -1,5 +1,5 @@
 import { modelingUpdater } from '@/modeler/bpmn/modeling';
-import { setAttribute, setExpressionLanguage, toBusinessObject } from '@/core/element';
+import { setAttribute, setExpressionLanguage, toBusinessObject } from '@behaverse/studyflow-core/element';
 import { ensureChoreographyParticipants } from '@/modeler/bpmn/choreographyParticipants';
 import { definitionsOf, getStateProperties, nextPropertyId } from '@/modeler/inspector/stateProperties';
 import type { Modeler } from '@/modeler/bpmn/types';

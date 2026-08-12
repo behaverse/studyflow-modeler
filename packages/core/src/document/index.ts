@@ -1,23 +1,23 @@
 import * as yaml from 'js-yaml';
 
-import type { Moddle } from '@/core/element/moddle';
+import type { Moddle } from '@behaverse/studyflow-core/element/moddle';
 
-import { YAML_DUMP_OPTIONS } from '@/core/document/format';
-import { definitionsToYamlDoc } from '@/core/document/serialize';
-import { inlineIoSpecification, expandIoSpecification } from '@/core/document/io-specification';
-import { studyflowToDefinitions } from '@/core/document/deserialize';
+import { YAML_DUMP_OPTIONS } from '@behaverse/studyflow-core/document/format';
+import { definitionsToYamlDoc } from '@behaverse/studyflow-core/document/serialize';
+import { inlineIoSpecification, expandIoSpecification } from '@behaverse/studyflow-core/document/io-specification';
+import { studyflowToDefinitions } from '@behaverse/studyflow-core/document/deserialize';
 
-/* The package's whole surface: `@/core/document` is the only path anything outside `core/document` imports. */
-export { studyflowToDefinitions } from '@/core/document/deserialize';
-export { YAML_DUMP_OPTIONS, applyXmlPasses, inferPlaneRoot, primaryRoots, type XmlPass, type YamlDoc } from '@/core/document/format';
-export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@/core/document/shorthand';
+/* The package's whole surface: `@behaverse/studyflow-core/document` is the only path anything outside `core/document` imports. */
+export { studyflowToDefinitions } from '@behaverse/studyflow-core/document/deserialize';
+export { YAML_DUMP_OPTIONS, applyXmlPasses, inferPlaneRoot, primaryRoots, type XmlPass, type YamlDoc } from '@behaverse/studyflow-core/document/format';
+export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@behaverse/studyflow-core/document/shorthand';
 export {
   checklistItems,
   parseChecklistLines,
   serializeChecklistLines,
   type ChecklistItem,
   type ChecklistLine,
-} from '@/core/document/checklist';
+} from '@behaverse/studyflow-core/document/checklist';
 export {
   DEFAULT_BOTTOM,
   DEFAULT_TOP,
@@ -25,12 +25,12 @@ export {
   fromWireXml,
   readChoreographyBands,
   toWireXml,
-} from '@/core/document/choreography';
+} from '@behaverse/studyflow-core/document/choreography';
 export {
   fromStandardBpmnXml,
   inlineIoSpecification,
   toStandardBpmnXml,
-} from '@/core/document/io-specification';
+} from '@behaverse/studyflow-core/document/io-specification';
 
 /**
  * The `.studyflow` YAML file format — a lossless, semantic mapping between the

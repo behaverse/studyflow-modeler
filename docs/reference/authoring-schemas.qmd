@@ -6,7 +6,7 @@ order: 7
 
 This page is for **contributors** extending the Studyflow language with new element types or attributes. If you are a researcher or pipeline author using the modeler, see the [Elements](../reference/elements.qmd) reference instead.
 
-Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `src/assets/schemas/` and ship with the modeler. Five are **core** (`core: true` -- always loaded, cannot be disabled from the settings); the rest are domain extensions you can switch on:
+Studyflow uses direct moddle YAML as the authoring format for schema definitions. The schemas live in `assets/schemas/` and ship with the modeler. Five are **core** (`core: true` -- always loaded, cannot be disabled from the settings); the rest are domain extensions you can switch on:
 
 | File | Prefix | What it declares |
 |---|---|---|
@@ -206,7 +206,7 @@ Score:
 
 In the BPMN XML form, `implementation` is an attribute on the activity and `additionalArguments` is a `<studyflow:additionalArguments>` child element holding the YAML as its text; both round-trip losslessly through the `.studyflow` YAML form, where `arguments` inlines as a nested mapping. An activity carrying an `implementation` value shows a function marker on the canvas.
 
-The browser runner parses and validates the call but does not execute it. The Python runner in `src/runner/python/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `src/assets/examples/sklearn_pipeline.studyflow.png` is the worked example it is checked against -- see `src/runner/python/README.md`.
+The browser runner parses and validates the call but does not execute it. The Python runner in `src/runner/python/` does: it resolves the reference, materializes the associated inputs, calls it, and binds the return value, writing an as-run record per run. `assets/examples/sklearn_pipeline.studyflow.png` is the worked example it is checked against -- see `src/runner/python/README.md`.
 
 ## Templates
 

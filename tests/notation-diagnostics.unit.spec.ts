@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { buildCatalog } from '../src/core/notation';
-import type { SchemaModel } from '../src/core/notation/schemaFile';
+import { buildCatalog } from '@behaverse/studyflow-core/notation';
+import type { SchemaModel } from '@behaverse/studyflow-core/notation/schemaFile';
 
 /** The compiler's author-typo diagnostics: a broken schema must fail in words at load time. */
 

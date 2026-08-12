@@ -33,7 +33,7 @@ commands — is in there. There is no `models/`, `views/`, or `controllers/` spl
 to navigate; a feature is not spread across the tree.
 
 ```
-src/core/          the shared model — no React, no bpmn-js
+packages/core/src/ the shared model (@behaverse/studyflow-core) — no React, no bpmn-js
   notation/        what a studyflow can contain: the *.moddle.yaml schemas
                    parsed (schemaFile, loader, manifest) and compiled into the
                    queryable type index (compile -> query, types, bpmn,
@@ -68,9 +68,10 @@ Four file-naming rules, and they hold everywhere:
 | everything else | named for what it does |
 
 App feature folders have no barrels. Each `core/` package instead has one
-entry module (`index.ts`) that is its public surface: `@/core/document` and
-`@/core/element` are the only paths anything outside them imports, and
-`notation`'s also hosts the catalog singleton and documents the boot sequence.
+entry module (`index.ts`) that is its public surface:
+`@behaverse/studyflow-core/document` and `@behaverse/studyflow-core/element`
+are the only paths anything outside them imports, and `notation`'s also hosts
+the catalog singleton and documents the boot sequence.
 
 Only two boundaries are enforced (by ESLint, in `eslint.config.js`):
 
@@ -95,9 +96,9 @@ Two conventions worth knowing:
   dispatched. The name check compiles only where `tsc` runs — CI runs it on
   every push.
 - **Schemas drive the modeler.** Dropping a `*.moddle.yaml` into
-  `src/assets/schemas/` gives you a palette entry, inspector fields and tabs,
+  `assets/schemas/` gives you a palette entry, inspector fields and tabs,
   connection rules, templates, and round-tripping, with no code — the full
-  meta-key vocabulary is in [src/assets/schemas/README.md](src/assets/schemas/README.md).
+  meta-key vocabulary is in [assets/schemas/README.md](assets/schemas/README.md).
   The runner is not there yet: executing a type still needs a node module under
   `runner/nodes/<type>/`, and validation warns when a diagram uses a type no
   module handles.
@@ -107,8 +108,8 @@ Two conventions worth knowing:
   registration list for everything bpmn-js-side — the right first file to read
   for canvas behavior.
 
-- `src/assets/schemas/` - the moddle YAML schemas (`studyflow`, `cognitive`, `functional`, `prov`, `agentic`, `ml`, `eeg`).
-- `src/assets/examples/` - example diagrams (see below), plus `new_diagram.bpmn`, the blank template.
+- `assets/schemas/` - the moddle YAML schemas (`studyflow`, `cognitive`, `functional`, `prov`, `agentic`, `ml`, `eeg`).
+- `assets/examples/` - example diagrams (see below), plus `new_diagram.bpmn`, the blank template.
 - `docs/` - Quarto site (reference, guides, examples).
 
 ## Examples
@@ -126,7 +127,7 @@ title, the first sentence of its `documentation` is the blurb, and
 inspector's Documentation tab). The filter chips are whatever tags the
 shipped examples declare.
 
-To add one, drop a `.studyflow.yaml` into `src/assets/examples/` and render it —
+To add one, drop a `.studyflow.yaml` into `assets/examples/` and render it —
 the PNG replaces it as the shipped file, and the YAML can then be deleted:
 
 ```bash

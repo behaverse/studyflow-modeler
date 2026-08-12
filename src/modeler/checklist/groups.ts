@@ -1,5 +1,5 @@
-import { checklistItems, type ChecklistItem } from '@/core/document';
-import { getAttribute } from '@/core/element';
+import { checklistItems, type ChecklistItem } from '@behaverse/studyflow-core/document';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 import type { Modeler } from '@/modeler/bpmn/types';
 
 export type ElementGroup = {

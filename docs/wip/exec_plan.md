@@ -33,7 +33,7 @@ Two consequences shaped the schema:
 
 ## What is already done
 
-Three schemas, registered in `src/core/constants.ts`, passing the schema-lint + moddle-registration suite. `exec` is the general view; `ml` and `agentic` are thin packs of the few irreducible types plus a set of `implementation`-bound templates.
+Three schemas, registered in `packages/core/src/constants.ts`, passing the schema-lint + moddle-registration suite. `exec` is the general view; `ml` and `agentic` are thin packs of the few irreducible types plus a set of `implementation`-bound templates.
 
 | Schema | Types (classes) | Everything else is a template |
 | --- | --- | --- |
@@ -79,7 +79,7 @@ export interface NodeDefinition<J> {
 }
 ```
 
-- Move `Session` → `src/core/engine/` (framework-free), introducing `Token`, `Scope`, `ExecutionLog`.
+- Move `Session` → `packages/core/src/engine/` (framework-free), introducing `Token`, `Scope`, `ExecutionLog`.
 - The React runner becomes **one executor** (`runsOn: browser`), not the engine.
 - Add derived seeds: `seed(σ) = H(rootSeed ‖ σ)`, replacing the `Math.random()` fallback in `Session`.
 
@@ -133,7 +133,7 @@ The HPC story needs no new semantics: an array job is `iterate: shards`, and wai
 
 ## Decisions worth challenging
 
-**`exec` is loaded as a core schema.** Executability is the semantics of the language, not an add-on — a cognitive task is a step whose implementation is a person. The cost: every activity's inspector gains Execution/Compute tabs. Flip `core: true` in `src/core/constants.ts` to make it opt-in.
+**`exec` is loaded as a core schema.** Executability is the semantics of the language, not an add-on — a cognitive task is a step whose implementation is a person. The cost: every activity's inspector gains Execution/Compute tabs. Flip `core: true` in `packages/core/src/constants.ts` to make it opt-in.
 
 **The interface is the diagram, not a declaration.** An earlier draft carried a `signature` YAML block per step; it was cut once it proved redundant three times over — BPMN's data associations already draw the wiring (and round-trip through the codec unchanged, proven in both examples), the artifact elements already carry the types, and the callable named by `implementation` already declares its parameters. The cost: a port that deserves a type must earn a data element on the canvas. That is a feature — an interface a reviewer cannot see is an interface nobody reviewed.
 
@@ -147,4 +147,4 @@ The HPC story needs no new semantics: an array job is `iterate: shards`, and wai
 
 Stage 1 before everything, because nothing is testable headlessly until the engine is free of React. Stage 2 before 3, because a parser that drops every sub-process cannot run a pipeline that has one. Stage 3 before 4, because an agent is a step that calls steps — build the step. Stage 5 last, because provenance records what the other four do.
 
-The two examples in `src/assets/examples/` are the acceptance tests: when `ml_pipeline.studyflow` and `agent_eval.studyflow` both *run*, this is done.
+The two examples in `assets/examples/` are the acceptance tests: when `ml_pipeline.studyflow` and `agent_eval.studyflow` both *run*, this is done.

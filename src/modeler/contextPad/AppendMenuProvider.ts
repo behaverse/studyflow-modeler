@@ -1,4 +1,4 @@
-import { getCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@/core/notation';
+import { getCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@behaverse/studyflow-core/notation';
 import { buildBusinessObject } from '@/modeler/shape/buildBusinessObject';
 import type { AutoPlace, Create, ElementFactory, Injector, PopupMenu, Rules } from '@/modeler/bpmn/types';
 

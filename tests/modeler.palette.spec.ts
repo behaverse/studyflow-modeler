@@ -4,8 +4,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { xmlToStudyflow } from '../src/core/document';
-import { fromModdleYaml, toModdlePackages } from '../src/core/notation/schemaFile';
+import { xmlToStudyflow } from '@behaverse/studyflow-core/document';
+import { fromModdleYaml, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { SCHEMAS } from './schemas';
 import {
   addPaletteElement,
@@ -20,7 +20,7 @@ import {
 } from './utils';
 
 async function toYaml(xml: string): Promise<string> {
-  const schemaDir = path.join(process.cwd(), 'src/assets/schemas');
+  const schemaDir = path.join(process.cwd(), 'assets/schemas');
   const models = SCHEMAS.map(({ prefix }) =>
     fromModdleYaml(readFileSync(path.join(schemaDir, `${prefix}.moddle.yaml`), 'utf8')),
   );

@@ -1,5 +1,5 @@
-import { getDefaults, StudyflowElement } from '@/core/element';
-import { toLocalName } from '@/core/naming';
+import { getDefaults, StudyflowElement } from '@behaverse/studyflow-core/element';
+import { toLocalName } from '@behaverse/studyflow-core/naming';
 import type { ServiceResolver } from '@/modeler/bpmn/types';
 
 export type BuildBusinessObjectOptions = {

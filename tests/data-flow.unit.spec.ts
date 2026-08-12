@@ -4,9 +4,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
-import { inlineIoSpecification } from '../src/core/document';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { inlineIoSpecification } from '@behaverse/studyflow-core/document';
 import { getInferredDataNeighbors } from '../src/modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties } from '../src/modeler/inspector/stateProperties';
 import { loadSchemaModels } from './schemas';
@@ -14,7 +14,7 @@ import { exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
+const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
 
 const models = loadSchemaModels();

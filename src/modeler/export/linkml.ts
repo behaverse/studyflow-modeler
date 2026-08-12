@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import { getCatalog, type AttributeSpec } from '@/core/notation';
+import { getCatalog, type AttributeSpec } from '@behaverse/studyflow-core/notation';
 import type { ExportedElement, ExportModel } from '@/modeler/export/model';
 
 const EXPORT_NS = 'https://behaverse.org/schemas/studyflow/';

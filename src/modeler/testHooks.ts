@@ -1,4 +1,4 @@
-import { SCHEMAS } from '@/core/notation/loader';
+import { SCHEMAS } from '@behaverse/studyflow-core/notation/loader';
 import { embedIconsInSvg, exportToPng, padSvg } from '@/modeler/export/svgEmbedding';
 
 declare global {

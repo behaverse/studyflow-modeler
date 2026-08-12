@@ -1,9 +1,9 @@
-import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
+import new_diagram from '#assets/examples/new_diagram.bpmn?raw';
 import BpmnColorPickerModule from 'bpmn-js-color-picker';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import GridModule from 'diagram-js-grid';
-import { fromStandardBpmnXml, fromWireXml } from '@/core/document';
-import { loadSchemas } from '@/core/notation/loader';
+import { fromStandardBpmnXml, fromWireXml } from '@behaverse/studyflow-core/document';
+import { loadSchemas } from '@behaverse/studyflow-core/notation/loader';
 import { StudyflowModelerModule } from '@/modeler/bpmn/module';
 import { MODELER_FONT_FAMILY } from '@/modeler/constants';
 import { ensureDiagramLayout } from '@/modeler/diagram/autoLayout';

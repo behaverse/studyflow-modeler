@@ -1,5 +1,5 @@
 import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';
-import { getLLMSettings } from '@/core/settings';
+import { getLLMSettings } from '@behaverse/studyflow-core/settings';
 import type { LLMProviderConfig } from '@/runner/nodes/behaverse/llm/types';
 
 export function readResponseSource(bot: BehaverseTaskPayload['bot']): 'internal' | 'external' | 'llm' {

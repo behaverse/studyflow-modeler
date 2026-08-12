@@ -2,10 +2,10 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '../src/core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '../src/core/document';
-import { StudyflowElement } from '../src/core/element';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
+import { StudyflowElement } from '@behaverse/studyflow-core/element';
 import { loadSchemaModels } from './schemas';
 
 /** The checklist is the `studyflow:checklist="true"`-marked entry of `bpmn:documentation`. */

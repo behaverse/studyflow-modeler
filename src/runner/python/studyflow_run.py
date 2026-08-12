@@ -17,7 +17,7 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. See README.md for the
 contract this implements and the terms it writes.
 
-    uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.studyflow.png
+    uv run studyflow_run.py ../../../assets/examples/sklearn_pipeline.studyflow.png
 
 Each run writes `runs/<timestamp>/`: the artifacts the `uri`s name, a copy of
 the studyflow stamped `executed` (the copy carries its own run record), and

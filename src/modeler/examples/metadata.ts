@@ -1,6 +1,6 @@
-import { CHECKLIST_MARKER, isChecklistMarkerValue } from '@/core/document';
-import { firstSentence } from '@/core/naming';
-import { namespaces } from '@/core/notation';
+import { CHECKLIST_MARKER, isChecklistMarkerValue } from '@behaverse/studyflow-core/document';
+import { firstSentence } from '@behaverse/studyflow-core/naming';
+import { namespaces } from '@behaverse/studyflow-core/notation';
 import { filenameStem } from '@/modeler/diagram/file';
 import { extractXmlFromPng } from '@/modeler/export/pngEmbedding';
 

@@ -1,4 +1,4 @@
-import type { AttributeSpec, EnumLiteral } from '@/core/notation';
+import type { AttributeSpec, EnumLiteral } from '@behaverse/studyflow-core/notation';
 import {
   Combobox,
   ComboboxButton,
@@ -17,9 +17,9 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { t } from '@/i18n';
 import { ICONS } from '@/icons';
-import { getCatalog } from '@/core/notation';
-import { getAttribute, getExpressionLanguage } from '@/core/element';
-import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@/core/document';
+import { getCatalog } from '@behaverse/studyflow-core/notation';
+import { getAttribute, getExpressionLanguage } from '@behaverse/studyflow-core/element';
+import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@behaverse/studyflow-core/document';
 import { executeCommand } from '@/modeler/commandBus';
 import { useRequiredModeler } from '@/modeler/app/useModeler';
 import { useAttributeState, useInspectedElement } from '@/modeler/inspector/state';

@@ -1,4 +1,4 @@
-import { parseImplementationRef } from '@/core/implementation';
+import { parseImplementationRef } from '@behaverse/studyflow-core/implementation';
 
 export type JsPsychNode = Record<string, unknown>;
 

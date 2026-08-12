@@ -17,8 +17,8 @@ import {
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { t } from '@/i18n';
 import { ICONS } from '@/icons';
-import { readChoreographyBands } from '@/core/document';
-import { getAttributeSpec } from '@/core/element';
+import { readChoreographyBands } from '@behaverse/studyflow-core/document';
+import { getAttributeSpec } from '@behaverse/studyflow-core/element';
 import { executeCommand } from '@/modeler/commandBus';
 import { useRequiredModeler } from '@/modeler/app/useModeler';
 import { useInspectedElement } from '@/modeler/inspector/state';

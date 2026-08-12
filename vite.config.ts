@@ -84,7 +84,11 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      // Workspace packages are consumed as TypeScript source; the consumer's
+      // bundler (this config, or a package's own) resolves the name to src/.
+      { find: '@behaverse/studyflow-core', replacement: resolve(__dirname, 'packages/core/src') },
       { find: '@', replacement: resolve(__dirname, 'src') },
+      { find: '#assets', replacement: resolve(__dirname, 'assets') },
       { find: '#root', replacement: resolve(__dirname) },
     ],
   },

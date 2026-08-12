@@ -1,7 +1,7 @@
-import { getCatalog, type AttributeSpec } from '@/core/notation';
-import { NON_EXTENSION_PREFIXES } from '@/core/constants';
-import { splitQName, toLocalName, toPrefix } from '@/core/naming';
-import type { ModdleElement } from '@/core/element/moddle';
+import { getCatalog, type AttributeSpec } from '@behaverse/studyflow-core/notation';
+import { NON_EXTENSION_PREFIXES } from '@behaverse/studyflow-core/constants';
+import { splitQName, toLocalName, toPrefix } from '@behaverse/studyflow-core/naming';
+import type { ModdleElement } from '@behaverse/studyflow-core/element/moddle';
 
 export function toBusinessObject(elementOrBO: any): ModdleElement {
   return elementOrBO?.businessObject ?? elementOrBO;

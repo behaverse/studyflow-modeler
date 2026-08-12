@@ -1,6 +1,6 @@
-import { CHECKLIST_SPEC, StudyflowElement, getAttribute, isExtensionPrefix } from '@/core/element';
-import { getCatalog, UNDECLARED_CATEGORY_ORDER, type AttributeSpec } from '@/core/notation';
-import { toLocalName } from '@/core/naming';
+import { CHECKLIST_SPEC, StudyflowElement, getAttribute, isExtensionPrefix } from '@behaverse/studyflow-core/element';
+import { getCatalog, UNDECLARED_CATEGORY_ORDER, type AttributeSpec } from '@behaverse/studyflow-core/notation';
+import { toLocalName } from '@behaverse/studyflow-core/naming';
 import { supportsLoopCharacteristics } from '@/modeler/inspector/loopCharacteristics';
 import { isScopeContainer } from '@/modeler/inspector/stateProperties';
 

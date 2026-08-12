@@ -1,4 +1,4 @@
-import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@/core/storage';
+import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@behaverse/studyflow-core/storage';
 
 export type LLMProvider = 'claude' | 'ollama';
 

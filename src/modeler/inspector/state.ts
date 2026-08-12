@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import type { AttributeSpec } from '@/core/notation';
-import { getAttribute } from '@/core/element';
+import type { AttributeSpec } from '@behaverse/studyflow-core/notation';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 import { useRequiredModeler } from '@/modeler/app/useModeler';
 import { executeCommand } from '@/modeler/commandBus';
 

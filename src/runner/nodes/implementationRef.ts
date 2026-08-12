@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 
-import { getAttribute } from '@/core/element';
-import { KNOWN_SCHEMES, parseImplementationRef, type ImplementationRef } from '@/core/implementation';
+import { getAttribute } from '@behaverse/studyflow-core/element';
+import { KNOWN_SCHEMES, parseImplementationRef, type ImplementationRef } from '@behaverse/studyflow-core/implementation';
 import { readString, type FlowNode } from '@/runner/flow';
 import type { Studyflow } from '@/runner/studyflow';
 import type { ValidationIssue } from '@/runner/nodes/types';

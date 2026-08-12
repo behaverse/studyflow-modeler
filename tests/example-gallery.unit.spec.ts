@@ -10,12 +10,12 @@ import {
   hasTag,
   UNTAGGED,
 } from '../src/modeler/examples/catalog';
-import { firstSentence } from '../src/core/naming';
+import { firstSentence } from '@behaverse/studyflow-core/naming';
 import { extractXmlFromPng } from '../src/modeler/export/pngEmbedding';
 
 /** Examples ship as one PNG each — the picture of a diagram with the diagram inside it. */
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
+const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
 
 function diagramOf(filename: string): string {

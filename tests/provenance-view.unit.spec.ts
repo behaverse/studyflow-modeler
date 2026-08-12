@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { ICONS } from '../src/icons';
 import { runInvalidateProvenanceRecord } from '../src/modeler/provenance/commands';
 import { collectProvenance, recordDetails, shapeIconOf } from '../src/modeler/provenance/records';

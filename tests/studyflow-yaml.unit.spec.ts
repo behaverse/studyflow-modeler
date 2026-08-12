@@ -5,16 +5,16 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '../src/core/document';
+import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
 import { exampleXml } from './utils';
 import { parseStudyflow } from '../src/runner/studyflow';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '../src/core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
 import { loadSchemaModels } from './schemas';
 
 /** Over every bundled example: YAML is a fixed point of YAML -> XML -> YAML, and both feed the runner alike. */
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
+const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));

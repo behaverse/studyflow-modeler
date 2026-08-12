@@ -1,6 +1,6 @@
 import { exportDiagramName } from '@/modeler/export/common';
 import download from 'downloadjs';
-import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@/core/document';
+import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
 import { exportToArtemis } from '@/modeler/export/artemis';
 import { exportToDrawio } from '@/modeler/export/drawio';
 import { DEFAULT_EMBED_OPTIONS, exportFilename, getExportFormat, type EmbedOptions, type ExportFormatId } from '@/modeler/export/formats';

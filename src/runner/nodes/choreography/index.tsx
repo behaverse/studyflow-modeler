@@ -1,7 +1,7 @@
 import type { FlowNode } from '@/runner/flow';
 import type { NodeProps } from '@/runner/nodes/types';
 import { NodePanel } from '@/runner/nodes/NodePanel';
-import { readChoreographyBands } from '@/core/document';
+import { readChoreographyBands } from '@behaverse/studyflow-core/document';
 import { nodeStyles } from '@/runner/nodes/styles';
 import { registerNode } from '@/runner/nodes/registry';
 

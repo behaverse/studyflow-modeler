@@ -1,7 +1,7 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import RuleProvider from 'diagram-js/lib/features/rules/RuleProvider';
-import { getCatalog } from '@/core/notation';
-import { StudyflowElement } from '@/core/element';
+import { getCatalog } from '@behaverse/studyflow-core/notation';
+import { StudyflowElement } from '@behaverse/studyflow-core/element';
 import { getSettings, subscribeSettings } from '@/modeler/settings/store';
 import type { EventBus } from '@/modeler/bpmn/types';
 

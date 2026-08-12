@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 
-import type { ModdleElement } from '@/core/element/moddle';
+import type { ModdleElement } from '@behaverse/studyflow-core/element/moddle';
 
 export type YamlDoc = Record<string, unknown>;
 

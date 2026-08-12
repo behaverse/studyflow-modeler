@@ -1,8 +1,8 @@
-import { buildCatalog, setCatalog } from '@/core/notation';
-import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@/core/notation/schemaFile';
-import { buildManifest, sortSchemas, type SchemaInfo } from '@/core/notation/manifest';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildManifest, sortSchemas, type SchemaInfo } from '@behaverse/studyflow-core/notation/manifest';
 
-const schemaSources = import.meta.glob('@/assets/schemas/*.moddle.yaml', {
+const schemaSources = import.meta.glob('#assets/schemas/*.moddle.yaml', {
   query: '?raw',
   import: 'default',
   eager: true,

@@ -1,4 +1,4 @@
-import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@/core/document';
+import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@behaverse/studyflow-core/document';
 
 function definitionsOf(bo: any): any {
   while (bo && bo.$type !== 'bpmn:Definitions') bo = bo.$parent;

@@ -65,9 +65,9 @@ Decisions we made once so nobody relitigates them in review:
 
 ## Schema authoring
 
-Drop a `*.moddle.yaml` into `src/assets/schemas/` and reload — the loader
+Drop a `*.moddle.yaml` into `assets/schemas/` and reload — the loader
 auto-globs the directory; no registration. The full meta-key vocabulary is
-documented in [`src/assets/schemas/README.md`](src/assets/schemas/README.md).
+documented in [`assets/schemas/README.md`](assets/schemas/README.md).
 Iterating:
 
 - A file that fails to parse is quarantined (app still boots) and listed in
@@ -82,5 +82,5 @@ Iterating:
 The README's "Project layout" section is the map. Two entry points worth
 knowing before your first change: `src/modeler/bpmn/module.ts` is the single
 registration list for everything bpmn-js-side (canvas renderers, context pad,
-behaviors), and `src/core/notation/index.ts` documents the schema→catalog boot
+behaviors), and `packages/core/src/notation/index.ts` documents the schema→catalog boot
 sequence at the top of the file.

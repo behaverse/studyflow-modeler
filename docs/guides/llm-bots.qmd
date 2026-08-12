@@ -48,11 +48,11 @@ The key fields:
 - **`SkipInstructions`** -- skip the instruction screens, which the bot does not need.
 - **`MaxResponseTime`** -- LLM round-trips are slower than human key presses; bump `MaxResponseTime` in the task's `configurations` (and/or `maxResponseTime` in `botConfigurations`) so the bot is not timed out mid-request.
 
-See the `BehaverseTask` property descriptions in `src/assets/schemas/cognitive.moddle.yaml` for the full vocabulary.
+See the `BehaverseTask` property descriptions in `assets/schemas/cognitive.moddle.yaml` for the full vocabulary.
 
 ## Shipped examples
 
-Three ready-to-run examples are available from the modeler's *Examples* menu (sources in `src/assets/examples/`):
+Three ready-to-run examples are available from the modeler's *Examples* menu (sources in `assets/examples/`):
 
 - `bot_claude.studyflow.yaml` -- Claude-powered bots with distinct personas, including a vision task via `IncludeScreenshot`.
 - `bot_ollama.studyflow.yaml` -- the same pattern against a local Ollama server.

@@ -4,13 +4,13 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { buildCatalog } from '../src/core/notation';
-import { fromModdleYaml, isValueType, toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog } from '@behaverse/studyflow-core/notation';
+import { fromModdleYaml, isValueType, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { SCHEMAS } from './schemas';
 
 /** The moddle package format is an *output* of the schema model, not the source format. */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
+const SCHEMA_DIR = path.join(process.cwd(), 'assets/schemas');
 
 /** Legacy oracle: the pre-SchemaModel transform, adjusted for the divergences `toModdlePackages` documents. */
 function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, prefix: string): any {

@@ -1,5 +1,5 @@
 import { exportDiagramName } from '@/modeler/export/common';
-import { readChoreographyBands } from '@/core/document';
+import { readChoreographyBands } from '@behaverse/studyflow-core/document';
 import { choreographyBandHeight } from '@/modeler/draw/choreographyLayout';
 import type { Modeler } from '@/modeler/bpmn/types';
 

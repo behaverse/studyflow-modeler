@@ -1,4 +1,4 @@
-import type { AttributeSpec } from '@/core/notation';
+import type { AttributeSpec } from '@behaverse/studyflow-core/notation';
 import { Button, Select } from '@headlessui/react';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -9,7 +9,7 @@ import 'prismjs/components/prism-python';
 import 'prismjs/themes/prism.css';
 import { t } from '@/i18n';
 import { ICONS } from '@/icons';
-import { getAttribute } from '@/core/element';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 import { executeCommand } from '@/modeler/commandBus';
 import { useAttributeState } from '@/modeler/inspector/state';
 import { DATATYPES, parseBody, serialize, type Column, type SourceFormat } from '@/modeler/inspector/schemaFormats';

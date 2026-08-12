@@ -1,5 +1,5 @@
 import LabelEditingProvider from 'bpmn-js/lib/features/label-editing/LabelEditingProvider';
-import { readChoreographyBands } from '@/core/document';
+import { readChoreographyBands } from '@behaverse/studyflow-core/document';
 import { ensureChoreographyParticipants } from '@/modeler/bpmn/choreographyParticipants';
 import { choreographyBandHeight, isChoreographyTask } from '@/modeler/draw/choreographyLayout';
 

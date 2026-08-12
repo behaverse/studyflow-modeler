@@ -5,13 +5,13 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { bpmnSelfAndAncestors, buildCatalog } from '../src/core/notation';
-import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '../src/core/notation/schemaFile';
+import { bpmnSelfAndAncestors, buildCatalog } from '@behaverse/studyflow-core/notation';
+import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { SCHEMAS, loadSchemaModels } from './schemas';
 
 /** Schema design rules, checked without a browser. */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'src/assets/schemas');
+const SCHEMA_DIR = path.join(process.cwd(), 'assets/schemas');
 
 type RawSchema = any;
 

@@ -1,4 +1,4 @@
-import { BPMN } from '@/core/constants';
+import { BPMN } from '@behaverse/studyflow-core/constants';
 import type { FlowNode } from '@/runner/flow';
 import type { Job } from '@/runner/jobs';
 import type { AnyNodeDefinition, NodeDefinition } from '@/runner/nodes/types';

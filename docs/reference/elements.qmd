@@ -113,7 +113,7 @@ The current version of Studyflow includes built-in support for several data mode
 
 ## Element-to-schema mapping
 
-Each visual element in the modeler maps to a type definition in one of the Studyflow moddle schemas under `src/assets/schemas/`:
+Each visual element in the modeler maps to a type definition in one of the Studyflow moddle schemas under `assets/schemas/`:
 
 - Event elements (`StartEvent`, `EndEvent`) live in `core.moddle.yaml` and extend the corresponding BPMN event types.
 - Activity elements (`Instruction`, `Questionnaire`, `CognitiveTask`, `VideoGame`, `Rest`) live in `cognitive.moddle.yaml` and map to `bpmn:Task` with domain attributes shown in the inspector.

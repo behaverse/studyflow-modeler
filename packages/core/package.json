@@ -1,0 +1,22 @@
+{
+  "name": "@behaverse/studyflow-core",
+  "version": "26.0615",
+  "description": "Headless studyflow document model: YAML ↔ BPMN serialization, element access, notation schemas.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bpmn-moddle": "10.1.0",
+    "js-yaml": "^4.3.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.9.3"
+  }
+}

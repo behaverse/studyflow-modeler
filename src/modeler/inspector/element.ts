@@ -1,5 +1,5 @@
-import { StudyflowElement, getAttribute } from '@/core/element';
-import { toLocalName } from '@/core/naming';
+import { StudyflowElement, getAttribute } from '@behaverse/studyflow-core/element';
+import { toLocalName } from '@behaverse/studyflow-core/naming';
 
 /** How the inspected element names itself: the studyflow extension type when it has one, else its BPMN type. */
 export function getTypeName(element: any): string {

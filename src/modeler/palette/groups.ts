@@ -1,4 +1,4 @@
-import { BPMN } from '@/core/constants';
+import { BPMN } from '@behaverse/studyflow-core/constants';
 import { BPMN_ICON_OVERRIDES } from '@/modeler/draw/icons';
 import { ICONS } from '@/icons';
 

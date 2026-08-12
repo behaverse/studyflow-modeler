@@ -2,9 +2,9 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '../src/core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { fromStandardBpmnXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '../src/core/document';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { fromStandardBpmnXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
 import { loadSchemaModels } from './schemas';
 import { exampleStudyflow } from './utils';
 

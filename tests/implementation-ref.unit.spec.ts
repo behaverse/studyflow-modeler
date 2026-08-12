@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { KNOWN_SCHEMES, parseImplementationRef } from '../src/core/implementation';
+import { KNOWN_SCHEMES, parseImplementationRef } from '@behaverse/studyflow-core/implementation';
 
 /** Grammar: `<scheme>://<ref>[@<version-or-digest>]`, ref/version split at the LAST `@`. */
 

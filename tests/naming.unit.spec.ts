@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { firstSentence, splitQName, toLocalName, toPrefix } from '../src/core/naming';
+import { firstSentence, splitQName, toLocalName, toPrefix } from '@behaverse/studyflow-core/naming';
 
 /** Table-driven coverage for the naming helpers. */
 

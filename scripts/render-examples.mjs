@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const EXAMPLES_DIR = path.join(ROOT, 'src/assets/examples');
+const EXAMPLES_DIR = path.join(ROOT, 'assets/examples');
 const ORIGIN = 'http://127.0.0.1:4174';
 
 async function serverIsUp() {

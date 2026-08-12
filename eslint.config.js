@@ -48,7 +48,7 @@ export default [
       ...reactHooks.configs['recommended-latest'].rules,
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/modeler/*', '@/modeler', '@/runner/*', '@/runner'], message: 'modeler/ and runner/ may not import each other. Move shared code into src/core/.' },
+          { group: ['@/modeler/*', '@/modeler', '@/runner/*', '@/runner'], message: 'modeler/ and runner/ may not import each other. Move shared code into packages/core/.' },
         ],
       }],
     },
@@ -59,7 +59,7 @@ export default [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/runner/*', '@/runner'], message: 'modeler/ may not import from runner/. Move shared code into src/core/.' },
+          { group: ['@/runner/*', '@/runner'], message: 'modeler/ may not import from runner/. Move shared code into packages/core/.' },
         ],
       }],
     },
@@ -69,14 +69,14 @@ export default [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@/modeler/*', '@/modeler'], message: 'runner/ may not import from modeler/. Move shared code into src/core/.' },
+          { group: ['@/modeler/*', '@/modeler'], message: 'runner/ may not import from modeler/. Move shared code into packages/core/.' },
         ],
       }],
     },
   },
 
   {
-    files: ['src/core/**/*.ts'],
+    files: ['packages/core/src/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [

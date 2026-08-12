@@ -1,8 +1,8 @@
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { StudyflowElement } from '../src/core/element';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { StudyflowElement } from '@behaverse/studyflow-core/element';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { buildExportModel, type ExportModel } from '../src/modeler/export/model';
 import { loadSchemaModels } from './schemas';
 

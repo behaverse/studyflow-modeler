@@ -3,7 +3,7 @@ import {
   checklistItems,
   parseChecklistLines,
   serializeChecklistLines,
-} from '../src/core/document';
+} from '@behaverse/studyflow-core/document';
 
 /** The shared checklist grammar; pins that both surfaces agree on what a task line is. */
 

@@ -10,10 +10,10 @@ import {
   parseTimeline,
   type JsPsychNode,
 } from '../src/modeler/import';
-import { parseImplementationRef } from '../src/core/implementation';
+import { parseImplementationRef } from '@behaverse/studyflow-core/implementation';
 import { parseStudyflow } from '../src/runner/studyflow';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
-import { looksLikeXml } from '../src/core/document';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { looksLikeXml } from '@behaverse/studyflow-core/document';
 import { loadSchemaModels } from './schemas';
 
 /** jsPsych -> Studyflow importer. */

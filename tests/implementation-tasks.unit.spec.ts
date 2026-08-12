@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
-import { StudyflowElement, getAttribute } from '../src/core/element';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
+import { StudyflowElement, getAttribute } from '@behaverse/studyflow-core/element';
 import { getAttributesByCategory } from '../src/modeler/inspector/categories';
 import { loadSchemaModels } from './schemas';
 

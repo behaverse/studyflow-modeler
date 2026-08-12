@@ -1,4 +1,4 @@
-import { getAttribute } from '@/core/element';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 import type { FlowNode } from '@/runner/flow';
 
 /** Query parameters a panel provider may use to hand the code to the study. */

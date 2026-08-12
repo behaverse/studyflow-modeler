@@ -69,7 +69,7 @@ const TEMPLATES: Template[] = [
 ];
 
 const templateFiles = import.meta.glob(
-  '@/assets/examples/*.png',
+  '#assets/examples/*.png',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 

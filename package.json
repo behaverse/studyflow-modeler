@@ -3,6 +3,9 @@
   "private": true,
   "version": "26.0615",
   "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "node": ">=20.19"
   },
@@ -23,6 +26,7 @@
     "docs:build": "quarto render docs"
   },
   "dependencies": {
+    "@behaverse/studyflow-core": "*",
     "@headlessui/react": "^2.2.10",
     "@tailwindcss/vite": "^4.3.3",
     "bootstrap-icons": "^1.13.1",

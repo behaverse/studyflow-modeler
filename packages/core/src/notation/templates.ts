@@ -1,6 +1,6 @@
-import type { TypeCatalog } from '@/core/notation/query';
-import type { SchemaModel, SchemaTemplateModel } from '@/core/notation/schemaFile';
-import type { Template, TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@/core/notation/types';
+import type { TypeCatalog } from '@behaverse/studyflow-core/notation/query';
+import type { SchemaModel, SchemaTemplateModel } from '@behaverse/studyflow-core/notation/schemaFile';
+import type { Template, TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@behaverse/studyflow-core/notation/types';
 
 // Metadata keys, stripped before the rest flows onto the canvas as attributes.
 const RESERVED_TEMPLATE_KEYS = new Set(['type', 'name', 'keywords', 'icon', 'mixins', 'flowElements']);

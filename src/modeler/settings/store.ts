@@ -1,4 +1,4 @@
-import { SCHEMA_NAMES } from '@/core/notation/loader';
+import { SCHEMA_NAMES } from '@behaverse/studyflow-core/notation/loader';
 import {
   clearOwnedKeys,
   jsonCodec,
@@ -8,7 +8,7 @@ import {
   storageEstimate,
   stringCodec,
   type WriteResult,
-} from '@/core/storage';
+} from '@behaverse/studyflow-core/storage';
 import { notify } from '@/modeler/app/noticeStore';
 
 type DiagramAutoSave = 'off' | 'local';
@@ -164,4 +164,4 @@ export function saveInspectorWidth(width: number): void {
 }
 
 
-export { readDiagramHandoff, clearDiagramHandoff, takeDiagramHandoff, createDiagramHandoff } from '@/core/storage';
+export { readDiagramHandoff, clearDiagramHandoff, takeDiagramHandoff, createDiagramHandoff } from '@behaverse/studyflow-core/storage';

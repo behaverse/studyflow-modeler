@@ -1,4 +1,4 @@
-import { toLocalName } from '@/core/naming';
+import { toLocalName } from '@behaverse/studyflow-core/naming';
 import type { ExportedElement, ExportModel } from '@/modeler/export/model';
 
 const PREFIXES = `@prefix prov:  <http://www.w3.org/ns/prov#> .

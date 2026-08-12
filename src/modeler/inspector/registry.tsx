@@ -1,6 +1,6 @@
 import type { ChangeEvent, ComponentType } from 'react';
 import { Checkbox, Input, Label, Textarea } from '@headlessui/react';
-import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@/core/notation';
+import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@behaverse/studyflow-core/notation';
 import { t } from '@/i18n';
 import { ArrayInput, ChecklistInput, EnumInput, ExpressionInput } from '@/modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@/modeler/inspector/editors';

@@ -1,5 +1,5 @@
 import CommandInterceptor from 'diagram-js/lib/command/CommandInterceptor';
-import { getCatalog } from '@/core/notation';
+import { getCatalog } from '@behaverse/studyflow-core/notation';
 import Templates from '@/modeler/templates/Templates';
 import { materializeTemplateFlow } from '@/modeler/templates/factory';
 

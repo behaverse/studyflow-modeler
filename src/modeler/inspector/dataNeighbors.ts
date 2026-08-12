@@ -1,6 +1,6 @@
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
-import { getCatalog, isBpmnSubtypeOf } from '@/core/notation';
-import { StudyflowElement } from '@/core/element';
+import { getCatalog, isBpmnSubtypeOf } from '@behaverse/studyflow-core/notation';
+import { StudyflowElement } from '@behaverse/studyflow-core/element';
 
 const DATA_BPMN_TYPES = [
   'bpmn:DataObject',

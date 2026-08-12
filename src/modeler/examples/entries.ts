@@ -4,7 +4,7 @@ import { filenameStem } from '@/modeler/diagram/file';
 
 /** Each example is a PNG carrying its own studyflow (see `export/pngEmbedding`), so the picture on the card is the file that opens. */
 const exampleFiles = import.meta.glob(
-  '@/assets/examples/*.png',
+  '#assets/examples/*.png',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 

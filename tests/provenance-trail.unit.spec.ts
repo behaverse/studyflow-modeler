@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { inferPlaneRoot, studyflowToXml, xmlToStudyflow } from '../src/core/document';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { inferPlaneRoot, studyflowToXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import {
   appendTrailEntry,
   primaryRoot,

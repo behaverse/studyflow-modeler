@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import { getAttribute } from '@/core/element';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 import type { FlowNode } from '@/runner/flow';
 import type { Session } from '@/runner/session';
 import { BEHAVERSE_TASK_TYPE, type BehaverseTaskPayload } from '@/runner/nodes/behaverse/types';

@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog } from '../src/core/notation';
-import { NON_BPMN_SUPER_CLASSES } from '../src/core/notation/query';
+import { buildCatalog } from '@behaverse/studyflow-core/notation';
+import { NON_BPMN_SUPER_CLASSES } from '@behaverse/studyflow-core/notation/query';
 import {
   MODDLE_BUILTIN_TYPES,
   MODDLE_SIMPLE_TYPES,
   isValueType,
   toModdlePackages,
   type SchemaModel,
-} from '../src/core/notation/schemaFile';
+} from '@behaverse/studyflow-core/notation/schemaFile';
 
 /** moddle's type vocabulary, pinned against moddle itself. */
 

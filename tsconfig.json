@@ -8,6 +8,8 @@
 
     "paths": {
         "@/*": ["./src/*"],
+        "@behaverse/studyflow-core/*": ["./packages/core/src/*"],
+        "#assets/*": ["./assets/*"],
         "#root/*": ["./*"]
     },
     /* Bundler mode */
@@ -27,6 +29,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "playwright.config.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "packages/core/src/**/*.ts", "vite.config.ts", "playwright.config.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist"],
 }

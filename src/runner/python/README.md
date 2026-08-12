@@ -15,7 +15,7 @@ source in the image on export; the double extension marks the image as a
 source file, the `.drawio.png` convention):
 
 ```bash
-uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.studyflow.png
+uv run studyflow_run.py ../../../assets/examples/sklearn_pipeline.studyflow.png
 ```
 
 One command, no setup. Dependencies are declared in the script header (PEP 723)

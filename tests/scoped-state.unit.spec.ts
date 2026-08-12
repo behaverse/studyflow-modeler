@@ -1,8 +1,8 @@
 
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog } from '../src/core/notation';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog } from '@behaverse/studyflow-core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { registerNode } from '../src/runner/nodes/registry';
 import { Session } from '../src/runner/session';
 import { Studyflow } from '../src/runner/studyflow';

@@ -1,4 +1,4 @@
-import { StudyflowElement } from '@/core/element';
+import { StudyflowElement } from '@behaverse/studyflow-core/element';
 import type { Modeler } from '@/modeler/bpmn/types';
 
 type TimingAttrs = {

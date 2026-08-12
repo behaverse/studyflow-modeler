@@ -1,4 +1,4 @@
-import { getAttribute } from '@/core/element';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 
 export type FlowNode = {
   id: string;

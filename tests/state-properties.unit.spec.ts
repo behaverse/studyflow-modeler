@@ -4,8 +4,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { studyflowToXml, xmlToStudyflow } from '../src/core/document';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { studyflowToXml, xmlToStudyflow } from '@behaverse/studyflow-core/document';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 import { exampleStudyflow } from './utils';
 

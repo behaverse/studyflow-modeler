@@ -1,11 +1,11 @@
 import type { FlowNode } from '@/runner/flow';
-import { getCatalog, type TypeCatalog } from '@/core/notation';
+import { getCatalog, type TypeCatalog } from '@behaverse/studyflow-core/notation';
 import { findByFlowNode } from '@/runner/nodes/registry';
 import { mulberry32, evaluateCondition } from '@/runner/branching';
 import { ScopeChain } from '@/runner/scope';
 import type { Job } from '@/runner/jobs';
 import type { Studyflow } from '@/runner/studyflow';
-import { BPMN } from '@/core/constants';
+import { BPMN } from '@behaverse/studyflow-core/constants';
 
 const ROUTING_TYPES: ReadonlySet<string> = new Set<string>([
   BPMN.ExclusiveGateway,

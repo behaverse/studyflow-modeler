@@ -3,8 +3,8 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { readParameters, resolveRunSource } from '../src/runner/source';
 import { parseStudyflow, Studyflow } from '../src/runner/studyflow';
 import { getBehaverseTaskPayload } from '../src/runner/nodes/behaverse/parser';

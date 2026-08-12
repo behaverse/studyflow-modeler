@@ -1,4 +1,4 @@
-import { getApiKey, shouldRecordEvents } from '@/core/settings';
+import { getApiKey, shouldRecordEvents } from '@behaverse/studyflow-core/settings';
 import type { Session } from '@/runner/session';
 import type { LogFn } from '@/runner/nodes/types';
 

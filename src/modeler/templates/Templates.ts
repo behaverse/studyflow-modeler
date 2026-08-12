@@ -1,12 +1,12 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { StudyflowElement } from '@/core/element';
+import { StudyflowElement } from '@behaverse/studyflow-core/element';
 import { createTemplateConnection } from '@/modeler/templates/factory';
 import { createTemplateShape } from '@/modeler/templates/factory';
 import type {
   Template,
   TemplateFlowConnection,
   TemplateFlowNode,
-} from '@/core/notation';
+} from '@behaverse/studyflow-core/notation';
 
 // Stash key on a SubProcess shape for TemplateFlowElementsBehavior to materialize nested flow elements.
 export const TEMPLATE_FLOW_ELEMENTS = '__studyflowTemplateFlowElements';

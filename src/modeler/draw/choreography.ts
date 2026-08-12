@@ -1,6 +1,6 @@
 import { getFillColor, getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
-import { readChoreographyBands } from '@/core/document';
+import { readChoreographyBands } from '@behaverse/studyflow-core/document';
 import { CORNER_RADIUS, bandPath, choreographyBandHeight, fit, wrap } from '@/modeler/draw/choreographyLayout';
 import { MODELER_FONT_FAMILY } from '@/modeler/constants';
 import type { Styles } from '@/modeler/bpmn/types';

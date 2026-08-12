@@ -1,7 +1,7 @@
 import { createElement, useState } from 'react';
 import type { ComponentType } from 'react';
 import { Field, Label, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import type { AttributeSpec } from '@/core/notation';
+import type { AttributeSpec } from '@behaverse/studyflow-core/notation';
 import { t } from '@/i18n';
 import { executeCommand } from '@/modeler/commandBus';
 import { useRequiredModeler } from '@/modeler/app/useModeler';

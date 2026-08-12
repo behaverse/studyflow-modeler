@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@/core/notation/loader';
-import { schemaDiagnostics } from '@/core/notation';
-import { setRecordEvents, shouldRecordEvents } from '@/core/settings';
+import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@behaverse/studyflow-core/notation/loader';
+import { schemaDiagnostics } from '@behaverse/studyflow-core/notation';
+import { setRecordEvents, shouldRecordEvents } from '@behaverse/studyflow-core/settings';
 import { ICONS } from '@/icons';
 import { URLS } from '@/modeler/constants';
 import {

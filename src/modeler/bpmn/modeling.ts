@@ -1,4 +1,4 @@
-import type { AttributeUpdater } from '@/core/element';
+import type { AttributeUpdater } from '@behaverse/studyflow-core/element';
 
 /** Routes updates through bpmn-js `modeling`, so each one is a single undo step.
  *  Whether the target is the element's own business object decides which call applies. */

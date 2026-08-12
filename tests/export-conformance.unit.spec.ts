@@ -20,7 +20,7 @@ import { exampleXml } from './utils';
  * just the fixtures a given exporter was written against.
  */
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
+const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((file) => file.endsWith('.png')).sort();
 
 const ROOT_TYPES = new Set([

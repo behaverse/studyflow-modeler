@@ -1,4 +1,4 @@
-import { BPMN } from '@/core/constants';
+import { BPMN } from '@behaverse/studyflow-core/constants';
 import { ICONS } from '@/icons';
 
 /** Membership here also forces generic Task rendering in `drawActivity`, so markers belong in MARKER_ICONS instead. */

@@ -49,7 +49,7 @@ downstream reads one; persist through `session.setVariable` instead.
 ```tsx
 // src/runner/nodes/wait/index.tsx
 import { useEffect } from 'react';
-import { getAttribute } from '@/core/element';
+import { getAttribute } from '@behaverse/studyflow-core/element';
 import type { FlowNode } from '@/runner/flow';
 import type { NodeProps } from '@/runner/nodes/types';
 import { registerNode } from '@/runner/nodes/registry';

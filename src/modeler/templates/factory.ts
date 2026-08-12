@@ -1,7 +1,7 @@
-import { StudyflowElement, getDefaults } from '@/core/element';
-import { toPrefix } from '@/core/naming';
+import { StudyflowElement, getDefaults } from '@behaverse/studyflow-core/element';
+import { toPrefix } from '@behaverse/studyflow-core/naming';
 import { TEMPLATE_FLOW_ELEMENTS } from '@/modeler/templates/Templates';
-import type { TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@/core/notation';
+import type { TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@behaverse/studyflow-core/notation';
 
 const isFlowNode = (e: TemplateFlowElement): e is TemplateFlowNode => e.kind === 'node';
 const isFlowConnection = (e: TemplateFlowElement): e is TemplateFlowConnection =>

@@ -1,5 +1,5 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { toBusinessObject } from '@/core/element';
+import { toBusinessObject } from '@behaverse/studyflow-core/element';
 
 export type LoopKind = 'none' | 'loop' | 'parallel' | 'sequential';
 

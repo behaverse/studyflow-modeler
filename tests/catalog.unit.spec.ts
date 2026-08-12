@@ -2,11 +2,11 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '../src/core/notation';
-import { NON_BPMN_SUPER_CLASSES } from '../src/core/notation/query';
-import { inferRoles } from '../src/core/notation/compile';
-import { NON_EXTENSION_PREFIXES } from '../src/core/constants';
-import { MODDLE_SIMPLE_TYPES, toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '@behaverse/studyflow-core/notation';
+import { NON_BPMN_SUPER_CLASSES } from '@behaverse/studyflow-core/notation/query';
+import { inferRoles } from '@behaverse/studyflow-core/notation/compile';
+import { NON_EXTENSION_PREFIXES } from '@behaverse/studyflow-core/constants';
+import { MODDLE_SIMPLE_TYPES, toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { SCHEMAS, loadSchemaModels } from './schemas';
 
 /** Cross-validates the compiled TypeCatalog against bpmn-moddle. */

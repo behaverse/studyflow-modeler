@@ -1,8 +1,8 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
-import { choreographyToProcessRoot, looksLikeXml, studyflowToDefinitions } from '@/core/document';
-import { getAttribute, getExtensionType } from '@/core/element';
-import { BPMN, isDeclaredProperty } from '@/core/constants';
+import { choreographyToProcessRoot, looksLikeXml, studyflowToDefinitions } from '@behaverse/studyflow-core/document';
+import { getAttribute, getExtensionType } from '@behaverse/studyflow-core/element';
+import { BPMN, isDeclaredProperty } from '@behaverse/studyflow-core/constants';
 import type { FlowNode, SequenceFlow } from '@/runner/flow';
 import type { PropertyDecl, Scope } from '@/runner/scope';
 

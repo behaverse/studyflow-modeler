@@ -3,10 +3,10 @@ import path from 'node:path';
 
 import { expect, type Download, type Page } from '@playwright/test';
 
-import { xmlToStudyflow } from '../src/core/document';
+import { xmlToStudyflow } from '@behaverse/studyflow-core/document';
 import { extractXmlFromPng } from '../src/modeler/export/pngEmbedding';
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'src/assets/examples');
+const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 
 export function exampleFile(filename: string): Buffer {
   return readFileSync(path.join(EXAMPLES_DIR, filename));
@@ -121,7 +121,7 @@ export async function setSelectedElementName(page: Page, value: string): Promise
 }
 
 export async function uploadStudyflowDiagram(page: Page, filename = 'sample.studyflow'): Promise<void> {
-  const diagramBuffer = readFileSync(path.join(process.cwd(), 'src/assets/examples/new_diagram.bpmn'));
+  const diagramBuffer = readFileSync(path.join(process.cwd(), 'assets/examples/new_diagram.bpmn'));
 
   await page.getByTestId('open-file-input').setInputFiles({
     name: filename,

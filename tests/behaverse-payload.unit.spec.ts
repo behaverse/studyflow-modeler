@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog, setCatalog } from '../src/core/notation';
-import { toModdlePackages } from '../src/core/notation/schemaFile';
+import { buildCatalog, setCatalog } from '@behaverse/studyflow-core/notation';
+import { toModdlePackages } from '@behaverse/studyflow-core/notation/schemaFile';
 import { parseStudyflow } from '../src/runner/studyflow';
 import { getBehaverseTaskPayload } from '../src/runner/nodes/behaverse/parser';
 import type { FlowNode } from '../src/runner/flow';

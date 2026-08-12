@@ -1,7 +1,7 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS, xmlToStudyflow } from '@/core/document';
+import { YAML_DUMP_OPTIONS, xmlToStudyflow } from '@behaverse/studyflow-core/document';
 import type { ImportedStudy, ImportedTask } from '@/modeler/import/jspsych';
 
 const LAYOUT = {

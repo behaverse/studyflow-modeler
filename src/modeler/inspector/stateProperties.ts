@@ -1,7 +1,7 @@
 import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { getCatalog } from '@/core/notation';
-import { toBusinessObject, type ModdleElement } from '@/core/element';
-import { isDeclaredProperty } from '@/core/constants';
+import { getCatalog } from '@behaverse/studyflow-core/notation';
+import { toBusinessObject, type ModdleElement } from '@behaverse/studyflow-core/element';
+import { isDeclaredProperty } from '@behaverse/studyflow-core/constants';
 
 export type StateProperty = {
   id: string;

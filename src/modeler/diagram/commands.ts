@@ -1,7 +1,7 @@
-import new_diagram from '@/assets/examples/new_diagram.bpmn?raw';
-import { applyXmlPasses, choreographyToProcessRoot, inlineIoSpecification, looksLikeXml, studyflowToXml } from '@/core/document';
-import { loadSchemas } from '@/core/notation/loader';
-import { setAttribute } from '@/core/element';
+import new_diagram from '#assets/examples/new_diagram.bpmn?raw';
+import { applyXmlPasses, choreographyToProcessRoot, inlineIoSpecification, looksLikeXml, studyflowToXml } from '@behaverse/studyflow-core/document';
+import { loadSchemas } from '@behaverse/studyflow-core/notation/loader';
+import { setAttribute } from '@behaverse/studyflow-core/element';
 import { ensureDiagramLayout } from '@/modeler/diagram/autoLayout';
 import { extractXmlFromSvg, filenameStem } from '@/modeler/diagram/file';
 import { importableFormatFor } from '@/modeler/export/formats';

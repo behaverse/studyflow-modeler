@@ -1,8 +1,8 @@
 import * as yaml from 'js-yaml';
 
-import { toLocalName } from '@/core/naming';
-import { YAML_DUMP_OPTIONS, hasOnlyProperties, valueTypeOf } from '@/core/document/format';
-import { getProperty, isModdleElement } from '@/core/element/moddle';
+import { toLocalName } from '@behaverse/studyflow-core/naming';
+import { YAML_DUMP_OPTIONS, hasOnlyProperties, valueTypeOf } from '@behaverse/studyflow-core/document/format';
+import { getProperty, isModdleElement } from '@behaverse/studyflow-core/element/moddle';
 
 /* 1. yaml-body */
 

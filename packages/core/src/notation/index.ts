@@ -1,14 +1,14 @@
 /** Boot order: `loader` parses the YAML once → `loadSchemas` filters → `buildCatalog` → `setCatalog`; every other module reads `getCatalog`. */
 
-export * from '@/core/notation/types';
-export { buildCatalog } from '@/core/notation/compile';
+export * from '@behaverse/studyflow-core/notation/types';
+export { buildCatalog } from '@behaverse/studyflow-core/notation/compile';
 // Type-only: `buildCatalog` is the sole way to make one, so `register` stays out of reach.
-export type { TypeCatalog } from '@/core/notation/query';
-export { HIDDEN_SCHEMA_TYPES } from '@/core/notation/palette';
-export { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@/core/notation/bpmn';
+export type { TypeCatalog } from '@behaverse/studyflow-core/notation/query';
+export { HIDDEN_SCHEMA_TYPES } from '@behaverse/studyflow-core/notation/palette';
+export { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@behaverse/studyflow-core/notation/bpmn';
 
-import { BPMN_NS } from '@/core/constants';
-import { TypeCatalog } from '@/core/notation/query';
+import { BPMN_NS } from '@behaverse/studyflow-core/constants';
+import { TypeCatalog } from '@behaverse/studyflow-core/notation/query';
 
 let activeCatalog: TypeCatalog | undefined;
 

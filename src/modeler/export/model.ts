@@ -1,5 +1,5 @@
-import { getCatalog, type AttributeSpec, type TypeRole } from '@/core/notation';
-import { isDataOperationActivity, StudyflowElement } from '@/core/element';
+import { getCatalog, type AttributeSpec, type TypeRole } from '@behaverse/studyflow-core/notation';
+import { isDataOperationActivity, StudyflowElement } from '@behaverse/studyflow-core/element';
 import { exportDiagramName } from '@/modeler/export/common';
 import type { Modeler } from '@/modeler/bpmn/types';
 
