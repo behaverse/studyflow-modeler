@@ -6,6 +6,9 @@ import { info } from '@cli/commands/info';
 
 const program = new Command();
 
+// Lets `run` forward everything after the input file to the underlying runner.
+program.enablePositionalOptions();
+
 program
   .name('studyflow')
   .description('Work with studyflow files: convert between formats, validate, inspect.')
@@ -32,6 +35,18 @@ program
     for (const error of report.errors) console.error(`error: ${error}`);
     if (!report.ok || (options.strict && report.warnings.length > 0)) process.exitCode = 1;
     else console.log(`${input}: OK${report.warnings.length ? ` (${report.warnings.length} warning${report.warnings.length === 1 ? '' : 's'})` : ''}`);
+  });
+
+program
+  .command('run')
+  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` uses the Python runner.')
+  .passThroughOptions()
+  .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
+  .argument('[runnerArgs...]', 'forwarded to the runner (e.g. --fresh, --runs-dir, --run-id)')
+  .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
+  .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
+    const { run } = await import('@cli/commands/run');
+    await run(input, runnerArgs, options);
   });
 
 program

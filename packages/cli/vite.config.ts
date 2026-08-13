@@ -36,6 +36,9 @@ export default defineConfig({
       output: {
         entryFileNames: '[name].mjs',
         banner: '#!/usr/bin/env node',
+        // One file: the bin resolves the repo's Python runner relative to
+        // import.meta.url, which code-split chunks would point elsewhere.
+        inlineDynamicImports: true,
       },
     },
   },

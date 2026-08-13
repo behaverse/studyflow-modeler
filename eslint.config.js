@@ -6,7 +6,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // Two enforced boundaries: core/ is framework-free, and modeler/ and runner/
 // never import each other (shared code goes to core/).
 export default [
-  { ignores: ['dist', 'docs', 'playwright-report', 'test-results'] },
+  { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
