@@ -27,7 +27,7 @@ const ACTION_DOT: Record<string, string> = {
 const DETAIL_ICONS: Record<string, string> = {
   who: ICONS.person,
   with: ICONS.cog,
-  run: ICONS.play,
+  run: ICONS.repo,
   seed: ICONS.asterisk,
   what: ICONS.script,
 };
@@ -66,10 +66,11 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
     bumpRevision();
   };
 
-  const runCount = useMemo(
-    () => new Set(records.filter((r) => r.run).map((r) => r.run)).size,
-    [records],
-  );
+  // A `run` names a run repository; each document-level `executed` stamp is one invocation in it.
+  const { repoCount, invocationCount } = useMemo(() => ({
+    repoCount: new Set(records.filter((r) => r.run).map((r) => r.run)).size,
+    invocationCount: records.filter((r) => r.isDocument && r.action === 'executed').length,
+  }), [records]);
 
   return (
     <Modal
@@ -81,12 +82,16 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
                 The document's provenance trail — the <code>prov:activity</code> entries
                 stamped on the diagram's root as it passes through tools (created,
                 modified, imported, executed) — merged with the per-element run records
-                the runner leaves on the copy it archives. Entries are ordered oldest
-                first; the trail is hand-editable and travels inside the document.
+                the runner leaves on the copy it archives. Each run directory is a git
+                repository: <code>run</code> names it, every invocation is a{' '}
+                <code>run/&lt;stamp&gt;</code> tag in it, and these records are replicated
+                there as commit history. Entries are ordered oldest first; the trail is
+                hand-editable and travels inside the document.
                 Invalidating a run record (<i className={ICONS.closeSmall} aria-hidden="true" />)
                 appends an <code>invalidated</code> line rather than deleting anything —
-                undoable, and the history stays. After exporting, the next partial re-run
-                redoes that step and everything downstream of its outputs.
+                undoable, and the history stays. After exporting, the next run forks a
+                branch just before that step and re-executes only the step and what
+                depends on it; everything else is reused from the worktree.
               </DialogHelp>}
       actions={(
         <>
@@ -116,9 +121,14 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
             {records.length > 0 && (
               <p className="text-xs text-stone-500 pb-3">
                 <strong>{records.length}</strong> {records.length === 1 ? 'entry' : 'entries'}
-                {runCount > 0 && (
+                {invocationCount > 0 && (
                   <>
-                    {' '}· <strong>{runCount}</strong> {runCount === 1 ? 'run' : 'runs'}
+                    {' '}· <strong>{invocationCount}</strong> {invocationCount === 1 ? 'invocation' : 'invocations'}
+                  </>
+                )}
+                {repoCount > 0 && (
+                  <>
+                    {' '}· <strong>{repoCount}</strong> {repoCount === 1 ? 'run repository' : 'run repositories'}
                   </>
                 )}
               </p>
@@ -159,8 +169,17 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
                           className={`text-[11px] font-mono truncate max-w-[12rem] ${red ? 'text-red-700/80' : 'text-stone-500'}`}
                           title={r.isDocument ? r.scopeId : r.scopeLabel}
                         >
-                          {r.isDocument ? 'document' : r.scopeId}
+                          {r.isDocument ? (r.action === 'executed' ? 'invocation' : 'document') : r.scopeId}
                         </span>
+                        {r.action === 'invalidated' && !r.isDocument && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] text-red-500/90 whitespace-nowrap"
+                            title="The next run forks a branch of the run repository just before this step — only the step and what depends on it re-execute"
+                          >
+                            <i className={`${ICONS.fork} size-3 shrink-0`} aria-hidden="true" />
+                            forks here
+                          </span>
+                        )}
                         {recordDetails(r).map(([label, value]) => (
                           <span
                             key={label}
@@ -186,7 +205,7 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
                             type="button"
                             onClick={() => invalidate(r)}
                             className="text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
-                            title="Invalidate this run record — kept in the trail, and the step (plus everything downstream) re-runs on the next partial re-run"
+                            title="Invalidate this run record — kept in the trail; the next run forks a branch just before this step and re-executes only what depends on it"
                             aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
                           >
                             <i className={ICONS.closeSmall} aria-hidden="true"></i>

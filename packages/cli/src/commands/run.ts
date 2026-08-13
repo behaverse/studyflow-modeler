@@ -28,57 +28,6 @@ function declaredRuntime(definitions: any): string {
   return typeof value === 'string' && value ? value : 'cloud';
 }
 
-/** Run-directory names the document's provenance records (`prov:Activity#run` on `executed` entries). */
-function recordedRunIds(definitions: any): string[] {
-  const ids = new Set<string>();
-  const seen = new Set<object>();
-  const visit = (node: any): void => {
-    if (!node || typeof node !== 'object' || seen.has(node)) return;
-    seen.add(node);
-    if (Array.isArray(node)) {
-      for (const item of node) visit(item);
-      return;
-    }
-    if (node.$type === 'prov:Activity' && typeof node.run === 'string' && node.run) ids.add(node.run);
-    for (const key of ['rootElements', 'flowElements', 'extensionElements', 'values']) visit(node[key]);
-  };
-  visit(definitions);
-  return [...ids];
-}
-
-/** The value a flag carries in the pass-through args (`--flag value` or `--flag=value`). */
-function passthroughValue(passthrough: string[], flag: string): string | undefined {
-  const index = passthrough.indexOf(flag);
-  if (index >= 0) return passthrough[index + 1];
-  return passthrough.find((arg) => arg.startsWith(`${flag}=`))?.slice(flag.length + 1);
-}
-
-/**
- * Where the runs the provenance mentions actually live. The recorded `run` ids
- * are directory names under `<workdir>/<runs-dir>/`; when the caller gave no
- * `--workdir`, look for them from the likely roots — the cwd (the runner's own
- * default), the workdir an archived copy sits inside (`<W>/<runs-dir>/<id>/file`),
- * and the input file's directory — so partial re-runs find their artifacts.
- */
-function inferredWorkdir(input: string, passthrough: string[], definitions: any): string | undefined {
-  if (passthroughValue(passthrough, '--workdir') !== undefined) return undefined;
-  const runIds = recordedRunIds(definitions);
-  if (runIds.length === 0) return undefined;
-
-  const runsDir = passthroughValue(passthrough, '--runs-dir') ?? 'runs';
-  const hasRecordedRun = (dir: string): boolean =>
-    runIds.some((id) => existsSync(path.join(dir, runsDir, id)));
-
-  const inputDir = path.dirname(path.resolve(input));
-  const candidates = [process.cwd()];
-  // An archived copy lives at <W>/<runs-dir>/<id>/<file>; its workdir is <W>.
-  if (path.basename(path.dirname(inputDir)) === runsDir) candidates.push(path.dirname(path.dirname(inputDir)));
-  candidates.push(inputDir);
-
-  const found = candidates.find(hasRecordedRun);
-  return found && found !== process.cwd() ? found : undefined;
-}
-
 function which(binary: string): boolean {
   return spawnSync('which', [binary], { stdio: 'ignore' }).status === 0;
 }
@@ -107,7 +56,8 @@ async function runLocal(
 ): Promise<number> {
   // The Python runner reads XML (bare, or embedded in a PNG) but not the YAML
   // spelling — hand YAML over as a temporary .bpmn. Inputs stay resolved
-  // against the caller's cwd either way (the runner's --workdir default).
+  // against the caller's cwd either way: the runner looks beside the plan
+  // first, and a temporary .bpmn has nothing beside it.
   let target = input;
   if (source.container === 'text' && source.kind === 'yaml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
@@ -133,11 +83,6 @@ export async function run(input: string, passthrough: string[], options: RunOpti
   }
 
   if (runtime === 'local') {
-    const workdir = inferredWorkdir(input, passthrough, definitions);
-    if (workdir) {
-      console.error(`Reusing workdir ${workdir} — the runs recorded in the document's provenance live there.`);
-      passthrough = ['--workdir', workdir, ...passthrough];
-    }
     process.exitCode = await runLocal(input, source, passthrough);
     return;
   }

@@ -44,7 +44,8 @@ function toRecord(
     with: activity.with || undefined,
     what: activity.what || undefined,
     run: activity.run || undefined,
-    seed: activity.seed || undefined,
+    // `!= null` rather than truthiness: 0 is a perfectly good seed.
+    seed: activity.seed != null ? activity.seed : undefined,
     note: activity.note || undefined,
     scopeId: scope.id,
     scopeLabel: scope.label,

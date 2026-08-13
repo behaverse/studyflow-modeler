@@ -34,28 +34,38 @@ uv run --with torch --with transformers studyflow_run.py my_pipeline.studyflow.p
 ```
 
 Every run gets its own directory, named for when it started, and everything it
-writes lands in there:
+writes lands in there — the directory is itself a git repository, and a later
+invocation of the same run doesn't get a second directory: it commits onto
+the first one's history instead.
 
 ```
-runs/20260801T093253+0200/
-  sklearn_pipeline.studyflow.png    the studyflow that ran, copied in, its trail stamped `executed`
-  digits.csv                   the boundary input it read, copied in
-  cv_fold_metrics.csv          ┐
-  cv_metric_summary.csv        │
-  digits_pca_svc.joblib        ├ the five artifacts its `uri`s name
-  holdout_metrics.csv          │
-  confusion_matrix.png         ┘
-  studyflow.log                what the run did, in order
+runs/20260801T093253Z/
+  .git/                              one commit per checkpoint, one run/<stamp> tag per invocation
+  .gitattributes                     git-lfs patterns for the binary artifacts, written on first init
+  sklearn_pipeline.studyflow.png     the studyflow that ran, copied in, its trail stamped `executed`
+  digits.csv                         the boundary input it read, copied in
+  cv_fold_metrics.csv                ┐
+  cv_metric_summary.csv              │
+  digits_pca_svc.joblib              ├ the five artifacts its `uri`s name
+  holdout_metrics.csv                │
+  confusion_matrix.png               ┘
+  studyflow.log                      what this invocation did, in order
 ```
 
 The directory is named for the run, so the files in it are not — `studyflow.log`
-is a name you can hardcode in a pipeline. A second run is a second directory
-rather than five overwritten files. `--runs-dir` moves the parent, `--run-id`
-names the directory something other than the timestamp.
+is a name you can hardcode in a pipeline. It is truncated fresh each
+invocation; what a prior invocation logged is still recovered from its
+commits, at its own `run/<stamp>` tag. A second run is a
+second commit in the same repo, not five overwritten files. `--repo` names
+the directory explicitly — an existing one to resume, or a new one to start
+elsewhere; left off, the runner resumes the repo the plan file already lives
+in, or else creates one named for the start time under `runs/`. See
+[The run repository](#the-run-repository) for what the git history holds.
 
 Everything the run touched is in there, the plan and the inputs included, so the
-directory answers for itself: it is a complete, self-contained record of one run
-that you can archive, deposit, or hand to a reviewer.
+directory answers for itself: it is a complete, self-contained record — this
+invocation at its tag, the whole lineage in its history — that you can
+archive, deposit, or hand to a reviewer.
 
 The run prints the walk as it goes:
 
@@ -224,10 +234,13 @@ The `event` column is the grep handle, and its names are the notation's nouns:
 | `dataInputAssociation.bound`, `dataOutputAssociation.bound` | one argument is filled, one return value lands |
 | `activity.skipped` | a recorded step's artifacts were reused instead of re-computed (see partial re-runs) |
 | `activity.invalidated` | a recorded step re-ran because an input was re-made this run (the cascade in partial re-runs) |
-| `artifact.prepared`, `artifact.loaded`, `artifact.saved` | a boundary input is materialized, read, or a result written |
+| `artifact.prepared`, `artifact.staged`, `artifact.loaded`, `artifact.saved` | a boundary input is materialized by the shipped maker, copied in from outside, read, or a result written |
+| `plan.archived` | the stamped copy of the studyflow is (re)written into the repo |
 | `gateway.reached`, `conditionExpression.evaluated`, `sequenceFlow.taken`, `gateway.stuck` | the branch, and what decided it |
 | `event.reached` | a start, intermediate, or end event |
 | `stdout`, `stderr` | what the step itself printed, captured line by line (file only; the terminal already showed it live) |
+| `git.init`, `git.branched` | the directory became a git repository, and this invocation started a branch of its own — see [Branching](#branching) |
+| `git.unavailable`, `git.failed`, `git.lfs.unavailable`, `git.branchpoint.missing`, `git.fork.failed` | the repo's git replication degraded — see [The run repository](#the-run-repository) |
 
 So the questions you actually ask are one `grep` each:
 
@@ -282,6 +295,137 @@ Everything the run touched is in the directory — the stamped plan, the inputs,
 the artifacts, the log — so it is a complete, self-contained record of one run
 that you can archive, deposit, or hand on.
 
+## The run repository
+
+A run directory is not just a folder the runner writes into — it is a git
+repository, and the trail above is replicated as its commit history. Every
+checkpoint (a step finishing, a gateway deciding, the invocation starting or
+ending) is one commit.
+
+### Commit protocol
+
+The rule: **a commit's trailers are exactly the attributes of the
+corresponding `prov:activity` entry.** A commit that stamps no trail entry
+(the dirty-tree cleanup below) carries only `Prov-Run` and `Prov-When`.
+
+| When | Subject | Trailers |
+|---|---|---|
+| invocation start | `started <pid> (<UTC start stamp>)` | `Prov-Action: executed`, `Prov-When`, `Prov-Who`, `Prov-With: studyflow_run.py`, `Prov-Run`, `Prov-Seed` |
+| dirty tree before start | `changed outside a run` | `Prov-Action: modified`, `Prov-When` |
+| activity completed | `executed <name>` | `Prov-Action: executed`, `Prov-When`, `Prov-Run`, `Prov-Node: <element id>` |
+| container completed | `executed <name>` | same |
+| gateway decided | `executed <name>: <flow id>` | same, plus `Prov-What: <flow id>` |
+| activity skipped | `skipped <name> (run <prior-run>)` | `Prov-Run`, `Prov-When`, `Prov-Node` (the trail stamps nothing for a skip) |
+| activity raised | `failed <name>` | `Prov-Run`, `Prov-When`, `Prov-Node` |
+| invocation end | `finished <pid> (ok\|error)` | the full document-stamp set |
+
+`Prov-Node` has no attribute counterpart in the trail itself — element
+entries are stamped *on* their element, so the id is never a `prov:activity`
+attribute — but every element commit carries it anyway, because it is the
+commit↔element mapping the branch-point search in [Branching](#branching)
+depends on. Pure pass-through events (a start/end event reached, a gateway
+that only decided nothing new) commit nothing — they change no files, and
+their trail entry rides along in the next checkpoint. Every checkpoint is a
+`git add -A` and a commit, so a step's artifacts, staged inputs, and log
+lines land together — and its record entry is the commit's own body (see
+[Step records](#step-records)).
+
+### LFS
+
+First init, with git-lfs on PATH, writes `.gitattributes` with `filter=lfs`
+patterns for `*.joblib`, `*.parquet`, `*.png`, `*.svg`, `*.pdf` — the
+binary formats this runner's examples produce (plain-text formats like `.csv`
+stay ordinary blobs). The archived studyflow copy is itself often a `.png`,
+so it becomes an LFS object too — accepted; LFS objects live under
+`.git/lfs/objects`, so the run directory stays self-contained either way.
+
+### Degrading without git
+
+Replicating provenance into git must never be why a run fails. No `git` on
+PATH: one `git.unavailable` warning, and the repo machinery no-ops for the
+rest of the invocation — the directory still gets its artifacts,
+`studyflow.log`, and stamped plan, just no `.git` (and so no step records:
+those live only in commits). A git call
+that fails or times out: one `git.failed` warning, then the same no-op
+fallback for the rest of the invocation. `git` present but `git-lfs` missing:
+one `git.lfs.unavailable` warning, and `.gitattributes` is never written — a
+`filter=lfs` pattern declared without the filter installed fails every later
+`git add`, so the runner writes plain blobs instead of risking that.
+
+A repo that started git-less and is resumed once git is back on PATH is
+*adopted*: the runner `git init`s in place and the resuming invocation's
+first commit baselines whatever is already on disk.
+
+### Step records
+
+The per-step payload the runner builds while it runs — durations, typed
+inputs and outputs, tracebacks — lives in one place: the commit bodies.
+Each checkpoint commit's body is a JSON array of the record entries since
+the previous checkpoint (`[{node, name, type, startedAt, durationMs,
+implementation, inputs, outputs, used, generated, additionalArguments,
+error?}]`); pass-through events ride in the checkpoint that follows them.
+The `started` commit's body is the invocation header (`{studyflow, run,
+seed, who, with, startedAt}`), the `finished` commit's the closing summary
+(`{status, finishedAt, steps, tail}` — `tail` holds entries no element
+commit claimed, such as end events). There is no separate record file — the
+trail in the stamped plan and the git history are the two views, one
+interchange and one archive, with nothing duplicated between them:
+
+```bash
+git show -s --format='%b' <commit> | head -1 | jq  # one commit's records (%b ends with the trailers)
+git log --format='%b' | grep '^[[{]' | jq -s       # every record in the history, newest first
+```
+
+### Branching
+
+Provenance is a DAG in principle; in a run repository it is the commit graph,
+literally.
+
+- **Continue.** An ordinary resume with nothing invalidated commits onto the
+  current branch — the first invocation creates `main`, and whatever branch
+  HEAD points at is the one the runner extends. `git switch <branch>` before
+  running picks a different one to continue.
+- **Fork from the middle.** A plan carrying `invalidated` entries (the
+  modeler's ✕ gesture) or an explicit `--from <commit-ish>` locates the
+  newest commit that **executed** the affected activity — by its `Prov-Node`
+  and `Prov-Action` trailers; a later `skipped` commit is not where the work
+  entered history — and branches `fork/<UTC start stamp>` **at that commit's
+  parent**, the last state without the invalidated work (branches are
+  `fork/…`, tags `run/…` — a shared name would make the refs ambiguous). The checkout alone reverts the
+  worktree to that point in history: artifacts upstream of the invalidated
+  step are still there (their steps skip), the invalidated step's and
+  everything downstream of it are gone (their steps re-run, because their
+  artifacts are gone). `git log --graph` then shows the fork exactly where
+  the invalidation happened.
+- **Fallback.** If the invalidated element's commit can't be found on the
+  current branch (records from before this repo had git, a foreign lineage):
+  one `git.branchpoint.missing` warning, and the runner falls back to an
+  in-place re-run on the current branch instead of forking.
+- A detached HEAD — a tag or commit checked out directly, not a branch —
+  makes the runner start `fork/<stamp>` there rather than commit detached.
+
+Two recipes follow from a run directory being a real repo:
+
+```bash
+git -C runs/<id> log --graph --oneline --all      # the provenance DAG, forks and all
+git -C runs/<id> diff run/<a> run/<b>              # what changed between two invocations
+```
+
+One invocation runs against a repo at a time — a second one started against
+the same directory contends on git's own `index.lock`, which degrades
+replication (the same fail-soft ladder as above) but never corrupts an
+artifact already written. And `runs/` is git-ignored in the outer checkout;
+un-ignore it and each run repository shows up there as a gitlink — a commit
+pointer, not its tracked files — worth knowing before `git add runs/`
+doesn't do what you expect.
+
+Run directories are no longer immutable snapshots the way a single flat
+directory was — the history is the record now, and any prior invocation is
+recovered from its tag: `git archive run/<id>` reconstitutes that invocation's
+directory on its own. The modeler's Provenance view is unaffected either way;
+it renders `run` as text, and a shared value across resumes was already
+nothing new to it.
+
 ### Partial re-runs
 
 A run also records itself *per element*: every activity and event it completed
@@ -289,29 +433,43 @@ gets its own `executed` entry (`when`, `run`), a gateway's entry adds the flow
 it took as `what`, and a data element records `created` (this run saved its
 artifact) or `imported` (a boundary input staged from outside) — each in that
 element's `extensionElements` on the archived copy. Re-running the copy is
-therefore incremental:
+therefore incremental, and flag-free: pointing the runner at its own archived
+plan resumes the repo it already lives in.
 
 ```bash
-uv run studyflow_run.py runs/<id>/sklearn_pipeline.studyflow.png --workdir runs/<id>
+uv run studyflow_run.py runs/<id>/sklearn_pipeline.studyflow.png
 ```
 
 A step is **skipped** — its artifacts reused instead of re-computed — when its
 record is present, nothing it reads was re-made this run, and every one of its
 outputs is an artifact (`uri`) still on disk: an output some later step reads
 must load back into memory, while an output nothing reads (a terminal figure,
-say) only has to exist. A step with a memory-only output always re-runs — a
-routine recomputation of unchanged inputs that invalidates nothing. So the
-invalidation gestures are exactly the ones you'd guess: delete an artifact and
-its producer re-runs; delete an element's `executed` entry — or, keeping the
-history, append an `invalidated` line naming its run, which is what the
-modeler's Provenance view does — and that step re-runs; edit the plan and
-re-run only what the edit touches downstream of.
-**Invalidation cascades**: a step re-made by any of those gestures taints its
-outputs, so every recorded step that reads them re-runs too (logged as
+say) only has to exist. A step with a memory-only output re-runs only when
+the run's demand analysis says someone needs the value: taint spreads forward
+from whatever is gone or invalidated, memory-only bindings pull their
+producers in backward, and gateway conditions keep the values they read
+bound. Everything outside that closure skips — invalidating one activity
+re-executes its own chain, not the whole diagram. (A demanded re-run of
+unchanged inputs recomputes the same value and invalidates nothing.)
+
+Two gestures invalidate a step, and they are not equivalent:
+
+- **Delete the artifact.** The lightweight, in-place gesture: the run starts
+  with a dirty tree — an artifact missing that the last commit says should be
+  there — commits that as `changed outside a run`, and the producing step
+  re-runs on the *same* branch. No fork; the history stays linear.
+- **Invalidate the element**, or pass `--from <commit-ish>` directly. The
+  modeler's ✕ gesture appends an `invalidated` line naming the run it voids;
+  either it or `--from` **forks** a new branch at the point in history just
+  before that step ran — see [Branching](#branching) above for what that does
+  to the worktree and the commit graph.
+
+**Invalidation cascades** either way: a step re-made by either gesture taints
+its outputs, so every recorded step that reads them re-runs too (logged as
 `activity.invalidated`) — refitting the model re-plots the confusion matrix.
 Skipped elements keep the record of the run that really produced their
 artifacts, so the copy stays a truthful patchwork of which run made what.
-`--fresh` ignores every record and re-runs the whole flow.
+`--fresh` ignores every record and re-runs the whole flow, in the same repo.
 
 ## Boundary inputs
 
@@ -325,20 +483,34 @@ rather than a call to a bundled sample-data loader on purpose: the same
 studyflow runs on a real study dataset by changing one `uri`. So that the
 one-command claim above holds anyway, the runner ships a maker for that one
 file — `BOUNDARY_INPUTS`, keyed by the `uri` the example's own data element
-declares — and calls it the first time the artifact is read and missing,
-logging `artifact.prepared` when it does. It writes scikit-learn's copy of the
-UCI hand-written digits set: 1797 rows, 64 pixel columns and a `target`.
+declares. It writes scikit-learn's copy of the UCI hand-written digits set:
+1797 rows, 64 pixel columns and a `target`.
+
+A missing boundary input is looked up in order — **the plan file's own
+directory, then the current directory, then the shipped `BOUNDARY_INPUTS`
+maker** — and the first place it turns up wins. There is no `--workdir` to
+name a fourth place: the run directory is itself in the search (a resume
+finds its own artifacts before looking anywhere else), so the old
+one-directory model doesn't need a stand-in.
 
 Inputs are **staged into the run directory before they are read**, so the run
-directory is the single root every `uri` resolves against — the paths the
-provenance records are valid there by construction, not because something copied
-them in afterwards. `--workdir` names only where an input is *looked up* from
-(the run directory is fresh, so a boundary input cannot already be in it); once
-staged, the run reads it from inside its own directory like everything else.
+directory is the single root every `uri` resolves against from then on — the
+paths the provenance records are valid there by construction, not because
+something copied them in afterwards. Found outside the repo, an input is
+copied in and logged as `artifact.staged`; materialized by the shipped maker,
+it's logged as `artifact.prepared` — either way once, because on a resume the
+artifact is already sitting in the worktree and this whole lookup is skipped,
+which is also why a resume doesn't re-copy a multi-hundred-KB input on every
+invocation.
 
 Any *other* missing boundary input is a plain error naming the file and the
 element that wanted it, which is the honest answer. `--no-prepare-inputs` makes
 even the shipped one behave that way.
+
+**Migrating from `--workdir`:** run the command from that directory, or put
+the input file beside the plan — either is now in the lookup order.
+**Migrating from `--runs-dir Y --run-id N`:** `--repo Y/N` names the same
+directory directly.
 
 ## The contract it implements
 

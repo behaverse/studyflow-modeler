@@ -88,13 +88,15 @@ types:
           optional: true
       - name: run
         description: |
-          For an `executed` action: the run's id (the run directory's name),
+          For an `executed` action: the run's id - the run repository's name,
           linking this line to what the run left behind - the artifacts and
-          the log in that directory. Runs also record themselves per element:
-          each activity a run completed carries its own `executed` entry naming
-          that run, which is what makes partial re-runs possible - deleting an
-          element's entry (or the artifact it vouches for) invalidates exactly
-          that work, and the next run of the archived copy redoes it alone.
+          the log in that repository. Invocations within it are `run/<stamp>`
+          tags, not separate directories. Runs also record themselves per
+          element: each activity a run completed carries its own `executed`
+          entry naming that run, which is what makes partial re-runs possible
+          - deleting an element's entry (or the artifact it vouches for)
+          invalidates exactly that work, and the next run of the archived
+          copy redoes it alone.
         isAttr: true
         type: String
         meta:

@@ -50,6 +50,8 @@ export const ICONS = {
   envelopeOpen: 'iconify bi--envelope-open',
   google: 'iconify bi--google',
   github: 'iconify bi--github',
+  fork: 'iconify mdi--source-branch',
+  repo: 'iconify mdi--git',
 
   table: 'iconify bi--table',
   tableAlt: 'iconify mdi--table',

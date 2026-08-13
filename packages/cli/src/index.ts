@@ -42,7 +42,7 @@ program
   .description('Execute a studyflow in the runtime it declares (or --runtime). `local` uses the Python runner.')
   .passThroughOptions()
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
-  .argument('[runnerArgs...]', 'forwarded to the runner (e.g. --fresh, --runs-dir, --run-id)')
+  .argument('[runnerArgs...]', 'forwarded to the runner (e.g. --fresh, --repo)')
   .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
   .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
     const { run } = await import('@cli/commands/run');

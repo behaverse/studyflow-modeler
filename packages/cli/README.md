@@ -49,9 +49,9 @@ those images, but *rendering* a new image needs the modeler
 - `run --runtime local` finds the Python runner in this order:
   `STUDYFLOW_RUN_PY` (a `studyflow_run.py` to run via uv), the repo checkout
   next to this CLI (needs `uv`), then a `studyflow-run` binary on PATH.
-- When the document's provenance records prior runs (`prov:Activity#run` names
-  the run directory), `run` reuses their workdir: if those directories aren't
-  under the cwd but are found next to the input file — or the input *is* an
-  archived copy inside `<workdir>/runs/<id>/` — it passes that `--workdir` for
-  you, so partial re-runs find their artifacts. An explicit `--workdir` always
-  wins.
+- Partial re-runs need no flags: the Python runner treats the directory the
+  plan sits in as the run repository when it holds a `studyflow.log`, so
+  running an archived copy from inside `runs/<id>/` resumes that run in
+  place. Everything after the file goes to the runner untouched — `--repo`
+  to name the repository explicitly, `--from` to fork from a commit,
+  `--fresh` to re-run every step (see `packages/runner-py/README.md`).
