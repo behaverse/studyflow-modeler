@@ -37,7 +37,8 @@ export default defineConfig({
     port: 5173,
     fs: { allow: [resolve(__dirname, '../..')] },
     proxy: Object.fromEntries(
-      RUNNER_PATHS.map((path) => [path, { target: `http://127.0.0.1:${RUNNER_PORT}` }]),
+      // 'localhost', not 127.0.0.1: the runner may bind only the IPv6 loopback.
+      RUNNER_PATHS.map((path) => [path, { target: `http://localhost:${RUNNER_PORT}` }]),
     ),
   },
   build: {
