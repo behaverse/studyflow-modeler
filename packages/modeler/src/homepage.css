@@ -2,6 +2,16 @@
 
 @import "tailwindcss";
 
+/* Makes `hover:animate-wiggle` on the logo a real utility (see app.css note). */
+@theme {
+  --animate-wiggle: wiggle 0.2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-5deg); }
+  50%      { transform: rotate(5deg); }
+}
+
 :root {
     --bg: #05070f;
     --bg-secondary: #0c0f1d;

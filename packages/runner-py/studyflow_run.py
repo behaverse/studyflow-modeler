@@ -1070,10 +1070,10 @@ class Runner:
                     self.event("event.reached", f"● {element_id}")
                     return
                 if tag in GATEWAY_TAGS:
-                    self.event("gateway.reached", f"◆ {element_id}")
+                    self.event("gateway.reached", f"◇ {element_id}")
                 elif tag in CONTAINER_TAGS:
                     entry = self.record.begin(element_id, name, bpmn_type(element))
-                    self.event("activity.started", f"▣ {element_id}")
+                    self.event("activity.started", f"⊞ {element_id}")
                     try:
                         self.walk(self.studyflow.start_event(element), depth + 1, max_steps)
                     except BaseException as error:

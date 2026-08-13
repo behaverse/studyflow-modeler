@@ -9,7 +9,7 @@ Studyflow Modeler is a tool to design and run cognitive experiments using [Study
 
 ## Development
 
-With Node.js **≥ 20.19** installed (`.nvmrc` pins 22), start both apps in dev mode:
+With Node.js **≥ 20.19** installed, start both apps in dev mode:
 
 ```bash
 npm install
