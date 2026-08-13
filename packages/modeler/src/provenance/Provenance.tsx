@@ -14,6 +14,31 @@ import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void };
 
+// Commit-dot colors per action; unknown actions fall back to stone.
+const ACTION_DOT: Record<string, string> = {
+  created: 'bg-emerald-500',
+  imported: 'bg-sky-500',
+  modified: 'bg-amber-500',
+  executed: 'bg-violet-500',
+  invalidated: 'bg-red-500',
+};
+
+// Icons standing in for the `recordDetails` labels (who/with/run/seed/what).
+const DETAIL_ICONS: Record<string, string> = {
+  who: ICONS.person,
+  with: ICONS.cog,
+  run: ICONS.play,
+  seed: ICONS.asterisk,
+  what: ICONS.script,
+};
+
+// Compact UTC render for mixed-offset stamps; the raw stamp stays in the tooltip.
+function shortWhen(when?: string): string | undefined {
+  const parsed = when ? Date.parse(when) : NaN;
+  if (Number.isNaN(parsed)) return when || undefined;
+  return new Date(parsed).toISOString().slice(0, 16).replace('T', ' ');
+}
+
 export function ProvenanceDialog({ isOpen, onClose }: Props) {
   const modeler = useRequiredModeler();
   const [, bumpRevision] = useReducer((n: number) => n + 1, 0);
@@ -93,10 +118,9 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
                 <strong>{records.length}</strong> {records.length === 1 ? 'entry' : 'entries'}
                 {runCount > 0 && (
                   <>
-                    {' '}across <strong>{runCount}</strong> {runCount === 1 ? 'run' : 'runs'}
+                    {' '}· <strong>{runCount}</strong> {runCount === 1 ? 'run' : 'runs'}
                   </>
                 )}
-                .
               </p>
             )}
             {records.length === 0 ? (
@@ -104,66 +128,77 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
                 This diagram carries no provenance trail yet.
               </p>
             ) : (
-              <ol className={`${d.panelBody} space-y-2`} data-testid="provenance-log">
-                {records.map((r, idx) => (
-                  <li
-                    key={idx}
-                    className="border border-black/[0.06] rounded-lg px-3 py-2 bg-white/40 flex items-center gap-2"
-                  >
-                    <span className="w-4 shrink-0" aria-hidden={r.isDocument || undefined}>
-                      {!r.isDocument && r.action === 'executed' && !r.invalidated && (
-                        <button
-                          type="button"
-                          onClick={() => invalidate(r)}
-                          className="text-stone-400 hover:text-stone-900 transition-colors cursor-pointer"
-                          title="Invalidate this run record — kept in the trail, and the step (plus everything downstream) re-runs on the next partial re-run"
-                          aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
-                        >
-                          <i className={ICONS.closeSmall} aria-hidden="true"></i>
-                        </button>
-                      )}
-                    </span>
-                    <div className={`flex-1 min-w-0 ${r.invalidated ? 'opacity-60' : ''}`}>
-                      <div className="flex items-baseline gap-3">
-                        <span className="text-[11px] font-mono text-stone-500 whitespace-nowrap">
-                          {r.when ?? '(undated)'}
-                        </span>
+              <ol
+                className={`${d.panelBody} relative before:absolute before:left-[8px] before:top-3 before:bottom-3 before:w-px before:bg-stone-300/70`}
+                data-testid="provenance-log"
+              >
+                {records.map((r, idx) => {
+                  const voided = !!r.invalidated;
+                  const red = voided || r.action === 'invalidated';
+                  return (
+                    <li key={idx} className="relative pl-6 py-1">
+                      <span
+                        className={`absolute left-0 top-[9px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : ACTION_DOT[r.action] ?? 'bg-stone-400'}`}
+                        aria-hidden="true"
+                      />
+                      <div
+                        className={`flex items-center gap-x-2.5 gap-y-0.5 flex-wrap rounded-md -mx-1.5 px-1.5 py-0.5 ${red ? 'bg-red-500/[0.06]' : 'hover:bg-black/[0.03]'} transition-colors`}
+                      >
                         <span
-                          className={`text-sm font-semibold text-stone-900 ${r.invalidated ? 'line-through decoration-stone-400' : ''}`}
+                          className={`text-sm font-semibold ${voided ? 'text-red-700 line-through decoration-red-400' : red ? 'text-red-600' : 'text-stone-900'}`}
                         >
                           {r.action}
                         </span>
-                        <span className="flex-1" aria-hidden="true" />
                         {r.icon && (
                           <i
-                            className={`${r.icon} size-3.5 shrink-0 self-center text-stone-500`}
+                            className={`${r.icon} size-3.5 shrink-0 ${red ? 'text-red-400' : 'text-stone-500'}`}
                             aria-hidden="true"
                           />
                         )}
                         <span
-                          className="text-[11px] font-mono text-stone-500 truncate max-w-[16rem]"
+                          className={`text-[11px] font-mono truncate max-w-[12rem] ${red ? 'text-red-700/80' : 'text-stone-500'}`}
                           title={r.isDocument ? r.scopeId : r.scopeLabel}
                         >
                           {r.isDocument ? 'document' : r.scopeId}
                         </span>
+                        {recordDetails(r).map(([label, value]) => (
+                          <span
+                            key={label}
+                            className={`inline-flex items-center gap-1 text-[11px] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
+                            title={`${label}: ${value}`}
+                          >
+                            <i
+                              className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 ${red ? 'text-red-400' : 'text-stone-400'}`}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate max-w-[10rem]">{value}</span>
+                          </span>
+                        ))}
+                        <span className="flex-1" aria-hidden="true" />
+                        <span
+                          className={`text-[11px] font-mono whitespace-nowrap ${red ? 'text-red-400' : 'text-stone-400'}`}
+                          title={r.when}
+                        >
+                          {shortWhen(r.when) ?? '—'}
+                        </span>
+                        {!r.isDocument && r.action === 'executed' && !voided && (
+                          <button
+                            type="button"
+                            onClick={() => invalidate(r)}
+                            className="text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
+                            title="Invalidate this run record — kept in the trail, and the step (plus everything downstream) re-runs on the next partial re-run"
+                            aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
+                          >
+                            <i className={ICONS.closeSmall} aria-hidden="true"></i>
+                          </button>
+                        )}
                       </div>
-                      {(recordDetails(r).length > 0 || r.note) && (
-                        <div className="pt-1 text-xs text-stone-600">
-                          {recordDetails(r).map(([label, value], i) => (
-                            <span key={label}>
-                              {i > 0 && <span className="text-stone-400"> • </span>}
-                              <span className="text-stone-400">{label}:</span>{' '}
-                              <span className="font-mono">{value}</span>
-                            </span>
-                          ))}
-                          {r.note && (
-                            <p className="pt-0.5 italic text-stone-500">{r.note}</p>
-                          )}
-                        </div>
+                      {r.note && (
+                        <p className={`pt-0.5 px-0 text-xs italic ${red ? 'text-red-500/80' : 'text-stone-500'}`}>{r.note}</p>
                       )}
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ol>
             )}
     </Modal>
