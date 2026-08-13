@@ -44,14 +44,14 @@ jobs:
             echo "ASSESSMENT_UNITY_TOKEN secret is not set." >&2
             exit 1
           fi
-          mkdir -p dist/assessment-unity
+          mkdir -p dist/run/assessment-unity
           if [ "$ASSESSMENT_TAG" = "latest" ]; then
             gh release download --repo "$ASSESSMENT_REPO" --pattern WebGL.zip --output /tmp/WebGL.zip
           else
             gh release download "$ASSESSMENT_TAG" --repo "$ASSESSMENT_REPO" --pattern WebGL.zip --output /tmp/WebGL.zip
           fi
-          unzip -q /tmp/WebGL.zip -d dist/assessment-unity
-          echo "Unpacked $(du -sh dist/assessment-unity | cut -f1) to dist/assessment-unity"
+          unzip -q /tmp/WebGL.zip -d dist/run/assessment-unity
+          echo "Unpacked $(du -sh dist/run/assessment-unity | cut -f1) to dist/run/assessment-unity"
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

@@ -13,7 +13,7 @@ const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-
 // two apps rides on same-origin localStorage — so the runner's paths are proxied
 // through this origin, exactly as the merged dist/ serves them in production.
 const RUNNER_PORT = Number(process.env.RUNNER_PORT ?? 5174)
-const RUNNER_PATHS = ['/run', '/assessment-unity', '/api/llm']
+const RUNNER_PATHS = ['/run', '/api/llm']  // /run also covers /run/assessment-unity
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -38,7 +38,7 @@ export default defineConfig({
     fs: { allow: [resolve(__dirname, '../..')] },
     proxy: Object.fromEntries(
       // 'localhost', not 127.0.0.1: the runner may bind only the IPv6 loopback.
-      RUNNER_PATHS.map((path) => [path, { target: `http://localhost:${RUNNER_PORT}` }]),
+      RUNNER_PATHS.map((path) => [path, { target: `http://localhost:${RUNNER_PORT}`, ws: true }]),
     ),
   },
   build: {

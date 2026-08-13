@@ -66,7 +66,7 @@ function unityBuildPlugin(mountPath: string, buildDir: string): Plugin {
 
 const unityBuildPath = process.env.UNITY_BUILD_PATH
   ? resolve(process.env.UNITY_BUILD_PATH)
-  : resolve(__dirname, '../../../assessment-unity/Build/WebGL')
+  : resolve(__dirname, '../../run/assessment-unity/Build/WebGL')
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
@@ -80,7 +80,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     tailwindcss(),
     react(),
-    unityBuildPlugin('/assessment-unity', unityBuildPath),
+    unityBuildPlugin('/run/assessment-unity', unityBuildPath),
     claudeProxyPlugin(),
   ],
   resolve: {
