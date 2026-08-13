@@ -26,9 +26,9 @@
     "docs:build": "quarto render docs"
   },
   "devDependencies": {
-    "@behaverse/studyflow-core": "^26.0615",
-    "@behaverse/studyflow-modeler": "^26.0615",
-    "@behaverse/studyflow-runner": "^26.0615",
+    "@behaverse/studyflow-core": "*",
+    "@behaverse/studyflow-modeler": "*",
+    "@behaverse/studyflow-runner": "*",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/js-yaml": "^4.0.9",

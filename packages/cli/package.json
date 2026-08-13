@@ -14,7 +14,7 @@
     "studyflow": "node dist/studyflow.mjs"
   },
   "dependencies": {
-    "@behaverse/studyflow-core": "^26.0615",
+    "@behaverse/studyflow-core": "*",
     "bpmn-moddle": "10.1.0",
     "commander": "^14.0.3",
     "js-yaml": "^4.3.1"
