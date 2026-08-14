@@ -22,7 +22,7 @@ version: 26.0811
 # drawn by a dedicated section over nested BPMN state, so they show with no
 # attributes.
 #
-# A tab has to earn its name. These five (plus the run record) are the
+# A tab has to earn its name. These five are the
 # questions a modeller asks of any element, so they recur across every schema;
 # a tab holding one type's own fields would mostly repeat what the panel header
 # already says the element is, so those fields go to General. That is why an
@@ -47,15 +47,10 @@ categories:
     description: >-
       What runs and how — its function and arguments, the data it reads and
       writes, how often it repeats, and the `bpmn:Property` state it carries.
-  - name: Run record
-    # Engine-written state (`meta.readonly`): always the last tab, so run
-    # records sit apart from the fields people author.
-    order: 9000
-    description: What a run wrote back onto the element.
 
 enumerations:
   - name: DatasetFormatEnum
-    description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+    description: The dataset-format vocabulary.
     literalValues:
       - name: BDM (Behaverse Data Model)
         value: bdm
@@ -157,13 +152,6 @@ enumerations:
         value: local
       - name: HPC
         value: hpc
-  - name: AssignmentAlgorithmEnum
-    description: The scheduling algorithm used for the assignment.
-    literalValues:
-      - name: Probabilistic
-        value: probabilistic
-      - name: Round Robin
-        value: round-robin
   - name: ItemTypeEnum
     description: |
       Scalar types offered first when typing a `bpmn:Property` (the State tab).
@@ -179,17 +167,6 @@ enumerations:
         value: number
       - name: boolean
         value: boolean
-  - name: ProbabilityDistributionEnum
-    description: The random statistical distribution used for the assignment.
-    literalValues:
-      - name: Uniform
-        value: uniform
-      - name: Normal
-        value: normal
-      - name: Exponential
-        value: exponential
-      - name: Poisson
-        value: poisson
 types:
   - name: MarkdownString
     description: A string that contains markdown formatting
@@ -241,11 +218,9 @@ types:
     description: Process definition for a Studyflow study.
     superClass:
       - bpmn:Process
-    meta:
-      bpmnType: bpmn:Process
     properties:
       - name: runtime
-        description: Execution runtime in which the study runs (e.g., cloud, local, HPC).
+        description: Execution runtime in which the study runs.
         isAttr: true
         type: RuntimeEnum
         default: cloud
@@ -367,17 +342,6 @@ types:
             body:
               redirectTo: $set
               completionCodeType: static
-      - name: attritionCount
-        description: |
-          How many participants left the study through this exit. Written by
-          the runner, not by hand, so the diff against the registered file is
-          the CONSORT attrition table.
-        isAttr: true
-        type: Integer
-        meta:
-          readonly: true
-          categories:
-            - Run record
   - name: Scheduling
     description: |
       The Gantt axis, on anything that can sit on it: BPMN says nothing about
@@ -435,7 +399,6 @@ types:
     meta:
       # An attribute that references a Schema (`Dataset#schema`) edits it as text.
       editor: code
-      bpmnType: bpmn:DataObjectReference
     properties:
       - name: format
         description: Schema format identifier (e.g., csvw, linkml, jsonschema).
@@ -461,7 +424,6 @@ types:
     isAbstract: false
     meta:
       icon: iconify bi--database
-      bpmnType: bpmn:DataStoreReference
     properties:
       - name: catalog
         description: Identifier of the `DataCatalog` that registers this dataset.
@@ -498,7 +460,7 @@ types:
           categories:
             - Data
       - name: bdmDataLevel
-        description: Level of the data (events, trials, summary, models).
+        description: Level of the data (events, trials, models).
         isAttr: true
         type: BDMDataLevelEnum
         default: events
@@ -550,7 +512,6 @@ types:
     isAbstract: false
     meta:
       icon: iconify bi--table
-      bpmnType: bpmn:DataObjectReference
     properties:
       - name: format
         description: On-disk format of the table (csv, tsv, parquet, arrow, jsonl).
@@ -586,7 +547,6 @@ types:
     isAbstract: false
     meta:
       icon: iconify mdi--chart-line
-      bpmnType: bpmn:DataObjectReference
     properties:
       - name: samplingRate
         description: Sampling rate in samples per second (Hz).
@@ -633,7 +593,6 @@ types:
     isAbstract: false
     meta:
       icon: iconify mdi--lightning-bolt-outline
-      bpmnType: bpmn:DataObjectReference
     properties:
       - name: eventType
         description: Category of event (e.g., stimulus, response, artifact).
@@ -680,8 +639,10 @@ types:
 
   # ===========================================================================
   # The software reference. BPMN's own `implementation` attribute ("the
-  # technology implementing this task") is redefined once, here, with the
-  # versioned reference grammar every executable step uses. The engine
+  # technology implementing this task") is redefined here with the
+  # versioned reference grammar every executable step uses (one exception:
+  # `cognitive:CognitiveTask` sits on `bpmn:Task`, which has no native
+  # `implementation`, so it declares its own attribute with the same grammar). The engine
   # resolves the reference, calls it with `additionalArguments` plus the associated inputs, and
   # binds the return value to the associated outputs; there is no other step
   # contract.
@@ -779,7 +740,7 @@ types:
   - name: Seed
     description: |
       Adds the run's root seed to the process - pinned in the plan, read by
-      the engine, echoed on the as-run record.
+      the engine, echoed on the archived copy.
     extends:
       - bpmn:Process
     isAbstract: true
@@ -788,7 +749,7 @@ types:
         description: |
           Root seed for runs of this study; every step derives its own from it.
           Pin it to make runs replayable; leave it unset and the engine draws
-          one and records it on the as-run file.
+          one and records it on the archived copy.
         isAttr: true
         type: Integer
         meta:
@@ -981,7 +942,6 @@ types:
       - bpmn:DataObjectReference
     meta:
       icon: iconify mdi--tune
-      bpmnType: bpmn:DataObjectReference
     properties:
       - name: values
         description: The configuration itself, as a YAML mapping.
@@ -991,5 +951,4 @@ types:
           order: 1
           categories:
             - Data
-          editor: code
 

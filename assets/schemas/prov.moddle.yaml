@@ -8,8 +8,9 @@ description: >-
   appended to the diagram's primary root element as the file passes through
   tools. The trail rides inside the document, so it travels wherever the
   diagram does - `.studyflow.yaml`, `.bpmn`, and the XML embedded in exported
-  figures - and it *is* the run record: the runner stamps `executed` on the
-  copy it archives beside a run's artifacts and log.
+  figures - and it is the run record's interchange form: the runner stamps
+  `executed` on the copy it archives in the run repository, whose commit
+  history is the full archive.
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
 core: true   # the trail is infrastructure, not a domain vocabulary; always loaded
@@ -20,6 +21,7 @@ version: 26.0731
 
 
 enumerations: []
+
 
 # One type, deliberately: a trail is a log, and a log is a flat list of lines.
 # Every attribute names a fact PROV has a term for, and the mapping is written
@@ -38,8 +40,9 @@ types:
       One entry of the provenance trail: somebody (`who`), using some tool
       (`with`), did something (`action`) to this studyflow at some time
       (`when`). Maps to a `prov:Activity` whose association carries the person
-      and whose delegation carries the tool; entries are ordered oldest first,
-      and each new event appends one line.
+      and whose delegation carries the tool; entries are ordered oldest first.
+      The document trail appends; a run replaces an element's own entry in
+      place, unless it branched - then the superseded entry stays as history.
     superClass:
       - Element
     properties:
@@ -47,8 +50,8 @@ types:
         description: |
           What happened, as one word - the activity's `prov:type`. Recommended
           vocabulary: `created`, `modified`, `imported`, `executed`,
-          `invalidated`; open to others (`converted`, `reviewed`) when a tool
-          needs them. `invalidated` (PROV's `prov:wasInvalidatedBy`) voids the
+          `invalidated`, `reused` (a skip that trusted a prior record); open
+          to others (`converted`, `reviewed`) when a tool needs them. `invalidated` (PROV's `prov:wasInvalidatedBy`) voids the
           element's `executed` record of the same `run` without deleting it -
           the step re-runs on the next partial re-run, and the history stays.
         isAttr: true
@@ -58,7 +61,9 @@ types:
           When it happened, ISO 8601 at second precision with the writer's
           UTC offset (`2026-08-01T09:12:04+02:00`; older files carry `Z`) -
           the activity's `prov:endedAtTime`. The offset keeps the instant
-          exact while preserving the writer's wall clock.
+          exact while preserving the writer's wall clock. `invalidated` and
+          `reused` reference records by this value, so writers should keep it
+          unique within an element's entries.
         isAttr: true
         type: String
       - name: who
@@ -87,7 +92,8 @@ types:
           marker behind as inert history. An `invalidated` without a `what`
           voids coarsely by `run` and never goes inert: a standing re-run pin.
           For a `reused`: the `when` of the record a skipping run trusted
-          instead of re-executing the step.
+          instead of re-executing the step. A `when` reference resolves among
+          the same element's own entries, never document-wide.
           Omitted when the action concerns the whole document.
         isAttr: true
         type: String
@@ -97,9 +103,9 @@ types:
         description: |
           For an `executed` action: the run's id - the run repository's name,
           linking this line to what the run left behind - the artifacts and
-          the log in that repository. Invocations within it are
-          `started`/`finished` boundary commits, branches are `run/<stamp>`
-          branches - not separate directories. Runs also record themselves per
+          the log in that repository. Runs within it are `started`/`finished`
+          commit pairs, and a re-run after an invalidation is a `run/<stamp>`
+          branch - not a separate directory. Runs also record themselves per
           element: each activity a run completed carries its own `executed`
           entry naming that run, which is what makes partial re-runs possible
           - invalidating an element's entry (or deleting the artifact it
@@ -116,10 +122,7 @@ types:
           Recorded here either way, which is what makes an unpinned run
           replayable after the fact.
         isAttr: true
-        # Integer, matching `studyflow:Seed#seed` that this records. It was
-        # `String`, so the same value round-tripped between the plan and the run
-        # record under two declared types - and the runtime feeds it to
-        # `mulberry32`, which needs a number.
+        # Integer, matching `studyflow:Seed#seed`; the runtimes seed their PRNGs with it.
         type: Integer
         meta:
           optional: true

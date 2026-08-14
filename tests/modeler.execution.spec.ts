@@ -74,11 +74,11 @@ test.describe('Inspector execution tab', () => {
       mimeType: 'image/png',
       buffer: readFileSync(path.join(process.cwd(), 'assets/examples/sklearn_pipeline.studyflow.png')),
     });
-    // The `Select` shape is on the root plane, so its appearance is the imported-and-rendered signal.
-    await expect(page.locator('g[data-element-id="Select"]')).toBeVisible();
+    // The `select_model` shape is on the root plane, so its appearance is the imported-and-rendered signal.
+    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
-    await expect(page.getByTestId('property-type-X_Train')).toHaveValue('pandas.DataFrame');
+    await expect(page.getByTestId('property-type-x_train')).toHaveValue('pandas.DataFrame');
 
     await page.getByTestId('add-property').click();
     await page.getByLabel('Property name (Property_1)').fill('folds');
@@ -110,13 +110,13 @@ test.describe('Inspector execution tab', () => {
       mimeType: 'image/png',
       buffer: source,
     });
-    await expect(page.locator('g[data-element-id="Select"]')).toBeVisible();
+    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
-    // `Cross_Validate` sits on the collapsed `Select Model` phase's own DI plane — drill down first.
-    await page.getByTitle('Open Select Model').click();
-    await expect(page.locator('g[data-element-id="Cross_Validate"]')).toBeVisible();
+    // `cross_validate` sits on the collapsed `select_model` phase's own DI plane — drill down first.
+    await page.getByTitle('Open select_model').click();
+    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
 
-    await page.locator('g[data-element-id="Cross_Validate"]').click();
+    await page.locator('g[data-element-id="cross_validate"]').click();
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
 
     const inputs = page.getByTestId('data-flow-inputs');
@@ -132,11 +132,11 @@ test.describe('Inspector execution tab', () => {
 
     await expect(page.getByRole('button', { name: 'Unbind x_train' })).toBeVisible();
 
-    await page.locator('g[data-element-id="Summarize_CV"]').click();
-    await expect(inputs).toContainText('self = CV fold metrics');
-    await expect(page.getByLabel('Transformation for CV fold metrics')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Unbind CV fold metrics' })).toHaveCount(0);
-    await expect(inputs.getByTitle('self = CV fold metrics (data object)')).toBeVisible();
+    await page.locator('g[data-element-id="summarize_cv"]').click();
+    await expect(inputs).toContainText('self = cv_fold_report');
+    await expect(page.getByLabel('Transformation for cv_fold_report')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Unbind cv_fold_report' })).toHaveCount(0);
+    await expect(inputs.getByTitle('self = cv_fold_report (data object)')).toBeVisible();
   });
 
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
@@ -146,13 +146,13 @@ test.describe('Inspector execution tab', () => {
       mimeType: 'image/png',
       buffer: readFileSync(path.join(process.cwd(), 'assets/examples/sklearn_pipeline.studyflow.png')),
     });
-    await expect(page.locator('g[data-element-id="Select"]')).toBeVisible();
+    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
-    // `Build_Pipeline` is drawn on the collapsed `Select Model` phase's own plane — drill down first.
-    await page.getByTitle('Open Select Model').click();
-    await expect(page.locator('g[data-element-id="Build_Pipeline"]')).toBeVisible();
+    // `build_pipeline` is drawn on the collapsed `select_model` phase's own plane — drill down first.
+    await page.getByTitle('Open select_model').click();
+    await expect(page.locator('g[data-element-id="build_pipeline"]')).toBeVisible();
 
-    await page.locator('g[data-element-id="Build_Pipeline"]').click();
+    await page.locator('g[data-element-id="build_pipeline"]').click();
     await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
 
     await page.getByTestId('bind-input').click();
@@ -166,19 +166,20 @@ test.describe('Inspector execution tab', () => {
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     // Extract the step's YAML block by key + indentation — how deeply the example nests it is not under test.
     const lines = studyflowText.split('\n');
-    const start = lines.findIndex((l) => /^\s+Build_Pipeline:\s*$/.test(l));
-    expect(start, 'the exported YAML declares Build_Pipeline').toBeGreaterThan(-1);
+    const start = lines.findIndex((l) => /^\s+build_pipeline:\s*$/.test(l));
+    expect(start, 'the exported YAML declares build_pipeline').toBeGreaterThan(-1);
     const depth = lines[start].search(/\S/);
     let end = start + 1;
     while (end < lines.length && (lines[end].trim() === '' || lines[end].search(/\S/) > depth)) end += 1;
     const block = lines.slice(start, end).join('\n');
 
     expect(block).toContain('dataInputAssociations:');
-    expect(block).toMatch(/sourceRef:\n\s+- X_Train/);
+    expect(block).toMatch(/sourceRef:\n\s+- x_train/);
     expect(block).toContain('transformation: X');
 
-    // The id names the BPMN type it creates, so `DataInput_X_Train` cannot collide with `DataOutput_X_Train`.
-    expect(studyflowText.match(/DataInput_X_Train:/g) ?? []).toHaveLength(1);
+    // The id names the BPMN type it creates, so the generated `DataInput_x_train` cannot
+    // collide with the example's own `DataOutput_X_Train`.
+    expect(studyflowText.match(/DataInput_x_train:/g) ?? []).toHaveLength(1);
     expect(studyflowText).toContain('DataOutput_X_Train:');
   });
 

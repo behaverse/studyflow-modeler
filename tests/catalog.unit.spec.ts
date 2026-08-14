@@ -328,12 +328,12 @@ test.describe('catalog: schema-declared vocabulary', () => {
     expect([...categories].sort((a, b) => a.order - b.order).map((c) => c.name)).toEqual(names);
 
     expect(names[0]).toBe('General');
-    expect(names[names.length - 1]).toBe('Run record');
+    expect(names[names.length - 1]).toBe('Execution');
 
     expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution']);
 
     // `Behaverse` is the one tab a non-core schema declares (cognitive); the rest come from studyflow.
-    expect(names).toEqual(['General', 'Behaverse', 'Documentation', 'Gantt', 'Data', 'Execution', 'Run record']);
+    expect(names).toEqual(['General', 'Behaverse', 'Documentation', 'Gantt', 'Data', 'Execution']);
   });
 
   test('a value type declares the editor its attributes render with', () => {

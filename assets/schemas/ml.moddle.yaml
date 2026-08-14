@@ -22,7 +22,7 @@ templates:
   # ===========================================================================
   # Steps - functional operations bound to sklearn functions. `operationType`
   # names the ML verb (load, splitData, build, fit, evaluate, crossValidate,
-  # save); `implementation` + `arguments` say what actually runs.
+  # save); `implementation` + `additionalArguments` say what actually runs.
   # ===========================================================================
   - description: Load a bundled sample dataset (scikit-learn's digits) as a table.
     object:
@@ -33,7 +33,7 @@ templates:
         make a pipeline runnable before the real data exists. Repoint
         `implementation` at `load_iris`, `fetch_openml`, or your own loader
         (or use the functional "Read data" preset for files); the step's
-        shape does not change. Association its output to a `studyflow:Table` so downstream steps
+        shape does not change. Associate its output to a `studyflow:Table` so downstream steps
         have a typed artifact to read.
       icon: iconify mdi--database-import-outline
       keywords:
@@ -56,7 +56,7 @@ templates:
         in both partitions - the one split parameter that matters in
         human-subjects work. Bound to scikit-learn's
         `GroupShuffleSplit(n_splits, test_size)`; the group labels
-        (participant ids) are not configuration - they arrive as a associated data
+        (participant ids) are not configuration - they arrive as an associated data
         input (`parameter: groups`, exactly `split(X, y, groups)`). Repoint `implementation` at
         `train_test_split` or another splitter when grouping does not matter.
       icon: iconify mdi--call-split
@@ -102,10 +102,10 @@ templates:
         `make_pipeline` takes its steps positionally, so they go under the
         reserved `args` key, and each step is a nested call - a mapping with
         its own `implementation` and `arguments`, which the runner resolves first.
-        Association the result into "Cross-validate" and "Fit estimator" so both
+        Associate the result into "Cross-validate" and "Fit estimator" so both
         work on exactly the same specification; bind any constructor the same
         way (`sklearn.ensemble.RandomForestClassifier` with its kwargs in
-        `arguments`) when a single estimator is enough.
+        `additionalArguments`) when a single estimator is enough.
       icon: iconify mdi--school-outline
       keywords:
         - build
@@ -124,10 +124,10 @@ templates:
       type: functional:Reduce
       bpmn:documentation: |
         The fitting call. `sklearn.pipeline.Pipeline.fit` is the unbound
-        method: association the estimator in with `parameter: self` and the data
+        method: associate the estimator in with `parameter: self` and the data
         with `parameter: X` and `parameter: y` - that is exactly
-        `pipeline.fit(X, y)`. When an argument is a *field* of a data associated
-        element, use a scoped reference in `arguments` instead
+        `pipeline.fit(X, y)`. When an argument is a field of an associated data
+        element, use a scoped reference in `additionalArguments` instead
         (`y: $MyTable.target`). `fit` returns the fitted estimator, which
         binds to the associated output. For a bare estimator,
         bind its own class's method the same way
@@ -244,7 +244,7 @@ templates:
         Lands the fitted model on disk (a file a notebook or a serving job
         can pick up): `joblib.dump(model, filename, compress=3)` - joblib is
         scikit-learn's own recommended persistence - with the associated model as
-        the value and `filename` in `arguments`. Often no step is needed at all:
+        the value and `filename` in `additionalArguments`. Often no step is needed at all:
         set `uri` on the model artifact itself (its `.joblib` extension is
         the format) and the engine persists it when the fitting step writes
         it.
@@ -272,7 +272,7 @@ templates:
         Writer saves. Set `uri` to keep it on disk - a `.joblib` uri picks
         scikit-learn's own persistence; the model card (intended use,
         training data, known limitations) goes here in `documentation`;
-        hyperparameters live on the fitting step's `arguments`.
+        hyperparameters live on the fitting step's `additionalArguments`.
       icon: iconify mdi--cube-outline
       keywords:
         - model

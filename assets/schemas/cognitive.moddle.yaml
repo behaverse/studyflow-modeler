@@ -20,6 +20,24 @@ categories:
       build runs, and who answers it.
 
 enumerations:
+  - name: AssignmentAlgorithmEnum
+    description: The scheduling algorithm used for the assignment.
+    literalValues:
+      - name: Probabilistic
+        value: probabilistic
+      - name: Round Robin
+        value: round-robin
+  - name: ProbabilityDistributionEnum
+    description: The random statistical distribution used for the assignment.
+    literalValues:
+      - name: Uniform
+        value: uniform
+      - name: Normal
+        value: normal
+      - name: Exponential
+        value: exponential
+      - name: Poisson
+        value: poisson
   - name: InstrumentEnum
     description: |
       Software that delivers a cognitive task, and so how its `configurations`
@@ -37,9 +55,8 @@ enumerations:
         value: behaverse
   - name: QuestionnaireInstrumentEnum
     description: |
-      Curated list of standardized questionnaires. This list is a starting
-      point for common psychometric instruments; properties typed with this
-      enum may also accept custom names when annotated with `meta.editable: true`.
+      Curated list of standardized questionnaires, a starting point for
+      common psychometric instruments. Custom identifiers are accepted too.
     literalValues:
       - name: PHQ-9
         value: phq-9
@@ -153,12 +170,11 @@ types:
   - name: CognitiveTask
     description: |
       A cognitive test administered to a participant (e.g., a working-memory or
-      attention task). Concrete tasks are defined by the  `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
+      attention task). Concrete tasks are defined by the `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
     superClass:
       - bpmn:Task
     meta:
       icon: iconify bi--puzzle
-      bpmnType: bpmn:Task
     properties:
       - name: instrument
         description: |
@@ -172,7 +188,9 @@ types:
         description: |
           External software that delivers this task, as
           `<scheme>://<ref>[@<version-or-digest>]` - a versioned jsPsych plugin
-          URL, a `python://` callable, a `docker://` image.
+          URL, a `python://` callable, a `docker://` image. Mirrors the
+          `studyflow:Implementation` trait's grammar; it lives here because
+          `bpmn:Task` carries no native `implementation` attribute.
         isAttr: true
         type: String
         meta:
@@ -196,7 +214,6 @@ types:
       - CognitiveTask
     meta:
       icon: iconify solar--armchair-2-linear
-      bpmnType: bpmn:Task
     properties:
       - name: configurations
         description: Rest configuration in YAML format (e.g., duration, eyes-open/closed).
@@ -212,7 +229,6 @@ types:
       - bpmn:Task
     meta:
       icon: iconify fluent--clipboard-text-edit-32-regular
-      bpmnType: bpmn:Task
     properties:
       - name: instrument
         description: |
@@ -230,7 +246,6 @@ types:
       - bpmn:Task
     meta:
       icon: iconify material-symbols--info-outline-rounded
-      bpmnType: bpmn:Task
     properties:
       - name: content
         description: Instruction content in markdown format.
@@ -245,7 +260,6 @@ types:
       - CognitiveTask
     meta:
       icon: iconify bi--hexagon
-      bpmnType: bpmn:Task
     properties:
       - name: instrument
         default: behaverse
@@ -319,7 +333,6 @@ types:
       - bpmn:ExclusiveGateway
     meta:
       icon: iconify streamline-flex--dice-5
-      bpmnType: bpmn:ExclusiveGateway
       # Runner branching semantics: pick an outgoing branch at random instead
       # of evaluating conditions. Read from the catalog by the runner Session.
       branching: random
@@ -327,14 +340,14 @@ types:
       - name: algorithm
         description: Algorithm used for the assignment.
         isAttr: true
-        type: studyflow:AssignmentAlgorithmEnum
+        type: AssignmentAlgorithmEnum
         default: probabilistic
       - name: probabilityFunction
         description: |
           Discrete distribution the assignment draws from, `uniform` by
           default. Pick a listed option or type a custom identifier.
         isAttr: true
-        type: studyflow:ProbabilityDistributionEnum
+        type: ProbabilityDistributionEnum
         default: uniform
         meta:
           editable: true
@@ -371,7 +384,6 @@ types:
       - bpmn:ExclusiveGateway
     meta:
       icon: iconify mdi--filter-check-outline
-      bpmnType: bpmn:ExclusiveGateway
     properties:
       - name: inclusionCriteria
         description: |
@@ -396,7 +408,6 @@ types:
       - bpmn:Participant
     meta:
       icon: iconify mdi--account-group
-      bpmnType: bpmn:Participant
     properties:
       - name: actorType
         description: Kind of actor this pool represents.

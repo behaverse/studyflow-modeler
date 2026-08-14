@@ -18,8 +18,7 @@ enumerations:
   - name: DeviceEnum
     description: |
       Acquisition board, which fixes the channel count and the available
-      modalities. Properties typed with this enum may also accept custom
-      identifiers.
+      modalities. Custom identifiers are accepted too.
     literalValues:
       - name: Cyton (8-channel)
         value: cyton
@@ -65,7 +64,6 @@ types:
       - bpmn:Participant
     meta:
       icon: iconify mdi--chip
-      bpmnType: bpmn:Participant
     properties:
       - name: device
         description: Acquisition board used in this session. Pick a listed option or type a custom identifier.
@@ -96,7 +94,6 @@ types:
         - acquisition
         - signal
       icon: iconify mdi--database
-      bpmnType: bpmn:DataStoreReference
     properties:
       - name: modalities
         description: Biosignal/sensor modalities included in this recording.
@@ -105,13 +102,17 @@ types:
         type: ModalityEnum
       - name: channels
         description: |
-          Number of EEG channels recorded. Depends on the board: 4 (Ganglion),
-          8 (Cyton), 16 (Cyton + Daisy), or ~8-10 (Galea).
+          Number of EEG channels recorded - the session-level summary of the
+          associated `studyflow:Timeseries#channelCount`. Depends on the
+          board: 4 (Ganglion), 8 (Cyton), 16 (Cyton + Daisy), or ~8-10 (Galea).
         isAttr: true
         type: Integer
         default: 8
       - name: samplingRateHz
-        description: EEG sampling rate, in Hz (e.g., 200 on Ganglion, 250 on Cyton/Galea).
+        description: |
+          EEG sampling rate, in Hz (e.g., 200 on Ganglion, 250 on Cyton/Galea)
+          - the session-level summary of the associated
+          `studyflow:Timeseries#samplingRate`.
         isAttr: true
         type: Real
         default: 250

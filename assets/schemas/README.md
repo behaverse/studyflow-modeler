@@ -49,7 +49,7 @@ onto the BPMN element), `superClass` = **wrapper** (its own element inside
 | `categories` | Inspector tab (default `General` — omit rather than restate it). |
 | `order` | Sort within the tab. |
 | `pinned` | Fixed value, never rendered; also wins read precedence on double-stored values. |
-| `optional` | Renders the opt-in checkbox editor. |
+| `optional` | Renders the opt-in checkbox editor (String attributes; declarative intent elsewhere). |
 | `editable` | Enum that also accepts free text. |
 | `readonly` | Run-record field: shown, never edited. |
 | `condition.body` | Visibility predicate over sibling attributes (`{attr: value}`, `$set`, arrays). |
@@ -71,7 +71,7 @@ A template stamps a pre-configured element (or a small flow) into the canvas:
 `object.type` plus any declared property of that type, and optionally `icon`,
 `keywords`, `bpmn:name`, `bpmn:documentation`, `flowElements` (nodes with
 `id/x/y`, connections with `sourceRef/targetRef`), `loopCharacteristics`,
-`eventDefinitions`, and `mixins` (merge another template's attributes).
+`eventDefinitions`, and `mixins` (pull in a named type's `defaults`).
 Undeclared properties fail the schema lint. Prefer templates over new classes:
 a verb ("fit a model", "5-fold CV") is a template over a generic type, not a
 class — see the `ml` file and the `eeg`/`functional` template sections.

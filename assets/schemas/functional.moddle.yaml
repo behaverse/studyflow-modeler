@@ -5,7 +5,7 @@ prefix: functional
 description: >-
   Transform, map, reduce, and filter over data - the generic anchors every domain
   layer binds its verbs onto - plus the generic IO presets (read, write,
-  anonymize). What a step does is the software named by `implementation`; a
+  anonymize, group). What a step does is the software named by `implementation`; a
   fan-out is BPMN's own multi-instance marker.
 uri: https://w3id.org/studyflow/functional
 icon: iconify tabler--hexagon-letter-f
@@ -26,8 +26,6 @@ types:
     description: Apply a function to data - the generic step every operation specializes.
     superClass:
       - bpmn:ServiceTask
-    meta:
-      bpmnType: bpmn:ServiceTask
     properties:
       # `implementation` (the versioned function reference) comes from the
       # `studyflow:Implementation` trait on bpmn:ServiceTask - declared once there.

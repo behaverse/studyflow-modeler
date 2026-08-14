@@ -4,7 +4,7 @@ name: Agentic
 prefix: agentic
 description: >-
   LLM and agent workflows, kept to what an engine calling a model API actually
-  reads. Only two elements are new: `Agent`, an ad-hoc sub-process whose order a
+  reads. Only two carry new semantics: `Agent`, an ad-hoc sub-process whose order a
   model decides, and `Router`, a gateway whose branch it picks.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
@@ -12,7 +12,6 @@ order: 60  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0717
-
 
 
 enumerations:
@@ -82,7 +81,6 @@ types:
       - bpmn:AdHocSubProcess
     meta:
       icon: iconify mdi--robot-outline
-      bpmnType: bpmn:AdHocSubProcess
     properties:
       - name: model
         description: Model identifier (e.g. `claude-opus-4-8`, `gpt-5`, `ollama/llama3.3`).
@@ -96,7 +94,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 3
-          editor: markdown
       - name: toolChoice
         description: How freely the agent may call the tools drawn inside it.
         isAttr: true
@@ -105,7 +102,7 @@ types:
         meta:
           order: 4
       - name: temperature
-        description: Sampling temperature.
+        description: Sampling temperature. Defaults high - an agent explores; `LLMCall` defaults to 0 to reproduce.
         isAttr: true
         type: Real
         default: 1
@@ -135,7 +132,6 @@ types:
       - bpmn:ExclusiveGateway
     meta:
       icon: iconify mdi--sign-direction
-      bpmnType: bpmn:ExclusiveGateway
       branching: model
     properties:
       - name: model
@@ -152,12 +148,11 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 2
-          editor: markdown
 
   # ===========================================================================
   # Generic anchors. A model call and a tool call are the two atoms of the
   # layer; prompt-chaining and agent loops are built from them. A tool is an
-  # ordinary step (`implementation` + `arguments` + associated data), so anything a
+  # ordinary step (`implementation` + `additionalArguments` + associated data), so anything a
   # studyflow can run, an agent can call.
   # ===========================================================================
   - name: LLMCall
@@ -168,7 +163,6 @@ types:
       - bpmn:ServiceTask
     meta:
       icon: iconify mdi--message-processing-outline
-      bpmnType: bpmn:ServiceTask
     properties:
       - name: model
         description: Model identifier (e.g. `ollama/llama3.3`, `claude-opus-4-8`).
@@ -185,7 +179,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 3
-          editor: markdown
       - name: temperature
         description: Sampling temperature. Set 0 for a reproducible call.
         isAttr: true
@@ -204,13 +197,12 @@ types:
   - name: Tool
     description: |
       A capability an agent may call. A tool is an ordinary step - same `implementation`
-      and `arguments` as any other activity, same associated data elements as its
+      and `additionalArguments` as any other activity, same associated data elements as its
       interface - so anything a studyflow can run, an agent can call.
     superClass:
       - bpmn:ServiceTask
     meta:
       icon: iconify mdi--tools
-      bpmnType: bpmn:ServiceTask
     properties:
       # `implementation` (the versioned function reference) comes from the
       # `studyflow:Implementation` trait on bpmn:ServiceTask - declared once there.
@@ -245,7 +237,6 @@ types:
       - bpmn:UserTask
     meta:
       icon: iconify mdi--account-check-outline
-      bpmnType: bpmn:UserTask
     properties:
       - name: question
         description: What the reviewer is being asked, in markdown. Shown with the artifact under review.
@@ -253,7 +244,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
-          editor: markdown
 
   # ===========================================================================
   # Artifacts.
@@ -267,7 +257,6 @@ types:
       - bpmn:DataObjectReference
     meta:
       icon: iconify mdi--text-box-outline
-      bpmnType: bpmn:DataObjectReference
     properties:
       - name: template
         description: The prompt text, in markdown, with `{{name}}` placeholders.
@@ -275,7 +264,6 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
-          editor: markdown
 
   - name: Memory
     description: |
@@ -286,7 +274,6 @@ types:
       - bpmn:DataStoreReference
     meta:
       icon: iconify mdi--memory
-      bpmnType: bpmn:DataStoreReference
     properties:
       - name: scope
         description: How long the memory lives.
