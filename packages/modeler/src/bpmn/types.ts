@@ -58,6 +58,7 @@ export type Services = {
   injector: Injector;
   bpmnFactory: any;
   commandStack: any;
+  selection: any;
   dragging: any;
   lassoTool: any;
   elementTemplates: any;

@@ -5,7 +5,7 @@ import { buildCatalog, setCatalog } from '@core/notation';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
-import { collectProvenance, recordDetails, shapeIconOf } from '@modeler/provenance/records';
+import { assignLanes, collectProvenance, recordDetails, shapeIconOf } from '@modeler/provenance/records';
 import { appendTrailEntry, primaryRoot } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
@@ -24,9 +24,17 @@ async function definitionsOf(xml: string): Promise<any> {
   return rootElement;
 }
 
+// The shipped example now carries a real trail (runs, a branch, a consumed marker) for the
+// Provenance view to show — these tests build their own histories, so start from a clean slate.
 function stripTrail(definitions: any): any {
-  const ext = primaryRoot(definitions).extensionElements;
-  if (ext) ext.values = ext.values.filter((value: any) => value.$type !== 'prov:Activity');
+  const strip = (el: any): void => {
+    if (el?.extensionElements) {
+      el.extensionElements.values = el.extensionElements.values.filter(
+        (value: any) => value.$type !== 'prov:Activity');
+    }
+    for (const child of el?.flowElements ?? []) strip(child);
+  };
+  strip(primaryRoot(definitions));
   return definitions;
 }
 
@@ -156,10 +164,31 @@ test.describe('provenance view model', () => {
     expect(marker.run).toBe('run-003');
     expect(marker.scopeId).toBe(task.id);
     expect(marker.when).toMatch(/(?:Z|[+-]\d{2}:\d{2})$/);
+    // Void-by-reference: the marker names exactly the record it voids, and is not yet consumed.
+    expect(marker.what).toBe('2026-08-01T13:00:00Z');
+    expect(marker.consumed).toBeFalsy();
 
     expect(runInvalidateProvenanceRecord(modeler as any, {
       type: 'InvalidateProvenanceRecord', elementId: record.scopeId, entry: record.entry,
     })).toBe(false);
+  });
+
+  test('a re-executed record leaves its precise marker behind as consumed history', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const task = firstActivity(definitions);
+    stampElement(task, { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T14:00:00Z', what: '2026-08-01T13:00:00Z', run: 'repo' });
+
+    // The re-run replaces the executed entry (the runner's `replace_action`) and keeps the marker.
+    const values = task.extensionElements.values;
+    task.extensionElements.values = values.filter((v: any) => v.action !== 'executed');
+    stampElement(task, { action: 'executed', when: '2026-08-02T09:00:00Z', run: 'repo' });
+
+    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
+    const fresh = records.find((r) => r.action === 'executed')!;
+    const marker = records.find((r) => r.action === 'invalidated')!;
+    expect(fresh.invalidated).toBe(false);
+    expect(marker.consumed).toBe(true);
   });
 
   test('a runless marker voids any executed record; a foreign run voids none', async () => {
@@ -178,6 +207,88 @@ test.describe('provenance view model', () => {
     const intact = records.find((r) => r.scopeId === events[1].id && r.action === 'executed')!;
     expect(voided.invalidated).toBe(true);
     expect(intact.invalidated).toBe(false);
+  });
+
+  test('at the same instant, a marker precedes the run stamp, and the stamp its records', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const task = firstActivity(definitions);
+    // All three share one second — the runner's stamps have second precision, so ties are real.
+    stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T10:00:00Z', what: '2026-07-31T09:00:00Z', run: 'repo' });
+
+    const actions = collectProvenance(definitions).map((r) => `${r.isDocument ? 'doc' : 'el'}:${r.action}`);
+    expect(actions).toEqual(['el:invalidated', 'doc:executed', 'el:executed']);
+  });
+
+  test('a forked run supersedes records instead of replacing them — both branches stay', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const task = firstActivity(definitions);
+    stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'executed', when: '2026-08-01T12:00:00Z', run: 'repo' });
+
+    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
+    const [old, fresh] = records.filter((r) => r.action === 'executed');
+    const marker = records.find((r) => r.action === 'invalidated')!;
+    expect(old.superseded).toBe(true);
+    expect(old.invalidated).toBe(true);
+    expect(fresh.superseded).toBe(false);
+    expect(fresh.invalidated).toBe(false);
+    expect(marker.consumed).toBe(true);
+  });
+
+  test('a consumed marker forks the graph at the invocation that superseded it', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const root = primaryRoot(definitions);
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
+    const task = firstActivity(definitions);
+    // The re-run's fresh record, and the consumed marker naming the record it replaced.
+    stampElement(task, { action: 'executed', when: '2026-08-02T10:05:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
+    // An untouched ✕ on another element: a pending fork, not a lane.
+    const other = root.flowElements.find((e: any) => /Event$/.test(e.$type));
+    stampElement(other, { action: 'executed', when: '2026-08-01T10:06:00Z', run: 'repo' });
+    stampElement(other, { action: 'invalidated', when: '2026-08-02T12:00:00Z', what: '2026-08-01T10:06:00Z', run: 'repo' });
+
+    const records = collectProvenance(definitions);
+    const graph = assignLanes(records);
+    const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
+    expect(graph.get(stamps[0])).toMatchObject({ lane: 0 });
+    expect(graph.get(stamps[1])).toMatchObject({ lane: 1, laneCount: 2 });
+    const fresh = records.find((r) => !r.isDocument && r.scopeId === task.id && r.action === 'executed')!;
+    expect(graph.get(fresh)!.lane).toBe(1);
+    // The branch's line opens at the consumed marker row, not at the run stamp.
+    const consumed = records.find((r) => r.scopeId === task.id && r.action === 'invalidated')!;
+    expect(graph.get(consumed)!.opens).toBe(1);
+    const pending = records.find((r) => r.scopeId === other.id && r.action === 'invalidated')!;
+    expect(graph.get(pending)!.pendingFork).toBe(true);
+  });
+
+  test('two invalidations of the first branch open two separate lanes', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const root = primaryRoot(definitions);
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-03T10:00:00Z', run: 'repo' });
+    const task = firstActivity(definitions);
+    const other = root.flowElements.find((e: any) => /Event$/.test(e.$type));
+    // Run B consumed task's marker; run C consumed other's marker AND re-ran task again.
+    stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
+    stampElement(task, { action: 'executed', when: '2026-08-02T10:05:00Z', run: 'repo' });
+    stampElement(task, { action: 'executed', when: '2026-08-03T10:05:00Z', run: 'repo' });
+    stampElement(other, { action: 'executed', when: '2026-08-01T10:06:00Z', run: 'repo' });
+    stampElement(other, { action: 'invalidated', when: '2026-08-02T12:00:00Z', what: '2026-08-01T10:06:00Z', run: 'repo' });
+    stampElement(other, { action: 'executed', when: '2026-08-03T10:06:00Z', run: 'repo' });
+
+    const records = collectProvenance(definitions);
+    const graph = assignLanes(records);
+    const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
+    expect(stamps.map((s) => graph.get(s)!.lane)).toEqual([0, 1, 2]);
+    const markers = records.filter((r) => r.action === 'invalidated');
+    expect(markers.map((m) => graph.get(m)!.opens).sort()).toEqual([1, 2]);
   });
 
   test('per-element records survive the XML round trip', async () => {

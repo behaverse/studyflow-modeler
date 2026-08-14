@@ -26,17 +26,17 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.studyflow.png'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
-    expect(standardXml).toContain('<bpmn:ioSpecification id="Cross_Validate_io">');
-    expect(standardXml).toContain('<bpmn:dataInput id="Cross_Validate_in_estimator" name="estimator" />');
-    expect(standardXml).toContain('<bpmn:dataInput id="Cross_Validate_in_X" name="X" />');
-    expect(standardXml).toContain('<bpmn:dataInput id="Cross_Validate_in_y" name="y" />');
-    expect(standardXml).toContain('<bpmn:dataOutput id="Cross_Validate_result" name="result" />');
-    expect(standardXml).toContain('<bpmn:inputSet id="Cross_Validate_inputSet">');
-    expect(standardXml).toContain('<bpmn:outputSet id="Cross_Validate_outputSet">');
-    expect(standardXml).toContain('<bpmn:dataInputRefs>Cross_Validate_in_X</bpmn:dataInputRefs>');
-    expect(standardXml).toContain('<bpmn:dataOutputRefs>Cross_Validate_result</bpmn:dataOutputRefs>');
-    expect(standardXml).toContain('<bpmn:targetRef>Cross_Validate_in_X</bpmn:targetRef>');
-    expect(standardXml).toContain('<bpmn:sourceRef>Cross_Validate_result</bpmn:sourceRef>');
+    expect(standardXml).toContain('<bpmn:ioSpecification id="cross_validate_io">');
+    expect(standardXml).toContain('<bpmn:dataInput id="cross_validate_in_estimator" name="estimator" />');
+    expect(standardXml).toContain('<bpmn:dataInput id="cross_validate_in_X" name="X" />');
+    expect(standardXml).toContain('<bpmn:dataInput id="cross_validate_in_y" name="y" />');
+    expect(standardXml).toContain('<bpmn:dataOutput id="cross_validate_result" name="result" />');
+    expect(standardXml).toContain('<bpmn:inputSet id="cross_validate_inputSet">');
+    expect(standardXml).toContain('<bpmn:outputSet id="cross_validate_outputSet">');
+    expect(standardXml).toContain('<bpmn:dataInputRefs>cross_validate_in_X</bpmn:dataInputRefs>');
+    expect(standardXml).toContain('<bpmn:dataOutputRefs>cross_validate_result</bpmn:dataOutputRefs>');
+    expect(standardXml).toContain('<bpmn:targetRef>cross_validate_in_X</bpmn:targetRef>');
+    expect(standardXml).toContain('<bpmn:sourceRef>cross_validate_result</bpmn:sourceRef>');
     expect(standardXml).not.toContain('studyflow:binding');
   });
 

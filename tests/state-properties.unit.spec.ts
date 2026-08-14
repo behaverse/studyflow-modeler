@@ -49,7 +49,7 @@ test.describe('state as bpmn:Property', () => {
     const source = await exampleStudyflow('sklearn_pipeline.studyflow.png', moddle());
     const xml = await studyflowToXml(source, moddle());
 
-    expect(xml).toContain('<bpmn:property id="Mean_CV_Accuracy" itemSubjectRef="Item_Number" name="mean_cv_accuracy" />');
+    expect(xml).toContain('<bpmn:property id="mean_cv_accuracy" itemSubjectRef="Item_Number" name="mean_cv_accuracy" />');
     expect(xml).toContain('<bpmn:itemDefinition id="Item_Estimator" structureRef="sklearn.pipeline.Pipeline" />');
 
     expect(xml).toContain('<bpmn:transformation>result.test_accuracy[\'mean\']</bpmn:transformation>');

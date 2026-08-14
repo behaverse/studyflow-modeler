@@ -34,7 +34,7 @@ test('a data wire\'s binding and the loop marker\'s condition get the select too
 
   await runPaletteCommand(page, 'Examples...');
   await page.getByTestId('example-sklearn_pipeline').click();
-  await expect(page.locator('g[data-element-id="Select_Features"]')).toBeVisible();
+  await expect(page.locator('g[data-element-id="select_features"]')).toBeVisible();
 
   await page.getByTestId('modeler-canvas').hover();
   await page.mouse.wheel(0, -160);
@@ -43,7 +43,7 @@ test('a data wire\'s binding and the loop marker\'s condition get the select too
   const wireBody = page.locator('textarea[name="bpmn:transformation"]');
   await expect(wireBody).toHaveValue('self');
   // The placeholder is the live default — the source element's own name.
-  await expect(wireBody).toHaveAttribute('placeholder', 'digits.csv');
+  await expect(wireBody).toHaveAttribute('placeholder', 'input_dataset');
   const wireLanguage = page.getByLabel('Expression language');
   await expect(wireLanguage).toHaveValue('');
   await wireLanguage.selectOption('python');
@@ -51,9 +51,9 @@ test('a data wire\'s binding and the loop marker\'s condition get the select too
   const yaml = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(yaml).toContain('language: python');
 
-  await page.locator('g[data-element-id="Select_Features"]').click();
+  await page.locator('g[data-element-id="select_features"]').click();
   await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
-  await expect(page.getByTestId('inspector-root')).toContainText('self = digits.csv');
+  await expect(page.getByTestId('inspector-root')).toContainText('self = input_dataset');
   await expect(page.getByTestId('inspector-root').locator('select')).toHaveCount(0);
 
   await runPaletteCommand(page, 'New...');

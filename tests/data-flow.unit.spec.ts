@@ -172,9 +172,9 @@ test.describe('what the inspector reports for a step', () => {
     ]);
 
     const { definitions: sklearn } = await read('sklearn_pipeline.studyflow.png');
-    expect(getInferredDataNeighbors(elementById(sklearn, 'Select_Features'), 'inputs')).toEqual([
+    expect(getInferredDataNeighbors(elementById(sklearn, 'select_features'), 'inputs')).toEqual([
       expect.objectContaining({
-        name: 'digits.csv',
+        name: 'input_dataset',
         outerScope: undefined,
       }),
     ]);

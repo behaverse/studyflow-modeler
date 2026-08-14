@@ -26,6 +26,10 @@ export type ProvenanceRecord = {
   /** The live `prov:Activity` moddle element this record projects. */
   entry: any;
   invalidated?: boolean;
+  /** An `invalidated` marker whose named record no longer stands — inert history, never voids or branches again. */
+  consumed?: boolean;
+  /** An `executed` record a later run superseded — the first branch's history; a newer record stands. */
+  superseded?: boolean;
 };
 
 function readActivities(bo: any): any[] {
@@ -53,6 +57,12 @@ function toRecord(
     icon: scope.icon,
     entry: activity,
   };
+}
+
+// Stamps mix `Z` and local-offset forms, so compare instants; unparseable `when`s sort last, stably.
+function instant(record: ProvenanceRecord): number {
+  const parsed = record.when ? Date.parse(record.when) : NaN;
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }
 
 function walkFlowElements(container: any, visit: (el: any) => void): void {
@@ -88,26 +98,122 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
     });
   }
 
-  // An `invalidated` marker voids its element's `executed` record of the same run (or any, when it names none).
+  // A marker with `what` voids exactly the record whose `when` it names; without one it voids the
+  // element's record of the same run (or any, when it names none) — a standing re-run pin.
   for (const record of records) {
     if (record.isDocument || record.action !== 'executed') continue;
     record.invalidated = records.some((marker) =>
       marker.scopeId === record.scopeId
       && marker.action === 'invalidated'
-      && (!marker.run || marker.run === record.run));
+      && (marker.what ? marker.what === record.when : (!marker.run || marker.run === record.run)));
+    // A forked run keeps the records it supersedes: the first branch's history, no longer standing.
+    record.superseded = records.some((later) =>
+      later !== record && !later.isDocument
+      && later.scopeId === record.scopeId && later.action === 'executed'
+      && instant(later) > instant(record));
+  }
+  // A precise marker whose named record no longer stands is consumed history; coarse ones never age out.
+  for (const marker of records) {
+    if (marker.isDocument || marker.action !== 'invalidated' || !marker.what) continue;
+    const named = records.find((record) =>
+      record.scopeId === marker.scopeId
+      && record.action === 'executed'
+      && record.when === marker.what);
+    marker.consumed = !named || !!named.superseded;
   }
 
-  // Stamps mix `Z` and local-offset forms, so compare instants; unparseable `when`s sort last, stably.
-  const instant = (record: ProvenanceRecord): number => {
-    const parsed = record.when ? Date.parse(record.when) : NaN;
-    return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
-  };
-  return records.sort((a, b) => {
+  // Stamps carry second precision, so ties are real: the invalidation precedes the run it
+  // triggered, and a run's document stamp precedes the records that run wrote.
+  const tieRank = (record: ProvenanceRecord): number =>
+    record.action === 'invalidated' ? 0 : record.isDocument ? 1 : 2;
+  records.sort((a, b) => {
     const left = instant(a);
     const right = instant(b);
-    if (left === right) return 0;
+    if (left === right) return tieRank(a) - tieRank(b);
     return left < right ? -1 : 1;
   });
+  // A precise marker reads best right below the record it voids — the branch then visibly
+  // starts at the invalidation instead of at the end of the first branch.
+  for (const marker of [...records]) {
+    if (marker.isDocument || marker.action !== 'invalidated' || !marker.what) continue;
+    const at = records.indexOf(marker);
+    records.splice(at, 1);
+    const target = records.findIndex((r) =>
+      r.scopeId === marker.scopeId && r.action === 'executed' && r.when === marker.what);
+    records.splice(target < 0 ? at : target + 1, 0, marker);
+  }
+  return records;
+}
+
+export type GraphLine = { lane: number; fromDot: boolean; fromCurve: boolean; toDot: boolean };
+export type GraphInfo = {
+  lane: number;
+  laneCount: number;
+  /** Lane lines passing through this row, ends trimmed to the dot where a lane starts or stops. */
+  lines: GraphLine[];
+  /** A consumed marker row where its branch opens: the curve leaves this row's dot into that lane. */
+  opens?: number;
+  /** An active precise marker: the next run forks here — drawn as a dashed stub. */
+  pendingFork?: boolean;
+};
+
+/**
+ * The trail knows where history forked: a consumed marker names the record a later run
+ * superseded, so that run's rows move one lane right — and the new lane's line starts at
+ * the marker row, right below the invalidated entry, running beside the first branch's
+ * remaining rows until its own rows begin. `git log --graph`, from the document alone.
+ */
+export function assignLanes(records: ProvenanceRecord[]): Map<ProvenanceRecord, GraphInfo> {
+  const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
+  // Fork evidence: the run stamp holding the record that *first* superseded a consumed marker's
+  // named one — not the latest, or two forks re-running the same step would collapse into one lane.
+  const forkMarker = new Map<ProvenanceRecord, ProvenanceRecord>();
+  for (const marker of records) {
+    if (marker.isDocument || marker.action !== 'invalidated' || !marker.consumed) continue;
+    const chain = records.filter((r) =>
+      !r.isDocument && r.scopeId === marker.scopeId && r.action === 'executed');
+    const named = chain.findIndex((r) => r.when === marker.what);
+    const fresh = named >= 0 ? chain[named + 1] : chain.find((r) => instant(r) > instant(marker));
+    if (!fresh) continue;
+    const stamp = [...stamps].reverse().find((s) => instant(s) <= instant(fresh));
+    if (stamp && !forkMarker.has(stamp)) forkMarker.set(stamp, marker);
+  }
+  const graph = new Map<ProvenanceRecord, GraphInfo>();
+  let lane = 0;
+  for (const record of records) {
+    if (forkMarker.has(record)) lane += 1;
+    const info: GraphInfo = { lane, laneCount: 1, lines: [] };
+    if (!record.isDocument && record.action === 'invalidated' && record.what && !record.consumed) {
+      info.pendingFork = true;
+    }
+    graph.set(record, info);
+  }
+  // Each lane's line spans its fork's marker row (0 for main) through its last own row.
+  const laneCount = lane + 1;
+  const start = new Array<number>(laneCount).fill(0);
+  const end = new Array<number>(laneCount).fill(0);
+  records.forEach((record, i) => { end[graph.get(record)!.lane] = i; });
+  for (const [stamp, marker] of forkMarker) {
+    const opened = graph.get(stamp)!.lane;
+    graph.get(marker)!.opens = opened;
+    start[opened] = records.indexOf(marker);
+  }
+  records.forEach((record, i) => {
+    const info = graph.get(record)!;
+    info.laneCount = laneCount;
+    for (let l = 0; l < laneCount; l += 1) {
+      // The opening row draws the curve instead of a line; past its last row a lane has ended.
+      if (i < start[l] || i > end[l] || (l > 0 && i === start[l])) continue;
+      info.lines.push({
+        lane: l,
+        fromDot: l === 0 && i === 0,
+        // The row after a lane's opening: its line starts where the fork curve lands, not at the top.
+        fromCurve: l > 0 && i === start[l] + 1,
+        toDot: i === end[l],
+      });
+    }
+  });
+  return graph;
 }
 
 export function recordDetails(record: ProvenanceRecord): Array<[string, string]> {

@@ -29,7 +29,7 @@ export function Modal({ isOpen, onClose, title, size = 'lg', help, actions, test
               <span className="flex-1" aria-hidden="true" />
               {actions}
               <span className={d.closeButton} onClick={onClose}>
-                <i className={ICONS.close}></i>
+                <i className={`${ICONS.close} size-3.5 block`}></i>
               </span>
             </DialogTitle>
             {children}

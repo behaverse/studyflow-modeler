@@ -20,13 +20,17 @@ export function runInvalidateProvenanceRecord(
   if (!values.includes(command.entry)) return false;
 
   const run = command.entry.run || undefined;
+  // `what` names the voided record by its `when` — void-by-reference, so a later re-execution
+  // (new `when`) leaves the marker behind as consumed history instead of voiding the fresh record.
+  const voids = command.entry.when || undefined;
   const marked = values.some((value) =>
     value?.$type === 'prov:Activity'
     && value.action === 'invalidated'
-    && (!value.run || value.run === run));
+    && (value.what ? value.what === voids : (!value.run || value.run === run)));
   if (marked) return false;
 
   const stamp: Record<string, string> = { action: 'invalidated', when: trailTimestamp() };
+  if (voids) stamp.what = voids;
   if (run) stamp.run = run;
   if (command.who) stamp.who = command.who;
   if (command.with) stamp.with = command.with;

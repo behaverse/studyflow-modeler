@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { getStoredUserEmail } from '@modeler/settings/store';
 import {
+  assignLanes,
   collectProvenance,
   recordDetails,
   type ProvenanceRecord,
@@ -12,34 +13,41 @@ import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 
-type Props = { isOpen: boolean; onClose: () => void };
+type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };
 
-// Commit-dot colors per action; unknown actions fall back to stone.
-const ACTION_DOT: Record<string, string> = {
-  created: 'bg-emerald-500',
-  imported: 'bg-sky-500',
-  modified: 'bg-amber-500',
-  executed: 'bg-violet-500',
-  invalidated: 'bg-red-500',
-};
+// Dots take their lane's color — color separates branches, nothing else; red is invalidation's alone.
+const LANE_FILLS = ['bg-stone-400', 'bg-violet-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500'];
 
 // Icons standing in for the `recordDetails` labels (who/with/run/seed/what).
 const DETAIL_ICONS: Record<string, string> = {
   who: ICONS.person,
   with: ICONS.cog,
-  run: ICONS.repo,
+  run: ICONS.play,
   seed: ICONS.asterisk,
   what: ICONS.script,
 };
 
-// Compact UTC render for mixed-offset stamps; the raw stamp stays in the tooltip.
+// One stroke color per graph lane, `git log --graph` style; main is the quiet one.
+const LANE_STROKES = [
+  'stroke-stone-300/70',
+  'stroke-violet-400/70',
+  'stroke-sky-400/70',
+  'stroke-amber-400/70',
+  'stroke-emerald-400/70',
+];
+const laneX = (lane: number) => lane * 12 + 4.5;
+const laneStroke = (lane: number) => LANE_STROKES[lane % LANE_STROKES.length];
+// The element-shape icons sit in their own left column, outside the tree, so they align.
+const ICON_GUTTER = 22;
+
+// Compact UTC render for mixed-offset stamps, seconds included; the raw stamp stays in the tooltip.
 function shortWhen(when?: string): string | undefined {
   const parsed = when ? Date.parse(when) : NaN;
   if (Number.isNaN(parsed)) return when || undefined;
-  return new Date(parsed).toISOString().slice(0, 16).replace('T', ' ');
+  return new Date(parsed).toISOString().slice(0, 19).replace('T', ' ');
 }
 
-export function ProvenanceDialog({ isOpen, onClose }: Props) {
+export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useRequiredModeler();
   const [, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
@@ -49,7 +57,21 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
     return () => eventBus.off('commandStack.changed', bumpRevision);
   }, [modeler]);
 
-  const records = collectProvenance(modeler?.getDefinitions?.());
+  // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.
+  const [scope, setScope] = useState(scopeId);
+  const allRecords = collectProvenance(modeler?.getDefinitions?.());
+  const records = scope ? allRecords.filter((r) => r.scopeId === scope) : allRecords;
+  // The lane model is index-based, so the graph is computed on exactly the rows shown.
+  const [showReused, setShowReused] = useState(true);
+  const hasReused = records.some((r) => r.action === 'reused');
+  const visible = showReused ? records : records.filter((r) => r.action !== 'reused');
+  const graph = assignLanes(visible);
+  const laneCount = visible.length ? (graph.get(visible[0])?.laneCount ?? 1) : 1;
+  // Room for every lane plus a pending-fork stub curving right of the last one.
+  const gutter = (laneCount + 1) * 12;
+  const scopeLabel = scope
+    ? modeler?.get?.('elementRegistry', false)?.get?.(scope)?.businessObject?.id || scope
+    : null;
 
   const commandStack = modeler?.get?.('commandStack', false);
   const canUndo = !!commandStack?.canUndo?.();
@@ -66,32 +88,49 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
     bumpRevision();
   };
 
-  // A `run` names a run repository; each document-level `executed` stamp is one invocation in it.
-  const { repoCount, invocationCount } = useMemo(() => ({
-    repoCount: new Set(records.filter((r) => r.run).map((r) => r.run)).size,
-    invocationCount: records.filter((r) => r.isDocument && r.action === 'executed').length,
-  }), [records]);
+  // A `run` names a run repository; each document-level `executed` stamp is one run of the study.
+  const { repoCount, studyRuns, repoName } = useMemo(() => {
+    const repos = new Set(records.filter((r) => r.run).map((r) => r.run));
+    return {
+      repoCount: repos.size,
+      studyRuns: records.filter((r) => r.isDocument && r.action === 'executed').length,
+      repoName: repos.size === 1 ? [...repos][0] : null,
+    };
+  }, [records]);
+  // The modeler never reads the repository itself — the terminal does; this hands over the reins.
+  const repoRecipe = repoName ? `git -C runs/${repoName} log --graph --oneline --all` : null;
+  const [copied, setCopied] = useState(false);
+  const copyRecipe = async () => {
+    if (!repoRecipe) return;
+    await navigator.clipboard.writeText(repoRecipe);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Provenance View"
-      size="lg"
+      size="xl"
       help={<DialogHelp>
                 The document's provenance trail — the <code>prov:activity</code> entries
                 stamped on the diagram's root as it passes through tools (created,
                 modified, imported, executed) — merged with the per-element run records
                 the runner leaves on the copy it archives. Each run directory is a git
-                repository: <code>run</code> names it, every invocation is a{' '}
-                <code>run/&lt;stamp&gt;</code> tag in it, and these records are replicated
-                there as commit history. Entries are ordered oldest first; the trail is
+                repository: <code>run</code> names it, every run of the study adds a{' '}
+                <code>started</code>/<code>finished</code> commit pair, a re-run after an
+                invalidation starts a <code>run/&lt;stamp&gt;</code> branch, and these
+                records are replicated there as commit history. Entries are ordered oldest first; the trail is
                 hand-editable and travels inside the document.
                 Invalidating a run record (<i className={ICONS.closeSmall} aria-hidden="true" />)
-                appends an <code>invalidated</code> line rather than deleting anything —
-                undoable, and the history stays. After exporting, the next run forks a
-                branch just before that step and re-executes only the step and what
-                depends on it; everything else is reused from the worktree.
+                appends an <code>invalidated</code> marker naming exactly that record —
+                nothing is deleted, and once the step re-runs the marker stays as inert
+                history. After exporting, the next run branches just before that step
+                and re-executes only the step and what depends on it; a hand-written
+                marker naming no record is a standing re-run pin instead (in place, no branch).
+                A dimmed <code>reused</code> line is a skip: that run trusted the record its{' '}
+                <code>what</code> points at instead of re-executing the step.
               </DialogHelp>}
       actions={(
         <>
@@ -103,7 +142,7 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
             title="Undo the last edit (an invalidation, say)"
             aria-label="Undo"
           >
-            <i className={ICONS.arrowCounterclockwise}></i>
+            <i className={`${ICONS.undo} size-4 block`}></i>
           </button>
           <button
             type="button"
@@ -113,77 +152,177 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
             title="Redo the undone edit"
             aria-label="Redo"
           >
-            <i className={ICONS.arrowClockwise}></i>
+            <i className={`${ICONS.redo} size-4 block`}></i>
           </button>
         </>
       )}
     >
+            {scope && (
+              <p className="text-xs text-stone-500 pb-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-200/70 px-2 py-0.5">
+                  <i className={`${ICONS.filter} size-3 shrink-0`} aria-hidden="true" />
+                  <span className="font-mono truncate max-w-[16rem]" title={scope}>{scopeLabel}</span>
+                  <button
+                    type="button"
+                    onClick={() => setScope(undefined)}
+                    className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer pt-1 "
+                    title="Clear the filter and show the whole trail"
+                    aria-label="Clear provenance filter"
+                  >
+                    <i className={ICONS.closeSmall} aria-hidden="true" />
+                  </button>
+                </span>
+              </p>
+            )}
             {records.length > 0 && (
-              <p className="text-xs text-stone-500 pb-3">
-                <strong>{records.length}</strong> {records.length === 1 ? 'entry' : 'entries'}
-                {invocationCount > 0 && (
-                  <>
-                    {' '}· <strong>{invocationCount}</strong> {invocationCount === 1 ? 'invocation' : 'invocations'}
-                  </>
+              <p className="text-xs text-stone-500 pb-3 flex items-center">
+                <span>
+                  <strong>{visible.length}</strong> {visible.length === 1 ? 'entry' : 'entries'}
+                  {studyRuns > 0 && (
+                    <>
+                      {' '}· <strong>{studyRuns}</strong> {studyRuns === 1 ? 'run' : 'runs'}
+                    </>
+                  )}
+                  {repoCount > 0 && (
+                    <>
+                      {' '}· <strong>{repoCount}</strong> {repoCount === 1 ? 'repository' : 'repositories'}
+                    </>
+                  )}
+                </span>
+                {hasReused && (
+                  <label
+                    className="inline-flex items-center gap-1.5 ml-3 cursor-pointer select-none"
+                    title="Show the dimmed reused lines — steps a run skipped, trusting an earlier record"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={showReused}
+                      onChange={(e) => setShowReused(e.target.checked)}
+                      className="size-3 accent-stone-500 cursor-pointer"
+                    />
+                    reused
+                  </label>
                 )}
-                {repoCount > 0 && (
-                  <>
-                    {' '}· <strong>{repoCount}</strong> {repoCount === 1 ? 'run repository' : 'run repositories'}
-                  </>
+                {repoRecipe && (
+                  <span className="inline-flex items-center gap-1.5 ml-auto pl-4">
+                    <code
+                      className="text-[10px] font-mono text-stone-400 truncate max-w-[22rem]"
+                      title="The repository's history — each run is a started/finished commit pair, each post-invalidation re-run a run/<stamp> branch"
+                    >
+                      {repoRecipe}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={copyRecipe}
+                      className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
+                      title="Copy the git command"
+                      aria-label="Copy the git history command"
+                    >
+                      <i className={`${copied ? ICONS.check : ICONS.copy} size-3`} aria-hidden="true" />
+                    </button>
+                  </span>
                 )}
               </p>
             )}
-            {records.length === 0 ? (
+            {visible.length === 0 ? (
               <p className="text-sm text-stone-500 italic">
-                This diagram carries no provenance trail yet.
+                {scope
+                  ? <>No provenance recorded for <span className="font-mono not-italic">{scopeLabel}</span> yet.</>
+                  : 'This diagram carries no provenance trail yet.'}
               </p>
             ) : (
-              <ol
-                className={`${d.panelBody} relative before:absolute before:left-[8px] before:top-3 before:bottom-3 before:w-px before:bg-stone-300/70`}
-                data-testid="provenance-log"
-              >
-                {records.map((r, idx) => {
+              <ol className={`${d.panelBody} relative overflow-x-clip`} data-testid="provenance-log">
+                {visible.map((r, idx) => {
                   const voided = !!r.invalidated;
-                  const red = voided || r.action === 'invalidated';
+                  // A consumed marker is inert history, a `reused` line is a skip — both grey and dimmed.
+                  const red = voided || (r.action === 'invalidated' && !r.consumed);
+                  const muted = !!r.consumed || r.action === 'reused';
+                  const g = graph.get(r) ?? { lane: 0, laneCount: 1, lines: [] };
                   return (
-                    <li key={idx} className="relative pl-6 py-1">
+                    <li
+                      key={idx}
+                      className="relative py-1"
+                      style={{ paddingLeft: ICON_GUTTER + gutter + 8 }}
+                    >
+                      {r.icon && (
+                        <i
+                          className={`${r.icon} size-3.5 absolute left-0 top-[9px] ${red ? 'text-red-400' : 'text-stone-500'} ${muted ? 'opacity-60' : ''}`}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <svg className="absolute inset-y-0 h-full overflow-visible" style={{ left: ICON_GUTTER }} width={gutter} aria-hidden="true">
+                        {g.lines.map((ln) => (
+                          <line
+                            key={ln.lane}
+                            x1={laneX(ln.lane)}
+                            y1={ln.fromDot ? 16 : ln.fromCurve ? 14 : 0}
+                            x2={laneX(ln.lane)}
+                            y2={ln.toDot ? 16 : '100%'}
+                            className={laneStroke(ln.lane)}
+                            strokeWidth="1.5"
+                          />
+                        ))}
+                        {g.opens != null && (
+                          // A wide S-curve with vertical tangents, sweeping into the next row where
+                          // the opened lane's own line takes over seamlessly.
+                          <path
+                            d={`M ${laneX(g.lane)} 21 C ${laneX(g.lane)} 34, ${laneX(g.opens)} 30, ${laneX(g.opens)} 46`}
+                            className={`fill-none ${laneStroke(g.opens)}`}
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        )}
+                        {g.pendingFork && (
+                          <path
+                            d={`M ${laneX(g.lane)} 21 C ${laneX(g.lane)} 31, ${laneX(g.lane) + 12} 28, ${laneX(g.lane) + 12} 42`}
+                            className="fill-none stroke-red-400/80"
+                            strokeWidth="1.5"
+                            strokeDasharray="3 2"
+                            strokeLinecap="round"
+                          />
+                        )}
+                      </svg>
                       <span
-                        className={`absolute left-0 top-[9px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : ACTION_DOT[r.action] ?? 'bg-stone-400'}`}
+                        className={`absolute top-[11.5px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : LANE_FILLS[g.lane % LANE_FILLS.length]}`}
+                        style={{ left: ICON_GUTTER + g.lane * 12 }}
                         aria-hidden="true"
                       />
                       <div
-                        className={`flex items-center gap-x-2.5 gap-y-0.5 flex-wrap rounded-md -mx-1.5 px-1.5 py-0.5 ${red ? 'bg-red-500/[0.06]' : 'hover:bg-black/[0.03]'} transition-colors`}
+                        className={`flex items-center gap-x-2.5 flex-nowrap min-w-0 rounded-md -mx-1.5 px-1.5 py-0.5 ${red ? 'bg-red-500/[0.06]' : 'hover:bg-black/[0.03]'} ${muted ? 'opacity-60' : ''} transition-colors`}
                       >
                         <span
                           className={`text-sm font-semibold ${voided ? 'text-red-700 line-through decoration-red-400' : red ? 'text-red-600' : 'text-stone-900'}`}
                         >
                           {r.action}
                         </span>
-                        {r.icon && (
-                          <i
-                            className={`${r.icon} size-3.5 shrink-0 ${red ? 'text-red-400' : 'text-stone-500'}`}
-                            aria-hidden="true"
-                          />
-                        )}
                         <span
-                          className={`text-[11px] font-mono truncate max-w-[12rem] ${red ? 'text-red-700/80' : 'text-stone-500'}`}
+                          className={`text-[11px] font-mono truncate max-w-[12rem] shrink-0 ${red ? 'text-red-700/80' : 'text-stone-500'}`}
                           title={r.isDocument ? r.scopeId : r.scopeLabel}
                         >
-                          {r.isDocument ? (r.action === 'executed' ? 'invocation' : 'document') : r.scopeId}
+                          {r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId}
                         </span>
-                        {r.action === 'invalidated' && !r.isDocument && (
+                        {r.action === 'invalidated' && !r.isDocument && r.what && !r.consumed && (
                           <span
                             className="inline-flex items-center gap-1 text-[11px] text-red-500/90 whitespace-nowrap"
-                            title="The next run forks a branch of the run repository just before this step — only the step and what depends on it re-execute"
+                            title="The next run starts a new run/<stamp> branch just before this step — only the step and what depends on it re-execute"
                           >
-                            <i className={`${ICONS.fork} size-3 shrink-0`} aria-hidden="true" />
-                            forks here
+                            <i className={`${ICONS.branch} size-3 shrink-0`} aria-hidden="true" />
+                            branches here
+                          </span>
+                        )}
+                        {r.action === 'invalidated' && !r.isDocument && !r.what && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] text-amber-600/90 whitespace-nowrap"
+                            title="A marker naming no specific record: this step re-runs every time, in place — it never branches and never ages out"
+                          >
+                            <i className={`${ICONS.pin} size-3 shrink-0`} aria-hidden="true" />
+                            re-run pin
                           </span>
                         )}
                         {recordDetails(r).map(([label, value]) => (
                           <span
                             key={label}
-                            className={`inline-flex items-center gap-1 text-[11px] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
+                            className={`inline-flex items-center gap-1 min-w-0 text-[11px] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
                             title={`${label}: ${value}`}
                           >
                             <i
@@ -195,20 +334,20 @@ export function ProvenanceDialog({ isOpen, onClose }: Props) {
                         ))}
                         <span className="flex-1" aria-hidden="true" />
                         <span
-                          className={`text-[11px] font-mono whitespace-nowrap ${red ? 'text-red-400' : 'text-stone-400'}`}
+                          className={`text-[11px] font-mono whitespace-nowrap shrink-0 ${red ? 'text-red-400' : 'text-stone-400'}`}
                           title={r.when}
                         >
                           {shortWhen(r.when) ?? '—'}
                         </span>
-                        {!r.isDocument && r.action === 'executed' && !voided && (
+                        {!r.isDocument && r.action === 'executed' && !voided && !r.superseded && (
                           <button
                             type="button"
                             onClick={() => invalidate(r)}
                             className="text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
-                            title="Invalidate this run record — kept in the trail; the next run forks a branch just before this step and re-executes only what depends on it"
+                            title="Invalidate this run record — kept in the trail; the next run branches just before this step and re-executes only what depends on it"
                             aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
                           >
-                            <i className={ICONS.closeSmall} aria-hidden="true"></i>
+                            <i className={`${ICONS.closeSmall} size-3.5 block`} aria-hidden="true"></i>
                           </button>
                         )}
                       </div>

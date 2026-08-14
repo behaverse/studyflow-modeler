@@ -40,6 +40,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       group: 'File',
       label: 'Examples...',
       icon: ICONS.collection,
+      shortcut: '3',
       action: () => openDialog('examples'),
     },
     {
@@ -63,7 +64,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       group: 'File',
       label: 'Export...',
       icon: ICONS.download,
-      shortcut: '3',
+      shortcut: 'x',
       action: () => openDialog('export'),
     },
     {
@@ -119,6 +120,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       group: 'View',
       label: 'View Provenance...',
       icon: ICONS.history,
+      shortcut: 'p',
       action: () => openDialog('provenance'),
     },
 

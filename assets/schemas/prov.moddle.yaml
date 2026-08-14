@@ -79,9 +79,16 @@ types:
           optional: true
       - name: what
         description: |
-          The element ids the action touched, space-separated - what the
-          activity `prov:used`. Omitted when the action concerns the whole
-          document.
+          What the action touched. For most actions: the element ids,
+          space-separated - what the activity `prov:used`. For a gateway's
+          `executed`: the sequence flow the decision took. For an
+          `invalidated`: the `when` of the exact `executed` record it voids -
+          void-by-reference, so a later re-execution (a new `when`) leaves the
+          marker behind as inert history. An `invalidated` without a `what`
+          voids coarsely by `run` and never goes inert: a standing re-run pin.
+          For a `reused`: the `when` of the record a skipping run trusted
+          instead of re-executing the step.
+          Omitted when the action concerns the whole document.
         isAttr: true
         type: String
         meta:
@@ -90,13 +97,14 @@ types:
         description: |
           For an `executed` action: the run's id - the run repository's name,
           linking this line to what the run left behind - the artifacts and
-          the log in that repository. Invocations within it are `run/<stamp>`
-          tags, not separate directories. Runs also record themselves per
+          the log in that repository. Invocations within it are
+          `started`/`finished` boundary commits, forks are `run/<stamp>`
+          branches - not separate directories. Runs also record themselves per
           element: each activity a run completed carries its own `executed`
           entry naming that run, which is what makes partial re-runs possible
-          - deleting an element's entry (or the artifact it vouches for)
-          invalidates exactly that work, and the next run of the archived
-          copy redoes it alone.
+          - invalidating an element's entry (or deleting the artifact it
+          vouches for) invalidates exactly that work, and the next run of the
+          archived copy redoes it alone.
         isAttr: true
         type: String
         meta:

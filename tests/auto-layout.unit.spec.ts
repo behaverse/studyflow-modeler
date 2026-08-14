@@ -102,12 +102,12 @@ test.describe('ensureDiagramLayout', () => {
         if (di.$type === 'bpmndi:BPMNShape' && di.bpmnElement?.id) shapes.set(di.bpmnElement.id, di.bounds);
       }
     }
-    const dataset = shapes.get('Input_Dataset')!;
-    const selectFeatures = shapes.get('Select_Features')!;
-    const summarize = shapes.get('Summarize_CV')!;
+    const dataset = shapes.get('input_dataset')!;
+    const selectFeatures = shapes.get('select_features')!;
+    const summarize = shapes.get('summarize_cv')!;
     expect(dataset.y).toBeGreaterThan(selectFeatures.y + selectFeatures.height); // below the flow band
     expect(dataset.x).toBeGreaterThan(selectFeatures.x); // pulled toward its consumers, off the left column
-    const model = shapes.get('Fitted_Model')!;
+    const model = shapes.get('fitted_model')!;
     expect(model.y).toBeGreaterThan(summarize.y); // likewise for the produced artifact
 
     // bpmn-auto-layout's own plain-moddle round-trip would silently drop extension child elements.
