@@ -1,4 +1,5 @@
 import { trailTimestamp } from '@modeler/provenance/trail';
+import { voids } from '@modeler/provenance/records';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type InvalidateProvenanceRecordCommand = {
@@ -19,19 +20,16 @@ export function runInvalidateProvenanceRecord(
   const values: any[] = extensionElements?.values ?? [];
   if (!values.includes(command.entry)) return false;
 
-  const run = command.entry.run || undefined;
   // `what` names the voided record by its `when` — void-by-reference, so a later re-execution
   // (new `when`) leaves the marker behind as consumed history instead of voiding the fresh record.
-  const voids = command.entry.when || undefined;
+  const record = { when: command.entry.when || undefined, run: command.entry.run || undefined };
   const marked = values.some((value) =>
-    value?.$type === 'prov:Activity'
-    && value.action === 'invalidated'
-    && (value.what ? value.what === voids : (!value.run || value.run === run)));
+    value?.$type === 'prov:Activity' && value.action === 'invalidated' && voids(value, record));
   if (marked) return false;
 
   const stamp: Record<string, string> = { action: 'invalidated', when: trailTimestamp() };
-  if (voids) stamp.what = voids;
-  if (run) stamp.run = run;
+  if (record.when) stamp.what = record.when;
+  if (record.run) stamp.run = record.run;
   if (command.who) stamp.who = command.who;
   if (command.with) stamp.with = command.with;
 

@@ -98,7 +98,7 @@ types:
           For an `executed` action: the run's id - the run repository's name,
           linking this line to what the run left behind - the artifacts and
           the log in that repository. Invocations within it are
-          `started`/`finished` boundary commits, forks are `run/<stamp>`
+          `started`/`finished` boundary commits, branches are `run/<stamp>`
           branches - not separate directories. Runs also record themselves per
           element: each activity a run completed carries its own `executed`
           entry naming that run, which is what makes partial re-runs possible

@@ -35,26 +35,28 @@ uv run --with torch --with transformers studyflow_run.py my_pipeline.studyflow.p
 
 Every run gets its own directory, named for when it started, and everything it
 writes lands in there — the directory is itself a git repository, and a later
-invocation of the same run doesn't get a second directory: it commits onto
+run of the same study doesn't get a second directory: it commits onto
 the first one's history instead.
 
 ```
 runs/20260801T093253Z/
-  .git/                              one commit per checkpoint; invocations are started/finished commit pairs
+  .git/                              one commit per checkpoint; runs are started/finished commit pairs
   .gitattributes                     git-lfs patterns for the binary artifacts, written on first init
   sklearn_pipeline.studyflow.png     the studyflow that ran, copied in, its trail stamped `executed`
   digits.csv                         the boundary input it read, copied in
   cv_fold_metrics.csv                ┐
   cv_metric_summary.csv              │
-  digits_pca_svc.joblib              ├ the five artifacts its `uri`s name
-  holdout_metrics.csv                │
-  confusion_matrix.png               ┘
-  studyflow.log                      what this invocation did, in order
+  digits_pca_svc.joblib              │
+  holdout_metrics.csv                ├ the artifacts its `uri`s name
+  confusion_matrix.png               │
+  predictions.joblib                 │
+  x_test.joblib, y_test.joblib       ┘
+  studyflow.log                      what this run did, in order
 ```
 
 The directory is named for the run, so the files in it are not — `studyflow.log`
 is a name you can hardcode in a pipeline. It is truncated fresh each
-invocation; what a prior invocation logged is still recovered from its
+run; what a prior run logged is still recovered from its
 commits, between its `started`/`finished` pair. A second run is a
 second commit in the same repo, not five overwritten files. `--repo` names
 the directory explicitly — an existing one to resume, or a new one to start
@@ -64,94 +66,102 @@ in, or else creates one named for the start time under `runs/`. See
 
 Everything the run touched is in there, the plan and the inputs included, so the
 directory answers for itself: it is a complete, self-contained record — each
-invocation between its boundary commits, the whole lineage in its history —
+run between its boundary commits, the whole lineage in its history —
 that you can archive, deposit, or hand to a reviewer.
 
 The run prints the walk as it goes:
 
 ```
-sklearn pipeline
-  ○ Start
-  ▣ Prepare
-    ○ Prepare_Start
-    ▸ Select_Features
-        prepare digits.csv  483.8 KB, a boundary input this studyflow ships
-        load digits.csv  csv, 483.8 KB → pandas.DataFrame 1797×65
-        self ← digits.csv  pandas.DataFrame 1797×65
+sklearn_pipeline
+  ○ start_analysis
+  ⊞ prepare_data
+    ○ prepare_start
+    □ select_features
+        ▤ prepare digits.csv  483.8 KB, a boundary input this studyflow ships
+        ▤ load digits.csv  csv, 483.8 KB → pandas.DataFrame 1797×65
+        self ← input_dataset  pandas.DataFrame 1797×65
         implementation python://pandas.DataFrame.drop
         features ← result  pandas.DataFrame 1797×64
-    ▸ Select_Target
-        self ← digits.csv  pandas.DataFrame 1797×65
+    □ select_target
+        self ← input_dataset  pandas.DataFrame 1797×65
         implementation python://pandas.DataFrame.get
         target ← result  pandas.Series 1797
-    ▸ Split
+    □ split_train_test
         * ← features  pandas.DataFrame 1797×64
         * ← target  pandas.Series 1797
         stratify ← target  pandas.Series 1797
         implementation python://sklearn.model_selection.train_test_split
         x_train ← result[0]  pandas.DataFrame 1347×64
         x_test ← result[1]  pandas.DataFrame 450×64
+        ▤ save x_test.joblib  joblib, 235.2 KB
         y_train ← result[2]  pandas.Series 1347
         y_test ← result[3]  pandas.Series 450
-    ■ Prepare_End
-  ▣ Select
-    ○ Select_Start
-    ▸ Build_Pipeline
+        ▤ save y_test.joblib  joblib, 14.8 KB
+    ● prepare_end
+  ⊞ select_model
+    ○ select_start
+    □ build_pipeline
         implementation python://sklearn.pipeline.make_pipeline
         estimator ← result  sklearn.pipeline.Pipeline[2]
-    ▸ Cross_Validate
+    □ cross_validate
         estimator ← estimator  sklearn.pipeline.Pipeline[2]
         X ← x_train  pandas.DataFrame 1347×64
         y ← y_train  pandas.Series 1347
         implementation python://sklearn.model_selection.cross_validate
         cv_scores ← result  dict[6]
-    ▸ Build_Fold_Report
+    □ build_fold_report
         data ← cv_scores  dict[6]
         implementation python://pandas.DataFrame
-        CV fold metrics ← result  pandas.DataFrame 5×6
-        save cv_fold_metrics.csv  csv, 675 B
-    ▸ Summarize_CV
-        self ← CV fold metrics  pandas.DataFrame 5×6
+        cv_fold_report ← result  pandas.DataFrame 5×6
+        ▤ save cv_fold_metrics.csv  csv, 671 B
+    □ summarize_cv
+        run sklearn-demo's record superseded — an input was re-made this run
+        self ← cv_fold_report  pandas.DataFrame 5×6
         implementation python://pandas.DataFrame.describe
-        CV summary report ← result  pandas.DataFrame 8×6
-        save cv_metric_summary.csv  csv, 982 B
+        cv_summary ← result  pandas.DataFrame 8×6
+        ▤ save cv_metric_summary.csv  csv, 977 B
         mean_cv_accuracy ← result.test_accuracy['mean']  float 0.9888668594244804
-    ■ Select_End
-  ◆ Good_Enough
-      mean_cv_accuracy >= 0.90 → Flow_Gate_Report
-  ▣ Report
-    ○ Report_Start
-    ▸ Fit_Model
+    ● select_end
+  ◇ is_good_enough
+      mean_cv_accuracy >= 0.90 → report
+  ⊞ evaluate_and_report
+    ○ report_start
+    □ fit_model
         self ← estimator  sklearn.pipeline.Pipeline[2]
         X ← x_train  pandas.DataFrame 1347×64
         y ← y_train  pandas.Series 1347
         implementation python://sklearn.pipeline.Pipeline.fit
-        Fitted pipeline ← result  sklearn.pipeline.Pipeline[2]
-        save digits_pca_svc.joblib  joblib, 161.4 KB
-    ▸ Predict_Test
-        self ← Fitted pipeline  sklearn.pipeline.Pipeline[2]
+        fitted_model ← result  sklearn.pipeline.Pipeline[2]
+        ▤ save digits_pca_svc.joblib  joblib, 161.4 KB
+    □ predict_test
+        run sklearn-demo's record superseded — an input was re-made this run
+        self ← fitted_model  sklearn.pipeline.Pipeline[2]
         X ← x_test  pandas.DataFrame 450×64
         implementation python://sklearn.pipeline.Pipeline.predict
         predictions ← result  numpy.ndarray 450
-    ▸ Score_Test
+        ▤ save predictions.joblib  joblib, 3.7 KB
+    □ score_test
+        run sklearn-demo's record superseded — an input was re-made this run
         y_true ← y_test  pandas.Series 450
         y_pred ← predictions  numpy.ndarray 450
         implementation python://sklearn.metrics.classification_report
         test_metrics ← result  dict[13]
-    ▸ Write_Test_Report
+    □ write_test_report
+        run sklearn-demo's record superseded — an input was re-made this run
         data ← test_metrics  dict[13]
         implementation python://pandas.DataFrame
-        Held-out metrics report ← result  pandas.DataFrame 4×13
-        save holdout_metrics.csv  csv, 680 B
-    ▸ Plot_Confusion
+        test_report ← result  pandas.DataFrame 4×13
+        ▤ save holdout_metrics.csv  csv, 680 B
+    □ plot_confusion
+        run sklearn-demo's record superseded — an input was re-made this run
         y_true ← y_test  pandas.Series 450
         y_pred ← predictions  numpy.ndarray 450
         implementation python://sklearn.metrics.ConfusionMatrixDisplay.from_predictions
-        Confusion matrix (figure) ← result.figure_  matplotlib.figure.Figure
-        save confusion_matrix.png  png, 51.0 KB
-    ■ Report_End
-  ■ Done_Promoted
-  → runs/20260730T230224Z/ (ok) in 1081.2ms
+        confusion_matrix ← result.figure_  matplotlib.figure.Figure
+        ▤ save confusion_matrix.png  png, 51.0 KB
+    ● report_end
+  ● done
+  → runs/readme-demo/ (ok) in 3599.4ms
 ```
 
 Each binding says what it carried, by type and shape, so the data narrows in
@@ -209,10 +219,10 @@ enough for the message to carry the walk's indentation and still fit:
 23:02:24.574 INFO  dataInputAssociation.bound            stratify ← target  pandas.Series 1797
 23:02:24.610 INFO  implementation.resolved               implementation python://sklearn.model_selection.train_test_split
 23:02:24.616 INFO  dataOutputAssociation.bound           x_train ← result[0]  pandas.DataFrame 1347×64
-23:02:24.616 DEBUG activity.finished                     Split done in 41.7ms
-23:02:24.986 INFO  gateway.reached                 ◆ Good_Enough
-23:02:24.986 DEBUG conditionExpression.evaluated       mean_cv_accuracy >= 0.90 → True  [Flow_Gate_Report]
-23:02:24.986 INFO  sequenceFlow.taken                  mean_cv_accuracy >= 0.90 → Flow_Gate_Report
+23:02:24.616 DEBUG activity.finished                     split_train_test done in 41.7ms
+23:02:24.986 INFO  gateway.reached                 ◇ is_good_enough
+23:02:24.986 DEBUG conditionExpression.evaluated       mean_cv_accuracy >= 0.90 → True  [report]
+23:02:24.986 INFO  sequenceFlow.taken                  mean_cv_accuracy >= 0.90 → report
 ```
 
 It is one log, meant for eyes and `grep`: what each step bound, by type and
@@ -240,8 +250,8 @@ The `event` column is the grep handle, and its names are the notation's nouns:
 | `gateway.replayed` | a clean gateway followed its recorded decision without re-evaluating — ✕ the gateway (or `--fresh`) after editing a condition |
 | `event.reached` | a start, intermediate, or end event |
 | `stdout`, `stderr` | what the step itself printed, captured line by line (file only; the terminal already showed it live) |
-| `git.init`, `git.branched` | the directory became a git repository, and this invocation started a branch of its own — see [Branching](#branching) |
-| `git.unavailable`, `git.failed`, `git.lfs.unavailable`, `git.branchpoint.missing`, `git.fork.failed` | the repo's git replication degraded — see [The run repository](#the-run-repository) |
+| `git.init`, `git.branched` | the directory became a git repository, and this run started a branch of its own — see [Branching](#branching) |
+| `git.unavailable`, `git.failed`, `git.lfs.unavailable`, `git.branchpoint.missing`, `git.branch.failed` | the repo's git replication degraded — see [The run repository](#the-run-repository) |
 
 So the questions you actually ask are one `grep` each:
 
@@ -300,7 +310,7 @@ that you can archive, deposit, or hand on.
 
 A run directory is not just a folder the runner writes into — it is a git
 repository, and the trail above is replicated as its commit history. Every
-checkpoint (a step finishing, a gateway deciding, the invocation starting or
+checkpoint (a step finishing, a gateway deciding, the run starting or
 ending) is one commit.
 
 ### Commit protocol
@@ -311,14 +321,14 @@ corresponding `prov:activity` entry.** A commit that stamps no trail entry
 
 | When | Subject | Trailers |
 |---|---|---|
-| invocation start | `started <pid> (<UTC start stamp>)` | `Prov-Action: executed`, `Prov-When`, `Prov-Who`, `Prov-With: studyflow_run.py`, `Prov-Run`, `Prov-Seed` |
+| run start | `started <pid> (<UTC start stamp>)` | `Prov-Action: executed`, `Prov-When`, `Prov-Who`, `Prov-With: studyflow_run.py`, `Prov-Run`, `Prov-Seed` |
 | dirty tree before start | `changed outside a run` | `Prov-Action: modified`, `Prov-When` |
 | activity completed | `executed <name>` | `Prov-Action: executed`, `Prov-When`, `Prov-Run`, `Prov-Node: <element id>` |
 | container completed | `executed <name>` | same |
 | gateway decided | `executed <name>: <flow id>` | same, plus `Prov-What: <flow id>` |
-| activity skipped | `skipped <name> (run <prior-run>)` | `Prov-Run`, `Prov-When`, `Prov-Node` (the trail stamps nothing for a skip) |
+| activity skipped | `skipped <name> (run <prior-run>)` | `Prov-Run`, `Prov-When`, `Prov-Node` (the skip lands in the trail as a `reused` line) |
 | activity raised | `failed <name>` | `Prov-Run`, `Prov-When`, `Prov-Node` |
-| invocation end | `finished <pid> (ok\|error)` | the full document-stamp set |
+| run end | `finished <pid> (ok\|error)` | the full document-stamp set |
 
 `Prov-Node` has no attribute counterpart in the trail itself — element
 entries are stamped *on* their element, so the id is never a `prov:activity`
@@ -344,17 +354,17 @@ so it becomes an LFS object too — accepted; LFS objects live under
 
 Replicating provenance into git must never be why a run fails. No `git` on
 PATH: one `git.unavailable` warning, and the repo machinery no-ops for the
-rest of the invocation — the directory still gets its artifacts,
+rest of the run — the directory still gets its artifacts,
 `studyflow.log`, and stamped plan, just no `.git` (and so no step records:
 those live only in commits). A git call
 that fails or times out: one `git.failed` warning, then the same no-op
-fallback for the rest of the invocation. `git` present but `git-lfs` missing:
+fallback for the rest of the run. `git` present but `git-lfs` missing:
 one `git.lfs.unavailable` warning, and `.gitattributes` is never written — a
 `filter=lfs` pattern declared without the filter installed fails every later
 `git add`, so the runner writes plain blobs instead of risking that.
 
 A repo that started git-less and is resumed once git is back on PATH is
-*adopted*: the runner `git init`s in place and the resuming invocation's
+*adopted*: the runner `git init`s in place and the resuming run's
 first commit baselines whatever is already on disk.
 
 ### Step records
@@ -365,7 +375,7 @@ Each checkpoint commit's body is a JSON array of the record entries since
 the previous checkpoint (`[{node, name, type, startedAt, durationMs,
 implementation, inputs, outputs, used, generated, additionalArguments,
 error?}]`); pass-through events ride in the checkpoint that follows them.
-The `started` commit's body is the invocation header (`{studyflow, run,
+The `started` commit's body is the run header (`{studyflow, run,
 seed, who, with, startedAt}`), the `finished` commit's the closing summary
 (`{status, finishedAt, steps, tail}` — `tail` holds entries no element
 commit claimed, such as end events). There is no separate record file — the
@@ -383,10 +393,10 @@ Provenance is a DAG in principle; in a run repository it is the commit graph,
 literally.
 
 - **Continue.** An ordinary resume with nothing invalidated commits onto the
-  current branch — the first invocation creates `main`, and whatever branch
+  current branch — the first run creates `main`, and whatever branch
   HEAD points at is the one the runner extends. `git switch <branch>` before
   running picks a different one to continue.
-- **Fork from the middle.** A plan carrying `invalidated` entries (the
+- **Branch from the middle.** A plan carrying `invalidated` entries (the
   modeler's ✕ gesture) or an explicit `--from <commit-ish>` locates the
   newest commit that **executed** the affected activity — by its `Prov-Node`
   and `Prov-Action` trailers; a later `skipped` commit is not where the work
@@ -396,31 +406,31 @@ literally.
   worktree to that point in history: artifacts upstream of the invalidated
   step are still there (their steps skip), the invalidated step's and
   everything downstream of it are gone (their steps re-run, because their
-  artifacts are gone). `git log --graph` then shows the fork exactly where
+  artifacts are gone). `git log --graph` then shows the branch exactly where
   the invalidation happened.
 - **Fallback.** If the invalidated element's commit can't be found on the
   current branch (records from before this repo had git, a foreign lineage):
   one `git.branchpoint.missing` warning, and the runner falls back to an
-  in-place re-run on the current branch instead of forking.
+  in-place re-run on the current branch instead of branching.
 - A detached HEAD — a commit checked out directly, not a branch — makes the
   runner start `run/<stamp>` there rather than commit detached.
-- **Marker precision decides whether a fork happens at all.** The modeler's ✕
+- **Marker precision decides whether a branch happens at all.** The modeler's ✕
   writes the marker's `what` as the `when` of the exact record it voids; only
-  such a *precise* marker forks, and only while that record stands — once the
+  such a *precise* marker branches, and only while that record stands — once the
   step re-runs, the marker stays in the trail as consumed history and never
-  voids or forks again. A hand-written marker without a `what` is a *standing
+  voids or branches again. A hand-written marker without a `what` is a *standing
   re-run pin*: it voids coarsely by `run` (or any run), so the step re-executes
-  every invocation, in place, and never triggers a fork.
+  every run, in place, and never starts a branch.
 
 Recipes that follow from a run directory being a real repo:
 
 ```bash
-git -C runs/<id> log --graph --oneline --all       # the provenance DAG, forks and all
-git -C runs/<id> log --format='%H %s' --grep='started .*<stamp>'   # find one invocation's boundary
-git -C runs/<id> diff <finished-a> <finished-b>    # what changed between two invocations
+git -C runs/<id> log --graph --oneline --all       # the provenance DAG, branches and all
+git -C runs/<id> log --format='%H %s' --grep='started .*<stamp>'   # find one run's boundary
+git -C runs/<id> diff <finished-a> <finished-b>    # what changed between two runs
 ```
 
-One invocation runs against a repo at a time — a second one started against
+One run at a time per repository — a second one started against
 the same directory contends on git's own `index.lock`, which degrades
 replication (the same fail-soft ladder as above) but never corrupts an
 artifact already written. And `runs/` is git-ignored in the outer checkout;
@@ -429,9 +439,9 @@ pointer, not its tracked files — worth knowing before `git add runs/`
 doesn't do what you expect.
 
 Run directories are no longer immutable snapshots the way a single flat
-directory was — the history is the record now, and any prior invocation is
+directory was — the history is the record now, and any prior run is
 recovered from its `finished` commit: `git archive <finished-sha>`
-reconstitutes that invocation's directory on its own. The modeler's Provenance view is unaffected either way;
+reconstitutes that run's directory on its own. The modeler's Provenance view is unaffected either way;
 it renders `run` as text, and a shared value across resumes was already
 nothing new to it.
 
@@ -478,10 +488,10 @@ Two gestures invalidate a step, and they are not equivalent:
 - **Delete the artifact.** The lightweight, in-place gesture: the run starts
   with a dirty tree — an artifact missing that the last commit says should be
   there — commits that as `changed outside a run`, and the producing step
-  re-runs on the *same* branch. No fork; the history stays linear.
+  re-runs on the *same* branch. No new branch; the history stays linear.
 - **Invalidate the element**, or pass `--from <commit-ish>` directly. The
   modeler's ✕ gesture appends an `invalidated` line naming the run it voids;
-  either it or `--from` **forks** a new branch at the point in history just
+  either it or `--from` **starts** a new branch at the point in history just
   before that step ran — see [Branching](#branching) above for what that does
   to the worktree and the commit graph.
 
@@ -522,7 +532,7 @@ copied in and logged as `artifact.staged`; materialized by the shipped maker,
 it's logged as `artifact.prepared` — either way once, because on a resume the
 artifact is already sitting in the worktree and this whole lookup is skipped,
 which is also why a resume doesn't re-copy a multi-hundred-KB input on every
-invocation.
+run.
 
 Any *other* missing boundary input is a plain error naming the file and the
 element that wanted it, which is the honest answer. `--no-prepare-inputs` makes

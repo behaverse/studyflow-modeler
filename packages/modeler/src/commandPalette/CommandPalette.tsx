@@ -44,7 +44,10 @@ const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<{ isOpen: boolean; onCl
   provenance: ProvenanceDialog,
 };
 
-function isBareKey(e: ReactKeyboardEvent, key: string): boolean {
+// Structural, so both React's synthetic events and raw window KeyboardEvents fit.
+type KeyPress = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
+
+function isBareKey(e: KeyPress, key: string): boolean {
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
   return e.key.toLowerCase() === key.toLowerCase();
 }
@@ -68,8 +71,7 @@ export function CommandPalette({ ref }: Props) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [submenuId, setSubmenuId] = useState<string | null>(null);
-  const [dialogId, setDialogId] = useState<PaletteDialogId | null>(null);
-  const [provenanceScopeId, setProvenanceScopeId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<{ id: PaletteDialogId; scopeId?: string } | null>(null);
   const modeler = useRequiredModeler();
   const { openSettings } = useContext(SettingsViewContext);
   const isSimulating = useIsSimulating(modeler);
@@ -119,10 +121,7 @@ export function CommandPalette({ ref }: Props) {
         isSimulating,
         openSettings,
         // Palette-opened dialogs are unscoped; only the `p`-on-selection path sets a provenance scope.
-        openDialog: (id: PaletteDialogId) => {
-          setProvenanceScopeId(null);
-          setDialogId(id);
-        },
+        openDialog: (id: PaletteDialogId) => setDialog({ id }),
         pickDiagramFile: diagramPicker.open,
         pickJsPsychFile: jsPsychPicker.open,
       }),
@@ -158,31 +157,23 @@ export function CommandPalette({ ref }: Props) {
         return;
       }
       // `/` opens (never closes — in the palette it is just a character to search with).
-      const isSlash = e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
-      if (isSlash && !isOpen && !isTyping(e.target)) {
+      if (isBareKey(e, '/') && !isOpen && !isTyping(e.target)) {
         e.preventDefault();
         open();
+        return;
+      }
+      // `p` on a selected element opens its provenance, the way the inspector follows the selection.
+      if (isBareKey(e, 'p') && !isOpen && !dialog && !isTyping(e.target)) {
+        const selected = modeler?.get?.('selection', false)?.get?.() ?? [];
+        const scopeId = selected.length === 1 ? selected[0]?.businessObject?.id : undefined;
+        if (!scopeId) return;
+        e.preventDefault();
+        setDialog({ id: 'provenance', scopeId });
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen]);
-
-  // `p` on a selected element opens its provenance, the way the inspector follows the selection.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'p' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      if (isTyping(e.target) || isOpen || dialogId) return;
-      const selected = modeler?.get?.('selection', false)?.get?.() ?? [];
-      const scopeId = selected.length === 1 ? selected[0]?.businessObject?.id : undefined;
-      if (!scopeId) return;
-      e.preventDefault();
-      setProvenanceScopeId(scopeId);
-      setDialogId('provenance');
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [modeler, isOpen, dialogId]);
+  }, [modeler, isOpen, dialog]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -242,13 +233,10 @@ export function CommandPalette({ ref }: Props) {
   return (
     <>
       {/* Only the open dialog is mounted: mounting all seven runs every dialog's hooks on boot. */}
-      {dialogId && createElement(SUB_DIALOGS[dialogId], {
+      {dialog && createElement(SUB_DIALOGS[dialog.id], {
         isOpen: true,
-        onClose: () => {
-          setDialogId(null);
-          setProvenanceScopeId(null);
-        },
-        ...(dialogId === 'provenance' && provenanceScopeId ? { scopeId: provenanceScopeId } : {}),
+        onClose: () => setDialog(null),
+        scopeId: dialog.scopeId,
       })}
       <input {...diagramPicker.inputProps} />
       <input {...jsPsychPicker.inputProps} />

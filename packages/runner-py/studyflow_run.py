@@ -136,7 +136,7 @@ def start_logging(directory: Path, quiet: bool) -> Path:
         LOG.removeHandler(handler)
         handler.close()
 
-    # mode="w": the log covers this invocation only, earlier ones are recovered from the run's history.
+    # mode="w": the log covers this run only, earlier ones are recovered from the repository's history.
     to_file = logging.FileHandler(path, mode="w", encoding="utf-8")
     to_file.setFormatter(RunLogFormatter())
     LOG.addHandler(to_file)
@@ -266,7 +266,7 @@ def trail_timestamp(moment: datetime) -> str:
 
 
 def run_stamp(moment: datetime) -> str:
-    """Sortable UTC id: a default repo's name and a forked branch read the same."""
+    """Sortable UTC id: a default repo's name and a new branch read the same."""
     return moment.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
@@ -333,6 +333,10 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
         f"\n{indent}  </{wrapper_prefix}extensionElements>"
     )
     return xml[:cursor] + block + xml[cursor:]
+
+
+def condition_text(flows: list[ET.Element]) -> str:
+    return " ".join((c.text or "") for f in flows for c in f if local(c) == "conditionExpression")
 
 
 def output_targets(element: ET.Element) -> list[str]:
@@ -410,27 +414,28 @@ class Studyflow:
     def element_records(self) -> dict[str, dict]:
         """Element id -> its standing `executed` record: the newest not voided. A marker voids by exact
         `when` (its `what`), or — lacking a `what` — coarsely by run, a standing re-run pin. Older
-        entries a forked run superseded are the first branch's history and never stand."""
+        entries a branching run superseded are the first branch's history and never stand."""
         records: dict[str, dict] = {}
         process_id = self.process.get("id")
         for element_id, element in self.elements.items():
             if element_id == process_id:
                 continue
             executed, markers = self._trail_entries(element)
-            for entry in reversed(executed):
-                voided = any(
-                    what == entry["when"] if what else (not run or run == entry["run"])
-                    for run, what in markers
-                )
-                if not voided:
-                    records[element_id] = entry
-                break
-            # only the newest entry may stand: an older one is superseded even when unvoided
+            if not executed:
+                continue
+            # Only the newest entry may stand: an older one is superseded even when unvoided.
+            newest = executed[-1]
+            voided = any(
+                what == newest["when"] if what else (not run or run == newest["run"])
+                for run, what in markers
+            )
+            if not voided:
+                records[element_id] = newest
         return records
 
     def invalidated_elements(self) -> list[str]:
-        """Elements whose ✕ marker names the newest record (`what` = its `when`) — only these fork.
-        Coarse markers without a `what` re-run their step in place and never fork."""
+        """Elements whose ✕ marker names the newest record (`what` = its `when`) — only these branch.
+        Coarse markers without a `what` re-run their step in place and never branch."""
         marked: list[str] = []
         for element_id, element in self.elements.items():
             executed, markers = self._trail_entries(element)
@@ -455,6 +460,11 @@ class Studyflow:
             texts.append(declared.text)
             sources.update(re.findall(r"\$([A-Za-z_]\w*)", declared.text))
         return sources, " ".join(texts)
+
+    def mentions(self, text: str, element_id: str) -> bool:
+        """The one staleness rule: a text touches an element when it names its id or its bound name."""
+        name = self.names.get(element_id)
+        return element_id in text or bool(name and name in text)
 
     def is_product(self, element_id: str) -> bool:
         if self._products is None:
@@ -707,10 +717,12 @@ class RunRepo:
         return self.enabled and (self.dir / ".git").is_dir()
 
     def git(
-        self, *args: str, tolerate: bool = False, when: str | None = None,
+        self, *args: str, tolerate: bool = False, when: str | None = None, raw: bool = False,
     ) -> subprocess.CompletedProcess | None:
-        """`tolerate` is for calls whose failure is an answer (no such ref, tag taken), not a broken git."""
-        if not self.enabled:
+        """`tolerate` is for calls whose failure is an answer (no such ref), not a broken git.
+        Without the directory's own `.git`, git would walk up into whatever repository contains
+        it — so every call requires `active`, except `raw` ones that create the repo."""
+        if not self.enabled or not (raw or self.active):
             return None
         env = dict(self.env)
         if when:
@@ -740,7 +752,7 @@ class RunRepo:
         """Init the directory, or adopt one a git-less run left — either way the next commit baselines it."""
         if not self.enabled or (self.dir / ".git").exists():
             return
-        if self.git("-c", "init.defaultBranch=main", "init", "-q") is None:
+        if self.git("-c", "init.defaultBranch=main", "init", "-q", raw=True) is None:
             return
         self.created = True
         who = current_user() or "studyflow-runner"
@@ -762,8 +774,6 @@ class RunRepo:
         when: str | None = None, body: str | None = None,
     ) -> None:
         """One checkpoint: whatever the step wrote, plus the log lines, with its record entries as the body."""
-        if not self.active:
-            return
         lines = [f"{key}: {value}" for key, value in (trailers or {}).items() if value]
         # Trailers must be the message's last block, so the body sits between subject and trailers.
         message = "\n\n".join(part for part in (subject, body, "\n".join(lines)) if part)
@@ -773,8 +783,6 @@ class RunRepo:
 
     def commit_for_node(self, element_id: str) -> str | None:
         """The newest commit that *executed* this element — skips near the tip are not where its work entered."""
-        if not self.active:
-            return None
         done = self.git(
             "log", "-1", "--format=%H", "--all-match",
             f"--grep=^Prov-Node: {re.escape(element_id)}$", "--grep=^Prov-Action: executed$", tolerate=True,
@@ -785,36 +793,28 @@ class RunRepo:
         return found[0] if found else None
 
     def is_ancestor(self, commit: str, other: str) -> bool:
-        if not self.active:
-            return False
         done = self.git("merge-base", "--is-ancestor", commit, other, tolerate=True)
         return done is not None and done.returncode == 0
 
-    def fork(self, branch: str, commit: str | None = None) -> bool:
+    def branch(self, name: str, commit: str | None = None) -> bool:
         """Checking a branch point out is the re-run: what was made after it leaves the worktree with it."""
-        if not self.active:
-            return False
         # No commit means a branch at HEAD, which checks nothing out: the worktree, and the open log, survive.
         if commit is None:
-            done = self.git("switch", "-c", branch, tolerate=True)
+            done = self.git("switch", "-c", name, tolerate=True)
         else:
-            # --discard-changes: what stands in the checkout's way is this invocation's own truncated log.
-            done = self.git("switch", "--discard-changes", "-c", branch, commit, tolerate=True)
+            # --discard-changes: what stands in the checkout's way is this run's own truncated log.
+            done = self.git("switch", "--discard-changes", "-c", name, commit, tolerate=True)
         if done is not None and done.returncode != 0:
-            log_event("git.fork.failed", f"  switch -c {branch}: {done.stderr.strip()}", level=logging.WARNING)
+            log_event("git.branch.failed", f"  switch -c {name}: {done.stderr.strip()}", level=logging.WARNING)
         return done is not None and done.returncode == 0
 
     def current_branch(self) -> str:
         """Empty means a detached HEAD; a branch with no commits yet still answers with its name."""
-        if not self.active:
-            return ""
         done = self.git("symbolic-ref", "--quiet", "--short", "HEAD", tolerate=True)
         return done.stdout.strip() if done is not None and done.returncode == 0 else ""
 
     def dirty(self) -> bool:
-        """`studyflow.log` is left out: every invocation truncates it, which is not an edit from outside."""
-        if not self.active:
-            return False
+        """`studyflow.log` is left out: every run truncates it, which is not an edit from outside."""
         done = self.git("status", "--porcelain", "--", ".", ":(exclude)studyflow.log")
         return bool(done and done.stdout.strip())
 
@@ -861,14 +861,14 @@ class Runner:
         seed: str | None = None,
         fresh: bool = False,
         repo: RunRepo | None = None,
-        forked: bool = False,
+        branched: bool = False,
     ) -> None:
         self.studyflow = studyflow
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
         self.input_sources = input_sources or [Path.cwd()]
         self.repo = repo
-        self.forked = forked
+        self.branched = branched
         self.prepare_inputs = prepare_inputs
         self.values: dict[str, Any] = {}
         self.state = State()
@@ -916,6 +916,12 @@ class Runner:
 
     def moment(self) -> str:
         return trail_timestamp(datetime.now(timezone.utc))
+
+    def note_reuse(self, element_id: str, prior: dict, subject: str) -> None:
+        """One skip: remember the record it trusted (for the `reused` line) and checkpoint it."""
+        when = self.moment()
+        self.reused[element_id] = (when, prior.get("when") or "")
+        self.checkpoint(subject, when, {"Prov-Node": element_id})
 
     def checkpoint(self, subject: str, when: str, extra_trailers: dict[str, str] | None = None) -> None:
         """Record entries since the last checkpoint ride in the commit body — git is their only home."""
@@ -1037,9 +1043,7 @@ class Runner:
             return True
         for tainted_id in self.tainted:
             name = self.studyflow.names.get(tainted_id)
-            if tainted_id in expressions:
-                return True
-            if name and (name in sources or name in expressions):
+            if self.studyflow.mentions(expressions, tainted_id) or (name and name in sources):
                 return True
         return False
 
@@ -1059,8 +1063,7 @@ class Runner:
 
         def eats(consumer: str, data_id: str) -> bool:
             sources, expressions = depends.get(consumer) or (set(), "")
-            name = flow.names.get(data_id)
-            return data_id in sources or data_id in expressions or bool(name and name in expressions)
+            return data_id in sources or flow.mentions(expressions, data_id)
 
         # Roots re-run and taint: no surviving record, or a recorded artifact the worktree no longer has.
         tainting: set[str] = set()
@@ -1087,26 +1090,17 @@ class Runner:
         for element_id, element in flow.elements.items():
             if local(element) not in GATEWAY_TAGS:
                 continue
-            conditions = " ".join(
-                (c.text or "")
-                for f in flow.outgoing.get(element_id, []) for c in f
-                if local(c) == "conditionExpression"
-            )
+            flows = flow.outgoing.get(element_id, [])
+            conditions = condition_text(flows)
             if not conditions.strip():
                 continue
             prior = self.prior_records.get(element_id)
-            replayable = bool(prior and prior.get("what"))
-            tainted_condition = any(
-                t in conditions or bool(flow.names.get(t)) and flow.names[t] in conditions
-                for t in tainting
-            )
-            if replayable and not tainted_condition:
+            if prior and prior.get("what") and not self.stale_expressions(flows, tainting):
                 continue
-            for data_id, maker in produced.items():
-                if flow.artifact(data_id)[0] is None and (
-                    data_id in conditions or bool(flow.names.get(data_id)) and flow.names[data_id] in conditions
-                ):
-                    gateway_pull.add(maker)
+            gateway_pull.update(
+                maker for data_id, maker in produced.items()
+                if flow.artifact(data_id)[0] is None and flow.mentions(conditions, data_id)
+            )
         # Backward: whoever binds a memory-only (or missing) input of a running element must run as well.
         demanded: set[str] = set()
         queue = list(tainting | gateway_pull)
@@ -1123,18 +1117,11 @@ class Runner:
                     queue.append(maker)
         return demanded
 
-    def stale_expressions(self, flows: list[ET.Element]) -> bool:
+    def stale_expressions(self, flows: list[ET.Element], tainted: set[str] | None = None) -> bool:
         """A gateway is stale when a condition on any of its flows reads something re-made this run."""
-        if not self.tainted:
-            return False
-        text = " ".join(
-            (c.text or "") for f in flows for c in f if local(c) == "conditionExpression"
-        )
-        for tainted_id in self.tainted:
-            name = self.studyflow.names.get(tainted_id)
-            if tainted_id in text or (name and name in text):
-                return True
-        return False
+        tainted = self.tainted if tainted is None else tainted
+        text = condition_text(flows)
+        return any(self.studyflow.mentions(text, tainted_id) for tainted_id in tainted)
 
     def skip_activity(self, element: ET.Element, element_id: str) -> str:
         """Verdicts: `skipped`, `volatile` (a memory-only output someone needs), `invalid` (artifact gone)."""
@@ -1178,11 +1165,7 @@ class Runner:
             if verdict == "skipped":
                 self.event("activity.skipped", f"↻ {element_id}  (outputs from run {prior_run})")
                 replay()
-                self.reused[element_id] = (self.moment(), prior.get("when") or "")
-                self.checkpoint(
-                    f"skipped {element_id} (run {prior_run})", self.moment(),
-                    {"Prov-Node": element_id},
-                )
+                self.note_reuse(element_id, prior, f"skipped {element_id} (run {prior_run})")
                 return
         name = self.studyflow.name_of(element_id)
         self.event("activity.started", f"□ {element_id}")
@@ -1355,11 +1338,7 @@ class Runner:
                         "gateway.replayed",
                         f"↻ {element_id} → {prior['what']}  (decision from run {prior['run']})",
                     )
-                    self.reused[element_id] = (self.moment(), prior.get("when") or "")
-                    self.checkpoint(
-                        f"skipped {element_id} ({prior['what']}, run {prior['run']})", self.moment(),
-                        {"Prov-Node": element_id},
-                    )
+                    self.note_reuse(element_id, prior, f"skipped {element_id} ({prior['what']}, run {prior['run']})")
                     return self.studyflow.elements.get(flow.get("targetRef"))
             entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
             default_id = element.get("default")
@@ -1497,45 +1476,36 @@ class Runner:
 
     def archive_plan(self, source: Path) -> Path:
         self.repo_dir.mkdir(parents=True, exist_ok=True)
-        # Skipped steps keep the record of the run that did the work. A forked run *supersedes*
+        # Skipped steps keep the record of the run that did the work. A branching run *supersedes*
         # work records instead of replacing them — the first branch's stay, so the trail shows both
         # branches — while structural pass-throughs (events, containers) always replace in place.
-        def replaced(action: str, element_id: str | None = None) -> str | None:
-            if not self.forked:
+        # `reused` lines are always replaced too: the trail carries each element's latest reuse only.
+        STRUCTURAL = END_TAGS | PASSTHROUGH_TAGS | CONTAINER_TAGS
+
+        def replaced(action: str, element_id: str) -> str | None:
+            if not self.branched or action == "reused":
                 return action
-            element = self.studyflow.elements.get(element_id) if element_id else None
-            tag = local(element) if element is not None else ""
-            return action if tag.endswith("Event") or tag in CONTAINER_TAGS else None
+            return action if local(self.studyflow.elements[element_id]) in STRUCTURAL else None
+
+        entries = [
+            *((eid, "executed", {}) for eid in sorted(self.completed | self.reached)),
+            *((eid, "executed", {"what": flow_id}) for eid, (flow_id, _) in sorted(self.decisions.items())),
+            *((eid, "created", {}) for eid in sorted(self.produced)),
+            *((eid, "imported", {}) for eid in sorted(self.staged) if eid not in self.produced),
+            *((eid, "reused", {"what": trusted}) for eid, (_, trusted) in sorted(self.reused.items())),
+        ]
+        # `produced` after `staged`: an input re-made this run stamps with the moment it was produced.
+        moments = {
+            **self.staged, **self.completed, **self.reached, **self.produced,
+            **{eid: when for eid, (_, when) in self.decisions.items()},
+            **{eid: when for eid, (when, _) in self.reused.items()},
+        }
         stamped = self.studyflow.plan
         run = self.repo_dir.name
-        for element_id, when in sorted((self.completed | self.reached).items()):
+        for element_id, action, extra in entries:
             stamped = insert_element_entry(
-                stamped, element_id, replace_action=replaced("executed", element_id),
-                action="executed", when=when, run=run,
-            )
-        for element_id, (flow_id, when) in sorted(self.decisions.items()):
-            stamped = insert_element_entry(
-                stamped, element_id, replace_action=replaced("executed"),
-                action="executed", when=when, what=flow_id, run=run,
-            )
-        for element_id, when in sorted(self.produced.items()):
-            stamped = insert_element_entry(
-                stamped, element_id, replace_action=replaced("created"),
-                action="created", when=when, run=run,
-            )
-        for element_id, when in sorted(self.staged.items()):
-            if element_id in self.produced:
-                continue
-            stamped = insert_element_entry(
-                stamped, element_id, replace_action=replaced("imported"),
-                action="imported", when=when, run=run,
-            )
-        # A skip leaves a `reused` line pointing (`what`) at the record it trusted — always
-        # replaced in place, so the trail carries each element's latest reuse and no more.
-        for element_id, (when, trusted) in sorted(self.reused.items()):
-            stamped = insert_element_entry(
-                stamped, element_id, replace_action="reused",
-                action="reused", when=when, what=trusted, run=run,
+                stamped, element_id, replace_action=replaced(action, element_id),
+                action=action, when=moments[element_id], run=run, **extra,
             )
         plan = self.repo_dir / source.name
         write_plan_copy(source, plan, stamped)
@@ -1575,7 +1545,7 @@ def resolve_repo_dir(explicit: Path | None, plan: Path, started: datetime) -> Pa
 
 
 def branch_point(repo: RunRepo, invalidated: list[str], from_ref: str | None) -> str | None:
-    """Where a re-run forks: `--from`'s own commit, else the furthest back of the invalidated elements'."""
+    """Where a re-run branches: `--from`'s own commit, else the furthest back of the invalidated elements'."""
     if from_ref:
         return from_ref
     earliest: str | None = None
@@ -1651,28 +1621,28 @@ def main() -> int:
         "seed": seed,
     })
     # The plan is read before the fork below, because forking reverts the copy this may be reading from.
-    # The fork also has first claim on the invocation's branch name — a detached HEAD only attaches without one.
+    # Branching has first claim on the run's branch name — a detached HEAD only attaches without one.
     invalidated = probe.invalidated_elements()
-    forked = False
+    branched = False
     if repo.active and (args.from_ref or invalidated):
         point = branch_point(repo, invalidated, args.from_ref)
-        # Branches are the only refs — invocations live as `started`/`finished` boundary commits.
+        # Branches are the only refs — runs live as `started`/`finished` boundary commits.
         branch = f"run/{stamp}"
-        if point and repo.fork(branch, f"{point}^"):
-            forked = True
-            # The checkout replaced the file the log handler had open; this invocation's log starts here.
+        if point and repo.branch(branch, f"{point}^"):
+            branched = True
+            # The checkout replaced the file the log handler had open; this run's log starts here.
             start_logging(repo_dir, args.quiet)
             log_event("git.branched", f"  {branch} at the parent of {point} — re-running from there")
         elif not point:
             log_event(
                 "git.branchpoint.missing",
                 f"  {args.from_ref or ', '.join(invalidated)} has no commit this history can branch at — "
-                "re-running in place instead of forking",
+                "re-running in place instead of branching",
                 level=logging.WARNING,
             )
-    if repo.active and not forked and not repo.current_branch():
-        # A tag or a commit checked out by hand: this invocation gets a branch, not commits nothing points at.
-        if repo.fork(f"run/{stamp}"):
+    if repo.active and not branched and not repo.current_branch():
+        # A commit checked out by hand: this run gets a branch, not commits nothing points at.
+        if repo.branch(f"run/{stamp}"):
             log_event("git.branched", f"  run/{stamp} at the detached HEAD this run started from")
 
     # Archived before the first step, so a killed run still leaves a readable plan behind.
@@ -1685,7 +1655,7 @@ def main() -> int:
         started=started,
         prepare_inputs=not args.no_prepare_inputs,
         seed=seed, fresh=args.fresh,
-        repo=repo, forked=forked,
+        repo=repo, branched=branched,
     )
     # The trailers of a commit that stamps no element are the document stamp's own attributes.
     document_stamp = {

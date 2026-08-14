@@ -263,7 +263,7 @@ test.describe('provenance view model', () => {
     const consumed = records.find((r) => r.scopeId === task.id && r.action === 'invalidated')!;
     expect(graph.get(consumed)!.opens).toBe(1);
     const pending = records.find((r) => r.scopeId === other.id && r.action === 'invalidated')!;
-    expect(graph.get(pending)!.pendingFork).toBe(true);
+    expect(graph.get(pending)!.pendingBranch).toBe(true);
   });
 
   test('two invalidations of the first branch open two separate lanes', async () => {

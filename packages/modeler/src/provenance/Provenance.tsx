@@ -6,6 +6,7 @@ import { getStoredUserEmail } from '@modeler/settings/store';
 import {
   assignLanes,
   collectProvenance,
+  displayOrder,
   recordDetails,
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
@@ -14,9 +15,6 @@ import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };
-
-// Dots take their lane's color — color separates branches, nothing else; red is invalidation's alone.
-const LANE_FILLS = ['bg-stone-400', 'bg-violet-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500'];
 
 // Icons standing in for the `recordDetails` labels (who/with/run/seed/what).
 const DETAIL_ICONS: Record<string, string> = {
@@ -27,16 +25,18 @@ const DETAIL_ICONS: Record<string, string> = {
   what: ICONS.script,
 };
 
-// One stroke color per graph lane, `git log --graph` style; main is the quiet one.
-const LANE_STROKES = [
-  'stroke-stone-300/70',
-  'stroke-violet-400/70',
-  'stroke-sky-400/70',
-  'stroke-amber-400/70',
-  'stroke-emerald-400/70',
+// One hue per graph lane, `git log --graph` style — color separates branches, nothing else;
+// main is the quiet one and red is invalidation's alone. Literal class strings, for Tailwind.
+const LANES = [
+  { dot: 'bg-stone-400', stroke: 'stroke-stone-300/70' },
+  { dot: 'bg-violet-500', stroke: 'stroke-violet-400/70' },
+  { dot: 'bg-sky-500', stroke: 'stroke-sky-400/70' },
+  { dot: 'bg-amber-500', stroke: 'stroke-amber-400/70' },
+  { dot: 'bg-emerald-500', stroke: 'stroke-emerald-400/70' },
 ];
-const laneX = (lane: number) => lane * 12 + 4.5;
-const laneStroke = (lane: number) => LANE_STROKES[lane % LANE_STROKES.length];
+const LANE_W = 12;
+const laneOf = (lane: number) => LANES[lane % LANES.length];
+const laneX = (lane: number) => lane * LANE_W + 4.5;
 // The element-shape icons sit in their own left column, outside the tree, so they align.
 const ICON_GUTTER = 22;
 
@@ -49,7 +49,7 @@ function shortWhen(when?: string): string | undefined {
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useRequiredModeler();
-  const [, bumpRevision] = useReducer((n: number) => n + 1, 0);
+  const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     const eventBus = modeler?.get?.('eventBus', false);
     if (!eventBus) return undefined;
@@ -59,19 +59,21 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
 
   // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.
   const [scope, setScope] = useState(scopeId);
-  const allRecords = collectProvenance(modeler?.getDefinitions?.());
-  const records = scope ? allRecords.filter((r) => r.scopeId === scope) : allRecords;
-  // The lane model is index-based, so the graph is computed on exactly the rows shown.
   const [showReused, setShowReused] = useState(true);
-  const hasReused = records.some((r) => r.action === 'reused');
-  const visible = showReused ? records : records.filter((r) => r.action !== 'reused');
+  const allRecords = useMemo(
+    () => collectProvenance(modeler?.getDefinitions?.()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
+    [modeler, revision],
+  );
+  const hasReused = allRecords.some((r) => r.action === 'reused');
+  // The lane model is index-based, so the graph is computed on exactly the rows shown; the
+  // filter always copies, keeping the memoized array safe from `displayOrder`'s splices.
+  const visible = displayOrder(allRecords.filter((r) =>
+    (!scope || r.scopeId === scope) && (showReused || r.action !== 'reused')));
   const graph = assignLanes(visible);
   const laneCount = visible.length ? (graph.get(visible[0])?.laneCount ?? 1) : 1;
-  // Room for every lane plus a pending-fork stub curving right of the last one.
-  const gutter = (laneCount + 1) * 12;
-  const scopeLabel = scope
-    ? modeler?.get?.('elementRegistry', false)?.get?.(scope)?.businessObject?.id || scope
-    : null;
+  // Room for every lane plus a pending-branch stub curving right of the last one.
+  const gutter = (laneCount + 1) * LANE_W;
 
   const commandStack = modeler?.get?.('commandStack', false);
   const canUndo = !!commandStack?.canUndo?.();
@@ -89,14 +91,10 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   };
 
   // A `run` names a run repository; each document-level `executed` stamp is one run of the study.
-  const { repoCount, studyRuns, repoName } = useMemo(() => {
-    const repos = new Set(records.filter((r) => r.run).map((r) => r.run));
-    return {
-      repoCount: repos.size,
-      studyRuns: records.filter((r) => r.isDocument && r.action === 'executed').length,
-      repoName: repos.size === 1 ? [...repos][0] : null,
-    };
-  }, [records]);
+  const repos = new Set(visible.filter((r) => r.run).map((r) => r.run));
+  const repoCount = repos.size;
+  const studyRuns = visible.filter((r) => r.isDocument && r.action === 'executed').length;
+  const repoName = repos.size === 1 ? [...repos][0] : null;
   // The modeler never reads the repository itself — the terminal does; this hands over the reins.
   const repoRecipe = repoName ? `git -C runs/${repoName} log --graph --oneline --all` : null;
   const [copied, setCopied] = useState(false);
@@ -161,7 +159,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
               <p className="text-xs text-stone-500 pb-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-200/70 px-2 py-0.5">
                   <i className={`${ICONS.filter} size-3 shrink-0`} aria-hidden="true" />
-                  <span className="font-mono truncate max-w-[16rem]" title={scope}>{scopeLabel}</span>
+                  <span className="font-mono truncate max-w-[16rem]">{scope}</span>
                   <button
                     type="button"
                     onClick={() => setScope(undefined)}
@@ -174,7 +172,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 </span>
               </p>
             )}
-            {records.length > 0 && (
+            {allRecords.length > 0 && (
               <p className="text-xs text-stone-500 pb-3 flex items-center">
                 <span>
                   <strong>{visible.length}</strong> {visible.length === 1 ? 'entry' : 'entries'}
@@ -227,7 +225,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
             {visible.length === 0 ? (
               <p className="text-sm text-stone-500 italic">
                 {scope
-                  ? <>No provenance recorded for <span className="font-mono not-italic">{scopeLabel}</span> yet.</>
+                  ? <>No provenance recorded for <span className="font-mono not-italic">{scope}</span> yet.</>
                   : 'This diagram carries no provenance trail yet.'}
               </p>
             ) : (
@@ -258,7 +256,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                             y1={ln.fromDot ? 16 : ln.fromCurve ? 14 : 0}
                             x2={laneX(ln.lane)}
                             y2={ln.toDot ? 16 : '100%'}
-                            className={laneStroke(ln.lane)}
+                            className={laneOf(ln.lane).stroke}
                             strokeWidth="1.5"
                           />
                         ))}
@@ -267,12 +265,12 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                           // the opened lane's own line takes over seamlessly.
                           <path
                             d={`M ${laneX(g.lane)} 21 C ${laneX(g.lane)} 34, ${laneX(g.opens)} 30, ${laneX(g.opens)} 46`}
-                            className={`fill-none ${laneStroke(g.opens)}`}
+                            className={`fill-none ${laneOf(g.opens).stroke}`}
                             strokeWidth="1.5"
                             strokeLinecap="round"
                           />
                         )}
-                        {g.pendingFork && (
+                        {g.pendingBranch && (
                           <path
                             d={`M ${laneX(g.lane)} 21 C ${laneX(g.lane)} 31, ${laneX(g.lane) + 12} 28, ${laneX(g.lane) + 12} 42`}
                             className="fill-none stroke-red-400/80"
@@ -283,7 +281,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         )}
                       </svg>
                       <span
-                        className={`absolute top-[11.5px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : LANE_FILLS[g.lane % LANE_FILLS.length]}`}
+                        className={`absolute top-[11.5px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : laneOf(g.lane).dot}`}
                         style={{ left: ICON_GUTTER + g.lane * 12 }}
                         aria-hidden="true"
                       />
@@ -301,7 +299,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         >
                           {r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId}
                         </span>
-                        {r.action === 'invalidated' && !r.isDocument && r.what && !r.consumed && (
+                        {g.pendingBranch && (
                           <span
                             className="inline-flex items-center gap-1 text-[11px] text-red-500/90 whitespace-nowrap"
                             title="The next run starts a new run/<stamp> branch just before this step — only the step and what depends on it re-execute"
@@ -339,7 +337,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         >
                           {shortWhen(r.when) ?? '—'}
                         </span>
-                        {!r.isDocument && r.action === 'executed' && !voided && !r.superseded && (
+                        {r.standing && (
                           <button
                             type="button"
                             onClick={() => invalidate(r)}
