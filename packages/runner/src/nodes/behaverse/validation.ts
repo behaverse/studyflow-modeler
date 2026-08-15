@@ -8,7 +8,7 @@ export async function fetchManifest(unityBuildUrl: string): Promise<Manifest> {
   const url = `${unityBuildUrl.replace(/\/$/, '')}/StreamingAssets/Studyflow/manifest.json`;
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to load Unity manifest: ${response.status} ${response.statusText}`);
+    throw new Error(`${url} responded ${response.status} ${response.statusText}`);
   }
   return (await response.json()) as Manifest;
 }
@@ -28,7 +28,8 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
   if (!manifestTask) {
     return [{
       nodeId: node.id,
-      message: `Unknown task '${payload.scene}' (not in Unity manifest).`,
+      message: `The Unity build ships no task called '${payload.scene}'. `
+        + `Set behaverseScene to one of: ${manifest.tasks.map((t) => t.id).join(', ')}.`,
     }];
   }
 
@@ -41,7 +42,8 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
   if (!authored || Object.keys(authored).length === 0) {
     issues.push({
       nodeId: node.id,
-      message: `Empty configurations on '${payload.scene}'. Provide a GameConfig YAML body - list a build-shipped timeline by name under Timelines (e.g. XCIT_NB_01), or define one inline with its own blocks.`,
+      message: `'${payload.scene}' has no configurations, so it has no trials to run. `
+        + 'Under Timelines, name a timeline the build ships (e.g. XCIT_NB_01), or define one inline with its own blocks.',
     });
   } else {
     const timelines = authored.Timelines as Record<string, unknown> | undefined;
@@ -50,7 +52,10 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
         if (def == null && !manifestTask.timelines.includes(name)) {
           issues.push({
             nodeId: node.id,
-            message: `Unknown timeline '${name}' for task '${payload.scene}'.`,
+            message: `'${payload.scene}' has no timeline called '${name}' in the Unity build. `
+              + (manifestTask.timelines.length > 0
+                ? `Use one of: ${manifestTask.timelines.join(', ')}.`
+                : 'The build ships none for this task, so define the timeline inline.'),
           });
         }
       }
@@ -66,14 +71,15 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
       } catch (err) {
         issues.push({
           nodeId: node.id,
-          message: `Invalid bot YAML on '${payload.scene}': ${(err as Error).message}`,
+          message: `botConfigurations on '${payload.scene}' is not valid YAML: ${(err as Error).message}. Check the indentation and quoting.`,
         });
         return issues;
       }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         issues.push({
           nodeId: node.id,
-          message: `bot YAML on '${payload.scene}' must be a flat object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
+          message: `botConfigurations on '${payload.scene}' must be a mapping of setting names to values, `
+            + `one per line (got ${Array.isArray(parsed) ? 'a list' : typeof parsed}).`,
         });
         return issues;
       }
@@ -83,7 +89,8 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
         if (v !== null && typeof v === 'object') {
           issues.push({
             nodeId: node.id,
-            message: `bot YAML on '${payload.scene}' must be flat (no nested objects/arrays) - key '${k}' has a nested ${Array.isArray(v) ? 'array' : 'object'}.`,
+            message: `botConfigurations on '${payload.scene}' must stay flat, but '${k}' holds a nested ${Array.isArray(v) ? 'list' : 'mapping'}. `
+              + 'Move its entries up to top-level settings.',
           });
           break;
         }

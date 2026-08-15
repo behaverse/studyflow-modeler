@@ -39,7 +39,7 @@ export async function loadExampleEntries(): Promise<ExampleEntry[]> {
         return { ...entry, ...readExampleMetadata(entry.filename, png) };
       } catch (err) {
         console.error(`Failed to read example ${entry.filename}:`, err);
-        return { ...entry, error: 'Failed to read this example.' };
+        return { ...entry, error: 'Could not be read. Reload the page to try again.' };
       }
     }),
   );

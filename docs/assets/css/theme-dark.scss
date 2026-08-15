@@ -1,0 +1,81 @@
+/*-- scss:defaults --*/
+
+// Warm dark ground, not an inversion of the cream: same paper character, lower key.
+// Quarto's $brand-* vars only exist in scss:rules, so the dark palette is declared here.
+$dark-ink: #1a1714;
+$dark-ink-warm: #221e18;
+$dark-ink-raised: #221f19;
+$dark-border: #3a342b;
+$dark-parchment: #e6e0d4;
+$dark-parchment-muted: #a8a08f;
+$dark-sky: #8fb8e0;
+$dark-sky-bright: #b6d3ef;
+$dark-code-text: #d9c39a;
+$dark-green: #7fbf8f;
+$dark-green-bg: #242820;
+$dark-indigo: #9aaef0;
+$dark-indigo-bg: #27262a;
+$dark-note: #d6b97a;
+$dark-note-bg: #2d271e;
+
+$body-bg: $dark-ink;
+$body-color: $dark-parchment;
+$body-secondary-color: $dark-parchment-muted;
+$body-secondary-bg: $dark-ink-warm;
+$body-tertiary-bg: $dark-ink-raised;
+$body-emphasis-color: #f5f1e8;
+$headings-color: $dark-parchment;
+
+$link-color: $dark-sky;
+$link-hover-color: $dark-sky-bright;
+
+$border-color: $dark-border;
+$hr-color: $dark-border;
+$callout-color-note: $dark-sky; // Bootstrap's stock blue is too cold and too dark on this ground
+
+$sidebar-bg: $dark-ink-warm;
+$sidebar-fg: $dark-parchment;
+
+$code-bg: $dark-ink-raised;
+$code-color: $dark-code-text;
+$code-block-bg: $dark-ink-raised;
+
+$table-bg: transparent;
+$table-color: $dark-parchment;
+$table-border-color: $dark-border;
+$table-striped-bg: rgba(255, 255, 255, 0.03);
+$table-hover-bg: rgba(255, 255, 255, 0.05);
+
+$input-bg: $dark-ink-raised;
+$input-color: $dark-parchment;
+$input-border-color: $dark-border;
+$card-bg: $dark-ink-warm;
+$card-border-color: $dark-border;
+$dropdown-bg: $dark-ink-warm;
+$dropdown-border-color: $dark-border;
+$dropdown-link-color: $dark-parchment;
+$dropdown-link-hover-bg: $dark-ink-raised;
+
+/*-- scss:rules --*/
+
+:root {
+  --doc-bg: #{$dark-ink};
+  --doc-sidebar-bg: #{$dark-ink-warm};
+  --doc-border: #{$dark-border};
+  --doc-text: #{$dark-parchment};
+  --doc-muted: #{$dark-parchment-muted};
+  --doc-link: #{$dark-sky};
+  --doc-link-hover: #{$dark-sky-bright};
+  --doc-link-underline: #{rgba($dark-sky, 0.4)};
+  --doc-code-bg: #{$dark-ink-raised};
+  --doc-code-text: #{$dark-code-text};
+  --doc-code-border: #{$dark-border};
+  --doc-green: #{$dark-green};
+  --doc-green-bg: #{$dark-green-bg};
+  --doc-indigo: #{$dark-indigo};
+  --doc-indigo-bg: #{$dark-indigo-bg};
+  --doc-note: #{$dark-note};
+  --doc-note-bg: #{$dark-note-bg};
+  --doc-badge-text: #{$dark-ink};
+  --doc-figure-mat: #f2efe6; // diagrams are drawn in dark ink, so they keep a paper mat here
+}

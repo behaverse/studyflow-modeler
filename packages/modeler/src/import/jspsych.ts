@@ -42,13 +42,13 @@ export function parseTimeline(input: JsPsychTimelineInput): JsPsychNode[] {
     try {
       value = JSON.parse(value);
     } catch (error) {
-      throw new Error(`jsPsych import: input is not valid JSON (${(error as Error).message}).`);
+      throw new Error(`jsPsych import: the file is not valid JSON (${(error as Error).message}). Export it again from jsPsych and try again.`);
     }
   }
 
   const asNodes = (entries: unknown[]): JsPsychNode[] => {
     if (entries.length === 0 || !entries.every((n) => n && typeof n === 'object' && !Array.isArray(n))) {
-      throw new Error('jsPsych import: this JSON does not look like a jsPsych timeline (expected a non-empty array of trial objects).');
+      throw new Error('jsPsych import: this JSON does not look like a jsPsych timeline (expected a non-empty array of trials). Choose the file holding your timeline and try again.');
     }
     return entries as JsPsychNode[];
   };
@@ -57,7 +57,7 @@ export function parseTimeline(input: JsPsychTimelineInput): JsPsychNode[] {
   if (value && typeof value === 'object' && Array.isArray((value as { timeline?: unknown }).timeline)) {
     return asNodes((value as { timeline: unknown[] }).timeline);
   }
-  throw new Error('jsPsych import: expected a timeline array or an object with a `timeline` array.');
+  throw new Error('jsPsych import: expected a timeline array, or an object with a `timeline` array. Choose the file holding your timeline and try again.');
 }
 
 function camelToKebab(name: string): string {

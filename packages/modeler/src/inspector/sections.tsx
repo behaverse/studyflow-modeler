@@ -44,12 +44,9 @@ import {
 } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
 
-const TOP_HELP = 'Name of the participant in the top band — BPMN’s own '
-  + '`participantRef` (top band first). Double-clicking the band edits the same field.';
-const BOTTOM_HELP = 'Name of the participant in the bottom band — the second '
-  + 'of BPMN’s `participantRef` entries. Double-clicking the band edits the same field.';
-const INITIATOR_HELP = 'Which participant initiates the interaction — BPMN’s '
-  + '`initiatingParticipantRef`. The initiating band is drawn light, the other shaded.';
+const TOP_HELP = 'Who takes the top band';
+const BOTTOM_HELP = 'Who takes the bottom band';
+const INITIATOR_HELP = 'Which participant starts the interaction; its band is drawn light, the other shaded.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
   const businessObject = element?.businessObject ?? element;
@@ -120,11 +117,8 @@ function ParticipantFields({ element }: { element: any }) {
   );
 }
 
-const OPENS_A_SCOPE = 'This element opens a scope: what it declares lives for one instance of it.';
-
 const SCOPE_DESCRIPTION =
-  'The bpmn:Property children this element declares: values a run carries, '
-  + 'typed and never drawn. Conditions read them by name (`arm == "treatment"`).';
+  'This element opens a scope and values declared here live for one instance of it';
 
 export function StateSection() {
   const element = useInspectedElement();
@@ -158,7 +152,7 @@ export function StateSection() {
             <HelpTooltip
               testId="state-scope-help"
               name="bpmn:Property"
-              description={`${OPENS_A_SCOPE} ${SCOPE_DESCRIPTION}`}
+              description={SCOPE_DESCRIPTION}
             />
           </span>
         </div>
@@ -270,12 +264,10 @@ function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldPr
 const KIND_OPTIONS: LoopKind[] = ['none', 'loop', 'parallel', 'sequential'];
 
 const KIND_DESCRIPTION =
-  'How this activity repeats: a loop (↻) retries it while its condition holds, '
-  + 'while parallel (∥) and sequential (≡) fan out one instance per item of the '
-  + 'associated collection. A repeat spanning several steps is a drawn cycle instead.';
+  'How this activity repeats: a conditional loop, parallel, or sequential.';
 
 const LOOP_MAXIMUM_DESCRIPTION =
-  'Hard ceiling on iterations. Always set one — it is the loop\'s guaranteed termination bound.';
+  'Maximum iterations — always set one, so the loop is guaranteed to end.';
 
 const TEST_BEFORE_DESCRIPTION =
   'Evaluate the loop condition before each iteration (while-do) instead of after it (do-while).';
@@ -415,21 +407,13 @@ export function LoopSection() {
   );
 }
 
-const HOW_ASSOCIATIONS_ARE_MADE =
-  ' Drawn associations are read-only here; make a property\'s association with +. A row '
-  + 'tagged with another container reaches out of this sub-process, so it has '
-  + 'no line on this canvas.';
-
 const INPUT_DESCRIPTION =
-  'What this step reads, each row the assignment it performs: the slot on the '
-  + 'left receives the element on the right. A blank slot binds by the '
-  + 'element\'s own name; `self` and `*` bind positionally; the slot may carry '
-  + 'its own selection (`X = folds[\'train\']`).' + HOW_ASSOCIATIONS_ARE_MADE;
+  'What this step reads: each row gives the slot on the left the element on the '
+  + 'right (`X = folds[\'train\']`), and + adds one.';
 
 const OUTPUT_DESCRIPTION =
-  'Where this step\'s return value lands, each row the assignment it performs: '
-  + 'the element on the left receives the selection over `result` on the right '
-  + '(blank lands the whole value).' + HOW_ASSOCIATIONS_ARE_MADE;
+  'Where this step\'s return value lands: each row gives the element on the left a '
+  + 'selection over `result` (blank lands the whole value), and + adds one.';
 
 type Direction = 'input' | 'output';
 
@@ -481,7 +465,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
           {neighbor.outerScope && (
             <span
               className={s.dataFlowScope}
-              title={`Declared in ${neighbor.outerScope}. BPMN draws that scope on another plane, so this association has no line on this canvas.`}
+              title={`Declared in ${neighbor.outerScope}, which is drawn on its own canvas.`}
             >
               in {neighbor.outerScope}
             </span>

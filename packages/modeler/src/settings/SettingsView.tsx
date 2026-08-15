@@ -37,7 +37,7 @@ function AboutSection() {
   const version = (import.meta as any).env?.APP_VERSION ?? 'dev';
   return (
     <>
-      <SectionHeader title="About" description="Studyflow Modeler is an authoring tool for scientific research workflows." />
+      <SectionHeader title="About" description="Draw, simulate, and publish studyflows. Built on BPMN 2.0." />
 
       <Row label="Version" control={<span className={s.valueChip}>{String(version)}</span>} />
       <Row
@@ -110,7 +110,7 @@ function AccountSection() {
 
   function loginWithGoogle() {
     if (!API_BASE_ORIGIN) {
-      setLoginError('Sign-in is unavailable: the API base URL is not configured as an absolute URL.');
+      setLoginError('Sign-in is unavailable: this build has no server address. Keep working as a guest.');
       return;
     }
     setLoginError(undefined);
@@ -128,7 +128,7 @@ function AccountSection() {
 
     if (!popup) {
       setLoginPending(false);
-      setLoginError('Popup blocked. Allow popups and try again.');
+      setLoginError('The browser blocked the Google sign-in window. Allow pop-ups for this site and try again.');
       return;
     }
 
@@ -167,13 +167,13 @@ function AccountSection() {
 
   return (
     <>
-      <SectionHeader title="Account" />
+      <SectionHeader title="Account" description="Sign in to publish studyflows and record runs." />
 
       <Row
         label="Status"
         help={
           isGuest
-            ? 'You are working as a guest. Diagrams stay on this device.'
+            ? 'You are working as a guest. Studyflows stay on this device.'
             : email
               ? <>Signed in as <strong className="font-semibold text-stone-900">{email}</strong></>
               : 'Signed in.'
@@ -208,7 +208,7 @@ function AccountSection() {
       {!isGuest && (
         <Row
           label="API key"
-          help="Stored locally on this browser. Keep your key secret, anyone with this key can act as you."
+          help="Stored in this browser only. Keep it secret, anyone holding it can act as you."
           control={
             <div className="relative inline-block">
               <input
@@ -257,8 +257,8 @@ function EditorSection() {
       />
 
       <Row
-        label="Auto-save diagram"
-        help="Save the current diagram to this browser as you edit, so it persists across reloads."
+        label="Auto-save"
+        help="Keep the diagram you are editing in this browser, so it persists across a reload."
         control={
           <SelectControl
             label="Auto-save"
@@ -278,6 +278,17 @@ function EditorSection() {
 function diagnosticsFor(prefix: string): string[] {
   return schemaDiagnostics().filter((diagnostic) => diagnostic.startsWith(`[${prefix} `) || diagnostic.startsWith(`[${prefix}]`));
 }
+
+/** One line per extension, kept short for the row; the schema files carry the longer prose. */
+const EXTENSION_SUMMARY: Record<string, string> = {
+  studyflow: 'The study, its events, flows, data elements, and execution details.',
+  prov: 'Provenance trail: who changed this studyflow, with which tool, when.',
+  functional: 'Data operations — transform, map, reduce, filter — and ready-made presets.',
+  cognitive: 'Cognitive tasks, questionnaires, instructions, rest, actors, and assignment gateways.',
+  agentic: 'Agent steps: model calls, tools, routing, memory, and human approval.',
+  ml: 'Presets for splitting, fitting, cross-validating, evaluating, and saving models.',
+  eeg: 'EEG sessions, the recordings they produce, and preprocessing presets.',
+};
 
 function ExtensionsSection() {
   const { settings, update } = useSettings();
@@ -303,7 +314,7 @@ function ExtensionsSection() {
     <>
       <SectionHeader
         title="Extensions"
-        description="Choose which extension the modeler loads. Disabled schemas are excluded from the palette and won't be recognized when opening diagrams."
+        description="Which element sets the modeler loads. A disabled set leaves the palette and opened files."
       />
 
       {dirty && (
@@ -325,22 +336,24 @@ function ExtensionsSection() {
         <Row
           key={failure.sourceName}
           label={`${failure.sourceName} (not loaded)`}
-          help={`This schema file failed to parse and was skipped: ${failure.message}`}
+          help={`Could not be read, so its elements are missing. Reload the page, and report this if it persists — ${failure.message}`}
           control={<i className="iconify bi--exclamation-triangle text-red-600" title="Failed to load" aria-label="Failed to load" />}
         />
       ))}
 
       {SCHEMAS.map((schema) => {
         const diagnostics = diagnosticsFor(schema.prefix);
-        const help = schema.core ? `${schema.description} Core schemas cannot be disabled.` : schema.description;
+        const help = EXTENSION_SUMMARY[schema.prefix] ?? schema.description;
+        // `(always on)` rather than `(core)`: the studyflow schema is itself named "Core".
+        const label = schema.core ? `${schema.name} (always on)` : schema.name;
         return (
           <Row
             key={schema.prefix}
-            label={schema.core ? `${schema.name} (core)` : schema.name}
+            label={label}
             help={diagnostics.length > 0 ? `${help} ⚠ ${diagnostics.join(' — ')}` : help}
             control={
               <ToggleControl
-                label={`Enable ${schema.name} schema`}
+                label={`Load the ${schema.name} elements`}
                 checked={schema.core || enabled.has(schema.prefix)}
                 onChange={(on) => toggle(schema.prefix, on)}
                 disabled={schema.core}
@@ -362,7 +375,7 @@ function formatBytes(n: number): string {
 function PrivacySection() {
   const { reset } = useSettings();
   const [estimate, setEstimate] = useState(() => getStorageEstimate());
-  /** The runner's own "Record events" toggle drives this same `core/settings` key. */
+  /** The browser runner's own "Record events" toggle drives this same `core/settings` key. */
   const [recording, setRecording] = useState(() => shouldRecordEvents());
 
   const storageHelp = useMemo(
@@ -374,12 +387,12 @@ function PrivacySection() {
     <>
       <SectionHeader
         title="Privacy"
-        description="Everything is stored in your browser, and nothing leaves this device unless you sign in and publish."
+        description="Everything stays in this browser unless you publish or turn on run recording."
       />
 
       <Row
         label="Record run data"
-        help="When a studyflow runs, send its session, variables, and task events to the configured data server. Off by default; the runner has the same switch."
+        help="Send session, variable, and task events to the Behaverse Data Server. Off by default."
         control={
           <ToggleControl
             label="Record run data"
@@ -400,7 +413,7 @@ function PrivacySection() {
             type="button"
             className={s.inlineBtnDanger}
             onClick={() => {
-              if (window.confirm('Clear all local data including settings and saved diagrams? This cannot be undone.')) {
+              if (window.confirm('Clear all local data, including settings and the saved studyflow? This cannot be undone.')) {
                 clearAllLocalData();
                 setRecording(shouldRecordEvents());
                 setEstimate(getStorageEstimate());
@@ -414,7 +427,7 @@ function PrivacySection() {
 
       <Row
         label="Reset settings"
-        help="Restore every setting on this page to its default. Saved diagrams are not affected."
+        help="Restore every setting on this page to its default. Your studyflow is untouched."
         control={
           <button type="button" className={s.inlineBtn} onClick={reset}>
             Reset to defaults

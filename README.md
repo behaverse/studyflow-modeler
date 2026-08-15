@@ -1,12 +1,14 @@
 
 # Behaverse Studyflow Modeler
 
-Studyflow Modeler is a tool to design and run cognitive experiments using [Studyflow diagrams](https://behaverse.org/projects/studyflows). It ships two browser apps backed by a shared core library:
+[Studyflow](https://behaverse.org/projects/studyflows) is a coordination notation for experiments: a process standard for the cognitive sciences and adjacent fields, in the same role that BPMN 2.0 (Business Process Model and Notation, ISO/IEC 19510) plays for business processes.
 
-- **Modeler** (`app.html`) - visual editor for `.studyflow` (BPMN 2.0 XML) diagrams, with a pluggable schema palette covering cognitive, data, and domain-specific element types. Diagrams export to SVG, PNG, draw.io, LinkML, NIDM-Results, and ARTEM-IS; exported SVG and PNG carry both the studyflow source and a draw.io diagram, so one figure reopens in either editor.
+Your tools compute — Python, a Unity scene, an LLM call, jsPsych, PsychoPy — and the studyflow diagram coordinates them, so one file is at once the protocol, the runnable experiment, the analysis specification, and the publication figure: each a projection of the same file, with no second copy to drift.
+
+- **Modeler** (`app.html`) - visual editor for `.studyflow` (BPMN 2.0 XML) diagrams, with a pluggable schema palette covering cognitive, data, and domain-specific element types. Diagrams export to SVG, PNG, draw.io, LinkML, NIDM-Results, and ARTEM-IS; exported SVG and PNG contain both the studyflow source and an editable diagram, so one figure reopens in either editor.
 - **Runner** (`run/`) - executes a `.studyflow` diagram end-to-end in the browser: parses the XML, validates it, and walks the flow node-by-node (consent, instructions, questionnaires, cognitive tasks, Behaverse tasks). Supports optional event recording to a Behaverse data server and LLM/bot-driven task execution.
 - **CLI** (`packages/cli`) - a standalone `studyflow` binary to convert (`.studyflow` YAML ↔ BPMN XML ↔ `.studyflow.png`), validate, and inspect studyflow files headlessly.
-- **Python runner** (`packages/runner-py`) - executes a `.studyflow.png`; also a `uv run --script` one-liner.
+- **Python runner** (`packages/runner-py`) - executes a `.studyflow.png` diagram end-to-end in Python. Supports optional event recording to a Behaverse data server and LLM/bot-driven task execution.
 
 ## Development
 

@@ -81,25 +81,18 @@ function LikertForm({
   );
 }
 
-function FallbackForm({
-  instrument,
-  onSubmit,
-}: {
-  instrument: string;
-  onSubmit: (text: string) => void;
-}) {
+/** No built-in item set for this instrument, so responses are texts */
+function FallbackForm({ onSubmit }: { onSubmit: (text: string) => void }) {
   const [text, setText] = useState('');
 
   return (
     <div className="flex flex-col gap-3">
-      <p className={nodeStyles.subtitle}>
-        Unrecognized instrument: <code className="font-mono">{instrument}</code>. Free-text response below.
-      </p>
+      <p className={nodeStyles.subtitle}>Please respond in your own words.</p>
       <textarea
         className={nodeStyles.textarea}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Type your response..."
+        placeholder="Type your response here..."
       />
       <div className={nodeStyles.actions}>
         <button
@@ -116,8 +109,7 @@ function FallbackForm({
 
 function Questionnaire({ job, session, log, complete }: NodeProps<QuestionnaireJob>) {
   const definition = getInstrument(job.instrument);
-  const title =
-    definition?.title || job.node.businessObject?.name || `Questionnaire: ${job.instrument || '(unspecified)'}`;
+  const title = definition?.title || job.node.businessObject?.name || 'Questionnaire';
   const instrumentKey = job.instrument || 'unspecified';
 
   return (
@@ -128,16 +120,15 @@ function Questionnaire({ job, session, log, complete }: NodeProps<QuestionnaireJ
           definition={definition}
           onSubmit={(responses) => {
             session.setVariable(`questionnaire.${instrumentKey}`, responses);
-            log('ok', `Submitted ${instrumentKey} (${Object.keys(responses).length} items).`);
+            log('ok', `Responded ${instrumentKey} (${Object.keys(responses).length} items).`);
             complete();
           }}
         />
       ) : (
         <FallbackForm
-          instrument={instrumentKey}
           onSubmit={(text) => {
             session.setVariable(`questionnaire.${instrumentKey}`, text);
-            log('info', `Submitted ${instrumentKey} fallback (${text.length} chars).`);
+            log('info', `Responded '${instrumentKey}' in free text (${text.length} chars); no built-in format set for it.`);
             complete();
           }}
         />

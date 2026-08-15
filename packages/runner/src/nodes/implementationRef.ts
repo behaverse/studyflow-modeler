@@ -51,12 +51,17 @@ export function validateImplementations(studyflow: Studyflow): ValidationIssue[]
 
     const result = parseImplementationRef(implementation.ref);
     if (!result.ok) {
-      issues.push({ nodeId: node.id, message: `Invalid 'implementation' function reference: ${result.error}` });
+      issues.push({
+        nodeId: node.id,
+        message: `The implementation reference cannot be read: ${result.error}. `
+          + 'Write it as <scheme>://<ref>[@<version>], e.g. python://mypkg.my_fn@1.2.',
+      });
     } else if (!KNOWN_SCHEMES.includes(result.value.scheme)) {
       issues.push({
         nodeId: node.id,
         severity: 'warning',
-        message: `Function scheme '${result.value.scheme}://' is not one of ${KNOWN_SCHEMES.join(', ')}; the runner will not resolve it.`,
+        message: `No executor knows the scheme '${result.value.scheme}://', so this function will never be called. `
+          + `Use one of: ${KNOWN_SCHEMES.join(', ')}.`,
       });
     }
 
@@ -65,11 +70,17 @@ export function validateImplementations(studyflow: Studyflow): ValidationIssue[]
       try {
         loaded = yaml.load(implementation.argsYaml);
       } catch (err) {
-        issues.push({ nodeId: node.id, message: `Invalid 'additionalArguments' YAML: ${(err as Error).message}` });
+        issues.push({
+          nodeId: node.id,
+          message: `additionalArguments is not valid YAML: ${(err as Error).message}. Check the indentation and quoting.`,
+        });
         continue;
       }
       if (loaded == null || typeof loaded !== 'object' || Array.isArray(loaded)) {
-        issues.push({ nodeId: node.id, message: "'additionalArguments' must be a YAML mapping of argument names to values." });
+        issues.push({
+          nodeId: node.id,
+          message: 'additionalArguments must be a YAML mapping of argument names to values, one per line, e.g. "column: rt".',
+        });
       }
     }
   }

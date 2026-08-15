@@ -37,8 +37,8 @@ function Start({ job, session, log, complete, abort }: NodeProps<StartJob>) {
       })
       .catch((err) => {
         if (!cancelled) {
-          setFetchError(`Could not load consent form: ${err.message}`);
-          log('error', `consentFormUri fetch failed: ${err.message}`);
+          setFetchError('The consent form could not be loaded. Please contact the researcher before you continue.');
+          log('error', `Could not fetch consentFormUri '${job.consentFormUri}': ${err.message}`);
         }
       });
     return () => {
@@ -50,7 +50,7 @@ function Start({ job, session, log, complete, abort }: NodeProps<StartJob>) {
     return (
       <NodePanel>
         <h2 className={nodeStyles.title}>{title}</h2>
-        <p className={nodeStyles.subtitle}>Welcome. Press Begin to start the study.</p>
+        <p className={nodeStyles.subtitle}>Thank you for taking part. Press Begin when you are ready.</p>
         <div className={nodeStyles.actions}>
           <button type="button" className={nodeStyles.primaryButton} onClick={() => complete()}>
             Begin
@@ -60,13 +60,16 @@ function Start({ job, session, log, complete, abort }: NodeProps<StartJob>) {
     );
   }
 
-  const formContent = consentText ?? fetchError ?? 'Loading consent form...';
+  const formContent = consentText ?? fetchError ?? 'Loading the consent form...';
 
   return (
     <NodePanel>
       <h2 className={nodeStyles.title}>{title}</h2>
       <p className={nodeStyles.subtitle}>Informed consent</p>
       <div className={nodeStyles.consentBox}>{formContent}</div>
+      <p className={nodeStyles.subtitle}>
+        Please read the form above, then choose whether to take part.
+      </p>
       <div className={nodeStyles.actions}>
         <button
           type="button"

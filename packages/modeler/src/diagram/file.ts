@@ -11,7 +11,7 @@ export function extractXmlFromSvg(svgText: string): string {
   const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
   const studyflowEl = svgDoc.querySelector('metadata > studyflow');
   if (!studyflowEl) {
-    throw new Error('The selected SVG file does not contain embedded Studyflow.');
+    throw new Error('The SVG carries no studyflow. Export one from the modeler with "Studyflow embedded source" switched on.');
   }
   return studyflowEl.innerHTML;
 }

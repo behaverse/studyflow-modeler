@@ -3,17 +3,10 @@
 name: Prov
 prefix: prov
 description: >-
-  The provenance trail - who acted on this studyflow, with what tool, when. A
-  minimal, hand-editable form of PROV: one `prov:activity` element per event,
-  appended to the diagram's primary root element as the file passes through
-  tools. The trail rides inside the document, so it travels wherever the
-  diagram does - `.studyflow.yaml`, `.bpmn`, and the XML embedded in exported
-  figures - and it is the run record's interchange form: the runner stamps
-  `executed` on the copy it archives in the run repository, whose commit
-  history is the full archive.
+  The provenance trail - who acted on this studyflow, with what tool, and when.
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
-core: true   # the trail is infrastructure, not a domain vocabulary; always loaded
+core: true   # always loaded
 order: 15  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
@@ -23,111 +16,64 @@ version: 26.0731
 enumerations: []
 
 
-# One type, deliberately: a trail is a log, and a log is a flat list of lines.
-# Every attribute names a fact PROV has a term for, and the mapping is written
-# beside it - so "this is a basic form of PROV" is checkable against this file
-# rather than claimed. The action vocabulary is open (a tool this schema never
-# heard of can stamp `converted`); the recommended terms are documented on
-# `action`. Trust is social, not cryptographic: the trail records what
-# participating tools say, and a person can correct it in any text editor -
-# which is the design, not a gap. Sealing a file cryptographically is a
-# packaging step (C2PA at an export boundary), not a notation concept.
-
 types:
 
   - name: Activity
-    description: |
-      One entry of the provenance trail: somebody (`who`), using some tool
-      (`with`), did something (`action`) to this studyflow at some time
-      (`when`). Maps to a `prov:Activity` whose association carries the person
-      and whose delegation carries the tool; entries are ordered oldest first.
-      The document trail appends; a run replaces an element's own entry in
-      place, unless it branched - then the superseded entry stays as history.
+    description: >-
+      One entry of the trail - who did something to this studyflow, and when;
+      entries run oldest first.
     superClass:
       - Element
     properties:
       - name: action
-        description: |
-          What happened, as one word - the activity's `prov:type`. Recommended
-          vocabulary: `created`, `modified`, `imported`, `executed`,
-          `invalidated`, `reused` (a skip that trusted a prior record); open
-          to others (`converted`, `reviewed`) when a tool needs them. `invalidated` (PROV's `prov:wasInvalidatedBy`) voids the
-          element's `executed` record of the same `run` without deleting it -
-          the step re-runs on the next partial re-run, and the history stays.
+        description: >-
+          What happened, in one word - `created`, `modified`, `imported`,
+          `executed`, `invalidated`, or `reused`.
         isAttr: true
         type: String
       - name: when
-        description: |
-          When it happened, ISO 8601 at second precision with the writer's
-          UTC offset (`2026-08-01T09:12:04+02:00`; older files carry `Z`) -
-          the activity's `prov:endedAtTime`. The offset keeps the instant
-          exact while preserving the writer's wall clock. `invalidated` and
-          `reused` reference records by this value, so writers should keep it
-          unique within an element's entries.
+        description: >-
+          When it happened, as an ISO 8601 timestamp
+          (`2026-08-01T09:12:04+02:00`).
         isAttr: true
         type: String
       - name: who
-        description: |
-          Who acted - a name, email, or ORCID iri. Becomes a `prov:Person`
-          related to the activity by `prov:wasAssociatedWith`.
+        description: Who acted - a name, an email, or an ORCID.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: with
-        description: |
+        description: >-
           The tool that acted, as `name/version` (`studyflow-modeler/26.0731`).
-          Becomes a `prov:SoftwareAgent` that `prov:actedOnBehalfOf` `who`.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: what
-        description: |
-          What the action touched. For most actions: the element ids,
-          space-separated - what the activity `prov:used`. For a gateway's
-          `executed`: the sequence flow the decision took. For an
-          `invalidated`: the `when` of the exact `executed` record it voids -
-          void-by-reference, so a later re-execution (a new `when`) leaves the
-          marker behind as inert history. An `invalidated` without a `what`
-          voids coarsely by `run` and never goes inert: a standing re-run pin.
-          For a `reused`: the `when` of the record a skipping run trusted
-          instead of re-executing the step. A `when` reference resolves among
-          the same element's own entries, never document-wide.
-          Omitted when the action concerns the whole document.
+        description: >-
+          What the action touched - element ids, space-separated; for
+          `invalidated` and `reused`, the `when` of the entry it refers to.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: run
-        description: |
-          For an `executed` action: the run's id - the run repository's name,
-          linking this line to what the run left behind - the artifacts and
-          the log in that repository. Runs within it are `started`/`finished`
-          commit pairs, and a re-run after an invalidation is a `run/<stamp>`
-          branch - not a separate directory. Runs also record themselves per
-          element: each activity a run completed carries its own `executed`
-          entry naming that run, which is what makes partial re-runs possible
-          - invalidating an element's entry (or deleting the artifact it
-          vouches for) invalidates exactly that work, and the next run of the
-          archived copy redoes it alone.
+        description: >-
+          For an `executed` action, the id of the run - the name of the
+          repository holding what that run produced.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: seed
-        description: |
-          For an `executed` action: the run's root seed - the plan's pinned
-          value when it has one, drawn once by the engine when it does not.
-          Recorded here either way, which is what makes an unpinned run
-          replayable after the fact.
+        description: For an `executed` action, the root seed the run used.
         isAttr: true
-        # Integer, matching `studyflow:Seed#seed`; the runtimes seed their PRNGs with it.
         type: Integer
         meta:
           optional: true
       - name: note
-        description: One line of free text about the event (`rdfs:comment`).
+        description: One line of free text about the event.
         isAttr: true
         type: String
         meta:

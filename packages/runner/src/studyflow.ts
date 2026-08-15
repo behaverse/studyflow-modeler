@@ -119,7 +119,9 @@ export async function parseStudyflow(
   const businessObject = (definitions as any)?.rootElements?.find(
     (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
   );
-  if (!businessObject) throw new Error('No bpmn:Process found in diagram.');
+  if (!businessObject) {
+    throw new Error('This file holds no study.');
+  }
 
   const bound = bindParameters(definitions, businessObject, parameters);
 

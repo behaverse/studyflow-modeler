@@ -40,7 +40,10 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
 
   const scene = readBehaverseAttribute(node.businessObject, 'behaverseScene') ?? '';
   if (!scene || scene === 'undefined') {
-    throw new Error(`Behaverse task ${node.id} has no scene.`);
+    throw new Error(
+      `BehaverseTask '${node.id}' has no scene, so the browser runner cannot tell which task to load. `
+      + 'Set behaverseScene to a task the Unity build ships.',
+    );
   }
 
   const configurations = readBehaverseAttribute(node.businessObject, 'configurations');
@@ -62,12 +65,14 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
       parsed = yaml.load(configurations);
     } catch (err) {
       throw new Error(
-        `Behaverse task ${node.id}: failed to parse \`configurations\` YAML - ${(err as Error).message}`,
+        `configurations on BehaverseTask '${node.id}' is not valid YAML: ${(err as Error).message}. `
+        + 'Check the indentation and quoting.',
       );
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(
-        `Behaverse task ${node.id}: \`configurations\` YAML must parse to an object (got ${Array.isArray(parsed) ? 'array' : typeof parsed}).`,
+        `configurations on BehaverseTask '${node.id}' must be a mapping of setting names to values `
+        + `(got ${Array.isArray(parsed) ? 'a list' : typeof parsed}).`,
       );
     }
     const parameters = { ...(parsed as Record<string, unknown>) };

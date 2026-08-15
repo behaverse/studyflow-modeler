@@ -15,8 +15,8 @@ function reportIconFailure(iconClass: string): void {
   clearTimeout(failureFlush);
   failureFlush = setTimeout(() => {
     notify('warning',
-      `${failedIcons.length} icon(s) could not be fetched (offline, or api.iconify.design `
-      + `is unreachable); the export rendered without them: ${failedIcons.join(', ')}`);
+      `Some icons could not be downloaded, so the export left them out: ${failedIcons.join(', ')}. `
+      + 'Check your connection and export again to include them.');
     failedIcons = [];
   }, 500);
 }

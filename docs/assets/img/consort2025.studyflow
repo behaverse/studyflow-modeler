@@ -1,4 +1,4 @@
-id: sample-diagram
+id: consort2025
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bioc: http://bpmn.io/schema/bpmn/biocolor/1.0
@@ -39,7 +39,7 @@ Study_1:
     Flow_0lbgz8g:
       type: bpmn:SequenceFlow
       sourceRef: StartEvent_1
-      targetRef: CognitiveTest_13w03dn
+      targetRef: CognitiveTask_13w03dn
       waypoint:
         - x: 400
           "y": 128
@@ -75,7 +75,7 @@ Study_1:
       border-color: "#728cb9"
     Flow_1t2in1o:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_13w03dn
+      sourceRef: CognitiveTask_13w03dn
       targetRef: RandomGateway_1hl1su0
       waypoint:
         - x: 400
@@ -87,7 +87,7 @@ Study_1:
     Flow_18p4e7q:
       type: bpmn:SequenceFlow
       sourceRef: RandomGateway_1hl1su0
-      targetRef: CognitiveTest_1a1j2p6
+      targetRef: CognitiveTask_1a1j2p6
       waypoint:
         - x: 375
           "y": 300
@@ -100,7 +100,7 @@ Study_1:
     Flow_1hjpetu:
       type: bpmn:SequenceFlow
       sourceRef: RandomGateway_1hl1su0
-      targetRef: CognitiveTest_1c73oyw
+      targetRef: CognitiveTask_1c73oyw
       waypoint:
         - x: 425
           "y": 300
@@ -112,8 +112,8 @@ Study_1:
       border-color: "#728cb9"
     Flow_17rf7rx:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1a1j2p6
-      targetRef: CognitiveTest_11etrsy
+      sourceRef: CognitiveTask_1a1j2p6
+      targetRef: CognitiveTask_11etrsy
       waypoint:
         - x: 290
           "y": 410
@@ -123,8 +123,8 @@ Study_1:
       border-color: "#728cb9"
     Flow_0f9xybo:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_11etrsy
-      targetRef: CognitiveTest_1eys6on
+      sourceRef: CognitiveTask_11etrsy
+      targetRef: CognitiveTask_1eys6on
       waypoint:
         - x: 290
           "y": 520
@@ -134,8 +134,8 @@ Study_1:
       border-color: "#728cb9"
     Flow_09y8njo:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1c73oyw
-      targetRef: CognitiveTest_1119tdc
+      sourceRef: CognitiveTask_1c73oyw
+      targetRef: CognitiveTask_1119tdc
       waypoint:
         - x: 510
           "y": 410
@@ -145,8 +145,8 @@ Study_1:
       border-color: "#728cb9"
     Flow_0n5asae:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1119tdc
-      targetRef: CognitiveTest_02zuq6e
+      sourceRef: CognitiveTask_1119tdc
+      targetRef: CognitiveTask_02zuq6e
       waypoint:
         - x: 510
           "y": 520
@@ -170,7 +170,7 @@ Study_1:
       border-color: "#728cb9"
     Flow_1cc80jd:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1eys6on
+      sourceRef: CognitiveTask_1eys6on
       targetRef: Event_01ofd64
       waypoint:
         - x: 290
@@ -183,7 +183,7 @@ Study_1:
       border-color: "#728cb9"
     Flow_0drufmz:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_02zuq6e
+      sourceRef: CognitiveTask_02zuq6e
       targetRef: Event_01ofd64
       waypoint:
         - x: 510
@@ -197,7 +197,7 @@ Study_1:
     Flow_0s6t6ff:
       type: bpmn:SequenceFlow
       name: reason
-      sourceRef: CognitiveTest_1a1j2p6
+      sourceRef: CognitiveTask_1a1j2p6
       targetRef: Event_0krwt77
       waypoint:
         - x: 240
@@ -244,7 +244,7 @@ Study_1:
     Flow_15zclw3:
       type: bpmn:SequenceFlow
       name: discontinued
-      sourceRef: CognitiveTest_11etrsy
+      sourceRef: CognitiveTask_11etrsy
       targetRef: Event_0krwt77
       waypoint:
         - x: 240
@@ -263,7 +263,7 @@ Study_1:
       border-color: "#ac5a54"
     Flow_1k3xz2k:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1eys6on
+      sourceRef: CognitiveTask_1eys6on
       targetRef: Event_0krwt77
       waypoint:
         - x: 240
@@ -282,7 +282,7 @@ Study_1:
       border-color: "#ac5a54"
     Flow_0dal3e1:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1a1j2p6
+      sourceRef: CognitiveTask_1a1j2p6
       targetRef: Event_0krwt77
       waypoint:
         - x: 240
@@ -302,7 +302,7 @@ Study_1:
     Flow_1wxv3n4:
       type: bpmn:SequenceFlow
       name: n=...
-      sourceRef: CognitiveTest_13w03dn
+      sourceRef: CognitiveTask_13w03dn
       targetRef: Event_10krp8z
       waypoint:
         - x: 450
@@ -343,7 +343,7 @@ Study_1:
     Flow_0lulxhm:
       type: bpmn:SequenceFlow
       name: reason
-      sourceRef: CognitiveTest_1c73oyw
+      sourceRef: CognitiveTask_1c73oyw
       targetRef: Event_1h6umw2
       waypoint:
         - x: 560
@@ -362,7 +362,7 @@ Study_1:
       border-color: "#ac5a54"
     Flow_0slgyqx:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1119tdc
+      sourceRef: CognitiveTask_1119tdc
       targetRef: Event_1h6umw2
       waypoint:
         - x: 560
@@ -379,7 +379,7 @@ Study_1:
       border-color: "#ac5a54"
     Flow_10k49uz:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_02zuq6e
+      sourceRef: CognitiveTask_02zuq6e
       targetRef: Event_1h6umw2
       waypoint:
         - x: 560
@@ -390,7 +390,7 @@ Study_1:
           "y": 498
       stroke: "#ac5a54"
       border-color: "#ac5a54"
-    CognitiveTest_1c73oyw:
+    CognitiveTask_1c73oyw:
       type: bpmn:Task
       name: Allocation
       incoming:
@@ -408,7 +408,7 @@ Study_1:
       fill: "#dde8fa"
       background-color: "#dde8fa"
       border-color: "#728cb9"
-    CognitiveTest_1a1j2p6:
+    CognitiveTask_1a1j2p6:
       type: bpmn:Task
       name: Allocation
       incoming:
@@ -427,7 +427,7 @@ Study_1:
       fill: "#dde8fa"
       background-color: "#dde8fa"
       border-color: "#728cb9"
-    CognitiveTest_11etrsy:
+    CognitiveTask_11etrsy:
       type: bpmn:Task
       name: Follow-up
       incoming:
@@ -446,7 +446,7 @@ Study_1:
       fill: "#dde8fa"
       background-color: "#dde8fa"
       border-color: "#728cb9"
-    CognitiveTest_1eys6on:
+    CognitiveTask_1eys6on:
       type: bpmn:Task
       name: Analysis
       incoming:
@@ -464,7 +464,7 @@ Study_1:
       fill: "#dde8fa"
       background-color: "#dde8fa"
       border-color: "#728cb9"
-    CognitiveTest_02zuq6e:
+    CognitiveTask_02zuq6e:
       type: bpmn:Task
       name: Analysis
       incoming:
@@ -482,7 +482,7 @@ Study_1:
       fill: "#dde8fa"
       background-color: "#dde8fa"
       border-color: "#728cb9"
-    CognitiveTest_1119tdc:
+    CognitiveTask_1119tdc:
       type: bpmn:Task
       name: Follow-up
       incoming:
@@ -500,7 +500,7 @@ Study_1:
       fill: "#dde8fa"
       background-color: "#dde8fa"
       border-color: "#728cb9"
-    CognitiveTest_13w03dn:
+    CognitiveTask_13w03dn:
       type: bpmn:Task
       name: Assess for elegibility
       incoming:
@@ -546,7 +546,7 @@ Study_1:
     Flow_1mcvmpy:
       type: bpmn:SequenceFlow
       name: lost to follow-up
-      sourceRef: CognitiveTest_11etrsy
+      sourceRef: CognitiveTask_11etrsy
       targetRef: Event_0krwt77
       waypoint:
         - x: 240

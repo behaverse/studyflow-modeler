@@ -55,8 +55,9 @@ function emit(): void {
     warned = true;
     notify('warning',
       'Settings could not be saved: ' +
-      (lastWrite === 'quota' ? 'browser storage is full.' : 'this browser blocks local storage.') +
-      ' Changes apply to this session only and will be lost on reload.');
+      (lastWrite === 'quota'
+        ? 'browser storage is full. Free space from Settings > Privacy > Clear all local data.'
+        : 'this browser blocks local storage. Allow it for this site to keep these settings. Until then, changes apply to this session only.'));
   }
   if (lastWrite === 'ok') warned = false;
   // Listeners are still notified: the control the user just clicked has to reflect the click.
@@ -134,8 +135,8 @@ export function reportAutosaveFailure(err: unknown): void {
   warnedFor.add('failed');
   console.warn('Auto-save failed: the diagram could not be serialized.', err);
   notify('warning',
-    'Auto-save failed: the diagram could not be serialized, so no copy was stored. '
-    + 'Export the diagram if you need to keep it.');
+    'Auto-save failed: the diagram could not be written, so no copy was stored. '
+    + 'Save it now if you need to keep it.');
 }
 
 function reportOnce(kind: 'quota' | 'unavailable'): void {
@@ -145,7 +146,8 @@ function reportOnce(kind: 'quota' | 'unavailable'): void {
     kind === 'quota'
       ? 'Auto-save could not store the diagram: browser storage is full. The stale entry was '
         + 'cleared so a truncated diagram is never restored. Export the diagram to keep it.'
-      : 'Auto-save could not store the diagram: this browser provides no usable local storage.');
+      : 'Auto-save could not store the diagram: this browser does not provide local storage. '
+        + 'Save the diagram to keep it.');
 }
 
 export function clearAutosavedDiagram(): void {

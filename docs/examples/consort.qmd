@@ -31,7 +31,7 @@ The following figure compares traditional CONSORT diagrams against the same CONS
 </div>
 
 
-The annotated studyflow below uses even more concise elements and iconography to describe the the same flow using error handling feature. The left path (group 1) is enhanced with studyflow elements. The right path (group 2) uses a more traditional approach with texts, boxes, and arrows.
+The annotated studyflow below uses even more concise elements and iconography to describe the same flow using error handling feature. The left path (group 1) is enhanced with studyflow elements. The right path (group 2) uses a more traditional approach with texts, boxes, and arrows.
 
 <div class="grid grid-cols-1 gap-4">
   <figure class="centered">
@@ -44,4 +44,4 @@ The annotated studyflow below uses even more concise elements and iconography to
 
 Note how *boundary error events* describe the flow of participants through the trial. Because of that, the diagram is more compact and easier to read than the original format.
 
-The studyflow diagram can also include additional metadata such as colors, checklists, and timelines to enhance readability. Since the diagram is machine-readable, it can also can be used to generate reports or simulate the flow of participants through the experiment (see the supplementary video for a simulation).
+The studyflow diagram can also include additional metadata such as colors, checklists, and timelines to enhance readability. Since the diagram is machine-readable, it can also be used to generate reports or simulate the flow of participants through the experiment.

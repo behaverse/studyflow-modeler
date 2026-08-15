@@ -80,7 +80,7 @@ export function Modeler() {
       {bootError && (
         <div className={s.bootError} data-testid="modeler-boot-error" role="alert">
           <p className={s.bootErrorText}>
-            The modeler could not start: {bootError}
+            The modeler could not start. Reload the page to try again.  {bootError}
           </p>
         </div>
       )}

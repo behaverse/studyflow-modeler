@@ -1,4 +1,4 @@
-id: sample-diagram
+id: core-activity-types
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
@@ -13,7 +13,7 @@ Study_1:
   extensionElements:
     - type: studyflow:Study
   flowElements:
-    CognitiveTest_0k2858u:
+    CognitiveTask_0k2858u:
       type: bpmn:Task
       extensionElements:
         - type: cognitive:CognitiveTask
@@ -71,8 +71,8 @@ Study_1:
     Activity_1k4787k:
       type: bpmn:Task
       extensionElements:
-        - type: cognitive:VideoGame
-      name: Video Game
+        - type: cognitive:CognitiveTask
+      name: Cognitive Task
       bounds:
         x: 690
         "y": 230

@@ -225,7 +225,7 @@ test.describe('Studyflow runtime nodes', () => {
 
     await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
     await expect(
-      page.getByText('This task has no applied type. Press Continue to advance.'),
+      page.getByText('Nothing happens at this step. Press Continue to go on.'),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -251,7 +251,7 @@ test.describe('Studyflow runtime nodes', () => {
 
     // The reason appears on the terminal screen and in the log sidebar, so an unscoped text match hits two elements.
     const invalid = page.getByTestId('runner-invalid');
-    await expect(invalid).toContainText(/Invalid 'implementation' function reference/);
+    await expect(invalid).toContainText(/The implementation reference cannot be read/);
     await expect(invalid).toContainText('This study cannot run');
     await expect(page.getByRole('heading', { name: 'Broken reference' })).toBeHidden();
   });

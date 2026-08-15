@@ -17,7 +17,7 @@ The reference diagram for this example should live at `docs/assets/img/examples/
 
 1. **Recruitment** -- a `Manual` activity representing the recruitment step, with a data output to a participants `Table`.
 2. **Eligibility screening** -- a `Questionnaire` activity with an [Exclusive Gateway](../reference/elements.qmd) downstream that branches into "eligible" and "ineligible" paths.
-3. **Consent** -- a `Start Event` with `requiresConsent: true`, gating entry into the rest of the flow.
+3. **Consent** -- a `Start Event` with `consentFormUri` set to the consent form's URL, gating entry into the rest of the flow.
 4. **Demographics** -- a `Questionnaire` activity collecting baseline data.
 5. **Parallel block** -- a [Parallel Gateway](../reference/elements.qmd) launches the physiological measurement device (a `Manual` activity) and the first cognitive task (`CognitiveTask`) simultaneously. They synchronize at the closing parallel gateway.
 6. **Rest** -- a `Rest` activity, used both as a break and to record resting-state baseline.
@@ -36,4 +36,4 @@ The reference diagram for this example should live at `docs/assets/img/examples/
 
 - [CONSORT example](consort.qmd) -- a fuller dropout-handling example using boundary error events.
 - [Counterbalancing and randomization](../guides/counterbalancing.qmd) -- how to model random assignment.
-- [Cognitive tasks](cognitive-tasks/index.qmd) -- modeling trial-level structure within a task.
+- [Cognitive tasks](cognitive-tasks.qmd) -- modeling trial-level structure within a task.

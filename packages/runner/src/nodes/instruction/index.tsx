@@ -18,8 +18,8 @@ type InstructionJob = {
 };
 
 function Instruction({ job, complete }: NodeProps<InstructionJob>) {
-  const title = job.node.businessObject?.name || 'Instruction';
-  const content = job.content || '(no content)';
+  const title = job.node.businessObject?.name || 'Instructions';
+  const content = job.content || 'There is nothing to read here. Press Continue.';
 
   return (
     <NodePanel>

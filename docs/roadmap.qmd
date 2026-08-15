@@ -5,14 +5,14 @@ sidebar: default
 
 This page is forward-looking only. For released changes, see [GitHub Releases](https://github.com/behaverse/studyflow-modeler/releases).
 
-### Near-term
+### Near
 
 - Schema editor for data stores
-- More worked examples (analysis, MLOps, data collection)
+- More examples (analysis, MLOps, data collection)
 - Improved modeler UX/UI
 - Specifications for the data elements
 
 ### Later
 
-- Reduce friction around external-schema authoring
-- Broader runtime integrations beyond the Behaverse Data Server
+- Reduce friction around schema authoring
+- Broader runtime integrations

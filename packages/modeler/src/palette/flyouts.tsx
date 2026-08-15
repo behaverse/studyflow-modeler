@@ -119,7 +119,7 @@ export function SchemaPopup({ schema, isOpen, handlers }: SchemaPopupProps) {
         {!schema.core && (
           <span
             className={`${paletteFlyout.extBadge} ml-auto`}
-            title="Third-party extension schema"
+            title="Optional element set. Turn it off in Settings > Extensions."
           >
             ext
           </span>

@@ -45,7 +45,8 @@ export async function runImportJsPsych(modeler: Modeler, command: ImportJsPsychC
   for (const warning of study.warnings) console.warn(`jsPsych import: ${warning}`);
   if (study.warnings.length > 0) {
     notify('warning',
-      `jsPsych import adjusted ${study.warnings.length} thing(s):\n• ${study.warnings.join('\n• ')}`);
+      `The jsPsych import made ${study.warnings.length} adjustment${study.warnings.length === 1 ? '' : 's'}. `
+      + `Check in the inspector:\n• ${study.warnings.join('\n• ')}`);
   }
 
   const packages = await loadSchemas(getSettings().enabledSchemas);

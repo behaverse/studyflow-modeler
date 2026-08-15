@@ -83,11 +83,11 @@ export function CommandPalette({ ref }: Props) {
     accept: IMPORTABLE_EXTENSIONS.join(','),
     testId: 'open-file-input',
     isValid: (name) => IMPORTABLE_EXTENSIONS.some((ext) => name.endsWith(ext)),
-    invalidMessage: 'Please select a valid XML, SVG, PNG, or Studyflow file.',
+    invalidMessage: 'Choose a .studyflow.yaml, .bpmn, .svg, or .png file.',
     isBinary: (name) => name.endsWith('.png'),
-    failureMessage: 'Failed to open diagram.',
+    failureMessage: 'Could not open that file. Check it is a studyflow or BPMN diagram, then try again.',
     onText: (filename, content) => {
-      if (content == null) throw new Error('Could not read the file.');
+      if (content == null) throw new Error('Could not read the file. Try again.');
       return executeCommand(modeler, { type: 'OpenDiagram', filename, content });
     },
   });
@@ -96,10 +96,10 @@ export function CommandPalette({ ref }: Props) {
     accept: '.json',
     testId: 'import-jspsych-input',
     isValid: (name) => name.endsWith('.json'),
-    invalidMessage: 'Please select a jsPsych timeline JSON file.',
-    failureMessage: 'Failed to import the jsPsych timeline.',
+    invalidMessage: 'Choose a jsPsych timeline JSON file.',
+    failureMessage: 'Could not import the timeline. Check it is a jsPsych timeline, then try again.',
     onText: (filename, content) => {
-      if (typeof content !== 'string') throw new Error('Could not read the timeline as text.');
+      if (typeof content !== 'string') throw new Error('Could not read the timeline. Save it as UTF-8 JSON and try again.');
       return executeCommand(modeler, { type: 'ImportJsPsych', filename, content });
     },
   });

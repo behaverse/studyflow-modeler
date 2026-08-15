@@ -55,12 +55,9 @@ function ExecutionSection({ attrDefs }: { attrDefs: any[] }) {
   );
 }
 
-const TRANSFORMATION_DESCRIPTION = 'The association’s one expression — BPMN’s own '
-  + 'transformation element. Its body is `slot = selection`, each half optional: '
-  + 'the slot names which callable parameter the value fills, the selection '
-  + 'narrows what value arrives (member access and indexing only — wires '
-  + 'coordinate, steps calculate). On an output the drawn target is the slot, '
-  + 'so the body is a selection over `result`.';
+const TRANSFORMATION_DESCRIPTION = '`slot = selection` with '
+  + 'each half optional: the slot names the parameter to fill, the selection narrows the '
+  + 'value that arrives.';
 
 const ASSOCIATION_TYPES = new Set(['bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation']);
 

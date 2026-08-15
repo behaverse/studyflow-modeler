@@ -3,10 +3,8 @@
 name: EEG
 prefix: eeg
 description: >-
-  EEG and biosignal studies. Adds only the two nouns BPMN lacks - `Session` for
-  the acquisition-device configuration (OpenBCI boards) and `Recording` for the
-  dataset it produces - while preprocessing (EEGPrep, fMRIPrep) ships as
-  templates binding a tool through `implementation`.
+  EEG and biosignal studies: acquisition sessions, the recordings they produce,
+  and preprocessing presets.
 uri: https://w3id.org/studyflow/eeg
 icon: iconify tabler--hexagon-letter-e
 order: 70  # registry position (load precedence + settings order)
@@ -16,9 +14,7 @@ version: 26.0812
 
 enumerations:
   - name: DeviceEnum
-    description: |
-      Acquisition board, which fixes the channel count and the available
-      modalities. Custom identifiers are accepted too.
+    description: Acquisition board used to record a session.
     literalValues:
       - name: Cyton (8-channel)
         value: cyton
@@ -28,7 +24,7 @@ enumerations:
         value: ganglion
       - name: Galea (VR headset)
         value: galea
-        description: OpenBCI Galea - a VR head-mounted display integrating EEG/EMG/EOG/EDA/PPG and eye tracking.
+        description: A VR headset with built-in biosignal sensors and eye tracking.
 
   - name: ModalityEnum
     description: Biosignal/sensor modality recorded in a session.
@@ -54,19 +50,16 @@ enumerations:
 
 types:
   - name: Session
-    description: |
-      A single acquisition session, modeled as a BPMN pool. Carries the
-      device-level configuration (which board and which modalities) shared by
-      every phase inside the session; everything else (electrodes, streaming
-      protocol, VR headset) belongs in the session's documentation or the
-      phases' own configuration.
+    description: >-
+      One acquisition session, carrying the device settings shared by every
+      phase inside it.
     superClass:
       - bpmn:Participant
     meta:
       icon: iconify mdi--chip
     properties:
       - name: device
-        description: Acquisition board used in this session. Pick a listed option or type a custom identifier.
+        description: Acquisition board used in this session; a custom identifier is also accepted.
         isAttr: true
         type: DeviceEnum
         default: cyton
@@ -82,11 +75,7 @@ types:
           order: 1
 
   - name: Recording
-    description: |
-      Biosignal recording produced by a session: a `studyflow:Dataset`
-      carrying the modality list and EEG layout downstream steps need.
-      Per-stream detail belongs on the associated `studyflow:Timeseries`
-      elements.
+    description: The biosignal data a session produces.
     superClass:
       - studyflow:Dataset
     meta:
@@ -101,28 +90,22 @@ types:
         isMany: true
         type: ModalityEnum
       - name: channels
-        description: |
-          Number of EEG channels recorded - the session-level summary of the
-          associated `studyflow:Timeseries#channelCount`. Depends on the
-          board: 4 (Ganglion), 8 (Cyton), 16 (Cyton + Daisy), or ~8-10 (Galea).
+        description: Number of EEG channels recorded.
         isAttr: true
         type: Integer
         default: 8
       - name: samplingRateHz
-        description: |
-          EEG sampling rate, in Hz (e.g., 200 on Ganglion, 250 on Cyton/Galea)
-          - the session-level summary of the associated
-          `studyflow:Timeseries#samplingRate`.
+        description: EEG sampling rate, in Hz.
         isAttr: true
         type: Real
         default: 250
 
 templates:
-  - description: An EEG acquisition session - mount -> baseline -> task -> export. Each phase is an ordinary BPMN task; edit or repoint any of them.
+  - description: An EEG session - fit the cap, record a baseline, run a task, export.
     object:
       type: Session
       bpmn:name: EEG session
-      bpmn:documentation: An EEG session covering headset fitting through data export. Phases are ordinary tasks - repoint or reconfigure any of them without a device-specific element type.
+      bpmn:documentation: An EEG session covering headset fitting through data export.
       icon: iconify mdi--chip
       keywords:
         - eeg
@@ -144,8 +127,8 @@ templates:
           bpmn:name: Mount cap & check impedance
           icon: iconify mdi--head-plus-outline
           bpmn:documentation: |
-            Fit the EEG cap, place the electrode montage, and verify contact
-            before recording (typical gate: per-channel impedance below 50 kΩ).
+            Fit the cap, place the electrodes, and check that every one of them
+            makes good contact before recording starts.
           x: 200
           y: 178
         - id: eeg_baseline
@@ -197,15 +180,13 @@ templates:
           sourceRef: eeg_export
           targetRef: eeg_end
 
-  - description: Preprocess EEG data (filtering, artifact removal) in one implementation-bound step.
+  - description: Filter EEG data and remove artifacts in one step.
     object:
       bpmn:name: EEGPrep
       type: functional:Map
       bpmn:documentation: |
-        Preprocess EEG data: filtering, artifact removal, and normalization in
-        one step, bound to the EEGLAB-based EEGPrep pipeline
-        (`clean_artifacts` under the hood - tune its parameters in
-        `additionalArguments`). Requires BIDS-formatted input.
+        Filters, cleans, and normalizes EEG data; the input has to be in BIDS
+        format.
       icon: iconify fluent--pulse-20-filled
       keywords:
         - eeg
@@ -221,11 +202,11 @@ templates:
         asr_criterion: 20        # ASR burst-removal cutoff
         ica: true                # run ICA + ICLabel artifact classification
 
-  - description: Preprocess fMRI data for a single subject (fMRIPrep in a container).
+  - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep
       type: functional:Map
-      bpmn:documentation: "Preprocess fMRI data: filtering, artifact removal, and normalization. Requires BIDS-formatted input."
+      bpmn:documentation: "Filters, cleans, and normalizes fMRI data; the input has to be in BIDS format."
       icon: iconify streamline--brain
       keywords:
         - fmri

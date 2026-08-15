@@ -1,3 +1,15 @@
+/*-- scss:defaults --*/
+
+// Quarto's brand vars ($brand-*) only exist in scss:rules, so chrome literals are repeated here.
+$sidebar-bg: #efece3; // $brand-cream-warm
+$sidebar-fg: #1f2530; // $brand-near-black
+$code-bg: #f3f0e6; // $brand-code-bg
+$code-color: #5a4632; // $brand-code-text
+$code-block-bg: #f3f0e6; // $brand-code-bg
+$border-color: #d8d4c6; // $brand-border-warm
+$table-border-color: #d8d4c6; // Bootstrap's own grey reads cold against the cream
+$callout-color-note: #2c5282; // $brand-navy, in place of Bootstrap's stock blue
+
 /*-- scss:rules --*/
 
 :root {
@@ -5,9 +17,19 @@
   --doc-sidebar-bg: #{$brand-cream-warm};
   --doc-border: #{$brand-border-warm};
   --doc-text: #{$brand-near-black};
+  --doc-muted: #{$brand-muted-warm};
   --doc-link: #{$brand-navy};
   --doc-link-hover: #{$brand-navy-dark};
+  --doc-link-underline: #{rgba($brand-navy, 0.35)};
   --doc-code-bg: #{$brand-code-bg};
   --doc-code-text: #{$brand-code-text};
   --doc-code-border: #{$brand-code-border};
+  --doc-green: #{$brand-accent-green};
+  --doc-green-bg: #{$brand-accent-green-bg};
+  --doc-indigo: #{$brand-accent-indigo};
+  --doc-indigo-bg: #{$brand-accent-indigo-bg};
+  --doc-note: #{$brand-accent-note};
+  --doc-note-bg: #{$brand-accent-note-bg};
+  --doc-badge-text: #{$brand-cream};
+  --doc-figure-mat: transparent;
 }

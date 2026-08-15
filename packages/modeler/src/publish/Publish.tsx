@@ -38,7 +38,7 @@ export function PublishDialog({ isOpen, onClose }: Props) {
       apiKey: String(formData.get('api_key') || ''),
     })
       .then((result: { previewUrl?: string }) => {
-        setStatus('Published successfully.');
+        setStatus('Published. Open the preview to check it.');
         setPreviewUrl(result.previewUrl);
       })
       .catch((err: any) => {
@@ -54,17 +54,18 @@ export function PublishDialog({ isOpen, onClose }: Props) {
       <form onSubmit={handlePublish}>
         <Fieldset className={s.fieldset}>
           <Field>
-            <Label className={s.label}>Study Name</Label>
-            <Input name="study_name" className={s.input} placeholder="Example: my-study" />
+            <Label className={s.label}>Study name</Label>
+            <Input name="study_name" className={s.input} placeholder="my-study" />
             <Description className={s.helpText}>
-              Use only lower-case letters, numbers, and hyphens
+              Lower-case letters, numbers, and hyphens only.
             </Description>
           </Field>
           <Field>
-            <Label className={s.label}>Behaverse API Key</Label>
-            <Input name="api_key" className={s.input} placeholder="Example: 12345jdcj33kllk67890" />
+            <Label className={s.label}>Behaverse API key</Label>
+            <Input name="api_key" className={s.input} placeholder="Paste your key" />
             <Description className={s.helpText}>
-              See the <a className={s.bodyLink} href={URLS.apiDocs} target="_blank">API docs</a> for more information
+              Sign in from Settings &gt; Account to get one, or see the{' '}
+              <a className={s.bodyLink} href={URLS.apiDocs} target="_blank">API docs</a>.
             </Description>
           </Field>
           {status && (

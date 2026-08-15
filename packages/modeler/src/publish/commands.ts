@@ -23,8 +23,12 @@ export async function runPublishDiagram(modeler: Modeler, command: PublishDiagra
     body: xml,
   });
 
-  if (response.status === 401 || response.status === 403) throw new Error('Invalid API key');
-  if (!response.ok) throw new Error(`Failed to publish (error ${response.status})`);
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('The API key was rejected. Sign in again from Settings > Account, then retry.');
+  }
+  if (!response.ok) {
+    throw new Error(`Publishing failed (HTTP ${response.status}). Check the study name and your connection, then retry.`);
+  }
 
   const body = await response.json();
   return { previewUrl: body?.data?.preview_url };

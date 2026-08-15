@@ -2,7 +2,7 @@
 
 name: Cognitive
 prefix: cognitive
-description: Studyflow extension for cognitive and behavioral research - cognitive tasks, Behaverse assessment tasks, video-game paradigms, rest periods, questionnaires, instructions, and participant-assignment gateways.
+description: Cognitive and behavioral research - tasks, questionnaires, instructions, rest periods, and participant-assignment gateways.
 uri: http://behaverse.org/schemas/studyflow/cognitive
 icon: iconify tabler--hexagon-letter-c
 core: true   # backs the default elements; always loaded, cannot be disabled
@@ -15,9 +15,7 @@ version: 26.0811
 categories:
   - name: Behaverse
     order: 15
-    description: >-
-      How a `BehaverseTask` is delivered — which assessment scene the Behaverse
-      build runs, and who answers it.
+    description: How a `BehaverseTask` is delivered, and who answers it.
 
 enumerations:
   - name: AssignmentAlgorithmEnum
@@ -39,9 +37,7 @@ enumerations:
       - name: Poisson
         value: poisson
   - name: InstrumentEnum
-    description: |
-      Software that delivers a cognitive task, and so how its `configurations`
-      YAML is read. Custom identifiers are accepted too.
+    description: Software that delivers a cognitive task.
     literalValues:
       - name: PsychoPy
         value: psychopy
@@ -54,9 +50,7 @@ enumerations:
       - name: Behaverse
         value: behaverse
   - name: QuestionnaireInstrumentEnum
-    description: |
-      Curated list of standardized questionnaires, a starting point for
-      common psychometric instruments. Custom identifiers are accepted too.
+    description: Standardized questionnaires in common use.
     literalValues:
       - name: PHQ-9
         value: phq-9
@@ -77,9 +71,7 @@ enumerations:
       - name: PANAS
         value: panas
   - name: ActorTypeEnum
-    description: |
-      What a participant pool stands for: a human, an artificial agent, or an
-      instrument. Any combination interacts through the same BPMN primitive.
+    description: What a participant pool stands for.
     literalValues:
       - name: Human
         value: human
@@ -139,8 +131,7 @@ enumerations:
       - name: Which One (WO)
         value: WO
   - name: AgentTypeEnum
-    description: |
-      Whether a `BehaverseTask` is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
+    description: Whether a human or a bot plays the task.
     literalValues:
       - name: Human
         value: human
@@ -148,66 +139,48 @@ enumerations:
         value: bot
 types:
   - name: Configurations
-    description: |
-      Wrapper element carrying an instrument-specific configuration block (YAML)
-      as its text body. Used as a child element on tasks that need to declare
-      runtime configuration without polluting parent attributes or the parent's
-      own text body.
+    description: Instrument-specific configuration, carried as a YAML body.
     properties:
       - name: value
         isBody: true
         type: studyflow:YAMLString
   - name: BotConfigurations
-    description: |
-      Wrapper element carrying the bot configuration YAML body for a
-      `BehaverseTask`. Subclasses `Configurations` purely so moddle serializes it
-      under a distinct element name (`<cognitive:botConfigurations>`) - without
-      this, both the task `configurations` and `botConfigurations` properties
-      would come out as `<cognitive:configurations>` siblings and the next load
-      couldn't tell them apart.
+    # Its own subclass so it serializes as `<cognitive:botConfigurations>`, not a second `configurations`.
+    description: Bot configuration for a `BehaverseTask`, carried as a YAML body.
     superClass:
       - Configurations
   - name: CognitiveTask
-    description: |
-      A cognitive test administered to a participant (e.g., a working-memory or
-      attention task). Concrete tasks are defined by the `instrument` (the software used to deliver them) and configured via a YAML `configurations` block whose format depends on that instrument.
+    description: A cognitive test taken by a participant (e.g., a working-memory or attention task).
     superClass:
       - bpmn:Task
     meta:
       icon: iconify bi--puzzle
     properties:
       - name: instrument
-        description: |
-          Software that delivers the task; it decides how `configurations` are
-          read. Pick a listed option or type a custom identifier.
+        description: Software that delivers the task and reads its `configurations`.
         isAttr: true
         type: InstrumentEnum
         meta:
           editable: true
       - name: implementation
-        description: |
-          External software that delivers this task, as
-          `<scheme>://<ref>[@<version-or-digest>]` - a versioned jsPsych plugin
-          URL, a `python://` callable, a `docker://` image. Mirrors the
-          `studyflow:Implementation` trait's grammar; it lives here because
-          `bpmn:Task` carries no native `implementation` attribute.
+        description: >-
+          Where the delivering software lives, as
+          `<scheme>://<ref>[@<version-or-digest>]` (e.g. a jsPsych plugin URL).
         isAttr: true
         type: String
         meta:
           categories:
             - Execution
       - name: configurations
-        description: |
-          Instrument-specific configuration in YAML format (e.g., number of
-          trials, stimulus duration, block structure). The shape of the YAML
-          depends on the chosen `instrument`.
+        description: >-
+          Settings the instrument reads, in YAML (e.g., number of trials,
+          stimulus duration, block structure).
         type: Configurations
         meta:
           categories:
             - Execution
   - name: Rest
-    # A class, not a template: the runner matches on the cognitive:Rest extension type.
-    description: |
+    description: >-
       A period of inactivity: a break between activities, or a resting-state
       recording (resting EEG/fMRI).
     superClass:
@@ -223,39 +196,33 @@ types:
           categories:
             - Execution
   - name: Questionnaire
-    description: |
-      A self-report instrument administered to a participant - either a standardized psychometric questionnaire (e.g., PHQ-9, GAD-7) or a custom form. The `instrument` identifies which questionnaire is shown.
+    description: A self-report questionnaire or form filled in by a participant (e.g., PHQ-9, GAD-7).
     superClass:
       - bpmn:Task
     meta:
       icon: iconify fluent--clipboard-text-edit-32-regular
     properties:
       - name: instrument
-        description: |
-          Instrument name used for the questionnaire. This can be an identifier for standardized questionnaires (e.g., PHQ-9, BDI-II, GAD-7) or a custom name for non-standardized questionnaires.
+        description: Which questionnaire is shown - a standard one (PHQ-9, GAD-7) or a name of your own.
         isAttr: true
         type: QuestionnaireInstrumentEnum
         meta:
           editable: true
   - name: Instruction
-    description: |
-      A passive information display shown to the participant (e.g., task
-      instructions, a briefing or debrief screen). Not a questionnaire and not a
-      data operation - just content to read before continuing.
+    description: >-
+      Something for the participant to read (e.g., task instructions, a briefing
+      or debrief screen).
     superClass:
       - bpmn:Task
     meta:
       icon: iconify material-symbols--info-outline-rounded
     properties:
       - name: content
-        description: Instruction content in markdown format.
+        description: The text the participant reads.
         isAttr: true
         type: studyflow:MarkdownString
   - name: BehaverseTask
-    description: |
-      A `CognitiveTask` from the Behaverse battery: `instrument` is pinned to
-      `behaverse`, `behaverseScene` names the assessment (`NB`, `UFOV`) in place of the
-      inherited `implementation`, and `configurations` carries its `GameConfig` as YAML.
+    description: A task from the Behaverse assessment battery (e.g., N-Back, UFOV).
     superClass:
       - CognitiveTask
     meta:
@@ -270,18 +237,14 @@ types:
           order: 0
           pinned: true
       - name: implementation
-        description: |
-          Not authored here. `behaverseScene` already names what the Behaverse build runs,
-          so the generic implementation reference has nothing left to point at - pinned out
-          of the inspector rather than offered as a second, contradictory way to say it.
+        description: Not used here - `behaverseScene` already names what runs.
         isAttr: true
         type: String
         redefines: CognitiveTask#implementation
         meta:
           pinned: true
       - name: behaverseScene
-        description: |
-          Behaverse scene that delivers this task (e.g., `NB`, `UFOV`, `DS`). Maps to a task ID in the Behaverse at runtime.
+        description: Which Behaverse assessment this task runs (e.g., `NB`, `UFOV`, `DS`).
         isAttr: true
         type: BehaverseSceneEnum
         meta:
@@ -289,10 +252,9 @@ types:
           categories:
             - Execution
       - name: configurations
-        description: |
-          `GameConfig` as YAML. Name a `Timelines:` entry with no body to run a
-          timeline shipped with the build; give it `blocks` to define one
-          inline, carrying only what differs from the per-task baseline.
+        description: >-
+          The task's `GameConfig` as YAML - name a timeline that ships with the
+          build, or define one inline.
         type: Configurations
         redefines: CognitiveTask#configurations
         meta:
@@ -300,8 +262,7 @@ types:
           categories:
             - Execution
       - name: agentType
-        description: |
-          Whether the task is driven by a human participant or by an automated bot. When `bot`, the runtime applies the overrides in the `botConfigurations` body to the loaded task's `Bot` agent component.
+        description: Whether a human participant or an automated bot plays the task.
         isAttr: true
         type: AgentTypeEnum
         default: human
@@ -310,12 +271,9 @@ types:
           categories:
             - Execution
       - name: botConfigurations
-        description: |
-          Bot overrides as YAML, used when `agentType` is `bot` (e.g.
-          `Speed: 100`, `SkipInstructions: true`). `ResponseSource` picks who
-          answers - `internal`, `external`, or `llm`, the last taking an `LLM:`
-          block, a `Prompt:` persona, and `IncludeScreenshot:` for visual
-          tasks.
+        description: >-
+          How the bot plays, as YAML (e.g. `Speed: 100`,
+          `ResponseSource: llm`).
         type: BotConfigurations
         meta:
           order: 5
@@ -325,16 +283,12 @@ types:
             body:
               agentType: bot
   - name: RandomGateway
-    description: |
-      Assigns participants to an outgoing branch at random, by a probability
-      distribution. Set `stratifyBy` to randomize independently within strata -
-      stratification is a parameter here, not a separate gateway type.
+    description: Sends each participant down one of the outgoing branches at random.
     superClass:
       - bpmn:ExclusiveGateway
     meta:
       icon: iconify streamline-flex--dice-5
-      # Runner branching semantics: pick an outgoing branch at random instead
-      # of evaluating conditions. Read from the catalog by the runner Session.
+      # The runner reads this and picks a branch at random instead of evaluating conditions.
       branching: random
     properties:
       - name: algorithm
@@ -343,9 +297,7 @@ types:
         type: AssignmentAlgorithmEnum
         default: probabilistic
       - name: probabilityFunction
-        description: |
-          Discrete distribution the assignment draws from, `uniform` by
-          default. Pick a listed option or type a custom identifier.
+        description: Distribution the random draw comes from.
         isAttr: true
         type: ProbabilityDistributionEnum
         default: uniform
@@ -355,18 +307,16 @@ types:
             body:
               algorithm: probabilistic
       - name: stratifyBy
-        description: |
-          Variable that partitions the cohort into strata (`age_band`, `sex`).
-          Set, assignment runs within each stratum; unset, it is simple
-          randomization.
+        description: >-
+          Variable to randomize within, so the branches stay balanced on it
+          (e.g. `age_band`).
         isAttr: true
         type: String
         meta:
           optional: true
       - name: strata
-        description: |
-          Definition of the strata used for allocation (one entry per stratum),
-          formatted in markdown. For example: `age_band: 18-29`.
+        description: >-
+          The strata to allocate within, one per entry (e.g. `age_band: 18-29`).
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
@@ -375,10 +325,8 @@ types:
             body:
               stratifyBy: $set
   - name: EligibilityGateway
-    description: |
-      Decision gateway encoding inclusion and/or exclusion criteria for
-      participant eligibility. Participants meeting the inclusion criteria (and
-      none of the exclusion criteria) proceed; others are routed to a
+    description: >-
+      Lets eligible participants carry on and sends everyone else down a
       screen-out branch.
     superClass:
       - bpmn:ExclusiveGateway
@@ -386,24 +334,17 @@ types:
       icon: iconify mdi--filter-check-outline
     properties:
       - name: inclusionCriteria
-        description: |
-          List of inclusion criteria (one entry per criterion), formatted in
-          markdown. Example: `Age between 18 and 65`.
+        description: What a participant must meet to carry on, one per entry (e.g. `Age between 18 and 65`).
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
       - name: exclusionCriteria
-        description: |
-          List of exclusion criteria (one entry per criterion), formatted in
-          markdown. Example: `History of neurological disorder`.
+        description: What rules a participant out, one per entry (e.g. `History of neurological disorder`).
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
   - name: Actor
-    description: |
-      A participant pool tagged as human, LLM, software agent, or instrument.
-      Draws as an ordinary BPMN pool, so a mixed human/artificial study needs no
-      new choreography primitive.
+    description: A pool of participants - who or what takes part in the study.
     superClass:
       - bpmn:Participant
     meta:
@@ -415,12 +356,9 @@ types:
         type: ActorTypeEnum
         default: human
       - name: spec
-        description: |
-          Identifier of the non-human actor: a model id when actorType is `llm`
-          (e.g., `gpt-4`, `claude-opus-4-8`, `gemini-2.5-pro`), a software-agent
-          specification when `agent` (e.g., a CogEnv profile, a checkpoint hash),
-          or an instrument/device id when `instrument` (e.g., an LSL stream name,
-          a device serial). Free text so any provider or device can be named.
+        description: >-
+          Which model, agent, or device this pool stands for (e.g.
+          `claude-opus-4-8`, a checkpoint hash, an LSL stream name).
         isAttr: true
         type: String
         meta:
@@ -431,9 +369,9 @@ types:
                 - agent
                 - instrument
       - name: promptTemplate
-        description: |
-          Prompt template applied to an LLM actor each turn, in markdown.
-          Placeholders like `{{stimulus}}` are filled by the runner.
+        description: >-
+          Prompt sent to the LLM each turn, with placeholders like
+          `{{stimulus}}` filled in as it runs.
         isAttr: true
         type: studyflow:MarkdownString
         meta:
@@ -442,8 +380,7 @@ types:
               actorType: llm
 
 templates:
-  # Stratified allocation is not its own gateway type - it is a RandomGateway
-  # with `stratifyBy` set (parameterize, don't proliferate).
+  # Stratified allocation is a RandomGateway with `stratifyBy` set, not its own type.
   - description: Stratified random assignment - allocate independently within each stratum to balance covariates across arms.
     object:
       bpmn:name: Stratified allocation
@@ -464,9 +401,7 @@ templates:
         - "age_band: 18-29"
         - "age_band: 30-44"
         - "age_band: 45-65"
-  # A video game paradigm is not its own element type - it is a CognitiveTask
-  # whose instrument happens to be a game engine, preset here as a template
-  # (parameterize, don't proliferate).
+  # A video game is a CognitiveTask whose instrument is a game engine, not its own type.
   - description: An interactive video game used as an experimental paradigm or measurement instrument.
     object:
       bpmn:name: Video Game
@@ -482,9 +417,8 @@ templates:
         levels:
         difficulty:
         scoring:
-  # Behaverse assessment-task presets (a BehaverseTask is a CognitiveTask whose
-  # instrument is pinned to `behaverse`).
-  - description: N-Back task referencing a built-in timeline shipped with the Behaverse build - listed by name only under `Timelines`.
+  # Behaverse assessment-task presets.
+  - description: N-Back task running a timeline that ships with the Behaverse build, named under `Timelines`.
     object:
       type: BehaverseTask
       bpmn:name: N-Back (XCIT_NB_01)
@@ -492,7 +426,7 @@ templates:
       configurations: |
         Timelines:
           XCIT_NB_01:
-  - description: N-Back task with inline overrides - only the diverging Blocks/Timelines need to be authored; everything else is layered on top of `Resources/NB.json` at runtime.
+  - description: N-Back task with an inline timeline - author only the blocks that differ from the built-in defaults.
     object:
       type: BehaverseTask
       bpmn:name: N-Back (inline)

@@ -49,7 +49,7 @@ test.describe('Inspector execution tab', () => {
     await expect(inspector.getByRole('button', { name: 'Repeats' })).toBeVisible();
     await expect(inspector.getByTestId('state-section')).toHaveCount(0);
 
-    await addPaletteElement(page, 'Containers', 'SubProcess', { x: 620, y: 400 });
+    await addPaletteElement(page, 'Containers', 'Sub-process', { x: 620, y: 400 });
     await page.keyboard.press('Escape');
     await inspector.getByRole('tab', { name: 'Execution' }).click();
     await page.getByTestId('state-scope-help').hover();

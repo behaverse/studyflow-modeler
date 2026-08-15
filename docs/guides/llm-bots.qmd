@@ -54,9 +54,9 @@ See the `BehaverseTask` property descriptions in `assets/schemas/cognitive.moddl
 
 Three ready-to-run examples are available from the modeler's *Examples* menu (sources in `assets/examples/`):
 
-- `bot_claude.studyflow.yaml` -- Claude-powered bots with distinct personas, including a vision task via `IncludeScreenshot`.
-- `bot_ollama.studyflow.yaml` -- the same pattern against a local Ollama server.
-- `bot_external.studyflow.yaml` -- uniform random responses, no LLM required.
+- `bot_claude.studyflow.png` -- Claude-powered bots with distinct personas, including a vision task via `IncludeScreenshot`.
+- `bot_ollama.studyflow.png` -- the same pattern against a local Ollama server.
+- `bot_external.studyflow.png` -- uniform random responses, no LLM required.
 
 ## What's next
 

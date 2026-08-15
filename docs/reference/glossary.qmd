@@ -28,7 +28,7 @@ A node in the diagram: an event, activity, gateway, data object, data store, dat
 
 <details>
 <summary>**Activity**</summary>
-A step in the workflow (a rectangle). In Studyflow, specialized as `CognitiveTask`, `Questionnaire`, `Instruction`, `Rest`, `VideoGame`, `Script`, `Manual`, or `BehaverseTask`.
+A step in the workflow (a rectangle). In Studyflow, specialized as `CognitiveTask`, `Questionnaire`, `Instruction`, `Rest`, or `BehaverseTask`; the palette also offers the native BPMN kinds -- Task, User, Script, Service, Manual, and Choreography Task.
 </details>
 
 <details>
@@ -47,27 +47,12 @@ A directed arrow connecting two elements, specifying execution order.
 </details>
 
 <details>
-<summary>**Data object / data store**</summary>
-BPMN elements for transient and persistent data, respectively. Studyflow refines these with `Dataset`, `Table`, `Array`, `Schema`, and `DataCatalog`. See [Data](data.qmd).
-</details>
-
-<details>
-<summary>**Data operation**</summary>
-A marker on a task indicating a data transformation: `Map`, `Filter`, `Reduce`, `Group`, `FlatMap`, `Transform`, or `Compose`. The task remains a normal BPMN task; the marker adds data semantics. See [Data](data.qmd).
-</details>
-
-<details>
 <summary>**Choreography**</summary>
 A BPMN2 construct for modeling interactions between multiple participants, used in multi-agent studies. See the [Multi-agent collaboration example](../examples/multi-agent.qmd).
 </details>
 
 <details>
-<summary>**Moddle**</summary>
-The schema format used internally by [bpmn-js](https://github.com/bpmn-io) to describe element types and their attributes. Studyflow defines its language as a moddle YAML file.
-</details>
-
-<details>
-<summary>**View**</summary>
+<summary>**Projection (views)**</summary>
 A rendering of a studyflow diagram tuned to a specific need: the *Study view* (BPMN-like overview), the *Timeline view* (Gantt-like), and the *Checklist view*. See [Views](views.qmd).
 </details>
 

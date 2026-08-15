@@ -125,3 +125,8 @@ export function getInstrument(id: string | undefined): InstrumentDefinition | nu
   const key = id.toLowerCase().trim();
   return REGISTRY[key] ?? null;
 }
+
+/** Canonical ids only (the registry also carries unhyphenated aliases), for listing them in messages. */
+export function listInstrumentIds(): string[] {
+  return [...new Set(Object.values(REGISTRY).map((definition) => definition.id))];
+}

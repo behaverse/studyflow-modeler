@@ -29,7 +29,7 @@ Studyflow diagrams can also be used to represent the trial structure of cognitiv
   </figcaption>
 </figure>
 
-In the figure above, we can see the the stimulus presented in each trial (boxes), and the timing of each stage (timer events). Timer events are used to indicate the duration of each stage, such as the presentation time of the stimulus and the response window. The flow of the trial is represented by arrows connecting the different stages, showing how participants move through the task.
+In the figure above, we can see the stimulus presented in each trial (boxes), and the timing of each stage (timer events). Timer events are used to indicate the duration of each stage, such as the presentation time of the stimulus and the response window. The flow of the trial is represented by arrows connecting the different stages, showing how participants move through the task.
 
 However, this does not yet provide a formal and complete description of the experiment. For example, we actually have two timers in the trial, one for the ITI (Inter Trial Interval), and one for maximum response time. This can be simply two interrupting timers events (circles with solid borders) that stops the flow of the activity at the appropriate times:
 

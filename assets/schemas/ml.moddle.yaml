@@ -3,10 +3,8 @@
 name: ML
 prefix: ml
 description: >-
-  Statistical and machine-learning pipelines in scikit-learn's own terminology
-  (load, split, build, fit, cross-validate, save), shipped as presets over the
-  `functional` operations - this schema declares no element types. Estimators are
-  data: building one is a call, and fitting is a call over rows.
+  Presets for statistical and machine-learning pipelines: load, split, build,
+  fit, cross-validate, and save.
 uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
 order: 50  # registry position (load precedence + settings order)
@@ -19,22 +17,13 @@ types: []
 
 templates:
 
-  # ===========================================================================
-  # Steps - functional operations bound to sklearn functions. `operationType`
-  # names the ML verb (load, splitData, build, fit, evaluate, crossValidate,
-  # save); `implementation` + `additionalArguments` say what actually runs.
-  # ===========================================================================
   - description: Load a bundled sample dataset (scikit-learn's digits) as a table.
     object:
       bpmn:name: Load sample dataset
       type: functional:Transform
       bpmn:documentation: |
-        Loads one of scikit-learn's bundled datasets - the standard way to
-        make a pipeline runnable before the real data exists. Repoint
-        `implementation` at `load_iris`, `fetch_openml`, or your own loader
-        (or use the functional "Read data" preset for files); the step's
-        shape does not change. Associate its output to a `studyflow:Table` so downstream steps
-        have a typed artifact to read.
+        Loads a bundled sample dataset, so a pipeline can run before the real
+        data exists.
       icon: iconify mdi--database-import-outline
       keywords:
         - load
@@ -52,13 +41,8 @@ templates:
       bpmn:name: Train/test split
       type: functional:Transform
       bpmn:documentation: |
-        Holds out 20% for testing, grouped by participant so no subject appears
-        in both partitions - the one split parameter that matters in
-        human-subjects work. Bound to scikit-learn's
-        `GroupShuffleSplit(n_splits, test_size)`; the group labels
-        (participant ids) are not configuration - they arrive as an associated data
-        input (`parameter: groups`, exactly `split(X, y, groups)`). Repoint `implementation` at
-        `train_test_split` or another splitter when grouping does not matter.
+        Holds out 20% of the data for testing, grouped so that no participant
+        appears in both parts.
       icon: iconify mdi--call-split
       keywords:
         - split
@@ -76,11 +60,7 @@ templates:
       bpmn:name: Reduce dimensions
       type: functional:Map
       bpmn:documentation: |
-        Builds a PCA projector for mapping rows into a lower-dimensional
-        space. Usually it belongs *inside* the estimator -
-        `make_pipeline(PCA(...), SVC(...))` - so cross-validation refits it
-        per fold without leakage; standalone, fit-and-apply it with a "Fit
-        estimator" step bound to `sklearn.decomposition.PCA.fit_transform`.
+        Builds a PCA projector that maps rows into a lower-dimensional space.
       icon: iconify mdi--arrow-collapse
       keywords:
         - pca
@@ -92,20 +72,13 @@ templates:
       implementation: python://sklearn.decomposition.PCA
       additionalArguments: "n_components: 16\nwhiten: false"
 
-  - description: Build an estimator - constructors are calls, and estimators are data.
+  - description: Build an unfitted estimator for a later fitting or cross-validation step.
     object:
       bpmn:name: Build estimator
       type: functional:Transform
       bpmn:documentation: |
-        Builds an *unfitted* estimator that flows down a data association like any table:
-        `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1.0))`.
-        `make_pipeline` takes its steps positionally, so they go under the
-        reserved `args` key, and each step is a nested call - a mapping with
-        its own `implementation` and `arguments`, which the runner resolves first.
-        Associate the result into "Cross-validate" and "Fit estimator" so both
-        work on exactly the same specification; bind any constructor the same
-        way (`sklearn.ensemble.RandomForestClassifier` with its kwargs in
-        `additionalArguments`) when a single estimator is enough.
+        Builds an unfitted estimator - here a PCA step followed by a support
+        vector classifier - that later steps fit or cross-validate.
       icon: iconify mdi--school-outline
       keywords:
         - build
@@ -118,21 +91,13 @@ templates:
       implementation: python://sklearn.pipeline.make_pipeline
       additionalArguments: "args:\n  - implementation: python://sklearn.decomposition.PCA\n    arguments:\n      n_components: 16\n  - implementation: python://sklearn.svm.SVC\n    arguments:\n      kernel: rbf\n      C: 1.0"
 
-  - description: Fit an estimator on data - the call that actually trains the model.
+  - description: Fit an estimator on data to produce a trained model.
     object:
       bpmn:name: Fit estimator
       type: functional:Reduce
       bpmn:documentation: |
-        The fitting call. `sklearn.pipeline.Pipeline.fit` is the unbound
-        method: associate the estimator in with `parameter: self` and the data
-        with `parameter: X` and `parameter: y` - that is exactly
-        `pipeline.fit(X, y)`. When an argument is a field of an associated data
-        element, use a scoped reference in `additionalArguments` instead
-        (`y: $MyTable.target`). `fit` returns the fitted estimator, which
-        binds to the associated output. For a bare estimator,
-        bind its own class's method the same way
-        (`sklearn.ensemble.RandomForestClassifier.fit`,
-        `sklearn.model_selection.GridSearchCV.fit`).
+        Trains the incoming estimator on the incoming data and hands on the
+        fitted model.
       icon: iconify mdi--sigma
       keywords:
         - fit
@@ -148,13 +113,8 @@ templates:
       bpmn:name: Formula model
       type: functional:Transform
       bpmn:documentation: |
-        Model specification in the notation behavioural research already
-        speaks: the formula *is* the model, so it belongs on the diagram, not
-        in a script. `mixedlm(formula, data, groups)` builds the mixed model
-        over the associated table; fit it with a "Fit estimator" step bound to
-        `statsmodels.regression.mixed_linear_model.MixedLM.fit`. Repoint
-        `implementation` at any formula interface (`lme4::lmer`, `bambi`)
-        without changing the shape of the step.
+        Builds a mixed-effects model from a formula over the incoming table; a
+        later fitting step estimates it.
       icon: iconify mdi--math-integral
       keywords:
         - formula
@@ -167,16 +127,12 @@ templates:
       implementation: python://statsmodels.formula.api.mixedlm
       additionalArguments: "formula: rt ~ condition\ngroups: participant_id"
 
-  - description: Score a model on held-out data - reduce predictions to a metrics report.
+  - description: Score a model on held-out data and report the metrics.
     object:
       bpmn:name: Evaluate
       type: functional:Reduce
       bpmn:documentation: |
-        Reduce predictions to a metrics report -
-        `classification_report(y_true, y_pred, output_dict=True)`, with the
-        true and predicted labels arriving as associated data inputs. For a
-        fairness audit, put a Group step (by site, by demographic) upstream
-        and this same evaluation runs per subgroup.
+        Turns true and predicted labels into a report of the metrics.
       icon: iconify mdi--check-decagram-outline
       keywords:
         - evaluate
@@ -188,20 +144,13 @@ templates:
       implementation: python://sklearn.metrics.classification_report
       additionalArguments: "output_dict: true"
 
-  - description: Cross-validate an estimator in one call (scikit-learn's cross_validate).
+  - description: Fit and score an estimator across cross-validation folds in one step.
     object:
       bpmn:name: Cross-validate
       type: functional:Reduce
       bpmn:documentation: |
-        The whole fit-and-score loop as one call -
-        `cross_validate(estimator, X, y, cv, scoring)`. Build the estimator
-        with "Build estimator", then connect it and the data in, naming the
-        callable's parameters on the associations: `parameter: estimator`,
-        `parameter: X`, `parameter: y`; the per-fold scores leave as the
-        associated output.
-        Folds are scikit-learn's business, not the workflow's: put
-        preprocessing inside the estimator (`make_pipeline`) and every fold
-        refits it without leakage.
+        Runs the whole fit-and-score loop over the folds and hands on the
+        per-fold scores.
       icon: iconify mdi--layers-triple-outline
       keywords:
         - crossvalidation
@@ -213,18 +162,13 @@ templates:
       implementation: python://sklearn.model_selection.cross_validate
       additionalArguments: "cv: 5\nscoring: [accuracy, f1_macro]\nreturn_train_score: false"
 
-  - description: Build a hyperparameter grid search (scikit-learn's GridSearchCV).
+  - description: Search a grid of hyperparameter settings for the best one.
     object:
       bpmn:name: Grid search
       type: functional:Transform
       bpmn:documentation: |
-        Hyperparameter search, scikit-learn style:
-        `GridSearchCV(estimator, param_grid, cv, scoring)` wraps the associated
-        base estimator in a search object - which is itself an estimator, so
-        fit it with a "Fit estimator" step bound to
-        `sklearn.model_selection.GridSearchCV.fit`. Fitting runs the sweep
-        and keeps the winner (`best_estimator_`, `cv_results_`). The sweep is
-        scikit-learn's business, not a workflow construct.
+        Wraps the incoming estimator in a search over the parameter grid;
+        fitting it runs the sweep and keeps the winner.
       icon: iconify mdi--tune-variant
       keywords:
         - gridsearch
@@ -241,13 +185,7 @@ templates:
       bpmn:name: Save model
       type: functional:Transform
       bpmn:documentation: |
-        Lands the fitted model on disk (a file a notebook or a serving job
-        can pick up): `joblib.dump(model, filename, compress=3)` - joblib is
-        scikit-learn's own recommended persistence - with the associated model as
-        the value and `filename` in `additionalArguments`. Often no step is needed at all:
-        set `uri` on the model artifact itself (its `.joblib` extension is
-        the format) and the engine persists it when the fitting step writes
-        it.
+        Writes the incoming fitted model to the file named by `filename`.
       icon: iconify mdi--content-save-outline
       keywords:
         - save
@@ -259,20 +197,12 @@ templates:
       implementation: python://joblib.dump
       additionalArguments: "filename: results/model.joblib\ncompress: 3"
 
-  # ===========================================================================
-  # Artifacts. Native data objects; `uri` (from the exec Artifact trait) says
-  # where the engine loads/saves them.
-  # ===========================================================================
-  - description: A fitted model as an artifact - a data object the fitting step writes.
+  - description: A fitted model, produced by a fitting step.
     object:
       bpmn:name: Model
       type: bpmn:DataObjectReference
       bpmn:documentation: |
-        The artifact a fitting step produces, an evaluation scores, and a
-        Writer saves. Set `uri` to keep it on disk - a `.joblib` uri picks
-        scikit-learn's own persistence; the model card (intended use,
-        training data, known limitations) goes here in `documentation`;
-        hyperparameters live on the fitting step's `additionalArguments`.
+        The fitted model a step produces; set `uri` to keep it on disk.
       icon: iconify mdi--cube-outline
       keywords:
         - model
@@ -285,10 +215,8 @@ templates:
       bpmn:name: Metric
       type: bpmn:DataObjectReference
       bpmn:documentation: |
-        A native data object whose `bpmn:name` is the metric (`accuracy`,
-        `rmse`). The measuring step writes its value at run time; note the
-        partition it was computed on (train / validation / test) here, so a
-        test score is never read as a training score.
+        A measured value such as `accuracy` or `rmse`, written when the step
+        that measures it runs.
       icon: iconify mdi--gauge
       keywords:
         - metric

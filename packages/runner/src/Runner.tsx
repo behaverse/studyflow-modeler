@@ -83,7 +83,7 @@ function NodeRenderer({ job, session, log, onResolve }: NodeRendererProps) {
   const def = findByType(job.type);
 
   useEffect(() => {
-    if (!def) resolveOnce({ kind: 'abort', reason: `unknown-job-type:${job.type}` });
+    if (!def) resolveOnce({ kind: 'abort', reason: `the browser runner has no screen for '${job.type}' steps` });
   }, [def, job.type, resolveOnce]);
 
   if (!def) return null;
@@ -173,18 +173,21 @@ export function Runner() {
       if (stored) {
         setXml(stored);
       } else {
-        addLog('error', `No studyflow found for diagram=${source.id}.`);
+        addLog('error', `No studyflow was handed over for diagram=${source.id}.`);
         setRunError(
-          'The link has expired or was already used. Ask for a new link, or open the '
-          + 'diagram in the modeler and press Run again.',
+          'This link has expired or was already used. Ask for a new one, or open the '
+          + 'studyflow in the modeler and press Run again.',
         );
         setPhase('error');
       }
       return;
     }
     fetch(source.url).then((r) => r.text()).then(setXml).catch((err) => {
-      addLog('error', `Failed to fetch ${source.url}: ${err}`);
-      setRunError(`The studyflow at ${source.url} could not be loaded.`);
+      addLog('error', `Could not fetch ${source.url}: ${err}`);
+      setRunError(
+        `The studyflow at ${source.url} could not be loaded. `
+        + 'Check that the address is right and reachable from this browser.',
+      );
       setPhase('error');
     });
   }, [diagram]);
@@ -212,19 +215,19 @@ export function Runner() {
         setSession(session);
         setSeed(studyflow.seed);
         setStudyflowName(studyflow.businessObject?.name || studyflow.businessObject?.id || null);
-        addLog('info', `Parsed ${studyflow.flowNodes.size} flow nodes, ${studyflow.sequenceFlows.size} sequence flows.`);
+        addLog('info', `Read ${studyflow.flowNodes.size} flow nodes and ${studyflow.sequenceFlows.size} sequence flows.`);
 
         for (const name of overridden) {
-          addLog('info', `Parameter '${name}' overrides the study's value: ${String(values[name])}.`);
+          addLog('info', `The link sets '${name}' to ${String(values[name])}, replacing the study's own value.`);
         }
         for (const name of undeclared) {
-          addLog('skip', `Parameter '${name}' is not declared by this studyflow.`);
+          addLog('skip', `'${name}' is not a declared parameter of this studyflow; its value is bound anyway.`);
         }
         if (unbound.length > 0) {
-          addLog('error', `Missing parameter(s): ${unbound.join(', ')}.`);
+          addLog('error', `The link gave no value for: ${unbound.join(', ')}.`);
           setRunError(
-            `This studyflow is parameterized and the link gave no value for: ${unbound.join(', ')}. `
-            + `Add them to the URL, e.g. &${unbound[0]}=...`,
+            `This studyflow expects ${unbound.join(', ')} to be set, and this link does not set ${unbound.length === 1 ? 'it' : 'them'}. `
+            + `Add ${unbound.length === 1 ? 'it' : 'them'} to the address, e.g. &${unbound[0]}=...`,
           );
           setPhase('error');
           return;
@@ -251,8 +254,8 @@ export function Runner() {
         addLog(
           handle.online ? 'info' : 'skip',
           handle.online
-            ? `Online (session_id=${handle.sessionId}). Data will be submitted to the data-server.`
-            : `Offline (session_id=${handle.sessionId}). No data will stored or submitted.`
+            ? `Connected to the Behaverse Data Server (session ${handle.sessionId}); responses will be uploaded.`
+            : `Not connected to the Behaverse Data Server (session ${handle.sessionId}); nothing will be stored or uploaded.`
         );
 
         if (handle.online) {
@@ -262,7 +265,9 @@ export function Runner() {
             onFlush: (count, ok) =>
               addLog(
                 ok ? 'info' : 'skip',
-                ok ? `Recorded ${count} event(s).` : `Failed to record ${count} event(s).`,
+                ok
+                  ? `Uploaded ${count} event(s) to the data server.`
+                  : `Could not upload ${count} event(s) to the data server; they were dropped.`,
               ),
           });
         }
@@ -276,7 +281,7 @@ export function Runner() {
           });
           resolverRef.current = null;
           if (outcome.kind === 'abort') {
-            addLog('error', `Aborted at ${job.node.id}: ${outcome.reason}`);
+            addLog('error', `The run stopped at '${job.node.id}': ${outcome.reason}.`);
             setPhase('aborted');
             await finishSession(dataServer, serverSessionRef.current, session, 'canceled', addLog);
             return;
@@ -318,8 +323,8 @@ export function Runner() {
             <div className={layout.terminal} role="alert" data-testid="runner-invalid">
               <p className={layout.terminalTitle}>This study cannot run</p>
               <p className={layout.terminalBody}>
-                The diagram has {blockingIssues.length === 1 ? 'a problem' : 'problems'} that
-                must be fixed before it can be delivered to a participant.
+                Fix {blockingIssues.length === 1 ? 'this' : 'these'} in the modeler, then run it again.
+                Until then it cannot be given to a participant.
               </p>
               <ul className={layout.terminalList}>
                 {blockingIssues.map((issue, i) => (
@@ -330,11 +335,13 @@ export function Runner() {
           ) : phase === 'error' ? (
             <div className={layout.terminal} role="alert" data-testid="runner-error">
               <p className={layout.terminalTitle}>The study could not start</p>
-              <p className={layout.terminalBody}>{runError ?? 'An unexpected error occurred.'}</p>
+              <p className={layout.terminalBody}>
+                {runError ?? 'Something went wrong before the first step. Open the logs for the details.'}
+              </p>
             </div>
           ) : (
             <div className={`${layout.cover} ${layout.coverShown}`}>
-              <span>Preparing study... ({phase})</span>
+              <span>Preparing the study...</span>
             </div>
           )}
           <button
@@ -352,7 +359,7 @@ export function Runner() {
         >
           <div className={layout.sidebarHeader}>
             <div className={layout.sidebarInfo}>
-              <span className={layout.title}>{studyflowName ?? 'Studyflow'}</span>
+              <span className={layout.title}>{studyflowName ?? 'Untitled studyflow'}</span>
               <div className={layout.sidebarInfoMetaRow}>
                 <span className={layout.badge}>{phase}</span>
                 {seed != null && <span className={layout.meta}>seed={seed}</span>}
@@ -396,18 +403,20 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
 
   return (
     <div className={layout.helpPage}>
-      <h1 className={layout.helpTitle}>Studyflow</h1>
+      <h1 className={layout.helpTitle}>Run a studyflow</h1>
       <p className={layout.helpText}>
-        Upload a <code>.studyflow</code> file, or pass a <code>diagram</code> parameter (a URL to fetch or the id of a diagram).
+        Choose a <code>.studyflow.yaml</code> file, or open this page with a <code>diagram</code>{' '}
+        parameter — a URL to fetch, or the id of a studyflow the modeler handed over. Everything
+        else in the address sets a parameter of the study.
       </p>
       <label className={layout.uploadButton}>
         <input
           type="file"
-          accept=".studyflow,.bpmn,.xml"
+          accept=".studyflow,.yaml,.yml,.bpmn,.xml"
           onChange={onChange}
           className={layout.uploadInput}
         />
-        <span>Choose file...</span>
+        <span>Choose a file...</span>
       </label>
       <pre className={layout.helpExample}>
         run?diagram=URL&seed=42{'\n\n'}

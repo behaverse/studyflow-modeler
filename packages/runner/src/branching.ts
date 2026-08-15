@@ -14,7 +14,7 @@ export class UndeclaredReference extends Error {
   readonly reference: string;
 
   constructor(reference: string) {
-    super(`"${reference}" is not declared by any scope in this run`);
+    super(`'${reference}' is not declared by any scope in this run.`);
     this.name = 'UndeclaredReference';
     this.reference = reference;
   }
@@ -33,8 +33,8 @@ export function evaluateCondition(
   if (language && !['js', 'javascript'].includes(language.toLowerCase())) {
     return {
       value: false,
-      error: `a ${language} expression — this runner evaluates JavaScript `
-        + '(the reference runner evaluates Python)',
+      error: `a ${language} expression — the runner evaluates JavaScript; `
+        + 'rewrite the condition in JavaScript',
     };
   }
   const scope = new Proxy(bindings, {

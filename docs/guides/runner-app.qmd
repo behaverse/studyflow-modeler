@@ -121,7 +121,7 @@ Other element kinds (data references, score gateways, sub-processes that aren't 
 Not every element you can model has a dedicated runtime. The current support matrix:
 
 - **Executed natively** -- `StartEvent` (consent), `EndEvent` (completion code, redirect), `Instruction`, `Questionnaire`, `BehaverseTask`, and the gateways listed above.
-- **Generic fallback** -- `CognitiveTask`, `VideoGame`, and `Rest` are design-time elements; at run time they render the generic task step (a *Continue* button), like any plain BPMN task.
+- **Generic fallback** -- `CognitiveTask` and `Rest` (which specializes it) are design-time elements; at run time they render the generic task step (a *Continue* button), like any plain BPMN task.
 - **Questionnaire instruments** -- only PHQ-9, GAD-7, and BDI-II ship as built-in forms. Other `instrument` values (STAI, PSS, custom IDs, ...) fall back to the generic step.
 - **`ParallelGateway`** -- unsupported; the runner raises an error during validation/traversal.
 

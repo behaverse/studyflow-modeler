@@ -309,6 +309,6 @@ test.describe('conditions over declared state', () => {
 
     await expect((async () => {
       for await (const _job of session.traverse()) { /* unreachable */ }
-    })()).rejects.toThrow(/No StartEvent/);
+    })()).rejects.toThrow(/no start event/);
   });
 });

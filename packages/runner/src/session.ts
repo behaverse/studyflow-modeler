@@ -45,7 +45,7 @@ export class Session {
     this.onDiagnostic = context.onDiagnostic;
 
     const root = studyflow.scopes.get(studyflow.rootScopeId);
-    if (!root) throw new Error(`No root scope (${studyflow.rootScopeId}) in diagram.`);
+    if (!root) throw new Error(`This studyflow has no study to run (no scope '${studyflow.rootScopeId}').`);
     this.scopes = new ScopeChain(root, context.variables ?? {});
   }
 
@@ -62,14 +62,18 @@ export class Session {
   }
 
   async *traverse(): AsyncGenerator<Job, void, void> {
-    if (!this.studyflow.startId) throw new Error('No StartEvent found in diagram.');
+    if (!this.studyflow.startId) {
+      throw new Error('This studyflow has no start event, so there is no first step. Add one in the modeler.');
+    }
 
     let currentId: string | undefined = this.studyflow.startId;
     const returns: string[] = [];
 
     while (currentId) {
       const node = this.studyflow.flowNodes.get(currentId);
-      if (!node) throw new Error(`Dangling node reference: ${currentId}`);
+      if (!node) {
+        throw new Error(`A sequence flow leads to '${currentId}', which is not in this studyflow. Reconnect it in the modeler.`);
+      }
 
       this.trace.push(node.id);
 
@@ -81,7 +85,7 @@ export class Session {
           currentId = scope.startId;
           continue;
         }
-        this.diagnose(`sub-process "${node.id}" has no start event; treated as a pass-through`);
+        this.diagnose(`sub-process '${node.id}' has no start event, so nothing inside it runs; stepping past it`);
         currentId = this.advance(node);
         continue;
       }
@@ -103,14 +107,17 @@ export class Session {
 
   private toJob(node: FlowNode): Job | null {
     if (node.type === 'bpmn:ParallelGateway') {
-      throw new Error(`ParallelGateway (${node.id}) is not supported yet.`);
+      throw new Error(
+        `The browser runner shows one step at a time, so it cannot run the parallel branches at '${node.id}'. `
+        + 'Put the steps in sequence, or split them with an ExclusiveGateway.',
+      );
     }
 
     const definition = findByFlowNode(node);
     if (!definition) {
       if (!ROUTING_TYPES.has(node.type)) {
         this.diagnose(
-          `no runner module handles "${node.id}" (${node.extensionType ?? node.type}); step skipped`,
+          `'${node.id}' (${node.extensionType ?? node.type}) is not executable in the browser runner; step skipped`,
         );
       }
       return null;
@@ -118,7 +125,7 @@ export class Session {
 
     const job = (definition.toJob(node) as Job | null | undefined) ?? null;
     if (!job) {
-      this.diagnose(`"${node.id}" (${definition.type}) produced no job; step skipped`);
+      this.diagnose(`'${node.id}' (${definition.type}) has nothing to run; step skipped`);
     }
     return job;
   }
@@ -127,7 +134,10 @@ export class Session {
     if (node.outgoing.length === 0) return undefined;
 
     if (this.branchingMode(node) === 'model') {
-      throw new Error(`Model-driven routing (${node.id}) is not supported yet.`);
+      throw new Error(
+        `Model-driven routing is not implemented, so '${node.id}' cannot pick a branch. `
+        + 'Use a gateway with a condition on each outgoing flow, or a RandomGateway.',
+      );
     }
     if (this.branchingMode(node) === 'random') return this.pickRandomBranch(node);
     if (this.isExclusiveGateway(node)) return this.pickConditionBranch(node) ?? this.pickDefaultBranch(node);
@@ -190,7 +200,7 @@ export class Session {
 
   private evalCondition(expression: string, flowId: string, language?: string): boolean {
     const { value, error } = evaluateCondition(expression, this.conditionBindings(), language);
-    if (error) this.diagnose(`condition on "${flowId}" did not evaluate (${error}); branch not taken`);
+    if (error) this.diagnose(`the condition on '${flowId}' could not be evaluated (${error}), so that branch was not taken`);
     return value;
   }
 

@@ -11,13 +11,15 @@ export function validateEndEvent(node: FlowNode): ValidationIssue[] {
   if (completionCodeType === 'static' && !completionCode) {
     issues.push({
       nodeId: node.id,
-      message: `EndEvent '${node.id}' uses static completionCode but no completionCode value is set.`,
+      message: "completionCodeType is 'static' but completionCode is empty, so participants would get no code. "
+        + "Type the code in completionCode, or switch completionCodeType to 'dynamic'.",
     });
   }
   if (redirectTo.includes('{COMPLETION_CODE}') && completionCodeType === 'none') {
     issues.push({
       nodeId: node.id,
-      message: `EndEvent '${node.id}': redirectTo references {COMPLETION_CODE} but completionCodeType is 'none'.`,
+      message: "redirectTo contains {COMPLETION_CODE} but completionCodeType is 'none', so the link would carry a blank code. "
+        + "Set completionCodeType to 'static' or 'dynamic', or drop the placeholder.",
     });
   }
   return issues;

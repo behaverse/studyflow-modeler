@@ -36,7 +36,7 @@ website:
         href: get-started.qmd
       - section: Guides
         contents:
-          - auto: guides
+          - auto: guides/*.qmd
       - section: Examples
         href: examples/index.qmd
         contents:
@@ -56,8 +56,12 @@ website:
 format:
   html:
     theme:
-      - default
-      - assets/css/theme.scss
+      light:
+        - default
+        - assets/css/theme.scss
+      dark:
+        - default
+        - assets/css/theme-dark.scss
     css:
       - assets/css/custom.css
       - assets/css/figures.css

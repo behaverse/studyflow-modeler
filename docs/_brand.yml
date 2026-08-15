@@ -1,3 +1,4 @@
+# Light ground. The warm dark ground lives in assets/css/theme-dark.scss.
 color:
   palette:
     navy: "#2c5282"
@@ -6,9 +7,16 @@ color:
     cream-warm: "#efece3"
     border-warm: "#d8d4c6"
     near-black: "#1f2530"
+    muted-warm: "#6b6455"
     code-bg: "#f3f0e6"
     code-text: "#5a4632"
     code-border: "#e2dccb"
+    accent-green: "#2f7d4f"
+    accent-green-bg: "#edf1ea"
+    accent-indigo: "#4c51bf"
+    accent-indigo-bg: "#efeef2"
+    accent-note: "#8a6d1f"
+    accent-note-bg: "#f3f0e7"
   background: cream
   foreground: near-black
   primary: navy
@@ -18,5 +26,8 @@ typography:
   fonts:
     - family: IBM Plex Sans
       source: google
+      # regular / medium / semibold / bold -- the only weights the stylesheets ask for
+      weight: [400, 500, 600, 700]
+      style: [normal, italic]
   base: IBM Plex Sans
   headings: IBM Plex Sans

@@ -36,7 +36,7 @@ test('the Settings view opens and its Extensions section lists every schema', as
   await runPaletteCommand(page, 'Settings...');
   await page.getByText('Extensions', { exact: true }).first().click();
   for (const schema of NODE_SCHEMAS) {
-    await expect(page.getByRole('switch', { name: `Enable ${schema.name} schema` })).toBeAttached();
+    await expect(page.getByRole('switch', { name: `Load the ${schema.name} elements` })).toBeAttached();
   }
 });
 

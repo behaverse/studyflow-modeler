@@ -49,7 +49,7 @@ function fail(message: string): never {
   throw new OpenRunnerError(message);
 }
 
-const POPUP_BLOCKED = 'Could not open the runner: the browser blocked the new tab. Allow pop-ups for this site and try again.';
+const POPUP_BLOCKED = 'Could not open the runner. Allow pop-ups for this site and try again.';
 
 /**
  * Claim the runner's tab. Call this *synchronously* from the click — a browser only honours
@@ -81,7 +81,7 @@ export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand
     fail(
       result === 'quota'
         ? 'Could not start the runner: browser storage is full. Clear local data from Settings > Privacy and try again.'
-        : 'Could not start the runner: this browser blocks local storage, which the hand-off needs.',
+        : 'Could not start the runner. Allow it for this site and try again.',
     );
   }
 

@@ -57,7 +57,7 @@ The format is a specification, not a program. The [Behaverse Data Server](guides
 <details>
 <summary>**How does Studyflow relate to Psych-DS, BIDS, or CSVW?**</summary>
 
-They are complementary. Studyflow describes the **process** (what happens, in what order, with what data flow). Psych-DS, BIDS, and CSVW describe the **data** (column names, file layouts, schemas). A Studyflow diagram references these standards via the `schemaRef` attribute on `Dataset` and `Table` elements. See [Attach a schema](guides/attach-schema.qmd).
+They are complementary. Studyflow describes the **process** (what happens, in what order, with what data flow). Psych-DS, BIDS, and CSVW describe the **data** (column names, file layouts, schemas). A studyflow references these standards via the `schema` attribute on `Dataset` and `Table` elements, which points at a `Schema` element whose `format` names the standard and whose `body` holds the schema itself or a path or URL to it. See [Attach a schema](guides/attach-schema.qmd).
 
 </details>
 

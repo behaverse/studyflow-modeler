@@ -129,7 +129,9 @@ export function waitForReady(
 
     const timer = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Timed out waiting for Unity to be ready.'));
+      reject(new Error(
+        `The Behaverse assessment build did not load within ${Math.round(timeoutMs / 1000)}s. Behaverse tasks need it.`,
+      ));
     }, timeoutMs);
 
     const pollTimer = window.setInterval(() => {

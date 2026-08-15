@@ -1,10 +1,10 @@
 ---
 title: Extensions
-description: The optional extension schemas -- OmniProcess, DataTrove, OpenBCI -- and what each provides
+description: The optional extension schemas -- agentic, ml, eeg -- and what each provides
 order: 5
 ---
 
-Studyflow elements ship in layered moddle schemas (see [Authoring schemas](authoring-schemas.qmd) for the authoring format). The two core schemas -- `core` and `cognitive` -- are always loaded and their elements are documented in [Elements](elements.qmd). This page catalogs the optional extensions.
+Studyflow elements ship in layered moddle schemas (see [Authoring schemas](authoring-schemas.qmd) for the authoring format). The four core schemas -- `studyflow`, `functional`, `cognitive`, and `prov` -- are always loaded and their elements are documented in [Elements](elements.qmd). This page catalogs the optional extensions.
 
 ## Enabling and disabling extensions
 
@@ -12,41 +12,33 @@ Open *Settings &rarr; Extensions* in the modeler to toggle the optional schemas.
 
 > **Note:** Behaverse assessment tasks are no longer a separate extension. `BehaverseTask` (formerly `behaverse:Task`) and its `BehaverseScene`/`AgentType` enums are now part of the always-loaded **`cognitive`** core schema -- see [Elements](elements.qmd).
 
-## OmniProcess
+The generic data verbs (`Transform`, `Map`, `Reduce`, `Filter`) are **not** an optional extension: they live in the always-loaded `functional` core schema, together with the presets domain layers root on -- **For each**, **Read data**, **Write data**, **Anonymize Data**, and **Group**. See [Model a preprocessing pipeline](../guides/preprocessing-pipelines.qmd).
 
-Generic data-operation activities for preprocessing and analysis pipelines (see [Model a preprocessing pipeline](../guides/preprocessing-pipelines.qmd)).
+## agentic
 
-- **`Transform`** -- apply a function to each element in a data stream.
-- **`Map`** -- element-wise (1 &rarr; 1) transform producing a new stream.
-- **`FlatMap`** -- one-to-many transform (unnest, expand, explode).
-- **`Filter`** -- drop items that fail a criterion.
-- **`Reduce`** -- aggregate a stream to a single value (per group).
-- **`Compose`** -- bundle several operations into one logical pipeline step.
-- **`PreprocessfMRI`**, **`PreprocessEEG`** -- template-scoped preprocessing types, surfaced only via templates.
+LLM and agent workflows: model calls, tools, model-decided branches, and human approval steps.
 
-Templates: operations that are really "a generic operation plus a function" ship as prefilled templates rather than dedicated types -- **Group** (a `Map` bound to `python://omniprocess.group`, grouping key via `arguments`), **Split Data** (a `Transform` bound to scikit-learn's `train_test_split`, sizes via `arguments`), and **Anonymize Data** (a `Map` bound to `python://omniprocess.anonymize`); the `implementation` function reference is a prefilled default you can repoint at your own function. Plus the neuroimaging prefabs: an **fMRIPrep** task (`PreprocessfMRI` with fMRIPrep-style parameters such as `output_spaces`) and an **EEGPrep** subprocess (`PreprocessEEG` with `clean_artifacts`/ICA parameters).
+- **`Agent`** -- an agent step, with its tools and memory.
+- **`Router`** -- a model-decided branch.
+- **`LLMCall`** -- a single model call.
+- **`Tool`** -- a callable the model may use.
+- **`HumanApproval`** -- a step that pauses for a human decision.
+- **`Prompt`** -- a reusable prompt.
+- **`Memory`** -- state carried across turns, with a declared scope.
 
-## DataTrove
+## ml
 
-Large-scale text/data processing pipelines mirroring the [DataTrove](https://github.com/huggingface/datatrove) library.
+Presets for statistical and machine-learning pipelines: load, split, build, fit, cross-validate, and save. It declares **no types at all** -- every entry is a template over a `functional` verb, following the *parameterize, don't proliferate* rule.
 
-- **`Document`** -- a single data item (text plus metadata).
-- **`DataFolder`** -- a folder of documents; a dataset or collection.
-- **`Reader`** -- read data from various formats and yield documents.
-- **`Writer`** -- write documents to various formats.
-- **`Extractor`** -- extract text content from raw formats (e.g. HTML).
-- **`Filter`** -- remove documents based on rules/criteria.
-- **`Stats`** -- collect statistics on the dataset.
-- **`Tokens`** -- tokenize data or count tokens.
-- **`Dedup`** -- deduplication blocks.
+Templates: **Load sample dataset**, **Train/test split**, **Reduce dimensions** (PCA), **Build estimator**, **Fit estimator**, **Formula model**, **Evaluate**, **Cross-validate**, **Grid search**, **Save model**, plus **Model** and **Metric** data objects. The `implementation` reference on each is a prefilled default you can repoint at your own function.
 
-## OpenBCI
+## eeg
 
-Biosignal acquisition with [OpenBCI](https://openbci.com) hardware. The `device` attribute selects the board -- **Cyton** (8-channel), **Cyton + Daisy** (16-channel), **Ganglion** (4-channel), or **Galea** (the VR headset) -- so Galea is one supported device rather than the whole schema.
+EEG and biosignal studies: acquisition sessions, the recordings they produce, and preprocessing presets.
 
-- **`OpenBCISession`** -- pool/container for a complete acquisition session. Carries `device` (which board), `streamProtocol` (`lsl` / `brainflow` / `openbci_gui`), `modalities` (EEG/EMG/ECG/EOG/EDA/PPG/eye-tracking/head-IMU/audio), and `electrodeType` (`dry` / `wet` / `hybrid`). The VR head-mounted display (`vrDevice`) appears only when `device` is `galea`.
-- **`OpenBCIRecording`** -- the biosignal dataset produced by a session; specializes `studyflow:Dataset` with a modality list, `eegChannels`, and `eegSamplingRateHz`.
+- **`Session`** -- pool/container for a complete acquisition session. Carries `device` (the board -- **Cyton** (8-channel), **Cyton + Daisy** (16-channel), **Ganglion** (4-channel), or **Galea** (the VR headset); custom identifiers accepted) and `modalities`.
+- **`Recording`** -- the biosignal data a session produces; specializes `studyflow:Dataset` with a modality list, `channels`, and `samplingRateHz`.
 
-The session phases -- mount, impedance check, calibration, baseline, task, unmount, export -- are not element types: they are ordinary BPMN tasks preset by the session templates, each carrying its parameters in `configurations`/`documentation`.
+The session phases -- mount, impedance check, baseline, task, export -- are not element types: they are ordinary BPMN tasks preset by the session template, each carrying its parameters in `configurations`/`documentation`.
 
-Templates: a **Cyton EEG session** (non-VR: mount &rarr; impedance &rarr; baseline &rarr; task &rarr; export) and a **Galea VR session** (mount &rarr; impedance &rarr; calibration &rarr; baseline &rarr; VR task &rarr; unmount &rarr; export).
+Templates: an **EEG session** subprocess (mount &rarr; impedance &rarr; baseline &rarr; task &rarr; export), an **EEGPrep** step (filter and remove artifacts in one step), and an **fMRIPrep** step.

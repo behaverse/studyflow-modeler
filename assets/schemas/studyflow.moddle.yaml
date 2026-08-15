@@ -3,31 +3,18 @@
 name: Core
 prefix: studyflow
 description: >-
-  Core BPMN extension for modeling research processes - the study container,
-  events, flows, generic activities, the data-infrastructure types shared by
-  every use case, and the executable layer an engine reads (`implementation`,
-  `transformation`, `uri`, `additionalArguments`, and the expression attributes).
+  The building blocks every studyflow uses - the study itself, its events,
+  flows, activities, data elements, and what an engine needs to run them.
 uri: http://behaverse.org/schemas/studyflow/v1
 icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
-core: true   # backs the default elements; always loaded, cannot be disabled
+core: true   # always loaded, cannot be disabled
 order: 10  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
 version: 26.0811
 
-# Inspector tabs, in the order they appear. These are the ones shared by every
-# schema; a schema may declare its own (as `cognitive` does with "Behaverse").
-# An attribute joins a tab by naming it in `meta.categories`; a tab a schema
-# names without declaring lands after every declared one. `synthetic` tabs are
-# drawn by a dedicated section over nested BPMN state, so they show with no
-# attributes.
-#
-# A tab has to earn its name. These five are the
-# questions a modeller asks of any element, so they recur across every schema;
-# a tab holding one type's own fields would mostly repeat what the panel header
-# already says the element is, so those fields go to General. That is why an
-# EEG recording has no "EEG" tab and an LLM call has no "Model call"
-# tab: on those elements, their own fields *are* the general ones.
+# Inspector tabs, in the order they appear; an attribute joins one by naming it in `meta.categories`.
+# A `synthetic` tab is drawn by its own section rather than from attributes.
 categories:
   - name: General
     order: 10
@@ -45,8 +32,8 @@ categories:
     order: 50
     synthetic: true
     description: >-
-      What runs and how — its function and arguments, the data it reads and
-      writes, how often it repeats, and the `bpmn:Property` state it carries.
+      What runs and how — the software, its arguments, the data it reads and
+      writes, and the state it carries.
 
 enumerations:
   - name: DatasetFormatEnum
@@ -64,7 +51,7 @@ enumerations:
       - name: Kedro
         value: kedro
   - name: BDMDataLevelEnum
-    description: BDM level of the data (events, trials, models).
+    description: BDM level of the data.
     literalValues:
       - name: Events
         value: events
@@ -73,7 +60,7 @@ enumerations:
       - name: Models
         value: models
   - name: BIDSDataTypeEnum
-    description: BIDS data type (e.g., anat, func, etc).
+    description: BIDS data type.
     literalValues:
       - name: anat (anatomical MRI)
         value: anat
@@ -153,11 +140,9 @@ enumerations:
       - name: HPC
         value: hpc
   - name: ItemTypeEnum
-    description: |
-      Scalar types offered first when typing a `bpmn:Property` (the State tab).
-      A BPMN `itemSubjectRef` points at an `ItemDefinition` whose `structureRef`
-      is free text - `pandas.DataFrame` and `sklearn.pipeline.Pipeline` are as
-      valid as `string` - so this list seeds the picker rather than bounding it.
+    description: >-
+      Common types offered when typing a state value; any other type name is
+      accepted too (`pandas.DataFrame`).
     literalValues:
       - name: string
         value: string
@@ -173,8 +158,7 @@ types:
     superClass:
       - String
     meta:
-      # Every attribute of this type gets the markdown editor; an attribute
-      # may still name a different one in its own `meta.editor`.
+      # Attributes of this type get the markdown editor unless they name their own.
       editor: markdown
   - name: YAMLString
     description: A string that contains YAML-formatted content
@@ -183,16 +167,13 @@ types:
     meta:
       editor: code
   - name: BaseElement
-    description: Extends BPMN's BaseElement to include common properties of the Studyflow.
+    description: What every element of a studyflow carries.
     extends:
       - bpmn:BaseElement
     isAbstract: true
     properties:
       - name: bpmn:documentation
-        description: |
-          Human-readable description for the element, in markdown - authored
-          as a flat string, stored as BPMN's own `<documentation>` child
-          element.
+        description: Notes about this element, written in markdown.
         redefines: bpmn:BaseElement#documentation
         isMany: true
         type: bpmn:Documentation
@@ -201,11 +182,9 @@ types:
           categories:
             - Documentation
   - name: ChecklistDocumentation
-    description: |
-      Marks one `bpmn:documentation` entry as the element's checklist:
-      markdown task items (`- [ ]` / `- [x]`) reviewers tick off. The text
-      lives in BPMN's own documentation container - every BPMN tool shows
-      it - and this one Boolean marker is the only extension involved.
+    description: >-
+      A documentation entry read as a checklist of markdown task items
+      (`- [ ]` / `- [x]`) reviewers tick off.
     extends:
       - bpmn:Documentation
     isAbstract: true
@@ -233,15 +212,11 @@ types:
         isMany: true
         type: String
       - name: version
-        description: |
-          Human-facing version of the study spec (e.g. `1.2`, a git tag).
-          Diffing two versions is the audit trail.
+        description: Version of the study, as the researcher labels it (`1.2`, a git tag).
         isAttr: true
         type: String
         meta:
           optional: true
-      # `seed` is declared by the `Seed` trait below, with the rest of the
-      # executable layer.
       - name: isExecutable
         redefines: bpmn:Process#isExecutable
         isAttr: true
@@ -250,11 +225,7 @@ types:
         meta:
           pinned: true
   - name: Classification
-    description: |
-      Augments a diagram's root with the kind of thing it is. A study says so
-      itself: nothing outside the file - no gallery manifest, no index -
-      decides which shelf it belongs on, and the Examples gallery builds its
-      filter chips from whatever the shipped diagrams declare.
+    description: What kind of study a diagram is, declared by the diagram itself.
     extends:
       - bpmn:Process
       - bpmn:Collaboration
@@ -262,16 +233,14 @@ types:
     isAbstract: true
     properties:
       - name: tags
-        description: |
-          What kind of study this is, as short free-text labels (`Study
-          designs`, `Machine learning`). A study may declare more than one.
+        description: >-
+          Short labels for the kind of study (`Study designs`, `Machine
+          learning`).
         isMany: true
         type: String
         meta:
           categories:
             - Documentation
-  # The call configuration (`additionalArguments`) is declared by the `Arguments`
-  # trait below, beside `implementation` — one call contract, one place.
   - name: StartEvent
     extends:
       - bpmn:StartEvent
@@ -280,7 +249,7 @@ types:
       icon: iconify bpmn--start-event
     properties:
       - name: consentFormUri
-        description: Link to the consent form. Untick to skip the consent step entirely.
+        description: Link to the consent form; untick to skip the consent step.
         isAttr: true
         type: String
         meta:
@@ -293,14 +262,9 @@ types:
     isAbstract: true
     properties:
       - name: bpmn:conditionExpression
-        description: |
-          Condition for sequence flows (e.g., in gateways): an expression over
-          the run's bound values (`mean_cv_accuracy >= 0.9`), authored as a
-          flat string and stored as BPMN's own expression element (`xsi:type`
-          tFormalExpression). Python or JavaScript, named per expression by
-          BPMN's own `language` field; unset runs in the evaluating engine's
-          own language (Python in the reference runner, JavaScript in the
-          browser) and is checked only at run time.
+        description: >-
+          Condition for taking this flow, as an expression over the run's
+          values (`mean_cv_accuracy >= 0.9`).
         type: bpmn:Expression
         xml:
           serialize: xsi:type
@@ -315,8 +279,8 @@ types:
       icon: iconify bpmn--end-event
     properties:
       - name: redirectTo
-        description: |
-          URL to send the participant to on completion; untick to skip it.
+        description: >-
+          URL the participant lands on when the study ends;
           `{COMPLETION_CODE}` is replaced with the code at run time.
         isAttr: true
         type: String
@@ -343,57 +307,44 @@ types:
               redirectTo: $set
               completionCodeType: static
   - name: Scheduling
-    description: |
-      The Gantt axis, on anything that can sit on it: BPMN says nothing about
-      when a flow element happens, and the Gantt view is these attributes' only
-      consumer. Declared once over both activities and events, since a
-      milestone is the same three attributes read as a point.
+    description: Where an activity or event sits on the schedule.
     extends:
       - bpmn:Activity
       - bpmn:Event
     isAbstract: true
     properties:
       - name: onset
-        description: |
-          When this starts, or when the event occurs. Free text, so it can be
-          a timestamp, a relative offset (`T0+30min`), or a label.
+        description: >-
+          When this starts, as a timestamp, an offset (`T0+30min`), or a
+          label.
         isAttr: true
         type: String
         meta:
           categories:
             - Gantt
       - name: duration
-        description: |
-          How long it lasts (`30min`, `PT1H`); the Gantt bar starts at `onset`
-          and extends by this. Events need it only when not instantaneous.
+        description: How long it lasts (`30min`, `PT1H`).
         isAttr: true
         type: String
         meta:
           categories:
             - Gantt
       - name: progress
-        description: |
-          Optional progress indicator (percentage or a free-form label such as
-          `done`/`blocked`). The Gantt view shades the bar accordingly.
+        description: How far along it is, as a percentage or a label (`done`, `blocked`).
         isAttr: true
         type: String
         meta:
           categories:
             - Gantt
   - name: ChoreographyTask
-    description: |
-      One interaction between two participants, drawn with a band above and
-      below the label. Use it when the interaction itself is the unit of
-      analysis - a dyadic decision round, an experimenter administering a task.
+    description: One interaction between two participants.
     extends:
       - bpmn:ChoreographyTask
     isAbstract: true
     meta:
       icon: iconify fluent--people-team-24-regular
   - name: Schema
-    description: |
-      A formal description of the structure of a named collection of types.
-      Typically used as column definitions for tables (CSVW), or dimensions/types for arrays.
+    description: A description of how some data is structured - table columns, array dimensions.
     superClass:
       - bpmn:DataObjectReference
     meta:
@@ -408,7 +359,7 @@ types:
           categories:
             - Data
       - name: body
-        description: Schema content as a string (e.g., JSON, YAML). This can also be a URL/path to the schema definition.
+        description: The schema itself, or a path or URL to it.
         isAttr: true
         type: YAMLString
         meta:
@@ -416,9 +367,7 @@ types:
             - Data
           editor: csvw-table
   - name: Dataset
-    description: >-
-      A collection of data - table, array, or any structured dataset -
-      registered in a `DataCatalog`, optionally described by a `Schema`.
+    description: A collection of data - a table, an array, or any structured dataset.
     superClass:
       - bpmn:DataStoreReference
     isAbstract: false
@@ -426,41 +375,35 @@ types:
       icon: iconify bi--database
     properties:
       - name: catalog
-        description: Identifier of the `DataCatalog` that registers this dataset.
+        description: The catalog this dataset is registered in.
         isAttr: true
         type: DataCatalog
         meta:
           categories:
             - Data
       - name: storage
-        description: |
-          The `bpmn:DataStoreReference` where this dataset is physically stored -
-          BPMN's own construct for persistent storage (it points at a
-          `bpmn:DataStore`). There is no studyflow storage type; the native one
-          carries the same meaning.
+        description: The data store where this dataset physically lives.
         isAttr: true
         type: bpmn:DataStoreReference
         meta:
           categories:
             - Data
       - name: schema
-        description: |
-          Path to the schema describing the dataset structure (e.g., CSVW).
-          This can also refer to an optional ontology/vocabulary reference (URL/CURIE) for semantic alignment.
+        description: The schema describing how this dataset is structured.
         isAttr: true
         type: Schema
         meta:
           categories:
             - Data
       - name: format
-        description: Format of the dataset (BDM, BIDS, Psych-DS, etc).
+        description: Format of the dataset.
         isAttr: true
         type: DatasetFormatEnum
         meta:
           categories:
             - Data
       - name: bdmDataLevel
-        description: Level of the data (events, trials, models).
+        description: Level of the data in this BDM dataset.
         isAttr: true
         type: BDMDataLevelEnum
         default: events
@@ -471,7 +414,7 @@ types:
             body:
               format: bdm
       - name: bidsDataType
-        description: BIDS data type (e.g., anat, func, eeg, beh).
+        description: BIDS data type of this dataset.
         isAttr: true
         type: BIDSDataTypeEnum
         default: beh
@@ -481,17 +424,8 @@ types:
           condition:
             body:
               format: bids
-  # (There is no studyflow DataStorage type: persistent physical storage is
-  # BPMN's own `bpmn:DataStore` / `bpmn:DataStoreReference` - a zero-property
-  # `studyflow:DataStorage` renamed the native element and added nothing, so
-  # `Dataset#storage` references the native `bpmn:DataStoreReference` directly.)
-  # (There is no studyflow DataObjectReference trait: BPMN's own `dataState`
-  # already annotates the state of any data element - a `bpmn:DataState` child
-  # whose `name` is the state, e.g. `dataState: {name: processed}`. The former
-  # `studyflow:DataObjectReference#state` string attribute duplicated it and is
-  # dropped in favour of the native field.)
   - name: DataCatalog
-    description: A persistent repository/registry of datasets (e.g., openneuro, behaverse).
+    description: A registry that datasets are published in (openneuro, behaverse).
     superClass:
       - bpmn:BaseElement
     isAbstract: false
@@ -504,9 +438,7 @@ types:
           categories:
             - Data
   - name: Table
-    description: |
-      Tabular data: rows and columns, described by CSVW or LinkML. Unlike a
-      `Dataset`, it commits to that structure rather than staying opaque.
+    description: Tabular data - rows and columns.
     superClass:
       - bpmn:DataObjectReference
     isAbstract: false
@@ -514,7 +446,7 @@ types:
       icon: iconify bi--table
     properties:
       - name: format
-        description: On-disk format of the table (csv, tsv, parquet, arrow, jsonl).
+        description: On-disk format of the table.
         isAttr: true
         type: TableFormatEnum
         default: csv
@@ -522,9 +454,7 @@ types:
           categories:
             - Data
       - name: schema
-        description: |
-          Reference to the table's schema. Typically a `Schema` element carrying
-          CSVW JSON-LD or a LinkML class definition.
+        description: The schema describing this table's columns.
         isAttr: true
         type: Schema
         meta:
@@ -538,10 +468,9 @@ types:
           categories:
             - Data
   - name: Timeseries
-    description: |
-      Continuous physiological or behavioural recording sampled over time
-      (e.g., EEG, EMG, eye-tracking gaze stream, accelerometer). Channels and
-      sampling rate are first-class so downstream operations can validate them.
+    description: >-
+      A recording sampled continuously over time (EEG, EMG, eye tracking,
+      accelerometer).
     superClass:
       - bpmn:DataObjectReference
     isAbstract: false
@@ -577,17 +506,16 @@ types:
           categories:
             - Data
       - name: format
-        description: On-disk format of the time-series file (edf, bdf, fif, set, parquet, zarr).
+        description: On-disk format of the recording.
         isAttr: true
         type: TimeseriesFormatEnum
         meta:
           categories:
             - Data
   - name: EventMarker
-    description: |
-      Sparse time-stamped occurrences in a recording - trial markers, stimulus
-      onsets, button presses. Its recording-time fields are not the Gantt axis's
-      `onset`/`duration`.
+    description: >-
+      Time-stamped occurrences within a recording - trial markers, stimulus
+      onsets, button presses.
     superClass:
       - bpmn:DataObjectReference
     isAbstract: false
@@ -595,7 +523,7 @@ types:
       icon: iconify mdi--lightning-bolt-outline
     properties:
       - name: eventType
-        description: Category of event (e.g., stimulus, response, artifact).
+        description: Kind of event (stimulus, response, artifact).
         isAttr: true
         type: String
         meta:
@@ -623,35 +551,10 @@ types:
           categories:
             - Data
 
-  # ===========================================================================
-  # The executable layer - what an engine reads to run a diagram: a step's
-  # `implementation` and `additionalArguments`, the associated data elements
-  # that are its inputs and outputs, and conditions over the values they
-  # bind. Studyflow coordinates the calls; it never encodes the computation.
-  #
-  # Most of these redefine an attribute BPMN already has, which reads like
-  # restating the standard until you know what a redefine is *for* here: it is
-  # how a native attribute becomes visible. bpmn-moddle carries every BPMN
-  # attribute already, and the inspector shows none of them - a field renders
-  # only when a schema declares it. `uri` is an addition BPMN has
-  # no equivalent for.
-  # ===========================================================================
+  # The executable layer - what an engine reads to run a diagram.
 
-  # ===========================================================================
-  # The software reference. BPMN's own `implementation` attribute ("the
-  # technology implementing this task") is redefined here with the
-  # versioned reference grammar every executable step uses (one exception:
-  # `cognitive:CognitiveTask` sits on `bpmn:Task`, which has no native
-  # `implementation`, so it declares its own attribute with the same grammar). The engine
-  # resolves the reference, calls it with `additionalArguments` plus the associated inputs, and
-  # binds the return value to the associated outputs; there is no other step
-  # contract.
-  # ===========================================================================
   - name: Implementation
-    description: |
-      Adds BPMN's own `implementation` to every task type that natively
-      carries it, so the reference grammar is the same wherever a task runs
-      something.
+    description: Lets a task name the software it runs.
     extends:
       - bpmn:ServiceTask
       - bpmn:UserTask
@@ -661,39 +564,26 @@ types:
     isAbstract: true
     properties:
       - name: bpmn:implementation
-        description: |
-          Software this task runs, as `<scheme>://<ref>[@<version-or-digest>]`.
-          Schemes: `python://` (importable callable), `docker://` (image),
-          `https://` or `file://` (script).
+        description: >-
+          Software this task runs, as `<scheme>://<ref>[@<version>]` -
+          `python://`, `docker://`, `https://`, or `file://`.
         isAttr: true
         type: String
-        # moddle resolves the target by attribute name within each extended
-        # type, so this one ref redefines each type's own native attribute.
+        # One ref is enough: moddle resolves it per extended type.
         redefines: bpmn:ServiceTask#implementation
         meta:
           order: 1
           categories:
             - Execution
 
-  # A ScriptTask's computation is inline, as the standard defines it (§10.3.3):
-  # the native `script` child carries the code and `scriptFormat` names its
-  # language. No `implementation` here — software that lives outside the
-  # diagram is a service task. The redefine surfaces the script in the
-  # inspector; `scriptFormat` needs no field of its own, since the code
-  # editor's language select edits it (`languageAttr` below).
   - name: Script
-    description: |
-      Surfaces BPMN's own inline script on script tasks: the code this step
-      runs, written in the diagram itself.
+    description: Lets a script task carry its code in the diagram itself.
     extends:
       - bpmn:ScriptTask
     isAbstract: true
     properties:
       - name: bpmn:script
-        description: |
-          The inline script this task runs. Its language is BPMN's own
-          `scriptFormat`, edited in the code editor's language select; left
-          unset, the evaluating engine's own language applies.
+        description: The code this task runs, in the language picked in the editor.
         type: String
         redefines: bpmn:ScriptTask#script
         meta:
@@ -703,30 +593,16 @@ types:
           editor: code
           languageAttr: bpmn:scriptFormat
 
-  # ===========================================================================
-  # The call's configuration. `additionalArguments` is plan, not data flow:
-  # the drawn associations are the ports that move values between steps, and
-  # this holds the literals that parameterize one call. It sits here beside
-  # `implementation` so the executable layer is one schema — reference,
-  # configuration, ports, artifacts — not split across two.
-  # ===========================================================================
   - name: Arguments
-    description: |
-      Adds `additionalArguments` to every activity: the call's literal
-      configuration, beyond the associated inputs and outputs the drawn
-      associations bind. The name says the contract: these are *additional* -
-      the associations fill the signature first.
+    description: Lets an activity carry literal arguments for the software it calls.
     extends:
       - bpmn:Activity
     isAbstract: true
     properties:
       - name: additionalArguments
-        description: |
-          Literal arguments for the software named by `implementation`, as
-          YAML (the role GitHub Actions' `with:` plays) - additional to the
-          drawn associations, which fill the signature first; these supply
-          what is left over. The reserved `args` key lists positional
-          arguments.
+        description: >-
+          Arguments for the software this activity runs, as YAML; the reserved
+          `args` key lists positional ones.
         isAttr: false
         type: YAMLString
         meta:

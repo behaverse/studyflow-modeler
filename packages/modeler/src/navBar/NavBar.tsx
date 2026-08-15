@@ -78,7 +78,7 @@ function RunButton() {
     try {
       await executeCommand(modeler, { type: 'OpenRunner', target });
     } catch (err) {
-      notify('error', err instanceof Error ? err.message : 'Could not start the runner.');
+      notify('error', err instanceof Error ? err.message : 'Could not start the runner. Try again, or reload the page.');
     } finally {
       setBusy(false);
     }
@@ -87,7 +87,7 @@ function RunButton() {
   return (
     <button
       type="button"
-      title="Run the current diagram in a new tab"
+      title="Open this studyflow in the  runner"
       disabled={busy}
       className={RUN_BUTTON_CLS}
       onClick={handleClick}

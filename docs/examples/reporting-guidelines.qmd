@@ -9,7 +9,7 @@ Reporting specific types of research (e.g., in science and health) requires stru
 
 [^1]: https://www.equator-network.org/about-us/what-is-a-reporting-guideline/
 
-To this end, several [reporting guidelines](https://www.equator-network.org/library/) are proposed to help researchers report their studies in a a structured and standardized way. These guidelines are usually a set of checklists, flow diagrams, and structured texts that are developed using specific methodologies. They provide a framework for reporting various types of studies, including randomized trials, observational studies, systematic reviews, and more. The following table lists some of the most commonly used guidelines in science and health and their corresponding checklists.
+To this end, several [reporting guidelines](https://www.equator-network.org/library/) are proposed to help researchers report their studies in a structured and standardized way. These guidelines are usually a set of checklists, flow diagrams, and structured texts that are developed using specific methodologies. They provide a framework for reporting various types of studies, including randomized trials, observational studies, systematic reviews, and more. The following table lists some of the most commonly used guidelines in science and health and their corresponding checklists.
 
 | Topic | Guideline | Description |
 |-------|-----------|-------------|
@@ -27,9 +27,9 @@ To this end, several [reporting guidelines](https://www.equator-network.org/libr
 
 As an example, the [SPIRIT 2025](https://www.consort-spirit.org/) checklist recommends a set of 34 items across 9 topics to describe an interventional trial. It includes items such as the administrative information, open science, methods, ethics, outcomes, and statistical methods that should be included when reporting the protocol of an intervention.
 
-Studyflow can be used to create checklists that adhere to these guidelines, making it easier to ensure that all necessary information is included in the diagram. Every studyflow element carries a `studyflow:checklist` attribute -- a markdown list with checkboxes -- and each item can be linked to a specific guideline section and to an element in the studyflow. Because the checklist lives in the diagram file, it is machine-readable and can be used to generate compliance reports.
+Studyflow can be used to create checklists that adhere to these guidelines, making it easier to ensure that all necessary information is included in the diagram. Any element can carry a checklist: a `bpmn:documentation` entry marked with `studyflow:checklist`, whose body is a markdown list of task items (`- [ ]` / `- [x]`). Each item can be linked to a specific guideline section and to an element in the studyflow. Because the checklist lives in the diagram file, it is machine-readable and can be used to generate compliance reports.
 
-The modeler renders these attributes through the **Checklist view** (*View As &rarr; Checklist* in the command palette) -- see [Views](../reference/views.qmd). For worked sources, see the CONSORT example (`docs/assets/img/consort2025.studyflow`, walked through in [CONSORT](consort.qmd)) and the SPIRIT timeline below.
+The modeler renders these checklists through the **Checklist view** (*View As &rarr; Checklist* in the command palette) -- see [Views](../reference/views.qmd). For worked sources, see the CONSORT example (`docs/assets/img/consort2025.studyflow`, walked through in [CONSORT](consort.qmd)) and the SPIRIT timeline below.
 
 
 ![SPIRIT timeline](../assets/img/spirit2025.jpg)

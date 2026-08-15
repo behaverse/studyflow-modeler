@@ -7,9 +7,11 @@ A `Dataset` or `Table` without a schema is opaque: a reader of the diagram canno
 
 ## Two ways to attach a schema
 
-**Inline.** Set the `schema` attribute on the `Table` element in the inspector. The schema is part of the diagram and travels with the `.studyflow` file. Use this for small datasets where the schema is short and study-specific.
+A `Dataset` or a `Table` carries a `schema` attribute that points at a `Schema` element; the `Schema` element carries a `format` (`csvw`, `linkml`, `jsonschema`, ...) and a `body`.
 
-**By reference.** Set the `schemaRef` attribute to point at an external schema file or a standard. Use this when the schema is shared across studies (e.g., BIDS, Psych-DS, a CSVW URL).
+**Inline.** Put the schema text itself in the `Schema` element's `body`. The schema is part of the diagram and travels with the `.studyflow` file. Use this for small datasets where the schema is short and study-specific.
+
+**By reference.** Put a path or URL to an external schema file in the `body` instead. Use this when the schema is shared across studies (e.g., BIDS, Psych-DS, a CSVW URL).
 
 Both forms render the same way in the modeler; the difference is whether the schema text lives inside or outside the `.studyflow` file.
 
@@ -33,7 +35,7 @@ For tabular data, [CSV on the Web (CSVW)](https://w3c.github.io/csvw/) is the re
 }
 ```
 
-Reference it from your `Table` element by setting `schemaRef` to the URL or relative path of the CSVW file.
+Reference it from your `Table` element by setting its `schema` to a `Schema` element with `format: csvw` and the URL or relative path of the CSVW file as its `body`.
 
 ## Standard schemas
 
@@ -43,11 +45,11 @@ For domain-specific data, prefer a community standard over a hand-rolled schema:
 - **[Psych-DS](https://psych-ds.github.io/)** -- psychology dataset standard for behavioral data.
 - **Behaverse [Events](https://behaverse.org/data-model/spec/events/index.html) and [Trials](https://behaverse.org/data-model/spec/trials/index.html)** -- Behaverse data models for behavioral experiments.
 
-The element catalog has icons for each of these -- see [Elements](../reference/elements.qmd). Set `schemaRef` on the dataset to the standard's URL.
+The element catalog has icons for each of these -- see [Elements](../reference/elements.qmd). Point the dataset's `schema` at a `Schema` element whose `body` is the standard's URL.
 
 ## Schemas on non-tabular data
 
-For arrays (tensors, images, fMRI volumes, video), use the `Array` element instead of `Table` and set a schema that documents dimensions, dtype, and units. For neuroimaging, BIDS is usually sufficient and you can reference its sidecar `.json` files directly.
+For arrays (tensors, images, fMRI volumes, video), use a `Dataset` instead of a `Table` and set a schema that documents dimensions, dtype, and units. For neuroimaging, BIDS is usually sufficient and you can reference its sidecar `.json` files directly.
 
 ## What schemas enable
 
@@ -60,7 +62,7 @@ Once a dataset has a schema:
 
 ## Checklist
 
-- [ ] Every `Table` and `Array` has a `schema` or `schemaRef`.
+- [ ] Every `Dataset` and `Table` has a `schema`.
 - [ ] Column names in the schema match the names used by upstream tasks.
 - [ ] Units and constraints are present where they matter (RT minimum, accuracy in [0, 1], etc.).
-- [ ] External `schemaRef` URLs are stable (don't reference a moving target).
+- [ ] External schema URLs are stable (don't reference a moving target).

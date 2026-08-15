@@ -124,8 +124,8 @@ export async function finishSession(
   if (handle.online) {
     log(ok ? 'info' : 'skip',
       ok
-        ? `Session ${handle.sessionId} marked ${status}.`
-        : `Failed to persist final state for session ${handle.sessionId}.`);
+        ? `Session ${handle.sessionId} is marked ${status} on the data server.`
+        : `Could not save the final state of session. The data server still has it as started.`);
   }
 }
 

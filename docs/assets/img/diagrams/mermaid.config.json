@@ -1,0 +1,18 @@
+{
+  "theme": "base",
+  "htmlLabels": false,
+  "markdownAutoWrap": false,
+  "fontFamily": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+  "themeVariables": {
+    "fontSize": "15px",
+    "lineColor": "#57534e",
+    "primaryTextColor": "#1c1917"
+  },
+  "flowchart": {
+    "htmlLabels": false,
+    "curve": "basis",
+    "wrappingWidth": 340,
+    "nodeSpacing": 45,
+    "rankSpacing": 70
+  }
+}

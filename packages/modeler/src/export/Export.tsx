@@ -66,7 +66,7 @@ export function ExportDialog({ isOpen, onClose }: Props) {
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || 'Export failed.');
+      setError(err?.message || 'Export failed. Try a different format, or reload the page.');
     } finally {
       setBusy(false);
     }

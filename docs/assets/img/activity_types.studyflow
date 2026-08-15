@@ -1,4 +1,4 @@
-id: sample-diagram
+id: activity-types
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
@@ -14,11 +14,11 @@ Study_1:
   extensionElements:
     - type: studyflow:Study
   flowElements:
-    CognitiveTest_1wfxwob:
+    CognitiveTask_1wfxwob:
       type: bpmn:Task
       extensionElements:
         - type: cognitive:CognitiveTask
-      name: Cognitive Test
+      name: Cognitive Task
       incoming:
         - Flow_0t25gsx
       outgoing:
@@ -60,8 +60,8 @@ Study_1:
     Activity_0zctxq8:
       type: bpmn:Task
       extensionElements:
-        - type: cognitive:VideoGame
-      name: Video Game
+        - type: cognitive:CognitiveTask
+      name: Cognitive Task
       incoming:
         - Flow_1m4sl9n
       bounds:
@@ -112,7 +112,7 @@ Study_1:
     Flow_0t25gsx:
       type: bpmn:SequenceFlow
       sourceRef: Activity_1a2aku7
-      targetRef: CognitiveTest_1wfxwob
+      targetRef: CognitiveTask_1wfxwob
       waypoint:
         - x: 500
           "y": 70
@@ -162,7 +162,7 @@ Study_1:
           "y": 320
     Flow_1uby65v:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1wfxwob
+      sourceRef: CognitiveTask_1wfxwob
       targetRef: Activity_0kov43v
       waypoint:
         - x: 500
@@ -175,7 +175,7 @@ Study_1:
           "y": 210
     Flow_179ufev:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1wfxwob
+      sourceRef: CognitiveTask_1wfxwob
       waypoint:
         - x: 500
           "y": 180
@@ -183,7 +183,7 @@ Study_1:
           "y": 210
     Flow_1m4sl9n:
       type: bpmn:SequenceFlow
-      sourceRef: CognitiveTest_1wfxwob
+      sourceRef: CognitiveTask_1wfxwob
       targetRef: Activity_0zctxq8
       waypoint:
         - x: 500

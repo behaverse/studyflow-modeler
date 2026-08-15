@@ -2,43 +2,35 @@
 title: "Introduction"
 ---
 
-Describing experimental research can be complex and ambiguous. Studyflow is a visual language for describing scientific workflows in a way that is both human-understandable and machine-readable. It extends BPMN[^bpmn] so researchers can model experiments, data collection, analysis, and reporting in a single formal diagram.
+Studyflow is a coordination notation for research: a process standard for the cognitive sciences and adjacent fields, in the same role that BPMN[^bpmn], the standard notation for business processes, plays in business.
 
-[^bpmn]: [Business Process Model and Notation](https://en.wikipedia.org/wiki/BPMN).
+[^bpmn]: [BPMN 2.0](https://en.wikipedia.org/wiki/BPMN) — Business Process Model and Notation, standardized as ISO/IEC 19510.
 
-The core idea is simple: represent a study as connected elements such as events, activities, decisions, and data. That gives you a diagram that is easier to discuss with collaborators, easier to serialize for tools, and easier to reuse across studies.
-
-Here is an example:
+*Your tools compute. Studyflow coordinates.* A complete programming model has two parts: a computation model and a coordination model. Ordinary code hides the second one inside call graphs and shared state (ordering, dependencies, what each step hands the next). Studyflow makes coordination first-class so computations stay in the tools built for them (Python, LLM, jsPsych, PsychoPy, a Unity scene), while the notation carries what today lives in glue code, preregistrations, or manuscripts.
 
 <figure class="centered max-w-2xl">
   ![](assets/img/studyflow_example_1.svg)
   <figcaption>
-    A simple studyflow diagram showing the experimental design of a study as a series of events, tasks, and decisions.
+    A studyflow: one study as activities, decisions, events, and data.
   </figcaption>
 </figure>
 
-## What you can do with Studyflow
+One file is therefore the protocol, the runnable experiment, the analysis, and the publication figure at once -- each a projection of the same file, with no second copy to drift:
 
-Studyflow diagrams are human-friendly, machine-readable, and executable. Common uses include:
-
-- **Design experiments**: plan and simulate the steps of your study before conducting it.
-- **Document protocols**: create clear and detailed representations of your experimental procedures.
-- **Communicate methods**: share your analysis workflows with collaborators, reviewers, funders, and other stakeholders.
-- **Automate workflows**: integrate with tools to automate data collection, analysis, and reporting.
-- **Reproduce studies**: replication by providing a structured, version-controllable  representation of all the steps of an experiment.
-- **Report and publish**: include studyflows in research papers, embed them in standard SVG format, and link them to data and code repositories.
+- *Protocol*: readable by a colleague, reviewer, or ethics board.
+- *Runnable experiment*: the runner app administers it to participants or LLMs.
+- *Analysis specification*: the Python runner executes its pipeline.
+- *Figure*: an PNG or SVG export packaging editable diagram, semantics, and provenance (not just pixels).
 
 ## Start here
 
-If you are new to the project, use one of these paths:
-
 - [Get started](get-started.qmd): walk through a complete example.
 - Open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow its [usage guide](guides/modeler-app.qmd).
-- Explore the [Examples](examples/index.qmd) for cognitive tasks, CONSORT, analysis pipelines, MLOps, and more.
-- Read [Specification](reference/spec.qmd).
+- Explore the [Examples](examples/index.qmd): cognitive tasks, CONSORT, pipelines, MLOps.
+- Read the [Specification](reference/spec.qmd), and [Why Studyflow](reference/why-studyflow.qmd) for the full argument.
 
 See also [FAQ](faq.qmd) and [Glossary](reference/glossary.qmd).
 
 ## Get in touch
 
-Studyflow is an open source project and contributions are welcome. Please [visit our GitHub](https://github.com/behaverse) or reach out by email at [contact@xcit.org](mailto:contact@xcit.org).
+Studyflow is an open source project and contributions are welcome. [Visit our GitHub](https://github.com/behaverse) or email us at [contact@xcit.org](mailto:contact@xcit.org).

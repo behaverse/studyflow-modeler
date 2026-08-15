@@ -3,9 +3,8 @@
 name: Agentic
 prefix: agentic
 description: >-
-  LLM and agent workflows, kept to what an engine calling a model API actually
-  reads. Only two carry new semantics: `Agent`, an ad-hoc sub-process whose order a
-  model decides, and `Router`, a gateway whose branch it picks.
+  LLM and agent workflows: model calls, tools, branches, and
+  human approval steps.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 order: 60  # registry position (load precedence + settings order)
@@ -43,7 +42,7 @@ enumerations:
         value: mcp
       - name: Ask a human
         value: human
-        description: A tool whose implementation is a person. Suspends the run until they answer.
+        description: A person answers it, and the run waits for them.
       - name: Sub-flow
         value: subflow
         description: A tool whose implementation is another studyflow.
@@ -62,21 +61,8 @@ enumerations:
 
 types:
 
-  # ===========================================================================
-  # The agent. BPMN's ad-hoc sub-process already means "the activities inside
-  # execute in an order determined at run time, not by the diagram". That is the
-  # definition of an agent, and it has been in the BPMN spec since 2011. So an
-  # Agent is not a new shape: it is that shape, with a model attached. The tools
-  # it may call are the activities drawn inside it. The exit test is BPMN's own
-  # `completionCondition` (flattened to an attribute by the core schema); `maxTurns` is the
-  # one custom field, because BPMN puts no ceiling on an ad-hoc sub-process.
-  # ===========================================================================
   - name: Agent
-    description: |
-      A model-driven sub-process: the model picks which contained activity to
-      call next, until `completionCondition` holds or `maxTurns` is spent -
-      containment is the tool list. The one element whose control flow the
-      diagram does not fix.
+    description: A sub-process whose contained tools the model calls in an order it decides.
     superClass:
       - bpmn:AdHocSubProcess
     meta:
@@ -89,7 +75,7 @@ types:
         meta:
           order: 1
       - name: systemPrompt
-        description: The agent's standing instructions, in markdown. Connect a `Prompt` element (via a data association) and reference it as `{{name}}`.
+        description: The agent's standing instructions, in markdown.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
@@ -102,32 +88,23 @@ types:
         meta:
           order: 4
       - name: temperature
-        description: Sampling temperature. Defaults high - an agent explores; `LLMCall` defaults to 0 to reproduce.
+        description: Sampling temperature; lower values make the agent less exploratory.
         isAttr: true
         type: Real
         default: 1
         meta:
           order: 5
       - name: maxTurns
-        description: |
-          Hard ceiling on turns. BPMN bounds an ad-hoc sub-process in no other
-          way, so this is an agent's only guaranteed stop - always set it.
+        description: Hard ceiling on how many turns the agent may take.
         isAttr: true
         type: Integer
         default: 10
         meta:
           order: 7
 
-  # ===========================================================================
-  # The model-driven branch. Everything about it is an ordinary exclusive
-  # gateway except who picks the branch: a classifier decides. The engine's
-  # branch selector reads `meta.branching` (alongside `random` and `condition`).
-  # ===========================================================================
+  # The runner refuses `meta.branching: model` at run time; it is not implemented yet.
   - name: Router
-    description: |
-      A branch the model decides, choosing among the outgoing flows' own labels
-      so the diagram and its options cannot drift apart. An unsure or failed
-      classification takes the gateway's native `default`.
+    description: A branch the model picks, choosing among the outgoing flows' labels.
     superClass:
       - bpmn:ExclusiveGateway
     meta:
@@ -141,24 +118,14 @@ types:
         meta:
           order: 1
       - name: instructions
-        description: |
-          How to choose, in markdown. The branch names are the outgoing sequence
-          flows' labels, so the classifier's options are exactly the drawn branches.
+        description: How to choose a branch, in markdown.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
           order: 2
 
-  # ===========================================================================
-  # Generic anchors. A model call and a tool call are the two atoms of the
-  # layer; prompt-chaining and agent loops are built from them. A tool is an
-  # ordinary step (`implementation` + `additionalArguments` + associated data), so anything a
-  # studyflow can run, an agent can call.
-  # ===========================================================================
   - name: LLMCall
-    description: |
-      One model call: a prompt in, a response out. The unit prompt-chaining
-      workflows are built from - for the engine, one request to the model API.
+    description: One model call - a prompt in, a response out.
     superClass:
       - bpmn:ServiceTask
     meta:
@@ -171,16 +138,13 @@ types:
         meta:
           order: 1
       - name: prompt
-        description: |
-          The prompt, in markdown; `{{name}}` is filled from the associated data and
-          the run's variables. Associate a `Prompt` element instead when the
-          wording is itself under study.
+        description: The prompt, in markdown, with `{{name}}` placeholders.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
           order: 3
       - name: temperature
-        description: Sampling temperature. Set 0 for a reproducible call.
+        description: Sampling temperature; 0 gives a repeatable call.
         isAttr: true
         type: Real
         default: 0
@@ -195,17 +159,13 @@ types:
           optional: true
 
   - name: Tool
-    description: |
-      A capability an agent may call. A tool is an ordinary step - same `implementation`
-      and `additionalArguments` as any other activity, same associated data elements as its
-      interface - so anything a studyflow can run, an agent can call.
+    description: A capability an agent may call, run like any other step.
     superClass:
       - bpmn:ServiceTask
     meta:
       icon: iconify mdi--tools
     properties:
-      # `implementation` (the versioned function reference) comes from the
-      # `studyflow:Implementation` trait on bpmn:ServiceTask - declared once there.
+      # `implementation` comes from the `studyflow:Implementation` trait on bpmn:ServiceTask.
       - name: kind
         description: What kind of capability this exposes.
         isAttr: true
@@ -214,45 +174,28 @@ types:
         meta:
           order: 1
       - name: purpose
-        description: |
-          What the tool does and when to use it, in the words the model will read.
-          This is the tool description the model sees - write it for the model, not
-          for the reviewer.
+        description: What the tool does and when to use it, written for the model to read.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
           order: 2
 
-  # ===========================================================================
-  # Human-in-the-loop. Studyflow has always suspended on human steps: a
-  # participant doing a cognitive task is one. HumanApproval is the same
-  # suspension with a reviewer instead of a subject.
-  # ===========================================================================
   - name: HumanApproval
-    description: |
-      Pauses the run for a person to approve, reject, or edit, and resumes on
-      their answer. Put one before any tool call you would not want a model to
-      make alone.
+    description: Pauses the run until a person approves, edits, or rejects.
     superClass:
       - bpmn:UserTask
     meta:
       icon: iconify mdi--account-check-outline
     properties:
       - name: question
-        description: What the reviewer is being asked, in markdown. Shown with the artifact under review.
+        description: What the reviewer is being asked, in markdown.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
           order: 1
 
-  # ===========================================================================
-  # Artifacts.
-  # ===========================================================================
   - name: Prompt
-    description: |
-      A prompt as an artifact rather than a string in a script - associated into the
-      calls that read it, so "the same pipeline" really is the same pipeline
-      and a wording change is a visible edit to one data element.
+    description: A prompt kept as a data element, associated into the calls that read it.
     superClass:
       - bpmn:DataObjectReference
     meta:
@@ -266,10 +209,7 @@ types:
           order: 1
 
   - name: Memory
-    description: |
-      State an agent carries across turns - history, scratchpad, retrieved
-      facts - with `scope` saying how long it lives. Where it is kept goes in
-      `documentation`.
+    description: State an agent carries across turns, such as history or retrieved facts.
     superClass:
       - bpmn:DataStoreReference
     meta:
@@ -290,13 +230,8 @@ templates:
       bpmn:name: Agent (tool loop)
       type: Agent
       bpmn:documentation: |
-        An ad-hoc sub-process: the model chooses which of the contained tools to
-        call on each turn, until it decides it is done or the turn budget runs
-        out. Contrast with the workflow templates, where the diagram decides the
-        order and the model only fills in the steps.
-
-        Add tools by drawing them inside - each is an ordinary step bound to a
-        real callable. The side-effecting ones belong behind a Human approval.
+        The model chooses which of the tools drawn inside to call on each turn,
+        until it is done or the turn budget runs out.
       icon: iconify mdi--robot-outline
       keywords:
         - agent
@@ -329,11 +264,8 @@ templates:
       bpmn:name: Evaluator-optimizer
       type: bpmn:SubProcess
       bpmn:documentation: |
-        The loop a plain DAG cannot express, drawn as control flow: a
-        generator drafts, a judge scores it against a rubric, and the
-        conditioned back-edge returns the critique to the generator until the
-        score clears the bar or the visit budget is spent. Route your exit
-        flow from the gateway and mark it as its native `default`.
+        A generator drafts, a judge scores it against a rubric, and the
+        back-edge revises until the score clears the bar.
       icon: iconify mdi--autorenew
       keywords:
         - evaluator
@@ -375,15 +307,13 @@ templates:
           sourceRef: eo_gate
           targetRef: eo_generate
 
-  - description: Model-decided routing - a classifier picks the branch, and its reason is logged.
+  - description: Model-decided routing - a classifier picks one of the outgoing branches.
     object:
       bpmn:name: Route by intent
       type: Router
       bpmn:documentation: |
-        The classifier's options are the outgoing branch labels, so the diagram and
-        the prompt cannot drift apart. Mark one outgoing flow as the gateway's
-        default - BPMN's own mechanism - and it is taken when the classifier is
-        unsure or fails.
+        The classifier chooses among the outgoing branch labels, and the flow
+        marked `default` is taken when it is unsure or fails.
       icon: iconify mdi--sign-direction
       keywords:
         - router
@@ -402,9 +332,7 @@ templates:
       bpmn:name: Human approval
       type: HumanApproval
       bpmn:documentation: |
-        Pauses the run until the reviewer answers. Put one of these in front
-        of every side-effecting tool call you would not want a model to make
-        alone.
+        Pauses the run until the reviewer answers.
       icon: iconify mdi--account-check-outline
       keywords:
         - approval
@@ -420,9 +348,8 @@ templates:
       bpmn:name: Prompt chain
       type: bpmn:SubProcess
       bpmn:documentation: |
-        The simplest compound pattern: decompose the task into fixed steps and
-        check the intermediate result before spending the next call on it. The
-        diagram decides the order - this is a workflow, not an agent.
+        Fixed steps in the order the diagram sets, with a check on the
+        intermediate result between them.
       icon: iconify mdi--link-variant
       keywords:
         - chain

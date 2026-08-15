@@ -43,7 +43,7 @@ export function ExpressionRow({ name, placeholder, value, language, onCommit, on
         value={language}
         disabled={!value}
         title={value
-          ? 'Expression language \u2014 dash is native (the engine\u2019s own)'
+          ? 'Expression language leaves it to the runner that executes it'
           : 'Type an expression first'}
         onChange={(e) => onCommitLanguage(e.target.value || undefined)}
         className="shrink-0 w-11 rounded-md border border-black/[0.08] bg-cream-200

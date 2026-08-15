@@ -228,9 +228,8 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
                 className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2"
                 role="alert"
               >
-                This schema is neither CSVW JSON-LD nor LinkML YAML, so the table
-                below cannot represent it. Saving would replace it — edit the
-                source directly instead.
+                This schema is neither CSVW nor LinkML, so the table
+                below cannot represent it. Use View source and edit it directly.
               </p>
             )}
 

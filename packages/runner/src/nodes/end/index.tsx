@@ -66,18 +66,23 @@ function End({ job, session, log, complete }: NodeProps<EndJob>) {
   return (
     <NodePanel>
       <h2 className={nodeStyles.title}>Study complete</h2>
-      <p className={nodeStyles.subtitle}>Thank you for participating.</p>
+      <p className={nodeStyles.subtitle}>
+        Thank you for participating.{!code && !redirectUrl && ' You can close this page now.'}
+      </p>
 
       {code && (
-        <div>
-          <div className={nodeStyles.subtitle}>Your completion code</div>
-          <div className={nodeStyles.codeBlock}>{code}</div>
+        <div className={nodeStyles.completionBox}>
+          <div className={nodeStyles.completionLabel}>Your completion code</div>
+          <div className={nodeStyles.completionCode}>{code}</div>
+          <p className={nodeStyles.subtitle}>
+            Copy this code back into the page that sent you here. You need it to be credited.
+          </p>
         </div>
       )}
 
       {redirectUrl && (
         <div className={nodeStyles.redirectInfo}>
-          Redirecting in {countdown}s to{' '}
+          We will send you back in {countdown}s to{' '}
           <span className="break-all">{redirectUrl}</span>
         </div>
       )}
@@ -89,7 +94,7 @@ function End({ job, session, log, complete }: NodeProps<EndJob>) {
             className={nodeStyles.primaryButton}
             onClick={() => { window.location.href = redirectUrl; }}
           >
-            Continue
+            Go back now
           </button>
         )}
       </div>

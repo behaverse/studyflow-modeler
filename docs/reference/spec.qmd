@@ -4,7 +4,7 @@ description: Formal definition and grammar
 order: 4
 ---
 
-Studyflow is a domain-specific language for specifying scientific processes and their associated data. It extends the BPMN 2.1 standard to fit the specific needs of experimental sciences.
+Studyflow is a domain-specific language for specifying scientific processes and their associated data. It extends the BPMN 2.0 standard to fit the specific needs of experimental sciences.
 
 ## Formal definition
 
@@ -12,11 +12,11 @@ A studyflow diagram is a $S = (N, E, T, \tau, \lambda)$ tuple, where $N$ is a fi
 
 $N$ can be further divided into subsets based on the type of elements ($T$). For example, $N_{E} \subseteq N$ represents the set of events (e.g., start and end events), $N_{A} \subseteq N$ represents the set of activities (e.g., tasks, sub-processes), and $N_{G} \subseteq N$ represents the set of gateways (e.g., randomizer, decision points, parallel splits). $N_{D} \subseteq N$ represents data objects that can be used to store and manipulate data within the studyflow. Each subset has its own specific attributes and behaviors defined by the $\lambda$ function.
 
-The main components of the $S$ tuple are described in the BPMN 2.1 specification, and studyflow extends them with additional types and attributes to better suit the needs of experimental studies. More specifically:
+The main components of the $S$ tuple are described in the BPMN 2.0 specification, and studyflow extends them with additional types and attributes to better suit the needs of experimental studies. More specifically:
 
-- $N_A$ (activities) is extended with specific activity types relevant to experimental studies, such as cognitive tests, questionnaires, instructions, rest periods, video games, and standardized Behaverse tasks. The abstract `Arguments` trait augments any BPMN activity with the `arguments` mapping; whether an activity is a data operation is derived from its `operationType` / `implementation`, and its inputs and outputs from the drawn data associations.
+- $N_A$ (activities) is extended with specific activity types relevant to experimental studies, such as cognitive tasks, questionnaires, instructions, rest periods, and standardized Behaverse tasks. The abstract `Arguments` trait augments any BPMN activity with the `additionalArguments` mapping; whether an activity is a data operation is derived from its `operationType` / `implementation`, and its inputs and outputs from the drawn data associations.
 - $N_G$ (gateways) is extended with a random gateway type (`RandomGateway`) for random assignment -- with an optional `stratifyBy` that balances allocation across covariate strata (stratified randomization) -- and an eligibility decision gateway (`EligibilityGateway`) that encodes inclusion/exclusion criteria.
-- $N_D$ (data objects) can be used to represent data collected during the study, such as participant responses, physiological measurements, or other relevant data. It also supports standard data formats (e.g., BIDS, BDM, Psych-DS, Kedro) and the related infrastructure types: `DataCatalog`, `DataStorage`, `Dataset`, `Schema`, `Array`, and `Snapshot`.
+- $N_D$ (data objects) can be used to represent data collected during the study, such as participant responses, physiological measurements, or other relevant data. It also supports standard data formats (e.g., BIDS, BDM, Psych-DS, Kedro) and the related infrastructure types: `DataCatalog`, `Dataset`, and `Schema`. A physical store is the native `bpmn:DataStoreReference` a dataset's `storage` attribute names.
 - $\lambda$ (attributes) is extended to include attributes specific to experimental studies or data analysis, such as metadata (e.g., study name, version), event triggers (e.g., temporal, errors), gateway logic (e.g., randomization probabilities, conditional logics), and implementation details (e.g., links to external scripts or software). The studyflow `BaseElement` augments every element with `documentation` (markdown); a checklist is a `studyflow:checklist`-marked `bpmn:documentation` entry, so the items stay visible in any BPMN tool.
 - $E$ (edges) can include group assignments, indicating which paths participants should follow based on their assigned group. `SequenceFlow` carries an optional `conditionExpression` for gated branches; condition expressions are Python or JavaScript, named per expression by BPMN's own `language` field on the expression element — one without it runs in the evaluating engine's own language (Python in the reference runner, JavaScript in the browser).
 - $S$ can also include design patterns commonly used in experimental studies, such as counterbalancing, recruitment, exception handling, and data quality checks.
@@ -37,8 +37,7 @@ Definitions       ::= Study*
 Study             ::= 'Study' Identifier Attribute* (Element | SequenceFlow)*
 SubProcess        ::= 'SubProcess' Identifier Attribute* (Element | SequenceFlow | DataAssociation)*
 Element           ::= Event | Activity | Gateway | SubProcess
-                    | DataObject | DataCatalog | DataStorage | Dataset
-                    | Schema | Array | Snapshot
+                    | DataObject | DataCatalog | Dataset | Schema
 
 /* ========== Events ========== */
 
@@ -51,8 +50,7 @@ EndEvent          ::= 'EndEvent' Identifier Attribute*      /* may carry redirec
 Activity              ::= 'Activity' Identifier ActivityAttributeList Choreography?
 ActivityAttributeList ::= ActivityType ActivityAttribute*
 ActivityType          ::= '@type' ('CognitiveTask' | 'Questionnaire' | 'Instruction' |
-                                   'Rest' | 'VideoGame' | 'BehaverseTask' |
-                                   'Script' | 'Manual')
+                                   'Rest' | 'BehaverseTask' | 'Script' | 'Manual')
 ActivityAttribute     ::= Attribute | DataInput | DataOutput | DataOperation
 
 /* ========== Data transformations ========== */
@@ -65,11 +63,8 @@ CompositeOp        ::= 'Compose' PrimitiveOp+
 /* ========== Data elements ========== */
 
 DataCatalog        ::= 'DataCatalog' Identifier Attribute*               /* url */
-DataStorage        ::= 'DataStorage' Identifier Attribute*               /* persistent physical store */
 Dataset            ::= 'Dataset' Identifier Attribute*                   /* catalog, storage, schema, format */
 Schema             ::= 'Schema' Identifier Attribute*                    /* format, body */
-Array              ::= 'Array' Identifier Attribute*                     /* dataset, schema */
-Snapshot           ::= 'Snapshot' Identifier Attribute*                  /* source, version */
 DataObject         ::= 'DataObject' Identifier Attribute*                /* may carry state */
 DataInput          ::= '@in' NodeRef
 DataOutput         ::= '@out' NodeRef
@@ -85,7 +80,7 @@ MessageFlow      ::= 'MessageFlow' Identifier Attribute* ParticipantRef '->' Par
 /* Gateway definitions */
 Gateway          ::= 'Gateway' Identifier GatewayAttribute*
 GatewayAttribute ::= GatewayType | Attribute
-GatewayType      ::= '@type' ('Random' | 'StratifiedAllocation' | 'Eligibility' |
+GatewayType      ::= '@type' ('Random' | 'Eligibility' |     /* stratified allocation is Random + stratifyBy */
                               'Exclusive' | 'Parallel' | 'Inclusive' | 'Complex')
 SequenceFlow     ::= 'SequenceFlow' Identifier Attribute* NodeRef '->' NodeRef
                                                             /* optional conditionExpression */
@@ -155,7 +150,7 @@ Which can be visualized as an extended BPMN diagram:
 
 :::
 
-This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `VideoGame`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions live in the core `studyflow` schema (namespace URI `http://behaverse.org/schemas/studyflow/v1`; the version segment identifies the studyflow format version, and the unversioned URI written by older releases is accepted and rewritten on load). Concrete cognitive activities are serialized as a standard BPMN task carrying the schema-specific extension element inside `extensionElements`.
+This diagram can also be represented in machine-readable formats. Cognitive elements (`Questionnaire`, `Instruction`, `Rest`, `CognitiveTask`, `BehaverseTask`, `RandomGateway`, ...) live in the `cognitive` namespace; data infrastructure and the `Study`/`StartEvent`/`EndEvent` extensions live in the core `studyflow` schema (namespace URI `http://behaverse.org/schemas/studyflow/v1`; the version segment identifies the studyflow format version, and the unversioned URI written by older releases is accepted and rewritten on load). Concrete cognitive activities are serialized as a standard BPMN task carrying the schema-specific extension element inside `extensionElements`.
 
 The native `.studyflow` file format is **YAML**: the diagram id sits at the root (`id`), the remaining diagram metadata under `definitions`, and every other top-level entry is a BPMN root element keyed by its id. Element collections (`flowElements`, `participants`, `lanes`, ...) are likewise mappings keyed by element id, and diagram geometry (`bounds`, `label`, `waypoint`) sits inline on the element it describes -- a top-level `diagram` key appears only for diagram-interchange data that cannot be attached to an element (this example carries no layout at all). Values equal to a schema default are omitted on save and re-applied on load: the `RandomGateway` below carries no `algorithm`/`probabilityFunction` keys because this example uses the defaults (`probabilistic`, `uniform`). `incoming`/`outgoing` may be omitted when authoring by hand; they are derived from the sequence flows on load.
 

@@ -112,23 +112,9 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
       title="Provenance View"
       size="xl"
       help={<DialogHelp>
-                The document's provenance trail — the <code>prov:activity</code> entries
-                stamped on the diagram's root as it passes through tools (created,
-                modified, imported, executed) — merged with the per-element run records
-                the runner leaves on the copy it archives. Each run directory is a git
-                repository: <code>run</code> names it, every run of the study adds a{' '}
-                <code>started</code>/<code>finished</code> commit pair, a re-run after an
-                invalidation starts a <code>run/&lt;stamp&gt;</code> branch, and these
-                records are replicated there as commit history. Entries are ordered oldest first; the trail is
-                hand-editable and travels inside the document.
+                Who changed this studyflow and who ran it, oldest first — marked by the modeler and the runner, and stored inside the studyflow diagram itself.
                 Invalidating a run record (<i className={ICONS.closeSmall} aria-hidden="true" />)
-                appends an <code>invalidated</code> marker naming exactly that record —
-                nothing is deleted, and once the step re-runs the marker stays as inert
-                history. After exporting, the next run branches just before that step
-                and re-executes only the step and what depends on it; a hand-written
-                marker naming no record is a standing re-run pin instead (in place, no branch).
-                A dimmed <code>reused</code> line is a skip: that run trusted the record its{' '}
-                <code>what</code> points at instead of re-executing the step.
+                appends a marker rather than deleting anything, so the next run re-executes only that step and what depends on it.
               </DialogHelp>}
       actions={(
         <>
@@ -226,7 +212,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
               <p className="text-sm text-stone-500 italic">
                 {scope
                   ? <>No provenance recorded for <span className="font-mono not-italic">{scope}</span> yet.</>
-                  : 'This diagram carries no provenance trail yet.'}
+                  : 'No provenance yet.'}
               </p>
             ) : (
               <ol className={`${d.panelBody} relative overflow-x-clip`} data-testid="provenance-log">

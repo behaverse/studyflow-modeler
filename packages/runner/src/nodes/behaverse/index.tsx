@@ -34,7 +34,7 @@ function behaverseToJob(node: FlowNode): BehaverseJob | null {
 function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJob>) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [stageReady, setStageReady] = useState(false);
-  const [statusLine, setStatusLine] = useState('Loading Behaverse...');
+  const [statusLine, setStatusLine] = useState('Loading the task...');
 
   useEffect(() => {
     let cancelled = false;
@@ -48,12 +48,12 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
       try {
         const unity = await waitForReady(() => iframeRef.current);
         if (cancelled) return;
-        setStatusLine(`Running ${job.payload.scene}`);
+        setStatusLine('Starting the task...');
         setTimeout(() => {
           if (!cancelled) setStageReady(true);
         }, STAGE_REVEAL_DELAY_MS);
 
-        log('task', `Run ${job.payload.scene} / ${job.payload.timeline ?? '(no timeline)'}`);
+        log('task', `Running ${job.payload.scene} / ${job.payload.timeline ?? '(no timeline)'}.`);
         const result = await runOnUnity(
           unity,
           withRunIdentity(job.payload, session),
@@ -63,14 +63,14 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
         if (cancelled) return;
         log(
           result.IsCompleted ? 'ok' : 'error',
-          `${result.IsCompleted ? 'Completed' : 'Aborted'} ${result.TaskId} / ${result.TimelineId}`,
+          `${result.IsCompleted ? 'Completed' : 'Stopped before the end:'} ${result.TaskId} / ${result.TimelineId}.`,
         );
         if (result.IsCompleted) complete();
         else abort(`task-aborted:${result.TaskId}`);
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
-        log('error', `Behaverse: ${message}`);
+        log('error', `Behaverse task '${job.node.id}' could not run: ${message}`);
         abort(message);
       }
     })();
@@ -93,7 +93,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
           stageReady ? nodeStyles.behaverseCoverHidden : nodeStyles.behaverseCoverShown
         }`}
       >
-        <span>Preparing study... ({statusLine})</span>
+        <span>{statusLine}</span>
       </div>
     </div>
   );

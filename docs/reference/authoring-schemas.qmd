@@ -11,13 +11,12 @@ Studyflow uses direct moddle YAML as the authoring format for schema definitions
 | File | Prefix | What it declares |
 |---|---|---|
 | `studyflow.moddle.yaml` | `studyflow` | The core language: `Study`, `StartEvent`, `EndEvent`, `SequenceFlow`, the `BaseElement`/`Scheduling`/`Classification` traits, and the data-infrastructure types (`Schema`, `Dataset`, `DataCatalog`, `Table`, `Timeseries`, `EventMarker`). It also declares the inspector's tabs for every schema. **core** |
+| `prov.moddle.yaml` | `prov` | `Activity` -- one entry of the provenance trail (who did what, with which tool, when). **core** |
 | `functional.moddle.yaml` | `functional` | `Transform`, `Map`, `Reduce`, `Filter` -- the generic verbs domain layers root their presets on. **core** |
 | `cognitive.moddle.yaml` | `cognitive` | `CognitiveTask`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor`. Split out of the core so adopters can swap the cognitive layer. **core** |
 | `agentic.moddle.yaml` | `agentic` | LLM and agent workflows: `Agent`, `Router`, `LLMCall`, `Tool`, `HumanApproval`, `Prompt`, `Memory`. |
 | `ml.moddle.yaml` | `ml` | scikit-learn pipeline presets. Templates only -- it declares no types. |
-| `datatrove.moddle.yaml` | `datatrove` | The datatrove library's `Reader`/`Writer` IO blocks. |
-| `omniprocess.moddle.yaml` | `omniprocess` | Neuroimaging preprocessing presets (fMRIPrep, EEGPrep). Templates only. |
-| `openbci.moddle.yaml` | `openbci` | `OpenBCISession` and `OpenBCIRecording` for biosignal acquisition. |
+| `eeg.moddle.yaml` | `eeg` | `Session` and `Recording` for biosignal acquisition, plus the EEGPrep/fMRIPrep presets. |
 
 Note the core schema's `name` and `prefix` differ: it is named `Core` but prefixed `studyflow`, because the prefix appears in every saved file and the URI is the stable identifier old files are matched by.
 
@@ -54,11 +53,11 @@ The `description` is shown in the schema palette -- keep it to a sentence or two
 
 A property names the tab it appears under in `meta.categories`. The tabs themselves are declared **once, in the core schema**, and every other schema files into them:
 
-`General` · `Documentation` · `Gantt` · `Data` · `Execution` · `Run record`
+`General` · `Documentation` · `Gantt` · `Data` · `Execution`
 
-A tab has to earn its name: these are the questions a modeller asks of *any* element, which is why they recur across schemas. A tab holding a single type's own fields would only repeat what the panel header already says the element is, so those fields go to `General` -- an OpenBCI recording has no "OpenBCI" tab and an LLM call has no "Model call" tab. Naming a category no schema declares still works, but it sorts after every declared one, so prefer the six above.
+A tab has to earn its name: these are the questions a modeller asks of *any* element, which is why they recur across schemas. A tab holding a single type's own fields would only repeat what the panel header already says the element is, so those fields go to `General` -- an EEG recording has no "EEG" tab and an LLM call has no "Model call" tab. Naming a category no schema declares still works, but it sorts after every declared one, so prefer the five above.
 
-`Execution` and `Run record` are special. `Execution` is `synthetic: true`: a dedicated section component draws it over nested BPMN state (properties, data associations, loop characteristics), so it appears even with no attributes filed under it. `Run record` is where engine-written fields go (`meta.readonly: true`), kept last so run records sit apart from what people author.
+`Execution` is special: it is `synthetic: true`, so a dedicated section component draws it over nested BPMN state (properties, data associations, loop characteristics) and it appears even with no attributes filed under it.
 
 ## Enumerations
 
@@ -212,7 +211,7 @@ The browser runner parses and validates the call but does not execute it. The Py
 
 Schemas may define top-level `templates` entries -- preset elements that appear in the palette flyouts, the command palette, and the template gallery. Each entry uses `object.type` to name the schema type (or BPMN type) to instantiate, plus any default property values to apply.
 
-This is the mechanism behind a recurring design rule: **parameterize, don't proliferate.** A verb that is just a generic step bound to a function (extract, tokenize, fit, fMRIPrep…) ships as a template, not as a new element type. `ml` and `omniprocess` declare no types at all for this reason.
+This is the mechanism behind a recurring design rule: **parameterize, don't proliferate.** A verb that is just a generic step bound to a function (extract, tokenize, fit, fMRIPrep…) ships as a template, not as a new element type. `ml` declares no types at all for this reason (`types: []`).
 
 ```yaml
 templates:
@@ -292,7 +291,7 @@ These are not added back onto the schema class. The modeler generates a template
 
 ## Cross-schema references
 
-Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `studyflow:AssignmentAlgorithmEnum`, `studyflow:Dataset`. The functional schema, for example, refers to `functional:Transform#operationType` when pinning a verb's `operationType` on subtypes like `Map`, and `openbci:OpenBCIRecording` extends `studyflow:Dataset`.
+Use the schema prefix to reference types from another schema, e.g. `studyflow:YAMLString`, `cognitive:AssignmentAlgorithmEnum`, `studyflow:Dataset`. The functional schema, for example, refers to `functional:Transform#operationType` when pinning a verb's `operationType` on subtypes like `Map`, and `eeg:Recording` extends `studyflow:Dataset`.
 
 ## Common mistakes
 

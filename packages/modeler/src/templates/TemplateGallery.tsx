@@ -30,8 +30,7 @@ const TEMPLATES: Template[] = [
     id: 'blank',
     title: 'Empty diagram',
     category: 'Blank',
-    description:
-      'A bare canvas with a single start event. Build the flow from scratch with the element palette.',
+    description: 'One start event on an empty canvas. Build the rest from the palette.',
   },
   {
     id: 'consort2025.studyflow.png',
@@ -39,7 +38,7 @@ const TEMPLATES: Template[] = [
     title: 'Randomized controlled trial',
     category: 'Clinical trial',
     description:
-      'A CONSORT 2025-compliant parallel-group RCT: enrollment, eligibility screening, randomized allocation to two arms, follow-up, and analysis, with exclusion paths modeled as error events.',
+      'CONSORT 2025 participant flow from enrollment to analysis, with dropouts as error events.',
   },
   {
     id: 'cognitive_battery.studyflow.png',
@@ -47,7 +46,7 @@ const TEMPLATES: Template[] = [
     title: 'Within-subject cognitive battery',
     category: 'Cognitive',
     description:
-      'A single-session battery in which every participant completes all four Behaverse tasks (N-Back, Digit Span, SART, Which One) in a counterbalanced order, followed by a post-battery survey.',
+      'One session: N-Back, Digit Span, a break, SART, Which One, then a survey.',
   },
   {
     id: 'spirit2025.studyflow.png',
@@ -55,8 +54,8 @@ const TEMPLATES: Template[] = [
     title: 'Multi-session longitudinal study',
     category: 'Longitudinal',
     description:
-      'A SPIRIT 2025 trial protocol scheduling screening, baseline, intervention/control arms, and follow-up visits across 24 weeks, with per-visit timing that populates the Gantt view.',
-    hint: 'Try View As → Gantt or Checklist',
+      'Screening, baseline, two arms, follow-up, close-out — visit onsets from T0 to T0+26 weeks.',
+    hint: 'Try "View as Gantt" or "View as Checklist"',
   },
   {
     id: 'agent_eval_pool.studyflow.png',
@@ -64,7 +63,7 @@ const TEMPLATES: Template[] = [
     title: 'LLM evaluation study',
     category: 'AI evaluation',
     description:
-      'An agent actor pool — a random baseline, a Claude LLM, and a local Ollama LLM — each run the same 2-back protocol in parallel, then their responses are aggregated and scored against the baseline.',
+      'Random, Claude, and local Ollama bots run the same 2-back; accuracy is compared.',
   },
 ];
 
@@ -92,7 +91,7 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
 
     const url = template.filename ? urlFor(template.filename) : undefined;
     if (template.filename && !url) {
-      notify('error', `Template not found: ${template.filename}`);
+      notify('error', `"${template.title}" is missing from this build. Pick another, or start from an empty diagram.`);
       return;
     }
 
@@ -106,7 +105,7 @@ export function TemplateGalleryDialog({ isOpen, onClose }: Props) {
       }
       onClose();
     } catch (err: any) {
-      notify('error', err?.message || 'Failed to load template.');
+      notify('error', err?.message || 'Could not open this template. Pick another, or start from an empty diagram.');
       console.error(err);
     } finally {
       setBusy(null);

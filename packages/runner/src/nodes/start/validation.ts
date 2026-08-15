@@ -6,7 +6,8 @@ export function validateStartEvent(node: FlowNode): ValidationIssue[] {
   if (consentFormUri && !/^(https?:|\/)/i.test(consentFormUri)) {
     return [{
       nodeId: node.id,
-      message: `consentFormUri '${consentFormUri}' does not look like a URL or absolute path.`,
+      message: `The consent form link '${consentFormUri}' is not a URL or an absolute path. `
+        + 'Set consentFormUri to an https:// address or a path starting with "/".',
     }];
   }
   return [];

@@ -27,10 +27,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
       title="Checklist View"
       size="lg"
       help={<DialogHelp>
-                Items aggregated from the <code>studyflow:checklist</code> attribute of every
-                element in the current diagram. Markdown checkbox lines
-                (<code>- [ ]</code> / <code>- [x]</code>) render as checkable items;
-                plain bullets render as notes.
+                Every element's checklist, gathered here.
               </DialogHelp>}
     >
             {totalCheckboxes > 0 && (
@@ -40,7 +37,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
             )}
             {groups.length === 0 ? (
               <p className="text-sm text-stone-500 italic">
-                No elements in this diagram carry a checklist attribute yet.
+                Nothing to check yet. Fill in an element&apos;s Checklist  in the inspector.
               </p>
             ) : (
               <ul className={`${d.panelBody} space-y-4`}>

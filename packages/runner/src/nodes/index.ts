@@ -1,3 +1,4 @@
+import { getCatalog, hasCatalog } from '@core/notation';
 import type { Studyflow } from '@runner/studyflow';
 import { BEHAVERSE_RUNTIME_URL, type Manifest } from '@runner/nodes/behaverse/types';
 import { fetchManifest } from '@runner/nodes/behaverse/validation';
@@ -18,7 +19,7 @@ async function loadManifest(studyflow: Studyflow, log: LogFn): Promise<Manifest 
   const needed = [...studyflow.flowNodes.values()]
     .some((node) => findByFlowNode(node)?.type === 'behaverse');
   if (!needed) {
-    log('info', 'No behaverse tasks - skipping Unity manifest.');
+    log('info', 'No Behaverse task in this studyflow.');
     return undefined;
   }
   try {
@@ -26,11 +27,17 @@ async function loadManifest(studyflow: Studyflow, log: LogFn): Promise<Manifest 
   } catch (err) {
     log(
       'skip',
-      `Could not load the Unity manifest (${err instanceof Error ? err.message : String(err)}); `
-      + 'behaverse tasks will not be verified against the build.',
+      `Could not load the Behaverse Unity build (${err instanceof Error ? err.message : String(err)}). `,
     );
     return undefined;
   }
+}
+
+/** `meta.branching` off the schema, when a catalog is installed (it is not, in Node-side unit tests). */
+function branchingMode(extensionType: string): string | undefined {
+  if (!hasCatalog()) return undefined;
+  const mode = getCatalog().getType(extensionType)?.meta?.branching;
+  return typeof mode === 'string' ? mode : undefined;
 }
 
 export async function validate(studyflow: Studyflow, log: LogFn): Promise<ValidationIssue[]> {
@@ -45,7 +52,10 @@ export async function validate(studyflow: Studyflow, log: LogFn): Promise<Valida
       issues.push({
         nodeId: node.id,
         severity: 'warning',
-        message: `No runner module handles '${node.extensionType}', so this step will be skipped.`,
+        // A model-decided branch is refused mid-run (see session.ts), so don't promise the run continues.
+        message: branchingMode(node.extensionType) === 'model'
+          ? `'${node.extensionType}' picks its branch with a model, which the runner does not implement. The run stops here.`
+          : `'${node.extensionType}' is not executable in this runner. This step is skipped and the run continues.`,
       });
     }
   }

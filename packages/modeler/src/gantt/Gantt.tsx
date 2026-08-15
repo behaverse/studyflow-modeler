@@ -46,17 +46,12 @@ export function GanttDialog({ isOpen, onClose }: Props) {
       title="Gantt View"
       size="lg"
       help={<DialogHelp>
-                Activities and BPMN events that carry <code>onset</code>,{' '}
-                <code>duration</code>, or <code>progress</code> attributes from the current
-                diagram. Bars are positioned by best-effort parsing of the onset/duration
-                strings; rows without parseable timing fall back to a label-only row. Rows
-                are grouped by the containing pool or lane (or labelled
-                <em> Unassigned</em> when no swimlane wraps them).
+                Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule and grouped by the container.
               </DialogHelp>}
     >
             {rows.length === 0 ? (
               <p className="text-sm text-stone-500 italic">
-                No elements in this diagram carry temporal attributes yet.
+                No schedule yet. Give an element an onset or duration in the inspector.
               </p>
             ) : (
               <div className={`${d.panelBody} space-y-5 pr-2`}>

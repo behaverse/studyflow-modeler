@@ -21,7 +21,7 @@ If you see datasets, click to inspect their schema -- that usually tells you the
 
 Locate:
 
-- The **start event(s).** What triggers the study? Is the start event annotated with `requiresConsent` or other gating?
+- The **start event(s).** What triggers the study? Does the start event carry a `consentFormUri` (the URL of the consent form that gates entry) or other gating?
 - The **end event(s).** Where does the flow terminate? Multiple end events usually indicate exception paths (e.g., dropouts).
 - Any **sub-processes** (rectangles with a `+`). These hide complexity. Click in to see the nested flow.
 

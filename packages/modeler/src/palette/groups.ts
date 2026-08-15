@@ -45,7 +45,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
       { label: 'Parallel', bpmnType: BPMN.ParallelGateway, icon: ICONS.bpmnGatewayParallel },
       { label: 'Inclusive', bpmnType: BPMN.InclusiveGateway, icon: ICONS.bpmnGatewayOr },
       { label: 'Complex', bpmnType: BPMN.ComplexGateway, icon: ICONS.bpmnGatewayComplex },
-      { label: 'Event Based', bpmnType: BPMN.EventBasedGateway, icon: ICONS.bpmnGatewayEventBased },
+      { label: 'Event-based', bpmnType: BPMN.EventBasedGateway, icon: ICONS.bpmnGatewayEventBased },
     ],
   },
   {
@@ -60,7 +60,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
     icon: ICONS.squareDashed,
     items: [
       { label: 'Group', bpmnType: BPMN.Group, icon: ICONS.bpmnGroup },
-      { label: 'SubProcess', bpmnType: BPMN.SubProcess, icon: ICONS.bpmnSubprocess },
+      { label: 'Sub-process', bpmnType: BPMN.SubProcess, icon: ICONS.bpmnSubprocess },
       { label: 'Pool', bpmnType: BPMN.Participant, icon: ICONS.bpmnParticipant },
     ],
   },

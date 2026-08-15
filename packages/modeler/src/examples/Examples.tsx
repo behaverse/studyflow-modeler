@@ -86,7 +86,7 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
       });
       onClose();
     } catch (err: any) {
-      notify('error', err?.message || 'Failed to load example.');
+      notify('error', err?.message || 'Could not open the example. Try another, or reload the page.');
       console.error(err);
     } finally {
       setBusy(null);
@@ -118,7 +118,9 @@ export function ExamplesDialog({ isOpen, onClose }: Props) {
             </div>
 
             {visible.length === 0 ? (
-              <p className={g.empty}>No examples available.</p>
+              <p className={g.empty}>
+                {filter === 'all' ? 'No examples in this build.' : 'Pick another above.'}
+              </p>
             ) : (
               <ul className={g.grid}>
                 {visible.map((entry) => (

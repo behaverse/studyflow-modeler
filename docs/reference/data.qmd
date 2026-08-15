@@ -11,7 +11,7 @@ The underlying standard for Studyflow, BPMN, is primarily designed for modeling 
 <details class="indigo">
   <summary>`DataStore` / `DataStoreReference` <span class="badge float-right">BPMN</span></summary>
 
-  Persistent storage of data that can be accessed across multiple process instances. For example, a database or file system. `DataStoreReference` is the visual element used to point at a `DataStore`. Studyflow refines this concept with `DataStorage` (physical store) and `Dataset` (logical collection); both are rendered as data store references.
+  Persistent storage of data that can be accessed across multiple process instances. For example, a database or file system. `DataStoreReference` is the visual element used to point at a `DataStore`. Studyflow adds no storage element of its own -- physical storage stays the native `bpmn:DataStore`/`DataStoreReference` -- and refines the logical side with `Dataset`, which extends `DataStoreReference` and points at the store through its `storage` attribute.
 </details>
 
 
@@ -41,15 +41,9 @@ Studyflow refines BPMN to better match common practices in data-centric workflow
 </details>
 
 <details class="green">
-  <summary>`DataStorage` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  Persistent *physical* storage of data (database, filesystem, object store, etc.). Maps to `bpmn:DataStoreReference`. Use it to denote where the bytes actually live, separately from the logical `Dataset` that organizes them.
-</details>
-
-<details class="green">
   <summary>`Dataset` <span class="badge float-right">STUDYFLOW</span></summary>
 
-  A logical collection (possibly multi-table, multi-modal) registered in a `DataCatalog` and stored in a `DataStorage`. Carries an optional `schema`, a `format` (`bdm`, `bids`, `psych-ds`, `kedro`, `undefined`), and format-specific properties (`bdmDataLevel` for BDM; `bidsDataType` for BIDS).
+  A logical collection (possibly multi-table, multi-modal) registered in a `DataCatalog` and stored in a `bpmn:DataStoreReference` named by its `storage` attribute. Carries an optional `schema`, a `format` (`bdm`, `bids`, `psych-ds`, `kedro`, `undefined`), and format-specific properties (`bdmDataLevel` for BDM; `bidsDataType` for BIDS).
 </details>
 
 <details class="green">
@@ -60,24 +54,30 @@ Studyflow refines BPMN to better match common practices in data-centric workflow
 
 
 <details class="green">
-  <summary>`Array` <span class="badge float-right">STUDYFLOW</span></summary>
+  <summary>`Table` <span class="badge float-right">STUDYFLOW</span></summary>
 
-  A multi-dimensional array/tensor structure for non-tabular data (e.g., tensors, images, videos, fMRI data). References a parent `dataset` and a `schema` describing dimensions, types, and units.
+  Tabular data -- rows and columns -- described by CSVW or LinkML. Unlike a `Dataset`, it commits to that structure rather than staying opaque. Carries a `format` (`csv`, `tsv`, `parquet`, `arrow`, `jsonl`; default `csv`), a `schema` reference, and an optional `rowCount`.
 </details>
 
 <details class="green">
-  <summary>`Snapshot` <span class="badge float-right">STUDYFLOW</span></summary>
+  <summary>`Timeseries` <span class="badge float-right">STUDYFLOW</span></summary>
 
-  An immutable version of a dataset or an array. Snapshots are typically associated with a specific point in the workflow or a version control commit. Carries a `source` (the dataset/array identifier) and a `version` (tag, checksum, or commit hash).
+  A continuous physiological or behavioral recording sampled over time (EEG, EMG, eye-tracking gaze stream, accelerometer). Carries `samplingRate`, `channelCount`, `units`, `recordingDuration`, and a `format` (`edf`, `bdf`, `fif`, `set`, `parquet`, `zarr`).
 </details>
 
-In summary, `DataStorage` is a physical/persistent store (database, filesystem, S3 bucket, etc.), `DataCatalog` is a registry of datasets (potentially across multiple stores), `Dataset` is a logical collection, and `Array` is a concrete tensor-like component. Tabular structures within a dataset are described by a CSVW `Schema` rather than a dedicated `Table` element.
+<details class="green">
+  <summary>`EventMarker` <span class="badge float-right">STUDYFLOW</span></summary>
 
-Also note that, while experimental data is generally assumed to be tabular, `Dataset` supports other data types (i.e., `DataObject` or `Array`, including images, videos, brain imaging, and raw sensor recordings).
+  Sparse time-stamped occurrences within a recording -- trial markers, stimulus onsets, button presses. Carries `eventType`, `eventOnset`, `eventOffset`, and `eventCount`. Its recording-time fields are not the Gantt axis's `onset`/`duration`.
+</details>
+
+In summary, `DataCatalog` is a registry of datasets (potentially across multiple stores), `Dataset` is a logical collection, and `Table`, `Timeseries`, and `EventMarker` are the concrete structures a dataset is made of. Physical storage has no studyflow type -- it is BPMN's own `DataStore`, named by `Dataset#storage`.
+
+Also note that, while experimental data is generally assumed to be tabular, `Dataset` supports other data types (i.e., `DataObject` or `Timeseries`, including images, videos, brain imaging, and raw sensor recordings).
 
 ## Data operations
 
-Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. An operator can be implemented as a usual BPMN task (e.g. script task or service task), and the operator marker serves as a semantic annotation indicating that the task is performing a specific type of data transformation. This is derived, not stored: a step counts as a data operation when it names a data verb (`operationType`) or runs software (`implementation`) without being a participant-facing instrument. The `arguments` mapping comes from the abstract `Arguments` trait, and the operation's inputs and outputs are auto-detected from the data association edges drawn on the diagram.
+Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. An operator can be implemented as a usual BPMN task (e.g. script task or service task), and the operator marker serves as a semantic annotation indicating that the task is performing a specific type of data transformation. This is derived, not stored: a step counts as a data operation when it names a data verb (`operationType`) or runs software (`implementation`) without being a participant-facing instrument. The `additionalArguments` mapping comes from the abstract `Arguments` trait, and the operation's inputs and outputs are auto-detected from the data association edges drawn on the diagram.
 
 <figure class="centered max-w-2xl">
 <div style="max-width: 160px;">
@@ -138,7 +138,7 @@ Inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_
 </details>
 
 
-::: {.callout-info appearance="simple"}
+::: {.callout-note appearance="simple"}
 ## Batch vs. Streaming
 
 Some operations are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
@@ -161,7 +161,7 @@ Study RTAnalysis
   DataCatalog behaverse
     url "https://behaverse.org/catalog"
 
-  DataStorage ducklake
+  DataStoreReference ducklake
     # kind hint kept in documentation; physical store of bytes
     documentation "duckdb+parquet at s3://behaverse/rt/ducklake"
 
@@ -239,7 +239,6 @@ trials_summary <- trials_raw |>
 
 ## Planned updates
 
-- `Timeseries`, `Event` data structures for multi-dimensional physiological and behavioral data.
 - `transformTables`: Special case of `transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables &rarr; 1+ tables).
 - `loadData`, `saveData`, `exportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
 

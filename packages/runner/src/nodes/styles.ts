@@ -26,5 +26,8 @@ export const nodeStyles = {
   consentBox:
     'border border-stone-200 rounded p-4 bg-stone-50 max-h-[50vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed',
   codeBlock: 'font-mono bg-stone-900 text-emerald-300 px-3 py-2 rounded text-sm break-all',
+  completionBox: 'border-2 border-fuchsia-300 rounded-lg bg-fuchsia-50 p-5 flex flex-col gap-2 items-center text-center',
+  completionLabel: 'text-base font-semibold text-stone-900',
+  completionCode: 'font-mono bg-stone-900 text-emerald-300 px-5 py-3 rounded text-2xl tracking-widest break-all select-all',
   redirectInfo: 'text-sm text-stone-600',
 } as const;

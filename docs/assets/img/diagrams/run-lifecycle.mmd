@@ -1,0 +1,46 @@
+%% Regenerate: npx -y @mermaid-js/mermaid-cli -i run-lifecycle.mmd -o run-lifecycle.svg -c mermaid.config.json -b transparent
+%% The config keeps labels as plain SVG text (no foreignObject), so the .svg survives being embedded as an image.
+flowchart TB
+
+  AUTHOR["`**author**
+  modeler stamps created / modified`"]
+  VALIDATE{{"`**validate**
+  studyflow validate · runner pre-flight`"}}
+  BROWSER["`**browser runner**
+  participants`"]
+  PY["`**python runner**
+  pipelines`"]
+  DATA["data.behaverse.org<br/>sessions and events, opt-in"]
+
+  PLAN["archived plan, in runs/STAMP/<br/>the studyflow that ran, copied in"]
+  TRAIL["prov trail on the document<br/>prov:activity<br/>action=executed, run, seed"]
+  RECORDS["per-element records<br/>executed · created · imported · reused"]
+  REPO["run repository, runs/STAMP/.git<br/>one commit per checkpoint"]
+  COMMIT["each checkpoint commit<br/>trailers = the prov attributes<br/>body = that step's records (JSON)"]
+
+  RERUN["partial re-run<br/>only the tainted closure executes"]
+  BRANCH["branch run/STAMP<br/>at the invalidated step's parent"]
+
+  AUTHOR -->|"saves .studyflow.yaml<br/>or .studyflow.png"| VALIDATE
+  VALIDATE -->|"runs when<br/>runtime = browser"| BROWSER
+  VALIDATE -->|"runs when<br/>runtime = local"| PY
+  BROWSER -->|"posts to"| DATA
+
+  PY -->|"stamps and archives"| PLAN
+  PLAN -->|"carries"| TRAIL
+  PLAN -->|"carries"| RECORDS
+  PY -->|"commits every<br/>checkpoint into"| REPO
+  REPO -->|"holds"| COMMIT
+
+  RECORDS -->|"lets untouched steps skip"| RERUN
+  COMMIT -->|"locates the branch point<br/>by its Prov-Node trailer"| BRANCH
+  RECORDS -.->|"✕ in the modeler<br/>voids one"| BRANCH
+  RERUN -->|"resumes the same repo"| PY
+  BRANCH -->|"re-runs on the new branch"| PY
+
+  classDef act fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
+  classDef rec fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
+  classDef ext fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
+  class AUTHOR,VALIDATE,BROWSER,PY act
+  class PLAN,TRAIL,RECORDS,REPO,COMMIT rec
+  class DATA,RERUN,BRANCH ext

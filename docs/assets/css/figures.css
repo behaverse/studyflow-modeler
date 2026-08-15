@@ -12,9 +12,17 @@ figure.centered {
   align-items: center;
 }
 
+/* Most diagrams have transparent or white grounds, so dark mode mats them (see theme-dark.scss) */
+figure img {
+  max-width: 100%;
+  height: auto;
+  background-color: var(--doc-figure-mat);
+  border-radius: .25rem;
+}
+
 figcaption {
   font-size: 0.8rem;
-  color: #4b5563;
+  color: var(--doc-muted);
   margin-bottom: 1rem !important;
   text-align: center;
 }
@@ -22,4 +30,47 @@ figcaption {
 figcaption code {
   border: 0px !important;
   font-size: 0.7rem !important;
+}
+
+/* Figure width constraints. .max-w-* are the historical names; .fig-* the documented set. */
+.max-w-md { max-width: 28rem; }
+.max-w-2xl { max-width: 42rem; }
+
+.fig-s,
+.fig-m,
+.fig-l {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.fig-s { max-width: 22rem; }
+.fig-m { max-width: 34rem; }
+.fig-l { max-width: 48rem; }
+
+/* Quarto ships .grid as a 12-column bslib grid; these set the column count on it. */
+.grid.grid-cols-1 { --bs-columns: 1; grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid.grid-cols-2 { --bs-columns: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.grid-cols-3 { --bs-columns: 3; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Two-up comparison, for figures shown side by side. */
+.compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .grid.grid-cols-2,
+  .grid.grid-cols-3,
+  .compare {
+    --bs-columns: 1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Bootstrap 4 name kept because the pages use it; Bootstrap 5 calls it .float-end. */
+.float-right {
+  float: right;
+  margin-left: .75rem;
 }

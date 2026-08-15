@@ -56,7 +56,7 @@ function ImplementationPanel({ node }: { node: FlowNode }) {
       )}
       {argEntries.length > 0 && (
         <div className={cn.field}>
-          <span className={nodeStyles.subtitle}>arguments</span>
+          <span className={nodeStyles.subtitle}>additionalArguments</span>
           <dl className={cn.defList}>
             {argEntries.map(([key, value]) => (
               <div key={key} className="contents">
@@ -67,7 +67,9 @@ function ImplementationPanel({ node }: { node: FlowNode }) {
           </dl>
         </div>
       )}
-      <p className={nodeStyles.subtitle}>Function calls are not executed in the browser runner.</p>
+      <p className={nodeStyles.subtitle}>
+        The browser runner does not execute function calls; the Python runner does.
+      </p>
     </div>
   );
 }
@@ -80,7 +82,7 @@ function Task({ job, log, complete }: NodeProps<TaskJob>) {
     if (implementation) {
       log('info', `Task '${job.node.id}' declares a function call: ${implementation.ref}`);
     } else {
-      log('skip', `Untyped task '${job.node.id}' rendered as continue node.`);
+      log('skip', `Task '${job.node.id}' has no applied type, so it only shows a Continue button.`);
     }
   }, [job.node.id]);
 
@@ -91,7 +93,7 @@ function Task({ job, log, complete }: NodeProps<TaskJob>) {
         <ImplementationPanel node={job.node} />
       ) : (
         <p className={nodeStyles.subtitle}>
-          This task has no applied type. Press Continue to advance.
+          Nothing happens at this step. Press Continue to go on.
         </p>
       )}
       <div className={nodeStyles.actions}>

@@ -4,7 +4,7 @@ A small Python program that executes a studyflow, here to keep one claim
 honest: **a studyflow is executable as it stands.** No companion script tells
 the engine what the boxes mean — the picture is the program, and this reads it.
 
-It sits beside the browser runner in `src/runner/`, which drives the
+It sits beside the browser runner in `packages/runner/`, which drives the
 participant-facing half of the notation (cognitive tasks, questionnaires, human
 suspension). This one runs the analysis half: steps bound to software. They read
 the same files.
