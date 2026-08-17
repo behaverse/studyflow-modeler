@@ -87,7 +87,7 @@ git show -s --format='%b' <commit> | head -1 | jq  # one commit's step records
 
 One run at a time per repository — a second contends on git's own `index.lock`, which degrades replication but never corrupts an artifact already written. `runs/` is git-ignored in the outer checkout; un-ignore it and each run repository shows up as a gitlink, not as tracked files.
 
-**Partial re-runs** need no flag: pointing the runner at an archived plan resumes the repository it already lives in. A step is skipped when its record stands, nothing it reads was re-made this run, and its `uri` artifacts are still on disk; a clean gateway replays its recorded decision instead of evaluating. Taint spreads forward from whatever is gone or invalidated, and memory-only bindings pull their producers in backward, so invalidating one activity re-executes its own chain rather than the diagram. Staleness tracks data, not text: after hand-editing a condition expression, ✕ the gateway or pass `--fresh`. See [Execution and provenance](../../docs/concepts/execution.qmd) for what each record means.
+**Partial re-runs** need no flag: pointing the runner at an archived plan resumes the repository it already lives in. A step is skipped when its record stands, nothing it reads was re-made this run, and its `uri` artifacts are still on disk; a clean gateway replays its recorded decision instead of evaluating. Taint spreads forward from whatever is gone or invalidated, and memory-only bindings pull their producers in backward, so invalidating one activity re-executes its own chain rather than the diagram. Staleness tracks data, not text: after hand-editing a condition expression, ✕ the gateway or pass `--fresh`. See [Specification](../../docs/specification.qmd#provenance) for what each record means.
 
 ## Boundary inputs
 
@@ -140,6 +140,5 @@ Run directories are named with a sortable UTC stamp, so `runs/*/studyflow.log` w
 
 ## More
 
-- [Execution and provenance](../../docs/concepts/execution.qmd) — the walk, seeds, the trail and the per-element records, and which elements each executor actually runs.
-- [The studyflow object](../../docs/concepts/object.qmd) — how a data edge binds to an argument of the call a step names.
+- [Specification](../../docs/specification.qmd) — the walk, seeds, the trail and the per-element records, which elements each executor runs, and how a data edge binds to an argument of the call a step names.
 - [CLI](../../packages/cli/README.md) — invoking this runner through `studyflow run`.

@@ -11,28 +11,20 @@ npm run docs:build    # render to dist/docs/
 npm run lint:docs     # the drift guard; run it before you push
 ```
 
-Navigation lives in `_quarto.yml`, as an **explicit list in the order the argument is built** — no `auto:` globs. A new page is not part of the site until it is there.
+Navigation is a three-item navbar in `_quarto.yml`, in the order the argument is built. There is no sidebar: at this size the per-page table of contents is the navigation.
 
 ---
 
-## 1. The nine pages
+## 1. The three pages
 
 | Path | Establishes |
 | --- | --- |
-| `index.qmd` | what Studyflow is, and the gap it closes. The positioning statement — change with care |
-| `concepts/coordination.qmd` | why the process needs a notation, and why that notation extends BPMN |
-| `concepts/object.qmd` | the typed graph, its two edge kinds, and well-formedness |
-| `concepts/projections.qmd` | views as predicates over that graph, and why none can contradict it |
-| `concepts/execution.qmd` | the walk, seeds, the support matrix, and the provenance record |
-| `concepts/extending.qmd` | schemas as the growth mechanism, and the compatibility guarantees |
-| `reference/elements.qmd` | every type the shipped sets declare, and its attributes |
-| `reference/file-format.qmd` | the canonical YAML, the XML projection, images that carry the study |
-| `reference/glossary.qmd` | the terms, one line each |
+| `index.qmd` | what Studyflow is, the gap it closes, and why it extends BPMN. The positioning statement — change with care |
+| `specification.qmd` | the typed graph, well-formedness, projections, execution, provenance, and how the vocabulary grows |
+| `reference.qmd` | every type the shipped sets declare, and the files a studyflow is stored in |
 | `assets/` | images, `.studyflow` sources, CSS, `_brand.yml` |
 
-Something that is neither a property of the notation nor a fact about the vocabulary does not belong on this site. A worked case, a how-to, a tour of the editor: each is a page this site deliberately does not have.
-
----
+Three pages, one per contribution. Something that is neither a property of the notation nor a fact about the vocabulary does not belong here — a worked case, a how-to, a tour of the editor, a glossary restating definitions given elsewhere: each is a page this site deliberately does not have. A **fourth page is a decision, not an increment**; prefer a section on an existing one.
 
 ## 2. Positioning
 
@@ -117,7 +109,7 @@ Every page carries `title` **and** `description`; the description is what search
 | Quarto syntax only | `![caption](path){#fig-id}` — never raw `<figure>` HTML |
 | Alt text mandatory | `fig-alt="…"`. The bracket text is the *caption*, not the alt text |
 | Cross-reference | `#fig-` prefix, referenced as `@fig-random` |
-| No definitions in captions | a caption says what the figure shows; definitions belong in the body or in `reference/elements.qmd` |
+| No definitions in captions | a caption says what the figure shows; definitions belong in the body or in `reference.qmd` |
 | Source beside the render | keep the `.studyflow` source next to its exported SVG or PNG so the figure stays editable |
 
 Callouts are reader-facing only, never a note to the next contributor — and never ship one announcing content that has not been written.
@@ -130,6 +122,6 @@ Every type table, attribute name, and default value is typed by a human against 
 
 `npm run lint:docs` is the guard. It checks that every element name a page prints is one the schemas ship, that retired names stay retired, that every relative link and image resolves and stays inside `docs/`, that every page has a title and a description, that no callout advertises a gap, that no page reaches for implementation vocabulary or cites a source path, and that no page outgrows its budget. Fenced code and frontmatter are exempt from the name checks — sample YAML is illustration, not a claim about the vocabulary.
 
-What the lint cannot see, review must: the terminology in §3, alt text on every figure, and a new page's place in the `_quarto.yml` sidebar.
+What the lint cannot see, review must: the terminology in §3, alt text on every figure, and a new page's place in the `_quarto.yml` navbar.
 
 When you change a schema or a default, the same commit updates the pages that quote it. A doc that lies is worse than a doc that is missing.

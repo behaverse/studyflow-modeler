@@ -11,58 +11,24 @@ website:
   search: true
   bread-crumbs: true
   page-navigation: true
-  # Two sections: the argument and the object it rests on, then the shipped vocabulary.
+  # Three pages: the argument, the object it rests on, and what ships.
   navbar:
     left:
       - text: Overview
         href: index.qmd
-      - text: Concepts
-        href: concepts/coordination.qmd
+      - text: Specification
+        href: specification.qmd
       - text: Reference
-        href: reference/elements.qmd
+        href: reference.qmd
     right:
       - text: Open Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
         icon: box-arrow-up-right
         target: _blank
-  sidebar:
-    id: default
-    title: Studyflow
-    logo: assets/img/logo.png
-    alignment: center
-    style: docked
-    pinned: true
-    collapse-level: 2
-    search: true
-    footer: '&copy; 2025 [xCIT.org](https://xcit.org)'
-    tools:
       - icon: github
         href: https://github.com/behaverse/studyflow-modeler
-        text: GitHub
-    # Explicit contents, in the order the argument is built -- never alphabetically.
-    contents:
-      - text: Overview
-        href: index.qmd
-      - section: Concepts
-        contents:
-          - text: Computation and coordination
-            href: concepts/coordination.qmd
-          - text: The studyflow object
-            href: concepts/object.qmd
-          - text: Projections
-            href: concepts/projections.qmd
-          - text: Execution and provenance
-            href: concepts/execution.qmd
-          - text: Extending the notation
-            href: concepts/extending.qmd
-      - section: Reference
-        contents:
-          - text: Elements
-            href: reference/elements.qmd
-          - text: File format
-            href: reference/file-format.qmd
-          - text: Glossary
-            href: reference/glossary.qmd
+  page-footer:
+    center: '&copy; 2025 [xCIT.org](https://xcit.org)'
   open-graph: true
 
 format:

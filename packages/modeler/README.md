@@ -59,7 +59,7 @@ Re-run it after editing an example (open the PNG, edit, export PNG over it) or a
 
 ## More
 
-- [Projections](../../docs/concepts/projections.qmd) — what the checklist, Timeline, and provenance views are, and why they cannot contradict the file.
-- [File format](../../docs/reference/file-format.qmd) — every format this app reads and writes.
+- [Specification](../../docs/specification.qmd#projections) — what the checklist, Timeline, and provenance views are, and why they cannot contradict the file.
+- [Reference](../../docs/reference.qmd#the-file) — every format this app reads and writes.
 - [Architecture](../../README.md#architecture-in-short) — the packages, the two boundaries, the pixel split, the command bus.
 - [assets/schemas/README.md](../../assets/schemas/README.md) — the schema vocabulary this app reads.

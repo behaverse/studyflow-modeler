@@ -1,0 +1,206 @@
+---
+title: "Reference"
+description: "Every type the shipped schemas declare, and the files a studyflow is stored in."
+---
+
+![One live instance of every element the shipped sets declare, in a labelled band per set.](assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic LLM and agent workflows, and functional function composition beside a smaller band of data IO presets. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
+
+| Set | Declares | Loaded |
+|:--|:--|:--|
+| `studyflow` | the study itself, its data elements, scheduling and classification attributes | always |
+| `prov` | `Activity` — one entry of the provenance trail | always |
+| `functional` | `Transform`, `Map`, `Reduce`, `Filter` | always |
+| `cognitive` | what a participant meets, and the research gateways | always |
+| `agentic` | agents, model calls, tools | on request |
+| `ml` | analysis presets only; no types of its own | on request |
+| `eeg` | biosignal sessions and recordings | on request |
+
+The cognitive layer is separate from the core on purpose: an adopting field can replace it without touching the notation underneath. A set that is switched off is absent from the palette and unrecognized in a file that names it.
+
+## The study
+
+| Attribute | Holds |
+|:--|:--|
+| `authors`, `version` | who wrote it, and which revision this is |
+| `runtime` | where it is meant to run: `browser`, `cloud`, `local`, or `hpc` |
+| `tags` | short classification labels |
+| `seed` | the root seed; pinned, every gateway draw replays |
+| `documentation`, `checklist` | prose and reporting items — on **every** element, not only the study |
+
+## What a participant meets
+
+::: {layout-ncol=5}
+![Questionnaire](assets/img/elements/questionnaire.svg){width="110" fig-alt="A rounded rectangle with a clipboard-and-pencil icon in its top-left corner, labelled Questionnaire."}
+
+![CognitiveTask](assets/img/elements/cognitive_task.svg){width="110" fig-alt="A rounded rectangle with a jigsaw-piece icon in its top-left corner."}
+
+![BehaverseTask](assets/img/elements/behaverse_task.svg){width="110" fig-alt="A rounded rectangle with a hexagon icon in its top-left corner, labelled Behaverse Task."}
+
+![Instruction](assets/img/elements/instruction.svg){width="110" fig-alt="A rounded rectangle with an information icon in its top-left corner, labelled Instruction."}
+
+![Rest](assets/img/elements/rest.svg){width="110" fig-alt="A rounded rectangle with an armchair icon in its top-left corner, labelled Rest."}
+:::
+
+| Type | Drawn as | Means | Attributes |
+|:--|:--|:--|:--|
+| `Questionnaire` | `bpmn:Task` | A self-report form: a standard instrument, or one of your own. | `instrument` |
+| `CognitiveTask` | `bpmn:Task` | A cognitive test, delivered by an experiment package. | `instrument`, `implementation`, `configurations` |
+| `BehaverseTask` | `bpmn:Task` | A test from the Behaverse battery. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations`, `agentType`, `botConfigurations` |
+| `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
+| `Rest` | `bpmn:Task` | A break, or a resting-state period. A narrower `CognitiveTask`. | `configurations` |
+
+`instrument` names an experiment package — PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse — or a scale, or an identifier of your own; `configurations` is YAML that instrument reads. Setting `agentType` to `bot` has the same instrument answered by a model, driven by `botConfigurations`.
+
+## Entry and exit
+
+| On | Attribute | Says |
+|:--|:--|:--|
+| the start event | `consentFormUri` | the consent document that gates entry; unset, entry is not gated |
+| the end event | `redirectTo` | where the participant is sent; `{COMPLETION_CODE}` is substituted with the issued code |
+| the end event | `completionCodeType` | `none`, `static` (the fixed `completionCode`), or `dynamic` |
+
+## Branching
+
+| Type | Drawn as | Means | Attributes |
+|:--|:--|:--|:--|
+| `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm` (`probabilistic`, `round-robin`), `probabilityFunction` (`uniform`, `normal`, `exponential`, `poisson`), `stratifyBy`, `strata` |
+| `EligibilityGateway` | `bpmn:ExclusiveGateway` | Screening: criteria stated on the gateway, in readable sentences. | `inclusionCriteria`, `exclusionCriteria` |
+| A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `conditionExpression`, on each edge |
+
+Screening and allocation are separate types because they answer to different standards: eligibility turns on criteria a reviewer must be able to read, allocation on a draw nobody should be able to predict.
+
+## Who takes part
+
+| Type | Drawn as | Means | Attributes |
+|:--|:--|:--|:--|
+| `Actor` | `bpmn:Participant` | A pool of participants — human, model, software agent, or instrument. | `actorType` (`human`, `llm`, `agent`, `instrument`), `spec`, `promptTemplate` |
+
+A pool stands for a group rather than one person, and drawing one turns the file into a collaboration. Two pools that deal with each other are joined by choreography tasks, one box per exchange.
+
+## When each step happens
+
+| Attribute | On | Values |
+|:--|:--|:--|
+| `onset` | any activity or event | a timestamp, an offset such as `T0+30min`, or a label |
+| `duration` | any activity or event | `30min`, or an ISO 8601 duration |
+| `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
+| `timeCycle` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval |
+| `timeDuration`, `timeDate` | a timer catch event | a delay, or a fixed moment |
+| `condition` | a conditional catch event | wait until this becomes true |
+| `loopCondition` | the repeat marker on a step | repeat while this holds |
+| `completionCondition` | an ad-hoc sub-process | stop when this holds |
+
+These are the *study's* schedule, in visits and days — what the Timeline view projects. A recording's own clock is separate.
+
+## Data
+
+| Type | Drawn as | Means | Attributes |
+|:--|:--|:--|:--|
+| `Dataset` | `bpmn:DataStoreReference` | A logical collection the study reads or produces, under a declared standard. | `format`, `schema`, `catalog`, `storage`; `bdmDataLevel` or `bidsDataType` |
+| `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`), `body` |
+| `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema`, `rowCount` |
+| `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled recording. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
+| `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
+| `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a study varies by value rather than by redrawing. | `values` |
+| `DataCatalog` | not drawn | A listing a dataset is published in; a dataset names one. | `url` |
+| any of them | — | Where the value lives. Unset, it only passes between steps. | `uri` |
+
+A dataset's `format` binds it to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), which then declares `bdmDataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which declares `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `kedro`. Run state a condition reads by name is a `bpmn:Property` on the container that declares it, and is never drawn.
+
+## What a step runs
+
+| Attribute | On | Holds |
+|:--|:--|:--|
+| `implementation` | any activity | the software the step runs, as `<scheme>://<ref>[@<version>]` |
+| `script` | a script task | code carried in the study itself |
+| `additionalArguments` | any activity | literal arguments the drawn data edges do not supply; the reserved `args` key holds positional ones |
+
+Schemes: `python://` an importable callable, `docker://` a container image pinned by tag or digest, `https://` or `file://` a script by address. Anything else is accepted, recorded, and reported as unresolved.
+
+Four operations say what shape the work has, each an ordinary service task drawn with a function marker. `Transform` applies a function to data — the general case the other three narrow. `Map` applies it to every item in a stream. `Reduce` combines a stream into one value. `Filter` keeps the items matching a condition, dropping the rest from the *data*, where a gateway changes the *path*.
+
+## Agents, biosignals, and the trail
+
+| Type | Drawn as | Means | Attributes |
+|:--|:--|:--|:--|
+| `Agent` | `bpmn:AdHocSubProcess` | A model calling the tools drawn inside it, in an order it decides. | `model`, `systemPrompt`, `toolChoice`, `temperature`, `maxTurns` |
+| `Router` | `bpmn:ExclusiveGateway` | A branch a model picks among the labels on the outgoing edges. | `model`, `instructions` |
+| `LLMCall` | `bpmn:ServiceTask` | One model call: a prompt in, a response out. | `model`, `prompt`, `temperature`, `maxTokens` |
+| `Tool` | `bpmn:ServiceTask` | Something an agent may call, run like any other step. | `kind`, `purpose`, `implementation` |
+| `HumanApproval` | `bpmn:UserTask` | Pauses the run until a person approves, edits, or rejects. | `question` |
+| `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the calls that read it. | `template` |
+| `Memory` | `bpmn:DataStoreReference` | What an agent carries between turns. | `scope` |
+| `Session` | `bpmn:Participant` | One acquisition session, carrying the device settings every phase inside it shares. | `device`, `modalities` |
+| `Recording` | `bpmn:DataStoreReference` | The biosignal data a session produces. A narrower `Dataset`. | `modalities`, `channels`, `samplingRateHz` |
+| `Activity` | not drawn | One entry of the provenance trail. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `note` |
+
+An agent stops at its `completionCondition` and never runs past `maxTurns`. A guardrail or a model-as-judge is an `LLMCall` with a strict prompt; retrieval is a `Tool` whose `kind` is retrieval.
+
+# The file
+
+![The files that carry a whole study, and what converts into what. Thick arrows are the lossless hops.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry two payloads beside the pixels: the same BPMN XML as embedded source, and a draw.io copy of the drawing. An image reopens in the modeler from its embedded source, never from its pixels. Dotted arrows leave the round trip: the draw.io payload downloads on its own as .drawio, and the modeler exports one way to LinkML, NIDM-Results, and ARTEM-IS."}
+
+| File | Carries | Reopens as a studyflow |
+|:--|:--|:--|
+| `.studyflow.yaml` | the study itself, in full — **the canonical form** | yes, also `.studyflow` |
+| `.bpmn` | the same study, as standard BPMN 2.0 XML | yes, also `.xml` |
+| `.studyflow.png`, `.studyflow.svg` | a picture, and the study inside it | yes |
+| `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
+| `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
+
+The YAML is the source of truth and the XML its interoperability projection; the two convert losslessly in both directions, and converting a shipped example to XML and back returns byte-identical text, so a diff shows edits rather than churn. Keep the YAML in version control — everything else is derived from it.
+
+```yaml
+id: minimal_study
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+
+Minimal_Study:
+  type: bpmn:Process
+  name: Minimal study
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+
+    Enrolled:
+      type: bpmn:StartEvent
+      name: Enrolled and consented
+      consentFormUri: https://example.org/protocols/minimal-study/consent.md
+
+    Flanker:
+      type: bpmn:Task
+      name: Flanker
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+
+    Done:
+      type: bpmn:EndEvent
+      name: Done
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+      completionCodeType: dynamic
+
+    Flow_Enrolled_Flanker:
+      type: bpmn:SequenceFlow
+      sourceRef: Enrolled
+      targetRef: Flanker
+    Flow_Flanker_Done:
+      type: bpmn:SequenceFlow
+      sourceRef: Flanker
+      targetRef: Done
+```
+
+That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. Geometry is optional: layout follows from `sourceRef` and `targetRef`.
+
+| Rule | In the file |
+|:--|:--|
+| containment becomes nesting | a study's steps are written inside the study |
+| references are written as ids | `sourceRef: Enrolled`, not a second copy of the element |
+| anything unrecognized is kept | a key no loaded set declares is preserved and reported, never dropped |
+| defaults and inferable types are omitted | restored on read; `type:` appears only where the element is not already expected there |
+| `id`, `definitions`, then one key per root element | a file with no `definitions` is not read as a studyflow; the format version is the version segment of the core namespace |
+
+Six short forms collapse the long structure where nothing is lost, and the long form is still accepted: a YAML mapping instead of a quoted string under `additionalArguments`, `values`, `configurations`, or a schema `body`; a plain list under `extensionElements`; geometry on the element it positions; elements keyed by id under `flowElements`; an expression as a plain string; and `documentation` with `checklist` for the checklist entry.
+
+In the XML projection, a research type sits inside `extensionElements` and an added field is a namespaced attribute — both places the standard reserves, so a generic BPMN tool ignores what it does not recognize. In an exported image the whole object travels, meaning and geometry alike; what does not travel is the element sets, or any data the study produced. An image that has been through a screenshot tool or a vector editor keeps the pixels and loses the study.

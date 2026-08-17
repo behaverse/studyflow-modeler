@@ -146,7 +146,7 @@ function report(found: string[], headline: string): void {
 
 test('there are docs to lint', () => {
   // Without this, a broken walk would turn every check below into a silent pass.
-  expect(PAGES.length, 'no .qmd pages found under docs/').toBeGreaterThan(5);
+  expect(PAGES.length, 'no .qmd pages found under docs/').toBeGreaterThan(2);
   expect(KNOWN_NAMES.size, 'the schema catalog compiled to nothing').toBeGreaterThan(50);
 });
 
@@ -538,10 +538,10 @@ test('no page reaches for implementation vocabulary', () => {
 
 /* File entries come before the directory that contains them: `budgetFor` takes the first match. */
 const PROSE_BUDGETS: readonly (readonly [target: string, words: number])[] = [
-  ['docs/index.qmd', 200],
-  // Concepts pages carry the argument, so they are the only ones allowed to run on.
-  ['docs/concepts/', 750],
-  ['docs/reference/', 450],
+  ['docs/index.qmd', 450],
+  // The one page carrying the whole formal account, so the only one allowed to run on.
+  ['docs/specification.qmd', 1300],
+  ['docs/reference.qmd', 700],
 ];
 
 /** Any page hanging off the root other than the overview. */

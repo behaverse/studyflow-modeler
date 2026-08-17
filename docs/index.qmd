@@ -7,24 +7,19 @@ description: "A coordination notation for experimental research: one file that i
 
 Studyflow is a coordination notation for experimental research: a process standard for the cognitive sciences and adjacent fields, in the role BPMN 2.0 plays for business processes. Your tools compute; Studyflow coordinates them.
 
-## The gap it closes
+## The gap
 
-A study is written down once per audience, and nothing checks the copies against each other.
+A study is written down once per audience — a protocol, a preregistration, a script, a notebook, a figure — and nothing checks the copies against each other. Drift follows. Eleven of 35 open-data articles reproduced without help from their authors[^hardwicke], and 70 teams analyzing one neuroimaging dataset produced no two identical workflows[^variability].
 
-| Who reads it | What they are handed |
-|:--|:--|
-| The ethics board | a protocol document |
-| The public record | a preregistration |
-| The participant, or the model | an experiment script |
-| The analyst | a notebook |
-| The reader | a Methods section and a figure |
-| The replicator | whatever survived |
+A decade of standardization gave the *data* of a study a shared form. The *process* that produced it still lives in prose, slides, and glue code, where nothing can validate it — so the failure is structural rather than motivational, and standardized data alone has not closed it.
 
-A decade of standardization has given the *data* of a study a shared form. The *process* that produced it still lives in prose, slides, and glue code, where nothing can validate it and every copy drifts from the others. That is why standardized data alone has not made studies reproducible.
+## Computation and coordination
 
-## The claim
+A complete programming model has a **computation model** and a **coordination model** — the part that binds individual activities into an ensemble[^gelernter]. Ordinary code has a first-class notation for the first and none for the second: ordering, dependencies, and what each stage hands the next end up spread through call graphs and shared state.
 
-One file, and every other document is a reading of it.
+That is exactly where a study's drift accumulates, because coordination is also the half that gets described to an ethics board, registered, drawn for a paper, and rebuilt by a replicator — four accounts of something the code never states in one place. Studyflow externalizes it: computations stay in the tools built for them, and the notation carries the coordination.
+
+## One file, many readings
 
 | The same file is | Serving |
 |:--|:--|
@@ -33,17 +28,24 @@ One file, and every other document is a reading of it.
 | an analysis specification | the pipeline that ran, not a description of it |
 | a figure | the Methods section of a paper |
 
-Each is a [projection](concepts/projections.qmd) of one object, so there is no second copy to fall out of step.
+Each is a [projection](specification.qmd#projections) of one object, so there is no second copy to fall out of step.
 
-## What this site specifies
+## Why extend BPMN
 
-| Page | What it establishes |
-|:--|:--|
-| [Computation and coordination](concepts/coordination.qmd) | why the process needs a notation of its own, and why that notation extends BPMN rather than replacing it |
-| [The studyflow object](concepts/object.qmd) | the typed graph a studyflow is, and the conditions that make one well formed |
-| [Projections](concepts/projections.qmd) | how every view is derived, and why none can contradict its source |
-| [Execution and provenance](concepts/execution.qmd) | what a run is, what it fixes, and what it records |
-| [Extending the notation](concepts/extending.qmd) | how the vocabulary grows without the notation changing |
-| [Elements](reference/elements.qmd), [File format](reference/file-format.qmd), [Glossary](reference/glossary.qmd) | the shipped vocabulary, the files it is stored in, and the terms |
+Studyflow does not invent a notation. It extends [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/), standardized as ISO/IEC 19510, inheriting a control-flow vocabulary with defined semantics, a serialization fixed by a standard body rather than a vendor, and an extension mechanism that keeps a file readable by generic BPMN tools. Two decisions hold the cost down for a researcher who does not know BPMN: an author works in domain terms, and execution semantics come from this specification rather than a third-party process engine.
 
-The [modeler](https://behaverse.org/studyflow-modeler/app.html) runs in a browser and needs no account; the notation, the schemas, and the four programs that read them are open source on [GitHub](https://github.com/behaverse/studyflow-modeler).
+| Neighbouring tool | What it owns | What Studyflow adds |
+|:--|:--|:--|
+| Experiment builders and task scripts | the trial, the stimulus, the runtime | the consent, eligibility, allocation, and data flow around them |
+| Workflow engines | executing computation graphs at scale | a study's cycles, interrupts, and human steps, and a definition a reviewer can read |
+| Data standards | the shape of what was collected | the process that produced it, referenced to those standards |
+| Provenance standards | a record of what ran | a plan written in advance, in the same object as its record |
+| Reporting guidelines | which items must be reported | the items attached to the steps they describe |
+
+It replaces none of them. [Specification](specification.qmd) defines the object, its projections, and its execution semantics; [Reference](reference.qmd) catalogues what ships.
+
+[^hardwicke]: Hardwicke, T. E., et al. (2018). Data availability, reusability, and analytic reproducibility. *Royal Society Open Science*, 5(8), 180448.
+
+[^variability]: Botvinik-Nezer, R., et al. (2020). Variability in the analysis of a single neuroimaging dataset by many teams. *Nature*, 582, 84–88.
+
+[^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97–107.

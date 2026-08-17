@@ -73,6 +73,5 @@ The registration contract itself — `registerNode`, the matcher shapes, what a 
 
 ## More
 
-- [Execution and provenance](../../docs/concepts/execution.qmd) — the walk, seeds, and which elements each executor actually runs.
-- [The studyflow object](../../docs/concepts/object.qmd) — scopes, conditions, and what makes a studyflow well formed.
+- [Specification](../../docs/specification.qmd) — the walk, scopes, conditions, seeds, and which elements each executor actually runs.
 - [Architecture](../../README.md#architecture-in-short) — how this app sits beside the other three.
