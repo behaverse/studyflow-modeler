@@ -1,0 +1,76 @@
+---
+title: "Extending the notation"
+description: "A new element type is a schema declaration, not a change to the tools — and an extended studyflow is still a valid BPMN 2.0 document."
+---
+
+A domain-specific notation faces one structural risk: the domain is never finished. A vocabulary fixed at publication is wrong within a year, and one that grows by amending the notation breaks every file written against the previous version.
+
+Studyflow answers this the way BPMN answered it. The core vocabulary is intended to cover common experimental designs; anything further is an **extension schema** $\Sigma'$ that extends the core $\Sigma$. Each new type specializes an existing type and adds its own attributes, so a diagram using it is still a well-formed studyflow, still projects to valid BPMN 2.0, and gains new meaning.
+
+## The mechanism
+
+```yaml
+name: EEG
+prefix: eeg
+uri: http://behaverse.org/schemas/studyflow/eeg    # the namespace saved files carry
+
+types:
+  - name: Recording
+    description: The biosignal data a session produces.
+    superClass:                     # the type it specializes, and the BPMN shape it is drawn as
+      - studyflow:Dataset
+    properties:
+      - name: samplingRateHz
+        isAttr: true
+        type: Integer
+```
+
+Two relationships compose a type. One *specializes* an existing type, producing a new element that appears on the canvas with its own shape and icon. The other *adds attributes to an existing BPMN class* without creating a new element — which is how an ordinary start event comes to carry a consent-form address.
+
+| A schema declares | Which becomes |
+|:--|:--|
+| a type specializing another | a new element: its own shape, icon, and attributes |
+| attributes added to an existing BPMN class | new fields on an element the standard already has |
+| an enumeration | a closed value list an attribute may draw from |
+| a template | a preset: an existing type with its attributes filled in, and sometimes a small flow inside it |
+
+**Parameterize, do not proliferate.** A verb that is a generic step bound to a particular piece of software — *fit a model*, *preprocess one subject* — is a template over an existing type, not a new type. One shipped set declares templates and no types at all.
+
+## What ships
+
+![The element sets, and how the loaded vocabulary is assembled from them.](../assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="Flowchart. Four core sets -- studyflow, prov, functional and cognitive -- always load into the catalog. Three optional sets -- ml, agentic and eeg -- load only when enabled in Settings, which adds whatever is enabled to the same catalog. The ml set roots all twelve of its presets on the functional set, adding no type of its own." .fig-l}
+
+| Set | Declares | Loaded |
+|:--|:--|:--|
+| `studyflow` | the study itself, its data elements (`Dataset`, `Schema`, `Table`, `Timeseries`, `EventMarker`, `Parameters`), scheduling and classification attributes | always |
+| `prov` | `Activity` — one entry of the provenance trail | always |
+| `functional` | `Transform`, `Map`, `Reduce`, `Filter` — the generic operations domain layers root their presets on | always |
+| `cognitive` | `CognitiveTask`, `Rest`, `Questionnaire`, `Instruction`, `BehaverseTask`, `RandomGateway`, `EligibilityGateway`, `Actor` | always |
+| `agentic` | `Agent`, `Router`, `LLMCall`, `Tool`, `HumanApproval`, `Prompt`, `Memory` | on request |
+| `ml` | analysis presets only; no types of its own | on request |
+| `eeg` | `Session` and `Recording`, plus acquisition presets | on request |
+
+The cognitive layer is a separate set from the core on purpose: an adopting field can replace it without touching the notation underneath. A set that is switched off is absent from the palette and unrecognized in a file that names it.
+
+## What a declaration buys, and what it does not
+
+| Declaring a type gives it | It does not give it |
+|:--|:--|
+| a place in the palette, a shape, and an icon | a screen or a call in either executor |
+| fields in the inspector, filed under the standard tabs | pre-flight checks over the values an author types |
+| storage and retrieval through every file format, unchanged | a way for a run to do anything at that step |
+
+The second column is the honest boundary of schema-driven extension. Making a type *run* means teaching an executor what to do when the token arrives — which is a change to a program, not to a schema, and the reason [Execution and provenance](execution.qmd#tbl-support) states element by element what runs today.
+
+## Compatibility
+
+| Guarantee | Why it holds |
+|:--|:--|
+| An extended studyflow is still valid BPMN 2.0 | added types ride inside `extensionElements`, and added fields are namespaced attributes — both places the standard reserves |
+| A generic BPMN tool reads the file | it consumes the standard elements and ignores namespaces it does not know |
+| An attribute no loaded schema declares is preserved | unknown keys are kept verbatim and reported, never dropped, so a file opened without an optional set and saved again loses nothing |
+| The core specification outlives the tools | the schemas are maintained apart from the programs that read them, and the file on disk is plain text with a lossless projection to standard XML |
+
+A namespace carries the format version in its own address, and there is no migration mechanism inside a schema header: changing a namespace is a breaking change to saved files, deliberately made visible rather than absorbed silently.
+
+The types every shipped set declares are catalogued in [Elements](../reference/elements.qmd).

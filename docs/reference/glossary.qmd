@@ -1,63 +1,58 @@
 ---
-title: Glossary
-description: "One-line definitions of the terms used across these docs."
+title: "Glossary"
+description: "One-line definitions of the terms this specification uses."
 ---
 
 ## The notation
 
-| Term | What it means |
+| Term | Definition |
 |:--|:--|
-| **Studyflow** | A notation for writing down a whole study --- what happens, in what order, to whom, and what data goes in and out --- so that people and software read the same description. See [Introduction](../index.qmd). |
-| **a studyflow** | One study written in that notation: one diagram, one file. |
-| **BPMN** | Business Process Model and Notation, the ISO/IEC 19510 standard for describing processes. Studyflow builds on it, so a studyflow opens in other BPMN tools. See [BPMN mapping](bpmn.qmd). |
-| **`.studyflow.yaml`** | The file a studyflow lives in: plain text you can read, diff, and review. See [File format](file-format.qmd). |
-| **Element set** | A group of elements that ship together. Four are always available; agentic, ml, and eeg are switched on when you need them. See [Elements](elements.qmd#the-seven-element-sets). |
+| **Studyflow** | A coordination notation for experimental research: one representation of a study's process that is machine-readable, human-understandable, and executable. |
+| **a studyflow** | One study written in that notation: one object, one file. |
+| **BPMN** | Business Process Model and Notation, ISO/IEC 19510. Studyflow is a domain-specific profile of it, so a studyflow opens in generic BPMN tools. |
+| **Element set** | A schema declaring types, attributes, and presets. Four load always; three load on request. See [Extending the notation](../concepts/extending.qmd). |
+| **Coordination model** | The half of a program that binds activities into an ensemble — ordering, dependencies, and what each stage hands the next — as opposed to the computation each activity performs. |
 
-## What you draw
+## The object
 
-| Term | What it means |
+| Term | Definition |
 |:--|:--|
-| **Element** | Anything on the canvas: a step, an event, a gateway, a dataset. |
-| **Activity** | A step in the study, drawn as a rounded box --- a task, a sub-process, or a call to another studyflow. |
-| **Event** | A point where something happens, drawn as a circle: the participant enters, a timer fires, the study ends. |
-| **Gateway** | A point where the path splits or rejoins, drawn as a diamond. |
-| **Sequence flow** | A solid arrow: the participant, or the pipeline, goes this way next. |
-| **Data association** | A dashed line between a step and a data element, saying what that step reads or writes. |
-| **Pool** | A box around a whole participant group or agent, used when a study has more than one party in it. |
-| **Choreography** | A way of drawing the exchange between two parties rather than one party's own path. |
+| **Node** | Any element of the graph: an event, an activity, a gateway, or a data element. |
+| **Edge** | A typed connection between two nodes: sequence flow, data association, or message flow. |
+| **Control-flow graph** | The sub-graph of sequence-flow edges — what happens next. |
+| **Data-flow graph** | The sub-graph of data-association edges — what each step reads and writes. |
+| **Activity** | A step: a task, a sub-process, or a call to another studyflow. Drawn as a rounded rectangle. |
+| **Event** | A point where something happens rather than is done: entry, a timer firing, an exit. Drawn as a circle. |
+| **Gateway** | A point where the path splits or rejoins. Drawn as a diamond. |
+| **Boundary event** | A circle sitting on an activity's own border: a second way out of that step, with its own outgoing edge. |
+| **Sub-process** | An activity containing a whole flow. Expanding or collapsing one changes the drawing, never what runs. |
+| **Pool** | A whole party in a study — a participant group, a model, an instrument — drawn as a band around its own flow. |
+| **Choreography** | A drawing of the exchanges between two parties rather than of one party's own path. |
+| **Property** | Run state a condition reads by name, declared by a container and never drawn. |
+| **Scope** | The container that declares a value and fixes how long it lives. |
+| **Well-formed** | Satisfying the conditions in [The studyflow object](../concepts/object.qmd#well-formedness). |
 
-## In a study
+## Views and runs
 
-| Term | What it means |
+| Term | Definition |
 |:--|:--|
-| **`Study`** | The diagram as a whole: the study, its authors, its version, and where it runs. |
-| **`Actor`** | A pool of participants --- human, LLM, software agent, or instrument. |
-| **Instrument** | The software that delivers a task, or the standard questionnaire a form implements. |
-| **`CognitiveTask`** | A cognitive test the participant takes, delivered by an experiment package. |
-| **`Questionnaire`** | A self-report form, standard or your own. |
-| **`RandomGateway`** | Random assignment: each participant takes one of the outgoing arrows, one arm per arrow. |
-| **`EligibilityGateway`** | A screening gate: eligible participants carry on, everyone else is screened out. |
-| **`Dataset`** | A collection of data the study reads or produces, in a declared standard. |
-| **`Parameters`** | A named group of settings connected into the steps that read them, so a study varies by editing values rather than the flow. |
-| **Checklist** | Reporting items written on the step that records them, ticked off as the study progresses. |
-| **Completion code** | The code a participant takes back to the recruitment platform when the study ends. |
+| **Projection** | A view: the subset of the object selected by a predicate, carrying its attributes unchanged. A projection discards and never adds. |
+| **Study view** | The diagram itself — the projection that keeps everything. |
+| **Timeline view** | The projection over elements carrying `onset`, `duration`, or `progress`. |
+| **Checklist view** | The projection over elements carrying reporting items. |
+| **Provenance view** | The projection over the record entries. |
+| **Run** | One traversal of the control-flow graph: one participant's session, or one pass of a pipeline. |
+| **Seed** | The root of the pseudo-random state. Pinned, every gateway draw replays; unset, a run draws one and records it. |
+| **Checkpoint** | A step finishing, a gateway deciding, or a run opening or closing. |
+| **Prospective provenance** | The plan: what should happen. A studyflow at deposit. |
+| **Retrospective provenance** | The record: what did happen. Accumulated in the same file as the plan. |
+| **Deviation** | The difference between the two, obtained as a diff rather than by comparing documents. |
 
-## Reading and running
+## The tools
 
-| Term | What it means |
+| Term | Definition |
 |:--|:--|
-| **The modeler** | The web app where you draw and edit a studyflow. |
-| **The browser runner** | The app that takes one participant through a study, screen by screen. |
-| **The Python runner** | The program that executes an analysis or preprocessing studyflow on your machine. |
-| **The CLI** | The `studyflow` command: convert, check, inspect, and run a file from a terminal. See [Command line and URLs](cli.qmd). |
-| **Run** | One execution of a studyflow --- one participant's session, or one pass of a pipeline. |
-| **Run repository** | The folder a run writes into --- outputs, log, and a stamped copy of the study --- and also a git repository. Its name is the run id, and without `git` installed a run leaves no step records. |
-| **Seed** | The number the random draws start from. Pin it and the gateway draws repeat; leave it unset and each run records the one it drew. |
-| **Provenance trail** | The record carried in the file of who changed it, what ran, when, and with which seed. See [Views and the record](../run/provenance.qmd). |
-| **View** | One reading of the same file: the study itself, a schedule, a checklist, or the provenance record. See [Views and the record](../run/provenance.qmd). |
-
-| Then read | For |
-|:--|:--|
-| [Elements](elements.qmd) | each of these types in full, and the fields you fill in |
-| [Formal model](formal-model.qmd) | the map of the notation, one page per question |
-| [Reading studyflows](../start/reading-studyflows.qmd) | these terms, read off a shipped diagram |
+| **The modeler** | The browser application where a studyflow is drawn and edited. |
+| **The browser runner** | The executor that administers a studyflow to one participant, screen by screen. |
+| **The Python runner** | The executor that runs the data-facing half of a studyflow, calling the software each step names. |
+| **The command line** | The `studyflow` binary: convert, validate, inspect, and dispatch a run. |

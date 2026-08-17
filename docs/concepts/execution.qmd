@@ -1,0 +1,93 @@
+---
+title: "Execution and provenance"
+description: "A run is a walk over the control graph, deterministic given its seed; the record of that walk accumulates in the same file as the plan."
+---
+
+A diagram shows every route through a study. A **run** is one traversal of it: one participant's session, or one pass of a pipeline.
+
+Executing a well-formed studyflow is a walk over its control-flow graph, deterministic given its initial state. A run is a sequence of configurations
+
+$$\kappa_n = (s_n,\ v_n,\ g_n,\ \sigma_n)$$
+
+where $s_n$ binds the study-scoped values, $v_n$ those of the scopes currently open, $g_n$ the pseudo-random state, and $\sigma_n$ the actor state. Control is a single token occupying one node at a time, so each step is a transition
+
+$$\kappa_{n+1} = \operatorname{step}(S,\ \kappa_n,\ \rho_n),$$
+
+with $\rho_n$ the response recorded at step $n$.
+
+| At a | The step | Effect on the configuration |
+|:--|:--|:--|
+| gateway | selects one outgoing edge by the gateway's own rule | draws any randomness from $g_n$, advancing it |
+| activity | emits what the actor is to be given, and consumes the response | writes into the innermost scope that declares each name |
+| sub-process | opens a scope instance, and closes it at that sub-process's end event | pushes and pops a frame of $v_n$ |
+| end event | closes the enclosing scope | ends the run when that scope is the study |
+
+## How a branch is chosen
+
+| Gateway | Rule |
+|:--|:--|
+| An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default` |
+| `cognitive:RandomGateway` | a seeded uniform draw over the outgoing edges |
+| A parallel gateway | every outgoing edge; the matching join waits for all of them |
+| An inclusive gateway | every outgoing edge whose condition holds |
+| `agentic:Router` | a label chosen by a model |
+
+A condition is evaluated in the language of the executor reading it, and each executor refuses what it cannot evaluate rather than quietly taking the other branch. A condition naming a value no open scope declares is reported as a defect, not resolved to false.
+
+## What a seed fixes
+
+The study's `seed` pins the pseudo-random state a run starts from, so every gateway draw replays. Where a run pins none, the executor draws one and records it on the copy it archives.
+
+A seed reproduces **gateway draws** and nothing beyond them. Participant responses, timing, and randomness inside software a step calls are outside its scope: a study that must reproduce those has to pin them where they happen.
+
+## Two executors, one file
+
+![What a run leaves behind: an archived copy of the plan that ran, its trail, and one commit per checkpoint.](../assets/img/diagrams/run-lifecycle.svg){#fig-lifecycle fig-alt="Flowchart. Authoring stamps created or modified, then validation dispatches to the browser runner when the runtime is browser and to the Python runner when it is local. The browser runner posts sessions and events to the data server. The Python runner stamps and archives the plan, which carries the provenance trail and per-element records, and commits every checkpoint into a run repository whose commits carry the provenance attributes as trailers and the step records in the body. Per-element records let untouched steps skip on a partial re-run, and an invalidated record opens a new branch." .fig-l}
+
+The division is by what a step *does*, not by where it sits in the file. Participant-facing steps run in the browser; data-facing steps run in Python. Each executor passes over the steps belonging to the other half, and the two choose what to do differently: the browser runner picks a screen from what the step *is*, while the Python runner ignores the step's type and calls whatever software it names.
+
+| Element family | Modeler | Checked before a run | Browser runner | Python runner |
+|:--|:--|:--|:--|:--|
+| `bpmn:StartEvent`, `bpmn:EndEvent` | draws | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
+| `cognitive:Instruction`, `cognitive:Questionnaire` | draws | empty content or instrument blocks the run | renders; writes the answer into scope | — |
+| `cognitive:BehaverseTask` | draws | checked against the assessment build's manifest | runs the assessment in the page | — |
+| `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | draws | — | generic screen, and a way forward | — |
+| Any activity carrying `implementation` | draws | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
+| `bpmn:SubProcess` | draws | — | descends; opens its own scope | walks one level in; no separate scope |
+| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | draws | — | conditions, then `default` | the same rule, evaluated in Python |
+| `cognitive:RandomGateway` | draws | warns where allocation attributes cannot be honored | seeded uniform draw | treated as exclusive: conditions, then `default` |
+| `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | draws | — | — | loaded and saved wherever they carry a `uri` |
+| `studyflow:Parameters` | draws | reports overridden, undeclared, and unbound names | bound from the run's parameters before the walk | — |
+| Timers, and multi-instance markers | draws | — | not executed | not executed |
+
+: What each program does with each family. A blank is a step that program steps past. {#tbl-support}
+
+Declaring a type in a schema makes it drawable, inspectable, and storable immediately. It does not make it executable: an element no executor claims is reported twice — once before the run and once as the token reaches it — and stepped past, rather than failing the run.
+
+## The plan and the record, in one object
+
+![The document carries both halves: a trail on its root, per-element records beside each element, and — for a pipeline run — a repository whose commits restate the same attributes.](../assets/img/diagrams/provenance-model.svg){#fig-provenance-model fig-alt="Flowchart. The studyflow document carries a flat provenance trail on its root element and per-element records in each element's extension elements. The modeler appends to the trail and voids records; the Python runner appends to the trail, stamps records on the archived copy, and commits every checkpoint into a run repository. Each commit restates the trail's attributes as trailers and keeps that checkpoint's step records in its body. No sidecar record file is written." .fig-l}
+
+W3C PROV distinguishes **prospective** provenance, the plan or recipe, from **retrospective** provenance, the record of what executed. A studyflow is prospective provenance at deposit, and accumulates retrospective provenance as it runs. Both live in the same object, so a study's deviation report is a *diff between the file's two states* rather than a prose comparison across unrelated documents.
+
+Entries are appended, oldest first; nothing is overwritten or removed.
+
+| Attribute | Holds |
+|:--|:--|
+| `action` | what happened, in one word |
+| `when` | an ISO 8601 timestamp; ties break by position in the list |
+| `who` | who acted: a name, an email, or an ORCID |
+| `with` | the tool that acted, as `name/version` |
+| `what` | what the action touched: element ids, or the `when` of the entry it refers to |
+| `run`, `seed` | for an execution: the run's identifier, and the root seed it used |
+| `note` | one line of free text |
+
+| Action | Records |
+|:--|:--|
+| `created`, `modified` | the file was authored, or edited and exported again |
+| `imported` | an artifact was staged into the run from outside |
+| `executed` | the document ran, or one element did |
+| `invalidated` | a marker voiding a named execution record |
+| `reused` | a step was skipped and an earlier record trusted instead |
+
+This vocabulary is a recommendation rather than a closed list; an action of your own is kept and displayed like any other. A step is skipped only when its record still stands, nothing it reads was re-made during this run, and its outputs are still present — and the skip leaves a `reused` entry naming the record it trusted. Invalidation cascades to everything downstream of a re-made output.

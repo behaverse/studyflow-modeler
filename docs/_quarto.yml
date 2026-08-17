@@ -3,27 +3,23 @@ project:
   output-dir: ../dist/docs
 
 website:
-  title: "Studyflow Modeler"
-  description: "Documentation for Studyflow and Studyflow Modeler"
+  title: "Studyflow"
+  description: "The specification of Studyflow, a coordination notation for experimental research"
   site-url: https://behaverse.org/studyflow-modeler/docs/
   favicon: assets/img/logo.png
   llms-txt: true
   search: true
   bread-crumbs: true
   page-navigation: true
-  # Four reader sections, then Develop; each link opens that section's entry page.
+  # Two sections: the argument and the object it rests on, then the shipped vocabulary.
   navbar:
     left:
-      - text: Start
+      - text: Overview
         href: index.qmd
-      - text: Design
-        href: design/relations.qmd
-      - text: Run
-        href: run/participants.qmd
+      - text: Concepts
+        href: concepts/coordination.qmd
       - text: Reference
         href: reference/elements.qmd
-      - text: Develop
-        href: develop/architecture.qmd
     right:
       - text: Open Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
@@ -31,85 +27,42 @@ website:
         target: _blank
   sidebar:
     id: default
-    title: Studyflow Docs
+    title: Studyflow
     logo: assets/img/logo.png
     alignment: center
     style: docked
     pinned: true
-    collapse-level: 1
+    collapse-level: 2
     search: true
     footer: '&copy; 2025 [xCIT.org](https://xcit.org)'
     tools:
       - icon: github
         href: https://github.com/behaverse/studyflow-modeler
         text: GitHub
-    # Explicit contents, ordered by teaching order -- never alphabetically.
+    # Explicit contents, in the order the argument is built -- never alphabetically.
     contents:
-      - section: Start
+      - text: Overview
+        href: index.qmd
+      - section: Concepts
         contents:
-          - text: Introduction
-            href: index.qmd
-          - text: Get started
-            href: start/quickstart.qmd
-          - text: Reading a studyflow
-            href: start/reading-studyflows.qmd
-      - section: Design
-        contents:
-          - text: The eleven relations
-            href: design/relations.qmd
-          - text: Modeler app
-            href: design/modeler.qmd
-          - text: Cognitive tasks
-            href: design/tasks.qmd
-          - text: Randomize and counterbalance
-            href: design/randomization.qmd
-          - text: Data in and out
-            href: design/data.qmd
-          - text: Analysis pipelines
-            href: design/analysis.qmd
-          - text: Models as participants
-            href: design/agents.qmd
-          - text: Trials and protocols
-            href: design/protocols.qmd
-          - text: Example gallery
-            href: design/gallery.qmd
-      - section: Run
-        contents:
-          - text: With participants
-            href: run/participants.qmd
-          - text: What actually runs
-            href: run/execution.qmd
-          - text: Views and the record
-            href: run/provenance.qmd
-          - text: Keep, share, and publish
-            href: run/share.qmd
+          - text: Computation and coordination
+            href: concepts/coordination.qmd
+          - text: The studyflow object
+            href: concepts/object.qmd
+          - text: Projections
+            href: concepts/projections.qmd
+          - text: Execution and provenance
+            href: concepts/execution.qmd
+          - text: Extending the notation
+            href: concepts/extending.qmd
       - section: Reference
         contents:
           - text: Elements
             href: reference/elements.qmd
-          - text: Data
-            href: reference/data.qmd
           - text: File format
             href: reference/file-format.qmd
-          - text: BPMN mapping
-            href: reference/bpmn.qmd
-          - text: Command line and URLs
-            href: reference/cli.qmd
-          - text: Formal model
-            href: reference/formal-model.qmd
           - text: Glossary
             href: reference/glossary.qmd
-      - section: Develop
-        contents:
-          - text: Architecture
-            href: develop/architecture.qmd
-          - text: Authoring schemas
-            href: develop/authoring-schemas.qmd
-          - text: Add a node kind
-            href: develop/runner-nodes.qmd
-      - text: "---"
-      - text: FAQ
-        href: faq.qmd
   open-graph: true
 
 format:

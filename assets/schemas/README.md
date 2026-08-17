@@ -58,6 +58,37 @@ onto the BPMN element), `superClass` = **wrapper** (its own element inside
 | `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
 | `icon` | Event overlay glyph drawn when the attribute has a value (a *different* meaning than type-level `icon`). |
 
+## Attribute precedence
+
+One attribute can be declared twice — on the element's own type (or a trait
+that `extends` it) and on the wrapper under `extensionElements`. `resolveAttribute`
+in `packages/core/src/element/handle.ts` picks one, first match wins.
+
+| # | The attribute is | Resolved on | Under which name |
+| --- | --- | --- | --- |
+| 1 | declared by the wrapper with `redefines`/`replaces`, *and* declared on the element's own type or the element carries traits | the element | the local name after the `#` |
+| 2 | declared by the element's own type, traits included | the element | the declared name (`bpmn:id`/`bpmn:name` collapse to `id`/`name`) |
+| 3 | declared by the wrapper | the wrapper | the declared name |
+| 4 | declared by neither | the wrapper if there is one and the element carries no traits, else the element | the local name |
+
+With the shipped schemas every element carries traits (`studyflow:BaseElement`
+redefines `bpmn:documentation` onto `bpmn:BaseElement`), so rule 1 needs only the
+wrapper's redefine, and rule 4 always lands on the element. A write that resolves
+to no target is dropped with a console warning.
+
+A *read* landing on the element while a wrapper exists still returns the wrapper's
+value when the wrapper's property is `meta.pinned`, or stores the value explicitly,
+or when the element does not store it explicitly either. So a stored element value
+beats a wrapper *default*, loses to a wrapper value actually written, and loses to a
+pinned wrapper property carrying only its default. `tests/element.unit.spec.ts` pins
+each case by name.
+
+Adding `redefines` to a wrapper property does not merely rename it — it moves where
+the value lands. Pair it with `meta.pinned` and the write goes somewhere the read
+never looks, so an edit appears to do nothing. Redefine only where the BPMN side
+genuinely declares the attribute, as `studyflow:Implementation` redefines
+`bpmn:ServiceTask#implementation`.
+
 ## Enum literals
 
 `name`, `value`, `description`, and optional `icon` (rendered in the enum

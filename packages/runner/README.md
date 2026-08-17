@@ -42,12 +42,37 @@ run?diagram=behaverse&task=BCS
 run?diagram=https://example.org/study.studyflow.png&seed=42
 ```
 
-The full parameter table is in [Command line and URLs](../../docs/reference/cli.qmd).
+| Parameter | Value | Effect |
+| --- | --- | --- |
+| `diagram` | a shipped demo's name (`behaverse`) | runs that demo |
+| `diagram` | a URL — anything with a scheme, a slash, or a studyflow extension | fetched, then run |
+| `diagram` | a hand-off id (a bare 8-character uuid slice) | runs what the modeler just handed over; expires after an hour |
+| `seed` | an integer | binds the study's `seed`, fixing the gateway draws |
+| any other name | text, converted to the declared type | binds a `Parameters` entry, a `bpmn:Property`, or a field of the study, and substitutes wherever `${name}` is written. An undeclared name still binds, and is logged as undeclared. |
+| — | a `${name}` nothing binds | stops the run, naming it |
+
+## The node kinds
+
+| Folder under `src/nodes/` | Claims | What the participant sees |
+| --- | --- | --- |
+| `start/` | `bpmn:StartEvent` | the consent form, or a welcome and a *Begin* button |
+| `end/` | `bpmn:EndEvent` | the completion code and the redirect countdown |
+| `instruction/` | `cognitive:Instruction` | the `content` text, verbatim |
+| `questionnaire/` | `cognitive:Questionnaire` | a built-in item set, or a free-text box |
+| `behaverse/` | `cognitive:BehaverseTask` | the Behaverse Unity build in a frame |
+| `choreography/` | `bpmn:ChoreographyTask` | the two parties, and which one initiates |
+| `task/` | any task no folder above claimed | the step's name, any declared call, and *Continue* |
+
+**Drawable is not runnable.** Declaring a type in a schema gives it a palette entry, inspector fields, and round-tripping the moment the schema loads. It does not give it a screen here: matching happens against the folders above, most specific first — applied type, then BPMN type, then the `task/` fallback — and an element nothing claims warns twice (pre-flight, and again on arrival) and is stepped past. Gateways need no folder; the session picks their branch itself.
+
+Two things a schema *can* say change a run with no node module: a type whose branching is declared `random` is drawn from the seeded generator, and one declared `model` stops the run rather than guessing.
+
+Validation runs before the first screen, and an issue's `severity` decides the outcome: `error` (the default) blocks the run and lists every problem beside its node id, while `warning` is logged and the run proceeds — for a study that is still deliverable but probably not what the author meant. Write the message as an instruction, naming the attribute to fix and the value to put in it.
+
+The registration contract itself — `registerNode`, the matcher shapes, what a component is handed, and one new kind end to end — is documented beside the code in [`src/nodes/README.md`](src/nodes/README.md).
 
 ## More
 
-- [Browser runner guide](../../docs/run/participants.qmd) — a session, end to end.
-- [Add a node kind](../../docs/develop/runner-nodes.qmd) — the plug-in contract, and one folder end to end. The contract itself is also documented beside the code, in [`src/nodes/README.md`](src/nodes/README.md).
-- [Execution](../../docs/run/execution.qmd) — which elements each executor actually runs, seeds and determinism, and what is not executed today.
-- [LLM and bot participants](../../docs/design/agents.qmd) — running a study with a model in the participant's seat.
-- [Architecture](../../docs/develop/architecture.qmd) — how this app sits beside the other three.
+- [Execution and provenance](../../docs/concepts/execution.qmd) — the walk, seeds, and which elements each executor actually runs.
+- [The studyflow object](../../docs/concepts/object.qmd) — scopes, conditions, and what makes a studyflow well formed.
+- [Architecture](../../README.md#architecture-in-short) — how this app sits beside the other three.

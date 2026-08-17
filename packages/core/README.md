@@ -33,6 +33,7 @@ npm run typecheck -w @behaverse/studyflow-core
 
 ## More
 
-- [Specification](../../docs/reference/spec.qmd) — the file format this package reads and writes.
-- [Architecture](../../docs/develop/architecture.qmd) — the two boundaries, and why framework-freedom earns a second lint rule.
+- [File format](../../docs/reference/file-format.qmd) — the format this package reads and writes.
+- [The studyflow object](../../docs/concepts/object.qmd) — what the document model is a model of.
+- [Architecture](../../README.md#architecture-in-short) — the two boundaries, and why framework-freedom earns a second lint rule.
 - [assets/schemas/README.md](../../assets/schemas/README.md) — the schema vocabulary the catalog compiles.

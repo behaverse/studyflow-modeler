@@ -61,11 +61,16 @@ Published at <https://behaverse.org/studyflow-modeler/docs/>.
 
 ## Architecture, in short
 
-**One folder per feature.** To change the palette you open `packages/modeler/src/palette/`, and everything the palette is — its data, its React, its bpmn-js wiring, its commands — is in there. There is no `models/`, `views/`, or `controllers/` split to navigate.
+**One folder per feature.** To change the palette you open `packages/modeler/src/palette/`, and everything the palette is — its data, its React, its bpmn-js wiring, its commands — is in there. There is no `models/`, `views/`, or `controllers/` split to navigate. Four file names recur inside a feature: `commands.ts` (its bus handlers), `module.ts` (its bpmn-js registration), `PascalCase.tsx` (one React view or one bpmn-js class), and everything else named for what it does.
 
-Two boundaries are enforced by ESLint (`eslint.config.js`): `packages/core` is framework-free, and the modeler and the browser runner never import each other. Shared code goes to core.
+Two boundaries are enforced by ESLint (`eslint.config.js`):
 
-The rest of the doctrine — the two UI technologies, the command bus, what crosses which boundary — is written up in [docs/develop/architecture.qmd](docs/develop/architecture.qmd). Each package's own README says what that package owns.
+| Boundary | What is banned |
+| --- | --- |
+| `packages/core/src/**` is framework-free | `react`, `react-dom`, `bpmn-js`, `diagram-js`, both app aliases — and bpmn-js service *names* (`modeling`, `elementRegistry`, `commandStack`, `eventBus`, …), even arriving as `any` |
+| the modeler and the browser runner never import each other | `@runner/*` under `packages/modeler/src/**`, `@modeler/*` under `packages/runner/src/**` |
+
+Shared code therefore has exactly one place to go. Two further conventions cross every feature: **the edge of the canvas is the pixel split** — React outside it, bpmn-js inside — and **views dispatch commands by name**, a command's `type` being its handler's name. Each package's README is the contract for the rest; [CONTRIBUTING.md](CONTRIBUTING.md) has the test lanes and the guards.
 
 ## Contributing
 

@@ -61,21 +61,7 @@ const KNOWN_NAMES: ReadonlySet<string> = (() => {
  * Names that look like element types but legitimately are not Studyflow ones. Every entry was
  * triaged against the source named beside it; a name that is merely *wrong* belongs in a fix, not here.
  */
-const NAME_ALLOWLIST: Readonly<Record<string, string>> = {
-  // extensions.qmd introduces it as the former name of `cognitive:BehaverseTask` ("formerly `behaverse:Task`").
-  'behaverse:Task': 'retired schema name, quoted as history',
-  // spec.qmd:75 defines it as an EBNF nonterminal of the textual grammar, not as a moddle type.
-  ParticipantRef: 'nonterminal of the grammar in reference/spec.qmd',
-  // runner-app.qmd documents `registerNode({ Component })` -- React\'s own type.
-  Component: "React's component type, in the runner's node API",
-  // Keys of the Behaverse Unity bot payload (`botConfigurations`), not moddle properties. Verified in
-  // assets/schemas/cognitive.moddle.yaml and in the shipped assets/examples/bot_*.studyflow.png diagrams.
-  ResponseSource: 'botConfigurations key of the Behaverse runtime',
-  IncludeScreenshot: 'botConfigurations key of the Behaverse runtime',
-  SkipInstructions: 'botConfigurations key of the Behaverse runtime',
-  MaxResponseTime: 'botConfigurations key of the Behaverse runtime',
-  Speed: 'botConfigurations key of the Behaverse runtime',
-};
+const NAME_ALLOWLIST: Readonly<Record<string, string>> = {};
 
 /** Names that never existed, or stopped existing. Reintroducing one is the drift this guard exists to stop. */
 const DENIED_NAMES: readonly string[] = [
@@ -152,10 +138,6 @@ function readPage(file: string): Page {
 
 const PAGES: Page[] = qmdFiles(DOCS_DIR).sort().map(readPage);
 
-/** `docs/develop/` is written for the people changing the tools; every other page is written for readers. */
-const DEVELOP_DIR = path.join(DOCS_DIR, 'develop');
-const READER_PAGES = PAGES.filter((page) => path.relative(DEVELOP_DIR, page.dir).startsWith('..'));
-
 /** One assertion per check, so a single run lists every page that needs work. */
 function report(found: string[], headline: string): void {
   const problems = [...new Set(found)];
@@ -164,12 +146,8 @@ function report(found: string[], headline: string): void {
 
 test('there are docs to lint', () => {
   // Without this, a broken walk would turn every check below into a silent pass.
-  expect(PAGES.length, 'no .qmd pages found under docs/').toBeGreaterThan(10);
+  expect(PAGES.length, 'no .qmd pages found under docs/').toBeGreaterThan(5);
   expect(KNOWN_NAMES.size, 'the schema catalog compiled to nothing').toBeGreaterThan(50);
-  // Same trap for the register checks: they must see most of docs/, and none of docs/develop/.
-  expect(READER_PAGES.length, 'no reader-facing pages found under docs/').toBeGreaterThan(10);
-  expect(READER_PAGES.length, 'docs/develop/ walked as reader-facing').toBeLessThan(PAGES.length);
-  expect(READER_PAGES.filter((page) => page.rel.includes('develop'))).toEqual([]);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -212,12 +190,9 @@ test('the name check can tell a shipped name from a made-up one', () => {
   }
 });
 
-/* Reader pages only: a PascalCase name in `docs/develop/` is usually a code symbol (`ExportModel`,
- * `ServiceResolver`), and the schema catalog is the wrong authority for those. Retired names are still
- * denied everywhere -- check 2 walks every page -- so this exemption cannot let real drift back in. */
 test('every element name a page prints is one the schemas ship', () => {
   const problems: string[] = [];
-  for (const page of READER_PAGES) {
+  for (const page of PAGES) {
     page.lines.forEach((line, i) => {
       if (page.quoted[i]) return;
       for (const span of line.matchAll(/`([^`\n]+)`/g)) {
@@ -389,10 +364,10 @@ test('no callout announces content that has not been written', () => {
 /* 6. Reader-facing pages keep the reader's register                           */
 /* -------------------------------------------------------------------------- */
 
-/* A reader-facing page is written for cognitive scientists and AI researchers: it says what a study
- * means and what running it does. How the tools are built is real, but it is evidence for a different
- * reader, so it lives in docs/develop/ -- or, when a page owes its reader the mechanics, in that page's
- * collapsed "Under the hood" callout. The two checks below make that split mechanical. */
+/* Every page here is written for cognitive scientists and AI researchers: it says what a study means and
+ * what running it does. How the tools are built is real, but it is evidence for a different reader, so it
+ * lives in the package READMEs -- or, when a page owes its reader the mechanics, in that page's collapsed
+ * "Under the hood" callout. The two checks below make that split mechanical. */
 
 /** Where a page parks its mechanics: `::: {.callout-note collapse="true"}` + `## Under the hood`. */
 const UNDER_THE_HOOD = /^under the hood\b/i;
@@ -515,9 +490,9 @@ test('the "Under the hood" exemption covers that block and nothing else', () => 
     .toEqual([false, false, false]);
 });
 
-test('no reader-facing page cites a path into the source tree', () => {
+test('no page cites a path into the source tree', () => {
   const problems: string[] = [];
-  for (const page of READER_PAGES) {
+  for (const page of PAGES) {
     const hooded = underTheHoodLines(page.lines, page.quoted);
     page.lines.forEach((line, i) => {
       if (page.quoted[i] || hooded[i]) return;
@@ -525,7 +500,7 @@ test('no reader-facing page cites a path into the source tree', () => {
         problems.push(
           `${page.rel}:${i + 1}: prose cites "${cited}". This page is written for cognitive scientists `
           + 'and AI researchers, and where the code lives is not evidence they can act on. Say what the '
-          + 'tool does instead, and move the file path to docs/develop/ or into this page\'s collapsed '
+          + 'tool does instead, and move the file path to the package README or into this page\'s collapsed '
           + '"Under the hood" callout -- inside a fenced code block it is fine, because a reader types it.',
         );
       }
@@ -534,16 +509,16 @@ test('no reader-facing page cites a path into the source tree', () => {
   report(problems, 'implementation path(s) cited in reader-facing prose');
 });
 
-test('no reader-facing page reaches for implementation vocabulary', () => {
+test('no page reaches for implementation vocabulary', () => {
   const problems: string[] = [];
-  for (const page of READER_PAGES) {
+  for (const page of PAGES) {
     page.lines.forEach((line, i) => {
       if (page.quoted[i]) return;
       for (const term of jargonIn(line)) {
         problems.push(
           `${page.rel}:${i + 1}: "${term}" names how the tools are built, not what a study means -- `
           + `${IMPLEMENTATION_WORDS[term]}. Reword it for cognitive scientists and AI researchers, or `
-          + 'move the sentence to docs/develop/, which is written for engineers.',
+          + "move the sentence to the package README, which is written for engineers.",
         );
       }
     });
@@ -564,19 +539,12 @@ test('no reader-facing page reaches for implementation vocabulary', () => {
 /* File entries come before the directory that contains them: `budgetFor` takes the first match. */
 const PROSE_BUDGETS: readonly (readonly [target: string, words: number])[] = [
   ['docs/index.qmd', 200],
-  // Catalogue and worked-example pages: one entry per item, or one trial carried end to end,
-  // so they run longer than the pages around them.
-  ['docs/design/relations.qmd', 750],
-  ['docs/design/protocols.qmd', 650],
-  ['docs/reference/elements.qmd', 750],
-  ['docs/start/', 450],
-  ['docs/design/', 450],
-  ['docs/run/', 550],
-  ['docs/reference/', 550],
-  ['docs/develop/', 1000],
+  // Concepts pages carry the argument, so they are the only ones allowed to run on.
+  ['docs/concepts/', 750],
+  ['docs/reference/', 450],
 ];
 
-/** `faq.qmd`, `roadmap.qmd`: the pages hanging off the root, each answering one question. */
+/** Any page hanging off the root other than the overview. */
 const ROOT_PAGE_BUDGET: readonly [target: string, words: number] = ['docs/*.qmd', 350];
 
 /** A directory entry covers everything under it; a file entry covers itself. */

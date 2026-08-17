@@ -1,0 +1,56 @@
+---
+title: "Projections"
+description: "Every view of a studyflow is a subset of the same graph, which is what makes a deposited figure evidence rather than illustration."
+---
+
+A study has to be read by people who want different things from it. An ethics board wants the procedure and the exits; a trial manager wants the calendar; an auditor wants the reporting items; a replicator wants what actually ran. Ordinarily each of those is a separate document, written once and maintained never.
+
+In Studyflow each is a **projection**: a subset of the one object, selected by a predicate.
+
+Given a predicate $p$ over elements, the view is
+
+$$\pi_p(S) = \{\,x \in N \cup E : p(x)\,\}$$
+
+carrying each selected element's attributes exactly as $S$ holds them.
+
+## A projection only discards
+
+It never renames an element, rewrites a type, or computes an attribute the source does not already carry. Because $\pi_p(S) \subseteq S$, a view **can be incomplete but cannot be inconsistent** with the file it came from.
+
+That single property is what the rest of the argument rests on. A methods figure exported from a studyflow is not a drawing *about* the study — it is a subset *of* the study, and a reader can put the missing part back by opening the file it came from. An element absent from a schedule is an element carrying no timing, not a disagreement between two documents.
+
+| View | Predicate: keeps the elements carrying | Answers |
+|:--|:--|:--|
+| **Study** | everything | what happens, in what order, and where the path splits |
+| **Timeline** | `onset`, `duration`, or `progress` | when each visit or block falls, and how long it lasts |
+| **Checklist** | a checklist documentation entry | which reporting item each step covers, and what is still open |
+| **Provenance** | `prov:Activity` entries, on the study and on individual elements | which steps ran, when, by whom, and with which seed |
+| **Figure** | the elements marked visible | what a reader should see — with the whole of $S$ embedded in the exported image |
+
+## The three derived views
+
+![The Timeline view of a five-visit trial protocol, drawn from the same file as its diagram.](../assets/img/views/gantt.png){#fig-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out. Each row is a labelled bar on a shared horizontal time axis: Recruitment and Screening visit at the left, Baseline visit shortly after, two long part-filled bars for Intervention and Control, then Follow-up, Primary endpoint, and Close-out bars placed progressively further right." .fig-l}
+
+No arrangement of arrows states that a primary endpoint visit falls in week 12 and lasts a week. Three optional attributes do, and any element carrying one becomes a row on the schedule. Two studies can be drawn identically — one an afternoon, the other half a year — and differ only in these.
+
+![The Checklist view of a trial protocol: one card per step, carrying the reporting items that step covers.](../assets/img/views/checklist.png){#fig-checklist fig-alt="A dialog titled Checklist View reading 0 of 52 items complete, followed by one card per element -- Screening visit, Baseline visit, Intervention: cognitive training, Control: active sham -- each listing unticked SPIRIT items such as eligibility screen, who recruits, baseline demographics, and adherence monitoring." .fig-l}
+
+A reporting guideline is three things at once: a controlled vocabulary, a checklist, and sometimes a flow diagram. Written as a studyflow, those become labels, attributes, and a view. Most guideline items are about a specific step — *informed consent obtained* belongs on the consent step — so attaching an item there moves its coverage with the step it describes. Adherence becomes a property of the file rather than a spreadsheet kept beside it.
+
+![The Provenance view of a study that has been run, re-run, and partly invalidated: one line per thing that happened to the file.](../assets/img/views/provenance.png){#fig-provenance fig-alt="A dialog titled Provenance View listing 55 entries across 3 runs and 1 repository. Rows read created, executed, imported, and invalidated, each with an element name, an actor, a tool, a run name, and a timestamp; two rows are highlighted and one struck through." .fig-l}
+
+The record of what ran is itself part of the object, so it projects like anything else. [Execution and provenance](execution.qmd) specifies what those entries hold.
+
+## The figure is the study
+
+The Figure projection is the one that leaves the toolchain, and it inverts the usual relationship between a paper and the work behind it.
+
+An exported `.studyflow.png` or `.studyflow.svg` carries the complete source of $S$ alongside the pixels. Open the image and the study comes back whole and editable, every attribute intact; the embedded source, never the rendering, is authoritative. A figure deposited in a supplement is therefore not a picture of the study — it is the study, and a reader who wants the part the figure omits can open it and look.
+
+| Property | Consequence |
+|:--|:--|
+| The source travels inside the image | a reproducible study can be shared by sharing a picture |
+| The rendering is derived from the source | a figure cannot contradict the design it depicts |
+| An image that has passed through a screenshot tool keeps only the pixels | deposit the file the modeler wrote, not a re-rendered copy |
+
+[File format](../reference/file-format.qmd) specifies where the payload sits and what travels with it.

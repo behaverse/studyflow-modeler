@@ -1,14 +1,18 @@
 ---
-title: "Introduction"
-description: "One file that is the protocol, the running experiment, the analysis, and the figure."
+title: "Studyflow"
+description: "A coordination notation for experimental research: one file that is at once the protocol, the runnable study, the analysis specification, and the publication figure."
 ---
 
-![A training experiment drawn as one studyflow, from a participant's arrival to the debrief.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
+![A three-arm training experiment written as one studyflow, from a participant's arrival to the debrief.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
 
-An experiment gets written down many times, once per audience:
+Studyflow is a coordination notation for experimental research: a process standard for the cognitive sciences and adjacent fields, in the role BPMN 2.0 plays for business processes. Your tools compute; Studyflow coordinates them.
 
-| Who | What they get |
-|---|---|
+## The gap it closes
+
+A study is written down once per audience, and nothing checks the copies against each other.
+
+| Who reads it | What they are handed |
+|:--|:--|
 | The ethics board | a protocol document |
 | The public record | a preregistration |
 | The participant, or the model | an experiment script |
@@ -16,40 +20,30 @@ An experiment gets written down many times, once per audience:
 | The reader | a Methods section and a figure |
 | The replicator | whatever survived |
 
-Nothing checks these against each other, so they drift. By the end, no document describes the experiment you ran.
+A decade of standardization has given the *data* of a study a shared form. The *process* that produced it still lives in prose, slides, and glue code, where nothing can validate it and every copy drifts from the others. That is why standardized data alone has not made studies reproducible.
 
-Studyflow replaces them with one file: a diagram you can read, edit, and run.
+## The claim
 
-## Computation and coordination
+One file, and every other document is a reading of it.
 
-Code that runs an experiment does two jobs [^gelernter]. It **computes**: presents a stimulus, fits a model, builds a prompt. It **coordinates**: decides what comes next, who joins which group, which file a step reads.
-
-Languages handle computation well. Coordination ends up scattered through the same code, where no one sees it whole and nothing checks it against the protocol.
-
-Studyflow is a coordination notation: it takes the second job out of the code and into a diagram, built on BPMN 2.0 [^bpmn] rather than a new standard.
-
-[^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97–107.
-
-[^bpmn]: [BPMN 2.0](https://en.wikipedia.org/wiki/BPMN) — Business Process Model and Notation, ISO/IEC 19510.
-
-## One file, many views
-
-| The same file is | Read by |
+| The same file is | Serving |
 |:--|:--|
-| A protocol | a colleague, a reviewer, an ethics board |
-| An experiment | participants, or a model in the participant's seat |
-| An analysis | the pipeline that ran, not a description of it |
-| A figure | the Methods section of your paper |
+| a protocol | a colleague, a reviewer, an ethics board |
+| a runnable study | participants, or a model in the participant's seat |
+| an analysis specification | the pipeline that ran, not a description of it |
+| a figure | the Methods section of a paper |
 
-The diagram is the source; every other [view](run/provenance.qmd) is a filtered reading of it, so they cannot fall out of step.
+Each is a [projection](concepts/projections.qmd) of one object, so there is no second copy to fall out of step.
 
-## What's next
+## What this site specifies
 
-| Page | What it gives you |
+| Page | What it establishes |
 |:--|:--|
-| [Get started](start/quickstart.qmd) | build and run a small study in ten minutes |
-| [Reading studyflows](start/reading-studyflows.qmd) | how to read one somebody hands you |
-| [The eleven relations](design/relations.qmd) | what a design can say, and the shape that says it |
-| [Examples](design/gallery.qmd) | sixteen complete studies to adapt |
+| [Computation and coordination](concepts/coordination.qmd) | why the process needs a notation of its own, and why that notation extends BPMN rather than replacing it |
+| [The studyflow object](concepts/object.qmd) | the typed graph a studyflow is, and the conditions that make one well formed |
+| [Projections](concepts/projections.qmd) | how every view is derived, and why none can contradict its source |
+| [Execution and provenance](concepts/execution.qmd) | what a run is, what it fixes, and what it records |
+| [Extending the notation](concepts/extending.qmd) | how the vocabulary grows without the notation changing |
+| [Elements](reference/elements.qmd), [File format](reference/file-format.qmd), [Glossary](reference/glossary.qmd) | the shipped vocabulary, the files it is stored in, and the terms |
 
-Open source on [GitHub](https://github.com/behaverse/studyflow-modeler); questions to [contact@xcit.org](mailto:contact@xcit.org).
+The [modeler](https://behaverse.org/studyflow-modeler/app.html) runs in a browser and needs no account; the notation, the schemas, and the four programs that read them are open source on [GitHub](https://github.com/behaverse/studyflow-modeler).

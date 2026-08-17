@@ -9,7 +9,7 @@ import { primaryRoots } from '@core/document';
 import { onPath } from '@cli/plugin';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 
-/* `studyflow run`, specified in docs/reference/cli.qmd. */
+/* `studyflow run`, specified in packages/cli/README.md. */
 
 export type RunOptions = {
   runtime?: string;
@@ -43,7 +43,7 @@ function runnerScriptCandidates(): string[] {
 }
 
 /**
- * The Python runner, in the order documented in reference/cli.qmd: an explicit
+ * The Python runner, in the order documented in the CLI README: an explicit
  * `STUDYFLOW_RUN_PY`, then an installed `studyflow-run` companion, then the
  * script shipped beside this CLI (which needs `uv` to pull its dependencies).
  */

@@ -22,9 +22,22 @@ node packages/cli/dist/studyflow.mjs --help
 | `run <in> [args...]` | execute where the document says: `studyflow:runtime` — `browser`, `cloud`, `local`, `hpc` |
 | `render [names...]` | re-render example `.studyflow.png` images by driving the modeler headlessly |
 
-Anything else is a **companion**, found the way git finds `git-lfs`: `studyflow <name>` runs `studyflow-<name>` from your PATH, handing over the rest of the command line and adopting its exit code. `studyflow --help` lists the ones you have installed.
+Every command answers `--help`; `studyflow --version` prints the version. Anything else is a **companion**, found the way git finds `git-lfs`: `studyflow <name>` runs `studyflow-<name>` from your PATH, handing over the rest of the command line and adopting its exit code. `studyflow --help` lists the ones you have installed — the [Python runner](../runner-py/) is the first of them (`uv tool install studyflow-runner`).
 
-Every flag, and the full `run` dispatch table, is in [Command line and URLs](../../docs/reference/cli.qmd).
+### Where `run` sends a study
+
+`run` reads the `runtime` the study declares, which is `cloud` unless set; `--runtime` overrides it for one invocation. A YAML input is converted to a temporary `.bpmn` first — BPMN XML, on its own or inside a PNG, is what the Python runner reads.
+
+| Declared runtime | What happens |
+| --- | --- |
+| `local` | hands the study to the Python runner, passing your trailing arguments through untouched (`--repo`, `--from`, `--fresh`, …) |
+| `browser` | stops with instructions: a study participants sit through belongs in the browser runner, at `<site>/run/` |
+| `cloud`, `hpc` | stops with an error — nothing is wired up for either; `--runtime local` runs it on this machine instead |
+| anything else | refused, with the four listed |
+
+### What `render` needs
+
+`render` re-draws each image by opening the modeler in a browser, loading the example, and exporting it, so it works only inside a checkout. It defaults to `--dir assets/examples` and `--origin http://127.0.0.1:4175`, and starts the modeler's dev server itself if nothing is listening there. It needs `npx playwright install chromium` once per machine, and a connection — offline, every image is written without its element icons, and the warning says so inside the browser it drives rather than in your terminal.
 
 ## Contract
 

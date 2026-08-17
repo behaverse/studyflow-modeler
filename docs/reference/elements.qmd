@@ -1,33 +1,41 @@
 ---
-title: Elements
-description: "Every element, what it says in a study, and the fields you fill in."
+title: "Elements"
+description: "Every type the shipped schemas declare: what it is drawn as, what it means in a study, and the attributes it carries."
 ---
 
-| What you want to express | What you draw | What you fill in |
-|:--|:--|:--|
-| Ask participants something | A `Questionnaire` box | `instrument` --- PHQ-9, GAD-7, or a name of your own |
-| Run a cognitive test | A `CognitiveTask` box | `instrument`, `configurations` |
-| Run one of the Behaverse assessments | A `BehaverseTask` box | `behaverseScene`, `configurations` |
-| Tell participants what to do | An `Instruction` box | `content`, in markdown |
-| Give them a break | A `Rest` box | `configurations` |
-| Gate entry on informed consent | The start event | `consentFormUri` |
-| Send people somewhere when they finish | The end event | `redirectTo`, `completionCodeType`, `completionCode` |
-| Assign an arm at random | A `RandomGateway`, one arrow per arm | `algorithm`, `probabilityFunction`, `stratifyBy`, `strata` |
-| Screen people in or out | An `EligibilityGateway` | `inclusionCriteria`, `exclusionCriteria` |
-| Take a path only when something holds | The arrow itself | `conditionExpression` |
-| Represent a group of participants --- human, model, or instrument | An `Actor` pool | `actorType`, `spec`, `promptTemplate` |
-| Record what the study collects | A `Dataset` cylinder, or a `Table`, `Timeseries`, `EventMarker` | `format`, `schema`, `uri` |
-| Describe the shape of that data | A `Schema` | `format`, `body` |
-| Vary the study by settings instead of by redrawing | A `Parameters` element, wired into the steps that read it | `values` |
-| Say what software a step runs | Any task, or a `Transform`, `Map`, `Reduce`, `Filter` | `implementation`, `additionalArguments` |
-| Carry the code in the study itself | A script task | `script` |
-| Repeat a step | The repeat marker on that step | `loopCondition` |
-| Wait for a moment in time | A timer event | `timeCycle`, `timeDuration`, `timeDate` |
-| Wait until something becomes true | A conditional catch event | `condition` |
-| Place a step on the study schedule | Any step or event | `onset`, `duration`, `progress` |
-| Say who wrote the study, and when it can be replayed | The empty canvas | `authors`, `version`, `runtime`, `tags`, `seed` |
+![One live instance of every element the shipped sets declare, in a labelled band per set.](../assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic LLM and agent workflows, and functional function composition beside a smaller band of data IO presets. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
 
-Every shape here is a BPMN 2.0 (ISO/IEC 19510) shape first; Studyflow adds the research meaning.
+Every element is a BPMN 2.0 element first, carrying a research type layered on top. The BPMN element fixes the shape and how a walk moves through it; the research type fixes what it means and which attributes it carries.
+
+```yaml
+Survey:
+  type: bpmn:Task                     # the BPMN element: shape, and flow behaviour
+  name: Post-battery survey
+  extensionElements:
+    - type: cognitive:Questionnaire   # the research type: meaning, and its own attributes
+      instrument: phq-9
+
+Done:
+  type: bpmn:EndEvent
+  redirectTo: https://example.org/thanks   # an added field, straight on the element
+```
+
+Which sets ship, and which load by default, is in [Extending the notation](../concepts/extending.qmd#what-ships).
+
+## The study
+
+Attributes of the study as a whole, edited with nothing selected.
+
+| Attribute | Holds |
+|:--|:--|
+| `authors`, `version` | who wrote it, and which revision this is |
+| `runtime` | where it is meant to run: `browser`, `cloud`, `local`, or `hpc` |
+| `tags` | short classification labels |
+| `seed` | the root seed; pinned, every gateway draw replays |
+| `documentation` | prose about any element, in markdown |
+| `checklist` | reporting items on any element, as markdown task items |
+
+`documentation` and `checklist` sit on every element, not only on the study.
 
 ## What a participant meets
 
@@ -43,53 +51,31 @@ Every shape here is a BPMN 2.0 (ISO/IEC 19510) shape first; Studyflow adds the r
 ![Rest](../assets/img/elements/rest.svg){width="110" fig-alt="A rounded rectangle with an armchair icon in its top-left corner, labelled Rest."}
 :::
 
-| Element | Drawn as | What it means in the study | What you fill in |
+| Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Questionnaire` | `bpmn:Task` | A self-report form: a standard instrument such as PHQ-9 or GAD-7, or one of your own. | `instrument` |
-| `CognitiveTask` | `bpmn:Task` | A cognitive test, delivered by an experiment package such as PsychoPy, jsPsych, lab.js, or OpenSesame. | `instrument`, `implementation`, `configurations` |
-| `BehaverseTask` | `bpmn:Task` | A test from the Behaverse assessment battery, named by a short scene code. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations`, `agentType`, `botConfigurations` |
-| `Instruction` | `bpmn:Task` | Text for the participant to read, written in markdown. Nothing is recorded. | `content` |
-| `Rest` | `bpmn:Task` | A break between activities, or a resting-state recording. A narrower `CognitiveTask`. | `configurations` |
+| `Questionnaire` | `bpmn:Task` | A self-report form: a standard instrument, or one of your own. | `instrument` |
+| `CognitiveTask` | `bpmn:Task` | A cognitive test, delivered by an experiment package. | `instrument`, `implementation`, `configurations` |
+| `BehaverseTask` | `bpmn:Task` | A test from the Behaverse battery, named by a scene code. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations`, `agentType`, `botConfigurations` |
+| `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
+| `Rest` | `bpmn:Task` | A break, or a resting-state period. A narrower `CognitiveTask`. | `configurations` |
 
-| Field | What goes in it |
+| Attribute | Values |
 |:--|:--|
-| `instrument` | the experiment packages in common use, or an identifier of your own |
-| `configurations` | YAML that instrument reads: trial counts, stimulus durations, block structure |
-| `botConfigurations` | appears once `agentType` is `bot`, and is how a model plays a task a human would otherwise take |
-| Ready-made | **Video Game**, a `CognitiveTask` on a game engine; two N-Back presets on `BehaverseTask` |
-
-![A within-subject cognitive battery: instructions, four tests, a self-paced break, and a survey, all landing in one dataset.](../assets/img/examples/cognitive_battery.studyflow.png){#fig-battery fig-alt="A left-to-right diagram. A thin circle marked with a shield, labelled Participant arrives, leads through Instructions and practice, Working memory (N-Back), Verbal span (Digit Span), a circle marked with a clock labelled Self-paced break, Sustained attention (SART), Visual WM (Which One), and Post-battery survey, ending at a heavy circle labelled Session complete. Dotted arrows drop from the last two boxes into a cylinder labelled Battery trial data."}
+| `instrument` | an experiment package — PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse — or a scale name, or an identifier of your own |
+| `configurations` | YAML the named instrument reads: trial counts, durations, block structure |
+| `agentType` | `human`, or `bot` — the same instrument answered by a model |
+| `botConfigurations` | how that model is driven; appears once `agentType` is `bot` |
 
 ## Entry and exit
 
-| On | What it lets you say | What you fill in |
+| On | Attribute | Says |
 |:--|:--|:--|
-| The start event | Consent gates entry. Leave it unset and the study starts without a consent step. | `consentFormUri` |
-| The end event | Where the participant is sent when the study ends, and the code they take with them. | `redirectTo`, `completionCodeType`, `completionCode` |
+| the start event | `consentFormUri` | the address of the consent document that gates entry; unset, entry is not gated |
+| the end event | `redirectTo` | where the participant is sent; `{COMPLETION_CODE}` is substituted with the issued code |
+| the end event | `completionCodeType` | `none`, `static` (the fixed `completionCode`), or `dynamic` |
+| the end event | `completionCode` | the code itself, when the type is `static` |
 
-| `completionCodeType` | The code the participant leaves with |
-|:--|:--|
-| `none` | none |
-| `static` | a fixed code you choose |
-| `dynamic` | read from the URL pattern a panel provider such as Prolific hands back |
-
-`{COMPLETION_CODE}` in `redirectTo` is replaced with the code when the run ends.
-
-## Deciding who goes where
-
-| Element | Drawn as | What it means in the study | What you fill in |
-|:--|:--|:--|:--|
-| `RandomGateway` | `bpmn:ExclusiveGateway` | Sends each participant down one outgoing branch at random --- one arm per arrow. | `algorithm`, `probabilityFunction`, `stratifyBy`, `strata` |
-| `EligibilityGateway` | `bpmn:ExclusiveGateway` | A screening gate: eligible participants carry on, everyone else is screened out. | `inclusionCriteria`, `exclusionCriteria` |
-| A plain gateway | `bpmn:ExclusiveGateway` | A decision you write out yourself, as one condition per outgoing arrow. | `conditionExpression`, on each arrow |
-
-| Field | Values |
-|:--|:--|
-| `algorithm` | `probabilistic`, `round-robin` |
-| `probabilityFunction` | `uniform`, `normal`, `exponential`, `poisson` |
-| `stratifyBy`, `strata` | the variable to balance on, and one entry per stratum |
-| `inclusionCriteria`, `exclusionCriteria` | one criterion per entry, in your own words |
-| Ready-made | **Stratified allocation**, a `RandomGateway` with `stratifyBy` filled in --- not a second kind of gateway |
+## Branching
 
 ::: {layout-ncol=2}
 ![A two-arm random assignment](../assets/img/elements/random_gateway_pattern.svg){width="300" fig-alt="A diamond with a dice icon, fed by one incoming arrow, with two arrows leaving it toward two separate boxes."}
@@ -97,200 +83,117 @@ Every shape here is a BPMN 2.0 (ISO/IEC 19510) shape first; Studyflow adds the r
 ![RandomGateway](../assets/img/elements/random_gateway.svg){width="90" fig-alt="A diamond with a dice icon inside, labelled Random Gateway."}
 :::
 
-::: {.callout-note}
-## How an arm is drawn
+| Type | Drawn as | Means | Attributes |
+|:--|:--|:--|:--|
+| `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm`, `probabilityFunction`, `stratifyBy`, `strata` |
+| `EligibilityGateway` | `bpmn:ExclusiveGateway` | Screening: criteria stated on the gateway, in readable sentences. | `inclusionCriteria`, `exclusionCriteria` |
+| A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `conditionExpression`, on each edge |
 
-The browser runner draws one outgoing branch with equal probability. For allocation balanced across a cohort, allocate outside the study and pass the arm in ([Randomize and counterbalance](../design/randomization.qmd)).
-:::
+| Attribute | Values |
+|:--|:--|
+| `algorithm` | `probabilistic`, `round-robin` |
+| `probabilityFunction` | `uniform`, `normal`, `exponential`, `poisson` |
+| `stratifyBy`, `strata` | the variable to balance on, and one entry per stratum |
+| `inclusionCriteria`, `exclusionCriteria` | one criterion per entry |
+
+Screening and allocation are separate types because they answer to different standards: eligibility turns on criteria a reviewer must be able to read, allocation on a draw nobody should be able to predict.
 
 ## Who takes part
 
-| Element | Drawn as | What it means in the study | What you fill in |
+| Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Actor` | `bpmn:Participant` | A pool of participants --- human, LLM, software agent, or instrument. | `actorType`, `spec`, `promptTemplate` |
+| `Actor` | `bpmn:Participant` | A pool of participants — human, model, software agent, or instrument. | `actorType`, `spec`, `promptTemplate` |
 
-| Field | Values |
-|:--|:--|
-| `actorType` | `human`, `llm`, `agent`, `instrument` |
-| `spec` | the model, checkpoint, or device the pool stands for; shown once `actorType` is not `human` |
-| `promptTemplate` | the prompt sent each turn, with `{{stimulus}}`-style placeholders filled in as the run goes |
-
-A pool stands for a group rather than one person, and drawing one turns the file into a collaboration.
-
-Two pools that deal with each other are joined by choreography tasks — one box per interaction. Those boxes carry no fields of their own.
+`actorType` is `human`, `llm`, `agent`, or `instrument`; `spec` names the model, checkpoint, or device the pool stands for. A pool stands for a group rather than one person, and drawing one turns the file into a collaboration. Two pools that deal with each other are joined by choreography tasks, one box per exchange.
 
 ## When each step happens
 
-| What you want to say | Where you say it | What you fill in |
+| Attribute | On | Values |
 |:--|:--|:--|
-| Where this sits on the study schedule --- what the Timeline view draws | Any activity or event | `onset`, `duration`, `progress` |
-| Launch runs on a schedule, such as a follow-up visit every Monday | A timer start event | `timeCycle` |
-| Wait a fixed time, or until a fixed date | A timer catch event | `timeDuration`, `timeDate` |
-| Wait until something about the run becomes true | A conditional catch event | `condition` |
-| Retry a step until it clears a bar | The repeat marker on that step | `loopCondition` |
-| Stop a step that decides its own order when it is done | An ad-hoc sub-process | `completionCondition` |
+| `onset` | any activity or event | a timestamp, an offset such as `T0+30min`, or a label |
+| `duration` | any activity or event | `30min`, or an ISO 8601 duration |
+| `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
+| `timeCycle` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval |
+| `timeDuration`, `timeDate` | a timer catch event | a delay, or a fixed moment |
+| `condition` | a conditional catch event | wait until this becomes true |
+| `loopCondition` | the repeat marker on a step | repeat while this holds |
+| `completionCondition` | an ad-hoc sub-process | stop when this holds |
 
-| Field | Values |
-|:--|:--|
-| `onset` | a timestamp, an offset such as `T0+30min`, or a label |
-| `duration` | `30min`, or `PT1H` |
-| `progress` | a percentage, or `done`, `blocked`, `in progress` |
-| `timeCycle` | a five-field cron expression, or an ISO 8601 repeating interval |
+These are the *study's* schedule, in visits and days, and are what the Timeline view projects. A recording's own clock is separate, below.
 
-These are the *study's* schedule, in visits and days, not a recording's own clock; [Data](data.qmd) keeps the two apart. Timers and multi-instance markers are drawn and exported, and executed by neither runner.
+## Data
 
-## What the study collects
-
-The dashed lines around a step are its inputs and outputs; [Data](data.qmd) covers them.
-
-| Element | Drawn as | What it means in the study | What you fill in |
+| Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, in a declared standard. | `format`, `schema`, `catalog`, `storage`; `bdmDataLevel` with `format: bdm`, `bidsDataType` with `format: bids` |
-| `Schema` | `bpmn:DataObjectReference` | How some data is laid out --- the columns of a table, the dimensions of an array. | `format`, `body` |
-| `Table` | `bpmn:DataObjectReference` | Rows and columns: a trial table, a participant list, a score sheet. | `format`, `schema`, `rowCount` |
-| `Timeseries` | `bpmn:DataObjectReference` | A recording sampled continuously --- EEG, eye tracking, an accelerometer stream. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
-| `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording: trial markers, stimulus onsets, button presses. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
-| `Parameters` | `bpmn:DataObjectReference` | A named group of settings, wired into the steps that read it, so a study varies by editing values rather than the flow. | `values` |
-| `DataCatalog` | not a shape | A public listing a dataset is published in, such as OpenNeuro. A dataset names one; you never draw one. | `url` |
-| every one of them | any of the above | Where the value lives. Unset, it only passes from step to step in memory. | `uri` |
+| `Dataset` | `bpmn:DataStoreReference` | A logical collection the study reads or produces, under a declared standard. | `format`, `schema`, `catalog`, `storage`; `bdmDataLevel` or `bidsDataType` |
+| `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`), `body` |
+| `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema`, `rowCount` |
+| `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled recording. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
+| `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
+| `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a study varies by value rather than by redrawing. | `values` |
+| `DataCatalog` | not drawn | A listing a dataset is published in; a dataset names one. | `url` |
+| any of them | — | Where the value lives. Unset, it only passes between steps. | `uri` |
+
+| `format` on a `Dataset` | Standard | Then declares |
+|:--|:--|:--|
+| `bdm` | [Behaverse Data Model](https://behaverse.org/data-model/) | `bdmDataLevel`: events, trials, or models |
+| `bids` | [Brain Imaging Data Structure](https://bids.neuroimaging.io/) | `bidsDataType`: anat, beh, eeg, func, meg, … |
+| `psych-ds` | [Psych-DS](https://psych-ds.github.io/) | — |
+| `kedro` | [Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/) | — |
+
+`eventOnset` and `eventOffset` are seconds from the start of a recording; `onset` and `duration` on an activity are the study's schedule. Run state that a condition reads by name is a `bpmn:Property` on the container that declares it, and is never drawn.
 
 ## What a step runs
 
-| What you want to say | Where you say it | What you fill in |
+| Attribute | On | Holds |
 |:--|:--|:--|
-| This step calls that software | A service, user, send, receive, or business-rule task | `implementation`, as `scheme://ref@version` |
-| The code lives in the study itself | A script task | `script` |
-| The call still needs these literal arguments | Any activity | `additionalArguments`, as YAML; the reserved `args` key lists positional ones |
+| `implementation` | any activity | the software the step runs, as `<scheme>://<ref>[@<version>]` |
+| `script` | a script task | code carried in the study itself |
+| `additionalArguments` | any activity | literal arguments the drawn data edges do not supply; the reserved `args` key holds positional ones |
 
-Four generic operations say what *shape* the work has.
-
-| Element | Drawn as | What it means in the study | What you fill in |
-|:--|:--|:--|:--|
-| `Transform` | `bpmn:ServiceTask` | Applies a function to data. The general case the other three narrow. | `implementation`, `additionalArguments` |
-| `Map` | `bpmn:ServiceTask` | Applies a function to every item in a stream --- every trial, every participant. | `implementation`, `additionalArguments` |
-| `Reduce` | `bpmn:ServiceTask` | Combines a stream into a single value: a mean, a fitted model, a report. | `implementation`, `additionalArguments` |
-| `Filter` | `bpmn:ServiceTask` | Keeps only the items that match a condition --- the sessions that passed quality control. | `implementation`, `additionalArguments` |
-
-| Ready-made | What it is |
+| Scheme | Names |
 |:--|:--|
-| **For each** | a sub-process that runs once per item |
-| **Read data**, **Write data**, **Anonymize Data** | filled-in steps over those four operations |
-| **Group** | splitting a stream by participant --- a preset over `Map`, not an operation of its own |
+| `python://` | an importable callable, reaching into a class where needed |
+| `docker://` | a container image, pinned by tag or digest |
+| `https://`, `file://` | a script by address, or a local one |
+| anything else | accepted, recorded, and reported as unresolved |
 
-There is no fifth. Each pins its own `operationType`, which the inspector shows but does not offer for editing.
+Four operations say what shape the work has. Each is an ordinary service task pinning its own operation, drawn with a function marker.
 
-![The *ƒ* marker, at the bottom edge of a step.](../assets/img/elements/data_operator.png){#fig-function-marker width="220" fig-alt="A rounded rectangle labelled Preprocess with a small italic f centred at its bottom edge."}
-
-A step shows the *ƒ* marker when it names an `operationType`, or an `implementation` and no `instrument`.
-
-### Ready-made analysis steps
-
-Every step here is one of the four operations, pointed at a function you can repoint at your own code.
-
-| Ready-made step | Drawn as | Pointed at |
-|:--|:--|:--|
-| Load sample dataset | `functional:Transform` | `sklearn.datasets.load_digits` |
-| Train/test split | `functional:Transform` | `sklearn.model_selection.GroupShuffleSplit` |
-| Reduce dimensions | `functional:Map` | `sklearn.decomposition.PCA` |
-| Build estimator | `functional:Transform` | `sklearn.pipeline.make_pipeline` |
-| Fit estimator | `functional:Reduce` | `sklearn.pipeline.Pipeline.fit` |
-| Formula model | `functional:Transform` | `statsmodels.formula.api.mixedlm` |
-| Evaluate | `functional:Reduce` | `sklearn.metrics.classification_report` |
-| Cross-validate | `functional:Reduce` | `sklearn.model_selection.cross_validate` |
-| Grid search | `functional:Transform` | `sklearn.model_selection.GridSearchCV` |
-| Save model | `functional:Transform` | `joblib.dump` |
-| `Model` | `bpmn:DataObjectReference` | a fitted model; set `uri` to keep it on disk |
-| `Metric` | `bpmn:DataObjectReference` | a measured value, named after the measure |
+| Type | Means |
+|:--|:--|
+| `Transform` | Applies a function to data — the general case the other three narrow. |
+| `Map` | Applies it to every item in a stream: every trial, every participant, every session. |
+| `Reduce` | Combines a stream into one value: a mean, a fitted model, a report. |
+| `Filter` | Keeps the items matching a condition, dropping the rest from the *data* — where a gateway changes the *path*. |
 
 ## Agents and model calls
 
-| Element | Drawn as | What it means in the study | What you fill in |
+| Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Agent` | `bpmn:AdHocSubProcess` | A model that calls the tools drawn inside it, in an order it decides. | `model`, `systemPrompt`, `toolChoice`, `temperature`, `maxTurns` |
-| `Router` | `bpmn:ExclusiveGateway` | A branch a model picks, choosing among the labels on the outgoing arrows. | `model`, `instructions` |
+| `Agent` | `bpmn:AdHocSubProcess` | A model calling the tools drawn inside it, in an order it decides. | `model`, `systemPrompt`, `toolChoice`, `temperature`, `maxTurns` |
+| `Router` | `bpmn:ExclusiveGateway` | A branch a model picks among the labels on the outgoing edges. | `model`, `instructions` |
 | `LLMCall` | `bpmn:ServiceTask` | One model call: a prompt in, a response out. | `model`, `prompt`, `temperature`, `maxTokens` |
-| `Tool` | `bpmn:ServiceTask` | Something the agent may call, run like any other step. | `kind`, `purpose`, `implementation` |
+| `Tool` | `bpmn:ServiceTask` | Something an agent may call, run like any other step. | `kind`, `purpose`, `implementation` |
 | `HumanApproval` | `bpmn:UserTask` | Pauses the run until a person approves, edits, or rejects. | `question` |
 | `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the calls that read it. | `template` |
-| `Memory` | `bpmn:DataStoreReference` | What an agent carries from one turn to the next. | `scope` |
+| `Memory` | `bpmn:DataStoreReference` | What an agent carries between turns. | `scope` |
 
-An agent stops at its `completionCondition`, and never runs past `maxTurns`. A guardrail or an LLM-as-judge is an `LLMCall` with a strict prompt; retrieval is a `Tool` whose `kind` is `retrieval`.
+An agent stops at its `completionCondition` and never runs past `maxTurns`. A guardrail or a model-as-judge is an `LLMCall` with a strict prompt; retrieval is a `Tool` whose `kind` is retrieval.
 
-::: {.callout-note}
-For a branch the runner decides, use an ordinary gateway with a condition on each arrow, or a `RandomGateway`.
-:::
+## Biosignals
 
-## Recording biosignals
-
-| Element | Drawn as | What it means in the study | What you fill in |
+| Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
 | `Session` | `bpmn:Participant` | One acquisition session, carrying the device settings every phase inside it shares. | `device`, `modalities` |
 | `Recording` | `bpmn:DataStoreReference` | The biosignal data a session produces. A narrower `Dataset`. | `modalities`, `channels`, `samplingRateHz` |
 
-| Field | Values |
-|:--|:--|
-| `device` | **Cyton** (8-channel), **Cyton + Daisy** (16-channel), **Ganglion** (4-channel), **Galea** (a VR headset with built-in sensors), or an identifier of your own |
-| `modalities` | EEG, EMG, ECG, EOG, EDA, PPG, eye tracking, head motion, audio |
-| Ready-made | **EEG session**, which fills in the phases of a session; **EEGPrep** and **fMRIPrep** |
-
-## The study itself
-
-The study *is* the diagram: click the empty canvas to edit it.
-
-| What you want to say | What you fill in |
-|:--|:--|
-| Who wrote it, and which version this is | `authors`, `version` |
-| Where it is meant to run --- browser, cloud, local, or HPC | `runtime` |
-| What kind of study it is, as short labels | `tags` |
-| That runs of it can be replayed exactly | `seed`, the run's root seed |
-| What a reader needs to know about any element | `documentation`, in markdown |
-| What a reviewer should tick off | `checklist`, as markdown task items |
-
-`documentation` and `checklist` sit on every element, not only on the study. Pin `seed` to make runs replayable; unset, each run draws one and records it on its archived copy.
+`modalities` covers EEG, EMG, ECG, EOG, EDA, PPG, eye tracking, head motion, and audio.
 
 ## The provenance trail
 
-| Element | What it means in the study | What you fill in |
+| Type | Means | Attributes |
 |:--|:--|:--|
-| `Activity` | One entry of the trail, oldest first: something that happened to this studyflow, and when. | `action` --- `created`, `modified`, `imported`, `executed`, `invalidated`, `reused` --- plus `when`, `who`, `with`, `what`, `run`, `seed`, `note` |
+| `Activity` | One entry of the trail: something that happened to this studyflow, and when. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `note` |
 
-Which program writes which `action` is in the [Views and the record](../run/provenance.qmd#which-tool-writes-what) view; none of the trail is drawn.
-
-## In the file
-
-```yaml
-Survey:
-  type: bpmn:Task                     # the BPMN shape, and how the flow treats it
-  name: Post-battery survey
-  extensionElements:
-    - type: cognitive:Questionnaire   # what this box is in the study, plus its own fields
-      instrument: phq-9
-
-Done:
-  type: bpmn:EndEvent
-  redirectTo: https://example.org/thanks   # an added field, straight on the element
-```
-
-[minimal_study.studyflow.yaml](../assets/examples/minimal_study.studyflow.yaml) is a complete study in this form.
-
-## The seven element sets
-
-Some elements are a box of their own; others only add fields to a shape BPMN already has, which is how a start event carries a consent link.
-
-| Set | Ships | Switched on |
-|:--|:--|:--|
-| `studyflow`, `prov`, `functional`, `cognitive` | the study, its trail, the four operations, and what a participant meets | always |
-| `agentic` | agents, model calls, tools | *Settings &rarr; Extensions*, then reload |
-| `ml` | ready-made analysis steps, and no new types | *Settings &rarr; Extensions*, then reload |
-| `eeg` | biosignal sessions and recordings | *Settings &rarr; Extensions*, then reload |
-
-A set that is off is missing from the palette, and not recognised in a file you open.
-
-| Then read | For |
-|:--|:--|
-| [Data](data.qmd) | what a study collected, and what each step reads and writes |
-| [File format](file-format.qmd) | the file these elements are written in |
-| [What a study has to coordinate](../design/relations.qmd) | why this list is the one it is |
-| [BPMN mapping](bpmn.qmd) | what is standard here, and what is new |
-| [Formal model](formal-model.qmd) | which page answers which question about the notation |
-| [Authoring schemas](../develop/authoring-schemas.qmd) | adding element types rather than using them |
+None of the trail is drawn. [Execution and provenance](../concepts/execution.qmd#the-plan-and-the-record-in-one-object) specifies what each action records.

@@ -30,7 +30,7 @@ One folder per feature. Everything the palette is — its data, its React, its b
 | `src/publish/` `src/settings/` `src/navBar/` `src/ui/` | publishing to `api.behaverse.org`, settings, chrome |
 | `src/commandBus.ts` | the bus, and the `FEATURES` list a feature joins |
 
-Inside a feature, four file names recur: `commands.ts` (its bus handlers), `module.ts` (its bpmn-js registration), `PascalCase.tsx` (one React view or bpmn-js class), and everything else named for what it does. Feature folders have no barrels — you import the path of the file you want. [Architecture](../../docs/develop/architecture.qmd) has the rules and the reasoning.
+Inside a feature, four file names recur: `commands.ts` (its bus handlers), `module.ts` (its bpmn-js registration), `PascalCase.tsx` (one React view or bpmn-js class), and everything else named for what it does. Feature folders have no barrels — you import the path of the file you want. [Architecture](../../README.md#architecture-in-short) has the rules and the reasoning.
 
 ## Export formats
 
@@ -59,7 +59,7 @@ Re-run it after editing an example (open the PNG, edit, export PNG over it) or a
 
 ## More
 
-- [Modeler app guide](../../docs/design/modeler.qmd) — using the editor.
-- [Views](../../docs/run/views.qmd) — what the checklist, Gantt, and provenance views show.
-- [Architecture](../../docs/develop/architecture.qmd) — the packages, the two boundaries, the pixel split, the command bus.
+- [Projections](../../docs/concepts/projections.qmd) — what the checklist, Timeline, and provenance views are, and why they cannot contradict the file.
+- [File format](../../docs/reference/file-format.qmd) — every format this app reads and writes.
+- [Architecture](../../README.md#architecture-in-short) — the packages, the two boundaries, the pixel split, the command bus.
 - [assets/schemas/README.md](../../assets/schemas/README.md) — the schema vocabulary this app reads.
