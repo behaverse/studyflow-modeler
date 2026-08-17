@@ -1,0 +1,50 @@
+---
+title: Randomize and counterbalance
+description: "Random assignment as a gateway, and how to counterbalance block order yourself."
+---
+
+![Two arms drawn from one point of allocation. The diamond marked *Randomize* is a `cognitive:RandomGateway`, and each flow leaving it is one arm.](../assets/img/consort2025.studyflow.png){#fig-two-arm fig-alt="A studyflow diagram. Enrollment leads to an eligibility check, which sends some participants to an Excluded end event. The rest reach a diamond gateway labelled Randomize, whose two outgoing flows each run an Allocation step, then Follow-up, then Analysis."}
+
+Random assignment is one element: a gateway that draws an arm for each participant. Anything beyond simple randomization — strata, unequal ratios, counterbalanced block order — you draw yourself.
+
+## Draw one arm
+
+Put a `cognitive:RandomGateway` where allocation happens and connect one outgoing flow per arm. The browser runner draws one **with equal probability** and sends the participant down it.
+
+| Attribute | Values | What it does |
+|---|---|---|
+| `algorithm` | `probabilistic` (default), `round-robin` | `probabilistic` is the equal-chance draw the runner performs |
+| `probabilityFunction` | `uniform` (default), `normal`, `exponential`, `poisson` | `uniform` is the draw the runner performs |
+| `stratifyBy` | the variable to balance on, e.g. `age_band` | states the stratifying variable |
+| `strata` | one entry per stratum, e.g. `age_band: 18-29` | states the strata |
+
+: Every attribute a random gateway declares. {#tbl-attributes}
+
+Set them to state the design you intend. For an allocation the runner performs, keep the two defaults, or allocate outside the study and pass the arm in as a parameter.
+
+If the Python runner will walk this file, mark one outgoing flow as `default`: that runner takes the first flow whose condition holds, then the default.
+
+## Stratify so it executes
+
+The palette's *Stratified allocation* template is the same gateway with `stratifyBy` and `strata` prefilled, which states the design.
+
+To have the runner perform it, build it from parts it executes:
+
+1. A `bpmn:ExclusiveGateway` branching on the stratifying variable.
+2. One outgoing flow per stratum, each carrying its condition.
+3. An independent `cognitive:RandomGateway` inside each branch.
+
+## What a seed fixes
+
+A seed replays gateway draws ([Execution](../run/execution.qmd#seeds-what-replays-and-what-does-not)).
+
+Pin `studyflow:seed` in the file and **every participant lands in the same arm** — the participant's identifier never enters the draw. Give each a `seed` of their own in their link, and keep a record of which went to whom.
+
+## Order the blocks yourself
+
+Two approaches work.
+
+![One gateway, one branch per order you are willing to run.](../assets/img/elements/random_gateway_pattern.svg){#fig-enumerated fig-alt="A task box on the left connects to a diamond gateway. Two sequence flows leave the diamond, labelled Path 1 and Path 2, each leading to its own task box."}
+
+1. **Enumerate the orders as branches** -- a Latin square over four blocks is four branches, not twenty-four.
+2. **Delegate the order to the instrument** -- put the block structure in the task's `configurations`, where trial-level randomization belongs too ([Cognitive tasks](tasks.qmd)).

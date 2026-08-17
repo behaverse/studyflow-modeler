@@ -1,0 +1,136 @@
+---
+title: Get started
+description: "Build, run, and export a small study in about ten minutes. Nothing to install."
+---
+
+Ten minutes, one browser tab, nothing to install: consent, one task, a completion code.
+
+## 1. Open the modeler
+
+[Open the modeler](https://behaverse.org/studyflow-modeler/app.html), press <kbd>⌘K</kbd> (<kbd>Ctrl+K</kbd> on Windows and Linux), and choose **New...**, then **Empty diagram**.
+
+Rename the study **Minimal study** in the toolbar.
+
+::: {.callout-tip}
+Nothing leaves your browser until you export, publish, or switch run recording on.
+:::
+
+## 2. Add the task
+
+From **Activities** in the palette, drag **Cognitive Task** right of the start event; double-click it and name it **Flanker**.
+
+![Dragging an activity from the palette onto the canvas, next to the start event.](../assets/img/screenshots/3-drag.png){#fig-drag fig-alt="A start event on the canvas with a task-shaped outline being dropped to its right, a horizontal blue alignment guide running through both."}
+
+In the inspector, set **Instrument** to `jsPsych` (**General** tab) and **Implementation** (**Execution** tab) to:
+
+```
+https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+```
+
+## 3. Connect the elements
+
+Hover the start event and drag the arrow from its toolbar onto the task.
+
+Then drag **End** out of **Events** and connect the task to it.
+
+## 4. Simulate
+
+Click **Simulate**: a *token* --- one dot per participant --- leaves the start event and follows your arrows.
+
+![A token travelling the flow during a simulation.](../assets/img/screenshots/8-simulate.png){#fig-simulate fig-alt="A start, task, end flow during simulation, with a magenta token filling the start event."}
+
+Simulation checks that your arrows connect.
+
+## 5. Run it
+
+Click **Run**. The browser runner opens in a second tab, checks the study, then walks you through three screens:
+
+![The browser runner asking for informed consent, because the start event carries a consent form address.](../assets/img/runner/consent.png){#fig-consent fig-alt="A participant-facing screen titled Enrollment showing an informed consent form with Decline and I consent buttons."}
+
+| Screen | Comes from | What you do |
+|---|---|---|
+| Informed consent | `consentFormUri` on the start event | read the form, then choose *I consent* |
+| Flanker | the task, with the software it names | press *Continue* |
+| Study complete | `redirectTo` and `completionCodeType` on the end event | copy the code, or let it send you back --- the code is generated for this run and substituted into the redirect, which is how a panel credits the participant |
+
+![The final screen: a completion code, and the address the participant is sent back to.](../assets/img/runner/completion.png){#fig-completion fig-alt="A screen titled Study complete showing a generated completion code and a five-second countdown to a redirect URL."}
+
+The **Logs** panel lists every step it took.
+
+::: {.callout-note}
+The browser runner shows the Flanker step and the software it names. The consent form is fetched from the address on the start event; clear that field to skip the screen.
+:::
+
+## 6. Export the file
+
+Open **Export...**, choose **PNG**, and leave **Studyflow source** on. Then open the downloaded file with **Open File...** — the study comes back, fully editable.
+
+The image is not a screenshot of the study. It *is* the study, with the full source riding inside the file.
+
+| Export as | Use it for |
+|---|---|
+| `.studyflow.png` or `.studyflow.svg` | a figure that opens back up as the editable study |
+| `.studyflow.yaml` | the canonical text form: reading, reviewing, version control |
+
+## The whole study {#the-whole-study}
+
+Exporting as **Studyflow** gives the same study as text ([File format](../reference/file-format.qmd)).
+
+```yaml
+id: minimal_study
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+
+Minimal_Study:
+  type: bpmn:Process
+  name: Minimal study
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+
+    Enrolled:
+      type: bpmn:StartEvent
+      name: Enrolled and consented
+      consentFormUri: https://example.org/protocols/minimal-study/consent.md
+
+    Flanker:
+      type: bpmn:Task
+      name: Flanker
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+
+    Done:
+      type: bpmn:EndEvent
+      name: Done
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+      completionCodeType: dynamic
+
+    Flow_Enrolled_Flanker:
+      type: bpmn:SequenceFlow
+      sourceRef: Enrolled
+      targetRef: Flanker
+    Flow_Flanker_Done:
+      type: bpmn:SequenceFlow
+      sourceRef: Flanker
+      targetRef: Done
+```
+
+Every line is something you set in the editor: [minimal_study.studyflow.yaml](../assets/examples/minimal_study.studyflow.yaml).
+
+## Beyond the minimum
+
+- **Ask a question first.** Put a **Questionnaire** before the task and set its **Instrument** to `PHQ-9`; the runner shows the nine items and records the answers.
+- **Randomize the order of two tasks.** Add a second task, drag **Random** out of **Gateways**, and draw one branch per order. [Randomize and counterbalance](../design/randomization.qmd) covers the balanced variants.
+- **Keep the data.** Recording is off by default: switch on **Record events** in the runner's log panel, or **Record run data** under **Settings → Privacy**. [Data](../reference/data.qmd) says what is stored.
+
+![A standard questionnaire, rendered by the browser runner from the instrument you picked.](../assets/img/runner/questionnaire.png){#fig-questionnaire fig-alt="The PHQ-9 questionnaire rendered as nine prompts, each with four response buttons, and a Submit button."}
+
+|:--|:--|
+| [Modeler app](../design/modeler.qmd) | the rest of the editor: palette, inspector, simulation, export |
+| [Run with participants](../run/participants.qmd) | links, seeds, and parameters for handing a study to participants |
+| [Reading studyflows](reading-studyflows.qmd) | how to read a study somebody else designed |
+| [BPMN mapping](../reference/bpmn.qmd) | events, activities, gateways, and flows, in one page |
+| [Elements](../reference/elements.qmd) | every element type, with its icon and its fields |
+| [Examples](../design/gallery.qmd) | cognitive batteries, clinical trials, analysis pipelines |

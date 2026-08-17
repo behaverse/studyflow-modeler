@@ -180,8 +180,6 @@ export default class StudyflowRenderer extends BaseRenderer {
     super(eventBus as any, HIGH_PRIORITY);
     this.styles = styles;
     this.bpmnRenderer = bpmnRenderer;
-    // This file delegates to bpmn-js's *private* `handlers` map (hence the exact
-    // version pin); if an upgrade moves it, fail at boot — not as blank shapes.
     if (!bpmnRenderer.handlers || typeof bpmnRenderer.handlers !== 'object') {
       throw new Error(
         'bpmn-js internal changed: BpmnRenderer.handlers is gone. '

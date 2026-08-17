@@ -1,0 +1,66 @@
+---
+title: Execution
+description: "What happens when a study runs, and how much of a studyflow each program actually carries out."
+---
+
+![A three-arm training study. The diagram shows every route through it; one participant walks exactly one of them.](../assets/img/studyflow_example_1.svg){#fig-one-path fig-alt="A left-to-right study diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, a 2-Back pre-test, and Useful Field of View. A diamond then splits the path into three training arms, which rejoin at a 2-Back post-test, then Debrief, then a heavy-outlined End circle." .fig-l}
+
+A diagram shows every possible route through a study. A **run** is one participant taking one of them.
+
+The run moves one step at a time, picking a single branch at each diamond, advancing only when the current screen resolves. Steps write values as they go; later steps and branch conditions read them back.
+
+## Four programs, one file
+
+Four programs read the same file, each taking a different part.
+
+| Program | What it does with a studyflow |
+|---|---|
+| the modeler | draws it, checks it while you edit, exports it |
+| the browser runner | administers it to a participant, screen by screen |
+| the Python runner | executes the analysis half — it calls the function each step names |
+| the CLI | converts, inspects, and validates the file, and starts a local run |
+
+The division is by what a step does, not by where it sits in the file. Participant-facing steps run in the browser; data-facing steps run in Python. Each runner passes over the steps belonging to the other half.
+
+The two runners also choose what to do differently. The browser runner picks a screen based on what the step *is* — a questionnaire gets the questionnaire screen. The Python runner ignores the step's type and calls whatever function it names.
+
+## What each program actually runs {#what-each-program-actually-runs}
+
+| Element family | Modeler | Before the run | Browser runner | Python runner |
+|---|---|---|---|---|
+| `bpmn:StartEvent`, `bpmn:EndEvent` (`consentFormUri`, `completionCode`, `redirectTo`) | draws | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
+| `Instruction`, `Questionnaire` | draws | empty `content` / `instrument` blocks the run | renders; writes the answer into state | — |
+| `BehaverseTask` | draws | checked against the Unity build's manifest | runs the Unity scene | as above |
+| `CognitiveTask`, `Rest`, plain `bpmn:Task` | draws | — | generic screen with a Continue button | as above |
+| Any activity carrying `implementation` (`functional:Transform`/`Map`/`Reduce`/`Filter`, `agentic:*`, `bpmn:ServiceTask`) | draws | reference grammar; `additionalArguments` must be a YAML mapping | shows the call it names | imports and calls it, binding the drawn data associations |
+| `bpmn:SubProcess` | draws | — | descends; opens its own scope | walks one level in; no separate scope |
+| `bpmn:ExclusiveGateway`, `EligibilityGateway` | draws | — | first `conditionExpression` that holds, else `default` | same rule, evaluated in Python |
+| `RandomGateway` | draws | warns when allocation attributes will not be applied | seeded uniform draw over the outgoing flows | treated as an exclusive gateway: conditions, then `default` |
+| `Dataset`, `Table`, `Timeseries`, `Schema`, `DataCatalog`, `EventMarker` | draws | — | — | loaded and saved wherever they carry a `uri` |
+| `Parameters` | draws | reports overridden, undeclared, and unbound names | bound from the URL query before the walk | — |
+
+Two different checks are at work here. `studyflow validate` in the CLI asks only whether the file parses against the schemas. The checks in the third column are stricter and run in the browser runner, just before a participant starts.
+
+### How an arm is drawn
+
+A `RandomGateway` draws uniformly over its outgoing arms, seeded by the study's `seed`. To balance allocation across a cohort, allocate outside the study and pass the arm in as a parameter ([Randomize and counterbalance](../design/randomization.qmd)).
+
+## How a branch is chosen
+
+A condition written on an outgoing arrow is evaluated as JavaScript by the browser runner and as Python by the Python runner. A condition declaring the other language is reported as a mismatch and its branch is not taken.
+
+A condition naming a value that was never declared is reported as a defect ([Scope](../design/relations.qmd#scope)).
+
+## Seeds: what replays and what does not {#seeds-what-replays-and-what-does-not}
+
+The study's `seed` pins every random gateway draw in a browser-runner session. Adding `?seed=` to the web address overrides it.
+
+The Python runner draws its own seed when the plan pins none, and records it on the archived copy.
+
+::: {.callout-important}
+A seed reproduces **gateway draws**. Participant responses, timing, and randomness inside a function a step calls are outside its scope.
+:::
+
+## Simulate {#simulating-is-not-running}
+
+The modeler's *Simulate* button sends tokens along your arrows, picking branches at random and splitting at parallel and inclusive gateways. It confirms that your diagram is connected. To see what a participant would see, use *Run*.

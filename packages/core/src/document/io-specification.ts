@@ -34,11 +34,6 @@ function forEachProcess(definitions: any, visit: (process: any) => void): void {
   }
 }
 
-/**
- * Slot name an input association means when its binding spells none: source name (or id), else
- * `input`. Both directions must call this one function — computed separately, a sourceRef-less
- * association grows a phantom `transformation` binding on the first import-and-save round trip.
- */
 function defaultSlotFor(assoc: any): string {
   const source = assoc.sourceRef?.[0];
   return source?.name || source?.id || 'input';

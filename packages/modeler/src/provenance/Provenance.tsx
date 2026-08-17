@@ -25,8 +25,7 @@ const DETAIL_ICONS: Record<string, string> = {
   what: ICONS.script,
 };
 
-// One hue per graph lane, `git log --graph` style — color separates branches, nothing else;
-// main is the quiet one and red is invalidation's alone. Literal class strings, for Tailwind.
+// One color per branch
 const LANES = [
   { dot: 'bg-stone-400', stroke: 'stroke-stone-300/70' },
   { dot: 'bg-violet-500', stroke: 'stroke-violet-400/70' },
@@ -66,8 +65,6 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
     [modeler, revision],
   );
   const hasReused = allRecords.some((r) => r.action === 'reused');
-  // The lane model is index-based, so the graph is computed on exactly the rows shown; the
-  // filter always copies, keeping the memoized array safe from `displayOrder`'s splices.
   const visible = displayOrder(allRecords.filter((r) =>
     (!scope || r.scopeId === scope) && (showReused || r.action !== 'reused')));
   const graph = assignLanes(visible);
@@ -247,8 +244,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                           />
                         ))}
                         {g.opens != null && (
-                          // A wide S-curve with vertical tangents, sweeping into the next row where
-                          // the opened lane's own line takes over seamlessly.
+                          // Vertical curve at ends
                           <path
                             d={`M ${laneX(g.lane)} 21 C ${laneX(g.lane)} 34, ${laneX(g.opens)} 30, ${laneX(g.opens)} 46`}
                             className={`fill-none ${laneOf(g.opens).stroke}`}

@@ -1,0 +1,54 @@
+%% Regenerate: npx -y @mermaid-js/mermaid-cli -i schema-map.mmd -o schema-map.svg -c mermaid.config.json -b transparent
+%% The config keeps labels as plain SVG text (no foreignObject), so the .svg survives being embedded as an image.
+flowchart LR
+
+  SF[/"`**studyflow** · order 10 · core
+  27 types, no templates
+  Study · Dataset · Table · Timer · Artifact`"/]
+  PROV[/"`**prov** · order 15 · core
+  1 type, no templates
+  Activity — one entry of the trail`"/]
+  FUNC[/"`**functional** · order 30 · core
+  4 types · 5 templates
+  Transform · Map · Reduce · Filter`"/]
+  COG[/"`**cognitive** · order 40 · core
+  10 types · 4 templates
+  CognitiveTask · Questionnaire · RandomGateway`"/]
+
+  ML[/"`**ml** · order 50 · optional
+  **no types** · 12 templates
+  Train/test split · Cross-validate · Model`"/]
+  AGENTIC[/"`**agentic** · order 60 · optional
+  7 types · 5 templates
+  Agent · LLMCall · Tool · HumanApproval`"/]
+  EEG[/"`**eeg** · order 70 · optional
+  2 types · 3 templates
+  Session · Recording`"/]
+
+  SETTINGS["`**Settings › Extensions**
+  the optional sets switch on and off here;
+  a core one cannot be switched off`"]
+
+  CATALOG["`**the loaded catalog**
+  every enabled set compiled into one:
+  the palette, the inspector tabs,
+  and the namespaces the XML may use`"]
+
+  SF ==>|"always loads into"| CATALOG
+  PROV ==>|"always loads into"| CATALOG
+  FUNC ==>|"always loads into"| CATALOG
+  COG ==>|"always loads into"| CATALOG
+
+  ML -->|"loads only when enabled in"| SETTINGS
+  AGENTIC -->|"loads only when enabled in"| SETTINGS
+  EEG -->|"loads only when enabled in"| SETTINGS
+  SETTINGS -->|"adds whatever is enabled to"| CATALOG
+
+  ML -.->|"roots all 12 presets at, adding<br/>no type of its own"| FUNC
+
+  classDef core fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
+  classDef opt fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
+  classDef app fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
+  class SF,PROV,FUNC,COG core
+  class ML,AGENTIC,EEG opt
+  class SETTINGS,CATALOG app

@@ -1,0 +1,45 @@
+%% Regenerate: npx -y @mermaid-js/mermaid-cli -i file-format.mmd -o file-format.svg -c mermaid.config.json -b transparent
+%% The config keeps labels as plain SVG text (no foreignObject), so the .svg survives being embedded as an image.
+%% Thick arrows are the lossless hops; dotted arrows leave the round trip.
+flowchart TB
+
+  MODELER["`**modeler**
+  the BPMN object tree on the canvas`"]
+
+  YAML["`**.studyflow.yaml**
+  the same tree projected into YAML,
+  six cosmetic shorthands on top`"]
+  BPMN["`**.bpmn — BPMN 2.0 XML**
+  standard form: data associations
+  lowered to an ioSpecification`"]
+
+  IMG["`**.studyflow.png · .studyflow.svg**
+  the rendered picture, carrying
+  two payloads beside the pixels`"]
+  SOURCE[/"embedded source — that same BPMN XML<br/>PNG: an iTXt chunk keyed studyflow<br/>SVG: metadata &gt; studyflow"/]
+  PAYLOAD[/"draw.io payload — an mxfile document<br/>PNG: a tEXt chunk keyed mxfile<br/>SVG: the root element's content attribute"/]
+
+  DRAWIO[".drawio<br/>the same mxfile, downloaded on its own"]
+  DERIVED["LinkML · NIDM-Results · ARTEM-IS<br/>derived views of the model"]
+
+  MODELER ==>|"saves as"| YAML
+  MODELER ==>|"lowers to"| BPMN
+  YAML ==>|"expands to, losslessly"| BPMN
+  BPMN ==>|"projects back to, losslessly"| YAML
+
+  MODELER -->|"renders to"| IMG
+  BPMN -->|"is embedded in"| SOURCE
+  MODELER -->|"is also converted to"| PAYLOAD
+  SOURCE -->|"travels inside"| IMG
+  PAYLOAD -->|"travels inside"| IMG
+  IMG ==>|"reopens from its source,<br/>never from its pixels"| MODELER
+
+  PAYLOAD -.->|"downloads on its own as"| DRAWIO
+  MODELER -.->|"exports one way to"| DERIVED
+
+  classDef app fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
+  classDef file fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
+  classDef oneway fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
+  class MODELER app
+  class YAML,BPMN,IMG,SOURCE,PAYLOAD file
+  class DRAWIO,DERIVED oneway

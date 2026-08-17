@@ -19,8 +19,7 @@ export async function runDownloadSchemas(_modeler: Modeler | null, _command: Dow
   return loadSchemas(getSettings().enabledSchemas);
 }
 
-/** Bus commands rather than keybindings, so views off the canvas (the Provenance dialog)
- *  can step history without keyboard focus reaching bpmn-js. */
+/** Bus commands rather than keybindings */
 export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
@@ -51,12 +50,7 @@ function fail(message: string): never {
 
 const POPUP_BLOCKED = 'Could not open the runner. Allow pop-ups for this site and try again.';
 
-/**
- * Claim the runner's tab. Call this *synchronously* from the click — a browser only honours
- * `window.open` while the gesture that triggered it is still live, and serializing the diagram
- * for the hand-off is async, so opening afterwards reads as an unprompted pop-up and is blocked.
- * The tab starts blank and `runOpenRunner` points it at the runner once the hand-off is written.
- */
+/** Must be called *synchronously* from the click: `window.open` is only honoured while the gesture is live, and the async hand-off would land after it expires. */
 export function openRunnerTab(): Window | null {
   return window.open('', '_blank');
 }

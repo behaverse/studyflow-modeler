@@ -34,8 +34,7 @@ export type ProvenanceRecord = {
   standing?: boolean;
 };
 
-/** A marker with `what` voids exactly the record whose `when` it names; without one it voids
- *  by run (or any run, when it names none) — a standing re-run pin. */
+/** A marker without `what` voids by run, or by a none run. */
 export function voids(
   marker: { what?: string; run?: string },
   record: { when?: string; run?: string },
@@ -135,8 +134,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
     marker.consumed = !named || !!named.superseded;
   }
 
-  // Stamps carry second precision, so ties are real: the invalidation precedes the run it
-  // triggered, and a run's document stamp precedes the records that run wrote.
+  // Stamps carry second metadata
   const tieRank = (record: ProvenanceRecord): number =>
     record.action === 'invalidated' ? 0 : record.isDocument ? 1 : 2;
   return records.sort((a, b) => {
@@ -147,11 +145,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
   });
 }
 
-/**
- * For display only: each precise marker moves to sit right below the record it voids, so a
- * branch visibly starts at the invalidation instead of at the end of the first branch.
- * `collectProvenance` itself stays strictly oldest-first for every other consumer.
- */
+/** Display only — `collectProvenance` stays strictly oldest-first . */
 export function displayOrder(records: ProvenanceRecord[]): ProvenanceRecord[] {
   for (const marker of [...records]) {
     if (marker.isDocument || marker.action !== 'invalidated' || !marker.what) continue;
@@ -176,16 +170,9 @@ export type GraphInfo = {
   pendingBranch?: boolean;
 };
 
-/**
- * The trail knows where history branched: a consumed marker names the record a later run
- * superseded, so that run's rows move one lane right — and the new lane's line starts at
- * the marker row, right below the invalidated entry, running beside the first branch's
- * remaining rows until its own rows begin. `git log --graph`, from the document alone.
- */
+/** `git log --graph` derived from the document: no repository here. */
 export function assignLanes(records: ProvenanceRecord[]): Map<ProvenanceRecord, GraphInfo> {
   const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
-  // Branch evidence: the run stamp holding the record that *first* superseded a consumed marker's
-  // named one — not the latest, or two branches re-running the same step would collapse into one lane.
   const branchMarker = new Map<ProvenanceRecord, ProvenanceRecord>();
   for (const marker of records) {
     if (marker.isDocument || marker.action !== 'invalidated' || !marker.consumed) continue;

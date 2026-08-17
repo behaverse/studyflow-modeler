@@ -5,7 +5,9 @@ import { buildCatalog, setCatalog } from '@core/notation';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
-import { assignLanes, collectProvenance, recordDetails, shapeIconOf } from '@modeler/provenance/records';
+import {
+  assignLanes, collectProvenance, displayOrder, recordDetails, shapeIconOf,
+} from '@modeler/provenance/records';
 import { appendTrailEntry, primaryRoot } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
@@ -310,5 +312,44 @@ test.describe('provenance view model', () => {
     expect(records[0].run).toBe('run-002');
     // A number, not '7': `prov:Activity#seed` is declared `Integer`, matching `studyflow:Seed#seed`.
     expect(records[0].seed).toBe(7);
+  });
+});
+
+test.describe('display order', () => {
+  const record = (fields: Partial<any>): any => ({
+    action: 'executed', scopeId: 'Activity_1', scopeLabel: 'A step', isDocument: false, entry: {}, ...fields,
+  });
+
+  test('a precise marker is shown below the record it voids', () => {
+    const first = record({ when: '2026-07-31T10:00:00Z' });
+    const second = record({ when: '2026-07-31T11:00:00Z' });
+    // ✕ on the first run: `what` names the record it voids, not the moment it was voided.
+    const marker = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z', what: '2026-07-31T10:00:00Z' });
+
+    const shown = displayOrder([first, second, marker]);
+
+    expect(shown).toEqual([first, marker, second]);
+  });
+
+  test('a marker naming nothing keeps its place in time', () => {
+    // A `what`-less marker is a standing re-run pin, not a verdict on one record — it must not move.
+    const first = record({ when: '2026-07-31T10:00:00Z' });
+    const pin = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z' });
+
+    expect(displayOrder([first, pin])).toEqual([first, pin]);
+  });
+
+  test('reordering is display only, which is why the view hands over a copy', () => {
+    const first = record({ when: '2026-07-31T10:00:00Z' });
+    const second = record({ when: '2026-07-31T11:00:00Z' });
+    const marker = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z', what: '2026-07-31T10:00:00Z' });
+    const collected = [first, second, marker];
+
+    const shown = displayOrder([...collected]);
+
+    // The array handed in is the array handed back: `Provenance.tsx` passes a copy for exactly this reason.
+    expect(shown).not.toBe(collected);
+    expect(collected, 'oldest-first order survives for every other consumer')
+      .toEqual([first, second, marker]);
   });
 });

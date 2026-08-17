@@ -11,11 +11,7 @@ import {
   toBusinessObject,
 } from '@core/element/attributes';
 
-/**
- * Applies attribute updates to `target`, a moddle object owned by `element`
- * (the bpmn-js canvas element when the handle wraps one, else the business
- * object itself). The modeler's adapter records them as one undo step.
- */
+/** Applies attribute updates to `target` */
 export interface AttributeUpdater {
   update(element: any, target: ModdleElement, props: Record<string, any>): void;
 }
@@ -45,13 +41,7 @@ function resolveName(name: string | undefined, attrDef: AttributeSpec | undefine
   return attrDef?.name ?? attrDef?.ns?.localName ?? toLocalName(name);
 }
 
-/**
- * Which target (BO vs extension wrapper) and property name a read/write of `attributeName`
- * addresses. Precedence, first match wins: wrapper redefine → BO; BO-declared → BO;
- * wrapper-declared → wrapper; undeclared → wrapper if one exists sans traits, else BO.
- * Reads may still prefer an *explicitly stored* wrapper value over a BO default —
- * `extensionValueWins` has that rule, and `tests/element.unit.spec.ts` pins it.
- */
+/** Reads layer one more rule on top of this: an explicitly stored wrapper value beats a BO default, in `extensionValueWins` and pinned by `tests/element.unit.spec.ts`. */
 function resolveAttribute(
   bo: ModdleElement,
   ext: ModdleElement | null,

@@ -1,42 +1,63 @@
 # Python runner
 
-A small Python program that executes a studyflow, here to keep one claim
-honest: **a studyflow is executable as it stands.** No companion script tells
-the engine what the boxes mean — the picture is the program, and this reads it.
+A small Python program that executes a studyflow, here to keep one claim honest: **a studyflow is executable as it stands.** No companion script tells the engine what the boxes mean; the picture is the program, and this reads it.
 
-It sits beside the browser runner in `packages/runner/`, which drives the
-participant-facing half of the notation (cognitive tasks, questionnaires, human
-suspension). This one runs the analysis half: steps bound to software. They read
-the same files.
-
-It runs the shipped `sklearn_pipeline` example straight out of its
-`.studyflow.png`, because that file *is* the studyflow (the modeler embeds the
-source in the image on export; the double extension marks the image as a
-source file, the `.drawio.png` convention):
 
 ```bash
-uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.studyflow.png
+uv run studyflow_run.py sklearn_pipeline.studyflow.png
 ```
 
-One command, no setup. Dependencies are declared in the script header (PEP 723)
-and `uv` resolves them per run; the example's input table is materialized on
-first read (see [Boundary inputs](#boundary-inputs)). The script is executable
-too — `./studyflow_run.py <studyflow>` works, through a
-`#!/usr/bin/env -S uv run --script` shebang.
-
-The runner's own dependency is `pyyaml`. The others — pandas, scikit-learn,
-joblib, matplotlib — are what *this example's steps* import when the runner
-calls them, declared in the header so the command above needs no arguments. A
-studyflow naming other software brings its own:
+One command, no setup. Dependencies are declared in the script header (PEP 723) and `uv` resolves them per run; the example's input table is materialized on first read. The script is executable too — `./studyflow_run.py <studyflow>` works, through a `#!/usr/bin/env -S uv run --script` shebang. A studyflow naming other software brings its own:
 
 ```bash
 uv run --with torch --with transformers studyflow_run.py my_pipeline.studyflow.png
 ```
 
-Every run gets its own directory, named for when it started, and everything it
-writes lands in there — the directory is itself a git repository, and a later
-run of the same study doesn't get a second directory: it commits onto
-the first one's history instead.
+The runner's own dependency is `pyyaml`. The others in the header — pandas, scikit-learn, joblib, matplotlib — are what *the shipped example's steps* import when the runner calls them.
+
+The run prints the walk as it goes, each binding saying what it carried, by type and shape, so the data narrows in front of you:
+
+```
+sklearn_pipeline
+  ⊞ prepare_data
+    □ split_train_test
+        * ← features  pandas.DataFrame 1797×64
+        stratify ← target  pandas.Series 1797
+        implementation python://sklearn.model_selection.train_test_split
+        x_train ← result[0]  pandas.DataFrame 1347×64
+        x_test ← result[1]  pandas.DataFrame 450×64
+        ▤ save x_test.joblib  joblib, 235.2 KB
+  ◇ is_good_enough
+      mean_cv_accuracy >= 0.90 → report
+  ● done
+  → runs/readme-demo/ (ok) in 3599.4ms
+```
+
+The order is the point: the split runs before anything looks at the data, cross-validation sees the training half only, and every number in `holdout_metrics.csv` comes from predicting the held-out quarter once. (That the cross-validated mean and the held-out score agree — both about 0.989 — is itself a result of the split shuffling: an earlier version of the example cross-validated the whole dataset, whose rows `load_digits` returns in a near-sorted order that `StratifiedKFold` does not shuffle, and scored 0.963 on unrepresentative folds.)
+
+## Contract
+
+- It owns **executing the contract below** and recording what it did. It decides nothing the notation leaves unstated: no default for a branch that has none, no invented input data.
+- It reads BPMN XML itself — bare, or embedded in a `.studyflow.png` — and shares no code with the TypeScript packages. It never reads applied types: it dispatches on the BPMN tag and calls whatever `implementation` the element names.
+- **The input file is never modified.** The `executed` stamp lands on the in-memory plan, and therefore on the copy archived in the run repository.
+- **Every run writes into a run repository** — a directory that is itself a git repository. Everything the run touched is in there, the plan and the inputs included, so it answers for itself.
+- **Replicating provenance must never fail a run.** Every git degradation is one warning and a no-op fallback for the rest of the run.
+- **One token, one process.** No parallel gateways, no multi-instance fan-out, no retries, no persistence of run state. Those are this runner's limits, not the notation's — the notation already says what they mean.
+- **Not sandboxed.** It imports and calls what the studyflow names. Run studyflows you trust.
+
+## Flags
+
+| Flag | Effect |
+| --- | --- |
+| `--repo <DIR>` | the run repository to write into, its name being the run id. Default: the plan's own directory when the plan already lives in one, else a fresh `runs/<UTC start stamp>` |
+| `--from <REF>` | re-run from this point in the repository's history (a commit-ish), branching there |
+| `--fresh` | ignore every per-element record and re-run the whole flow, in the same repository |
+| `--no-prepare-inputs` | fail on a missing boundary input rather than materialize a shipped example's own |
+| `--quiet` | no console output; the log file is written either way — a log you have to remember to ask for is not a log |
+
+Migrating an old command line: `--workdir X` → run the command from `X`, or put the input beside the plan (both are in the lookup order below). `--runs-dir Y --run-id N` → `--repo Y/N`.
+
+## The run repository
 
 ```
 runs/20260801T093253Z/
@@ -44,536 +65,82 @@ runs/20260801T093253Z/
   .gitattributes                     git-lfs patterns for the binary artifacts, written on first init
   sklearn_pipeline.studyflow.png     the studyflow that ran, copied in, its trail stamped `executed`
   digits.csv                         the boundary input it read, copied in
-  cv_fold_metrics.csv                ┐
-  cv_metric_summary.csv              │
-  digits_pca_svc.joblib              │
-  holdout_metrics.csv                ├ the artifacts its `uri`s name
-  confusion_matrix.png               │
-  predictions.joblib                 │
-  x_test.joblib, y_test.joblib       ┘
+  cv_fold_metrics.csv  …  confusion_matrix.png     the artifacts its `uri`s name
   studyflow.log                      what this run did, in order
 ```
 
-The directory is named for the run, so the files in it are not — `studyflow.log`
-is a name you can hardcode in a pipeline. It is truncated fresh each
-run; what a prior run logged is still recovered from its
-commits, between its `started`/`finished` pair. A second run is a
-second commit in the same repo, not five overwritten files. `--repo` names
-the directory explicitly — an existing one to resume, or a new one to start
-elsewhere; left off, the runner resumes the repo the plan file already lives
-in, or else creates one named for the start time under `runs/`. See
-[The run repository](#the-run-repository) for what the git history holds.
+The directory is named for the run, so the files in it are not: `studyflow.log` is a name you can hardcode in a pipeline. It is truncated fresh each run, because what a prior run logged is recovered from its commits, between its `started`/`finished` pair.
 
-Everything the run touched is in there, the plan and the inputs included, so the
-directory answers for itself: it is a complete, self-contained record — each
-run between its boundary commits, the whole lineage in its history —
-that you can archive, deposit, or hand to a reviewer.
+**Commits.** Every checkpoint — a step finishing, a gateway deciding, the run opening or closing — is one `git add -A` and one commit, so a step's artifacts, staged inputs, and log lines land together. The rule: *a commit's trailers are exactly the attributes of the corresponding `prov:activity` entry*, plus `Prov-Node` on every element commit (the commit ↔ element mapping the branch-point search depends on). A commit that stamps no trail entry — the `changed outside a run` cleanup of a dirty tree — carries only `Prov-Run` and `Prov-When`. Pure pass-through events commit nothing and ride along in the next checkpoint. The subjects are the grep handles: `started <pid> (<stamp>)`, `executed <name>` (a gateway's adds `: <flow id>`), `skipped <name> (run <prior-run>)`, `failed <name>`, `changed outside a run`, `finished <pid> (ok|error)`.
 
-The run prints the walk as it goes:
+**Step records** — durations, typed inputs and outputs, tracebacks — live in the commit bodies and nowhere else: a JSON array of the entries since the previous checkpoint (`[{node, name, type, startedAt, durationMs, implementation, inputs, outputs, used, generated, additionalArguments, error?}]`), with the run header in the `started` commit's body and the closing summary in the `finished` one. There is no separate record file.
 
-```
-sklearn_pipeline
-  ○ start_analysis
-  ⊞ prepare_data
-    ○ prepare_start
-    □ select_features
-        ▤ prepare digits.csv  483.8 KB, a boundary input this studyflow ships
-        ▤ load digits.csv  csv, 483.8 KB → pandas.DataFrame 1797×65
-        self ← input_dataset  pandas.DataFrame 1797×65
-        implementation python://pandas.DataFrame.drop
-        features ← result  pandas.DataFrame 1797×64
-    □ select_target
-        self ← input_dataset  pandas.DataFrame 1797×65
-        implementation python://pandas.DataFrame.get
-        target ← result  pandas.Series 1797
-    □ split_train_test
-        * ← features  pandas.DataFrame 1797×64
-        * ← target  pandas.Series 1797
-        stratify ← target  pandas.Series 1797
-        implementation python://sklearn.model_selection.train_test_split
-        x_train ← result[0]  pandas.DataFrame 1347×64
-        x_test ← result[1]  pandas.DataFrame 450×64
-        ▤ save x_test.joblib  joblib, 235.2 KB
-        y_train ← result[2]  pandas.Series 1347
-        y_test ← result[3]  pandas.Series 450
-        ▤ save y_test.joblib  joblib, 14.8 KB
-    ● prepare_end
-  ⊞ select_model
-    ○ select_start
-    □ build_pipeline
-        implementation python://sklearn.pipeline.make_pipeline
-        estimator ← result  sklearn.pipeline.Pipeline[2]
-    □ cross_validate
-        estimator ← estimator  sklearn.pipeline.Pipeline[2]
-        X ← x_train  pandas.DataFrame 1347×64
-        y ← y_train  pandas.Series 1347
-        implementation python://sklearn.model_selection.cross_validate
-        cv_scores ← result  dict[6]
-    □ build_fold_report
-        data ← cv_scores  dict[6]
-        implementation python://pandas.DataFrame
-        cv_fold_report ← result  pandas.DataFrame 5×6
-        ▤ save cv_fold_metrics.csv  csv, 671 B
-    □ summarize_cv
-        run sklearn-demo's record superseded — an input was re-made this run
-        self ← cv_fold_report  pandas.DataFrame 5×6
-        implementation python://pandas.DataFrame.describe
-        cv_summary ← result  pandas.DataFrame 8×6
-        ▤ save cv_metric_summary.csv  csv, 977 B
-        mean_cv_accuracy ← result.test_accuracy['mean']  float 0.9888668594244804
-    ● select_end
-  ◇ is_good_enough
-      mean_cv_accuracy >= 0.90 → report
-  ⊞ evaluate_and_report
-    ○ report_start
-    □ fit_model
-        self ← estimator  sklearn.pipeline.Pipeline[2]
-        X ← x_train  pandas.DataFrame 1347×64
-        y ← y_train  pandas.Series 1347
-        implementation python://sklearn.pipeline.Pipeline.fit
-        fitted_model ← result  sklearn.pipeline.Pipeline[2]
-        ▤ save digits_pca_svc.joblib  joblib, 161.4 KB
-    □ predict_test
-        run sklearn-demo's record superseded — an input was re-made this run
-        self ← fitted_model  sklearn.pipeline.Pipeline[2]
-        X ← x_test  pandas.DataFrame 450×64
-        implementation python://sklearn.pipeline.Pipeline.predict
-        predictions ← result  numpy.ndarray 450
-        ▤ save predictions.joblib  joblib, 3.7 KB
-    □ score_test
-        run sklearn-demo's record superseded — an input was re-made this run
-        y_true ← y_test  pandas.Series 450
-        y_pred ← predictions  numpy.ndarray 450
-        implementation python://sklearn.metrics.classification_report
-        test_metrics ← result  dict[13]
-    □ write_test_report
-        run sklearn-demo's record superseded — an input was re-made this run
-        data ← test_metrics  dict[13]
-        implementation python://pandas.DataFrame
-        test_report ← result  pandas.DataFrame 4×13
-        ▤ save holdout_metrics.csv  csv, 680 B
-    □ plot_confusion
-        run sklearn-demo's record superseded — an input was re-made this run
-        y_true ← y_test  pandas.Series 450
-        y_pred ← predictions  numpy.ndarray 450
-        implementation python://sklearn.metrics.ConfusionMatrixDisplay.from_predictions
-        confusion_matrix ← result.figure_  matplotlib.figure.Figure
-        ▤ save confusion_matrix.png  png, 51.0 KB
-    ● report_end
-  ● done
-  → runs/readme-demo/ (ok) in 3599.4ms
+```bash
+git -C runs/<id> log --graph --oneline --all       # the provenance DAG, branches and all
+git -C runs/<id> diff <finished-a> <finished-b>    # what changed between two runs
+git show -s --format='%b' <commit> | head -1 | jq  # one commit's step records
 ```
 
-Each binding says what it carried, by type and shape, so the data narrows in
-front of you: 1797×65 in, 64 feature columns after the drop, 1347 rows to train
-on and 450 held back.
+**Branching.** An ordinary resume commits onto whatever branch HEAD points at. A plan carrying `invalidated` entries (the modeler's ✕) or an explicit `--from` instead branches `run/<UTC start stamp>` **at the parent of the commit that executed the affected activity** — the checkout alone reverts the worktree to that point, so upstream artifacts survive and skip while the invalidated step and everything downstream re-run. A detached HEAD branches rather than commits detached. Marker precision decides whether a branch happens at all: the ✕ writes the `when` of the exact record it voids, and only such a precise marker branches, and only while that record stands; a hand-written marker without a `what` is a standing re-run pin that re-executes the step in place every run.
 
-The order is the point. `train_test_split` runs before anything looks at the
-data, cross-validation sees the training half only, and every number in
-`holdout_metrics.csv` and `confusion_matrix.png` comes from predicting the test
-quarter once — nothing is scored on data it was fitted on.
+**Degrading.** No `git` on `PATH`: one `git.unavailable` warning, then the artifacts, log, and stamped plan are still written — but no step records, since those live only in commits. A git call that fails or times out: one `git.failed` warning and the same fallback. `git` present but `git-lfs` missing: one `git.lfs.unavailable` warning and `.gitattributes` is never written, since a `filter=lfs` pattern declared without the filter installed fails every later `git add`. First init with git-lfs present writes LFS patterns for `*.joblib`, `*.parquet`, `*.png`, `*.svg`, `*.pdf`; plain-text formats stay ordinary blobs. A repo that started git-less and is resumed once git is back is adopted in place.
 
-The run directory's `digits_pca_svc.joblib` is a real fitted
-`Pipeline(PCA(n_components=16), SVC(C=1))` — load it with joblib and it
-predicts. On the digits data the five training folds mean about 0.989 accuracy,
-so the gate promotes, and the held-out quarter comes out at 0.989 too (445 of
-450 correct, which is what the confusion matrix shows). Raise the threshold
-above the CV mean and the run ends at "CV reports stored; test set untouched"
-instead — with the held-out data unread, which is the state you want to be able
-to go back from.
+One run at a time per repository — a second contends on git's own `index.lock`, which degrades replication but never corrupts an artifact already written. `runs/` is git-ignored in the outer checkout; un-ignore it and each run repository shows up as a gitlink, not as tracked files.
 
-That the two numbers agree is worth a note, because an earlier version of this
-example scored 0.963 in cross-validation. It cross-validated the *whole*
-dataset, and `load_digits` returns its rows in a near-sorted order that
-`StratifiedKFold` does not shuffle, so the folds were unrepresentative. The
-split now shuffles before anything is fitted, which is both the correct
-methodology and why the training-fold estimate finally agrees with the held-out
-result.
+**Partial re-runs** need no flag: pointing the runner at an archived plan resumes the repository it already lives in. A step is skipped when its record stands, nothing it reads was re-made this run, and its `uri` artifacts are still on disk; a clean gateway replays its recorded decision instead of evaluating. Taint spreads forward from whatever is gone or invalidated, and memory-only bindings pull their producers in backward, so invalidating one activity re-executes its own chain rather than the diagram. Staleness tracks data, not text: after hand-editing a condition expression, ✕ the gateway or pass `--fresh`. See [Provenance](../../docs/run/provenance.qmd) for the two invalidation gestures and what each does to the history.
 
-## The words
+## Boundary inputs
 
-Everything the runner writes is named the way the modeler names it. A field is
-the BPMN or studyflow attribute the runner actually read, never a word invented
-here for the same thing — so a record or a log line is checkable against the
-inspector panel that authored it:
+A *boundary input* is an artifact a run reads and no step of it produces — by definition, something outside the studyflow put it there. The notation does not say how, and should not: an engine that could invent a study's input data would be guessing at the science.
 
-| The runner writes | Because the studyflow says |
-|---|---|
-| `implementation python://…` | `implementation` is BPMN's own attribute, redefined by the studyflow schema with the `scheme://ref[@version]` grammar |
-| `transformation`, its body `slot = selection` | the association's one expression (BPMN's own element), verbatim — the slot names where the value goes, the selection what value arrives |
-| `additionalArguments` | that attribute verbatim, whose reserved `args` key holds the positional ones |
-| `conditionExpression`, `sequenceFlow.taken` | the `conditionExpression`s on a gateway's outgoing `bpmn:sequenceFlow`s, and the one it took |
-| `uri`, and the format beside it | the `Artifact` trait's one field; `format` is the element's own (or the uri's extension), resolved at run time |
-| `state.trace` | the engine's own run state — the ordered walk, the thing a condition reads (`state.trace.count('Gate') < 8`) |
-| `action` / `when` / `who` / `with` / `run` / `seed` on a `prov:activity` | the provenance trail's own attributes (the modeler's `prov` schema), stamped as read |
+A missing one is looked up in order — **the plan file's own directory, then the current directory, then the shipped `BOUNDARY_INPUTS` maker** — and the first place it turns up wins. There is no `--workdir`: the run repository is itself in the search, so a resume finds its own artifacts first. Inputs are **staged into the repository before they are read** (`artifact.staged`, or `artifact.prepared` when a maker made one), so the repository is the single root every `uri` resolves against and the recorded paths are valid there by construction. Any other missing boundary input is a plain error naming the file and the element that wanted it.
+
+`sklearn_pipeline` has one, `digits.csv`, taken as an external table rather than a call to a bundled sample-data loader on purpose: the same studyflow runs on a real study dataset by changing one `uri`. The shipped maker for it — scikit-learn's copy of the UCI hand-written digits set — is what makes the one-command claim above hold.
+
+## The contract it implements
+
+`studyflow_run.py` is one file and its docstring states the contract before implementing it. In short:
+
+| In the studyflow | At run time |
+| --- | --- |
+| `implementation="python://pkg.mod.fn"` | the callable to import; the path may reach into a class, which is how an unbound method becomes a step |
+| a data input association | one argument, its slot named by the association's `transformation` body (defaulting to the element's own name) — or, in the standard form the modeler saves, by the `ioSpecification` DataInput it targets |
+| the transformation's *selection* | narrows the value: `"X = folds['train']"` on an input, `"result[0]"` on an output |
+| slot `self` | the receiver of an unbound method — bound first and positionally |
+| slot `*` | appended to the positional arguments in declaration order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
+| `additionalArguments` | the literal arguments the associations did not supply: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both is refused rather than silently resolved |
+| a data output association | where the return value lands, narrowed by the transformation's selection over `result` |
+| `uri` on a data element | an artifact: loaded before its first consumer, written after its producer, in the element's declared `format` or the one its extension implies. A `.png` is written with `savefig`, a `.csv` through pandas — nothing about plotting or CSV is a notation concept |
+| no `uri` | a value that only passes between steps in memory |
+| `uri` on a `bpmn:Property` | the property persists like any artifact — later runs load it instead of re-running its producer |
+| `conditionExpression` on a flow out of a gateway | the branch rule; the gateway's `default` when none holds. Expressions are Python here and JavaScript in the browser runner, named per expression by BPMN's own `language` field; this runner refuses a `javascript` expression rather than guess |
+| `state.trace` | the ordered walk so far, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8` |
+| `studyflow:seed` on the study | the run's root seed — pinned here, or drawn once when it is not, and injected into `random` (and numpy) either way. Recording it on the `executed` stamp is what makes an unpinned run replayable |
+
+Everything the runner writes is named the way the modeler names it: a field is the BPMN or studyflow attribute the runner actually read, never a word invented here for the same thing — so a record or a log line is checkable against the inspector panel that authored it.
 
 ## The log
 
-`studyflow.log` is plain text through Python's own `logging`: one line per
-event, `time level event message` — the layout `logging`'s own defaults produce
-and that log4j, logback, and Nextflow's `.nextflow.log` all settled on. The date
-is in the directory name rather than on every line, so the columns stay narrow
-enough for the message to carry the walk's indentation and still fit:
+`studyflow.log` is plain text through Python's own `logging`: one line per event, `time level event message`. The date is in the directory name rather than on every line, so the columns stay narrow enough for the message to carry the walk's indentation.
 
 ```
-23:02:24.574 INFO  dataInputAssociation.bound            stratify ← target  pandas.Series 1797
-23:02:24.610 INFO  implementation.resolved               implementation python://sklearn.model_selection.train_test_split
 23:02:24.616 INFO  dataOutputAssociation.bound           x_train ← result[0]  pandas.DataFrame 1347×64
-23:02:24.616 DEBUG activity.finished                     split_train_test done in 41.7ms
-23:02:24.986 INFO  gateway.reached                 ◇ is_good_enough
-23:02:24.986 DEBUG conditionExpression.evaluated       mean_cv_accuracy >= 0.90 → True  [report]
 23:02:24.986 INFO  sequenceFlow.taken                  mean_cv_accuracy >= 0.90 → report
 ```
 
-It is one log, meant for eyes and `grep`: what each step bound, by type and
-shape, is in the message because a person reading the file wants it — and so
-is whatever the step printed: a called function's own stdout/stderr passes
-through to the terminal live and lands in the file as `stdout`/`stderr`
-events, so a run in a terminal and the log afterwards tell the same story. The
-*whole* record of a run is the directory itself — the log for what happened in
-order, the artifacts for what came out, and the stamped studyflow copy for who
-ran what, when.
-
-The `event` column is the grep handle, and its names are the notation's nouns:
-
-| Event | Emitted when |
-|---|---|
-| `run.started`, `run.finished`, `run.failed` | the walk begins, the run directory is complete, the run dies |
-| `activity.started`, `activity.finished`, `activity.failed` | a task or sub-process is entered, leaves, or raises |
-| `implementation.resolved`, `implementation.missing` | the step's software is imported, or the step names none |
-| `dataInputAssociation.bound`, `dataOutputAssociation.bound` | one argument is filled, one return value lands |
-| `activity.skipped` | a recorded step's artifacts were reused instead of re-computed (see partial re-runs) |
-| `activity.invalidated` | a recorded step re-ran because an input was re-made this run (the cascade in partial re-runs) |
-| `artifact.prepared`, `artifact.staged`, `artifact.loaded`, `artifact.saved` | a boundary input is materialized by the shipped maker, copied in from outside, read, or a result written |
-| `plan.archived` | the stamped copy of the studyflow is (re)written into the repo |
-| `gateway.reached`, `conditionExpression.evaluated`, `sequenceFlow.taken`, `gateway.stuck` | the branch, and what decided it |
-| `gateway.replayed` | a clean gateway followed its recorded decision without re-evaluating — ✕ the gateway (or `--fresh`) after editing a condition |
-| `event.reached` | a start, intermediate, or end event |
-| `stdout`, `stderr` | what the step itself printed, captured line by line (file only; the terminal already showed it live) |
-| `git.init`, `git.branched` | the directory became a git repository, and this run started a branch of its own — see [Branching](#branching) |
-| `git.unavailable`, `git.failed`, `git.lfs.unavailable`, `git.branchpoint.missing`, `git.branch.failed` | the repo's git replication degraded — see [The run repository](#the-run-repository) |
-
-So the questions you actually ask are one `grep` each:
+The `event` column is the grep handle, and its names are the notation's nouns: `run.*`, `activity.*` (including `skipped` and `invalidated`), `implementation.resolved|missing`, `dataInputAssociation.bound`, `dataOutputAssociation.bound`, `artifact.prepared|staged|loaded|saved`, `plan.archived`, `gateway.reached|replayed|stuck`, `conditionExpression.evaluated`, `sequenceFlow.taken`, `event.reached`, `stdout`, `stderr`, and `git.*` for the degradations above.
 
 ```bash
 grep artifact.saved      runs/*/studyflow.log     # what was written, and how big
 grep sequenceFlow.taken  runs/*/studyflow.log     # which way every branch went
 grep -E 'ERROR|WARNING'  runs/*/studyflow.log     # what went wrong, with the traceback under it
-grep ' 0×'               runs/*/studyflow.log     # any step that bound an empty frame
 ```
 
-The run directories are named with a sortable UTC stamp (ISO 8601 basic), so
-`runs/*/studyflow.log` walks every run in the order they happened. `--quiet`
-silences the terminal and never the file — a log you have to remember to ask for
-is not a log. The console gets the tree above; the file additionally gets the
-`DEBUG` events (per-step durations, conditions that did not hold, the plan digest
-and seed on its second line).
+Run directories are named with a sortable UTC stamp, so `runs/*/studyflow.log` walks every run in the order they happened. The console gets the walk as a tree; the file additionally gets the `DEBUG` events (per-step durations, conditions that did not hold, the plan digest and seed on its second line) and whatever the steps themselves printed, which also passes through to the terminal live. If you ever need these lines in a collector rather than a file, add a `logging` handler rather than change the format.
 
-If you ever need these lines in a collector rather than a file, add a handler
-rather than change the format — `logging.handlers.SysLogHandler` and the OTLP
-exporters both take the same records. Routing everything through `logging` is
-what makes that a few lines instead of a rewrite.
+## More
 
-## The trail
-
-The run's provenance is the studyflow's own: a **provenance trail** of flat
-`<prov:activity>` elements on the primary root (the modeler's `prov` schema —
-`action`, `when`, `who`, `with`), one line per event in the file's life,
-carried inside the document wherever it goes. A run is such an event, so this
-runner stamps the trail like any other tool — one `executed` line naming who
-ran it and which run directory holds the artifacts and the log:
-
-```xml
-<bpmn:extensionElements>
-  <prov:activity action="created" when="2026-07-30T22:24:02Z" with="studyflow-modeler/26.0615" />
-  <prov:activity action="executed" when="2026-07-30T22:18:41Z" who="morteza"
-                 with="studyflow_run.py" run="20260730T221841Z" seed="42" />
-</bpmn:extensionElements>
-```
-
-The stamp lands on the in-memory plan and therefore on the copy archived in
-the run directory — never on the input file. So the copy answers the reviewer's
-first questions by itself: open it and the diagram is the plan that ran; read
-its trail and the last line is the run it came from, `run` naming the directory
-around it. The log's second line pins the plan's sha256, computed *after* the
-stamp, so the digest it states is true of the copy sitting beside it.
-
-`seed` is the run's root seed — the plan's pinned `studyflow:seed` when it has
-one, drawn once when it does not, and injected into `random` (and numpy) either
-way. Recording it on the stamp is what makes an unpinned run replayable.
-
-Everything the run touched is in the directory — the stamped plan, the inputs,
-the artifacts, the log — so it is a complete, self-contained record of one run
-that you can archive, deposit, or hand on.
-
-## The run repository
-
-A run directory is not just a folder the runner writes into — it is a git
-repository, and the trail above is replicated as its commit history. Every
-checkpoint (a step finishing, a gateway deciding, the run starting or
-ending) is one commit.
-
-### Commit protocol
-
-The rule: **a commit's trailers are exactly the attributes of the
-corresponding `prov:activity` entry.** A commit that stamps no trail entry
-(the dirty-tree cleanup below) carries only `Prov-Run` and `Prov-When`.
-
-| When | Subject | Trailers |
-|---|---|---|
-| run start | `started <pid> (<UTC start stamp>)` | `Prov-Action: executed`, `Prov-When`, `Prov-Who`, `Prov-With: studyflow_run.py`, `Prov-Run`, `Prov-Seed` |
-| dirty tree before start | `changed outside a run` | `Prov-Action: modified`, `Prov-When` |
-| activity completed | `executed <name>` | `Prov-Action: executed`, `Prov-When`, `Prov-Run`, `Prov-Node: <element id>` |
-| container completed | `executed <name>` | same |
-| gateway decided | `executed <name>: <flow id>` | same, plus `Prov-What: <flow id>` |
-| activity skipped | `skipped <name> (run <prior-run>)` | `Prov-Run`, `Prov-When`, `Prov-Node` (the skip lands in the trail as a `reused` line) |
-| activity raised | `failed <name>` | `Prov-Run`, `Prov-When`, `Prov-Node` |
-| run end | `finished <pid> (ok\|error)` | the full document-stamp set |
-
-`Prov-Node` has no attribute counterpart in the trail itself — element
-entries are stamped *on* their element, so the id is never a `prov:activity`
-attribute — but every element commit carries it anyway, because it is the
-commit↔element mapping the branch-point search in [Branching](#branching)
-depends on. Pure pass-through events (a start/end event reached, a gateway
-that only decided nothing new) commit nothing — they change no files, and
-their trail entry rides along in the next checkpoint. Every checkpoint is a
-`git add -A` and a commit, so a step's artifacts, staged inputs, and log
-lines land together — and its record entry is the commit's own body (see
-[Step records](#step-records)).
-
-### LFS
-
-First init, with git-lfs on PATH, writes `.gitattributes` with `filter=lfs`
-patterns for `*.joblib`, `*.parquet`, `*.png`, `*.svg`, `*.pdf` — the
-binary formats this runner's examples produce (plain-text formats like `.csv`
-stay ordinary blobs). The archived studyflow copy is itself often a `.png`,
-so it becomes an LFS object too — accepted; LFS objects live under
-`.git/lfs/objects`, so the run directory stays self-contained either way.
-
-### Degrading without git
-
-Replicating provenance into git must never be why a run fails. No `git` on
-PATH: one `git.unavailable` warning, and the repo machinery no-ops for the
-rest of the run — the directory still gets its artifacts,
-`studyflow.log`, and stamped plan, just no `.git` (and so no step records:
-those live only in commits). A git call
-that fails or times out: one `git.failed` warning, then the same no-op
-fallback for the rest of the run. `git` present but `git-lfs` missing:
-one `git.lfs.unavailable` warning, and `.gitattributes` is never written — a
-`filter=lfs` pattern declared without the filter installed fails every later
-`git add`, so the runner writes plain blobs instead of risking that.
-
-A repo that started git-less and is resumed once git is back on PATH is
-*adopted*: the runner `git init`s in place and the resuming run's
-first commit baselines whatever is already on disk.
-
-### Step records
-
-The per-step payload the runner builds while it runs — durations, typed
-inputs and outputs, tracebacks — lives in one place: the commit bodies.
-Each checkpoint commit's body is a JSON array of the record entries since
-the previous checkpoint (`[{node, name, type, startedAt, durationMs,
-implementation, inputs, outputs, used, generated, additionalArguments,
-error?}]`); pass-through events ride in the checkpoint that follows them.
-The `started` commit's body is the run header (`{studyflow, run,
-seed, who, with, startedAt}`), the `finished` commit's the closing summary
-(`{status, finishedAt, steps, tail}` — `tail` holds entries no element
-commit claimed, such as end events). There is no separate record file — the
-trail in the stamped plan and the git history are the two views, one
-interchange and one archive, with nothing duplicated between them:
-
-```bash
-git show -s --format='%b' <commit> | head -1 | jq  # one commit's records (%b ends with the trailers)
-git log --format='%b' | grep '^[[{]' | jq -s       # every record in the history, newest first
-```
-
-### Branching
-
-Provenance is a DAG in principle; in a run repository it is the commit graph,
-literally.
-
-- **Continue.** An ordinary resume with nothing invalidated commits onto the
-  current branch — the first run creates `main`, and whatever branch
-  HEAD points at is the one the runner extends. `git switch <branch>` before
-  running picks a different one to continue.
-- **Branch from the middle.** A plan carrying `invalidated` entries (the
-  modeler's ✕ gesture) or an explicit `--from <commit-ish>` locates the
-  newest commit that **executed** the affected activity — by its `Prov-Node`
-  and `Prov-Action` trailers; a later `skipped` commit is not where the work
-  entered history — and branches `run/<UTC start stamp>` **at that commit's
-  parent**, the last state without the invalidated work (branches are the
-  only refs the runner writes). The checkout alone reverts the
-  worktree to that point in history: artifacts upstream of the invalidated
-  step are still there (their steps skip), the invalidated step's and
-  everything downstream of it are gone (their steps re-run, because their
-  artifacts are gone). `git log --graph` then shows the branch exactly where
-  the invalidation happened.
-- **Fallback.** If the invalidated element's commit can't be found on the
-  current branch (records from before this repo had git, a foreign lineage):
-  one `git.branchpoint.missing` warning, and the runner falls back to an
-  in-place re-run on the current branch instead of branching.
-- A detached HEAD — a commit checked out directly, not a branch — makes the
-  runner start `run/<stamp>` there rather than commit detached.
-- **Marker precision decides whether a branch happens at all.** The modeler's ✕
-  writes the marker's `what` as the `when` of the exact record it voids; only
-  such a *precise* marker branches, and only while that record stands — once the
-  step re-runs, the marker stays in the trail as consumed history and never
-  voids or branches again. A hand-written marker without a `what` is a *standing
-  re-run pin*: it voids coarsely by `run` (or any run), so the step re-executes
-  every run, in place, and never starts a branch.
-
-Recipes that follow from a run directory being a real repo:
-
-```bash
-git -C runs/<id> log --graph --oneline --all       # the provenance DAG, branches and all
-git -C runs/<id> log --format='%H %s' --grep='started .*<stamp>'   # find one run's boundary
-git -C runs/<id> diff <finished-a> <finished-b>    # what changed between two runs
-```
-
-One run at a time per repository — a second one started against
-the same directory contends on git's own `index.lock`, which degrades
-replication (the same fail-soft ladder as above) but never corrupts an
-artifact already written. And `runs/` is git-ignored in the outer checkout;
-un-ignore it and each run repository shows up there as a gitlink — a commit
-pointer, not its tracked files — worth knowing before `git add runs/`
-doesn't do what you expect.
-
-Run directories are no longer immutable snapshots the way a single flat
-directory was — the history is the record now, and any prior run is
-recovered from its `finished` commit: `git archive <finished-sha>`
-reconstitutes that run's directory on its own. The modeler's Provenance view is unaffected either way;
-it renders `run` as text, and a shared value across resumes was already
-nothing new to it.
-
-### Partial re-runs
-
-A run also records itself *per element*: every activity and event it completed
-gets its own `executed` entry (`when`, `run`), a gateway's entry adds the flow
-it took as `what`, and a data element records `created` (this run saved its
-artifact) or `imported` (a boundary input staged from outside) — each in that
-element's `extensionElements` on the archived copy. A linear re-run replaces
-an element's entry in place; a **branching** re-run *supersedes* it instead —
-the first branch's entries stay in the trail (the newest unvoided one stands),
-so the document shows both branches the way the repository does.
-Re-running the copy is
-therefore incremental, and flag-free: pointing the runner at its own archived
-plan resumes the repo it already lives in.
-
-```bash
-uv run studyflow_run.py runs/<id>/sklearn_pipeline.studyflow.png
-```
-
-A step is **skipped** — its artifacts reused instead of re-computed — when its
-record is present, nothing it reads was re-made this run, and every one of its
-outputs is an artifact (`uri`) still on disk: an output some later step reads
-must load back into memory, while an output nothing reads (a terminal figure,
-say) only has to exist. A step with a memory-only output re-runs only when
-the run's demand analysis says someone needs the value: taint spreads forward
-from whatever is gone or invalidated, and memory-only bindings pull their
-producers in backward. A clean gateway does not evaluate at all — it
-**replays** the decision its record holds (`gateway.replayed`) and needs
-nothing bound; only a recordless or tainted gateway evaluates, and then the
-values its conditions read are pulled in like any other demand. Everything
-outside that closure skips — invalidating one activity re-executes its own
-chain, not the whole diagram, and a fully clean resume executes nothing.
-Every skip also leaves a `reused` line on the element — `what` names the
-record it trusted — replaced in place each time, so the trail carries each
-element's latest reuse and the Provenance view can show skips as dimmed rows.
-(A demanded re-run of unchanged inputs recomputes the same value and
-invalidates nothing. Staleness tracks data, not text: after hand-editing a
-condition expression, ✕ the gateway or pass `--fresh`.)
-
-Two gestures invalidate a step, and they are not equivalent:
-
-- **Delete the artifact.** The lightweight, in-place gesture: the run starts
-  with a dirty tree — an artifact missing that the last commit says should be
-  there — commits that as `changed outside a run`, and the producing step
-  re-runs on the *same* branch. No new branch; the history stays linear.
-- **Invalidate the element**, or pass `--from <commit-ish>` directly. The
-  modeler's ✕ gesture appends an `invalidated` line naming the run it voids;
-  either it or `--from` **starts** a new branch at the point in history just
-  before that step ran — see [Branching](#branching) above for what that does
-  to the worktree and the commit graph.
-
-**Invalidation cascades** either way: a step re-made by either gesture taints
-its outputs, so every recorded step that reads them re-runs too (logged as
-`activity.invalidated`) — refitting the model re-plots the confusion matrix.
-Skipped elements keep the record of the run that really produced their
-artifacts, so the copy stays a truthful patchwork of which run made what.
-`--fresh` ignores every record and re-runs the whole flow, in the same repo.
-
-## Boundary inputs
-
-A *boundary input* is an artifact a run reads and no step of it produces — by
-definition, something outside the studyflow put it there. The notation does not
-say how, and should not: an engine that could invent a study's input data would
-be guessing at the science.
-
-`sklearn_pipeline` has one, `digits.csv`, and takes it as an external table
-rather than a call to a bundled sample-data loader on purpose: the same
-studyflow runs on a real study dataset by changing one `uri`. So that the
-one-command claim above holds anyway, the runner ships a maker for that one
-file — `BOUNDARY_INPUTS`, keyed by the `uri` the example's own data element
-declares. It writes scikit-learn's copy of the UCI hand-written digits set:
-1797 rows, 64 pixel columns and a `target`.
-
-A missing boundary input is looked up in order — **the plan file's own
-directory, then the current directory, then the shipped `BOUNDARY_INPUTS`
-maker** — and the first place it turns up wins. There is no `--workdir` to
-name a fourth place: the run directory is itself in the search (a resume
-finds its own artifacts before looking anywhere else), so the old
-one-directory model doesn't need a stand-in.
-
-Inputs are **staged into the run directory before they are read**, so the run
-directory is the single root every `uri` resolves against from then on — the
-paths the provenance records are valid there by construction, not because
-something copied them in afterwards. Found outside the repo, an input is
-copied in and logged as `artifact.staged`; materialized by the shipped maker,
-it's logged as `artifact.prepared` — either way once, because on a resume the
-artifact is already sitting in the worktree and this whole lookup is skipped,
-which is also why a resume doesn't re-copy a multi-hundred-KB input on every
-run.
-
-Any *other* missing boundary input is a plain error naming the file and the
-element that wanted it, which is the honest answer. `--no-prepare-inputs` makes
-even the shipped one behave that way.
-
-**Migrating from `--workdir`:** run the command from that directory, or put
-the input file beside the plan — either is now in the lookup order.
-**Migrating from `--runs-dir Y --run-id N`:** `--repo Y/N` names the same
-directory directly.
-
-## The contract it implements
-
-Read `studyflow_run.py` — it is one file and the docstring states the contract
-before implementing it. In short:
-
-| In the studyflow | At run time |
-|---|---|
-| `implementation="python://pkg.mod.fn"` | the callable to import; the path may reach into a class, which is how an unbound method becomes a step |
-| a data input association | one argument, its slot named by the association's `transformation` body (defaulting to the element's own name) — or, in the standard form the modeler saves, by the `ioSpecification` DataInput it targets |
-| the transformation's *selection* | narrows the value: `transformation` body `"X = folds['train']"` on an input, `"result[0]"` on an output. in saved standard form the slot moves into the DataInput's name and the body keeps the pure selection |
-| slot `self` | the receiver of an unbound method — bound first and positionally |
-| slot `*` | appended to the positional arguments in declaration order, for a callable whose arguments have no names (`train_test_split(*arrays)`) |
-| `additionalArguments` | the literal arguments, additional by name and contract — what the call needs beyond the associations that already filled its signature: `args` for positional, a nested mapping with its own `implementation` for a call to make first. A name bound by both a data association and `additionalArguments` is refused rather than silently resolved |
-| a data output association | where the return value lands, narrowed by the transformation's selection over `result` |
-| `uri` on a data element | an artifact: loaded before its first consumer, written after its producer, in the element's declared `format` or the one its extension implies |
-| a `.png` uri | a figure artifact: the plotting step returns scikit-learn's display object, the output transformation narrows it to a matplotlib figure with `result.figure_`, and the format handler calls `savefig`. Nothing about plotting is a notation concept |
-| a `.csv` uri | the example's tabular artifacts. A CSV has no schema, so the handler decides what happens to a frame's index: row numbers are dropped, a meaningful index is kept as a leading column (which is why the metric summary names `mean` in its first column), and a CSV read back gives columns rather than that index. Declaring `format: parquet` on the element instead keeps the distinction — and needs `--with pyarrow` |
-| no `uri` | a value that only passes between steps in memory |
-| `uri` on a `bpmn:Property` | the property persists like any artifact — later runs load it instead of re-running its producer |
-| `conditionExpression` on a flow out of a gateway | the branch rule; the gateway's `default` when none holds |
-| `state.trace` | the ordered walk so far, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8` |
-
-## What it is not
-
-- **Not a polyglot evaluator.** Expressions are Python or JavaScript, named
-  per expression by BPMN's own `language` field on the expression element; one
-  without it runs in the evaluating engine's own language. This engine speaks
-  Python (a sandboxed `eval` over the run's values) and refuses a `javascript`
-  expression at evaluation time — the browser runner is the mirror image.
-- **Not a workflow engine.** One token, one process: no parallel gateways, no
-  multi-instance fan-out, no retries, no persistence of run state. Those are the
-  runner's limits, not the notation's — the notation says what they mean already.
-- **Not sandboxed.** It imports and calls what the studyflow names. Run
-  studyflows you trust.
+- [Analysis pipelines](../../docs/design/analysis.qmd) — the `sklearn_pipeline` example this runner is checked against, read as a studyflow.
+- [Provenance](../../docs/run/provenance.qmd) — the trail, the per-element records, and how re-runs and branches accumulate.
+- [Execution](../../docs/run/execution.qmd) — which elements each of the four executors actually runs.
+- [Command line and URLs](../../docs/reference/cli.qmd) — invoking this runner through `studyflow run`.

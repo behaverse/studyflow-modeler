@@ -1,251 +1,139 @@
 ---
 title: Data
-description: Elements and operations for data-centric workflows
-order: 6
+description: "What a study collected, what shape it is, which standard it follows, and what each step reads and writes."
 ---
 
-## Data elements in BPMN and Studyflow
+| The question | Where the study answers it | What you fill in |
+|:--|:--|:--|
+| What did this study collect? | The cylinders and page-shaped elements the flow writes into | `Dataset`, `Table`, `Timeseries`, `EventMarker` |
+| What shape is it? | The element you chose, and a `Schema` attached to it | `format`, `schema`, `body` |
+| Which standard does it follow? | The badge on the cylinder | `format`, then `bdmDataLevel` or `bidsDataType` |
+| Where does it live? | The element itself; a dataset may also name a listing and a store | `uri`, `catalog`, `storage` |
+| What does this step read and write? | The dashed lines around the step, and their direction | nothing --- it is read off the drawing |
+| Which argument does this value arrive as? | The label on the dashed line | `slot = selection` |
+| What does the run carry that is never drawn? | The study's own declared values | `bpmn:Property` |
 
-The underlying standard for Studyflow, BPMN, is primarily designed for modeling processes, but also includes generic constructs for representing data within workflows. It uses *Data Object* and *Data Store* to represent elements that contain or manage data. These elements can be connected to activities as inputs or outputs using data association edges.
+## What did this study collect?
 
-<details class="indigo">
-  <summary>`DataStore` / `DataStoreReference` <span class="badge float-right">BPMN</span></summary>
+![A preprocessing pipeline: one dataset read in at the left, another written out at the right.](../assets/img/examples/lablink_demo2.studyflow.png){#fig-data-flow fig-alt="A left-to-right pipeline. A cylinder labelled Raw BIDS data sits below the first step, Read BIDS dataset, joined to it by a dashed arrow pointing up into the step. The flow continues through Drop QC failures, a fan-out into fMRIPrep and EEGPrep, then Collect features, Fit model, Generate figures, and Render manuscript table, from which a dashed arrow points down into a cylinder labelled Manuscript artifacts."}
 
-  Persistent storage of data that can be accessed across multiple process instances. For example, a database or file system. `DataStoreReference` is the visual element used to point at a `DataStore`. Studyflow adds no storage element of its own -- physical storage stays the native `bpmn:DataStore`/`DataStoreReference` -- and refines the logical side with `Dataset`, which extends `DataStoreReference` and points at the store through its `storage` attribute.
-</details>
+| If the value is | Draw |
+|:--|:--|
+| A collection published under a data standard | `Dataset` |
+| A description of how something is laid out, in CSVW, LinkML, or JSON Schema | `Schema` |
+| Rows and columns, with that structure committed to | `Table` |
+| A recording sampled continuously over time | `Timeseries` |
+| Time-stamped occurrences inside a recording | `EventMarker` |
+| A named group of settings | `Parameters` |
+| A public listing that datasets are published in | `DataCatalog` |
+| Anything else passing between steps | `bpmn:DataObjectReference` |
+| Bytes that persist somewhere, with no further claim about them | `bpmn:DataStoreReference` |
 
+::: {layout-ncol=2}
+![Dataset](../assets/img/elements/dataset.svg){width="56" fig-alt="A cylinder labelled Dataset."}
 
-<details class="indigo">
-  <summary>`DataObject` / `DataObjectReference` <span class="badge float-right">BPMN</span></summary>
-
-  Represents data that is used or produced within a process instance. It can be thought of as a document, file, or any other piece of information that flows through the process.
-
-  - `DataObjectReference` is the visual reference used to point at a `DataObject`. Studyflow extends `DataObjectReference` with an optional `state` annotation (e.g. `raw`, `processed`, `validated`).
-  - State annotations describe the condition of a data object at a specific point in a process. For example, "trial data [raw]", "trial data [processed]".
-
-</details>
-
-<details class="indigo">
-  <summary>`DataAssociation` <span class="badge float-right">BPMN</span></summary>
-
-  Connects data to other workflow elements, such as tasks or events. Indicates the flow of data into and out of these elements. Note that this is data flow, which is distinct from the process flow itself.
-
-</details>
-
-Studyflow refines BPMN to better match common practices in data-centric workflows, including specific data structures and operations commonly used in data processing.
-
-<details class="green">
-  <summary>`DataCatalog` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  A persistent registry of datasets that can be referenced across multiple process instances (e.g., `openneuro` or `behaverse` catalogs). Carries a `url`.
-</details>
-
-<details class="green">
-  <summary>`Dataset` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  A logical collection (possibly multi-table, multi-modal) registered in a `DataCatalog` and stored in a `bpmn:DataStoreReference` named by its `storage` attribute. Carries an optional `schema`, a `format` (`bdm`, `bids`, `psych-ds`, `kedro`, `undefined`), and format-specific properties (`bdmDataLevel` for BDM; `bidsDataType` for BIDS).
-</details>
-
-<details class="green">
-  <summary>`Schema` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  A formal description of the structure of a named collection of types. For tabular data, column definitions (column names, data types, units, constraints) -- typically authored with [CSVW](https://www.w3.org/TR/tabular-data-primer/). For non-tabular data, dimensions, data types, and other relevant metadata (e.g. LinkML, JSON Schema). Carries a `format` identifier and an inline `body` (or a URL/path to the schema definition).
-</details>
-
-
-<details class="green">
-  <summary>`Table` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  Tabular data -- rows and columns -- described by CSVW or LinkML. Unlike a `Dataset`, it commits to that structure rather than staying opaque. Carries a `format` (`csv`, `tsv`, `parquet`, `arrow`, `jsonl`; default `csv`), a `schema` reference, and an optional `rowCount`.
-</details>
-
-<details class="green">
-  <summary>`Timeseries` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  A continuous physiological or behavioral recording sampled over time (EEG, EMG, eye-tracking gaze stream, accelerometer). Carries `samplingRate`, `channelCount`, `units`, `recordingDuration`, and a `format` (`edf`, `bdf`, `fif`, `set`, `parquet`, `zarr`).
-</details>
-
-<details class="green">
-  <summary>`EventMarker` <span class="badge float-right">STUDYFLOW</span></summary>
-
-  Sparse time-stamped occurrences within a recording -- trial markers, stimulus onsets, button presses. Carries `eventType`, `eventOnset`, `eventOffset`, and `eventCount`. Its recording-time fields are not the Gantt axis's `onset`/`duration`.
-</details>
-
-In summary, `DataCatalog` is a registry of datasets (potentially across multiple stores), `Dataset` is a logical collection, and `Table`, `Timeseries`, and `EventMarker` are the concrete structures a dataset is made of. Physical storage has no studyflow type -- it is BPMN's own `DataStore`, named by `Dataset#storage`.
-
-Also note that, while experimental data is generally assumed to be tabular, `Dataset` supports other data types (i.e., `DataObject` or `Timeseries`, including images, videos, brain imaging, and raw sensor recordings).
-
-## Data operations
-
-Data operations are studyflow-specific markers to describe how data is manipulated as it flows through the process. An operator can be implemented as a usual BPMN task (e.g. script task or service task), and the operator marker serves as a semantic annotation indicating that the task is performing a specific type of data transformation. This is derived, not stored: a step counts as a data operation when it names a data verb (`operationType`) or runs software (`implementation`) without being a participant-facing instrument. The `additionalArguments` mapping comes from the abstract `Arguments` trait, and the operation's inputs and outputs are auto-detected from the data association edges drawn on the diagram.
-
-<figure class="centered max-w-2xl">
-<div style="max-width: 160px;">
-  ![Data Operator](../assets/img/elements/data_operator.png)
-</div>
-  <figcaption class="fst-italic">
-    Data operation annotations are rendered as small markers ($f$) on tasks. The task remains a normal BPMN task and the marker specifies that its logic is a pure data transformation. This keeps Studyflow diagrams close to BPMN while making data-centric behavior explicit through data operation marker.
-  </figcaption>
-</figure>
-
-
-
-### Specialized data operations
-
-
-Inspired by [higher-order functions](https://en.wikipedia.org/wiki/Higher-order_function) in functional programming, data operations can be further categorized based on their behavior and the type of transformation they perform. The following are common types of operations represented in Studyflow's `DataOperationTypeEnum`. Note that these are advanced and optional; the generic data operation marker can be used for any data transformation without needing to specify the type.
-
-<details class="green">
-  <summary>`transform` <span class="badge float-right">$f$</span></summary>
-
-  Applies a specified transformation to the input data, producing a new dataset as output. This is the generic form of data operations and can be specialized into more specific operations (see below). A transform represents a pure function that takes one or more data as input and produces a data output.
-</details>
-
-<details class="green">
-  <summary>`map` <span class="badge float-right">$f$</span></summary>
-
-  Applies an element-wise function to each item in the input.
-</details>
-
-<details class="green">
-  <summary>`filter` <span class="badge float-right">$f$</span></summary>
-
-  Selects a subset of data based on specified criteria. Used for conditional selection (1 &rarr; subset(1)). The difference between filtering and data-driven gateways in BPMN is that filtering changes the dataset, but gateways change the control flow. They are complementary.
-</details>
-
-<details class="green">
-  <summary>`reduce` <span class="badge float-right">$f$</span></summary>
-
-  Aggregates data by applying a function that combines multiple input values into a single output value. Used for summarization or joining operations (N &rarr; 1 per group or for the entire dataset).
-</details>
-
-<details class="green">
-  <summary>`group` <span class="badge float-right">$f$</span></summary>
-
-  Organizes data into groups based on specified attributes. Used for categorization and clustering (1 &rarr; G groups). It changes the data structure to a grouped format.
-</details>
-
-<details class="green">
-  <summary>`compose` <span class="badge float-right">$f$</span></summary>
-
-  Combines multiple data operations into a single complex pipeline. Used for modularity and reusability.
-</details>
-
-<details class="green">
-  <summary>`flatMap` <span class="badge float-right">$f$</span></summary>
-
-  Similar to map, but flattens the resulting data array into a single output array. Used for one-to-many mappings (1 &rarr; N). Relevant to unnesting in data wrangling libraries.
-</details>
-
-
-::: {.callout-note appearance="simple"}
-## Batch vs. Streaming
-
-Some operations are stateless (map, filter) and works best for batch processing, while others are inherently stateful (reduce, group) and may require special handling for streaming data.
+![Data object](../assets/img/elements/data_object.svg){width="60" fig-alt="A page with a folded top corner, labelled Data Object."}
 :::
 
+## What shape is it?
 
-## Example
+Three elements commit to a structure a plain data object leaves open.
 
-The following example illustrates the use of data elements and operations within a research workflow to collect and analyze response times from a 2AFC cognitive task. The data analysis pipeline is encapsulated within a subprocess for clarity.
+| Element | What it is | What it carries |
+|:--|:--|:--|
+| `Table` | rows and columns: a trial table, a participant list | `format` --- `csv` by default, or `tsv`, `parquet`, `arrow`, `jsonl` --- and `rowCount` |
+| `Timeseries` | a continuous recording: EEG, EMG, eye tracking, an accelerometer stream | `samplingRate` in Hz, `channelCount`, `units`, `recordingDuration` in seconds, and a `format` such as `edf`, `bdf`, `fif`, `set`, `parquet`, `zarr` |
+| `EventMarker` | the sparse counterpart: trial markers, stimulus onsets, button presses | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
 
-<details class="note">
-  <summary>View example code</summary>
+::: {.callout-important}
+## Two clocks
 
-```{.ini}
-Study RTAnalysis
+`eventOnset` and `eventOffset` are seconds from the start of a recording; `onset` and `duration` on an activity are the study's schedule, in visits and days.
+:::
 
-  StartEvent s
-  EndEvent e
+### What do the columns mean?
 
-  DataCatalog behaverse
-    url "https://behaverse.org/catalog"
+A `Schema` says what is *in* the data, one level down from what kind of thing it is.
 
-  DataStoreReference ducklake
-    # kind hint kept in documentation; physical store of bytes
-    documentation "duckdb+parquet at s3://behaverse/rt/ducklake"
+| Field | What goes in it |
+|:--|:--|
+| `format` | `csvw`, `linkml`, `jsonschema` |
+| `body` | the schema itself, or a path or URL to it |
+| `schema`, on a `Dataset` or a `Table` | points at the `Schema` element |
 
-  Dataset trials_raw
-    catalog behaverse
-    storage ducklake
-    format bdm
-    bdmDataLevel trials
-    schema "schema/trials_raw.csvw"
+A CSVW or LinkML column list is edited as a table of columns: name, datatype, description, and whether it is required. Any other format is edited as plain text.
 
-  Dataset trials_summary
-    catalog behaverse
-    storage ducklake
-    format bdm
-    bdmDataLevel models
-    schema "schema/trials_summary.csvw"
+## Which standard does it follow?
 
-  Activity CollectTrials
-    @type CognitiveTask
-    instrument psychopy
+A `Dataset` is a *logical* collection: one thing the study reads or produces, possibly many files and several modalities.
 
-  SubProcess RTAnalysisPipeline
-    StartEvent sub_s
-    EndEvent sub_e
+| `format` | Standard | Then asks for |
+|:--|:--|:--|
+| `bdm` | [Behaverse Data Model](https://behaverse.org/data-model/) | `bdmDataLevel`: events, trials, or models |
+| `bids` | [Brain Imaging Data Structure](https://bids.neuroimaging.io/) | `bidsDataType`: anat, beh, eeg, func, meg, and the rest |
+| `psych-ds` | [Psych-DS](https://psych-ds.github.io/) | --- |
+| `kedro` | [Kedro datasets](https://docs.kedro.org/projects/kedro-datasets/) | --- |
 
-    # internal data objects (scoped to subprocess)
-    DataObject trials_in
-    DataObject trials_out
+## Where does it live?
 
-    # outer data associations: connect external datasets to internal nodes
-    dataInputAssociation
-      sourceRef trials_raw          # external
-      targetRef trials_in           # internal name
-    dataOutputAssociation
-      sourceRef trials_out          # internal name
-      targetRef trials_summary      # external
+| Field | On | What it says |
+|:--|:--|:--|
+| `uri` | every data element | Unset, the value only passes from step to step in memory. Set, it is loaded and saved there, in the declared `format` or the one the file extension implies. It is the only storage field the notation has. |
+| `catalog` | a `Dataset` | The `DataCatalog` it is published in --- `openneuro`, `behaverse`. You name one rather than drawing one. |
+| `storage` | a `Dataset` | The `bpmn:DataStoreReference` where the bytes physically live. |
 
-    Task t1
-      inputs [trials_in]
-      outputs [trials_out]
-      @op compose
-        transform
-        filter
-        map
-        group
-        reduce
+## What does this step read and write?
 
-    SequenceFlow sf1 sub_s -> t1
-    SequenceFlow sf2 t1    -> sub_e
+Connect a data element to a step and it is an input. Connect the step to a data element and it is an output. The inspector lists these as that step's *Inputs* and *Outputs*, read off the drawing rather than typed in.
 
-  SequenceFlow f1 s                    -> CollectTrials
-  SequenceFlow f2 CollectTrials        -> RTAnalysisPipeline
-  SequenceFlow f3 RTAnalysisPipeline   -> e
+::: {.callout-warning appearance="simple"}
+## Use a data connector, not the plain artifact connector
+
+`bpmn:Association` draws the same dashed line but carries no meaning, so a step joined that way records no data. The line looks right and does nothing.
+:::
+
+### Which argument does this value arrive as?
+
+Write it on the connector itself, as `slot = selection`. The **slot** names where the value goes; the **selection** names which value arrives.
+
+A selection can only pick a value out and route it. Anything that computes has to be a step of its own.
+
+```yaml
+Fit:
+  type: bpmn:ServiceTask
+  implementation: python://sklearn.pipeline.Pipeline.fit
+  dataInputAssociations:
+    Association_Estimator_Fit:
+      transformation: self        # the receiver, bound first and by position
+      sourceRef: [Estimator]
+    Association_Features_Fit:
+      transformation: X = folds['train']
+      sourceRef: [Folds]
+  dataOutputAssociations:
+    Association_Fit_Model:
+      targetRef: Model            # the element you drew is the slot
 ```
 
-</details>
+Two slots are positions rather than names. `self` is the receiver of an unbound method and is bound first. `*` appends its value in the order written. On an *output* association there is no slot to name: the element you drew is itself the slot.
 
-This is roughly equivalent to:
+## What does the run carry that is never drawn?
 
-```{.r}
-trials_summary <- trials_raw |>
-  filter(correct == 1) |>
-  mutate(
-    log_rt = log(rt),
-    rt_z   = (rt - mean(rt)) / sd(rt)
-  ) |>
-  group_by(agent_id, condition) |>
-  summarize(
-    rt_mean = mean(rt),
-    rt_sd   = sd(rt),
-    .groups = "drop"
-  )
-```
+| When the value is | Say it as | Where it lives |
+|:--|:--|:--|
+| a thing the study reads or produces --- a dataset, a table, a fitted model, a figure | a data element | drawn, with dashed edges, a place in the auto-layout, and a `uri` if it should outlive the run |
+| run state a branch condition reads by name --- the arm a participant was assigned, a running accuracy | a `bpmn:Property`, typed `string`, `integer`, `number`, `boolean`, or any other type name you enter | declared on a process or sub-process, in the inspector's *Execution* tab; never drawn |
+| a literal the call still needs --- `cv: 5`, `n_components: 16` --- fixed before the run | `additionalArguments` | on the step |
+| settings you want visible on the canvas and wired into the steps that read them | a `Parameters` element | drawn |
 
+Properties follow ordinary scoping rules: a name resolves outward through the containers around it, and an inner declaration of the same name hides an outer one.
 
-## Planned updates
+::: {.callout-note}
+Two connections draw no line: one to a property, and one reaching out of a sub-process into the study around it. Both are still listed in the inspector.
+:::
 
-- `transformTables`: Special case of `transform` that applies a series of transformations to tabular data, such as adding, removing, or modifying columns. The result is one or more new tables based on the specified transformations (1+ tables &rarr; 1+ tables).
-- `loadData`, `saveData`, `exportData`: storage operations (loading from and saving to catalogs, stores, and files). Note that, data operations are pure and side-effect free. I/O and external systems are handled by dedicated elements.
-
-- `anonymizeData`, `validateData`, `controlAccess`: data governance and regulatory compliance operations (de-identification, validation, data cleaning, and access control).
-- Stochastic operations (e.g., sampling, bootstrapping).
-- Canonical data-wrangling operations (mirroring tidyverse functionality but expressed at workflow level):
-  - `splitData` (e.g., train/validation/test splits).
-  - `cleanData` (e.g., handling missing values, outliers).
-  - Join/merge operations for relational integration.
-  - `sort`, `arrange`, `selectColumns`, `renameColumns`, `pivot`, `select`, `mutate`, `summarize` as specialized `transformTables` variants.
+| Then read | For |
+|:--|:--|
+| [Elements](elements.qmd) | the full field list for each data element |
+| [Data in and out](../design/data.qmd#say-what-the-columns-hold) | attaching a schema, with a worked CSVW example |
+| [Data in and out](../design/data.qmd) | the same data elements, used end to end |
+| [Execution](../run/execution.qmd) | how these connections become the arguments of a call |

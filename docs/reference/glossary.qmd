@@ -1,67 +1,63 @@
 ---
 title: Glossary
-description: One-sentence definitions of the terms used across these docs
-order: 9
+description: "One-line definitions of the terms used across these docs."
 ---
 
-This page collects short definitions and links to the deep reference for each term.
+## The notation
 
-<details>
-<summary>**Studyflow**</summary>
-A BPMN-based visual language for specifying scientific studies and the data flows around them. See [Why Studyflow](why-studyflow.qmd).
-</details>
+| Term | What it means |
+|:--|:--|
+| **Studyflow** | A notation for writing down a whole study --- what happens, in what order, to whom, and what data goes in and out --- so that people and software read the same description. See [Introduction](../index.qmd). |
+| **a studyflow** | One study written in that notation: one diagram, one file. |
+| **BPMN** | Business Process Model and Notation, the ISO/IEC 19510 standard for describing processes. Studyflow builds on it, so a studyflow opens in other BPMN tools. See [BPMN mapping](bpmn.qmd). |
+| **`.studyflow.yaml`** | The file a studyflow lives in: plain text you can read, diff, and review. See [File format](file-format.qmd). |
+| **Element set** | A group of elements that ship together. Four are always available; agentic, ml, and eeg are switched on when you need them. See [Elements](elements.qmd#the-seven-element-sets). |
 
-<details>
-<summary>**`.studyflow` file**</summary>
-The serialized form of a studyflow diagram: a YAML document (top-level keys `studyflow`, `definitions`, `elements`, `diagram`) semantically equivalent to BPMN 2.0 XML. Legacy XML `.studyflow` files still open, and the modeler can export BPMN 2.0 XML for interop with other BPMN tools.
-</details>
+## What you draw
 
-<details>
-<summary>**Study**</summary>
-The top-level element of a diagram, extending `bpmn:Process`. Contains all events, activities, gateways, and data. See [Elements](elements.qmd).
-</details>
+| Term | What it means |
+|:--|:--|
+| **Element** | Anything on the canvas: a step, an event, a gateway, a dataset. |
+| **Activity** | A step in the study, drawn as a rounded box --- a task, a sub-process, or a call to another studyflow. |
+| **Event** | A point where something happens, drawn as a circle: the participant enters, a timer fires, the study ends. |
+| **Gateway** | A point where the path splits or rejoins, drawn as a diamond. |
+| **Sequence flow** | A solid arrow: the participant, or the pipeline, goes this way next. |
+| **Data association** | A dashed line between a step and a data element, saying what that step reads or writes. |
+| **Pool** | A box around a whole participant group or agent, used when a study has more than one party in it. |
+| **Choreography** | A way of drawing the exchange between two parties rather than one party's own path. |
 
-<details>
-<summary>**Element**</summary>
-A node in the diagram: an event, activity, gateway, data object, data store, dataset, table, or sub-process.
-</details>
+## In a study
 
-<details>
-<summary>**Activity**</summary>
-A step in the workflow (a rectangle). In Studyflow, specialized as `CognitiveTask`, `Questionnaire`, `Instruction`, `Rest`, or `BehaverseTask`; the palette also offers the native BPMN kinds -- Task, User, Script, Service, Manual, and Choreography Task.
-</details>
+| Term | What it means |
+|:--|:--|
+| **`Study`** | The diagram as a whole: the study, its authors, its version, and where it runs. |
+| **`Actor`** | A pool of participants --- human, LLM, software agent, or instrument. |
+| **Instrument** | The software that delivers a task, or the standard questionnaire a form implements. |
+| **`CognitiveTask`** | A cognitive test the participant takes, delivered by an experiment package. |
+| **`Questionnaire`** | A self-report form, standard or your own. |
+| **`RandomGateway`** | Random assignment: each participant takes one of the outgoing arrows, one arm per arrow. |
+| **`EligibilityGateway`** | A screening gate: eligible participants carry on, everyone else is screened out. |
+| **`Dataset`** | A collection of data the study reads or produces, in a declared standard. |
+| **`Parameters`** | A named group of settings connected into the steps that read them, so a study varies by editing values rather than the flow. |
+| **Checklist** | Reporting items written on the step that records them, ticked off as the study progresses. |
+| **Completion code** | The code a participant takes back to the recruitment platform when the study ends. |
 
-<details>
-<summary>**Event**</summary>
-A trigger point in the workflow (a circle): start, end, intermediate, boundary, timer, or error.
-</details>
+## Reading and running
 
-<details>
-<summary>**Gateway**</summary>
-A branching/merging point (a diamond): exclusive, parallel, inclusive, complex, event-based, or -- Studyflow-specific -- `RandomGateway` for stochastic branching.
-</details>
+| Term | What it means |
+|:--|:--|
+| **The modeler** | The web app where you draw and edit a studyflow. |
+| **The browser runner** | The app that takes one participant through a study, screen by screen. |
+| **The Python runner** | The program that executes an analysis or preprocessing studyflow on your machine. |
+| **The CLI** | The `studyflow` command: convert, check, inspect, and run a file from a terminal. See [Command line and URLs](cli.qmd). |
+| **Run** | One execution of a studyflow --- one participant's session, or one pass of a pipeline. |
+| **Run repository** | The folder a run writes into --- outputs, log, and a stamped copy of the study --- and also a git repository. Its name is the run id, and without `git` installed a run leaves no step records. |
+| **Seed** | The number the random draws start from. Pin it and the gateway draws repeat; leave it unset and each run records the one it drew. |
+| **Provenance trail** | The record carried in the file of who changed it, what ran, when, and with which seed. See [Views and the record](../run/provenance.qmd). |
+| **View** | One reading of the same file: the study itself, a schedule, a checklist, or the provenance record. See [Views and the record](../run/provenance.qmd). |
 
-<details>
-<summary>**Sequence flow**</summary>
-A directed arrow connecting two elements, specifying execution order.
-</details>
-
-<details>
-<summary>**Choreography**</summary>
-A BPMN2 construct for modeling interactions between multiple participants, used in multi-agent studies. See the [Multi-agent collaboration example](../examples/multi-agent.qmd).
-</details>
-
-<details>
-<summary>**Projection (views)**</summary>
-A rendering of a studyflow diagram tuned to a specific need: the *Study view* (BPMN-like overview), the *Timeline view* (Gantt-like), and the *Checklist view*. See [Views](views.qmd).
-</details>
-
-<details>
-<summary>**BPMN**</summary>
-Business Process Model and Notation. The ISO-standard process notation that Studyflow extends. See [Studyflow vs BPMN](studyflow-vs-bpmn.qmd).
-</details>
-
-<details>
-<summary>**Modeler**</summary>
-The web app at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler/) used to author and edit `.studyflow` files. See [Modeler app](../guides/modeler-app.qmd).
-</details>
+| Then read | For |
+|:--|:--|
+| [Elements](elements.qmd) | each of these types in full, and the fields you fill in |
+| [Formal model](formal-model.qmd) | the map of the notation, one page per question |
+| [Reading studyflows](../start/reading-studyflows.qmd) | these terms, read off a shipped diagram |

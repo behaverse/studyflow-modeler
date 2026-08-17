@@ -1,0 +1,56 @@
+%% Regenerate: npx -y @mermaid-js/mermaid-cli -i provenance-model.mmd -o provenance-model.svg -c mermaid.config.json -b transparent
+%% The config keeps labels as plain SVG text (no foreignObject), so the .svg survives being embedded as an image.
+flowchart TB
+
+  DOC["`**the studyflow document**
+  .studyflow.yaml · .studyflow.png
+  the plan and its record, one file`"]
+  MODELER["`**modeler**
+  stamps created · modified on export,
+  and the ✕ gesture's invalidated marker`"]
+  RUNNER["`**python runner**
+  stamps executed · reused, and
+  created · imported on data elements`"]
+
+  TRAIL["`**the document trail**
+  a flat prov:activity list on the
+  root element, oldest first`"]
+  ATTRS[/"action · when · who · with<br/>what · run · seed · note"/]
+  ELEM["`**per-element records**
+  each visited element's own entry,
+  in its own extensionElements`"]
+
+  REPO[("`**the run repository**
+  runs/STAMP/.git — the plan copy,
+  the inputs, the artifacts, the log`")]
+  COMMIT["`**one commit per checkpoint**
+  a step finishing, a gateway deciding,
+  the run opening or closing`"]
+  TRAILERS[/"trailers = those same attributes<br/>Prov-Action · Prov-When · Prov-Run · …<br/>plus Prov-Node, the element id"/]
+  BODY[/"body = that checkpoint's step records<br/>a JSON array: durations, typed inputs<br/>and outputs, tracebacks"/]
+
+  SIDECAR["✕ no sidecar record file<br/>one interchange, one archive,<br/>nothing duplicated between them"]
+
+  DOC -->|"carries, on its root"| TRAIL
+  DOC -->|"carries, element by element"| ELEM
+  MODELER -->|"appends to"| TRAIL
+  MODELER -->|"voids one record in"| ELEM
+  RUNNER -->|"appends to"| TRAIL
+  RUNNER -->|"stamps, on the archived copy"| ELEM
+  TRAIL -->|"spells every entry as"| ATTRS
+
+  RUNNER ==>|"commits every checkpoint into"| REPO
+  REPO -->|"holds"| COMMIT
+  COMMIT -->|"restates the attributes as"| TRAILERS
+  COMMIT -->|"keeps the step records in its"| BODY
+  ATTRS -.->|"maps attribute for attribute onto"| TRAILERS
+
+  ELEM -.->|"needs no"| SIDECAR
+  REPO -.->|"needs no"| SIDECAR
+
+  classDef act fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
+  classDef rec fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
+  classDef ext fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
+  class MODELER,RUNNER act
+  class DOC,TRAIL,ATTRS,ELEM,REPO,COMMIT,TRAILERS,BODY rec
+  class SIDECAR ext

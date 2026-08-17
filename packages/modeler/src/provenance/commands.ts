@@ -20,8 +20,6 @@ export function runInvalidateProvenanceRecord(
   const values: any[] = extensionElements?.values ?? [];
   if (!values.includes(command.entry)) return false;
 
-  // `what` names the voided record by its `when` — void-by-reference, so a later re-execution
-  // (new `when`) leaves the marker behind as consumed history instead of voiding the fresh record.
   const record = { when: command.entry.when || undefined, run: command.entry.run || undefined };
   const marked = values.some((value) =>
     value?.$type === 'prov:Activity' && value.action === 'invalidated' && voids(value, record));

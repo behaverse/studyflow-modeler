@@ -56,11 +56,6 @@ export async function applyXmlPasses(
   return (await moddle.toXML(rootElement, { format: true })).xml;
 }
 
-/**
- * True when the element sets no moddle property outside `keepNames` — the collapse gate of every shorthand.
- * All three "empty" checks matter: moddle materializes descriptor defaults on the prototype and lazily
- * inits `isMany` props to `[]`, so a property nobody set still reads back and would silently stop the collapse.
- */
 export function hasOnlyProperties(el: ModdleElement, keepNames: string[]): boolean {
   for (const p of el.$descriptor?.properties ?? []) {
     if (keepNames.includes(p.name)) continue;

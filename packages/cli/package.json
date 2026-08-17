@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "vite build",
+    "package": "node scripts/package.mjs",
     "typecheck": "tsc --noEmit",
     "studyflow": "node dist/studyflow.mjs"
   },

@@ -16,8 +16,7 @@ export function setCatalog(catalog: TypeCatalog): void {
   activeCatalog = catalog;
 }
 
-/** Throws until `loadSchemas` has installed a catalog: an empty one would answer every
- *  query with silent undefined/[] — a blank palette and dropped attributes, far from the cause. */
+/** Throws on empty catalog */
 export function getCatalog(): TypeCatalog {
   if (!activeCatalog) {
     throw new Error('getCatalog() before loadSchemas(): no schemas are installed yet.');

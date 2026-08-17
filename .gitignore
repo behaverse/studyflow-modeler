@@ -45,3 +45,4 @@ runs/
 
 # assessment-unity checkout (its own git repo, served from run/assessment-unity/Build/WebGL)
 /run/
+*.bun-build

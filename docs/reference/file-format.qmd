@@ -1,0 +1,203 @@
+---
+title: File format
+description: "How a studyflow is stored: the YAML source, the BPMN 2.0 XML export, and images that carry the study inside them."
+---
+
+| File | What it carries | Opens back in the modeler |
+|---|---|---|
+| `.studyflow.yaml` | the study itself, in full | yes |
+| `.bpmn` | the same study, as standard BPMN 2.0 XML | yes |
+| `.studyflow.png` | a picture, and the study inside it | yes |
+| `.studyflow.svg` | a picture, and the study inside it | yes |
+| `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document made for another tool | no |
+
+Keep `.studyflow.yaml` in your repository. Everything else is derived from it.
+
+![The four files that carry a whole study, and what converts into what. Thick arrows are the lossless hops.](../assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry two payloads beside the pixels: the same BPMN XML as embedded source, and a draw.io copy of the drawing. An image reopens in the modeler from its embedded source, never from its pixels. Dotted arrows leave the round trip: the draw.io payload downloads on its own as .drawio, and the modeler exports one way to LinkML, NIDM-Results, and ARTEM-IS."}
+
+## The main file
+
+The study is written as YAML, following whichever element sets are loaded.
+
+| Rule | What you see in the file |
+|---|---|
+| what contains what becomes nesting | a study's steps are written inside the study |
+| references are written as ids | `sourceRef: Enrolled`, not a second copy of the element |
+| anything unrecognised is kept | a key no loaded set declares is preserved and reported, never dropped |
+| defaults are left out | a value equal to its declared default is omitted, and put back when the file is opened |
+| obvious types are left out | `type:` appears only where the element is not the type already expected there |
+
+| Top-level key | Holds |
+|---|---|
+| `id` | the id of the document |
+| `definitions` | the document's remaining attributes, namespace declarations included |
+| *any other key* | one root element --- a process, a collaboration --- keyed by its id |
+| `elements` | root elements that cannot be keyed, because the id collides with a reserved key |
+| `diagram` | geometry that could not be attached to the element it positions |
+
+A file with no `definitions` key is not read as a studyflow. There is no separate version key: the format version is the version segment of the core namespace, which `definitions` carries.
+
+## A whole study, in one file
+
+```yaml
+id: minimal_study
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+
+Minimal_Study:
+  type: bpmn:Process
+  name: Minimal study
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+
+    Enrolled:
+      type: bpmn:StartEvent
+      name: Enrolled and consented
+      consentFormUri: https://example.org/protocols/minimal-study/consent.md
+
+    Flanker:
+      type: bpmn:Task
+      name: Flanker
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+
+    Done:
+      type: bpmn:EndEvent
+      name: Done
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+      completionCodeType: dynamic
+
+    Flow_Enrolled_Flanker:
+      type: bpmn:SequenceFlow
+      sourceRef: Enrolled
+      targetRef: Flanker
+    Flow_Flanker_Done:
+      type: bpmn:SequenceFlow
+      sourceRef: Flanker
+      targetRef: Done
+```
+
+That is [`minimal_study.studyflow.yaml`](../assets/examples/minimal_study.studyflow.yaml) in full. Arrows on each box and coordinates are optional: they follow from `sourceRef` and `targetRef`, and the modeler lays out a file that arrives without geometry.
+
+## Six short forms
+
+| What you write | What it stands for |
+|---|---|
+| a YAML mapping under `additionalArguments`, `values`, `configurations`, or a schema `body` | the same YAML, as one quoted string |
+| a plain list under `extensionElements` | `bpmn:ExtensionElements` holding that list |
+| `bounds`, `label`, and `waypoint` on the element itself | a separate geometry record elsewhere in the file |
+| elements keyed by id under `flowElements` | a list of elements, each carrying its own `id` |
+| a condition or expression written as a plain string | an expression element carrying nothing but that string |
+| `documentation`, and `checklist` for the checklist entry | BPMN documentation entries, one marked as the checklist |
+
+Each collapses only when nothing is lost, and the long form is still accepted. All six at once:
+
+```yaml
+flowElements:                    # elements addressed by id
+  Split_Train_Test:
+    type: bpmn:ServiceTask
+    extensionElements:           # a plain list, nothing enclosing it
+      - type: functional:Transform
+        operationType: split
+    checklist: |-                # the documentation entry marked as the checklist
+      - [ ] Test split held out
+    implementation: python://sklearn.model_selection.train_test_split
+    additionalArguments:         # YAML written as YAML
+      test_size: 0.25
+      random_state: 42
+    dataInputAssociations:
+      DataInput_Stratify:
+        sourceRef:
+          - target
+        transformation: stratify # an expression, as a plain string
+    bounds:                      # geometry, on the thing it positions
+      x: 582
+      "y": 230
+```
+
+## The BPMN 2.0 XML export
+
+The same study exports as standard BPMN 2.0 XML, under *File &rarr; Export &rarr; BPMN 2.0 XML*. Studyflow's additions ride in two standard places: a new element type sits inside `extensionElements`, and an added field is a namespaced attribute. A generic BPMN tool ignores whatever it does not recognise.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="minimal_study" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Minimal_Study" name="Minimal study">
+    <bpmn:extensionElements>
+      <studyflow:study />
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Enrolled" name="Enrolled and consented" studyflow:consentFormUri="https://example.org/protocols/minimal-study/consent.md">
+      <bpmn:outgoing>Flow_Enrolled_Flanker</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Flanker" name="Flanker">
+      <bpmn:extensionElements>
+        <cognitive:cognitiveTask instrument="jspsych" implementation="https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Enrolled_Flanker</bpmn:incoming>
+      <bpmn:outgoing>Flow_Flanker_Done</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Done" name="Done" studyflow:redirectTo="https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}" studyflow:completionCodeType="dynamic">
+      <bpmn:incoming>Flow_Flanker_Done</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Enrolled_Flanker" sourceRef="Enrolled" targetRef="Flanker" />
+    <bpmn:sequenceFlow id="Flow_Flanker_Done" sourceRef="Flanker" targetRef="Done" />
+  </bpmn:process>
+</bpmn:definitions>
+```
+
+The dashed lines that say what a step reads and writes are written out in the standard's own long form, then folded back when the file is opened.
+
+## Images that carry the study
+
+The picture *is* the study: drop an image back into the modeler and it opens. The gallery examples in these docs are shipped as `.studyflow.png`.
+
+| Export | What rides along with the picture |
+|---|---|
+| `.studyflow.png` | the study as standard BPMN 2.0 XML, and a draw.io copy of the drawing |
+| `.studyflow.svg` | the same two, the draw.io copy in draw.io's own editable-SVG form |
+
+Both switches in the export dialog — *Studyflow source* and *draw.io diagram* — are on by default.
+
+What travels inside the image is the whole diagram: meaning and geometry alike. What does not travel is the element sets, or any data the study produced.
+
+Turn *Studyflow source* off and the image is a picture and nothing more.
+
+::: {.callout-note}
+An export that carries the study also stamps who exported it, and when ([Views and the record](../run/provenance.qmd#which-tool-writes-what)); a derived document carries no stamp.
+:::
+
+## Everything the modeler reads and writes
+
+| Format | Extension | Group | For | Read back |
+|---|---|---|---|---|
+| Studyflow | `.studyflow.yaml` | Diagram | the study itself | yes, also `.studyflow` |
+| BPMN 2.0 XML | `.bpmn` | Diagram | other BPMN 2.0 tooling | yes, also `.xml` |
+| SVG | `.studyflow.svg` | Image | a vector figure that reopens as a diagram | yes, also `.svg` |
+| PNG | `.studyflow.png` | Image | a raster figure that reopens as a diagram | yes, also `.png` |
+| draw.io | `.drawio` | Interchange | further editing as a general-purpose drawing | no |
+| LinkML schema | `.linkml.yaml` | Interchange | the diagram's data elements as a LinkML schema | no |
+| NIDM-Results | `.nidm.ttl` | Interchange | analysis metadata as RDF, for neuroimaging tooling | no |
+| ARTEM-IS | `.artemis.json` | Interchange | an EEG methods descriptor, for reporting | no |
+| jsPsych timeline | `.json` | Import | building a studyflow from an existing jsPsych timeline | read only, never written |
+
+Group names are the export dialog's own sections. The [command line](cli.qmd) covers three formats; drawing new pixels needs the modeler.
+
+## What a reviewer sees
+
+Converting a file to XML and back returns byte-identical text for every example shipped with the modeler, so a diff shows edits rather than churn:
+
+```diff
+         - type: cognitive:CognitiveTask
+           instrument: jspsych
+-          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
++          implementation: https://github.com/jspsych/jspsych-contrib@v0.5.0#flanker
+```
+
+| Then read | For |
+|---|---|
+| [Formal model](formal-model.qmd) | what a studyflow is as a graph, and what makes one well formed |
+| [Elements](elements.qmd) | the types and fields a file may name |
+| [Keep, share, and publish](../run/share.qmd) | where the file belongs in a repository |

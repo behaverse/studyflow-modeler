@@ -2,12 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-/**
- * Re-renders examples to `<name>.studyflow.png` (the diagram embedded in the
- * picture) by driving the real modeler through a headless Chromium. Repo-bound:
- * it starts the modeler's dev server and needs `@playwright/test` installed
- * (both true of a workspace checkout). Needs network for icon glyphs.
- */
+/* Repo-bound: needs the modeler's dev server, `@playwright/test`, and network for icon glyphs. */
 
 export type RenderOptions = {
   dir: string;

@@ -9,12 +9,7 @@ import * as shape from '@modeler/shape/commands';
 import * as simulation from '@modeler/simulation/commands';
 import type { ServiceResolver } from '@modeler/bpmn/types';
 
-/**
- * A feature joins the bus by being listed here; a command of type `X` dispatches to
- * whichever listed module exports `runX`. Handlers mostly resolve services by name, so a
- * bare DI injector works in place of the modeler — null for boot commands, which run
- * before one exists.
- */
+/* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
 const FEATURES = [app, diagram, exportDiagram, inspector, palette, provenance, publish, shape, simulation] as const;
 
 type UnionToIntersection<U> =

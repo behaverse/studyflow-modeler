@@ -1,19 +1,15 @@
-import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { primaryRoots } from '@core/document';
+import { onPath } from '@cli/plugin';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 
-/**
- * `studyflow run` — executes a studyflow in the runtime the document declares
- * (`studyflow:Study`'s `runtime` attribute, a `RuntimeEnum`) or the one given
- * with `--runtime`. `local` delegates to the Python runner
- * (`packages/runner-py`); `browser` studies need the web runner.
- */
+/* `studyflow run`, specified in docs/reference/cli.qmd. */
 
 export type RunOptions = {
   runtime?: string;
@@ -28,24 +24,46 @@ function declaredRuntime(definitions: any): string {
   return typeof value === 'string' && value ? value : 'cloud';
 }
 
-function which(binary: string): boolean {
-  return spawnSync('which', [binary], { stdio: 'ignore' }).status === 0;
+/** Every `studyflow_run.py` this build could be sitting next to, best first. */
+function runnerScriptCandidates(): string[] {
+  const candidates: string[] = [];
+
+  // The repo checkout, when this is the bundle rather than a compiled binary.
+  if (import.meta.url.startsWith('file:')) {
+    candidates.push(fileURLToPath(new URL('../../runner-py/studyflow_run.py', import.meta.url)));
+  }
+
+  // The copy an installer put beside the binary (Homebrew: `bin/studyflow`, `libexec/studyflow_run.py`).
+  try {
+    const binDir = path.dirname(realpathSync(process.execPath));
+    candidates.push(path.join(binDir, '..', 'libexec', 'studyflow_run.py'), path.join(binDir, 'studyflow_run.py'));
+  } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
+
+  return candidates;
 }
 
-/** The Python runner: env override, then the repo checkout next to this CLI, then PATH. */
+/**
+ * The Python runner, in the order documented in reference/cli.qmd: an explicit
+ * `STUDYFLOW_RUN_PY`, then an installed `studyflow-run` companion, then the
+ * script shipped beside this CLI (which needs `uv` to pull its dependencies).
+ */
 function pythonRunnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };
 
-  const repoScript = fileURLToPath(new URL('../../runner-py/studyflow_run.py', import.meta.url));
-  if (existsSync(repoScript) && which('uv')) return { command: 'uv', args: ['run', '--script', repoScript] };
+  const companion = onPath('studyflow-run');
+  if (companion) return { command: companion, args: [] };
 
-  if (which('studyflow-run')) return { command: 'studyflow-run', args: [] };
+  if (onPath('uv')) {
+    for (const script of runnerScriptCandidates()) {
+      if (existsSync(script)) return { command: 'uv', args: ['run', '--script', path.normalize(script)] };
+    }
+  }
 
   throw new Error(
-    'No Python runner found. Install uv and run from the repo workspace, '
-    + 'install the studyflow-runner package (`studyflow-run` on PATH), '
-    + 'or point STUDYFLOW_RUN_PY at studyflow_run.py.',
+    'No Python runner found. Install the runner (`uv tool install studyflow-runner`, which puts '
+    + '`studyflow-run` on your PATH), or install uv so the copy shipped with this CLI can run, '
+    + 'or point STUDYFLOW_RUN_PY at a studyflow_run.py.',
   );
 }
 
@@ -54,10 +72,7 @@ async function runLocal(
   source: Awaited<ReturnType<typeof readSource>>,
   passthrough: string[],
 ): Promise<number> {
-  // The Python runner reads XML (bare, or embedded in a PNG) but not the YAML
-  // spelling — hand YAML over as a temporary .bpmn. Inputs stay resolved
-  // against the caller's cwd either way: the runner looks beside the plan
-  // first, and a temporary .bpmn has nothing beside it.
+  // The Python runner reads XML but not YAML; a temporary `.bpmn` is safe because nothing sits beside it to resolve inputs against.
   let target = input;
   if (source.container === 'text' && source.kind === 'yaml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));

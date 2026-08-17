@@ -10,13 +10,15 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler & npm run dev -w @behaverse/studyflow-runner & wait",
     "build": "npm run build -w @behaverse/studyflow-modeler && npm run build -w @behaverse/studyflow-runner",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "lint:schemas": "playwright test --config playwright.unit.config.ts schemas.unit catalog.unit schema-model.unit schema-primitives.unit",
+    "lint:docs": "playwright test --config playwright.unit.config.ts docs.unit",
     "preview": "npm run preview -w @behaverse/studyflow-modeler",
     "examples:render": "npm run build -w @behaverse/studyflow-cli && node packages/cli/dist/studyflow.mjs render",
+    "package:cli": "npm run package -w @behaverse/studyflow-cli",
     "test": "playwright test",
     "test:unit": "playwright test --config playwright.unit.config.ts",
     "test:e2e": "playwright test --project=e2e",

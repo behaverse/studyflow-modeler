@@ -1,36 +1,55 @@
 ---
 title: "Introduction"
+description: "One file that is the protocol, the running experiment, the analysis, and the figure."
 ---
 
-Studyflow is a coordination notation for research: a process standard for the cognitive sciences and adjacent fields, in the same role that BPMN[^bpmn], the standard notation for business processes, plays in business.
+![A training experiment drawn as one studyflow, from a participant's arrival to the debrief.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
 
-[^bpmn]: [BPMN 2.0](https://en.wikipedia.org/wiki/BPMN) — Business Process Model and Notation, standardized as ISO/IEC 19510.
+An experiment gets written down many times, once per audience:
 
-*Your tools compute. Studyflow coordinates.* A complete programming model has two parts: a computation model and a coordination model. Ordinary code hides the second one inside call graphs and shared state (ordering, dependencies, what each step hands the next). Studyflow makes coordination first-class so computations stay in the tools built for them (Python, LLM, jsPsych, PsychoPy, a Unity scene), while the notation carries what today lives in glue code, preregistrations, or manuscripts.
+| Who | What they get |
+|---|---|
+| The ethics board | a protocol document |
+| The public record | a preregistration |
+| The participant, or the model | an experiment script |
+| The analyst | a notebook |
+| The reader | a Methods section and a figure |
+| The replicator | whatever survived |
 
-<figure class="centered max-w-2xl">
-  ![](assets/img/studyflow_example_1.svg)
-  <figcaption>
-    A studyflow: one study as activities, decisions, events, and data.
-  </figcaption>
-</figure>
+Nothing checks these against each other, so they drift. By the end, no document describes the experiment you ran.
 
-One file is therefore the protocol, the runnable experiment, the analysis, and the publication figure at once -- each a projection of the same file, with no second copy to drift:
+Studyflow replaces them with one file: a diagram you can read, edit, and run.
 
-- *Protocol*: readable by a colleague, reviewer, or ethics board.
-- *Runnable experiment*: the runner app administers it to participants or LLMs.
-- *Analysis specification*: the Python runner executes its pipeline.
-- *Figure*: an PNG or SVG export packaging editable diagram, semantics, and provenance (not just pixels).
+## Computation and coordination
 
-## Start here
+Code that runs an experiment does two jobs [^gelernter]. It **computes**: presents a stimulus, fits a model, builds a prompt. It **coordinates**: decides what comes next, who joins which group, which file a step reads.
 
-- [Get started](get-started.qmd): walk through a complete example.
-- Open the [Modeler app](https://behaverse.org/studyflow-modeler/app) and follow its [usage guide](guides/modeler-app.qmd).
-- Explore the [Examples](examples/index.qmd): cognitive tasks, CONSORT, pipelines, MLOps.
-- Read the [Specification](reference/spec.qmd), and [Why Studyflow](reference/why-studyflow.qmd) for the full argument.
+Languages handle computation well. Coordination ends up scattered through the same code, where no one sees it whole and nothing checks it against the protocol.
 
-See also [FAQ](faq.qmd) and [Glossary](reference/glossary.qmd).
+Studyflow is a coordination notation: it takes the second job out of the code and into a diagram, built on BPMN 2.0 [^bpmn] rather than a new standard.
 
-## Get in touch
+[^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97–107.
 
-Studyflow is an open source project and contributions are welcome. [Visit our GitHub](https://github.com/behaverse) or email us at [contact@xcit.org](mailto:contact@xcit.org).
+[^bpmn]: [BPMN 2.0](https://en.wikipedia.org/wiki/BPMN) — Business Process Model and Notation, ISO/IEC 19510.
+
+## One file, many views
+
+| The same file is | Read by |
+|:--|:--|
+| A protocol | a colleague, a reviewer, an ethics board |
+| An experiment | participants, or a model in the participant's seat |
+| An analysis | the pipeline that ran, not a description of it |
+| A figure | the Methods section of your paper |
+
+The diagram is the source; every other [view](run/provenance.qmd) is a filtered reading of it, so they cannot fall out of step.
+
+## What's next
+
+| Page | What it gives you |
+|:--|:--|
+| [Get started](start/quickstart.qmd) | build and run a small study in ten minutes |
+| [Reading studyflows](start/reading-studyflows.qmd) | how to read one somebody hands you |
+| [The eleven relations](design/relations.qmd) | what a design can say, and the shape that says it |
+| [Examples](design/gallery.qmd) | sixteen complete studies to adapt |
+
+Open source on [GitHub](https://github.com/behaverse/studyflow-modeler); questions to [contact@xcit.org](mailto:contact@xcit.org).

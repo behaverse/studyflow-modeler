@@ -56,11 +56,7 @@ export const NON_EXTENSION_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xs
 
 export const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
 
-/**
- * The name bpmn-js gives the `bpmn:Property` it invents to satisfy the XSD. Both apps must
- * filter it (hence it lives here): unfiltered, the modeler offers it as an unnamed State
- * variable, and the runner records it to the data server as a phantom variable via `getVariables()`.
- */
+/** The `bpmn:Property` in bpmn-js */
 const TARGET_REF_PLACEHOLDER = '__targetRef_placeholder';
 
 export function isDeclaredProperty(property: { $type?: string; name?: unknown }): boolean {

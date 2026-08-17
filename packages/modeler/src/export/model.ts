@@ -3,18 +3,7 @@ import { isDataOperationActivity, StudyflowElement } from '@core/element';
 import { exportDiagramName } from '@modeler/export/common';
 import type { Modeler } from '@modeler/bpmn/types';
 
-/**
- * What the interchange exporters read instead of the canvas: one pass over the
- * element registry, resolved against the catalog once.
- *
- * Each exporter is then a pure `ExportModel -> string` — no bpmn-js, no moddle,
- * no walk of its own — so *what an export sees* is decided here, once, instead
- * of separately in LinkML, NIDM, and ARTEM-IS.
- *
- * The draw.io exporter is deliberately not a consumer: it projects geometry and
- * diagram interchange (positions, waypoints, DI colors, mxGraph styles), which
- * this model does not carry and the semantic exporters never ask for.
- */
+/* exporters read this instead of the canvas */
 export type ExportedElement = {
   id: string;
   /** The element's name, or its id where it has none. */

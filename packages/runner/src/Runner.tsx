@@ -164,8 +164,7 @@ export function Runner() {
     if (logsOpen && el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [log, logsOpen]);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- one-shot boot: the source
-     is a URL param, so the first render has nothing to derive this from. */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!source) return;
     if (source.kind === 'handoff') {
@@ -255,7 +254,7 @@ export function Runner() {
           handle.online ? 'info' : 'skip',
           handle.online
             ? `Connected to the Behaverse Data Server (session ${handle.sessionId}); responses will be uploaded.`
-            : `Not connected to the Behaverse Data Server (session ${handle.sessionId}); nothing will be stored or uploaded.`
+            : `Not connected to the data server. Nothing will be stored.`
         );
 
         if (handle.online) {
@@ -350,7 +349,7 @@ export function Runner() {
             className={layout.logsToggle}
             aria-expanded={logsOpen}
           >
-            {logsOpen ? 'Hide logs' : `Logs${log.length ? ` (${log.length})` : ''}`}
+            {logsOpen ? 'Close' : `Logs${log.length ? ` (${log.length})` : ''}`}
           </button>
         </div>
         <aside

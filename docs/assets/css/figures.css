@@ -74,3 +74,13 @@ figcaption code {
   float: right;
   margin-left: .75rem;
 }
+
+/* let a wide table scroll inside itself rather */
+@media (max-width: 575.98px) {
+  main.content table {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}

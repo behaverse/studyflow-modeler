@@ -1,99 +1,45 @@
 ---
 title: FAQ
-description: Quick answers to questions about Studyflow and the Modeler
+description: "Short answers to what it is, what it runs, and what happens to your files and data."
 ---
 
-```{=html}
-<style>
-.faq summary {
-  color: var(--bs-body-color, #212529);
-  cursor: pointer;
-}
-.faq summary strong {
-  color: var(--bs-body-color, #212529);
-}
-.faq details {
-  padding: 0.25rem 0;
-}
-.faq details[open] summary {
-  margin-bottom: 0.5rem;
-}
-</style>
-```
+| What you want to do | What does it | Where it runs |
+|:--|:--|:--|
+| Read or edit a study | the modeler | your browser |
+| Administer a study to participants | the browser runner | your browser |
+| Execute an analysis pipeline | the Python runner | your machine |
+| Convert, check, or render a file | the CLI | your machine |
 
-::: {.faq}
+## What it is
 
-<details>
-<summary>**What is Studyflow?**</summary>
+| Question | Answer |
+|:--|:--|
+| **What is Studyflow?** | A coordination notation for research: one file states an experiment's order, its branches, and its data flow, in the role BPMN 2.0 plays for business processes. Your tools compute; the file coordinates them. [Introduction](index.qmd). |
+| **Who is it for?** | Researchers who design experiments with participants, and researchers who build analysis pipelines or evaluate models. The same elements serve both. [One file, many views](index.qmd#one-file-many-views). |
+| **Why build on BPMN?** | BPMN 2.0 (ISO/IEC 19510) already standardizes steps, branches, events, and data, so Studyflow extends a notation people know instead of inventing one. The modeler exports BPMN 2.0 XML and opens `.bpmn` files drawn elsewhere. [BPMN mapping](reference/bpmn.qmd). |
 
-A BPMN-based visual language for specifying scientific studies and the data flows around them. The same `.studyflow` file serves as a study protocol, a publication figure, a data pipeline spec, and a participant-facing runtime. See [Why Studyflow](reference/why-studyflow.qmd).
+## Using it
 
-</details>
+| Question | Answer |
+|:--|:--|
+| **Do I need to install anything?** | Not to draw or administer a study: the [modeler](https://behaverse.org/studyflow-modeler/app.html) and the [browser runner](run/participants.qmd) are web pages. Install the Python runner and the CLI only to execute an analysis pipeline. |
+| **Can I actually run a study?** | Yes: the browser runner administers consent, instructions, questionnaires, and Behaverse tasks; the Python runner executes analysis steps that name a Python callable. [Execution](run/execution.qmd) has the element-by-element account. |
+| **Can I use my own tasks?** | Name the package and the version on the task --- jsPsych, PsychoPy, Unity --- and that naming travels with the file. The browser runner administers Behaverse tasks itself, and shows the step and the software it names for other packages. |
+| **Can it randomize participants into arms?** | Yes: a diamond marked with dice assigns each participant at random, and a pinned seed repeats those draws exactly. For allocation balanced across a cohort, allocate outside the study and pass the arm in --- [Randomize and counterbalance](design/randomization.qmd). |
 
-<details>
-<summary>**Who is it for?**</summary>
+## Your files and your data
 
-Two primary audiences:
+| Question | Answer |
+|:--|:--|
+| **Does anything leave my browser?** | Not until you send it: your work stays in your browser's storage until you export a file, publish it, or switch run recording on. |
+| **Is a picture really the file?** | Yes --- a `.studyflow.png` or `.studyflow.svg` export carries the whole study inside the image, and opens back up in the modeler fully editable. |
+| **How does Studyflow relate to Psych-DS, BIDS, or CSVW?** | Complementary: they describe the data, Studyflow describes the process around it, and a studyflow points at them through the `schema` attribute on a dataset or a table. [Data in and out](design/data.qmd#say-what-the-columns-hold). |
+| **Can I use it without a Behaverse account?** | Yes: a `.studyflow.yaml` file is plain-text YAML you can render, diff, share, and version anywhere ([Keep, share, and publish](run/share.qmd)). An account is needed only to publish a study to the Behaverse Data Server and collect participant data there. |
+| **Is the format stable?** | The BPMN 2.0 core it builds on is stable; the Studyflow extensions are still evolving, and breaking changes are noted in [GitHub Releases](https://github.com/behaverse/studyflow-modeler/releases). |
 
-- **Experimental researchers** modeling studies (recruitment, consent, tasks, data collection).
-- **Pipeline and model builders** modeling data flow (ingestion, preprocessing, training, deployment).
+## The project
 
-</details>
-
-<details>
-<summary>**Why BPMN?**</summary>
-
-BPMN is an ISO-standard process notation with a mature tooling ecosystem. Building on it means Studyflow inherits a vocabulary that engineers already know, plus editors, validators, and runtimes. Studyflow extends BPMN with research-specific elements rather than reinventing the notation. See [Studyflow vs BPMN](reference/studyflow-vs-bpmn.qmd).
-
-</details>
-
-<details>
-<summary>**Is a `.studyflow` file executable?**</summary>
-
-The format is a specification, not a program. The [Behaverse Data Server](guides/publish.qmd) can execute one as a participant-facing runtime. Analysis pipeline tasks reference external scripts that you run yourself. See [Modeler app, Simulation mode](guides/modeler-app.qmd#simulation-mode) for a step-through simulator in the modeler.
-
-</details>
-
-<details>
-<summary>**How does Studyflow relate to Psych-DS, BIDS, or CSVW?**</summary>
-
-They are complementary. Studyflow describes the **process** (what happens, in what order, with what data flow). Psych-DS, BIDS, and CSVW describe the **data** (column names, file layouts, schemas). A studyflow references these standards via the `schema` attribute on `Dataset` and `Table` elements, which points at a `Schema` element whose `format` names the standard and whose `body` holds the schema itself or a path or URL to it. See [Attach a schema](guides/attach-schema.qmd).
-
-</details>
-
-<details>
-<summary>**Can I use it without the Behaverse server?**</summary>
-
-Yes. A `.studyflow` file is a plain-text YAML document (semantically equivalent to BPMN 2.0 XML, which the modeler can also export); you can render, share, and reference it without any server involvement. You only need the Behaverse Data Server if you want it to host the study and collect participant data. See [Save and share](guides/save-share-version.qmd).
-
-</details>
-
-<details>
-<summary>**Do I need to install anything?**</summary>
-
-No. The [Modeler app](https://behaverse.org/studyflow-modeler/app) runs entirely in the browser.
-
-</details>
-
-<details>
-<summary>**Where do I report a bug or request a feature?**</summary>
-
-[GitHub issues](https://github.com/behaverse/studyflow-modeler/issues). For larger changes (new element types, schema extensions), open an issue first to discuss before sending a PR.
-
-</details>
-
-<details>
-<summary>**How do I cite Studyflow?**</summary>
-
-A citation form will be added here once the corresponding paper is available. In the meantime, link to the [GitHub repository](https://github.com/behaverse/studyflow-modeler) and include the version of your `.studyflow` file in supplementary materials.
-
-</details>
-
-<details>
-<summary>**Is the format stable?**</summary>
-
-The core (events, activities, gateways, data objects, sequence flow) is stable and inherits BPMN's stability guarantees. Studyflow extensions (specialized activity types, data operations, temporal attributes) are evolving; breaking changes are tracked in [GitHub Releases](https://github.com/behaverse/studyflow-modeler/releases).
-
-</details>
-
-:::
+| Question | Answer |
+|:--|:--|
+| **How do I cite Studyflow?** | Cite the [repository](https://github.com/behaverse/studyflow-modeler) and the [release](https://github.com/behaverse/studyflow-modeler/releases) you used, and deposit the `.studyflow.yaml` file alongside your data. The modeler writes its version into every studyflow it exports. |
+| **Where do I report a bug?** | [GitHub issues](https://github.com/behaverse/studyflow-modeler/issues). For new element types or new schemas, open an issue before sending a pull request. |

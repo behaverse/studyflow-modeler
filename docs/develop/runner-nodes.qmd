@@ -1,0 +1,154 @@
+---
+title: Add a node kind to the browser runner
+description: "Adding a screen for a new element type, so a schema type runs rather than only drawing."
+---
+
+| Folder in `packages/runner/src/nodes/` | Claims | What the participant sees |
+|---|---|---|
+| `start/` | `bpmn:StartEvent` | The consent form, or a welcome with a *Begin* button |
+| `end/` | `bpmn:EndEvent` | The completion code and the redirect countdown |
+| `instruction/` | `cognitive:Instruction` | The `content` text and a *Continue* button |
+| `questionnaire/` | `cognitive:Questionnaire` | A built-in item set, or a free-text box |
+| `behaverse/` | `cognitive:BehaverseTask` | The Behaverse Unity build in a frame |
+| `choreography/` | `bpmn:ChoreographyTask` | The two participants and which one initiates |
+| `task/` | Any task no folder above claimed | The step's name, any declared call, and *Continue* |
+
+[Execution](../run/execution.qmd) sets that list beside the other three programs.
+
+## Drawable is not runnable
+
+| Declaring a type in a schema gives it | It does not give it |
+|---|---|
+| A palette entry and an icon | A screen in the browser runner |
+| Inspector fields for its attributes | A job the session can hand to a component |
+| Round-tripping through YAML, XML, and PNG | Any pre-flight check of the values an author typed |
+
+An element the registry cannot match warns twice and is stepped past: once before the run, from the pre-flight in `packages/runner/src/nodes/index.ts`, and once as the token reaches it, from `packages/runner/src/session.ts`. Gateways need no folder — the session picks their branch itself rather than dispatching to a screen, so the walk never reports them as unrunnable.
+
+::: {.callout-note}
+Two things a schema *can* say change the run with no node module: an applied type whose branching is `random` is drawn from the seeded generator, and one whose branching is `model` stops the run rather than guessing. Both live in [Execution](../run/execution.qmd#how-a-branch-is-chosen).
+:::
+
+## One folder, discovered at startup
+
+A node kind is one directory, `packages/runner/src/nodes/<kind>/`. Nothing registers it by hand: `packages/runner/src/nodes/index.ts` runs
+
+```ts
+import.meta.glob('./*/index.tsx', { eager: true });
+```
+
+so every `<kind>/index.tsx` is imported at startup and self-registers as a side effect. The mutable array and `registerNode` live in `registry.ts`, apart from that glob, so a node module can import the one without re-triggering the other -- the circular import that would otherwise bite.
+
+Keep React in `index.tsx`; attribute reading, payload building, and validators go in a plain `.ts` file beside it, where they stay testable in Node without a browser.
+
+## The definition
+
+`instruction/` is the smallest shipped kind, and its registration is the whole contract:
+
+```tsx
+registerNode({
+  type: 'instruction',
+  match: { extensionType: 'cognitive:Instruction' },
+  toJob: (node) => ({ type: 'instruction', node, content: readString(node, 'content') ?? '' }),
+  Component: Instruction,
+  validateNode: validateInstruction,
+});
+```
+
+| Field | What it is |
+|---|---|
+| `type` | The kind's name, unique across the registry. Registering a duplicate throws at startup rather than shadowing silently. |
+| `match` | Which elements this kind claims. Three shapes, below. |
+| `toJob` | Maps a flow node to a plain job object -- the node plus whatever the component needs, read off the business object here rather than in the component. Return `null` and the step is logged and skipped. |
+| `Component` | The React component shown while the token sits on this node. |
+| `validateNode` | Optional. Runs once per node this kind matched, before the run starts. |
+| `validateStudyflow` | Optional. Runs once per studyflow, for checks that span nodes this kind does *not* match. Only `task/` needs it, to check `implementation` references wherever they appear. |
+
+Each module makes its job type visible to the session with a `declare module` block augmenting the runner's job map -- no shared file to edit.
+
+## How an element finds its kind
+
+`packages/runner/src/nodes/registry.ts` resolves in a fixed order, most specific first.
+
+| Matcher | Matches on | Used by |
+|---|---|---|
+| `{ extensionType: 'cognitive:Instruction' }` | The element's applied type | Every domain kind |
+| `{ bpmnType: 'bpmn:StartEvent' }`, or an array of them | The BPMN type | `start/`, `end/`, `choreography/` |
+| `{ fallback: 'task' }` | Any `bpmn:Task`, `bpmn:UserTask`, `bpmn:ServiceTask`, `bpmn:ScriptTask`, or `bpmn:ManualTask` left unclaimed | `task/`, and only `task/` |
+
+Applied type beats BPMN type, so a `cognitive:Instruction` drawn on a `bpmn:Task` reaches `instruction/` and never the fallback. An element matching nothing is the warn-and-skip case above.
+
+## What a component is given
+
+Five props: its own typed `job`, the `session`, a `log` function, `complete()` to advance, and `abort(reason)` to stop the run with a message the participant sees.
+
+`complete()` takes no result, on purpose -- nothing downstream reads one. Publish what the step collected with `session.setVariable(name, value)`: that is the value a condition on a sequence flow reads, and the value that goes to the data server with the session.
+
+## Validation runs before the first screen
+
+Both hooks return issues, and an issue's `severity` decides what happens to the run.
+
+| `severity` | Effect |
+|---|---|
+| `error` (the default) | Blocks the run. The runner never shows a screen; it lists every problem with the id of its node under *This study cannot run*. |
+| `warning` | Logged, and the run proceeds. Use it where the study is still deliverable but is not what the author probably meant -- an unknown questionnaire instrument, for instance, which downgrades to a free-text answer. |
+
+Write the message as an instruction, not a diagnosis: the shipped validators name the attribute to fix and the value to put in it. The pre-flight entry point is async because kinds may fetch what they validate against -- today only `behaverse/`, checking scenes and timelines against the Unity build's manifest.
+
+## Adding one, end to end
+
+`cognitive:Rest` has no folder today, so a rest period falls through to the generic task screen. Giving it a real one is the whole exercise:
+
+1. Create `packages/runner/src/nodes/rest/index.tsx`, declaring the job type and augmenting the job map there.
+2. Read the attributes in `toJob`, render in the component, call `registerNode`.
+3. Put anything that does not need React in a plain `.ts` file beside it.
+4. Run any studyflow containing the element -- the glob picks the folder up.
+
+```tsx
+// packages/runner/src/nodes/rest/index.tsx
+import { useEffect, useState } from 'react';
+import { readString, type FlowNode } from '@runner/flow';
+import type { NodeProps } from '@runner/nodes/types';
+import { NodePanel } from '@runner/nodes/NodePanel';
+import { nodeStyles } from '@runner/nodes/styles';
+import { registerNode } from '@runner/nodes/registry';
+import { readDuration } from '@runner/nodes/rest/duration';
+
+declare module '@runner/jobs' {
+  interface JobsByType {
+    rest: RestJob;
+  }
+}
+
+type RestJob = { type: 'rest'; node: FlowNode; seconds: number };
+
+function Rest({ job, complete }: NodeProps<RestJob>) {
+  const [left, setLeft] = useState(job.seconds);
+
+  useEffect(() => {
+    if (left <= 0) {
+      complete();
+      return;
+    }
+    const id = window.setTimeout(() => setLeft((n) => n - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [left, complete]);
+
+  return (
+    <NodePanel>
+      <h2 className={nodeStyles.title}>{job.node.businessObject?.name || 'Rest'}</h2>
+      <p className={nodeStyles.subtitle}>Please wait. {left}s remaining.</p>
+    </NodePanel>
+  );
+}
+
+registerNode({
+  type: 'rest',
+  match: { extensionType: 'cognitive:Rest' },
+  // `configurations` is YAML, so the parsing lives in a plain .ts file next door.
+  toJob: (node) => ({ type: 'rest', node, seconds: readDuration(readString(node, 'configurations')) }),
+  Component: Rest,
+});
+```
+
+Because `cognitive:Rest` already ships in the cognitive schema, nothing else changes: the palette, the inspector, and the file format were never waiting on the runner.

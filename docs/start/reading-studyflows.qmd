@@ -1,0 +1,107 @@
+---
+title: Reading studyflows
+description: "How to read a study diagram someone hands you, without authoring anything."
+---
+
+![A three-arm training study, end to end.](../assets/img/studyflow_example_1.svg){#fig-whole-study fig-alt="A left-to-right diagram. A plain circle labelled Start leads through four boxes: Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
+
+To read any studyflow: find the plain circle, follow the solid arrows, and stop at the circle with the heavy outline. That path is one participant's passage through the study, in order.
+
+Diagrams run either left to right or top to bottom; the arrows tell you which.
+
+One thing to keep in mind throughout. Where the path splits at a diamond, a given participant takes only one branch. The diagram shows every possible route rather than any one person's, which is why @fig-whole-study is a three-group study drawn as a single picture.
+
+## A legend
+
+::: {.legend}
+
+| | Element | What it means in the study |
+|:--|:--|:--|
+| ![A thin circle, labelled Start.](../assets/img/elements/start_event.svg){width="46"} | Start event | Where a participant enters the study. |
+| ![A circle with a thick outline, labelled End.](../assets/img/elements/end_event.svg){width="48"} | End event | Where the study finishes for that participant. |
+| ![A rounded rectangle with an information icon in the corner, labelled Instruction.](../assets/img/elements/instruction.svg){width="110"} | Instruction | Text shown to the participant. Nothing is recorded. |
+| ![A rounded rectangle with a clipboard-and-pencil icon in the corner, labelled Questionnaire.](../assets/img/elements/questionnaire.svg){width="110"} | Questionnaire | A form the participant fills in, often a standard instrument such as PHQ-9 or GAD-7. |
+| ![A rounded rectangle with a jigsaw-piece icon in the corner.](../assets/img/elements/cognitive_task.svg){width="110"} | Cognitive task | A cognitive test, delivered by an experiment package such as PsychoPy, jsPsych, lab.js, or OpenSesame. |
+| ![A rounded rectangle with a hexagon icon in the corner, labelled Behaverse Task.](../assets/img/elements/behaverse_task.svg){width="110"} | Behaverse task | A cognitive test taken from the Behaverse catalogue, named by a short scene code. |
+| ![A rounded rectangle with a bed icon in the corner, labelled Rest.](../assets/img/elements/rest.svg){width="110"} | Rest | A break or a resting-state period. |
+| ![A diamond with a dice icon inside, labelled Random Gateway.](../assets/img/elements/random_gateway.svg){width="90"} | Random gateway | Random assignment. Each arrow leaving it is one arm of the study. |
+| ![A cylinder, labelled Dataset.](../assets/img/elements/dataset.svg){width="56"} | Dataset | A stored collection of data the study reads from or writes to. |
+| ![A page with a folded top corner, labelled Data Object.](../assets/img/elements/data_object.svg){width="60"} | Data object | A single piece of data handed from one step to the next. |
+
+:::
+
+<style>
+.legend img { background-color: var(--doc-figure-mat); border-radius: .25rem; }
+</style>
+
+### Marks, lines, and regions
+
+| What you see | What it tells you |
+|:--|:--|
+| A **shield** on the entry circle | A consent form gates entry; the file holds its address in `consentFormUri`. |
+| A **small circle sitting on the edge** of a box | A second way out of that step --- dropout, withdrawal, a failed check. Its arrow shows where those participants go. |
+| A **plus sign** at the bottom edge of a box | The box stands for a set of steps drawn on their own page. Folding changes nothing about what runs; open it in the modeler to see inside. |
+| A small **ƒ** at the bottom edge of a box | The step works on data rather than being something a participant does. |
+| A **badge** on a cylinder | The data standard that dataset follows: BDM, BIDS, Psych-DS, or Kedro. |
+| A **dashed band** around several boxes | A phase label --- enrollment, allocation, follow-up, analysis. It groups; it changes nothing. |
+| A **labelled strip** the whole diagram is divided into | A phase of the study, or who is responsible for the steps inside it. |
+| A **solid arrow** with a filled head | Order: this step, then that one. |
+| A **dotted arrow** with an open head | Data: whether a step reads or writes what it points at. |
+
+The two arrow types answer two different questions. Follow the solid arrows to learn what happens. Follow the dotted ones to learn what is recorded.
+
+![The *ƒ* marker: a step that handles data, not a participant.](../assets/img/elements/data_operator.png){#fig-function-marker width="220" fig-alt="A rounded rectangle labelled Preprocess with a small italic f centred at its bottom edge."}
+
+A step marked *ƒ* (@fig-function-marker) reads, transforms, or summarises data instead of showing a participant a screen.
+
+### Branch points
+
+![A two-arm random assignment.](../assets/img/elements/random_gateway_pattern.svg){#fig-random-pattern width="340" fig-alt="A diamond with a dice icon, fed by one incoming arrow, with two arrows leaving it toward two separate boxes."}
+
+| The diamond | How the path is chosen |
+|:--|:--|
+| Carries **dice** (a *random gateway*) | Each participant is assigned at random. The panel gives the method and the distribution the draw comes from. |
+| Used for **screening** (an *eligibility gateway*) | It holds the inclusion and exclusion criteria as plain sentences you can read. |
+| Carries a **plus sign** | The outgoing paths run together rather than one instead of the others. |
+| Anything else | The condition written on each outgoing arrow decides, and the arrow marked as the default catches whatever is left. |
+
+## Where the settings live
+
+Open the file in the [modeler](https://behaverse.org/studyflow-modeler/app.html) and select a shape. A panel lists that step's settings: which questionnaire, which test, how long a rest lasts, how a branch is decided. Select the empty canvas instead, and the panel describes the study itself — title, authors, version.
+
+Every element also carries a free-text description and a checklist of things that step must satisfy.
+
+::: {.callout-note}
+## Opening one
+
+*File &rarr; Open File...* takes `.studyflow.yaml`, `.studyflow.png`, `.studyflow.svg`, or a `.bpmn` file exported by another diagram tool. Nothing is installed, and the file is read inside your browser rather than uploaded.
+:::
+
+## The picture is the study
+
+A `.studyflow.png` or `.studyflow.svg` carries the full source of the study alongside the pixels. Open the image in the modeler and the study comes back complete and editable, every setting intact. The Python runner and the CLI read one the same way.
+
+So a figure in a paper's supplement need not be a screenshot of the study. It can be the study.
+
+## Checking a study you are reviewing
+
+![A trial diagram annotated with what each part of the notation is doing.](../assets/img/consort_annotated.studyflow.png){#fig-consort-annotated fig-alt="A top-down clinical trial diagram with orange callouts. Notes point at the start circle, at small circles on the edge of boxes that redirect participants out of a step, at a diamond marking a conditional path, at dashed-outline regions grouping steps by phase, and at end circles marked Excluded."}
+
+@fig-consort-annotated is a clinical trial written as a studyflow. If you are reviewing one, here are six questions and where each is answered.
+
+| What you want to confirm | Where it is in the diagram |
+|:--|:--|
+| What runs, and in what order | The solid arrows, from the plain circle to the heavy-outlined one. |
+| Who is allowed in | The screening diamond lists inclusion and exclusion criteria. A shield on the start circle means consent gates entry. |
+| Where participants can leave | Every heavy-outlined circle is an exit. A small circle on the edge of a box is a second way out of that step, and its arrow shows where those participants go. |
+| What was fixed in advance | The branch settings on each diamond, and each step's settings in the panel. |
+| What each step reads and writes | The dotted arrows in and out of it, and the datasets they reach. |
+| What standard the data follows | The badge drawn on the dataset cylinder: BDM, BIDS, Psych-DS, or Kedro. |
+
+A studyflow states a design. Whether it was *run* as drawn is answered by the records a run leaves behind, not by the diagram ([Views and the record](../run/provenance.qmd)).
+
+|:--|:--|
+| [Elements](../reference/elements.qmd) | the full catalogue of shapes, including the ones a specialised study may use |
+| [Glossary](../reference/glossary.qmd) | the terms in one place |
+| [Examples](../design/gallery.qmd) | complete studies to read for practice |
+| [Modeler app](../design/modeler.qmd) | the interface itself, once you want to change something rather than read it |

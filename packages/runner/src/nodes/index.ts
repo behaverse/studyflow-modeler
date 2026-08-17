@@ -1,4 +1,5 @@
 import { getCatalog, hasCatalog } from '@core/notation';
+import { validateAllocation } from '@runner/allocation';
 import type { Studyflow } from '@runner/studyflow';
 import { BEHAVERSE_RUNTIME_URL, type Manifest } from '@runner/nodes/behaverse/types';
 import { fetchManifest } from '@runner/nodes/behaverse/validation';
@@ -47,6 +48,9 @@ export async function validate(studyflow: Studyflow, log: LogFn): Promise<Valida
   for (const node of studyflow.flowNodes.values()) {
     const def = findByFlowNode(node);
     if (def?.validateNode) issues.push(...def.validateNode(node, studyflow, manifest));
+
+    // Gateways have no node module of their own, so their allocation is checked here.
+    issues.push(...validateAllocation(node));
 
     if (!def && node.extensionType) {
       issues.push({

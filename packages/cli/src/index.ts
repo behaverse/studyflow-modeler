@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { convert } from '@cli/commands/convert';
 import { validate } from '@cli/commands/validate';
 import { info } from '@cli/commands/info';
+import { companionNames, findCompanion, runCompanion } from '@cli/plugin';
 
 const program = new Command();
 
@@ -84,7 +85,29 @@ program
     if (warnings.length) console.log(`  warnings: ${warnings.length} (run \`studyflow validate\` to see them)`);
   });
 
-program.parseAsync().catch((err: unknown) => {
+const builtIns = new Set(['help', ...program.commands.flatMap((command) => [command.name(), ...command.aliases()])]);
+
+program.addHelpText('after', () => {
+  const installed = companionNames().filter((name) => !builtIns.has(name));
+  return installed.length
+    ? `\nCompanions on PATH (\`studyflow <name>\` runs \`studyflow-<name>\`):\n  ${installed.join(', ')}\n`
+    : '';
+});
+
+/** An unknown subcommand goes to its companion before commander calls it a mistake. */
+async function main(): Promise<void> {
+  const [subcommand, ...rest] = process.argv.slice(2);
+  if (subcommand && !subcommand.startsWith('-') && !builtIns.has(subcommand)) {
+    const companion = findCompanion(subcommand);
+    if (companion) {
+      process.exitCode = await runCompanion(companion, rest);
+      return;
+    }
+  }
+  await program.parseAsync();
+}
+
+main().catch((err: unknown) => {
   console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });

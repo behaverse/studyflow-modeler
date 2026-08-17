@@ -365,11 +365,7 @@ function EditableEnumCombobox({ name, ariaLabel, value, literalValues, onCommit 
     if (next !== value) onCommit(next);
   }
 
-  /**
-   * What blurring the input means. The field shows a literal's *label*, so committing the
-   * raw text would store the label ("N-Back (NB)") where the value ("NB") belongs; anything
-   * that matches no literal is the custom identifier an editable enum exists to accept.
-   */
+  /** The field shows a literal's *label*, so text maps to its value ("N-Back (NB)" -> "NB") */
   function resolveTyped(text: string): string {
     const typed = text.trim();
     if (!typed) return '';
