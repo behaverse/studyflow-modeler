@@ -1,17 +1,15 @@
 ---
 title: "Studyflow"
-description: "A coordination notation for experimental research: one file that is at once the protocol, the runnable study, the analysis specification, and the publication figure."
+description: "A visual notation for experimental research"
 ---
 
-![A three-arm training experiment written as one studyflow, from a participant's arrival to the debrief.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
+Studyflow is a coordination notation for experimental research in cognitive sciences and adjacent fields, based on BPMN 2.0. Your tools compute; Studyflow coordinates them.
 
-Studyflow is a coordination notation for experimental research: a process standard for the cognitive sciences and adjacent fields, in the role BPMN 2.0 plays for business processes. Your tools compute; Studyflow coordinates them.
+![A training experiment written as one studyflow file.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
 
 ## The gap
 
-A study is written down once per audience — a protocol, a preregistration, a script, a notebook, a figure — and nothing checks the copies against each other. Drift follows. Eleven of 35 open-data articles reproduced without help from their authors[^hardwicke], and 70 teams analyzing one neuroimaging dataset produced no two identical workflows[^variability].
-
-A decade of standardization gave the *data* of a study a shared form. The *process* that produced it still lives in prose, slides, and glue code, where nothing can validate it — so the failure is structural rather than motivational, and standardized data alone has not closed it.
+A study is written down once for each audience — a protocol, a preregistration, a script, a notebook, a figure — and nothing checks the copies against each other. They drift. Solution attempts have focused on the *data* — standardizing its shape, its storage, and its metadata — but the *process* that produced it is still scattered across prose, slides, and glue code.
 
 ## Computation and coordination
 
