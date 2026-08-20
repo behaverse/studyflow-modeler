@@ -3,6 +3,7 @@ export const ICONS = {
   closeSmall: 'iconify bi--x',
   closeAlt: 'iconify mdi--close',
   caretDown: 'iconify bi--caret-down',
+  chevronLeft: 'iconify bi--chevron-left',
   chevronRight: 'iconify bi--chevron-right',
   menu: 'iconify solar--hamburger-menu-linear',
   threeDots: 'iconify bi--three-dots',
@@ -30,6 +31,7 @@ export const ICONS = {
 
   play: 'iconify bi--play',
   playFill: 'iconify bi--play-fill',
+  pause: 'iconify bi--pause-fill',
   stop: 'iconify bi--stop',
 
   document: 'iconify fluent--document-24-regular',

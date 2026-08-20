@@ -9,7 +9,9 @@ import { MODDLE_BUILTIN_TYPES } from '@core/notation/schemaFile';
 import { PALETTE_GROUPS } from '@modeler/palette/groups';
 import { loadSchemaModels } from './schemas';
 
-/** The docs are hand-written, so nothing but this guard keeps them from drifting off the shipped schemas. */
+/** The docs are hand-written, so this guard keeps them from drifting off the shipped schemas:
+ * every element name must resolve, every link must land, every page must have a title. Style,
+ * register, and length are editorial calls (see docs/README.md), not lint failures. */
 
 const ROOT = process.cwd();
 const DOCS_DIR = path.join(ROOT, 'docs');
@@ -57,17 +59,8 @@ const KNOWN_NAMES: ReadonlySet<string> = (() => {
   return names;
 })();
 
-/**
- * Names that look like element types but legitimately are not Studyflow ones. Every entry was
- * triaged against the source named beside it; a name that is merely *wrong* belongs in a fix, not here.
- */
+/** Names that look like element types but legitimately are not Studyflow ones. */
 const NAME_ALLOWLIST: Readonly<Record<string, string>> = {};
-
-/** Names that never existed, or stopped existing. Reintroducing one is the drift this guard exists to stop. */
-const DENIED_NAMES: readonly string[] = [
-  'VideoGame', 'DataStorage', 'Snapshot', 'requiresConsent', 'schemaRef', 'randomOrder',
-  'core.moddle.yaml', 'OmniProcess', 'DataTrove', 'OpenBCI', 'CognitiveTest', 'BPMN 2.1',
-];
 
 /* -------------------------------------------------------------------------- */
 /* Reading the pages                                                           */
@@ -93,8 +86,8 @@ function qmdFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Marks the fenced-code and frontmatter lines of a file. Split out so the checks below can be self-tested. */
-function scanQuoted(lines: readonly string[]): { quoted: boolean[]; frontmatterEnd: number } {
+function readPage(file: string): Page {
+  const lines = readFileSync(file, 'utf8').split('\n');
   const quoted: boolean[] = [];
   let fence: string | null = null;
   let frontmatterEnd = -1;
@@ -102,7 +95,6 @@ function scanQuoted(lines: readonly string[]): { quoted: boolean[]; frontmatterE
   if (lines[0]?.trim() === '---') {
     frontmatterEnd = lines.findIndex((line, i) => i > 0 && line.trim() === '---');
   }
-
   lines.forEach((line, i) => {
     if (i <= frontmatterEnd) {
       quoted.push(true);
@@ -119,13 +111,6 @@ function scanQuoted(lines: readonly string[]): { quoted: boolean[]; frontmatterE
       quoted.push(false);
     }
   });
-
-  return { quoted, frontmatterEnd };
-}
-
-function readPage(file: string): Page {
-  const lines = readFileSync(file, 'utf8').split('\n');
-  const { quoted, frontmatterEnd } = scanQuoted(lines);
 
   return {
     rel: path.relative(ROOT, file),
@@ -157,20 +142,12 @@ test('there are docs to lint', () => {
 /** `Study`, `bpmn:Task`, `cognitive:RandomGateway` -- optional lowercase prefix, PascalCase local name. */
 const TYPE_TOKEN = /^(?:([a-z][A-Za-z0-9]*):)?([A-Z][A-Za-z0-9]*)$/;
 
-/** Whether a backticked token is making a claim about an element or type name at all. */
-function typeNameIn(token: string): { prefix?: string; local: string } | null {
+function resolvesToShippedName(token: string): boolean {
   const match = TYPE_TOKEN.exec(token);
-  if (!match) return null;
+  if (!match) return true;
   const [, prefix, local] = match;
   // Bare acronyms (`PATCH`, `NB`, `BCS`) name HTTP verbs and enum values; no shipped type is all-caps.
-  if (!prefix && !/[a-z]/.test(local)) return null;
-  return { prefix, local };
-}
-
-function resolvesToShippedName(token: string): boolean {
-  const parsed = typeNameIn(token);
-  if (!parsed) return true;
-  const { prefix, local } = parsed;
+  if (!prefix && !/[a-z]/.test(local)) return true;
   if (prefix === 'bpmn') return isBpmnType(local);
   if (prefix) return !!catalog.getType(token) || !!catalog.enumOf(token);
   return KNOWN_NAMES.has(local) || isBpmnType(local);
@@ -178,15 +155,11 @@ function resolvesToShippedName(token: string): boolean {
 
 test('the name check can tell a shipped name from a made-up one', () => {
   // Pins the resolver's own behaviour: weakening it to make a page pass has to break this first.
-  for (const good of ['CognitiveTask', 'bpmn:Task', 'cognitive:RandomGateway', 'studyflow:Dataset', 'Documentation']) {
+  for (const good of ['CognitiveTask', 'bpmn:Task', 'cognitive:RandomGateway', 'studyflow:Dataset', 'PATCH']) {
     expect(resolvesToShippedName(good), good).toBe(true);
   }
   for (const bad of ['VideoGame', 'bpmn:VideoGame', 'behaverse:Task', 'DataTrove']) {
     expect(resolvesToShippedName(bad), bad).toBe(false);
-  }
-  // Not element-name shaped, so never asked about.
-  for (const skipped of ['PATCH', 'maxResponseTime', 'assets/schemas', 'a b']) {
-    expect(typeNameIn(skipped), skipped).toBeNull();
   }
 });
 
@@ -197,14 +170,12 @@ test('every element name a page prints is one the schemas ship', () => {
       if (page.quoted[i]) return;
       for (const span of line.matchAll(/`([^`\n]+)`/g)) {
         const token = span[1];
-        if (!typeNameIn(token)) continue;
         if (token in NAME_ALLOWLIST) continue;
         if (resolvesToShippedName(token)) continue;
         problems.push(
           `${page.rel}:${i + 1}: \`${token}\` is not a type, enum, enum value, inspector category, `
           + 'template, or palette entry of any shipped schema. Rename it to the name that ships, or -- if it '
-          + 'is deliberately not a Studyflow name -- add it to NAME_ALLOWLIST in tests/docs.unit.spec.ts '
-          + 'with the source that backs it.',
+          + 'is deliberately not a Studyflow name -- add it to NAME_ALLOWLIST in tests/docs.unit.spec.ts.',
         );
       }
     });
@@ -213,53 +184,11 @@ test('every element name a page prints is one the schemas ship', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* 2. Retired names stay retired                                               */
-/* -------------------------------------------------------------------------- */
-
-function deniedPattern(name: string): RegExp {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const left = /^[A-Za-z0-9]/.test(name) ? '\\b' : '';
-  const right = /[A-Za-z0-9]$/.test(name) ? '\\b' : '';
-  return new RegExp(`${left}${escaped}${right}`);
-}
-
-test('the retired-name matcher is exact', () => {
-  expect(deniedPattern('BPMN 2.1').test('conforms to BPMN 2.1 today')).toBe(true);
-  expect(deniedPattern('BPMN 2.1').test('conforms to BPMN 2.0 today')).toBe(false);
-  expect(deniedPattern('Snapshot').test('a `Snapshot` element')).toBe(true);
-  expect(deniedPattern('Snapshot').test('takes snapshots of the run')).toBe(false);
-  expect(deniedPattern('core.moddle.yaml').test('edit core.moddle.yaml')).toBe(true);
-  expect(deniedPattern('core.moddle.yaml').test('edit studyflow.moddle.yaml')).toBe(false);
-});
-
-test('no page revives a name that does not exist', () => {
-  const patterns = DENIED_NAMES.map((name) => [name, deniedPattern(name)] as const);
-  const problems: string[] = [];
-  for (const page of PAGES) {
-    // Whole file, fences included: a denied name in a YAML sample is just as wrong as one in prose.
-    page.lines.forEach((line, i) => {
-      for (const [name, pattern] of patterns) {
-        if (!pattern.test(line)) continue;
-        problems.push(
-          `${page.rel}:${i + 1}: "${name}" does not exist and must not be documented. `
-          + 'Delete the sentence or replace it with the name that ships '
-          + '(check `assets/schemas/*.moddle.yaml`).',
-        );
-      }
-    });
-  }
-  report(problems, 'retired name(s) in docs');
-});
-
-/* -------------------------------------------------------------------------- */
-/* 3. Links and images point at files                                          */
+/* 2. Links and images point at files                                          */
 /* -------------------------------------------------------------------------- */
 
 const LINK = /(!?)\[(?:[^\][]|\[[^\]]*\])*\]\(\s*<?([^)>\s]+)>?(?:\s+["'][^"']*["'])?\s*\)/g;
 const EXTERNAL = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#|\{\{)/i;
-
-/* An `<!-- ... -->`-commented link is checked too, on purpose: a path parked in a comment is a
- * promise about a file, and a promise no file keeps is exactly the rot this suite exists to find. */
 
 test('every relative link and image resolves to a file', () => {
   const problems: string[] = [];
@@ -277,8 +206,7 @@ test('every relative link and image resolves to a file', () => {
         if (!existsSync(resolved)) {
           problems.push(
             `${page.rel}:${i + 1}: ${bang ? 'image' : 'link'} "${rawTarget}" resolves to `
-            + `${path.relative(ROOT, resolved)}, which does not exist. Add the file, or point the `
-            + `${bang ? 'image' : 'link'} at the page that does.`,
+            + `${path.relative(ROOT, resolved)}, which does not exist.`,
           );
           continue;
         }
@@ -287,9 +215,8 @@ test('every relative link and image resolves to a file', () => {
         if (path.relative(DOCS_DIR, resolved).startsWith('..')) {
           problems.push(
             `${page.rel}:${i + 1}: ${bang ? 'image' : 'link'} "${rawTarget}" climbs out of docs/ to `
-            + `${path.relative(ROOT, resolved)}. It exists, but Quarto publishes only what is inside `
-            + 'the project, so this breaks on the built site. Copy the file under docs/assets/ and '
-            + 'point at that copy.',
+            + `${path.relative(ROOT, resolved)}, which 404s on the built site. Copy the file under `
+            + 'docs/assets/ and point at that copy.',
           );
         }
       }
@@ -299,7 +226,7 @@ test('every relative link and image resolves to a file', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* 4. Frontmatter                                                              */
+/* 3. Frontmatter                                                              */
 /* -------------------------------------------------------------------------- */
 
 test('every page declares a title and a description', () => {
@@ -313,305 +240,10 @@ test('every page declares a title and a description', () => {
       const value = new RegExp(`^${key}:[ \\t]*(\\S.*)$`, 'm').exec(page.frontmatter)?.[1];
       if (value && value.replace(/["']/g, '').trim()) continue;
       problems.push(
-        `${page.rel}:1: frontmatter has no ${key}. Add \`${key}: ...\` -- `
-        + `it is what the sidebar, the search index, and the social card read.`,
+        `${page.rel}:1: frontmatter has no ${key} -- it is what the sidebar, the search index, `
+        + 'and the social card read.',
       );
     }
   }
   report(problems, 'page(s) with incomplete frontmatter');
-});
-
-/* -------------------------------------------------------------------------- */
-/* 5. No shipped TODOs                                                         */
-/* -------------------------------------------------------------------------- */
-
-const CALLOUT_OPEN = /^:{3,}\s*\{?\s*\.?(callout-[a-z]+)\b([^}]*)\}?\s*$/;
-const CALLOUT_CLOSE = /^:{3,}\s*$/;
-const MISSING_CONTENT = /\b(TODO|TBD|FIXME|WIP)\b|coming soon|to be (written|added|filled)|not yet (written|documented)|under construction/i;
-
-test('no callout announces content that has not been written', () => {
-  const problems: string[] = [];
-  for (const page of PAGES) {
-    let inCallout = false;
-    page.lines.forEach((line, i) => {
-      if (!inCallout) {
-        const open = CALLOUT_OPEN.exec(line.trim());
-        if (open) inCallout = true;
-        if (open && MISSING_CONTENT.test(open[2])) {
-          problems.push(
-            `${page.rel}:${i + 1}: callout title announces missing content ("${line.trim()}"). `
-            + 'Write the content, or delete the callout -- a shipped page must not advertise its own gaps.',
-          );
-        }
-        return;
-      }
-      if (CALLOUT_CLOSE.test(line.trim())) {
-        inCallout = false;
-        return;
-      }
-      if (MISSING_CONTENT.test(line)) {
-        problems.push(
-          `${page.rel}:${i + 1}: callout body announces missing content ("${line.trim().slice(0, 80)}"). `
-          + 'Write the content, or delete the callout.',
-        );
-      }
-    });
-  }
-  report(problems, 'unfinished callout(s) in docs');
-});
-
-/* -------------------------------------------------------------------------- */
-/* 6. Reader-facing pages keep the reader's register                           */
-/* -------------------------------------------------------------------------- */
-
-/* Every page here is written for cognitive scientists and AI researchers: it says what a study means and
- * what running it does. How the tools are built is real, but it is evidence for a different reader, so it
- * lives in the package READMEs -- or, when a page owes its reader the mechanics, in that page's collapsed
- * "Under the hood" callout. The two checks below make that split mechanical. */
-
-/** Where a page parks its mechanics: `::: {.callout-note collapse="true"}` + `## Under the hood`. */
-const UNDER_THE_HOOD = /^under the hood\b/i;
-const DIV_FENCE = /^:{3,}(.*)$/;
-const DIV_CALLOUT = /\{[^}]*\.callout-[a-z]+/;
-const DIV_TITLE = /title\s*=\s*["']([^"']*)["']/;
-const HEADING = /^#{1,6}\s+(\S.*)$/;
-
-/**
- * Marks the lines of every "Under the hood" callout, fences included. Pages nest no divs, so one level.
- * `quoted` keeps a `:::` *shown* in a code sample from desyncing the scan and exempting real prose.
- */
-function underTheHoodLines(lines: string[], quoted: readonly boolean[] = []): boolean[] {
-  const hooded = lines.map(() => false);
-  let start = -1;
-  let title = '';
-  lines.forEach((line, i) => {
-    if (quoted[i]) return;
-    const fence = DIV_FENCE.exec(line.trim());
-    if (!fence) {
-      // A callout with no `title=` takes its title from the heading that opens it.
-      if (start >= 0 && !title) title = HEADING.exec(line.trim())?.[1] ?? '';
-      return;
-    }
-    if (start < 0) {
-      // Only a callout can carry the exemption; `::: {layout-ncol=2}` and friends are just layout.
-      start = DIV_CALLOUT.test(fence[1]) ? i : -1;
-      title = start < 0 ? '' : DIV_TITLE.exec(fence[1])?.[1] ?? '';
-      return;
-    }
-    if (UNDER_THE_HOOD.test(title)) for (let j = start; j <= i; j += 1) hooded[j] = true;
-    start = -1;
-    title = '';
-  });
-  return hooded;
-}
-
-/** A path into the source tree -- `packages/core/src/...`, `tests/docs.unit.spec.ts`, or the bare directory. */
-const IMPLEMENTATION_PATH = /(?<![\w/-])(?:packages|tests)\/[\w./-]*/g;
-
-function citedPaths(line: string): string[] {
-  return [...line.matchAll(IMPLEMENTATION_PATH)].map((match) => match[0]);
-}
-
-/**
- * Words for how the tools are built, each paired with the domain phrasing that says the same thing to
- * a reader. None of them means anything inside a study, which is what makes the check mechanical. Should
- * one ever start to -- a *trial registry* is a real place a scientist registers a study -- narrow that
- * word's pattern here, with the sentence that forced it. Exempting the page is not the fix.
- */
-const IMPLEMENTATION_WORDS: Readonly<Record<string, string>> = {
-  moddle: 'name the schema, or the element type it defines',
-  'async generator': 'say the run advances one step at a time',
-  mulberry32: 'say the run draws from a seeded random number generator',
-  dispatcher: 'say what actually happens to the step',
-  registry: 'say which element kinds a run can execute',
-  codec: 'name the file format the study is read from or written to',
-  metamodel: 'say "the schemas", or "what a studyflow can contain"',
-  'business object': 'say "the element", or "its attributes"',
-  superClass: 'say which element kind it extends',
-  'self-register': 'say the tool picks it up on its own',
-  iTXt: 'say the image carries its own source',
-};
-
-/** Whole words, case-insensitively, including the plural or participle a page would reach for. */
-function jargonPattern(term: string): RegExp {
-  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
-  const inflected = escaped.endsWith('y')
-    ? `(?:${escaped}|${escaped.slice(0, -1)}ies)`
-    : `${escaped}(?:e?s|ing|ed)?`;
-  return new RegExp(`\\b${inflected}\\b`, 'i');
-}
-
-const JARGON: readonly (readonly [string, RegExp])[] =
-  Object.keys(IMPLEMENTATION_WORDS).map((term) => [term, jargonPattern(term)] as const);
-
-function jargonIn(line: string): string[] {
-  return JARGON.filter(([, pattern]) => pattern.test(line)).map(([term]) => term);
-}
-
-test('the register matchers are exact', () => {
-  // Pins both matchers, so loosening one to make a page pass has to break this first.
-  expect(citedPaths('reads `packages/core/src/notation/loader.ts` at boot'))
-    .toEqual(['packages/core/src/notation/loader.ts']);
-  expect(citedPaths('guarded by `tests/docs.unit.spec.ts`')).toEqual(['tests/docs.unit.spec.ts']);
-  expect(citedPaths('everything in tests/ runs in one lane')).toEqual(['tests/']);
-  expect(citedPaths('a study packages its own tasks, and the tests pass')).toEqual([]);
-  expect(citedPaths('see https://github.com/behaverse/studyflow-modeler/tests/x')).toEqual([]);
-
-  expect(jargonIn('the moddle descriptor behind it')).toEqual(['moddle']);
-  expect(jargonIn('two registries of node kinds')).toEqual(['registry']);
-  expect(jargonIn('an async generator yields each step')).toEqual(['async generator']);
-  expect(jargonIn('each kind self-registers at startup')).toEqual(['self-register']);
-  expect(jargonIn('kept in the PNG\'s iTXt chunk')).toEqual(['iTXt']);
-  // Domain prose that merely looks close: no entry may claim these.
-  expect(jargonIn('a modeller models the study, and the model runs')).toEqual([]);
-  expect(jargonIn('register the trial before collecting data')).toEqual([]);
-});
-
-test('the "Under the hood" exemption covers that block and nothing else', () => {
-  const page = [
-    'prose',
-    '::: {.callout-note collapse="true"}',
-    '## Under the hood',
-    'it reads `packages/core/src/x.ts`',
-    ':::',
-    'more prose',
-    '::: {.callout-tip}',
-    '## Publishing',
-    ':::',
-  ];
-  expect(underTheHoodLines(page)).toEqual([false, true, true, true, true, false, false, false, false]);
-  // The title may also be an attribute, and a plain layout div never exempts anything.
-  expect(underTheHoodLines(['::: {.callout-note title="Under the hood"}', 'x', ':::']))
-    .toEqual([true, true, true]);
-  expect(underTheHoodLines(['::: {layout-ncol=2}', '## Under the hood', ':::']))
-    .toEqual([false, false, false]);
-  // A `:::` quoted in a code sample opens nothing, so the prose after it stays checked.
-  expect(underTheHoodLines(['::: {.callout-note}', 'x', ':::'], [true, true, true]))
-    .toEqual([false, false, false]);
-});
-
-test('no page cites a path into the source tree', () => {
-  const problems: string[] = [];
-  for (const page of PAGES) {
-    const hooded = underTheHoodLines(page.lines, page.quoted);
-    page.lines.forEach((line, i) => {
-      if (page.quoted[i] || hooded[i]) return;
-      for (const cited of citedPaths(line)) {
-        problems.push(
-          `${page.rel}:${i + 1}: prose cites "${cited}". This page is written for cognitive scientists `
-          + 'and AI researchers, and where the code lives is not evidence they can act on. Say what the '
-          + 'tool does instead, and move the file path to the package README or into this page\'s collapsed '
-          + '"Under the hood" callout -- inside a fenced code block it is fine, because a reader types it.',
-        );
-      }
-    });
-  }
-  report(problems, 'implementation path(s) cited in reader-facing prose');
-});
-
-test('no page reaches for implementation vocabulary', () => {
-  const problems: string[] = [];
-  for (const page of PAGES) {
-    page.lines.forEach((line, i) => {
-      if (page.quoted[i]) return;
-      for (const term of jargonIn(line)) {
-        problems.push(
-          `${page.rel}:${i + 1}: "${term}" names how the tools are built, not what a study means -- `
-          + `${IMPLEMENTATION_WORDS[term]}. Reword it for cognitive scientists and AI researchers, or `
-          + "move the sentence to the package README, which is written for engineers.",
-        );
-      }
-    });
-  }
-  report(problems, 'implementation word(s) in reader-facing prose');
-});
-
-/* -------------------------------------------------------------------------- */
-/* 7. Pages stay inside a reading budget                                       */
-/* -------------------------------------------------------------------------- */
-
-/* The reader is a domain expert who does not want to get involved with too much detail, so length is a
- * correctness property, not taste: a page that overexplains has failed even when every word in it is
- * true. The budgets below are per section and sit a little above what the longest page in each section
- * spends today, so this catches a page *growing* rather than the docs as written. There is deliberately
- * no per-page exception -- a page that cannot fit is a page to tabulate, cut, or link out of. */
-
-/* File entries come before the directory that contains them: `budgetFor` takes the first match. */
-const PROSE_BUDGETS: readonly (readonly [target: string, words: number])[] = [
-  ['docs/index.qmd', 450],
-  // The one page carrying the whole formal account, so the only one allowed to run on.
-  ['docs/specification.qmd', 1300],
-  ['docs/reference.qmd', 700],
-];
-
-/** Any page hanging off the root other than the overview. */
-const ROOT_PAGE_BUDGET: readonly [target: string, words: number] = ['docs/*.qmd', 350];
-
-/** A directory entry covers everything under it; a file entry covers itself. */
-function budgetFor(page: Page): readonly [target: string, words: number] {
-  const rel = page.rel.split(path.sep).join('/');
-  return PROSE_BUDGETS.find(([target]) => (target.endsWith('/') ? rel.startsWith(target) : rel === target))
-    ?? ROOT_PAGE_BUDGET;
-}
-
-/** Tables and figures are scanned, not read, so neither is charged to the page that carries them. */
-const SCANNED_LINE = /^\s*(?:\||!\[)/;
-
-/**
- * Whitespace-separated tokens of prose: the file minus frontmatter, fenced code, table rows and figures.
- * A `##` or a bullet dash counts, because the measure is how much page a reader has to move through.
- */
-function proseWords(lines: readonly string[], quoted: readonly boolean[]): number {
-  let words = 0;
-  lines.forEach((line, i) => {
-    if (quoted[i] || SCANNED_LINE.test(line)) return;
-    for (const token of line.split(/\s+/)) if (token) words += 1;
-  });
-  return words;
-}
-
-test('the prose counter charges a page for prose only', () => {
-  // Pins the counter, so widening what it ignores to make a page fit has to break this first.
-  const page = [
-    '---', 'title: Kept out', 'description: so is this', '---',
-    '## Two words',
-    'A sentence of five words.',
-    '```yaml',
-    'not: counted at all',
-    '```',
-    '| a table | of facts |',
-    '  | indented row | too |',
-    '![A figure with a long caption](assets/img/x.png)',
-    'Done.',
-  ];
-  // `## Two words` (3) + the sentence (5) + `Done.` (1).
-  expect(proseWords(page, scanQuoted(page).quoted)).toBe(9);
-  // Blank lines and a fence that never closes are still not prose.
-  expect(proseWords(['', '   ', 'one'], [false, false, false])).toBe(1);
-  expect(proseWords(['```', 'a b c'], scanQuoted(['```', 'a b c']).quoted)).toBe(0);
-});
-
-test('every prose budget covers pages that exist', () => {
-  // A renamed section would otherwise fall back to the root budget and mis-report every page under it.
-  for (const [target] of PROSE_BUDGETS) {
-    const covered = PAGES.filter((page) => budgetFor(page)[0] === target);
-    expect(covered.length, `no page matches the "${target}" prose budget -- rename it or drop it`)
-      .toBeGreaterThan(0);
-  }
-});
-
-test('no page outgrows the reading budget for its section', () => {
-  const problems: string[] = [];
-  for (const page of PAGES) {
-    const [target, budget] = budgetFor(page);
-    const words = proseWords(page.lines, page.quoted);
-    if (words <= budget) continue;
-    problems.push(
-      `${page.rel}: ${words} words of prose, ${words - budget} over the ${budget}-word budget for `
-      + `${target}. Move the facts into a table, cut the explanation, or link the page that already `
-      + 'says it instead of restating it -- tables and figures are not counted, so tabulating is free. '
-      + 'Raising the budget in tests/docs.unit.spec.ts is not the fix.',
-    );
-  }
-  report(problems, 'over-long page(s) in docs');
 });

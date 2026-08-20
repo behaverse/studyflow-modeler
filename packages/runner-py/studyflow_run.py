@@ -261,8 +261,9 @@ def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
 
 
 def trail_timestamp(moment: datetime) -> str:
-    """ISO 8601, second precision, local numeric offset. Older files carry `Z` stamps."""
-    return moment.astimezone().replace(microsecond=0).isoformat()
+    """ISO 8601, millisecond precision, local numeric offset — fine enough that the trail's order
+    is the log's order. Older files carry coarser second-precision and `Z` stamps."""
+    return moment.astimezone().isoformat(timespec="milliseconds")
 
 
 def run_stamp(moment: datetime) -> str:
@@ -1478,9 +1479,10 @@ class Runner:
         self.repo_dir.mkdir(parents=True, exist_ok=True)
         # Skipped steps keep the record of the run that did the work. A branching run *supersedes*
         # work records instead of replacing them — the first branch's stay, so the trail shows both
-        # branches — while structural pass-throughs (events, containers) always replace in place.
+        # branches — and start/end events supersede too, so a replay walks every run end to end.
+        # Only containers always replace in place.
         # `reused` lines are always replaced too: the trail carries each element's latest reuse only.
-        STRUCTURAL = END_TAGS | PASSTHROUGH_TAGS | CONTAINER_TAGS
+        STRUCTURAL = CONTAINER_TAGS
 
         def replaced(action: str, element_id: str) -> str | None:
             if not self.branched or action == "reused":

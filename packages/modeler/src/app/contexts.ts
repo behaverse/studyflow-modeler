@@ -11,3 +11,10 @@ export const ModelerContext = createContext<{
 export const SettingsViewContext = createContext<{
   openSettings: () => void;
 }>({ openSettings: noop });
+
+/** Provenance replay mode: the inspector yields to the replay panel and the canvas animates the trail. */
+export const ReplayContext = createContext<{
+  isReplaying: boolean;
+  openReplay: () => void;
+  closeReplay: () => void;
+}>({ isReplaying: false, openReplay: noop, closeReplay: noop });

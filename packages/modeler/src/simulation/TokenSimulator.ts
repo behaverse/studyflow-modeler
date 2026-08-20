@@ -2,7 +2,7 @@ import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as svgRemove } from 'tiny-svg';
 import { nextHops } from '@modeler/simulation/flowWalk';
 
-type Point = { x: number; y: number };
+export type Point = { x: number; y: number };
 
 const TOKEN_RADIUS = 8;
 
@@ -24,11 +24,11 @@ function removeTokenSvg(svg: any): void {
 }
 
 /** Perlin's smootherstep: zero first and second derivatives at both ends. */
-function smootherstep(t: number): number {
+export function smootherstep(t: number): number {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-function computeSegLengths(points: Point[]): { segLengths: number[]; totalDist: number } {
+export function computeSegLengths(points: Point[]): { segLengths: number[]; totalDist: number } {
   const segLengths: number[] = [];
   let totalDist = 0;
   for (let i = 0; i < points.length - 1; i++) {
@@ -41,7 +41,7 @@ function computeSegLengths(points: Point[]): { segLengths: number[]; totalDist: 
   return { segLengths, totalDist };
 }
 
-function samplePolyline(points: Point[], segLengths: number[], dist: number): Point {
+export function samplePolyline(points: Point[], segLengths: number[], dist: number): Point {
   let remaining = dist;
   for (let i = 0; i < segLengths.length; i++) {
     if (remaining <= segLengths[i]) {

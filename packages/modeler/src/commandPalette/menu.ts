@@ -10,12 +10,13 @@ export type PaletteCommandDeps = {
   isSimulating: boolean;
   openSettings: () => void;
   openDialog: (id: PaletteDialogId) => void;
+  openReplay: () => void;
   pickDiagramFile: () => void;
   pickJsPsychFile: () => void;
 };
 
 export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[] {
-  const { modeler, isSimulating, openSettings, openDialog, pickDiagramFile, pickJsPsychFile } = deps;
+  const { modeler, isSimulating, openSettings, openDialog, openReplay, pickDiagramFile, pickJsPsychFile } = deps;
 
   return [
     {
@@ -122,6 +123,13 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       icon: ICONS.history,
       shortcut: 'p',
       action: () => openDialog('provenance'),
+    },
+    {
+      id: 'replay-provenance',
+      group: 'View',
+      label: 'Replay Provenance',
+      icon: ICONS.playFill,
+      action: openReplay,
     },
 
     {

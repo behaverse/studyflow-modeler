@@ -1,6 +1,6 @@
 # Docs style guide
 
-`docs/` is the **specification of the notation** — what a studyflow *is*, what makes one well formed, what a run does, and what the shipped vocabulary declares. It is not a manual for the tools and not a tutorial. How the programs are built belongs in the package READMEs; how to contribute belongs in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+`docs/` is the argument for Studyflow, the reference of the notation, and one map of the programs that read it. It is not a tutorial, and it duplicates no engineering detail: how each program is built stays in its package README; how to contribute belongs in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 It is a [Quarto](https://quarto.org/) project rooted here and rendered to `dist/docs/`.
 
@@ -11,7 +11,7 @@ npm run docs:build    # render to dist/docs/
 npm run lint:docs     # the drift guard; run it before you push
 ```
 
-Navigation is a three-item navbar in `_quarto.yml`, in the order the argument is built. There is no sidebar: at this size the per-page table of contents is the navigation.
+Navigation is a three-item sidebar in `_quarto.yml`, in the order the argument is built.
 
 ---
 
@@ -20,11 +20,11 @@ Navigation is a three-item navbar in `_quarto.yml`, in the order the argument is
 | Path | Establishes |
 | --- | --- |
 | `index.qmd` | what Studyflow is, the gap it closes, and why it extends BPMN. The positioning statement — change with care |
-| `specification.qmd` | the typed graph, well-formedness, projections, execution, provenance, and how the vocabulary grows |
-| `reference.qmd` | every type the shipped sets declare, and the files a studyflow is stored in |
+| `developers.qmd` | the map of the programs: the packages, the two executors, the run records, and how the vocabulary grows. The one page written for engineers |
+| `reference.qmd` | the object and its well-formedness, every type the shipped sets declare, and the files a studyflow is stored in |
 | `assets/` | images, `.studyflow` sources, CSS, `_brand.yml` |
 
-Three pages, one per contribution. Something that is neither a property of the notation nor a fact about the vocabulary does not belong here — a worked case, a how-to, a tour of the editor, a glossary restating definitions given elsewhere: each is a page this site deliberately does not have. A **fourth page is a decision, not an increment**; prefer a section on an existing one.
+Three pages: the argument, the toolchain, the notation. Something that is none of those does not belong here — a worked case, a how-to, a tour of the editor, a glossary restating definitions given elsewhere: each is a page this site deliberately does not have. A **fourth page is a decision, not an increment**; prefer a section on an existing one. `developers.qmd` is a *map*, not a manual: it links each package README rather than restating it.
 
 ## 2. Positioning
 
@@ -52,6 +52,8 @@ Binding across every page, figure, alt text, and code comment here.
 | `.studyflow.yaml` | `.sf`, `.studyflow.yml` | The canonical extension; bare `.studyflow` is still read |
 | Behaverse Data Server, then "the data server" | "the server" | Full name once per page, short form after |
 
+*Study* and *experiment* are both correct; mix them. Prefer **experiment** (and *eval*, *harness*, *experiment graph*) where the sentence should also speak to AI researchers, and **study** where it is human-subjects specific — ethics, protocol, recruitment — or names the `Study` element type.
+
 Never write "the runtime" or "the engine" for a program. **`runtime` names exactly one thing**: the attribute on the study, whose values are `browser`, `cloud`, `local`, `hpc`.
 
 | Write | What it does |
@@ -76,9 +78,9 @@ Element names are `PascalCase` and always in code style. Before naming one, conf
 
 ## 4. Register and length
 
-The reader is a **cognitive scientist or an AI researcher**, not a software engineer. Say what an element means for a study; how the tools implement it is evidence for a different reader and lives in the package READMEs. No source-tree paths in prose, and none of the implementation vocabulary the lint denies.
+The reader of `index.qmd` and `reference.qmd` is a **cognitive scientist or an AI researcher**, not a software engineer. Say what an element means for a study; how the tools implement it is evidence for a different reader and lives in the package READMEs — keep source-tree paths and implementation vocabulary out of those two pages. `developers.qmd` is the one page written for engineers, and even there the READMEs stay the source of depth.
 
-Length is a correctness property here, not taste: a page that overexplains has failed even where every word is true.
+Length is a correctness property here, not taste: a page that overexplains has failed even where every word is true. These are editorial rules, enforced in review rather than by the lint:
 
 | Rule | Limit |
 | --- | --- |
@@ -86,13 +88,10 @@ Length is a correctness property here, not taste: a page that overexplains has f
 | Distance between headings | ~200 words |
 | Enumerable facts (types, attributes, options, comparisons) | a table, never prose |
 | Reasoning, trade-offs, argument | prose, never a table |
-| Prose per page | the budget its section carries in `tests/docs.unit.spec.ts` |
-
-Tables, figures, and fenced code are not charged to the budget, so tabulating is free. Raising a budget is not how a long page is fixed.
 
 The first screen must carry the page's message: a figure or a table, plus at most three sentences.
 
-Voice: **Concepts** pages argue, and may use first-person plural. **Reference** is impersonal.
+Voice: plain and direct. Say it the way you would to a colleague; the overview may address the reader as *you*, and **Reference** stays impersonal. No manifesto prose, no formalism for its own sake — if a sentence sounds impressive but a reader cannot act on it, cut it.
 
 ---
 
@@ -120,8 +119,8 @@ Callouts are reader-facing only, never a note to the next contributor — and ne
 
 Every type table, attribute name, and default value is typed by a human against `assets/schemas/*.moddle.yaml` and the tests, which keeps the prose readable and makes drift the default failure mode.
 
-`npm run lint:docs` is the guard. It checks that every element name a page prints is one the schemas ship, that retired names stay retired, that every relative link and image resolves and stays inside `docs/`, that every page has a title and a description, that no callout advertises a gap, that no page reaches for implementation vocabulary or cites a source path, and that no page outgrows its budget. Fenced code and frontmatter are exempt from the name checks — sample YAML is illustration, not a claim about the vocabulary.
+`npm run lint:docs` is the guard, and it is deliberately small — adding a page, renaming one, or writing more prose never breaks it. It checks three things: every element name a page prints resolves to a shipped schema, every relative link and image lands on a file inside `docs/`, and every page carries a title and a description. Fenced code and frontmatter are exempt from the name check — sample YAML is illustration, not a claim about the vocabulary.
 
-What the lint cannot see, review must: the terminology in §3, alt text on every figure, and a new page's place in the `_quarto.yml` navbar.
+What the lint cannot see, review must: the terminology in §3, the register and length rules in §4, alt text on every figure, and a new page's place in the `_quarto.yml` sidebar.
 
 When you change a schema or a default, the same commit updates the pages that quote it. A doc that lies is worse than a doc that is missing.

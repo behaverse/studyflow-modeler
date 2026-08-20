@@ -82,6 +82,49 @@ function walkFlowElements(container: any, visit: (el: any) => void): void {
   }
 }
 
+/** Longest-path rank of every flow element, over sequence flows plus data reads and writes.
+ * The runner's stamps have second precision, so same-second ties are constant — and the diagram
+ * itself says what must have come first. Children rank inside their subprocess's own slot. */
+function flowRanks(definitions: any): Map<string, number> {
+  const ranks = new Map<string, number>();
+  const rankContainer = (container: any, base: number, span: number): void => {
+    const els: any[] = (container?.flowElements ?? []).filter((el: any) => el.id);
+    if (!els.length) return;
+    const byId = new Set(els.map((el) => el.id));
+    const preds = new Map<string, Array<[string, number]>>(els.map((el) => [el.id, []]));
+    const link = (fromRef: any, toRef: any, weight: number) => {
+      if (fromRef?.id && toRef?.id && byId.has(fromRef.id) && byId.has(toRef.id)) {
+        preds.get(toRef.id)!.push([fromRef.id, weight]);
+      }
+    };
+    for (const el of els) {
+      if (el.sourceRef && el.targetRef) link(el.sourceRef, el.targetRef, 1);
+      // Half steps: an activity's outputs appear right after it, before the flow moves on.
+      for (const assoc of el.dataInputAssociations ?? []) link(assoc.sourceRef?.[0], el, 0.5);
+      for (const assoc of el.dataOutputAssociations ?? []) link(el, assoc.targetRef, 0.5);
+    }
+    const depths = new Map<string, number>();
+    const depthOf = (id: string, stack: Set<string>): number => {
+      if (depths.has(id)) return depths.get(id)!;
+      if (stack.has(id)) return 0; // a loop back through a gateway breaks here
+      stack.add(id);
+      const depth = Math.max(0, ...preds.get(id)!.map(([p, w]) => depthOf(p, stack) + w));
+      stack.delete(id);
+      depths.set(id, depth);
+      return depth;
+    };
+    for (const el of els) depthOf(el.id, new Set());
+    const unit = span / (Math.max(...depths.values()) + 2);
+    for (const el of els) {
+      const rank = base + (depths.get(el.id)! + 1) * unit;
+      ranks.set(el.id, rank);
+      rankContainer(el, rank, unit);
+    }
+  };
+  for (const root of definitions?.rootElements ?? []) rankContainer(root, 0, 1);
+  return ranks;
+}
+
 export function collectProvenance(definitions: any): ProvenanceRecord[] {
   const records: ProvenanceRecord[] = [];
 
@@ -108,6 +151,26 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
     });
   }
 
+  applyStatuses(records);
+
+  // Stamps carry second metadata
+  const tieRank = (record: ProvenanceRecord): number =>
+    record.action === 'invalidated' ? 0 : record.isDocument ? 1 : 2;
+  const ranks = flowRanks(definitions);
+  return records.sort((a, b) => {
+    const left = instant(a);
+    const right = instant(b);
+    if (left !== right) return left < right ? -1 : 1;
+    const tie = tieRank(a) - tieRank(b);
+    if (tie !== 0) return tie;
+    // Same second, both element records: the flow graph decides — data before its consumers.
+    return (ranks.get(a.scopeId) ?? 0) - (ranks.get(b.scopeId) ?? 0);
+  });
+}
+
+/** Re-derives every status flag from the records given — the full trail, or any oldest-first prefix
+ * of it (the replay slider hands in clones, so the live records keep their final flags). */
+export function applyStatuses(records: ProvenanceRecord[]): ProvenanceRecord[] {
   // One pass per element: its executed chain (in document = chronological order) and its markers.
   const chains = new Map<string, ProvenanceRecord[]>();
   const markers: ProvenanceRecord[] = [];
@@ -133,16 +196,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
     const named = chains.get(marker.scopeId)?.find((r) => r.when === marker.what);
     marker.consumed = !named || !!named.superseded;
   }
-
-  // Stamps carry second metadata
-  const tieRank = (record: ProvenanceRecord): number =>
-    record.action === 'invalidated' ? 0 : record.isDocument ? 1 : 2;
-  return records.sort((a, b) => {
-    const left = instant(a);
-    const right = instant(b);
-    if (left === right) return tieRank(a) - tieRank(b);
-    return left < right ? -1 : 1;
-  });
+  return records;
 }
 
 /** Display only — `collectProvenance` stays strictly oldest-first . */
@@ -175,7 +229,15 @@ export function assignLanes(records: ProvenanceRecord[]): Map<ProvenanceRecord, 
   const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
   const branchMarker = new Map<ProvenanceRecord, ProvenanceRecord>();
   for (const marker of records) {
-    if (marker.isDocument || marker.action !== 'invalidated' || !marker.consumed) continue;
+    if (marker.isDocument || marker.action !== 'invalidated') continue;
+    if (!marker.consumed) {
+      // An armed precise marker with a run stamp after it: that run branched at its very start,
+      // even while its re-run of the step is still on the way (mid-replay, or a run that died).
+      if (!marker.what) continue;
+      const stamp = stamps.find((s) => instant(s) > instant(marker));
+      if (stamp && !branchMarker.has(stamp)) branchMarker.set(stamp, marker);
+      continue;
+    }
     const chain = records.filter((r) =>
       !r.isDocument && r.scopeId === marker.scopeId && r.action === 'executed');
     const named = chain.findIndex((r) => r.when === marker.what);
@@ -185,11 +247,14 @@ export function assignLanes(records: ProvenanceRecord[]): Map<ProvenanceRecord, 
     if (stamp && !branchMarker.has(stamp)) branchMarker.set(stamp, marker);
   }
   const graph = new Map<ProvenanceRecord, GraphInfo>();
+  const opened = new Set(branchMarker.values());
   let lane = 0;
   for (const record of records) {
     if (branchMarker.has(record)) lane += 1;
     const info: GraphInfo = { lane, laneCount: 1, lines: [] };
-    if (!record.isDocument && record.action === 'invalidated' && record.what && !record.consumed) {
+    // A marker whose branch already opened draws the curve, not the dashed still-to-come stub.
+    if (!record.isDocument && record.action === 'invalidated' && record.what && !record.consumed
+      && !opened.has(record)) {
       info.pendingBranch = true;
     }
     graph.set(record, info);

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
+import { ReplayContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { getStoredUserEmail } from '@modeler/settings/store';
@@ -40,7 +41,7 @@ const laneX = (lane: number) => lane * LANE_W + 4.5;
 const ICON_GUTTER = 22;
 
 // Compact UTC render for mixed-offset stamps, seconds included; the raw stamp stays in the tooltip.
-function shortWhen(when?: string): string | undefined {
+export function shortWhen(when?: string): string | undefined {
   const parsed = when ? Date.parse(when) : NaN;
   if (Number.isNaN(parsed)) return when || undefined;
   return new Date(parsed).toISOString().slice(0, 19).replace('T', ' ');
@@ -48,6 +49,7 @@ function shortWhen(when?: string): string | undefined {
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useRequiredModeler();
+  const { openReplay } = useContext(ReplayContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     const eventBus = modeler?.get?.('eventBus', false);
@@ -112,9 +114,19 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 Who changed this studyflow and who ran it, oldest first — marked by the modeler and the runner, and stored inside the studyflow diagram itself.
                 Invalidating a run record (<i className={ICONS.closeSmall} aria-hidden="true" />)
                 appends a marker rather than deleting anything, so the next run re-executes only that step and what depends on it.
+                The replay button (<i className={ICONS.playFill} aria-hidden="true" />) plays this trail back on the canvas, step by step.
               </DialogHelp>}
       actions={(
         <>
+          <button
+            type="button"
+            onClick={() => { onClose(); openReplay(); }}
+            className={d.titleAction}
+            title="Replay this trail on the canvas — elements light up in order and a token marks each step"
+            aria-label="Replay on the canvas"
+          >
+            <i className={`${ICONS.playFill} size-4 block`}></i>
+          </button>
           <button
             type="button"
             onClick={() => executeCommand(modeler, { type: 'Undo' })}

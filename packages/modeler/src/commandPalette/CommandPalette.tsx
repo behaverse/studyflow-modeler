@@ -10,7 +10,7 @@ import {
   type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { SettingsViewContext } from '@modeler/app/contexts';
+import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
@@ -74,6 +74,7 @@ export function CommandPalette({ ref }: Props) {
   const [dialog, setDialog] = useState<{ id: PaletteDialogId; scopeId?: string } | null>(null);
   const modeler = useRequiredModeler();
   const { openSettings } = useContext(SettingsViewContext);
+  const { openReplay } = useContext(ReplayContext);
   const isSimulating = useIsSimulating(modeler);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,10 +123,11 @@ export function CommandPalette({ ref }: Props) {
         openSettings,
         // Palette-opened dialogs are unscoped; only the `p`-on-selection path sets a provenance scope.
         openDialog: (id: PaletteDialogId) => setDialog({ id }),
+        openReplay,
         pickDiagramFile: diagramPicker.open,
         pickJsPsychFile: jsPsychPicker.open,
       }),
-    [modeler, openSettings, isSimulating, diagramPicker.open, jsPsychPicker.open],
+    [modeler, openSettings, isSimulating, openReplay, diagramPicker.open, jsPsychPicker.open],
   );
 
   const submenuParent = useMemo(

@@ -1,0 +1,36 @@
+%% Regenerate: npx -y @mermaid-js/mermaid-cli -i two-graphs.mmd -o two-graphs.svg -c mermaid.config.json -b transparent
+%% The config keeps labels as plain SVG text (no foreignObject), so the .svg survives being embedded as an image.
+%% Placeholder: to be replaced by a modeler export of the same study.
+%% Solid arrows are sequence flows (control); dotted arrows are data associations (data).
+flowchart LR
+
+  START(["start"])
+  PRE["2-Back — pre-test"]
+  GATE{"allocation"}
+  ARM1["training"]
+  ARM2["no training"]
+  POST["2-Back — post-test"]
+  FIT["fit the model"]
+  DONE(["end"])
+
+  RESP[("responses")]
+  MODEL[("fitted model")]
+
+  START --> PRE
+  PRE --> GATE
+  GATE --> ARM1
+  GATE --> ARM2
+  ARM1 --> POST
+  ARM2 --> POST
+  POST --> FIT
+  FIT --> DONE
+
+  PRE -.-> RESP
+  POST -.-> RESP
+  RESP -.-> FIT
+  FIT -.-> MODEL
+
+  classDef flow fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
+  classDef data fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
+  class START,PRE,GATE,ARM1,ARM2,POST,FIT,DONE flow
+  class RESP,MODEL data

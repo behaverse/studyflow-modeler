@@ -4,22 +4,22 @@ project:
 
 website:
   title: "Studyflow"
-  description: "The specification of Studyflow, a coordination notation for experimental research"
+  description: "Studyflow, a coordination notation for experimental research — the argument, the toolchain, and the reference"
   site-url: https://behaverse.org/studyflow-modeler/docs/
   favicon: assets/img/logo.png
   llms-txt: true
   search: true
   bread-crumbs: true
   page-navigation: true
-  # Three pages: the argument, the object it rests on, and what ships.
+  # Three pages: the argument, the toolchain, and the notation itself.
   sidebar:
     expand: true
     logo: assets/img/logo.png
     contents:
       - text: Overview
         href: index.qmd
-      - text: Specification
-        href: specification.qmd
+      - text: Developers
+        href: developers.qmd
       - text: Reference
         href: reference.qmd
       - text: Open Modeler

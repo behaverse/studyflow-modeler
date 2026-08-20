@@ -79,3 +79,5 @@ Shared code therefore has exactly one place to go. Two further conventions cross
 ## License
 
 MIT
+
+Refactoring and improvements were made with AI assistance (Claude, Codex, Gemini). All changes were reviewed and are maintained by the author.

@@ -6,7 +6,7 @@ import { toModdlePackages } from '@core/notation/schemaFile';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
-  assignLanes, collectProvenance, displayOrder, recordDetails, shapeIconOf,
+  applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails, shapeIconOf,
 } from '@modeler/provenance/records';
 import { appendTrailEntry, primaryRoot } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
@@ -211,6 +211,51 @@ test.describe('provenance view model', () => {
     expect(intact.invalidated).toBe(false);
   });
 
+  test('same-second element records follow the flow graph — data before its consumers', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const byId = new Map<string, any>();
+    const index = (container: any): void => {
+      for (const el of container?.flowElements ?? []) {
+        byId.set(el.id, el);
+        index(el);
+      }
+    };
+    for (const root of definitions.rootElements ?? []) index(root);
+    // Stamped deliberately in reverse flow order, all within the runner's one-second precision.
+    const when = '2026-08-01T10:00:00Z';
+    for (const id of ['split_train_test', 'select_target', 'select_features', 'input_dataset']) {
+      expect(byId.get(id), `example should contain ${id}`).toBeTruthy();
+      stampElement(byId.get(id), { action: id === 'input_dataset' ? 'imported' : 'executed', when, run: 'repo' });
+    }
+
+    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
+    expect(records.map((r) => r.scopeId)).toEqual(
+      ['input_dataset', 'select_features', 'select_target', 'split_train_test']);
+  });
+
+  test('a same-second output replays right after its producer, before the next step', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const byId = new Map<string, any>();
+    const index = (container: any): void => {
+      for (const el of container?.flowElements ?? []) {
+        byId.set(el.id, el);
+        index(el);
+      }
+    };
+    for (const root of definitions.rootElements ?? []) index(root);
+    // `write_test_report` writes `test_report`, then the flow moves on to `plot_confusion` — the
+    // runner's old second-precision stamps collapse all four into one instant.
+    const when = '2026-08-01T10:00:00Z';
+    for (const id of ['plot_confusion', 'test_report', 'write_test_report', 'confusion_matrix']) {
+      expect(byId.get(id), `example should contain ${id}`).toBeTruthy();
+      stampElement(byId.get(id), { action: byId.get(id).$type.includes('Data') ? 'created' : 'executed', when, run: 'repo' });
+    }
+
+    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
+    expect(records.map((r) => r.scopeId)).toEqual(
+      ['write_test_report', 'test_report', 'plot_confusion', 'confusion_matrix']);
+  });
+
   test('at the same instant, a marker precedes the run stamp, and the stamp its records', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
     const task = firstActivity(definitions);
@@ -312,6 +357,73 @@ test.describe('provenance view model', () => {
     expect(records[0].run).toBe('run-002');
     // A number, not '7': `prov:Activity#seed` is declared `Integer`, matching `studyflow:Seed#seed`.
     expect(records[0].seed).toBe(7);
+  });
+});
+
+test.describe('replay', () => {
+  /** The forked-run history: executed, then its ✕ marker, then the branch's fresh record. */
+  async function forkedHistory(): Promise<any[]> {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const task = firstActivity(definitions);
+    stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'executed', when: '2026-08-02T12:00:00Z', run: 'repo' });
+    return collectProvenance(definitions);
+  }
+
+  const prefix = (records: any[], at: number): any[] =>
+    applyStatuses(records.slice(0, at).map((r) => ({ ...r })));
+
+  test('a prefix re-derives statuses as of that moment', async () => {
+    const records = await forkedHistory();
+
+    // Before the marker the record still stands; after it, it is voided but not yet superseded —
+    // the marker is unconsumed, so this is the "branches here" moment.
+    expect(prefix(records, 1)[0].standing).toBe(true);
+    const [old, marker] = prefix(records, 2);
+    expect(old.invalidated).toBe(true);
+    expect(old.superseded).toBe(false);
+    expect(marker.consumed).toBeFalsy();
+  });
+
+  test('the full prefix converges on the live flags, which stay untouched on their clones', async () => {
+    const records = await forkedHistory();
+    const replayed = prefix(records, records.length);
+
+    expect(replayed.map((r) => [r.invalidated ?? false, !!r.consumed]))
+      .toEqual(records.map((r) => [r.invalidated ?? false, !!r.consumed]));
+    // Scrubbing mutated only clones: the marker of the live trail is still consumed.
+    expect(records.find((r) => r.action === 'invalidated')!.consumed).toBe(true);
+  });
+
+  test('a run stamped after an armed marker opens its lane before the re-run lands', async () => {
+    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const task = firstActivity(definitions);
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });
+    stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
+    // The branch's own stamp — its re-run of the step is still on the way.
+    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
+
+    const records = displayOrder(collectProvenance(definitions));
+    const graph = assignLanes(records);
+    const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
+    expect(graph.get(stamps[1])!.lane).toBe(1);
+    const marker = records.find((r) => r.action === 'invalidated')!;
+    expect(graph.get(marker)!.opens).toBe(1);
+    expect(graph.get(marker)!.pendingBranch).toBeUndefined();
+  });
+
+  test('the pending branch mark appears mid-replay and resolves once the re-run lands', async () => {
+    const records = await forkedHistory();
+
+    const during = displayOrder(prefix(records, 2));
+    const markerDuring = during.find((r) => r.action === 'invalidated')!;
+    expect(assignLanes(during).get(markerDuring)!.pendingBranch).toBe(true);
+
+    const after = displayOrder(prefix(records, 3));
+    const markerAfter = after.find((r) => r.action === 'invalidated')!;
+    expect(assignLanes(after).get(markerAfter)!.pendingBranch).toBeUndefined();
   });
 });
 
