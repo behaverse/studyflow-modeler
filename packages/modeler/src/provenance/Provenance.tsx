@@ -114,7 +114,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 Who changed this studyflow and who ran it, oldest first — marked by the modeler and the runner, and stored inside the studyflow diagram itself.
                 Invalidating a run record (<i className={ICONS.closeSmall} aria-hidden="true" />)
                 appends a marker rather than deleting anything, so the next run re-executes only that step and what depends on it.
-                The replay button (<i className={ICONS.playFill} aria-hidden="true" />) plays this trail back on the canvas, step by step.
+                The replay button (<i className={ICONS.playFill} aria-hidden="true" />) plays this timeline back on the canvas, step by step.
               </DialogHelp>}
       actions={(
         <>
@@ -122,7 +122,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
             type="button"
             onClick={() => { onClose(); openReplay(); }}
             className={d.titleAction}
-            title="Replay this trail on the canvas — elements light up in order and a token marks each step"
+            title="Replay this timeline on the canvas — elements light up in order and a token marks each step"
             aria-label="Replay on the canvas"
           >
             <i className={`${ICONS.playFill} size-4 block`}></i>
@@ -159,7 +159,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                     type="button"
                     onClick={() => setScope(undefined)}
                     className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer pt-1 "
-                    title="Clear the filter and show the whole trail"
+                    title="Clear the filter and show the whole timeline"
                     aria-label="Clear provenance filter"
                   >
                     <i className={ICONS.closeSmall} aria-hidden="true" />
@@ -336,7 +336,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                             type="button"
                             onClick={() => invalidate(r)}
                             className="text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
-                            title="Invalidate this run record — kept in the trail; the next run branches just before this step and re-executes only what depends on it"
+                            title="Invalidate this run record — kept in the timeline; the next run branches just before this step and re-executes only what depends on it"
                             aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
                           >
                             <i className={`${ICONS.closeSmall} size-3.5 block`} aria-hidden="true"></i>

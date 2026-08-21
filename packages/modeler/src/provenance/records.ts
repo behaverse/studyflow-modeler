@@ -1,12 +1,12 @@
 import { primaryRoot, readTrail } from '@modeler/provenance/trail';
 import { ICONS } from '@modeler/icons';
 
-export function shapeIconOf(type: string): string {
-  const local = type.split(':').pop() ?? '';
-  if (local.endsWith('Gateway')) return ICONS.diamond;
-  if (local.endsWith('Event')) return ICONS.circle;
-  if (local.startsWith('Data')) return ICONS.database;
-  return ICONS.square;
+/** Icons only where the shape says something at a glance — gateways, events, containers; the rest stay bare. */
+export function shapeIconOf(el: any): string | undefined {
+  if (el?.$instanceOf?.('bpmn:Gateway')) return ICONS.diamond;
+  if (el?.$instanceOf?.('bpmn:Event')) return ICONS.circle;
+  if (el?.$instanceOf?.('bpmn:SubProcess')) return ICONS.plusBox;
+  return undefined;
 }
 
 export type ProvenanceRecord = {
@@ -145,7 +145,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
           id: el.id || '(unnamed)',
           label: el.name || el.id || '(unnamed)',
           isDocument: false,
-          icon: shapeIconOf(el.$type ?? ''),
+          icon: shapeIconOf(el),
         }));
       }
     });

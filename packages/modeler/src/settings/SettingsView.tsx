@@ -282,7 +282,7 @@ function diagnosticsFor(prefix: string): string[] {
 /** One line per extension, kept short for the row; the schema files carry the longer prose. */
 const EXTENSION_SUMMARY: Record<string, string> = {
   studyflow: 'The study, its events, flows, data elements, and execution details.',
-  prov: 'Provenance trail: who changed this studyflow, with which tool, when.',
+  prov: 'Provenance timeline: who changed this studyflow, with which tool, when.',
   functional: 'Data operations — transform, map, reduce, filter — and ready-made presets.',
   cognitive: 'Cognitive tasks, questionnaires, instructions, rest, actors, and assignment gateways.',
   agentic: 'Agent steps: model calls, tools, routing, memory, and human approval.',

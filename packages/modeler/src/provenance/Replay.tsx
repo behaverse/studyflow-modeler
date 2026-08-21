@@ -15,7 +15,7 @@ import {
   smootherstep,
   type Point,
 } from '@modeler/simulation/TokenSimulator';
-import { inspector as insp } from '@modeler/inspector/styles';
+import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -292,7 +292,23 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
 
 type Props = { onClose: () => void };
 
+const scopeName = (r: ProvenanceRecord) =>
+  (r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId);
+
 export function ReplayPanel({ onClose }: Props) {
+  const modeler = useRequiredModeler();
+  // `importXML` fires no `commandStack.changed`, so we bump a separate version to force a new timeline when the document changes.
+  const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const eventBus = modeler?.get?.('eventBus', false);
+    if (!eventBus) return undefined;
+    eventBus.on('import.done', bumpDocVersion);
+    return () => eventBus.off('import.done', bumpDocVersion);
+  }, [modeler]);
+  return <ReplayTimeline key={docVersion} onClose={onClose} />;
+}
+
+function ReplayTimeline({ onClose }: Props) {
   const modeler = useRequiredModeler();
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
@@ -308,6 +324,13 @@ export function ReplayPanel({ onClose }: Props) {
     [modeler, revision],
   );
   const total = records.length;
+
+  // The whole timeline
+  const trail = useMemo(() => {
+    const clones = applyStatuses(records.map((r) => ({ ...r })));
+    const graph = assignLanes(displayOrder([...clones]));
+    return clones.map((r) => ({ record: r, lane: graph.get(r)?.lane ?? 0 }));
+  }, [records]);
 
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -327,94 +350,157 @@ export function ReplayPanel({ onClose }: Props) {
   const current = shown[shown.length - 1];
   useReplayHighlights(modeler, shown);
 
-  const step = (delta: number) => {
+  const jump = (to: number) => {
     setPlaying(false);
-    setCursor(Math.min(Math.max(at + delta, 0), total));
+    setCursor(Math.min(Math.max(to, 0), total));
   };
+  const step = (delta: number) => jump(at + delta);
   const togglePlay = () => {
     if (playing) { setPlaying(false); return; }
     if (at >= total) setCursor(0);
     setPlaying(true);
   };
 
+  // Scrubbing: a press or drag anywhere on the track lands the playhead on the nearest step.
+  const trackRef = useRef<HTMLDivElement>(null);
+  const scrub = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (rect) jump(Math.round(((clientX - rect.left) / rect.width) * total));
+  };
+
+  // The animation-tool staples: space plays, arrows step, Home/End jump to the ends.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest?.('input, textarea, select, [contenteditable]')) return;
+      const acts: Record<string, () => void> = {
+        ' ': togglePlay,
+        ArrowLeft: () => step(-1),
+        ArrowRight: () => step(1),
+        Home: () => jump(0),
+        End: () => jump(total),
+      };
+      if (!acts[e.key]) return;
+      e.preventDefault();
+      acts[e.key]();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   // Each document-level `executed` stamp is one run of the study, matching the Provenance dialog.
   const runs = shown.filter((r) => r.isDocument && r.action === 'executed').length;
   const btn = 'flex items-center justify-center size-7 rounded-md text-stone-500 enabled:hover:text-stone-900 enabled:hover:bg-black/[0.05] enabled:cursor-pointer disabled:opacity-30 transition-colors';
+  const frac = (n: number) => `${(n / Math.max(total, 1)) * 100}%`;
 
   return (
-    <div className="fixed top-2 right-2 z-[220]" data-testid="provenance-replay">
-      <div className={insp.panel} style={{ width: 300 }}>
-        <div className="flex items-center gap-1 p-2 pb-1">
-          <h1 className="text-[15px] font-semibold text-stone-900 tracking-tight">Replay</h1>
-          <span className="flex-1" aria-hidden="true" />
-          <button type="button" onClick={onClose} className={btn} title="Stop the replay and bring the inspector back" aria-label="Close replay">
-            <i className={`${ICONS.close} size-3.5 block`} aria-hidden="true" />
-          </button>
-        </div>
-        {total === 0 ? (
-          <p className="px-2 pb-3 text-sm text-stone-500 italic">No provenance yet — nothing to replay.</p>
-        ) : (
-          <div className="px-2 pb-2 space-y-2">
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => step(-1)} disabled={at <= 0} className={btn} title="One record back" aria-label="Step back">
+    <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay">
+      <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat} text-stone-900 px-3 py-2`}>
+        <div className="flex items-center gap-1">
+          <h1
+            className="text-[15px] font-semibold text-stone-900 tracking-tight pr-2"
+            title="Elements light up as their records land; the token marks the active step, colored by branch"
+          >
+            Replay
+          </h1>
+          {total === 0 ? (
+            <p className="flex-1 text-sm text-stone-500 italic">No provenance yet.</p>
+          ) : (
+            <>
+              <button type="button" onClick={() => jump(0)} disabled={at <= 0} className={btn} title="Start" aria-label="Jump to start">
+                <i className={`${ICONS.skipStart} size-4 block`} aria-hidden="true" />
+              </button>
+              <button type="button" onClick={() => step(-1)} disabled={at <= 0} className={btn} title="Back" aria-label="Step back">
                 <i className={`${ICONS.chevronLeft} size-4 block`} aria-hidden="true" />
               </button>
-              <button type="button" onClick={togglePlay} className={btn} title={playing ? 'Pause' : 'Play the trail in order'} aria-label={playing ? 'Pause replay' : 'Play replay'}>
+              <button type="button" onClick={togglePlay} className={btn} title={playing ? 'Pause (space)' : 'Play the timeline'} aria-label={playing ? 'Pause' : 'Play'}>
                 <i className={`${playing ? ICONS.pause : ICONS.playFill} size-4 block`} aria-hidden="true" />
               </button>
-              <button type="button" onClick={() => step(1)} disabled={at >= total} className={btn} title="One record forward" aria-label="Step forward">
+              <button type="button" onClick={() => step(1)} disabled={at >= total} className={btn} title="Forward" aria-label="Step forward">
                 <i className={`${ICONS.chevronRight} size-4 block`} aria-hidden="true" />
               </button>
-              <span className="flex-1" aria-hidden="true" />
+              <button type="button" onClick={() => jump(total)} disabled={at >= total} className={btn} title="End" aria-label="Jump to end">
+                <i className={`${ICONS.skipEnd} size-4 block`} aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 onClick={() => setSpeedIdx((i) => (i + 1) % SPEEDS.length)}
                 className="px-1.5 py-0.5 rounded-md text-[11px] font-mono text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer transition-colors"
-                title="Playback speed"
-                aria-label={`Playback speed ${SPEEDS[speedIdx].label}`}
+                title="Speed"
+                aria-label={`Speed ${SPEEDS[speedIdx].label}`}
               >
                 {SPEEDS[speedIdx].label}
               </button>
-              <span className="text-[11px] font-mono text-stone-400 whitespace-nowrap">{at}/{total}</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={total}
-              step={1}
-              value={at}
-              onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)); }}
-              className="w-full accent-stone-500 cursor-pointer"
-              aria-label="Replay position"
-              title="Scrub through the trail as of any moment"
-            />
-            {current ? (
-              <div className="rounded-lg bg-cream-200/70 border border-black/[0.06] p-2 space-y-1">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-px h-4 bg-black/10 mx-1.5 shrink-0" aria-hidden="true" />
+              {current ? (
+                <div className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden whitespace-nowrap">
                   {current.icon && <i className={`${current.icon} size-3.5 shrink-0 text-stone-500`} aria-hidden="true" />}
-                  <span className={`text-sm font-semibold ${current.action === 'invalidated' ? 'text-red-600' : 'text-stone-900'}`}>{current.action}</span>
-                  <span className="text-[11px] font-mono text-stone-500 truncate" title={current.isDocument ? current.scopeId : current.scopeLabel}>
-                    {current.isDocument ? (current.action === 'executed' ? current.scopeId : 'document') : current.scopeId}
+                  <span className={`text-sm font-semibold shrink-0 ${current.action === 'invalidated' ? 'text-red-600' : 'text-stone-900'}`}>{current.action}</span>
+                  <span className="text-[11px] font-mono text-stone-500 truncate max-w-[14rem]" title={current.isDocument ? current.scopeId : current.scopeLabel}>
+                    {scopeName(current)}
                   </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
                   {recordDetails(current).map(([label, value]) => (
                     <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[11px] font-mono text-stone-500" title={`${label}: ${value}`}>
                       <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-400`} aria-hidden="true" />
                       <span className="truncate max-w-[10rem]">{value}</span>
                     </span>
                   ))}
+                  <span className="text-[11px] font-mono text-stone-400 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
+                  {current.note && <span className="text-xs italic text-stone-500 truncate min-w-0" title={current.note}>{current.note}</span>}
                 </div>
-                <div className="text-[11px] font-mono text-stone-400" title={current.when}>{shortWhen(current.when) ?? '—'}</div>
-                {current.note && <p className="text-xs italic text-stone-500">{current.note}</p>}
-              </div>
-            ) : (
-              <p className="text-xs text-stone-500 italic">Before the first record.</p>
-            )}
-            <p className="text-[11px] text-stone-400">
-              {runs > 0 && <><strong className="text-stone-500">{runs}</strong> {runs === 1 ? 'run' : 'runs'} so far · </>}
-              elements light up as their records land; the token marks the active step, colored by branch.
-            </p>
+              ) : (
+                <p className="flex-1 text-xs text-stone-500 italic">Before the first record.</p>
+              )}
+              {runs > 0 && (
+                <span className="text-[11px] text-stone-400 whitespace-nowrap shrink-0">
+                  <strong className="text-stone-500">{runs}</strong> {runs === 1 ? 'run' : 'runs'}
+                </span>
+              )}
+              <span className="text-[11px] font-mono text-stone-400 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
+            </>
+          )}
+          <button type="button" onClick={onClose} className={btn} title="Stop the replay and bring the inspector back" aria-label="Close replay">
+            <i className={`${ICONS.close} size-3.5 block`} aria-hidden="true" />
+          </button>
+        </div>
+        {total > 0 && (
+          <div
+            ref={trackRef}
+            className="relative h-9 mt-1 cursor-ew-resize touch-none select-none"
+            role="slider"
+            tabIndex={0}
+            aria-label="Replay position"
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={at}
+            aria-valuetext={current ? `${at} of ${total}: ${current.action} ${scopeName(current)}` : `0 of ${total}`}
+            title="Scrub through the timeline as of any moment"
+            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrub(e.clientX); }}
+            onPointerMove={(e) => { if (e.buttons & 1) scrub(e.clientX); }}
+          >
+            <div className="absolute inset-x-0 top-1/2 h-px bg-black/10" aria-hidden="true" />
+            <div className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-stone-400/40" style={{ left: 0, width: frac(at) }} aria-hidden="true" />
+            {trail.map(({ record: r, lane }, i) => {
+              // Run stamps read as tall section marks, invalidation markers as red, the rest by lane.
+              const stamp = r.isDocument && r.action === 'executed';
+              const color = r.action === 'invalidated' ? '#ef4444' : LANE_COLORS[lane % LANE_COLORS.length];
+              return (
+                <span
+                  key={i}
+                  className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity ${stamp ? 'w-[5px] h-5' : 'w-[3px] h-2.5'} ${i < at ? '' : 'opacity-25'}`}
+                  style={{ left: frac(i + 1), backgroundColor: color }}
+                  title={`${i + 1}/${total} · ${r.action} ${scopeName(r)} — ${shortWhen(r.when) ?? '—'}`}
+                />
+              );
+            })}
+            {/* No `left` transition */}
+            <div
+              className="absolute top-0 bottom-0 -translate-x-1/2 pointer-events-none"
+              style={{ left: frac(at) }}
+              aria-hidden="true"
+            >
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] rounded-full bg-stone-900" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 rounded-[2px] rotate-45 bg-stone-900" />
+            </div>
           </div>
         )}
       </div>

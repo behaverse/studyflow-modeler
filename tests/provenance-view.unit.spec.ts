@@ -114,7 +114,7 @@ test.describe('provenance view model', () => {
     expect(elementRecord.scopeId).toBe(task.id);
     expect(elementRecord.scopeLabel).toBe(task.name || task.id);
     expect(elementRecord.run).toBe('run-001');
-    expect(elementRecord.icon).toBe(ICONS.square);
+    expect(elementRecord.icon).toBe(ICONS.plusBox);
     expect(records[0].icon).toBe(ICONS.document);
 
     expect(recordDetails(records[2])).toEqual([
@@ -123,14 +123,17 @@ test.describe('provenance view model', () => {
     ]);
   });
 
-  test('maps element types onto the four palette shape icons', () => {
-    expect(shapeIconOf('bpmn:ExclusiveGateway')).toBe(ICONS.diamond);
-    expect(shapeIconOf('bpmn:StartEvent')).toBe(ICONS.circle);
-    expect(shapeIconOf('bpmn:EndEvent')).toBe(ICONS.circle);
-    expect(shapeIconOf('bpmn:DataObjectReference')).toBe(ICONS.database);
-    expect(shapeIconOf('bpmn:ServiceTask')).toBe(ICONS.square);
-    expect(shapeIconOf('bpmn:SubProcess')).toBe(ICONS.square);
-    expect(shapeIconOf('studyflow:CognitiveTask')).toBe(ICONS.square);
+  test('icons only for gateways, events, and containers — the rest stay bare', () => {
+    const icon = (type: string) => shapeIconOf(moddle.create(type, {}));
+    expect(icon('bpmn:ExclusiveGateway')).toBe(ICONS.diamond);
+    expect(icon('bpmn:StartEvent')).toBe(ICONS.circle);
+    expect(icon('bpmn:EndEvent')).toBe(ICONS.circle);
+    expect(icon('bpmn:SubProcess')).toBe(ICONS.plusBox);
+    expect(icon('bpmn:AdHocSubProcess')).toBe(ICONS.plusBox);
+    expect(icon('agentic:Agent')).toBe(ICONS.plusBox);
+    expect(icon('bpmn:ServiceTask')).toBeUndefined();
+    expect(icon('cognitive:CognitiveTask')).toBeUndefined();
+    expect(icon('bpmn:DataObjectReference')).toBeUndefined();
   });
 
   test('sorts undated entries last and keeps document order among them', async () => {

@@ -33,6 +33,8 @@ export const ICONS = {
   playFill: 'iconify bi--play-fill',
   pause: 'iconify bi--pause-fill',
   stop: 'iconify bi--stop',
+  skipStart: 'iconify bi--skip-start-fill',
+  skipEnd: 'iconify bi--skip-end-fill',
 
   document: 'iconify fluent--document-24-regular',
   folderOpen: 'iconify bi--folder2-open',
