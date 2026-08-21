@@ -1,6 +1,6 @@
-"""Provenance for studyflow-run: the run repository, the records, and the prov timeline.
+"""Provenance for studyflow-run-local: the run repository, the records, and the prov timeline.
 
-`studyflow-run.py` loads this module from beside itself (or `STUDYFLOW_PROV_PY`)
+`studyflow-run-local.py` loads this module from beside itself (or `STUDYFLOW_PROV_PY`)
 and overrides `log_event` and `shown` with its own; without this file a run
 still executes, with no repository, no records, and no reuse.
 """
@@ -25,7 +25,7 @@ from xml.etree import ElementTree as ET
 from xml.sax.saxutils import quoteattr
 
 
-# studyflow-run overrides these two with its own logging when it loads this module.
+# studyflow-run-local overrides these two with its own logging when it loads this module.
 def log_event(event: str, message: str, *, level: int = logging.INFO, **_: Any) -> None:
     print(message, file=sys.stderr)
 
@@ -178,7 +178,7 @@ class RunRecord:
         started: datetime,
         run: str = "",
         who: str = "",
-        tool: str = "studyflow-run.py",
+        tool: str = "studyflow-run-local.py",
     ) -> None:
         self.plan_digest = digest_of(plan.encode())
         self.seed = seed
@@ -306,11 +306,15 @@ class RunRepo:
 
     def open(self) -> None:
         """Init the directory, or adopt one a git-less run left — either way the next commit baselines it."""
-        if not self.enabled or (self.dir / ".git").exists():
+        if not self.enabled:
+            return
+        if (self.dir / ".git").exists():
+            self.exclude_cache()
             return
         if self.git("-c", "init.defaultBranch=main", "init", "-q", raw=True) is None:
             return
         self.created = True
+        self.exclude_cache()
         who = current_user() or "studyflow-runner"
         self.git("config", "user.name", who)
         # RFC 2606's reserved TLD: an address git accepts and no mail ever leaves for.
@@ -324,6 +328,15 @@ class RunRepo:
                 "".join(f"{pattern} filter=lfs diff=lfs merge=lfs -text\n" for pattern in self.LFS_PATTERNS),
             )
         log_event("git.init", f"  → {shown(self.dir)}/.git", level=logging.DEBUG)
+
+    def exclude_cache(self) -> None:
+        """`.cache/` is transient hand-off state for partial runners — it never enters the history."""
+        exclude = self.dir / ".git" / "info" / "exclude"
+        if not exclude.parent.is_dir():
+            return
+        marks = exclude.read_text() if exclude.exists() else ""
+        if ".cache/" not in marks:
+            exclude.write_text(marks + ".cache/\n")
 
     def commit(
         self, subject: str, trailers: dict[str, str] | None = None,
@@ -388,5 +401,5 @@ def branch_point(repo: RunRepo, invalidated: list[str], from_ref: str | None) ->
 
 
 if __name__ == "__main__":
-    print("studyflow-prov is the provenance module studyflow-run loads; run a study with studyflow-run.py", file=sys.stderr)
+    print("studyflow-prov is the provenance module studyflow-run-local loads; run a study with studyflow-run-local.py", file=sys.stderr)
     sys.exit(2)

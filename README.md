@@ -1,11 +1,34 @@
+# Behaverse Studyflow
 
-# Behaverse Studyflow Modeler
+[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation to describe experiments for machines and humans, based on BPMN (Business Process Model and Notation). It is designed to be a canonical representation of a scientific experiment, from which all other representations can be derived. One file is at once the protocol, the runnable experiment, the analysis specification, and the publication figure, with no second copy to drift.
 
-[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation to describe experiments for machines and humans, based on BPMN (Business Process Model and Notation). It is designed to be a canonical representation of a scientific study, from which all other representations can be derived.
+The canonical format is `.studyflow.yaml`; a diagram can also be embedded in a PNG image, so the figure you publish is the file that runs.
 
-One Studyflow file is at once the protocol, the runnable experiment, the analysis specification, and the publication figure: each a projection of the same file, with no second copy to drift.
+## Use
 
-The canonical format of a studyflow diagram is `.studyflow.yaml`. But it can also be embedded in a PNG image.
+- **Modeler** — the visual editor, at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Draw, validate, simulate, and export diagrams; `/run/` executes the participant-facing side in the browser.
+- **CLI** — `studyflow` converts, validates, inspects, and executes diagrams locally:
+
+  ```bash
+  brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
+  brew install studyflow
+  studyflow run assets/examples/sklearn_pipeline.studyflow.png
+  ```
+
+## Examples
+
+Example diagrams live in [assets/examples/](assets/examples/) and in the modeler's Examples gallery.
+
+## Develop
+
+```bash
+npm install
+npm run dev        # modeler + browser runner
+npm run test       # unit + e2e (Playwright)
+npm run build
+```
+
+The workspace: [packages/core](packages/core/) is the shared model, [packages/modeler](packages/modeler/) the editor, [packages/runner](packages/runner/) the browser runner, and [packages/cli](packages/cli/) the CLI with the local runners.
 
 ## Contributing
 

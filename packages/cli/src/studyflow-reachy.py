@@ -6,17 +6,20 @@
 """Run the Reachy Mini elements of a studyflow.
 
 Usage:
-    ./studyflow-reachy.py <plan>.studyflow.png [--sim] [--auto] [--max-steps N]
+    ./studyflow-reachy.py <diagram>.studyflow.png [--sim] [--auto] [--max-steps N]
 
-Walks the plan's flow and performs each `reachy:*` element. By default it is a
+Walks the diagram's flow and performs each `reachy:*` element. By default it is a
 terminal dry run: the robot's speech is printed, and its senses and the
 participant's lines come from stdin (`--auto` answers them with canned values
-instead, for CI). With `--sim` — or when the plan's Robot pool says
+instead, for CI). With `--sim` — or when the diagram's Robot pool says
 `variant: simulation` — it drives a MuJoCo-simulated Reachy Mini through the
 `reachy_mini` Python SDK, starting a headless sim daemon if none is listening;
 gestures, look-ats, and speech taps move the simulated robot for real.
-Elements from other schemas are logged and passed over — `studyflow-prov.py`
-executes those; the studyflow CLI will chain the two.
+Elements from other schemas are logged and passed over. In hand-off mode
+(`--element <id> --cache <dir>`, driven by studyflow-run-local) it executes that
+one element, reading the state from the cache's `<id>.state.json` and writing
+the updated state back into the same file (`result`, `durationMs`, and on
+failure `error` merged in); the person stays on stderr and the tty.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ import signal
 import re
 import struct
 import sys
+import time
 import zlib
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -64,7 +68,7 @@ def local(element: ET.Element) -> str:
 
 
 def studyflow_from_png(path: Path) -> str:
-    """Mirrors `studyflow-prov.py's studyflow_from_png`: the plan travels in a PNG text chunk."""
+    """Mirrors `studyflow-prov.py's studyflow_from_png`: the diagram travels in a PNG text chunk."""
     data = path.read_bytes()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError(f"{path} is not a PNG")
@@ -342,8 +346,6 @@ class Run:
     values: dict[str, Any] = field(default_factory=dict)
     trace: list[str] = field(default_factory=list)
     auto_lines: list[str] = field(default_factory=lambda: list(AUTO_LINES))
-    # Set in serve mode: stdin belongs to the protocol, so answers come from the tty instead.
-    tty: Any = None
 
     def say_line(self, text: str) -> None:
         print(f'    Reachy ▶ "{text}"')
@@ -353,10 +355,6 @@ class Run:
         if self.auto:
             print(f"    {prompt} [auto: {default}]")
             return default
-        if self.tty is not None:
-            print(f"    {prompt} [{default}]: ", end="", flush=True)
-            answer = self.tty.readline().strip()
-            return answer or default
         answer = input(f"    {prompt} [{default}]: ").strip()
         return answer or default
 
@@ -447,17 +445,20 @@ def sample_perception(run: Run, element: ET.Element, spec: dict[str, Any]) -> di
     return {channel: value}
 
 
-ACTIVITY_HANDLERS: dict[str, Callable[[Run, ET.Element, dict[str, Any]], Any]] = {
+# Every reachy element this runner claims, keyed by the extension's local name.
+HANDLERS: dict[str, Callable[[Run, ET.Element, dict[str, Any]], Any]] = {
     "say": run_say,
     "gesture": run_gesture,
     "lookAt": run_look_at,
     "listen": run_listen,
     "converse": run_converse,
     "teleoperation": run_teleoperation,
+    "senseEvent": wait_sense,
+    "perceptionGateway": sample_perception,
 }
 
 
-# --- the walk: studyflow-run's control flow, minus records, repos, and reuse ---
+# --- the walk: studyflow-run-local's control flow, minus records, repos, and reuse ---
 
 def evaluate(run: Run, expression: str, extra: dict[str, Any]) -> Any:
     space = run.namespace() | extra
@@ -468,27 +469,31 @@ def evaluate(run: Run, expression: str, extra: dict[str, Any]) -> Any:
         return False
 
 
-def next_element(run: Run, element: ET.Element) -> ET.Element | None:
+def choose_flow(run: Run, element: ET.Element, bindings: dict[str, Any]) -> ET.Element:
     flows = run.studyflow.outgoing.get(element.get("id"), [])
-    if not flows:
-        return None
-    if local(element) not in GATEWAY_TAGS:
-        return run.studyflow.elements.get(flows[0].get("targetRef"))
-
-    ext = reachy_extension(element)
-    bindings = sample_perception(run, element, settings_of(ext)) if ext is not None and local(ext) == "perceptionGateway" else {}
     for flow in flows:
         condition = next((c for c in flow if local(c) == "conditionExpression"), None)
         if condition is None or not (condition.text or "").strip():
             continue
         if evaluate(run, condition.text.strip(), bindings):
             print(f"    {condition.text.strip()} → {flow.get('id')}")
-            return run.studyflow.elements.get(flow.get("targetRef"))
+            return flow
     default = next((f for f in flows if f.get("id") == element.get("default")), None)
     if default is None:
         raise RuntimeError(f"{element.get('id')}: no condition held and no default flow")
     print(f"    default → {default.get('id')}")
-    return run.studyflow.elements.get(default.get("targetRef"))
+    return default
+
+
+def next_element(run: Run, element: ET.Element) -> ET.Element | None:
+    flows = run.studyflow.outgoing.get(element.get("id"), [])
+    if not flows:
+        return None
+    if local(element) not in GATEWAY_TAGS:
+        return run.studyflow.elements.get(flows[0].get("targetRef"))
+    ext = reachy_extension(element)
+    bindings = sample_perception(run, element, settings_of(ext)) if ext is not None and local(ext) == "perceptionGateway" else {}
+    return run.studyflow.elements.get(choose_flow(run, element, bindings).get("targetRef"))
 
 
 def walk(run: Run, element: ET.Element | None, max_steps: int) -> None:
@@ -513,85 +518,64 @@ def walk(run: Run, element: ET.Element | None, max_steps: int) -> None:
             walk(run, run.studyflow.start_of(element), max_steps)
         elif tag in PASSTHROUGH_TAGS:
             if ext is not None and local(ext) == "senseEvent":
-                print(f"◐ {label}")
-                run.values[element_id] = wait_sense(run, element, settings_of(ext))
+                perform(run, element, ext)
             else:
                 print(f"○ {label}")
-        elif ext is not None and local(ext) in ACTIVITY_HANDLERS:
-            print(f"□ {label}")
-            value = ACTIVITY_HANDLERS[local(ext)](run, element, settings_of(ext))
-            if value is not None:
-                run.store(element, value)
+        elif ext is not None and local(ext) in HANDLERS:
+            perform(run, element, ext)
         else:
             print(f"· {label}  (not a Reachy element — passed over)")
 
         element = next_element(run, element)
 
 
-def serve(run: Run, out: Any) -> int:
-    """Serve mode: one JSONL request per line on stdin, one JSON response per line on `out`."""
-    repo = Path.cwd()
-    for line in sys.stdin:
-        if not line.strip():
-            continue
-        request = json.loads(line)
-        op = request.get("op")
-        if op == "shutdown":
-            break
-        try:
-            if op == "hello":
-                repo = Path(request.get("repo") or ".")
-                response: dict[str, Any] = {"ok": True, "name": "reachy"}
-            elif op == "element":
-                run.values.update(request.get("values") or {})
-                element = run.studyflow.elements.get(request.get("id") or "")
-                ext = reachy_extension(element) if element is not None else None
-                if element is None or ext is None:
-                    raise KeyError(f"no reachy element {request.get('id')!r} in the plan")
-                kind, spec = local(ext), settings_of(ext)
-                if kind == "senseEvent":
-                    response = {"ok": True, "value": wait_sense(run, element, spec)}
-                elif kind == "perceptionGateway":
-                    response = {"ok": True, "bindings": sample_perception(run, element, spec)}
-                elif kind in ACTIVITY_HANDLERS:
-                    value = ACTIVITY_HANDLERS[kind](run, element, spec)
-                    run.values[element.get("id")] = value
-                    response = {"ok": True, "value": value}
-                else:
-                    raise KeyError(f"no handler for reachy:{kind}")
-            elif op == "bind":
-                run.values[request["to"]] = run.values.get(request["from"])
-                response = {"ok": True}
-            elif op == "save":
-                path = repo / request["uri"]
-                path.parent.mkdir(parents=True, exist_ok=True)
-                value = run.values.get(request["id"])
-                path.write_text(value if isinstance(value, str) else json.dumps(value, indent=2, default=str))
-                response = {"ok": True, "bytes": path.stat().st_size}
-            else:
-                raise ValueError(f"unknown op {op!r}")
-        except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
-            response = {"ok": False, "error": f"{type(error).__name__}: {error}"}
-        print(json.dumps(response), file=out, flush=True)
-    return 0
+def perform(run: Run, element: ET.Element, ext: ET.Element) -> dict[str, Any]:
+    """One reachy element, as the keys a hand-off merges into the state: its result and timing."""
+    kind, spec = local(ext), settings_of(ext)
+    if kind not in HANDLERS:
+        raise KeyError(f"no handler for reachy:{kind}")
+    glyph = {"perceptionGateway": "◇", "senseEvent": "◐"}.get(kind, "□")
+    print(f"{glyph} {element.get('name') or element.get('id')}")
+    clock = time.perf_counter()
+    value = HANDLERS[kind](run, element, spec)
+    if kind == "senseEvent":
+        run.values[element.get("id")] = value
+    elif kind != "perceptionGateway" and value is not None:
+        run.store(element, value)
+    return {"result": value, "durationMs": round((time.perf_counter() - clock) * 1000, 1)}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="a .studyflow.png (or .bpmn/.xml) to walk")
+    parser.add_argument("diagram", type=Path, help="a .studyflow.png (or .bpmn/.xml) to walk")
     parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
     parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
     parser.add_argument("--max-steps", type=int, default=200)
-    parser.add_argument("--serve", action="store_true", help="serve another runner's JSONL requests instead of walking")
+    parser.add_argument(
+        "--element", metavar="ID", default=None,
+        help="hand-off mode: execute this one element, then exit (driven by studyflow-run-local)",
+    )
+    parser.add_argument(
+        "--claims", action="store_true",
+        help="print the element ids this runner would execute, as a JSON array, and exit",
+    )
+    parser.add_argument(
+        "--cache", type=Path, default=None, metavar="DIR",
+        help="hand-off state: the run's values arrive in <element>.state.json, the result goes back into it",
+    )
     args = parser.parse_args()
 
-    # In serve mode stdout carries only responses; the narrative and prompts move to stderr and the tty.
-    out = sys.stdout
-    if args.serve:
-        sys.stdout = sys.stderr
-
-    xml = studyflow_from_png(args.plan) if args.plan.suffix.lower() == ".png" else args.plan.read_text()
+    xml = studyflow_from_png(args.diagram) if args.diagram.suffix.lower() == ".png" else args.diagram.read_text()
     studyflow = Studyflow(xml)
+
+    if args.claims:
+        # This runner claims every element carrying a reachy extension it has a handler for.
+        print(json.dumps([
+            element_id for element_id, element in studyflow.elements.items()
+            if (ext := reachy_extension(element)) is not None and local(ext) in HANDLERS
+        ]))
+        return 0
+
     config = studyflow.robot_config()
 
     robot: Any = TerminalRobot()
@@ -614,19 +598,29 @@ def main() -> int:
             robot = TerminalRobot()
             print(f"simulation unavailable ({error}) — carrying on as a dry run")
 
-    run = Run(studyflow, auto=args.auto, robot=robot)
+    # In hand-off mode stdin is never a channel: without a terminal the runner answers itself.
+    run = Run(studyflow, auto=args.auto or bool(args.element and not sys.stdin.isatty()), robot=robot)
 
-    if args.serve:
-        if not args.auto:
-            # stdin is the protocol channel now, so the participant's answers come from the terminal itself.
-            try:
-                run.tty = open("/dev/tty", encoding="utf-8")  # noqa: SIM115 - held for the whole session
-            except OSError:
-                run.auto = True
+    if args.element:
+        # The person is on stderr and the tty; stdout is captured into the run log.
+        sys.stdout = sys.stderr
+        cache = args.cache or Path(".")
+        handoff = cache / f"{args.element}.state.json"
+        state = json.loads(handoff.read_text()) if handoff.exists() else {}
+        run.values.update(state)
         try:
-            return serve(run, out)
+            element = studyflow.elements.get(args.element)
+            ext = reachy_extension(element) if element is not None else None
+            if element is None or ext is None:
+                raise KeyError(f"no reachy element {args.element!r} in the diagram")
+            result = perform(run, element, ext)
+        except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
+            result = {"error": f"{type(error).__name__}: {error}"}
         finally:
             robot.close()
+        cache.mkdir(parents=True, exist_ok=True)
+        handoff.write_text(json.dumps({**state, **result}, default=str))
+        return 1 if "error" in result else 0
 
     print(f"{studyflow.title()}  —  Reachy {robot.label}  ({config['variant']} @ {config['host']}, volume {config['volume']})")
     try:

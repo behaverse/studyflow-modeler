@@ -1,15 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
-# dependencies = [
-#   "pyyaml>=6.0",
-#   # Below here belongs to the shipped sklearn_pipeline example, not the runner.
-#   "pandas>=2.0",
-#   "scikit-learn>=1.4",
-#   "joblib>=1.3",
-#   "matplotlib>=3.8",
-#   # `format="parquet"` also needs pandas' parquet engine: `--with pyarrow`.
-# ]
+# dependencies = ["pyyaml>=6.0"]
 # ///
 """A reference runner for the studyflow execution contract.
 
@@ -17,14 +9,14 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. See README.md for the
 contract this implements and the terms it writes.
 
-    uv run studyflow-run.py ../../assets/examples/sklearn_pipeline.studyflow.png
+    uv run studyflow-run-local.py ../../assets/examples/sklearn_pipeline.studyflow.png
 
 This is the core: the walk, the values, `python://` implementations, and the
-schema-runner sessions (`studyflow-<name>` siblings serve their own schemas).
+partial-runner hand-offs (`studyflow-<name>` siblings claim and execute their elements).
 `studyflow-prov.py` beside it adds the run repository, the records, and the
 prov timeline; without it a run executes bare.
 
-A run writes a run directory — `runs/<timestamp>/`, or the one the plan handed
+A run writes a run directory — `runs/<id>/` (YYMMDD plus a codename, e.g. `runs/260821heron/`), or the one the diagram handed
 to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
 stamped `executed` (the copy carries its own run record), and `studyflow.log`;
 the detailed step records live in the run repository's commit bodies. Expressions run in the evaluating engine's own
@@ -49,8 +41,7 @@ import subprocess
 import sys
 import time
 import zlib
-from collections.abc import Callable
-from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -267,9 +258,20 @@ def timeline_timestamp(moment: datetime) -> str:
     return moment.astimezone().isoformat(timespec="milliseconds")
 
 
+# Short words for a run id's codename tail, drawn from the run's exact start moment.
+ANIMALS = (
+    "cat", "dog", "bee", "crab", "deer", "dove", "elk", "finch", "fox", 
+    "ibis", "lark", "lynx", "mole", "moth", "otter", "owl", "seal", "sparrow", 
+    "swan", "trout", "shark", "tiger", "toad", "tuna", "viper",
+    "whale", "wolf", "zebra", "jellyfish", "kangaroo", "lemur", "monkey", "octopus"
+)
+
+
 def run_stamp(moment: datetime) -> str:
-    """Sortable UTC id: a default repo's name and a new branch read the same."""
-    return moment.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    """Sortable, human-trackable id — YYMMDD plus a codename the start moment draws
+    (e.g. 260821heron): a default repo's name and a new branch read the same."""
+    utc = moment.astimezone(timezone.utc)
+    return f"{utc.strftime('%y%m%d')}{ANIMALS[int(utc.timestamp() * 1000) % 32]}"
 
 
 
@@ -452,20 +454,6 @@ def save_artifact(value: Any, path: Path, fmt: str) -> None:
         raise ValueError(f"no handler for format {fmt!r} ({path})")
 
 
-def write_digits_table(path: Path) -> None:
-    from sklearn.datasets import load_digits
-
-    frame = load_digits(as_frame=True).frame
-    path.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(path, index=False)
-
-
-# Not part of the contract: a shipped example's boundary inputs, keyed by `uri`. `--no-prepare-inputs` skips them.
-BOUNDARY_INPUTS: dict[str, Callable[[Path], None]] = {
-    "digits.csv": write_digits_table,
-}
-
-
 class State:
     """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`."""
 
@@ -504,7 +492,7 @@ def shown(path: Path) -> Path:
 
 
 def write_plan_copy(source: Path, target: Path, xml: str) -> None:
-    """A PNG plan keeps its picture and carries `xml` in a text chunk; anything else is the text."""
+    """A PNG diagram keeps its picture and carries `xml` in a text chunk; anything else is the text."""
     if source.suffix.lower() == ".png":
         target.write_bytes(embed_studyflow_into_png(source.read_bytes(), xml))
     else:
@@ -584,14 +572,14 @@ class NoRepo:
         return ""
 
 
-def discover_runners(session_flags: list[str]) -> dict[str, str]:
-    """Schema runners in reach, each serving the schema called <name>: a `studyflow-<name>.py`
+def discover_runners(runner_flags: list[str]) -> dict[str, str]:
+    """Partial runners in reach, each named <name> and claiming its own elements: a `studyflow-<name>.py`
     beside this script, a `studyflow-<name>` on PATH, then `STUDYFLOW_<NAME>_PY` overrides."""
-    flags = "".join(f" {flag}" for flag in session_flags)
+    flags = "".join(f" {flag}" for flag in runner_flags)
     found: dict[str, str] = {}
     for script in sorted(Path(__file__).resolve().parent.glob("studyflow-*.py")):
         name = script.stem.removeprefix("studyflow-").lower()
-        if name not in ("run", "prov"):
+        if name not in ("run", "run-local", "prov"):
             found[name] = f"uv run --script {shlex.quote(str(script))}{flags}"
     for directory in os.environ.get("PATH", "").split(os.pathsep):
         try:
@@ -602,13 +590,13 @@ def discover_runners(session_flags: list[str]) -> dict[str, str]:
             if not entry.startswith("studyflow-") or "." in entry:
                 continue
             name = entry.removeprefix("studyflow-").lower()
-            if name not in ("run", "prov") and os.access(os.path.join(directory, entry), os.X_OK):
+            if name not in ("run", "run-local", "prov") and os.access(os.path.join(directory, entry), os.X_OK):
                 found[name] = shlex.quote(os.path.join(directory, entry)) + flags
     for key, value in os.environ.items():
         matched = re.fullmatch(r"STUDYFLOW_([A-Z0-9_]+)_PY", key)
         if matched:
             name = matched.group(1).lower().replace("_", "-")
-            if name not in ("run", "prov"):
+            if name not in ("run", "run-local", "prov"):
                 found[name] = f"uv run --script {shlex.quote(value)}{flags}"
     return found
 
@@ -630,47 +618,49 @@ def resolve_implementation(implementation: str) -> Any:
     raise ImportError(f"cannot import {path!r}")
 
 
-class RunnerSession:
-    """A schema runner as a session: `COMMAND <plan> --serve`, one JSON line per request and
-    response on its pipes, narrative and prompts on stderr and the terminal."""
+class PartialRunner:
+    """A partial runner as a subprocess per element: `COMMAND <diagram> --element <id> --cache <dir>`.
+    It runs the elements it claims (`COMMAND <diagram> --claims` answers with their ids), whatever
+    they are — a runner is element-specific, not schema-specific. One file per hand-off,
+    `<id>.state.json` in the cache dir: the state (the run's values) goes in, and the updated
+    state comes back with `result`, `durationMs`, and on failure `error` merged in — only one
+    side touches it at a time. The runner's stdout is captured into the run log; stdin and
+    stderr stay on the terminal for the person."""
 
-    def __init__(self, name: str, command: str, plan: Path, repo_dir: Path, seed: str) -> None:
+    def __init__(self, name: str, command: str, plan: Path, repo_dir: Path, debug: bool = False) -> None:
         self.name = name
         self.command = command
         self.plan = plan
         self.repo_dir = repo_dir
-        self.seed = seed
-        self.child: subprocess.Popen | None = None
+        self.debug = debug
 
-    def request(self, payload: dict) -> dict:
-        if self.child is None:
-            argv = [*shlex.split(self.command), str(self.plan), "--serve"]
-            self.child = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)  # noqa: S603 - an authored runner command
-            self.request({"op": "hello", "repo": str(self.repo_dir), "seed": self.seed})
-        self.child.stdin.write(json.dumps(payload) + "\n")
-        self.child.stdin.flush()
-        line = self.child.stdout.readline()
-        if not line:
-            raise RuntimeError(f"the {self.name} runner exited mid-session")
-        response = json.loads(line)
-        if response.get("ok") is False:
-            raise RuntimeError(f"{self.name}: {response.get('error') or 'runner error'}")
-        return response
+    def claims(self) -> list[str]:
+        argv = [*shlex.split(self.command), str(self.plan), "--claims"]
+        done = subprocess.run(argv, capture_output=True, text=True)  # noqa: S603 - an authored runner command
+        lines = [line for line in (done.stdout or "").splitlines() if line.strip()]
+        if done.returncode != 0 or not lines:
+            detail = (done.stderr or "").strip().splitlines()
+            raise SystemExit(f"{self.name} --claims failed: {detail[-1] if detail else f'exit {done.returncode}'}")
+        return json.loads(lines[-1])
 
     def element(self, element_id: str, values: dict) -> dict:
-        return self.request({"op": "element", "id": element_id, "values": values})
-
-    def shutdown(self) -> None:
-        if self.child is None:
-            return
-        with suppress(OSError, ValueError):
-            self.child.stdin.write(json.dumps({"op": "shutdown"}) + "\n")
-            self.child.stdin.flush()
-        with suppress(subprocess.TimeoutExpired):
-            self.child.wait(timeout=5)
-        if self.child.poll() is None:
-            self.child.terminate()
-        self.child = None
+        cache = self.repo_dir / ".cache"
+        cache.mkdir(parents=True, exist_ok=True)
+        handoff = cache / f"{element_id}.state.json"
+        handoff.write_text(json.dumps(values, default=str))
+        argv = [*shlex.split(self.command), str(self.plan), "--element", element_id, "--cache", str(cache)]
+        done = subprocess.run(argv, stdout=subprocess.PIPE, text=True)  # noqa: S603 - an authored runner command
+        for line in (done.stdout or "").splitlines():
+            if line.strip():
+                log_event("runner.stdout", f"    {line}", level=logging.DEBUG)
+        state = json.loads(handoff.read_text()) if handoff.exists() else {}
+        # Only the read state file goes; the cache dir survives the run (spilled values live there)
+        # and finish() sweeps it at the end.
+        if not self.debug:
+            handoff.unlink(missing_ok=True)
+        if done.returncode != 0 or state.get("error"):
+            raise RuntimeError(f"{self.name}: {state.get('error') or f'exited with code {done.returncode}'}")
+        return state
 
 
 class Runner:
@@ -680,26 +670,44 @@ class Runner:
         repo_dir: Path,
         input_sources: list[Path] | None = None,
         started: datetime | None = None,
-        prepare_inputs: bool = True,
         seed: str | None = None,
         fresh: bool = False,
         repo: RunRepo | None = None,
         branched: bool = False,
         runners: dict[str, str] | None = None,
         plan_path: Path | None = None,
+        debug: bool = False,
     ) -> None:
         self.studyflow = studyflow
-        # Schema runners: extension-namespace name -> its command, each held open as one session per run.
+        self.debug = debug
+        # Partial runners claim elements, not schemas: each is asked once which ids it will run.
         self.runners = {
-            name: RunnerSession(name, command, plan_path, repo_dir, seed or "")
+            name: PartialRunner(name, command, plan_path, repo_dir, debug=debug)
             for name, command in (runners or {}).items()
         } if plan_path is not None else {}
+        self.claimed: dict[str, PartialRunner] = {}
+        # Live elements are interaction: they never skip or replay. A claims answer that is a plain
+        # array is live; `{"elements": [...], "live": false}` marks replayable ones (studyflow-python).
+        self.live: set[str] = set()
+        for runner in self.runners.values():
+            answer = runner.claims()
+            ids = answer if isinstance(answer, list) else (answer.get("elements") or [])
+            live = isinstance(answer, list) or bool(answer.get("live", True))
+            for element_id in ids:
+                other = self.claimed.get(element_id)
+                if other is not None and other is not runner:
+                    raise SystemExit(
+                        f"{element_id} is claimed by both the {other.name} and {runner.name} runners — "
+                        "one element, one runner (drop one, or scope their claims apart)",
+                    )
+                self.claimed[element_id] = runner
+                if live:
+                    self.live.add(element_id)
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
         self.input_sources = input_sources or [Path.cwd()]
         self.repo = repo
         self.branched = branched
-        self.prepare_inputs = prepare_inputs
         self.values: dict[str, Any] = {}
         self.state = State()
         self.depth = 0
@@ -823,19 +831,11 @@ class Runner:
                 f"    ▤ stage {uri}  {human_bytes(path.stat().st_size)}, from {shown(source)}",
             )
             return
-        build = BOUNDARY_INPUTS.get(uri) if self.prepare_inputs else None
-        if build is None:
-            looked_in = ", ".join(str(directory) for directory in self.input_sources)
-            raise FileNotFoundError(
-                f"{uri} is in none of {looked_in}. {self.studyflow.name_of(element_id)} is a boundary "
-                "input: no step of this studyflow produces it, so something outside has to "
-                "put it there.",
-            )
-        build(path)
-        self.staged[element_id] = self.moment()
-        self.event(
-            "artifact.prepared",
-            f"    ▤ prepare {uri}  {human_bytes(path.stat().st_size)}, a boundary input this studyflow ships",
+        looked_in = ", ".join(str(directory) for directory in self.input_sources)
+        raise FileNotFoundError(
+            f"{uri} is in none of {looked_in}. {self.studyflow.name_of(element_id)} is a boundary "
+            "input: no step of this studyflow produces it, so something outside has to "
+            "put it there.",
         )
 
     def resolve_argument(self, value: Any) -> Any:
@@ -865,26 +865,19 @@ class Runner:
                 resolved[key] = self.resolve_argument(value)
         return resolved
 
-    def runner_for(self, element: ET.Element) -> RunnerSession | None:
-        """The session serving this element's extension namespace, if any."""
-        for ext in element:
-            if local(ext) != "extensionElements":
-                continue
-            for child in ext:
-                uri = child.tag[1:].split("}")[0] if child.tag.startswith("{") else ""
-                for name, session in self.runners.items():
-                    if name == uri or uri.rstrip("/").endswith(f"/{name}"):
-                        return session
-        return None
+    def runner_for(self, element: ET.Element) -> PartialRunner | None:
+        """The runner that claimed this element, if any."""
+        return self.claimed.get(element.get("id") or "")
 
     def json_values(self) -> dict:
-        """The JSON-able shadow of the run's values, for a schema runner's placeholders and intents."""
+        """The JSON-able shadow of the run's values, for a partial runner's placeholders and intents."""
         shadow: dict[str, Any] = {}
         for element_id, value in self.values.items():
             try:
-                shadow[element_id] = json.loads(json.dumps(plain(value)))
+                json.dumps(plain(value))
             except (TypeError, ValueError):
                 continue
+            shadow[element_id] = plain(value)
         return shadow
 
     def stale_inputs(self, element: ET.Element) -> bool:
@@ -988,9 +981,12 @@ class Runner:
         # A memory-only output forces a re-run only when this run was analyzed to need the value.
         if memory and (self.demanded is None or element_id in self.demanded):
             return "volatile"
+        # A runner-claimed element's outputs are consumed by its runner, which loads them itself:
+        # existence is enough here. In-process consumers need the value loaded now.
+        claimed = self.runner_for(element) is not None
         try:
             for target_id in targets:
-                if self.studyflow.consumes(target_id):
+                if not claimed and self.studyflow.consumes(target_id):
                     self.value_of(target_id)
                 else:
                     self.ensure_artifact(target_id)
@@ -1004,6 +1000,13 @@ class Runner:
         if not path.exists():
             self.stage_input(element_id, uri, path)
 
+    def end_entry(self, entry: dict) -> None:
+        """Close the entry; a runner-reported duration replaces ours, which includes the subprocess spawn."""
+        self.record.end(entry)
+        runner_ms = entry.pop("_runnerMs", None)
+        if runner_ms is not None:
+            entry["durationMs"] = runner_ms
+
     def run_activity(self, element: ET.Element) -> None:
         element_id = element.get("id")
         prior = self.prior_records.get(element_id)
@@ -1011,8 +1014,8 @@ class Runner:
         stale = self.stale_inputs(element)
         replay = None
         verdict = None
-        # An element a schema runner serves is live interaction: it never skips from a prior record.
-        if prior and not stale and self.runner_for(element) is None:
+        # A live element (an interactive runner's) never skips from a prior record.
+        if prior and not stale and element_id not in self.live:
             with self.deferred_events() as replay:
                 verdict = self.skip_activity(element, element_id)
             if verdict == "skipped":
@@ -1035,13 +1038,14 @@ class Runner:
                 self.execute_activity(element, entry)
         except BaseException as error:
             self.record.fail(entry, error)
+            entry.pop("_runnerMs", None)
             self.event(
                 "activity.failed", f"    {element_id}: {type(error).__name__}: {error}",
                 level=logging.ERROR,
             )
             self.checkpoint(f"failed {element_id}", self.moment(), {"Prov-Node": element_id})
             raise
-        self.record.end(entry)
+        self.end_entry(entry)
         when = self.moment()
         self.completed[element_id] = when
         # Taint what was re-made, so recorded consumers re-run too; a `volatile` re-run taints nothing.
@@ -1061,6 +1065,11 @@ class Runner:
         implementation = element.get("implementation")
         if implementation:
             entry["implementation"] = implementation
+
+        # A claimed element is the runner's whole job: it binds its own inputs and outputs.
+        runner = self.runner_for(element)
+        if runner is not None:
+            return self.execute_via_runner(element, entry, runner)
 
         keywords: dict[str, Any] = {}
         receiver: list[Any] = []
@@ -1126,15 +1135,10 @@ class Runner:
         if used:
             entry["used"] = used
 
-        session = None if implementation else self.runner_for(element)
         if implementation:
             target = resolve_implementation(implementation)
             self.event("implementation.resolved", f"    implementation {implementation}")
             result = target(*positional, **keywords)
-        elif session is not None:
-            entry["implementation"] = f"runner://{session.name}"
-            self.event("runner.called", f"    → the {session.name} runner takes this element")
-            result = session.element(element.get("id"), self.json_values()).get("value")
         else:
             self.event(
                 "implementation.missing", "    (no implementation — nothing to call)",
@@ -1142,6 +1146,30 @@ class Runner:
             )
             return
 
+        self.bind_outputs(element, result, entry)
+
+    def execute_via_runner(self, element: ET.Element, entry: dict, runner: PartialRunner) -> None:
+        """One hand-off: state in, updated state out — what the runner bound or changed is adopted here."""
+        element_id = element.get("id")
+        entry["implementation"] = element.get("implementation") or f"runner://{runner.name}"
+        self.event("runner.called", f"    → the {runner.name} runner takes this element")
+        sent = self.json_values()
+        reported = runner.element(element_id, sent)
+        entry["_runnerMs"] = reported.get("durationMs")
+        for key, value in reported.items():
+            if key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
+                self.store(key, value)
+        targets = output_targets(element)
+        if targets:
+            entry["generated"] = targets
+        for target_id in targets:
+            uri, _ = self.studyflow.artifact(target_id)
+            path = self.repo_dir / uri if uri else None
+            if path is not None and path.exists():
+                self.produced[target_id] = self.moment()
+                self.event("artifact.saved", f"    ▤ save {uri}  {human_bytes(path.stat().st_size)}")
+
+    def bind_outputs(self, element: ET.Element, result: Any, entry: dict) -> None:
         for association in element:
             if local(association) != "dataOutputAssociation":
                 continue
@@ -1189,8 +1217,8 @@ class Runner:
         if local(element) in GATEWAY_TAGS:
             # A clean gateway replays its recorded decision — same inputs, same seed, same verdict.
             # A condition edit is invisible to staleness: ✕ the gateway or `--fresh` forces re-evaluation.
-            # A gateway a schema runner samples decides live, so its decision never replays.
-            prior = None if self.runner_for(element) else self.prior_records.get(element_id)
+            # A gateway a live runner samples decides live, so its decision never replays.
+            prior = None if element_id in self.live else self.prior_records.get(element_id)
             if prior and prior.get("what") and not self.stale_expressions(flows):
                 flow = next((f for f in flows if f.get("id") == prior["what"]), None)
                 if flow is not None:
@@ -1203,11 +1231,13 @@ class Runner:
             entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
             default_id = element.get("default")
             bindings: dict[str, Any] = {}
-            session = self.runner_for(element)
-            if session is not None:
-                # The schema runner samples what the conditions read (e.g. `face_count`).
-                self.event("runner.called", f"    {session.name} samples for {element_id}")
-                bindings = session.element(element_id, self.json_values()).get("bindings") or {}
+            runner = self.runner_for(element)
+            if runner is not None:
+                # The partial runner samples what the conditions read (e.g. `face_count`).
+                self.event("runner.called", f"    {runner.name} samples for {element_id}")
+                sampled = runner.element(element_id, self.json_values())
+                entry["_runnerMs"] = sampled.get("durationMs")
+                bindings = sampled.get("result") or {}
                 if bindings:
                     entry["bindings"] = bindings
             try:
@@ -1230,7 +1260,7 @@ class Runner:
                     )
                     if verdict:
                         entry["taken"] = {"sequenceFlow": flow.get("id"), "name": flow.get("name")}
-                        self.record.end(entry)
+                        self.end_entry(entry)
                         when = self.moment()
                         self.decisions[element_id] = (flow.get("id"), when)
                         self.event(
@@ -1244,12 +1274,13 @@ class Runner:
                         return self.studyflow.elements.get(flow.get("targetRef"))
             except BaseException as error:
                 self.record.fail(entry, error)
+                entry.pop("_runnerMs", None)
                 raise
 
             chosen = next((f for f in flows if f.get("id") == default_id), None)
             if chosen is None:
                 entry["status"] = "stuck"
-                self.record.end(entry)
+                self.end_entry(entry)
                 self.record.status = "error"
                 self.event(
                     "gateway.stuck",
@@ -1260,7 +1291,7 @@ class Runner:
             entry["taken"] = {
                 "sequenceFlow": chosen.get("id"), "name": chosen.get("name"), "default": True,
             }
-            self.record.end(entry)
+            self.end_entry(entry)
             when = self.moment()
             self.decisions[element_id] = (chosen.get("id"), when)
             self.event(
@@ -1274,6 +1305,28 @@ class Runner:
             return self.studyflow.elements.get(chosen.get("targetRef"))
 
         return self.studyflow.elements.get(flows[0].get("targetRef"))
+
+    def debug_state(self, element_id: str) -> None:
+        """--debug: every element leaves `<id>.state.json` in `.cache/`, the updated state with its
+        `result` and `durationMs` merged in — the same shape a partial runner's hand-off file has."""
+        if not self.debug:
+            return
+        state = self.json_values()
+        entry = next((e for e in reversed(self.record.entries) if e.get("node") == element_id), None)
+        if entry is not None:
+            generated = entry.get("generated") or []
+            taken = (entry.get("taken") or {}).get("sequenceFlow")
+            result = self.values.get(element_id, self.values.get(generated[0]) if generated else taken)
+            try:
+                json.dumps(result, default=str)
+                state["result"] = result
+            except (TypeError, ValueError):
+                pass
+            if entry.get("durationMs") is not None:
+                state["durationMs"] = entry["durationMs"]
+        cache = self.repo_dir / ".cache"
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / f"{element_id}.state.json").write_text(json.dumps(state, default=str))
 
     def run(self, max_steps: int = 1000) -> None:
         self.demanded = self.plan_demand()
@@ -1307,6 +1360,7 @@ class Runner:
                     self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"● {element_id}")
+                    self.debug_state(element_id)
                     return
                 if tag in GATEWAY_TAGS:
                     self.event("gateway.reached", f"◇ {element_id}")
@@ -1333,22 +1387,28 @@ class Runner:
                     )
                 elif tag in PASSTHROUGH_TAGS:
                     entry = self.record.begin(element_id, name, bpmn_type(element))
-                    session = self.runner_for(element) if tag == "intermediateCatchEvent" else None
-                    if session is not None:
-                        # A catch event a schema runner serves blocks in its session until sensed.
-                        self.event("event.waiting", f"◐ {element_id}  (waiting via {session.name})")
+                    runner = self.runner_for(element) if tag == "intermediateCatchEvent" else None
+                    if runner is not None:
+                        # A catch event a partial runner executes blocks in its subprocess until sensed.
+                        self.event("event.waiting", f"◐ {element_id}  (waiting via {runner.name})")
                         try:
-                            self.store(element_id, session.element(element_id, self.json_values()).get("value"))
+                            sensed = runner.element(element_id, self.json_values())
+                            entry["_runnerMs"] = sensed.get("durationMs")
+                            self.store(element_id, sensed.get("result"))
                         except BaseException as error:
                             self.record.fail(entry, error)
+                            entry.pop("_runnerMs", None)
                             raise
-                    self.record.end(entry)
+                    self.end_entry(entry)
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"○ {element_id}")
                 else:
                     self.run_activity(element)
 
-                element = self.next_element(element)
+                # After next_element, so a gateway's decision is in its record entry too.
+                following = self.next_element(element)
+                self.debug_state(element_id)
+                element = following
         finally:
             self.depth = outer
 
@@ -1389,12 +1449,12 @@ class Runner:
                 )
         plan = self.repo_dir / source.name
         write_plan_copy(source, plan, stamped)
-        self.event("plan.archived", f"  → {shown(plan)}", level=logging.DEBUG)
+        self.event("diagram.archived", f"  → {shown(plan)}", level=logging.DEBUG)
         return plan
 
     def finish(self) -> None:
-        for session in self.runners.values():
-            session.shutdown()
+        if not self.debug:
+            shutil.rmtree(self.repo_dir / ".cache", ignore_errors=True)
         elapsed = (datetime.now(timezone.utc) - self.record.started).total_seconds() * 1000
         log_event(
             "run.finished",
@@ -1404,7 +1464,7 @@ class Runner:
 
 
 def resolve_repo_dir(explicit: Path | None, plan: Path, started: datetime) -> Path:
-    """An explicit --repo, else the plan's own directory when it is a run repository, else a fresh one."""
+    """An explicit --repo, else the diagram's own directory when it is a run repository, else a fresh one."""
     if explicit is not None:
         # `studyflow.log` is what marks a directory as ours; without it a run would sweep a stranger's files.
         occupied = explicit.exists() and (not explicit.is_dir() or any(explicit.iterdir()))
@@ -1421,7 +1481,7 @@ def resolve_repo_dir(explicit: Path | None, plan: Path, started: datetime) -> Pa
     candidate = runs / stamp
     attempt = 2
     while candidate.exists():
-        candidate = runs / f"{stamp}-{attempt}"
+        candidate = runs / f"{stamp}{attempt}"
         attempt += 1
     return candidate
 
@@ -1436,8 +1496,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--repo", type=Path, default=None, metavar="DIR",
-        help="the run repository to write into, its name being the run id (default: the plan's own "
-             "directory when the plan already lives in one, else a fresh runs/<UTC start time>)",
+        help="the run repository to write into, its name being the run id (default: the diagram's own "
+             "directory when the diagram already lives in one, else a fresh runs/<YYMMDD+codename>)",
     )
     parser.add_argument(
         "--from", dest="from_ref", default=None, metavar="REF",
@@ -1448,23 +1508,23 @@ def main() -> int:
         help="ignore the input's per-element run records and re-run every step",
     )
     parser.add_argument(
-        "--no-prepare-inputs", action="store_true",
-        help="fail on a missing boundary input rather than materialize a shipped example's own",
-    )
-    parser.add_argument(
         "--quiet", action="store_true",
         help="no console output; the log file is written either way",
     )
     parser.add_argument(
         "--runner", action="append", default=[], metavar="NAME=COMMAND",
-        help="override a discovered schema runner, or add one: COMMAND <plan> --serve; repeatable",
+        help="override a discovered partial runner, or add one: COMMAND <diagram> --element <id> --cache <dir>; repeatable",
     )
-    parser.add_argument("--sim", action="store_true", help="schema runners drive a simulated robot")
-    parser.add_argument("--auto", action="store_true", help="schema runners answer their prompts with canned values")
+    parser.add_argument(
+        "--debug", action="store_true",
+        help="keep the .cache folder and its hand-off state files instead of cleaning them",
+    )
+    parser.add_argument("--sim", action="store_true", help="partial runners drive a simulated robot")
+    parser.add_argument("--auto", action="store_true", help="partial runners answer their prompts with canned values")
     args = parser.parse_args()
 
-    session_flags = [flag for flag, wanted in (("--sim", args.sim), ("--auto", args.auto)) if wanted]
-    runners = discover_runners(session_flags)
+    runner_flags = [flag for flag, wanted in (("--sim", args.sim), ("--auto", args.auto)) if wanted]
+    runners = discover_runners(runner_flags)
     for spec in args.runner:
         name, separator, command = spec.partition("=")
         if not separator or not name or not command:
@@ -1494,26 +1554,25 @@ def main() -> int:
             when=timeline_timestamp(started),
         )
 
-    # Root seed: the plan's pinned value, else drawn once — recorded either way, so an unpinned run replays.
+    # Root seed: read from the diagram, never drawn here — partial runners read the same file,
+    # so every process seeds identically. A diagram without a seed runs unseeded.
     probe = read_studyflow(args.studyflow)
-    seed = studyflow_attr(probe.process, "seed") or str(random.SystemRandom().randrange(10**9))
+    seed = studyflow_attr(probe.process, "seed")
     try:
         random.seed(int(seed))
-        import numpy  # noqa: PLC0415 - optional, only if the steps use it
-        numpy.random.seed(int(seed) % 2**32)
-    except Exception:  # noqa: BLE001, S110 - a non-numeric seed seeds nothing
-        pass
+    except (TypeError, ValueError):
+        pass  # no seed, or a non-numeric one, seeds nothing
 
     # The input file is never touched — the stamp lands on the archived copy.
     studyflow = read_studyflow(args.studyflow, stamp={
         "action": "executed",
         "when": timeline_timestamp(started),
         "who": who,
-        "with": "studyflow-run.py",
+        "with": "studyflow-run-local.py",
         "run": run_id,
         "seed": seed,
     })
-    # The plan is read before the fork below, because forking reverts the copy this may be reading from.
+    # The diagram is read before the fork below, because forking reverts the copy this may be reading from.
     # Branching has first claim on the run's branch name — a detached HEAD only attaches without one.
     invalidated = PROV.invalidated_elements(probe) if PROV is not None else []
     branched = False
@@ -1538,25 +1597,24 @@ def main() -> int:
         if repo.branch(f"run/{stamp}"):
             log_event("git.branched", f"  run/{stamp} at the detached HEAD this run started from")
 
-    # Archived before the first step, so a killed run still leaves a readable plan behind.
+    # Archived before the first step, so a killed run still leaves a readable diagram behind.
     archived = repo_dir / args.studyflow.name
     write_plan_copy(args.studyflow, archived, studyflow.plan)
-    log_event("plan.archived", f"  → {shown(archived)}", level=logging.DEBUG)
+    log_event("diagram.archived", f"  → {shown(archived)}", level=logging.DEBUG)
     runner = Runner(
         studyflow, repo_dir,
         input_sources=list(dict.fromkeys([args.studyflow.parent.resolve(), Path.cwd()])),
         started=started,
-        prepare_inputs=not args.no_prepare_inputs,
         seed=seed, fresh=args.fresh,
         repo=repo, branched=branched,
-        runners=runners, plan_path=args.studyflow,
+        runners=runners, plan_path=args.studyflow, debug=args.debug,
     )
     # The trailers of a commit that stamps no element are the document stamp's own attributes.
     document_stamp = {
         "Prov-Action": "executed",
         "Prov-When": timeline_timestamp(started),
         "Prov-Who": who,
-        "Prov-With": "studyflow-run.py",
+        "Prov-With": "studyflow-run-local.py",
         "Prov-Run": run_id,
         "Prov-Seed": seed,
     }

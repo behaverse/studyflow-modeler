@@ -24,19 +24,19 @@ function declaredRuntime(definitions: any): string {
   return typeof value === 'string' && value ? value : 'cloud';
 }
 
-/** Every `studyflow-run.py` this build could be sitting next to, best first. */
+/** Every `studyflow-run-local.py` this build could be sitting next to, best first. */
 function runnerScriptCandidates(): string[] {
   const candidates: string[] = [];
 
   // The repo checkout, when this is the bundle rather than a compiled binary.
   if (import.meta.url.startsWith('file:')) {
-    candidates.push(fileURLToPath(new URL('../src/studyflow-run.py', import.meta.url)));
+    candidates.push(fileURLToPath(new URL('../src/studyflow-run-local.py', import.meta.url)));
   }
 
   // The copy an installer put beside the binary (Homebrew: `bin/studyflow`, scripts in `libexec/`).
   try {
     const binDir = path.dirname(realpathSync(process.execPath));
-    candidates.push(path.join(binDir, '..', 'libexec', 'studyflow-run.py'), path.join(binDir, 'studyflow-run.py'));
+    candidates.push(path.join(binDir, '..', 'libexec', 'studyflow-run-local.py'), path.join(binDir, 'studyflow-run-local.py'));
   } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
 
   return candidates;
@@ -44,7 +44,7 @@ function runnerScriptCandidates(): string[] {
 
 /**
  * The runner, in the order documented in the CLI README: an explicit
- * `STUDYFLOW_RUN_PY`, then an installed `studyflow-run` companion, then the
+ * `STUDYFLOW_RUN_PY`, then an installed `studyflow-run-local` companion, then the
  * script shipped beside this CLI (which needs `uv` to pull its dependencies).
  * The runner discovers studyflow-prov and the schema runners itself.
  */
@@ -52,7 +52,7 @@ function runnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };
 
-  const companion = onPath('studyflow-run');
+  const companion = onPath('studyflow-run-local');
   if (companion) return { command: companion, args: [] };
 
   if (onPath('uv')) {
@@ -62,8 +62,8 @@ function runnerCommand(): { command: string; args: string[] } {
   }
 
   throw new Error(
-    'No runner found. Install uv so the studyflow-run.py shipped with this CLI can run, '
-    + 'or point STUDYFLOW_RUN_PY at a studyflow-run.py.',
+    'No runner found. Install uv so the studyflow-run-local.py shipped with this CLI can run, '
+    + 'or point STUDYFLOW_RUN_PY at a studyflow-run-local.py.',
   );
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "@behaverse/studyflow-cli",
   "version": "26.0615",
-  "description": "Command-line tool for studyflow files: convert between formats, validate, inspect.",
+  "description": "CLI tool for studyflow diagrams.",
   "private": true,
   "type": "module",
   "license": "MIT",

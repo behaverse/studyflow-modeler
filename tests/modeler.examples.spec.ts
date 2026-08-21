@@ -33,7 +33,7 @@ test.describe('Examples gallery', () => {
     await runPaletteCommand(page, 'Examples...');
 
     const card = page.getByTestId('example-spirit2025');
-    await expect(card).toContainText('Study designs');              // collaboration
+    await expect(card).toContainText('Experimental Design');        // collaboration
     await expect(card).toContainText('SPIRIT 2025 trial protocol'); // collaboration
     await expect(card).toContainText('A SPIRIT 2025 trial protocol in lanes'); // process
   });
@@ -45,7 +45,7 @@ test.describe('Examples gallery', () => {
     await expect(page.getByTestId('example-consort2025')).toBeVisible();
     await expect(page.getByTestId('example-bot_claude')).toBeVisible();
 
-    await page.getByTestId('example-filter-AI agents').click();
+    await page.getByTestId('example-filter-AI/ML').click();
     await expect(page.getByTestId('example-bot_claude')).toBeVisible();
     await expect(page.getByTestId('example-consort2025')).toHaveCount(0);
 
