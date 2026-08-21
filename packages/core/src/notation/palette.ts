@@ -35,6 +35,11 @@ export function isHiddenFromPalette(
   return false;
 }
 
+/** An icon given as an image URL rather than an iconify class (`data:image/...` or `https://...`). */
+export function isImageIcon(icon: string): boolean {
+  return /^(https?:\/\/|data:image\/)/i.test(icon);
+}
+
 const STRIPPABLE_SUFFIXES = ['Gateway', 'Event'];
 
 export function trimBpmnSuffix(typeName: string, bpmnType: string): string {

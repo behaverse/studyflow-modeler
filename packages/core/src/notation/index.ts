@@ -4,7 +4,7 @@ export * from '@core/notation/types';
 export { buildCatalog } from '@core/notation/compile';
 // Type-only: `buildCatalog` is the sole way to make one, so `register` stays out of reach.
 export type { TypeCatalog } from '@core/notation/query';
-export { HIDDEN_SCHEMA_TYPES } from '@core/notation/palette';
+export { HIDDEN_SCHEMA_TYPES, isImageIcon } from '@core/notation/palette';
 export { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@core/notation/bpmn';
 
 import { BPMN_NS } from '@core/constants';

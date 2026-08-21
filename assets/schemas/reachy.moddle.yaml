@@ -1,0 +1,468 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: Reachy Mini
+prefix: reachy
+description: >-
+  Human-robot interaction with the Reachy Mini desktop robot: robot sessions,
+  expressive behaviors, spoken dialogue, perception-driven branching, and
+  interaction recordings.
+uri: https://w3id.org/studyflow/reachy
+# The Reachy Mini silhouette, inlined so the badge needs no icon service or external host.
+icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%233f3f46' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 8.5 6.5 2.5M22 8.5 25.5 2.5M15 14.5h2M10.5 21C8.3 23.6 7 26.3 7 29.2h18c0-2.9-1.3-5.6-3.5-8.2'/%3E%3Crect x='5' y='8' width='22' height='13' rx='5.5'/%3E%3Ccircle cx='12' cy='14.5' r='3'/%3E%3Ccircle cx='20' cy='14.5' r='3'/%3E%3C/svg%3E"
+order: 80  # registry position (load precedence + settings order)
+xml:
+  tagAlias: lowerCase
+version: 26.0821
+
+enumerations:
+  - name: VariantEnum
+    description: Which Reachy Mini build runs the session.
+    literalValues:
+      - name: Reachy Mini (wireless)
+        value: wireless
+        description: Battery, on-board computer, and Wi-Fi; runs untethered.
+      - name: Reachy Mini Lite
+        value: lite
+        description: USB-tethered to a host computer.
+      - name: Simulation
+        value: simulation
+        description: No hardware; the session runs in the simulator.
+
+  - name: MoveEnum
+    description: Built-in expressive move played on the head, body, and antennas.
+    literalValues:
+      - name: Happy wiggle
+        value: happy
+      - name: Sad droop
+        value: sad
+      - name: Curious tilt
+        value: curious
+      - name: Surprised
+        value: surprised
+      - name: Nod (yes)
+        value: nod
+      - name: Shake (no)
+        value: shake
+      - name: Look around
+        value: look_around
+      - name: Dance
+        value: dance
+      - name: Rest
+        value: rest
+
+  - name: LookTargetEnum
+    description: What the robot orients its head toward.
+    literalValues:
+      - name: Nearest face
+        value: face
+      - name: Sound source
+        value: sound
+      - name: Home pose
+        value: home
+
+  - name: TriggerEnum
+    description: What the robot senses to fire the event.
+    literalValues:
+      - name: Wake word
+        value: wake_word
+      - name: Face detected
+        value: face_detected
+      - name: Speech detected
+        value: speech_detected
+      - name: Loud sound
+        value: loud_sound
+      - name: Picked up
+        value: picked_up
+        description: The IMU senses the robot being lifted or shaken (wireless only).
+
+  - name: PerceptionChannelEnum
+    description: Perception feed a gateway's branch conditions read.
+    literalValues:
+      - name: Face count
+        value: face_count
+        description: How many faces the camera currently sees.
+      - name: Emotion
+        value: emotion
+        description: Dominant facial expression of the nearest face.
+      - name: Speech intent
+        value: speech_intent
+        description: What the participant's last utterance asked for.
+      - name: Sound level
+        value: sound_level
+        description: Microphone loudness.
+
+types:
+  - name: Robot
+    description: >-
+      The Reachy Mini as an actor - a pool for what the robot does, carrying
+      the device settings shared by every step inside it.
+    superClass:
+      - bpmn:Participant
+    meta:
+      icon: *reachy-icon
+    properties:
+      - name: variant
+        description: Which Reachy Mini build runs the session; a custom identifier is also accepted.
+        isAttr: true
+        type: VariantEnum
+        default: wireless
+        meta:
+          order: 0
+          editable: true
+      - name: host
+        description: >-
+          Hostname or IP where the robot's daemon listens - `reachy-mini.local`
+          for a wireless unit, `localhost` for a Lite or a simulation.
+        isAttr: true
+        type: String
+        default: localhost
+        meta:
+          order: 1
+      - name: voice
+        description: Text-to-speech voice the robot speaks with.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          optional: true
+      - name: language
+        description: Language the robot speaks and listens in, as a BCP-47 tag (`en-US`).
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          optional: true
+      - name: volume
+        description: Speaker volume, 0-100.
+        isAttr: true
+        type: Integer
+        default: 80
+        meta:
+          order: 4
+
+  # Actuation steps are service tasks: the `studyflow:Implementation` trait then lets a
+  # runner bind each one to a Python entry point over the reachy_mini SDK.
+  - name: Say
+    description: The robot speaks a text aloud.
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify mdi--account-voice
+    properties:
+      - name: text
+        description: What the robot says, with `{{name}}` placeholders filled in as it runs.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+
+  - name: Gesture
+    description: The robot plays an expressive move - head, body rotation, and antennas.
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify mdi--hand-wave-outline
+    properties:
+      - name: move
+        description: Built-in move to play; the name of a custom move is also accepted.
+        isAttr: true
+        type: MoveEnum
+        default: happy
+        meta:
+          order: 1
+          editable: true
+      - name: speed
+        description: Playback speed multiplier.
+        isAttr: true
+        type: Real
+        default: 1
+        meta:
+          order: 2
+
+  - name: LookAt
+    description: The robot orients its head toward a target and holds or tracks it.
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify mdi--eye-outline
+    properties:
+      - name: target
+        description: What to orient toward; tracking holds until another step moves the head.
+        isAttr: true
+        type: LookTargetEnum
+        default: face
+        meta:
+          order: 1
+
+  - name: Listen
+    description: >-
+      Waits for the participant to speak and transcribes it; the transcript
+      flows out through the data association drawn from this task.
+    superClass:
+      - bpmn:ReceiveTask
+    meta:
+      icon: iconify mdi--ear-hearing
+    properties:
+      - name: timeoutSeconds
+        description: Give up if no speech starts within this many seconds.
+        isAttr: true
+        type: Real
+        default: 10
+        meta:
+          order: 1
+
+  - name: Converse
+    description: >-
+      A spoken exchange driven by a model - the robot listens, replies, and
+      gestures until the conversation ends.
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify mdi--forum-outline
+    properties:
+      # `implementation` (e.g. an `hf://` app) comes from the `studyflow:Implementation` trait.
+      - name: model
+        description: Model identifier that drives the dialogue (e.g. `claude-haiku-4-5`, `ollama/llama3.3`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+      - name: persona
+        description: The robot's character and standing instructions, in markdown.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+      - name: maxTurns
+        description: Ceiling on how many spoken exchanges the conversation may take.
+        isAttr: true
+        type: Integer
+        default: 10
+        meta:
+          order: 3
+      - name: stopPhrase
+        description: Participant phrase that ends the conversation early (e.g. `goodbye`).
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          optional: true
+
+  - name: Teleoperation
+    description: An operator drives the robot by hand - the Wizard-of-Oz condition.
+    superClass:
+      - bpmn:UserTask
+    meta:
+      icon: iconify mdi--gamepad-variant-outline
+    properties:
+      - name: instructions
+        description: What the operator does at this step, in markdown.
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+
+  - name: PerceptionGateway
+    description: >-
+      A branch decided by what the robot perceives - the outgoing flows'
+      conditions read the chosen channel (e.g. `face_count > 1`), and the flow
+      marked default is taken when none matches.
+    superClass:
+      - bpmn:ExclusiveGateway
+    meta:
+      icon: iconify mdi--eye-check-outline
+    properties:
+      - name: channel
+        description: Perception feed the branch conditions read.
+        isAttr: true
+        type: PerceptionChannelEnum
+        default: face_count
+        meta:
+          order: 1
+
+  - name: SenseEvent
+    description: Waits until the robot senses something - a wake word, a face, a sound, being picked up.
+    superClass:
+      - bpmn:IntermediateCatchEvent
+    meta:
+      icon: iconify mdi--motion-sensor
+    properties:
+      - name: trigger
+        description: What the robot listens or watches for; a custom trigger name is also accepted.
+        isAttr: true
+        type: TriggerEnum
+        default: wake_word
+        meta:
+          order: 1
+          editable: true
+      - name: wakeWord
+        description: The phrase to listen for (e.g. `Hey Reachy`).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          condition:
+            body:
+              trigger: wake_word
+
+  - name: InteractionRecording
+    description: The multimodal record an interaction produces - what was seen, heard, said, and moved.
+    superClass:
+      - studyflow:Dataset
+    meta:
+      icon: iconify mdi--record-rec
+    properties:
+      # Plain strings, one per entry: a non-attribute enum list cannot serialize through moddle.
+      - name: streams
+        description: >-
+          Data streams captured in this recording, one per entry (`video`,
+          `audio`, `transcript`, `motion`, `imu`).
+        isAttr: false
+        isMany: true
+        type: String
+
+templates:
+  - description: A robot-proctored session - Reachy greets, instructs, watches the task, and debriefs.
+    object:
+      type: Robot
+      bpmn:name: Robot-proctored session
+      bpmn:documentation: >-
+        The robot walks a participant through a testing session: it greets them,
+        delivers the instructions aloud, celebrates the finished task, and
+        debriefs at the end.
+      icon: *reachy-icon
+      keywords:
+        - reachy
+        - robot
+        - hri
+        - session
+        - proctor
+      variant: wireless
+      flowElements:
+        - id: rm_start
+          type: bpmn:StartEvent
+          bpmn:name: Start
+          x: 100
+          y: 200
+        - id: rm_greet
+          type: Say
+          bpmn:name: Greet & instruct
+          text: |
+            Hello! I'm Reachy. In a moment you'll see a short task on the
+            screen; I'll explain each step before it starts.
+          x: 200
+          y: 178
+        - id: rm_task
+          type: cognitive:CognitiveTask
+          bpmn:name: Cognitive task
+          icon: iconify bi--puzzle
+          instrument: psychopy
+          x: 360
+          y: 178
+        - id: rm_praise
+          type: Gesture
+          bpmn:name: Celebrate completion
+          move: happy
+          x: 520
+          y: 178
+        - id: rm_debrief
+          type: Say
+          bpmn:name: Debrief
+          text: That's it - thank you for taking part!
+          x: 680
+          y: 178
+        - id: rm_end
+          type: bpmn:EndEvent
+          bpmn:name: End
+          x: 840
+          y: 200
+        - type: bpmn:SequenceFlow
+          sourceRef: rm_start
+          targetRef: rm_greet
+        - type: bpmn:SequenceFlow
+          sourceRef: rm_greet
+          targetRef: rm_task
+        - type: bpmn:SequenceFlow
+          sourceRef: rm_task
+          targetRef: rm_praise
+        - type: bpmn:SequenceFlow
+          sourceRef: rm_praise
+          targetRef: rm_debrief
+        - type: bpmn:SequenceFlow
+          sourceRef: rm_debrief
+          targetRef: rm_end
+
+  - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.
+    object:
+      bpmn:name: Wake-word conversation
+      type: bpmn:SubProcess
+      bpmn:documentation: |
+        The robot idles until it hears its wake word, turns toward the
+        speaker, and holds a spoken conversation until the participant says
+        the stop phrase or the turn budget runs out.
+      icon: iconify mdi--forum-outline
+      keywords:
+        - reachy
+        - conversation
+        - wake
+        - dialogue
+        - speech
+      flowElements:
+        - id: ww_wake
+          type: SenseEvent
+          bpmn:name: Wake word
+          trigger: wake_word
+          wakeWord: Hey Reachy
+          x: 140
+          y: 162
+        - id: ww_look
+          type: LookAt
+          bpmn:name: Face the speaker
+          target: face
+          x: 240
+          y: 140
+        - id: ww_talk
+          type: Converse
+          bpmn:name: Chat
+          model: claude-haiku-4-5
+          persona: |
+            You are Reachy, a small, curious desktop robot. Keep replies to one
+            or two spoken sentences and never pretend to be human.
+          stopPhrase: goodbye
+          x: 400
+          y: 140
+        - id: ww_bye
+          type: Gesture
+          bpmn:name: Sign off
+          move: nod
+          x: 560
+          y: 140
+        - type: bpmn:SequenceFlow
+          sourceRef: ww_wake
+          targetRef: ww_look
+        - type: bpmn:SequenceFlow
+          sourceRef: ww_look
+          targetRef: ww_talk
+        - type: bpmn:SequenceFlow
+          sourceRef: ww_talk
+          targetRef: ww_bye
+
+  - description: Wizard-of-Oz - a hidden operator drives the robot while the participant believes it is autonomous.
+    object:
+      bpmn:name: Wizard-of-Oz control
+      type: Teleoperation
+      bpmn:documentation: |
+        A hidden operator steers the robot's speech and moves from the
+        dashboard. Document the deception and its debrief in the study's
+        ethics materials.
+      icon: iconify mdi--gamepad-variant-outline
+      keywords:
+        - woz
+        - wizard
+        - teleoperation
+        - operator
+        - hri
+      instructions: |
+        Watch the live camera and audio feed. Trigger moves and speech from
+        the dashboard; keep responses under three seconds so the illusion
+        holds.

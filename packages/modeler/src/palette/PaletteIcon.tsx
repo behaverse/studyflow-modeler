@@ -1,11 +1,9 @@
+import { isImageIcon } from '@core/notation';
+
 type Props = {
   icon?: string;
   size: number;
 };
-
-function isImageIcon(icon: string): boolean {
-  return /^(https?:\/\/|data:image\/)/i.test(icon);
-}
 
 export function PaletteIcon({ icon, size }: Props) {
   if (!icon) return null;

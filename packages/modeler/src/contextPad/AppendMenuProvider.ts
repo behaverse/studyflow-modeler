@@ -1,4 +1,4 @@
-import { getCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@core/notation';
+import { getCatalog, HIDDEN_SCHEMA_TYPES, isImageIcon, type TypeEntry } from '@core/notation';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
 import type { AutoPlace, Create, ElementFactory, Injector, PopupMenu, Rules } from '@modeler/bpmn/types';
 
@@ -54,9 +54,10 @@ export default class AppendMenuProvider {
         return {
         label: type.paletteLabel,
         actionName: type.ns.localName,
-        imageHtml: icon
-          ? `<span class="${icon}" style="font-size: 18px;"></span>`
-          : '',
+        imageHtml: !icon ? ''
+          : isImageIcon(icon)
+            ? `<img src="${icon}" style="width: 18px; height: 18px;" alt="" />`
+            : `<span class="${icon}" style="font-size: 18px;"></span>`,
         bpmnType: type.bpmnType!,
         extensionType: type.name,
         };

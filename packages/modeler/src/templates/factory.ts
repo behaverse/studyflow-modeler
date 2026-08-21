@@ -102,25 +102,49 @@ type MaterializeTemplateFlowParams = {
     ) => any;
   };
   shape: any;
-  newRootElement?: any;
   hintKey: string;
 };
 
+/** Left covers the pool's label band. */
+const POOL_PADDING = { left: 70, right: 40 };
+
+/** Participants hold their flow inline (no drilldown plane), so grow the pool around the template's bounding box and shift the nodes into it. */
+function fitParticipant(modeling: any, shape: any, nodeShapes: Box[]): { x: number; y: number } {
+  if (shape?.businessObject?.$type !== 'bpmn:Participant' || nodeShapes.length === 0) return { x: 0, y: 0 };
+
+  const minX = Math.min(...nodeShapes.map((n) => n.x));
+  const minY = Math.min(...nodeShapes.map((n) => n.y));
+  const bboxWidth = Math.max(...nodeShapes.map((n) => n.x + n.width)) - minX;
+  const bboxHeight = Math.max(...nodeShapes.map((n) => n.y + n.height)) - minY;
+
+  const width = Math.max(shape.width, bboxWidth + POOL_PADDING.left + POOL_PADDING.right);
+  const height = Math.max(shape.height, bboxHeight + 80);
+  modeling.resizeShape(shape, { x: shape.x, y: shape.y, width, height });
+
+  return {
+    x: shape.x + POOL_PADDING.left - minX,
+    y: shape.y + Math.round((height - bboxHeight) / 2) - minY,
+  };
+}
+
 export function materializeTemplateFlow(command: MaterializeTemplateFlowParams): void {
-  const { modeling, templatesService, shape, newRootElement, hintKey } = command;
+  const { modeling, templatesService, shape, hintKey } = command;
 
   const flowElements: TemplateFlowElement[] = shape[TEMPLATE_FLOW_ELEMENTS] ?? [];
   if (flowElements.length === 0) return;
 
-  const flowContainer = newRootElement ?? shape;
   const nodesById = new Map<string, any>();
+  const nodeShapes = flowElements
+    .filter(isFlowNode)
+    .map((node) => ({ node, nodeShape: templatesService.createFlowNodeShape(node, shape) }));
 
-  for (const node of flowElements.filter(isFlowNode)) {
-    const nodeShape = templatesService.createFlowNodeShape(node, flowContainer);
+  const delta = fitParticipant(modeling, shape, nodeShapes.map((entry) => entry.nodeShape));
+
+  for (const { node, nodeShape } of nodeShapes) {
     const created = modeling.createShape(
       nodeShape,
-      { x: nodeShape.x, y: nodeShape.y, width: nodeShape.width, height: nodeShape.height },
-      flowContainer,
+      { x: nodeShape.x + delta.x, y: nodeShape.y + delta.y, width: nodeShape.width, height: nodeShape.height },
+      shape,
       { autoResize: false, [hintKey]: true },
     );
     nodesById.set(node.id, created);
@@ -133,8 +157,8 @@ export function materializeTemplateFlow(command: MaterializeTemplateFlowParams):
       console.warn(`[templates] Skipping connection '${conn.id ?? conn.bpmnType}' - source or target not found.`);
       continue;
     }
-    const created = templatesService.createFlowConnection(conn, source, target, flowContainer);
-    modeling.createConnection(source, target, created, flowContainer, { [hintKey]: true });
+    const created = templatesService.createFlowConnection(conn, source, target, shape);
+    modeling.createConnection(source, target, created, shape, { [hintKey]: true });
   }
 
   delete shape[TEMPLATE_FLOW_ELEMENTS];

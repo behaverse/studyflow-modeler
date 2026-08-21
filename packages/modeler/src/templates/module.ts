@@ -13,14 +13,13 @@ class TemplateFlowElementsBehavior extends CommandInterceptor {
     super(eventBus);
 
     this.postExecuted('shape.create', (context: any) => {
-      const { shape, hints, newRootElement } = context;
+      const { shape, hints } = context;
       if (!shape || hints?.[TEMPLATE_FLOW_HINT]) return;
 
       materializeTemplateFlow({
         modeling,
         templatesService: elementTemplates,
         shape,
-        newRootElement,
         hintKey: TEMPLATE_FLOW_HINT,
       });
     }, true);

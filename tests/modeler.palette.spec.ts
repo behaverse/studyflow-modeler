@@ -106,6 +106,20 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toContain('key: participant');
   });
 
+  test('a participant template arrives with its flow, not as an empty pool', async ({ page }) => {
+    await gotoModeler(page);
+
+    await addSchemaPaletteElement(page, 'Reachy Mini', 'Robot-proctored session', { x: 420, y: 300 });
+
+    const studyflowDownload = await exportDiagram(page, 'studyflow');
+    const studyflowText = await readDownloadText(studyflowDownload);
+
+    expect(studyflowText).toContain('type: reachy:Robot');
+    expect(studyflowText).toContain('Greet & instruct');
+    expect(studyflowText).toContain('type: reachy:Gesture');
+    expect(studyflowText).toContain('type: cognitive:CognitiveTask');
+  });
+
   test('applies default schema values for eeg EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 

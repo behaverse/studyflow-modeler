@@ -1,4 +1,5 @@
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { bpmnSelfAndAncestors } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { createTemplateConnection } from '@modeler/templates/factory';
 import { createTemplateShape } from '@modeler/templates/factory';
@@ -91,7 +92,9 @@ export default class Templates {
       overrideIconClass: template.overrideIconClass,
     });
 
-    if (template.flowElements?.length && template.bpmnType === 'bpmn:SubProcess') {
+    const holdsFlow = template.bpmnType === 'bpmn:Participant'
+      || bpmnSelfAndAncestors(template.bpmnType).includes('bpmn:SubProcess');
+    if (template.flowElements?.length && holdsFlow) {
       shape[TEMPLATE_FLOW_ELEMENTS] = template.flowElements;
     }
     return shape;

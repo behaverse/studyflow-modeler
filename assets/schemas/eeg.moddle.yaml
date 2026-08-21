@@ -10,7 +10,7 @@ icon: iconify tabler--hexagon-letter-e
 order: 70  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0812
+version: 26.0821
 
 enumerations:
   - name: DeviceEnum
@@ -25,28 +25,6 @@ enumerations:
       - name: Galea (VR headset)
         value: galea
         description: A VR headset with built-in biosignal sensors and eye tracking.
-
-  - name: ModalityEnum
-    description: Biosignal/sensor modality recorded in a session.
-    literalValues:
-      - name: EEG (electroencephalography)
-        value: eeg
-      - name: EMG (electromyography)
-        value: emg
-      - name: ECG (electrocardiography)
-        value: ecg
-      - name: EOG (electrooculography)
-        value: eog
-      - name: EDA (electrodermal activity)
-        value: eda
-      - name: PPG (photoplethysmography / heart rate)
-        value: ppg
-      - name: Eye tracking (camera-based gaze and pupil)
-        value: eye_tracking
-      - name: Head IMU
-        value: head_imu
-      - name: Audio
-        value: audio
 
 types:
   - name: Session
@@ -66,11 +44,15 @@ types:
         meta:
           order: 0
           editable: true
+      # Plain strings, one per entry: a non-attribute enum list cannot serialize through moddle.
       - name: modalities
-        description: Biosignal/sensor modalities active in this session.
+        description: >-
+          Biosignal/sensor modalities active in this session, one per entry
+          (`eeg`, `emg`, `ecg`, `eog`, `eda`, `ppg`, `eye_tracking`,
+          `head_imu`, `audio`).
         isAttr: false
         isMany: true
-        type: ModalityEnum
+        type: String
         meta:
           order: 1
 
@@ -85,10 +67,13 @@ types:
       icon: iconify mdi--database
     properties:
       - name: modalities
-        description: Biosignal/sensor modalities included in this recording.
+        description: >-
+          Biosignal/sensor modalities included in this recording, one per
+          entry (`eeg`, `emg`, `ecg`, `eog`, `eda`, `ppg`, `eye_tracking`,
+          `head_imu`, `audio`).
         isAttr: false
         isMany: true
-        type: ModalityEnum
+        type: String
       - name: channels
         description: Number of EEG channels recorded.
         isAttr: true

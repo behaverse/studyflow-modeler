@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import {
   getPaletteIconForBpmnType,
   type PaletteEntry,
@@ -9,9 +9,9 @@ import type { PaletteDraggable, PaletteDragHandlers } from '@modeler/palette/use
 import { paletteFlyout } from '@modeler/palette/styles';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 
+/* Positions imperatively: React state would bail out on an unchanged offset and leave the cleared transform behind on re-opens. */
 function useFlyoutPosition(isOpen: boolean) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [offset, setOffset] = useState(0);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -23,12 +23,8 @@ function useFlyoutPosition(isOpen: boolean) {
       const rect = el.getBoundingClientRect();
       const margin = 12;
       const overflowBottom = rect.bottom - (window.innerHeight - margin);
-      if (overflowBottom <= 0) {
-        setOffset(0);
-        return;
-      }
-      const maxShift = rect.top - margin;
-      setOffset(-Math.min(overflowBottom, Math.max(maxShift, 0)));
+      const shift = Math.min(Math.max(overflowBottom, 0), Math.max(rect.top - margin, 0));
+      el.style.transform = shift ? `translateY(${-shift}px)` : '';
     };
 
     measure();
@@ -37,10 +33,7 @@ function useFlyoutPosition(isOpen: boolean) {
     return () => window.removeEventListener('resize', onResize);
   }, [isOpen]);
 
-  return {
-    ref,
-    style: isOpen && offset ? { transform: `translateY(${offset}px)` } : undefined,
-  };
+  return { ref };
 }
 
 type TileProps = {
@@ -77,9 +70,9 @@ type PopupProps = {
 };
 
 export function Popup({ group, extraItems, isOpen, handlers }: PopupProps) {
-  const { ref, style } = useFlyoutPosition(isOpen);
+  const { ref } = useFlyoutPosition(isOpen);
   return (
-    <div ref={ref} style={style} className={paletteFlyout.panel(isOpen)}>
+    <div ref={ref} className={paletteFlyout.panel(isOpen)}>
       <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
       <div className={paletteFlyout.header}>{group.label}</div>
@@ -107,10 +100,10 @@ type SchemaPopupProps = {
 };
 
 export function SchemaPopup({ schema, isOpen, handlers }: SchemaPopupProps) {
-  const { ref, style } = useFlyoutPosition(isOpen);
+  const { ref } = useFlyoutPosition(isOpen);
 
   return (
-    <div ref={ref} style={style} className={paletteFlyout.panel(isOpen)}>
+    <div ref={ref} className={paletteFlyout.panel(isOpen)}>
       <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
       <div className={`${paletteFlyout.header} flex items-center gap-1.5`}>

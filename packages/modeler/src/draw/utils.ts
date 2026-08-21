@@ -1,5 +1,6 @@
 import { getStrokeColor } from 'bpmn-js/lib/draw/BpmnRenderUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
+import { isImageIcon } from '@core/notation';
 
 export function colorToHex(color: string): string | null {
   const context = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
@@ -26,6 +27,15 @@ export function drawIcon(
   if (!iconClass) return;
 
   const color = colorOverride || colorToHex(getStrokeColor(element));
+
+  // Image icons draw as-is (no CSS class, no currentColor tinting) and export as an <image>.
+  if (isImageIcon(iconClass)) {
+    const image = svgCreate('image', { x, y, width: size, height: size, class: 'icon-container' });
+    image.setAttribute('href', iconClass);
+    image.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', iconClass);
+    svgAppend(parentNode, image);
+    return image;
+  }
 
   const foreignObject = svgCreate('foreignObject', {
     x, y,
