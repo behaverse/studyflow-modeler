@@ -5,9 +5,9 @@ reference-location: margin
 citation-location: margin
 ---
 
-Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]). The diagrams are single machine-readable and human-understandable source of truth needed to recreate an experiment. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
+Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]). The diagrams are the single machine-readable and human-understandable source of truth needed to recreate an experiment. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
 
-A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) and extend it with domain-specific elements through the BPMN's own extension mechanisms.
+A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) file, extended with domain-specific elements through BPMN's own extension mechanisms.
 
 ![Hypothetical experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open the png in the [Studyflow Modeler](https://behaverse.org/studyflow-modeler/app) app, you can see the details, edit it, or run it.](assets/img/studyflow_example_1.svg){#figs-studyflow}
 

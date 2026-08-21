@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["pyyaml>=6.0"]
+# dependencies = []
 # ///
 """A reference runner for the studyflow execution contract.
 
@@ -11,8 +11,9 @@ contract this implements and the terms it writes.
 
     uv run studyflow-run-local.py ../../assets/examples/sklearn_pipeline.studyflow.png
 
-This is the core: the walk, the values, `python://` implementations, and the
-partial-runner hand-offs (`studyflow-<name>` siblings claim and execute their elements).
+This is the core: the walk, the values, the records, and the
+partial-runner hand-offs (`studyflow-<name>` siblings claim and execute their
+elements — `python://` ones belong to `studyflow-python.py`).
 `studyflow-prov.py` beside it adds the run repository, the records, and the
 prov timeline; without it a run executes bare.
 
@@ -28,7 +29,6 @@ gateways, no multi-instance fan-out.
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import logging
 import os
@@ -46,8 +46,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
-
-import yaml
 
 BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
@@ -78,19 +76,6 @@ def local(element: ET.Element) -> str:
 def bpmn_type(element: ET.Element) -> str:
     tag = local(element)
     return f"bpmn:{tag[:1].upper()}{tag[1:]}"
-
-
-def split_binding(text: str | None) -> tuple[str | None, str | None]:
-    """Grammar: `slot = selection`, either half optional; `==` belongs to the selection, not the split."""
-    value = (text or "").strip()
-    if not value:
-        return None, None
-    if re.fullmatch(r"self|\*|[A-Za-z_]\w*", value):
-        return value, None
-    both = re.fullmatch(r"(self|\*|[A-Za-z_]\w*)\s*=(?!=)\s*(\S.*)", value)
-    if both:
-        return both.group(1), both.group(2).strip()
-    return None, value
 
 
 LOG = logging.getLogger("studyflow")
@@ -193,16 +178,6 @@ def human_bytes(count: int) -> str:
         size /= 1024
     return f"{size:.1f} GB"
 
-
-def summarize(value: Any) -> str:
-    described = describe(value)
-    if "shape" in described:
-        return f"{described['type']} {'×'.join(str(n) for n in described['shape'])}"
-    if "size" in described:
-        return f"{described['type']}[{described['size']}]"
-    if "value" in described:
-        return f"{described['type']} {described['value']!r}"
-    return described["type"]
 
 
 def studyflow_from_png(path: Path) -> str:
@@ -414,44 +389,7 @@ class Studyflow:
 
 
 
-def format_for(uri: str, declared: str | None) -> str:
-    if declared:
-        return declared
-    return Path(uri).suffix.lstrip(".").lower()
 
-
-def load_artifact(path: Path, fmt: str) -> Any:
-    if fmt == "parquet":
-        import pandas
-        return pandas.read_parquet(path)
-    if fmt == "csv":
-        import pandas
-        return pandas.read_csv(path)
-    if fmt == "json":
-        return json.loads(path.read_text())
-    if fmt == "joblib":
-        import joblib
-        return joblib.load(path)
-    raise ValueError(f"no handler for format {fmt!r} ({path})")
-
-
-def save_artifact(value: Any, path: Path, fmt: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if fmt == "parquet":
-        value.to_parquet(path)
-    elif fmt == "csv":
-        import pandas
-        positional = isinstance(value.index, pandas.RangeIndex)
-        value.to_csv(path, index=not positional)
-    elif fmt == "json":
-        path.write_text(json.dumps(value, indent=2, default=str))
-    elif fmt == "joblib":
-        import joblib
-        joblib.dump(value, path)
-    elif fmt in ("png", "svg", "pdf"):
-        value.savefig(path, dpi=150, bbox_inches="tight")
-    else:
-        raise ValueError(f"no handler for format {fmt!r} ({path})")
 
 
 class State:
@@ -465,23 +403,6 @@ def plain(value: Any) -> Any:
     if hasattr(value, "item") and getattr(value, "shape", None) == ():
         return value.item()
     return value
-
-
-def describe(value: Any) -> dict:
-    """What a value *is*, never what it contains — no participant data reaches the record."""
-    value = plain(value)
-    kind = type(value)
-    name = kind.__name__ if kind.__module__ == "builtins" else f"{kind.__module__}.{kind.__qualname__}"
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return {"type": name, "value": value}
-    shape = getattr(value, "shape", None)
-    if shape is not None:
-        return {"type": name, "shape": [int(n) for n in shape]}
-    try:
-        return {"type": name, "size": len(value)}
-    except TypeError:
-        return {"type": name, "repr": repr(value)[:160]}
-
 
 
 
@@ -600,22 +521,6 @@ def discover_runners(runner_flags: list[str]) -> dict[str, str]:
                 found[name] = f"uv run --script {shlex.quote(value)}{flags}"
     return found
 
-
-def resolve_implementation(implementation: str) -> Any:
-    if not implementation.startswith("python://"):
-        raise ValueError(f"this runner only implements python://, not {implementation!r}")
-    path = implementation[len("python://"):].split("@")[0]
-    parts = path.split(".")
-    for cut in range(len(parts), 0, -1):
-        try:
-            module = importlib.import_module(".".join(parts[:cut]))
-        except ImportError:
-            continue
-        target = module
-        for attribute in parts[cut:]:
-            target = getattr(target, attribute)
-        return target
-    raise ImportError(f"cannot import {path!r}")
 
 
 class PartialRunner:
@@ -798,24 +703,6 @@ class Runner:
         space.update(extra or {})
         return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - see module docstring
 
-    def value_of(self, element_id: str) -> Any:
-        if element_id in self.values:
-            return self.values[element_id]
-        uri, declared = self.studyflow.artifact(element_id)
-        if uri:
-            path = self.repo_dir / uri
-            fmt = format_for(uri, declared)
-            if not path.exists():
-                self.stage_input(element_id, uri, path)
-            value = load_artifact(path, fmt)
-            self.values[element_id] = value
-            self.event(
-                "artifact.loaded",
-                f"    ▤ load {uri}  {fmt}, {human_bytes(path.stat().st_size)} → {summarize(value)}",
-            )
-            return value
-        raise KeyError(f"nothing has bound {element_id!r} and it declares no uri — `--fresh` re-runs everything")
-
     def stage_input(self, element_id: str, uri: str, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         for directory in self.input_sources:
@@ -837,33 +724,6 @@ class Runner:
             "input: no step of this studyflow produces it, so something outside has to "
             "put it there.",
         )
-
-    def resolve_argument(self, value: Any) -> Any:
-        """`$Name` reads a bound value; a mapping with `implementation` is a call first."""
-        if isinstance(value, str) and value.startswith("$"):
-            reference = value[1:]
-            head, _, tail = reference.partition(".")
-            resolved = self.value_of(head)
-            for field in filter(None, tail.split(".")):
-                resolved = resolved[field] if isinstance(resolved, dict) else getattr(resolved, field)
-            return resolved
-        if isinstance(value, dict) and "implementation" in value:
-            nested = self.resolve_arguments(value.get("arguments") or {})
-            return resolve_implementation(value["implementation"])(*nested.pop("__args__", []), **nested)
-        if isinstance(value, dict):
-            return {k: self.resolve_argument(v) for k, v in value.items()}
-        if isinstance(value, list):
-            return [self.resolve_argument(v) for v in value]
-        return value
-
-    def resolve_arguments(self, arguments: dict) -> dict:
-        resolved: dict[str, Any] = {}
-        for key, value in (arguments or {}).items():
-            if key == "args":
-                resolved["__args__"] = [self.resolve_argument(v) for v in value]
-            else:
-                resolved[key] = self.resolve_argument(value)
-        return resolved
 
     def runner_for(self, element: ET.Element) -> PartialRunner | None:
         """The runner that claimed this element, if any."""
@@ -981,16 +841,11 @@ class Runner:
         # A memory-only output forces a re-run only when this run was analyzed to need the value.
         if memory and (self.demanded is None or element_id in self.demanded):
             return "volatile"
-        # A runner-claimed element's outputs are consumed by its runner, which loads them itself:
-        # existence is enough here. In-process consumers need the value loaded now.
-        claimed = self.runner_for(element) is not None
+        # Consumers load values themselves (partial runners, per hand-off): existence is enough here.
         try:
             for target_id in targets:
-                if not claimed and self.studyflow.consumes(target_id):
-                    self.value_of(target_id)
-                else:
-                    self.ensure_artifact(target_id)
-        except BaseException:  # noqa: BLE001 - a failed load means a real run
+                self.ensure_artifact(target_id)
+        except BaseException:  # noqa: BLE001 - a failed staging means a real run
             return "invalid"
         return "skipped"
 
@@ -1066,87 +921,19 @@ class Runner:
         if implementation:
             entry["implementation"] = implementation
 
-        # A claimed element is the runner's whole job: it binds its own inputs and outputs.
+        # A claimed element is its runner's whole job: this walk executes nothing itself.
         runner = self.runner_for(element)
         if runner is not None:
             return self.execute_via_runner(element, entry, runner)
-
-        keywords: dict[str, Any] = {}
-        receiver: list[Any] = []
-        used: list[str] = []
-        # Standard form names slots structurally: an association targets a `bpmn:DataInput` whose `name` is the slot.
-        io_slots: dict[str, str] = {}
-        io = next((c for c in element if local(c) == "ioSpecification"), None)
-        if io is not None:
-            for declared_input in io:
-                if local(declared_input) == "dataInput" and declared_input.get("id"):
-                    io_slots[declared_input.get("id")] = declared_input.get("name") or ""
-        for association in element:
-            if local(association) != "dataInputAssociation":
-                continue
-            narrow = next((c for c in association if local(c) == "transformation"), None)
-            slot, lens = split_binding((narrow.text or "").strip() if narrow is not None else "")
-            lens_language = narrow.get("language") if narrow is not None else None
-            if not slot:
-                target = next((c for c in association if local(c) == "targetRef"), None)
-                slot = io_slots.get((target.text or "").strip()) if target is not None else None
-            for source in association:
-                if local(source) != "sourceRef":
-                    continue
-                source_id = (source.text or "").strip()
-                value = self.value_of(source_id)
-                if lens:
-                    value = self.evaluate(lens, language=lens_language)
-                name = slot or self.studyflow.names.get(source_id) or source_id
-                if name in ("self", "*"):
-                    # Positional, not keyword: `self` is an unbound method's receiver, `*` feeds a `*args` callable.
-                    receiver.append(value)
-                else:
-                    keywords[name] = value
-                if source_id not in used:
-                    used.append(source_id)
-                bound = {"parameter": name, "sourceRef": source_id}
-                if slot or lens:
-                    bound["transformation"] = f"{slot} = {lens}" if slot and lens else (slot or lens)
-                entry.setdefault("inputs", []).append({**bound, **describe(value)})
-                self.event(
-                    "dataInputAssociation.bound",
-                    f"    {name} ← {lens or self.studyflow.name_of(source_id)}  {summarize(value)}",
-                )
-
-        declared = studyflow_child(element, "additionalArguments")
-        arguments = yaml.safe_load(declared.text) if declared is not None and declared.text else {}
-        resolved = self.resolve_arguments(arguments or {})
-        positional = receiver + resolved.get("__args__", [])
-
-        clashes = sorted(set(resolved) & set(keywords))
-        if clashes:
-            raise ValueError(
-                f"{element.get('id')}: {', '.join(clashes)} bound by both a data association and `additionalArguments`. "
-                "Associations fill the signature; `additionalArguments` adds to it — remove one.",
-            )
-        if resolved:
-            recorded = {k: describe(v) for k, v in resolved.items() if k != "__args__"}
-            if resolved.get("__args__"):
-                recorded["args"] = [describe(v) for v in resolved["__args__"]]
-            entry["additionalArguments"] = recorded
-        keywords.update({k: v for k, v in resolved.items() if k != "__args__"})
-
-        if used:
-            entry["used"] = used
-
         if implementation:
-            target = resolve_implementation(implementation)
-            self.event("implementation.resolved", f"    implementation {implementation}")
-            result = target(*positional, **keywords)
-        else:
-            self.event(
-                "implementation.missing", "    (no implementation — nothing to call)",
-                level=logging.WARNING,
+            raise RuntimeError(
+                f"no partial runner claims {element.get('id')} ({implementation}) — "
+                "python:// needs studyflow-python beside this script or on PATH",
             )
-            return
-
-        self.bind_outputs(element, result, entry)
+        self.event(
+            "implementation.missing", "    (no implementation — nothing to call)",
+            level=logging.WARNING,
+        )
 
     def execute_via_runner(self, element: ET.Element, entry: dict, runner: PartialRunner) -> None:
         """One hand-off: state in, updated state out — what the runner bound or changed is adopted here."""
@@ -1168,45 +955,6 @@ class Runner:
             if path is not None and path.exists():
                 self.produced[target_id] = self.moment()
                 self.event("artifact.saved", f"    ▤ save {uri}  {human_bytes(path.stat().st_size)}")
-
-    def bind_outputs(self, element: ET.Element, result: Any, entry: dict) -> None:
-        for association in element:
-            if local(association) != "dataOutputAssociation":
-                continue
-            target_ref = next((c for c in association if local(c) == "targetRef"), None)
-            if target_ref is None:
-                continue
-            target_id = (target_ref.text or "").strip()
-            narrow = next((c for c in association if local(c) == "transformation"), None)
-            expression = (narrow.text or "").strip() if narrow is not None else ""
-            language = narrow.get("language") if narrow is not None else None
-            bound_value = (
-                self.evaluate(expression, {"result": result}, language=language)
-                if expression else result
-            )
-            self.store(target_id, bound_value)
-            entry.setdefault("generated", []).append(target_id)
-            entry.setdefault("outputs", []).append({
-                "targetRef": target_id,
-                "binding": expression or "result",
-                **describe(bound_value),
-            })
-            self.event(
-                "dataOutputAssociation.bound",
-                f"    {self.studyflow.name_of(target_id)} ← {expression or 'result'}"
-                f"  {summarize(bound_value)}",
-            )
-
-            uri, declared_format = self.studyflow.artifact(target_id)
-            if uri:
-                path = self.repo_dir / uri
-                fmt = format_for(uri, declared_format)
-                save_artifact(bound_value, path, fmt)
-                self.produced[target_id] = self.moment()
-                self.event(
-                    "artifact.saved",
-                    f"    ▤ save {uri}  {fmt}, {human_bytes(path.stat().st_size)}",
-                )
 
     def next_element(self, element: ET.Element) -> ET.Element | None:
         element_id = element.get("id")
