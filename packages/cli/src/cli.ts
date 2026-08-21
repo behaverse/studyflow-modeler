@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 
-import { convert } from '@cli/commands/convert';
-import { validate } from '@cli/commands/validate';
-import { info } from '@cli/commands/info';
+import { convert } from '@cli/convert';
+import { validate } from '@cli/validate';
+import { info } from '@cli/info';
 import { companionNames, findCompanion, runCompanion } from '@cli/plugin';
 
 const program = new Command();
@@ -17,11 +17,13 @@ program
 
 program
   .command('convert')
-  .description('Convert between .studyflow YAML, BPMN XML, and .studyflow.png (extract or re-embed).')
+  .description('Convert between .studyflow YAML, BPMN XML, and .studyflow.png (extract, re-embed, or render).')
   .argument('<input>', 'source file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
   .argument('<output>', 'target file; its extension picks the format')
   .option('--into <png>', 'for a PNG target: the image to embed into')
-  .action(async (input: string, output: string, options: { into?: string }) => {
+  .option('--modeler', 'for a PNG target: draw the image by driving the modeler (repo workspace only)')
+  .option('--origin <origin>', 'modeler dev server for --modeler (started if not up)', 'http://127.0.0.1:4175')
+  .action(async (input: string, output: string, options: { into?: string; modeler?: boolean; origin?: string }) => {
     console.log(await convert(input, output, options));
   });
 
@@ -40,26 +42,16 @@ program
 
 program
   .command('run')
-  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` uses the Python runner.')
+  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` dispatches to studyflow-run.')
   .passThroughOptions()
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
-  .argument('[runnerArgs...]', 'forwarded to the runner (e.g. --fresh, --repo)')
+  .argument('[runnerArgs...]', 'forwarded to studyflow-run (e.g. --repo, --fresh, --sim, --auto)')
   .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
   .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
-    const { run } = await import('@cli/commands/run');
+    const { run } = await import('@cli/run');
     await run(input, runnerArgs, options);
   });
 
-program
-  .command('render')
-  .description('Re-render example .studyflow.png images by driving the modeler (repo workspace only).')
-  .argument('[names...]', 'example stems to re-render; default: all')
-  .option('--dir <dir>', 'examples directory', 'assets/examples')
-  .option('--origin <origin>', 'modeler dev server (started if not up)', 'http://127.0.0.1:4175')
-  .action(async (names: string[], options: { dir: string; origin: string }) => {
-    const { render } = await import('@cli/commands/render');
-    await render(names, options);
-  });
 
 program
   .command('info')

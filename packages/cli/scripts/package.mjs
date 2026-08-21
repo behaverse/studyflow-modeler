@@ -31,7 +31,10 @@ const PLATFORMS = [
   { slug: 'linux-arm64', bunTarget: 'bun-linux-arm64', macho: false },
 ];
 
-const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
+// `--local`: build the host platform only and write a formula that installs from the local tarball.
+const local = process.argv.includes('--local');
+const hostSlug = `${process.platform}-${process.arch}`;
+const only = local ? [hostSlug] : process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
 const platforms = only.length ? PLATFORMS.filter((p) => only.includes(p.slug)) : PLATFORMS;
 if (!platforms.length) throw new Error(`No platform matched: ${only.join(', ')}. Known: ${PLATFORMS.map((p) => p.slug).join(', ')}.`);
 
@@ -62,12 +65,14 @@ for (const { slug, bunTarget, macho } of platforms) {
     sh('codesign', ['--force', '--sign', '-', resolve(stage, 'studyflow')]);
   }
 
-  // The Python runner rides along so `run --runtime local` works from an installed keg (given `uv`).
-  copyFileSync(resolve(repoDir, 'packages/runner-py/studyflow_run.py'), resolve(stage, 'studyflow_run.py'));
+  // The schema runners ride along so `run --runtime local` finds them from an installed keg (given `uv`).
+  copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-run.py'), resolve(stage, 'studyflow-run.py'));
+  copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-prov.py'), resolve(stage, 'studyflow-prov.py'));
+  copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-reachy.py'), resolve(stage, 'studyflow-reachy.py'));
   copyFileSync(resolve(repoDir, 'LICENSE'), resolve(stage, 'LICENSE'));
 
   const asset = `studyflow-${version}-${slug}.tar.gz`;
-  sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'studyflow_run.py', 'LICENSE']);
+  sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'studyflow-run.py', 'studyflow-prov.py', 'studyflow-reachy.py', 'LICENSE']);
   rmSync(stage, { recursive: true, force: true });
 
   const sha256 = createHash('sha256').update(readFileSync(resolve(outDir, asset))).digest('hex');
@@ -76,7 +81,9 @@ for (const { slug, bunTarget, macho } of platforms) {
   console.log(`${asset}  ${sha256}`);
 }
 
-const urlFor = (asset) => `https://github.com/${repo}/releases/download/${tag}/${asset}`;
+const urlFor = (asset) => (local
+  ? `file://${resolve(outDir, asset)}`
+  : `https://github.com/${repo}/releases/download/${tag}/${asset}`);
 const blockFor = (slug, indent) => {
   const found = assets.find((a) => a.slug === slug);
   if (!found) return `${indent}# ${slug}: not built in this run`;
@@ -89,7 +96,9 @@ class Studyflow < Formula
   desc "Command-line tool for studyflow files: convert, validate, inspect, run"
   homepage "https://github.com/${repo}"
   license "MIT"
-  # No \`version\`: Homebrew scans ${version} out of the asset names, and audit calls a second copy redundant.
+${local
+    ? `  version "${version}"  # a file:// url gives the scanner nothing to read the version from`
+    : `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`}
 
   on_macos do
     on_arm do
@@ -111,18 +120,20 @@ ${blockFor('linux-x64', '      ')}
 
   def install
     bin.install "studyflow"
-    # The fallback runner for \`studyflow run --runtime local\`; found next to the binary, and driven by uv.
-    libexec.install "studyflow_run.py"
+    # The runners for \`studyflow run --runtime local\`; found next to the binary, driven by uv.
+    libexec.install "studyflow-run.py"
+    libexec.install "studyflow-prov.py"
+    libexec.install "studyflow-reachy.py"
   end
 
   def caveats
     <<~EOS
       convert, validate and info are self-contained: nothing else to install.
 
-      \`studyflow run --runtime local\` executes a study, which needs Python. Either
-      install the runner as a companion, the way git finds git-lfs:
-        uv tool install studyflow-runner   # puts studyflow-run on your PATH
-      or install uv alone, and the copy in this keg is used instead:
+      \`studyflow run --runtime local\` executes a study through the runners in
+      this keg — studyflow-run walks and executes, studyflow-prov records,
+      schema runners like studyflow-reachy serve their own elements — all
+      driven by uv:
         brew install uv
     EOS
   end
@@ -149,12 +160,17 @@ end
 `;
 
 writeFileSync(resolve(outDir, 'studyflow.rb'), formula);
-if (platforms.length === PLATFORMS.length) {
+if (local) {
+  console.log(`\nLocal dev formula (file:// url) written. Test the whole install path via a local tap:`);
+  console.log('  brew tap-new --no-git local/studyflow-dev   # once');
+  console.log(`  cp ${resolve(outDir, 'studyflow.rb')} "$(brew --repository)/Library/Taps/local/homebrew-studyflow-dev/Formula/"`);
+  console.log('  brew install local/studyflow-dev/studyflow');
+  console.log('  brew test local/studyflow-dev/studyflow && brew uninstall studyflow');
+} else if (platforms.length === PLATFORMS.length) {
   mkdirSync(resolve(repoDir, 'Formula'), { recursive: true });
   writeFileSync(resolve(repoDir, 'Formula/studyflow.rb'), formula);
   console.log('\nFormula/studyflow.rb updated.');
+  console.log(`Release assets in packages/cli/dist/release/ — upload them to ${tag}.`);
 } else {
   console.log(`\nPartial build (${platforms.map((p) => p.slug).join(', ')}); Formula/studyflow.rb left alone.`);
 }
-
-console.log(`Release assets in packages/cli/dist/release/ — upload them to ${tag}.`);

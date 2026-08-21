@@ -32,7 +32,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: { studyflow: resolve(__dirname, 'src/index.ts') },
+      input: { studyflow: resolve(__dirname, 'src/cli.ts') },
       output: {
         entryFileNames: '[name].mjs',
         banner: '#!/usr/bin/env node',

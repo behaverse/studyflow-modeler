@@ -2,7 +2,7 @@
 
 The browser runner: it takes a studyflow and runs it with a participant in front of it — consent, instructions, questionnaires, cognitive tasks, Behaverse (Unity) tasks — one screen at a time. Served at `/run/`.
 
-It is one of two executors. This one drives the participant-facing half of the notation; the [Python runner](../runner-py/) drives the analysis half, where steps are bound to software. They read the same files.
+It is one of two executors. This one drives the participant-facing half of the notation; the [Python runners](../cli/) drive the analysis half, where steps are bound to software. They read the same files.
 
 ## Contract
 

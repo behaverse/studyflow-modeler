@@ -24,30 +24,31 @@ function declaredRuntime(definitions: any): string {
   return typeof value === 'string' && value ? value : 'cloud';
 }
 
-/** Every `studyflow_run.py` this build could be sitting next to, best first. */
+/** Every `studyflow-run.py` this build could be sitting next to, best first. */
 function runnerScriptCandidates(): string[] {
   const candidates: string[] = [];
 
   // The repo checkout, when this is the bundle rather than a compiled binary.
   if (import.meta.url.startsWith('file:')) {
-    candidates.push(fileURLToPath(new URL('../../runner-py/studyflow_run.py', import.meta.url)));
+    candidates.push(fileURLToPath(new URL('../src/studyflow-run.py', import.meta.url)));
   }
 
-  // The copy an installer put beside the binary (Homebrew: `bin/studyflow`, `libexec/studyflow_run.py`).
+  // The copy an installer put beside the binary (Homebrew: `bin/studyflow`, scripts in `libexec/`).
   try {
     const binDir = path.dirname(realpathSync(process.execPath));
-    candidates.push(path.join(binDir, '..', 'libexec', 'studyflow_run.py'), path.join(binDir, 'studyflow_run.py'));
+    candidates.push(path.join(binDir, '..', 'libexec', 'studyflow-run.py'), path.join(binDir, 'studyflow-run.py'));
   } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
 
   return candidates;
 }
 
 /**
- * The Python runner, in the order documented in the CLI README: an explicit
+ * The runner, in the order documented in the CLI README: an explicit
  * `STUDYFLOW_RUN_PY`, then an installed `studyflow-run` companion, then the
  * script shipped beside this CLI (which needs `uv` to pull its dependencies).
+ * The runner discovers studyflow-prov and the schema runners itself.
  */
-function pythonRunnerCommand(): { command: string; args: string[] } {
+function runnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };
 
@@ -61,9 +62,8 @@ function pythonRunnerCommand(): { command: string; args: string[] } {
   }
 
   throw new Error(
-    'No Python runner found. Install the runner (`uv tool install studyflow-runner`, which puts '
-    + '`studyflow-run` on your PATH), or install uv so the copy shipped with this CLI can run, '
-    + 'or point STUDYFLOW_RUN_PY at a studyflow_run.py.',
+    'No runner found. Install uv so the studyflow-run.py shipped with this CLI can run, '
+    + 'or point STUDYFLOW_RUN_PY at a studyflow-run.py.',
   );
 }
 
@@ -72,7 +72,7 @@ async function runLocal(
   source: Awaited<ReturnType<typeof readSource>>,
   passthrough: string[],
 ): Promise<number> {
-  // The Python runner reads XML but not YAML; a temporary `.bpmn` is safe because nothing sits beside it to resolve inputs against.
+  // The runners read XML but not YAML; a temporary `.bpmn` is safe because nothing sits beside it to resolve inputs against.
   let target = input;
   if (source.container === 'text' && source.kind === 'yaml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
@@ -80,7 +80,7 @@ async function runLocal(
     await writeFile(target, await asXml(source), 'utf8');
   }
 
-  const { command, args } = pythonRunnerCommand();
+  const { command, args } = runnerCommand();
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, [...args, target, ...passthrough], { stdio: 'inherit' });
     child.on('error', reject);

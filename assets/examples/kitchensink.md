@@ -614,7 +614,7 @@ code, search, mcp, human, subflow · `MemoryScope`: turn, run, participant, glob
 |---|---|
 | `kitchensink.studyflow.png` | **This cheatsheet as a diagram** — one of every element, grouped by schema. |
 | `cognitive_battery.studyflow.png` | Behaverse tasks, questionnaire, timer break, dataset association. |
-| `drawn_loop.studyflow.png` | **The drawn-cycle guide** — the smallest loop the notation can draw: one printing step, a gateway, and a conditioned back-edge (`state.trace.count('Gate') < 8`), bounded by the engine's own run state rather than any loop marker. Eight turns, then the native `default` edge exits. Runs: `uv run studyflow_run.py drawn_loop.studyflow.png`. |
+| `drawn_loop.studyflow.png` | **The drawn-cycle guide** — the smallest loop the notation can draw: one printing step, a gateway, and a conditioned back-edge (`state.trace.count('Gate') < 8`), bounded by the engine's own run state rather than any loop marker. Eight turns, then the native `default` edge exits. Runs: `uv run studyflow-run.py drawn_loop.studyflow.png`. |
 | `sklearn_pipeline.studyflow.png` | **The execution/ML guide** — external CSV input, train/held-out split, PCA pipeline, cross-validation on the training half, threshold gate, then fit, predict, and report on the held-out set (metrics CSV + confusion-matrix PNG). Runs: see `src/runner/python/`. |
 | `agent_eval.studyflow.png` | agentic Agent/Tool, for-each fan-out (`iterate: items`), prompt-optimize loop, RandomGateway sampling. |
 | `agent_eval_pool.studyflow.png` | Parallel gateway dispatching bot actors (random/Claude/Ollama). |

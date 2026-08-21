@@ -17,7 +17,12 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. See README.md for the
 contract this implements and the terms it writes.
 
-    uv run studyflow_run.py ../../assets/examples/sklearn_pipeline.studyflow.png
+    uv run studyflow-run.py ../../assets/examples/sklearn_pipeline.studyflow.png
+
+This is the core: the walk, the values, `python://` implementations, and the
+schema-runner sessions (`studyflow-<name>` siblings serve their own schemas).
+`studyflow-prov.py` beside it adds the run repository, the records, and the
+prov timeline; without it a run executes bare.
 
 A run writes a run directory — `runs/<timestamp>/`, or the one the plan handed
 to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
@@ -31,34 +36,30 @@ gateways, no multi-instance fan-out.
 from __future__ import annotations
 
 import argparse
-import getpass
-import hashlib
 import importlib
 import json
 import logging
 import os
 import random
 import re
+import shlex
 import shutil
 import struct
 import subprocess
 import sys
 import time
-import traceback
 import zlib
 from collections.abc import Callable
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
-from xml.sax.saxutils import quoteattr
 
 import yaml
 
 BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
-PROV_TRAIL = "https://w3id.org/studyflow/prov"
 
 
 def studyflow_attr(element: ET.Element, name: str) -> str | None:
@@ -260,8 +261,8 @@ def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
     return bytes(out)
 
 
-def trail_timestamp(moment: datetime) -> str:
-    """ISO 8601, millisecond precision, local numeric offset — fine enough that the trail's order
+def timeline_timestamp(moment: datetime) -> str:
+    """ISO 8601, millisecond precision, local numeric offset — fine enough that the timeline's order
     is the log's order. Older files carry coarser second-precision and `Z` stamps."""
     return moment.astimezone().isoformat(timespec="milliseconds")
 
@@ -271,69 +272,8 @@ def run_stamp(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-TRAIL_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
 
 
-def insert_element_entry(xml: str, element_id: str, replace_action: str | None = None, **fields: str) -> str:
-    """Text, not tree: ElementTree rewrites every namespace prefix, so a stamped copy would diff everywhere."""
-    definitions = re.search(r"<(?:[\w.-]+:)?definitions\b[^>]*>", xml)
-    if definitions is None:
-        return xml
-
-    bound = re.search(rf'xmlns:([\w.-]+)\s*=\s*"{re.escape(PROV_TRAIL)}"', xml)
-    if bound:
-        prefix = bound.group(1)
-    else:
-        prefix = "prov" if not re.search(r'xmlns:prov\s*=\s*"', xml) else "sfprov"
-        opening = definitions.group(0)
-        declared = opening[:-1].rstrip("/") + f' xmlns:{prefix}="{PROV_TRAIL}">'
-        xml = xml[:definitions.start()] + declared + xml[definitions.end():]
-
-    ordered = [(name, fields[name]) for name in TRAIL_FIELDS if fields.get(name)]
-    entry = f"<{prefix}:activity " + " ".join(f"{k}={quoteattr(v)}" for k, v in ordered) + " />"
-
-    element = re.search(rf'<((?:[\w.-]+:)?)[\w.-]+\b[^>]*\bid="{re.escape(element_id)}"[^>]*>', xml)
-    if element is None or element.group(0).endswith("/>"):
-        return xml
-
-    line_start = xml.rfind("\n", 0, element.start()) + 1
-    lead = xml[line_start:element.start()]
-    indent = lead if lead.isspace() or lead == "" else ""
-
-    cursor = element.end()
-    while True:
-        doc = re.match(r"\s*<((?:[\w.-]+:)?)documentation\b[^>]*>", xml[cursor:])
-        if doc is None:
-            break
-        if doc.group(0).endswith("/>"):
-            cursor += doc.end()
-        else:
-            close = f"</{doc.group(1)}documentation>"
-            cursor = xml.index(close, cursor + doc.end()) + len(close)
-
-    existing = re.match(r"\s*<((?:[\w.-]+:)?)extensionElements>", xml[cursor:])
-    if existing:
-        block_open_end = cursor + existing.end()
-        close_tag = f"</{existing.group(1)}extensionElements>"
-        close_at = xml.index(close_tag, block_open_end)
-        block = xml[block_open_end:close_at]
-        # Only the same-action entry is replaced; `invalidated` markers are history and are never deleted —
-        # the fresh `executed` gets a new `when`, so a marker referencing the old one (`what`) goes inert.
-        if replace_action:
-            block = re.sub(
-                rf"\n[ \t]*<{re.escape(prefix)}:activity\b[^>]*\baction={re.escape(quoteattr(replace_action))}[^>]*/>",
-                "", block,
-            )
-        block = block.rstrip() + "\n" + indent + "    " + entry + "\n" + indent + "  "
-        return xml[:block_open_end] + block + xml[close_at:]
-
-    wrapper_prefix = element.group(1)
-    block = (
-        f"\n{indent}  <{wrapper_prefix}extensionElements>"
-        f"\n{indent}    {entry}"
-        f"\n{indent}  </{wrapper_prefix}extensionElements>"
-    )
-    return xml[:cursor] + block + xml[cursor:]
 
 
 def condition_text(flows: list[ET.Element]) -> str:
@@ -354,9 +294,9 @@ def output_targets(element: ET.Element) -> list[str]:
 
 def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
     xml = studyflow_from_png(path) if path.suffix.lower() == ".png" else path.read_text()
-    if stamp:
+    if stamp and PROV is not None:
         probe = Studyflow(ET.fromstring(xml))
-        xml = insert_element_entry(xml, probe.process.get("id") or "", **stamp)
+        xml = PROV.insert_element_entry(xml, probe.process.get("id") or "", **stamp)
     return Studyflow(ET.fromstring(xml), plan=xml)
 
 
@@ -395,55 +335,6 @@ class Studyflow:
                 return element
         raise ValueError("no process with a sequence flow to walk")
 
-    def _trail_entries(self, element: ET.Element) -> tuple[list[dict], list[tuple[str | None, str | None]]]:
-        """An element's `executed` entries in document (= chronological) order, and its markers."""
-        executed: list[dict] = []
-        markers: list[tuple[str | None, str | None]] = []
-        for ext in element:
-            if local(ext) != "extensionElements":
-                continue
-            for child in ext:
-                if child.tag != f"{{{PROV_TRAIL}}}activity":
-                    continue
-                action = child.get("action")
-                if action == "executed" and child.get("run"):
-                    executed.append({"run": child.get("run"), "when": child.get("when"), "what": child.get("what")})
-                elif action == "invalidated":
-                    markers.append((child.get("run"), child.get("what")))
-        return executed, markers
-
-    def element_records(self) -> dict[str, dict]:
-        """Element id -> its standing `executed` record: the newest not voided. A marker voids by exact
-        `when` (its `what`), or — lacking a `what` — coarsely by run, a standing re-run pin. Older
-        entries a branching run superseded are the first branch's history and never stand."""
-        records: dict[str, dict] = {}
-        process_id = self.process.get("id")
-        for element_id, element in self.elements.items():
-            if element_id == process_id:
-                continue
-            executed, markers = self._trail_entries(element)
-            if not executed:
-                continue
-            # Only the newest entry may stand: an older one is superseded even when unvoided.
-            newest = executed[-1]
-            voided = any(
-                what == newest["when"] if what else (not run or run == newest["run"])
-                for run, what in markers
-            )
-            if not voided:
-                records[element_id] = newest
-        return records
-
-    def invalidated_elements(self) -> list[str]:
-        """Elements whose ✕ marker names the newest record (`what` = its `when`) — only these branch.
-        Coarse markers without a `what` re-run their step in place and never branch."""
-        marked: list[str] = []
-        for element_id, element in self.elements.items():
-            executed, markers = self._trail_entries(element)
-            newest = executed[-1].get("when") if executed else None
-            if newest and any(what == newest for _, what in markers if what):
-                marked.append(element_id)
-        return marked
 
     def activity_dependencies(self, element: ET.Element) -> tuple[set[str], str]:
         sources: set[str] = set()
@@ -604,220 +495,6 @@ def describe(value: Any) -> dict:
         return {"type": name, "repr": repr(value)[:160]}
 
 
-def digest_of(data: bytes) -> str:
-    return "sha256:" + hashlib.sha256(data).hexdigest()
-
-
-def current_user() -> str:
-    try:
-        return getpass.getuser()
-    except OSError:
-        return ""
-
-
-class RunRecord:
-    def __init__(
-        self,
-        plan: str,
-        seed: str | None,
-        started: datetime,
-        run: str = "",
-        who: str = "",
-        tool: str = "studyflow_run.py",
-    ) -> None:
-        self.plan_digest = digest_of(plan.encode())
-        self.seed = seed
-        self.started = started
-        self.run = run
-        self.who = who
-        self.tool = tool
-        self.status = "ok"
-        self.finished: datetime | None = None
-        self.entries: list[dict] = []
-
-    def begin(self, element_id: str, name: str, element_type: str) -> dict:
-        entry: dict[str, Any] = {
-            "node": element_id,
-            "name": name,
-            "type": element_type,
-            "startedAt": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
-            "status": "ok",
-        }
-        entry["_clock"] = time.perf_counter()
-        self.entries.append(entry)
-        return entry
-
-    def end(self, entry: dict) -> None:
-        entry["durationMs"] = round((time.perf_counter() - entry.pop("_clock")) * 1000, 1)
-
-    def fail(self, entry: dict, error: BaseException) -> None:
-        entry["status"] = "error"
-        entry["error"] = {
-            "type": type(error).__name__,
-            "message": str(error)[:400],
-            "traceback": traceback.format_exc().splitlines()[-6:],
-        }
-        self.status = "error"
-        if "_clock" in entry:
-            self.end(entry)
-
-    def finish(self, status: str) -> None:
-        self.status = status
-        self.finished = datetime.now(timezone.utc)
-
-    def header(self) -> dict:
-        return {
-            "studyflow": self.plan_digest,
-            "run": self.run,
-            "seed": self.seed,
-            "who": self.who,
-            "with": self.tool,
-            # UTC throughout, like every step's `startedAt`; the trail keeps the local-offset stamps.
-            "startedAt": self.started.astimezone(timezone.utc).isoformat(timespec="milliseconds"),
-        }
-
-    def summary(self) -> dict:
-        return {
-            "status": self.status,
-            "finishedAt": self.finished.isoformat(timespec="milliseconds") if self.finished else None,
-            "steps": len(self.entries),
-        }
-
-    def steps_since(self, index: int) -> list[dict]:
-        # `_clock` is the running duration timer, still on the step being written mid-run.
-        return [{k: v for k, v in entry.items() if k != "_clock"} for entry in self.entries[index:]]
-
-
-class RunRepo:
-    """The run directory as a git repository. Replication never fails a run: git trouble degrades to a no-op."""
-
-    # An inherited GIT_DIR would aim every command at the caller's repository instead of this one.
-    SCRUBBED = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")
-    LFS_PATTERNS = ("*.joblib", "*.parquet", "*.png", "*.svg", "*.pdf")
-
-    def __init__(self, directory: Path) -> None:
-        self.dir = directory
-        self.enabled = shutil.which("git") is not None
-        self.lfs = self.enabled and shutil.which("git-lfs") is not None
-        self.created = False
-        self.env = {k: v for k, v in os.environ.items() if k not in self.SCRUBBED}
-        if not self.enabled:
-            log_event(
-                "git.unavailable", "  no git on PATH — this run directory stays a plain folder",
-                level=logging.WARNING,
-            )
-        elif not self.lfs:
-            log_event(
-                "git.lfs.unavailable", "  no git-lfs on PATH — artifacts are committed as plain blobs",
-                level=logging.WARNING,
-            )
-
-    @property
-    def active(self) -> bool:
-        # Without a `.git` of its own the directory belongs to whatever repository contains it — never touch that.
-        return self.enabled and (self.dir / ".git").is_dir()
-
-    def git(
-        self, *args: str, tolerate: bool = False, when: str | None = None, raw: bool = False,
-    ) -> subprocess.CompletedProcess | None:
-        """`tolerate` is for calls whose failure is an answer (no such ref), not a broken git.
-        Without the directory's own `.git`, git would walk up into whatever repository contains
-        it — so every call requires `active`, except `raw` ones that create the repo."""
-        if not self.enabled or not (raw or self.active):
-            return None
-        env = dict(self.env)
-        if when:
-            env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = when
-        try:
-            done = subprocess.run(  # noqa: S603 - a fixed argv, never a shell
-                ["git", "-C", str(self.dir), *args],
-                capture_output=True, text=True, timeout=60, env=env, check=False,
-            )
-        except (OSError, subprocess.SubprocessError) as error:
-            self.degrade(f"git {args[0]}: {type(error).__name__}: {error}")
-            return None
-        if done.returncode != 0 and not tolerate:
-            detail = (done.stderr or done.stdout).strip().splitlines()
-            self.degrade(f"git {args[0]} exited {done.returncode}: {detail[0] if detail else ''}")
-            return None
-        return done
-
-    def degrade(self, reason: str) -> None:
-        self.enabled = False
-        log_event(
-            "git.failed", f"  {reason} — the rest of this run is not replicated into git",
-            level=logging.WARNING,
-        )
-
-    def open(self) -> None:
-        """Init the directory, or adopt one a git-less run left — either way the next commit baselines it."""
-        if not self.enabled or (self.dir / ".git").exists():
-            return
-        if self.git("-c", "init.defaultBranch=main", "init", "-q", raw=True) is None:
-            return
-        self.created = True
-        who = current_user() or "studyflow-runner"
-        self.git("config", "user.name", who)
-        # RFC 2606's reserved TLD: an address git accepts and no mail ever leaves for.
-        self.git("config", "user.email", f"{who}@studyflow.invalid")
-        # A signing key the runner cannot unlock would fail every commit; provenance here is the history itself.
-        self.git("config", "commit.gpgsign", "false")
-        if self.lfs:
-            # The filter has to be installed before `.gitattributes` declares it, or every later `add` fails.
-            self.git("lfs", "install", "--local")
-            (self.dir / ".gitattributes").write_text(
-                "".join(f"{pattern} filter=lfs diff=lfs merge=lfs -text\n" for pattern in self.LFS_PATTERNS),
-            )
-        log_event("git.init", f"  → {shown(self.dir)}/.git", level=logging.DEBUG)
-
-    def commit(
-        self, subject: str, trailers: dict[str, str] | None = None,
-        when: str | None = None, body: str | None = None,
-    ) -> None:
-        """One checkpoint: whatever the step wrote, plus the log lines, with its record entries as the body."""
-        lines = [f"{key}: {value}" for key, value in (trailers or {}).items() if value]
-        # Trailers must be the message's last block, so the body sits between subject and trailers.
-        message = "\n\n".join(part for part in (subject, body, "\n".join(lines)) if part)
-        if self.git("add", "-A") is None:
-            return
-        self.git("commit", "-q", "--allow-empty", "-m", message, when=when)
-
-    def commit_for_node(self, element_id: str) -> str | None:
-        """The newest commit that *executed* this element — skips near the tip are not where its work entered."""
-        done = self.git(
-            "log", "-1", "--format=%H", "--all-match",
-            f"--grep=^Prov-Node: {re.escape(element_id)}$", "--grep=^Prov-Action: executed$", tolerate=True,
-        )
-        if done is None or done.returncode != 0:
-            return None
-        found = done.stdout.strip().splitlines()
-        return found[0] if found else None
-
-    def is_ancestor(self, commit: str, other: str) -> bool:
-        done = self.git("merge-base", "--is-ancestor", commit, other, tolerate=True)
-        return done is not None and done.returncode == 0
-
-    def branch(self, name: str, commit: str | None = None) -> bool:
-        """Checking a branch point out is the re-run: what was made after it leaves the worktree with it."""
-        # No commit means a branch at HEAD, which checks nothing out: the worktree, and the open log, survive.
-        if commit is None:
-            done = self.git("switch", "-c", name, tolerate=True)
-        else:
-            # --discard-changes: what stands in the checkout's way is this run's own truncated log.
-            done = self.git("switch", "--discard-changes", "-c", name, commit, tolerate=True)
-        if done is not None and done.returncode != 0:
-            log_event("git.branch.failed", f"  switch -c {name}: {done.stderr.strip()}", level=logging.WARNING)
-        return done is not None and done.returncode == 0
-
-    def current_branch(self) -> str:
-        """Empty means a detached HEAD; a branch with no commits yet still answers with its name."""
-        done = self.git("symbolic-ref", "--quiet", "--short", "HEAD", tolerate=True)
-        return done.stdout.strip() if done is not None and done.returncode == 0 else ""
-
-    def dirty(self) -> bool:
-        """`studyflow.log` is left out: every run truncates it, which is not an edit from outside."""
-        done = self.git("status", "--porcelain", "--", ".", ":(exclude)studyflow.log")
-        return bool(done and done.stdout.strip())
 
 
 def shown(path: Path) -> Path:
@@ -832,6 +509,108 @@ def write_plan_copy(source: Path, target: Path, xml: str) -> None:
         target.write_bytes(embed_studyflow_into_png(source.read_bytes(), xml))
     else:
         target.write_text(xml)
+
+
+def load_prov():
+    """The provenance module: `studyflow-prov.py` beside this script, or `STUDYFLOW_PROV_PY`."""
+    import importlib.util
+
+    override = os.environ.get("STUDYFLOW_PROV_PY")
+    candidate = Path(override) if override else Path(__file__).with_name("studyflow-prov.py")
+    if not candidate.exists():
+        return None
+    spec = importlib.util.spec_from_file_location("studyflow_prov", candidate)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.log_event = log_event
+    module.shown = shown
+    return module
+
+
+PROV = load_prov()
+
+
+class NoRecord:
+    """Stands in when studyflow-prov is absent: the walk runs, nothing is recorded."""
+
+    def __init__(self) -> None:
+        self.plan_digest = ""
+        self.seed = None
+        self.started = datetime.now(timezone.utc)
+        self.status = "ok"
+        self.entries: list[dict] = []
+
+    def begin(self, element_id: str, name: str, element_type: str) -> dict:
+        return {"node": element_id, "status": "ok", "_clock": time.perf_counter()}
+
+    def end(self, entry: dict) -> None:
+        entry["durationMs"] = round((time.perf_counter() - entry.pop("_clock", time.perf_counter())) * 1000, 1)
+
+    def fail(self, entry: dict, error: BaseException) -> None:
+        entry["status"] = "error"
+        self.status = "error"
+        entry.pop("_clock", None)
+
+    def finish(self, status: str) -> None:
+        self.status = status
+
+    def header(self) -> dict:
+        return {}
+
+    def summary(self) -> dict:
+        return {"status": self.status}
+
+    def steps_since(self, index: int) -> list[dict]:
+        return []
+
+
+class NoRepo:
+    """Stands in when studyflow-prov is absent: the run directory stays a plain folder."""
+
+    active = False
+    created = True
+
+    def open(self) -> None: ...
+
+    def dirty(self) -> bool:
+        return False
+
+    def commit(self, *args: Any, **kwargs: Any) -> None: ...
+
+    def branch(self, *args: Any, **kwargs: Any) -> bool:
+        return False
+
+    def current_branch(self) -> str:
+        return ""
+
+
+def discover_runners(session_flags: list[str]) -> dict[str, str]:
+    """Schema runners in reach, each serving the schema called <name>: a `studyflow-<name>.py`
+    beside this script, a `studyflow-<name>` on PATH, then `STUDYFLOW_<NAME>_PY` overrides."""
+    flags = "".join(f" {flag}" for flag in session_flags)
+    found: dict[str, str] = {}
+    for script in sorted(Path(__file__).resolve().parent.glob("studyflow-*.py")):
+        name = script.stem.removeprefix("studyflow-").lower()
+        if name not in ("run", "prov"):
+            found[name] = f"uv run --script {shlex.quote(str(script))}{flags}"
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        try:
+            entries = os.listdir(directory or ".")
+        except OSError:
+            continue
+        for entry in entries:
+            if not entry.startswith("studyflow-") or "." in entry:
+                continue
+            name = entry.removeprefix("studyflow-").lower()
+            if name not in ("run", "prov") and os.access(os.path.join(directory, entry), os.X_OK):
+                found[name] = shlex.quote(os.path.join(directory, entry)) + flags
+    for key, value in os.environ.items():
+        matched = re.fullmatch(r"STUDYFLOW_([A-Z0-9_]+)_PY", key)
+        if matched:
+            name = matched.group(1).lower().replace("_", "-")
+            if name not in ("run", "prov"):
+                found[name] = f"uv run --script {shlex.quote(value)}{flags}"
+    return found
 
 
 def resolve_implementation(implementation: str) -> Any:
@@ -851,6 +630,49 @@ def resolve_implementation(implementation: str) -> Any:
     raise ImportError(f"cannot import {path!r}")
 
 
+class RunnerSession:
+    """A schema runner as a session: `COMMAND <plan> --serve`, one JSON line per request and
+    response on its pipes, narrative and prompts on stderr and the terminal."""
+
+    def __init__(self, name: str, command: str, plan: Path, repo_dir: Path, seed: str) -> None:
+        self.name = name
+        self.command = command
+        self.plan = plan
+        self.repo_dir = repo_dir
+        self.seed = seed
+        self.child: subprocess.Popen | None = None
+
+    def request(self, payload: dict) -> dict:
+        if self.child is None:
+            argv = [*shlex.split(self.command), str(self.plan), "--serve"]
+            self.child = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)  # noqa: S603 - an authored runner command
+            self.request({"op": "hello", "repo": str(self.repo_dir), "seed": self.seed})
+        self.child.stdin.write(json.dumps(payload) + "\n")
+        self.child.stdin.flush()
+        line = self.child.stdout.readline()
+        if not line:
+            raise RuntimeError(f"the {self.name} runner exited mid-session")
+        response = json.loads(line)
+        if response.get("ok") is False:
+            raise RuntimeError(f"{self.name}: {response.get('error') or 'runner error'}")
+        return response
+
+    def element(self, element_id: str, values: dict) -> dict:
+        return self.request({"op": "element", "id": element_id, "values": values})
+
+    def shutdown(self) -> None:
+        if self.child is None:
+            return
+        with suppress(OSError, ValueError):
+            self.child.stdin.write(json.dumps({"op": "shutdown"}) + "\n")
+            self.child.stdin.flush()
+        with suppress(subprocess.TimeoutExpired):
+            self.child.wait(timeout=5)
+        if self.child.poll() is None:
+            self.child.terminate()
+        self.child = None
+
+
 class Runner:
     def __init__(
         self,
@@ -863,8 +685,15 @@ class Runner:
         fresh: bool = False,
         repo: RunRepo | None = None,
         branched: bool = False,
+        runners: dict[str, str] | None = None,
+        plan_path: Path | None = None,
     ) -> None:
         self.studyflow = studyflow
+        # Schema runners: extension-namespace name -> its command, each held open as one session per run.
+        self.runners = {
+            name: RunnerSession(name, command, plan_path, repo_dir, seed or "")
+            for name, command in (runners or {}).items()
+        } if plan_path is not None else {}
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
         self.input_sources = input_sources or [Path.cwd()]
@@ -875,7 +704,7 @@ class Runner:
         self.state = State()
         self.depth = 0
         self._deferred: list[tuple[str, str, int, str]] | None = None
-        self.prior_records = {} if fresh else studyflow.element_records()
+        self.prior_records = {} if fresh or PROV is None else PROV.element_records(studyflow)
         self.completed: dict[str, str] = {}
         self.reached: dict[str, str] = {}
         self.decisions: dict[str, tuple[str, str]] = {}
@@ -885,13 +714,13 @@ class Runner:
         self.tainted: set[str] = set()
         self.demanded: set[str] | None = None
         self.recorded = 0
-        self.record = RunRecord(
+        self.record = PROV.RunRecord(
             studyflow.plan,
             seed if seed is not None else studyflow_attr(studyflow.process, "seed"),
             started or datetime.now(timezone.utc),
             run=self.repo_dir.name,
-            who=current_user(),
-        )
+            who=PROV.current_user(),
+        ) if PROV is not None else NoRecord()
 
     @property
     def indent(self) -> str:
@@ -916,7 +745,7 @@ class Runner:
             self._deferred = None
 
     def moment(self) -> str:
-        return trail_timestamp(datetime.now(timezone.utc))
+        return timeline_timestamp(datetime.now(timezone.utc))
 
     def note_reuse(self, element_id: str, prior: dict, subject: str) -> None:
         """One skip: remember the record it trusted (for the `reused` line) and checkpoint it."""
@@ -1035,6 +864,28 @@ class Runner:
             else:
                 resolved[key] = self.resolve_argument(value)
         return resolved
+
+    def runner_for(self, element: ET.Element) -> RunnerSession | None:
+        """The session serving this element's extension namespace, if any."""
+        for ext in element:
+            if local(ext) != "extensionElements":
+                continue
+            for child in ext:
+                uri = child.tag[1:].split("}")[0] if child.tag.startswith("{") else ""
+                for name, session in self.runners.items():
+                    if name == uri or uri.rstrip("/").endswith(f"/{name}"):
+                        return session
+        return None
+
+    def json_values(self) -> dict:
+        """The JSON-able shadow of the run's values, for a schema runner's placeholders and intents."""
+        shadow: dict[str, Any] = {}
+        for element_id, value in self.values.items():
+            try:
+                shadow[element_id] = json.loads(json.dumps(plain(value)))
+            except (TypeError, ValueError):
+                continue
+        return shadow
 
     def stale_inputs(self, element: ET.Element) -> bool:
         if not self.tainted:
@@ -1160,7 +1011,8 @@ class Runner:
         stale = self.stale_inputs(element)
         replay = None
         verdict = None
-        if prior and not stale:
+        # An element a schema runner serves is live interaction: it never skips from a prior record.
+        if prior and not stale and self.runner_for(element) is None:
             with self.deferred_events() as replay:
                 verdict = self.skip_activity(element, element_id)
             if verdict == "skipped":
@@ -1274,15 +1126,21 @@ class Runner:
         if used:
             entry["used"] = used
 
-        if not implementation:
+        session = None if implementation else self.runner_for(element)
+        if implementation:
+            target = resolve_implementation(implementation)
+            self.event("implementation.resolved", f"    implementation {implementation}")
+            result = target(*positional, **keywords)
+        elif session is not None:
+            entry["implementation"] = f"runner://{session.name}"
+            self.event("runner.called", f"    → the {session.name} runner takes this element")
+            result = session.element(element.get("id"), self.json_values()).get("value")
+        else:
             self.event(
                 "implementation.missing", "    (no implementation — nothing to call)",
                 level=logging.WARNING,
             )
             return
-        target = resolve_implementation(implementation)
-        self.event("implementation.resolved", f"    implementation {implementation}")
-        result = target(*positional, **keywords)
 
         for association in element:
             if local(association) != "dataOutputAssociation":
@@ -1331,7 +1189,8 @@ class Runner:
         if local(element) in GATEWAY_TAGS:
             # A clean gateway replays its recorded decision — same inputs, same seed, same verdict.
             # A condition edit is invisible to staleness: ✕ the gateway or `--fresh` forces re-evaluation.
-            prior = self.prior_records.get(element_id)
+            # A gateway a schema runner samples decides live, so its decision never replays.
+            prior = None if self.runner_for(element) else self.prior_records.get(element_id)
             if prior and prior.get("what") and not self.stale_expressions(flows):
                 flow = next((f for f in flows if f.get("id") == prior["what"]), None)
                 if flow is not None:
@@ -1343,6 +1202,14 @@ class Runner:
                     return self.studyflow.elements.get(flow.get("targetRef"))
             entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
             default_id = element.get("default")
+            bindings: dict[str, Any] = {}
+            session = self.runner_for(element)
+            if session is not None:
+                # The schema runner samples what the conditions read (e.g. `face_count`).
+                self.event("runner.called", f"    {session.name} samples for {element_id}")
+                bindings = session.element(element_id, self.json_values()).get("bindings") or {}
+                if bindings:
+                    entry["bindings"] = bindings
             try:
                 for flow in flows:
                     condition = next((c for c in flow if local(c) == "conditionExpression"), None)
@@ -1350,7 +1217,7 @@ class Runner:
                         continue
                     expression = condition.text.strip()
                     language = condition.get("language")
-                    verdict = self.evaluate(expression, language=language)
+                    verdict = self.evaluate(expression, bindings, language=language)
                     entry.setdefault("conditionExpressions", []).append({
                         "sequenceFlow": flow.get("id"),
                         "conditionExpression": expression,
@@ -1465,7 +1332,17 @@ class Runner:
                         {"Prov-Action": "executed", "Prov-Node": element_id},
                     )
                 elif tag in PASSTHROUGH_TAGS:
-                    self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
+                    entry = self.record.begin(element_id, name, bpmn_type(element))
+                    session = self.runner_for(element) if tag == "intermediateCatchEvent" else None
+                    if session is not None:
+                        # A catch event a schema runner serves blocks in its session until sensed.
+                        self.event("event.waiting", f"◐ {element_id}  (waiting via {session.name})")
+                        try:
+                            self.store(element_id, session.element(element_id, self.json_values()).get("value"))
+                        except BaseException as error:
+                            self.record.fail(entry, error)
+                            raise
+                    self.record.end(entry)
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"○ {element_id}")
                 else:
@@ -1504,17 +1381,20 @@ class Runner:
         }
         stamped = self.studyflow.plan
         run = self.repo_dir.name
-        for element_id, action, extra in entries:
-            stamped = insert_element_entry(
-                stamped, element_id, replace_action=replaced(action, element_id),
-                action=action, when=moments[element_id], run=run, **extra,
-            )
+        if PROV is not None:
+            for element_id, action, extra in entries:
+                stamped = PROV.insert_element_entry(
+                    stamped, element_id, replace_action=replaced(action, element_id),
+                    action=action, when=moments[element_id], run=run, **extra,
+                )
         plan = self.repo_dir / source.name
         write_plan_copy(source, plan, stamped)
         self.event("plan.archived", f"  → {shown(plan)}", level=logging.DEBUG)
         return plan
 
     def finish(self) -> None:
+        for session in self.runners.values():
+            session.shutdown()
         elapsed = (datetime.now(timezone.utc) - self.record.started).total_seconds() * 1000
         log_event(
             "run.finished",
@@ -1546,16 +1426,6 @@ def resolve_repo_dir(explicit: Path | None, plan: Path, started: datetime) -> Pa
     return candidate
 
 
-def branch_point(repo: RunRepo, invalidated: list[str], from_ref: str | None) -> str | None:
-    """Where a re-run branches: `--from`'s own commit, else the furthest back of the invalidated elements'."""
-    if from_ref:
-        return from_ref
-    earliest: str | None = None
-    for element_id in invalidated:
-        commit = repo.commit_for_node(element_id)
-        if commit and (earliest is None or repo.is_ancestor(commit, earliest)):
-            earliest = commit
-    return earliest
 
 
 def main() -> int:
@@ -1585,22 +1455,43 @@ def main() -> int:
         "--quiet", action="store_true",
         help="no console output; the log file is written either way",
     )
+    parser.add_argument(
+        "--runner", action="append", default=[], metavar="NAME=COMMAND",
+        help="override a discovered schema runner, or add one: COMMAND <plan> --serve; repeatable",
+    )
+    parser.add_argument("--sim", action="store_true", help="schema runners drive a simulated robot")
+    parser.add_argument("--auto", action="store_true", help="schema runners answer their prompts with canned values")
     args = parser.parse_args()
+
+    session_flags = [flag for flag, wanted in (("--sim", args.sim), ("--auto", args.auto)) if wanted]
+    runners = discover_runners(session_flags)
+    for spec in args.runner:
+        name, separator, command = spec.partition("=")
+        if not separator or not name or not command:
+            parser.error(f"--runner wants NAME=COMMAND, got {spec!r}")
+        runners[name] = command
 
     started = datetime.now(timezone.utc).astimezone()
     stamp = run_stamp(started)
     repo_dir = resolve_repo_dir(args.repo, args.studyflow, started)
     run_id = repo_dir.name
     start_logging(repo_dir, args.quiet)
+    if PROV is None:
+        log_event(
+            "prov.missing",
+            "  no studyflow-prov beside this runner — executing without a repository, records, or reuse",
+            level=logging.WARNING,
+        )
 
-    repo = RunRepo(repo_dir)
+    who = PROV.current_user() if PROV is not None else ""
+    repo = PROV.RunRepo(repo_dir) if PROV is not None else NoRepo()
     repo.open()
     # A repository created just now has nothing to attribute to anyone: its baseline is the `started` commit.
     if not repo.created and repo.dirty():
         repo.commit(
             "changed outside a run",
-            {"Prov-Action": "modified", "Prov-When": trail_timestamp(started)},
-            when=trail_timestamp(started),
+            {"Prov-Action": "modified", "Prov-When": timeline_timestamp(started)},
+            when=timeline_timestamp(started),
         )
 
     # Root seed: the plan's pinned value, else drawn once — recorded either way, so an unpinned run replays.
@@ -1616,18 +1507,18 @@ def main() -> int:
     # The input file is never touched — the stamp lands on the archived copy.
     studyflow = read_studyflow(args.studyflow, stamp={
         "action": "executed",
-        "when": trail_timestamp(started),
-        "who": current_user(),
-        "with": "studyflow_run.py",
+        "when": timeline_timestamp(started),
+        "who": who,
+        "with": "studyflow-run.py",
         "run": run_id,
         "seed": seed,
     })
     # The plan is read before the fork below, because forking reverts the copy this may be reading from.
     # Branching has first claim on the run's branch name — a detached HEAD only attaches without one.
-    invalidated = probe.invalidated_elements()
+    invalidated = PROV.invalidated_elements(probe) if PROV is not None else []
     branched = False
     if repo.active and (args.from_ref or invalidated):
-        point = branch_point(repo, invalidated, args.from_ref)
+        point = PROV.branch_point(repo, invalidated, args.from_ref)
         # Branches are the only refs — runs live as `started`/`finished` boundary commits.
         branch = f"run/{stamp}"
         if point and repo.branch(branch, f"{point}^"):
@@ -1658,20 +1549,21 @@ def main() -> int:
         prepare_inputs=not args.no_prepare_inputs,
         seed=seed, fresh=args.fresh,
         repo=repo, branched=branched,
+        runners=runners, plan_path=args.studyflow,
     )
     # The trailers of a commit that stamps no element are the document stamp's own attributes.
     document_stamp = {
         "Prov-Action": "executed",
-        "Prov-When": trail_timestamp(started),
-        "Prov-Who": current_user(),
-        "Prov-With": "studyflow_run.py",
+        "Prov-When": timeline_timestamp(started),
+        "Prov-Who": who,
+        "Prov-With": "studyflow-run.py",
         "Prov-Run": run_id,
         "Prov-Seed": seed,
     }
     process_id = studyflow.process.get("id") or ""
     repo.commit(
         f"started {process_id} ({stamp})", document_stamp,
-        when=trail_timestamp(started), body=json.dumps(runner.record.header()),
+        when=timeline_timestamp(started), body=json.dumps(runner.record.header()),
     )
     try:
         runner.run()
@@ -1689,7 +1581,7 @@ def main() -> int:
         closing = {**runner.record.summary(), "tail": runner.record.steps_since(runner.recorded)}
         repo.commit(
             f"finished {process_id} ({runner.record.status})", document_stamp,
-            when=trail_timestamp(datetime.now(timezone.utc)),
+            when=timeline_timestamp(datetime.now(timezone.utc)),
             body=json.dumps(closing, default=str),
         )
         logging.shutdown()

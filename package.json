@@ -17,7 +17,7 @@
     "lint:schemas": "playwright test --config playwright.unit.config.ts schemas.unit catalog.unit schema-model.unit schema-primitives.unit",
     "lint:docs": "playwright test --config playwright.unit.config.ts docs.unit",
     "preview": "npm run preview -w @behaverse/studyflow-modeler",
-    "examples:render": "npm run build -w @behaverse/studyflow-cli && node packages/cli/dist/studyflow.mjs render",
+    "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in assets/examples/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
     "package:cli": "npm run package -w @behaverse/studyflow-cli",
     "test": "playwright test",
     "test:unit": "playwright test --config playwright.unit.config.ts",

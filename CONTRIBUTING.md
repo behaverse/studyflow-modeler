@@ -13,7 +13,7 @@ The dev server may print `[unity-build] ... not found` at boot. That is the opti
 
 ## Where the doctrine lives
 
-Each package's README is the contract for what that package owns: [core](packages/core/), [modeler](packages/modeler/), [browser runner](packages/runner/), [Python runner](packages/runner-py/), [CLI](packages/cli/). The README at the repo root has the package map and the two enforced boundaries; [`assets/schemas/README.md`](assets/schemas/README.md) is the schema-authoring reference. The `docs/` site specifies the *notation*, not the code.
+Each package's README is the contract for what that package owns: [core](packages/core/), [modeler](packages/modeler/), [browser runner](packages/runner/), [CLI and Python runners](packages/cli/). The README at the repo root has the package map and the two enforced boundaries; [`assets/schemas/README.md`](assets/schemas/README.md) is the schema-authoring reference. The `docs/` site specifies the *notation*, not the code.
 
 ## Tests
 

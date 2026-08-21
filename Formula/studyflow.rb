@@ -30,7 +30,7 @@ class Studyflow < Formula
   def install
     bin.install "studyflow"
     # The fallback runner for `studyflow run --runtime local`; found next to the binary, and driven by uv.
-    libexec.install "studyflow_run.py"
+    libexec.install "studyflow-prov.py"
   end
 
   def caveats

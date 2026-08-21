@@ -15,13 +15,16 @@ instead, for CI). With `--sim` — or when the plan's Robot pool says
 `variant: simulation` — it drives a MuJoCo-simulated Reachy Mini through the
 `reachy_mini` Python SDK, starting a headless sim daemon if none is listening;
 gestures, look-ats, and speech taps move the simulated robot for real.
-Elements from other schemas are logged and passed over — `studyflow_run.py`
+Elements from other schemas are logged and passed over — `studyflow-prov.py`
 executes those; the studyflow CLI will chain the two.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import signal
 import re
 import struct
 import sys
@@ -61,7 +64,7 @@ def local(element: ET.Element) -> str:
 
 
 def studyflow_from_png(path: Path) -> str:
-    """Mirrors `studyflow_run.studyflow_from_png`: the plan travels in a PNG text chunk."""
+    """Mirrors `studyflow-prov.py's studyflow_from_png`: the plan travels in a PNG text chunk."""
     data = path.read_bytes()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError(f"{path} is not a PNG")
@@ -92,7 +95,7 @@ def reachy_extension(element: ET.Element) -> ET.Element | None:
     return None
 
 
-def fields_of(ext: ET.Element) -> dict[str, Any]:
+def settings_of(ext: ET.Element) -> dict[str, Any]:
     """Defaults, overlaid by the extension's attributes and child-element bodies."""
     merged: dict[str, Any] = dict(DEFAULTS.get(local(ext), {}))
     merged.update(ext.attrib)
@@ -165,7 +168,7 @@ class Studyflow:
             for participant in collab:
                 ext = reachy_extension(participant) if local(participant) == "participant" else None
                 if ext is not None and local(ext) == "robot":
-                    return fields_of(ext)
+                    return settings_of(ext)
         return dict(DEFAULTS["robot"])
 
     def title(self) -> str:
@@ -214,19 +217,25 @@ class SimRobot:
     label = "simulation"
 
     def __init__(self, host: str) -> None:
+        self.host = host
+        self.mini: Any = None
+        self._pose: Any = None
+        self._daemon: Any = None
+
+    def connect(self) -> None:
         from reachy_mini import ReachyMini  # imported lazily so dry runs never pay for it
         from reachy_mini.utils import create_head_pose
 
         self._pose = create_head_pose
-        self._daemon = self._ensure_daemon(host)
-        local_only = host in ("localhost", "127.0.0.1")
+        self._ensure_daemon(self.host)
+        local_only = self.host in ("localhost", "127.0.0.1")
         self.mini = ReachyMini(
-            host=host,
+            host=self.host,
             connection_mode="localhost_only" if local_only else "auto",
             log_level="WARNING",
         )
 
-    def _ensure_daemon(self, host: str) -> Any:
+    def _ensure_daemon(self, host: str) -> None:
         import subprocess
         import time
         import urllib.request
@@ -239,11 +248,12 @@ class SimRobot:
                 return False
 
         if up():
-            return None
+            return
         if host not in ("localhost", "127.0.0.1"):
             raise ConnectionError(f"no Reachy daemon answers on {host}:8000")
         print("    starting a headless sim daemon…")
-        daemon = subprocess.Popen(
+        # Held on self from the moment it exists, so a hard stop can always fold it.
+        self._daemon = subprocess.Popen(
             [sys.executable, "-c", "from reachy_mini.daemon.app.main import main; main()",
              "--sim", "--headless", "--no-media", "--log-level", "WARNING"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -252,11 +262,11 @@ class SimRobot:
         while time.monotonic() < deadline:
             if up():
                 time.sleep(2)  # let the backend finish waking the robot
-                return daemon
-            if daemon.poll() is not None:
+                return
+            if self._daemon.poll() is not None:
                 raise ConnectionError("the sim daemon exited during startup")
             time.sleep(0.5)
-        daemon.terminate()
+        self.close()
         raise ConnectionError("timed out waiting for the sim daemon")
 
     def _go(self, head: dict | None, antennas: list[float] | None, duration: float, body_yaw: float | None) -> None:
@@ -300,13 +310,17 @@ class SimRobot:
         self._act([(None, [0.5, -0.5], 0.15, None), (None, [0.1, -0.1], 0.2, None)])
 
     def close(self) -> None:
-        self._act([({}, [0.0, 0.0], 0.5, None)])
-        try:
-            self.mini.client.disconnect()
-        except Exception:
-            pass
+        if self.mini is not None:
+            self._act([({}, [0.0, 0.0], 0.5, None)])
+            try:
+                self.mini.client.disconnect()
+            except Exception:
+                pass
+            self.mini = None
+        # Only the daemon this run spawned; one that was already serving stays.
         if self._daemon is not None:
             self._daemon.terminate()
+            self._daemon = None
 
 
 def output_targets(element: ET.Element) -> list[str]:
@@ -328,6 +342,8 @@ class Run:
     values: dict[str, Any] = field(default_factory=dict)
     trace: list[str] = field(default_factory=list)
     auto_lines: list[str] = field(default_factory=lambda: list(AUTO_LINES))
+    # Set in serve mode: stdin belongs to the protocol, so answers come from the tty instead.
+    tty: Any = None
 
     def say_line(self, text: str) -> None:
         print(f'    Reachy ▶ "{text}"')
@@ -337,6 +353,10 @@ class Run:
         if self.auto:
             print(f"    {prompt} [auto: {default}]")
             return default
+        if self.tty is not None:
+            print(f"    {prompt} [{default}]: ", end="", flush=True)
+            answer = self.tty.readline().strip()
+            return answer or default
         answer = input(f"    {prompt} [{default}]: ").strip()
         return answer or default
 
@@ -437,7 +457,7 @@ ACTIVITY_HANDLERS: dict[str, Callable[[Run, ET.Element, dict[str, Any]], Any]] =
 }
 
 
-# --- the walk: studyflow_run's control flow, minus records, repos, and reuse ---
+# --- the walk: studyflow-run's control flow, minus records, repos, and reuse ---
 
 def evaluate(run: Run, expression: str, extra: dict[str, Any]) -> Any:
     space = run.namespace() | extra
@@ -456,7 +476,7 @@ def next_element(run: Run, element: ET.Element) -> ET.Element | None:
         return run.studyflow.elements.get(flows[0].get("targetRef"))
 
     ext = reachy_extension(element)
-    bindings = sample_perception(run, element, fields_of(ext)) if ext is not None and local(ext) == "perceptionGateway" else {}
+    bindings = sample_perception(run, element, settings_of(ext)) if ext is not None and local(ext) == "perceptionGateway" else {}
     for flow in flows:
         condition = next((c for c in flow if local(c) == "conditionExpression"), None)
         if condition is None or not (condition.text or "").strip():
@@ -494,12 +514,12 @@ def walk(run: Run, element: ET.Element | None, max_steps: int) -> None:
         elif tag in PASSTHROUGH_TAGS:
             if ext is not None and local(ext) == "senseEvent":
                 print(f"◐ {label}")
-                run.values[element_id] = wait_sense(run, element, fields_of(ext))
+                run.values[element_id] = wait_sense(run, element, settings_of(ext))
             else:
                 print(f"○ {label}")
         elif ext is not None and local(ext) in ACTIVITY_HANDLERS:
             print(f"□ {label}")
-            value = ACTIVITY_HANDLERS[local(ext)](run, element, fields_of(ext))
+            value = ACTIVITY_HANDLERS[local(ext)](run, element, settings_of(ext))
             if value is not None:
                 run.store(element, value)
         else:
@@ -508,26 +528,106 @@ def walk(run: Run, element: ET.Element | None, max_steps: int) -> None:
         element = next_element(run, element)
 
 
+def serve(run: Run, out: Any) -> int:
+    """Serve mode: one JSONL request per line on stdin, one JSON response per line on `out`."""
+    repo = Path.cwd()
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        request = json.loads(line)
+        op = request.get("op")
+        if op == "shutdown":
+            break
+        try:
+            if op == "hello":
+                repo = Path(request.get("repo") or ".")
+                response: dict[str, Any] = {"ok": True, "name": "reachy"}
+            elif op == "element":
+                run.values.update(request.get("values") or {})
+                element = run.studyflow.elements.get(request.get("id") or "")
+                ext = reachy_extension(element) if element is not None else None
+                if element is None or ext is None:
+                    raise KeyError(f"no reachy element {request.get('id')!r} in the plan")
+                kind, spec = local(ext), settings_of(ext)
+                if kind == "senseEvent":
+                    response = {"ok": True, "value": wait_sense(run, element, spec)}
+                elif kind == "perceptionGateway":
+                    response = {"ok": True, "bindings": sample_perception(run, element, spec)}
+                elif kind in ACTIVITY_HANDLERS:
+                    value = ACTIVITY_HANDLERS[kind](run, element, spec)
+                    run.values[element.get("id")] = value
+                    response = {"ok": True, "value": value}
+                else:
+                    raise KeyError(f"no handler for reachy:{kind}")
+            elif op == "bind":
+                run.values[request["to"]] = run.values.get(request["from"])
+                response = {"ok": True}
+            elif op == "save":
+                path = repo / request["uri"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                value = run.values.get(request["id"])
+                path.write_text(value if isinstance(value, str) else json.dumps(value, indent=2, default=str))
+                response = {"ok": True, "bytes": path.stat().st_size}
+            else:
+                raise ValueError(f"unknown op {op!r}")
+        except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
+            response = {"ok": False, "error": f"{type(error).__name__}: {error}"}
+        print(json.dumps(response), file=out, flush=True)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("plan", type=Path, help="a .studyflow.png (or .bpmn/.xml) to walk")
     parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
     parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
     parser.add_argument("--max-steps", type=int, default=200)
+    parser.add_argument("--serve", action="store_true", help="serve another runner's JSONL requests instead of walking")
     args = parser.parse_args()
+
+    # In serve mode stdout carries only responses; the narrative and prompts move to stderr and the tty.
+    out = sys.stdout
+    if args.serve:
+        sys.stdout = sys.stderr
 
     xml = studyflow_from_png(args.plan) if args.plan.suffix.lower() == ".png" else args.plan.read_text()
     studyflow = Studyflow(xml)
     config = studyflow.robot_config()
 
     robot: Any = TerminalRobot()
+
+    def handle_stop(signum: int, frame: Any) -> None:
+        # A hard stop skips every `finally`, so fold the spawned sim daemon here before leaving.
+        robot.close()
+        os._exit(128 + signum)
+
+    # Registered before any daemon can exist, so even a stop mid-startup folds it.
+    signal.signal(signal.SIGTERM, handle_stop)
+    signal.signal(signal.SIGINT, handle_stop)
+
     if args.sim or config["variant"] == "simulation":
+        robot = SimRobot(host=str(config["host"]))
         try:
-            robot = SimRobot(host=str(config["host"]))
+            robot.connect()
         except Exception as error:
+            robot.close()
+            robot = TerminalRobot()
             print(f"simulation unavailable ({error}) — carrying on as a dry run")
 
     run = Run(studyflow, auto=args.auto, robot=robot)
+
+    if args.serve:
+        if not args.auto:
+            # stdin is the protocol channel now, so the participant's answers come from the terminal itself.
+            try:
+                run.tty = open("/dev/tty", encoding="utf-8")  # noqa: SIM115 - held for the whole session
+            except OSError:
+                run.auto = True
+        try:
+            return serve(run, out)
+        finally:
+            robot.close()
+
     print(f"{studyflow.title()}  —  Reachy {robot.label}  ({config['variant']} @ {config['host']}, volume {config['volume']})")
     try:
         walk(run, studyflow.start_of(studyflow.process), args.max_steps)

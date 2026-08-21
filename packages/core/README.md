@@ -1,6 +1,6 @@
 # @behaverse/studyflow-core
 
-The headless studyflow document model: what a studyflow *is*, with no React, no bpmn-js, and no DOM requirement. The modeler, the browser runner, and the CLI are its three consumers. (The [Python runner](../runner-py/) is a single self-contained script and reads the BPMN XML itself.)
+The headless studyflow document model: what a studyflow *is*, with no React, no bpmn-js, and no DOM requirement. The modeler, the browser runner, and the CLI are its three consumers. (The [Python runners](../cli/) are self-contained scripts and read the BPMN XML themselves.)
 
 ## Contract
 
