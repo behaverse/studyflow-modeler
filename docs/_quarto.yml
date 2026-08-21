@@ -15,6 +15,9 @@ website:
   sidebar:
     expand: true
     logo: assets/img/logo.png
+    border: true
+    pinned: true
+    style: docked
     contents:
       - text: Overview
         href: index.qmd
@@ -22,14 +25,14 @@ website:
         href: developers.qmd
       - text: Reference
         href: reference.qmd
+      - "---"
       - text: Open Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
         icon: box-arrow-up-right
         target: _blank
       - icon: github
         href: https://github.com/behaverse/studyflow-modeler
-  page-footer:
-    center: '&copy; 2025 [xCIT.org](https://xcit.org)'
+    footer: "© 2025 [xCIT.org](https://xcit.org)"
   open-graph: true
 
 format:
@@ -41,13 +44,13 @@ format:
       dark:
         - default
         - assets/css/theme-dark.scss
-    css:
-      - assets/css/custom.css
-      - assets/css/figures.css
+    # css:
+      # - assets/css/custom.css
+      # - assets/css/figures.css
     toc: true
-    reference-location: block
+    reference-location: margin
     mainfont: "IBM Plex Sans"
     highlight-style: github
     link-external-icon: true
     link-external-newwindow: true
-    link-external-filter: '^(?:http://|https://)(?:[^/]*\.)?behaverse\.org/studyflow-modeler/docs/'
+    link-external-filter: '^(?:http://|https://)(?:[^/]*\.)?(behaverse\.org/studyflow-modeler/)|(xcit.org)'

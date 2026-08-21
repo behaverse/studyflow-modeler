@@ -5,9 +5,11 @@ reference-location: margin
 citation-location: margin
 ---
 
-Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: yyour codes compute, studyflow coordinates them[^gelernter]). The diagrams are single machine-readable and human-understandable source of truth needed to recreate an experiment. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
+Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]). The diagrams are single machine-readable and human-understandable source of truth needed to recreate an experiment. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
 
-![Hypothetical experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open the png in the [Studyflow Modeler](https://behaverse.org/studyflow-modeler/app) app, you can see the details, edit it, or run it.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
+A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) and extend it with domain-specific elements through the BPMN's own extension mechanisms.
+
+![Hypothetical experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open the png in the [Studyflow Modeler](https://behaverse.org/studyflow-modeler/app) app, you can see the details, edit it, or run it.](assets/img/studyflow_example_1.svg){#figs-studyflow}
 
 ## Why
 
@@ -24,18 +26,14 @@ You build a study in the [*Modeler app*]() (open source, in browser) or any othe
 The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the file and execute it in many environments: a web browser, a Python script, or a containerized workflow. Or different *projections* can read the file and produce different outputs like a protocol document, Gantt chart, a figure, or a checklist.
 
 ::: {layout-ncol=3}
-![Timeline: when each part happens](assets/img/views/gantt.png){#fig-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
+![Timeline: when each part happens](assets/img/views/gantt.png){#figs-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
 
-![Checklist: what is reported, and what is still open](assets/img/views/checklist.png){#fig-checklist fig-alt="A dialog titled Checklist View reading 0 of 52 items complete, with one card per element listing unticked SPIRIT reporting items."}
+![Checklist: what is reported, and what is still open](assets/img/views/checklist.png){#figs-checklist fig-alt="A dialog titled Checklist View reading 0 of 52 items complete, with one card per element listing unticked SPIRIT reporting items."}
 
-![Provenance: what ran, when, by whom](assets/img/views/provenance.png){#fig-provenance fig-alt="A dialog titled Provenance View listing entries across three runs, each row naming an action, an element, an actor, a tool, and a timestamp."}
+![Provenance: what ran, when, by whom](assets/img/views/provenance.png){#figs-provenance fig-alt="A dialog titled Provenance View listing entries across three runs, each row naming an action, an element, an actor, a tool, and a timestamp."}
 :::
 
 To try it, [open the modeler](https://behaverse.org/studyflow-modeler/app) and load an example from its gallery.
-
-## Built on BPMN
-
-A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) and extend it with domain-specific elements through the BPMN's own extension mechanisms.
 
 [^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97–107.
 
