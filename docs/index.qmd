@@ -1,27 +1,27 @@
 ---
 title: "Studyflow"
 description: "Write an experiment once, as one flowchart file that is also its protocol, its runnable session, its analysis specification, and its figure."
+reference-location: margin
+citation-location: margin
 ---
 
-Studyflow is a graphical notation for describing experimental research (e.g., behavioral experiments, clinical studies, AI evaluations) as a single flowchart file with machine-readable and human-understandable semantics. You draw the experiment once, what data each step produces, and which analyses run on that data. The result is one file that is simultaneously the protocol, the runnable code, the analysis specification, and the final report. Your codes compute; Studyflow coordinates them.[^gelernter]
+Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: yyour codes compute, studyflow coordinates them[^gelernter]). The diagrams are single machine-readable and human-understandable source of truth needed to recreate an experiment. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
 
-![A training experiment as one studyflow file: screening, pre-test, random allocation to three arms, training, post-test, debrief.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
+![Hypothetical experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open the png in the [Studyflow Modeler](https://behaverse.org/studyflow-modeler/app) app, you can see the details, edit it, or run it.](assets/img/studyflow_example_1.svg){#fig-studyflow fig-alt="A left-to-right diagram. A plain circle labelled Start leads through Study Instruction, BIG-5, 2-Back (pre-test), and Useful Field of View. A diamond then splits the path three ways -- the branches labelled AVGP, Control, and NVGP -- into Action Video Game, Tetris, and No Game (Rest). All three rejoin at 2-Back (post-test), then Debrief, then a heavy-outlined circle labelled End."}
 
 ## Why
 
-Today an experimental study is written down many times: a protocol for the ethics board, a preregistration, a script for the data collection, a notebook for the analysis, a figure for the manuscript. Each copy is maintained separately, and nothing checks them against each other, so they drift apart (we are not anymore surprised when the preregistration says three conditions, the script implements four, the analysis expects two, and the figure still shows three). Replications usually stop on exactly this gap between what was described and what actually ran.[^hardwicke] [^variability] AI research has the same gap under different names: the eval described in the paper, the harness that actually ran it, and the config that drifted somewhere in between.
+Today an experimental study is described many times: a protocol in PDF for the ethics board, a preregistration form, a script for the data collection, a notebook for the analysis, a figure for the manuscript, and it continues. Each artifact is maintained separately, and nothing checks them against each other, so they drift apart (we are not anymore surprised when the preregistration says four conditions, the data collection script implements five, the analysis code uses three, and the figure only shows two).
 
-![Five copies kept in step by hand, or one file and its readings.](assets/img/diagrams/gap.svg){#fig-gap fig-alt="Two panels. Above, five boxes — protocol, preregistration, session script, analysis notebook, methods figure — joined by crossed-out dashed lines: nothing keeps them in step. Below, one box labelled the studyflow file, with solid arrows out to protocol, runnable session, analysis specification, and methods figure."}
+Replications usually stop on exactly this gap between what was described and what actually ran[^hardwicke] [^variability]. AI research has the same gap under different names: the eval described in the paper, the harness that actually ran it, and the config that drifted somewhere in between.
 
-A studyflow diagram replaces all these copies with one file. Each document you need is produced, or more precisely projected, *from* this file.
+A studyflow diagram aims to replace all these copies with one file. Each document you need is produced, or more precisely *projected*, from this file.
 
 ## How it works
 
-You build a study in the *studyflow modeler* (open source, nothing to install). Drag elements from the palette (instructions, questionnaires, cognitive tasks, breaks), connect them with arrows, and fill in each step's details in the inspector. Gateways defines the decisions, e.g., an eligibility gateway states your screening criteria; a random gateway allocates participants to different conditions. Data elements record what each elements reads and writes.
+You build a study in the [*Modeler app*]() (open source, in browser) or any other compatible app. The elements you can use are the same as in BPMN: tasks, events, gateways, and flows. You can also add your own domain-specific elements (questionnaire, cognitive tasks, brain imaging sessions, data analysis functions in Python). Then you attach metadata to each element (e.g., a script to run, a data file to read, or a figure to produce).
 
-The file saves as YAML (or as a PNG that shows your figure and contains the machine-readable diagram). Different **runners** can read the file and execute it in different environments: a web browser, a Python or R script, or a containerized workflow. And different **projections** can read the file and produce different outputs like a protocol document, Gantt chart, a figure, or a checklist.
-
-The same file also answers questions directly in the modeler, as views:
+The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the file and execute it in many environments: a web browser, a Python script, or a containerized workflow. Or different *projections* can read the file and produce different outputs like a protocol document, Gantt chart, a figure, or a checklist.
 
 ::: {layout-ncol=3}
 ![Timeline: when each part happens](assets/img/views/gantt.png){#fig-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
@@ -31,11 +31,11 @@ The same file also answers questions directly in the modeler, as views:
 ![Provenance: what ran, when, by whom](assets/img/views/provenance.png){#fig-provenance fig-alt="A dialog titled Provenance View listing entries across three runs, each row naming an action, an element, an actor, a tool, and a timestamp."}
 :::
 
-To try it, [open the modeler](https://behaverse.org/studyflow-modeler/app.html) and load an example from its gallery.
+To try it, [open the modeler](https://behaverse.org/studyflow-modeler/app) and load an example from its gallery.
 
 ## Built on BPMN
 
-A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) and extend it with domain-specific vocabulary through the BPMN's own extension mechanisms.
+A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) and extend it with domain-specific elements through the BPMN's own extension mechanisms.
 
 [^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97–107.
 
