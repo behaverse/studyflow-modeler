@@ -22,7 +22,7 @@ brew install studyflow
 ```
 
 
-The command line is extensible: `studyflow <name>` runs `studyflow-<name>` from your PATH if `<name>` is not a built-in, handing the rest of the arguments through.
+The command line is extensible. If `<name>` is not one of the builtin commands, `studyflow <name>` looks for a `studyflow-<name>` on your PATH.
 
 ## How to build and run
 
@@ -35,9 +35,9 @@ npm test             # all tests, e2e included
 ```
 
 
-## One study, three carriers
+## The same study in three formats
 
-The same study is stored as YAML (canonical format), as BPMN 2.0 XML (for interoperability; this is what other BPMN tools read), and as a PNG or SVG with the diagram embedded inside (e.g., for visualizing or sending a study to someone). Conversion between the three is lossless. For example:
+A studyflow diagram can be stored as YAML (the canonical format), as BPMN 2.0 XML (which is what other BPMN tools read), or as a PNG or SVG with the diagram embedded in it. Conversion between the three is lossless:
 
 ```bash
 studyflow validate study.studyflow.yaml --strict
@@ -48,9 +48,9 @@ studyflow info study.studyflow.yaml --json
 
 ## Running a study
 
-![One run, from the saved file to its records: validation gates it, the study's `runtime` attribute picks the executor, and the Python runner leaves a repository behind.](assets/img/diagrams/run-lifecycle.svg){#fig-lifecycle fig-alt="A flowchart. An author saves a studyflow, validation gates it, and the run goes to the browser runner when runtime is browser or to the Python runner when runtime is local. The browser runner posts sessions and events, opt-in. The Python runner archives the plan into a run repository with one commit per checkpoint; per-element records let untouched steps skip on a partial re-run, and an invalidated record branches the repository at that step's parent."}
+![What happens in one run: the file is validated first, the study's `runtime` attribute decides which runner takes it, and a Python run also leaves a repository behind.](assets/img/diagrams/run-lifecycle.svg){#fig-lifecycle fig-alt="A flowchart. An author saves a studyflow, validation gates it, and the run goes to the browser runner when runtime is browser or to the Python runner when runtime is local. The browser runner posts sessions and events, opt-in. The Python runner archives the plan into a run repository with one commit per checkpoint; per-element records let untouched steps skip on a partial re-run, and an invalidated record branches the repository at that step's parent."}
 
-There are currently two executors, and they split the file by what a step *does*: participant-facing steps run in the browser, steps bound to software run in Python, and each executor steps over the other's half. `studyflow run` reads the `runtime` attribute on the study and dispatches — `browser` studies belong at the published `./run/` URL, `local` ones go to the Python runner on your machine. An eval is the same walk with a model in the participant's seat — set `agentType` to `bot` on the task — so the same two executors run it; no separate harness code.
+There are two runners available. `studyflow run` reads the `runtime` attribute on the study and decides where to send it — a `browser` study runs from the published `./run/` URL, and a `local` one goes to the Python runner on your machine. An AI evaluation is the same walk with a model in the participant's seat (set `agentType` to `bot` on the task), so the same two runners execute it and you do not need a separate harness.
 
 ::: {layout-ncol=4}
 ![Consent, from the start event](assets/img/runner/consent.png){#fig-run-consent fig-alt="A browser screen presenting a consent document with an accept button."}
@@ -62,7 +62,7 @@ There are currently two executors, and they split the file by what a step *does*
 ![Completion, from the end event](assets/img/runner/completion.png){#fig-run-completion fig-alt="A browser screen thanking the participant and showing a completion code."}
 :::
 
-Gateways decide branches by rules:
+Gateways decide which branch a run takes, and each kind decides differently:
 
 | Gateway | Rule |
 |:--|:--|
@@ -72,11 +72,11 @@ Gateways decide branches by rules:
 | An inclusive gateway | every outgoing edge whose condition holds |
 | `agentic:Router` | a label chosen by a model |
 
-- An executor that cannot evaluate a condition stops, rather than silently taking the other branc
-- A condition naming a value not in its scope reports an exception, not `false`.
-- A `seed` makes every gateway draw replay exact.
+- A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
+- A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.
+- Setting a `seed` on the study makes every gateway draw replay exactly.
 
-| Element | | Browser runner | Python runner |
+| Element | Checked before the run | Browser runner | Python runner |
 |:--|:--|:--|:--|
 | `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
 | `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | — |
@@ -90,14 +90,14 @@ Gateways decide branches by rules:
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | — |
 | Timers, and multi-instance markers | — | not executed | not executed |
 
-: What each executor does with each family. A blank is a step it passes over. {#tbl-support}
+: What each runner does with each family of elements, and what is checked before the run starts. A blank means the runner passes that step over. {#tbl-support}
 
 
 ## What a run leaves behind
 
-![The record lives in the document itself: a trail on the root, a record per element, and — for Python runs — a repository whose commits restate the same attributes.](assets/img/diagrams/provenance-model.svg){#fig-provenance-model fig-alt="Flowchart. The studyflow document carries a flat provenance trail on its root element and per-element records in each element's extension elements. The modeler appends to the trail and voids records; the Python runner appends to the trail, stamps records on the archived copy, and commits every checkpoint into a run repository. Each commit restates the trail's attributes as trailers and keeps that checkpoint's step records in its body. No sidecar record file is written."}
+![Where the record of a run is kept: a trail on the study itself, one record per element, and, for Python runs, a repository whose commits restate the same attributes.](assets/img/diagrams/provenance-model.svg){#fig-provenance-model fig-alt="Flowchart. The studyflow document carries a flat provenance trail on its root element and per-element records in each element's extension elements. The modeler appends to the trail and voids records; the Python runner appends to the trail, stamps records on the archived copy, and commits every checkpoint into a run repository. Each commit restates the trail's attributes as trailers and keeps that checkpoint's step records in its body. No sidecar record file is written."}
 
-Before it runs, a studyflow is a plan; as it runs, the record of what actually executed accumulates in the same file (following W3C PROV's split between prospective and retrospective provenance). So "did the study deviate from the plan?" is answered by diffing one file against its earlier self. Provenance entries are stored in the same file as the studyflow.
+Before it runs, a studyflow is a plan. As it runs, the record of what actually happened accumulates in the same file (this follows W3C PROV, which separates the prospective plan from the retrospective record). So "did the study deviate from the plan?" is a question you answer by diffing one file against an earlier version of itself, and there is no separate log to keep alongside it.
 
 | Attribute | Holds | | Action | Records |
 |:--|:--|:-:|:--|:--|
@@ -108,26 +108,24 @@ Before it runs, a studyflow is a plan; as it runs, the record of what actually e
 | `what` | element ids, or the `when` of the entry referred to | | `reused` | a step was skipped and an earlier record trusted |
 | `run`, `seed` | the run's identifier, and its root seed | | | |
 
-The records also drive partial re-runs: a step is skipped when its record still stands, nothing it reads was re-made this run, and its outputs still exist. Invalidating a record cascades to everything downstream of the outputs it re-makes.
+These records are also what makes a partial re-run possible: a step is skipped when its record still stands, nothing it reads was re-made during this run, and its outputs are still there. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
 
 ## Extending the notation
 
-![The seven shipped sets and how they reach the loaded catalog: four always load, three switch on in the modeler's settings.](assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="A flowchart. Four core sets — studyflow, prov, functional, cognitive — always load into the catalog. Three optional sets — ml, agentic, eeg — load only when enabled in Settings, Extensions. The ml set declares no types of its own and roots its twelve presets at the functional set. The catalog compiles every enabled set into the palette, the inspector tabs, and the namespaces the XML may use."}
+![The seven element sets that ship with Studyflow: four always load, and three you switch on in the modeler's settings.](assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="A flowchart. Four core sets — studyflow, prov, functional, cognitive — always load into the catalog. Three optional sets — ml, agentic, eeg — load only when enabled in Settings, Extensions. The ml set declares no types of its own and roots its twelve presets at the functional set. The catalog compiles every enabled set into the palette, the inspector tabs, and the namespaces the XML may use."}
 
-New vocabulary can be provided as an extension. Each new type extends an existing one and adds attributes, so files using it stay well formed and still open in generic BPMN tools. Before declaring a type, check whether you need one at all.
+You can add your own vocabulary as an extension set. Each new type extends an existing one and adds its own attributes, so files that use it stay well formed and still open in generic BPMN tools. Before you declare a type, it is worth checking whether you need one at all — an attribute on an existing type is often enough.
 
-Be clear about what a declaration buys:
+Declaring a type buys a specific and fairly limited amount:
 
 | Declaring a type gives it | It does not give it |
 |:--|:--|
-| a place in the palette, a shape, and an icon | a screen or a call in either executor |
+| a place in the palette, a shape, and an icon | a screen or a call in either runner |
 | fields in the inspector | pre-flight checks over the values an author types |
 | storage and retrieval through every file format | a way for a run to do anything at that step |
 
-Making a new type *executable* means telling an executor about it, either execute an element or just render it. As executors need to support the execution, @tbl-support is the current list of what runs.
-
-A set's namespace carries its format version.
+To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. The version of a set's format is carried in its namespace.
 
 ## Contributing
 
-[`CONTRIBUTING.md`](https://github.com/behaverse/studyflow-modeler/blob/main/CONTRIBUTING.md).
+How to set up, test, and propose a change is in [`CONTRIBUTING.md`](https://github.com/behaverse/studyflow-modeler/blob/main/CONTRIBUTING.md).

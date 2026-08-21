@@ -15,26 +15,26 @@ description: "Every element you can put in a studyflow, the attributes each one 
 | `ml` | analysis presets only; no types of its own | on request |
 | `eeg` | biosignal sessions and recordings | on request |
 
-# Formal definition
+# How a studyflow fits together
 
-A studyflow is a graph. The nodes are events, tasks, gateways, and data; the edges are of two kinds:
+A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the edges come in two kinds:
 
 - **Sequence flows** (solid arrows) are for control flow, showing what happens after what.
-- **Data associations** (dotted arrows) are for data flow.
+- **Data associations** (dotted arrows) are for data flow, showing what a step reads and what it writes.
 
-![Solid edges carry the session a participant experiences; dotted edges carry the data. Both live in the same file.](assets/img/diagrams/two-graphs.svg){#fig-two-graphs fig-alt="A left-to-right flowchart. Solid arrows walk from start through a pre-test, an allocation diamond splitting into training and no training, a post-test, and a model-fitting step to end. Dotted arrows carry data beside that walk: the pre-test and post-test write into a responses store, which feeds the model-fitting step, which writes a fitted model."}
+![Solid edges carry the session a participant goes through, and dotted edges carry the data. Both live in the same file.](assets/img/diagrams/two-graphs.svg){#fig-two-graphs fig-alt="A left-to-right flowchart. Solid arrows walk from start through a pre-test, an allocation diamond splitting into training and no training, a post-test, and a model-fitting step to end. Dotted arrows carry data beside that walk: the pre-test and post-test write into a responses store, which feeds the model-fitting step, which writes a fitted model."}
 
-| Edge | Joins | Seaning |
+| Edge | Joins | Meaning |
 |:--|:--|:--|
 | `bpmn:SequenceFlow` | activity <-> activity | order; optionally a `conditionExpression` deciding whether this branch is taken |
 | `bpmn:DataInputAssociation`, `bpmn:DataOutputAssociation` | data <-> step | one value in or out of the activity |
 | `bpmn:MessageFlow` | | an exchange of messages between two parties |
 
-A data edge can describe a binding, written `slot = selection`: the slot names which argument of the step's call the value fills, the selection names which value arrives. Two slots are positional: `self` binds a method's receiver, `*` appends positionally.
+A data edge can also describe a binding, written as `slot = selection`: the slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional — `self` binds a method's receiver, and `*` appends the value positionally.
 
 ## Shape and behavior
 
-Each element is a standard BPMN element (which describes its shape and flow behavior) and carry a research type (which describes its meaning and attributes).
+Every element is a standard BPMN element, which gives it a shape and a flow behavior, and carries a research type, which gives it its meaning and its own attributes.
 
 ```yaml
 Survey:
@@ -51,19 +51,23 @@ Done:
 
 ## Run state
 
-Values are declared as a `bpmn:Property` on a container element. Where you declare one decides how long it lives: on the study, for the whole diagram; on a sub-process, for one pass through it. The values can be set by activities, and used by gateways and other activities. The run state is the set of values at a moment in a run, and the run history is the sequence of states across a run.
+Values are declared as a `bpmn:Property` on a container element, and where you declare one decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. Activities set these values, and gateways and other activities read them. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
 
 ## Well-formed diagrams
 
+A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `sourceRef` and `targetRef` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway either covers every case in its conditions or marks one outgoing edge `default`, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
+
+`studyflow validate` reports what can be checked without running: whether the file parses, whether the sets it depends on loaded, and any name that no loaded set declares. Warnings are reported but do not fail the command unless you pass `--strict`. Everything else — a condition that can never hold, a data edge that arrives too late — shows up when the study runs.
+
 ## Views
 
-A view is a projection that maps the diagram to subset of it. It may keep some elements and drops the rest.It never adds or renames anything, so it is guaranteed that a view cannot modify the study it came from.
+A view is a projection: it keeps some of the elements of the diagram and drops the rest. It never adds or renames anything, so a view cannot modify the study it came from.
 
-| View | Keeps | |
+| View | Keeps | Answers |
 |:--|:--|:--|
 | **Study** | everything | what happens, in what order, where the path splits |
-| **Gantt** | elements with `onset`, `duration`, or `progress` |  |
-| **Checklist** | elements with a checklist entry |  |
+| **Gantt** | elements with `onset`, `duration`, or `progress` | when each part happens, and how long it takes |
+| **Checklist** | elements with a checklist entry | what has been reported, and what is still open |
 | **Provenance** | the `prov:Activity` entries | what ran, when, by whom, with which seed |
 | **Figure** | the elements marked visible | what a reader should see |
 
@@ -101,7 +105,7 @@ A view is a projection that maps the diagram to subset of it. It may keep some e
 | `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
 | `Rest` | `bpmn:Task` | A break, or a resting-state period. A narrower `CognitiveTask`. | `configurations` |
 
-`instrument` names an experiment package — PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse — or a scale, or an identifier of your own; `configurations` is YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations` — which is how the same file doubles as an AI evaluation.
+`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations`, which is how the same file doubles as an AI evaluation.
 
 ## Entry and exit
 
@@ -119,7 +123,7 @@ A view is a projection that maps the diagram to subset of it. It may keep some e
 | `EligibilityGateway` | `bpmn:ExclusiveGateway` | Screening: criteria stated on the gateway, in readable sentences. | `inclusionCriteria`, `exclusionCriteria` |
 | A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `conditionExpression`, on each edge |
 
-Screening and allocation are separate types because they answer to different standards: a reviewer must be able to read eligibility criteria, and nobody should be able to predict an allocation draw.
+Screening and allocation are separate types because they answer to different standards: a reviewer has to be able to read the eligibility criteria, and nobody should be able to predict an allocation draw.
 
 ## Who takes part
 
@@ -127,7 +131,7 @@ Screening and allocation are separate types because they answer to different sta
 |:--|:--|:--|:--|
 | `Actor` | `bpmn:Participant` | A pool of participants — human, model, software agent, or instrument. | `actorType` (`human`, `llm`, `agent`, `instrument`), `spec`, `promptTemplate` |
 
-A pool stands for a group, not a person. Draw two pools that deal with each other and the file becomes a collaboration, with one choreography task per exchange — a dyadic experiment, or a human-and-model study.
+A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange — which is how you describe a dyadic experiment, or a study where a person and a model work together.
 
 ## When each step happens
 
@@ -142,7 +146,7 @@ A pool stands for a group, not a person. Draw two pools that deal with each othe
 | `loopCondition` | the repeat marker on a step | repeat while this holds |
 | `completionCondition` | an ad-hoc sub-process | stop when this holds |
 
-This is the study's schedule in visits and days — what the Timeline view shows. A recording's own millisecond clock is a different thing and lives with the recording.
+These attributes describe the study's schedule in visits and days, which is what the Timeline view shows. The millisecond clock inside a recording is a different thing, and it lives with the recording.
 
 ## Data
 
@@ -167,9 +171,9 @@ This is the study's schedule in visits and days — what the Timeline view shows
 | `script` | a script task | code carried in the study itself |
 | `additionalArguments` | any activity | literal arguments the drawn data edges do not supply; the reserved `args` key holds positional ones |
 
-Schemes: `python://` an importable callable, `docker://` a container image pinned by tag or digest, `https://` or `file://` a script by address. Anything else is accepted, recorded, and reported as unresolved.
+The scheme says how the software is found: `python://` is an importable callable, `docker://` a container image pinned by tag or digest, and `https://` or `file://` a script at an address. Anything else is accepted and recorded, and reported as unresolved.
 
-Four operations state the shape of a data step, each drawn as a service task with a function marker: `Transform` applies a function to data; `Map` applies it to every item in a stream; `Reduce` combines a stream into one value; `Filter` keeps the items matching a condition. A `Filter` drops *data*; a gateway changes the *path* — they are not interchangeable.
+Four operations describe the shape of a data step, each drawn as a service task with a function marker: `Transform` applies a function to data, `Map` applies it to every item in a stream, `Reduce` combines a stream into one value, and `Filter` keeps the items matching a condition. A `Filter` drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
 
 ## Agents, biosignals, and the trail
 
@@ -186,11 +190,11 @@ Four operations state the shape of a data step, each drawn as a service task wit
 | `Recording` | `bpmn:DataStoreReference` | The biosignal data a session produces. A narrower `Dataset`. | `modalities`, `channels`, `samplingRateHz` |
 | `Activity` | not drawn | One entry of the record of what ran. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `note` |
 
-An agent stops at its `completionCondition` and never runs past `maxTurns`. A guardrail or a model-as-judge is an `LLMCall` with a strict prompt; retrieval is a `Tool` whose `kind` is retrieval. An eval harness needs nothing beyond this table plus the ordinary elements: gateways for conditions, data elements for the results, `HumanApproval` for oversight — the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is on the [Developers](developers.qmd#what-a-run-leaves-behind) page.
+An agent stops at its `completionCondition` and never runs past `maxTurns`. A guardrail, or a model used as a judge, is an `LLMCall` with a strict prompt, and retrieval is a `Tool` whose `kind` is retrieval. An eval harness needs nothing beyond this table and the ordinary elements: gateways for the conditions, data elements for the results, and `HumanApproval` where a person has to sign off. It is the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is described on the [Developers](developers.qmd#what-a-run-leaves-behind) page.
 
 # The file
 
-![The files that carry a study, and what converts into what. Thick arrows are the lossless hops.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry two payloads beside the pixels: the same BPMN XML as embedded source, and a draw.io copy of the drawing. An image reopens in the modeler from its embedded source, never from its pixels. Dotted arrows leave the round trip: the draw.io payload downloads on its own as .drawio, and the modeler exports one way to LinkML, NIDM-Results, and ARTEM-IS."}
+![The files that carry a study, and what converts into what. The thick arrows are the conversions that lose nothing.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry two payloads beside the pixels: the same BPMN XML as embedded source, and a draw.io copy of the drawing. An image reopens in the modeler from its embedded source, never from its pixels. Dotted arrows leave the round trip: the draw.io payload downloads on its own as .drawio, and the modeler exports one way to LinkML, NIDM-Results, and ARTEM-IS."}
 
 | File | Carries | Reopens as a studyflow |
 |:--|:--|:--|
@@ -200,7 +204,7 @@ An agent stops at its `completionCondition` and never runs past `maxTurns`. A gu
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
 | `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
 
-The YAML and the XML convert into each other losslessly, in both directions; converting a file there and back returns byte-identical text, so a version-control diff shows your edits and nothing else. Here is a complete, runnable study:
+The YAML and the XML convert into each other losslessly, in both directions, so converting a file there and back returns byte-identical text and a version-control diff shows your edits and nothing else. Here is a complete, runnable study:
 
 ```yaml
 id: minimal_study
@@ -243,7 +247,7 @@ Minimal_Study:
       targetRef: Done
 ```
 
-That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full — note there is no geometry in it; layout follows from `sourceRef` and `targetRef`, and the modeler saves geometry only once you rearrange things by hand.
+That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. Note that there is no geometry in it: the layout follows from `sourceRef` and `targetRef`, and the modeler only saves geometry once you rearrange things by hand.
 
 | Rule | In the file |
 |:--|:--|
@@ -253,6 +257,6 @@ That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow
 | defaults and inferable types are omitted | restored on read; `type:` appears only where the element is not already expected there |
 | `id`, `definitions`, then one key per root element | a file with no `definitions` is not read as a studyflow; the format version is the version segment of the core namespace |
 
-Six short forms collapse the long structure where nothing is lost, and the long form is always still accepted: a YAML mapping instead of a quoted string under `additionalArguments`, `values`, `configurations`, or a schema `body`; a plain list under `extensionElements`; geometry on the element it positions; elements keyed by id under `flowElements`; an expression as a plain string; and `documentation` with `checklist` for the checklist entry.
+Six short forms collapse the long structure where nothing is lost by doing so, and the long form is always still accepted: a YAML mapping instead of a quoted string under `additionalArguments`, `values`, `configurations`, or a schema `body`; a plain list under `extensionElements`; geometry written on the element it positions; elements keyed by id under `flowElements`; an expression written as a plain string; and `documentation` carrying `checklist` for the checklist entry.
 
-Two warnings about images. An exported image carries the whole study, but not the element sets it depends on, and not any data the study produced. And an image that has been through a screenshot tool or a vector editor keeps its pixels and loses the study inside — always keep the `.studyflow.yaml`.
+Two things to keep in mind about images. An exported image carries the whole study, but not the element sets it depends on, and not any data the study produced. And an image that has been through a screenshot tool or a vector editor keeps its pixels and loses the study inside it, so always keep the `.studyflow.yaml` as well.
