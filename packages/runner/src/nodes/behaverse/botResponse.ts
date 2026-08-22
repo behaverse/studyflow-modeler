@@ -1,5 +1,6 @@
 import type { BehaverseTaskPayload } from '@runner/nodes/behaverse/types';
 import { readResponseSource, readPrompt, resolveLLMConfig } from '@runner/nodes/behaverse/botConfig';
+import { askBridge, bridgeTimeoutMs, readBridgeUrl, type BridgeTrial } from '@runner/nodes/behaverse/bridge';
 import { selectResponse } from '@runner/nodes/behaverse/llm/bot';
 import type { TrialHistoryEntry } from '@runner/nodes/behaverse/llm/types';
 import type { AwaitingResponseDetail } from '@runner/nodes/behaverse/unityTopics';
@@ -37,6 +38,30 @@ export async function decideResponse(
     // Tag LLM-answered trials `<provider>:<model>` so telemetry can distinguish them from random fallback.
     const agentId = result.source === 'llm' ? `${llmConfig.provider}:${llmConfig.model}` : 'bot';
     return { response: result.response, agentId };
+  }
+
+  if (readResponseSource(payload.bot) === 'external') {
+    const url = readBridgeUrl(payload.bot);
+    const trial: BridgeTrial = {
+      type: 'trial',
+      RequestId: detail.RequestId,
+      TrialIndex: detail.TrialIndex,
+      ResponseOptions: detail.ResponseOptions,
+      MaxResponseTime: detail.MaxResponseTime,
+      Scene: payload.scene,
+      Prompt: readPrompt(payload.bot) || undefined,
+      LLM: (payload.bot as Record<string, unknown> | undefined)?.LLM,
+      ...(typeof detail.Screenshot === 'string' && detail.Screenshot.length > 0
+        ? { Screenshot: detail.Screenshot }
+        : {}),
+    };
+    log?.('task', `[bridge] trial ${detail.TrialIndex}: asking ${url}...`);
+    const reply = await askBridge(url, trial, bridgeTimeoutMs(detail.MaxResponseTime));
+    if (reply && detail.ResponseOptions.includes(reply.response)) {
+      log?.('info', `[bridge] trial ${detail.TrialIndex} -> "${reply.response}" (${reply.agentId})`);
+      return { response: reply.response, agentId: reply.agentId };
+    }
+    log?.('error', `[bridge] trial ${detail.TrialIndex}: no answer from ${url} — falling back to random`);
   }
 
   const response = detail.ResponseOptions[Math.floor(Math.random() * detail.ResponseOptions.length)];

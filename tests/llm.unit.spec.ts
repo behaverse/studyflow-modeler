@@ -187,7 +187,7 @@ test('callOllama: attaches images on the user message when present', async () =>
 
 test('RUNNER_ONLY_BOT_KEYS: covers the keys the runner consumes that Unity must not see', () => {
   // Drives the validator's flatness exemption and the bridge's strip-before-SendMessage.
-  expect(new Set(RUNNER_ONLY_BOT_KEYS)).toEqual(new Set(['LLM', 'Prompt']));
+  expect(new Set(RUNNER_ONLY_BOT_KEYS)).toEqual(new Set(['LLM', 'Prompt', 'BridgeUrl']));
 });
 
 test('botForUnity: strips runner-only keys and rewrites ResponseSource=llm -> external', async () => {

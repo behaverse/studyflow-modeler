@@ -2,7 +2,8 @@ import type { BehaverseTaskPayload } from '@runner/nodes/behaverse/types';
 import type { TrialHistoryEntry } from '@runner/nodes/behaverse/llm/types';
 import { decideResponse } from '@runner/nodes/behaverse/botResponse';
 import type { LogFn } from '@runner/nodes/types';
-import { botForUnity } from '@runner/nodes/behaverse/botConfig';
+import { botForUnity, readResponseSource } from '@runner/nodes/behaverse/botConfig';
+import { notifyBridge, readBridgeUrl } from '@runner/nodes/behaverse/bridge';
 import {
   AWAITING_RESPONSE,
   READY,
@@ -61,6 +62,10 @@ export function runOnUnity(
         && detail.TaskId === payload.scene
         && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
       if (!matches) return;
+      // Let an embodied participant celebrate (fire-and-forget).
+      if (readResponseSource(payload.bot) === 'external') {
+        notifyBridge(readBridgeUrl(payload.bot), { type: 'completed', TaskId: detail!.TaskId });
+      }
       cleanup();
       resolve(detail);
     };

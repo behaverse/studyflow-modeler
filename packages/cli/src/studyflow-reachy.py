@@ -1,12 +1,20 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["reachy-mini[mujoco]>=1.9"]
+# dependencies = ["reachy-mini[mujoco]>=1.9", "websockets>=13", "pillow>=10"]
 # ///
 """Run the Reachy Mini elements of a studyflow.
 
 Usage:
     ./studyflow-reachy.py <diagram>.studyflow.png [--sim] [--auto] [--max-steps N]
+    ./studyflow-reachy.py <diagram>.studyflow.png --participant [--sim] [--port N]
+
+With `--participant` the roles flip: the robot sits in front of the screen as the
+participant. It serves the browser runner's response bridge (`ws://localhost:8765`),
+and each time a Behaverse task awaits a response (`ResponseSource: external` in the
+task's bot configurations) it looks at the screen, takes a camera frame — falling
+back to the screenshot the task attaches when it has no camera — asks the diagram's
+model what it sees and how to respond, and the browser injects the answer.
 
 Walks the diagram's flow and performs each `reachy:*` element. By default it is a
 terminal dry run: the robot's speech is printed, and its senses and the
@@ -27,6 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import signal
 import re
 import struct
@@ -209,12 +218,13 @@ MOVE_ALIASES = {"happy": "cheerful1", "sad": "sad1", "curious": "curious1", "sur
 
 
 class SimRobot:
-    """Drives a MuJoCo-simulated Reachy Mini through the `reachy_mini` SDK."""
+    """Drives a Reachy Mini through the `reachy_mini` SDK — a MuJoCo sim, or in
+    participant mode a real unit whose daemon already answers on the host."""
 
-    label = "simulation"
-
-    def __init__(self, host: str) -> None:
+    def __init__(self, host: str, media_backend: str = "no_media") -> None:
         self.host = host
+        self.media_backend = media_backend
+        self.label = "simulation" if media_backend == "no_media" else "robot"
         self.mini: Any = None
         self._pose: Any = None
         self._moves: Any = None
@@ -230,7 +240,7 @@ class SimRobot:
         self.mini = ReachyMini(
             host=self.host,
             connection_mode="localhost_only" if local_only else "auto",
-            media_backend="no_media",  # the headless daemon runs --no-media
+            media_backend=self.media_backend,
             log_level="WARNING",
         )
 
@@ -458,6 +468,163 @@ HANDLERS: dict[str, Callable[[Run, ET.Element, dict[str, Any]], Any]] = {
 }
 
 
+# --- participant mode: the robot sits in front of the screen and plays the task ---
+
+VLM_SYSTEM = (
+    "You are a small desktop robot taking part in a cognitive task, looking at the task "
+    "screen. Decide from the image what the correct response is."
+)
+
+
+def frame_data_url(robot: Any) -> str | None:
+    """What the robot's camera sees, as a data-URL JPEG; None without a camera."""
+    if getattr(robot, "media_backend", "no_media") == "no_media":
+        return None
+    try:
+        frame = robot.mini.media.get_frame()
+        if frame is None:
+            return None
+        import base64
+        from io import BytesIO
+        from PIL import Image
+
+        buffer = BytesIO()
+        Image.fromarray(frame[:, :, ::-1]).save(buffer, format="JPEG", quality=85)  # BGR → RGB
+        return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
+    except Exception:
+        return None
+
+
+def call_claude(model: str, user: str, image: str | None) -> str:
+    import urllib.request
+
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    content: list[dict[str, Any]] = []
+    if image:
+        media_type, data = image.removeprefix("data:").split(";base64,", 1)
+        content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}})
+    content.append({"type": "text", "text": user})
+    body = {"model": model, "max_tokens": 64, "system": VLM_SYSTEM,
+            "messages": [{"role": "user", "content": content}]}
+    request = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages", data=json.dumps(body).encode(),
+        headers={"content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        data = json.load(response)
+    return "".join(block.get("text", "") for block in data.get("content", []))
+
+
+def call_ollama(model: str, user: str, image: str | None) -> str:
+    import urllib.request
+
+    message: dict[str, Any] = {"role": "user", "content": user}
+    if image:
+        message["images"] = [image.split(";base64,", 1)[1]]
+    body = {"model": model, "stream": False, "think": False,
+            "messages": [{"role": "system", "content": VLM_SYSTEM}, message]}
+    request = urllib.request.Request(
+        "http://localhost:11434/api/chat", data=json.dumps(body).encode(),
+        headers={"content-type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        data = json.load(response)
+    return data["message"]["content"]
+
+
+def match_option(reply: str, options: list[str]) -> str | None:
+    """The `Answer:` line if the reply has one, else the whole reply, matched to an option."""
+    answers = [line.split(":", 1)[1] for line in reply.splitlines() if line.strip().lower().startswith("answer:")]
+    for candidate in answers + [reply]:
+        cleaned = candidate.strip().strip("`\"'. ").lower()
+        for option in options:
+            if option.lower() == cleaned:
+                return option
+        for option in options:
+            if option.lower() in cleaned:
+                return option
+    return None
+
+
+def answer_trial(robot: Any, trial: dict[str, Any], history: list[str]) -> tuple[str, str]:
+    """Perceive, decide, and pick a response option: (response, agent id)."""
+    options = [str(o) for o in trial.get("ResponseOptions", [])]
+    robot.perk()
+    image = frame_data_url(robot) or trial.get("Screenshot")
+    llm = trial.get("LLM") if isinstance(trial.get("LLM"), dict) else {}
+    provider = str(llm.get("Provider") or "claude")
+    model = str(llm.get("Model") or ("claude-haiku-4-5" if provider == "claude" else "llama3.2-vision"))
+
+    lines = [trial["Prompt"]] if trial.get("Prompt") else []
+    lines += [f"Task: {trial.get('Scene', '?')} — trial {trial.get('TrialIndex', '?')}."]
+    if history:
+        lines += ["Your previous trials:"] + [f"  {entry}" for entry in history[-12:]]
+    lines += [
+        "The attached image is your view of the task screen." if image
+        else "No image is available this trial; answer as well as you can.",
+        "Reply with exactly two lines:",
+        "Seen: <the stimulus you see on the screen>",
+        f"Answer: <one of: {', '.join(options)}>",
+    ]
+    try:
+        call = call_claude if provider == "claude" else call_ollama
+        reply = call(model, "\n".join(lines), image)
+        response = match_option(reply, options)
+        if response is None:
+            raise ValueError(f"reply named no option: {reply[:80]!r}")
+        seen = next((line.split(":", 1)[1].strip() for line in reply.splitlines()
+                     if line.strip().lower().startswith("seen:")), "?")
+        history.append(f"trial {trial.get('TrialIndex', '?')}: seen={seen}, answered={response}")
+        return response, f"reachy:{provider}:{model}"
+    except Exception as error:
+        print(f"    (VLM unavailable: {error}) — answering at random")
+        response = random.choice(options)
+        history.append(f"trial {trial.get('TrialIndex', '?')}: seen=?, answered={response} (random)")
+        return response, "reachy:random"
+
+
+def participant_loop(robot: Any, port: int) -> int:
+    """Serve the browser runner's response bridge until interrupted (Ctrl-C)."""
+    import asyncio
+
+    import websockets
+
+    sys.stdout.reconfigure(line_buffering=True)  # trial lines stream even when piped
+    history: list[str] = []
+
+    async def handle(socket: Any) -> None:
+        print("    the task runner connected")
+        async for raw in socket:
+            try:
+                message = json.loads(raw)
+            except ValueError:
+                continue
+            if message.get("type") == "completed":
+                print(f"● task complete — {message.get('TaskId') or 'done'}")
+                # In a thread: the SDK's play_move sync wrapper refuses to run on the event loop.
+                await asyncio.to_thread(robot.gesture, "cheerful1")
+                history.clear()
+            elif message.get("type") == "trial":
+                response, agent = await asyncio.to_thread(answer_trial, robot, message, history)
+                print(f"    trial {message.get('TrialIndex', '?')}: {response}  ({agent})")
+                await socket.send(json.dumps({
+                    "type": "response", "RequestId": message.get("RequestId"),
+                    "Response": response, "Agent": {"Id": agent},
+                }))
+
+    async def serve() -> None:
+        async with websockets.serve(handle, "localhost", port):
+            print(f"Reachy participant ({robot.label}) — bridge on ws://localhost:{port}, Ctrl-C to leave the seat")
+            print("Run the study in the browser; the task's bot needs `ResponseSource: external`.")
+            robot.look_at("face")  # the screen is straight ahead
+            await asyncio.Future()
+
+    asyncio.run(serve())
+    return 0
+
+
 # --- the walk: studyflow-run-local's control flow, minus records, repos, and reuse ---
 
 def evaluate(run: Run, expression: str, extra: dict[str, Any]) -> Any:
@@ -552,6 +719,11 @@ def main() -> int:
     parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
     parser.add_argument("--max-steps", type=int, default=200)
     parser.add_argument(
+        "--participant", action="store_true",
+        help="sit in the participant's seat: answer the browser task's trials from what the robot sees",
+    )
+    parser.add_argument("--port", type=int, default=8765, help="participant bridge port (the runner's BridgeUrl)")
+    parser.add_argument(
         "--element", metavar="ID", default=None,
         help="hand-off mode: execute this one element, then exit (driven by studyflow-run-local)",
     )
@@ -589,16 +761,28 @@ def main() -> int:
     signal.signal(signal.SIGTERM, handle_stop)
     signal.signal(signal.SIGINT, handle_stop)
 
-    if args.sim or config["variant"] == "simulation":
+    sim = args.sim or config["variant"] == "simulation"
+    if sim or args.participant:
         # The sim daemon is local; only an explicitly set host points elsewhere.
         host = str(config["host"])
-        robot = SimRobot(host="localhost" if host == DEFAULTS["robot"]["host"] else host)
+        if sim and host == DEFAULTS["robot"]["host"]:
+            host = "localhost"
+        local = host in ("localhost", "127.0.0.1")
+        # The sim has no camera; a Lite's camera hangs off this machine, a wireless unit streams its own.
+        media = "no_media" if sim else ("default" if local else "webrtc")
+        robot = SimRobot(host=host, media_backend=media)
         try:
             robot.connect()
         except Exception as error:
             robot.close()
             robot = TerminalRobot()
-            print(f"simulation unavailable ({error}) — carrying on as a dry run")
+            print(f"robot unavailable ({error}) — carrying on as a dry run")
+
+    if args.participant:
+        try:
+            return participant_loop(robot, args.port)
+        finally:
+            robot.close()
 
     # In hand-off mode stdin is never a channel: without a terminal the runner answers itself.
     run = Run(studyflow, auto=args.auto or bool(args.element and not sys.stdin.isatty()), robot=robot)

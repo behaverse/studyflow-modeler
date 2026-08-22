@@ -10,7 +10,7 @@ export function buildBehaverseIframeSrc(): string {
 }
 
 /** Runner-only bot keys, stripped before Unity — `BotReflection.Apply` throws on unknown fields. */
-export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt'] as const;
+export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt', 'BridgeUrl'] as const;
 
 /** `RunCognitiveTask` payload Unity receives as JSON; `parameters` layers over Resources/<scene>.json. */
 export type BehaverseTaskPayload = {

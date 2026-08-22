@@ -37,6 +37,11 @@ studyflow run runs/*/sklearn_pipeline.studyflow.png --fresh        # re-run all
 
 # Reachy Mini example, auto-answered
 studyflow run assets/examples/reachy_session.studyflow.png --auto
+
+# Reachy Mini as the participant: the robot serves the browser task's response
+# bridge (ResponseSource: external) and answers each trial from what it sees —
+# its camera, or the screenshot the task attaches. Then run the study in the browser.
+./src/studyflow-reachy.py assets/examples/reachy_participant.studyflow.png --participant --sim
 ```
 
 ## Extending CLI
