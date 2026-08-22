@@ -48,9 +48,9 @@ PASSTHROUGH_TAGS = {"startEvent", "intermediateCatchEvent", "intermediateThrowEv
 
 # The schema's defaults; moddle omits an attribute whose value equals its default.
 DEFAULTS: dict[str, dict[str, Any]] = {
-    "robot": {"variant": "wireless", "host": "localhost", "voice": "", "language": "", "volume": "80"},
+    "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80"},
     "say": {"text": ""},
-    "gesture": {"move": "happy", "speed": "1"},
+    "gesture": {"move": "cheerful1"},
     "lookAt": {"target": "face"},
     "listen": {"timeoutSeconds": "10"},
     "converse": {"model": "", "persona": "", "maxTurns": "10", "stopPhrase": ""},
@@ -193,26 +193,19 @@ class TerminalRobot:
     label = "dry run"
 
     def speak(self, text: str) -> None: ...
-    def gesture(self, move: str, speed: float) -> None: ...
+    def gesture(self, move: str) -> None: ...
     def look_at(self, target: str) -> None: ...
     def listening(self) -> None: ...
     def perk(self) -> None: ...
     def close(self) -> None: ...
 
 
-# Per move: (head pose kwargs or None, antenna angles or None, seconds, body yaw or None).
-MOVE_STEPS: dict[str, list[tuple[dict | None, list[float] | None, float, float | None]]] = {
-    "happy": [({}, [0.6, -0.6], 0.25, None), ({"pitch": -6}, [-0.4, 0.4], 0.25, None), ({}, [0.6, -0.6], 0.25, None)],
-    "sad": [({"pitch": 14}, [1.1, -1.1], 0.8, None)],
-    "curious": [({"roll": 14}, [0.2, -0.9], 0.5, None)],
-    "surprised": [({"pitch": -14, "z": 0.01}, [0.9, -0.9], 0.2, None)],
-    "nod": [({"pitch": 12}, None, 0.3, None), ({"pitch": -4}, None, 0.25, None), ({"pitch": 12}, None, 0.3, None)],
-    "shake": [({"yaw": 18}, None, 0.3, None), ({"yaw": -18}, None, 0.3, None), ({"yaw": 12}, None, 0.25, None)],
-    "look_around": [({"yaw": 25}, None, 0.7, None), ({"yaw": -25}, None, 0.9, None)],
-    "dance": [({}, [0.5, -0.5], 0.3, 0.3), ({}, [-0.5, 0.5], 0.3, -0.3),
-              ({}, [0.5, -0.5], 0.3, 0.3), ({}, [-0.5, 0.5], 0.3, -0.3)],
-    "rest": [({"pitch": 8}, [1.3, -1.3], 0.9, None)],
-}
+# The SDK's official recorded-move library, played through `play_move`.
+EMOTIONS_LIBRARY = "pollen-robotics/reachy-mini-emotions-library"
+
+# Names the schema used before it adopted the library's own, kept working here.
+MOVE_ALIASES = {"happy": "cheerful1", "sad": "sad1", "curious": "curious1", "surprised": "surprised1",
+                "nod": "yes1", "shake": "no1", "look_around": "attentive1", "dance": "dance1", "rest": "sleep1"}
 
 
 class SimRobot:
@@ -224,6 +217,7 @@ class SimRobot:
         self.host = host
         self.mini: Any = None
         self._pose: Any = None
+        self._moves: Any = None
         self._daemon: Any = None
 
     def connect(self) -> None:
@@ -236,10 +230,12 @@ class SimRobot:
         self.mini = ReachyMini(
             host=self.host,
             connection_mode="localhost_only" if local_only else "auto",
+            media_backend="no_media",  # the headless daemon runs --no-media
             log_level="WARNING",
         )
 
     def _ensure_daemon(self, host: str) -> None:
+        import shutil
         import subprocess
         import time
         import urllib.request
@@ -256,10 +252,10 @@ class SimRobot:
         if host not in ("localhost", "127.0.0.1"):
             raise ConnectionError(f"no Reachy daemon answers on {host}:8000")
         print("    starting a headless sim daemon…")
+        daemon = shutil.which("reachy-mini-daemon") or str(Path(sys.executable).with_name("reachy-mini-daemon"))
         # Held on self from the moment it exists, so a hard stop can always fold it.
         self._daemon = subprocess.Popen(
-            [sys.executable, "-c", "from reachy_mini.daemon.app.main import main; main()",
-             "--sim", "--headless", "--no-media", "--log-level", "WARNING"],
+            [daemon, "--sim", "--headless", "--no-media", "--log-level", "WARNING"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         deadline = time.monotonic() + 120
@@ -281,10 +277,10 @@ class SimRobot:
             body_yaw=body_yaw,
         )
 
-    def _act(self, steps: list[tuple[dict | None, list[float] | None, float, float | None]], speed: float = 1.0) -> None:
+    def _act(self, steps: list[tuple[dict | None, list[float] | None, float, float | None]]) -> None:
         try:
             for head, antennas, duration, body_yaw in steps:
-                self._go(head, antennas, max(0.12, duration / speed), body_yaw)
+                self._go(head, antennas, duration, body_yaw)
         except Exception as error:
             print(f"    (sim motion failed: {error})")
 
@@ -292,9 +288,14 @@ class SimRobot:
         # No TTS in the headless sim: tap the antennas while the line prints.
         self._act([(None, [0.25, -0.25], 0.15, None), (None, [0.0, 0.0], 0.15, None)])
 
-    def gesture(self, move: str, speed: float) -> None:
-        self._act(MOVE_STEPS.get(move, MOVE_STEPS["happy"]), speed)
-        self._act([({}, [0.0, 0.0], 0.4, None)])
+    def gesture(self, move: str) -> None:
+        try:
+            if self._moves is None:
+                from reachy_mini.motion.recorded_move import RecordedMoves
+                self._moves = RecordedMoves(EMOTIONS_LIBRARY)
+            self.mini.play_move(self._moves.get(MOVE_ALIASES.get(move, move)), initial_goto_duration=1.0, sound=False)
+        except Exception as error:
+            print(f"    (sim move failed: {error})")
 
     def look_at(self, target: str) -> None:
         try:
@@ -317,7 +318,7 @@ class SimRobot:
         if self.mini is not None:
             self._act([({}, [0.0, 0.0], 0.5, None)])
             try:
-                self.mini.client.disconnect()
+                self.mini.__exit__(None, None, None)  # the SDK's only public teardown path
             except Exception:
                 pass
             self.mini = None
@@ -386,9 +387,8 @@ def run_say(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
 
 
 def run_gesture(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
-    speed = f" at {spec['speed']}x" if str(spec["speed"]) not in ("1", "1.0") else ""
-    print(f"    Reachy plays the '{spec['move']}' move{speed}")
-    run.robot.gesture(str(spec["move"]), float(spec["speed"]))
+    print(f"    Reachy plays the '{spec['move']}' move")
+    run.robot.gesture(str(spec["move"]))
     return None
 
 
@@ -590,7 +590,9 @@ def main() -> int:
     signal.signal(signal.SIGINT, handle_stop)
 
     if args.sim or config["variant"] == "simulation":
-        robot = SimRobot(host=str(config["host"]))
+        # The sim daemon is local; only an explicitly set host points elsewhere.
+        host = str(config["host"])
+        robot = SimRobot(host="localhost" if host == DEFAULTS["robot"]["host"] else host)
         try:
             robot.connect()
         except Exception as error:
@@ -622,7 +624,7 @@ def main() -> int:
         handoff.write_text(json.dumps({**state, **result}, default=str))
         return 1 if "error" in result else 0
 
-    print(f"{studyflow.title()}  —  Reachy {robot.label}  ({config['variant']} @ {config['host']}, volume {config['volume']})")
+    print(f"{studyflow.title()}  —  Reachy {robot.label}  ({config['variant']} @ {getattr(robot, 'host', config['host'])}, volume {config['volume']})")
     try:
         walk(run, studyflow.start_of(studyflow.process), args.max_steps)
     except (RuntimeError, ValueError) as error:

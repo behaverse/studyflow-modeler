@@ -12,7 +12,7 @@ icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
 order: 80  # registry position (load precedence + settings order)
 xml:
   tagAlias: lowerCase
-version: 26.0821
+version: 26.0822
 
 enumerations:
   - name: VariantEnum
@@ -29,26 +29,29 @@ enumerations:
         description: No hardware; the session runs in the simulator.
 
   - name: MoveEnum
-    description: Built-in expressive move played on the head, body, and antennas.
+    description: >-
+      Recorded expressive move played on the head, body, and antennas - a
+      curated pick from the SDK's emotions library
+      (`pollen-robotics/reachy-mini-emotions-library`, 81 moves in all).
     literalValues:
-      - name: Happy wiggle
-        value: happy
-      - name: Sad droop
-        value: sad
-      - name: Curious tilt
-        value: curious
+      - name: Cheerful
+        value: cheerful1
+      - name: Sad
+        value: sad1
+      - name: Curious
+        value: curious1
       - name: Surprised
-        value: surprised
+        value: surprised1
       - name: Nod (yes)
-        value: nod
+        value: yes1
       - name: Shake (no)
-        value: shake
-      - name: Look around
-        value: look_around
+        value: no1
+      - name: Attentive
+        value: attentive1
       - name: Dance
-        value: dance
-      - name: Rest
-        value: rest
+        value: dance1
+      - name: Sleep
+        value: sleep1
 
   - name: LookTargetEnum
     description: What the robot orients its head toward.
@@ -115,7 +118,7 @@ types:
           for a wireless unit, `localhost` for a Lite or a simulation.
         isAttr: true
         type: String
-        default: localhost
+        default: reachy-mini.local
         meta:
           order: 1
       - name: voice
@@ -157,27 +160,22 @@ types:
           order: 1
 
   - name: Gesture
-    description: The robot plays an expressive move - head, body rotation, and antennas.
+    description: The robot plays a recorded expressive move - head, body rotation, and antennas.
     superClass:
       - bpmn:ServiceTask
     meta:
       icon: iconify mdi--hand-wave-outline
     properties:
       - name: move
-        description: Built-in move to play; the name of a custom move is also accepted.
+        description: >-
+          Recorded move to play; any name from the emotions library or a
+          custom recorded move is also accepted.
         isAttr: true
         type: MoveEnum
-        default: happy
+        default: cheerful1
         meta:
           order: 1
           editable: true
-      - name: speed
-        description: Playback speed multiplier.
-        isAttr: true
-        type: Real
-        default: 1
-        meta:
-          order: 2
 
   - name: LookAt
     description: The robot orients its head toward a target and holds or tracks it.
@@ -364,7 +362,7 @@ templates:
         - id: ww_bye
           type: Gesture
           bpmn:name: Sign off
-          move: nod
+          move: yes1
           x: 560
           y: 140
         - type: bpmn:SequenceFlow
