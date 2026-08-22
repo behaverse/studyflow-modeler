@@ -8,8 +8,8 @@ description: "The programs that read studyflow files, how to build and run them,
 | the modeler | authoring: edit, validate, import and export a studyflow | [`packages/modeler`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/modeler) |
 | the browser runner | runs the participant-facing steps, served at `./run/` | [`packages/runner`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/runner) |
 | the local runners | run the data-facing steps: one walks and records, *partial runners* execute the elements they claim | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
-| the command line | `studyflow convert · validate · info · run` | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
-| the core | the object model they all share: YAML ⇄ BPMN, element access | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |
+| the command line | `studyflow` with `convert`, `validate`, `info`, and `run` | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
+| the core | the object model they all share: YAML to BPMN and back, element access | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |
 | the schemas | the vocabulary every program loads at boot | [`assets/schemas`](https://github.com/behaverse/studyflow-modeler/tree/main/assets/schemas) |
 
 
@@ -49,7 +49,7 @@ studyflow info study.studyflow.yaml --json
 
 ![What happens in one run: the file is validated first, the study's `runtime` attribute decides which runner takes it, and a Python run also leaves a repository behind.](assets/img/diagrams/run-lifecycle.svg){#fig-lifecycle fig-alt="A flowchart. An author saves a studyflow, validation gates it, and the run goes to the browser runner when runtime is browser or to the Python runner when runtime is local. The browser runner posts sessions and events, opt-in. The Python runner archives the plan into a run repository with one commit per checkpoint; per-element records let untouched steps skip on a partial re-run, and an invalidated record branches the repository at that step's parent."}
 
-There are two runners available. `studyflow run` reads the `runtime` attribute on the study and decides where to send it — a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (set `agentType` to `bot` on the task), so the same two runners execute it and you do not need a separate harness.
+There are two runners available. `studyflow run` reads the `runtime` attribute on the study and decides where to send it: a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (set `agentType` to `bot` on the task), so the same two runners execute it and you do not need a separate harness.
 
 ::: {layout-ncol=4}
 ![Consent, from the start event](assets/img/runner/consent.png){#fig-run-consent fig-alt="A browser screen presenting a consent document with an accept button."}
@@ -78,18 +78,18 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Element | Checked before the run | Browser runner | Python runner |
 |:--|:--|:--|:--|
 | `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
-| `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | — |
-| `cognitive:BehaverseTask` | checked against the assessment build's manifest | runs the assessment in the page | — |
-| `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | — | generic screen, and a way forward | — |
+| `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | - |
+| `cognitive:BehaverseTask` | checked against the assessment build's manifest | runs the assessment in the page | - |
+| `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
-| `bpmn:SubProcess` | — | descends; opens its own scope | walks one level in; no separate scope |
-| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | — | conditions, then `default` | the same rule, in Python |
+| `bpmn:SubProcess` | - | descends; opens its own scope | walks one level in; no separate scope |
+| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions, then `default` | the same rule, in Python |
 | `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | treated as exclusive |
-| `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | — | — | loaded and saved wherever they carry a `uri` |
-| `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | — |
-| Timers, and multi-instance markers | — | not executed | not executed |
+| `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
+| `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
+| Timers, and multi-instance markers | - | not executed | not executed |
 
-: What each runner does with each family of elements, and what is checked before the run starts. A blank means the runner passes that step over. {#tbl-support}
+: What each runner does with each family of elements, and what is checked before the run starts. A dash means the runner passes that step over. {#tbl-support}
 
 
 ## What a run leaves behind
@@ -107,13 +107,13 @@ Before it runs, a studyflow is a plan. As it runs, the record of what actually h
 | `what` | element ids, or the `when` of the entry referred to | | `reused` | a step was skipped and an earlier record trusted |
 | `run`, `seed` | the run's identifier, and its root seed | | | |
 
-These records are also what makes a partial re-run possible: a step is skipped when its record still stands, nothing it reads was re-made during this run, and its outputs are still there. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
+These records are also what makes a partial re-run possible: the runner skips a step when its record still stands, nothing it reads was re-made during this run, and its outputs are still there. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
 
 ## Extending the notation
 
-![The seven element sets that ship with Studyflow: four always load, and three you switch on in the modeler's settings.](assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="A flowchart. Four core sets — studyflow, prov, functional, cognitive — always load into the catalog. Three optional sets — ml, agentic, eeg — load only when enabled in Settings, Extensions. The ml set declares no types of its own and roots its twelve presets at the functional set. The catalog compiles every enabled set into the palette, the inspector tabs, and the namespaces the XML may use."}
+![The seven element sets that ship with Studyflow: four always load, and three you switch on in the modeler's settings.](assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="A flowchart. The four core sets, studyflow, prov, functional, and cognitive, always load into the catalog. The three optional sets, ml, agentic, and eeg, load only when enabled in Settings, Extensions. The ml set declares no types of its own and roots its twelve presets at the functional set. The catalog compiles every enabled set into the palette, the inspector tabs, and the namespaces the XML may use."}
 
-You can add your own vocabulary as an extension set. Each new type extends an existing one and adds its own attributes, so files that use it stay well formed and still open in generic BPMN tools. Before you declare a type, it is worth checking whether you need one at all — an attribute on an existing type is often enough.
+You can add your own vocabulary as an extension set. Each new type extends an existing one and adds its own attributes, so files that use it stay well formed and still open in generic BPMN tools. Before you declare a type, it is worth checking whether you need one at all. An attribute on an existing type is often enough.
 
 Declaring a type buys a specific and fairly limited amount:
 
@@ -125,7 +125,7 @@ Declaring a type buys a specific and fairly limited amount:
 
 To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. The version of a set's format is carried in its namespace.
 
-For a `local` run, executing new elements needs no changes to the runner itself: a *partial runner* is any executable named `studyflow-<name>` that claims a subset of the diagram's elements and executes them one hand-off at a time — state in as a JSON file, updated state out. The full contract, and `studyflow-python` and `studyflow-reachy` as working examples, are in the [CLI README](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli).
+For a `local` run, executing new elements needs no changes to the runner itself: a *partial runner* is any executable named `studyflow-<name>` that claims a subset of the diagram's elements and executes them one hand-off at a time: state in as a JSON file, updated state out. The full contract, and `studyflow-python` and `studyflow-reachy` as working examples, are in the [CLI README](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli).
 
 ## Contributing
 

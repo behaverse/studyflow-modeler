@@ -1,13 +1,13 @@
 # Behaverse Studyflow
 
-[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation to describe experiments for machines and humans, based on BPMN (Business Process Model and Notation). It is designed to be a canonical representation of a scientific experiment, from which all other representations can be derived. One file is at once the protocol, the runnable experiment, the analysis specification, and the publication figure, with no second copy to drift.
+[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation to describe experiments for machines and humans, based on BPMN (Business Process Model and Notation). It is the canonical representation of a scientific experiment, from which every other representation derives. One file is at once the protocol, the runnable experiment, the analysis specification, and the publication figure, with no second copy to drift.
 
 The canonical format is `.studyflow.yaml`; a diagram can also be embedded in a PNG image, so the figure you publish is the file that runs.
 
 ## Use
 
-- **Modeler** — the visual editor, at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Draw, validate, simulate, and export diagrams; `/run/` executes the participant-facing side in the browser.
-- **CLI** — `studyflow` converts, validates, inspects, and executes diagrams locally:
+- **Modeler**: the visual editor, at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Draw, validate, simulate, and export diagrams; `/run/` executes the participant-facing side in the browser.
+- **CLI**: `studyflow` converts, validates, inspects, and executes diagrams locally:
 
   ```bash
   brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
@@ -38,4 +38,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 MIT
 
-Refactoring and improvements were made with AI assistance (Claude, Codex, Gemini). All changes were reviewed and are maintained by the author.
+AI tools (Claude, Codex, Gemini) assisted with refactoring and improvements. The author reviewed and maintains all changes.

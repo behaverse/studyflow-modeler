@@ -8,7 +8,7 @@ description: "Every element you can put in a studyflow, the attributes each one 
 | Set | Declares | Loaded |
 |:--|:--|:--|
 | `studyflow` | the study itself, its data elements, scheduling and classification attributes | always |
-| `prov` | `Activity` — one entry of the record of what ran | always |
+| `prov` | `Activity`, one entry of the record of what ran | always |
 | `functional` | `Transform`, `Map`, `Reduce`, `Filter` | always |
 | `cognitive` | what a participant meets, and the research gateways | always |
 | `agentic` | agents, model calls, tools | on request |
@@ -30,7 +30,7 @@ A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the
 | `bpmn:DataInputAssociation`, `bpmn:DataOutputAssociation` | data <-> step | one value in or out of the activity |
 | `bpmn:MessageFlow` | | an exchange of messages between two parties |
 
-A data edge can also describe a binding, written as `slot = selection`: the slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional — `self` binds a method's receiver, and `*` appends the value positionally.
+A data edge can also describe a binding, written as `slot = selection`: the slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional: `self` binds a method's receiver, and `*` appends the value positionally.
 
 ## Shape and behavior
 
@@ -51,13 +51,13 @@ Done:
 
 ## Run state
 
-Values are declared as a `bpmn:Property` on a container element, and where you declare one decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. Activities set these values, and gateways and other activities read them. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
+You declare a value as a `bpmn:Property` on a container element, and where you declare it decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. Activities set these values, and gateways and other activities read them. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
 
 ## Well-formed diagrams
 
 A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `sourceRef` and `targetRef` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway either covers every case in its conditions or marks one outgoing edge `default`, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
 
-`studyflow validate` reports what can be checked without running: whether the file parses, whether the sets it depends on loaded, and any name that no loaded set declares. Warnings are reported but do not fail the command unless you pass `--strict`. Everything else — a condition that can never hold, a data edge that arrives too late — shows up when the study runs.
+`studyflow validate` reports what can be checked without running: whether the file parses, whether the sets it depends on loaded, and any name that no loaded set declares. The command reports warnings but does not fail on them unless you pass `--strict`. Everything else shows up when the study runs: a condition that can never hold, a data edge that arrives too late.
 
 ## Views
 
@@ -81,7 +81,7 @@ A view is a projection: it keeps some of the elements of the diagram and drops t
 | `runtime` | where it is meant to run: `browser`, `cloud`, `local`, or `hpc` |
 | `tags` | short classification labels |
 | `seed` | the root seed; set it and every gateway draw replays |
-| `documentation`, `checklist` | prose and reporting items — available on **every** element, not only the study |
+| `documentation`, `checklist` | prose and reporting items, available on **every** element, not only the study |
 
 ## What a participant meets
 
@@ -129,9 +129,9 @@ Screening and allocation are separate types because they answer to different sta
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Actor` | `bpmn:Participant` | A pool of participants — human, model, software agent, or instrument. | `actorType` (`human`, `llm`, `agent`, `instrument`), `spec`, `promptTemplate` |
+| `Actor` | `bpmn:Participant` | A pool of participants: human, model, software agent, or instrument. | `actorType` (`human`, `llm`, `agent`, `instrument`), `spec`, `promptTemplate` |
 
-A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange — which is how you describe a dyadic experiment, or a study where a person and a model work together.
+A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange. That is how you describe a dyadic experiment, or a study where a person and a model work together.
 
 ## When each step happens
 
@@ -159,7 +159,7 @@ These attributes describe the study's schedule in visits and days, which is what
 | `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
 | `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a variant of the study is a value change, not a redraw. | `values` |
 | `DataCatalog` | not drawn | A listing a dataset is published in; a dataset names one. | `url` |
-| any of them | — | Where the value lives. Unset, it only passes between steps. | `uri` |
+| any of them | - | Where the value lives. Unset, it only passes between steps. | `uri` |
 
 `format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), which adds `bdmDataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `kedro`.
 
@@ -198,7 +198,7 @@ An agent stops at its `completionCondition` and never runs past `maxTurns`. A gu
 
 | File | Carries | Reopens as a studyflow |
 |:--|:--|:--|
-| `.studyflow.yaml` | the study itself, in full — **the canonical form; keep this one in version control** | yes, also `.studyflow` |
+| `.studyflow.yaml` | the study itself, in full. **The canonical form. Keep this one in version control.** | yes, also `.studyflow` |
 | `.bpmn` | the same study, as standard BPMN 2.0 XML | yes, also `.xml` |
 | `.studyflow.png`, `.studyflow.svg` | a picture, and the study inside it | yes |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
@@ -247,7 +247,7 @@ Minimal_Study:
       targetRef: Done
 ```
 
-That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. Note that there is no geometry in it: the layout follows from `sourceRef` and `targetRef`, and the modeler only saves geometry once you rearrange things by hand.
+That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. There is no geometry in it: the layout follows from `sourceRef` and `targetRef`, and the modeler only saves geometry once you rearrange things by hand.
 
 | Rule | In the file |
 |:--|:--|

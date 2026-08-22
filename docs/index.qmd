@@ -5,7 +5,7 @@ reference-location: margin
 citation-location: margin
 ---
 
-Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]). The diagrams are the single machine-readable and human-understandable source of truth needed to recreate an experiment. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
+Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]). A diagram is the single source of truth needed to recreate an experiment, and both machines and humans can read it. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
 
 A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) file, extended with domain-specific elements through BPMN's own extension mechanisms.
 
@@ -21,9 +21,9 @@ A studyflow diagram aims to replace all these copies with one file. Each documen
 
 ## How it works
 
-You build a study in the [*Modeler app*]() (open source, in browser) or any other compatible app. The elements you can use are the same as in BPMN: tasks, events, gateways, and flows. You can also add your own domain-specific elements (questionnaire, cognitive tasks, brain imaging sessions, data analysis functions in Python). Then you attach metadata to each element (e.g., a script to run, a data file to read, or a figure to produce).
+You build a study in the [*Modeler app*](https://behaverse.org/studyflow-modeler/app) (open source, in browser) or any other compatible app. The elements you can use are the same as in BPMN: tasks, events, gateways, and flows. You can also add your own domain-specific elements (questionnaire, cognitive tasks, brain imaging sessions, data analysis functions in Python). Then you attach metadata to each element (e.g., a script to run, a data file to read, or a figure to produce).
 
-The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the file and execute it in many environments: a web browser, a Python script, or a containerized workflow. Or different *projections* can read the file and produce different outputs like a protocol document, Gantt chart, a figure, or a checklist.
+The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the file and execute it in many environments: a web browser, a Python script, or a containerized workflow. Or *projections* can read the file and produce a protocol document, a Gantt chart, a figure, or a checklist.
 
 ::: {layout-ncol=3}
 ![Timeline: when each part happens](assets/img/views/gantt.png){#figs-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
@@ -35,8 +35,8 @@ The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the 
 
 To try it, [open the modeler](https://behaverse.org/studyflow-modeler/app) and load an example from its gallery.
 
-[^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97–107.
+[^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97-107.
 
 [^hardwicke]: Hardwicke, T. E., et al. (2018). Data availability, reusability, and analytic reproducibility. *Royal Society Open Science*, 5(8), 180448.
 
-[^variability]: Botvinik-Nezer, R., et al. (2020). Variability in the analysis of a single neuroimaging dataset by many teams. *Nature*, 582, 84–88.
+[^variability]: Botvinik-Nezer, R., et al. (2020). Variability in the analysis of a single neuroimaging dataset by many teams. *Nature*, 582, 84-88.
