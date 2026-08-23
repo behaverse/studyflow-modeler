@@ -1,4 +1,4 @@
-/** House rule: dialog-scoped failures render inline in their dialog; everything else goes through `notify()` — never `alert()`. */
+/** House rule: dialog-scoped failures render inline in their dialog; everything else goes through `notify()`, never `alert()`. */
 
 export type NoticeKind = 'error' | 'warning' | 'info';
 

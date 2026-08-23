@@ -87,8 +87,8 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
         close_tag = f"</{existing.group(1)}extensionElements>"
         close_at = xml.index(close_tag, block_open_end)
         block = xml[block_open_end:close_at]
-        # Only the same-action entry is replaced; `invalidated` markers are history and are never deleted —
-        # the fresh `executed` gets a new `when`, so a marker referencing the old one (`what`) goes inert.
+        # Only the same-action entry is replaced; `invalidated` markers are history and are never deleted.
+        # The fresh `executed` gets a new `when`, so a marker referencing the old one (`what`) goes inert.
         if replace_action:
             block = re.sub(
                 rf"\n[ \t]*<{re.escape(prefix)}:activity\b[^>]*\baction={re.escape(quoteattr(replace_action))}[^>]*/>",
@@ -126,7 +126,7 @@ def timeline_entries(element: ET.Element) -> tuple[list[dict], list[tuple[str | 
 
 def element_records(studyflow) -> dict[str, dict]:
     """Element id -> its standing `executed` record: the newest not voided. A marker voids by exact
-    `when` (its `what`), or — lacking a `what` — coarsely by run, a standing re-run pin. Older
+    `when` (its `what`), or, lacking a `what`, coarsely by run, a standing re-run pin. Older
     entries a branching run superseded are the first branch's history and never stand."""
     records: dict[str, dict] = {}
     process_id = studyflow.process.get("id")
@@ -148,7 +148,7 @@ def element_records(studyflow) -> dict[str, dict]:
 
 
 def invalidated_elements(studyflow) -> list[str]:
-    """Elements whose ✕ marker names the newest record (`what` = its `when`) — only these branch.
+    """Elements whose ✕ marker names the newest record (`what` = its `when`); only these branch.
     Coarse markers without a `what` re-run their step in place and never branch."""
     marked: list[str] = []
     for element_id, element in studyflow.elements.items():
@@ -269,7 +269,7 @@ class RunRepo:
 
     @property
     def active(self) -> bool:
-        # Without a `.git` of its own the directory belongs to whatever repository contains it — never touch that.
+        # Without a `.git` of its own the directory belongs to whatever repository contains it; never touch that.
         return self.enabled and (self.dir / ".git").is_dir()
 
     def git(
@@ -277,7 +277,7 @@ class RunRepo:
     ) -> subprocess.CompletedProcess | None:
         """`tolerate` is for calls whose failure is an answer (no such ref), not a broken git.
         Without the directory's own `.git`, git would walk up into whatever repository contains
-        it — so every call requires `active`, except `raw` ones that create the repo."""
+        it, so every call requires `active`, except `raw` ones that create the repo."""
         if not self.enabled or not (raw or self.active):
             return None
         env = dict(self.env)
@@ -305,7 +305,7 @@ class RunRepo:
         )
 
     def open(self) -> None:
-        """Init the directory, or adopt one a git-less run left — either way the next commit baselines it."""
+        """Init the directory, or adopt one a git-less run left; either way the next commit baselines it."""
         if not self.enabled:
             return
         if (self.dir / ".git").exists():
@@ -330,7 +330,7 @@ class RunRepo:
         log_event("git.init", f"  → {shown(self.dir)}/.git", level=logging.DEBUG)
 
     def exclude_cache(self) -> None:
-        """`.cache/` is transient hand-off state for partial runners — it never enters the history."""
+        """`.cache/` is transient hand-off state for partial runners; it never enters the history."""
         exclude = self.dir / ".git" / "info" / "exclude"
         if not exclude.parent.is_dir():
             return
@@ -351,7 +351,7 @@ class RunRepo:
         self.git("commit", "-q", "--allow-empty", "-m", message, when=when)
 
     def commit_for_node(self, element_id: str) -> str | None:
-        """The newest commit that *executed* this element — skips near the tip are not where its work entered."""
+        """The newest commit that *executed* this element; skips near the tip are not where its work entered."""
         done = self.git(
             "log", "-1", "--format=%H", "--all-match",
             f"--grep=^Prov-Node: {re.escape(element_id)}$", "--grep=^Prov-Action: executed$", tolerate=True,

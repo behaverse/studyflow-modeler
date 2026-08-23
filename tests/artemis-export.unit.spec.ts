@@ -13,7 +13,7 @@ function dataOutput(target: any): any {
   return moddle.create('bpmn:DataOutputAssociation', { targetRef: target });
 }
 
-/** A cognitive task, an EEG recording, a cleaning step, and a summarizing step — one per report block. */
+/** A cognitive task, an EEG recording, a cleaning step, and a summarizing step, one per report block. */
 function eegDiagram(): any {
   const task = wrapperElement('bpmn:Task', 'cognitive:CognitiveTask', {
     id: 'Task_1',

@@ -175,7 +175,7 @@ test.describe('update-loop-characteristics command', () => {
     process.$parent = definitions;
 
     const { xml } = await moddle.toXML(definitions);
-    // `loopCondition` serializes in BPMN's own form — an expression element with `xsi:type`, not a studyflow attribute.
+    // `loopCondition` serializes in BPMN's own form: an expression element with `xsi:type`, not a studyflow attribute.
     expect(xml).toContain('xsi:type="bpmn:tFormalExpression"');
     expect(xml).toMatch(/<bpmn:loopCondition[^>]*>score (&lt;|&#60;) 0.9<\/bpmn:loopCondition>/);
     expect(xml).toContain('loopMaximum="5"');

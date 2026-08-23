@@ -19,7 +19,7 @@ const packages: Record<string, any> = Object.fromEntries(
 );
 const catalog = buildCatalog(models);
 
-// Real node modules are `.tsx` views discovered by a Vite glob; register stand-ins — the walk is under test.
+// Real node modules are `.tsx` views discovered by a Vite glob; register stand-ins, the walk is under test.
 const nothing = () => null;
 registerNode({
   type: 'start',
@@ -133,7 +133,7 @@ test.describe('scoped state', () => {
 
     const walk = session.traverse();
     await walk.next(); // Start
-    await walk.next(); // Trial — inside the battery scope
+    await walk.next(); // Trial, inside the battery scope
 
     expect(session.getVariables().arm).toBe('treatment');
     session.setVariable('failed_trials', 3);

@@ -5,7 +5,7 @@ reference-location: margin
 citation-location: margin
 ---
 
-Studyflow is a graphical notation for describing and coordinating experiments (AI evaluations, behavioral research, clinical studies; think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]). A diagram is the single source of truth needed to recreate an experiment, and both machines and humans can read it. You draw the experiment once and the result is one file that is simultaneously the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
+Studyflow is a graphical notation for describing and coordinating experiments: AI evaluations, behavioral research, clinical studies. Think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]. A diagram is the single source of truth needed to recreate an experiment, and both machines and humans can read it. You draw the experiment once, and the result is one file that is at once the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
 
 A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) file, extended with domain-specific elements through BPMN's own extension mechanisms.
 
@@ -13,11 +13,11 @@ A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) file, exte
 
 ## Why
 
-Today an experimental study is described many times: a protocol in PDF for the ethics board, a preregistration form, a script for the data collection, a notebook for the analysis, a figure for the manuscript, and it continues. Each artifact is maintained separately, and nothing checks them against each other, so they drift apart (we are not anymore surprised when the preregistration says four conditions, the data collection script implements five, the analysis code uses three, and the figure only shows two).
+Today an experimental study is described many times: a protocol in PDF for the ethics board, a preregistration form, a script for the data collection, a notebook for the analysis, a figure for the manuscript, and it continues. Each copy is maintained separately, and nothing checks them against each other, so they drift apart (we are not anymore surprised when the preregistration says four conditions, the data collection script implements five, the analysis code uses three, and the figure only shows two).
 
 Replications usually stop on exactly this gap between what was described and what actually ran[^hardwicke] [^variability]. AI research has the same gap under different names: the eval described in the paper, the harness that actually ran it, and the config that drifted somewhere in between.
 
-A studyflow diagram aims to replace all these copies with one file. Each document you need is produced, or more precisely *projected*, from this file.
+A studyflow diagram replaces all these copies with one file. Each document you need is produced, or more precisely *projected*, from this file.
 
 ## How it works
 

@@ -32,7 +32,7 @@ test.describe('ensureDiagramLayout', () => {
 
   test('synthesizes DI for a layout-less diagram, preserving every extension', async () => {
     const xml = await layoutlessXml();
-    // Precondition: the converted file has no geometry — this is the failing case.
+    // Precondition: the converted file has no geometry, this is the failing case.
     expect(hasDiagramInterchange(xml)).toBe(false);
 
     const laidOut = await ensureDiagramLayout(xml, schemaModdle());
@@ -74,7 +74,7 @@ test.describe('ensureDiagramLayout', () => {
   });
 
   test('draws data associations and places data elements next to their steps', async () => {
-    // sklearn_pipeline joins its artifacts with data input/output associations — the data-flow pass's case.
+    // sklearn_pipeline joins its artifacts with data input/output associations, the data-flow pass's case.
     const xml = withoutDiagramInterchange(exampleXml('sklearn_pipeline.studyflow.png'));
     expect(hasDiagramInterchange(xml)).toBe(false);
 

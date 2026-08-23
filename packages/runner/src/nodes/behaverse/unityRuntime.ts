@@ -33,7 +33,7 @@ export function runOnUnity(
     const seenRequestIds = new Set<string>();
 
     const sendResponse = (detail: AwaitingResponseDetail, response: string, agentId: string) => {
-      // BDM `response_option_index` - 0-based position of the chosen option in `ResponseOptions`.
+      // BDM `response_option_index`: 0-based position of the chosen option in `ResponseOptions`.
       const responseOptionIndex = detail.ResponseOptions.indexOf(response);
       try {
         sendToRuntime(unity, 'InjectResponse', JSON.stringify({

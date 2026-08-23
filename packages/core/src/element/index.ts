@@ -19,7 +19,7 @@ export {
 };
 export type { ModdleElement } from '@core/element/moddle';
 
-/** Derived, not stored — shared by the canvas marker and the NIDM/Artemis exporters so it cannot drift. */
+/** Derived, not stored; shared by the canvas marker and the NIDM/Artemis exporters so it cannot drift. */
 export function isDataOperationActivity(elementOrBO: any): boolean {
   if (!elementOrBO) return false;
   if (getAttribute(elementOrBO, 'operationType')) return true;

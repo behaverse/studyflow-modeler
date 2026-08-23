@@ -43,7 +43,7 @@ export function getRawAttribute(target: ModdleElement | null | undefined, localN
   return undefined;
 }
 
-/** A *view* over the marked `bpmn:documentation` entry, not a stored attribute — `StudyflowElement` routes reads and writes; this spec only gives the inspector a field to render. */
+/** A *view* over the marked `bpmn:documentation` entry, not a stored attribute. `StudyflowElement` routes reads and writes; this spec only gives the inspector a field to render. */
 export const CHECKLIST_SPEC: AttributeSpec = {
   name: 'checklist',
   ns: { name: 'studyflow:checklist', prefix: 'studyflow', localName: 'checklist' },

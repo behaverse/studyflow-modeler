@@ -4,14 +4,13 @@ project:
 
 website:
   title: "Studyflow"
-  description: "Studyflow, a coordination notation for experimental research — the argument, the toolchain, and the reference"
+  description: "Studyflow, a visual notation to coordinate experiments, end-to-end."
   site-url: https://behaverse.org/studyflow-modeler/docs/
   favicon: assets/img/logo.png
   llms-txt: true
   search: true
   bread-crumbs: true
   page-navigation: true
-  # Three pages: the argument, the toolchain, and the notation itself.
   sidebar:
     expand: true
     logo: assets/img/logo.png
@@ -25,6 +24,8 @@ website:
         href: developers.qmd
       - text: Reference
         href: reference.qmd
+      - text: Glossary
+        href: glossary.qmd
       - "---"
       - text: Open Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
@@ -44,9 +45,9 @@ format:
       dark:
         - default
         - assets/css/theme-dark.scss
-    # css:
-      # - assets/css/custom.css
-      # - assets/css/figures.css
+    css:
+      - assets/css/custom.css
+      - assets/css/figures.css
     toc: true
     reference-location: margin
     mainfont: "IBM Plex Sans"

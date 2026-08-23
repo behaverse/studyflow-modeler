@@ -143,8 +143,7 @@ types:
         meta:
           order: 4
 
-  # Actuation steps are service tasks: the `studyflow:Implementation` trait then lets a
-  # runner bind each one to a Python entry point over the reachy_mini SDK.
+  # Actuation steps are service tasks: `studyflow:Implementation` lets a runner bind each to a Python entry point over the reachy_mini SDK.
   - name: Say
     description: The robot speaks a text aloud.
     superClass:

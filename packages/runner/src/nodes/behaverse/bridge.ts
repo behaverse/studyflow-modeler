@@ -1,12 +1,10 @@
-/**
- * The response bridge behind `ResponseSource: external`: an embodied participant —
- * e.g. a Reachy Mini sitting in front of the screen (`studyflow-reachy.py --participant`)
- * — serves a local WebSocket, the browser forwards each awaiting trial to it, and the
- * reply is injected into the task. Nothing connected falls back to random, so the
- * documented `external (random)` behavior still holds on an empty machine.
- */
+/** The response bridge behind `ResponseSource: external`: an embodied participant, e.g. a
+ * Reachy Mini in front of the screen (`studyflow-reachy.py --participant`), serves a local
+ * WebSocket; the browser forwards each awaiting trial to it and injects the reply into the
+ * task. Nothing connected falls back to random, so the documented `external (random)`
+ * behavior still holds on an empty machine. */
 
-/** What the browser forwards per trial. The textual stimulus is deliberately withheld —
+/** What the browser forwards per trial. The textual stimulus is deliberately withheld;
  * an embodied participant answers from what it sees (its camera, or the screenshot). */
 export type BridgeTrial = {
   type: 'trial';

@@ -40,7 +40,7 @@ const DETAIL_ICONS: Record<string, string> = {
 function elementsOf(record: ProvenanceRecord, registry: any): any[] {
   const found: any[] = [];
   if (!record.isDocument && registry.get(record.scopeId)) found.push(registry.get(record.scopeId));
-  // `what` is a flow id on gateway decisions, a timestamp elsewhere — only the former resolves.
+  // `what` is a flow id on gateway decisions, a timestamp elsewhere; only the former resolves.
   if (record.what && registry.get(record.what)) found.push(registry.get(record.what));
   return found;
 }
@@ -151,8 +151,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     const rootId = canvas.findRoot?.(target)?.id;
     const from = tokenPos.current;
 
-    // The follow-camera: the viewbox that centers a point at a comfortable zoom, keeping the
-    // user's own zoom when it is already in a readable band.
+    // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
     const camera = (center: Point) => {
       const vb = canvas.viewbox();
       const scale = Math.min(1.3, Math.max(0.6, vb.scale));
@@ -162,7 +161,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     };
 
     // A glide only makes sense within one plane: the first step lands directly, and a plane
-    // change dives — the old context zooms away while the new one settles in.
+    // change dives, the old context zooming away while the new one settles in.
     if (!from || from.rootId !== rootId) {
       const place = () => {
         setPos(to, target.id, rootId);
@@ -175,7 +174,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
         return;
       }
       // The doorway: the collapsed shape being entered (on the old plane), or the shape the old
-      // plane belongs to (on the new one) — the camera flies through it, so the move is visible.
+      // plane belongs to (on the new one); the camera flies through it, so the move is visible.
       const shapeOf = (root: any) => (root?.businessObject?.id ? registry.get(root.businessObject.id) : undefined);
       const oldRoot = canvas.getRootElement?.();
       const newRoot = canvas.findRoot?.(target);
@@ -210,13 +209,13 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       };
 
       if (inward) {
-        // Fly into the collapsed shape, fading out — then surface inside its plane.
+        // Fly into the collapsed shape, fading out, then surface inside its plane.
         fly(doorway(doorIn), 420, 'out', () => {
           place();
           svg.style.transition = 'none';
           svg.style.transform = 'scale(0.92)';
           svg.style.transformOrigin = '50% 50%';
-          // A forced reflow commits the pose, so the settle transitions from it — no
+          // A forced reflow commits the pose, so the settle transitions from it; no
           // `requestAnimationFrame` here: it starves in hidden tabs, freezing the dive midway.
           void svg.getBoundingClientRect();
           svg.style.transition = 'opacity 300ms ease-out, transform 300ms ease-out';
@@ -325,7 +324,6 @@ function ReplayTimeline({ onClose }: Props) {
   );
   const total = records.length;
 
-  // The whole timeline
   const trail = useMemo(() => {
     const clones = applyStatuses(records.map((r) => ({ ...r })));
     const graph = assignLanes(displayOrder([...clones]));

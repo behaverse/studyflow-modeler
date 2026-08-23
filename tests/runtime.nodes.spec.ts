@@ -329,9 +329,9 @@ test.describe('Studyflow runtime nodes', () => {
     expect(remaining).toBeNull();
   });
 
-  // Every other case here opens `run.html` directly, so nothing covered the button that gets
-  // a person there. It has to claim its tab inside the click: serializing the diagram is
-  // async, and a `window.open` that lands after the await reads as an unprompted pop-up.
+  // Every other case opens `run.html` directly; only this one covers the button. It has to claim
+  // its tab inside the click: serializing the diagram is async, and a `window.open` that lands
+  // after the await reads as an unprompted pop-up.
   test('the Run button opens the runner in a new tab', async ({ page, context }) => {
     await gotoModeler(page);
 

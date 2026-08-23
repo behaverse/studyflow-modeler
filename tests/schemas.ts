@@ -26,7 +26,7 @@ export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(
 
 export const SCHEMAS: SchemaInfo[] = buildManifest(SCHEMA_MODELS);
 
-/** A fresh parse of every schema — moddle mutates the models it is handed. */
+/** A fresh parse of every schema; moddle mutates the models it is handed. */
 export function loadSchemaModels(): SchemaModel[] {
   return sortSchemas(schemaPrefixes().map((prefix) => fromModdleYaml(schemaSource(prefix))));
 }

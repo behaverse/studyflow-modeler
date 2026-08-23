@@ -42,12 +42,8 @@ function runnerScriptCandidates(): string[] {
   return candidates;
 }
 
-/**
- * The runner, in the order documented in the CLI README: an explicit
- * `STUDYFLOW_RUN_PY`, then an installed `studyflow-run-local` companion, then the
- * script shipped beside this CLI (which needs `uv` to pull its dependencies).
- * The runner discovers studyflow-prov and the schema runners itself.
- */
+/** The runner, in the CLI README's order: `STUDYFLOW_RUN_PY`, an installed `studyflow-run-local`
+ * companion, then the script beside this CLI (needs `uv`). It finds studyflow-prov and the schema runners itself. */
 function runnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };

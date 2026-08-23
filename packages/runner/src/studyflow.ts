@@ -241,7 +241,7 @@ function coerce(value: unknown, type: string | undefined): unknown {
   return value;
 }
 
-/** An overriding value takes the type of the one it replaces — the study already said what this is. */
+/** An overriding value takes the type of the one it replaces; the study already said what this is. */
 function coerceLike(value: string, replaced: unknown): unknown {
   if (typeof replaced === 'number') return coerce(value, 'number');
   if (typeof replaced === 'boolean') return coerce(value, 'boolean');

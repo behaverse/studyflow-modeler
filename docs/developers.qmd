@@ -36,7 +36,7 @@ npm test             # all tests, e2e included
 
 ## The same study in three formats
 
-A studyflow diagram can be stored as YAML (the canonical format), as BPMN 2.0 XML (which is what other BPMN tools read), or as a PNG or SVG with the diagram embedded in it. Conversion between the three is lossless:
+A studyflow diagram can be stored as YAML (the canonical format), as BPMN 2.0 XML (what other BPMN tools read), or as a PNG or SVG with the diagram embedded in it. Conversion between the three is lossless:
 
 ```bash
 studyflow validate study.studyflow.yaml --strict
@@ -49,7 +49,7 @@ studyflow info study.studyflow.yaml --json
 
 ![What happens in one run: the file is validated first, the study's `runtime` attribute decides which runner takes it, and a Python run also leaves a repository behind.](assets/img/diagrams/run-lifecycle.svg){#fig-lifecycle fig-alt="A flowchart. An author saves a studyflow, validation gates it, and the run goes to the browser runner when runtime is browser or to the Python runner when runtime is local. The browser runner posts sessions and events, opt-in. The Python runner archives the plan into a run repository with one commit per checkpoint; per-element records let untouched steps skip on a partial re-run, and an invalidated record branches the repository at that step's parent."}
 
-There are two runners available. `studyflow run` reads the `runtime` attribute on the study and decides where to send it: a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (set `agentType` to `bot` on the task), so the same two runners execute it and you do not need a separate harness.
+`studyflow run` reads the `runtime` attribute on the study and decides where to send it: a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (set `agentType` to `bot` on the task), so the same two runners execute it and you do not need a separate harness.
 
 ::: {layout-ncol=4}
 ![Consent, from the start event](assets/img/runner/consent.png){#fig-run-consent fig-alt="A browser screen presenting a consent document with an accept button."}
@@ -115,7 +115,7 @@ These records are also what makes a partial re-run possible: the runner skips a 
 
 You can add your own vocabulary as an extension set. Each new type extends an existing one and adds its own attributes, so files that use it stay well formed and still open in generic BPMN tools. Before you declare a type, it is worth checking whether you need one at all. An attribute on an existing type is often enough.
 
-Declaring a type buys a specific and fairly limited amount:
+Declaring a type buys a limited amount:
 
 | Declaring a type gives it | It does not give it |
 |:--|:--|
@@ -123,9 +123,9 @@ Declaring a type buys a specific and fairly limited amount:
 | fields in the inspector | pre-flight checks over the values an author types |
 | storage and retrieval through every file format | a way for a run to do anything at that step |
 
-To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. The version of a set's format is carried in its namespace.
+To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. A set's namespace carries its format version.
 
-For a `local` run, executing new elements needs no changes to the runner itself: a *partial runner* is any executable named `studyflow-<name>` that claims a subset of the diagram's elements and executes them one hand-off at a time: state in as a JSON file, updated state out. The full contract, and `studyflow-python` and `studyflow-reachy` as working examples, are in the [CLI README](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli).
+For a `local` run, executing new elements needs no changes to the runner itself. A *partial runner* is any executable named `studyflow-<name>` that claims a subset of the diagram's elements and executes them one hand-off at a time: state in as a JSON file, updated state out. The full contract, and `studyflow-python` and `studyflow-reachy` as working examples, are in the [CLI README](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli).
 
 ## Contributing
 

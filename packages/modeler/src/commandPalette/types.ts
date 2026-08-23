@@ -4,7 +4,7 @@ export type PaletteCommand = {
   label: string;
   icon: string;
   hint?: string;
-  /** Fires only while the search box is empty — see `CommandPalette`'s key handler. */
+  /** Fires only while the search box is empty; see `CommandPalette`'s key handler. */
   shortcut?: string;
   action?: () => void | Promise<unknown>;
   children?: PaletteCommand[];

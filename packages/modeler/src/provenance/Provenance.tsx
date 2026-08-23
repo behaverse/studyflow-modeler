@@ -94,7 +94,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const repoCount = repos.size;
   const studyRuns = visible.filter((r) => r.isDocument && r.action === 'executed').length;
   const repoName = repos.size === 1 ? [...repos][0] : null;
-  // The modeler never reads the repository itself — the terminal does; this hands over the reins.
+  // The modeler never reads the repository itself, the terminal does; this hands over the reins.
   const repoRecipe = repoName ? `git -C runs/${repoName} log --graph --oneline --all` : null;
   const [copied, setCopied] = useState(false);
   const copyRecipe = async () => {
@@ -227,7 +227,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
               <ol className={`${d.panelBody} relative overflow-x-clip`} data-testid="provenance-log">
                 {visible.map((r, idx) => {
                   const voided = !!r.invalidated;
-                  // A consumed marker is inert history, a `reused` line is a skip — both grey and dimmed.
+                  // A consumed marker is inert history, a `reused` line is a skip; both grey and dimmed.
                   const red = voided || (r.action === 'invalidated' && !r.consumed);
                   const muted = !!r.consumed || r.action === 'reused';
                   const g = graph.get(r) ?? { lane: 0, laneCount: 1, lines: [] };
@@ -256,7 +256,6 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                           />
                         ))}
                         {g.opens != null && (
-                          // Vertical curve at ends
                           <path
                             d={`M ${laneX(g.lane)} 21 C ${laneX(g.lane)} 34, ${laneX(g.opens)} 30, ${laneX(g.opens)} 46`}
                             className={`fill-none ${laneOf(g.opens).stroke}`}

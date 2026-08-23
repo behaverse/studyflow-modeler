@@ -14,7 +14,7 @@ import { SCHEMAS, loadSchemaModels } from './schemas';
 
 const models = loadSchemaModels();
 
-// Catalog and moddle packages are built separately — they never share objects (moddle mutates in place).
+// Catalog and moddle packages are built separately; they never share objects (moddle mutates in place).
 const catalog = buildCatalog(models);
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),

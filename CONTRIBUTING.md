@@ -22,7 +22,7 @@ Every test lives in `tests/` at the repo root, and Playwright runs them in two l
 | unit (`npm run test:unit`) | `playwright.unit.config.ts` | `tests/**/*.unit.spec.ts` | no |
 | e2e (`npm run test:e2e`) | the `e2e` project in `playwright.config.ts` | everything else in `tests/` | yes, plus two dev servers |
 
-The fast lane needs no dev server and no DOM because `core` is framework-free: a unit spec reads the shipped schemas off disk. The e2e project boots the modeler on `127.0.0.1:4173` and the browser runner on `4174`, with the modeler proxying `/run` so both sit on one origin, matching how the merged build is served.
+The fast lane needs no dev server and no DOM because `core` is framework-free. A unit spec reads the shipped schemas off disk. The e2e project boots the modeler on `127.0.0.1:4173` and the browser runner on `4174`. The modeler proxies `/run` so both sit on one origin, matching how the merged build is served.
 
 ```bash
 npm test             # everything: unit + e2e (needs browsers)
@@ -45,4 +45,4 @@ Drop a `*.moddle.yaml` into `assets/schemas/` and reload; no registration is nee
 
 ## Docs
 
-`docs/` is the specification of the notation, written for cognitive scientists and AI researchers: what a studyflow *is*, not how the tools are built. Engineering detail belongs in the READMEs above, and `npm run lint:docs` enforces the split. [`docs/README.md`](docs/README.md) is the style guide.
+`docs/` is the specification of the notation, written for cognitive scientists and AI researchers. Engineering detail belongs in the READMEs above, and `npm run lint:docs` enforces the split. [`docs/README.md`](docs/README.md) is the style guide.

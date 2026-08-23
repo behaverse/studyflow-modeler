@@ -71,7 +71,7 @@ type Page = {
   rel: string;
   dir: string;
   lines: string[];
-  /** True where the line is fenced code or YAML frontmatter -- sample text, not a claim about the vocabulary. */
+  /** True where the line is fenced code or YAML frontmatter: sample text, not a claim about the vocabulary. */
   quoted: boolean[];
   frontmatter: string | null;
 };
@@ -139,7 +139,7 @@ test('there are docs to lint', () => {
 /* 1. Element names resolve                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** `Study`, `bpmn:Task`, `cognitive:RandomGateway` -- optional lowercase prefix, PascalCase local name. */
+/** `Study`, `bpmn:Task`, `cognitive:RandomGateway`: optional lowercase prefix, PascalCase local name. */
 const TYPE_TOKEN = /^(?:([a-z][A-Za-z0-9]*):)?([A-Z][A-Za-z0-9]*)$/;
 
 function resolvesToShippedName(token: string): boolean {

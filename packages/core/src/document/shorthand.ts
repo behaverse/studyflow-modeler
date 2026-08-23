@@ -186,7 +186,7 @@ export function keyedMapToList(raw: unknown): unknown[] {
 const BPMN_EXPRESSION = 'bpmn:Expression';
 const BPMN_FORMAL_EXPRESSION = 'bpmn:FormalExpression';
 
-/** The instantiation marker the parser records on an `xsi:type`d element — not content. */
+/** The instantiation marker the parser records on an `xsi:type`d element, not content. */
 const XSI_TYPE = 'xsi:type';
 
 export function isExpressionType(typeName: string | undefined): boolean {
@@ -221,7 +221,7 @@ export function isChecklistEntry(item: any): boolean {
   return isModdleElement(item) && getProperty(item, CHECKLIST_MARKER) === true;
 }
 
-/** {@link isChecklistEntry} for raw XML attribute text — the gallery probes the DOM, not moddle. */
+/** {@link isChecklistEntry} for raw XML attribute text; the gallery probes the DOM, not moddle. */
 export function isChecklistMarkerValue(value: string | null | undefined): boolean {
   return value === 'true' || value === '1';
 }

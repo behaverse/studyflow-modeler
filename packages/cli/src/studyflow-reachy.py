@@ -12,15 +12,15 @@ Usage:
 With `--participant` the roles flip: the robot sits in front of the screen as the
 participant. It serves the browser runner's response bridge (`ws://localhost:8765`),
 and each time a Behaverse task awaits a response (`ResponseSource: external` in the
-task's bot configurations) it looks at the screen, takes a camera frame — falling
-back to the screenshot the task attaches when it has no camera — asks the diagram's
+task's bot configurations) it looks at the screen, takes a camera frame (falling
+back to the screenshot the task attaches when it has no camera), asks the diagram's
 model what it sees and how to respond, and the browser injects the answer.
 
 Walks the diagram's flow and performs each `reachy:*` element. By default it is a
 terminal dry run: the robot's speech is printed, and its senses and the
 participant's lines come from stdin (`--auto` answers them with canned values
-instead, for CI). With `--sim` — or when the diagram's Robot pool says
-`variant: simulation` — it drives a MuJoCo-simulated Reachy Mini through the
+instead, for CI). With `--sim`, or when the diagram's Robot pool says
+`variant: simulation`, it drives a MuJoCo-simulated Reachy Mini through the
 `reachy_mini` Python SDK, starting a headless sim daemon if none is listening;
 gestures, look-ats, and speech taps move the simulated robot for real.
 Elements from other schemas are logged and passed over. In hand-off mode
@@ -218,7 +218,7 @@ MOVE_ALIASES = {"happy": "cheerful1", "sad": "sad1", "curious": "curious1", "sur
 
 
 class SimRobot:
-    """Drives a Reachy Mini through the `reachy_mini` SDK — a MuJoCo sim, or in
+    """Drives a Reachy Mini through the `reachy_mini` SDK: a MuJoCo sim, or in
     participant mode a real unit whose daemon already answers on the host."""
 
     def __init__(self, host: str, media_backend: str = "no_media") -> None:

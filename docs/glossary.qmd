@@ -1,0 +1,35 @@
+---
+title: "Glossary"
+description: "TODO"
+---
+
+## The notation
+
+- **Studyflow.** The notation itself, a standard for describing and coordinating experiments.
+- **study.** What a studyflow describes. In the file, the root process carrying the `studyflow:Study` extension. A studyflow file is a single source of truth for one study.
+- **element.** Anything in the diagram, including events, activities, gateways, data, or edges.
+- **attribute.** A named value on an element. For example, `name` is an attribute on every element, and `implementation` is and attribute on every activity.
+- **activity.** A node that does work when the execution reaches it. A *task* is the plainest kind of activity. Distinct from `prov:Activity`, which is an entry of the provenance record.
+- **sequence flow.** A solid edge for control flow, showing what happens after what.
+- **data association.** A dotted edge for data flow, showing what an element reads and what it writes. What a data edge may state is called binding, written `slot = selection`. The slot names which argument of the element call the value fills, and the selection names which value arrives.
+- **event.** A node that marks something happening: entry, exit, a moment arriving, a condition becoming true.
+- **gateway.** A node where a decision is made about which path to take next. Each kind decides differently: by conditions on the edges, by a random sample (`RandomGateway`), or by criteria (`EligibilityGateway`).
+- **pool.** An `Actor`, standing for a group of humans, models, software agents, or instruments. A pool is a group, not one person. Two pools that deal with each other make the file a collaboration. One member of a pool is called participant, going through the session. A person, or a computational agent when `agentType` is `bot`.
+- **checklist.** Reporting items carried on any element. The Checklist view shows what is reported and what is still open.
+- **view.** A *projection*. It keeps some elements of the diagram and drops the rest, and never adds or renames, so it cannot modify the study. Five ship: Study, Timeline (the Gantt view), Checklist, Provenance, and Figure.
+
+## Tools
+
+- **modeler.** The authoring app, where you design, validate, import, and export.
+- **runner.** A program that executes a studyflow. There can be multiple runners and the study's `runtime` attribute picks between them.
+- **run.** One walk through the diagram, from a start event to an end event.
+- **state.** The values declared (as `bpmn:Property`) on the study or a sub-process, at one moment of a run. Where a value is declared decides how long it lives (i.e., *scope*). The *state history* is the sequence of states across a run.
+- **partial runner.** Any runner that claims only a subset of a diagram's elements and executes them one hand-off at a time.
+- **instrument.** What delivers a task to the participant: an experiment package, a standard scale, or an identifier of your own.
+- **implementation.** The software a step runs, written `<scheme>://<ref>[@<version>]`.
+- **seed.** The root random seed on the study. Set it and every gateway draw replays exactly.
+- **session.** What one participant goes through in one sitting. In the `eeg` set, a `Session` is one acquisition session, carrying the device settings every phase inside it shares.
+- **plan.** The file before it runs. The prospective side, in W3C PROV terms.
+- **record.** What actually happened, accumulated in the same file as the study runs. The retrospective side. A deviation is a diff of the file against an earlier version of itself.
+- **provenance history.** The flat list of `prov:Activity` entries on the study: what ran, when, by whom, with which seed. A standing record lets a re-run *reuse* it and skip its step. *Invalidating* it voids it, and the voiding cascades downstream.
+- **run repository.** The git repository a local run leaves behind, one commit per checkpoint, with the records restated in the commits.

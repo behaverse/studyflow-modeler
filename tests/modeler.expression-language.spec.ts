@@ -14,7 +14,7 @@ test('an expression field carries a subtle language select that persists', async
   const condition = page.locator('textarea[name="bpmn:conditionExpression"]');
   await expect(condition).toHaveValue("state.trace.count('Gate') < 8");
 
-  // Unprefixed by default — the engine's own language.
+  // Unprefixed by default, the engine's own language.
   const language = page.getByLabel('Expression language');
   await expect(language).toHaveValue('');
 
@@ -42,7 +42,7 @@ test('a data wire\'s binding and the loop marker\'s condition get the select too
   await expect(page.locator('input[name="bpmn:name"]')).toBeVisible();
   const wireBody = page.locator('textarea[name="bpmn:transformation"]');
   await expect(wireBody).toHaveValue('self');
-  // The placeholder is the live default — the source element's own name.
+  // The placeholder is the live default, the source element's own name.
   await expect(wireBody).toHaveAttribute('placeholder', 'input_dataset');
   const wireLanguage = page.getByLabel('Expression language');
   await expect(wireLanguage).toHaveValue('');

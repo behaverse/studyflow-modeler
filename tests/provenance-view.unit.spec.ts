@@ -26,8 +26,8 @@ async function definitionsOf(xml: string): Promise<any> {
   return rootElement;
 }
 
-// The shipped example now carries a real trail (runs, a branch, a consumed marker) for the
-// Provenance view to show — these tests build their own histories, so start from a clean slate.
+// The shipped example carries a real trail (runs, a branch, a consumed marker) for the
+// Provenance view to show; these tests build their own histories, so start from a clean slate.
 function stripTrail(definitions: any): any {
   const strip = (el: any): void => {
     if (el?.extensionElements) {
@@ -246,8 +246,8 @@ test.describe('provenance view model', () => {
       }
     };
     for (const root of definitions.rootElements ?? []) index(root);
-    // `write_test_report` writes `test_report`, then the flow moves on to `plot_confusion` — the
-    // runner's old second-precision stamps collapse all four into one instant.
+    // `write_test_report` writes `test_report`, then the flow moves on to `plot_confusion`;
+    // the runner's old second-precision stamps collapse all four into one instant.
     const when = '2026-08-01T10:00:00Z';
     for (const id of ['plot_confusion', 'test_report', 'write_test_report', 'confusion_matrix']) {
       expect(byId.get(id), `example should contain ${id}`).toBeTruthy();
@@ -262,7 +262,7 @@ test.describe('provenance view model', () => {
   test('at the same instant, a marker precedes the run stamp, and the stamp its records', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
     const task = firstActivity(definitions);
-    // All three share one second — the runner's stamps have second precision, so ties are real.
+    // All three share one second; the runner's stamps have second precision, so ties are real.
     stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T10:00:00Z', what: '2026-07-31T09:00:00Z', run: 'repo' });
@@ -380,8 +380,8 @@ test.describe('replay', () => {
   test('a prefix re-derives statuses as of that moment', async () => {
     const records = await forkedHistory();
 
-    // Before the marker the record still stands; after it, it is voided but not yet superseded —
-    // the marker is unconsumed, so this is the "branches here" moment.
+    // Before the marker the record still stands; after it, it is voided but not yet superseded.
+    // The marker is unconsumed, so this is the "branches here" moment.
     expect(prefix(records, 1)[0].standing).toBe(true);
     const [old, marker] = prefix(records, 2);
     expect(old.invalidated).toBe(true);
@@ -405,7 +405,7 @@ test.describe('replay', () => {
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
-    // The branch's own stamp — its re-run of the step is still on the way.
+    // The branch's own stamp; its re-run of the step is still on the way.
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
 
     const records = displayOrder(collectProvenance(definitions));
@@ -447,7 +447,7 @@ test.describe('display order', () => {
   });
 
   test('a marker naming nothing keeps its place in time', () => {
-    // A `what`-less marker is a standing re-run pin, not a verdict on one record — it must not move.
+    // A `what`-less marker is a standing re-run pin, not a verdict on one record; it must not move.
     const first = record({ when: '2026-07-31T10:00:00Z' });
     const pin = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z' });
 

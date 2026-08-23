@@ -13,7 +13,7 @@ import {
 import { firstSentence } from '@core/naming';
 import { extractXmlFromPng } from '@core/document/png';
 
-/** Examples ship as one PNG each — the picture of a diagram with the diagram inside it. */
+/** Examples ship as one PNG each: the picture of a diagram with the diagram inside it. */
 
 const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();

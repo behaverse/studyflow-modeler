@@ -551,7 +551,7 @@ types:
           categories:
             - Data
 
-  # The executable layer - what an engine reads to run a diagram.
+  # The executable layer: what an engine reads to run a diagram.
 
   - name: Implementation
     description: Lets a task name the software it runs.
@@ -638,7 +638,7 @@ types:
   # data associations drawn on the canvas. Connect a data element to a task
   # and it is an input; connect the task to a data element and it is an
   # output. BPMN's own `transformation` element on the association refines
-  # that detection - its body is `slot = selection`, each half optional. The
+  # that detection: its body is `slot = selection`, each half optional. The
   # slot names *where* the value goes, the selection *what* value arrives; a
   # selection is member access and indexing that routes a value between
   # ports, never a computation. Wires coordinate, steps calculate. Nothing to
@@ -727,7 +727,7 @@ types:
   # form is the standard-loop marker (`loopCharacteristics` with
   # `loopCondition`, `loopMaximum`, `testBefore`): one activity retried in
   # place, the canvas ↻. The drawn form is a gateway whose conditioned
-  # back-edge returns upstream, exit as the gateway's native `default` - use
+  # back-edge returns upstream, exit as the gateway's native `default`. Use
   # it when the cycle spans several steps or the exit rule should be a
   # visible edge, bounding it with the engine's run state
   # (`state.trace.count('<gateway-id>')`, the drawn counterpart of the marker's own
@@ -781,12 +781,12 @@ types:
 
   # ===========================================================================
   # Artifacts. One field on every BPMN data element: where the bytes live
-  # (`uri`). How they are laid out is `format` - the word the data types
+  # (`uri`). How they are laid out is `format`, the word the data types
   # already own (Table, Dataset, Timeseries, and domain wrappers all declare
   # one), so this schema does not declare a second: the engine reads the
   # element's `format` wherever its schema put it, and falls back to what the
   # `uri`'s file extension implies. The engine passes associated data in
-  # memory and loads/saves an artifact at its `uri` when one is set - nothing
+  # memory and loads/saves an artifact at its `uri` when one is set, nothing
   # more.
   # ===========================================================================
   - name: Artifact

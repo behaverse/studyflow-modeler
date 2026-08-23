@@ -13,7 +13,7 @@
 """Run the `python://` elements of a studyflow.
 
 The partial runner for plain computation: it claims every element whose
-`implementation` is a `python://` path, and executes one per hand-off —
+`implementation` is a `python://` path, and executes one per hand-off:
 binding the element's inputs from the state and the run repository's
 artifacts, calling the implementation, and binding its outputs back
 (artifacts saved into the repository, JSON-able values merged into the
@@ -394,7 +394,7 @@ def main() -> int:
     handoff = cache / f"{args.element}.state.json"
     state = json.loads(handoff.read_text()) if handoff.exists() else {}
 
-    # The root seed comes from the diagram itself — the same file every process reads.
+    # The root seed comes from the diagram itself, the same file every process reads.
     seed = studyflow.seed()
     if seed:
         try:

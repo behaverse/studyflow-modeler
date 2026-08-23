@@ -11,14 +11,9 @@ import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { fakeModeler, makeModdle } from './exporterFixture';
 import { exampleXml } from './utils';
 
-/**
- * Every interchange exporter over every shipped example.
- *
- * The per-exporter specs pin behaviour on hand-built elements; this one is the
- * blast radius: one semantic model (`buildExportModel`) now feeds all three, so
- * a change to what it collects has to hold across every diagram we ship, not
- * just the fixtures a given exporter was written against.
- */
+/** Every interchange exporter over every shipped example. The per-exporter specs pin behaviour on
+ * hand-built elements; this one is the blast radius: one semantic model (`buildExportModel`) feeds
+ * all three, so a change to what it collects has to hold across every diagram we ship. */
 
 const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
 const examples = readdirSync(EXAMPLES_DIR).filter((file) => file.endsWith('.png')).sort();

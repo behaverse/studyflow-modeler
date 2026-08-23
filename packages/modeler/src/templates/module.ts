@@ -38,7 +38,7 @@ class TemplatesLoader {
 
 export default {
   __init__: ['templatesLoader', 'templateFlowElementsBehavior'],
-  // DI token name kept as `elementTemplates` — bpmn-js-create-append-anything resolves it.
+  // DI token name kept as `elementTemplates`; bpmn-js-create-append-anything resolves it.
   elementTemplates: ['type', Templates],
   templatesLoader: ['type', TemplatesLoader],
   templateFlowElementsBehavior: ['type', TemplateFlowElementsBehavior],

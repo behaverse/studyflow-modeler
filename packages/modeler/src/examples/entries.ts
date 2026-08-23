@@ -17,7 +17,7 @@ export type ExampleEntry = {
   error?: string;
 };
 
-/** Filenames alone — enough to draw the gallery before any PNG has been fetched. */
+/** Filenames alone, enough to draw the gallery before any PNG has been fetched. */
 export function buildInitialEntries(): ExampleEntry[] {
   return Object.entries(exampleFiles)
     .map(([path, url]) => ({

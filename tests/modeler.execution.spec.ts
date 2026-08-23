@@ -112,7 +112,7 @@ test.describe('Inspector execution tab', () => {
     });
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
-    // `cross_validate` sits on the collapsed `select_model` phase's own DI plane — drill down first.
+    // `cross_validate` sits on the collapsed `select_model` phase's own DI plane; drill down first.
     await page.getByTitle('Open select_model').click();
     await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
 
@@ -148,7 +148,7 @@ test.describe('Inspector execution tab', () => {
     });
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
-    // `build_pipeline` is drawn on the collapsed `select_model` phase's own plane — drill down first.
+    // `build_pipeline` is drawn on the collapsed `select_model` phase's own plane; drill down first.
     await page.getByTitle('Open select_model').click();
     await expect(page.locator('g[data-element-id="build_pipeline"]')).toBeVisible();
 
@@ -164,7 +164,7 @@ test.describe('Inspector execution tab', () => {
     await page.getByLabel('Transformation for x_train').fill('X');
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-    // Extract the step's YAML block by key + indentation — how deeply the example nests it is not under test.
+    // Extract the step's YAML block by key + indentation; how deeply the example nests it is not under test.
     const lines = studyflowText.split('\n');
     const start = lines.findIndex((l) => /^\s+build_pipeline:\s*$/.test(l));
     expect(start, 'the exported YAML declares build_pipeline').toBeGreaterThan(-1);

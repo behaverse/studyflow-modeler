@@ -12,7 +12,7 @@ export function useInspectedElement(): any | undefined {
   return useContext(InspectorContext).element;
 }
 
-/** Debounce batches a typing burst into one write — one undo step; the cleanup flush keeps a selection change from swallowing the tail. */
+/** Debounce batches a typing burst into one write, one undo step; the cleanup flush keeps a selection change from swallowing the tail. */
 export function useAttributeState<T>(
   attrDef: AttributeSpec,
   parse: (raw: any) => T,

@@ -1,4 +1,4 @@
-/** mulberry32 -- deterministic PRNG, so gateway draws reproduce across runs given the same `?seed`. */
+/** mulberry32, a deterministic PRNG, so gateway draws reproduce across runs given the same `?seed`. */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return function () {

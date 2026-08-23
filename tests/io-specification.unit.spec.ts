@@ -51,7 +51,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
 
   test('a default-named binding folds back without a binding attribute', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    // DataInput_Prompt_In carries no slot (binding defaults to the element's name) — do not invent one.
+    // DataInput_Prompt_In carries no slot (binding defaults to the element's name); do not invent one.
     const agentYaml = await exampleYaml('agent_eval.studyflow.png');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);
     expect(standardXml).toContain('name="Agent instructions"');

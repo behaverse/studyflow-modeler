@@ -9,7 +9,7 @@ export function buildBehaverseIframeSrc(): string {
   return `${BEHAVERSE_RUNTIME_URL}/index.html?skipDebugMenu=1`;
 }
 
-/** Runner-only bot keys, stripped before Unity — `BotReflection.Apply` throws on unknown fields. */
+/** Runner-only bot keys, stripped before Unity; `BotReflection.Apply` throws on unknown fields. */
 export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt', 'BridgeUrl'] as const;
 
 /** `RunCognitiveTask` payload Unity receives as JSON; `parameters` layers over Resources/<scene>.json. */

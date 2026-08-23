@@ -4,12 +4,10 @@ import { join } from 'node:path';
 
 import { runSetColor } from '@modeler/shape/commands';
 
-/**
- * The bus takes anything that resolves services by name, so the modeler is one such thing and not the
- * only one. `@modeler/commandBus` itself cannot be imported here — it pulls in `app/commands.ts`, whose
- * `?raw` asset import only resolves under Vite — so the contract is tested where it lives, in a handler,
- * and the call sites that depend on it are checked in the source.
- */
+/** The bus takes anything that resolves services by name, so the modeler is one such thing and not
+ * the only one. `@modeler/commandBus` itself cannot be imported here: it pulls in `app/commands.ts`,
+ * whose `?raw` asset import only resolves under Vite. So the contract is tested where it lives, in a
+ * handler, and the call sites that depend on it are checked in the source. */
 
 const SRC = join(process.cwd(), 'packages/modeler/src');
 const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8');
@@ -38,8 +36,8 @@ test('the context pad really does dispatch with an injector', () => {
 });
 
 test('every command the app boots with tolerates a null modeler', () => {
-  // Boot dispatches before a modeler exists (`app/Modeler.tsx`), so those handlers must accept null —
-  // that nullability is the only thing standing between boot and a crash.
+  // Boot dispatches before a modeler exists (`app/Modeler.tsx`), so those handlers must accept
+  // null; that nullability is the only thing standing between boot and a crash.
   const bootTypes = [...read('app/Modeler.tsx')
     .matchAll(/executeCommand\(\s*null\s*,\s*\{\s*\n?\s*type:\s*'([A-Z]\w*)'/g)]
     .map((match) => match[1]);

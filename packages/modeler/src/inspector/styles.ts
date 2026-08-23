@@ -3,7 +3,7 @@ import { ICONS } from '@modeler/icons';
 
 export const inspector = {
   wrapper: 'fixed top-2 right-2 z-[220]',
-  /** Width is set inline (see `inspector/panelWidth`) — drag-resizable, so size is state, not a class. */
+  /** Width is set inline (see `inspector/panelWidth`): drag-resizable, so size is state, not a class. */
   panel: `relative ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
           text-stone-900 max-h-[calc(100vh-80px)] overflow-y-auto`,
   panelHidden: 'hidden',
@@ -77,7 +77,7 @@ export const field = {
   arrayInferredLabel: 'pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 italic text-[11.5px] text-stone-400',
 
   dataFlowRow: 'flex items-center gap-1.5',
-  /* Names wrap rather than truncate — an ellipsis eats exactly the name suffix a reader scans for. */
+  /* Names wrap rather than truncate: an ellipsis eats exactly the name suffix a reader scans for. */
   dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 break-words',
   dataFlowBindInput: 'flex-1 min-w-0 px-2 py-1 bg-black/[0.03] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none resize-none [field-sizing:content] break-words',
   dataFlowEquals: 'shrink-0 self-start py-1 px-0.5 font-mono text-sm/6 text-stone-400 select-none',
@@ -100,7 +100,7 @@ export const field = {
 
 export const codeEditor = {
   openButton: 'w-full mt-2 p-1.5 rounded-md cursor-pointer bg-cream-200 hover:bg-cream-300 text-stone-700 hover:text-stone-900 border border-black/[0.08] transition-colors',
-  // Overlay sits above the inspector, its toggle, and the Headless UI dialog root (z-[220]–[250]).
+  // Overlay sits above the inspector, its toggle, and the Headless UI dialog root (z-[220] to z-[250]).
   modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-2 sm:p-4 md:p-6 backdrop-blur-xs',
   modalBackdrop: 'absolute inset-0',
   modal: `relative z-[270] bg-cream-100 ${radius.capsule} ${shadow.sheet} border border-black/[0.06]

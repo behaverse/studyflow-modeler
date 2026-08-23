@@ -66,7 +66,7 @@ export function drawIcon(
   return foreignObject;
 }
 
-/** Inline paths, unlike `drawIcon`'s CSS class — these survive SVG export. */
+/** Inline paths, unlike `drawIcon`'s CSS class; these survive SVG export. */
 export function drawSvgPaths(
   parentNode: SVGElement,
   iconDef: { viewBox: string; paths: string[] },

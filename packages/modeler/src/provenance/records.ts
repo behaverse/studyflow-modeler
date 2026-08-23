@@ -1,7 +1,7 @@
 import { primaryRoot, readTrail } from '@modeler/provenance/trail';
 import { ICONS } from '@modeler/icons';
 
-/** Icons only where the shape says something at a glance — gateways, events, containers; the rest stay bare. */
+/** Icons only where the shape says something at a glance: gateways, events, containers; the rest stay bare. */
 export function shapeIconOf(el: any): string | undefined {
   if (el?.$instanceOf?.('bpmn:Gateway')) return ICONS.diamond;
   if (el?.$instanceOf?.('bpmn:Event')) return ICONS.circle;
@@ -26,11 +26,11 @@ export type ProvenanceRecord = {
   /** The live `prov:Activity` moddle element this record projects. */
   entry: any;
   invalidated?: boolean;
-  /** An `invalidated` marker whose named record no longer stands — inert history, never voids or branches again. */
+  /** An `invalidated` marker whose named record no longer stands: inert history, never voids or branches again. */
   consumed?: boolean;
-  /** An `executed` record a later run superseded — the first branch's history; a newer record stands. */
+  /** An `executed` record a later run superseded: the first branch's history; a newer record stands. */
   superseded?: boolean;
-  /** The element's current record: executed, not voided, not superseded — the only kind ✕ can invalidate. */
+  /** The element's current record: executed, not voided, not superseded, the only kind ✕ can invalidate. */
   standing?: boolean;
 };
 
@@ -83,7 +83,7 @@ function walkFlowElements(container: any, visit: (el: any) => void): void {
 }
 
 /** Longest-path rank of every flow element, over sequence flows plus data reads and writes.
- * The runner's stamps have second precision, so same-second ties are constant — and the diagram
+ * The runner's stamps have second precision, so same-second ties are constant, and the diagram
  * itself says what must have come first. Children rank inside their subprocess's own slot. */
 function flowRanks(definitions: any): Map<string, number> {
   const ranks = new Map<string, number>();
@@ -153,7 +153,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
 
   applyStatuses(records);
 
-  // Stamps carry second metadata
+  // Stamps have second precision, so kind breaks a same-second tie first.
   const tieRank = (record: ProvenanceRecord): number =>
     record.action === 'invalidated' ? 0 : record.isDocument ? 1 : 2;
   const ranks = flowRanks(definitions);
@@ -163,12 +163,12 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
     if (left !== right) return left < right ? -1 : 1;
     const tie = tieRank(a) - tieRank(b);
     if (tie !== 0) return tie;
-    // Same second, both element records: the flow graph decides — data before its consumers.
+    // Same second, both element records: the flow graph decides, data before its consumers.
     return (ranks.get(a.scopeId) ?? 0) - (ranks.get(b.scopeId) ?? 0);
   });
 }
 
-/** Re-derives every status flag from the records given — the full trail, or any oldest-first prefix
+/** Re-derives every status flag from the records given: the full trail, or any oldest-first prefix
  * of it (the replay slider hands in clones, so the live records keep their final flags). */
 export function applyStatuses(records: ProvenanceRecord[]): ProvenanceRecord[] {
   // One pass per element: its executed chain (in document = chronological order) and its markers.
@@ -199,7 +199,7 @@ export function applyStatuses(records: ProvenanceRecord[]): ProvenanceRecord[] {
   return records;
 }
 
-/** Display only — `collectProvenance` stays strictly oldest-first . */
+/** Display only; `collectProvenance` stays strictly oldest-first. */
 export function displayOrder(records: ProvenanceRecord[]): ProvenanceRecord[] {
   for (const marker of [...records]) {
     if (marker.isDocument || marker.action !== 'invalidated' || !marker.what) continue;
@@ -220,7 +220,7 @@ export type GraphInfo = {
   lines: GraphLine[];
   /** A consumed marker row where its branch opens: the curve leaves this row's dot into that lane. */
   opens?: number;
-  /** An active precise marker: the next run branches here — drawn as a dashed stub. */
+  /** An active precise marker: the next run branches here, drawn as a dashed stub. */
   pendingBranch?: boolean;
 };
 

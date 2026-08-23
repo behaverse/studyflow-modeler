@@ -24,6 +24,6 @@ export const StudyflowModelerModule = {
   studyflowRules: ['type', StudyflowRules],
   removeTemplatesFromPopup: ['type', RemoveTemplatesFromPopup],
   gridVisibility: ['type', GridVisibility],
-  // Same DI key as bpmn-js's own provider — that is what replaces it.
+  // Same DI key as bpmn-js's own provider; that is what replaces it.
   labelEditingProvider: ['type', ChoreographyLabelEditing],
 };

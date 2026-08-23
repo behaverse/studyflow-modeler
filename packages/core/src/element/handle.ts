@@ -3,7 +3,7 @@ import { CHECKLIST_MARKER, DOCUMENTATION_TYPE, isChecklistEntry } from '@core/do
 import { BPMN } from '@core/constants';
 import { splitQName, toLocalName } from '@core/naming';
 import { getProperty, setProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
-// From the leaf module, not the `@core/element` barrel — the barrel imports this file (cycle).
+// From the leaf module, not the `@core/element` barrel, which imports this file (cycle).
 import {
   getAttributeSpec,
   getAttributeSpecs,
@@ -11,7 +11,6 @@ import {
   toBusinessObject,
 } from '@core/element/attributes';
 
-/** Applies attribute updates to `target` */
 export interface AttributeUpdater {
   update(element: any, target: ModdleElement, props: Record<string, any>): void;
 }
@@ -94,7 +93,7 @@ export function extensionValueWins(
     || !hasStoredValue(bo, boName);
 }
 
-/** Explicitly stored, vs a default moddle materialized on the prototype — `hasOwnProperty` is the only way to tell them apart. */
+/** Explicitly stored, vs a default moddle materialized on the prototype; `hasOwnProperty` is the only way to tell them apart. */
 function hasStoredValue(target: ModdleElement | null | undefined, name: string): boolean {
   if (!target || typeof target !== 'object') return false;
   const property = target.$model?.getPropertyDescriptor?.(target, name);
@@ -230,7 +229,7 @@ export class StudyflowElement {
       const value = getProperty(r.target, r.attributeName);
       if (value && typeof value === 'object' && value.$type) return value;
     }
-    // The standard-loop condition lives one hop down on `loopCharacteristics` — the one expression generic resolution does not reach.
+    // The standard-loop condition lives one hop down on `loopCharacteristics`, the one expression generic resolution does not reach.
     const loop = bo?.loopCharacteristics;
     const localName = toLocalName(attributeName);
     if (loop && localName

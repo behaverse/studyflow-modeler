@@ -158,7 +158,7 @@ export function CommandPalette({ ref }: Props) {
         else open();
         return;
       }
-      // `/` opens (never closes — in the palette it is just a character to search with).
+      // `/` opens, never closes; in the palette it is just a character to search with.
       if (isBareKey(e, '/') && !isOpen && !isTyping(e.target)) {
         e.preventDefault();
         open();

@@ -9,9 +9,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
 
-// In dev the runner is a second Vite server, but the diagram hand-off between the
-// two apps rides on same-origin localStorage — so the runner's paths are proxied
-// through this origin, exactly as the merged dist/ serves them in production.
+// In dev the runner is a second Vite server, but the diagram hand-off rides on same-origin
+// localStorage, so the runner's paths are proxied through this origin, exactly as the merged
+// dist/ serves them in production.
 const RUNNER_PORT = Number(process.env.RUNNER_PORT ?? 5174)
 const RUNNER_PATHS = ['/run', '/api/llm']  // /run also covers /run/assessment-unity
 

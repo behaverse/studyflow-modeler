@@ -36,7 +36,7 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
   modeler: Modeler;
   embed: EmbedOptions;
   renderSvg: () => Promise<{ svg: string; xml: string }>;
-  /** The semantic view of the diagram, built on demand — only the interchange formats read it. */
+  /** The semantic view of the diagram, built on demand; only the interchange formats read it. */
   exportModel: () => ExportModel;
 }) => Promise<BlobPart> | BlobPart> = {
   studyflow: async ({ modeler }) =>

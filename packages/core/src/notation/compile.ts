@@ -232,7 +232,7 @@ class Compiler {
     return targets;
   }
 
-  /** Highest precedence first, self excluded — the reverse of moddle's property-application order, so build-up folds (attributes, roles) re-reverse it while nearest-answer folds (the BPMN attach point) read it as-is. */
+  /** Highest precedence first, self excluded; the reverse of moddle's property-application order, so build-up folds (attributes, roles) re-reverse it while nearest-answer folds (the BPMN attach point) read it as-is. */
   private ancestorsOf(qualified: string): string[] {
     const cached = this.ancestorCache.get(qualified);
     if (cached) return cached;
@@ -347,7 +347,7 @@ class Compiler {
   }
 
   private compileAttribute(prefix: string, raw: SchemaPropertyModel): AttributeSpec {
-    // An explicitly prefixed property (`bpmn:loopCondition`) keeps that namespace — how a redefine stays a *bpmn* element on the wire.
+    // An explicitly prefixed property (`bpmn:loopCondition`) keeps that namespace, which is how a redefine stays a *bpmn* element on the wire.
     const sep = raw.name.indexOf(':');
     const nsPrefix = sep > 0 ? raw.name.slice(0, sep) : prefix;
     const nsLocal = sep > 0 ? raw.name.slice(sep + 1) : raw.name;

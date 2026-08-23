@@ -30,7 +30,7 @@ A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the
 | `bpmn:DataInputAssociation`, `bpmn:DataOutputAssociation` | data <-> step | one value in or out of the activity |
 | `bpmn:MessageFlow` | | an exchange of messages between two parties |
 
-A data edge can also describe a binding, written as `slot = selection`: the slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional: `self` binds a method's receiver, and `*` appends the value positionally.
+A data edge can also describe a binding, written as `slot = selection`. The slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional: `self` binds a method's receiver, and `*` appends the value positionally.
 
 ## Shape and behavior
 
@@ -61,7 +61,7 @@ A studyflow has to satisfy the usual rules of a BPMN diagram before anything can
 
 ## Views
 
-A view is a projection: it keeps some of the elements of the diagram and drops the rest. It never adds or renames anything, so a view cannot modify the study it came from.
+A view is a projection. It keeps some of the elements of the diagram and drops the rest, and it never adds or renames anything, so a view cannot modify the study it came from.
 
 | View | Keeps | Answers |
 |:--|:--|:--|
@@ -81,7 +81,7 @@ A view is a projection: it keeps some of the elements of the diagram and drops t
 | `runtime` | where it is meant to run: `browser`, `cloud`, `local`, or `hpc` |
 | `tags` | short classification labels |
 | `seed` | the root seed; set it and every gateway draw replays |
-| `documentation`, `checklist` | prose and reporting items, available on **every** element, not only the study |
+| `documentation`, `checklist` | prose and reporting items, available on **every** element, the study included |
 
 ## What a participant meets
 
@@ -105,7 +105,7 @@ A view is a projection: it keeps some of the elements of the diagram and drops t
 | `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
 | `Rest` | `bpmn:Task` | A break, or a resting-state period. A narrower `CognitiveTask`. | `configurations` |
 
-`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations`, which is how the same file doubles as an AI evaluation.
+`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations`. That is how the same file doubles as an AI evaluation.
 
 ## Entry and exit
 
@@ -204,7 +204,7 @@ An agent stops at its `completionCondition` and never runs past `maxTurns`. A gu
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
 | `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
 
-The YAML and the XML convert into each other losslessly, in both directions, so converting a file there and back returns byte-identical text and a version-control diff shows your edits and nothing else. Here is a complete, runnable study:
+The YAML and the XML convert into each other losslessly, so a round trip returns byte-identical text and a version-control diff shows your edits and nothing else. Here is a complete, runnable study:
 
 ```yaml
 id: minimal_study
@@ -247,7 +247,7 @@ Minimal_Study:
       targetRef: Done
 ```
 
-That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. There is no geometry in it: the layout follows from `sourceRef` and `targetRef`, and the modeler only saves geometry once you rearrange things by hand.
+That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. It contains no geometry. The layout follows from `sourceRef` and `targetRef`, and the modeler only saves geometry once you rearrange things by hand.
 
 | Rule | In the file |
 |:--|:--|
@@ -257,6 +257,6 @@ That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow
 | defaults and inferable types are omitted | restored on read; `type:` appears only where the element is not already expected there |
 | `id`, `definitions`, then one key per root element | a file with no `definitions` is not read as a studyflow; the format version is the version segment of the core namespace |
 
-Six short forms collapse the long structure where nothing is lost by doing so, and the long form is always still accepted: a YAML mapping instead of a quoted string under `additionalArguments`, `values`, `configurations`, or a schema `body`; a plain list under `extensionElements`; geometry written on the element it positions; elements keyed by id under `flowElements`; an expression written as a plain string; and `documentation` carrying `checklist` for the checklist entry.
+Six short forms collapse the long structure where nothing is lost, and the long form is always still accepted: a YAML mapping instead of a quoted string under `additionalArguments`, `values`, `configurations`, or a schema `body`; a plain list under `extensionElements`; geometry written on the element it positions; elements keyed by id under `flowElements`; an expression written as a plain string; and `documentation` carrying `checklist` for the checklist entry.
 
 Two things to keep in mind about images. An exported image carries the whole study, but not the element sets it depends on, and not any data the study produced. And an image that has been through a screenshot tool or a vector editor keeps its pixels and loses the study inside it, so always keep the `.studyflow.yaml` as well.

@@ -13,11 +13,11 @@ contract this implements and the terms it writes.
 
 This is the core: the walk, the values, the records, and the
 partial-runner hand-offs (`studyflow-<name>` siblings claim and execute their
-elements — `python://` ones belong to `studyflow-python.py`).
+elements; `python://` ones belong to `studyflow-python.py`).
 `studyflow-prov.py` beside it adds the run repository, the records, and the
 prov timeline; without it a run executes bare.
 
-A run writes a run directory — `runs/<id>/` (YYMMDD plus a codename, e.g. `runs/260821heron/`), or the one the diagram handed
+A run writes a run directory, `runs/<id>/` (YYMMDD plus a codename, e.g. `runs/260821heron/`), or the one the diagram handed
 to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
 stamped `executed` (the copy carries its own run record), and `studyflow.log`;
 the detailed step records live in the run repository's commit bodies. Expressions run in the evaluating engine's own
@@ -228,7 +228,7 @@ def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
 
 
 def timeline_timestamp(moment: datetime) -> str:
-    """ISO 8601, millisecond precision, local numeric offset — fine enough that the timeline's order
+    """ISO 8601, millisecond precision, local numeric offset, fine enough that the timeline's order
     is the log's order. Older files carry coarser second-precision and `Z` stamps."""
     return moment.astimezone().isoformat(timespec="milliseconds")
 
@@ -243,8 +243,8 @@ ANIMALS = (
 
 
 def run_stamp(moment: datetime) -> str:
-    """Sortable, human-trackable id — YYMMDD plus a codename the start moment draws
-    (e.g. 260821heron): a default repo's name and a new branch read the same."""
+    """Sortable, human-trackable id: YYMMDD plus a codename the start moment draws
+    (e.g. 260821heron). A default repo's name and a new branch read the same."""
     utc = moment.astimezone(timezone.utc)
     return f"{utc.strftime('%y%m%d')}{ANIMALS[int(utc.timestamp() * 1000) % 32]}"
 
@@ -526,9 +526,9 @@ def discover_runners(runner_flags: list[str]) -> dict[str, str]:
 class PartialRunner:
     """A partial runner as a subprocess per element: `COMMAND <diagram> --element <id> --cache <dir>`.
     It runs the elements it claims (`COMMAND <diagram> --claims` answers with their ids), whatever
-    they are — a runner is element-specific, not schema-specific. One file per hand-off,
+    they are; a runner is element-specific, not schema-specific. One file per hand-off,
     `<id>.state.json` in the cache dir: the state (the run's values) goes in, and the updated
-    state comes back with `result`, `durationMs`, and on failure `error` merged in — only one
+    state comes back with `result`, `durationMs`, and on failure `error` merged in. Only one
     side touches it at a time. The runner's stdout is captured into the run log; stdin and
     stderr stay on the terminal for the person."""
 
@@ -667,7 +667,7 @@ class Runner:
         self.checkpoint(subject, when, {"Prov-Node": element_id})
 
     def checkpoint(self, subject: str, when: str, extra_trailers: dict[str, str] | None = None) -> None:
-        """Record entries since the last checkpoint ride in the commit body — git is their only home."""
+        """Record entries since the last checkpoint ride in the commit body; git is their only home."""
         if self.repo is None:
             return
         steps = self.record.steps_since(self.recorded)
@@ -936,7 +936,7 @@ class Runner:
         )
 
     def execute_via_runner(self, element: ET.Element, entry: dict, runner: PartialRunner) -> None:
-        """One hand-off: state in, updated state out — what the runner bound or changed is adopted here."""
+        """One hand-off: state in, updated state out; what the runner bound or changed is adopted here."""
         element_id = element.get("id")
         entry["implementation"] = element.get("implementation") or f"runner://{runner.name}"
         self.event("runner.called", f"    → the {runner.name} runner takes this element")
@@ -963,7 +963,7 @@ class Runner:
             return None
 
         if local(element) in GATEWAY_TAGS:
-            # A clean gateway replays its recorded decision — same inputs, same seed, same verdict.
+            # A clean gateway replays its recorded decision: same inputs, same seed, same verdict.
             # A condition edit is invisible to staleness: ✕ the gateway or `--fresh` forces re-evaluation.
             # A gateway a live runner samples decides live, so its decision never replays.
             prior = None if element_id in self.live else self.prior_records.get(element_id)
@@ -1056,7 +1056,7 @@ class Runner:
 
     def debug_state(self, element_id: str) -> None:
         """--debug: every element leaves `<id>.state.json` in `.cache/`, the updated state with its
-        `result` and `durationMs` merged in — the same shape a partial runner's hand-off file has."""
+        `result` and `durationMs` merged in, the same shape a partial runner's hand-off file has."""
         if not self.debug:
             return
         state = self.json_values()
@@ -1163,8 +1163,8 @@ class Runner:
     def archive_plan(self, source: Path) -> Path:
         self.repo_dir.mkdir(parents=True, exist_ok=True)
         # Skipped steps keep the record of the run that did the work. A branching run *supersedes*
-        # work records instead of replacing them — the first branch's stay, so the trail shows both
-        # branches — and start/end events supersede too, so a replay walks every run end to end.
+        # work records instead of replacing them (the first branch's stay, so the trail shows both
+        # branches), and start/end events supersede too, so a replay walks every run end to end.
         # Only containers always replace in place.
         # `reused` lines are always replaced too: the trail carries each element's latest reuse only.
         STRUCTURAL = CONTAINER_TAGS
@@ -1302,7 +1302,7 @@ def main() -> int:
             when=timeline_timestamp(started),
         )
 
-    # Root seed: read from the diagram, never drawn here — partial runners read the same file,
+    # Root seed: read from the diagram, never drawn here. Partial runners read the same file,
     # so every process seeds identically. A diagram without a seed runs unseeded.
     probe = read_studyflow(args.studyflow)
     seed = studyflow_attr(probe.process, "seed")
@@ -1311,7 +1311,7 @@ def main() -> int:
     except (TypeError, ValueError):
         pass  # no seed, or a non-numeric one, seeds nothing
 
-    # The input file is never touched — the stamp lands on the archived copy.
+    # The input file is never touched; the stamp lands on the archived copy.
     studyflow = read_studyflow(args.studyflow, stamp={
         "action": "executed",
         "when": timeline_timestamp(started),
@@ -1321,12 +1321,12 @@ def main() -> int:
         "seed": seed,
     })
     # The diagram is read before the fork below, because forking reverts the copy this may be reading from.
-    # Branching has first claim on the run's branch name — a detached HEAD only attaches without one.
+    # Branching has first claim on the run's branch name; a detached HEAD only attaches without one.
     invalidated = PROV.invalidated_elements(probe) if PROV is not None else []
     branched = False
     if repo.active and (args.from_ref or invalidated):
         point = PROV.branch_point(repo, invalidated, args.from_ref)
-        # Branches are the only refs — runs live as `started`/`finished` boundary commits.
+        # Branches are the only refs; runs live as `started`/`finished` boundary commits.
         branch = f"run/{stamp}"
         if point and repo.branch(branch, f"{point}^"):
             branched = True

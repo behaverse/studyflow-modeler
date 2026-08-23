@@ -244,7 +244,7 @@ test.describe('draw.io export', () => {
       shape({ id: 'Grp', type: 'bpmn:Group', bo: { categoryValueRef: { value: 'Enrolment' } } }),
     ]));
 
-    // A cell value is HTML inside an XML attribute — escaped twice: `&amp;amp;` parses to `&amp;`, renders `&`.
+    // A cell value is HTML inside an XML attribute, escaped twice: `&amp;amp;` parses to `&amp;`, renders `&`.
     expect(xml).toContain('value="Trial 1&lt;br&gt;Round &amp;quot;A&amp;quot; &amp;amp; B"');
     expect(xml).toContain('value="a &amp;lt;b&amp;gt; c"');
     expect(xml).toContain('<mxCell id="Note" value="A free-form note."');
