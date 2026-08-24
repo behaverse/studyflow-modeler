@@ -1,13 +1,11 @@
 # yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-name: ML
+name: ML Templates
 prefix: ml
-description: >-
-  Presets for statistical and machine-learning pipelines: load, split, build,
-  fit, cross-validate, and save.
+description: Presets for statistical and machine learning pipelines.
 uri: https://w3id.org/studyflow/ml
 icon: iconify tabler--hexagon-letter-m
-order: 50  # registry position (load precedence + settings order)
+order: 105
 xml:
   tagAlias: lowerCase
 version: 26.0812

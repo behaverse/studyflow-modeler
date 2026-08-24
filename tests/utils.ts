@@ -24,7 +24,22 @@ export function withoutDiagramInterchange(xml: string): string {
   return xml.replace(/\s*<bpmndi:BPMNDiagram[\s\S]*?<\/bpmndi:BPMNDiagram>/g, '');
 }
 
-export async function gotoModeler(page: Page): Promise<void> {
+/**
+ * Hides the File System Access pickers, the way Firefox, Safari, and every mobile browser do.
+ * Playwright cannot drive a native picker, so any test that wants a download needs this.
+ */
+export async function withoutFileSystemAccess(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    for (const key of ['showOpenFilePicker', 'showSaveFilePicker']) {
+      // The methods live on `Window.prototype`, so shadowing is what removes them.
+      Object.defineProperty(window, key, { configurable: true, value: undefined });
+    }
+  });
+}
+
+/** `pickers: true` keeps the File System Access pickers, for tests that stub them themselves. */
+export async function gotoModeler(page: Page, { pickers = false } = {}): Promise<void> {
+  if (!pickers) await withoutFileSystemAccess(page);
   await page.goto('/app');
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
@@ -47,6 +62,13 @@ export async function runPaletteCommand(page: Page, ...labels: string[]): Promis
   }
 }
 
+/** "Open File..." now opens a dialog; the picker is behind its Browse button. */
+export async function browseForDiagram(page: Page): Promise<void> {
+  await runPaletteCommand(page, 'Open File...');
+  await expect(page.getByTestId('open-dialog')).toBeVisible();
+  await page.getByTestId('open-dropzone').click();
+}
+
 export async function stubIconify(page: Page): Promise<void> {
   await page.route('https://api.iconify.design/**', async (route) => {
     await route.fulfill({
@@ -57,27 +79,13 @@ export async function stubIconify(page: Page): Promise<void> {
   });
 }
 
-const EMBED_SWITCH_LABELS: Record<string, string> = {
-  studyflow: 'Embed Studyflow source',
-  drawio: 'Embed draw.io diagram',
-};
-
-export async function exportDiagram(
-  page: Page,
-  format: string,
-  embed: Partial<Record<'studyflow' | 'drawio', boolean>> = {},
-): Promise<Download> {
-  await runPaletteCommand(page, 'Export...');
-  await expect(page.getByTestId('export-dialog')).toBeVisible();
+export async function exportDiagram(page: Page, format: string): Promise<Download> {
+  await runPaletteCommand(page, 'Save...');
+  await expect(page.getByTestId('save-dialog')).toBeVisible();
   await page.getByTestId('export-format').selectOption(format);
 
-  for (const [id, on] of Object.entries(embed)) {
-    const toggle = page.getByRole('switch', { name: EMBED_SWITCH_LABELS[id] });
-    if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click();
-  }
-
   const downloadPromise = page.waitForEvent('download');
-  await page.getByTestId('export-submit').click();
+  await page.getByTestId('save-submit').click();
   return downloadPromise;
 }
 

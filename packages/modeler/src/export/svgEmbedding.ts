@@ -57,16 +57,6 @@ export function embedStudyflowIntoSvg(svg: string, xml: string): string {
   return new XMLSerializer().serializeToString(svgDoc);
 }
 
-/** Embed a draw.io `<mxfile>` document into the SVG root's `content` attribute, draw.io's "editable SVG" form. */
-export function embedDrawioIntoSvg(svg: string, mxfileXml: string): string {
-  const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
-  const svgEl = svgDoc.querySelector('svg') || svgDoc.documentElement;
-
-  svgEl.setAttribute('content', mxfileXml.trim());
-
-  return new XMLSerializer().serializeToString(svgDoc);
-}
 
 const EXPORT_PADDING = 8;
 

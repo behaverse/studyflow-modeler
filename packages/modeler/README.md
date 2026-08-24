@@ -10,7 +10,7 @@ The visual editor for studyflows: a [bpmn-js](https://bpmn.io) canvas inside a R
 - **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, bpmn-js inside. `src/bpmn/module.ts` is the single registration list for everything bpmn-js-side, and the right first file to read for canvas behavior.
 - **Views dispatch commands by name** and never call a handler directly: a command's `type` *is* its handler's name, so `{ type: 'SetColor' }` runs `runSetColor`, exported from a feature's `commands.ts`. Both sides of the pixel split dispatch onto the same bus, `src/commandBus.ts`.
 - **Adding an element type is a schema edit, not a code edit.** Dropping a `*.moddle.yaml` into `assets/schemas/` gives you a palette entry, inspector fields and tabs, connection rules, templates, and round-tripping, with no code here.
-- It stamps the provenance trail on export: `created` on a fresh diagram, `modified` afterwards, once per edit batch. It never writes `executed`. The only other entry it writes is the `invalidated` marker behind the ✕ gesture.
+- It updates the provenance timeline on export: `created` on a fresh diagram, `modified` afterwards, once per edit batch. It never writes `executed`. The only other entry it writes is the `invalidated`.
 
 ## Where things are
 

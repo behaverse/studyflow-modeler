@@ -33,6 +33,14 @@ export const radius = {
   paletteTool: 'rounded-[10px]',
 } as const;
 
+export const button = {
+  /** Layout and type of the app's primary actions, as on the nav bar's Simulate and Run. */
+  action: `inline-flex items-center justify-center gap-1.5 h-7 px-3.5 text-[13px] font-semibold
+           text-white transition-colors cursor-pointer disabled:opacity-50`,
+  /** The accent fill those actions carry. Kept apart from `action` so a state can swap just this. */
+  accentFill: 'bg-[#C028B0] hover:bg-[#A32295]',
+} as const;
+
 export const dialog = {
   root: 'relative z-[240] focus:outline-none',
   backdrop: 'fixed backdrop-blur inset-0 z-10 w-screen overflow-y-auto',

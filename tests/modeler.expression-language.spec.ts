@@ -6,7 +6,7 @@ import { addPaletteElement, exportDiagram, gotoModeler, readDownloadText, runPal
 test('an expression field carries a subtle language select that persists', async ({ page }) => {
   await gotoModeler(page);
 
-  await runPaletteCommand(page, 'Examples...');
+  await runPaletteCommand(page, 'New...');
   await page.getByTestId('example-drawn_loop').click();
   await expect(page.locator('g[data-element-id="Say"]')).toBeVisible();
 
@@ -32,7 +32,7 @@ test('an expression field carries a subtle language select that persists', async
 test('a data wire\'s binding and the loop marker\'s condition get the select too', async ({ page }) => {
   await gotoModeler(page);
 
-  await runPaletteCommand(page, 'Examples...');
+  await runPaletteCommand(page, 'New...');
   await page.getByTestId('example-sklearn_pipeline').click();
   await expect(page.locator('g[data-element-id="select_features"]')).toBeVisible();
 

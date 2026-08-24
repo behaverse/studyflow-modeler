@@ -3,11 +3,11 @@
 name: Prov
 prefix: prov
 description: >-
-  The provenance trail - who acted on this studyflow, with what tool, and when.
+  The provenance timeline - who acted on this studyflow, with what tool, and when.
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
 core: true   # always loaded
-order: 15  # registry position (load precedence + settings order)
+order: 2
 xml:
   tagAlias: lowerCase
 version: 26.0731
@@ -20,7 +20,7 @@ types:
 
   - name: Activity
     description: >-
-      One entry of the trail - who did something to this studyflow, and when;
+      One entry of the timeline - who did something to this studyflow, and when;
       entries run oldest first.
     superClass:
       - Element

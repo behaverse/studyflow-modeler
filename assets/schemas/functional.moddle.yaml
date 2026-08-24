@@ -8,7 +8,7 @@ description: >-
 uri: https://w3id.org/studyflow/functional
 icon: iconify tabler--hexagon-letter-f
 core: true   # backs the default elements; always loaded, cannot be disabled
-order: 30  # registry position (load precedence + settings order)
+order: 103
 xml:
   tagAlias: lowerCase
 version: 26.0812

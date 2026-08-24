@@ -7,7 +7,8 @@ import { notify } from '@modeler/app/noticeStore';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { CommandPalette, OPEN_PALETTE_SHORTCUT_LABEL } from '@modeler/commandPalette/CommandPalette';
 import { useDiagramName } from '@modeler/navBar/useDiagramName';
-import { surface, shadow, border, text, radius } from '@modeler/ui/styles';
+import { FileStatus } from '@modeler/navBar/FileStatus';
+import { surface, shadow, border, text, radius, button } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 const navbar = {
@@ -38,9 +39,9 @@ const navBurgerBtnCls =
 
 const navDividerCls = 'w-px h-4 bg-black/[0.10] mr-2 ml-2';
 
-const SIMULATE_BASE = 'inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold rounded-l-lg h-7 px-3.5 transition-colors text-white';
+const SIMULATE_BASE = `${button.action} rounded-l-lg`;
 const SIMULATE_ACTIVE = 'bg-red-700 hover:bg-red-800';
-const SIMULATE_IDLE = 'bg-[#C028B0] hover:bg-[#A32295]';
+const SIMULATE_IDLE = button.accentFill;
 
 function SimulateButton() {
   const modeler = useRequiredModeler();
@@ -146,6 +147,7 @@ export function NavBar() {
                 onBlur={finishEditingDiagramName}
                 onKeyDown={(e) => { if (e.key === 'Enter') finishEditingDiagramName(); }}
                 autoFocus
+                data-testid="diagram-name-input"
                 maxLength={120}
                 minLength={1}
                 className={navbar.diagramNameInput}
@@ -159,6 +161,7 @@ export function NavBar() {
                 {diagramName}
               </span>
             )}
+            {modeler && <FileStatus />}
           </div>
 
           {modeler && (

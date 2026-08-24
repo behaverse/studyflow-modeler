@@ -10,11 +10,14 @@ import {
   type WriteResult,
 } from '@core/storage';
 import { notify } from '@modeler/app/noticeStore';
+import { unlinkFile } from '@modeler/diagram/fileHandle';
 
 type DiagramAutoSave = 'off' | 'local';
 
 export type Settings = {
   diagramAutoSave: DiagramAutoSave;
+  /** Write edits straight back into the linked file. Does nothing until a file is linked. */
+  autoSaveToFile: boolean;
   showGrid: boolean;
   /** Moddle prefixes of extension schemas to load at boot. */
   enabledSchemas: string[];
@@ -22,6 +25,7 @@ export type Settings = {
 
 const DEFAULT_SETTINGS: Settings = {
   diagramAutoSave: 'local',
+  autoSaveToFile: true,
   showGrid: true,
   enabledSchemas: [...SCHEMA_NAMES],
 };
@@ -91,6 +95,8 @@ export function getStorageEstimate(): { keys: number; bytes: number } {
 
 export function clearAllLocalData(): void {
   clearOwnedKeys();
+  // The linked file's handle lives in IndexedDB, which `clearOwnedKeys` cannot reach.
+  unlinkFile();
   current = { ...DEFAULT_SETTINGS };
   emit();
 }

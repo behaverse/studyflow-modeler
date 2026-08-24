@@ -1,5 +1,6 @@
 import * as app from '@modeler/app/commands';
 import * as diagram from '@modeler/diagram/commands';
+import * as saveDiagram from '@modeler/diagram/save';
 import * as exportDiagram from '@modeler/export/commands';
 import * as inspector from '@modeler/inspector/commands';
 import * as palette from '@modeler/palette/commands';
@@ -10,7 +11,7 @@ import * as simulation from '@modeler/simulation/commands';
 import type { ServiceResolver } from '@modeler/bpmn/types';
 
 /* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
-const FEATURES = [app, diagram, exportDiagram, inspector, palette, provenance, publish, shape, simulation] as const;
+const FEATURES = [app, diagram, exportDiagram, inspector, palette, provenance, publish, saveDiagram, shape, simulation] as const;
 
 type UnionToIntersection<U> =
   (U extends unknown ? (u: U) => void : never) extends (i: infer I) => void ? I : never;

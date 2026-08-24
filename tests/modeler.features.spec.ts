@@ -12,16 +12,17 @@ test('the app loader and the Node twin agree on the schema manifest', async ({ p
   expect(appSchemas).toEqual(nodeSchemas);
 });
 
-test('the Publish dialog opens, and a bogus key fails inline (not via alert)', async ({ page }) => {
+test('publishing is a destination in the Save dialog, and a bogus key fails inline (not via alert)', async ({ page }) => {
   await gotoModeler(page);
-  await runPaletteCommand(page, 'Publish...');
-  const dialog = page.getByTestId('publish-dialog');
+  await runPaletteCommand(page, 'Save...');
+  const dialog = page.getByTestId('save-dialog');
   await expect(dialog).toBeVisible();
 
-  await dialog.getByRole('textbox', { name: 'Study Name' }).fill('test-study');
-  await dialog.getByRole('textbox', { name: 'Behaverse API Key' }).fill('bogus');
+  await dialog.getByTestId('save-to-cloud').click();
+  await dialog.getByRole('textbox', { name: 'Study name' }).fill('test-study');
+  await dialog.getByLabel('Behaverse API key').fill('bogus');
   // The publish endpoint always fails here; the failure must render inside the dialog, per the notices house rule.
-  await dialog.getByRole('button', { name: 'Publish' }).click();
+  await dialog.getByTestId('save-submit').click();
   await expect(dialog.locator('.text-red-500')).toBeVisible();
 });
 

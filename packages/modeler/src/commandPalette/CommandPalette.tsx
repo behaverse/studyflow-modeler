@@ -5,6 +5,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useSyncExternalStore,
   useRef,
   useState,
   type ComponentType,
@@ -14,12 +15,14 @@ import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
+import { MOD_LABEL } from '@modeler/constants';
+import { DIAGRAM_OPEN_ACCEPT, getLinkedFileName, linkOpenedFile, subscribeLink } from '@modeler/diagram/fileHandle';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
-import { IMPORTABLE_EXTENSIONS } from '@modeler/export/formats';
-import { ExamplesDialog } from '@modeler/examples/Examples';
-import { TemplateGalleryDialog } from '@modeler/templates/TemplateGallery';
-import { ExportDialog } from '@modeler/export/Export';
-import { PublishDialog } from '@modeler/publish/Publish';
+import { OPENABLE_EXTENSIONS } from '@modeler/export/formats';
+import { isBinaryDiagram, isOpenable, OPEN_FAILURE_MESSAGE, OPEN_INVALID_MESSAGE } from '@modeler/open/openFile';
+import { GalleryDialog } from '@modeler/gallery/Gallery';
+import { OpenDialog } from '@modeler/open/Open';
+import { SaveDialog } from '@modeler/export/Save';
 import { ChecklistDialog } from '@modeler/checklist/Checklist';
 import { GanttDialog } from '@modeler/gantt/Gantt';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
@@ -34,11 +37,12 @@ import {
 import { useFilePicker } from '@modeler/commandPalette/useFilePicker';
 import { ICONS } from '@modeler/icons';
 
-const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<{ isOpen: boolean; onClose: () => void; scopeId?: string }>> = {
-  examples: ExamplesDialog,
-  templates: TemplateGalleryDialog,
-  export: ExportDialog,
-  publish: PublishDialog,
+type SubDialogProps = { isOpen: boolean; onClose: () => void; scopeId?: string; onBrowse?: () => void };
+
+const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<SubDialogProps>> = {
+  gallery: GalleryDialog,
+  open: OpenDialog,
+  save: SaveDialog,
   checklist: ChecklistDialog,
   gantt: GanttDialog,
   provenance: ProvenanceDialog,
@@ -57,10 +61,7 @@ function isTyping(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 }
 
-const IS_MAC =
-  typeof navigator !== 'undefined' && /Mac|iPad|iPhone|iPod/.test(navigator.platform);
-
-export const OPEN_PALETTE_SHORTCUT_LABEL = IS_MAC ? '⌘K' : 'Ctrl+K';
+export const OPEN_PALETTE_SHORTCUT_LABEL = `${MOD_LABEL}K`;
 
 type Props = {
   ref?: React.Ref<{ open: () => void; close: () => void }>;
@@ -76,32 +77,28 @@ export function CommandPalette({ ref }: Props) {
   const { openSettings } = useContext(SettingsViewContext);
   const { openReplay } = useContext(ReplayContext);
   const isSimulating = useIsSimulating(modeler);
+  // A string selector, so the palette does not re-render through every save state transition.
+  const linkedFileName = useSyncExternalStore(subscribeLink, getLinkedFileName, getLinkedFileName);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const diagramPicker = useFilePicker({
-    accept: IMPORTABLE_EXTENSIONS.join(','),
+    accept: OPENABLE_EXTENSIONS.join(','),
+    picker: DIAGRAM_OPEN_ACCEPT,
+    // Links the picked file, so from here on saving writes back into it instead of downloading.
+    onPicked: linkOpenedFile,
     testId: 'open-file-input',
-    isValid: (name) => IMPORTABLE_EXTENSIONS.some((ext) => name.endsWith(ext)),
-    invalidMessage: 'Choose a .studyflow.yaml, .bpmn, .svg, or .png file.',
-    isBinary: (name) => name.endsWith('.png'),
-    failureMessage: 'Could not open that file. Check it is a studyflow or BPMN diagram, then try again.',
-    onText: (filename, content) => {
+    isValid: isOpenable,
+    invalidMessage: OPEN_INVALID_MESSAGE,
+    isBinary: isBinaryDiagram,
+    failureMessage: OPEN_FAILURE_MESSAGE,
+    onText: async (filename, content) => {
       if (content == null) throw new Error('Could not read the file. Try again.');
-      return executeCommand(modeler, { type: 'OpenDiagram', filename, content });
-    },
-  });
-
-  const jsPsychPicker = useFilePicker({
-    accept: '.json',
-    testId: 'import-jspsych-input',
-    isValid: (name) => name.endsWith('.json'),
-    invalidMessage: 'Choose a jsPsych timeline JSON file.',
-    failureMessage: 'Could not import the timeline. Check it is a jsPsych timeline, then try again.',
-    onText: (filename, content) => {
-      if (typeof content !== 'string') throw new Error('Could not read the timeline. Save it as UTF-8 JSON and try again.');
-      return executeCommand(modeler, { type: 'ImportJsPsych', filename, content });
+      const result = await executeCommand(modeler, { type: 'OpenDiagram', filename, content });
+      // The pick may have been started from the Open dialog, which has nothing left to say.
+      setDialog(null);
+      return result;
     },
   });
 
@@ -124,10 +121,9 @@ export function CommandPalette({ ref }: Props) {
         // Palette-opened dialogs are unscoped; only the `p`-on-selection path sets a provenance scope.
         openDialog: (id: PaletteDialogId) => setDialog({ id }),
         openReplay,
-        pickDiagramFile: diagramPicker.open,
-        pickJsPsychFile: jsPsychPicker.open,
+        linkedFileName,
       }),
-    [modeler, openSettings, isSimulating, openReplay, diagramPicker.open, jsPsychPicker.open],
+    [modeler, openSettings, isSimulating, openReplay, linkedFileName],
   );
 
   const submenuParent = useMemo(
@@ -158,6 +154,16 @@ export function CommandPalette({ ref }: Props) {
         else open();
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        // Chrome's own "save page" would fire otherwise, and it saves the wrong thing entirely.
+        e.preventDefault();
+        if (isOpen) close();
+        // The quick write only exists once there is a file to write; without one — or with Shift,
+        // to reach the format and destination controls — this is the dialog's job.
+        if (e.shiftKey || !linkedFileName) setDialog({ id: 'save' });
+        else void executeCommand(modeler, { type: 'SaveDiagram' });
+        return;
+      }
       // `/` opens, never closes; in the palette it is just a character to search with.
       if (isBareKey(e, '/') && !isOpen && !isTyping(e.target)) {
         e.preventDefault();
@@ -175,7 +181,7 @@ export function CommandPalette({ ref }: Props) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modeler, isOpen, dialog]);
+  }, [modeler, isOpen, dialog, linkedFileName]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -239,9 +245,10 @@ export function CommandPalette({ ref }: Props) {
         isOpen: true,
         onClose: () => setDialog(null),
         scopeId: dialog.scopeId,
+        // The hidden `<input>` below stays mounted for the fallback, so the palette owns the pick.
+        onBrowse: diagramPicker.open,
       })}
       <input {...diagramPicker.inputProps} />
-      <input {...jsPsychPicker.inputProps} />
       <Dialog open={isOpen} onClose={close} className={cp.root}>
         <div className={cp.backdrop} aria-hidden="true" />
         <div className={cp.layout}>
@@ -259,7 +266,7 @@ export function CommandPalette({ ref }: Props) {
                 onKeyDown={handleKeyDown}
                 placeholder={submenuParent
                   ? `Search ${submenuParent.label.replace(/\.\.\.$/, '').toLowerCase()}...`
-                  : `Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} to toggle)`}
+                  : `Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} or "/" to toggle)`}
                 className={cp.searchInput}
                 aria-label="Search commands"
               />

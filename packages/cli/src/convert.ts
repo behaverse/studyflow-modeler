@@ -70,18 +70,15 @@ async function openStudyflow(page: any, origin: string, name: string, xml: strin
   await page.waitForTimeout(500); // let icon <foreignObject>s settle before the export
 }
 
-/** Export the open diagram as PNG (studyflow embedded, draw.io payload off) and return the bytes. */
+/** Export the open diagram as PNG (its studyflow always embedded) and return the bytes. */
 async function exportPng(page: any): Promise<Buffer> {
   await page.getByRole('button', { name: 'Open command palette' }).click();
-  await page.getByRole('dialog').getByText('Export...', { exact: true }).click();
-  await page.getByTestId('export-dialog').waitFor();
+  await page.getByRole('dialog').getByText('Save...', { exact: true }).click();
+  await page.getByTestId('save-dialog').waitFor();
   await page.getByTestId('export-format').selectOption('png');
 
-  const drawio = page.getByRole('switch', { name: 'Embed draw.io diagram' });
-  if ((await drawio.getAttribute('aria-checked')) !== 'false') await drawio.click();
-
   const download = page.waitForEvent('download');
-  await page.getByTestId('export-submit').click();
+  await page.getByTestId('save-submit').click();
   return readFileSync(await (await download).path());
 }
 
@@ -101,6 +98,13 @@ async function renderPng(input: string, xml: string, origin: string): Promise<Bu
   try {
     const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
+    // Headless Chromium has the File System Access pickers, and a native picker cannot be driven
+    // from here. Hiding them puts the Save dialog on its download path, which is what we read.
+    await page.addInitScript(() => {
+      for (const key of ['showOpenFilePicker', 'showSaveFilePicker']) {
+        Object.defineProperty(window, key, { configurable: true, value: undefined });
+      }
+    });
     await openStudyflow(page, origin, `${basename(input).replace(/\..*$/, '')}.bpmn`, xml);
     return await exportPng(page);
   } finally {
