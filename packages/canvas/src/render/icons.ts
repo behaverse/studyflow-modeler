@@ -12,7 +12,7 @@
  */
 
 import type { ModdleObject } from '@canvas/model/scene.ts';
-import { append, create, createHtml } from '@canvas/render/svg.ts';
+import { append, create, createHtml, ownerDocument } from '@canvas/render/svg.ts';
 
 /** An inline SVG glyph: a viewBox and its path `d` strings. */
 export interface SvgIconDef {
@@ -184,6 +184,60 @@ export function drawInlineSvgIcon(
 }
 
 /**
+ * Iconify paints its classes with a CSS mask. WebKit will not render a mask inside an
+ * SVG `<foreignObject>` — the box lays out and a plain background paints, but the
+ * masked glyph never appears, so a CSS-class icon silently vanishes in Safari. The
+ * mask source is a monochrome SVG held in the class's `--svg` custom property, so we
+ * recolour it and paint it as a background image, which WebKit does render. Same
+ * pixels in Chromium, and the DOM shape is unchanged.
+ */
+const ICON_SOURCES = new Map<string, string | undefined>();
+
+/** The `--svg` behind an iconify class, read once per class from a throwaway probe. */
+function iconSvgSource(iconClass: string): string | undefined {
+  if (ICON_SOURCES.has(iconClass)) return ICON_SOURCES.get(iconClass);
+
+  const doc = ownerDocument();
+  const body = doc.body;
+  const view = doc.defaultView;
+  // No body (a headless serialization) or no CSS engine: nothing to probe, and the
+  // stylesheet's own mask is left in place.
+  if (!body || !view) return undefined;
+
+  const probe = doc.createElement('div');
+  probe.className = iconClass;
+  probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden;pointer-events:none';
+  body.appendChild(probe);
+  const raw = view.getComputedStyle(probe).getPropertyValue('--svg').trim();
+  probe.remove();
+
+  const source = /^url\(\s*(['"]?)data:image\/svg\+xml,([\s\S]*?)\1\s*\)$/.exec(raw)?.[2];
+  ICON_SOURCES.set(iconClass, source ? decodeURIComponent(source) : undefined);
+  return ICON_SOURCES.get(iconClass);
+}
+
+/** These sources are monochrome by construction: they were built to be masks. */
+const tint = (svgText: string, color: string): string =>
+  svgText.replace(/(fill|stroke)=(['"])black\2/g, `$1=$2${color}$2`);
+
+/**
+ * Paint `iconClass` on `div` without a mask. A class that exposes no `--svg` — an
+ * icon set the plugin did not emit — is left to the stylesheet.
+ */
+function paintIconAsBackground(div: HTMLElement, iconClass: string, color: string): void {
+  const source = iconSvgSource(iconClass);
+  if (!source) return;
+
+  const url = `url("data:image/svg+xml,${encodeURIComponent(tint(source, color))}")`;
+  div.style.setProperty('mask-image', 'none', 'important');
+  div.style.setProperty('-webkit-mask-image', 'none', 'important');
+  div.style.setProperty('background-color', 'transparent', 'important');
+  div.style.setProperty('background-image', url, 'important');
+  div.style.setProperty('background-size', '100% 100%', 'important');
+  div.style.setProperty('background-repeat', 'no-repeat', 'important');
+}
+
+/**
  * Mount a CSS-class glyph inside a `<foreignObject>` — the shape the modeler's
  * icon sheet expects (`packages/modeler/src/draw/icons.ts`), so one class name
  * styles a glyph the same in the canvas and in an exported SVG.
@@ -220,6 +274,7 @@ export function drawCssIcon(
   });
   div.setAttribute('data-icon-class', cssClass);
   div.setAttribute('data-icon-color', color || '');
+  paintIconAsBackground(div, cssClass, color || 'currentColor');
   foreignObject.appendChild(div);
   append(container, foreignObject);
   return foreignObject;
