@@ -15,6 +15,55 @@ const MARKER_3CHAR = { x: 8, y: 22, fontSize: 11 };
 const MARKER_LONG = { x: 8.5, y: 21, fontSize: 8 };
 const MARKER_MAX_CHARS = 4;
 
+/**
+ * Iconify paints its classes with a CSS mask. WebKit will not render a mask inside an SVG
+ * `<foreignObject>` — the box lays out and a plain background paints, but the masked glyph never
+ * appears, so every canvas icon silently vanishes in Safari. The mask source is a monochrome SVG
+ * held in the class's `--svg` custom property, so we recolour it and paint it as a background
+ * image, which WebKit does render. Same pixels in Chromium, and the DOM shape is unchanged so the
+ * export path (`embedIconsInSvg`, which keys off `data-icon-class`) is untouched.
+ */
+const ICON_SOURCES = new Map<string, string | undefined>();
+
+/** The `--svg` behind an iconify class, read once per class from a throwaway probe element. */
+function iconSvgSource(iconClass: string): string | undefined {
+  const cached = ICON_SOURCES.get(iconClass);
+  if (cached !== undefined || ICON_SOURCES.has(iconClass)) return cached;
+
+  const probe = document.createElement('div');
+  probe.className = iconClass;
+  probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden;pointer-events:none';
+  document.body.appendChild(probe);
+  const raw = getComputedStyle(probe).getPropertyValue('--svg').trim();
+  probe.remove();
+
+  const body = /^url\(\s*(['"]?)data:image\/svg\+xml,([\s\S]*?)\1\s*\)$/.exec(raw)?.[2];
+  ICON_SOURCES.set(iconClass, body ? decodeURIComponent(body) : undefined);
+  return ICON_SOURCES.get(iconClass);
+}
+
+/** These sources are monochrome by construction: they were built to be masks. */
+const tint = (svgText: string, color: string): string =>
+  svgText.replace(/(fill|stroke)=(['"])black\2/g, `$1=$2${color}$2`);
+
+/**
+ * Paints `iconClass` on `iconDiv` without a mask. Returns false when the class exposes no `--svg`
+ * — an icon set the plugin did not emit — leaving the stylesheet's own mask in place.
+ */
+function paintIconAsBackground(iconDiv: HTMLElement, iconClass: string, color: string): boolean {
+  const source = iconSvgSource(iconClass);
+  if (!source) return false;
+
+  const url = `url("data:image/svg+xml,${encodeURIComponent(tint(source, color))}")`;
+  iconDiv.style.setProperty('mask-image', 'none', 'important');
+  iconDiv.style.setProperty('-webkit-mask-image', 'none', 'important');
+  iconDiv.style.setProperty('background-color', 'transparent', 'important');
+  iconDiv.style.setProperty('background-image', url, 'important');
+  iconDiv.style.setProperty('background-size', '100% 100%', 'important');
+  iconDiv.style.setProperty('background-repeat', 'no-repeat', 'important');
+  return true;
+}
+
 export function drawIcon(
   parentNode: SVGElement,
   element: any,
@@ -60,6 +109,7 @@ export function drawIcon(
   iconDiv.style.boxSizing = 'border-box';
   iconDiv.setAttribute('data-icon-class', iconClass);
   iconDiv.setAttribute('data-icon-color', color || '');
+  paintIconAsBackground(iconDiv, iconClass, color || 'currentColor');
   foreignObject.appendChild(iconDiv);
   svgAppend(parentNode, foreignObject);
 

@@ -22,9 +22,18 @@ export default defineConfig({
     },
     {
       name: 'e2e',
-      testIgnore: '**/*.unit.spec.ts',
+      testIgnore: ['**/*.unit.spec.ts', '**/*.webkit.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
+      },
+    },
+    // WebKit renders SVG differently enough to lose things Chromium draws — canvas icons went
+    // missing in Safari for exactly that reason. Anything engine-sensitive belongs here.
+    {
+      name: 'webkit',
+      testMatch: '**/*.webkit.spec.ts',
+      use: {
+        ...devices['Desktop Safari'],
       },
     },
   ],
