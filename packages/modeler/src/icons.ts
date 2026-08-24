@@ -46,6 +46,8 @@ export const ICONS = {
   fileSvg: 'iconify bi--filetype-svg',
   filePng: 'iconify bi--filetype-png',
   fileJson: 'iconify bi--filetype-json',
+  save: 'iconify bi--floppy',
+  saveAs: 'iconify bi--floppy2',
   download: 'iconify bi--download',
   boxArrowInDown: 'iconify bi--box-arrow-in-down',
 
@@ -61,6 +63,8 @@ export const ICONS = {
   filter: 'iconify mdi--filter-variant',
   copy: 'iconify mdi--content-copy',
   check: 'iconify mdi--check',
+  warning: 'iconify bi--exclamation-triangle',
+  unlock: 'iconify bi--unlock',
   pin: 'iconify mdi--pin-outline',
   undo: 'iconify material-symbols--undo',
   redo: 'iconify material-symbols--redo',

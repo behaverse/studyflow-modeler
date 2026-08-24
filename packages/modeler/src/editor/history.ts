@@ -82,10 +82,14 @@ export function createSnapshotHistory(options: SnapshotHistoryOptions): Document
         entries.push(xml);
         while (entries.length > limit) entries.shift();
         index = entries.length - 1;
-        // The stack grew after the synchronous `record()` already fired: let the UI
-        // (undo/redo buttons) re-read `canUndo`/`canRedo`. Not for the baseline an
-        // import lays down, which is not a mutation and moves nothing.
-        if (entries.length > 1) options.onChanged?.();
+        // No `onChanged` here. The snapshot lands asynchronously, long after the
+        // mutation that caused it, and `commandStack.changed` means "the document
+        // moved" to everything listening — a second, out-of-band fire re-dirties a
+        // document that was just marked saved, which is how opening a file used to
+        // trigger an auto-save write of a diagram nobody had edited yet
+        // (`diagram/autosave.ts`, `tests/modeler.save.spec.ts`). The UI loses
+        // nothing: `record()` already fired synchronously, and `canUndo` reports the
+        // pending capture through `pending`.
       } finally {
         pending -= 1;
       }

@@ -7,7 +7,7 @@ description: >-
   and preprocessing presets.
 uri: https://w3id.org/studyflow/eeg
 icon: iconify tabler--hexagon-letter-e
-order: 70  # registry position (load precedence + settings order)
+order: 101
 xml:
   tagAlias: lowerCase
 version: 26.0821

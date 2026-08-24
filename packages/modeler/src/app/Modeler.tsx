@@ -3,7 +3,8 @@ import { useEffect, useRef, useState, useContext } from 'react';
 import { ModelerContext } from '@modeler/app/contexts';
 import { executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
-import { attachAutosave } from '@modeler/settings/attachAutosave';
+import { attachAutosave } from '@modeler/diagram/autosave';
+import { restoreLink } from '@modeler/diagram/fileHandle';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import type { Editor } from '@modeler/editor/port';
@@ -45,6 +46,13 @@ export function Modeler() {
         }
         created = editor;
         detach = attachAutosave(editor);
+        // Picks the previous session's file back up, but only when the canvas was restored along
+        // with it. Without the restored diagram this is a fresh blank canvas, and a link would
+        // point saving at a file this diagram never came from. Permission has reset to `prompt`
+        // unless the app is installed, so a restored link usually waits for a click to write.
+        if (initialXml) {
+          restoreLink().catch((err) => console.warn('Could not restore the linked file.', err));
+        }
         // One facade per editor (so its revision counter spans the editor's whole
         // life); the app holds it from here on.
         setModeler(editor);

@@ -1,6 +1,6 @@
 import { executeCommand } from '@modeler/commandBus';
 import { openRunnerTab } from '@modeler/app/commands';
-import { URLS } from '@modeler/constants';
+import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
 import type { Editor } from '@modeler/editor/port';
@@ -11,12 +11,12 @@ export type PaletteCommandDeps = {
   openSettings: () => void;
   openDialog: (id: PaletteDialogId) => void;
   openReplay: () => void;
-  pickDiagramFile: () => void;
-  pickJsPsychFile: () => void;
+  /** Name of the file the diagram is linked to, if any; it decides what "Save" is called. */
+  linkedFileName?: string;
 };
 
 export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[] {
-  const { modeler, isSimulating, openSettings, openDialog, openReplay, pickDiagramFile, pickJsPsychFile } = deps;
+  const { modeler, isSimulating, openSettings, openDialog, openReplay, linkedFileName } = deps;
 
   return [
     {
@@ -25,8 +25,8 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       label: 'New...',
       icon: ICONS.fileNew,
       shortcut: '1',
-      // Deliberate: the gallery's first entry is the blank canvas, so there is one way to start a diagram.
-      action: () => openDialog('templates'),
+      // One gallery: the blank canvas, then every shipped example, shelved by what it demonstrates.
+      action: () => openDialog('gallery'),
     },
     {
       id: 'open',
@@ -34,46 +34,18 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       label: 'Open File...',
       icon: ICONS.folderOpen,
       shortcut: '2',
-      action: pickDiagramFile,
+      // Takes any diagram format, and a jsPsych timeline, which it converts on the way in.
+      action: () => openDialog('open'),
     },
     {
-      id: 'examples',
+      id: 'save',
       group: 'File',
-      label: 'Examples...',
-      icon: ICONS.collection,
-      shortcut: '3',
-      action: () => openDialog('examples'),
-    },
-    {
-      id: 'import',
-      group: 'File',
-      label: 'Import...',
-      icon: ICONS.boxArrowInDown,
-      children: [
-        {
-          id: 'import-jspsych',
-          group: 'Import',
-          label: 'jsPsych Timeline...',
-          icon: ICONS.fileJson,
-          hint: '.json',
-          action: pickJsPsychFile,
-        },
-      ],
-    },
-    {
-      id: 'export',
-      group: 'File',
-      label: 'Export...',
-      icon: ICONS.download,
-      shortcut: 'x',
-      action: () => openDialog('export'),
-    },
-    {
-      id: 'publish',
-      group: 'File',
-      label: 'Publish...',
-      icon: ICONS.broadcast,
-      action: () => openDialog('publish'),
+      // The dialog is where format and destination live; the shortcut is the fast path past it.
+      label: linkedFileName ? `Save ${linkedFileName}...` : 'Save...',
+      icon: ICONS.save,
+      hint: `${MOD_LABEL}S`,
+      keywords: 'export download publish png svg yaml bpmn',
+      action: () => openDialog('save'),
     },
 
     {

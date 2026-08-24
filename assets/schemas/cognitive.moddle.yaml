@@ -6,7 +6,7 @@ description: Cognitive and behavioral research - tasks, questionnaires, instruct
 uri: http://behaverse.org/schemas/studyflow/cognitive
 icon: iconify tabler--hexagon-letter-c
 core: true   # backs the default elements; always loaded, cannot be disabled
-order: 40  # registry position (load precedence + settings order)
+order: 3
 xml:
   tagAlias: lowerCase
 version: 26.0811

@@ -53,7 +53,6 @@ export async function studyflowToXml(yamlText: string, moddle: Moddle): Promise<
 
 export {
   dataUrlToBytes,
-  embedDrawioIntoPng,
   embedStudyflowIntoPng,
   extractXmlFromPng,
 } from '@core/document/png';

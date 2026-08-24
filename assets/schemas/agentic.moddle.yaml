@@ -7,7 +7,7 @@ description: >-
   human approval steps.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
-order: 60  # registry position (load precedence + settings order)
+order: 102
 xml:
   tagAlias: lowerCase
 version: 26.0717

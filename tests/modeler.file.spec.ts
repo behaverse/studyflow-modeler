@@ -40,11 +40,11 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.locator('[data-element-id="Done"]')).toBeVisible();
   });
 
-  test('imports a jsPsych timeline JSON via the dedicated command', async ({ page }) => {
+  test('opens a jsPsych timeline JSON, converting it on the way in', async ({ page }) => {
     await gotoModeler(page);
 
-    // The jsPsych import has its own JSON-only <input>; plain 'Open File...' does not accept .json.
-    await page.getByTestId('import-jspsych-input').setInputFiles({
+    // No separate importer: 'Open File...' takes a timeline and converts it on the way in.
+    await page.getByTestId('open-file-input').setInputFiles({
       name: 'flanker.timeline.json',
       mimeType: 'application/json',
       buffer: readFileSync(path.join(process.cwd(), 'tests/fixtures/flanker.timeline.json')),
@@ -135,25 +135,6 @@ test.describe('Studyflow modeler file flows', () => {
     expect(result.height).toBe(52);
   });
 
-  test('the same exported PNG is also a draw.io diagram', async ({ page }) => {
-    await gotoModeler(page);
-
-    const filePath = await (await exportDiagram(page, 'png')).path();
-    if (!filePath) throw new Error('Downloaded file path is unavailable.');
-    const png = readFileSync(filePath);
-
-    // draw.io reads the `mxfile` tEXt chunk and gives up at image data, so it must precede the first IDAT.
-    const chunk = png.indexOf('mxfile', 0, 'ascii');
-    expect(chunk).toBeGreaterThan(0);
-    expect(chunk).toBeLessThan(png.indexOf('IDAT', 0, 'ascii'));
-
-    const text = png.subarray(chunk + 'mxfile'.length + 1, png.indexOf('IDAT', 0, 'ascii') - 8);
-    const diagram = decodeURIComponent(text.toString('latin1'));
-    expect(diagram).toContain('<mxfile host="studyflow-modeler">');
-    expect(diagram).toMatch(/<mxCell id="StartEvent[^"]*"[^>]*shape=mxgraph\.bpmn\.event/);
-    expect(diagram).toContain('outline=standard;symbol=general;');
-  });
-
   test('exports raw BPMN 2.0 XML', async ({ page }) => {
     await gotoModeler(page);
 
@@ -176,31 +157,26 @@ test.describe('Studyflow modeler file flows', () => {
     expect(content).toMatch(/<mxCell id="StartEvent[^"]*"[^>]*shape=mxgraph\.bpmn\.event/);
   });
 
-  test('exported SVG carries the studyflow source and the draw.io diagram', async ({ page }) => {
+  test('exported SVG carries the studyflow source, and nothing else', async ({ page }) => {
     await gotoModeler(page);
     await stubIconify(page);
 
     const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
 
     expect(svgText).toContain('<studyflow>');
-    // draw.io's "editable SVG": the mxfile rides escaped in the root `content`.
-    expect(svgText).toContain('content="&lt;mxfile');
+    // A draw.io payload is the draw.io export's job; the picture carries only what reopens it.
+    expect(svgText).not.toContain('mxfile');
   });
 
-  test('the embed options decide what an exported image carries', async ({ page }) => {
+  test('an exported image always carries its source, and only that', async ({ page }) => {
     await gotoModeler(page);
     await stubIconify(page);
 
-    const withBoth = await readDownload(await exportDiagram(page, 'png'));
-    expect(withBoth.includes('iTXt')).toBe(true);
-    expect(withBoth.includes('mxfile')).toBe(true);
-
-    const plain = await readDownload(
-      await exportDiagram(page, 'png', { studyflow: false, drawio: false }),
-    );
-    expect(plain.subarray(1, 4).toString('ascii')).toBe('PNG');
-    expect(plain.includes('iTXt')).toBe(false);
-    expect(plain.includes('mxfile')).toBe(false);
+    const png = await readDownload(await exportDiagram(page, 'png'));
+    expect(png.subarray(1, 4).toString('ascii')).toBe('PNG');
+    // Always embedded: an image that cannot be reopened is a dead end, so it is not an option.
+    expect(png.includes('iTXt')).toBe(true);
+    expect(png.includes('mxfile')).toBe(false);
   });
 
   test('New starts from the gallery, whose blank entry replaces the diagram', async ({ page }) => {

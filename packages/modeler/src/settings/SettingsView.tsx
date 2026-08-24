@@ -4,6 +4,7 @@ import { schemaDiagnostics } from '@core/notation';
 import { setRecordEvents, shouldRecordEvents } from '@core/settings';
 import { ICONS } from '@modeler/icons';
 import { URLS } from '@modeler/constants';
+import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import {
   clearAllLocalData,
   getSettings,
@@ -280,6 +281,23 @@ function EditorSection() {
               { value: 'off', label: 'Off' },
               { value: 'local', label: 'On (this browser)' },
             ]}
+          />
+        }
+      />
+
+      <Row
+        label="Write to the opened file"
+        help={
+          supportsFileSystemAccess()
+            ? 'Save edits straight back into the file you opened, with no download. Images are too slow to render on every edit, so they always wait for you to save.'
+            : 'Unavailable: this browser has no file picker, so a page here can only put files in the downloads folder. Chrome, Edge, and other Chromium browsers on the desktop support it.'
+        }
+        control={
+          <ToggleControl
+            label="Write to the opened file"
+            checked={settings.autoSaveToFile && supportsFileSystemAccess()}
+            onChange={(autoSaveToFile) => update({ autoSaveToFile })}
+            disabled={!supportsFileSystemAccess()}
           />
         }
       />

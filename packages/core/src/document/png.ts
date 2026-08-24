@@ -1,6 +1,5 @@
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const STUDYFLOW_KEYWORD = 'studyflow';
-const DRAWIO_KEYWORD = 'mxfile';
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
@@ -109,16 +108,6 @@ export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array 
   return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND', STUDYFLOW_KEYWORD);
 }
 
-export function embedDrawioIntoPng(png: Uint8Array, mxfileXml: string): Uint8Array {
-  const encoder = new TextEncoder();
-  const keyword = encoder.encode(DRAWIO_KEYWORD);
-  const text = encoder.encode(encodeURIComponent(mxfileXml));
-  const data = new Uint8Array(keyword.length + 1 + text.length);
-  data.set(keyword, 0);
-  data.set(text, keyword.length + 1);
-
-  return insertChunkBefore(png, buildChunk('tEXt', data), 'IDAT', DRAWIO_KEYWORD);
-}
 
 export function extractXmlFromPng(content: ArrayBuffer | Uint8Array): string {
   const png = content instanceof Uint8Array ? content : new Uint8Array(content);

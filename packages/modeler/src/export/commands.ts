@@ -3,12 +3,12 @@ import download from 'downloadjs';
 import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { exportToArtemis } from '@modeler/export/artemis';
 import { exportToDrawio } from '@modeler/export/drawio';
-import { DEFAULT_EMBED_OPTIONS, exportFilename, getExportFormat, type EmbedOptions, type ExportFormatId } from '@modeler/export/formats';
+import { carriesDiagram, exportFilename, getExportFormat, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
 import { exportToLinkML } from '@modeler/export/linkml';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { exportToNidm } from '@modeler/export/nidm';
-import { dataUrlToBytes, embedDrawioIntoPng, embedStudyflowIntoPng } from '@core/document/png';
-import { embedDrawioIntoSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
+import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
+import { embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
 import type { Editor } from '@modeler/editor/port';
@@ -16,7 +16,6 @@ import type { Editor } from '@modeler/editor/port';
 export type ExportDiagramCommand = {
   type: 'ExportDiagram';
   format?: ExportFormatId;
-  embed?: Partial<EmbedOptions>;
 };
 
 async function toExportableXml(modeler: Editor): Promise<string> {
@@ -43,7 +42,6 @@ async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }>
 
 const ENCODERS: Record<ExportFormatId, (ctx: {
   modeler: Editor;
-  embed: EmbedOptions;
   renderSvg: () => Promise<{ svg: string; xml: string }>;
   /** The semantic view of the diagram, built on demand; only the interchange formats read it. */
   exportModel: () => ExportModel;
@@ -60,43 +58,54 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
   nidm: ({ exportModel }) => exportToNidm(exportModel()),
   artemis: ({ exportModel }) => exportToArtemis(exportModel()),
 
-  svg: async ({ modeler, embed, renderSvg }) => {
+  // The picture always carries its source: an image that cannot be reopened is a dead end, and
+  // anyone wanting a draw.io file exports that format directly.
+  svg: async ({ renderSvg }) => {
     const { svg, xml } = await renderSvg();
-    let out = svg;
-    if (embed.drawio) out = embedDrawioIntoSvg(out, exportToDrawio(modeler));
-    if (embed.studyflow) out = embedStudyflowIntoSvg(out, xml);
-    return out;
+    return embedStudyflowIntoSvg(svg, xml);
   },
 
-  png: async ({ modeler, embed, renderSvg }) => {
+  png: async ({ renderSvg }) => {
     const { svg, xml } = await renderSvg();
-    let png = dataUrlToBytes(await exportToPng(svg));
-    // Each payload lands in its own PNG chunk at the offset its reader scans; neither disturbs the image data.
-    if (embed.studyflow) png = embedStudyflowIntoPng(png, xml);
-    if (embed.drawio) png = embedDrawioIntoPng(png, exportToDrawio(modeler));
-    return png as BlobPart;
+    // The payload lands in its own PNG chunk, at the offset its reader scans; the image is untouched.
+    return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), xml) as BlobPart;
   },
 };
 
-export async function runExportDiagram(modeler: Editor, command: ExportDiagramCommand): Promise<void> {
-  const format = getExportFormat(command.format ?? 'studyflow');
-  const embed = { ...DEFAULT_EMBED_OPTIONS, ...command.embed };
+/**
+ * Records that this artifact was produced, for the formats that carry the diagram itself; derived
+ * documents leave no stamp. Whether an invocation deserves one at all is the caller's call — the
+ * auto-save deliberately does not ask.
+ *
+ * Lives here rather than beside the rest of the trail because it reads the build version through
+ * `import.meta`, and `provenance/trail.ts` is loaded by the browserless unit specs, which cannot.
+ */
+export function stampProvenance(modeler: Editor, format: ExportFormat): void {
+  if (!carriesDiagram(format)) return;
+  stampTrailForExport(modeler, {
+    who: getStoredUserEmail(),
+    tool: `studyflow-modeler/${import.meta.env.APP_VERSION}`,
+  });
+}
 
-  // Only formats that carry the diagram itself stamp the provenance trail; derived documents leave no stamp.
-  if (format.importable || format.embeddable) {
-    stampTrailForExport(modeler, {
-      who: getStoredUserEmail(),
-      tool: `studyflow-modeler/${import.meta.env.APP_VERSION}`,
-    });
-  }
-
-  const filename = exportFilename(exportDiagramName(modeler), format);
-
-  const payload = await ENCODERS[format.id]({
+/** The bytes of the diagram in one format. Shared with saving, which writes them straight to disk. */
+export function encodeDiagram(
+  modeler: Editor,
+  format: ExportFormat,
+): Promise<BlobPart> | BlobPart {
+  return ENCODERS[format.id]({
     modeler,
-    embed,
     renderSvg: () => renderSvg(modeler),
     exportModel: () => buildExportModel(modeler),
   });
+}
+
+export async function runExportDiagram(modeler: Editor, command: ExportDiagramCommand): Promise<void> {
+  const format = getExportFormat(command.format ?? 'studyflow');
+
+  stampProvenance(modeler, format);
+
+  const filename = exportFilename(exportDiagramName(modeler), format);
+  const payload = await encodeDiagram(modeler, format);
   download(new Blob([payload], { type: format.mimeType }), filename, format.mimeType);
 }

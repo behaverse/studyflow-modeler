@@ -16,6 +16,7 @@ export type ExportFormat = {
   label: string;
   extension: string;
   mimeType: string;
+  /** Carries the studyflow inside it, so the exported picture opens back in this modeler. */
   embeddable?: boolean;
   importable?: boolean;
   alsoReads?: string[];
@@ -95,11 +96,55 @@ export const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS
   .filter((format) => format.importable)
   .flatMap((format) => [format.extension, ...(format.alsoReads ?? [])]);
 
+/**
+ * A jsPsych timeline is not an export format — nothing here writes one — but opening one converts
+ * it to a studyflow, so the open picker has to offer it alongside the formats it round-trips.
+ */
+export const JSPSYCH_EXTENSION = '.json';
+
+/** Everything "Open" accepts, which is every importable format plus the foreign ones it converts. */
+export const OPENABLE_EXTENSIONS: string[] = [...IMPORTABLE_EXTENSIONS, JSPSYCH_EXTENSION];
+
+/** The formats "Open" round-trips, for telling the user what this app will take. */
+export const IMPORTABLE_FORMATS: ExportFormat[] = EXPORT_FORMATS.filter((format) => format.importable);
+
+/** Every spelling of one format, longest first, as the open dialog lists them. */
+export const extensionsOf = (format: ExportFormat): string[] =>
+  [format.extension, ...(format.alsoReads ?? [])];
+
 /** Every compound extension the catalog declares, longest first so the longest match wins. */
 export const COMPOUND_EXTENSIONS: string[] = EXPORT_FORMATS
   .map((format) => format.extension)
   .filter((extension) => extension.split('.').length > 2)
   .sort((a, b) => b.length - a.length);
+
+/** MIME essence: the file pickers reject a type that carries parameters such as `;charset=utf-8`. */
+const mimeEssence = (format: ExportFormat): string => format.mimeType.split(';')[0];
+
+/** Every extension the open picker should offer, grouped the way `FilePickerAcceptType` wants it. */
+export const OPENABLE_ACCEPT: Record<string, string[]> = EXPORT_FORMATS
+  .filter((format) => format.importable)
+  .reduce<Record<string, string[]>>((accept, format) => {
+    const mime = mimeEssence(format);
+    accept[mime] = [...(accept[mime] ?? []), format.extension, ...(format.alsoReads ?? [])];
+    return accept;
+  }, { 'application/json': [JSPSYCH_EXTENSION] });
+
+/** Whether the file carries the diagram itself, rather than being a document derived from it. */
+export const carriesDiagram = (format: ExportFormat): boolean =>
+  !!format.importable || !!format.embeddable;
+
+/**
+ * Whether a file in this format is cheap enough to rewrite on every edit. Producing an image means
+ * rendering the whole diagram — rasterizing, resolving icons, re-encoding — which is seconds of
+ * work, so an image is only ever written by a save the user asked for.
+ */
+export const autoSavable = (format: ExportFormat): boolean => format.group !== 'Image';
+
+/** The save picker offers one format: the one the file is being written back as. */
+export function formatAccept(format: ExportFormat): Record<string, string[]> {
+  return { [mimeEssence(format)]: [format.extension] };
+}
 
 export function importableFormatFor(filename: string): ExportFormat | undefined {
   const lower = filename.toLowerCase();
@@ -119,25 +164,6 @@ export function getExportFormat(id: ExportFormatId): ExportFormat {
   if (!format) throw new Error(`Unknown export format: ${id}`);
   return format;
 }
-
-export type EmbedOptionId = 'studyflow' | 'drawio';
-
-export type EmbedOptions = Record<EmbedOptionId, boolean>;
-
-export const EMBED_OPTIONS: Array<{ id: EmbedOptionId; label: string; description: string }> = [
-  {
-    id: 'studyflow',
-    label: 'Studyflow source',
-    description: 'The exported image opens back in this modeler.',
-  },
-  {
-    id: 'drawio',
-    label: 'draw.io diagram',
-    description: 'The same file opens as an editable diagram in draw.io.',
-  },
-];
-
-export const DEFAULT_EMBED_OPTIONS: EmbedOptions = { studyflow: true, drawio: true };
 
 export function exportFilename(name: string, format: ExportFormat): string {
   return `${name}${format.extension}`;

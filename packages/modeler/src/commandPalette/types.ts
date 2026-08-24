@@ -4,6 +4,8 @@ export type PaletteCommand = {
   label: string;
   icon: string;
   hint?: string;
+  /** Extra search terms, for a command whose label no longer holds the word people look for. */
+  keywords?: string;
   /** Fires only while the search box is empty; see `CommandPalette`'s key handler. */
   shortcut?: string;
   action?: () => void | Promise<unknown>;
@@ -11,10 +13,9 @@ export type PaletteCommand = {
 };
 
 export type PaletteDialogId =
-  | 'examples'
-  | 'templates'
-  | 'export'
-  | 'publish'
+  | 'gallery'
+  | 'open'
+  | 'save'
   | 'checklist'
   | 'gantt'
   | 'provenance';
@@ -43,7 +44,10 @@ export function searchCommands(commands: PaletteCommand[], query: string): Palet
   const q = query.trim().toLowerCase();
   if (!q) return commands;
   return flattenCommands(commands).filter(
-    (c) => !c.children && (c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q)),
+    (c) => !c.children
+      && (c.label.toLowerCase().includes(q)
+        || c.group.toLowerCase().includes(q)
+        || !!c.keywords?.toLowerCase().includes(q)),
   );
 }
 

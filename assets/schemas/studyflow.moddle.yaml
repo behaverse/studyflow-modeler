@@ -6,9 +6,9 @@ description: >-
   The building blocks every studyflow uses - the study itself, its events,
   flows, activities, data elements, and what an engine needs to run them.
 uri: http://behaverse.org/schemas/studyflow/v1
-icon: https://raw.githubusercontent.com/behaverse/schemas/main/assets/img/schema_S.png
+icon: iconify tabler--hexagon-letter-s
 core: true   # always loaded, cannot be disabled
-order: 10  # registry position (load precedence + settings order)
+order: 1
 xml:
   tagAlias: lowerCase
 version: 26.0811
