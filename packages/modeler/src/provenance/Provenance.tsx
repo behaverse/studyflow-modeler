@@ -13,6 +13,7 @@ import {
 } from '@modeler/provenance/records';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };
@@ -49,22 +50,21 @@ export function shortWhen(when?: string): string | undefined {
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useRequiredModeler();
+  const editor = getEditorPort(modeler);
   const { openReplay } = useContext(ReplayContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const eventBus = modeler?.get?.('eventBus', false);
-    if (!eventBus) return undefined;
-    eventBus.on('commandStack.changed', bumpRevision);
-    return () => eventBus.off('commandStack.changed', bumpRevision);
-  }, [modeler]);
+    editor.events.on('commandStack.changed', bumpRevision);
+    return () => editor.events.off('commandStack.changed', bumpRevision);
+  }, [editor]);
 
   // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.
   const [scope, setScope] = useState(scopeId);
   const [showReused, setShowReused] = useState(true);
   const allRecords = useMemo(
-    () => collectProvenance(modeler?.getDefinitions?.()),
+    () => collectProvenance(editor.getDefinitions()),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
-    [modeler, revision],
+    [editor, revision],
   );
   const hasReused = allRecords.some((r) => r.action === 'reused');
   const visible = displayOrder(allRecords.filter((r) =>
@@ -74,9 +74,8 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   // Room for every lane plus a pending-branch stub curving right of the last one.
   const gutter = (laneCount + 1) * LANE_W;
 
-  const commandStack = modeler?.get?.('commandStack', false);
-  const canUndo = !!commandStack?.canUndo?.();
-  const canRedo = !!commandStack?.canRedo?.();
+  const canUndo = editor.canUndo();
+  const canRedo = editor.canRedo();
 
   const invalidate = async (r: ProvenanceRecord) => {
     await executeCommand(modeler, {

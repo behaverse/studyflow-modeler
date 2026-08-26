@@ -1,3 +1,4 @@
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type SetColorCommand = {
@@ -7,5 +8,5 @@ export type SetColorCommand = {
 };
 
 export function runSetColor(modeler: Modeler, command: SetColorCommand): void {
-  modeler.get('modeling').setColor(command.elements, command.color);
+  getEditorPort(modeler).mutate.setColor(command.elements, command.color);
 }

@@ -40,6 +40,8 @@ function fakeModeler() {
     bpmnFactory: {
       create: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
     },
+    // The editor facade subscribes to `commandStack.changed` at creation for its revision counter.
+    eventBus: { on() {} },
   };
   // A partial mock: these handlers only resolve services.
   return { modeler: { get: (name: string) => services[name] } as unknown as Modeler, calls };

@@ -1,5 +1,6 @@
 import { checklistItems, type ChecklistItem } from '@core/document';
 import { getAttribute } from '@core/element';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type ElementGroup = {
@@ -33,7 +34,7 @@ function buildChecklistGroup(el: any): ElementGroup | null {
 export function collectChecklistGroups(modeler: Modeler): ElementGroup[] {
   if (!modeler) return [];
   const groups: ElementGroup[] = [];
-  modeler.get('elementRegistry').forEach((el: any) => {
+  getEditorPort(modeler).elements.forEach((el: any) => {
     if (el.type === 'label') return;
     const group = buildChecklistGroup(el);
     if (group) groups.push(group);

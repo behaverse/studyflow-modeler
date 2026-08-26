@@ -1,4 +1,5 @@
 import { URLS } from '@modeler/constants';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type PublishDiagramCommand = {
@@ -12,7 +13,7 @@ export type PublishResult = {
 };
 
 export async function runPublishDiagram(modeler: Modeler, command: PublishDiagramCommand): Promise<PublishResult> {
-  const { xml } = await modeler.saveXML({ format: true });
+  const { xml } = await getEditorPort(modeler).saveXML({ format: true });
 
   const response = await fetch(`${URLS.apiBase}/v1/studies/${command.studyName}/flow`, {
     method: 'POST',

@@ -16,6 +16,8 @@ import {
   type Point,
 } from '@modeler/simulation/TokenSimulator';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import type { EditorElements, EditorPort, EditorView } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -36,17 +38,17 @@ const DETAIL_ICONS: Record<string, string> = {
   what: ICONS.script,
 };
 
-/** An element the registry knows for this record: its own scope, or the flow its `what` mentions. */
-function elementsOf(record: ProvenanceRecord, registry: any): any[] {
+/** An element the editor knows for this record: its own scope, or the flow its `what` mentions. */
+function elementsOf(record: ProvenanceRecord, elements: EditorElements): any[] {
   const found: any[] = [];
-  if (!record.isDocument && registry.get(record.scopeId)) found.push(registry.get(record.scopeId));
+  if (!record.isDocument && elements.get(record.scopeId)) found.push(elements.get(record.scopeId));
   // `what` is a flow id on gateway decisions, a timestamp elsewhere; only the former resolves.
-  if (record.what && registry.get(record.what)) found.push(registry.get(record.what));
+  if (record.what && elements.get(record.what)) found.push(elements.get(record.what));
   return found;
 }
 
-function resetSvgStyles(canvas: any): void {
-  const svg = canvas?.getContainer?.()?.querySelector('svg');
+function resetSvgStyles(view: EditorView): void {
+  const svg = view.getContainer()?.querySelector('svg');
   if (!svg) return;
   svg.style.transition = '';
   svg.style.transform = '';
@@ -54,7 +56,7 @@ function resetSvgStyles(canvas: any): void {
 }
 
 /** Dim the canvas, light up elements as their records land, and float a token on the active one. */
-function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
+function useReplayHighlights(editor: EditorPort, shown: ProvenanceRecord[]): void {
   const marked = useRef<Array<[string, string]>>([]);
   const tokenRef = useRef<any>(null);
   const tokenPos = useRef<{ x: number; y: number; elId: string; rootId?: string } | null>(null);
@@ -62,29 +64,25 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
   const planeShift = useRef<number | null>(null);
 
   useEffect(() => {
-    const canvas = modeler?.get?.('canvas', false);
-    if (!canvas) return undefined;
-    canvas.getContainer()?.classList.add('replay-active');
+    const { view, elements } = editor;
+    view.getContainer()?.classList.add('replay-active');
     return () => {
-      canvas.getContainer()?.classList.remove('replay-active');
-      const registry = modeler.get('elementRegistry', false);
-      for (const [id, m] of marked.current) if (registry?.get(id)) canvas.removeMarker(id, m);
+      view.getContainer()?.classList.remove('replay-active');
+      for (const [id, m] of marked.current) if (elements.get(id)) view.removeMarker(id, m);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
       glideFrame.current = null;
       if (planeShift.current) clearTimeout(planeShift.current);
       planeShift.current = null;
-      resetSvgStyles(canvas);
+      resetSvgStyles(view);
       tokenPos.current = null;
       tokenRef.current?.remove();
       tokenRef.current = null;
     };
-  }, [modeler]);
+  }, [editor]);
 
   useEffect(() => {
-    const canvas = modeler?.get?.('canvas', false);
-    const registry = modeler?.get?.('elementRegistry', false);
-    if (!canvas || !registry) return;
+    const { view, elements: registry } = editor;
 
     const touched = new Set<string>();
     const newest = new Map<string, ProvenanceRecord>();
@@ -100,11 +98,11 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       if (touched.has(conn.source.id) && touched.has(conn.target.id)) touched.add(conn.id);
     }
 
-    for (const [id, m] of marked.current) if (registry.get(id)) canvas.removeMarker(id, m);
+    for (const [id, m] of marked.current) if (registry.get(id)) view.removeMarker(id, m);
     marked.current = [];
     const add = (id: string, m: string) => {
       if (!registry.get(id)) return;
-      canvas.addMarker(id, m);
+      view.addMarker(id, m);
       marked.current.push([id, m]);
     };
     for (const id of touched) add(id, 'replay-touched');
@@ -113,7 +111,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     // The token: a pulsing circle on the element the newest record activates or mentions.
     const current = shown[shown.length - 1];
     const target = current ? elementsOf(current, registry).find((el) => el.width) : undefined;
-    const layer = canvas.getLayer('provenance-replay', 1000);
+    const layer = view.getLayer('provenance-replay', 1000);
     if (!tokenRef.current) {
       tokenRef.current = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       tokenRef.current.setAttribute('r', '8');
@@ -136,7 +134,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     if (planeShift.current) {
       clearTimeout(planeShift.current);
       planeShift.current = null;
-      resetSvgStyles(canvas);
+      resetSvgStyles(view);
     }
 
     if (!target) {
@@ -148,12 +146,12 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     token.style.display = '';
     token.style.opacity = '';
     const to = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-    const rootId = canvas.findRoot?.(target)?.id;
+    const rootId = registry.findRoot(target)?.id;
     const from = tokenPos.current;
 
     // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
     const camera = (center: Point) => {
-      const vb = canvas.viewbox();
+      const vb = view.viewbox();
       const scale = Math.min(1.3, Math.max(0.6, vb.scale));
       const width = vb.outer.width / scale;
       const height = vb.outer.height / scale;
@@ -165,10 +163,10 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     if (!from || from.rootId !== rootId) {
       const place = () => {
         setPos(to, target.id, rootId);
-        try { canvas.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
-        canvas.viewbox(camera(to));
+        try { view.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
+        view.setViewbox(camera(to));
       };
-      const svg = canvas.getContainer()?.querySelector('svg');
+      const svg = view.getContainer()?.querySelector('svg');
       if (!from || !svg) {
         place();
         return;
@@ -176,26 +174,26 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       // The doorway: the collapsed shape being entered (on the old plane), or the shape the old
       // plane belongs to (on the new one); the camera flies through it, so the move is visible.
       const shapeOf = (root: any) => (root?.businessObject?.id ? registry.get(root.businessObject.id) : undefined);
-      const oldRoot = canvas.getRootElement?.();
-      const newRoot = canvas.findRoot?.(target);
+      const oldRoot = registry.root();
+      const newRoot = registry.findRoot(target);
       const doorIn = shapeOf(newRoot);
       const doorOut = shapeOf(oldRoot);
-      const inward = !!doorIn && canvas.findRoot?.(doorIn) === oldRoot;
-      const outward = !inward && !!doorOut && canvas.findRoot?.(doorOut) === newRoot;
+      const inward = !!doorIn && registry.findRoot(doorIn) === oldRoot;
+      const outward = !inward && !!doorOut && registry.findRoot(doorOut) === newRoot;
       const doorway = (shape: any) => {
-        const vb = canvas.viewbox();
+        const vb = view.viewbox();
         const scale = Math.min(3, vb.outer.width / (shape.width * 1.5), vb.outer.height / (shape.height * 1.5));
         const width = vb.outer.width / scale;
         const height = vb.outer.height / scale;
         return { x: shape.x + shape.width / 2 - width / 2, y: shape.y + shape.height / 2 - height / 2, width, height };
       };
       const fly = (dest: any, ms: number, fade: 'out' | 'in', then?: () => void) => {
-        const vb0 = canvas.viewbox();
+        const vb0 = view.viewbox();
         const start = performance.now();
         const frame = (now: number) => {
           const t = Math.min((now - start) / ms, 1);
           const eased = smootherstep(t);
-          canvas.viewbox({
+          view.setViewbox({
             x: vb0.x + (dest.x - vb0.x) * eased,
             y: vb0.y + (dest.y - vb0.y) * eased,
             width: vb0.width + (dest.width - vb0.width) * eased,
@@ -222,7 +220,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
           svg.style.opacity = '1';
           svg.style.transform = 'scale(1)';
           planeShift.current = window.setTimeout(() => {
-            resetSvgStyles(canvas);
+            resetSvgStyles(view);
             planeShift.current = null;
           }, 320);
         });
@@ -235,11 +233,11 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
           setPos(to, target.id, rootId);
-          try { canvas.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
+          try { view.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
           const dest = camera(to);
-          canvas.viewbox(doorway(doorOut));
+          view.setViewbox(doorway(doorOut));
           svg.style.transition = 'none';
-          fly(dest, 420, 'in', () => resetSvgStyles(canvas));
+          fly(dest, 420, 'in', () => resetSvgStyles(view));
         }, 170);
         return;
       }
@@ -253,7 +251,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
         svg.style.transition = 'opacity 280ms ease-out';
         svg.style.opacity = '1';
         planeShift.current = window.setTimeout(() => {
-          resetSvgStyles(canvas);
+          resetSvgStyles(view);
           planeShift.current = null;
         }, 300);
       }, 210);
@@ -271,13 +269,13 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     const { segLengths, totalDist } = computeSegLengths(points);
     const duration = Math.min(450, Math.max(200, totalDist / 0.7));
     const start = performance.now();
-    const vb0 = canvas.viewbox();
+    const vb0 = view.viewbox();
     const dest = camera(to);
     const frame = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
       const eased = smootherstep(t);
       setPos(samplePolyline(points, segLengths, eased * totalDist), target.id, rootId);
-      canvas.viewbox({
+      view.setViewbox({
         x: vb0.x + (dest.x - vb0.x) * eased,
         y: vb0.y + (dest.y - vb0.y) * eased,
         width: vb0.width + (dest.width - vb0.width) * eased,
@@ -286,7 +284,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       glideFrame.current = t < 1 ? requestAnimationFrame(frame) : null;
     };
     glideFrame.current = requestAnimationFrame(frame);
-  }, [modeler, shown]);
+  }, [editor, shown]);
 }
 
 type Props = { onClose: () => void };
@@ -295,32 +293,28 @@ const scopeName = (r: ProvenanceRecord) =>
   (r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId);
 
 export function ReplayPanel({ onClose }: Props) {
-  const modeler = useRequiredModeler();
+  const editor = getEditorPort(useRequiredModeler());
   // `importXML` fires no `commandStack.changed`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const eventBus = modeler?.get?.('eventBus', false);
-    if (!eventBus) return undefined;
-    eventBus.on('import.done', bumpDocVersion);
-    return () => eventBus.off('import.done', bumpDocVersion);
-  }, [modeler]);
+    editor.events.on('import.done', bumpDocVersion);
+    return () => editor.events.off('import.done', bumpDocVersion);
+  }, [editor]);
   return <ReplayTimeline key={docVersion} onClose={onClose} />;
 }
 
 function ReplayTimeline({ onClose }: Props) {
-  const modeler = useRequiredModeler();
+  const editor = getEditorPort(useRequiredModeler());
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const eventBus = modeler?.get?.('eventBus', false);
-    if (!eventBus) return undefined;
-    eventBus.on('commandStack.changed', bumpRevision);
-    return () => eventBus.off('commandStack.changed', bumpRevision);
-  }, [modeler]);
+    editor.events.on('commandStack.changed', bumpRevision);
+    return () => editor.events.off('commandStack.changed', bumpRevision);
+  }, [editor]);
 
   const records = useMemo(
-    () => collectProvenance(modeler?.getDefinitions?.()),
+    () => collectProvenance(editor.getDefinitions()),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
-    [modeler, revision],
+    [editor, revision],
   );
   const total = records.length;
 
@@ -346,7 +340,7 @@ function ReplayTimeline({ onClose }: Props) {
   // Clones per step: `applyStatuses` re-derives the as-of-this-moment flags without touching the originals.
   const shown = applyStatuses(records.slice(0, at).map((r) => ({ ...r })));
   const current = shown[shown.length - 1];
-  useReplayHighlights(modeler, shown);
+  useReplayHighlights(editor, shown);
 
   const jump = (to: number) => {
     setPlaying(false);

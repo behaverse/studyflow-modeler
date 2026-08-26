@@ -1,6 +1,7 @@
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight } from '@modeler/draw/choreographyLayout';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */
@@ -290,11 +291,12 @@ function edgeCell(element: any, known: Set<string>): string {
 }
 
 export function exportToDrawio(modeler: Modeler): string {
-  const root = modeler.get('canvas').getRootElement();
+  const editor = getEditorPort(modeler);
+  const root = editor.elements.root();
   const shapes: any[] = [];
   const connections: any[] = [];
 
-  modeler.get('elementRegistry').forEach((element: any) => {
+  editor.elements.forEach((element: any) => {
     if (element === root || element.type === 'label' || !element.businessObject) return;
     if (rootOf(element) !== root) return;
     if (element.waypoints) connections.push(element);

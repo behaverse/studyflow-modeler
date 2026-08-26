@@ -1,4 +1,5 @@
 import { StudyflowElement } from '@core/element';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 type TimingAttrs = {
@@ -141,7 +142,7 @@ export function collectGanttRows(modeler: Modeler): Row[] {
   if (!modeler) return [];
   const rows: Row[] = [];
   const anchor = Date.now();
-  modeler.get('elementRegistry').forEach((el: any) => {
+  getEditorPort(modeler).elements.forEach((el: any) => {
     if (el.type === 'label') return;
     const row = buildGanttRow(el, anchor);
     if (row) rows.push(row);

@@ -1,3 +1,4 @@
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type ToggleSimulationCommand = {
@@ -8,7 +9,7 @@ export function runToggleSimulation(
   modeler: Modeler,
   _command: ToggleSimulationCommand,
 ): { active: boolean } {
-  const simulator = modeler.get('tokenSimulator');
-  simulator.toggle();
-  return { active: simulator.isActive() };
+  const { simulation } = getEditorPort(modeler);
+  simulation.toggle();
+  return { active: simulation.isActive() };
 }

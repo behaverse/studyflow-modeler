@@ -12,6 +12,7 @@ import { dataUrlToBytes, embedDrawioIntoPng, embedStudyflowIntoPng } from '@core
 import { embedDrawioIntoSvg, embedIconsInSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type ExportDiagramCommand = {
@@ -21,13 +22,15 @@ export type ExportDiagramCommand = {
 };
 
 async function toExportableXml(modeler: Modeler): Promise<string> {
-  const { xml } = await modeler.saveXML({ format: true });
-  return toWireXml(xml, modeler.get('moddle'));
+  const editor = getEditorPort(modeler);
+  const { xml } = await editor.saveXML({ format: true });
+  return toWireXml(xml, editor.model.moddle());
 }
 
 async function renderSvg(modeler: Modeler): Promise<{ svg: string; xml: string }> {
-  const [{ svg }, compactXml] = await Promise.all([modeler.saveSVG(), toExportableXml(modeler)]);
-  const xml = await toStandardBpmnXml(compactXml, modeler.get('moddle'));
+  const editor = getEditorPort(modeler);
+  const [{ svg }, compactXml] = await Promise.all([editor.saveSVG(), toExportableXml(modeler)]);
+  const xml = await toStandardBpmnXml(compactXml, editor.model.moddle());
   const cleaned = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
   return { svg: await embedIconsInSvg(cleaned, remoteIconSource), xml };
 }
@@ -40,11 +43,11 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
   exportModel: () => ExportModel;
 }) => Promise<BlobPart> | BlobPart> = {
   studyflow: async ({ modeler }) =>
-    xmlToStudyflow(await toExportableXml(modeler), modeler.get('moddle')),
+    xmlToStudyflow(await toExportableXml(modeler), getEditorPort(modeler).model.moddle()),
 
   // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
   bpmn: async ({ modeler }) =>
-    toStandardBpmnXml(await toExportableXml(modeler), modeler.get('moddle')),
+    toStandardBpmnXml(await toExportableXml(modeler), getEditorPort(modeler).model.moddle()),
 
   drawio: ({ modeler }) => exportToDrawio(modeler),
   linkml: ({ exportModel }) => exportToLinkML(exportModel()),

@@ -1,8 +1,9 @@
 import { COMPOUND_EXTENSIONS } from '@modeler/export/formats';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export function getDiagramName(modeler: Modeler): string | undefined {
-  const name = modeler?.get('canvas')?.getRootElement?.()?.businessObject?.name;
+  const name = modeler ? getEditorPort(modeler).elements.root()?.businessObject?.name : undefined;
   return typeof name === 'string' && name.length > 0 ? name : undefined;
 }
 

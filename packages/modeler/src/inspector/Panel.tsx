@@ -8,7 +8,8 @@ import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';
 import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from '@modeler/inspector/panelWidth';
 import { loadInspectorWidth, saveInspectorWidth } from '@modeler/settings/store';
 import { inspector as s } from '@modeler/inspector/styles';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import type { EditorPort } from '@modeler/editor/port';
 
 function Header({ element }: { element: any }) {
   return (
@@ -30,18 +31,15 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
   );
 }
 
-function useSelectedElement(modeler: Modeler): any {
-  const eventBus = modeler.get('eventBus');
-  const canvas = modeler.get('canvas');
-
-  const [element, setElement] = useState<any>(() => canvas.getRootElement());
-  const [seededFor, setSeededFor] = useState<any>(canvas);
+function useSelectedElement(editor: EditorPort): any {
+  const [element, setElement] = useState<any>(() => editor.elements.root());
+  const [seededFor, setSeededFor] = useState<any>(editor);
   const [, bumpVersion] = useReducer((version) => version + 1, 0);
   const elementRef = useRef<any>(element);
 
-  if (seededFor !== canvas) {
-    setSeededFor(canvas);
-    setElement(canvas.getRootElement());
+  if (seededFor !== editor) {
+    setSeededFor(editor);
+    setElement(editor.elements.root());
   }
 
   // Matching `element.changed` against a ref keeps the subscription from re-establishing on every selection change.
@@ -50,32 +48,32 @@ function useSelectedElement(modeler: Modeler): any {
   }, [element]);
 
   useEffect(() => {
-    const onRootSet = () => setElement(canvas.getRootElement());
+    const onRootSet = () => setElement(editor.elements.root());
     const onSelectionChanged = (e: any) => {
       const selection = e.newSelection ?? [];
-      setElement(selection.length === 1 ? selection[0] : canvas.getRootElement());
+      setElement(selection.length === 1 ? selection[0] : editor.elements.root());
     };
     const onElementChanged = (e: any) => {
       if (elementRef.current && e.element?.id === elementRef.current.id) bumpVersion();
     };
 
-    eventBus.on('selection.changed', onSelectionChanged);
-    eventBus.on('root.set', onRootSet);
-    eventBus.on('element.changed', onElementChanged);
+    editor.events.on('selection.changed', onSelectionChanged);
+    editor.events.on('root.set', onRootSet);
+    editor.events.on('element.changed', onElementChanged);
 
     return () => {
-      eventBus.off('selection.changed', onSelectionChanged);
-      eventBus.off('root.set', onRootSet);
-      eventBus.off('element.changed', onElementChanged);
+      editor.events.off('selection.changed', onSelectionChanged);
+      editor.events.off('root.set', onRootSet);
+      editor.events.off('element.changed', onElementChanged);
     };
-  }, [canvas, eventBus]);
+  }, [editor]);
 
   return element;
 }
 
 export function Panel() {
   const modeler = useRequiredModeler();
-  const element = useSelectedElement(modeler);
+  const element = useSelectedElement(getEditorPort(modeler));
   const [isVisible, setIsVisible] = useState(true);
   const [width, setWidth] = useState(() =>
     clampPanelWidth(loadInspectorWidth() ?? DEFAULT_PANEL_WIDTH, window.innerWidth));

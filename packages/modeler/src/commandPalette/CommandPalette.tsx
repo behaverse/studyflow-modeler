@@ -13,6 +13,7 @@ import {
 import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
 import { IMPORTABLE_EXTENSIONS } from '@modeler/export/formats';
@@ -166,7 +167,7 @@ export function CommandPalette({ ref }: Props) {
       }
       // `p` on a selected element opens its provenance, the way the inspector follows the selection.
       if (isBareKey(e, 'p') && !isOpen && !dialog && !isTyping(e.target)) {
-        const selected = modeler?.get?.('selection', false)?.get?.() ?? [];
+        const selected = modeler ? getEditorPort(modeler).selection.get() : [];
         const scopeId = selected.length === 1 ? selected[0]?.businessObject?.id : undefined;
         if (!scopeId) return;
         e.preventDefault();

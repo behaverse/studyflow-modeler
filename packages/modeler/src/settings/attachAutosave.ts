@@ -4,6 +4,7 @@ import {
   saveAutosavedDiagram,
 } from '@modeler/settings/store';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
@@ -11,12 +12,12 @@ const AUTOSAVE_DEBOUNCE_MS = 600;
 const isOn = () => getSettings().diagramAutoSave === 'local';
 
 export function attachAutosave(modeler: Modeler): () => void {
-  const eventBus = modeler.get('eventBus');
+  const editor = getEditorPort(modeler);
   let timer: number | undefined;
 
   const flush = () => {
     if (!isOn()) return;
-    modeler.saveXML({ format: true })
+    editor.saveXML({ format: true })
       .then(({ xml }: { xml: string }) => {
         if (xml) saveAutosavedDiagram(xml);
       })
@@ -29,8 +30,8 @@ export function attachAutosave(modeler: Modeler): () => void {
     timer = window.setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
-  eventBus.on('commandStack.changed', schedule);
-  eventBus.on('import.done', schedule);
+  editor.events.on('commandStack.changed', schedule);
+  editor.events.on('import.done', schedule);
 
   let wasOn = isOn();
   const unsub = subscribeSettings((next) => {
@@ -46,8 +47,8 @@ export function attachAutosave(modeler: Modeler): () => void {
   });
 
   return () => {
-    eventBus.off('commandStack.changed', schedule);
-    eventBus.off('import.done', schedule);
+    editor.events.off('commandStack.changed', schedule);
+    editor.events.off('import.done', schedule);
     unsub();
     if (timer) window.clearTimeout(timer);
   };

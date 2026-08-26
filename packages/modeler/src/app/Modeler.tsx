@@ -8,6 +8,7 @@ import { ModelerContext } from '@modeler/app/contexts';
 import { executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/settings/attachAutosave';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import type { Modeler } from '@modeler/bpmn/types';
@@ -49,6 +50,8 @@ export function Modeler() {
         }
         created = modeler;
         detach = attachAutosave(modeler);
+        // Prime the editor facade so its revision counter spans the modeler's whole life.
+        getEditorPort(modeler);
         setModeler(modeler);
         setLoading(false);
       })

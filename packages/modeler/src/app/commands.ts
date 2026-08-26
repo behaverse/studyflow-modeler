@@ -9,6 +9,7 @@ import { MODELER_FONT_FAMILY } from '@modeler/constants';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
 import { CreateAppendAnythingModule, CreateAppendElementTemplatesModule } from 'bpmn-js-create-append-anything';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
 
 export type DownloadSchemasCommand = {
@@ -24,11 +25,11 @@ export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
 export function runUndo(modeler: Modeler, _command: UndoCommand): void {
-  modeler.get('commandStack').undo();
+  getEditorPort(modeler).undo();
 }
 
 export function runRedo(modeler: Modeler, _command: RedoCommand): void {
-  modeler.get('commandStack').redo();
+  getEditorPort(modeler).redo();
 }
 
 const DEFAULT_SEED = 42;
@@ -62,7 +63,7 @@ export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand
 
   let xml: string;
   try {
-    ({ xml } = await modeler.saveXML({ format: true }));
+    ({ xml } = await getEditorPort(modeler).saveXML({ format: true }));
   } catch (err) {
     target.close();
     throw err;
@@ -123,14 +124,16 @@ export async function runCreateModeler(_modeler: Modeler | null, command: Create
     additionalModules: ADDITIONAL_MODULES,
   }) as unknown as Modeler;
 
+  const editor = getEditorPort(modeler);
   const provided = command.initialDiagramXml;
   if (provided) {
     try {
+      const moddle = editor.model.moddle();
       const wireXml = await fromStandardBpmnXml(
-        await fromWireXml(provided, modeler.get('moddle')),
-        modeler.get('moddle'),
+        await fromWireXml(provided, moddle),
+        moddle,
       );
-      await modeler.importXML(await ensureDiagramLayout(wireXml, modeler.get('moddle')));
+      await editor.importXML(await ensureDiagramLayout(wireXml, moddle));
       return modeler;
     } catch (err) {
       console.warn(
@@ -141,6 +144,6 @@ export async function runCreateModeler(_modeler: Modeler | null, command: Create
       clearAutosavedDiagram();
     }
   }
-  await modeler.importXML(new_diagram);
+  await editor.importXML(new_diagram);
   return modeler;
 }

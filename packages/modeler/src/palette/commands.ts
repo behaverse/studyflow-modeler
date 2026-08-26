@@ -1,22 +1,8 @@
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
+import { getEditorPort } from '@modeler/editor/bpmnAdapter';
 import type { Modeler } from '@modeler/bpmn/types';
-
-/** Without a primed hover the dragger draws no CreatePreview until the next mouse move. */
-function primeHoverFromEvent(modeler: Modeler, event: MouseEvent | any): void {
-  if (!event || typeof event.clientX !== 'number') return;
-
-  const dragging = modeler.get('dragging');
-  const canvas = modeler.get('canvas');
-  const elementRegistry = modeler.get('elementRegistry');
-  const rootElement = canvas.getRootElement();
-  const rootGfx = elementRegistry.getGraphics(rootElement);
-
-  dragging.hover({ element: rootElement, gfx: rootGfx });
-  dragging.move(event);
-}
-
 
 export type PaletteStartCreateTemplateCommand = {
   type: 'PaletteStartCreateTemplate';
@@ -25,19 +11,18 @@ export type PaletteStartCreateTemplateCommand = {
 };
 
 export function runPaletteStartCreateTemplate(modeler: Modeler, command: PaletteStartCreateTemplateCommand): any {
-  const elementTemplates = modeler.get('elementTemplates');
-  const template = elementTemplates.getAll().find((t: any) => t.id === command.templateId);
+  const editor = getEditorPort(modeler);
+  const template = editor.templates.getAll().find((t: any) => t.id === command.templateId);
   if (!template) return undefined;
 
-  const created = elementTemplates.createElement(template);
-  const create = modeler.get('create');
+  const created = editor.templates.createElement(template);
 
   if (Array.isArray(created)) {
-    create.start(command.event, created, { hints: { autoSelect: [created[0]] } });
+    editor.gestures.startCreate(command.event, created, { hints: { autoSelect: [created[0]] } });
   } else {
-    create.start(command.event, created);
+    editor.gestures.startCreate(command.event, created);
   }
-  primeHoverFromEvent(modeler, command.event);
+  editor.gestures.primeHover(command.event);
 
   return created;
 }
@@ -52,17 +37,18 @@ export type PaletteStartCreateCommand = {
 };
 
 export function runPaletteStartCreate(modeler: Modeler, command: PaletteStartCreateCommand): any {
+  const editor = getEditorPort(modeler);
   const bo = buildBusinessObject(modeler, command.bpmnType, {
     attributes: command.attributes,
     extensionType: command.extensionType,
   });
-  const shape = modeler.get('elementFactory').createShape({
+  const shape = editor.gestures.createShape({
     type: command.bpmnType,
     businessObject: bo,
   });
 
-  modeler.get('create').start(command.event, shape);
-  primeHoverFromEvent(modeler, command.event);
+  editor.gestures.startCreate(command.event, shape);
+  editor.gestures.primeHover(command.event);
 
   return shape;
 }
@@ -89,13 +75,11 @@ export type PaletteOpenPopupCommand = {
 };
 
 export function runPaletteActivateLasso(modeler: Modeler, command: PaletteActivateLassoCommand): void {
-  modeler.get('lassoTool').activateSelection(command.event);
+  getEditorPort(modeler).gestures.startLasso(command.event);
 }
 
 export function runPaletteOpenPopup(modeler: Modeler, command: PaletteOpenPopupCommand): void {
-  // `popupMenu.open` types its target more narrowly than the `RootLike` it accepts.
-  const rootElement = modeler.get('canvas').getRootElement() as any;
-  modeler.get('popupMenu').open(rootElement, command.popupType, command.position, {
+  getEditorPort(modeler).popup.open(command.popupType, command.position, {
     title: command.title,
     width: 300,
     search: false,

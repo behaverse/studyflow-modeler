@@ -82,13 +82,15 @@ test.describe('provenance trail', () => {
 
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('drawn_loop.studyflow.png')));
-    const commandStack = { _stackIdx: -1 };
-    // A partial mock: `stampTrailForExport` only reads the document and two services.
+    // A partial mock: the editor port reads the document, `moddle`, and counts edits off the event bus.
+    const listeners: Array<() => void> = [];
+    const eventBus = { on: (_topic: string, fn: () => void) => listeners.push(fn) };
     const modeler = {
       getDefinitions: () => definitions,
       get: (name: string, _strict?: boolean) =>
-        ({ moddle, commandStack } as Record<string, any>)[name],
+        ({ moddle, eventBus } as Record<string, any>)[name],
     } as unknown as Modeler;
+    const edit = () => listeners.forEach((fn) => fn());
 
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
     expect(readTrail(definitions)).toHaveLength(1);
@@ -96,14 +98,13 @@ test.describe('provenance trail', () => {
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(1);
 
-    commandStack._stackIdx = 3;
+    edit();
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('modified');
     expect(readTrail(definitions)).toHaveLength(2);
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
 
-    // Reopened (import clears the command stack): a trail-carrying document nobody edits is left untouched.
+    // Reopened (import resets the edit history without moving the revision): a trail-carrying document nobody edits is left untouched.
     resetTrailStamping(modeler);
-    commandStack._stackIdx = -1;
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(2);
   });
