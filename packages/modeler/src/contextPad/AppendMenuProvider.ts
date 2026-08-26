@@ -1,5 +1,6 @@
 import { getCatalog, HIDDEN_SCHEMA_TYPES, isImageIcon, type TypeEntry } from '@core/notation';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
+import { createEditorModel } from '@modeler/editor/bpmnAdapter';
 import type { AutoPlace, Create, ElementFactory, Injector, PopupMenu, Rules } from '@modeler/bpmn/types';
 
 type AppendableType = {
@@ -85,7 +86,7 @@ export default class AppendMenuProvider {
     const { _elementFactory, _autoPlace, _create, _injector } = this;
 
     const createShape = () => {
-      const bo = buildBusinessObject(_injector, bpmnType, { extensionType });
+      const bo = buildBusinessObject(createEditorModel(_injector), bpmnType, { extensionType });
       return _elementFactory.create('shape', { type: bpmnType, businessObject: bo });
     };
 

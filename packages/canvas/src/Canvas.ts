@@ -189,6 +189,7 @@ export class Canvas {
       getScene: () => this.scene,
       getWriteback: () => this.writeback,
       redraw: (elements) => this.redrawElements(elements),
+      restoreFocus: () => this.focus(),
     });
 
     this.rules = options.rules ?? new Rules();
@@ -212,11 +213,13 @@ export class Canvas {
 
     this.root.addEventListener('pointerdown', (ev) => this.handlePointerDown(ev as MouseEvent));
     this.root.addEventListener('dblclick', (ev) => this.handleDoubleClick(ev as MouseEvent));
-    // Keyboard shortcuts (Delete/Backspace) are scoped to the canvas rather than the
-    // document: the container is made focusable and takes focus on a press, and the
-    // listener sits on it so a key pressed over the diagram bubbles up to it. The
-    // focus hook is on the *container*, never the SVG root — `toSVG` serializes the
-    // root, and an exported diagram must not carry editor plumbing.
+    // Keyboard shortcuts (Delete/Backspace, and whatever the host binds) are scoped
+    // to the canvas rather than the document: the SVG root is the focusable element
+    // — the same place diagram-js puts it, so one host-side key handler serves both
+    // — and the listener sits on the container so a key pressed over the diagram
+    // bubbles up to it. `toSVG` serializes a *copy* with this plumbing stripped, so
+    // an exported diagram never carries it.
+    if (!this.root.hasAttribute('tabindex')) this.root.setAttribute('tabindex', '0');
     if (!this.container.hasAttribute('tabindex')) this.container.setAttribute('tabindex', '0');
     this.container.addEventListener('keydown', this.onShortcut);
   }
@@ -658,6 +661,18 @@ export class Canvas {
    * The topmost {@link SceneElement} under a diagram-coordinate `point`, or
    * `undefined` for empty space. Geometry-based (works under jsdom).
    */
+  /**
+   * Put the keyboard focus on the diagram (the SVG root), so canvas-scoped
+   * shortcuts reach it. Called on every press, and whenever an overlay that stole
+   * the focus — the inline label editor — hands it back.
+   */
+  focus(): void {
+    const active = this.root.ownerDocument?.activeElement;
+    if (active === this.root) return;
+    (this.root as unknown as { focus?: (options?: FocusOptions) => void })
+      .focus?.({ preventScroll: true });
+  }
+
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
     if (!this.scene) return undefined;
     return hitTest(this.scene, point, options);
@@ -674,10 +689,20 @@ export class Canvas {
     if (!this.scene) return;
     // Only the primary button starts a selection gesture.
     if (typeof ev.button === 'number' && ev.button !== 0) return;
-    // Take the keyboard focus so the canvas-scoped shortcuts (Delete) reach us.
-    if (this.container.ownerDocument.activeElement !== this.container) {
-      this.container.focus?.({ preventScroll: true });
+    // A palette create is already in flight — it was armed by `startCreate` from a
+    // gesture that began outside the canvas, so this press is where the shape
+    // lands, not the start of a new one. Overwriting the gesture here would turn
+    // the pending drop into a marquee (click-to-place: click the palette tile,
+    // then click the canvas).
+    if (this.gesture?.intent === 'create') {
+      const drop = this.eventPoint(ev);
+      this.gesture.downScreen = { x: ev.clientX, y: ev.clientY };
+      this.gesture.downDiagram = drop;
+      this.create.update(drop);
+      return;
     }
+    // Take the keyboard focus so the canvas-scoped shortcuts (Delete) reach us.
+    this.focus();
     const pt = this.eventPoint(ev);
 
     // Selection-overlay handles are checked first and never change the selection:
@@ -920,13 +945,21 @@ export class Canvas {
   /** Serialize the live canvas SVG to a string (design §4 `saveSVG`). */
   toSVG(): string {
     const doc = ownerDocument();
+    // A copy, not the live root: an exported diagram is the drawing, never the
+    // editor. The focus hook and whatever the selection overlay is currently
+    // painting (outlines, resize handles, the marquee) are plumbing and come off.
+    const copy = this.root.cloneNode(true) as SVGSVGElement;
+    copy.removeAttribute('tabindex');
+    for (const stray of Array.from(copy.querySelectorAll('[data-layer="selection"], .sf-marquee'))) {
+      stray.parentNode?.removeChild(stray);
+    }
     const view = (doc.defaultView ?? (typeof window !== 'undefined' ? window : undefined)) as
       | (Window & typeof globalThis)
       | undefined;
     if (view && typeof view.XMLSerializer === 'function') {
-      return new view.XMLSerializer().serializeToString(this.root);
+      return new view.XMLSerializer().serializeToString(copy);
     }
     // Fallback for a DOM without XMLSerializer.
-    return this.root.outerHTML ?? '';
+    return copy.outerHTML ?? '';
   }
 }

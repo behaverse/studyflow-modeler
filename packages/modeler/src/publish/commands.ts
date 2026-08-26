@@ -1,6 +1,6 @@
 import { URLS } from '@modeler/constants';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type PublishDiagramCommand = {
   type: 'PublishDiagram';
@@ -12,7 +12,7 @@ export type PublishResult = {
   previewUrl?: string;
 };
 
-export async function runPublishDiagram(modeler: Modeler, command: PublishDiagramCommand): Promise<PublishResult> {
+export async function runPublishDiagram(modeler: EditorHandle, command: PublishDiagramCommand): Promise<PublishResult> {
   const { xml } = await getEditorPort(modeler).saveXML({ format: true });
 
   const response = await fetch(`${URLS.apiBase}/v1/studies/${command.studyName}/flow`, {

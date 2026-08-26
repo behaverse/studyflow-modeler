@@ -1,8 +1,8 @@
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight } from '@modeler/draw/choreographyLayout';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */
 const ACTIVITY_POINTS = 'points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],'
@@ -85,12 +85,6 @@ function toCellId(id: string): string {
   return id === '0' || id === '1' ? `cell-${id}` : id;
 }
 
-function rootOf(element: any): any {
-  let current = element;
-  while (current.parent) current = current.parent;
-  return current;
-}
-
 function depthOf(element: any): number {
   let depth = 0;
   for (let current = element.parent; current; current = current.parent) depth++;
@@ -102,7 +96,10 @@ function paintRank(element: any): number {
   if (element.type === 'bpmn:Group') return 1;
   const isSubProcess = element.type === 'bpmn:SubProcess' || element.type === 'bpmn:Transaction'
     || element.type === 'bpmn:AdHocSubProcess';
-  const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && !element.collapsed);
+  // `collapsed` is diagram-js's flag; the canvas carries the same state on the DI
+  // (`BPMNShape.isExpanded`), so read whichever the backend supplied.
+  const collapsed = element.collapsed ?? element.di?.isExpanded === false;
+  const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && !collapsed);
   return isFrame ? 0 : 2;
 }
 
@@ -183,7 +180,8 @@ function shapeStyle(element: any, bo: any): string {
   if (type === 'bpmn:SubProcess' || type === 'bpmn:Transaction' || type === 'bpmn:AdHocSubProcess') {
     // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an *event* sub-process.
     const transaction = type === 'bpmn:Transaction' ? 'bpmnShapeType=transaction;' : '';
-    const collapsed = element.collapsed ? 'isLoopSub=1;' : 'verticalAlign=top;';
+    const collapsed = (element.collapsed ?? element.di?.isExpanded === false)
+      ? 'isLoopSub=1;' : 'verticalAlign=top;';
     return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo)}`;
   }
   if (type === 'bpmn:CallActivity') {
@@ -290,7 +288,7 @@ function edgeCell(element: any, known: Set<string>): string {
     + '        </mxCell>\n';
 }
 
-export function exportToDrawio(modeler: Modeler): string {
+export function exportToDrawio(modeler: EditorHandle): string {
   const editor = getEditorPort(modeler);
   const root = editor.elements.root();
   const shapes: any[] = [];
@@ -298,7 +296,10 @@ export function exportToDrawio(modeler: Modeler): string {
 
   editor.elements.forEach((element: any) => {
     if (element === root || element.type === 'label' || !element.businessObject) return;
-    if (rootOf(element) !== root) return;
+    // Only what the CURRENT plane depicts: the facade knows which root an element
+    // belongs to, and a scene element's own parent chain stops at the plane's top
+    // node rather than at the root, so `findRoot` is the portable question.
+    if (editor.elements.findRoot(element) !== root) return;
     if (element.waypoints) connections.push(element);
     else if (Number.isFinite(element.x) && Number.isFinite(element.y)) shapes.push(element);
   });

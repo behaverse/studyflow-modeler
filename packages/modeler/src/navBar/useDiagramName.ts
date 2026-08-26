@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { executeCommand } from '@modeler/commandBus';
 import { getDiagramName } from '@modeler/diagram/file';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';
 
-export function useDiagramName(modeler: Modeler): {
+export function useDiagramName(modeler: EditorHandle): {
   diagramName: string;
   rename: (name: string) => void;
 } {

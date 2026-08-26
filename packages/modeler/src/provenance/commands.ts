@@ -1,7 +1,7 @@
 import { trailTimestamp } from '@modeler/provenance/trail';
 import { voids } from '@modeler/provenance/records';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type InvalidateProvenanceRecordCommand = {
   type: 'InvalidateProvenanceRecord';
@@ -12,7 +12,7 @@ export type InvalidateProvenanceRecordCommand = {
 };
 
 export function runInvalidateProvenanceRecord(
-  modeler: Modeler,
+  modeler: EditorHandle,
   command: InvalidateProvenanceRecordCommand,
 ): boolean {
   const editor = getEditorPort(modeler);

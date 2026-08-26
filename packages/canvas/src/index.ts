@@ -161,10 +161,13 @@ export {
 
 export {
   drawIcon,
+  drawCssIcon,
   drawSvgPaths,
   drawIconText,
   SVG_ICON_PATHS,
   MARKER_ICONS,
+  type CssIconDef,
+  type IconDef,
   type IconResolver,
   type SvgIconDef,
 } from './render/icons.ts';
@@ -174,7 +177,11 @@ export {
   wrap,
   drawInternalLabel,
   drawExternalLabel,
+  drawEdgeLabel,
+  edgeLabelBounds,
   externalLabelBounds,
+  waypointsMid,
+  EDGE_LABEL_FONT_SIZE,
   LABEL_FONT,
   LABEL_LINE_HEIGHT,
 } from './render/labels.ts';
@@ -315,3 +322,29 @@ export {
 
 // --- Facade -----------------------------------------------------------------
 export { Canvas, type CanvasOptions } from './Canvas.ts';
+
+// --- EditorPort adapter (design §3 `port/adapter.ts`, §4) --------------------
+export {
+  createCanvasEditorPort,
+  type CanvasEditorPort,
+  type CanvasPortDeps,
+  type CanvasPortHistory,
+  type PortElement,
+  type PortElements,
+  type PortEventListener,
+  type PortEvents,
+  type PortGestures,
+  type PortModdle,
+  type PortModel,
+  type PortModelElement,
+  type PortMutations,
+  type PortPopup,
+  type PortRect,
+  type PortRoot,
+  type PortRules,
+  type PortSelection,
+  type PortSimulation,
+  type PortTemplates,
+  type PortView,
+  type PortViewbox,
+} from './port/adapter.ts';

@@ -1,6 +1,6 @@
 import { primaryRoots } from '@core/document';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type TrailStamp = {
   action: string;
@@ -71,7 +71,7 @@ function pruneEmpty(stamp: TrailStamp): Record<string, string> {
 
 const lastStampedAt = new WeakMap<object, number>();
 
-export function resetTrailStamping(modeler: Modeler): void {
+export function resetTrailStamping(modeler: EditorHandle): void {
   // Import clears the edit history without moving the revision counter, so the
   // baseline re-anchors to the current revision: a reopened trail-carrying
   // document nobody edits is left untouched.
@@ -79,7 +79,7 @@ export function resetTrailStamping(modeler: Modeler): void {
 }
 
 export function stampTrailForExport(
-  modeler: Modeler,
+  modeler: EditorHandle,
   identity: { who?: string; tool: string },
 ): any | undefined {
   const editor = getEditorPort(modeler);

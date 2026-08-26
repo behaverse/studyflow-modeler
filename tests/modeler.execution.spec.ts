@@ -3,7 +3,17 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
+import { addPaletteElement, exportDiagram, gotoModeler, onCanvasBackend, pressOnCanvas, readDownloadText } from './utils';
+
+/**
+ * P6b — drill-down navigation. Reading a collapsed sub-process's own DI plane means
+ * rendering a plane that is not `Scene.rootPlane`, plus the `Open <name>` overlay
+ * that enters it. The canvas models `Scene.planes`, but `rootPlane` is the DOCUMENT
+ * root (`model/writeback.ts`, `model/remove.ts` both key off it), not a view cursor,
+ * so this needs a separate current-plane concept threaded through the renderer,
+ * hit-testing and the writeback's default plane. bpmn-js gets it from `drilldown`.
+ */
+const DRILLDOWN_REASON = 'P6b: canvas has no drill-down into a nested DI plane yet';
 
 /** The inspector's Execution tab: `bpmn:Property` declarations plus the data associations that bind them. */
 
@@ -100,6 +110,7 @@ test.describe('Inspector execution tab', () => {
   });
 
   test('the data-association view reports property bindings, which are never drawn', async ({ page }) => {
+    test.skip(onCanvasBackend(), DRILLDOWN_REASON);
     await gotoModeler(page);
 
     const source = readFileSync(
@@ -140,6 +151,7 @@ test.describe('Inspector execution tab', () => {
   });
 
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
+    test.skip(onCanvasBackend(), DRILLDOWN_REASON);
     await gotoModeler(page);
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'sklearn_pipeline.studyflow.png',

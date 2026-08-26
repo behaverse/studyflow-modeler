@@ -42,11 +42,27 @@ function flow(id: string, type: string, source: any, target: any, bo: Record<str
   };
 }
 
+/**
+ * diagram-js's `canvas.findRoot`: the topmost ancestor of `element` — the plane it
+ * is drawn on. A shape nested in a sub-process still answers ROOT; one parented to
+ * another plane's root answers that plane, which is how `exportToDrawio` drops
+ * everything the current plane does not depict.
+ */
+function findRoot(element: any): any {
+  let cursor = element;
+  const guard = new Set<any>();
+  while (cursor?.parent && !guard.has(cursor)) {
+    guard.add(cursor);
+    cursor = cursor.parent;
+  }
+  return cursor;
+}
+
 function fakeModeler(elements: any[]): any {
   return {
     get: (service: string) => {
       if (service === 'elementRegistry') return { forEach: (fn: any) => elements.forEach(fn) };
-      if (service === 'canvas') return { getRootElement: () => ROOT };
+      if (service === 'canvas') return { getRootElement: () => ROOT, findRoot };
       return undefined;
     },
   };

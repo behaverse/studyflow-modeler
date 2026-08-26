@@ -12,8 +12,8 @@ import { dataUrlToBytes, embedDrawioIntoPng, embedStudyflowIntoPng } from '@core
 import { embedDrawioIntoSvg, embedIconsInSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type ExportDiagramCommand = {
   type: 'ExportDiagram';
@@ -21,13 +21,13 @@ export type ExportDiagramCommand = {
   embed?: Partial<EmbedOptions>;
 };
 
-async function toExportableXml(modeler: Modeler): Promise<string> {
+async function toExportableXml(modeler: EditorHandle): Promise<string> {
   const editor = getEditorPort(modeler);
   const { xml } = await editor.saveXML({ format: true });
   return toWireXml(xml, editor.model.moddle());
 }
 
-async function renderSvg(modeler: Modeler): Promise<{ svg: string; xml: string }> {
+async function renderSvg(modeler: EditorHandle): Promise<{ svg: string; xml: string }> {
   const editor = getEditorPort(modeler);
   const [{ svg }, compactXml] = await Promise.all([editor.saveSVG(), toExportableXml(modeler)]);
   const xml = await toStandardBpmnXml(compactXml, editor.model.moddle());
@@ -36,7 +36,7 @@ async function renderSvg(modeler: Modeler): Promise<{ svg: string; xml: string }
 }
 
 const ENCODERS: Record<ExportFormatId, (ctx: {
-  modeler: Modeler;
+  modeler: EditorHandle;
   embed: EmbedOptions;
   renderSvg: () => Promise<{ svg: string; xml: string }>;
   /** The semantic view of the diagram, built on demand; only the interchange formats read it. */
@@ -72,7 +72,7 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
   },
 };
 
-export async function runExportDiagram(modeler: Modeler, command: ExportDiagramCommand): Promise<void> {
+export async function runExportDiagram(modeler: EditorHandle, command: ExportDiagramCommand): Promise<void> {
   const format = getExportFormat(command.format ?? 'studyflow');
   const embed = { ...DEFAULT_EMBED_OPTIONS, ...command.embed };
 

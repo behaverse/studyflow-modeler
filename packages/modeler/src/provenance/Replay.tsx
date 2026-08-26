@@ -16,7 +16,7 @@ import {
   type Point,
 } from '@modeler/simulation/TokenSimulator';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import { getEditorPort } from '@modeler/editor/registry';
 import type { EditorElements, EditorPort, EditorView } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 

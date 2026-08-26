@@ -1,8 +1,8 @@
 import { getCatalog, type AttributeSpec, type TypeRole } from '@core/notation';
 import { isDataOperationActivity, StudyflowElement } from '@core/element';
 import { exportDiagramName } from '@modeler/export/common';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 /* exporters read this instead of the canvas */
 export type ExportedElement = {
@@ -39,7 +39,7 @@ export function hasRole(element: ExportedElement, role: TypeRole): boolean {
 }
 
 /** The one registry walk the interchange exporters are built from. */
-export function buildExportModel(modeler: Modeler): ExportModel {
+export function buildExportModel(modeler: EditorHandle): ExportModel {
   const elements: ExportedElement[] = [];
   getEditorPort(modeler).elements.forEach((el: any) => {
     if (el.type === 'label') return;

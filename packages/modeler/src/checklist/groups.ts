@@ -1,7 +1,7 @@
 import { checklistItems, type ChecklistItem } from '@core/document';
 import { getAttribute } from '@core/element';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type ElementGroup = {
   id: string;
@@ -31,7 +31,7 @@ function buildChecklistGroup(el: any): ElementGroup | null {
 }
 
 /** One group per element carrying a `studyflow:checklist`, in element-registry order. */
-export function collectChecklistGroups(modeler: Modeler): ElementGroup[] {
+export function collectChecklistGroups(modeler: EditorHandle): ElementGroup[] {
   if (!modeler) return [];
   const groups: ElementGroup[] = [];
   getEditorPort(modeler).elements.forEach((el: any) => {

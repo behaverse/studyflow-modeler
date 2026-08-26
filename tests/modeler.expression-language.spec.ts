@@ -38,7 +38,7 @@ test('a data wire\'s binding and the loop marker\'s condition get the select too
 
   await page.getByTestId('modeler-canvas').hover();
   await page.mouse.wheel(0, -160);
-  await page.locator('g.djs-connection[data-element-id="DataInput_Input_Features"]').click({ force: true });
+  await page.locator('[data-element-id="DataInput_Input_Features"]').click({ force: true });
   await expect(page.locator('input[name="bpmn:name"]')).toBeVisible();
   const wireBody = page.locator('textarea[name="bpmn:transformation"]');
   await expect(wireBody).toHaveValue('self');

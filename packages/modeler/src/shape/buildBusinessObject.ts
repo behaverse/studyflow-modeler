@@ -1,7 +1,6 @@
 import { getDefaults, StudyflowElement } from '@core/element';
 import { toLocalName } from '@core/naming';
-import { createEditorModel } from '@modeler/editor/bpmnAdapter';
-import type { ServiceResolver } from '@modeler/bpmn/types';
+import type { EditorModel } from '@modeler/editor/port';
 
 export type BuildBusinessObjectOptions = {
   attributes?: Record<string, unknown>;
@@ -9,13 +8,17 @@ export type BuildBusinessObjectOptions = {
   id?: string;
 };
 
+/**
+ * Mint a business object for `bpmnType`. Takes the `EditorModel` slice rather than a
+ * whole port or a bpmn-js resolver: the append menu builds one from an injector,
+ * the palette reads it off the active port, and both backends share the document
+ * model, so this is the one thing all three have.
+ */
 export function buildBusinessObject(
-  modeler: ServiceResolver,
+  model: EditorModel,
   bpmnType: string,
   { attributes = {}, extensionType, id }: BuildBusinessObjectOptions = {},
 ): any {
-  // Resolver rather than the full port: the append menu hands this an injector.
-  const model = createEditorModel(modeler);
   // `ids` may be absent on a bare moddle; keep the defensive probe.
   const hasIds = !!(model.moddle() as any)?.ids?.nextPrefixed;
 

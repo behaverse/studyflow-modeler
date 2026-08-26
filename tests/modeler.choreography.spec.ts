@@ -2,8 +2,10 @@ import { expect, test } from '@playwright/test';
 
 import {
   addPaletteElement,
+  expectEditorText,
   exportDiagram,
   gotoModeler,
+  labelEditor,
   readDownloadText,
 } from './utils';
 
@@ -17,16 +19,15 @@ test.describe('Studyflow choreography tasks', () => {
 
     // bpmn-js auto-opens name editing after create; its overlay covers the bands, so dismiss it first.
     await page.keyboard.press('Escape');
-    await expect(page.locator('.djs-direct-editing-content')).toBeHidden();
+    await expect(labelEditor(page)).toBeHidden();
 
-    const shape = page.locator('.djs-element[data-element-id^="ChoreographyTask_"]').first();
-    const visual = shape.locator('.djs-visual');
+    const shape = page.locator('[data-element-id^="ChoreographyTask_"]').first();
 
-    await expect(visual).toContainText('Participant A');
-    await expect(visual).toContainText('Participant B');
+    await expect(shape).toContainText('Participant A');
+    await expect(shape).toContainText('Participant B');
 
     // (tests are typechecked without the DOM lib, hence the `any`)
-    const bandFills = await visual.locator('path').evaluateAll(
+    const bandFills = await shape.locator('path[data-band]').evaluateAll(
       (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
     );
     expect(bandFills).toHaveLength(2);
@@ -35,28 +36,28 @@ test.describe('Studyflow choreography tasks', () => {
     const box = (await shape.boundingBox())!;
     const bandX = box.x + box.width * 0.3;
     await page.mouse.dblclick(bandX, box.y + 8);
-    const editor = page.locator('.djs-direct-editing-content');
-    await expect(editor).toHaveText('Participant A');
+    const editor = labelEditor(page);
+    await expectEditorText(page, 'Participant A');
     await editor.fill('Subject');
     await page.keyboard.press('Enter');
-    await expect(visual).toContainText('Subject');
+    await expect(shape).toContainText('Subject');
 
     await page.mouse.dblclick(bandX, box.y + box.height - 8);
-    await expect(editor).toHaveText('Participant B');
+    await expectEditorText(page, 'Participant B');
     await editor.fill('Experimenter');
     await page.keyboard.press('Enter');
-    await expect(visual).toContainText('Experimenter');
+    await expect(shape).toContainText('Experimenter');
 
     await page.mouse.dblclick(bandX, box.y + box.height / 2);
     await editor.fill('Give consent');
     await page.keyboard.press('Enter');
-    await expect(visual).toContainText('Give consent');
+    await expect(shape).toContainText('Give consent');
 
     await expect(editor).toBeHidden();
     await expect(page.getByTestId('modeler-canvas').locator('svg[tabindex]')).toBeFocused();
     await page.keyboard.press('ControlOrMeta+z');
-    await expect(visual).not.toContainText('Give consent');
-    await expect(visual).toContainText('Subject');
+    await expect(shape).not.toContainText('Give consent');
+    await expect(shape).toContainText('Subject');
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
 
@@ -74,7 +75,7 @@ test.describe('Studyflow choreography tasks', () => {
 
     await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
     await page.keyboard.press('Escape');
-    await expect(page.locator('.djs-direct-editing-content')).toBeHidden();
+    await expect(labelEditor(page)).toBeHidden();
 
     const inspector = page.getByTestId('inspector-root');
     const topInput = inspector.locator('input[name="choreography:top"]');
@@ -82,15 +83,14 @@ test.describe('Studyflow choreography tasks', () => {
     await expect(topInput).toHaveValue('Participant A');
     await expect(bottomInput).toHaveValue('Participant B');
 
-    const shape = page.locator('.djs-element[data-element-id^="ChoreographyTask_"]').first();
-    const visual = shape.locator('.djs-visual');
+    const shape = page.locator('[data-element-id^="ChoreographyTask_"]').first();
 
     await topInput.fill('Subject');
-    await expect(visual).toContainText('Subject');
+    await expect(shape).toContainText('Subject');
     await bottomInput.fill('Experimenter');
-    await expect(visual).toContainText('Experimenter');
+    await expect(shape).toContainText('Experimenter');
 
-    const bandFills = () => visual.locator('path').evaluateAll(
+    const bandFills = () => shape.locator('path[data-band]').evaluateAll(
       (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
     );
     const before = await bandFills();

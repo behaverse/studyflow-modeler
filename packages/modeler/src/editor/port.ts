@@ -1,14 +1,23 @@
 /**
  * EditorPort — the editor-agnostic facade app-side code talks to.
  *
- * Phase 1 of the bpmn-js migration ("seam hardening"): app-side consumers (React
- * components, hooks, command handlers, simulation UI, export, provenance, import)
- * reach the diagram editor only through this interface. Editor-internal modules
- * (`bpmn/`, `draw/`, `contextPad/`, `palette/module`, `templates/`) keep using
- * bpmn-js directly and are replaced wholesale when the editor is swapped.
+ * App-side consumers (React components, hooks, command handlers, simulation UI,
+ * export, provenance, import) reach the diagram editor only through this
+ * interface. Editor-internal modules (`bpmn/`, `draw/`, `contextPad/`,
+ * `palette/module`, `templates/`) keep using bpmn-js directly and belong to the
+ * bpmn backend alone.
  *
- * Names describe intent, not bpmn-js service names. The only implementation for
- * now is `createBpmnEditorPort` (`@modeler/editor/bpmnAdapter`).
+ * Names describe intent, not bpmn-js service names. There are two implementations:
+ *
+ * - `createBpmnEditorPort` (`@modeler/editor/bpmnAdapter`) over a bpmn-js modeler;
+ * - `createCanvasEditorPort` (`@behaverse/studyflow-canvas`) over the native canvas,
+ *   assembled with its app-supplied halves in `@modeler/editor/canvasBackend`.
+ *
+ * Members marked *app-backed* below are not the editor's to answer: the history
+ * quartet, `importXML`/`saveXML` and `model` are served by the app on both
+ * backends (`editor/history.ts`, bpmn-moddle), so the two backends agree on them
+ * by construction. `@modeler/editor/registry` picks the implementation; nothing
+ * app-side may branch on which one it got.
  */
 
 /**
@@ -41,6 +50,10 @@ export type Viewbox = Rect & {
  * `elements.changed`, `commandStack.changed`, `import.done`,
  * `tokenSimulation.toggle`. Fired app-side: `tokenSimulation.toggle`,
  * `elementTemplates.changed`.
+ *
+ * `commandStack.changed` means "one mutation was applied" — not "one command stack
+ * step". On the bpmn backend the command stack fires it; on the canvas backend the
+ * app history layer (`editor/history.ts`) does, once per recorded mutation.
  */
 export type EditorEventListener = (event: any) => any;
 
@@ -69,11 +82,17 @@ export interface EditorView {
   getAbsoluteBBox(element: EditorElement): Rect;
   /** The DOM element hosting the diagram (queried for its `svg`, class toggles, rects). */
   getContainer(): HTMLElement;
-  /** A custom SVG layer, created on first use. */
+  /**
+   * A custom SVG layer, created on first use. `index` is a z-order *hint*: the
+   * bpmn backend orders layers by it, the canvas backend only records it.
+   */
   getLayer(name: string, index?: number): SVGElement;
   addMarker(elementOrId: EditorElement | string, marker: string): void;
   removeMarker(elementOrId: EditorElement | string, marker: string): void;
-  /** May throw for elements outside the current root; callers guard. */
+  /**
+   * May throw for elements outside the current root; callers guard. `padding` is a
+   * hint: the bpmn backend honours it, the canvas backend centres the element.
+   */
   scrollToElement(
     element: EditorElement,
     padding?: number | { top: number; right: number; bottom: number; left: number },
@@ -101,19 +120,24 @@ export interface EditorMutations {
     properties: Record<string, unknown>,
   ): void;
   resizeShape(shape: EditorElement, bounds: Rect): void;
+  /** `undefined` when the backend's rules reject the drop. */
   createShape(
     shape: EditorElement,
     position: Rect | { x: number; y: number },
     parent: EditorElement,
     hints?: Record<string, unknown>,
-  ): EditorElement;
+  ): EditorElement | undefined;
+  /**
+   * `undefined` when the backend's rules reject the connection. `connection` and
+   * `parent` are hints: the canvas derives the flow type from its own rules.
+   */
   createConnection(
     source: EditorElement,
     target: EditorElement,
     connection: EditorElement,
     parent: EditorElement,
     hints?: Record<string, unknown>,
-  ): EditorElement;
+  ): EditorElement | undefined;
 }
 
 export interface EditorSelection {
@@ -145,11 +169,21 @@ export interface EditorGestures {
   ): void;
   /** Begins lasso selection from `event`. */
   startLasso(event: MouseEvent | any): void;
-  /** Primes hover on the root so a create drag previews before the first mouse move. */
-  primeHover(event: MouseEvent | any): void;
+  /**
+   * Primes hover on the root so a create drag previews before the first mouse move.
+   * A diagram-js `dragging` workaround with no counterpart elsewhere — optional, and
+   * absent on backends that need no priming. Call it as `primeHover?.(event)`.
+   */
+  primeHover?(event: MouseEvent | any): void;
 }
 
-/** Popup menus opened from app chrome, anchored on the current root. */
+/**
+ * Popup menus opened from app chrome, anchored on the current root.
+ *
+ * `providerId` names a menu, not a diagram-js provider: the bpmn backend resolves
+ * it through `popupMenu`'s provider registry, and any other backend must fulfil the
+ * same ids from app chrome, using `view.getAbsoluteBBox` for the anchor geometry.
+ */
 export interface EditorPopup {
   open(
     providerId: string,
@@ -190,17 +224,19 @@ export interface EditorSimulation {
 
 export interface EditorPort {
   /**
-   * Monotonic revision of the document's edit history: bumps on every executed,
-   * undone or redone command (not on import, which resets the history silently).
-   * Public replacement for the `commandStack._stackIdx` private read
-   * ("has the document changed since I last looked?").
+   * App-backed. Monotonic revision of the document's edit history: bumps on every
+   * applied, undone or redone mutation (not on import, which resets the history
+   * silently). The app's answer to "has the document changed since I last looked?",
+   * served by `editor/history.ts` on both backends.
    */
   revision(): number;
+  /** App-backed: the bpmn command stack, or the app's snapshot history. */
   undo(): void;
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
 
+  /** App-backed: parsed with bpmn-moddle, then handed to the backend. */
   importXML(xml: string): Promise<{ warnings: unknown[] }>;
   saveXML(options?: { format?: boolean }): Promise<{ xml: string }>;
   saveSVG(): Promise<{ svg: string }>;

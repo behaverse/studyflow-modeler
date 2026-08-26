@@ -1,5 +1,5 @@
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type SetColorCommand = {
   type: 'SetColor';
@@ -7,6 +7,6 @@ export type SetColorCommand = {
   color: { fill?: string; stroke?: string };
 };
 
-export function runSetColor(modeler: Modeler, command: SetColorCommand): void {
+export function runSetColor(modeler: EditorHandle, command: SetColorCommand): void {
   getEditorPort(modeler).mutate.setColor(command.elements, command.color);
 }

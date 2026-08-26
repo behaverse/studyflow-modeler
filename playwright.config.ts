@@ -27,6 +27,17 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
       },
     },
+    // P6a: the same suite, driven against the native canvas backend through the
+    // `?editor=canvas` flag (`tests/utils.ts::editorBackend`). One spec set, two
+    // backends — never a per-backend fork. `STUDYFLOW_EDITOR_BACKEND` overrides
+    // the project name for ad-hoc runs of the default project.
+    {
+      name: 'e2e-canvas',
+      testIgnore: '**/*.unit.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
   ],
   // Two dev servers, one origin: the modeler (4173) proxies /run and friends to
   // the runner (4174), mirroring how the merged dist/ is served in production.

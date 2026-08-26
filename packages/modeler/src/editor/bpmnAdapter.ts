@@ -1,5 +1,7 @@
 import type { Modeler, ServiceResolver } from '@modeler/bpmn/types';
 import { modelingUpdater } from '@modeler/bpmn/modeling';
+import { createCommandStackHistory } from '@modeler/editor/history';
+import type { DocumentHistory } from '@modeler/editor/history';
 import type {
   EditorEventListener,
   EditorModel,
@@ -31,30 +33,28 @@ export function createEditorModel(resolver: ServiceResolver): EditorModel {
 
 /**
  * bpmn-js implementation of `EditorPort`: thin delegation onto the modeler's DI
- * services. Create one adapter per modeler instance (see `getEditorPort`) so the
- * revision counter spans the modeler's whole life.
+ * services. Create one adapter per modeler instance (see
+ * `@modeler/editor/registry`) so the revision counter spans the modeler's whole
+ * life.
+ *
+ * The history quartet is routed through the shared seam (`editor/history.ts`) so
+ * the canvas backend answers `revision()` / `commandStack.changed` the same way;
+ * on this backend the seam wraps the *native* command stack, so undo/redo keep
+ * bpmn-js semantics exactly.
  */
-export function createBpmnEditorPort(modeler: Modeler): EditorPort {
-  let revision = 0;
-  // `importXML` clears the command stack without firing `commandStack.changed`,
-  // so the counter only moves on real edits/undo/redo — the same signal as the
-  // `commandStack._stackIdx` read it replaces. Non-strict: unit-test modeler
-  // stand-ins carry no event bus (and no edits to count).
-  modeler.get('eventBus', false)?.on('commandStack.changed', () => {
-    revision += 1;
-  });
+export function createBpmnEditorPort(modeler: Modeler, history?: DocumentHistory): EditorPort {
+  const edits = history ?? createCommandStackHistory(modeler as any);
 
   const canvas = () => modeler.get('canvas');
   const modeling = () => modeler.get('modeling');
   const registry = () => modeler.get('elementRegistry');
 
   return {
-    revision: () => revision,
-    undo: () => modeler.get('commandStack').undo(),
-    redo: () => modeler.get('commandStack').redo(),
-    // Non-strict: read at render time, where a stand-in may carry no command stack.
-    canUndo: () => !!modeler.get('commandStack', false)?.canUndo(),
-    canRedo: () => !!modeler.get('commandStack', false)?.canRedo(),
+    revision: () => edits.revision(),
+    undo: () => edits.undo(),
+    redo: () => edits.redo(),
+    canUndo: () => edits.canUndo(),
+    canRedo: () => edits.canRedo(),
 
     importXML: (xml) => modeler.importXML(xml),
     saveXML: (options) => modeler.saveXML(options),
@@ -145,7 +145,8 @@ export function createBpmnEditorPort(modeler: Modeler): EditorPort {
       startLasso: (event) => {
         modeler.get('lassoTool').activateSelection(event);
       },
-      // Without a primed hover the dragger draws no CreatePreview until the next mouse move.
+      // Without a primed hover the dragger draws no CreatePreview until the next
+      // mouse move. Backend-specific (design §4 (3)); callers use `primeHover?.()`.
       primeHover: (event) => {
         if (!event || typeof event.clientX !== 'number') return;
         const rootElement = canvas().getRootElement();
@@ -178,21 +179,4 @@ export function createBpmnEditorPort(modeler: Modeler): EditorPort {
       isActive: () => modeler.get('tokenSimulator').isActive(),
     },
   };
-}
-
-const ports = new WeakMap<Modeler, EditorPort>();
-
-/**
- * The `EditorPort` for a modeler instance — memoized so every consumer shares
- * one adapter (and one revision counter) per modeler. `app/Modeler.tsx` primes
- * this at creation; app code holding either the modeler handle or the
- * `ModelerContext` value reaches the facade through it.
- */
-export function getEditorPort(modeler: Modeler): EditorPort {
-  let port = ports.get(modeler);
-  if (!port) {
-    port = createBpmnEditorPort(modeler);
-    ports.set(modeler, port);
-  }
-  return port;
 }

@@ -10,8 +10,10 @@
  */
 
 import { BPMN } from '@core/constants.ts';
+import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 
+import { readChoreographyBands } from '@canvas/model/choreography.ts';
 import { isCollapsed, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import type {
@@ -39,6 +41,7 @@ import {
 } from '@canvas/render/shapes.ts';
 import {
   drawBandText,
+  drawEdgeLabel,
   drawExternalLabel,
   drawInternalLabel,
 } from '@canvas/render/labels.ts';
@@ -282,7 +285,7 @@ export class Renderer {
     // The top-left type glyph; a placeholder unless a resolver is injected.
     const key = toLocalName(node.type);
     if (key && key !== 'Task') {
-      drawIcon(g, key, 5, 5, 22, color, this.iconResolver);
+      drawIcon(g, key, 5, 5, 22, color, this.iconResolver, node.businessObject);
     }
   }
 
@@ -304,16 +307,35 @@ export class Renderer {
     append(g, text);
   }
 
-  /** Bottom-centre activity markers (subprocess-collapsed, adhoc) — the toolchain-free subset. */
+  /**
+   * Bottom-centre activity markers (design §2), the same set and order the modeler's
+   * bpmn-js renderer draws (`draw/Renderer.ts` `drawMarkers`) so a diagram reads the
+   * same on either backend. Each marker is drawn by KEY; the injected resolver turns
+   * the key into a glyph.
+   */
   private drawMarkers(g: SVGGElement, node: SceneNode, color: string): void {
     const markers: string[] = [];
+    const bo = node.businessObject;
+
+    const checklist = getAttribute(bo, 'checklist');
+    if (Array.isArray(checklist) && checklist.length > 0) markers.push('checklist');
+    if (isDataOperationActivity(bo)) markers.push('function');
     // A collapsed sub-process is drawn as a plain activity box carrying the ⊞ that
     // says "there is more inside" (design §2 markers).
     if (isCollapsed(node)) markers.push('subprocess');
     if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
+    if (prop(bo, 'isForCompensation') === true) markers.push('compensation');
+
+    const loop = prop(bo, 'loopCharacteristics') as ModdleObject | undefined;
+    if (loop) {
+      const sequential = prop(loop, 'isSequential');
+      if (sequential === true) markers.push('sequential');
+      else if (sequential === false) markers.push('parallel');
+      else markers.push('loop');
+    }
     if (markers.length === 0) return;
 
-    const MARKER_SIZE = 16;
+    const MARKER_SIZE = 20;
     const gap = 4;
     const markerY = node.height - MARKER_SIZE - gap;
     const offsetX = (node.width - markers.length * MARKER_SIZE) / 2;
@@ -321,7 +343,7 @@ export class Renderer {
       // The marker KEY, not its glyph: `drawIcon` resolves it through the injected
       // resolver first and only then falls back to `MARKER_ICONS[key]` (⊞, ~) — handing
       // it the glyph skipped both and drew a `?` placeholder.
-      drawIcon(g, marker, offsetX + i * MARKER_SIZE, markerY, MARKER_SIZE, color, this.iconResolver);
+      drawIcon(g, marker, offsetX + i * MARKER_SIZE, markerY, MARKER_SIZE, color, this.iconResolver, node.businessObject);
     });
   }
 
@@ -363,7 +385,7 @@ export class Renderer {
     const bandHeight = choreographyBandHeight(height);
     const { stroke, fill } = style;
     const receiving = '#ededed';
-    const bands = readBands(node.businessObject);
+    const bands = readChoreographyBands(node.businessObject);
 
     append(g, create('rect', {
       x: 0, y: 0, rx: CORNER_RADIUS, ry: CORNER_RADIUS, width, height,
@@ -373,8 +395,16 @@ export class Renderer {
 
     const topFill = bands.initiator === 'top' ? fill : receiving;
     const bottomFill = bands.initiator === 'bottom' ? fill : receiving;
-    append(g, create('path', { d: bandPath(width, bandHeight, height, 'top'), fill: topFill, stroke: 'none' }));
-    append(g, create('path', { d: bandPath(width, bandHeight, height, 'bottom'), fill: bottomFill, stroke: 'none' }));
+    // `data-band` names the two participant bands so their fills (which encode who
+    // initiates) can be read back without depending on child order.
+    append(g, create('path', {
+      d: bandPath(width, bandHeight, height, 'top'),
+      fill: topFill, stroke: 'none', 'data-band': 'top',
+    }));
+    append(g, create('path', {
+      d: bandPath(width, bandHeight, height, 'bottom'),
+      fill: bottomFill, stroke: 'none', 'data-band': 'bottom',
+    }));
 
     for (const y of [bandHeight, height - bandHeight]) {
       append(g, create('line', { x1: 0, y1: y, x2: width, y2: y, stroke, 'stroke-width': 1 }));
@@ -419,6 +449,8 @@ export class Renderer {
       'marker-end': `url(#${markerIdFor(edge.type)})`,
     });
     append(g, line);
+    const name = prop(edge.businessObject, 'name');
+    if (typeof name === 'string' && name) drawEdgeLabel(g, edge, name, stroke, edge.label);
     return g;
   }
 }
@@ -443,30 +475,6 @@ export function markerIdFor(type: string): string {
   return 'sf-arrow-sequence';
 }
 
-/**
- * Read choreography participant band names + initiator from the BO (best-effort).
- *
- * Deliberately NOT `model/choreography.ts`'s `readChoreographyBands`: that one is
- * the *editing* reader and substitutes the `Participant A`/`Participant B`
- * placeholders for a task that has no participants yet, so the inline editor opens
- * on something typable. A drawn band must stay **empty** in that case — the document
- * says nothing, so neither does the diagram.
- */
-function readBands(bo: ModdleObject): { top: string; bottom: string; initiator: 'top' | 'bottom' } {
-  const participants = prop(bo, 'participantRef');
-  const list = Array.isArray(participants) ? participants : [];
-  const nameOf = (p: unknown): string => {
-    const n = prop(p as ModdleObject, 'name');
-    return typeof n === 'string' ? n : '';
-  };
-  const initiatingRef = prop(bo, 'initiatingParticipantRef') as ModdleObject | undefined;
-  const initiator: 'top' | 'bottom' = list[1] && initiatingRef === list[1] ? 'bottom' : 'top';
-  return {
-    top: nameOf(list[0]),
-    bottom: nameOf(list[1]),
-    initiator,
-  };
-}
 
 /** Install the arrowhead marker `<defs>` once into `defs`. */
 export function ensureArrowMarkers(defs: SVGDefsElement): void {

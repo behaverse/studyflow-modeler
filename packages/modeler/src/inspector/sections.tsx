@@ -21,7 +21,7 @@ import { readChoreographyBands } from '@core/document';
 import { getAttributeSpec } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import { getEditorPort } from '@modeler/editor/registry';
 import { useInspectedElement } from '@modeler/inspector/state';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { ExpressionRow } from '@modeler/inspector/inputs';

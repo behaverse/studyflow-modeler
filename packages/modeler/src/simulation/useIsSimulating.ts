@@ -1,9 +1,9 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { TOGGLE_SIMULATION_EVENT } from '@modeler/simulation/TokenSimulator';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
-export function useIsSimulating(modeler: Modeler | undefined): boolean {
+export function useIsSimulating(modeler: EditorHandle | undefined): boolean {
   const subscribe = useCallback((onChange: () => void) => {
     if (!modeler) return () => {};
     const { events } = getEditorPort(modeler);

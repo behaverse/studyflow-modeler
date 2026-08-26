@@ -4,6 +4,7 @@
     "types": ["node", "react", "json-schema", "./src/declarations"],
     "paths": {
       "@modeler/*": ["./src/*"],
+      "@canvas/*": ["../canvas/src/*"],
       "@core/*": ["../core/src/*"],
       "#assets/*": ["../../assets/*"]
     }

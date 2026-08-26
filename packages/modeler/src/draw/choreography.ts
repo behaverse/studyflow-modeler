@@ -67,8 +67,13 @@ export function drawChoreographyTask(
   const topFill = initiator === 'top' ? fill : RECEIVING_BAND_FILL;
   const bottomFill = initiator === 'bottom' ? fill : RECEIVING_BAND_FILL;
 
+  // `data-band` names the two participant bands so their fills (which encode who
+  // initiates) can be read back without depending on child order — the same hook the
+  // canvas renderer stamps, so one selector reads either backend.
   const topBand = svgCreate('path', { d: bandPath(width, bandHeight, height, 'top'), fill: topFill, stroke: 'none' });
+  topBand.setAttribute('data-band', 'top');
   const bottomBand = svgCreate('path', { d: bandPath(width, bandHeight, height, 'bottom'), fill: bottomFill, stroke: 'none' });
+  bottomBand.setAttribute('data-band', 'bottom');
   svgAppend(parentGfx, topBand);
   svgAppend(parentGfx, bottomBand);
 

@@ -13,7 +13,7 @@ import {
 import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import { getEditorPort } from '@modeler/editor/registry';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
 import { IMPORTABLE_EXTENSIONS } from '@modeler/export/formats';

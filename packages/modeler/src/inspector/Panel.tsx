@@ -8,7 +8,7 @@ import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';
 import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from '@modeler/inspector/panelWidth';
 import { loadInspectorWidth, saveInspectorWidth } from '@modeler/settings/store';
 import { inspector as s } from '@modeler/inspector/styles';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import { getEditorPort } from '@modeler/editor/registry';
 import type { EditorPort } from '@modeler/editor/port';
 
 function Header({ element }: { element: any }) {

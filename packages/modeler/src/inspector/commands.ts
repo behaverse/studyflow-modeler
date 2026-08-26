@@ -1,9 +1,9 @@
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
 import { ensureChoreographyParticipants } from '@modeler/bpmn/choreographyParticipants';
 import { definitionsOf, getStateProperties, nextPropertyId } from '@modeler/inspector/stateProperties';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import { getEditorPort } from '@modeler/editor/registry';
 import type { EditorPort } from '@modeler/editor/port';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type UpdateAttributeCommand = {
   type: 'UpdateAttribute';
@@ -12,7 +12,7 @@ export type UpdateAttributeCommand = {
   value: any;
 };
 
-export function runUpdateAttribute(modeler: Modeler, command: UpdateAttributeCommand): void {
+export function runUpdateAttribute(modeler: EditorHandle, command: UpdateAttributeCommand): void {
   setAttribute(command.element, command.attributeName, command.value, getEditorPort(modeler).mutate);
 }
 
@@ -25,7 +25,7 @@ export type UpdateExpressionLanguageCommand = {
 };
 
 export function runUpdateExpressionLanguage(
-  modeler: Modeler,
+  modeler: EditorHandle,
   command: UpdateExpressionLanguageCommand,
 ): void {
   setExpressionLanguage(command.element, command.attributeName, command.language, getEditorPort(modeler).mutate);
@@ -41,7 +41,7 @@ export type UpdateChoreographyParticipantsCommand = {
 );
 
 export function runUpdateChoreographyParticipants(
-  modeler: Modeler,
+  modeler: EditorHandle,
   command: UpdateChoreographyParticipantsCommand,
 ): void {
   const { mutate, model } = getEditorPort(modeler);
@@ -70,7 +70,7 @@ export type UpdateTransformationCommand = {
   | { field: 'language'; value: string | undefined }
 );
 
-export function runUpdateTransformation(modeler: Modeler, command: UpdateTransformationCommand): void {
+export function runUpdateTransformation(modeler: EditorHandle, command: UpdateTransformationCommand): void {
   const { mutate, model } = getEditorPort(modeler);
   const association = toBusinessObject(command.element);
   const expression = association.get?.('transformation') ?? association.transformation;
@@ -100,7 +100,7 @@ export type UpdateLoopCharacteristicsCommand = {
   properties?: Record<string, any>;
 };
 
-export function runUpdateLoopCharacteristics(modeler: Modeler, command: UpdateLoopCharacteristicsCommand): void {
+export function runUpdateLoopCharacteristics(modeler: EditorHandle, command: UpdateLoopCharacteristicsCommand): void {
   const { element, loopType, properties = {} } = command;
   const editor = getEditorPort(modeler);
   const businessObject = toBusinessObject(element);
@@ -176,7 +176,7 @@ function ensureItemDefinition(editor: EditorPort, element: any, businessObject: 
   return itemDefinition;
 }
 
-export function runUpdateStateProperties(modeler: Modeler, command: UpdateStatePropertiesCommand): void {
+export function runUpdateStateProperties(modeler: EditorHandle, command: UpdateStatePropertiesCommand): void {
   const { element } = command;
   const editor = getEditorPort(modeler);
   const businessObject = toBusinessObject(element);
@@ -276,7 +276,7 @@ function nextAssociationId(
   return id;
 }
 
-export function runUpdateDataBinding(modeler: Modeler, command: UpdateDataBindingCommand): void {
+export function runUpdateDataBinding(modeler: EditorHandle, command: UpdateDataBindingCommand): void {
   const { element, direction } = command;
   const { mutate, model } = getEditorPort(modeler);
   const businessObject = toBusinessObject(element);

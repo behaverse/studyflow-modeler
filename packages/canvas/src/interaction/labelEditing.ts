@@ -79,6 +79,13 @@ export interface LabelEditingOptions {
   getWriteback: () => Writeback | undefined;
   /** Re-draw these elements after a commit. */
   redraw: (elements: SceneElement[]) => void;
+  /**
+   * Hand the keyboard focus back to the diagram. Called only when the editor is
+   * dismissed FROM the keyboard (Enter commits, Escape abandons) — a blur-driven
+   * close means the focus already went somewhere the user chose, and stealing it
+   * back would fight them.
+   */
+  restoreFocus?: () => void;
 }
 
 /** The in-flight editing session. */
@@ -181,6 +188,7 @@ export class LabelEditing {
   private readonly getScene: () => Scene | undefined;
   private readonly getWriteback: () => Writeback | undefined;
   private readonly redraw: (elements: SceneElement[]) => void;
+  private readonly restoreFocus?: () => void;
 
   private session?: LabelEditingSession;
   private input?: HTMLTextAreaElement;
@@ -199,6 +207,7 @@ export class LabelEditing {
     this.getScene = options.getScene;
     this.getWriteback = options.getWriteback;
     this.redraw = options.redraw;
+    this.restoreFocus = options.restoreFocus;
   }
 
   /** Whether an editing session is open. */
@@ -417,6 +426,7 @@ export class LabelEditing {
       ev.preventDefault();
       ev.stopPropagation();
       this.cancel();
+      this.restoreFocus?.();
       return;
     }
     // Enter commits; Shift+Enter (or Ctrl/Meta+Enter) inserts a line break.
@@ -424,6 +434,7 @@ export class LabelEditing {
       ev.preventDefault();
       ev.stopPropagation();
       this.complete();
+      this.restoreFocus?.();
     }
   }
 }

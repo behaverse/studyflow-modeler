@@ -19,7 +19,9 @@
  */
 
 import { isHiddenByCollapse } from '@canvas/model/expand.ts';
+import { prop } from '@canvas/model/moddle.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import { edgeLabelBounds } from '@canvas/render/labels.ts';
 
 /** Options for {@link hitTest}. */
 export interface HitOptions {
@@ -84,7 +86,13 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
   return nearestEdge(scene, point, options.tolerance ?? DEFAULT_TOLERANCE) ?? container;
 }
 
-/** The edge whose polyline is nearest `point`, when within `tolerance`. */
+/**
+ * The edge whose polyline is nearest `point`, when within `tolerance`. An edge's
+ * drawn NAME counts as part of it: a connection label sits off the line (that is the
+ * point of it), and clicking the text a user can see must select the connection it
+ * names — the same affordance diagram-js gets from registering the label as its own
+ * element. The box is {@link edgeLabelBounds}, shared with the drawer.
+ */
 function nearestEdge(scene: Scene, point: Point, tolerance: number): SceneEdge | undefined {
   let best: SceneEdge | undefined;
   let bestDist = tolerance;
@@ -95,7 +103,20 @@ function nearestEdge(scene: Scene, point: Point, tolerance: number): SceneEdge |
       best = edge;
     }
   }
-  return best;
+  if (best) return best;
+  for (const edge of orderedEdges(scene)) {
+    if (pointInEdgeLabel(point, edge)) return edge;
+  }
+  return undefined;
+}
+
+/** Whether `point` falls in the box an edge's name is painted into. */
+function pointInEdgeLabel(point: Point, edge: SceneEdge): boolean {
+  const name = prop(edge.businessObject, 'name');
+  if (typeof name !== 'string' || !name) return false;
+  const box = edgeLabelBounds(edge, name, edge.label);
+  return point.x >= box.x && point.x <= box.x + box.width
+    && point.y >= box.y && point.y <= box.y + box.height;
 }
 
 /**

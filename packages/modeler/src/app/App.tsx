@@ -8,10 +8,10 @@ import { Panel as InspectorPanel } from '@modeler/inspector/Panel';
 import { Palette } from '@modeler/palette/Palette';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
-import type { Modeler as ModelerInstance } from '@modeler/bpmn/types';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export function App() {
-  const [modeler, setModeler] = useState<ModelerInstance | undefined>(undefined);
+  const [modeler, setModeler] = useState<EditorHandle | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const isSimulating = useIsSimulating(modeler);

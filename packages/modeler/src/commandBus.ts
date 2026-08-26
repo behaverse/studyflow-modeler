@@ -7,7 +7,7 @@ import * as provenance from '@modeler/provenance/commands';
 import * as publish from '@modeler/publish/commands';
 import * as shape from '@modeler/shape/commands';
 import * as simulation from '@modeler/simulation/commands';
-import type { ServiceResolver } from '@modeler/bpmn/types';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 /* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
 const FEATURES = [app, diagram, exportDiagram, inspector, palette, provenance, publish, shape, simulation] as const;
@@ -25,8 +25,14 @@ type CommandResult<C extends ControllerCommand> = {
   [K in RunKey]: C extends Parameters<Handlers[K]>[1] ? Awaited<ReturnType<Handlers[K]>> : never;
 }[RunKey];
 
+/**
+ * Dispatch `command` against the editor `handle` (or `null`, at boot, for the
+ * handlers that accept it). The handle is opaque: it is either what
+ * `runCreateModeler` built — a backend-neutral `PortHandle` — or a bare service
+ * resolver, which is how the context pad dispatches (`this.injector`).
+ */
 export async function executeCommand<C extends ControllerCommand>(
-  modeler: ServiceResolver | null,
+  modeler: EditorHandle | null,
   command: C,
 ): Promise<CommandResult<C>> {
   const name = `run${command.type}`;

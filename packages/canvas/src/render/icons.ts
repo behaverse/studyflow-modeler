@@ -11,6 +11,7 @@
  * is the P1 goal.
  */
 
+import type { ModdleObject } from '@canvas/model/scene.ts';
 import { append, create, createHtml } from '@canvas/render/svg.ts';
 
 /** An inline SVG glyph: a viewBox and its path `d` strings. */
@@ -20,11 +21,33 @@ export interface SvgIconDef {
 }
 
 /**
- * Injected icon source: given an icon key (a bootstrap/iconify class or a marker
- * name) returns inline SVG paths to draw, or `undefined` to fall back to the
- * placeholder. Kept out of the canvas core so the app owns its icon pipeline.
+ * A CSS-class icon: the app's own glyph pipeline (Tailwind 4 + iconify in the
+ * modeler) resolves the class at paint time, so the canvas only has to mount a
+ * `<div>` carrying it inside a `<foreignObject>`. The `data-icon-class` /
+ * `data-icon-color` attributes are the contract the SVG exporter reads when it
+ * substitutes real glyph paths for the class (`export/svgEmbedding.ts`).
  */
-export type IconResolver = (iconKey: string) => SvgIconDef | undefined;
+export interface CssIconDef {
+  cssClass: string;
+}
+
+/** What an {@link IconResolver} may return. */
+export type IconDef = SvgIconDef | CssIconDef;
+
+/**
+ * Injected icon source: given an icon key (a marker name such as `'loop'`, or a
+ * BPMN type's local name such as `'UserTask'`) returns either inline SVG paths or
+ * a CSS class to mount, or `undefined` to fall back to the placeholder. Kept out of
+ * the canvas core so the app owns its icon pipeline.
+ */
+export type IconResolver = (
+  iconKey: string,
+  businessObject?: ModdleObject,
+) => IconDef | undefined;
+
+function isCssIcon(def: IconDef): def is CssIconDef {
+  return typeof (def as CssIconDef).cssClass === 'string';
+}
 
 /**
  * Inline path glyphs bundled with the document (ported from `draw/icons.ts`).
@@ -75,14 +98,57 @@ export function drawIcon(
   size = 24,
   color = '#000000',
   resolver?: IconResolver,
+  businessObject?: ModdleObject,
 ): SVGElement | undefined {
   if (!iconKey) return undefined;
 
-  const resolved = resolver?.(iconKey) ?? SVG_ICON_PATHS[iconKey];
+  const resolved: IconDef | undefined = resolver?.(iconKey, businessObject) ?? SVG_ICON_PATHS[iconKey];
   if (resolved) {
-    return drawSvgPaths(container, resolved, x, y, size, size, color);
+    return isCssIcon(resolved)
+      ? drawCssIcon(container, resolved.cssClass, x, y, size, color)
+      : drawSvgPaths(container, resolved, x, y, size, size, color);
   }
   return drawPlaceholder(container, iconKey, x, y, size, color);
+}
+
+/**
+ * Mount a CSS-class glyph inside a `<foreignObject>` — the shape the modeler's own
+ * renderer produces (`draw/utils.ts`), so styling and SVG export behave identically
+ * on either backend.
+ */
+export function drawCssIcon(
+  container: SVGElement,
+  cssClass: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+): SVGElement {
+  const foreignObject = create('foreignObject', {
+    x, y, width: size, height: size,
+    class: 'icon-container',
+    color,
+  });
+  const div = createHtml('div');
+  div.className = cssClass;
+  Object.assign(div.style, {
+    width: `${size}px`,
+    height: `${size}px`,
+    fontSize: `${size}px`,
+    color: color || 'currentColor',
+    // Block, not inline: an inline box leaves a baseline gap inside the foreignObject.
+    display: 'block',
+    lineHeight: '1',
+    verticalAlign: 'top',
+    margin: '0',
+    padding: '0',
+    boxSizing: 'border-box',
+  });
+  div.setAttribute('data-icon-class', cssClass);
+  div.setAttribute('data-icon-color', color || '');
+  foreignObject.appendChild(div);
+  append(container, foreignObject);
+  return foreignObject;
 }
 
 /** A small labelled placeholder box standing in for an unresolved icon. */

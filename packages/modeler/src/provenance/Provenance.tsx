@@ -13,7 +13,7 @@ import {
 } from '@modeler/provenance/records';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
+import { getEditorPort } from '@modeler/editor/registry';
 import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };

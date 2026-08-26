@@ -109,6 +109,17 @@ export class Viewport {
     let boxHeight = height + padding * 2;
     if (boxWidth / boxHeight < aspect) boxWidth = boxHeight * aspect;
     else boxHeight = boxWidth / aspect;
+    // A fit shows everything; it never MAGNIFIES. Without this cap a one-shape
+    // diagram is blown up until a 36px event fills the window, which makes every
+    // screen→diagram coordinate wildly off. diagram-js caps its own
+    // `zoom('fit-viewport')` at 1:1 the same way, so both editors open a small
+    // diagram at 100%. The box already carries the viewport's aspect ratio, so one
+    // factor scales both axes and keeps it.
+    const magnification = this.clientWidth() / boxWidth;
+    if (Number.isFinite(magnification) && magnification > 1) {
+      boxWidth *= magnification;
+      boxHeight *= magnification;
+    }
     this.box = {
       x: bounds.x + width / 2 - boxWidth / 2,
       y: bounds.y + height / 2 - boxHeight / 2,

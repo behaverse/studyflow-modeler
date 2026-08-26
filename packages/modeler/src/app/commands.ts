@@ -1,22 +1,19 @@
 import new_diagram from '#assets/examples/new_diagram.bpmn?raw';
-import BpmnColorPickerModule from 'bpmn-js-color-picker';
-import BpmnModeler from 'bpmn-js/lib/Modeler';
-import GridModule from 'diagram-js-grid';
 import { fromStandardBpmnXml, fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
-import { StudyflowModelerModule } from '@modeler/bpmn/module';
-import { MODELER_FONT_FAMILY } from '@modeler/constants';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
-import { CreateAppendAnythingModule, CreateAppendElementTemplatesModule } from 'bpmn-js-create-append-anything';
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { resolveEditorBackend } from '@modeler/editor/backend';
+import { createBpmnBackend } from '@modeler/editor/bpmnBackend';
+import { createCanvasBackend } from '@modeler/editor/canvasBackend';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorBackend, EditorHandle, PortHandle } from '@modeler/editor/registry';
 
 export type DownloadSchemasCommand = {
   type: 'DownloadSchemas';
 };
 
-export async function runDownloadSchemas(_modeler: Modeler | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
+export async function runDownloadSchemas(_modeler: EditorHandle | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
   return loadSchemas(getSettings().enabledSchemas);
 }
 
@@ -24,11 +21,11 @@ export async function runDownloadSchemas(_modeler: Modeler | null, _command: Dow
 export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
-export function runUndo(modeler: Modeler, _command: UndoCommand): void {
+export function runUndo(modeler: EditorHandle, _command: UndoCommand): void {
   getEditorPort(modeler).undo();
 }
 
-export function runRedo(modeler: Modeler, _command: RedoCommand): void {
+export function runRedo(modeler: EditorHandle, _command: RedoCommand): void {
   getEditorPort(modeler).redo();
 }
 
@@ -56,7 +53,7 @@ export function openRunnerTab(): Window | null {
   return window.open('', '_blank');
 }
 
-export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand): Promise<void> {
+export async function runOpenRunner(modeler: EditorHandle, command: OpenRunnerCommand): Promise<void> {
   // `undefined` means the caller never tried; `null` means it tried and the browser said no.
   const target = command.target === undefined ? openRunnerTab() : command.target;
   if (!target) fail(POPUP_BLOCKED);
@@ -96,35 +93,28 @@ export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand
   }
 }
 
-const ADDITIONAL_MODULES = [
-  CreateAppendAnythingModule,
-  BpmnColorPickerModule,
-  CreateAppendElementTemplatesModule,
-  GridModule,
-  StudyflowModelerModule,
-];
-
 export type CreateModelerCommand = {
   type: 'CreateModeler';
   container: any;
   extensionSchemas: Record<string, any>;
   initialDiagramXml?: string;
+  /** Overrides the resolved flag; the flag itself decides when this is omitted. */
+  backend?: EditorBackend;
 };
 
-export async function runCreateModeler(_modeler: Modeler | null, command: CreateModelerCommand): Promise<Modeler> {
-  // Cast narrows to the app's `Modeler` alias: upstream types `saveXML().xml` as optional.
-  const modeler = new BpmnModeler({
-    container: command.container,
-    textRenderer: {
-      defaultStyle: {
-        fontFamily: MODELER_FONT_FAMILY,
-      },
-    },
-    moddleExtensions: command.extensionSchemas,
-    additionalModules: ADDITIONAL_MODULES,
-  }) as unknown as Modeler;
+/**
+ * Mount an editor into `container` and hand back the handle the app holds from
+ * here on. Which backend is mounted is the flag's business
+ * (`editor/backend.ts` — `?editor=`, `localStorage`, `STUDYFLOW_EDITOR_BACKEND`);
+ * everything after this line talks to `handle.editor`, so the two paths differ
+ * only in the two lines below.
+ */
+export async function runCreateModeler(_modeler: EditorHandle | null, command: CreateModelerCommand): Promise<PortHandle> {
+  const backend = command.backend ?? resolveEditorBackend();
+  const options = { container: command.container as HTMLElement, extensionSchemas: command.extensionSchemas };
+  const handle = backend === 'canvas' ? createCanvasBackend(options) : createBpmnBackend(options);
 
-  const editor = getEditorPort(modeler);
+  const editor = getEditorPort(handle);
   const provided = command.initialDiagramXml;
   if (provided) {
     try {
@@ -134,7 +124,7 @@ export async function runCreateModeler(_modeler: Modeler | null, command: Create
         moddle,
       );
       await editor.importXML(await ensureDiagramLayout(wireXml, moddle));
-      return modeler;
+      return handle;
     } catch (err) {
       console.warn(
         'Failed to import the initial diagram; falling back to a new diagram. ' +
@@ -145,5 +135,5 @@ export async function runCreateModeler(_modeler: Modeler | null, command: Create
     }
   }
   await editor.importXML(new_diagram);
-  return modeler;
+  return handle;
 }

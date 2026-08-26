@@ -1,12 +1,12 @@
-import { getEditorPort } from '@modeler/editor/bpmnAdapter';
-import type { Modeler } from '@modeler/bpmn/types';
+import { getEditorPort } from '@modeler/editor/registry';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 export type ToggleSimulationCommand = {
   type: 'ToggleSimulation';
 };
 
 export function runToggleSimulation(
-  modeler: Modeler,
+  modeler: EditorHandle,
   _command: ToggleSimulationCommand,
 ): { active: boolean } {
   const { simulation } = getEditorPort(modeler);

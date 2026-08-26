@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { SCHEMAS as NODE_SCHEMAS } from './schemas';
-import { gotoModeler, runPaletteCommand } from './utils';
+import { gotoModeler, onCanvasBackend, runPaletteCommand } from './utils';
 
 /** Publish / Gantt / Settings / token simulator, plus the loader-vs-Node-twin equivalence check. */
 
@@ -41,6 +41,9 @@ test('the Settings view opens and its Extensions section lists every schema', as
 });
 
 test('the token simulator runs: a token appears and Stop restores editing', async ({ page }) => {
+  // P6b: token simulation is a bpmn-js command-stack/DI feature (`simulation/module.ts`)
+  // with no canvas counterpart yet; `canvasBackend.ts` reports it off rather than lying.
+  test.skip(onCanvasBackend(), 'P6b: token simulation is not implemented on the canvas backend');
   await gotoModeler(page);
   await page.getByRole('button', { name: 'Simulate' }).click();
   await expect(page.locator('[data-testid="modeler-app"]')).toHaveClass(/simulation-active/);

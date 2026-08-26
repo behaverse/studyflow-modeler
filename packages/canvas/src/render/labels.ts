@@ -9,7 +9,7 @@
  */
 
 import { append, create } from '@canvas/render/svg.ts';
-import type { Bounds, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
+import type { Bounds, Point, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 
 /** Approx glyph advance as a fraction of font size — matches the ported heuristic. */
 const CHAR_WIDTH_RATIO = 0.58;
@@ -163,6 +163,83 @@ export function externalLabelBounds(node: SceneNode, label?: SceneLabel): Bounds
     width,
     height,
   };
+}
+
+/** Font size an edge label is drawn at. */
+export const EDGE_LABEL_FONT_SIZE = 11;
+
+/**
+ * The point an unpositioned connection label hangs off — the same rule diagram-js
+ * uses: the middle waypoint when there is an odd number of them, otherwise the
+ * midpoint of the two middle ones. Keeps a label on the polyline instead of at the
+ * centre of a bounding box the line may not pass through.
+ */
+export function waypointsMid(waypoints: readonly Point[]): Point {
+  if (waypoints.length === 0) return { x: 0, y: 0 };
+  if (waypoints.length === 1) return { ...waypoints[0] };
+  const middle = Math.floor(waypoints.length / 2);
+  if (waypoints.length % 2 === 1) return { ...waypoints[middle] };
+  const a = waypoints[middle - 1];
+  const b = waypoints[middle];
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+/**
+ * The diagram-space box a connection's name is painted into — shared by the drawer
+ * and by hit-testing, so the label a user sees is the label they can click. An
+ * explicit `bpmndi:BPMNLabel.bounds` wins; otherwise the box is derived around
+ * {@link waypointsMid}.
+ */
+export function edgeLabelBounds(edge: SceneEdge, name: string, label?: SceneLabel): Bounds {
+  const height = LINE_HEIGHT;
+  const width = Math.max(24, name.length * EDGE_LABEL_FONT_SIZE * CHAR_WIDTH_RATIO + 8);
+  if (label && label.x !== undefined && label.y !== undefined) {
+    return {
+      x: label.x,
+      y: label.y,
+      width: label.width ?? width,
+      height: label.height ?? height,
+    };
+  }
+  const mid = waypointsMid(edge.waypoints);
+  return { x: mid.x - width / 2, y: mid.y - height / 2, width, height };
+}
+
+/**
+ * Draw a connection's name into its own `<g>` (diagram coordinates, so the group
+ * carries no transform of its own). Returns the group, or `undefined` for an
+ * unnamed edge.
+ */
+export function drawEdgeLabel(
+  container: SVGElement,
+  edge: SceneEdge,
+  name: string,
+  color: string,
+  label?: SceneLabel,
+): SVGGElement | undefined {
+  if (!name) return undefined;
+  const box = edgeLabelBounds(edge, name, label);
+  // Its own `data-element-id` (`<edge>_label`), matching how a diagram-js external
+  // label is registered — an app or a test can address the label, and clicking it
+  // selects the connection it names (`interaction/hit.ts`).
+  const g = create('g', {
+    class: 'sf-external-label',
+    'data-element-id': `${edge.id}_label`,
+    'data-label-owner': edge.id,
+  }) as SVGGElement;
+  // An opaque plate so the polyline does not run through the glyphs.
+  append(g, create('rect', {
+    x: box.x, y: box.y, width: box.width, height: box.height,
+    fill: '#ffffff', stroke: 'none', opacity: 0.85, rx: 2, ry: 2,
+  }));
+  append(g, textLine(fit(name, box.width * 1.5, EDGE_LABEL_FONT_SIZE), {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+    fontSize: EDGE_LABEL_FONT_SIZE,
+    color,
+  }));
+  append(container, g);
+  return g;
 }
 
 /** Centred single line of text (choreography band names). Node-local coordinates. */

@@ -1,11 +1,11 @@
 import { createContext } from 'react';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { EditorHandle } from '@modeler/editor/registry';
 
 const noop = () => {};
 
 export const ModelerContext = createContext<{
-  modeler: Modeler | undefined;
-  setModeler: (modeler: Modeler | undefined) => void;
+  modeler: EditorHandle | undefined;
+  setModeler: (modeler: EditorHandle | undefined) => void;
 }>({ modeler: undefined, setModeler: noop });
 
 export const SettingsViewContext = createContext<{

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@behaverse/studyflow-canvas": "*",
     "@behaverse/studyflow-core": "*",
     "@headlessui/react": "^2.2.10",
     "bpmn-auto-layout": "^1.3.0",
