@@ -25,6 +25,18 @@ export type {
 export { importDefinitions, type ImportOptions } from './model/import.ts';
 export { IdGenerator, prefixFor } from './model/ids.ts';
 
+export {
+  Writeback,
+  syncNodeBoundsToDi,
+  syncEdgeWaypointsToDi,
+  syncLabelBoundsToDi,
+  translateLabel,
+  dockConnectedEdges,
+  type PartialBounds,
+  type ElementChangedEvent,
+  type ElementsChangedEvent,
+} from './model/writeback.ts';
+
 // --- Rendering --------------------------------------------------------------
 export {
   create as svgCreate,
@@ -69,19 +81,79 @@ export {
   wrap,
   drawInternalLabel,
   drawExternalLabel,
+  externalLabelBounds,
   LABEL_FONT,
+  LABEL_LINE_HEIGHT,
 } from './render/labels.ts';
 
 export {
   Renderer,
+  categoryOf,
   ensureArrowMarkers,
   markerIdFor,
+  type NodeCategory,
   type RendererOptions,
 } from './render/renderer.ts';
 
 // --- Viewport ---------------------------------------------------------------
 export { Viewport, sceneBounds, type Viewbox } from './view/viewport.ts';
 export { Layers, LAYER_ORDER, type LayerName } from './view/layers.ts';
+
+// --- Events -----------------------------------------------------------------
+export { EventBus, type EventListener } from './events/bus.ts';
+
+// --- Interaction ------------------------------------------------------------
+export {
+  hitTest,
+  hitTestDom,
+  orderedNodes,
+  orderedEdges,
+  pointInNode,
+  isContainerNode,
+  nodesIntersecting,
+  distanceToPolyline,
+  normalizeRect,
+  type HitOptions,
+} from './interaction/hit.ts';
+
+export {
+  Selection,
+  RESIZE_HANDLES,
+  type ResizeHandle,
+  type SelectionOptions,
+  type SelectionChangedEvent,
+  type HandleHit,
+  type WaypointHit,
+} from './interaction/selection.ts';
+
+export {
+  Drag,
+  dockingPoint,
+  snapTo,
+  withDescendants,
+  DEFAULT_GRID_SIZE,
+  DEFAULT_MIN_SIZE,
+  type DragKind,
+  type DragOptions,
+} from './interaction/drag.ts';
+
+export {
+  LabelEditing,
+  choreographyBandAt,
+  ensureChoreographyParticipants,
+  isChoreographyTask,
+  labelBounds,
+  nameOf,
+  readChoreographyBands,
+  DEFAULT_BOTTOM,
+  DEFAULT_TOP,
+  type ActivateOptions,
+  type DirectEditingEvent,
+  type ElementDblClickEvent,
+  type LabelBand,
+  type LabelEditingOptions,
+  type LabelEditingSession,
+} from './interaction/labelEditing.ts';
 
 // --- Facade -----------------------------------------------------------------
 export { Canvas, type CanvasOptions } from './Canvas.ts';

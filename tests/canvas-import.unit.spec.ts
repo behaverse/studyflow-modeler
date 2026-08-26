@@ -27,11 +27,15 @@ function freshModdle(): any {
   return new BpmnModdle(structuredClone(packages)) as any;
 }
 
-async function sceneOf(filename: string): Promise<{ scene: Scene; definitions: any }> {
+async function sceneOfXml(xml: string): Promise<{ scene: Scene; definitions: any }> {
   const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(exampleXml(filename));
+  const { rootElement: definitions } = await moddle.fromXML(xml);
   const scene = importDefinitions(definitions, { onWarning: () => {} });
   return { scene, definitions };
+}
+
+async function sceneOf(filename: string): Promise<{ scene: Scene; definitions: any }> {
+  return sceneOfXml(exampleXml(filename));
 }
 
 /** Every DI shape and edge across every diagram/plane, in document order. */
@@ -198,5 +202,112 @@ test.describe('canvas import: DI → scene graph', () => {
     }
     // The subprocess also lists them among its children.
     for (const child of nested) expect(subprocess.children).toContain(child);
+  });
+});
+
+/**
+ * Pool/lane containment is NOT expressed by the moddle `$parent` chain: a
+ * `bpmn:Participant` reaches its flow nodes through `processRef` and a `bpmn:Lane`
+ * through `flowNodeRef`, both of which are references, not parents. A `$parent`-only
+ * walk therefore leaves `Participant.children` / `Lane.children` empty — which is what
+ * made a pool drag abandon its own contents.
+ */
+test.describe('canvas import: pool / lane containment', () => {
+  test('spirit2025: lanes nest under their pool and flow nodes under their lane', async () => {
+    const { scene } = await sceneOf('spirit2025.studyflow.png');
+    const pool = scene.elementsById.get('Participant_SPIRIT') as SceneNode;
+    expect(pool?.kind).toBe('node');
+    expect(pool.parent).toBeUndefined();
+
+    const lanes = nodesOf(scene).filter((n) => n.type === 'bpmn:Lane');
+    expect(lanes.length).toBe(4);
+    for (const lane of lanes) {
+      expect(lane.parent, `${lane.id} nests under the pool`).toBe(pool);
+      expect(pool.children).toContain(lane);
+    }
+
+    // Every flow node listed in a `flowNodeRef` is that lane's child (and, transitively,
+    // inside the pool) — never a stray top-level element.
+    for (const lane of lanes) {
+      const refs: any[] = (lane.businessObject as any).flowNodeRef ?? [];
+      expect(refs.length, `${lane.id} has flowNodeRefs`).toBeGreaterThan(0);
+      for (const ref of refs) {
+        const child = scene.elementsById.get(ref.id) as SceneNode;
+        expect(child?.kind, `${ref.id} is drawn`).toBe('node');
+        expect(child.parent, `${ref.id} nests under ${lane.id}`).toBe(lane);
+        expect(lane.children).toContain(child);
+      }
+    }
+
+    // The pool is drawn inside-out relative to its contents, so nothing it encloses is
+    // left dangling at the plane root.
+    const strays = nodesOf(scene).filter((n) => n !== pool && n.parent === undefined);
+    expect(strays.map((n) => n.id)).toEqual([]);
+  });
+
+  /**
+   * A pool whose lanes omit `flowNodeRef` (it is optional, and several exporters skip
+   * it). Membership then falls back to the drawn geometry: the smallest lane of that
+   * pool containing the shape's centre.
+   */
+  const LANES_WITHOUT_REFS_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_1" name="Pool" processRef="Process_1" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Top" name="Top" />
+      <bpmn:lane id="Lane_Bottom" name="Bottom" />
+    </bpmn:laneSet>
+    <bpmn:task id="Task_Top" name="Top task" />
+    <bpmn:task id="Task_Bottom" name="Bottom task" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Pool_1_di" bpmnElement="Pool_1" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="600" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Top_di" bpmnElement="Lane_Top" isHorizontal="true">
+        <dc:Bounds x="30" y="0" width="570" height="125" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Bottom_di" bpmnElement="Lane_Bottom" isHorizontal="true">
+        <dc:Bounds x="30" y="125" width="570" height="125" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Top_di" bpmnElement="Task_Top">
+        <dc:Bounds x="200" y="20" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Bottom_di" bpmnElement="Task_Bottom">
+        <dc:Bounds x="200" y="145" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+  test('lanes without flowNodeRef: membership falls back to drawn containment', async () => {
+    const { scene } = await sceneOfXml(LANES_WITHOUT_REFS_XML);
+    const pool = scene.elementsById.get('Pool_1') as SceneNode;
+    const top = scene.elementsById.get('Lane_Top') as SceneNode;
+    const bottom = scene.elementsById.get('Lane_Bottom') as SceneNode;
+
+    expect(top.parent).toBe(pool);
+    expect(bottom.parent).toBe(pool);
+    expect((scene.elementsById.get('Task_Top') as SceneNode).parent).toBe(top);
+    expect((scene.elementsById.get('Task_Bottom') as SceneNode).parent).toBe(bottom);
+  });
+
+  test('a pool without lanes owns its flow nodes directly (processRef)', async () => {
+    const { scene } = await sceneOfXml(
+      LANES_WITHOUT_REFS_XML
+        .replace(/<bpmn:laneSet[\s\S]*?<\/bpmn:laneSet>/, '')
+        .replace(/<bpmndi:BPMNShape id="Lane_[\s\S]*?<\/bpmndi:BPMNShape>/g, ''),
+    );
+    const pool = scene.elementsById.get('Pool_1') as SceneNode;
+    expect((scene.elementsById.get('Task_Top') as SceneNode).parent).toBe(pool);
+    expect((scene.elementsById.get('Task_Bottom') as SceneNode).parent).toBe(pool);
   });
 });

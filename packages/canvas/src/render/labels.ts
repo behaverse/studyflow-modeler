@@ -9,11 +9,15 @@
  */
 
 import { append, create } from '@canvas/render/svg.ts';
-import type { SceneLabel, SceneNode } from '@canvas/model/scene.ts';
+import type { Bounds, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 
 /** Approx glyph advance as a fraction of font size — matches the ported heuristic. */
 const CHAR_WIDTH_RATIO = 0.58;
-const LINE_HEIGHT = 15;
+
+/** Baseline-to-baseline spacing of wrapped label lines (diagram units). */
+export const LABEL_LINE_HEIGHT = 15;
+
+const LINE_HEIGHT = LABEL_LINE_HEIGHT;
 
 /** Ellipsize `text` to fit `maxWidth` at `fontSize` (ported from choreographyLayout). */
 export function fit(text: string, maxWidth: number, fontSize: number): string {
@@ -133,6 +137,32 @@ export function drawExternalLabel(
       color,
     }));
   });
+}
+
+/**
+ * The diagram-space rectangle {@link drawExternalLabel} paints into — the single
+ * source of truth shared with `interaction/labelEditing.ts`, so the inline editor
+ * opens exactly where the label is drawn. An explicit `bpmndi:BPMNLabel.bounds`
+ * (copied onto {@link SceneLabel} by the importer) wins; otherwise the box is derived
+ * below the owner node from the same constants the drawer uses.
+ */
+export function externalLabelBounds(node: SceneNode, label?: SceneLabel): Bounds {
+  const width = Math.max(node.width, 80) * 1.5;
+  const height = LINE_HEIGHT * 2;
+  if (label && label.x !== undefined && label.y !== undefined) {
+    return {
+      x: label.x,
+      y: label.y,
+      width: label.width ?? width,
+      height: label.height ?? height,
+    };
+  }
+  return {
+    x: node.x + node.width / 2 - width / 2,
+    y: node.y + node.height + LINE_HEIGHT * 0.9 - height / 2,
+    width,
+    height,
+  };
 }
 
 /** Centred single line of text (choreography band names). Node-local coordinates. */

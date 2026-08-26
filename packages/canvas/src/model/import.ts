@@ -58,6 +58,9 @@ function num(value: unknown): number | undefined {
 const SHAPE_TYPE = 'bpmndi:BPMNShape';
 const EDGE_TYPE = 'bpmndi:BPMNEdge';
 
+const PARTICIPANT_TYPE = 'bpmn:Participant';
+const LANE_TYPE = 'bpmn:Lane';
+
 export interface ImportOptions {
   /** Sink for recoverable problems (dangling `bpmnElement`, missing bounds). Defaults to `console.warn`. */
   onWarning?: (message: string) => void;
@@ -119,6 +122,9 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
     for (const edge of edgeOfPlane.get(source) ?? []) resolveEndpoints(edge, byBusinessObject);
   }
 
+  // Containment that the moddle `$parent` chain cannot express (pools, lanes).
+  const refContainment = collectRefContainment(byBusinessObject);
+
   for (const source of planeSources) {
     const rootNode = source.root ? asNode(byBusinessObject.get(source.root)) : undefined;
     const planeChildren: SceneElement[] = [];
@@ -126,8 +132,13 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
       ...(nodeOfPlane.get(source) ?? []),
       ...(edgeOfPlane.get(source) ?? []),
     ];
+    const parents = new Map<SceneElement, SceneNode | undefined>();
     for (const element of elements) {
-      const parent = findParentNode(element, byBusinessObject, rootNode);
+      parents.set(element, findParentNode(element, byBusinessObject, rootNode, refContainment));
+    }
+    resolveLaneMembership(elements, parents);
+    for (const element of elements) {
+      const parent = parents.get(element);
       element.parent = parent;
       if (parent) parent.children.push(element);
       if (!parent || parent === rootNode) planeChildren.push(element);
@@ -274,6 +285,68 @@ function refBO(value: unknown): ModdleObject | undefined {
 }
 
 /**
+ * Containment links the moddle `$parent` chain does NOT carry, keyed by the CONTAINED
+ * business object:
+ *
+ * - a `bpmn:Participant` (pool) owns its flow nodes through `processRef` — the nodes'
+ *   `$parent` is the `bpmn:Process`, which is a sibling of the collaboration, so a
+ *   `$parent`-only walk never reaches the pool. Mapping `processRef → participant`
+ *   splices the pool into the walk exactly where the process sits.
+ * - a `bpmn:Lane` owns its members through `flowNodeRef` — a *reference* list, not a
+ *   containment one, so the members' `$parent` is again the process. The deepest
+ *   (most nested) lane claiming a node wins.
+ *
+ * Without this, `Participant.children` / `Lane.children` are empty and dragging a pool
+ * leaves its contents behind (and commits that broken geometry to the DI).
+ */
+function collectRefContainment(
+  byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>,
+): Map<ModdleObject, ModdleObject> {
+  const containment = new Map<ModdleObject, ModdleObject>();
+  const claimDepth = new Map<ModdleObject, number>();
+
+  for (const [bo, element] of byBusinessObject) {
+    if (element.kind !== 'node') continue;
+    if (bo.$type === PARTICIPANT_TYPE) {
+      const processRef = asModdle(prop(bo, 'processRef'));
+      if (processRef && processRef !== bo) containment.set(processRef, bo);
+      continue;
+    }
+    if (bo.$type !== LANE_TYPE) continue;
+    const depth = laneNesting(bo);
+    for (const member of asList(prop(bo, 'flowNodeRef'))) {
+      if (member === bo) continue;
+      const claimed = claimDepth.get(member);
+      if (claimed !== undefined && claimed >= depth) continue;
+      containment.set(member, bo);
+      claimDepth.set(member, depth);
+    }
+  }
+  return containment;
+}
+
+/** How many `bpmn:Lane` ancestors `lane` has (a nested lane sits under a childLaneSet). */
+function laneNesting(lane: ModdleObject): number {
+  let depth = 0;
+  let cursor = parentOf(lane);
+  const guard = new Set<ModdleObject>();
+  while (cursor && !guard.has(cursor)) {
+    guard.add(cursor);
+    if (cursor.$type === LANE_TYPE) depth += 1;
+    cursor = parentOf(cursor);
+  }
+  return depth;
+}
+
+/** The next container up from `bo` — a reference link if one exists, else `$parent`. */
+function containerOf(
+  bo: ModdleObject,
+  containment: Map<ModdleObject, ModdleObject>,
+): ModdleObject | undefined {
+  return containment.get(bo) ?? parentOf(bo);
+}
+
+/**
  * The containing node for an element: the nearest business-object ancestor that is
  * itself drawn (a subprocess, participant, lane), else the plane's own root node
  * (for a sub-plane, its subprocess), else `undefined` (top of the root plane).
@@ -282,16 +355,70 @@ function findParentNode(
   element: SceneElement,
   byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>,
   rootNode: SceneNode | undefined,
+  containment: Map<ModdleObject, ModdleObject>,
 ): SceneNode | undefined {
-  let bo: ModdleObject | undefined = parentOf(element.businessObject);
+  let bo: ModdleObject | undefined = containerOf(element.businessObject, containment);
   const guard = new Set<ModdleObject>();
   while (bo && !guard.has(bo)) {
     guard.add(bo);
     const node = asNode(byBusinessObject.get(bo));
     if (node && node !== element) return node;
-    bo = parentOf(bo);
+    bo = containerOf(bo, containment);
   }
   return rootNode && rootNode !== element ? rootNode : undefined;
+}
+
+/**
+ * Geometric fallback for lane membership: a node that landed directly on a pool while
+ * that pool is divided into lanes belongs to the lane it is drawn inside. Exporters
+ * routinely omit `flowNodeRef` (it is optional), and without this such a node would not
+ * follow its lane when the lane is dragged. Only nodes whose reference/`$parent`
+ * containment stopped at the participant are re-homed, so an explicit `flowNodeRef`
+ * always wins; the smallest containing lane of that pool takes the node.
+ */
+function resolveLaneMembership(
+  elements: readonly SceneElement[],
+  parents: Map<SceneElement, SceneNode | undefined>,
+): void {
+  const lanes = elements.filter(
+    (element): element is SceneNode => element.kind === 'node' && element.type === LANE_TYPE,
+  );
+  if (lanes.length === 0) return;
+
+  for (const element of elements) {
+    if (element.kind !== 'node' || element.type === LANE_TYPE) continue;
+    const pool = parents.get(element);
+    if (!pool || pool.type !== PARTICIPANT_TYPE) continue;
+    const cx = element.x + element.width / 2;
+    const cy = element.y + element.height / 2;
+    let best: SceneNode | undefined;
+    let bestArea = Infinity;
+    for (const lane of lanes) {
+      if (poolOfLane(lane, parents) !== pool) continue;
+      if (cx < lane.x || cx > lane.x + lane.width) continue;
+      if (cy < lane.y || cy > lane.y + lane.height) continue;
+      const area = lane.width * lane.height;
+      if (area < bestArea) {
+        best = lane;
+        bestArea = area;
+      }
+    }
+    if (best) parents.set(element, best);
+  }
+}
+
+/** Walk `lane`'s (possibly nested) lane ancestry up to the pool that owns it. */
+function poolOfLane(
+  lane: SceneNode,
+  parents: Map<SceneElement, SceneNode | undefined>,
+): SceneNode | undefined {
+  let cursor: SceneNode | undefined = parents.get(lane);
+  const guard = new Set<SceneNode>();
+  while (cursor && cursor.type === LANE_TYPE && !guard.has(cursor)) {
+    guard.add(cursor);
+    cursor = parents.get(cursor);
+  }
+  return cursor;
 }
 
 function index(

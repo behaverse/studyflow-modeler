@@ -16,6 +16,7 @@ import type {
   ModdleObject,
   Scene,
   SceneEdge,
+  SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
 import { append, attr, create, group, remove } from '@canvas/render/svg.ts';
@@ -45,8 +46,11 @@ import {
   type IconResolver,
 } from '@canvas/render/icons.ts';
 
-/** Category of a node type — selects the base drawer. */
-type NodeCategory =
+/**
+ * Category of a node type — selects the base drawer, and (exported through
+ * {@link categoryOf}) the label placement `interaction/labelEditing.ts` mirrors.
+ */
+export type NodeCategory =
   | 'event'
   | 'task'
   | 'gateway'
@@ -90,7 +94,8 @@ const EDGE_TYPES = new Set<string>([
   'bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation',
 ]);
 
-function categoryOf(type: string): NodeCategory {
+/** The drawer category of a business-object `$type` (`'bpmn:UserTask'` → `'task'`). */
+export function categoryOf(type: string): NodeCategory {
   if (type === BPMN.ChoreographyTask) return 'choreography';
   if (EVENT_TYPES.has(type)) return 'event';
   if (TASK_TYPES.has(type)) return 'task';
@@ -189,6 +194,23 @@ export class Renderer {
       append(shapesLayer, g);
       if (node.id) this.graphicsById.set(node.id, g);
     }
+  }
+
+  /**
+   * Re-draw one element's graphics from its CURRENT scene geometry, swapping the new
+   * `<g>` in at the old one's z-position so layering is preserved. Returns the new
+   * group, or `undefined` when the element was never rendered. Used for live drag
+   * feedback (`interaction/drag.ts`); marker/`selected` classes are re-applied by
+   * `Selection.restoreMarkers`.
+   */
+  redraw(element: SceneElement): SVGGElement | undefined {
+    const old = this.graphicsById.get(element.id);
+    const parent = old?.parentNode;
+    if (!old || !parent) return undefined;
+    const g = element.kind === 'node' ? this.drawShape(element) : this.drawEdge(element);
+    parent.replaceChild(g, old);
+    this.graphicsById.set(element.id, g);
+    return g;
   }
 
   /** Draw one node as a translated `<g>`; returns the group. */
