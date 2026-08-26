@@ -21,6 +21,7 @@
 import { isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import { depthOf } from '@canvas/model/tree.ts';
 import { edgeLabelBounds } from '@canvas/render/labels.ts';
 
 /** Options for {@link hitTest}. */
@@ -206,19 +207,6 @@ function isNode(el: SceneElement | { kind: string }): el is SceneNode {
 
 function isEdge(el: SceneElement | { kind: string }): el is SceneEdge {
   return el.kind === 'edge';
-}
-
-/** Containment depth (ancestors-first z-order), guarded against cycles. */
-function depthOf(node: SceneNode): number {
-  let depth = 0;
-  let parent = node.parent;
-  const guard = new Set<SceneNode>();
-  while (parent && !guard.has(parent)) {
-    guard.add(parent);
-    depth += 1;
-    parent = parent.parent;
-  }
-  return depth;
 }
 
 /** Shortest distance from `point` to a polyline (its segments), or `Infinity`. */

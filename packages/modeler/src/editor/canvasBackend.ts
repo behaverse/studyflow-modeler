@@ -300,10 +300,14 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
 
   /**
    * Undo/redo from the keyboard. bpmn-js gets this from its `keyboard` module bound
-   * to the diagram container; the canvas owns no shortcut vocabulary beyond
-   * Delete/Backspace, so the *history* owner binds the history keys — scoped to the
-   * canvas container (the SVG root is focusable and the event bubbles), never the
-   * document, so typing in the inspector is untouched.
+   * to the diagram container; the canvas owns the rest of the key map but not the
+   * history, so the *history* owner binds the history keys — scoped to the canvas
+   * container (the SVG root is focusable and the event bubbles), never the document,
+   * so typing in the inspector is untouched.
+   *
+   * `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes, and that is the whole vocabulary:
+   * `Ctrl+Y` is deliberately NOT a second redo, because it is not one on the bpmn
+   * backend either (parity spec §9 records it as unbound, verified).
    */
   const onHistoryKey = (event: KeyboardEvent): void => {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
@@ -313,7 +317,7 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
 
     const key = event.key.toLowerCase();
     if (key === 'z' && !event.shiftKey) history.undo();
-    else if ((key === 'z' && event.shiftKey) || key === 'y') history.redo();
+    else if (key === 'z' && event.shiftKey) history.redo();
     else return;
     event.preventDefault();
     event.stopPropagation();
@@ -330,7 +334,10 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       bus.off('elements.removed', onSceneChanged);
       bus.off('elements.changed', materializePending);
       history.dispose();
-      canvas.getSvg().remove();
+      // The canvas owns listeners on the container (which the host keeps across a
+      // backend switch) and on the document; detaching the SVG alone would leak
+      // them, and every stale instance would still answer Delete.
+      canvas.destroy();
     },
   };
 }

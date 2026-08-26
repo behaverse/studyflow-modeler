@@ -4,8 +4,15 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, isContainerNode, pointInNode, setDocument } from '@canvas/index.ts';
-import type { SceneNode } from '@canvas/model/scene.ts';
+import {
+  CANVAS_CSS,
+  CANVAS_STYLE_ID,
+  Canvas,
+  isContainerNode,
+  pointInNode,
+  setDocument,
+} from '@canvas/index.ts';
+import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import type { SelectionChangedEvent } from '@canvas/interaction/selection.ts';
 
 import { loadSchemaModels } from './schemas';
@@ -171,6 +178,76 @@ test('selection: shift-click adds to the selection', async () => {
   expect(after).toEqual([b.id]);
 });
 
+test('selection: a plain click on a member of a multi-selection collapses to it', async () => {
+  const canvas = await loadCanvas();
+  const svg = canvas.getSvg();
+  const [a, b] = leafNodes(canvas);
+
+  click(canvas, a);
+  click(canvas, b, { shiftKey: true });
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id, b.id]);
+  expect(svg.classList.contains('sf-multi-select')).toBe(true);
+
+  const events: SelectionChangedEvent[] = [];
+  canvas.getEventBus().on<SelectionChangedEvent>('selection.changed', (e) => events.push(e));
+
+  // diagram-js's SelectionBehavior on `element.click`: isSelected && multi && !add
+  // collapses the set to the one element that was clicked.
+  click(canvas, a);
+
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id]);
+  // The root class is what paints the SECONDARY blue; it has to go with the group.
+  expect(svg.classList.contains('sf-multi-select')).toBe(false);
+  expect(canvas.getGraphics(b.id)?.classList.contains('selected')).toBe(false);
+  expect(events.map((e) => e.newSelection.map((s) => s.id))).toEqual([[a.id]]);
+
+  // A second plain click on the now-single selection changes nothing and is silent.
+  click(canvas, a);
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id]);
+  expect(events, 'no redundant selection.changed').toHaveLength(1);
+});
+
+test('selection: a PRESS on a multi-selection keeps the group, so a group drag moves all', async () => {
+  const canvas = await loadCanvas();
+  const doc = canvas.getSvg().ownerDocument!;
+  const [a, b] = leafNodes(canvas);
+  const from = { x: a.x, y: a.y };
+  const fromB = { x: b.x, y: b.y };
+
+  click(canvas, a);
+  click(canvas, b, { shiftKey: true });
+
+  const start = center(a);
+  firePointer(canvas, canvas.getSvg(), 'pointerdown', start);
+  // The press alone must NOT collapse — the gesture may still become a group drag.
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id, b.id]);
+
+  firePointer(canvas, doc, 'pointermove', { x: start.x + 40, y: start.y + 20 });
+  firePointer(canvas, doc, 'pointerup', { x: start.x + 40, y: start.y + 20 });
+
+  expect(canvas.getSelection().get().map((e) => e.id), 'a drag keeps the group').toEqual([a.id, b.id]);
+  expect({ x: a.x - from.x, y: a.y - from.y }).toEqual({ x: 40, y: 20 });
+  expect({ x: b.x - fromB.x, y: b.y - fromB.y }, 'the other member moved too').toEqual({ x: 40, y: 20 });
+});
+
+test('selection: dblclick from a multi-selection leaves exactly one element selected', async () => {
+  const canvas = await loadCanvas();
+  const svg = canvas.getSvg();
+  const [a, b] = leafNodes(canvas);
+
+  canvas.getSelection().select([a, b]);
+  expect(svg.classList.contains('sf-multi-select')).toBe(true);
+
+  firePointer(canvas, svg, 'dblclick', center(a));
+
+  // Otherwise the element being edited wears the secondary multi-select blue and a
+  // second element stays outlined behind the editor (parity spec §5).
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id]);
+  expect(svg.classList.contains('sf-multi-select')).toBe(false);
+  expect(canvas.getGraphics(b.id)?.classList.contains('selected')).toBe(false);
+  expect(canvas.getLabelEditing().isActive()).toBe(true);
+});
+
 test('selection: a plain click on empty space clears the selection', async () => {
   const canvas = await loadCanvas();
   const leaves = leafNodes(canvas);
@@ -214,6 +291,8 @@ test('lasso: a marquee over a region selects the intersecting nodes', async () =
 
   const svg = canvas.getSvg();
   const doc = svg.ownerDocument!;
+  // Dragging empty canvas PANS; the marquee belongs to the palette's lasso tool.
+  canvas.activateLasso();
   firePointer(canvas, svg, 'pointerdown', start);
   firePointer(canvas, doc, 'pointermove', end);
   firePointer(canvas, doc, 'pointerup', end);
@@ -351,6 +430,278 @@ test('hit-testing: a frame in a shipped example does not swallow its contents', 
     expect(canvas.hitTest(pt)?.id, `${leaf.id} inside a frame is still hittable`).toBe(leaf.id);
   }
   expect(covered, 'the example actually exercises frame-enclosed shapes').toBeGreaterThan(0);
+});
+
+// --- the overlay offers only the gestures the rules allow --------------------
+
+/** The `<g class="sf-resizers">` drawn for one node, if any. */
+function resizersFor(canvas: Canvas, id: string): Element | null {
+  return canvas.getSvg().querySelector(`[data-layer="selection"] .sf-resizers[data-overlay-for="${id}"]`);
+}
+
+/** Connections of the loaded scene, narrowed for the type checker. */
+function edgesOf(canvas: Canvas): SceneEdge[] {
+  const out: SceneEdge[] = [];
+  for (const el of canvas.getScene()!.elementsById.values()) {
+    if (el.kind === 'edge') out.push(el);
+  }
+  return out;
+}
+
+/** The lazily created `.sf-outline` living inside an element's own `<g>`. */
+function outlineFor(canvas: Canvas, id: string): Element | null {
+  return canvas.getGraphics(id)?.querySelector('.sf-outline') ?? null;
+}
+
+test('overlay: a resizable node gets eight handles, a fixed-footprint one gets none', async () => {
+  const canvas = await loadCanvas();
+  const scene = canvas.getScene()!;
+  const nodes: SceneNode[] = [];
+  for (const el of scene.elementsById.values()) if (el.kind === 'node') nodes.push(el);
+  const task = nodes.find((n) => n.type.endsWith('Task'))!;
+  const event = nodes.find((n) => n.type === 'bpmn:StartEvent' || n.type === 'bpmn:EndEvent')!;
+  expect(canvas.getRules().canResize(task)).toBe(true);
+  expect(canvas.getRules().canResize(event)).toBe(false);
+
+  canvas.getSelection().select(task);
+  expect(outlineFor(canvas, task.id)).not.toBeNull();
+  expect(resizersFor(canvas, task.id)!.querySelectorAll('.sf-resizer-visual')).toHaveLength(8);
+
+  // An event/gateway has a fixed BPMN footprint: outline, no handles — and the
+  // overlay's own hit test agrees, so a press there never opens a resize.
+  canvas.getSelection().select(event);
+  expect(outlineFor(canvas, event.id)).not.toBeNull();
+  expect(resizersFor(canvas, event.id)).toBeNull();
+  expect(canvas.getSelection().isResizable(event)).toBe(false);
+  expect(canvas.getSelection().handleAt({ x: event.x - 4, y: event.y - 4 })).toBeUndefined();
+});
+
+test('overlay: a multi-selection draws handles only around the resizable members', async () => {
+  const canvas = await loadCanvas();
+  const scene = canvas.getScene()!;
+  const nodes: SceneNode[] = [];
+  for (const el of scene.elementsById.values()) if (el.kind === 'node') nodes.push(el);
+  const task = nodes.find((n) => n.type.endsWith('Task'))!;
+  const event = nodes.find((n) => n.type === 'bpmn:StartEvent' || n.type === 'bpmn:EndEvent')!;
+
+  canvas.getSelection().select([task, event]);
+  expect(outlineFor(canvas, task.id)).not.toBeNull();
+  expect(outlineFor(canvas, event.id)).not.toBeNull();
+  expect(canvas.getSvg().querySelectorAll('[data-layer="selection"] .sf-resizer-visual'))
+    .toHaveLength(8);
+});
+
+// --- parity: outline geometry, chrome, hover (ux-spec §2, §3, §6, §7) ---------
+
+test('outline: geometry is per shape kind (activity / gateway / event)', async () => {
+  const canvas = await loadCanvas(NESTED_EXAMPLE);
+  const scene = canvas.getScene()!;
+  const nodes: SceneNode[] = [];
+  for (const el of scene.elementsById.values()) if (el.kind === 'node') nodes.push(el);
+  const selection = canvas.getSelection();
+
+  // Activity: inset -5 all round, corner radius = the shape's own (10) + 4.
+  const task = nodes.find((n) => n.type === 'bpmn:UserTask' || n.type === 'bpmn:Task')!;
+  selection.select(task);
+  const taskOutline = outlineFor(canvas, task.id)!;
+  expect(taskOutline.tagName.toLowerCase()).toBe('rect');
+  expect([
+    taskOutline.getAttribute('x'),
+    taskOutline.getAttribute('y'),
+    taskOutline.getAttribute('width'),
+    taskOutline.getAttribute('height'),
+    taskOutline.getAttribute('rx'),
+  ]).toEqual(['-5', '-5', String(task.width + 10), String(task.height + 10), '14']);
+
+  // Gateway: inset INWARD by 2, rx 4, and turned 45° so it reads as a diamond.
+  const gateway = nodes.find((n) => n.type.endsWith('Gateway'));
+  if (gateway) {
+    selection.select(gateway);
+    const outline = outlineFor(canvas, gateway.id)!;
+    expect([
+      outline.getAttribute('x'),
+      outline.getAttribute('y'),
+      outline.getAttribute('width'),
+      outline.getAttribute('height'),
+      outline.getAttribute('rx'),
+    ]).toEqual(['2', '2', String(gateway.width - 4), String(gateway.height - 4), '4']);
+    expect(outline.getAttribute('transform'))
+      .toBe(`rotate(45, ${gateway.width / 2}, ${gateway.height / 2})`);
+  }
+
+  // Events: a circle around the RING, +5 — and one more on an end event, whose
+  // 4px stroke already pushes its visible edge half a stroke further out.
+  const start = nodes.find((n) => n.type === 'bpmn:StartEvent')!;
+  const end = nodes.find((n) => n.type === 'bpmn:EndEvent')!;
+  for (const [event, extra] of [[start, 0], [end, 1]] as const) {
+    selection.select(event);
+    const outline = outlineFor(canvas, event.id)!;
+    expect(outline.tagName.toLowerCase()).toBe('circle');
+    // The ring bpmn-js draws: `Math.round((w + h) / 4)` — 18 for a 36x36 event, so
+    // the outline is r=23 (start) / r=24 (end), parity spec §2.
+    const ring = Math.round((event.width + event.height) / 4);
+    expect(outline.getAttribute('r')).toBe(String(ring + 5 + extra));
+    expect(outline.getAttribute('cx')).toBe(String(event.width / 2));
+  }
+
+});
+
+test('outline: a selected connection gets none — its bendpoints are the selection', async () => {
+  const canvas = await loadCanvas();
+  const edge = edgesOf(canvas).find((el) => el.waypoints.length >= 2)!;
+  canvas.getSelection().select(edge);
+  expect(canvas.getGraphics(edge.id)!.querySelector('.sf-outline')).toBeNull();
+  const dots = canvas.getSvg().querySelectorAll(
+    `[data-layer="selection"] .sf-bendpoints[data-overlay-for="${edge.id}"] .sf-bendpoint-visual`,
+  );
+  expect(dots).toHaveLength(edge.waypoints.length);
+  expect(dots[0].getAttribute('r')).toBe('4');
+});
+
+test('outline: created lazily, kept after deselection, and re-fitted after a resize', async () => {
+  const canvas = await loadCanvas();
+  const task = leafNodes(canvas).find((n) => n.type.endsWith('Task'))!;
+  // Never selected → never minted. This is what keeps importing a large diagram cheap.
+  expect(outlineFor(canvas, task.id)).toBeNull();
+
+  canvas.getSelection().select(task);
+  expect(outlineFor(canvas, task.id)).not.toBeNull();
+  expect(canvas.getGraphics(task.id)!.classList.contains('selected')).toBe(true);
+
+  canvas.getSelection().clear();
+  // Still in the DOM, just not painting: the `selected` class is the whole toggle.
+  expect(outlineFor(canvas, task.id)).not.toBeNull();
+  expect(canvas.getGraphics(task.id)!.classList.contains('selected')).toBe(false);
+
+  canvas.getSelection().select(task);
+  task.width += 40;
+  canvas.redrawElements([task]);
+  expect(outlineFor(canvas, task.id)!.getAttribute('width')).toBe(String(task.width + 10));
+});
+
+test('resize handles: 8x8 chips at the diagram-js offsets, with per-corner cursors', async () => {
+  const canvas = await loadCanvas();
+  const task = leafNodes(canvas).find((n) => n.type.endsWith('Task'))!;
+  canvas.getSelection().select(task);
+  const resizers = resizersFor(canvas, task.id)!;
+
+  const cursors: Record<string, string> = {
+    n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
+    nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize',
+  };
+  const expectedOffset: Record<string, [number, number]> = {
+    nw: [-10, -10], n: [-4, -10], ne: [2, -10], e: [2, -4],
+    se: [2, 2], s: [-4, 2], sw: [-10, 2], w: [-10, -4],
+  };
+
+  for (const [anchor, [ox, oy]] of Object.entries(expectedOffset)) {
+    const handle = resizers.querySelector(`.sf-resizer-${anchor}`)!;
+    const visual = handle.querySelector('.sf-resizer-visual')!;
+    expect(visual.getAttribute('width'), anchor).toBe('8');
+    expect(visual.getAttribute('height'), anchor).toBe('8');
+    expect([visual.getAttribute('x'), visual.getAttribute('y')], anchor)
+      .toEqual([String(ox), String(oy)]);
+    // The chip's own frame is the anchor point on the SHAPE's bounds, not the outline.
+    const x = anchor.includes('w') ? task.x : anchor.includes('e') ? task.x + task.width : task.x + task.width / 2;
+    const y = anchor.includes('n') ? task.y : anchor.includes('s') ? task.y + task.height : task.y + task.height / 2;
+    expect(handle.getAttribute('transform'), anchor).toBe(`translate(${x}, ${y})`);
+    // The cursor is the style layer's job; assert the class it keys off is there.
+    expect(CANVAS_CSS, anchor).toContain(`.sf-canvas .sf-resizer-${anchor}`);
+    expect(CANVAS_CSS, anchor).toContain(cursors[anchor]);
+  }
+});
+
+test('hover: a shape is untouched; a connection reveals its bendpoints', async () => {
+  const canvas = await loadCanvas();
+  const svg = canvas.getSvg();
+  const node = leafNodes(canvas)[0];
+  const edge = edgesOf(canvas).find((el) => el.waypoints.length >= 2)!;
+
+  const before = canvas.getGraphics(node.id)!.outerHTML;
+  firePointer(canvas, svg, 'pointermove', center(node));
+  // The single most counter-intuitive parity fact: hovering a shape changes NOTHING.
+  expect(canvas.getGraphics(node.id)!.outerHTML).toBe(before);
+  expect(canvas.getSelection().getHovered()).toBeUndefined();
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-bendpoints')).toHaveLength(0);
+
+  const a = edge.waypoints[0];
+  const b = edge.waypoints[1];
+  firePointer(canvas, svg, 'pointermove', { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  expect(canvas.getSelection().getHovered()?.id).toBe(edge.id);
+  expect(svg.querySelectorAll(`[data-layer="selection"] .sf-bendpoints[data-overlay-for="${edge.id}"] .sf-bendpoint-visual`))
+    .toHaveLength(edge.waypoints.length);
+  expect(
+    svg.querySelector('.sf-bendpoint-visual')!.getAttribute('r'),
+    'the parity spec pins the dot at r=4',
+  ).toBe('4');
+
+  // Off the line again and the bendpoints go with it.
+  firePointer(canvas, svg, 'pointermove', { x: a.x - 400, y: a.y - 400 });
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-bendpoints')).toHaveLength(0);
+});
+
+test('multi-select: the root carries the class the secondary outline colour keys off', async () => {
+  const canvas = await loadCanvas();
+  const leaves = leafNodes(canvas);
+  const svg = canvas.getSvg();
+
+  canvas.getSelection().select(leaves[0]);
+  expect(svg.classList.contains('sf-multi-select')).toBe(false);
+
+  canvas.getSelection().select([leaves[0], leaves[1]]);
+  expect(svg.classList.contains('sf-multi-select')).toBe(true);
+  // …and bendpoints are force-hidden while more than one thing is selected.
+  const edge = edgesOf(canvas)[0];
+  canvas.getSelection().select([leaves[0], edge]);
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-bendpoints')).toHaveLength(0);
+  expect(canvas.getSelection().waypointAt(edge.waypoints[0])).toBeUndefined();
+
+  canvas.getSelection().select(leaves[0]);
+  expect(svg.classList.contains('sf-multi-select')).toBe(false);
+});
+
+test('style layer: the parity colours and weights live in one place', () => {
+  // Every value the parity spec pins, asserted where it is actually declared.
+  // hsl() rather than rgb() because that is the notation diagram-js ships; the
+  // conversions are exact: 205/100/45 = rgb(0,134,230), 205/100/50 = rgb(0,149,255),
+  // 205/100/75 = rgb(128,202,255).
+  expect(CANVAS_CSS).toContain('--sf-color-blue-205-100-45: hsl(205, 100%, 45%)');
+  expect(CANVAS_CSS).toContain('--sf-color-blue-205-100-50: hsl(205, 100%, 50%)');
+  expect(CANVAS_CSS).toContain('--sf-color-blue-205-100-75: hsl(205, 100%, 75%)');
+  expect(CANVAS_CSS).toContain('--sf-snap-line-stroke-color: hsla(205, 100%, 45%, 0.3)');
+  expect(CANVAS_CSS).toContain('--sf-lasso-fill-color: hsla(205, 100%, 50%, 0.15)');
+  expect(CANVAS_CSS).toContain('--sf-element-dragging-opacity: 0.3');
+
+  // Solid, never dashed — and no `stroke-dasharray` anywhere in the chrome.
+  expect(CANVAS_CSS).not.toContain('stroke-dasharray');
+  expect(CANVAS_CSS).toContain('stroke-linecap: round');
+
+  // The one hover rule that exists is on connections; there is no shape-hover rule.
+  expect(CANVAS_CSS).not.toContain('.sf-shape.hover');
+  expect(CANVAS_CSS).not.toContain(':hover');
+});
+
+test('style layer: injection is idempotent per document', async () => {
+  const canvas = await loadCanvas();
+  const doc = canvas.getSvg().ownerDocument!;
+  expect(doc.querySelectorAll(`#${CANVAS_STYLE_ID}`)).toHaveLength(1);
+  await loadCanvas();
+  expect(doc.querySelectorAll(`#${CANVAS_STYLE_ID}`)).toHaveLength(1);
+  expect(doc.getElementById(CANVAS_STYLE_ID)!.textContent).toBe(CANVAS_CSS);
+});
+
+test('export: toSVG carries no selection outline, handles or state classes', async () => {
+  const canvas = await loadCanvas();
+  const leaves = leafNodes(canvas);
+  canvas.getSelection().select([leaves[0], leaves[1]]);
+  expect(outlineFor(canvas, leaves[0].id)).not.toBeNull();
+
+  const svg = canvas.toSVG();
+  expect(svg).not.toContain('sf-outline');
+  expect(svg).not.toContain('sf-resizer');
+  expect(svg).not.toContain('sf-bendpoint');
+  expect(svg).not.toContain('sf-multi-select');
+  expect(svg).toContain('sf-shape');
 });
 
 test('markers: addMarker/removeMarker toggle a class on element graphics', async () => {

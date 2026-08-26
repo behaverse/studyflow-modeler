@@ -605,9 +605,10 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       if (!first) return;
       canvas.startCreate(event ?? undefined, first as ShapeDescriptor | CreatePrototype);
     },
-    // Marquee selection is always live on an empty-space drag; "activating" the lasso
-    // only means "do not keep the current selection".
-    startLasso: () => canvas.getSelection().clear(),
+    // Dragging empty canvas PANS on this backend (parity spec §10), so the palette's
+    // lasso button is the only way to lasso: it arms the tool, and the next drag
+    // draws the marquee.
+    startLasso: () => canvas.activateLasso(),
     // Design §4 (3): a diagram-js `dragging` workaround with no native counterpart.
     primeHover: () => undefined,
     startConnect: (source, event) => {

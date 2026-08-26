@@ -86,7 +86,10 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-async function load(xml: string, options: { snapToGrid?: boolean } = {}): Promise<Loaded> {
+async function load(
+  xml: string,
+  options: { snapToGrid?: boolean; gridSize?: number; minNodeSize?: number } = {},
+): Promise<Loaded> {
   const moddle = freshModdle();
   const { rootElement: definitions } = await moddle.fromXML(xml);
   const canvas = new Canvas(options);
@@ -138,7 +141,13 @@ async function roundTrip(loaded: Loaded): Promise<{ xml: string; reloaded: any }
 
 interface Pt { x: number; y: number; }
 
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Pt): void {
+function firePointer(
+  canvas: Canvas,
+  target: EventTarget,
+  type: string,
+  diagram: Pt,
+  init: MouseEventInit = {},
+): void {
   const screen = canvas.getViewport().toScreen(diagram);
   target.dispatchEvent(new dom.window.MouseEvent(type, {
     bubbles: true,
@@ -146,6 +155,7 @@ function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram:
     clientX: screen.x,
     clientY: screen.y,
     button: 0,
+    ...init,
   }));
 }
 
@@ -267,7 +277,11 @@ test('move: a multi-node selection moves together by one delta', async () => {
 
 // --- resize ------------------------------------------------------------------
 
-/** The centre of a resize handle drawn by the selection overlay (scale 1 under jsdom). */
+/**
+ * A point inside a resize chip's hit square. The chips sit ON the shape's corners
+ * (diagram-js `getReferencePoint`), pushed 6 units outward, with a 20x20 invisible
+ * hit area — so a few units diagonally out of the corner lands squarely in one.
+ */
 function handlePoint(n: SceneNode, anchor: 'se' | 'nw'): Pt {
   const pad = 4;
   return anchor === 'se'
@@ -295,21 +309,42 @@ test('resize: dragging the se handle updates width/height AND di.bounds', async 
   expect(boundsOf(reloaded, 'End_1')).toEqual({ x: 400, y: 100, width: 36, height: 36 });
 });
 
-test('resize: the nw handle moves the origin and shrinks the box', async () => {
+test('resize: the nw handle moves the origin and grows the box', async () => {
   const { canvas, definitions } = await load(FIXTURE_XML);
   const task = node(canvas, 'Task_1');
   click(canvas, center(task));
 
   const grab = handlePoint(task, 'nw');
-  dragBy(canvas, grab, { x: grab.x + 20, y: grab.y + 10 });
+  dragBy(canvas, grab, { x: grab.x - 20, y: grab.y - 10 });
 
   expect({ x: task.x, y: task.y, width: task.width, height: task.height })
-    .toEqual({ x: 220, y: 90, width: 80, height: 70 });
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 220, y: 90, width: 80, height: 70 });
+    .toEqual({ x: 180, y: 70, width: 120, height: 90 });
+  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 180, y: 70, width: 120, height: 90 });
 });
 
-test('resize: a minimum size is respected', async () => {
+/**
+ * The floor is the RULES' floor for that node's type (`rules/rules.ts` `minSizeFor`
+ * — 100×80 for an activity), not one global number: a gesture must never produce
+ * bounds `Rules.canResize` would then reject.
+ */
+test('resize: the per-type minimum from the rules is respected', async () => {
   const { canvas, definitions } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  expect(canvas.getRules().minSizeFor(task)).toEqual({ width: 100, height: 80 });
+  click(canvas, center(task));
+
+  const grab = handlePoint(task, 'se');
+  dragBy(canvas, grab, { x: grab.x - 500, y: grab.y - 500 });
+
+  expect({ width: task.width, height: task.height }).toEqual({ width: 100, height: 80 });
+  // The anchored (nw) corner stays put.
+  expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
+  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80, width: 100, height: 80 });
+});
+
+/** A single global floor still wins when the host pins one (`CanvasOptions.minNodeSize`). */
+test('resize: an explicit minNodeSize overrides the per-type floor', async () => {
+  const { canvas } = await load(FIXTURE_XML, { minNodeSize: 20 });
   const task = node(canvas, 'Task_1');
   click(canvas, center(task));
 
@@ -317,9 +352,6 @@ test('resize: a minimum size is respected', async () => {
   dragBy(canvas, grab, { x: grab.x - 500, y: grab.y - 500 });
 
   expect({ width: task.width, height: task.height }).toEqual({ width: 20, height: 20 });
-  // The anchored (nw) corner stays put.
-  expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80, width: 20, height: 20 });
 });
 
 test('resize: connected edges re-dock onto the new outline', async () => {
@@ -373,16 +405,18 @@ test('grid snap: off by default, snaps edited coordinates when enabled', async (
   expect(plain.canvas.isSnapToGrid()).toBe(false);
   const loose = node(plain.canvas, 'Task_1');
   const looseFrom = center(loose);
-  dragBy(plain.canvas, looseFrom, { x: looseFrom.x + 7, y: looseFrom.y + 3 });
-  expect({ x: loose.x, y: loose.y }).toEqual({ x: 207, y: 83 });
+  // (+7, +23) keeps the shape's centre clear of every neighbour's, so ALIGNMENT
+  // snapping (which is always on — parity spec §7) leaves the delta exact.
+  dragBy(plain.canvas, looseFrom, { x: looseFrom.x + 7, y: looseFrom.y + 23 });
+  expect({ x: loose.x, y: loose.y }).toEqual({ x: 207, y: 103 });
 
   const snapped = await load(FIXTURE_XML, { snapToGrid: true });
   expect(snapped.canvas.isSnapToGrid()).toBe(true);
   const task = node(snapped.canvas, 'Task_1');
   const from = center(task);
-  dragBy(snapped.canvas, from, { x: from.x + 7, y: from.y + 3 });
-  expect({ x: task.x, y: task.y }).toEqual({ x: 210, y: 80 });
-  expect(boundsOf(snapped.definitions, 'Task_1')).toEqual({ x: 210, y: 80, width: 100, height: 80 });
+  dragBy(snapped.canvas, from, { x: from.x + 7, y: from.y + 23 });
+  expect({ x: task.x, y: task.y }).toEqual({ x: 210, y: 100 });
+  expect(boundsOf(snapped.definitions, 'Task_1')).toEqual({ x: 210, y: 100, width: 100, height: 80 });
 });
 
 test('a committed drag bumps scene.revision and fires element.changed', async () => {
@@ -424,6 +458,136 @@ test('Escape cancels an in-flight drag and leaves the DI untouched', async () =>
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
   expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80, width: 100, height: 80 });
   expect(scene.revision).toBe(revision);
+});
+
+// --- Escape restores the snapshot EXACTLY (grid snap on) ----------------------
+
+/**
+ * A document that was NOT authored on a 10-unit grid — the normal case for anything
+ * drawn elsewhere and imported. Every coordinate here is off-grid on purpose, so a
+ * cancel that re-derives geometry by "re-applying the gesture with a zero delta"
+ * would visibly move the shape (137 → 140) while the DI, which cancel deliberately
+ * never writes, kept saying 137.
+ */
+const OFFGRID_FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_3" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_3" isExecutable="false">
+    <bpmn:task id="Task_1" name="Task"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="Task_2" name="Other"><bpmn:incoming>Flow_1</bpmn:incoming></bpmn:task>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Task_1" targetRef="Task_2" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_3">
+    <bpmndi:BPMNPlane id="Plane_3" bpmnElement="Process_3">
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="137" y="83" width="103" height="87" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_2_di" bpmnElement="Task_2">
+        <dc:Bounds x="401" y="83" width="103" height="87" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="240" y="127" /><di:waypoint x="317" y="129" /><di:waypoint x="401" y="127" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** Press, move past the drag threshold, press Escape, release — the abandon path. */
+function dragThenEscape(canvas: Canvas, from: Pt, to: Pt): void {
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', to);
+  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  firePointer(canvas, doc, 'pointerup', to);
+}
+
+test('Escape under grid snap restores an off-grid move EXACTLY, and never writes the DI', async () => {
+  const { canvas, definitions } = await load(OFFGRID_FIXTURE_XML, { snapToGrid: true });
+  const scene = canvas.getScene()!;
+  const revision = scene.revision;
+  const task = node(canvas, 'Task_1');
+  const flow = edge(canvas, 'Flow_1');
+  const waypoints = flow.waypoints.map((p) => ({ ...p }));
+
+  const from = center(task);
+  dragThenEscape(canvas, from, { x: from.x + 63, y: from.y + 47 });
+
+  // NOT 140/80: the snapshot is restored verbatim, so the scene and the DI agree.
+  expect({ x: task.x, y: task.y }).toEqual({ x: 137, y: 83 });
+  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 137, y: 83, width: 103, height: 87 });
+  expect(flow.waypoints).toEqual(waypoints);
+  expect(waypointsOf(definitions, 'Flow_1')).toEqual(waypoints);
+  expect(scene.revision).toBe(revision);
+});
+
+test('Escape under grid snap restores an off-grid resize EXACTLY (all four edges)', async () => {
+  const { canvas, definitions } = await load(OFFGRID_FIXTURE_XML, { snapToGrid: true });
+  const task = node(canvas, 'Task_1');
+
+  for (const anchor of ['se', 'nw'] as const) {
+    click(canvas, center(task));
+    const grab = handlePoint(task, anchor);
+    dragThenEscape(canvas, grab, { x: grab.x + 33, y: grab.y + 21 });
+
+    expect({ x: task.x, y: task.y, width: task.width, height: task.height },
+      `${anchor} handle`).toEqual({ x: 137, y: 83, width: 103, height: 87 });
+    expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 137, y: 83, width: 103, height: 87 });
+  }
+});
+
+test('Escape under grid snap restores an off-grid waypoint drag EXACTLY', async () => {
+  const { canvas, definitions } = await load(OFFGRID_FIXTURE_XML, { snapToGrid: true });
+  const flow = edge(canvas, 'Flow_1');
+  const before = flow.waypoints.map((p) => ({ ...p }));
+  canvas.getSelection().select(flow);
+
+  const bend = { ...before[1] };
+  dragThenEscape(canvas, bend, { x: bend.x + 40, y: bend.y - 30 });
+
+  expect(flow.waypoints).toEqual(before);
+  expect(waypointsOf(definitions, 'Flow_1')).toEqual(before);
+});
+
+// --- resize is rules-gated (a start event has a fixed footprint) --------------
+
+test('resize: a non-resizable node offers no handle and cannot be resized', async () => {
+  const { canvas, definitions } = await load(FIXTURE_XML);
+  const start = node(canvas, 'Start_1');
+  expect(canvas.getRules().canResize(start)).toBe(false);
+
+  click(canvas, center(start));
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Start_1']);
+  // No handle is drawn there, so the overlay reports no grab…
+  expect(canvas.getSelection().handleAt(handlePoint(start, 'se'))).toBeUndefined();
+
+  // …and a drag from that point leaves the event's footprint alone.
+  const grab = handlePoint(start, 'se');
+  dragBy(canvas, grab, { x: grab.x + 60, y: grab.y + 40 });
+  expect({ x: start.x, y: start.y, width: start.width, height: start.height })
+    .toEqual({ x: 100, y: 100, width: 36, height: 36 });
+  expect(boundsOf(definitions, 'Start_1')).toEqual({ x: 100, y: 100, width: 36, height: 36 });
+});
+
+test('resize: the rules gate startDrag even when a stale handle hit is fed to it', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const start = node(canvas, 'Start_1');
+  const drag = canvas.getDrag()!;
+  canvas.getSelection().select(start);
+
+  // The gesture layer itself would happily run it — the gate is `Rules.canResize`,
+  // which `Canvas.startDrag` consults before ever opening the session.
+  expect(canvas.getRules().canResize(start)).toBe(false);
+  expect(drag.isActive()).toBe(false);
+  const grab = handlePoint(start, 'se');
+  const svg = canvas.getSvg();
+  firePointer(canvas, svg, 'pointerdown', grab);
+  firePointer(canvas, svg.ownerDocument!, 'pointermove', { x: grab.x + 40, y: grab.y + 40 });
+  expect(drag.getKind()).toBeUndefined();
+  firePointer(canvas, svg.ownerDocument!, 'pointerup', { x: grab.x + 40, y: grab.y + 40 });
 });
 
 // --- shipped example ----------------------------------------------------------
@@ -536,6 +700,7 @@ const LABEL_FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
         <dc:Bounds x="300" y="180" width="100" height="80" />
+        <bpmndi:BPMNLabel><dc:Bounds x="310" y="265" width="24" height="14" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="216" y="218" /><di:waypoint x="300" y="220" />
@@ -606,23 +771,28 @@ test('move: a BPMNLabel without dc:Bounds stays derived — no bounds is minted'
   expect(xml).toContain('<bpmndi:BPMNLabel />');
 });
 
-test('resize: an external label re-anchors to the shape centre, in the scene and the DI', async () => {
+/**
+ * Resized on `Task_1`, not on the start event: an event has a fixed BPMN footprint,
+ * so `Rules.canResize` refuses it and the overlay draws no handles for it (see
+ * `canvas-selection.unit.spec.ts`).
+ */
+test('resize: a positioned label re-anchors to the shape centre, in the scene and the DI', async () => {
   const loaded = await load(LABEL_FIXTURE_XML);
   const { canvas, definitions } = loaded;
-  const start = node(canvas, 'Start_1');
-  click(canvas, center(start));
-  expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Start_1']);
+  const task = node(canvas, 'Task_1');
+  click(canvas, center(task));
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Task_1']);
 
-  const grab = handlePoint(start, 'se');
+  const grab = handlePoint(task, 'se');
   dragBy(canvas, grab, { x: grab.x + 60, y: grab.y + 40 });
 
   // The centre moved by half the se delta → so did the label.
-  expect({ x: start.width, y: start.height }).toEqual({ x: 96, y: 76 });
-  expect({ x: start.label?.x, y: start.label?.y }).toEqual({ x: 216, y: 263 });
-  expect(labelBoundsOf(definitions, 'Start_1')).toEqual({ x: 216, y: 263, width: 24, height: 14 });
+  expect({ x: task.width, y: task.height }).toEqual({ x: 160, y: 120 });
+  expect({ x: task.label?.x, y: task.label?.y }).toEqual({ x: 340, y: 285 });
+  expect(labelBoundsOf(definitions, 'Task_1')).toEqual({ x: 340, y: 285, width: 24, height: 14 });
 
   const { reloaded } = await roundTrip(loaded);
-  expect(labelBoundsOf(reloaded, 'Start_1')).toEqual({ x: 216, y: 263, width: 24, height: 14 });
+  expect(labelBoundsOf(reloaded, 'Task_1')).toEqual({ x: 340, y: 285, width: 24, height: 14 });
 });
 
 test('Escape mid-drag restores the label too, and never writes the BPMNLabel', async () => {
@@ -811,13 +981,15 @@ test('move: dragging a lane carries its contents but leaves the pool alone', asy
 
   expect(canvas.hitTest(LANE_1_EMPTY)?.id, 'empty lane interior grabs the lane').toBe('Lane_1');
 
-  const dx = -20;
+  // -30, not -20: at -20 the lane's centre lands within 7 units of the pool's, and
+  // alignment snapping (parity spec §7) would legitimately pull it there.
+  const dx = -30;
   const dy = 30;
   dragBy(canvas, LANE_1_EMPTY, { x: LANE_1_EMPTY.x + dx, y: LANE_1_EMPTY.y + dy });
 
-  expect(boundsOf(definitions, 'Lane_1')).toEqual({ x: 10, y: 30, width: 570, height: 250 });
-  expect(boundsOf(definitions, 'Start_1')).toEqual({ x: 80, y: 130, width: 36, height: 36 });
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 180, y: 108, width: 100, height: 80 });
+  expect(boundsOf(definitions, 'Lane_1')).toEqual({ x: 0, y: 30, width: 570, height: 250 });
+  expect(boundsOf(definitions, 'Start_1')).toEqual({ x: 70, y: 130, width: 36, height: 36 });
+  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 170, y: 108, width: 100, height: 80 });
   // The pool itself is not dragged along by its own lane.
   expect(boundsOf(definitions, 'Pool_1')).toEqual({ x: 0, y: 0, width: 600, height: 250 });
 });
@@ -851,4 +1023,301 @@ test('spirit2025: dragging the pool moves every lane and flow node it encloses',
       x: b.x + dx, y: b.y + dy, width: b.width, height: b.height,
     });
   }
+});
+
+// --- drag feedback (ux-spec §7) ----------------------------------------------
+
+/** The overlay layer, where the ghost's dimmed originals and snap lines live. */
+function overlays(canvas: Canvas): Element {
+  return canvas.getSvg().querySelector('[data-layer="overlays"]')!;
+}
+
+test('drag feedback: the moved element becomes the ghost and leaves a dimmed copy behind', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = center(task);
+
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', { x: from.x + 60, y: from.y + 40 });
+
+  // The live element IS the ghost: the style layer paints `.sf-dragger` as a blue
+  // outline with no fills, so nothing has to be rendered twice.
+  const gfx = canvas.getGraphics('Task_1')!;
+  expect(gfx.classList.contains('sf-dragger')).toBe(true);
+  // …and a frozen copy of where it came from stays behind at 0.3. It is a picture,
+  // not an element: nothing may address it by the id it copies.
+  const frozen = overlays(canvas).querySelector('.sf-drag-originals')!;
+  expect(frozen).not.toBeNull();
+  expect(frozen.querySelectorAll('.sf-dragging').length).toBeGreaterThan(0);
+  expect(frozen.querySelectorAll('[data-element-id]')).toHaveLength(0);
+  // Every attached connection is dimmed with it, so the ghost is the only blue.
+  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-dragger')).toBe(true);
+  // The shape's own resize chips step aside while it is the one moving.
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers[data-overlay-for="Task_1"]'))
+    .toHaveLength(0);
+
+  firePointer(canvas, doc, 'pointerup', { x: from.x + 60, y: from.y + 40 });
+  expect(canvas.getGraphics('Task_1')!.classList.contains('sf-dragger')).toBe(false);
+  expect(overlays(canvas).querySelector('.sf-drag-originals')).toBeNull();
+  // The chips come back around the shape at its new home.
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers[data-overlay-for="Task_1"]'))
+    .toHaveLength(1);
+});
+
+test('drag feedback: Escape takes the ghost down with the gesture', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = center(task);
+
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', { x: from.x + 60, y: from.y + 40 });
+  expect(overlays(canvas).querySelector('.sf-drag-originals')).not.toBeNull();
+
+  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(overlays(canvas).querySelector('.sf-drag-originals')).toBeNull();
+  expect(canvas.getGraphics('Task_1')!.classList.contains('sf-dragger')).toBe(false);
+});
+
+test('drag feedback: a resize hides that shape\'s chips, and restores them on drop', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  click(canvas, center(task));
+  const grab = handlePoint(task, 'se');
+
+  firePointer(canvas, svg, 'pointerdown', grab);
+  firePointer(canvas, doc, 'pointermove', { x: grab.x + 60, y: grab.y + 40 });
+  expect(canvas.getGraphics('Task_1')!.classList.contains('sf-resizing')).toBe(true);
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers')).toHaveLength(0);
+
+  firePointer(canvas, doc, 'pointerup', { x: grab.x + 60, y: grab.y + 40 });
+  expect(canvas.getGraphics('Task_1')!.classList.contains('sf-resizing')).toBe(false);
+  expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers')).toHaveLength(1);
+});
+
+test('direct editing: the inline editor hides that shape\'s chips but keeps its outline', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const svg = canvas.getSvg();
+  const chips = () => svg.querySelectorAll('[data-layer="selection"] .sf-resizer-visual').length;
+
+  click(canvas, center(task));
+  expect(chips()).toBe(8);
+
+  firePointer(canvas, svg, 'dblclick', center(task));
+  expect(canvas.getLabelEditing().isActive()).toBe(true);
+  // The reference state (parity spec §5): outline yes, handles no. The eight chips
+  // around a box being typed into advertise a gesture the editor is not offering, and
+  // a stale chip must not be able to start one either.
+  const g = canvas.getGraphics('Task_1')!;
+  expect(chips()).toBe(0);
+  expect(canvas.getSelection().handleAt(handlePoint(task, 'se'))).toBeUndefined();
+  expect(g.querySelector('.sf-outline')).not.toBeNull();
+  expect(g.classList.contains('selected')).toBe(true);
+  // …and, unlike a resize, the outline is NOT suppressed with them.
+  expect(g.classList.contains('sf-resizing')).toBe(false);
+
+  canvas.getLabelEditing().cancel();
+  expect(chips()).toBe(8);
+
+  // A committed edit gives them back too, not just an abandoned one.
+  firePointer(canvas, svg, 'dblclick', center(task));
+  expect(chips()).toBe(0);
+  canvas.getLabelEditing().complete();
+  expect(chips()).toBe(8);
+});
+
+test('snap lines: a move that aligns with a neighbour snaps to it and draws the guide', async () => {
+  const { canvas, definitions } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const start = node(canvas, 'Start_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+
+  // Start's centre is (118, 118); the task's is (250, 120). Drop the task's centre
+  // one unit BELOW the start event's — inside diagram-js's 7-unit tolerance.
+  const from = center(task);
+  const to = { x: from.x + 60, y: start.y + start.height / 2 + 1 };
+
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', to);
+
+  // Pulled onto the alignment: the centres are level, exactly.
+  expect(task.y + task.height / 2).toBe(start.y + start.height / 2);
+  expect(task.y).toBe(78);
+  // …and the x axis, which lines up with nothing, ran free.
+  expect(task.x).toBe(260);
+
+  const lines = overlays(canvas).querySelectorAll('.sf-snap-line');
+  expect(lines, 'one guide: the horizontal alignment that was taken').toHaveLength(1);
+  expect(lines[0].getAttribute('y1')).toBe('118');
+  expect(lines[0].getAttribute('y2')).toBe('118');
+
+  firePointer(canvas, doc, 'pointerup', to);
+  // The snapped geometry is what gets committed to the DI, not the raw pointer.
+  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 260, y: 78, width: 100, height: 80 });
+  expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+});
+
+test('snap lines: a drag that aligns with nothing draws none and is left alone', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = center(task);
+  const to = { x: from.x + 37, y: from.y + 53 };
+
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', to);
+
+  expect({ x: task.x, y: task.y }).toEqual({ x: 237, y: 133 });
+  expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+  firePointer(canvas, doc, 'pointerup', to);
+});
+
+test('snap lines: both axes can take at once, and Escape leaves nothing behind', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const end = node(canvas, 'End_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = center(task);
+  // Two units off End_1's centre on both axes (418, 118).
+  const to = { x: end.x + end.width / 2 + 2, y: end.y + end.height / 2 - 2 };
+
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', to);
+
+  expect(task.x + task.width / 2).toBe(418);
+  expect(task.y + task.height / 2).toBe(118);
+  const lines = overlays(canvas).querySelectorAll('.sf-snap-line');
+  expect(lines).toHaveLength(2);
+  expect(lines[0].getAttribute('x1')).toBe('418');
+  expect(lines[1].getAttribute('y1')).toBe('118');
+
+  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
+  expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+});
+
+test('snap lines: drawn only while grid snapping is on, and cleared with the gesture', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = center(task);
+
+  // Snapping is off by default, so a plain drag draws no guides at all.
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', { x: from.x + 33, y: from.y + 17 });
+  expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+  firePointer(canvas, doc, 'pointerup', { x: from.x + 33, y: from.y + 17 });
+
+  canvas.setSnapToGrid(true);
+  const at = center(node(canvas, 'Task_1'));
+  click(canvas, at);
+  firePointer(canvas, svg, 'pointerdown', at);
+  firePointer(canvas, doc, 'pointermove', { x: at.x + 33, y: at.y + 17 });
+  const lines = overlays(canvas).querySelectorAll('.sf-snap-line');
+  expect(lines).toHaveLength(2);
+  // They pass through the snapped origin, which is where the shape actually landed.
+  const moved = node(canvas, 'Task_1');
+  expect(lines[0].getAttribute('x1')).toBe(String(moved.x));
+  expect(lines[1].getAttribute('y1')).toBe(String(moved.y));
+
+  firePointer(canvas, doc, 'pointerup', { x: at.x + 33, y: at.y + 17 });
+  expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+});
+
+test('lasso: the rect and the root class the secondary outline colour keys off', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = { x: 100, y: 40 };
+  const to = { x: 460, y: 220 };
+
+  // The lasso is the palette tool's, not an empty-canvas drag's (parity spec §8).
+  canvas.activateLasso();
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', to);
+  const rect = overlays(canvas).querySelector('.sf-lasso-overlay')!;
+  expect(rect).not.toBeNull();
+  // Fill, stroke and weight are the style layer's; the geometry is here.
+  expect([rect.getAttribute('x'), rect.getAttribute('y'), rect.getAttribute('width'), rect.getAttribute('height')])
+    .toEqual(['100', '40', '360', '180']);
+  expect(svg.classList.contains('sf-dragging-active-lasso')).toBe(true);
+
+  // Enclosed elements are OUTLINED live (the root class turns them secondary blue)
+  // but not yet selected: `selection.changed` fires once, on release.
+  expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(true);
+  expect(canvas.getGraphics('Task_1')!.querySelector('.sf-outline')).not.toBeNull();
+  expect(canvas.getSelection().get()).toEqual([]);
+
+  firePointer(canvas, doc, 'pointerup', to);
+  expect(overlays(canvas).querySelector('.sf-lasso-overlay')).toBeNull();
+  expect(svg.classList.contains('sf-dragging-active-lasso')).toBe(false);
+  expect(canvas.getSelection().get().length).toBeGreaterThan(1);
+});
+
+test('lasso: an abandoned marquee leaves no marks behind', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+
+  canvas.activateLasso();
+  firePointer(canvas, svg, 'pointerdown', { x: 100, y: 40 });
+  firePointer(canvas, doc, 'pointermove', { x: 460, y: 220 });
+  expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(true);
+
+  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(false);
+  expect(canvas.getSelection().get()).toEqual([]);
+  expect(overlays(canvas).querySelector('.sf-lasso-overlay')).toBeNull();
+});
+
+test('lasso: Shift adds to the selection instead of replacing it (parity spec §8)', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const selection = canvas.getSelection();
+  const changes: number[] = [];
+  canvas.getEventBus().on('selection.changed', () => changes.push(selection.get().length));
+
+  // Start from something already selected, well outside the rectangle to come.
+  const end = node(canvas, 'End_1');
+  selection.select(end);
+  changes.length = 0;
+
+  // A shift-marquee over the start event and the task only.
+  canvas.activateLasso();
+  firePointer(canvas, svg, 'pointerdown', { x: 60, y: 40 }, { shiftKey: true });
+  firePointer(canvas, doc, 'pointermove', { x: 320, y: 220 }, { shiftKey: true });
+  // Marked live, and the standing selection keeps its own mark throughout.
+  expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(true);
+  expect(canvas.getGraphics('End_1')!.classList.contains('selected')).toBe(true);
+  expect(changes).toEqual([]);
+
+  firePointer(canvas, doc, 'pointerup', { x: 320, y: 220 }, { shiftKey: true });
+  expect(selection.get().map((e) => e.id).sort()).toEqual(['End_1', 'Start_1', 'Task_1']);
+  // One event for the whole gesture, on release — never one per pointer frame.
+  expect(changes).toEqual([3]);
+
+  // …and without Shift the same rectangle REPLACES the selection (the tool is
+  // one-shot, so it has to be armed again).
+  canvas.activateLasso();
+  firePointer(canvas, svg, 'pointerdown', { x: 60, y: 40 });
+  firePointer(canvas, doc, 'pointermove', { x: 320, y: 220 });
+  firePointer(canvas, doc, 'pointerup', { x: 320, y: 220 });
+  expect(selection.get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
 });

@@ -58,6 +58,14 @@ export interface SceneElementBase {
   parent?: SceneNode;
   /** External or internal label placement, when the element carries one. */
   label?: SceneLabel;
+  /**
+   * Set only on the synthetic elements `model/externalLabel.ts` mints for an
+   * external label: the element the label names. Its presence is what makes an
+   * element A LABEL (diagram-js spells the same field `labelTarget`), and it is how
+   * selection, outlining, deletion and the inline editor tell the caption apart from
+   * the shape it hangs off.
+   */
+  labelTarget?: SceneElement;
 }
 
 /**

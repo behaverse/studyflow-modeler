@@ -9,10 +9,11 @@ import {
   DEFAULT_TOP as CORE_DEFAULT_TOP,
 } from '@core/document';
 import { Canvas, setDocument } from '@canvas/index.ts';
-import { choreographyBandAt, labelBounds } from '@canvas/interaction/labelEditing.ts';
+import { choreographyBandAt, editorBounds, labelBounds } from '@canvas/interaction/labelEditing.ts';
+import { CANVAS_CSS } from '@canvas/view/theme.ts';
 import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@canvas/model/choreography.ts';
 import type { DirectEditingEvent, ElementDblClickEvent } from '@canvas/interaction/labelEditing.ts';
-import { externalLabelBounds } from '@canvas/render/labels.ts';
+import { externalLabelBounds, LABEL_FONT, measureLabelWidth } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
@@ -85,6 +86,33 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="136" y="118" /><di:waypoint x="200" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** A named sequence flow — the connection-caption half of the external-label tests. */
+const EDGE_LABEL_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_3" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_3" isExecutable="false">
+    <bpmn:startEvent id="Start_3"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Task_3"><bpmn:incoming>Flow_1</bpmn:incoming></bpmn:task>
+    <bpmn:sequenceFlow id="Flow_1" name="again" sourceRef="Start_3" targetRef="Task_3" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_3">
+    <bpmndi:BPMNPlane id="Plane_3" bpmnElement="Process_3">
+      <bpmndi:BPMNShape id="Start_3_di" bpmnElement="Start_3">
+        <dc:Bounds x="100" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_3_di" bpmnElement="Task_3">
+        <dc:Bounds x="300" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="136" y="118" /><di:waypoint x="300" y="120" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
@@ -172,6 +200,20 @@ function key(canvas: Canvas, name: string, init: KeyboardEventInit = {}): void {
   const input = canvas.getLabelEditing().getInput();
   if (!input) throw new Error('no inline editor is open');
   input.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+    key: name,
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  }));
+}
+
+/**
+ * A canvas-scoped keypress: the canvas binds its shortcuts on the CONTAINER (the SVG
+ * root is the focusable element and the event bubbles up to it), so this is what a
+ * key pressed over the diagram actually looks like.
+ */
+function pressKey(canvas: Canvas, name: string, init: KeyboardEventInit = {}): void {
+  canvas.getContainer().dispatchEvent(new dom.window.KeyboardEvent('keydown', {
     key: name,
     bubbles: true,
     cancelable: true,
@@ -478,6 +520,8 @@ test('choreography: editing the middle band edits the task name', async () => {
   dblclick(canvas, center(chore));
   expect(canvas.getLabelEditing().getSession()!.band).toBe('name');
   expect(canvas.getLabelEditing().getValue()).toBe('Give consent');
+  // The middle band is an ordinary internal label: 400, like the one drawn under it.
+  expect(overlay(canvas)!.style.fontWeight).toBe('400');
   type(canvas, 'Sign consent');
   key(canvas, 'Enter');
 
@@ -514,4 +558,427 @@ test('choreography: a band edit mints the participant pair when the task has non
   expect(xml).toContain('name="Experimenter"');
   const reloadedTask = boOf(reloaded, 'Chore_1');
   expect(reloadedTask.participantRef.map((p: any) => p.name)).toEqual([DEFAULT_TOP, 'Experimenter']);
+});
+
+// --- the editor's own chrome (parity spec §5) --------------------------------
+
+/**
+ * bpmn-js draws two visually different direct editors, and the difference is the
+ * whole point: over a task the text simply becomes editable where it already is
+ * (transparent, borderless, centred on the label), while an event's or gateway's
+ * caption gets a small white box with a 1px #ccc border, sized TIGHT to the text.
+ *
+ * The chrome itself is declared once in `view/theme.ts` (asserted below against
+ * `CANVAS_CSS`, the way the rest of the canvas chrome is): the overlay carries only
+ * the class that selects a variant plus the geometry the viewport computes.
+ */
+
+test('editor chrome: an internal editor is transparent and borderless, an external one is a bordered white box', () => {
+  // Base: no chrome at all, and nothing that would draw a focus ring.
+  expect(CANVAS_CSS).toContain('.sf-label-editor {');
+  expect(CANVAS_CSS).toContain('background: transparent;');
+  expect(CANVAS_CSS).toContain('box-shadow: none;');
+  expect(CANVAS_CSS).toContain('outline: none;');
+  // Pure black in both variants — deliberately NOT the #22242A render stroke.
+  expect(CANVAS_CSS).toContain('--sf-label-editor-color: #000000');
+  expect(CANVAS_CSS).toContain('text-align: center;');
+  expect(CANVAS_CSS).toContain('line-height: 1.2;');
+
+  // Internal: the padding bpmn-js's contenteditable carries, and no border.
+  expect(CANVAS_CSS).toContain('.sf-label-editor-internal {\n  padding: 7px 5px;\n}');
+
+  // External: white, 1px #ccc, square corners.
+  expect(CANVAS_CSS).toContain('--sf-label-editor-external-stroke-color: #ccc');
+  expect(CANVAS_CSS).toContain('border: 1px solid var(--sf-label-editor-external-stroke-color)');
+  expect(CANVAS_CSS).toContain('border-radius: 0;');
+});
+
+test('editor chrome: a task takes the internal variant over its own box', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  dblclick(canvas, center(task));
+
+  const input = overlay(canvas)!;
+  expect(input.classList.contains('sf-label-editor')).toBe(true);
+  expect(input.classList.contains('sf-label-editor-internal')).toBe(true);
+  expect(input.classList.contains('sf-label-editor-external')).toBe(false);
+  expect(input.getAttribute('data-placement')).toBe('internal');
+  // 12px internal, in the same font the label is drawn with, so nothing jumps.
+  expect(input.style.fontSize).toBe('12px');
+  // The one invariant that matters about the family: the overlay is set in the SAME
+  // stack the renderer drew the label with, so the text does not jump when it opens.
+  // (Compared through the CSSOM's own normalisation, which quotes `Segoe UI`.)
+  const drawnText = canvas.getGraphics('Task_1')!.querySelector('text')!;
+  const drawn = drawnText.getAttribute('font-family');
+  const families = (value: string) => value.replace(/["']/g, '').split(',').map((f) => f.trim());
+  expect(families(input.style.fontFamily)).toEqual(families(drawn!));
+  expect(families(LABEL_FONT)).toEqual(families(drawn!));
+  // …and in the same WEIGHT, for the same reason: an editor set 200 heavier than the
+  // label it replaces makes the text visibly thicken the moment it opens (the
+  // reference measures 400 on both, and so does the renderer).
+  expect(drawnText.getAttribute('font-weight')).toBe('400');
+  expect(input.style.fontWeight).toBe('400');
+  // No paint is written inline: the variant class owns all of it.
+  expect(input.style.border).toBe('');
+  expect(input.style.background).toBe('');
+  // Exactly the shape's box (zoom 1 under the jsdom viewport).
+  expect(parseFloat(input.style.width)).toBeCloseTo(100, 6);
+  expect(parseFloat(input.style.height)).toBeCloseTo(80, 6);
+});
+
+test('editor chrome: an external label takes the bordered variant, sized tight to its text', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const gate = node(canvas, 'Gate_1');
+  dblclick(canvas, center(gate));
+
+  const input = overlay(canvas)!;
+  expect(input.classList.contains('sf-label-editor-external')).toBe(true);
+  expect(input.classList.contains('sf-label-editor-internal')).toBe(false);
+  expect(input.getAttribute('data-placement')).toBe('external');
+  expect(input.style.fontSize).toBe('11px');
+  expect(input.style.fontWeight).toBe('400');
+
+  // Tight to "Correct?" — NOT the whole label region the text is centred in.
+  const region = externalLabelBounds(gate, gate.label);
+  const box = editorBounds(gate, 'name', 'Correct?');
+  expect(box.width).toBeCloseTo(measureLabelWidth('Correct?', 11), 6);
+  expect(box.width).toBeLessThan(region.width);
+  expect(parseFloat(input.style.width)).toBeCloseTo(box.width, 6);
+  // …and still centred on the same text.
+  expect(box.x + box.width / 2).toBeCloseTo(region.x + region.width / 2, 6);
+  expect(box.y + box.height / 2).toBeCloseTo(region.y + region.height / 2, 6);
+  // The session still reports the label REGION — the editor box is chrome, not model.
+  expect(canvas.getLabelEditing().getSession()!.bounds).toEqual(region);
+});
+
+test('editor chrome: an external box follows its text as it is typed', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const gate = node(canvas, 'Gate_1');
+  dblclick(canvas, center(gate));
+
+  const input = overlay(canvas)!;
+  const before = { left: input.style.left, width: input.style.width };
+  type(canvas, 'A much longer question than before');
+
+  expect(parseFloat(input.style.width)).toBeGreaterThan(parseFloat(before.width));
+  // It grows about its centre, so the box stays over the text it edits.
+  const centreBefore = parseFloat(before.left) + parseFloat(before.width) / 2;
+  const centreAfter = parseFloat(input.style.left) + parseFloat(input.style.width) / 2;
+  expect(centreAfter).toBeCloseTo(centreBefore, 6);
+});
+
+// --- opening from the keyboard (parity spec §9 `e`) ---------------------------
+
+test("pressing 'e' on the selection opens the editor pre-filled, exactly as a double click does", async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  canvas.getSelection().select(task);
+
+  expect(canvas.getLabelEditing().isActive()).toBe(false);
+  pressKey(canvas, 'e');
+
+  const editing = canvas.getLabelEditing();
+  expect(editing.isActive()).toBe(true);
+  expect(editing.getValue()).toBe('Task');
+  expect(editing.getSession()!.element.id).toBe('Task_1');
+});
+
+test("'e' needs exactly one selected element, and never fires while the editor has the key", async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+
+  // Nothing selected: nothing happens.
+  pressKey(canvas, 'e');
+  expect(canvas.getLabelEditing().isActive()).toBe(false);
+
+  // Two selected: no editor either (which one would it be?).
+  canvas.getSelection().select([task, node(canvas, 'Task_2')]);
+  pressKey(canvas, 'e');
+  expect(canvas.getLabelEditing().isActive()).toBe(false);
+
+  // With the editor open, `e` is a letter being typed, not a command.
+  canvas.getSelection().select(task);
+  pressKey(canvas, 'e');
+  const input = overlay(canvas)!;
+  type(canvas, 'Task');
+  pressKey(canvas, 'e');
+  expect(overlay(canvas)).toBe(input);
+});
+
+test('the drawn label steps aside while the editor stands in for it', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const gfx = () => canvas.getGraphics('Task_1')!;
+
+  // The label text is marked as a label; the shape's other glyphs are not.
+  expect(gfx().querySelectorAll('.sf-label')).toHaveLength(1);
+  expect(gfx().classList.contains('sf-label-hidden')).toBe(false);
+
+  dblclick(canvas, center(task));
+  // A transparent editor over a visible label would double the text — bpmn-js hides
+  // it with the same marker, and the style layer decides what hiding means.
+  expect(gfx().classList.contains('sf-label-hidden')).toBe(true);
+  expect(CANVAS_CSS).toContain('.sf-canvas .sf-label-hidden .sf-label {\n  display: none;\n}');
+
+  key(canvas, 'Escape');
+  expect(gfx().classList.contains('sf-label-hidden')).toBe(false);
+
+  // …and it comes back after a commit, which re-draws the element from scratch.
+  dblclick(canvas, center(node(canvas, 'Task_1')));
+  type(canvas, 'Renamed');
+  key(canvas, 'Enter');
+  expect(gfx().classList.contains('sf-label-hidden')).toBe(false);
+  expect(renderedText(canvas, 'Task_1')).toContain('Renamed');
+});
+
+test('a gateway hides its caption while editing but keeps its × marker', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const gate = node(canvas, 'Gate_1');
+  dblclick(canvas, center(gate));
+
+  const gfx = canvas.getGraphics('Gate_1')!;
+  expect(gfx.classList.contains('sf-label-hidden')).toBe(true);
+  // Exactly one text is a label; the × is a glyph the shape is made of and stays.
+  const texts = Array.from(gfx.querySelectorAll('text'));
+  expect(texts.filter((t) => t.classList.contains('sf-label')).map((t) => t.textContent))
+    .toEqual(['Correct?']);
+  expect(texts.filter((t) => !t.classList.contains('sf-label')).map((t) => t.textContent))
+    .toEqual(['×']);
+});
+
+test('an internal editor centres its text on the label, and re-centres as lines are added', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  dblclick(canvas, center(task));
+  const input = overlay(canvas)!;
+
+  // One 12px line at line-height 1.2 in an 80px box: (80 - 14.4) / 2.
+  expect(parseFloat(input.style.paddingTop)).toBeCloseTo((80 - 12 * 1.2) / 2, 6);
+
+  input.value = 'Two\nlines';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  expect(parseFloat(input.style.paddingTop)).toBeCloseTo((80 - 2 * 12 * 1.2) / 2, 6);
+
+  // It never goes under the 7px the spec measured, however many lines there are.
+  input.value = 'a\nb\nc\nd\ne\nf\ng\nh';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  expect(parseFloat(input.style.paddingTop)).toBe(7);
+});
+
+// --- external labels as elements (parity spec §2) ----------------------------
+
+/**
+ * bpmn-js registers a caption as its own element (`<owner>_label`, carrying the
+ * OWNER's business object) and that element is what a click selects, what gets the
+ * `textW+10` outline, and what a double click edits. These cover the canvas half of
+ * that: `model/externalLabel.ts` mints the element, `render/labels.ts` draws it into
+ * its own translated `<g>`, and `render/outline.ts` gives it the default rect.
+ */
+
+/** A press–release at a diagram point (what selects an element). */
+function clickAt(canvas: Canvas, at: Pt): void {
+  const svg = canvas.getSvg();
+  fireMouse(canvas, svg, 'pointerdown', at);
+  fireMouse(canvas, svg.ownerDocument!, 'pointerup', at);
+}
+
+/** The `translate(x, y)` an element's `<g>` carries. */
+function translateOf(g: Element): Pt {
+  const m = (g.getAttribute('transform') ?? '').match(/translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\s*\)/);
+  return m ? { x: Number(m[1]), y: Number(m[2]) } : { x: 0, y: 0 };
+}
+
+/** The centre of an element's external label box. */
+function labelCentre(canvas: Canvas, id: string): Pt {
+  const box = canvas.labelFor(node(canvas, id))!;
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test('external label: it is drawn as its own translated <g>, keyed by <owner>_label', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const g = canvas.getGraphics('Start_1_label')!;
+  expect(g, 'the caption has its own graphics').not.toBeNull();
+  expect(g.getAttribute('class')).toBe('sf-external-label');
+  expect(g.getAttribute('data-label-owner')).toBe('Start_1');
+  // The caption's group sits INSIDE the owner's (which already carries the shape's
+  // translate), so its own transform is node-local — and everything under it is
+  // label-local, which is the frame the `x=-5 y=-5` outline is expressed in.
+  const owner = node(canvas, 'Start_1');
+  const label = canvas.labelFor(owner)!;
+  const local = translateOf(g);
+  expect(local.x).toBeCloseTo(label.x - owner.x, 6);
+  expect(local.y).toBeCloseTo(label.y - owner.y, 6);
+  // Tight to the glyphs — the box a click has to hit.
+  expect(label.width).toBeCloseTo(measureLabelWidth('Begin', 11), 6);
+  expect(label.height).toBe(15);
+  // …and it carries the owner's business object, exactly as bpmn-js's label does.
+  expect(label.businessObject).toBe(node(canvas, 'Start_1').businessObject);
+});
+
+test('external label: clicking it selects the LABEL, with its own outline rect', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const at = labelCentre(canvas, 'Start_1');
+  expect(canvas.hitTest(at), 'the caption is clear of every shape').toBeUndefined();
+
+  clickAt(canvas, at);
+
+  const selected = canvas.getSelection().get();
+  expect(selected.map((e) => e.id)).toEqual(['Start_1_label']);
+  expect(selected[0].labelTarget?.id).toBe('Start_1');
+
+  const g = canvas.getGraphics('Start_1_label')!;
+  expect(g.classList.contains('selected')).toBe(true);
+  const outline = g.querySelector('.sf-outline')!;
+  const label = canvas.labelFor(node(canvas, 'Start_1'))!;
+  expect(outline.tagName.toLowerCase()).toBe('rect');
+  expect([
+    outline.getAttribute('x'),
+    outline.getAttribute('y'),
+    outline.getAttribute('width'),
+    outline.getAttribute('height'),
+    outline.getAttribute('rx'),
+  ]).toEqual(['-5', '-5', String(label.width + 10), String(label.height + 10), '4']);
+  // The owner is NOT selected, and keeps no outline of its own.
+  expect(canvas.getGraphics('Start_1')!.classList.contains('selected')).toBe(false);
+});
+
+test('external label: no resize handles, and Delete on one is a no-op', async () => {
+  const { canvas, definitions } = await load(FIXTURE_XML);
+  clickAt(canvas, labelCentre(canvas, 'Gate_1'));
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Gate_1_label']);
+  // A caption is sized by its text: the overlay offers no resize gesture.
+  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(0);
+
+  const before = canvas.getScene()!.elementsById.size;
+  expect(canvas.deleteSelection()).toEqual([]);
+  expect(canvas.getScene()!.elementsById.size).toBe(before);
+  expect(boOf(definitions, 'Gate_1')).toBeTruthy();
+});
+
+test('external label: dblclick on the caption opens the editor for its owner', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const at = labelCentre(canvas, 'Start_1');
+
+  dblclick(canvas, at);
+
+  const session = canvas.getLabelEditing().getSession()!;
+  expect(session.element.id, 'the OWNER is what carries the name').toBe('Start_1');
+  expect(session.initial).toBe('Begin');
+  expect(overlay(canvas)!.classList.contains('sf-label-editor-external')).toBe(true);
+});
+
+test('external label: an edge caption is an element too, and has no white plate', async () => {
+  const { canvas } = await load(EDGE_LABEL_XML);
+  const g = canvas.getGraphics('Flow_1_label')!;
+  expect(g.getAttribute('data-label-owner')).toBe('Flow_1');
+  // bpmn-js draws bare text over the canvas — no halo rect behind the glyphs.
+  expect(g.querySelectorAll('rect')).toHaveLength(0);
+  expect(g.querySelectorAll('text')).toHaveLength(1);
+
+  const flow = canvas.getScene()!.elementsById.get('Flow_1') as any;
+  const label = canvas.labelFor(flow)!;
+  clickAt(canvas, { x: label.x + label.width / 2, y: label.y + label.height / 2 });
+  expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Flow_1_label']);
+  expect(g.querySelector('.sf-outline')!.getAttribute('rx')).toBe('4');
+});
+
+test('connection label: dblclick on a flow caption opens the editor on the flow', async () => {
+  const loaded = await load(EDGE_LABEL_XML);
+  const { canvas } = loaded;
+  const flow = canvas.getScene()!.elementsById.get('Flow_1') as any;
+  const label = canvas.labelFor(flow)!;
+
+  dblclick(canvas, { x: label.x + label.width / 2, y: label.y + label.height / 2 });
+
+  const editing = canvas.getLabelEditing();
+  expect(editing.isActive(), 'a connection caption is editable, like every other one').toBe(true);
+  const session = editing.getSession()!;
+  // The session reports the CONNECTION — that is what carries the name.
+  expect(session.element.id).toBe('Flow_1');
+  expect(session.initial).toBe('again');
+  expect(editing.getValue()).toBe('again');
+
+  // The same white bordered chrome a node's caption gets, sized tight to the text.
+  const input = overlay(canvas)!;
+  expect(input.classList.contains('sf-label-editor-external')).toBe(true);
+  expect(input.classList.contains('sf-label-editor-internal')).toBe(false);
+  expect(input.getAttribute('data-placement')).toBe('external');
+  expect(input.getAttribute('data-element-id')).toBe('Flow_1');
+  expect(input.style.fontSize).toBe('11px');
+  expect(input.style.fontWeight).toBe('400');
+  expect(parseFloat(input.style.width)).toBeCloseTo(measureLabelWidth('again', 11), 6);
+  // The drawn caption steps aside while the editor stands over it.
+  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-label-hidden')).toBe(true);
+
+  type(canvas, 'once more');
+  key(canvas, 'Enter');
+
+  expect(bo(flow).get('name')).toBe('once more');
+  expect(renderedText(canvas, 'Flow_1')).toContain('once more');
+  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-label-hidden')).toBe(false);
+  const { xml } = await roundTrip(loaded);
+  expect(xml).toContain('name="once more"');
+});
+
+test('the editor opens with a caret at the end, not the whole label selected', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+
+  // Internal…
+  dblclick(canvas, center(node(canvas, 'Task_1')));
+  const internal = overlay(canvas)!;
+  expect(internal.value).toBe('Task');
+  expect(internal.selectionEnd - internal.selectionStart).toBe(0);
+  expect(internal.selectionStart).toBe('Task'.length);
+  key(canvas, 'Escape');
+
+  // …and external: the reference collapses its range onto the end of the text in
+  // both, so the label reads as plain text rather than a blue selection band.
+  dblclick(canvas, center(node(canvas, 'Gate_1')));
+  const external = overlay(canvas)!;
+  expect(external.value).toBe('Correct?');
+  expect(external.selectionEnd - external.selectionStart).toBe(0);
+  expect(external.selectionStart).toBe('Correct?'.length);
+});
+
+test('external label: it follows its owner, outline included', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  clickAt(canvas, labelCentre(canvas, 'Start_1'));
+  const before = canvas.labelFor(node(canvas, 'Start_1'))!;
+  const beforeX = before.x;
+
+  // Move the owner through the same path a drag commits on — with the CAPTION still
+  // selected, so its chrome has to survive the owner's re-draw.
+  const drag = canvas.getDrag()!;
+  drag.startMove([node(canvas, 'Start_1')], { x: 0, y: 0 });
+  drag.end({ x: 40, y: 0 });
+
+  const owner = node(canvas, 'Start_1');
+  const after = canvas.labelFor(owner)!;
+  expect(after.x).toBe(beforeX + 40);
+  // Same element object, re-pointed — so a selection holding it stays true.
+  expect(after).toBe(before);
+  // It rides inside the owner's `<g>`, so its own transform never had to change…
+  const g = canvas.getGraphics('Start_1_label')!;
+  const local = translateOf(g);
+  expect(local.x).toBeCloseTo(after.x - owner.x, 6);
+  expect(local.y).toBeCloseTo(after.y - owner.y, 6);
+  // …and the selection chrome survived the owner's re-draw.
+  expect(g.classList.contains('selected')).toBe(true);
+  expect(g.querySelector('.sf-outline')).not.toBeNull();
+});
+
+test('labels: the font stack and weight the reference renders with', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  expect(LABEL_FONT).toBe('"IBM Plex Sans", Helvetica, sans-serif');
+
+  const internal = canvas.getGraphics('Task_1')!.querySelector('text.sf-label')!;
+  expect(internal.getAttribute('font-family')).toBe(LABEL_FONT);
+  // 400, not 600: a task's own name is no bolder than any other label.
+  expect(internal.getAttribute('font-weight')).toBe('400');
+  expect(internal.getAttribute('font-size')).toBe('12');
+
+  const external = canvas.getGraphics('Start_1_label')!.querySelector('text.sf-label')!;
+  expect(external.getAttribute('font-family')).toBe(LABEL_FONT);
+  expect(external.getAttribute('font-weight')).toBe('400');
+  expect(external.getAttribute('font-size')).toBe('11');
 });

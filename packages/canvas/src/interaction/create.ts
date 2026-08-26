@@ -133,6 +133,17 @@ export function boundsFor(prototype: CreatePrototype, center: Point): Bounds {
   };
 }
 
+/**
+ * The container a hit drops INTO: the shape itself, or — for a connection — the
+ * container that connection lives in, which is how dropping onto a sequence flow
+ * lands the new shape in the flow's own parent (parity spec §7: an insert-on-flow
+ * drop is allowed, and marks the connection rather than a container).
+ */
+function containerOf(hit: SceneElement | undefined): SceneNode | undefined {
+  if (!hit) return undefined;
+  return hit.kind === 'node' ? hit : hit.parent;
+}
+
 /** What a candidate drop point resolves to. */
 export interface DropTarget {
   /** The container the shape would land in; `undefined` = the plane root. */
@@ -157,6 +168,21 @@ export interface CreateOptions {
   getScale: () => number;
   /** Optional coordinate snap (grid), applied to the drop centre. */
   snap?: (point: Point) => Point;
+  /**
+   * Draw the ghost that follows the cursor — the shape itself, rendered as a blue
+   * outline (parity spec §7 "Creating from the app palette"). The canvas injects its
+   * renderer here; without it the gesture falls back to a plain dashed footprint,
+   * which is all a bare `Create` outside a canvas can draw.
+   */
+  drawGhost?: (prototype: CreatePrototype, bounds: Bounds) => SVGElement | undefined;
+  /**
+   * Report the element the pointer is over and whether it would take the drop, so
+   * the canvas can tint it (`new-parent` / `drop-not-ok`). `undefined` means empty
+   * canvas — the plane root itself is the target. Called on every frame, and once
+   * with `undefined` when the gesture ends, so the marks are exactly as long-lived
+   * as the gesture.
+   */
+  markTarget?: (target: SceneElement | undefined, allowed: boolean) => void;
 }
 
 interface CreateState {
@@ -201,8 +227,14 @@ export class Create {
     const state = this.state;
     if (!state) return;
     state.center = this.options.snap ? this.options.snap(point) : { ...point };
-    state.target = this.resolveTarget(state.prototype, state.center);
-    this.drawPreview(boundsFor(state.prototype, state.center), state.target.verdict !== false);
+    // One hit test drives both halves: the rules are asked about the CONTAINER the
+    // drop would land in, while the tint goes on whatever is actually under the
+    // pointer — which for an insert-on-flow drop is the connection itself.
+    const over = this.options.hitTest(state.center);
+    state.target = this.resolveTargetOver(state.prototype, over);
+    const allowed = state.target.verdict !== false;
+    this.drawPreview(state.prototype, boundsFor(state.prototype, state.center), allowed);
+    this.options.markTarget?.(over, allowed);
   }
 
   /**
@@ -245,9 +277,14 @@ export class Create {
    * running the gesture.
    */
   resolveTarget(prototype: CreatePrototype, center: Point): DropTarget {
+    return this.resolveTargetOver(prototype, this.options.hitTest(center));
+  }
+
+  /** {@link Create.resolveTarget} for an already-resolved hit (one hit test per frame). */
+  private resolveTargetOver(prototype: CreatePrototype, over: SceneElement | undefined): DropTarget {
     const scene = this.options.getScene();
     if (!scene) return { verdict: false };
-    const parent = this.containerAt(center);
+    const parent = containerOf(over);
     const context: RuleElement = parent ?? scene.rootPlane;
     const verdict = this.options.rules.allowed('shape.create', { shape: prototype, parent: context });
     if (verdict === 'attach') return parent ? { parent, verdict } : { verdict: false };
@@ -255,13 +292,6 @@ export class Create {
   }
 
   // --- internals ------------------------------------------------------------
-
-  /** The node a point drops onto: the topmost shape, or the parent of a hit edge. */
-  private containerAt(point: Point): SceneNode | undefined {
-    const hit = this.options.hitTest(point);
-    if (!hit) return undefined;
-    return hit.kind === 'node' ? hit : hit.parent;
-  }
 
   /** Mint the BO + DI pair and index the node in the scene. */
   private commit(prototype: CreatePrototype, center: Point, target: DropTarget): SceneNode | undefined {
@@ -283,24 +313,40 @@ export class Create {
     return node;
   }
 
-  private drawPreview(bounds: Bounds, allowed: boolean): void {
-    const scale = this.scale();
-    const color = allowed ? '#1a73e8' : '#d93025';
+  /**
+   * The ghost. With a renderer injected ({@link CreateOptions.drawGhost}) it is the
+   * real shape wearing `sf-dragger` — blue outline, no fills, label included, the
+   * same ghost a move drag leaves under the cursor — and it stays blue whether or not
+   * the drop is allowed, because the *target* is what turns red (parity spec §7).
+   * `data-allowed` records the verdict either way.
+   */
+  private drawPreview(prototype: CreatePrototype, bounds: Bounds, allowed: boolean): void {
     if (!this.preview) {
       this.preview = svgCreate('g', { class: 'sf-create-preview' }) as SVGGElement;
-      append(this.preview, svgCreate('rect', { class: 'sf-create-preview-shape' }));
       append(this.options.layer, this.preview);
     }
     this.preview.setAttribute('data-allowed', String(allowed));
-    const rect = this.preview.firstElementChild as SVGRectElement | null;
-    if (!rect) return;
+
+    const ghost = this.options.drawGhost?.(prototype, bounds);
+    if (ghost) {
+      while (this.preview.firstChild) this.preview.removeChild(this.preview.firstChild);
+      append(this.preview, ghost);
+      return;
+    }
+    // No renderer: a plain dashed footprint, which is all the model half can draw.
+    const scale = this.scale();
+    let rect = this.preview.firstElementChild as SVGRectElement | null;
+    if (!rect) {
+      rect = svgCreate('rect', { class: 'sf-create-preview-shape' }) as SVGRectElement;
+      append(this.preview, rect);
+    }
     attr(rect, {
       x: bounds.x,
       y: bounds.y,
       width: bounds.width,
       height: bounds.height,
-      fill: allowed ? 'rgba(26,115,232,0.08)' : 'rgba(217,48,37,0.08)',
-      stroke: color,
+      fill: 'rgba(26,115,232,0.08)',
+      stroke: '#1a73e8',
       'stroke-width': 1.5 / scale,
       'stroke-dasharray': `${4 / scale},${3 / scale}`,
     });
@@ -309,6 +355,8 @@ export class Create {
   private clearPreview(): void {
     remove(this.preview);
     this.preview = undefined;
+    // The tint belongs to the gesture, not to the element: it goes when the ghost does.
+    this.options.markTarget?.(undefined, false);
   }
 
   private scale(): number {

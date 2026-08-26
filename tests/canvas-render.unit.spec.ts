@@ -8,6 +8,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { Canvas, setDocument } from '@canvas/index.ts';
+import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
@@ -150,3 +151,63 @@ for (const filename of files) {
     }
   });
 }
+
+// --- artifact captions -------------------------------------------------------
+
+/** Render one example and hand back its canvas. */
+async function render(filename: string): Promise<Canvas> {
+  const { rootElement: definitions } = await freshModdle().fromXML(exampleXml(filename));
+  const canvas = new Canvas();
+  canvas.importDefinitions(definitions);
+  return canvas;
+}
+
+/** The `<text>` lines the renderer drew inside an element's `<g>`. */
+function textsOf(canvas: Canvas, id: string): string[] {
+  const g = canvas.getGraphics(id);
+  return g ? Array.from(g.querySelectorAll('text')).map((t) => t.textContent ?? '') : [];
+}
+
+test('a group is captioned from its categoryValue, centred on the top of the frame', async () => {
+  const canvas = await render('kitchensink.studyflow.png');
+  // The caption is NOT the group's `name` (it has none): BPMN keeps it on the
+  // referenced `bpmn:CategoryValue`, which is where bpmn-js reads it from too.
+  expect(textsOf(canvas, 'Group_BpmnEvents')).toEqual(['BPMN · Events']);
+  expect(textsOf(canvas, 'Group_BpmnGateways')).toEqual(['BPMN · Gateways']);
+  expect(textsOf(canvas, 'Group_Exec')).toEqual(['exec · Execution & scope']);
+
+  const group = canvas.getScene()!.elementsById.get('Group_BpmnEvents') as any;
+  const text = canvas.getGraphics('Group_BpmnEvents')!.querySelector('text')!;
+  // Node-local coordinates: horizontally centred, 10 below the top edge — bpmn-js's
+  // `getExternalLabelMid` special-case for a group.
+  expect(Number(text.getAttribute('x'))).toBeCloseTo(group.width / 2, 6);
+  expect(text.getAttribute('y')).toBe('10');
+  expect(text.getAttribute('text-anchor')).toBe('middle');
+});
+
+test('a text annotation draws its `text`, wrapped — not its `name`', async () => {
+  const canvas = await render('kitchensink.studyflow.png');
+  const lines = textsOf(canvas, 'Bd_Annotation');
+  expect(lines.length).toBeGreaterThan(1);
+  expect(lines.join(' ')).toBe('A free-form note. Groups (these labelled bands) are artifacts too.');
+  // The name is a placeholder BPMN does not display; drawing it was the bug.
+  expect(lines.join(' ')).not.toContain('Text annotation');
+  const first = canvas.getGraphics('Bd_Annotation')!.querySelector('text')!;
+  // Top-left inside the bracket, inset by bpmn-js's TEXT_ANNOTATION_PADDING.
+  expect(first.getAttribute('x')).toBe('7');
+  expect(first.getAttribute('text-anchor')).toBeNull();
+});
+
+test('a choreography task draws its name in the MIDDLE band, not on the divider', async () => {
+  const canvas = await render('choreography_demo.studyflow.png');
+  const task = canvas.getScene()!.elementsById.get('Consent') as any;
+  const g = canvas.getGraphics('Consent')!;
+  const name = Array.from(g.querySelectorAll('text')).find((t) => t.textContent === 'Give consent')!;
+  // The name is drawn inside a nested group translated down by one band height, so
+  // its EFFECTIVE y is the local y plus that shift.
+  const shift = translateOf(name.parentElement as Element).y;
+  expect(shift).toBeCloseTo(choreographyBandHeight(task.height), 6);
+  // Dead centre of the 20…70 middle band — where `labelBounds` opens the editor —
+  // rather than sitting on the top divider, which is where the un-nested draw put it.
+  expect(shift + Number(name.getAttribute('y'))).toBeCloseTo(task.height / 2, 6);
+});

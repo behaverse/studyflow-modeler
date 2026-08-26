@@ -16,6 +16,7 @@ import { toLocalName } from '@core/naming.ts';
 import { readChoreographyBands } from '@canvas/model/choreography.ts';
 import { isCollapsed, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
+import { depthOf } from '@canvas/model/tree.ts';
 import type {
   ModdleObject,
   Scene,
@@ -44,6 +45,12 @@ import {
   drawEdgeLabel,
   drawExternalLabel,
   drawInternalLabel,
+  labelIdOf,
+  wrap,
+  EXTERNAL_LABEL_FONT_SIZE,
+  LABEL_CLASS,
+  LABEL_FONT,
+  LABEL_LINE_HEIGHT,
 } from '@canvas/render/labels.ts';
 import {
   drawIcon,
@@ -109,6 +116,25 @@ export function categoryOf(type: string): NodeCategory {
   if (type === BPMN.TextAnnotation) return 'annotation';
   if (type === BPMN.Participant || type === BPMN.Lane) return 'participant';
   return 'unknown';
+}
+
+/** Inset of a text annotation's note from its bracket (bpmn-js `TEXT_ANNOTATION_PADDING`). */
+const ANNOTATION_PADDING = 7;
+
+/** Hard ceiling on the lines of a text annotation, so a runaway string still ends. */
+const ANNOTATION_MAX_LINES = 20;
+
+/**
+ * Where a group's caption sits, node-local: on the TOP edge of the frame, half a
+ * default label height (`DEFAULT_LABEL_SIZE.height / 2` = 10) below it — bpmn-js's
+ * `getExternalLabelMid` special-case for `bpmn:Group`.
+ */
+const GROUP_LABEL_MID_Y = 10;
+
+/** The `text` of a business object (a `bpmn:TextAnnotation`'s note), or `''`. */
+function textOf(businessObject: ModdleObject | undefined): string {
+  const text = prop(businessObject, 'text');
+  return typeof text === 'string' ? text : '';
 }
 
 function eventKind(node: SceneNode): EventKind {
@@ -218,7 +244,22 @@ export class Renderer {
     if (!g) return false;
     remove(g);
     this.graphicsById.delete(id);
+    // The caption is drawn inside the element's own `<g>`, so it went with it; its
+    // index entry has to go too or a stale label element stays addressable.
+    this.graphicsById.delete(labelIdOf({ id }));
     return true;
+  }
+
+  /**
+   * Index (or forget) the `<g>` an element's external label was drawn into, under
+   * the label's own id — `model/externalLabel.ts` mints a scene element for that id,
+   * and selection/outlining resolve its graphics through this very map.
+   */
+  private registerLabel(owner: SceneElement, gfx: SVGGElement | undefined): void {
+    if (!owner.id) return;
+    const id = labelIdOf(owner);
+    if (gfx) this.graphicsById.set(id, gfx);
+    else this.graphicsById.delete(id);
   }
 
   /** Draw one node as a translated `<g>`; returns the group. */
@@ -240,7 +281,7 @@ export class Renderer {
     switch (category) {
       case 'event':
         drawEvent(g, node.width, node.height, style, eventKind(node));
-        drawExternalLabel(g, node, name, style.stroke, node.label);
+        this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'task':
         drawTask(g, node.width, node.height, style, THICK_ACTIVITY.has(node.type));
@@ -251,22 +292,24 @@ export class Renderer {
       case 'gateway':
         drawDiamond(g, node.width, node.height, style);
         this.drawGatewayGlyph(g, node, style.stroke);
-        drawExternalLabel(g, node, name, style.stroke, node.label);
+        this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'data':
         if (node.type === BPMN.DataStoreReference) drawDataStore(g, node.width, node.height, style);
         else drawDataObject(g, node.width, node.height, style);
-        drawExternalLabel(g, node, name, style.stroke, node.label);
+        this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'choreography':
         this.drawChoreography(g, node, style, name);
         break;
       case 'group':
         drawGroup(g, node.width, node.height, style);
+        this.drawGroupLabel(g, node, style.stroke);
         break;
       case 'annotation':
         drawTextAnnotation(g, node.width, node.height, style);
-        this.drawAnnotationText(g, name, style.stroke);
+        // A note's text lives in `text`, not `name` — see `drawAnnotationText`.
+        this.drawAnnotationText(g, node, textOf(node.businessObject) || name, style.stroke);
         break;
       case 'participant':
         drawParticipant(g, node.width, node.height, style);
@@ -347,31 +390,84 @@ export class Renderer {
     });
   }
 
-  private drawAnnotationText(g: SVGGElement, name: string, color: string): void {
-    if (!name) return;
-    const text = create('text', {
-      x: 6,
-      y: 16,
-      'font-size': 12,
-      'font-family': 'system-ui, sans-serif',
-      fill: color,
-      'stroke-width': 0,
+  /**
+   * A group's caption. BPMN keeps it on the referenced `bpmn:CategoryValue` rather
+   * than on the group itself (bpmn-js `LabelUtil.getLabelAttr` answers
+   * `categoryValueRef` for a `bpmn:Group`), which is why reading `name` drew nothing
+   * at all, and it is centred on the frame's TOP edge — `getExternalLabelMid` puts a
+   * group's label mid at `y + DEFAULT_LABEL_SIZE.height / 2`, i.e. 10 below the top,
+   * instead of below the shape like every other caption.
+   *
+   * It is DRAWN here but is not (yet) an editable label ELEMENT: committing an edit
+   * means minting the `bpmn:Category` / `bpmn:CategoryValue` pair the way bpmn-js's
+   * `GroupBehavior` does, which is P6b.
+   */
+  private drawGroupLabel(g: SVGGElement, node: SceneNode, color: string): void {
+    const categoryValue = prop(node.businessObject, 'categoryValueRef');
+    const value = categoryValue && typeof categoryValue === 'object'
+      ? prop(categoryValue as ModdleObject, 'value')
+      : undefined;
+    if (typeof value !== 'string' || !value) return;
+    drawBandText(
+      g,
+      value,
+      node.width / 2,
+      GROUP_LABEL_MID_Y,
+      node.width,
+      color,
+      EXTERNAL_LABEL_FONT_SIZE,
+      '400',
+    );
+  }
+
+  /**
+   * A text annotation's note, top-left inside the bracket and wrapped to the shape —
+   * bpmn-js reads `semantic.get('text')` and lays it out `left-top` with
+   * `TEXT_ANNOTATION_PADDING`. The old single truncated line came from `name`, which
+   * on a `bpmn:TextAnnotation` is a different (usually placeholder) string.
+   */
+  private drawAnnotationText(
+    g: SVGGElement,
+    node: SceneNode,
+    content: string,
+    color: string,
+  ): void {
+    if (!content) return;
+    const fontSize = 12;
+    const inner = Math.max(1, node.width - 2 * ANNOTATION_PADDING);
+    // Deliberately NOT clamped to the box height: bpmn-js lays a note out to as many
+    // lines as it takes and lets it overflow the bracket (the shape is resizable, and
+    // silently ellipsizing a comment loses the only content the element has). The cap
+    // is a guard against a pathological string, not a layout rule.
+    const lines = wrap(content, inner + 8, fontSize, ANNOTATION_MAX_LINES);
+    lines.forEach((line, i) => {
+      const text = create('text', {
+        class: LABEL_CLASS,
+        x: ANNOTATION_PADDING,
+        y: ANNOTATION_PADDING + (i + 0.5) * LABEL_LINE_HEIGHT,
+        'font-size': fontSize,
+        'font-family': LABEL_FONT,
+        'dominant-baseline': 'middle',
+        fill: color,
+        'stroke-width': 0,
+      });
+      text.textContent = line;
+      append(g, text);
     });
-    text.textContent = name.length > 40 ? name.slice(0, 39) + '…' : name;
-    append(g, text);
   }
 
   private drawParticipantLabel(g: SVGGElement, node: SceneNode, name: string, color: string): void {
     if (!name) return;
     // Vertical label in the left title band.
     const text = create('text', {
+      class: LABEL_CLASS,
       x: 15,
       y: node.height / 2,
       transform: `rotate(-90, 15, ${node.height / 2})`,
       'text-anchor': 'middle',
       'dominant-baseline': 'central',
       'font-size': 12,
-      'font-family': 'system-ui, sans-serif',
+      'font-family': LABEL_FONT,
       fill: color,
       'stroke-width': 0,
     });
@@ -418,7 +514,13 @@ export class Renderer {
     drawBandText(g, bands.top, width / 2, bandHeight / 2, width, stroke, 11, '400');
     drawBandText(g, bands.bottom, width / 2, height - bandHeight / 2, width, stroke, 11, '400');
     if (name) {
-      drawInternalLabel(g, { ...node, height: height - 2 * bandHeight, y: node.y + bandHeight } as SceneNode, name, stroke);
+      // The task name belongs in the MIDDLE band. Every drawer works in the
+      // element's local frame (the `<g>` already carries the translate), so the
+      // downward shift has to be a nested group — writing `y: node.y + bandHeight`
+      // on the node copy is inert, and the name would centre one band-height too
+      // high, straight on top of the divider line and the top participant's name.
+      const inner = append(g, group(0, bandHeight));
+      drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, stroke);
     }
   }
 
@@ -450,22 +552,14 @@ export class Renderer {
     });
     append(g, line);
     const name = prop(edge.businessObject, 'name');
-    if (typeof name === 'string' && name) drawEdgeLabel(g, edge, name, stroke, edge.label);
+    this.registerLabel(
+      edge,
+      typeof name === 'string' && name
+        ? drawEdgeLabel(g, edge, name, stroke, edge.label)
+        : undefined,
+    );
     return g;
   }
-}
-
-/** Depth in the containment tree (ancestors-first z-order). */
-function depthOf(node: SceneNode): number {
-  let depth = 0;
-  let parent = node.parent;
-  const guard = new Set<SceneNode>();
-  while (parent && !guard.has(parent)) {
-    guard.add(parent);
-    depth += 1;
-    parent = parent.parent;
-  }
-  return depth;
 }
 
 /** The arrowhead marker id for a flow type (defined once in the canvas `<defs>`). */

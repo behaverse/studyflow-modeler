@@ -506,6 +506,16 @@ export class Rules {
   }
 
   /**
+   * The width/height floor this engine would judge `shape` against — the same
+   * lookup {@link Rules.canResize} runs, exposed so a live resize gesture can
+   * CLAMP to it instead of producing bounds the rules would then reject
+   * (`interaction/drag.ts` `startResize`).
+   */
+  minSizeFor(shape: RuleElement | undefined): Size {
+    return minSizeFor(bpmnTypeOf(shape, this.catalog), this.minSizes);
+  }
+
+  /**
    * `shape.create` — containment. `parent` may be a `SceneNode`, a `Plane`
    * (whose `businessObject` is the process/collaboration root) or `undefined`,
    * which is read as the default `bpmn:Process` root. A drop onto a `bpmn:Group`

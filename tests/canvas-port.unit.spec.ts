@@ -408,9 +408,13 @@ test('gestures.startCreate mints a node on drop; primeHover is retired', async (
   // Design §4 (3): a diagram-js `dragging` workaround with no native counterpart.
   expect(port.gestures.primeHover(undefined as any)).toBeUndefined();
 
-  // Lasso "activation" only means: do not keep the current selection.
+  // The palette's lasso button ARMS the tool — dragging empty canvas pans, so this
+  // is the only way to lasso (parity spec §8). It leaves the selection alone.
+  const selected = port.selection.get().map((e: any) => e.id);
   port.gestures.startLasso(undefined as any);
-  expect(port.selection.get()).toEqual([]);
+  expect(canvas.isLassoArmed()).toBe(true);
+  expect(canvas.getSvg().classList.contains('sf-lasso-tool')).toBe(true);
+  expect(port.selection.get().map((e: any) => e.id)).toEqual(selected);
 });
 
 test('gestures.startConnect drags a flow out of a node', async () => {

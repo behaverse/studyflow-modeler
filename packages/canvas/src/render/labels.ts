@@ -19,6 +19,16 @@ export const LABEL_LINE_HEIGHT = 15;
 
 const LINE_HEIGHT = LABEL_LINE_HEIGHT;
 
+/**
+ * Approximate rendered width of `text` at `fontSize`, from the same glyph-advance
+ * heuristic {@link fit} and {@link wrap} measure with — so a box sized by this and a
+ * line ellipsized by those agree. Used by the inline editor to sit tight to an
+ * external label's text (parity spec §5), where a fixed box would be visibly wrong.
+ */
+export function measureLabelWidth(text: string, fontSize: number): number {
+  return text.length * fontSize * CHAR_WIDTH_RATIO;
+}
+
 /** Ellipsize `text` to fit `maxWidth` at `fontSize` (ported from choreographyLayout). */
 export function fit(text: string, maxWidth: number, fontSize: number): string {
   const perChar = fontSize * CHAR_WIDTH_RATIO;
@@ -52,8 +62,17 @@ export function wrap(text: string, maxWidth: number, fontSize: number, maxLines:
   return lines;
 }
 
-/** Font stack for labels — a plain system stack; the canvas bundles no font. */
-export const LABEL_FONT = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+/**
+ * Font stack for every label the canvas draws, and for the inline editor that
+ * stands in for one.
+ *
+ * This is the app's `MODELER_FONT_FAMILY` (`packages/modeler/src/constants.ts`),
+ * which the bpmn backend hands to bpmn-js as `textRenderer.defaultStyle.fontFamily`
+ * — parity spec §1 "Font stack". It is spelled out here rather than imported
+ * because `packages/canvas` is a leaf package (no `@modeler/*`); the two must be
+ * kept in step, and `tests/canvas-label.unit.spec.ts` asserts the exact string.
+ */
+export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';
 
 interface TextOptions {
   x: number;
@@ -64,8 +83,17 @@ interface TextOptions {
   anchor?: 'start' | 'middle' | 'end';
 }
 
+/**
+ * Class on every `<text>` that is an element's LABEL, as opposed to a glyph the
+ * shape is made of (a gateway's ×, an icon). It is what the inline editor hides
+ * while it is open — the same split diagram-js makes with `djs-label`, and the
+ * reason bpmn-js can leave its editor transparent without doubling the text.
+ */
+export const LABEL_CLASS = 'sf-label';
+
 function textLine(content: string, opts: TextOptions): SVGTextElement {
   const el = create('text', {
+    class: LABEL_CLASS,
     x: opts.x,
     y: opts.y,
     fill: opts.color,
@@ -100,25 +128,36 @@ export function drawInternalLabel(
       x: node.width / 2,
       y: firstY + i * LINE_HEIGHT,
       fontSize,
-      fontWeight: '600',
+      // 400, not 600: the reference renderer draws a task's own name at the same
+      // weight as every other label (parity spec §1 "Internal (task) label").
+      fontWeight: '400',
       color,
     }));
   });
 }
 
+/** Font size an external (below-the-shape) label is drawn at. */
+export const EXTERNAL_LABEL_FONT_SIZE = 11;
+
+/** Class on the `<g>` that IS an external label — a node's caption or an edge's name. */
+export const EXTERNAL_LABEL_CLASS = 'sf-external-label';
+
 /**
- * Draw a node's name below the box (events, gateways, data). Coordinates are
- * node-local; honors an explicit label DI bound when present via `label`.
+ * The id an element's label carries, both in the DI-backed {@link SceneLabel} the
+ * importer builds and on the `<g>` the drawers below emit — `<owner>_label`, which
+ * is how diagram-js registers an external label as its own element.
  */
-export function drawExternalLabel(
-  container: SVGElement,
+export function labelIdOf(owner: { id: string }): string {
+  return `${owner.id}_label`;
+}
+
+/** The wrapped lines, and the centre they hang off, of a node's external label. */
+function externalLabelLayout(
   node: SceneNode,
   name: string,
-  color: string,
   label?: SceneLabel,
-  fontSize = 11,
-): void {
-  if (!name) return;
+  fontSize = EXTERNAL_LABEL_FONT_SIZE,
+): { lines: string[]; cx: number; cy: number } {
   let cx = node.width / 2;
   let cy = node.height + LINE_HEIGHT * 0.9;
   // An explicit label bound is in diagram coordinates; convert to node-local.
@@ -127,16 +166,76 @@ export function drawExternalLabel(
     cy = label.y - node.y + (label.height ?? LINE_HEIGHT) / 2;
   }
   const maxWidth = Math.max(node.width, 80);
-  const lines = wrap(name, maxWidth * 1.5, fontSize, 2);
-  const firstY = cy - ((lines.length - 1) * LINE_HEIGHT) / 2;
+  return { lines: wrap(name, maxWidth * 1.5, fontSize, 2), cx, cy };
+}
+
+/** The tight text box (local frame) a set of centred lines occupies. */
+function textBox(lines: readonly string[], cx: number, cy: number, fontSize: number): Bounds {
+  const width = Math.max(1, ...lines.map((line) => measureLabelWidth(line, fontSize)));
+  const height = Math.max(1, lines.length) * LINE_HEIGHT;
+  return { x: cx - width / 2, y: cy - height / 2, width, height };
+}
+
+/**
+ * The DIAGRAM-space box the glyphs of a node's external label actually cover —
+ * tight to the text, unlike {@link externalLabelBounds}, which is the wider region
+ * the text is centred *in* and which the inline editor opens over.
+ *
+ * This is the geometry of the label as an ELEMENT (`model/externalLabel.ts`): what a
+ * click on the caption hits, and what its selection outline is inset from — parity
+ * spec §2 gives an external label the outline `x=-5 y=-5 w=textW+10 h=textH+10`,
+ * which only means anything against the text box.
+ */
+export function externalLabelTextBounds(
+  node: SceneNode,
+  name: string,
+  label?: SceneLabel,
+  fontSize = EXTERNAL_LABEL_FONT_SIZE,
+): Bounds {
+  const { lines, cx, cy } = externalLabelLayout(node, name, label, fontSize);
+  const box = textBox(lines, cx, cy, fontSize);
+  return { x: node.x + box.x, y: node.y + box.y, width: box.width, height: box.height };
+}
+
+/**
+ * Draw a node's name below the box (events, gateways, data) as its own `<g>`,
+ * translated to the top-left of the text and carrying the label's own
+ * `data-element-id` — so the caption is an element a user can click, outline and
+ * edit, exactly as diagram-js registers an external label.
+ *
+ * Coordinates inside the group are label-local (`0,0` = the text box's top-left),
+ * which is the frame parity spec §2's `x=-5 y=-5` outline is expressed in. The group
+ * still lives inside the owner's `<g>`, so it follows the shape for free.
+ *
+ * Returns the group, or `undefined` for an unnamed node.
+ */
+export function drawExternalLabel(
+  container: SVGElement,
+  node: SceneNode,
+  name: string,
+  color: string,
+  label?: SceneLabel,
+  fontSize = EXTERNAL_LABEL_FONT_SIZE,
+): SVGGElement | undefined {
+  if (!name) return undefined;
+  const { lines, cx, cy } = externalLabelLayout(node, name, label, fontSize);
+  const box = textBox(lines, cx, cy, fontSize);
+  const g = create('g', {
+    class: EXTERNAL_LABEL_CLASS,
+    'data-element-id': labelIdOf(node),
+    'data-label-owner': node.id,
+    transform: `translate(${box.x}, ${box.y})`,
+  }) as SVGGElement;
   lines.forEach((line, i) => {
-    append(container, textLine(line, {
-      x: cx,
-      y: firstY + i * LINE_HEIGHT,
+    append(g, textLine(line, {
+      x: box.width / 2,
+      y: (i + 0.5) * LINE_HEIGHT,
       fontSize,
       color,
     }));
   });
+  append(container, g);
+  return g;
 }
 
 /**
@@ -168,27 +267,53 @@ export function externalLabelBounds(node: SceneNode, label?: SceneLabel): Bounds
 /** Font size an edge label is drawn at. */
 export const EDGE_LABEL_FONT_SIZE = 11;
 
+/** How far a connection's name is set off its line (bpmn-js `FLOW_LABEL_INDENT`). */
+export const FLOW_LABEL_INDENT = 15;
+
+/** The two waypoints a connection's label hangs between (bpmn-js `getWaypointsMid`). */
+function midSegment(waypoints: readonly Point[]): [Point, Point] {
+  const mid = waypoints.length / 2 - 1;
+  const first = waypoints[Math.floor(mid)] ?? waypoints[0];
+  const second = waypoints[Math.ceil(mid + 0.01)] ?? first;
+  return [first, second];
+}
+
 /**
- * The point an unpositioned connection label hangs off — the same rule diagram-js
- * uses: the middle waypoint when there is an odd number of them, otherwise the
- * midpoint of the two middle ones. Keeps a label on the polyline instead of at the
- * centre of a bounding box the line may not pass through.
+ * The midpoint of a connection's middle SEGMENT — bpmn-js's `getWaypointsMid`, index
+ * arithmetic included: `waypoints.length / 2 - 1`, floored and ceiled, which for an
+ * odd waypoint count is the midpoint of the two *before* the middle one rather than
+ * the middle waypoint itself. Keeps a label on the polyline instead of at the centre
+ * of a bounding box the line may not pass through.
  */
 export function waypointsMid(waypoints: readonly Point[]): Point {
   if (waypoints.length === 0) return { x: 0, y: 0 };
   if (waypoints.length === 1) return { ...waypoints[0] };
-  const middle = Math.floor(waypoints.length / 2);
-  if (waypoints.length % 2 === 1) return { ...waypoints[middle] };
-  const a = waypoints[middle - 1];
-  const b = waypoints[middle];
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const [first, second] = midSegment(waypoints);
+  return { x: first.x + (second.x - first.x) / 2, y: first.y + (second.y - first.y) / 2 };
+}
+
+/**
+ * Where an unpositioned connection label is CENTRED: the midpoint above, set off the
+ * line by {@link FLOW_LABEL_INDENT} — up from a mostly-horizontal segment, right of a
+ * mostly-vertical one (bpmn-js `getFlowLabelPosition`). Without the offset the
+ * polyline runs straight through the glyphs, which is why bpmn-js needs no plate
+ * behind them.
+ */
+export function flowLabelPosition(waypoints: readonly Point[]): Point {
+  const mid = waypointsMid(waypoints);
+  if (waypoints.length < 2) return mid;
+  const [first, second] = midSegment(waypoints);
+  const angle = Math.atan((second.y - first.y) / (second.x - first.x));
+  return Math.abs(angle) < Math.PI / 2
+    ? { x: mid.x, y: mid.y - FLOW_LABEL_INDENT }
+    : { x: mid.x + FLOW_LABEL_INDENT, y: mid.y };
 }
 
 /**
  * The diagram-space box a connection's name is painted into — shared by the drawer
  * and by hit-testing, so the label a user sees is the label they can click. An
  * explicit `bpmndi:BPMNLabel.bounds` wins; otherwise the box is derived around
- * {@link waypointsMid}.
+ * {@link flowLabelPosition} — beside the line, not on it.
  */
 export function edgeLabelBounds(edge: SceneEdge, name: string, label?: SceneLabel): Bounds {
   const height = LINE_HEIGHT;
@@ -201,14 +326,39 @@ export function edgeLabelBounds(edge: SceneEdge, name: string, label?: SceneLabe
       height: label.height ?? height,
     };
   }
-  const mid = waypointsMid(edge.waypoints);
+  const mid = flowLabelPosition(edge.waypoints);
   return { x: mid.x - width / 2, y: mid.y - height / 2, width, height };
 }
 
+/** The text an edge's name is drawn as, ellipsized to its box. */
+function edgeLabelText(edge: SceneEdge, name: string, label?: SceneLabel): string {
+  return fit(name, edgeLabelBounds(edge, name, label).width * 1.5, EDGE_LABEL_FONT_SIZE);
+}
+
 /**
- * Draw a connection's name into its own `<g>` (diagram coordinates, so the group
- * carries no transform of its own). Returns the group, or `undefined` for an
- * unnamed edge.
+ * The DIAGRAM-space box an edge label's glyphs cover — tight to the text, the
+ * counterpart of {@link externalLabelTextBounds} for connections. It is the label's
+ * geometry as an ELEMENT: what a click hits and what the outline is inset from.
+ */
+export function edgeLabelTextBounds(edge: SceneEdge, name: string, label?: SceneLabel): Bounds {
+  const region = edgeLabelBounds(edge, name, label);
+  const text = edgeLabelText(edge, name, label);
+  return textBox(
+    [text],
+    region.x + region.width / 2,
+    region.y + region.height / 2,
+    EDGE_LABEL_FONT_SIZE,
+  );
+}
+
+/**
+ * Draw a connection's name into its own `<g>`, translated to the top-left of the
+ * text so everything inside is label-local (see {@link drawExternalLabel}).
+ *
+ * There is deliberately NO plate behind the glyphs: bpmn-js draws a connection label
+ * as bare text over the canvas, and the white halo this used to paint was visible
+ * chrome the reference does not have (parity gap §9). Returns the group, or
+ * `undefined` for an unnamed edge.
  */
 export function drawEdgeLabel(
   container: SVGElement,
@@ -218,23 +368,19 @@ export function drawEdgeLabel(
   label?: SceneLabel,
 ): SVGGElement | undefined {
   if (!name) return undefined;
-  const box = edgeLabelBounds(edge, name, label);
+  const box = edgeLabelTextBounds(edge, name, label);
   // Its own `data-element-id` (`<edge>_label`), matching how a diagram-js external
   // label is registered — an app or a test can address the label, and clicking it
-  // selects the connection it names (`interaction/hit.ts`).
+  // selects it (`model/externalLabel.ts`).
   const g = create('g', {
-    class: 'sf-external-label',
-    'data-element-id': `${edge.id}_label`,
+    class: EXTERNAL_LABEL_CLASS,
+    'data-element-id': labelIdOf(edge),
     'data-label-owner': edge.id,
+    transform: `translate(${box.x}, ${box.y})`,
   }) as SVGGElement;
-  // An opaque plate so the polyline does not run through the glyphs.
-  append(g, create('rect', {
-    x: box.x, y: box.y, width: box.width, height: box.height,
-    fill: '#ffffff', stroke: 'none', opacity: 0.85, rx: 2, ry: 2,
-  }));
-  append(g, textLine(fit(name, box.width * 1.5, EDGE_LABEL_FONT_SIZE), {
-    x: box.x + box.width / 2,
-    y: box.y + box.height / 2,
+  append(g, textLine(edgeLabelText(edge, name, label), {
+    x: box.width / 2,
+    y: box.height / 2,
     fontSize: EDGE_LABEL_FONT_SIZE,
     color,
   }));

@@ -43,12 +43,27 @@ function withDefaults(style: ShapeStyle): Required<Omit<ShapeStyle, 'dashArray'>
 /** Kinds of event ring; drives stroke weight and inner rings. */
 export type EventKind = 'start' | 'end' | 'intermediateThrow' | 'intermediateCatch' | 'boundary';
 
+/**
+ * Radius of the ring an event of `w × h` is drawn with. Exported so the selection
+ * outline (`render/outline.ts`) can sit a fixed distance OUTSIDE the ring the user
+ * actually sees rather than re-deriving it from the bounds.
+ *
+ * This is bpmn-js's `drawCircle` — `Math.round((width + height) / 4)`, i.e. the ring
+ * spans the FULL bounds (r=18 for the standard 36×36 event) with its stroke
+ * straddling them, not inset by a unit. The one unit matters: it propagates into the
+ * selection outline, which parity spec §2 pins at r=23 for a start event and r=24 for
+ * an end event.
+ */
+export function eventRadius(w: number, h: number): number {
+  return Math.max(0, Math.round((w + h) / 4));
+}
+
 /** Draw an event circle. End is a thick ring; intermediate/boundary get a double ring. */
 export function drawEvent(parent: SVGElement, w: number, h: number, style: ShapeStyle, kind: EventKind): SVGElement {
   const s = withDefaults(style);
   const cx = w / 2;
   const cy = h / 2;
-  const r = Math.max(0, Math.min(w, h) / 2 - 1);
+  const r = eventRadius(w, h);
 
   const strokeWidth = kind === 'end' ? 4 : kind === 'boundary' ? 1.5 : s.strokeWidth;
   const outer = create('circle', {

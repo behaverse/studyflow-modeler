@@ -24,6 +24,8 @@ export type {
 
 export { importDefinitions, type ImportOptions } from './model/import.ts';
 export { IdGenerator, prefixFor } from './model/ids.ts';
+/** One definition of containment depth — paint order, hit priority and mount agree on it. */
+export { depthOf } from './model/tree.ts';
 
 export {
   asList,
@@ -144,7 +146,17 @@ export {
 } from './render/svg.ts';
 
 export {
+  ensureOutline,
+  outlineSpecFor,
+  OUTLINE_CLASS,
+  OUTLINE_OFFSET,
+  OUTLINE_RADIUS,
+  type OutlineSpec,
+} from './render/outline.ts';
+
+export {
   drawEvent,
+  eventRadius,
   drawTask,
   drawDiamond,
   drawDataObject,
@@ -179,12 +191,29 @@ export {
   drawExternalLabel,
   drawEdgeLabel,
   edgeLabelBounds,
+  edgeLabelTextBounds,
   externalLabelBounds,
+  externalLabelTextBounds,
+  labelIdOf,
+  measureLabelWidth,
+  flowLabelPosition,
   waypointsMid,
+  FLOW_LABEL_INDENT,
   EDGE_LABEL_FONT_SIZE,
+  EXTERNAL_LABEL_CLASS,
+  EXTERNAL_LABEL_FONT_SIZE,
+  LABEL_CLASS,
   LABEL_FONT,
   LABEL_LINE_HEIGHT,
 } from './render/labels.ts';
+
+export {
+  ExternalLabels,
+  hasExternalLabel,
+  isLabelElement,
+  labelBoundsOf,
+  labelOwnerOf,
+} from './model/externalLabel.ts';
 
 export {
   Renderer,
@@ -198,6 +227,7 @@ export {
 // --- Viewport ---------------------------------------------------------------
 export { Viewport, sceneBounds, type Viewbox } from './view/viewport.ts';
 export { Layers, LAYER_ORDER, type LayerName } from './view/layers.ts';
+export { injectCanvasStyles, CANVAS_CSS, CANVAS_STYLE_ID } from './view/theme.ts';
 
 // --- Events -----------------------------------------------------------------
 export { EventBus, type EventListener } from './events/bus.ts';
@@ -218,6 +248,7 @@ export {
 
 export {
   Selection,
+  resizeHandleRect,
   RESIZE_HANDLES,
   type ResizeHandle,
   type SelectionOptions,
@@ -225,6 +256,17 @@ export {
   type HandleHit,
   type WaypointHit,
 } from './interaction/selection.ts';
+
+export {
+  collectSnapTargets,
+  snapMove,
+  snapPoint,
+  snapValue,
+  SNAP_TOLERANCE,
+  type SnapKind,
+  type SnapResult,
+  type SnapTargets,
+} from './interaction/snapping.ts';
 
 export {
   Drag,
@@ -235,12 +277,16 @@ export {
   DEFAULT_MIN_SIZE,
   type DragKind,
   type DragOptions,
+  type MinSize,
 } from './interaction/drag.ts';
 
 export {
   LabelEditing,
   choreographyBandAt,
+  editorBounds,
   labelBounds,
+  labelPlacement,
+  type LabelPlacement,
   type ActivateOptions,
   type DirectEditingEvent,
   type ElementDblClickEvent,

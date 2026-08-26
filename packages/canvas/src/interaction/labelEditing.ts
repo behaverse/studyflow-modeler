@@ -35,7 +35,14 @@ import type {
   SceneNode,
 } from '@canvas/model/scene.ts';
 import type { Writeback } from '@canvas/model/writeback.ts';
-import { externalLabelBounds, LABEL_FONT } from '@canvas/render/labels.ts';
+import {
+  EDGE_LABEL_FONT_SIZE,
+  edgeLabelBounds,
+  externalLabelBounds,
+  LABEL_FONT,
+  LABEL_LINE_HEIGHT,
+  measureLabelWidth,
+} from '@canvas/render/labels.ts';
 import { categoryOf } from '@canvas/render/renderer.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 import { ownerDocument } from '@canvas/render/svg.ts';
@@ -86,6 +93,14 @@ export interface LabelEditingOptions {
    * back would fight them.
    */
   restoreFocus?: () => void;
+  /**
+   * Hide (or restore) the element's DRAWN label for as long as the editor is open.
+   * An internal editor is transparent (parity spec §5), so without this the old text
+   * shows through the text being typed; bpmn-js solves it the same way, with a
+   * marker class its stylesheet keys off (`djs-label-hidden`). Only the label goes —
+   * a gateway keeps its ×.
+   */
+  setLabelHidden?: (element: SceneElement, hidden: boolean) => void;
 }
 
 /** The in-flight editing session. */
@@ -110,6 +125,46 @@ export interface ActivateOptions {
 const MIN_EDITOR_PX = { width: 40, height: 16 };
 
 /**
+ * Minimum on-screen size of an EXTERNAL overlay. It is deliberately much smaller
+ * than {@link MIN_EDITOR_PX}: that box is a white bordered chrome sized tight to the
+ * text (parity spec §5 measured it at 14×16 px for the caption "go"), so a 40px floor
+ * would be visible padding around every short label.
+ */
+const MIN_EXTERNAL_EDITOR_PX = { width: 14, height: 14 };
+
+/** The `7px` of `.sf-label-editor-internal`'s padding, as a number to compute with. */
+const TEXT_PADDING_PX = 7;
+/** `line-height: 1.2` of `.sf-label-editor`, likewise. */
+const LINE_HEIGHT_RATIO = 1.2;
+
+/**
+ * Where an element's text is drawn relative to its shape — which decides the
+ * editor's chrome (parity spec §5): `'internal'` is transparent and borderless over
+ * the shape itself, `'external'` is a small white box with a `#ccc` border, tight to
+ * the text, over the caption beside the shape.
+ */
+export type LabelPlacement = 'internal' | 'external';
+
+/** Whether an element's text is drawn inside the shape or beside it. */
+export function labelPlacement(element: SceneElement): LabelPlacement {
+  // A connection's name is drawn beside the line as its own label element
+  // (`render/labels.ts` `drawEdgeLabel`), so it takes the external chrome.
+  if (element.kind === 'edge') return 'external';
+  const node = element;
+  // Every choreography band — the task name and both participant strips — is drawn
+  // INSIDE the shape.
+  if (isChoreographyTask(node)) return 'internal';
+  switch (categoryOf(node.type)) {
+    case 'event':
+    case 'gateway':
+    case 'data':
+      return 'external';
+    default:
+      return 'internal';
+  }
+}
+
+/**
  * The choreography band a diagram-space `point` falls in — top band, bottom band, or
  * the task-name region between them. Ports `ChoreographyLabelEditing.bandAt` without
  * its canvas/viewbox round-trip (the point is already in diagram coordinates).
@@ -127,7 +182,13 @@ export function choreographyBandAt(node: SceneNode, point: Point): LabelBand {
  * editor opens over. Mirrors `render/renderer.ts`'s drawer dispatch so the editor
  * always lands on the drawn text.
  */
-export function labelBounds(node: SceneNode, band: LabelBand): Bounds {
+export function labelBounds(element: SceneElement, band: LabelBand): Bounds {
+  // A connection's caption hangs off the middle segment of its polyline
+  // (`edgeLabelBounds`), which is the region `drawEdgeLabel` paints into.
+  if (element.kind === 'edge') {
+    return edgeLabelBounds(element, nameOf(element.businessObject), element.label);
+  }
+  const node = element;
   if (isChoreographyTask(node)) {
     const h = choreographyBandHeight(node.height);
     if (band === 'top') return { x: node.x, y: node.y, width: node.width, height: h };
@@ -150,8 +211,40 @@ export function labelBounds(node: SceneNode, band: LabelBand): Bounds {
   }
 }
 
+/**
+ * The diagram-space box the OVERLAY covers, which is not always the label region:
+ *
+ * - internal — the region itself (the shape's own box), so the text stays where it
+ *   is drawn and the chrome is invisible;
+ * - external — a box sized tight to `text` and centred on the region, because the
+ *   external editor is a visible white box (parity spec §5: the reference measured
+ *   14×16 px around the two-letter caption "go", not the whole label region).
+ *
+ * Exported so the geometry can be asserted directly, and so a host that positions
+ * its own editor gets the same answer.
+ */
+export function editorBounds(element: SceneElement, band: LabelBand, text: string): Bounds {
+  const region = labelBounds(element, band);
+  if (labelPlacement(element) === 'internal') return region;
+  const fontSize = fontSizeFor(element, band);
+  const lines = text.split(/\r?\n/);
+  const width = Math.max(
+    MIN_EXTERNAL_EDITOR_PX.width,
+    ...lines.map((line) => measureLabelWidth(line, fontSize)),
+  );
+  const height = Math.max(1, lines.length) * LABEL_LINE_HEIGHT;
+  return {
+    x: region.x + region.width / 2 - width / 2,
+    y: region.y + region.height / 2 - height / 2,
+    width,
+    height,
+  };
+}
+
 /** Font size (diagram units) the drawer uses for a band, matched by the overlay. */
-function fontSizeFor(node: SceneNode, band: LabelBand): number {
+function fontSizeFor(element: SceneElement, band: LabelBand): number {
+  if (element.kind === 'edge') return EDGE_LABEL_FONT_SIZE;
+  const node = element;
   if (isChoreographyTask(node)) return band === 'name' ? 12 : 11;
   switch (categoryOf(node.type)) {
     case 'event':
@@ -163,17 +256,17 @@ function fontSizeFor(node: SceneNode, band: LabelBand): number {
   }
 }
 
-function fontWeightFor(node: SceneNode, band: LabelBand): string {
-  if (isChoreographyTask(node)) return band === 'name' ? '600' : '400';
-  switch (categoryOf(node.type)) {
-    case 'event':
-    case 'gateway':
-    case 'data':
-      return '400';
-    default:
-      return '600';
-  }
-}
+/**
+ * Weight the overlay's text is set in — the ONE weight every label the renderer
+ * draws uses (`render/labels.ts`: `textLine` defaults to `400`, `drawInternalLabel`
+ * pins `400`, the choreography bands pass `'400'`), and the weight parity spec §1
+ * measured on the reference for both an internal task label and an external caption.
+ *
+ * It is a constant rather than a per-band function on purpose: the moment the two
+ * disagree the text visibly thickens or thins as the editor opens, which is exactly
+ * the regression the pre-`400` renderer left behind here.
+ */
+const LABEL_FONT_WEIGHT = '400';
 
 // --- the editor -------------------------------------------------------------
 
@@ -189,6 +282,7 @@ export class LabelEditing {
   private readonly getWriteback: () => Writeback | undefined;
   private readonly redraw: (elements: SceneElement[]) => void;
   private readonly restoreFocus?: () => void;
+  private readonly setLabelHidden?: (element: SceneElement, hidden: boolean) => void;
 
   private session?: LabelEditingSession;
   private input?: HTMLTextAreaElement;
@@ -199,6 +293,16 @@ export class LabelEditing {
   private readonly onBlur = () => {
     if (!this.closing) this.complete();
   };
+  /**
+   * Re-fit as the text changes: an external box is sized to its content, and an
+   * internal one keeps its text vertically centred as lines are added.
+   */
+  private readonly onInput = () => {
+    const session = this.session;
+    const input = this.input;
+    if (!session || !input) return;
+    this.place(input, session.element, session.band, input.value, session.bounds);
+  };
 
   constructor(options: LabelEditingOptions) {
     this.container = options.container;
@@ -208,6 +312,7 @@ export class LabelEditing {
     this.getWriteback = options.getWriteback;
     this.redraw = options.redraw;
     this.restoreFocus = options.restoreFocus;
+    this.setLabelHidden = options.setLabelHidden;
   }
 
   /** Whether an editing session is open. */
@@ -265,22 +370,28 @@ export class LabelEditing {
   }
 
   /**
-   * Open the editor over `element`'s label. A choreography task picks its band from
-   * `options.band`, else from `options.at`, else the name band. Returns whether a
-   * session opened — edges carry no drawn label yet (routing/edge labels are a later
-   * phase), so they are declined.
+   * Open the editor over `element`'s label — a shape's own text, a caption beside it,
+   * or a CONNECTION's name (double-clicking a sequence flow's caption opens it
+   * pre-filled, exactly as the reference does). A choreography task picks its band
+   * from `options.band`, else from `options.at`, else the name band. Returns whether
+   * a session opened.
    */
-  activate(element: SceneElement, options: ActivateOptions = {}): boolean {
+  activate(target: SceneElement, options: ActivateOptions = {}): boolean {
     if (this.session) this.complete();
-    if (element.kind !== 'node') return false;
+    // A caption edits the element it names: double-clicking the label under an event
+    // opens the same editor double-clicking the event does (parity spec §5), and the
+    // session reports the OWNER, which is what carries the name being written.
+    const element = target.labelTarget ?? target;
 
-    const band: LabelBand = isChoreographyTask(element)
+    const band: LabelBand = element.kind === 'node' && isChoreographyTask(element)
       ? (options.band ?? (options.at ? choreographyBandAt(element, options.at) : 'name'))
       : 'name';
     const initial = this.textOf(element, band);
     const bounds = labelBounds(element, band);
 
     this.session = { element, band, initial, bounds };
+    // The drawn label steps aside while the (transparent) editor stands in for it.
+    this.setLabelHidden?.(element, true);
     this.input = this.createInput(element, band, initial, bounds);
     this.bus.fire<DirectEditingEvent>('directEditing.activate', { element, band, initial });
     return true;
@@ -324,9 +435,11 @@ export class LabelEditing {
   /** Remove the overlay and forget the session (no model side effects). */
   private close(): void {
     this.closing = true;
+    if (this.session) this.setLabelHidden?.(this.session.element, false);
     const input = this.input;
     if (input) {
       input.removeEventListener('keydown', this.onKeyDown);
+      input.removeEventListener('input', this.onInput);
       input.removeEventListener('blur', this.onBlur);
       input.parentNode?.removeChild(input);
     }
@@ -336,9 +449,9 @@ export class LabelEditing {
   }
 
   /** The text a band opens with. */
-  private textOf(node: SceneNode, band: LabelBand): string {
-    if (band === 'name') return nameOf(node.businessObject);
-    const bands = readChoreographyBands(node.businessObject);
+  private textOf(element: SceneElement, band: LabelBand): string {
+    if (band === 'name') return nameOf(element.businessObject);
+    const bands = readChoreographyBands(element.businessObject);
     return band === 'top' ? bands.top : bands.bottom;
   }
 
@@ -351,10 +464,12 @@ export class LabelEditing {
   private write(session: LabelEditingSession, value: string): SceneElement[] {
     const writeback = this.getWriteback();
     const element = session.element;
-    if (!writeback || element.kind !== 'node') return [];
+    if (!writeback) return [];
     const text = value.trim();
 
     if (session.band === 'name') return writeback.setName(element, text) ? [element] : [];
+    // Only a choreography task (a node) has bands at all.
+    if (element.kind !== 'node') return [];
     // A band's text belongs to the *participant*, not the choreography task, and one
     // participant is depicted by a band on every task that references it — so the
     // whole model half (mint the pair, write the name, report the stale depictions)
@@ -362,57 +477,100 @@ export class LabelEditing {
     return writeback.setBandName(element, session.band, text);
   }
 
-  /** Build, position, mount, and focus the overlay `<textarea>`. */
+  /**
+   * Build, position, mount, and focus the overlay `<textarea>`.
+   *
+   * The overlay carries NO paint of its own: `view/theme.ts` styles
+   * `.sf-label-editor` plus one of `.sf-label-editor-internal` (transparent,
+   * borderless, `7px 5px` padding — the text simply becomes editable in place) and
+   * `.sf-label-editor-external` (white, 1px `#ccc` border), which is the two-variant
+   * chrome of parity spec §5. Only what the viewport decides — where the box is, how
+   * big it is, and the zoom-scaled font — is written inline here.
+   */
   private createInput(
-    node: SceneNode,
+    element: SceneElement,
     band: LabelBand,
     initial: string,
     bounds: Bounds,
   ): HTMLTextAreaElement {
     const doc = this.container.ownerDocument ?? ownerDocument();
+    const placement = labelPlacement(element);
     const input = doc.createElement('textarea');
-    input.className = 'sf-label-editor';
-    input.setAttribute('data-element-id', node.id);
+    input.className = `sf-label-editor sf-label-editor-${placement}`;
+    input.setAttribute('data-element-id', element.id);
     input.setAttribute('data-band', band);
+    input.setAttribute('data-placement', placement);
     input.value = initial;
     input.rows = 1;
     input.spellcheck = false;
 
-    const scale = this.scale();
-    const box = this.viewport.getAbsoluteBBox(bounds);
-    const host = this.container.getBoundingClientRect();
     // The container is the positioning context for the absolutely placed overlay.
     if (this.container.style.position === '') this.container.style.position = 'relative';
 
     Object.assign(input.style, {
-      position: 'absolute',
-      left: `${box.x - host.left}px`,
-      top: `${box.y - host.top}px`,
-      width: `${Math.max(MIN_EDITOR_PX.width, box.width)}px`,
-      height: `${Math.max(MIN_EDITOR_PX.height, box.height)}px`,
-      boxSizing: 'border-box',
-      margin: '0',
-      padding: '1px 2px',
-      border: '1px solid #1a73e8',
-      outline: 'none',
-      resize: 'none',
-      overflow: 'hidden',
-      background: '#ffffff',
-      color: '#22242A',
-      textAlign: 'center',
-      lineHeight: '1.2',
       fontFamily: LABEL_FONT,
-      fontSize: `${fontSizeFor(node, band) * scale}px`,
-      fontWeight: fontWeightFor(node, band),
-      zIndex: '10',
+      fontSize: `${fontSizeFor(element, band) * this.scale()}px`,
+      fontWeight: LABEL_FONT_WEIGHT,
     });
+    this.place(input, element, band, initial, bounds);
 
     input.addEventListener('keydown', this.onKeyDown);
+    input.addEventListener('input', this.onInput);
     input.addEventListener('blur', this.onBlur);
     this.container.appendChild(input);
     input.focus?.();
-    input.select?.();
+    // A CARET at the end of the text, not the whole text selected: the reference
+    // editor opens the same way (`diagram-js-direct-editing`'s TextBox collapses its
+    // range onto `content.lastChild`), so the label reads as plain text the moment it
+    // becomes editable instead of flashing a blue selection band over itself.
+    input.setSelectionRange?.(initial.length, initial.length);
     return input;
+  }
+
+  /**
+   * Position and size the overlay over the text it edits. An external box is sized
+   * tight to its content ({@link editorBounds}), so it is re-placed on every
+   * keystroke — the box grows with the caption and stays centred on it, which is
+   * what keeps a white 1px-bordered box from looking like a form field.
+   */
+  private place(
+    input: HTMLTextAreaElement,
+    element: SceneElement,
+    band: LabelBand,
+    text: string,
+    region: Bounds,
+  ): void {
+    const placement = labelPlacement(element);
+    const bounds = placement === 'internal'
+      ? region
+      : editorBounds(element, band, text);
+    const min = placement === 'internal' ? MIN_EDITOR_PX : MIN_EXTERNAL_EDITOR_PX;
+    const box = this.viewport.getAbsoluteBBox(bounds);
+    const host = this.container.getBoundingClientRect();
+    const width = Math.max(min.width, box.width);
+    const height = Math.max(min.height, box.height);
+    Object.assign(input.style, {
+      left: `${box.x - host.left + (box.width - width) / 2}px`,
+      top: `${box.y - host.top + (box.height - height) / 2}px`,
+      width: `${width}px`,
+      height: `${height}px`,
+      // An internal editor covers the WHOLE shape (parity spec §5 pins the parent
+      // rect to the shape bbox), but its text has to sit where the label is drawn —
+      // vertically centred. bpmn-js gets that from `centerVertically`, which absolutely
+      // positions its content div at `top: 50%; translateY(-50%)`; a <textarea> has no
+      // such handle, so the same centring is expressed as top padding, recomputed as
+      // lines are added. The floor is the 7px the spec measured.
+      ...(placement === 'internal'
+        ? { paddingTop: `${this.centeringPad(input, text, height)}px` }
+        : {}),
+    });
+  }
+
+  /** Top padding that centres `text` in a `height`-tall internal editor. */
+  private centeringPad(input: HTMLTextAreaElement, text: string, height: number): number {
+    const fontSize = parseFloat(input.style.fontSize) || 12;
+    const lines = Math.max(1, text.split(/\r?\n/).length);
+    return Math.max(TEXT_PADDING_PX, (height - lines * fontSize * LINE_HEIGHT_RATIO) / 2);
   }
 
   /** Screen pixels per diagram unit, guarded against a zero/absent layout. */
