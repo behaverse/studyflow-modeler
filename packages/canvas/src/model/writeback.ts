@@ -14,15 +14,22 @@
  * design §4) and fires `element.changed` / `elements.changed` on the bus.
  */
 
+import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/index.ts';
+import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
+
 import type { EventBus } from '@canvas/events/bus.ts';
+import { IdGenerator } from '@canvas/model/ids.ts';
 import type {
+  Bounds,
   ModdleObject,
+  Plane,
   Point,
   Scene,
   SceneEdge,
   SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
+import { containerFor } from '@canvas/rules/rules.ts';
 
 /** Payload for the `element.changed` event (one element edited). */
 export interface ElementChangedEvent {
@@ -46,6 +53,9 @@ export interface PartialBounds {
 const WAYPOINT_TYPE = 'dc:Point';
 /** The moddle `$type` of a shape's bounds. */
 const BOUNDS_TYPE = 'dc:Bounds';
+/** DI wrapper types minted when a shape/connection is created. */
+const SHAPE_DI_TYPE = 'bpmndi:BPMNShape';
+const EDGE_DI_TYPE = 'bpmndi:BPMNEdge';
 
 // --- moddle access helpers --------------------------------------------------
 
@@ -71,10 +81,144 @@ function asModdle(value: unknown): ModdleObject | undefined {
     : undefined;
 }
 
+/** A moddle factory: the `$model` a moddle object was minted by. */
+type ModdleFactory = { create?: (type: string, props: object) => ModdleObject };
+
 /** The moddle factory that minted `target` (`$model`), if any. */
-function modelOf(target: ModdleObject | undefined): { create?: (type: string, props: object) => ModdleObject } | undefined {
+function modelOf(target: ModdleObject | undefined): ModdleFactory | undefined {
   const model = (target as { $model?: unknown } | undefined)?.$model;
-  return model && typeof model === 'object' ? (model as { create?: (t: string, p: object) => ModdleObject }) : undefined;
+  return model && typeof model === 'object' ? (model as ModdleFactory) : undefined;
+}
+
+/** The moddle `$parent` back-link (a meta field moddle's `get` does not serve). */
+function parentOf(target: ModdleObject | undefined): ModdleObject | undefined {
+  return asModdle((target as { $parent?: unknown } | undefined)?.$parent);
+}
+
+function setParent(child: ModdleObject, parent: ModdleObject | undefined): void {
+  if (parent) (child as { $parent?: unknown }).$parent = parent;
+}
+
+/**
+ * Mint a moddle object of `type` through `factory` (the `$model` of an object the
+ * document already holds), falling back to a plain bag when no factory is reachable
+ * — the same defensive shape the sync helpers above use, so a hand-built test scene
+ * without a real `bpmn-moddle` still works.
+ */
+function mint(factory: ModdleFactory | undefined, type: string, props: object = {}): ModdleObject {
+  if (factory?.create) return factory.create(type, props);
+  return { $type: type, ...props } as ModdleObject;
+}
+
+/** Whether `name` is a list-valued (`isMany`) property of `target`'s moddle descriptor. */
+function isManyProperty(target: ModdleObject, name: string): boolean {
+  const descriptor = (target as {
+    $descriptor?: { propertiesByName?: Record<string, { isMany?: boolean } | undefined> };
+  }).$descriptor;
+  return descriptor?.propertiesByName?.[name]?.isMany === true;
+}
+
+/** Append `value` to the list-valued property `name` of `owner`, creating the list if absent. */
+function pushInto(owner: ModdleObject, name: string, value: ModdleObject): void {
+  const current = prop(owner, name);
+  if (Array.isArray(current)) {
+    if (!current.includes(value)) current.push(value);
+    return;
+  }
+  setProp(owner, name, [value]);
+}
+
+/** Remove `value` from the list-valued property `name` of `owner` (no-op when absent). */
+function pullFrom(owner: ModdleObject | undefined, name: string, value: ModdleObject): void {
+  if (!owner) return;
+  const current = prop(owner, name);
+  if (!Array.isArray(current)) return;
+  const index = current.indexOf(value);
+  if (index >= 0) current.splice(index, 1);
+}
+
+/**
+ * Write a reference property, honouring the schema's cardinality: `sourceRef` is a
+ * single `bpmn:FlowNode` on a `bpmn:SequenceFlow` but a *list* of item-aware
+ * elements on a `bpmn:DataInputAssociation`, so the descriptor decides.
+ */
+function setRef(owner: ModdleObject, name: string, value: ModdleObject | undefined): void {
+  if (!value) {
+    setProp(owner, name, isManyProperty(owner, name) ? [] : undefined);
+    return;
+  }
+  setProp(owner, name, isManyProperty(owner, name) ? [value] : value);
+}
+
+/** The `bpmn:Definitions` root reachable from a scene's root plane, if any. */
+export function definitionsOf(scene: Scene): ModdleObject | undefined {
+  let cursor: ModdleObject | undefined = scene.rootPlane.di;
+  const guard = new Set<ModdleObject>();
+  while (cursor && !guard.has(cursor)) {
+    guard.add(cursor);
+    if (cursor.$type === 'bpmn:Definitions') return cursor;
+    cursor = parentOf(cursor);
+  }
+  return undefined;
+}
+
+// --- containment resolution -------------------------------------------------
+
+/** Where a created shape's business object is filed, and the lane that claims it. */
+export interface FlowContainer {
+  /** The business object that owns the new element (`bpmn:Process`, `bpmn:SubProcess`, `bpmn:Collaboration`). */
+  owner: ModdleObject;
+  /** The `bpmn:Lane` the drop landed in, when the pool is divided into lanes. */
+  lane?: ModdleObject;
+}
+
+/**
+ * The business object a shape dropped onto `parent` really belongs to (design §1
+ * "add shape … into `flowElements`").
+ *
+ * A `bpmn:Group` owns no `flowElements`, so a drop on one resolves to the group's
+ * container ({@link containerFor}); a `bpmn:Lane` owns its members by *reference*
+ * (`flowNodeRef`), so the lane is remembered but the owner walks on to the pool;
+ * a `bpmn:Participant` files its contents in the `bpmn:Process` it points at.
+ * With no containing node at all the plane's own root business object owns it.
+ */
+export function flowContainerOf(parent: SceneNode | undefined, plane: Plane): FlowContainer {
+  let lane: ModdleObject | undefined;
+  let node = containerFor(parent) as SceneNode | undefined;
+  const guard = new Set<SceneNode>();
+  while (node && node.type === 'bpmn:Lane' && !guard.has(node)) {
+    guard.add(node);
+    lane ??= node.businessObject;
+    node = containerFor(node.parent) as SceneNode | undefined;
+  }
+  if (!node) return lane ? { owner: plane.businessObject, lane } : { owner: plane.businessObject };
+  if (node.type === 'bpmn:Participant') {
+    const processRef = asModdle(prop(node.businessObject, 'processRef'));
+    const owner = processRef ?? node.businessObject;
+    return lane ? { owner, lane } : { owner };
+  }
+  return lane ? { owner: node.businessObject, lane } : { owner: node.businessObject };
+}
+
+/**
+ * The container property a business object of `type` is filed under: pools live in
+ * a collaboration's `participants`, groups and text annotations in `artifacts`,
+ * everything else (flow nodes, data shapes) in `flowElements`.
+ */
+export function containmentPropertyFor(type: string): 'participants' | 'artifacts' | 'flowElements' {
+  if (type === 'bpmn:Participant') return 'participants';
+  if (isBpmnSubtypeOf(type, 'bpmn:Artifact')) return 'artifacts';
+  return 'flowElements';
+}
+
+/** The `bpmn:Collaboration` a message flow is filed in, if the document has one. */
+function collaborationOf(scene: Scene, plane: Plane): ModdleObject | undefined {
+  if (plane.businessObject.$type === 'bpmn:Collaboration') return plane.businessObject;
+  for (const candidate of scene.byBusinessObject.keys()) {
+    const owner = parentOf(candidate);
+    if (owner?.$type === 'bpmn:Collaboration') return owner;
+  }
+  return undefined;
 }
 
 // --- pure DI sync (no revision bump, no events) -----------------------------
@@ -218,18 +362,80 @@ export function dockConnectedEdges(node: SceneNode, dx: number, dy: number): Sce
 
 // --- committing API ---------------------------------------------------------
 
+/** What {@link Writeback.addShape} needs to mint a business object + `BPMNShape` pair. */
+export interface AddShapeSpec {
+  /** The BPMN type to mint (`'bpmn:Task'`). Ignored when {@link AddShapeSpec.businessObject} is given. */
+  type: string;
+  /** Where the shape lands, in diagram coordinates. */
+  bounds: Bounds;
+  /** A pre-built business object (the app's palette builds one; see `shape/buildBusinessObject.ts`). */
+  businessObject?: ModdleObject;
+  /** Attributes written onto the business object (`name`, …). */
+  attrs?: Record<string, unknown>;
+  /** Studyflow extension type (`'cognitive:Instruction'`) — mints the `extensionElements` wrapper + defaults. */
+  extensionType?: string;
+  /** The containing node the shape was dropped into; `undefined` = the plane root. */
+  parent?: SceneNode;
+  /** The plane the `BPMNShape` is filed in. Defaults to the scene's root plane. */
+  plane?: Plane;
+  /** `BPMNShape.isExpanded` (sub-processes / pools). */
+  isExpanded?: boolean;
+  /** Host activity for a boundary event (the `'attach'` verdict of `rules.canCreate`). */
+  attachTo?: SceneNode;
+  /** Explicit id; minted from {@link IdGenerator} when absent. */
+  id?: string;
+}
+
+/** What {@link Writeback.addConnection} needs to mint a flow + `BPMNEdge` pair. */
+export interface AddConnectionSpec {
+  /** The BPMN type to mint (`'bpmn:SequenceFlow'`, `'bpmn:MessageFlow'`, `'bpmn:Association'`, …). */
+  type: string;
+  source: SceneNode;
+  target: SceneNode;
+  /** Routed (and cropped) waypoints — see `routing/orthogonal.ts` `route`. */
+  waypoints?: Point[];
+  businessObject?: ModdleObject;
+  attrs?: Record<string, unknown>;
+  extensionType?: string;
+  plane?: Plane;
+  id?: string;
+}
+
+/** The endpoints a {@link Writeback.reconnect} rewrites; omit one to keep it. */
+export interface ReconnectEnds {
+  source?: SceneNode;
+  target?: SceneNode;
+}
+
 /**
  * Applies scene geometry edits through to the DI moddle objects, bumping the scene
  * revision and firing `element.changed` / `elements.changed`. Constructed with the
  * live {@link Scene} and {@link EventBus} the canvas owns.
+ *
+ * From P4 it is also the single place that *creates* business-object + DI pairs
+ * ({@link Writeback.addShape}, {@link Writeback.addConnection}) and rewires an
+ * existing connection ({@link Writeback.reconnect}) — always writing into the very
+ * moddle tree the scene was imported from, through the factory (`$model`) that
+ * minted it, so `bpmn-moddle` re-serializes everything the canvas created.
  */
 export class Writeback {
   private readonly scene: Scene;
   private readonly bus: EventBus;
+  private readonly idGenerator: IdGenerator;
 
-  constructor(scene: Scene, bus: EventBus) {
+  constructor(scene: Scene, bus: EventBus, ids?: IdGenerator) {
     this.scene = scene;
     this.bus = bus;
+    // With no generator handed in, seed one from the live document so nothing minted
+    // here can collide with an id the imported tree already carries.
+    this.idGenerator = ids ?? IdGenerator.fromDefinitions(definitionsOf(scene) ?? scene.rootPlane.di);
+    // Belt and braces for a hand-built scene whose plane is not wired to a document.
+    for (const id of scene.elementsById.keys()) this.idGenerator.claim(id);
+  }
+
+  /** The document-scoped id source new elements draw from. */
+  get ids(): IdGenerator {
+    return this.idGenerator;
   }
 
   /**
@@ -313,6 +519,309 @@ export class Writeback {
       else syncEdgeWaypointsToDi(el);
     }
     if (elements.length > 0) this.finish(elements);
+  }
+
+  // --- creation (design §1 "add shape" / "add edge") ------------------------
+
+  /**
+   * Create a shape: mint the business object into the drop target's container AND
+   * the `bpmndi:BPMNShape` + `dc:Bounds` into the plane, then index the resulting
+   * {@link SceneNode} in the scene, bump the revision and fire `element.changed`.
+   *
+   * Both halves are written into the live moddle tree through the factory that
+   * minted the plane (`$model`), so `bpmn-moddle`'s `toXML` emits the new element
+   * and its DI without any further bookkeeping (design §1, the P3 write-through
+   * contract extended to creation).
+   *
+   * Containment follows {@link flowContainerOf}: a pool files into its
+   * `processRef`'s `flowElements`, a lane additionally claims the node through
+   * `flowNodeRef`, a group hands the drop to its own container, artifacts go to
+   * `artifacts` and pools to the collaboration's `participants`.
+   */
+  addShape(spec: AddShapeSpec): SceneNode {
+    const scene = this.scene;
+    const plane = spec.plane ?? scene.rootPlane;
+    const factory = modelOf(plane.di)
+      ?? modelOf(spec.businessObject)
+      ?? modelOf(plane.businessObject);
+
+    const bo = spec.businessObject ?? mint(factory, spec.type, { ...(spec.attrs ?? {}) });
+    if (spec.businessObject && spec.attrs) {
+      for (const [name, value] of Object.entries(spec.attrs)) setProp(bo, name, value);
+    }
+    const type = typeof bo.$type === 'string' ? bo.$type : spec.type;
+    const id = spec.id
+      ?? (typeof bo.id === 'string' && bo.id ? bo.id : this.idGenerator.next(spec.extensionType ?? type, bo));
+    bo.id = id;
+    this.idGenerator.claim(id);
+
+    if (spec.extensionType && factory?.create && !getExtensionType(bo)) {
+      StudyflowElement.fromBusinessObject(bo).ensureExtension(
+        spec.extensionType,
+        factory as never,
+        getDefaults(spec.extensionType),
+      );
+    }
+
+    // A boundary event is filed in its host's container and points at the host.
+    const parentNode = spec.attachTo ? spec.attachTo.parent : spec.parent;
+    if (spec.attachTo) setRef(bo, 'attachedToRef', spec.attachTo.businessObject);
+
+    const { owner, lane } = flowContainerOf(parentNode, plane);
+    this.fileBusinessObject(bo, type, owner, factory);
+    if (lane && isBpmnSubtypeOf(type, 'bpmn:FlowNode')) pushInto(lane, 'flowNodeRef', bo);
+
+    const di = mint(factory, SHAPE_DI_TYPE, { id: this.diIdFor(id), bpmnElement: bo });
+    setParent(di, plane.di);
+    if (spec.isExpanded !== undefined) setProp(di, 'isExpanded', spec.isExpanded);
+    pushInto(plane.di, 'planeElement', di);
+
+    const node: SceneNode = {
+      id,
+      kind: 'node',
+      type,
+      businessObject: bo,
+      di,
+      x: spec.bounds.x,
+      y: spec.bounds.y,
+      width: spec.bounds.width,
+      height: spec.bounds.height,
+      children: [],
+      incoming: [],
+      outgoing: [],
+    };
+    if (spec.isExpanded !== undefined) node.isExpanded = spec.isExpanded;
+
+    if (parentNode) {
+      node.parent = parentNode;
+      parentNode.children.push(node);
+    } else {
+      plane.children.push(node);
+    }
+    scene.elementsById.set(id, node);
+    scene.byBusinessObject.set(bo, node);
+
+    // Mints the `dc:Bounds` the shape has none of yet, from the scene geometry.
+    syncNodeBoundsToDi(node);
+    this.finish([node]);
+    return node;
+  }
+
+  /**
+   * Create a connection: mint the flow business object (`sourceRef`/`targetRef`,
+   * and — for a sequence flow — the endpoints' `outgoing`/`incoming` reference
+   * lists) AND the `bpmndi:BPMNEdge` + `di:waypoint` list, then index the resulting
+   * {@link SceneEdge}, bump the revision and fire.
+   *
+   * `outgoing`/`incoming` on a `bpmn:FlowNode` are typed `bpmn:SequenceFlow` in the
+   * BPMN schema, so a message flow / association is deliberately *not* pushed onto
+   * them; the scene's own `source.outgoing` / `target.incoming` lists always get the
+   * edge (mirroring `model/import.ts`), which is what routing and drag read.
+   */
+  addConnection(spec: AddConnectionSpec): SceneEdge {
+    const scene = this.scene;
+    const plane = spec.plane ?? scene.rootPlane;
+    const factory = modelOf(plane.di)
+      ?? modelOf(spec.businessObject)
+      ?? modelOf(spec.source.businessObject);
+
+    const bo = spec.businessObject ?? mint(factory, spec.type, { ...(spec.attrs ?? {}) });
+    if (spec.businessObject && spec.attrs) {
+      for (const [name, value] of Object.entries(spec.attrs)) setProp(bo, name, value);
+    }
+    const type = typeof bo.$type === 'string' ? bo.$type : spec.type;
+    const id = spec.id
+      ?? (typeof bo.id === 'string' && bo.id ? bo.id : this.idGenerator.next(spec.extensionType ?? type, bo));
+    bo.id = id;
+    this.idGenerator.claim(id);
+
+    if (spec.extensionType && factory?.create && !getExtensionType(bo)) {
+      StudyflowElement.fromBusinessObject(bo).ensureExtension(
+        spec.extensionType,
+        factory as never,
+        getDefaults(spec.extensionType),
+      );
+    }
+
+    setRef(bo, 'sourceRef', spec.source.businessObject);
+    setRef(bo, 'targetRef', spec.target.businessObject);
+    if (isBpmnSubtypeOf(type, 'bpmn:SequenceFlow')) {
+      pushInto(spec.source.businessObject, 'outgoing', bo);
+      pushInto(spec.target.businessObject, 'incoming', bo);
+    }
+    this.fileConnection(bo, type, spec.source, spec.target, plane);
+
+    const di = mint(factory, EDGE_DI_TYPE, { id: this.diIdFor(id), bpmnElement: bo });
+    setParent(di, plane.di);
+    pushInto(plane.di, 'planeElement', di);
+
+    const edge: SceneEdge = {
+      id,
+      kind: 'edge',
+      type,
+      businessObject: bo,
+      di,
+      waypoints: (spec.waypoints ?? []).map((p) => ({ x: p.x, y: p.y })),
+      source: spec.source,
+      target: spec.target,
+    };
+    spec.source.outgoing.push(edge);
+    spec.target.incoming.push(edge);
+
+    // A connection is drawn in the container both its ends share; a cross-container
+    // one (a message flow) belongs to the plane itself.
+    const parentNode = spec.source.parent && spec.source.parent === spec.target.parent
+      ? spec.source.parent
+      : undefined;
+    if (parentNode) {
+      edge.parent = parentNode;
+      parentNode.children.push(edge);
+    } else {
+      plane.children.push(edge);
+    }
+    scene.elementsById.set(id, edge);
+    scene.byBusinessObject.set(bo, edge);
+
+    // Mints the `di:waypoint` list from the scene waypoints.
+    syncEdgeWaypointsToDi(edge);
+    this.finish([edge, spec.source, spec.target]);
+    return edge;
+  }
+
+  /**
+   * Move one or both endpoints of an existing connection: rewrite the business
+   * object's `sourceRef`/`targetRef` (and the endpoints' `outgoing`/`incoming`
+   * reference lists for a sequence flow), re-wire the scene's own endpoint lists,
+   * optionally replace the waypoints (a re-route — see `routing/orthogonal.ts`),
+   * write the DI and fire once for the whole rewire.
+   *
+   * The connection keeps its container: a reconnect that would move a flow into a
+   * different sub-process is rejected upstream by `rules.canReconnect`, which only
+   * allows endpoints sharing one container.
+   */
+  reconnect(edge: SceneEdge, ends: ReconnectEnds, waypoints?: Point[]): SceneElement[] {
+    const changed: SceneElement[] = [edge];
+    const isSequenceFlow = isBpmnSubtypeOf(edge.type, 'bpmn:SequenceFlow');
+    const track = (node: SceneNode | undefined): void => {
+      if (node && !changed.includes(node)) changed.push(node);
+    };
+
+    if (ends.source && ends.source !== edge.source) {
+      const previous = edge.source;
+      if (previous) {
+        previous.outgoing = previous.outgoing.filter((e) => e !== edge);
+        if (isSequenceFlow) pullFrom(previous.businessObject, 'outgoing', edge.businessObject);
+      }
+      edge.source = ends.source;
+      if (!ends.source.outgoing.includes(edge)) ends.source.outgoing.push(edge);
+      setRef(edge.businessObject, 'sourceRef', ends.source.businessObject);
+      if (isSequenceFlow) pushInto(ends.source.businessObject, 'outgoing', edge.businessObject);
+      track(previous);
+      track(ends.source);
+    }
+
+    if (ends.target && ends.target !== edge.target) {
+      const previous = edge.target;
+      if (previous) {
+        previous.incoming = previous.incoming.filter((e) => e !== edge);
+        if (isSequenceFlow) pullFrom(previous.businessObject, 'incoming', edge.businessObject);
+      }
+      edge.target = ends.target;
+      if (!ends.target.incoming.includes(edge)) ends.target.incoming.push(edge);
+      setRef(edge.businessObject, 'targetRef', ends.target.businessObject);
+      if (isSequenceFlow) pushInto(ends.target.businessObject, 'incoming', edge.businessObject);
+      track(previous);
+      track(ends.target);
+    }
+
+    if (waypoints) edge.waypoints = waypoints.map((p) => ({ x: p.x, y: p.y }));
+    syncEdgeWaypointsToDi(edge);
+    this.finish(changed);
+    return changed;
+  }
+
+  /** File a created shape's business object under the right container property. */
+  private fileBusinessObject(
+    bo: ModdleObject,
+    type: string,
+    owner: ModdleObject,
+    factory: ModdleFactory | undefined,
+  ): void {
+    if (type === 'bpmn:Lane') {
+      const laneSet = asModdle((prop(owner, 'laneSets') as ModdleObject[] | undefined)?.[0])
+        ?? this.createLaneSet(owner, factory);
+      setParent(bo, laneSet);
+      pushInto(laneSet, 'lanes', bo);
+      return;
+    }
+    if (type === 'bpmn:Participant') {
+      // A pool depicts a process; mint the one it points at so the document stays
+      // structurally valid (the process is a root element of the definitions).
+      if (!asModdle(prop(bo, 'processRef'))) {
+        const definitions = definitionsOf(this.scene);
+        const process = mint(factory, 'bpmn:Process', {
+          id: this.idGenerator.next('bpmn:Process'),
+          isExecutable: false,
+        });
+        if (definitions) {
+          setParent(process, definitions);
+          pushInto(definitions, 'rootElements', process);
+        }
+        setRef(bo, 'processRef', process);
+      }
+    }
+    setParent(bo, owner);
+    pushInto(owner, containmentPropertyFor(type), bo);
+  }
+
+  /** Mint (and file) the `bpmn:LaneSet` a first lane needs. */
+  private createLaneSet(owner: ModdleObject, factory: ModdleFactory | undefined): ModdleObject {
+    const laneSet = mint(factory, 'bpmn:LaneSet', { id: this.idGenerator.next('bpmn:LaneSet') });
+    setParent(laneSet, owner);
+    pushInto(owner, 'laneSets', laneSet);
+    return laneSet;
+  }
+
+  /** File a created connection's business object under the right container property. */
+  private fileConnection(
+    bo: ModdleObject,
+    type: string,
+    source: SceneNode,
+    target: SceneNode,
+    plane: Plane,
+  ): void {
+    if (isBpmnSubtypeOf(type, 'bpmn:MessageFlow')) {
+      const collaboration = collaborationOf(this.scene, plane);
+      if (collaboration) {
+        setParent(bo, collaboration);
+        pushInto(collaboration, 'messageFlows', bo);
+        return;
+      }
+    }
+    if (type === 'bpmn:DataInputAssociation') {
+      // Data associations hang off the activity, not off the container.
+      setParent(bo, target.businessObject);
+      pushInto(target.businessObject, 'dataInputAssociations', bo);
+      return;
+    }
+    if (type === 'bpmn:DataOutputAssociation') {
+      setParent(bo, source.businessObject);
+      pushInto(source.businessObject, 'dataOutputAssociations', bo);
+      return;
+    }
+    const { owner } = flowContainerOf(source.parent ?? target.parent, plane);
+    setParent(bo, owner);
+    pushInto(owner, containmentPropertyFor(type), bo);
+  }
+
+  /** A free DI id for `elementId`, keeping the conventional `<id>_di` shape. */
+  private diIdFor(elementId: string): string {
+    const candidate = `${elementId}_di`;
+    if (!this.idGenerator.assigned(candidate)) {
+      this.idGenerator.claim(candidate);
+      return candidate;
+    }
+    return this.idGenerator.nextPrefixed(`${elementId}_di_`);
   }
 
   private finish(elements: SceneElement[]): void {

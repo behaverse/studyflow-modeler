@@ -1,9 +1,17 @@
 /**
- * `Canvas` — the top-level facade (design §3 `Canvas.ts`, §6 P1). Owns the scene,
- * the SVG root + layer stack, the viewport, and the renderer. For P1 it is
- * read-only: {@link Canvas.importDefinitions} builds a {@link Scene} from a
- * `bpmn:Definitions` moddle tree (with DI) and renders it; there is no interaction,
- * selection, or writeback yet (those arrive in P2/P3, design §6).
+ * `Canvas` — the top-level facade (design §3 `Canvas.ts`). Owns the scene, the SVG
+ * root + layer stack, the viewport, the renderer, and the interaction modules:
+ * {@link Canvas.importDefinitions} builds a {@link Scene} from a `bpmn:Definitions`
+ * moddle tree (with DI) and renders it (P1), then selection/hit-testing (P2),
+ * drag/resize/label editing with DI writeback (P3), and the rules-gated create and
+ * connect/reconnect gestures (P4) work on it.
+ *
+ * The canvas owns the ONLY document-level pointer loop: `interaction/drag.ts`,
+ * `interaction/create.ts` and `interaction/connect.ts` are pure start/update/end
+ * state machines, and {@link Canvas.handlePointerMove} feeds whichever one the
+ * gesture's intent named. A palette create ({@link Canvas.startCreate}) may begin
+ * outside the canvas, so it installs the same listeners without a canvas
+ * `pointerdown`.
  *
  * The SVG DOM is created via {@link svg} helpers, which default to the global
  * `document` (present under the playwright/chromium test DOM) and can be swapped
@@ -13,15 +21,31 @@
 import { EventBus } from '@canvas/events/bus.ts';
 import { importDefinitions } from '@canvas/model/import.ts';
 import type { ImportOptions } from '@canvas/model/import.ts';
-import type { ModdleObject, Point, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type {
+  ModdleObject,
+  Point,
+  Scene,
+  SceneEdge,
+  SceneElement,
+  SceneNode,
+} from '@canvas/model/scene.ts';
 import { hitTest, nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
 import type { HitOptions } from '@canvas/interaction/hit.ts';
 import { Selection } from '@canvas/interaction/selection.ts';
 import type { HandleHit, WaypointHit } from '@canvas/interaction/selection.ts';
-import { Drag } from '@canvas/interaction/drag.ts';
+import { DEFAULT_GRID_SIZE, Drag, snapTo } from '@canvas/interaction/drag.ts';
+import { Create, createShape, type CreatePrototype, type ShapeDescriptor } from '@canvas/interaction/create.ts';
+import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import type { ElementDblClickEvent } from '@canvas/interaction/labelEditing.ts';
 import { Writeback } from '@canvas/model/writeback.ts';
+import { IdGenerator } from '@canvas/model/ids.ts';
+import { Rules } from '@canvas/rules/rules.ts';
+import {
+  edgesAffectedBy,
+  rerouteEdges as rerouteEdgeSet,
+  type RouteOptions,
+} from '@canvas/routing/orthogonal.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import { ensureArrowMarkers, Renderer } from '@canvas/render/renderer.ts';
 import type { RendererOptions } from '@canvas/render/renderer.ts';
@@ -40,13 +64,23 @@ export interface CanvasOptions extends RendererOptions {
   gridSize?: number;
   /** Minimum node width/height a resize may produce. */
   minNodeSize?: number;
+  /** Rule engine gating create/connect/reconnect. Defaults to a fresh {@link Rules}. */
+  rules?: Rules;
 }
 
 /** Screen-pixel drag threshold separating a click from a marquee or a drag. */
 const MARQUEE_THRESHOLD_PX = 3;
 
 /** What a pointer press intends to do once it passes the drag threshold. */
-type GestureIntent = 'marquee' | 'move' | 'resize' | 'waypoint' | 'none';
+type GestureIntent =
+  | 'marquee'
+  | 'move'
+  | 'resize'
+  | 'waypoint'
+  | 'create'
+  | 'connect'
+  | 'reconnect'
+  | 'none';
 
 /** In-flight pointer gesture state (marquee / click / drag discrimination). */
 interface GestureState {
@@ -62,7 +96,14 @@ interface GestureState {
   waypoint?: WaypointHit;
 }
 
-/** Editable-SVG canvas with hit-testing, selection, marquee, and drag/resize (P2+P3). */
+/** Which end of an edge an endpoint-waypoint index refers to, if either. */
+function endpointOf(edge: SceneEdge, index: number): ConnectionEnd | undefined {
+  if (index === 0) return 'source';
+  if (index === edge.waypoints.length - 1) return 'target';
+  return undefined;
+}
+
+/** Editable-SVG canvas: hit-testing, selection, drag/resize, create + connect (P2–P4). */
 export class Canvas {
   private readonly container: HTMLElement;
   private readonly root: SVGSVGElement;
@@ -72,6 +113,9 @@ export class Canvas {
   private readonly bus: EventBus;
   private readonly selection: Selection;
   private readonly labelEditing: LabelEditing;
+  private readonly rules: Rules;
+  private readonly create: Create;
+  private readonly connect: Connect;
   private readonly onWarning?: ImportOptions['onWarning'];
   private readonly gridSize?: number;
   private readonly minNodeSize?: number;
@@ -124,6 +168,25 @@ export class Canvas {
       redraw: (elements) => this.redrawElements(elements),
     });
 
+    this.rules = options.rules ?? new Rules();
+    this.create = new Create({
+      getScene: () => this.scene,
+      getWriteback: () => this.writeback,
+      rules: this.rules,
+      hitTest: (point) => this.hitTest(point),
+      layer: this.layers.getLayer('overlays'),
+      getScale: () => this.viewport.getViewbox().scale,
+      snap: (point) => this.snapPoint(point),
+    });
+    this.connect = new Connect({
+      getScene: () => this.scene,
+      getWriteback: () => this.writeback,
+      rules: this.rules,
+      hitTest: (point) => this.hitTest(point),
+      layer: this.layers.getLayer('overlays'),
+      getScale: () => this.viewport.getViewbox().scale,
+    });
+
     this.root.addEventListener('pointerdown', (ev) => this.handlePointerDown(ev as MouseEvent));
     this.root.addEventListener('dblclick', (ev) => this.handleDoubleClick(ev as MouseEvent));
   }
@@ -137,7 +200,9 @@ export class Canvas {
     this.labelEditing.reset();
     this.selection.clear();
     this.scene = importDefinitions(definitions, { onWarning: this.onWarning });
-    this.writeback = new Writeback(this.scene, this.bus);
+    this.writeback = new Writeback(this.scene, this.bus, IdGenerator.fromDefinitions(definitions));
+    this.create.cancel();
+    this.connect.cancel();
     this.drag = new Drag({
       writeback: this.writeback,
       redraw: (elements) => this.redrawElements(elements),
@@ -215,6 +280,141 @@ export class Canvas {
     return this.drag;
   }
 
+  /** The rule engine gating create/connect/reconnect (design §3 `rules/rules.ts`). */
+  getRules(): Rules {
+    return this.rules;
+  }
+
+  /** The palette create gesture (design §3 `interaction/create.ts`). */
+  getCreate(): Create {
+    return this.create;
+  }
+
+  /** The connect/reconnect gesture (design §3 `interaction/connect.ts`). */
+  getConnect(): Connect {
+    return this.connect;
+  }
+
+  // --- create / connect gestures (P4) ---------------------------------------
+
+  /**
+   * Turn a palette descriptor into a detached prototype — the facade's
+   * `gestures.createShape` (`packages/modeler/src/editor/port.ts`). The result has
+   * no scene identity; hand it to {@link Canvas.startCreate} or
+   * {@link Canvas.createElement}.
+   */
+  createShape(descriptor: ShapeDescriptor | CreatePrototype): CreatePrototype {
+    return createShape(descriptor);
+  }
+
+  /**
+   * Begin a palette create drag — the facade's `gestures.startCreate`. `event` is
+   * the palette's own mouse event (it may originate outside the canvas), so the
+   * document-level pointer listeners are installed here rather than on a canvas
+   * `pointerdown`. With no event the prototype starts at the viewport centre.
+   */
+  startCreate(event: MouseEvent | undefined, descriptor: ShapeDescriptor | CreatePrototype): boolean {
+    if (!this.scene) return false;
+    const prototype = createShape(descriptor);
+    const point = event ? this.eventPoint(event) : this.viewportCentre();
+    if (!this.create.start(prototype, point)) return false;
+    this.gesture = {
+      downScreen: event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 },
+      downDiagram: point,
+      shift: false,
+      intent: 'create',
+      marquee: false,
+      dragging: true,
+    };
+    this.listen();
+    return true;
+  }
+
+  /**
+   * Place a shape centred on a diagram point without a drag (click-to-place, and
+   * the programmatic path). Returns the new node, or `undefined` when the rules
+   * reject the drop.
+   */
+  createElement(descriptor: ShapeDescriptor | CreatePrototype, center: Point): SceneNode | undefined {
+    const node = this.create.createAt(createShape(descriptor), center);
+    if (node) this.mount(node);
+    if (node) this.selection.select(node);
+    return node;
+  }
+
+  /** Begin dragging a new connection out of `source` (context pad / append). */
+  startConnect(source: SceneNode, event?: MouseEvent): boolean {
+    if (!this.scene) return false;
+    const point = event ? this.eventPoint(event) : { x: source.x + source.width, y: source.y + source.height / 2 };
+    if (!this.connect.start(source, point)) return false;
+    this.gesture = {
+      downScreen: event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 },
+      downDiagram: point,
+      shift: false,
+      intent: 'connect',
+      marquee: false,
+      dragging: true,
+    };
+    this.listen();
+    return true;
+  }
+
+  /**
+   * Connect two nodes without a drag: mints the flow the rules name, with routed +
+   * cropped waypoints, and selects it. `undefined` when the rules refuse the pair.
+   */
+  connectElements(source: SceneNode, target: SceneNode): SceneEdge | undefined {
+    const edge = this.connect.connect(source, target);
+    if (!edge) return undefined;
+    this.mount(edge);
+    this.selection.select(edge);
+    return edge;
+  }
+
+  /**
+   * Move one end of an existing connection onto `node` (gated by
+   * `connection.reconnect`), re-routing it. Returns whether it happened.
+   */
+  reconnectElement(edge: SceneEdge, end: ConnectionEnd, node: SceneNode): boolean {
+    if (!this.connect.reconnect(edge, end, node)) return false;
+    this.redrawElements([edge]);
+    return true;
+  }
+
+  /** Move one waypoint of an edge to a diagram point and commit it (P3 semantics). */
+  private moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
+    const writeback = this.writeback;
+    if (!writeback || index < 0 || index >= edge.waypoints.length) return;
+    const at = this.snapPoint(point);
+    const points = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
+    points[index] = at;
+    writeback.setEdgeWaypoints(edge, points);
+    this.redrawElements([edge]);
+  }
+
+  /** Draw a newly created element's graphics into its layer and index them. */
+  private mount(element: SceneElement): SVGGElement {
+    const g = element.kind === 'node'
+      ? this.renderer.drawShape(element)
+      : this.renderer.drawEdge(element);
+    append(this.layers.getLayer(element.kind === 'node' ? 'shapes' : 'connections'), g);
+    this.renderer.graphicsById.set(element.id, g);
+    return g;
+  }
+
+  /** The diagram-space centre of the current viewport (create with no pointer). */
+  private viewportCentre(): Point {
+    const box = this.viewport.getViewbox();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  /** Grid-snap a diagram point when snapping is on. */
+  private snapPoint(point: Point): Point {
+    if (!this.snapToGrid) return { ...point };
+    const step = this.gridSize ?? DEFAULT_GRID_SIZE;
+    return { x: snapTo(point.x, step), y: snapTo(point.y, step) };
+  }
+
   /** Turn grid snapping for drag/resize on or off (design §3, off by default). */
   setSnapToGrid(on: boolean): void {
     this.snapToGrid = on;
@@ -236,6 +436,41 @@ export class Canvas {
       this.selection.restoreMarkers(element.id);
     }
     this.selection.refresh();
+  }
+
+  /**
+   * Re-route the edges `elements` affects — every edge docked to one of the given
+   * nodes (their nested children included) plus any edge listed outright — through
+   * the orthogonal router (`routing/orthogonal.ts`), cropping each endpoint to its
+   * shape outline. `elements` defaults to the current selection.
+   *
+   * This is the deliberate counterpart to the drag-time behaviour: a live
+   * move/resize keeps P3's minimal "endpoints follow the shape" docking
+   * (`model/writeback.ts` `dockConnectedEdges`), and a *real* re-route is an
+   * explicit act — what a dropped connect gesture, a reconnect, or a "clean up
+   * layout" command asks for.
+   *
+   * Committed as one batch through {@link Writeback}: one revision bump, one
+   * `elements.changed`, `di:waypoint` written for each edge that actually moved.
+   * Returns the edges whose waypoints changed.
+   */
+  rerouteEdges(
+    elements?: SceneElement | readonly SceneElement[],
+    options?: RouteOptions,
+  ): SceneEdge[] {
+    const writeback = this.writeback;
+    if (!this.scene || !writeback) return [];
+    const list = elements === undefined
+      ? this.selection.get()
+      : Array.isArray(elements)
+        ? (elements as readonly SceneElement[])
+        : [elements as SceneElement];
+    const changed = rerouteEdgeSet(edgesAffectedBy(list), options);
+    if (changed.length > 0) {
+      writeback.commit(changed);
+      this.redrawElements(changed);
+    }
+    return changed;
   }
 
   /**
@@ -267,7 +502,12 @@ export class Canvas {
 
     let intent: GestureIntent = 'marquee';
     if (handle) intent = 'resize';
-    else if (waypoint) intent = 'waypoint';
+    else if (waypoint) {
+      // Grabbing a *terminal* waypoint of a selected edge re-connects that end
+      // (rules-gated); dropped clear of any shape it falls back to P3's free
+      // endpoint move. An interior waypoint only ever bends the polyline.
+      intent = endpointOf(waypoint.edge, waypoint.index) ? 'reconnect' : 'waypoint';
+    }
 
     let hit: SceneElement | undefined;
     if (!handle && !waypoint) {
@@ -293,6 +533,11 @@ export class Canvas {
       waypoint,
     };
 
+    this.listen();
+  }
+
+  /** Install the document-level pointer/key listeners a live gesture needs. */
+  private listen(): void {
     const doc = this.root.ownerDocument ?? ownerDocument();
     doc.addEventListener('pointermove', this.onMove);
     doc.addEventListener('pointerup', this.onUp);
@@ -304,7 +549,7 @@ export class Canvas {
     if (!g) return;
     const pt = this.eventPoint(ev);
     if (g.dragging) {
-      this.drag?.update(pt);
+      this.updateGesture(g, pt);
       return;
     }
     const dx = ev.clientX - g.downScreen.x;
@@ -318,8 +563,15 @@ export class Canvas {
     }
     if (this.startDrag(g)) {
       g.dragging = true;
-      this.drag?.update(pt);
+      this.updateGesture(g, pt);
     }
+  }
+
+  /** Feed a live pointer position to whichever gesture the intent named. */
+  private updateGesture(g: GestureState, point: Point): void {
+    if (g.intent === 'create') this.create.update(point);
+    else if (g.intent === 'connect' || g.intent === 'reconnect') this.connect.update(point);
+    else this.drag?.update(point);
   }
 
   /** Open the {@link Drag} session the gesture's intent calls for. */
@@ -331,6 +583,10 @@ export class Canvas {
     }
     if (g.intent === 'waypoint' && g.waypoint) {
       return drag.startWaypoint(g.waypoint.edge, g.waypoint.index, g.downDiagram);
+    }
+    if (g.intent === 'reconnect' && g.waypoint) {
+      const end = endpointOf(g.waypoint.edge, g.waypoint.index);
+      return !!end && this.connect.startReconnect(g.waypoint.edge, end, g.downDiagram);
     }
     if (g.intent === 'move') {
       const nodes = this.selection.get().filter((e): e is SceneNode => e.kind === 'node');
@@ -348,7 +604,29 @@ export class Canvas {
     }
 
     if (g.dragging) {
-      this.drag?.end(this.eventPoint(ev));
+      const pt = this.eventPoint(ev);
+      if (g.intent === 'create') {
+        const node = this.create.end(pt);
+        if (node) {
+          this.mount(node);
+          this.selection.select(node);
+        }
+      } else if (g.intent === 'connect' || g.intent === 'reconnect') {
+        const kind = this.connect.getKind();
+        const edge = this.connect.end(pt);
+        if (edge) {
+          if (kind === 'connect') this.mount(edge);
+          else this.redrawElements([edge]);
+          this.selection.select(edge);
+        } else if (kind === 'reconnect' && g.waypoint) {
+          // The endpoint was not dropped on a shape that would take it: keep P3's
+          // free endpoint move rather than snapping back, so dragging a terminal
+          // waypoint into open space still just bends the edge.
+          this.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
+        }
+      } else {
+        this.drag?.end(pt);
+      }
     } else if (g.marquee) {
       const from = g.downDiagram;
       const to = this.eventPoint(ev);
@@ -392,6 +670,8 @@ export class Canvas {
   private handleKeyDown(ev: KeyboardEvent): void {
     if (ev.key !== 'Escape' || !this.gesture) return;
     this.drag?.cancel();
+    this.create.cancel();
+    this.connect.cancel();
     this.endGesture();
     this.clearMarquee();
   }

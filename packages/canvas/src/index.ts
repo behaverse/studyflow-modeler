@@ -27,11 +27,18 @@ export { IdGenerator, prefixFor } from './model/ids.ts';
 
 export {
   Writeback,
+  definitionsOf,
+  flowContainerOf,
+  containmentPropertyFor,
   syncNodeBoundsToDi,
   syncEdgeWaypointsToDi,
   syncLabelBoundsToDi,
   translateLabel,
   dockConnectedEdges,
+  type AddShapeSpec,
+  type AddConnectionSpec,
+  type FlowContainer,
+  type ReconnectEnds,
   type PartialBounds,
   type ElementChangedEvent,
   type ElementsChangedEvent,
@@ -154,6 +161,76 @@ export {
   type LabelEditingOptions,
   type LabelEditingSession,
 } from './interaction/labelEditing.ts';
+
+export {
+  Create,
+  createShape,
+  boundsFor,
+  defaultSizeFor,
+  DEFAULT_SIZES,
+  EXPANDED_SUBPROCESS_SIZE,
+  type CreateOptions,
+  type CreatePrototype,
+  type DropTarget,
+  type ShapeDescriptor,
+} from './interaction/create.ts';
+
+export {
+  Connect,
+  type ConnectionEnd,
+  type ConnectOptions,
+} from './interaction/connect.ts';
+
+// --- Rules ------------------------------------------------------------------
+export {
+  Rules,
+  defaultRules,
+  canContain,
+  structuralConnection,
+  defaultConnectionType,
+  bpmnTypeOf,
+  typeRefOf,
+  participantOf,
+  containerOf,
+  containerFor,
+  isResizable,
+  minSizeFor,
+  CONNECTION,
+  MIN_SIZES,
+  FALLBACK_MIN_SIZE,
+  type ConnectionSpec,
+  type RuleContext,
+  type RuleElement,
+  type RuleVerdict,
+  type RulesOptions,
+  type Size,
+} from './rules/rules.ts';
+
+// --- Routing ----------------------------------------------------------------
+export {
+  route,
+  routeCenters,
+  routeEdge,
+  rerouteEdge,
+  rerouteEdges,
+  edgesAffectedBy,
+  isOrthogonal,
+  DEFAULT_CLEARANCE,
+  DEFAULT_STRAIGHT_TOLERANCE,
+  type RouteOptions,
+  type RoutableShape,
+} from './routing/orthogonal.ts';
+
+export {
+  cropWaypoints,
+  cropPoint,
+  outlinePoint,
+  outlineFor,
+  containsPoint,
+  centerOf,
+  type CroppableShape,
+  type Outline,
+} from './routing/crop.ts';
 
 // --- Facade -----------------------------------------------------------------
 export { Canvas, type CanvasOptions } from './Canvas.ts';

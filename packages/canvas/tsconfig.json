@@ -8,5 +8,5 @@
       "#assets/*": ["../../assets/*"]
     }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../core/src/declarations.d.ts"]
 }
