@@ -39,6 +39,7 @@ import type { HandleHit, WaypointHit } from '@canvas/interaction/selection.ts';
 import { DEFAULT_GRID_SIZE, Drag, snapTo, withDescendants } from '@canvas/interaction/drag.ts';
 import { Create, createShape, type CreatePrototype, type ShapeDescriptor } from '@canvas/interaction/create.ts';
 import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
+import { appendElement as autoPlaceAppend } from '@canvas/interaction/autoplace.ts';
 import {
   collectSnapTargets,
   snapMove,
@@ -652,6 +653,30 @@ export class Canvas {
   }
 
   /**
+   * Click-append: place a successor beside `source` and connect the two, with no
+   * drag in between (P6b §3A, `interaction/autoplace.ts` for the placement rule).
+   *
+   * The successor ends up selected, not the flow that reaches it — the user asked
+   * for a shape, and the connection is scaffolding. That costs a re-select, because
+   * both {@link Canvas.createElement} and {@link Canvas.connectElements} select what
+   * they made; the alternative is to reach past both into their private halves.
+   */
+  appendElement(
+    source: SceneNode,
+    descriptor: ShapeDescriptor | CreatePrototype,
+  ): SceneNode | undefined {
+    if (!this.scene) return undefined;
+    // The same gate the append affordance is enabled by (`shape.append`), asked again
+    // here: without it, appending from an end event would mint an orphan shape and
+    // then silently fail to connect it, which is worse than doing nothing.
+    if (!this.rules.canAppend(source)) return undefined;
+    const result = autoPlaceAppend(this, source, descriptor);
+    if (!result) return undefined;
+    if (result.connection) this.selection.select(result.shape);
+    return result.shape;
+  }
+
+  /**
    * Move one end of an existing connection onto `node` (gated by
    * `connection.reconnect`), re-routing it. Returns whether it happened.
    */
@@ -892,6 +917,23 @@ export class Canvas {
   /** Whether grid snapping is on. */
   isSnapToGrid(): boolean {
     return this.snapToGrid;
+  }
+
+  /**
+   * Show or hide the background dot grid (P6b §3C).
+   *
+   * Unrelated to {@link Canvas.setSnapToGrid}: one is what the user SEES, the other
+   * is what a drag DOES, and diagram-js keeps them independent too (`diagram-js-grid`
+   * paints unconditionally while grid-snapping is its own module). Purely visual —
+   * it never enters the document, and {@link Canvas.toSVG} strips it.
+   */
+  setGridVisible(visible: boolean): void {
+    this.layers.setGridVisible(visible);
+  }
+
+  /** Whether the background dot grid is painted. */
+  isGridVisible(): boolean {
+    return this.layers.isGridVisible();
   }
 
   /**
@@ -1898,6 +1940,12 @@ export class Canvas {
       'sf-new-parent',
     );
     for (const stray of Array.from(copy.querySelectorAll('[data-layer="selection"]'))) {
+      stray.parentNode?.removeChild(stray);
+    }
+    // The grid is editor chrome too: it is a setting of the WINDOW, not of the
+    // diagram, so an export never carries it — neither the tiled rect nor the
+    // `<pattern>` that fills it (P6b §3C).
+    for (const stray of Array.from(copy.querySelectorAll('[data-layer="grid"], [data-grid-pattern]'))) {
       stray.parentNode?.removeChild(stray);
     }
     const overlays = copy.querySelector('[data-layer="overlays"]');

@@ -314,6 +314,14 @@ export {
   type ConnectOptions,
 } from './interaction/connect.ts';
 
+export {
+  APPEND_DISTANCE,
+  appendElement,
+  appendPosition,
+  type AppendResult,
+  type AutoPlaceHost,
+} from './interaction/autoplace.ts';
+
 // --- Rules ------------------------------------------------------------------
 export {
   Rules,

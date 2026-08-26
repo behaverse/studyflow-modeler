@@ -28,7 +28,9 @@ import { StudyflowElement, getRawAttribute } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS, SVG_ICON_PATHS } from '@modeler/draw/icons';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
+import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import Templates, { TEMPLATE_FLOW_ELEMENTS } from '@modeler/templates/Templates';
+import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import { materializeTemplateFlow } from '@modeler/templates/factory';
 import type { EditorModel, EditorPort, ModelElement } from '@modeler/editor/port';
 import type { PortHandle } from '@modeler/editor/registry';
@@ -264,6 +266,10 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
     });
     canvas.getSelection().select(placed);
   };
+  // BOTH topics: the writeback fires `elements.changed` only for a batch, and a
+  // template's root arrives as a single `createShape` — so watching the plural alone
+  // meant the nested flow of the one template that has one (a pool) never landed.
+  bus.on('element.changed', materializePending);
   bus.on('elements.changed', materializePending);
 
   const port = createCanvasEditorPort(canvas, {
@@ -290,13 +296,33 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       },
     },
     simulation: {
-      // Token simulation is a bpmn-js command-stack feature (`simulation/module.ts`);
-      // it has no canvas counterpart yet, so it reports itself off rather than lying.
-      toggle: () => console.warn('Token simulation is not available on the canvas backend yet.'),
-      isActive: () => false,
+      // Constructed just below, once `port` exists — `TokenSimulator` runs off the
+      // port itself (P6b §3D), and the port needs this slot to be built.
+      toggle: () => simulator?.toggle(),
+      isActive: () => simulator?.isActive() ?? false,
     },
   }) as EditorPort;
   mounted.port = port;
+
+  /**
+   * Token simulation. No DI, no command stack: the simulator draws into the custom
+   * layer `view.getLayer('token-simulation', 1000)` — which the canvas parks inside
+   * its `overlays` layer, in diagram coordinates — and announces itself on
+   * `port.events` under `TOGGLE_SIMULATION_EVENT`, which is what `useIsSimulating`
+   * already subscribes to on both backends.
+   */
+  const simulator = new TokenSimulator(port);
+
+  /**
+   * "Show grid" (P6b §3C). On the bpmn backend `diagram-js-grid` paints the grid and
+   * a diagram-js behavior (`bpmn/behaviors.ts` `GridVisibility`) re-asserts the
+   * user's preference over it; here the canvas paints it and the backend owner
+   * subscribes, which is the same two halves without the DI. Applied once up front
+   * because the setting is already loaded by the time the canvas mounts.
+   */
+  const applyGrid = (): void => port.view.setGridVisible?.(getSettings().showGrid);
+  applyGrid();
+  const unsubscribeSettings = subscribeSettings(applyGrid);
 
   /**
    * Undo/redo from the keyboard. bpmn-js gets this from its `keyboard` module bound
@@ -328,10 +354,13 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
     backend: 'canvas',
     editor: port,
     destroy: () => {
+      simulator.dispose();
+      unsubscribeSettings();
       options.container.removeEventListener('keydown', onHistoryKey);
       bus.off('element.changed', onSceneChanged);
       bus.off('elements.changed', onSceneChanged);
       bus.off('elements.removed', onSceneChanged);
+      bus.off('element.changed', materializePending);
       bus.off('elements.changed', materializePending);
       history.dispose();
       // The canvas owns listeners on the container (which the host keeps across a

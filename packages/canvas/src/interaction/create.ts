@@ -286,7 +286,13 @@ export class Create {
     if (!scene) return { verdict: false };
     const parent = containerOf(over);
     const context: RuleElement = parent ?? scene.rootPlane;
-    const verdict = this.options.rules.allowed('shape.create', { shape: prototype, parent: context });
+    // `root` lets the rules tell "the plane this diagram IS" from any other flow
+    // container of the same type — the one thing a pool drop turns on (§3A).
+    const verdict = this.options.rules.allowed('shape.create', {
+      shape: prototype,
+      parent: context,
+      root: scene.rootPlane,
+    });
     if (verdict === 'attach') return parent ? { parent, verdict } : { verdict: false };
     return parent ? { parent, verdict: verdict !== false } : { verdict: verdict !== false };
   }

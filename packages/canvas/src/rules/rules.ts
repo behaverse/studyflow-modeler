@@ -53,6 +53,8 @@ export interface RuleElement {
   readonly businessObject?: ModdleObject;
   /** Containing node — walked to find the participant / flow-element container. */
   readonly parent?: RuleElement;
+  /** Contained elements — read only to tell an empty diagram root from a populated one. */
+  readonly children?: readonly unknown[];
   /** Connection source (edges only). */
   readonly source?: RuleElement;
   /** Connection target (edges only). */
@@ -521,8 +523,19 @@ export class Rules {
    * which is read as the default `bpmn:Process` root. A drop onto a `bpmn:Group`
    * is resolved to the group's own container ({@link containerFor}), and a drop
    * into a collapsed subprocess is refused.
+   *
+   * `options.root` is the plane the gesture is running on. It exists for one case:
+   * a pool may be dropped on a `bpmn:Process` ROOT even though a process can never
+   * contain one, because that drop promotes the root to a `bpmn:Collaboration`
+   * ({@link Writeback.promoteRootToCollaboration}). Without the root to compare
+   * against, "a process" and "the process this diagram IS" are indistinguishable
+   * here, and a pool would become droppable inside a sub-process too.
    */
-  canCreate(shape: RuleElement | undefined, parent?: RuleElement): boolean | 'attach' {
+  canCreate(
+    shape: RuleElement | undefined,
+    parent?: RuleElement,
+    options: { root?: RuleElement } = {},
+  ): boolean | 'attach' {
     if (!shape) return false;
 
     const container = containerFor(parent);
@@ -531,7 +544,17 @@ export class Rules {
     const containerType = container ? bpmnTypeOf(container, this.catalog) : 'bpmn:Process';
     if (container && isBpmnSubtypeOf(containerType, 'bpmn:SubProcess') && container.isExpanded === false) return false;
 
-    return canContain(bpmnTypeOf(shape, this.catalog), containerType);
+    const shapeType = bpmnTypeOf(shape, this.catalog);
+    if (
+      shapeType === 'bpmn:Participant'
+      && containerType === 'bpmn:Process'
+      && container !== undefined
+      && container === options.root
+    ) {
+      return true;
+    }
+
+    return canContain(shapeType, containerType);
   }
 
   /** `shape.attach` — the boundary-event slice of {@link canCreate}. */
@@ -574,7 +597,11 @@ export class Rules {
         return this.canResize(asElement(context.shape), asBounds(context.newBounds));
 
       case 'shape.create':
-        return this.canCreate(asElement(context.shape), asElement(context.parent ?? context.target));
+        return this.canCreate(
+          asElement(context.shape),
+          asElement(context.parent ?? context.target),
+          { root: asElement(context.root) },
+        );
 
       case 'shape.attach':
         return this.canAttach(asElement(context.shape), asElement(context.parent ?? context.target));

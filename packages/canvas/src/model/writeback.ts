@@ -151,6 +151,58 @@ export function containmentPropertyFor(type: string): 'participants' | 'artifact
   return 'flowElements';
 }
 
+/**
+ * Padding a promoted pool leaves around the contents it adopts, and the width of
+ * its vertical name band — `HORIZONTAL_PARTICIPANT_PADDING`,
+ * `VERTICAL_PARTICIPANT_PADDING` and `PARTICIPANT_BORDER_WIDTH` from bpmn-js's
+ * `CreateParticipantBehavior`, so a promoted pool has the same slack on either
+ * backend.
+ */
+const PARTICIPANT_PADDING = { horizontal: 20, vertical: 20, band: 30 };
+
+/**
+ * Bounds for a pool that must enclose `contents`, never smaller than the footprint
+ * the drop already gave it (`getParticipantBounds`). With nothing to enclose, the
+ * drop's own bounds stand. The band is on the LEFT, so extra width grows rightwards
+ * while extra height is shared evenly.
+ */
+function participantBoundsAround(dropped: Bounds, contents: readonly SceneElement[]): Bounds {
+  const box = boundsAround(contents);
+  if (!box) return dropped;
+  const width = Math.max(dropped.width, box.width + PARTICIPANT_PADDING.horizontal * 2 + PARTICIPANT_PADDING.band);
+  const height = Math.max(dropped.height, box.height + PARTICIPANT_PADDING.vertical * 2);
+  return {
+    x: box.x - PARTICIPANT_PADDING.horizontal - PARTICIPANT_PADDING.band,
+    y: box.y + box.height / 2 - height / 2,
+    width,
+    height,
+  };
+}
+
+/** The box enclosing every node footprint and edge waypoint in `elements`. */
+function boundsAround(elements: readonly SceneElement[]): Bounds | undefined {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const grow = (x: number, y: number): void => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  };
+  for (const element of elements) {
+    if (element.kind === 'node') {
+      grow(element.x, element.y);
+      grow(element.x + element.width, element.y + element.height);
+    } else {
+      for (const point of element.waypoints) grow(point.x, point.y);
+    }
+  }
+  if (!Number.isFinite(minX)) return undefined;
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 /** The `bpmn:Collaboration` a message flow is filed in, if the document has one. */
 function collaborationOf(scene: Scene, plane: Plane): ModdleObject | undefined {
   if (plane.businessObject.$type === 'bpmn:Collaboration') return plane.businessObject;
@@ -678,6 +730,14 @@ export class Writeback {
     const parentNode = spec.attachTo ? spec.attachTo.parent : spec.parent;
     if (spec.attachTo) setRef(bo, 'attachedToRef', spec.attachTo.businessObject);
 
+    // A pool has nowhere legal to live under a `bpmn:Process`, so dropping the first
+    // one on a process root PROMOTES the root to a `bpmn:Collaboration` first. Must
+    // run before `flowContainerOf`, which reads the plane's root business object.
+    const promotion = type === 'bpmn:Participant' && !parentNode
+      ? this.promoteRootToCollaboration(plane, bo, factory, spec.bounds)
+      : undefined;
+    const bounds = promotion?.bounds ?? spec.bounds;
+
     const { owner, lane } = flowContainerOf(parentNode, plane);
     this.fileBusinessObject(bo, type, owner, factory);
     if (lane && isBpmnSubtypeOf(type, 'bpmn:FlowNode')) pushInto(lane, 'flowNodeRef', bo);
@@ -693,10 +753,10 @@ export class Writeback {
       type,
       businessObject: bo,
       di,
-      x: spec.bounds.x,
-      y: spec.bounds.y,
-      width: spec.bounds.width,
-      height: spec.bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
       children: [],
       incoming: [],
       outgoing: [],
@@ -708,6 +768,17 @@ export class Writeback {
       parentNode.children.push(node);
     } else {
       plane.children.push(node);
+    }
+    // A promoted root hands its contents to the pool that promoted it: the pool was
+    // sized to enclose them, and in the document they are already where they belong
+    // (the pool's `processRef` IS the process that held them).
+    if (promotion && promotion.adopt.length > 0) {
+      for (const child of promotion.adopt) {
+        const at = plane.children.indexOf(child);
+        if (at >= 0) plane.children.splice(at, 1);
+        child.parent = node;
+        node.children.push(child);
+      }
     }
     scene.elementsById.set(id, node);
     scene.byBusinessObject.set(bo, node);
@@ -928,6 +999,61 @@ export class Writeback {
     }
     setParent(bo, owner);
     pushInto(owner, containmentPropertyFor(type), bo);
+  }
+
+  /**
+   * Turn a `bpmn:Process` root into a `bpmn:Collaboration` so a pool can be dropped
+   * on it — bpmn-js's `CreateParticipantBehavior` + `UpdateCanvasRootBehavior`
+   * (`modeling.makeCollaboration()`), in the canvas's own terms.
+   *
+   * In the DOCUMENT almost nothing moves. The old process is neither discarded nor
+   * re-parented: the new pool *depicts* it (`processRef`), so it stays a root element
+   * of the definitions and everything it already holds keeps its container. Only
+   * what the PLANE depicts changes — the collaboration instead of the process. BPMN
+   * DI has no nesting either (a pool's contents are plane children of the
+   * collaboration plane), so the shapes already filed need no rewriting.
+   *
+   * In the SCENE two things move, and they are what this returns. A pool that does
+   * not enclose the elements whose process it now owns would re-import as a pool
+   * standing beside its own contents, so:
+   *
+   * - the pool is sized and placed to wrap what is already drawn, by bpmn-js's own
+   *   `getParticipantBounds` arithmetic. Where bpmn-js keeps the pool under the
+   *   pointer and CONSTRAINS how far it may stray (`getParticipantCreateConstraints`),
+   *   this ignores the drop point on a populated root: the drop decides that a pool
+   *   arrives, not where. On an empty root the drop point stands as given.
+   * - the plane's children become the pool's children (`adopt`), which the caller
+   *   applies once the node exists.
+   *
+   * A no-op — `undefined` — on a root that is already a collaboration or choreography.
+   */
+  private promoteRootToCollaboration(
+    plane: Plane,
+    participant: ModdleObject,
+    factory: ModdleFactory | undefined,
+    dropped: Bounds,
+  ): { bounds: Bounds; adopt: SceneElement[] } | undefined {
+    const process = plane.businessObject;
+    if (process.$type !== 'bpmn:Process') return undefined;
+
+    const collaboration = mint(factory, 'bpmn:Collaboration', {
+      id: this.idGenerator.next('bpmn:Collaboration'),
+    });
+    const definitions = definitionsOf(this.scene);
+    if (definitions) {
+      setParent(collaboration, definitions);
+      pushInto(definitions, 'rootElements', collaboration);
+    }
+
+    // Claiming the process here is what stops `fileBusinessObject` minting a second,
+    // empty one for the pool to point at.
+    setRef(participant, 'processRef', process);
+
+    plane.businessObject = collaboration;
+    setRef(plane.di, 'bpmnElement', collaboration);
+
+    const adopt = plane.children.slice();
+    return { bounds: participantBoundsAround(dropped, adopt), adopt };
   }
 
   /** Mint (and file) the `bpmn:LaneSet` a first lane needs. */

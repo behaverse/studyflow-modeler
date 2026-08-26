@@ -1,17 +1,6 @@
 import { executeCommand } from '@modeler/commandBus';
+import { DEFAULT_FILL, DEFAULT_STROKE, ELEMENT_COLORS as COLORS } from '@modeler/shape/colors';
 import type { Injector, PopupMenu } from '@modeler/bpmn/types';
-
-const COLORS: Array<{ label: string; fill: string | undefined; stroke: string | undefined }> = [
-  { label: 'Default', fill: undefined, stroke: undefined },
-  { label: 'Blue',    fill: '#DDE8FA', stroke: '#728CB9' },
-  { label: 'Orange',  fill: '#FBE7CF', stroke: '#CE9D35' },
-  { label: 'Green',   fill: '#D9E7D6', stroke: '#8CB26E' },
-  { label: 'Red',     fill: '#F1D0CD', stroke: '#AC5A54' },
-  { label: 'Purple',  fill: '#DFD5E6', stroke: '#9174A3' },
-];
-
-const DEFAULT_FILL = 'white';
-const DEFAULT_STROKE = 'rgb(34, 36, 42)';
 
 const SWATCH_TEMPLATE = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25" height="100%" width="100%">

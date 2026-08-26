@@ -6,6 +6,8 @@ import { NavBar } from '@modeler/navBar/NavBar';
 import { Notices } from '@modeler/app/Notices';
 import { Panel as InspectorPanel } from '@modeler/inspector/Panel';
 import { Palette } from '@modeler/palette/Palette';
+import { PopupMenus } from '@modeler/popup/PopupMenus';
+import { SelectionToolbar } from '@modeler/popup/SelectionToolbar';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import type { EditorHandle } from '@modeler/editor/registry';
@@ -35,6 +37,12 @@ export function App() {
             </div>
           )}
           {modeler && isReplaying && <ReplayPanel onClose={() => setIsReplaying(false)} />}
+          {/* App-rendered popup menus (`bpmn-create` / `bpmn-append` / `color-picker`).
+              Registered on both backends; only a backend without its own popup
+              registry — the canvas — ever routes a menu here. The toolbar that opens
+              two of them is canvas-only and stands down during a replay. */}
+          {modeler && <PopupMenus />}
+          {modeler && !isReplaying && <SelectionToolbar />}
           {isSettingsOpen && <SettingsView onClose={() => setIsSettingsOpen(false)} />}
           <Notices />
         </div>

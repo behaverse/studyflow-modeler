@@ -1,8 +1,47 @@
+/**
+ * Token simulation, written against the {@link EditorPort} rather than diagram-js DI.
+ *
+ * P6b §3D: this used to be a `didi` service (`$inject = ['eventBus','elementRegistry','canvas']`)
+ * drawing through `tiny-svg` — a dependency that only resolves while bpmn-js is in
+ * `node_modules` (§2c). It now takes a {@link SimulationHost}, a structural subset of
+ * `EditorPort` (`events` + `elements` + `view`), so both backends drive one implementation:
+ *
+ * - the canvas backend constructs it directly over its port (`editor/canvasBackend.ts`);
+ * - the bpmn backend keeps its DI registration, adapting the three services onto the same
+ *   host shape (`simulation/module.ts`).
+ *
+ * The SVG helpers come from the canvas's dependency-free `render/svg.ts`, which
+ * reimplements exactly the `create`/`attr`/`append`/`remove` quartet used here.
+ */
+
 import { is } from '@modeler/editor/port';
-import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as svgRemove } from 'tiny-svg';
+import type { EditorElement, EditorElements, EditorEvents, EditorView } from '@modeler/editor/port';
+import {
+  create as svgCreate,
+  attr as svgAttr,
+  append as svgAppend,
+  remove as svgRemove,
+} from '@canvas/render/svg.ts';
 import { nextHops } from '@modeler/simulation/flowWalk';
 
 export type Point = { x: number; y: number };
+
+/**
+ * What the simulator needs from the editor — a structural subset of `EditorPort`, so
+ * a whole port satisfies it and a hand-built adapter (or a test fake) does too.
+ *
+ * - `events` carries `root.set` in and {@link TOGGLE_SIMULATION_EVENT} out;
+ * - `elements` finds the start events to spawn from, scoped to the current root;
+ * - `view.getLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. Both
+ *   backends put custom layers in the diagram's own coordinate space (diagram-js layers
+ *   sit under the viewport transform; the canvas applies pan/zoom to the root `viewBox`),
+ *   so token positions are plain element coordinates on either.
+ */
+export interface SimulationHost {
+  events: Pick<EditorEvents, 'on' | 'off' | 'fire'>;
+  elements: Pick<EditorElements, 'filter' | 'root' | 'findRoot'>;
+  view: Pick<EditorView, 'getLayer'>;
+}
 
 const TOKEN_RADIUS = 8;
 
@@ -71,6 +110,10 @@ const TOKEN_COLORS = [
 
 export const TOGGLE_SIMULATION_EVENT = 'tokenSimulation.toggle';
 
+/** The custom layer tokens are drawn into, and its z-order hint (above everything). */
+const TOKEN_LAYER = 'token-simulation';
+const TOKEN_LAYER_INDEX = 1000;
+
 interface Token {
   svg: any;
   color: string;
@@ -105,11 +148,7 @@ function makeToken(svg: any, color: string, cx: number, cy: number): Token {
 }
 
 export default class TokenSimulator {
-  static $inject = ['eventBus', 'elementRegistry', 'canvas'];
-
-  private _eventBus: any;
-  private _elementRegistry: any;
-  private _canvas: any;
+  private _host: SimulationHost;
 
   private _active = false;
   private _tokens: Token[] = [];
@@ -120,11 +159,15 @@ export default class TokenSimulator {
   private _lastTimestamp = 0;
   private _startEvents: any[] = [];
 
-  constructor(eventBus: any, elementRegistry: any, canvas: any) {
-    this._eventBus = eventBus;
-    this._elementRegistry = elementRegistry;
-    this._canvas = canvas;
-    this._eventBus.on('root.set', this._handleRootSet);
+  constructor(host: SimulationHost) {
+    this._host = host;
+    this._host.events.on('root.set', this._handleRootSet);
+  }
+
+  /** Stop, and let go of the editor. Called when the backend is torn down. */
+  dispose(): void {
+    this.stop();
+    this._host.events.off('root.set', this._handleRootSet);
   }
 
   isActive(): boolean {
@@ -140,7 +183,7 @@ export default class TokenSimulator {
     if (this._active) return;
     this._active = true;
     this._ensureBounceKeyframes();
-    this._layer = this._canvas.getLayer('token-simulation', 1000);
+    this._layer = this._host.view.getLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
 
     this._startEvents = this._getVisibleStartEvents();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
@@ -155,7 +198,7 @@ export default class TokenSimulator {
     this._lastTimestamp = performance.now();
     this._animFrameId = requestAnimationFrame(this._tick);
 
-    this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: true });
+    this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: true });
   }
 
   stop() {
@@ -175,23 +218,45 @@ export default class TokenSimulator {
     this._clearTokens();
     this._startEvents = [];
 
-    this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: false });
+    this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: false });
   }
 
   private _handleRootSet = () => {
     if (!this._active) return;
-    this._layer = this._canvas.getLayer('token-simulation', 1000);
+    // An import replaces the diagram — and with it the layer, which both backends
+    // drop on `Layers.clear()` / `Canvas.clear()`. Re-fetch rather than reuse.
+    this._layer = this._host.view.getLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this._startEvents = this._getVisibleStartEvents();
     this._clearTokens();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
   };
 
-  private _getVisibleStartEvents() {
-    const root = this._canvas.getRootElement();
+  /**
+   * Top-level start events on the current root plane.
+   *
+   * The parent test is written for both element models: diagram-js parents a
+   * top-level shape on the root element itself, while a canvas scene element at the
+   * top of a plane simply has no `parent` — and the canvas registry spans every
+   * plane, so those need `findRoot` to keep a nested plane's start events out.
+   */
+  private _getVisibleStartEvents(): EditorElement[] {
+    const root = this._rootElement();
     if (!root) return [];
-    return this._elementRegistry.filter(
-      (el: any) => is(el, 'bpmn:StartEvent') && el.type !== 'label' && el.parent === root,
+    return this._host.elements.filter(
+      (el: EditorElement) => is(el, 'bpmn:StartEvent')
+        && el.type !== 'label'
+        && !el.labelTarget
+        && (el.parent === root || (!el.parent && this._host.elements.findRoot(el) === root)),
     );
+  }
+
+  /** The current root, or `undefined` before anything is imported (the canvas throws). */
+  private _rootElement(): EditorElement | undefined {
+    try {
+      return this._host.elements.root() ?? undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private _clearTokens() {

@@ -87,6 +87,13 @@ export interface EditorView {
    * bpmn backend orders layers by it, the canvas backend only records it.
    */
   getLayer(name: string, index?: number): SVGElement;
+  /**
+   * Show or hide the background grid ("Show grid" in settings). Optional: the bpmn
+   * backend already re-asserts the setting itself from a diagram-js behavior
+   * (`bpmn/behaviors.ts` `GridVisibility` over `diagram-js-grid`), so only a backend
+   * that owns no such module publishes this. Call it as `setGridVisible?.(…)`.
+   */
+  setGridVisible?(visible: boolean): void;
   addMarker(elementOrId: EditorElement | string, marker: string): void;
   removeMarker(elementOrId: EditorElement | string, marker: string): void;
   /**
@@ -175,6 +182,16 @@ export interface EditorGestures {
    * absent on backends that need no priming. Call it as `primeHover?.(event)`.
    */
   primeHover?(event: MouseEvent | any): void;
+  /**
+   * Click-append: place `shape` beside `source` and connect the two, as one undo
+   * step. Optional — the bpmn backend gets the gesture from
+   * `bpmn-js-create-append-anything` (`autoPlace.append`) inside its own popup and
+   * publishes nothing here, so app chrome calls `appendShape?.(…)` and falls back to
+   * `mutate.createShape` + `mutate.createConnection`.
+   *
+   * `undefined` when the backend's rules reject the shape.
+   */
+  appendShape?(source: EditorElement, shape: EditorElement): EditorElement | undefined;
 }
 
 /**

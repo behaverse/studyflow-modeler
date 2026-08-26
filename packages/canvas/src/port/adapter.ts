@@ -87,6 +87,12 @@ export interface PortView {
   getAbsoluteBBox(element: PortElement): PortRect;
   getContainer(): HTMLElement;
   getLayer(name: string, index?: number): SVGElement;
+  /**
+   * Show or hide the background dot grid (P6b §3C). Optional on the facade — the
+   * bpmn backend has `diagram-js-grid` and its own `GridVisibility` behavior, so
+   * only this backend needs the host to drive it from settings.
+   */
+  setGridVisible(visible: boolean): void;
   addMarker(elementOrId: PortElement | string, marker: string): void;
   removeMarker(elementOrId: PortElement | string, marker: string): void;
   scrollToElement(
@@ -159,6 +165,16 @@ export interface PortGestures {
    * append). The bpmn-js backend reaches the same gesture through its context pad.
    */
   startConnect(source: PortElement, event?: MouseEvent | any): boolean;
+  /**
+   * Canvas-only extension: click-append — place `shape` one gap to the right of
+   * `source`, vertically centred, and connect the two, as ONE undo step
+   * (`interaction/autoplace.ts`). The bpmn-js backend gets the same gesture from
+   * `bpmn-js-create-append-anything`'s `autoPlace.append`, so the app calls this
+   * optionally and falls back to a create-then-connect pair.
+   *
+   * `undefined` when the rules reject the shape; nothing is written in that case.
+   */
+  appendShape(source: PortElement, shape: PortElement): PortElement | undefined;
 }
 
 /** Popup menus opened from app chrome (`EditorPopup`) — app-fulfilled here. */
@@ -283,8 +299,8 @@ export interface CanvasPortDeps {
  * comparisons (`e.element === editor.elements.root()`) hold.
  */
 export interface PortRoot {
-  readonly id: string;
-  readonly type: string;
+  id: string;
+  type: string;
   readonly isRoot: true;
   businessObject: ModdleObject;
   di: ModdleObject;
@@ -311,8 +327,15 @@ function rootOf(plane: Plane): PortRoot {
     };
     roots.set(plane, root);
   }
-  // The plane's child list is rebuilt on create/delete; keep the projection live.
+  // The projection is memoized for identity (`e.element === elements.root()`), but
+  // everything it mirrors can move underneath it: the child list is rebuilt on
+  // create/delete, and dropping the first pool REPLACES the business object the
+  // plane depicts (`Writeback.promoteRootToCollaboration`). So refresh, never rebuild.
   root.children = plane.children;
+  root.businessObject = plane.businessObject;
+  root.di = plane.di;
+  root.id = String(prop(plane.businessObject, 'id') ?? plane.id);
+  root.type = plane.businessObject.$type;
   return root;
 }
 
@@ -499,6 +522,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       }
       return layer;
     },
+    setGridVisible: (visible) => canvas.setGridVisible(visible),
     addMarker: (elementOrId, marker) => {
       const target = resolve(elementOrId);
       if (target) canvas.getSelection().addMarker(target, marker);
@@ -616,6 +640,12 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       if (!from || from.kind !== 'node') return false;
       return canvas.startConnect(from as SceneNode, event);
     },
+    // Shape AND flow inside one `step`: an append is one gesture, so it is one undo.
+    appendShape: (source, shape) => step('appendShape', () => {
+      const from = resolve(source);
+      if (!from || from.kind !== 'node') return undefined;
+      return canvas.appendElement(from as SceneNode, shape as ShapeDescriptor | CreatePrototype);
+    }),
   };
 
   const defaultImportXML = async (xml: string): Promise<{ warnings: unknown[] }> => {

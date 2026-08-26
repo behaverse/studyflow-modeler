@@ -1,6 +1,7 @@
-import { getCatalog, HIDDEN_SCHEMA_TYPES, isImageIcon, type TypeEntry } from '@core/notation';
+import { getCatalog, isImageIcon } from '@core/notation';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
 import { createEditorModel } from '@modeler/editor/bpmnAdapter';
+import { isAppendable } from '@modeler/popup/entries';
 import type { AutoPlace, Create, ElementFactory, Injector, PopupMenu, Rules } from '@modeler/bpmn/types';
 
 type AppendableType = {
@@ -10,12 +11,6 @@ type AppendableType = {
   bpmnType: string;
   extensionType: string;
 };
-
-function isAppendable(type: TypeEntry): boolean {
-  return !type.isAbstract
-    && !HIDDEN_SCHEMA_TYPES.has(type.name)
-    && type.bpmnType !== null;
-}
 
 export default class AppendMenuProvider {
   static $inject = [

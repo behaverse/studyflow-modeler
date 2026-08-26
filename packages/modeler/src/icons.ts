@@ -21,6 +21,8 @@ export const ICONS = {
   help: 'iconify bi--patch-question',
   book: 'iconify bi--book',
   arrowLeft: 'iconify bi--arrow-left',
+  arrowRight: 'iconify bi--arrow-right',
+  palette: 'iconify bi--palette',
   arrowRepeat: 'iconify bi--arrow-repeat',
   arrowClockwise: 'iconify bi--arrow-clockwise',
   arrowCounterclockwise: 'iconify bi--arrow-counterclockwise',
