@@ -5,13 +5,13 @@ import {
 } from '@modeler/settings/store';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
 
 const isOn = () => getSettings().diagramAutoSave === 'local';
 
-export function attachAutosave(modeler: EditorHandle): () => void {
+export function attachAutosave(modeler: PortHandle): () => void {
   const editor = getEditorPort(modeler);
   let timer: number | undefined;
 

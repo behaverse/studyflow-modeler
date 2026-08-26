@@ -2,13 +2,10 @@
  * Token simulation, written against the {@link EditorPort} rather than diagram-js DI.
  *
  * P6b §3D: this used to be a `didi` service (`$inject = ['eventBus','elementRegistry','canvas']`)
- * drawing through `tiny-svg` — a dependency that only resolves while bpmn-js is in
+ * drawing through `tiny-svg` — a dependency that only resolved while bpmn-js was in
  * `node_modules` (§2c). It now takes a {@link SimulationHost}, a structural subset of
- * `EditorPort` (`events` + `elements` + `view`), so both backends drive one implementation:
- *
- * - the canvas backend constructs it directly over its port (`editor/canvasBackend.ts`);
- * - the bpmn backend keeps its DI registration, adapting the three services onto the same
- *   host shape (`simulation/module.ts`).
+ * `EditorPort` (`events` + `elements` + `view`), constructed directly over the port by
+ * `editor/canvasBackend.ts`. Nothing here knows what draws the diagram.
  *
  * The SVG helpers come from the canvas's dependency-free `render/svg.ts`, which
  * reimplements exactly the `create`/`attr`/`append`/`remove` quartet used here.

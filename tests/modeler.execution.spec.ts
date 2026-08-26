@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { addPaletteElement, exportDiagram, gotoModeler, onCanvasBackend, pressOnCanvas, readDownloadText } from './utils';
+import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
 /**
  * P6b — drill-down navigation. Reading a collapsed sub-process's own DI plane means
@@ -110,7 +110,7 @@ test.describe('Inspector execution tab', () => {
   });
 
   test('the data-association view reports property bindings, which are never drawn', async ({ page }) => {
-    test.skip(onCanvasBackend(), DRILLDOWN_REASON);
+    test.skip(true, DRILLDOWN_REASON);
     await gotoModeler(page);
 
     const source = readFileSync(
@@ -151,7 +151,7 @@ test.describe('Inspector execution tab', () => {
   });
 
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
-    test.skip(onCanvasBackend(), DRILLDOWN_REASON);
+    test.skip(true, DRILLDOWN_REASON);
     await gotoModeler(page);
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'sklearn_pipeline.studyflow.png',

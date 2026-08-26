@@ -1,15 +1,13 @@
 /**
- * What the create/append menus offer — one list, both backends (P6b §3A).
+ * What the create/append menus offer — one list for both (P6b §3A).
  *
- * `contextPad/AppendMenuProvider.ts` contributes exactly this catalog half to
- * bpmn-js's `bpmn-append` popup, and bpmn-js's own providers contribute the plain
- * BPMN half alongside it. The canvas backend has no plugin to contribute either,
- * so this module assembles both: the app's curated BPMN groups
- * (`palette/groups.ts`, the same entries the palette flyouts show) followed by
- * every appendable schema type, grouped by the schema that declares it.
+ * bpmn-js assembled this from two plugin providers: its own for the plain BPMN
+ * half, the app's for the schema half. Nothing contributes now, so this module
+ * assembles both ends itself: the app's curated BPMN groups (`palette/groups.ts`,
+ * the same entries the palette flyouts show) followed by every appendable schema
+ * type, grouped by the schema that declares it.
  *
- * {@link isAppendable} lives here rather than in the provider so the two menus
- * cannot drift — the provider imports it back.
+ * {@link isAppendable} lives here so the create and append menus cannot drift.
  */
 
 import { getCatalog, hasCatalog, HIDDEN_SCHEMA_TYPES, type TypeEntry } from '@core/notation';

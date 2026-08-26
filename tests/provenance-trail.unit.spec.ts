@@ -14,7 +14,8 @@ import {
 } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { EditorPort } from '@modeler/editor/port';
+import type { PortHandle } from '@modeler/editor/registry';
 
 /** `<prov:activity>` elements on the primary root, stamped once per *fact* so re-rendering stays byte-stable. */
 
@@ -82,15 +83,20 @@ test.describe('provenance trail', () => {
 
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('drawn_loop.studyflow.png')));
-    // A partial mock: the editor port reads the document, `moddle`, and counts edits off the event bus.
-    const listeners: Array<() => void> = [];
-    const eventBus = { on: (_topic: string, fn: () => void) => listeners.push(fn) };
-    const modeler = {
-      getDefinitions: () => definitions,
-      get: (name: string, _strict?: boolean) =>
-        ({ moddle, eventBus } as Record<string, any>)[name],
-    } as unknown as Modeler;
-    const edit = () => listeners.forEach((fn) => fn());
+    // A partial mock: stamping reads the document and `moddle`, and decides off the
+    // revision counter — which every backend serves from `editor/history.ts`, one
+    // bump per applied mutation. `edit()` is that bump.
+    let revision = 0;
+    const modeler: PortHandle = {
+      backend: 'canvas',
+      editor: {
+        getDefinitions: () => definitions,
+        revision: () => revision,
+        model: { moddle: () => moddle },
+      } as unknown as EditorPort,
+      destroy() {},
+    };
+    const edit = () => { revision += 1; };
 
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
     expect(readTrail(definitions)).toHaveLength(1);

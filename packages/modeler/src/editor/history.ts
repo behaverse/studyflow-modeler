@@ -1,21 +1,22 @@
 /**
- * The document-history seam both backends hang their undo/redo off.
+ * The document history the editor hangs its undo/redo off.
  *
  * `EditorPort.revision()` and the `commandStack.changed` topic are the app's
  * "the document moved" signals: autosave (`settings/attachAutosave.ts`), the
  * provenance trail (`provenance/trail.ts`) and the undo/redo buttons
- * (`provenance/Provenance.tsx`) all read them. bpmn-js gets both for free from its
- * command stack; the canvas has no command stack at all, so the app supplies one.
+ * (`provenance/Provenance.tsx`) all read them.
  *
- * Two implementations, one interface:
+ * The canvas has no command stack, so the app supplies one: each mutation is
+ * bracketed by {@link DocumentHistory.record}, which bumps the revision, fires
+ * `commandStack.changed` and queues an XML snapshot of the moddle document;
+ * undo/redo restore a snapshot by re-importing it into the live backend.
  *
- * - {@link createCommandStackHistory} — bpmn backend. Native undo/redo is kept
- *   verbatim (no regression); the seam only *reads* it, counting
- *   `commandStack.changed` for `revision()`.
- * - {@link createSnapshotHistory} — canvas backend. Each mutation is bracketed by
- *   {@link DocumentHistory.record}, which bumps the revision, fires
- *   `commandStack.changed` and queues an XML snapshot of the moddle document;
- *   undo/redo restore a snapshot by re-importing it into the live backend.
+ * This was a seam with two sides until P6b — `createCommandStackHistory` wrapped
+ * bpmn-js's native stack, reading `commandStack.changed` instead of snapshotting.
+ * It went with the backend it read. {@link DocumentHistory} stays an interface
+ * rather than collapsing into the one implementation: it is what `EditorPort`
+ * delegates to, and the topic names above are the app's contract, not the
+ * canvas's.
  *
  * Snapshots are taken *after* the write, asynchronously (bpmn-moddle's `toXML` is
  * async while `mutate.*` is not), through a single promise queue so they land in
@@ -24,7 +25,7 @@
  * and the scene's own change events — safe to overlap.
  */
 
-/** The history slice the `EditorPort` delegates to, on either backend. */
+/** The history slice the `EditorPort` delegates to. */
 export interface DocumentHistory {
   /** Monotonic edit counter; import resets it silently. */
   revision(): number;
@@ -43,49 +44,6 @@ export interface DocumentHistory {
   /** Detach listeners / drop snapshots. */
   dispose(): void;
 }
-
-// --- bpmn backend -------------------------------------------------------------
-
-/** The subset of a bpmn-js modeler this seam needs. */
-type CommandStackHost = {
-  get(name: 'eventBus', strict: false): { on(topic: string, fn: () => void): void; off?(topic: string, fn: () => void): void } | null;
-  get(name: 'commandStack', strict: false): any;
-  get(name: 'commandStack'): any;
-};
-
-/**
- * Native bpmn-js undo/redo behind the seam. `revision()` counts
- * `commandStack.changed`, which `importXML` deliberately does not fire (it clears
- * the stack silently) — the same signal the old `commandStack._stackIdx` read gave.
- *
- * `record` is a no-op here: the command stack already fired the event that moved
- * the counter, and re-firing it would double-count.
- */
-export function createCommandStackHistory(host: CommandStackHost): DocumentHistory {
-  let revision = 0;
-  const bump = () => {
-    revision += 1;
-  };
-  // Non-strict: unit-test modeler stand-ins carry no event bus (and no edits to count).
-  const bus = host.get('eventBus', false);
-  bus?.on('commandStack.changed', bump);
-
-  return {
-    revision: () => revision,
-    undo: () => host.get('commandStack').undo(),
-    redo: () => host.get('commandStack').redo(),
-    // Non-strict: read at render time, where a stand-in may carry no command stack.
-    canUndo: () => !!host.get('commandStack', false)?.canUndo(),
-    canRedo: () => !!host.get('commandStack', false)?.canRedo(),
-    beginMutation: () => undefined,
-    endMutation: () => undefined,
-    record: () => undefined,
-    reset: () => undefined,
-    dispose: () => bus?.off?.('commandStack.changed', bump),
-  };
-}
-
-// --- canvas backend -----------------------------------------------------------
 
 export interface SnapshotHistoryOptions {
   /** Serialize the live document. Called off the mutation, on the snapshot queue. */

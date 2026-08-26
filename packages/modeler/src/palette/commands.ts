@@ -2,7 +2,7 @@ import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
 import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 export type PaletteStartCreateTemplateCommand = {
   type: 'PaletteStartCreateTemplate';
@@ -10,7 +10,7 @@ export type PaletteStartCreateTemplateCommand = {
   event: MouseEvent | any;
 };
 
-export function runPaletteStartCreateTemplate(modeler: EditorHandle, command: PaletteStartCreateTemplateCommand): any {
+export function runPaletteStartCreateTemplate(modeler: PortHandle, command: PaletteStartCreateTemplateCommand): any {
   const editor = getEditorPort(modeler);
   const template = editor.templates.getAll().find((t: any) => t.id === command.templateId);
   if (!template) return undefined;
@@ -36,7 +36,7 @@ export type PaletteStartCreateCommand = {
   extensionType?: string;
 };
 
-export function runPaletteStartCreate(modeler: EditorHandle, command: PaletteStartCreateCommand): any {
+export function runPaletteStartCreate(modeler: PortHandle, command: PaletteStartCreateCommand): any {
   const editor = getEditorPort(modeler);
   const bo = buildBusinessObject(editor.model, command.bpmnType, {
     attributes: command.attributes,
@@ -74,11 +74,11 @@ export type PaletteOpenPopupCommand = {
   title: string;
 };
 
-export function runPaletteActivateLasso(modeler: EditorHandle, command: PaletteActivateLassoCommand): void {
+export function runPaletteActivateLasso(modeler: PortHandle, command: PaletteActivateLassoCommand): void {
   getEditorPort(modeler).gestures.startLasso(command.event);
 }
 
-export function runPaletteOpenPopup(modeler: EditorHandle, command: PaletteOpenPopupCommand): void {
+export function runPaletteOpenPopup(modeler: PortHandle, command: PaletteOpenPopupCommand): void {
   getEditorPort(modeler).popup.open(command.popupType, command.position, {
     title: command.title,
     width: 300,
@@ -125,7 +125,7 @@ export type ResolvePaletteSchemasCommand = {
 };
 
 export function runResolvePaletteSchemas(
-  _modeler: EditorHandle,
+  _modeler: PortHandle,
   _command: ResolvePaletteSchemasCommand,
 ): PaletteSchema[] {
   return getCatalog().schemas.map((schema): PaletteSchema => ({

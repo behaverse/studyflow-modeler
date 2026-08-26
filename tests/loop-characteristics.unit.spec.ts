@@ -10,7 +10,8 @@ import {
   loopKindOf,
   supportsLoopCharacteristics,
 } from '@modeler/inspector/loopCharacteristics';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { EditorPort } from '@modeler/editor/port';
+import type { PortHandle } from '@modeler/editor/registry';
 
 /** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
 
@@ -23,11 +24,16 @@ const packages: Record<string, any> = Object.fromEntries(
 );
 const moddle = new BpmnModdle(packages) as any;
 
-/** Fake DI container: modeling applies writes like bpmn-js would and records the handler used. */
-function fakeModeler() {
+/**
+ * A handle over a partial `EditorPort`: the command reaches the document through
+ * `mutate` and `model` alone, so those two are all the fake owes it. `mutate`
+ * applies each write the way a real backend's undo step would, and records which
+ * of the two writers ran — the distinction the tests below are about.
+ */
+function fakeModeler(): { modeler: PortHandle; calls: string[] } {
   const calls: string[] = [];
-  const services: Record<string, any> = {
-    modeling: {
+  const editor = {
+    mutate: {
       updateProperties(element: any, properties: Record<string, any>) {
         calls.push('updateProperties');
         for (const [name, value] of Object.entries(properties)) element.businessObject.set(name, value);
@@ -37,14 +43,12 @@ function fakeModeler() {
         for (const [name, value] of Object.entries(properties)) moddleElement.set(name, value);
       },
     },
-    bpmnFactory: {
-      create: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
+    model: {
+      createBusinessObject: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
     },
-    // The editor facade subscribes to `commandStack.changed` at creation for its revision counter.
-    eventBus: { on() {} },
-  };
-  // A partial mock: these handlers only resolve services.
-  return { modeler: { get: (name: string) => services[name] } as unknown as Modeler, calls };
+  } as unknown as EditorPort;
+
+  return { modeler: { backend: 'canvas', editor, destroy() {} }, calls };
 }
 
 function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {

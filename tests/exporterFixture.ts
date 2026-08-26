@@ -26,6 +26,11 @@ export type FakeModelerOptions = {
   diagramName?: string;
 };
 
+/**
+ * A handle over a partial `EditorPort`: the exporters walk `elements` and read the
+ * diagram's name off the root, and that is the whole of what they ask the editor
+ * for — which is why one registry stand-in serves every interchange format.
+ */
 export function fakeModeler(businessObjects: any[], { diagramName }: FakeModelerOptions = {}): any {
   const elements = businessObjects.map((bo) => ({ businessObject: bo, type: 'shape', id: bo.id }));
   const root = diagramName
@@ -33,11 +38,14 @@ export function fakeModeler(businessObjects: any[], { diagramName }: FakeModeler
     : undefined;
 
   return {
-    get: (service: string) => {
-      if (service === 'elementRegistry') return { forEach: (fn: any) => elements.forEach(fn) };
-      if (service === 'canvas') return { getRootElement: () => root };
-      return undefined;
+    backend: 'canvas',
+    editor: {
+      elements: {
+        forEach: (fn: any) => elements.forEach(fn),
+        root: () => root,
+      },
     },
+    destroy() {},
   };
 }
 

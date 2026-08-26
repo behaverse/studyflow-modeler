@@ -10,10 +10,10 @@ import { PopupMenus } from '@modeler/popup/PopupMenus';
 import { SelectionToolbar } from '@modeler/popup/SelectionToolbar';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 export function App() {
-  const [modeler, setModeler] = useState<EditorHandle | undefined>(undefined);
+  const [modeler, setModeler] = useState<PortHandle | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const isSimulating = useIsSimulating(modeler);

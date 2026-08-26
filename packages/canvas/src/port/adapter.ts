@@ -88,9 +88,8 @@ export interface PortView {
   getContainer(): HTMLElement;
   getLayer(name: string, index?: number): SVGElement;
   /**
-   * Show or hide the background dot grid (P6b §3C). Optional on the facade — the
-   * bpmn backend has `diagram-js-grid` and its own `GridVisibility` behavior, so
-   * only this backend needs the host to drive it from settings.
+   * Show or hide the background dot grid (P6b §3C). The canvas owns no settings
+   * store of its own, so the host drives this from the "Show grid" setting.
    */
   setGridVisible(visible: boolean): void;
   addMarker(elementOrId: PortElement | string, marker: string): void;

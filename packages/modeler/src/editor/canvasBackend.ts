@@ -314,11 +314,10 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
   const simulator = new TokenSimulator(port);
 
   /**
-   * "Show grid" (P6b §3C). On the bpmn backend `diagram-js-grid` paints the grid and
-   * a diagram-js behavior (`bpmn/behaviors.ts` `GridVisibility`) re-asserts the
-   * user's preference over it; here the canvas paints it and the backend owner
-   * subscribes, which is the same two halves without the DI. Applied once up front
-   * because the setting is already loaded by the time the canvas mounts.
+   * "Show grid" (P6b §3C). The canvas paints the grid and this backend owner
+   * subscribes to the setting — two halves that used to be `diagram-js-grid` plus a
+   * behavior re-asserting the preference over it, now without the DI. Applied once
+   * up front because the setting is already loaded by the time the canvas mounts.
    */
   const applyGrid = (): void => port.view.setGridVisible?.(getSettings().showGrid);
   applyGrid();

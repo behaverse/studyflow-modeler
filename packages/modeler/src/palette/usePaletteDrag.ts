@@ -2,7 +2,7 @@ import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { executeCommand } from '@modeler/commandBus';
 import type { PaletteEntry } from '@modeler/palette/groups';
 import type { PaletteTemplate } from '@modeler/palette/commands';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 export type PaletteDraggable = PaletteEntry | (PaletteTemplate & { __template: true });
 
@@ -18,7 +18,7 @@ function isTemplate(draggable: PaletteDraggable): draggable is PaletteTemplate &
 }
 
 export function usePaletteDrag(
-  modeler: EditorHandle,
+  modeler: PortHandle,
   onBeforeAction?: () => void,
 ): PaletteDragHandlers {
   const mouseDownRef = useRef(false);

@@ -1,6 +1,6 @@
 import { StudyflowElement } from '@core/element';
 import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 type TimingAttrs = {
   onset?: string;
@@ -138,7 +138,7 @@ function buildGanttRow(el: any, anchor: number): Row | null {
 }
 
 /** One row per element carrying a timing attribute; onsets are relative to a single shared anchor. */
-export function collectGanttRows(modeler: EditorHandle): Row[] {
+export function collectGanttRows(modeler: PortHandle): Row[] {
   if (!modeler) return [];
   const rows: Row[] = [];
   const anchor = Date.now();

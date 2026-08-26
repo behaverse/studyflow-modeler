@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState, useContext } from 'react';
 
-import 'bpmn-js/dist/assets/diagram-js.css';
-import 'bpmn-js/dist/assets/bpmn-js.css';
-import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
-import 'bpmn-js-color-picker/colors/color-picker.css';
 import { ModelerContext } from '@modeler/app/contexts';
 import { executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';

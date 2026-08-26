@@ -1,16 +1,12 @@
 /**
- * The affordance that opens the append and colour menus on the canvas backend
- * (P6b §3A, §3B).
+ * The affordance that opens the append and colour menus (P6b §3A, §3B).
  *
- * On the bpmn backend both buttons are plugin-owned context-pad entries
+ * These were plugin-owned context-pad entries while bpmn-js was the editor
  * (`bpmn-js-create-append-anything`'s `append`, `bpmn-js-color-picker`'s
- * `set-color`) that diagram-js floats beside the selection. The canvas has no
+ * `set-color`), floated beside the selection by diagram-js. The canvas has no
  * context pad, so the app floats its own two-button bar above the selection and
- * opens the same two menu ids through `EditorPort.popup` — which is exactly the
- * seam `PopupMenus.tsx` registered against.
- *
- * It renders on the canvas backend ONLY. Drawing it on bpmn would put a second
- * append button next to the plugin's, and the plugin's is the one under test.
+ * opens the two menu ids through `EditorPort.popup` — which is exactly the seam
+ * `PopupMenus.tsx` registers against.
  *
  * Positioning runs on an animation frame rather than an event, because the canvas
  * publishes no viewbox-changed topic: a pan, a zoom and a drag of the selected
@@ -20,7 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { getEditorPort, isPortHandle } from '@modeler/editor/registry';
+import { getEditorPort } from '@modeler/editor/registry';
 import { canAppendFrom } from '@modeler/popup/commands';
 import { APPEND_MENU, COLOR_MENU } from '@modeler/popup/PopupMenus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
@@ -63,11 +59,7 @@ export function SelectionToolbar() {
   const [elements, setElements] = useState<EditorElement[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Only the canvas backend needs this; bpmn-js floats its own context pad.
-  const isCanvas = isPortHandle(modeler) && modeler.backend === 'canvas';
-
   useEffect(() => {
-    if (!isCanvas) return;
     const editor = getEditorPort(modeler);
     const sync = (): void => setElements(editor.selection.get());
     sync();
@@ -79,9 +71,9 @@ export function SelectionToolbar() {
       editor.events.off('root.set', sync);
       editor.events.off('import.done', sync);
     };
-  }, [modeler, isCanvas]);
+  }, [modeler]);
 
-  const visible = isCanvas && !isSimulating && elements.length > 0;
+  const visible = !isSimulating && elements.length > 0;
 
   /* Written straight to the node: a pan is 60 position changes a second, and none
      of them is a React state change. */

@@ -4,7 +4,6 @@ import {
   addPaletteElement,
   exportDiagram,
   gotoModeler,
-  onCanvasBackend,
   pressOnCanvas,
   readDownloadText,
 } from './utils';
@@ -13,12 +12,10 @@ import {
  * The app-rendered popup menus and the selection toolbar that opens two of them
  * (P6b §3A, §3B).
  *
- * Canvas-only on purpose, and this is the one place in the suite where that is
- * right: on the bpmn backend all three menus and both buttons are *plugin* chrome
- * (`bpmn-js-create-append-anything`, `bpmn-js-color-picker`, diagram-js's context
- * pad) rendered into `.djs-popup` / `.djs-context-pad`, which the app neither owns
- * nor renders. What the two backends genuinely share is the DOCUMENT these menus
- * produce, and that every other spec here already asserts on.
+ * This chrome is the app's own. bpmn-js used to render all three menus and both
+ * buttons as plugin chrome into `.djs-popup` / `.djs-context-pad`, which is why
+ * these specs were skipped on that backend while it existed; they run
+ * unconditionally now that the React popover is the only implementation.
  */
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
@@ -31,11 +28,7 @@ function shapeX(bpmn: string, prefix: string): number {
   return match ? Number(match[1]) : NaN;
 }
 
-test.describe('App popup menus (canvas backend)', () => {
-  test.beforeEach(() => {
-    test.skip(!onCanvasBackend(), 'bpmn-js renders these menus itself; the React popover is the canvas backend\'s chrome');
-  });
-
+test.describe('App popup menus', () => {
   test('the palette\'s more-elements button opens a searchable create menu that places what you pick', async ({ page }) => {
     await gotoModeler(page);
 

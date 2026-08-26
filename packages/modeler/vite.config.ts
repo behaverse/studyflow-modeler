@@ -20,9 +20,6 @@ export default defineConfig({
   base: '',  // relative
   define: {
     'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
-    // P6a editor backend flag: baked in from the dev-server/build environment.
-    // `?editor=` and localStorage still win at runtime (see editor/backend.ts).
-    __STUDYFLOW_EDITOR_BACKEND__: JSON.stringify(process.env.STUDYFLOW_EDITOR_BACKEND ?? ''),
   },
   plugins: [
     tailwindcss(),

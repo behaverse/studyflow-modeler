@@ -3,17 +3,15 @@ import { fromStandardBpmnXml, fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
-import { resolveEditorBackend } from '@modeler/editor/backend';
-import { createBpmnBackend } from '@modeler/editor/bpmnBackend';
 import { createCanvasBackend } from '@modeler/editor/canvasBackend';
 import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorBackend, EditorHandle, PortHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 export type DownloadSchemasCommand = {
   type: 'DownloadSchemas';
 };
 
-export async function runDownloadSchemas(_modeler: EditorHandle | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
+export async function runDownloadSchemas(_modeler: PortHandle | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
   return loadSchemas(getSettings().enabledSchemas);
 }
 
@@ -21,11 +19,11 @@ export async function runDownloadSchemas(_modeler: EditorHandle | null, _command
 export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
-export function runUndo(modeler: EditorHandle, _command: UndoCommand): void {
+export function runUndo(modeler: PortHandle, _command: UndoCommand): void {
   getEditorPort(modeler).undo();
 }
 
-export function runRedo(modeler: EditorHandle, _command: RedoCommand): void {
+export function runRedo(modeler: PortHandle, _command: RedoCommand): void {
   getEditorPort(modeler).redo();
 }
 
@@ -53,7 +51,7 @@ export function openRunnerTab(): Window | null {
   return window.open('', '_blank');
 }
 
-export async function runOpenRunner(modeler: EditorHandle, command: OpenRunnerCommand): Promise<void> {
+export async function runOpenRunner(modeler: PortHandle, command: OpenRunnerCommand): Promise<void> {
   // `undefined` means the caller never tried; `null` means it tried and the browser said no.
   const target = command.target === undefined ? openRunnerTab() : command.target;
   if (!target) fail(POPUP_BLOCKED);
@@ -98,21 +96,19 @@ export type CreateModelerCommand = {
   container: any;
   extensionSchemas: Record<string, any>;
   initialDiagramXml?: string;
-  /** Overrides the resolved flag; the flag itself decides when this is omitted. */
-  backend?: EditorBackend;
 };
 
 /**
- * Mount an editor into `container` and hand back the handle the app holds from
- * here on. Which backend is mounted is the flag's business
- * (`editor/backend.ts` — `?editor=`, `localStorage`, `STUDYFLOW_EDITOR_BACKEND`);
- * everything after this line talks to `handle.editor`, so the two paths differ
- * only in the two lines below.
+ * Mount the editor into `container` and hand back the handle the app holds from
+ * here on. Since P6b there is one backend — the native canvas
+ * (`editor/canvasBackend.ts`) — and everything after this line talks to
+ * `handle.editor`, never to the backend itself.
  */
-export async function runCreateModeler(_modeler: EditorHandle | null, command: CreateModelerCommand): Promise<PortHandle> {
-  const backend = command.backend ?? resolveEditorBackend();
-  const options = { container: command.container as HTMLElement, extensionSchemas: command.extensionSchemas };
-  const handle = backend === 'canvas' ? createCanvasBackend(options) : createBpmnBackend(options);
+export async function runCreateModeler(_modeler: PortHandle | null, command: CreateModelerCommand): Promise<PortHandle> {
+  const handle = createCanvasBackend({
+    container: command.container as HTMLElement,
+    extensionSchemas: command.extensionSchemas,
+  });
 
   const editor = getEditorPort(handle);
   const provided = command.initialDiagramXml;

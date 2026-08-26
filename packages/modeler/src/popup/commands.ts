@@ -15,7 +15,7 @@
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
 import { getEditorPort } from '@modeler/editor/registry';
 import type { EditorElement } from '@modeler/editor/port';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 /**
  * Horizontal gap between a source shape and the successor appended from it —
@@ -29,16 +29,16 @@ import type { EditorHandle } from '@modeler/editor/registry';
 export const APPEND_DISTANCE = 50;
 
 /** Whether `element` may be appended from at all (`rules.allowed('shape.append')`). */
-export function canAppendFrom(modeler: EditorHandle, element: EditorElement | undefined): boolean {
+export function canAppendFrom(modeler: PortHandle, element: EditorElement | undefined): boolean {
   if (!element) return false;
-  // The two backends read the context under different keys — bpmn-js's plugin rule
-  // takes `element`, the canvas takes `source ?? element ?? shape`. Send both.
+  // The canvas rule reads `source ?? element ?? shape`; both keys are sent because
+  // the rule vocabulary is shared with the schema rules, which name `element`.
   return getEditorPort(modeler).rules.allowed('shape.append', { element, source: element });
 }
 
 /**
- * A boundary event needs an explicit host, so it can never be auto-placed — the
- * bpmn plugin drags it too (`AppendMenuProvider._buildAppendAction`).
+ * A boundary event needs an explicit host, so it can never be auto-placed: the
+ * user has to drag it onto the activity it attaches to.
  */
 export function mustDragToAppend(bpmnType: string): boolean {
   return bpmnType === 'bpmn:BoundaryEvent';
@@ -64,7 +64,7 @@ export type AppendElementCommand = {
  * appending twice from one element stacks the successors.
  */
 export function runAppendElement(
-  modeler: EditorHandle,
+  modeler: PortHandle,
   command: AppendElementCommand,
 ): EditorElement | undefined {
   const editor = getEditorPort(modeler);
@@ -125,7 +125,7 @@ export type StartAppendElementCommand = {
  * backend to draw the connection on drop.
  */
 export function runStartAppendElement(
-  modeler: EditorHandle,
+  modeler: PortHandle,
   command: StartAppendElementCommand,
 ): EditorElement {
   const editor = getEditorPort(modeler);

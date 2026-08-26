@@ -1,28 +1,28 @@
 # @behaverse/studyflow-modeler
 
-The visual editor for studyflows: a [bpmn-js](https://bpmn.io) canvas inside a React shell. The app generates its palette, inspector, templates, and connection rules from the `*.moddle.yaml` schemas in [`assets/schemas/`](../../assets/schemas/). Served at `/app.html`.
+The visual editor for studyflows: a native SVG canvas ([`@behaverse/studyflow-canvas`](../canvas/)) inside a React shell. The app generates its palette, inspector, templates, and connection rules from the `*.moddle.yaml` schemas in [`assets/schemas/`](../../assets/schemas/). Served at `/app.html`.
 
 ## Contract
 
 - It owns **authoring** and nothing else. What a studyflow *means* lives in [`@behaverse/studyflow-core`](../core/); what a studyflow *does* lives in the runners.
 - It never imports from [`packages/runner`](../runner/). ESLint refuses it. Shared code goes to core.
 - It hands a studyflow to the browser runner through `localStorage` under `studyflow-modeler:handoff:<id>` (an 8-character uuid slice, swept after an hour) and opens `/run/?diagram=<id>`. There is no code path between the two apps.
-- **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, bpmn-js inside. `src/bpmn/module.ts` is the single registration list for everything bpmn-js-side, and the right first file to read for canvas behavior.
+- **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, the canvas package's own SVG inside. `src/editor/canvasBackend.ts` mounts that canvas and assembles the `EditorPort` facade over it — the right first file to read for canvas behavior. `src/editor/port.ts` is the facade itself, and the only way app code reaches the editor.
 - **Views dispatch commands by name** and never call a handler directly: a command's `type` *is* its handler's name, so `{ type: 'SetColor' }` runs `runSetColor`, exported from a feature's `commands.ts`. Both sides of the pixel split dispatch onto the same bus, `src/commandBus.ts`.
 - **Adding an element type is a schema edit, not a code edit.** Dropping a `*.moddle.yaml` into `assets/schemas/` gives you a palette entry, inspector fields and tabs, connection rules, templates, and round-tripping, with no code here.
 - It stamps the provenance trail on export: `created` on a fresh diagram, `modified` afterwards, once per edit batch. It never writes `executed`. The only other entry it writes is the `invalidated` marker behind the ✕ gesture.
 
 ## Where things are
 
-One folder per feature. Everything the palette is lives in `src/palette/`: its data, its React, its bpmn-js wiring, its commands.
+One folder per feature. Everything the palette is lives in `src/palette/`: its data, its React, its commands.
 
 | Folder | What it holds |
 | --- | --- |
 | `src/app/` | the shell: `App.tsx`, `Modeler.tsx`, contexts, notices, boot commands |
-| `src/bpmn/` | bpmn-js glue: behaviors, the modeling updater, the DI module, upstream type aliases |
-| `src/palette/` `src/contextPad/` `src/commandPalette/` | the three ways to place an element |
+| `src/editor/` | the editor facade: `port.ts` (the interface), `canvasBackend.ts` (the one implementation), history, popup registry |
+| `src/palette/` `src/popup/` `src/commandPalette/` | the three ways to place an element |
 | `src/inspector/` | the attribute panel: tabs, editors, sections, data neighbors |
-| `src/draw/` `src/shape/` | how an element is rendered, and how its business object is built |
+| `src/draw/` `src/shape/` | icon and choreography-band geometry the canvas reads, and how an element's business object is built |
 | `src/export/` `src/import/` | the file formats below, plus jsPsych import |
 | `src/diagram/` `src/templates/` `src/examples/` | file open/save and auto-layout, the template gallery, the examples gallery |
 | `src/provenance/` `src/checklist/` `src/gantt/` | the three views over a diagram's metadata |
@@ -30,7 +30,7 @@ One folder per feature. Everything the palette is lives in `src/palette/`: its d
 | `src/publish/` `src/settings/` `src/navBar/` `src/ui/` | publishing to `api.behaverse.org`, settings, chrome |
 | `src/commandBus.ts` | the bus, and the `FEATURES` list a feature joins |
 
-Inside a feature, four file names recur: `commands.ts` (its bus handlers), `module.ts` (its bpmn-js registration), `PascalCase.tsx` (one React view or bpmn-js class), and everything else named for what it does. Feature folders have no barrels. You import the path of the file you want. [Architecture](../../README.md#architecture-in-short) has the rules and the reasoning.
+Inside a feature, three file names recur: `commands.ts` (its bus handlers), `PascalCase.tsx` (one React view), and everything else named for what it does. Feature folders have no barrels. You import the path of the file you want. [Architecture](../../README.md#architecture-in-short) has the rules and the reasoning.
 
 ## Export formats
 

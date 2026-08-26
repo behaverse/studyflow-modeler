@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { executeCommand } from '@modeler/commandBus';
 import { getDiagramName } from '@modeler/diagram/file';
 import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';
 
-export function useDiagramName(modeler: EditorHandle): {
+export function useDiagramName(modeler: PortHandle): {
   diagramName: string;
   rename: (name: string) => void;
 } {

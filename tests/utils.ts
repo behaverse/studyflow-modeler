@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test, type Download, type Locator, type Page } from '@playwright/test';
+import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
 import { xmlToStudyflow } from '@core/document';
 import { extractXmlFromPng } from '@core/document/png';
@@ -24,29 +24,8 @@ export function withoutDiagramInterchange(xml: string): string {
   return xml.replace(/\s*<bpmndi:BPMNDiagram[\s\S]*?<\/bpmndi:BPMNDiagram>/g, '');
 }
 
-/**
- * Which editor backend the e2e run drives (P6a). The `e2e` project — the default,
- * what `npm run test:e2e` runs — is bpmn, exactly as a user gets it; the
- * `e2e-canvas` project points the *same* specs at the native canvas through the
- * `?editor=` flag, so no rebuild or dev-server restart is needed to switch.
- * `STUDYFLOW_EDITOR_BACKEND` overrides the project name for ad-hoc runs.
- *
- * Called from inside a test (never at module scope): the project name comes from
- * the running test's info.
- */
-export function editorBackend(): 'bpmn' | 'canvas' {
-  const fromEnv = process.env.STUDYFLOW_EDITOR_BACKEND?.trim();
-  if (fromEnv === 'canvas' || fromEnv === 'bpmn') return fromEnv;
-  return test.info().project.name === 'e2e-canvas' ? 'canvas' : 'bpmn';
-}
-
-/** True while the run drives the native canvas backend. */
-export function onCanvasBackend(): boolean {
-  return editorBackend() === 'canvas';
-}
-
 export async function gotoModeler(page: Page): Promise<void> {
-  await page.goto(`/app?editor=${editorBackend()}`);
+  await page.goto('/app');
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
@@ -56,43 +35,34 @@ export async function gotoModeler(page: Page): Promise<void> {
 /**
  * Pin *which* editor actually mounted.
  *
- * Every other selector in this suite is deliberately backend-agnostic so one spec
- * set can drive both backends — which means a regression in `?editor=` handling
- * (or a dropped query param here) would silently turn `test:e2e:canvas` into a
- * second bpmn run that still passes. This is the one assertion that cannot be
- * satisfied by the wrong backend: diagram-js owns `.djs-container`, the native
- * canvas owns `svg.sf-canvas`, and neither ever renders the other's root.
+ * Every other selector in this suite is deliberately backend-agnostic, which is
+ * what let one spec set drive both backends while both existed. Now that only the
+ * canvas ships, this is the run-time proof that bpmn-js is really gone: diagram-js
+ * owns `.djs-container`, the native canvas owns `svg.sf-canvas`, and neither ever
+ * renders the other's root — so a resurrected bpmn-js mount fails here rather than
+ * passing quietly under agnostic selectors. The dependency is gone from
+ * `package.json`, but this is the assertion that a re-added one would trip.
  */
 export async function expectBackendMounted(page: Page): Promise<void> {
   const canvas = page.getByTestId('modeler-canvas');
-  const nativeRoot = canvas.locator('svg.sf-canvas');
-  const diagramJsRoot = canvas.locator('.djs-container');
 
-  if (onCanvasBackend()) {
-    await expect(nativeRoot, 'expected the native canvas backend to be mounted').toBeVisible();
-    await expect(diagramJsRoot, 'diagram-js must not be mounted on the canvas backend').toHaveCount(0);
-  } else {
-    await expect(diagramJsRoot, 'expected the bpmn-js backend to be mounted').toBeVisible();
-    await expect(nativeRoot, 'the native canvas must not be mounted on the bpmn backend').toHaveCount(0);
-  }
+  await expect(canvas.locator('svg.sf-canvas'), 'expected the native canvas to be mounted').toBeVisible();
+  await expect(canvas.locator('.djs-container'), 'diagram-js must not be mounted at all').toHaveCount(0);
 }
 
 /**
- * The in-place label editor, whichever backend drew it: diagram-js mounts a
- * `contenteditable` div, the canvas a `<textarea>`. Both are single-instance and
- * both accept `fill()`; only *reading* the text differs, hence
- * {@link expectEditorText}.
+ * The in-place label editor: a single `<textarea>` the canvas overlays on the
+ * label being edited (`canvas/interaction/labelEditing.ts`). diagram-js used to
+ * mount a `contenteditable` div here instead, which is why reading the text went
+ * through {@link expectEditorText} rather than `toHaveValue`.
  */
 export function labelEditor(page: Page): Locator {
-  return page.locator('.djs-direct-editing-content, .sf-label-editor');
+  return page.locator('.sf-label-editor');
 }
 
-/** Assert the open label editor's text, reading `value` or `textContent` as the node demands. */
+/** Assert the open label editor's text. */
 export async function expectEditorText(page: Page, expected: string): Promise<void> {
-  await expect(labelEditor(page)).toBeVisible();
-  await expect
-    .poll(() => labelEditor(page).evaluate((node: any) => node.value ?? node.textContent ?? ''))
-    .toBe(expected);
+  await expect(labelEditor(page)).toHaveValue(expected);
 }
 
 export async function pressOnCanvas(page: Page, key: string): Promise<void> {

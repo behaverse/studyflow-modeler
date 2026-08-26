@@ -3,10 +3,10 @@ import { openRunnerTab } from '@modeler/app/commands';
 import { URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 export type PaletteCommandDeps = {
-  modeler: EditorHandle;
+  modeler: PortHandle;
   isSimulating: boolean;
   openSettings: () => void;
   openDialog: (id: PaletteDialogId) => void;

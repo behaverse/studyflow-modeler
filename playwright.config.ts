@@ -20,19 +20,11 @@ export default defineConfig({
       testMatch: '**/*.unit.spec.ts',
       fullyParallel: true,
     },
+    // P6b: one editor, one e2e project. The `e2e-bpmn` companion went with the
+    // bpmn-js backend it drove (plan step 7) — there is no second backend left for
+    // `?editor=` to point the same specs at.
     {
       name: 'e2e',
-      testIgnore: '**/*.unit.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-    // P6a: the same suite, driven against the native canvas backend through the
-    // `?editor=canvas` flag (`tests/utils.ts::editorBackend`). One spec set, two
-    // backends — never a per-backend fork. `STUDYFLOW_EDITOR_BACKEND` overrides
-    // the project name for ad-hoc runs of the default project.
-    {
-      name: 'e2e-canvas',
       testIgnore: '**/*.unit.spec.ts',
       use: {
         ...devices['Desktop Chrome'],

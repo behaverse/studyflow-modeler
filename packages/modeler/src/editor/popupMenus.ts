@@ -1,13 +1,11 @@
 /**
  * App-fulfilled popup menus.
  *
- * `EditorPort.popup.open(providerId, …)` names a menu, not a diagram-js provider.
- * The bpmn backend resolves the id through bpmn-js's own popup-menu registry
- * (`bpmn-create`, `bpmn-append`, `color-picker` are registered as diagram-js
- * providers in `bpmn/behaviors.ts`, `contextPad/AppendMenuProvider.ts` and
- * `contextPad/ColorPickerProvider.ts`). A backend with no such registry — the
- * canvas — needs the app chrome to render the same menus at the anchor geometry
- * the editor hands over, so this module is where app chrome registers them.
+ * `EditorPort.popup.open(providerId, …)` names a menu, not an editor-side provider.
+ * The ids (`bpmn-create`, `bpmn-append`, `color-picker`) are bpmn-js's, kept
+ * because the canvas forwards the same three menus; the editor owns only the
+ * anchor geometry, and app chrome renders the menu itself. This module is where
+ * that chrome registers.
  *
  * Registration is a plain map so the React layer can own it without the editor
  * knowing anything about React. Until a menu is registered, opening it is a no-op

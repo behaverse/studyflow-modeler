@@ -41,13 +41,11 @@ test('the Settings view opens and its Extensions section lists every schema', as
 });
 
 /**
- * P6b §3C: "Show grid" drives a real grid on BOTH backends now. bpmn-js paints it
- * with `diagram-js-grid` into a `layer-djs-grid` group; the canvas paints its own
- * `<pattern>` into a `data-layer="grid"` group. Different chrome, one setting and
- * one observable behaviour, so the assertion accepts either shape rather than
- * branching on the backend.
+ * P6b §3C: "Show grid" drives a real grid. The canvas paints its own `<pattern>`
+ * into a `data-layer="grid"` group and fills it with a single `<rect>`, so the
+ * setting is observable as that rect existing or not.
  */
-const GRID_RECT = '[data-testid="modeler-canvas"] :is(.layer-djs-grid, [data-layer="grid"]) rect';
+const GRID_RECT = '[data-testid="modeler-canvas"] [data-layer="grid"] rect';
 
 test('the "Show grid" setting paints and unpaints the canvas grid', async ({ page }) => {
   await gotoModeler(page);

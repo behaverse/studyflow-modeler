@@ -11,13 +11,13 @@ import { getEditorPort } from '@modeler/editor/registry';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
 import { getSettings } from '@modeler/settings/store';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 export type ResetZoomCommand = {
   type: 'ResetZoom';
 };
 
-export function runResetZoom(modeler: EditorHandle, _command: ResetZoomCommand): void {
+export function runResetZoom(modeler: PortHandle, _command: ResetZoomCommand): void {
   getEditorPort(modeler).view.zoomToFit();
 }
 
@@ -26,7 +26,7 @@ export type NewDiagramCommand = {
   type: 'NewDiagram';
 };
 
-export async function runNewDiagram(modeler: EditorHandle, _command: NewDiagramCommand): Promise<any> {
+export async function runNewDiagram(modeler: PortHandle, _command: NewDiagramCommand): Promise<any> {
   const result = await importXml(modeler, { xml: new_diagram });
   getEditorPort(modeler).view.zoomToFit();
   return result;
@@ -39,7 +39,7 @@ export type ImportJsPsychCommand = {
   content: string;
 };
 
-export async function runImportJsPsych(modeler: EditorHandle, command: ImportJsPsychCommand): Promise<any> {
+export async function runImportJsPsych(modeler: PortHandle, command: ImportJsPsychCommand): Promise<any> {
   const name = filenameStem(command.filename);
   const study = importJsPsychTimeline(command.content, { name });
   for (const warning of study.warnings) console.warn(`jsPsych import: ${warning}`);
@@ -59,7 +59,7 @@ type ImportXmlPayload = {
   xml: string;
 };
 
-async function importXml(modeler: EditorHandle, command: ImportXmlPayload): Promise<any> {
+async function importXml(modeler: PortHandle, command: ImportXmlPayload): Promise<any> {
   const editor = getEditorPort(modeler);
   const wireXml = await applyXmlPasses(command.xml, editor.model.moddle(), [
     choreographyToProcessRoot,
@@ -79,7 +79,7 @@ export type OpenDiagramCommand = {
   content: string | ArrayBuffer;
 };
 
-async function toXml(modeler: EditorHandle, filename: string, content: string | ArrayBuffer): Promise<string> {
+async function toXml(modeler: PortHandle, filename: string, content: string | ArrayBuffer): Promise<string> {
   const format = importableFormatFor(filename);
 
   if (format?.id === 'png') {
@@ -93,7 +93,7 @@ async function toXml(modeler: EditorHandle, filename: string, content: string | 
   return studyflowToXml(text, getEditorPort(modeler).model.moddle());
 }
 
-export async function runOpenDiagram(modeler: EditorHandle, command: OpenDiagramCommand): Promise<any> {
+export async function runOpenDiagram(modeler: PortHandle, command: OpenDiagramCommand): Promise<any> {
   const xml = await toXml(modeler, command.filename, command.content);
 
   const result = await importXml(modeler, { xml });

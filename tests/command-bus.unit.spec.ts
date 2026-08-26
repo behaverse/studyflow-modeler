@@ -3,36 +3,41 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runSetColor } from '@modeler/shape/commands';
+import type { EditorPort } from '@modeler/editor/port';
+import type { PortHandle } from '@modeler/editor/registry';
 
-/** The bus takes anything that resolves services by name, so the modeler is one such thing and not
- * the only one. `@modeler/commandBus` itself cannot be imported here: it pulls in `app/commands.ts`,
- * whose `?raw` asset import only resolves under Vite. So the contract is tested where it lives, in a
- * handler, and the call sites that depend on it are checked in the source. */
+/** A handler touches the editor only through `getEditorPort(handle).…`, never through the backend
+ * itself — which is what lets a handler be exercised against a partial port, and what let the editor
+ * be swapped underneath the app at all. `@modeler/commandBus` itself cannot be imported here: it
+ * pulls in `app/commands.ts`, whose `?raw` asset import only resolves under Vite. So the contract is
+ * tested where it lives, in a handler, and the call sites that depend on it are checked in the source. */
 
 const SRC = join(process.cwd(), 'packages/modeler/src');
 const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8');
 
-test('a handler resolves its services by name, so a bare injector stands in for the modeler', () => {
+test('a handler goes through the port facade, so a partial port stands in for the editor', () => {
   const painted: unknown[] = [];
-  const modeling = {
-    setColor: (elements: unknown, color: unknown) => painted.push({ elements, color }),
-  };
-  // Not a Modeler: exactly the shape bpmn-js's own injector has.
-  const injector = { get: (name: string) => (name === 'modeling' ? modeling : undefined) };
+  const editor = {
+    mutate: {
+      setColor: (elements: unknown, color: unknown) => painted.push({ elements, color }),
+    },
+  } as unknown as EditorPort;
+  const modeler: PortHandle = { backend: 'canvas', editor, destroy() {} };
   const elements = [{ id: 'Task_1' }];
   const color = { fill: '#eeeeee', stroke: '#333333' };
 
-  runSetColor(injector as any, { type: 'SetColor', elements, color });
+  runSetColor(modeler, { type: 'SetColor', elements, color });
 
-  expect(painted, 'the handler reached `modeling` through `get` alone').toEqual([{ elements, color }]);
+  expect(painted, 'the handler reached the editor through `mutate` alone').toEqual([{ elements, color }]);
 });
 
-test('the context pad really does dispatch with an injector', () => {
-  // If this call site ever passes a modeler instead, the test above is guarding a contract nobody uses.
-  const source = read('contextPad/ColorPickerProvider.ts');
+test('the colour picker really does dispatch `SetColor` with the handle', () => {
+  // If this call site ever reached past the facade, the test above is guarding a contract nobody uses.
+  const source = read('popup/PopupMenus.tsx');
 
-  expect(source).toMatch(/executeCommand\(\s*this\.injector\s*,/);
-  expect(source, "the injector is bpmn-js's, declared for injection").toMatch(/\$inject\s*=\s*\[[^\]]*'injector'/);
+  expect(source).toMatch(/executeCommand\(\s*modeler\s*,\s*\{\s*type:\s*'SetColor'/);
+  expect(source, 'the handle is what the React tree holds, from `useRequiredModeler`')
+    .toMatch(/const modeler = useRequiredModeler\(\)/);
 });
 
 test('every command the app boots with tolerates a null modeler', () => {

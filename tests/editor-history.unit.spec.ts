@@ -1,81 +1,18 @@
 import { expect, test } from '@playwright/test';
 
-import { DEFAULT_EDITOR_BACKEND, resolveEditorBackend } from '@modeler/editor/backend';
 import { createSnapshotHistory } from '@modeler/editor/history';
-import { createCommandStackHistory } from '@modeler/editor/history';
 
 /**
- * P6a — the two app-side halves the canvas backend brought with it: the backend
- * flag, and the document history that stands in for a command stack.
+ * The document history the canvas backend brought with it — the app-level undo
+ * stack that stands in for a command stack.
  *
- * Neither belongs to an editor. The flag decides which one boots; the history is
- * what `EditorPort.revision()` / `undo()` / `redo()` answer with on *both*
- * backends, so provenance, autosave and dirty-tracking cannot tell them apart.
+ * It does not belong to the editor: it is what `EditorPort.revision()` /
+ * `undo()` / `redo()` answer with, so provenance, autosave and dirty-tracking
+ * read it without knowing where the mutation came from.
+ *
+ * This file also carried the `editor/backend.ts` flag's tests until P6b step 11.
+ * The flag chose between two backends; there is one, so it and they are gone.
  */
-
-// --- the flag -----------------------------------------------------------------
-
-/** Install a minimal `window` for the duration of `run` (the unit lane is browserless). */
-async function withWindow(
-  fake: { href?: string; stored?: string | null; throws?: boolean },
-  run: () => void | Promise<void>,
-): Promise<void> {
-  const previous = (globalThis as any).window;
-  (globalThis as any).window = {
-    location: { href: fake.href ?? 'http://localhost/app' },
-    localStorage: {
-      getItem: (key: string) => {
-        if (fake.throws) throw new Error('storage disabled');
-        return key === 'studyflow.editorBackend' ? (fake.stored ?? null) : null;
-      },
-    },
-  };
-  try {
-    await run();
-  } finally {
-    if (previous === undefined) delete (globalThis as any).window;
-    else (globalThis as any).window = previous;
-  }
-}
-
-test('the default backend is bpmn — the flag has to be asked for', async () => {
-  expect(DEFAULT_EDITOR_BACKEND).toBe('bpmn');
-  await withWindow({}, () => {
-    expect(resolveEditorBackend()).toBe('bpmn');
-  });
-});
-
-test('`?editor=canvas` mounts the canvas, and outranks the stored preference', async () => {
-  await withWindow({ href: 'http://localhost/app?editor=canvas' }, () => {
-    expect(resolveEditorBackend()).toBe('canvas');
-  });
-  await withWindow({ href: 'http://localhost/app?editor=bpmn', stored: 'canvas' }, () => {
-    expect(resolveEditorBackend()).toBe('bpmn');
-  });
-});
-
-test('the stored preference applies when the URL says nothing', async () => {
-  await withWindow({ stored: 'canvas' }, () => {
-    expect(resolveEditorBackend()).toBe('canvas');
-  });
-});
-
-test('an unrecognised value falls through rather than booting the wrong editor', async () => {
-  await withWindow({ href: 'http://localhost/app?editor=canvs', stored: 'canvas' }, () => {
-    expect(resolveEditorBackend(), 'the typo is skipped, the next source answers').toBe('canvas');
-  });
-  await withWindow({ href: 'http://localhost/app?editor=' }, () => {
-    expect(resolveEditorBackend()).toBe('bpmn');
-  });
-});
-
-test('storage that throws (private mode) is not a boot failure', async () => {
-  await withWindow({ throws: true }, () => {
-    expect(resolveEditorBackend()).toBe('bpmn');
-  });
-});
-
-// --- the snapshot history -----------------------------------------------------
 
 /**
  * A document that is one string. `serialize` reads it, `restore` writes it — the
@@ -271,47 +208,4 @@ test('the ring is bounded: the oldest states fall off', async () => {
   await settle();
   expect(state.xml).toBe('v3');
   expect(history.canUndo(), 'v0..v2 fell out of a 3-deep ring').toBe(false);
-});
-
-// --- the bpmn half of the same seam -------------------------------------------
-
-test('the bpmn backend keeps its native stack behind the same seam', () => {
-  const calls: string[] = [];
-  let listener: (() => void) | undefined;
-  const commandStack = {
-    undo: () => calls.push('undo'),
-    redo: () => calls.push('redo'),
-    canUndo: () => true,
-    canRedo: () => false,
-  };
-  const modeler = {
-    get: (name: string) => (name === 'eventBus'
-      ? { on: (_topic: string, fn: () => void) => { listener = fn; } }
-      : commandStack),
-  };
-
-  const history = createCommandStackHistory(modeler as any);
-
-  expect(history.revision(), 'nothing has been executed yet').toBe(0);
-  listener?.();
-  listener?.();
-  expect(history.revision(), 'one bump per `commandStack.changed`').toBe(2);
-
-  history.undo();
-  history.redo();
-  expect(calls, 'undo/redo go straight to the command stack — no snapshots').toEqual(['undo', 'redo']);
-  expect(history.canUndo()).toBe(true);
-  expect(history.canRedo()).toBe(false);
-
-  // The seam must not double-count: the command stack already fired the event.
-  history.record();
-  history.endMutation('setColor');
-  expect(history.revision()).toBe(2);
-});
-
-test('a modeler stand-in with no event bus still answers the history', () => {
-  const history = createCommandStackHistory({ get: () => null } as any);
-  expect(history.revision()).toBe(0);
-  expect(history.canUndo()).toBe(false);
-  expect(history.canRedo()).toBe(false);
 });

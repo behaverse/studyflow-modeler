@@ -2,7 +2,7 @@ import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight } from '@modeler/draw/choreographyLayout';
 import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorHandle } from '@modeler/editor/registry';
+import type { PortHandle } from '@modeler/editor/registry';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */
 const ACTIVITY_POINTS = 'points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],'
@@ -288,7 +288,7 @@ function edgeCell(element: any, known: Set<string>): string {
     + '        </mxCell>\n';
 }
 
-export function exportToDrawio(modeler: EditorHandle): string {
+export function exportToDrawio(modeler: PortHandle): string {
   const editor = getEditorPort(modeler);
   const root = editor.elements.root();
   const shapes: any[] = [];

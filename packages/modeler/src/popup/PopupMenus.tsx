@@ -1,14 +1,10 @@
 /**
  * App chrome for the three editor popup menus (P6b §3A, §3B).
  *
- * `EditorPort.popup.open(providerId, position, options)` names a menu. The bpmn
- * backend answers it from bpmn-js's provider registry (`bpmn/behaviors.ts`,
- * `contextPad/AppendMenuProvider.ts`, `contextPad/ColorPickerProvider.ts`) and
- * never reaches this module; the canvas backend forwards it straight into
- * `editor/popupMenus.ts`, which is what this host registers against. Mounting it
- * on both backends is therefore harmless and keeps the app free of a backend
- * branch — whichever editor is behind the facade, "open the append menu" is one
- * call.
+ * `EditorPort.popup.open(providerId, position, options)` names a menu; the canvas
+ * backend forwards it straight into `editor/popupMenus.ts`, which is what this
+ * host registers against. The editor supplies the anchor geometry and nothing
+ * else, so "open the append menu" is one call that knows no React and no editor.
  *
  * Three ids:
  *
@@ -130,8 +126,8 @@ export function PopupMenus() {
             label: color.label,
             swatch: { fill: color.fill ?? DEFAULT_FILL, stroke: color.stroke ?? DEFAULT_STROKE },
             onSelect: () => {
-              // The same `SetColor` command the bpmn provider dispatches — only the
-              // handle differs (a `PortHandle` here, the diagram-js injector there).
+              // The colour swatches are the app's only route to `SetColor`; the
+              // handler reaches the editor through `getEditorPort` like every other.
               executeCommand(modeler, { type: 'SetColor', elements, color });
             },
           })),

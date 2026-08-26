@@ -3,21 +3,20 @@
  *
  * App-side consumers (React components, hooks, command handlers, simulation UI,
  * export, provenance, import) reach the diagram editor only through this
- * interface. Editor-internal modules (`bpmn/`, `draw/`, `contextPad/`,
- * `palette/module`, `templates/`) keep using bpmn-js directly and belong to the
- * bpmn backend alone.
+ * interface, and through nothing else — which is what let bpmn-js be replaced
+ * underneath them without any of them noticing.
  *
- * Names describe intent, not bpmn-js service names. There are two implementations:
+ * Names describe intent, not any editor's service names. One implementation
+ * ships: `createCanvasEditorPort` (`@behaverse/studyflow-canvas`) over the native
+ * canvas, assembled with its app-supplied halves in `@modeler/editor/canvasBackend`.
+ * Several members still carry a bpmn-js name in parentheses below — that is the
+ * vocabulary the app grew up on, and the fastest way to read what a member means.
  *
- * - `createBpmnEditorPort` (`@modeler/editor/bpmnAdapter`) over a bpmn-js modeler;
- * - `createCanvasEditorPort` (`@behaverse/studyflow-canvas`) over the native canvas,
- *   assembled with its app-supplied halves in `@modeler/editor/canvasBackend`.
- *
- * Members marked *app-backed* below are not the editor's to answer: the history
- * quartet, `importXML`/`saveXML` and `model` are served by the app on both
- * backends (`editor/history.ts`, bpmn-moddle), so the two backends agree on them
- * by construction. `@modeler/editor/registry` picks the implementation; nothing
- * app-side may branch on which one it got.
+ * Members marked *app-backed* are not the editor's to answer at all: the history
+ * quartet, `importXML`/`saveXML` and `model` are served by the app
+ * (`editor/history.ts`, bpmn-moddle), so they survive any editor.
+ * `@modeler/editor/registry` hands out the implementation; nothing app-side may
+ * branch on which one it got.
  */
 
 /**
@@ -88,10 +87,9 @@ export interface EditorView {
    */
   getLayer(name: string, index?: number): SVGElement;
   /**
-   * Show or hide the background grid ("Show grid" in settings). Optional: the bpmn
-   * backend already re-asserts the setting itself from a diagram-js behavior
-   * (`bpmn/behaviors.ts` `GridVisibility` over `diagram-js-grid`), so only a backend
-   * that owns no such module publishes this. Call it as `setGridVisible?.(…)`.
+   * Show or hide the background grid ("Show grid" in settings). Optional: a backend
+   * that paints its own grid from the setting need not publish it, so callers say
+   * `setGridVisible?.(…)`.
    */
   setGridVisible?(visible: boolean): void;
   addMarker(elementOrId: EditorElement | string, marker: string): void;
@@ -184,10 +182,9 @@ export interface EditorGestures {
   primeHover?(event: MouseEvent | any): void;
   /**
    * Click-append: place `shape` beside `source` and connect the two, as one undo
-   * step. Optional — the bpmn backend gets the gesture from
-   * `bpmn-js-create-append-anything` (`autoPlace.append`) inside its own popup and
-   * publishes nothing here, so app chrome calls `appendShape?.(…)` and falls back to
-   * `mutate.createShape` + `mutate.createConnection`.
+   * step. Optional — app chrome calls `appendShape?.(…)` and falls back to
+   * `mutate.createShape` + `mutate.createConnection` for a backend that solves no
+   * placement of its own.
    *
    * `undefined` when the backend's rules reject the shape.
    */
