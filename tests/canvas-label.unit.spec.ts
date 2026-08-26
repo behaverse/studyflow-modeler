@@ -9,12 +9,8 @@ import {
   DEFAULT_TOP as CORE_DEFAULT_TOP,
 } from '@core/document';
 import { Canvas, setDocument } from '@canvas/index.ts';
-import {
-  choreographyBandAt,
-  DEFAULT_BOTTOM,
-  DEFAULT_TOP,
-  labelBounds,
-} from '@canvas/interaction/labelEditing.ts';
+import { choreographyBandAt, labelBounds } from '@canvas/interaction/labelEditing.ts';
+import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@canvas/model/choreography.ts';
 import type { DirectEditingEvent, ElementDblClickEvent } from '@canvas/interaction/labelEditing.ts';
 import { externalLabelBounds } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';

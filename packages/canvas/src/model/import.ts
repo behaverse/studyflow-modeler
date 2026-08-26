@@ -26,29 +26,7 @@ import type {
   SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
-
-/** Read a property off a moddle element, tolerating a plain parsed bag. */
-function prop(target: ModdleObject | undefined, name: string): unknown {
-  if (!target) return undefined;
-  const getter = (target as { get?: (n: string) => unknown }).get;
-  return typeof getter === 'function' ? getter.call(target, name) : (target as Record<string, unknown>)[name];
-}
-
-function asModdle(value: unknown): ModdleObject | undefined {
-  return value && typeof value === 'object' && typeof (value as ModdleObject).$type === 'string'
-    ? (value as ModdleObject)
-    : undefined;
-}
-
-/** The moddle `$parent` back-link — a meta field, read directly (moddle `get` ignores `$`-names). */
-function parentOf(target: ModdleObject | undefined): ModdleObject | undefined {
-  return asModdle((target as { $parent?: unknown } | undefined)?.$parent);
-}
-
-function asList(value: unknown): ModdleObject[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is ModdleObject => !!asModdle(item));
-}
+import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
 
 function num(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -60,6 +38,10 @@ const EDGE_TYPE = 'bpmndi:BPMNEdge';
 
 const PARTICIPANT_TYPE = 'bpmn:Participant';
 const LANE_TYPE = 'bpmn:Lane';
+
+/** Data-association types, whose activity end is implicit (see {@link resolveEndpoints}). */
+const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';
+const DATA_OUTPUT_ASSOCIATION = 'bpmn:DataOutputAssociation';
 
 export interface ImportOptions {
   /** Sink for recoverable problems (dangling `bpmnElement`, missing bounds). Defaults to `console.warn`. */
@@ -264,10 +246,28 @@ function attachLabel(owner: SceneElement, di: ModdleObject, businessObject: Modd
   owner.label = label;
 }
 
-/** Resolve `source`/`target` from the edge business object's `sourceRef`/`targetRef`. */
+/**
+ * Resolve `source`/`target` from the edge business object's `sourceRef`/`targetRef`.
+ *
+ * A **data association** resolves only one of its two ends that way: it is drawn
+ * between a data shape and an activity, but only the data shape is a ref — the
+ * activity end is *implicit*, because the association hangs off the activity
+ * (`activity.dataInputAssociations`) and its other ref points at an io slot
+ * (`bpmn:DataInput`/`bpmn:DataOutput`/`bpmn:Property`) that is never drawn. So the
+ * unresolved end falls back to the moddle `$parent`, giving the edge the same two
+ * real endpoints a freshly created one gets (`model/dataAssociation.ts`) — which is
+ * what routing, docking and the deletion closure read.
+ */
 function resolveEndpoints(edge: SceneEdge, byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>): void {
-  const source = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'sourceRef'))!));
-  const target = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'targetRef'))!));
+  let source = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'sourceRef'))!));
+  let target = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'targetRef'))!));
+  if (!source || !target) {
+    const owner = asNode(byBusinessObject.get(parentOf(edge.businessObject)!));
+    if (owner && owner !== source && owner !== target) {
+      if (edge.type === DATA_INPUT_ASSOCIATION && !target) target = owner;
+      else if (edge.type === DATA_OUTPUT_ASSOCIATION && !source) source = owner;
+    }
+  }
   if (source) {
     edge.source = source;
     if (!source.outgoing.includes(edge)) source.outgoing.push(edge);
@@ -276,12 +276,6 @@ function resolveEndpoints(edge: SceneEdge, byBusinessObject: Map<ModdleObject, S
     edge.target = target;
     if (!target.incoming.includes(edge)) target.incoming.push(edge);
   }
-}
-
-/** A ref may be a single BO or a `[BO, …]` list (data associations); take the first moddle element. */
-function refBO(value: unknown): ModdleObject | undefined {
-  if (Array.isArray(value)) return asModdle(value[0]);
-  return asModdle(value);
 }
 
 /**

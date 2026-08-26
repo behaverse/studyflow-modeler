@@ -119,7 +119,12 @@ const DATA_TYPES: ReadonlySet<string> = new Set([
   'bpmn:DataStore',
 ]);
 
-function isDataShape(type: string): boolean {
+/**
+ * Whether `type` is a data shape — the ends a data association attaches to
+ * (`model/dataAssociation.ts` sorts a pair by this exact predicate, so the create
+ * path and the rule that allowed it cannot disagree).
+ */
+export function isDataShape(type: string): boolean {
   return DATA_TYPES.has(type);
 }
 
@@ -312,9 +317,24 @@ function isMessageTarget(type: string): boolean {
     || isBpmnSubtypeOf(type, 'bpmn:CatchEvent');
 }
 
-/** Data associations attach to activities and to events (which can carry data). */
-function isDataEnd(type: string): boolean {
-  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:Event');
+/**
+ * Can this type **consume** data — be the target of a `DataInputAssociation`? Only
+ * the two BPMN types that own `dataInputAssociations`: `bpmn:Activity` and
+ * `bpmn:ThrowEvent` (so an end / intermediate-throw event, never a catching one).
+ * A catching event has no place to file the association, and writing one onto it
+ * would land in `$attrs` and serialize as garbage.
+ */
+function isDataSink(type: string): boolean {
+  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:ThrowEvent');
+}
+
+/**
+ * Can this type **produce** data — be the source of a `DataOutputAssociation`? The
+ * types that own `dataOutputAssociations`: `bpmn:Activity` and `bpmn:CatchEvent`
+ * (start / intermediate-catch / boundary events).
+ */
+function isDataSource(type: string): boolean {
+  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:CatchEvent');
 }
 
 /**
@@ -343,8 +363,8 @@ export function structuralConnection(
   }
 
   if (isDataShape(sourceType) || isDataShape(targetType)) {
-    if (isDataShape(sourceType) && isDataEnd(targetType)) return { type: CONNECTION.dataInputAssociation };
-    if (isDataEnd(sourceType) && isDataShape(targetType)) return { type: CONNECTION.dataOutputAssociation };
+    if (isDataShape(sourceType) && isDataSink(targetType)) return { type: CONNECTION.dataInputAssociation };
+    if (isDataSource(sourceType) && isDataShape(targetType)) return { type: CONNECTION.dataOutputAssociation };
     return false;
   }
 

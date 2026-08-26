@@ -24,6 +24,7 @@
  * module stays model-and-preview only.
  */
 
+import { EXPANDED_SUBPROCESS_SIZE, isExpandable } from '@canvas/model/expand.ts';
 import type {
   Bounds,
   ModdleObject,
@@ -83,12 +84,16 @@ export const DEFAULT_SIZES: Readonly<Record<NodeCategory, { width: number; heigh
   unknown: { width: 100, height: 80 },
 };
 
-/** Footprint of an expanded sub-process — it has to hold something. */
-export const EXPANDED_SUBPROCESS_SIZE = { width: 350, height: 200 } as const;
+/**
+ * Footprint of an expanded sub-process — it has to hold something. Defined in
+ * `model/expand.ts` (which the expand/collapse toggle grows a shape back to) and
+ * re-exported here so a palette drop and a toggle agree on one number.
+ */
+export { EXPANDED_SUBPROCESS_SIZE };
 
 /** The default footprint for a BPMN type, honouring the expanded-sub-process case. */
 export function defaultSizeFor(type: string, isExpanded?: boolean): { width: number; height: number } {
-  if (isExpanded && (type === 'bpmn:SubProcess' || type === 'bpmn:AdHocSubProcess' || type === 'bpmn:Transaction')) {
+  if (isExpanded && isExpandable(type)) {
     return { ...EXPANDED_SUBPROCESS_SIZE };
   }
   if (type === 'bpmn:Lane') return { width: 600, height: 120 };

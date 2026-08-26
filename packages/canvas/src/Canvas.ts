@@ -38,6 +38,11 @@ import { Create, createShape, type CreatePrototype, type ShapeDescriptor } from 
 import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import type { ElementDblClickEvent } from '@canvas/interaction/labelEditing.ts';
+import type { ParticipantBand } from '@canvas/model/choreography.ts';
+import type { ElementColors } from '@canvas/model/color.ts';
+import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
+import { isExpandable } from '@canvas/model/expand.ts';
+import type { SetExpandedOptions } from '@canvas/model/expand.ts';
 import { Writeback } from '@canvas/model/writeback.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
 import { Rules } from '@canvas/rules/rules.ts';
@@ -66,6 +71,12 @@ export interface CanvasOptions extends RendererOptions {
   minNodeSize?: number;
   /** Rule engine gating create/connect/reconnect. Defaults to a fresh {@link Rules}. */
   rules?: Rules;
+  /**
+   * Double-clicking a sub-process toggles its expanded state instead of opening the
+   * inline label editor (the minimal UI affordance for design §1's expand/collapse).
+   * Default `true`; turn it off to keep double-click purely a rename gesture.
+   */
+  toggleExpandOnDoubleClick?: boolean;
 }
 
 /** Screen-pixel drag threshold separating a click from a marquee or a drag. */
@@ -96,6 +107,15 @@ interface GestureState {
   waypoint?: WaypointHit;
 }
 
+/** Whether a key event landed in a text field, where Backspace/Delete edit text. */
+function isTextEntry(target: EventTarget | null): boolean {
+  const el = target as { tagName?: string; isContentEditable?: boolean } | null;
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  const tag = typeof el.tagName === 'string' ? el.tagName.toUpperCase() : '';
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
 /** Which end of an edge an endpoint-waypoint index refers to, if either. */
 function endpointOf(edge: SceneEdge, index: number): ConnectionEnd | undefined {
   if (index === 0) return 'source';
@@ -119,6 +139,7 @@ export class Canvas {
   private readonly onWarning?: ImportOptions['onWarning'];
   private readonly gridSize?: number;
   private readonly minNodeSize?: number;
+  private readonly toggleExpandOnDoubleClick: boolean;
   private snapToGrid: boolean;
   private scene?: Scene;
   private writeback?: Writeback;
@@ -129,6 +150,7 @@ export class Canvas {
   private readonly onMove = (ev: Event) => this.handlePointerMove(ev as MouseEvent);
   private readonly onUp = (ev: Event) => this.handlePointerUp(ev as MouseEvent);
   private readonly onKeyDown = (ev: Event) => this.handleKeyDown(ev as KeyboardEvent);
+  private readonly onShortcut = (ev: Event) => this.handleShortcut(ev as KeyboardEvent);
 
   constructor(options: CanvasOptions = {}) {
     const doc = ownerDocument();
@@ -137,6 +159,7 @@ export class Canvas {
     this.snapToGrid = options.snapToGrid ?? false;
     this.gridSize = options.gridSize;
     this.minNodeSize = options.minNodeSize;
+    this.toggleExpandOnDoubleClick = options.toggleExpandOnDoubleClick ?? true;
 
     this.root = create('svg', {
       class: 'sf-canvas',
@@ -189,6 +212,13 @@ export class Canvas {
 
     this.root.addEventListener('pointerdown', (ev) => this.handlePointerDown(ev as MouseEvent));
     this.root.addEventListener('dblclick', (ev) => this.handleDoubleClick(ev as MouseEvent));
+    // Keyboard shortcuts (Delete/Backspace) are scoped to the canvas rather than the
+    // document: the container is made focusable and takes focus on a press, and the
+    // listener sits on it so a key pressed over the diagram bubbles up to it. The
+    // focus hook is on the *container*, never the SVG root — `toSVG` serializes the
+    // root, and an exported diagram must not carry editor plumbing.
+    if (!this.container.hasAttribute('tabindex')) this.container.setAttribute('tabindex', '0');
+    this.container.addEventListener('keydown', this.onShortcut);
   }
 
   /**
@@ -381,6 +411,157 @@ export class Canvas {
     return true;
   }
 
+  // --- expand / collapse (P5) -----------------------------------------------
+
+  /**
+   * Expand or collapse a sub-process: `BPMNShape.isExpanded` is written through to
+   * the live DI ({@link Writeback.setExpanded}), the shape resizes to match, and the
+   * contents it hides/reveals are re-drawn here — a collapsed container's descendants
+   * (including a nested plane's, design §1) render `display="none"` and stop taking
+   * hits, while their business objects and DI stay exactly where the document put
+   * them. Returns whether anything was written.
+   */
+  setExpanded(node: SceneNode, expanded: boolean, options?: SetExpandedOptions): boolean {
+    const writeback = this.writeback;
+    if (!writeback) return false;
+    const { changed, contents } = writeback.setExpanded(node, expanded, options);
+    if (changed.length === 0) return false;
+    // Contents first, then the container and its edges, so the selection overlay is
+    // refreshed against the final geometry.
+    this.redrawElements([...contents, ...changed]);
+    return true;
+  }
+
+  /** Flip a sub-process between expanded and collapsed ({@link Canvas.setExpanded}). */
+  toggleExpanded(node: SceneNode, options?: SetExpandedOptions): boolean {
+    return this.setExpanded(node, node.isExpanded === false, options);
+  }
+
+  /** Whether `node` is a container whose expanded state can be toggled. */
+  canExpand(node: SceneNode): boolean {
+    return isExpandable(node.type);
+  }
+
+  /**
+   * Show or hide a gateway's marker (`BPMNShape.isMarkerVisible` — the × of an
+   * exclusive gateway) and re-draw it. Returns whether anything was written.
+   */
+  setMarkerVisible(node: SceneNode, visible: boolean): boolean {
+    const writeback = this.writeback;
+    if (!writeback || !writeback.setMarkerVisible(node, visible)) return false;
+    this.redrawElements([node]);
+    return true;
+  }
+
+  // --- data associations (P5) ------------------------------------------------
+
+  /**
+   * Connect a data shape and an activity with a data association: the
+   * `bpmn:DataInputAssociation` / `bpmn:DataOutputAssociation` business object (filed
+   * on the activity, with its `ioSpecification` slot minted when the activity
+   * declares one) AND its `bpmndi:BPMNEdge`, routed and cropped like any other
+   * connection. The direction follows which end is the data shape.
+   *
+   * Same gate and same path as dragging one: the rules classify the pair
+   * (`rules/rules.ts` `structuralConnection` names exactly these two types for a
+   * data shape and an activity/throw-or-catch event), and the verdict is honoured
+   * here too — so this is {@link Canvas.connectElements} narrowed to data
+   * associations, not a second way in. Returns `undefined` when the rules refuse
+   * the pair or would make it some other kind of connection.
+   */
+  createDataAssociation(source: SceneNode, target: SceneNode): SceneEdge | undefined {
+    if (!dataAssociationEnds(source, target)) return undefined;
+    const verdict = this.rules.canConnect(source, target);
+    if (!verdict || !isDataAssociationType(verdict.type)) return undefined;
+    return this.connectElements(source, target);
+  }
+
+  // --- choreography bands (P5) -----------------------------------------------
+
+  /**
+   * Rename a choreography participant band. The text belongs to the
+   * `bpmn:Participant` the task references, not to the task
+   * ({@link Writeback.setBandName}) — and that participant is usually shared, so
+   * every task drawing a band for it is re-drawn here. Returns whether anything was
+   * written.
+   */
+  setBandName(node: SceneNode, band: ParticipantBand, name: string): boolean {
+    const changed = this.writeback?.setBandName(node, band, name) ?? [];
+    if (changed.length === 0) return false;
+    this.redrawElements(changed);
+    return true;
+  }
+
+  /** Make `band`'s participant the initiating one, and re-draw the shading. */
+  setInitiator(node: SceneNode, band: ParticipantBand): boolean {
+    if (!this.writeback?.setInitiator(node, band)) return false;
+    this.redrawElements([node]);
+    return true;
+  }
+
+  /** Flip which choreography band initiates ({@link Canvas.setInitiator}). */
+  swapInitiator(node: SceneNode): boolean {
+    if (!this.writeback?.swapInitiator(node)) return false;
+    this.redrawElements([node]);
+    return true;
+  }
+
+  // --- colour (P5) -----------------------------------------------------------
+
+  /**
+   * Set the fill and/or stroke of `elements` — the facade's `mutate.setColor`. The
+   * colours are written onto each element's DI in the bpmn.io colour extension
+   * (`model/color.ts`) and the elements are re-drawn from it. An omitted field is
+   * left alone; a falsy one clears that colour; a connection takes a stroke only.
+   * Returns the elements actually re-coloured.
+   */
+  setColor(elements: SceneElement | readonly SceneElement[], colors: ElementColors): SceneElement[] {
+    const changed = this.writeback?.setColor(elements, colors) ?? [];
+    if (changed.length > 0) this.redrawElements(changed);
+    return changed;
+  }
+
+  // --- deletion (P5) --------------------------------------------------------
+
+  /**
+   * Delete the current selection. Returns every element actually removed — the
+   * closure of the request, so deleting a container also reports its descendants
+   * and deleting a node reports its incident edges.
+   */
+  deleteSelection(): SceneElement[] {
+    return this.deleteElements(this.selection.get());
+  }
+
+  /**
+   * Delete `elements` from the document and the canvas: the scene/moddle half runs
+   * through {@link Writeback.deleteElements} (business objects unfiled, references
+   * pruned, DI and nested planes dropped — `model/remove.ts`), and the canvas half
+   * here drops the SVG graphics, closes an inline editor that was open on a removed
+   * element, narrows the selection to the survivors, and re-draws the neighbours
+   * whose endpoint lists changed.
+   */
+  deleteElements(elements: SceneElement | readonly SceneElement[]): SceneElement[] {
+    const writeback = this.writeback;
+    if (!writeback || !this.scene) return [];
+    const list = Array.isArray(elements)
+      ? (elements as readonly SceneElement[]).slice()
+      : [elements as SceneElement];
+    if (list.length === 0) return [];
+
+    const session = this.labelEditing.getSession();
+    const { removed, changed } = writeback.deleteElements(list);
+    if (removed.length === 0) return [];
+
+    if (session && removed.includes(session.element)) this.labelEditing.cancel();
+
+    const removedIds = new Set(removed.map((element) => element.id));
+    const keep = this.selection.get().filter((element) => !removedIds.has(element.id));
+    for (const element of removed) this.renderer.erase(element.id);
+    this.selection.select(keep.length > 0 ? keep : null);
+    this.redrawElements(changed);
+    return removed;
+  }
+
   /** Move one waypoint of an edge to a diagram point and commit it (P3 semantics). */
   private moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
     const writeback = this.writeback;
@@ -493,6 +674,10 @@ export class Canvas {
     if (!this.scene) return;
     // Only the primary button starts a selection gesture.
     if (typeof ev.button === 'number' && ev.button !== 0) return;
+    // Take the keyboard focus so the canvas-scoped shortcuts (Delete) reach us.
+    if (this.container.ownerDocument.activeElement !== this.container) {
+      this.container.focus?.({ preventScroll: true });
+    }
     const pt = this.eventPoint(ev);
 
     // Selection-overlay handles are checked first and never change the selection:
@@ -650,6 +835,11 @@ export class Canvas {
    * inline label editor over the element's label. The label of an event/gateway/data
    * shape is drawn *outside* its bounds, so a click that misses every shape is given
    * a second chance against the external-label boxes.
+   *
+   * On a sub-process the double click means "open me up" instead: it toggles the
+   * expanded state ({@link Canvas.setExpanded}) — the minimal UI affordance for the
+   * P5 expand/collapse writeback, switchable off with
+   * {@link CanvasOptions.toggleExpandOnDoubleClick}.
    */
   private handleDoubleClick(ev: MouseEvent): void {
     if (!this.scene) return;
@@ -663,7 +853,27 @@ export class Canvas {
       point: pt,
     });
     if (!this.selection.isSelected(element)) this.selection.select(element);
+    if (
+      this.toggleExpandOnDoubleClick
+      && element.kind === 'node'
+      && isExpandable(element.type)
+    ) {
+      this.toggleExpanded(element);
+      return;
+    }
     this.labelEditing.activate(element, { at: pt });
+  }
+
+  /**
+   * Canvas-scoped keyboard shortcuts. Delete/Backspace removes the selection — but
+   * never while an inline label editor (or any other text field) has the key, where
+   * Backspace means "erase a character".
+   */
+  private handleShortcut(ev: KeyboardEvent): void {
+    if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+    if (ev.defaultPrevented || this.labelEditing.isActive() || isTextEntry(ev.target)) return;
+    if (this.deleteSelection().length === 0) return;
+    ev.preventDefault();
   }
 
   /** Escape abandons an in-flight drag without writing anything back. */

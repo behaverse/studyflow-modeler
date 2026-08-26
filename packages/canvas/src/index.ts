@@ -26,6 +26,26 @@ export { importDefinitions, type ImportOptions } from './model/import.ts';
 export { IdGenerator, prefixFor } from './model/ids.ts';
 
 export {
+  asList,
+  asModdle,
+  definitionsAbove,
+  listProp,
+  mint,
+  modelOf,
+  nameOf,
+  parentOf,
+  prop,
+  pullFrom,
+  pushInto,
+  refBO,
+  refBOs,
+  setProp,
+  setRef,
+  unfile,
+  type ModdleFactory,
+} from './model/moddle.ts';
+
+export {
   Writeback,
   definitionsOf,
   flowContainerOf,
@@ -37,12 +57,78 @@ export {
   dockConnectedEdges,
   type AddShapeSpec,
   type AddConnectionSpec,
+  type AddDataAssociationSpec,
   type FlowContainer,
   type ReconnectEnds,
   type PartialBounds,
+  type ExpandedResult,
   type ElementChangedEvent,
   type ElementsChangedEvent,
 } from './model/writeback.ts';
+
+export {
+  applyBandName,
+  applyInitiator,
+  ensureChoreographyParticipants,
+  isChoreographyTask,
+  isChoreographyType,
+  participantRefs,
+  readChoreographyBands,
+  tasksReferencing,
+  DEFAULT_BOTTOM,
+  DEFAULT_TOP,
+  type BandWrite,
+  type ChoreographyBands,
+  type ParticipantBand,
+} from './model/choreography.ts';
+
+export {
+  applyColors,
+  normalizeColor,
+  normalizeColors,
+  readColors,
+  readColorsOf,
+  COLOR_PROPERTIES,
+  type ElementColors,
+} from './model/color.ts';
+
+export {
+  activityOf,
+  dataAssociationEnds,
+  directionOf,
+  isDataAssociationType,
+  pruneDataAssociation,
+  typeForDirection,
+  wireDataAssociation,
+  DATA_INPUT_ASSOCIATION,
+  DATA_OUTPUT_ASSOCIATION,
+  type DataAssociationDirection,
+  type DataAssociationEnds,
+} from './model/dataAssociation.ts';
+
+export {
+  applyExpanded,
+  applyMarkerVisible,
+  contentsOf,
+  expandedFootprintOf,
+  isCollapsed,
+  isExpandable,
+  isExpanded,
+  isHiddenByCollapse,
+  nestedPlanesOf,
+  rememberExpandedFootprint,
+  COLLAPSED_SUBPROCESS_SIZE,
+  EXPANDABLE_TYPES,
+  type ExpandPlan,
+  type SetExpandedOptions,
+} from './model/expand.ts';
+
+export {
+  deleteElements,
+  collectRemoval,
+  type DeleteResult,
+  type ElementsRemovedEvent,
+} from './model/remove.ts';
 
 // --- Rendering --------------------------------------------------------------
 export {
@@ -147,13 +233,7 @@ export {
 export {
   LabelEditing,
   choreographyBandAt,
-  ensureChoreographyParticipants,
-  isChoreographyTask,
   labelBounds,
-  nameOf,
-  readChoreographyBands,
-  DEFAULT_BOTTOM,
-  DEFAULT_TOP,
   type ActivateOptions,
   type DirectEditingEvent,
   type ElementDblClickEvent,
@@ -193,6 +273,7 @@ export {
   participantOf,
   containerOf,
   containerFor,
+  isDataShape,
   isResizable,
   minSizeFor,
   CONNECTION,

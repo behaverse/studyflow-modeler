@@ -18,6 +18,7 @@
  * (`render/renderer.ts` `renderScene`).
  */
 
+import { isHiddenByCollapse } from '@canvas/model/expand.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
 /** Options for {@link hitTest}. */
@@ -38,7 +39,9 @@ const DEFAULT_TOLERANCE = 5;
 export function orderedNodes(scene: Scene): SceneNode[] {
   const nodes: SceneNode[] = [];
   for (const element of scene.elementsById.values()) {
-    if (isNode(element)) nodes.push(element);
+    // What a collapsed container hides is not drawn, so it cannot be clicked either
+    // (`model/expand.ts`) — the collapsed container itself takes the hit.
+    if (isNode(element) && !isHiddenByCollapse(element)) nodes.push(element);
   }
   // Stable sort by containment depth (ancestors first). Array.prototype.sort is
   // stable in modern engines, preserving document (insertion) order within a depth.
@@ -46,11 +49,11 @@ export function orderedNodes(scene: Scene): SceneNode[] {
   return nodes;
 }
 
-/** Every edge of `scene`, in document order. */
+/** Every edge of `scene`, in document order (what a collapse hides is left out). */
 export function orderedEdges(scene: Scene): SceneEdge[] {
   const edges: SceneEdge[] = [];
   for (const element of scene.elementsById.values()) {
-    if (isEdge(element)) edges.push(element);
+    if (isEdge(element) && !isHiddenByCollapse(element)) edges.push(element);
   }
   return edges;
 }

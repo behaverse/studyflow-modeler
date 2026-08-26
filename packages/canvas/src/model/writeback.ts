@@ -18,7 +18,43 @@ import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/i
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
 import type { EventBus } from '@canvas/events/bus.ts';
+import {
+  applyBandName,
+  applyInitiator,
+  isChoreographyTask,
+  readChoreographyBands,
+  tasksReferencing,
+  type ParticipantBand,
+} from '@canvas/model/choreography.ts';
+import { applyColors, normalizeColors, type ElementColors } from '@canvas/model/color.ts';
+import {
+  dataAssociationEnds,
+  isDataAssociationType,
+  typeForDirection,
+  wireDataAssociation,
+} from '@canvas/model/dataAssociation.ts';
+import {
+  applyExpanded,
+  applyMarkerVisible,
+  isExpandable,
+  type SetExpandedOptions,
+} from '@canvas/model/expand.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
+import {
+  asModdle,
+  definitionsAbove,
+  mint,
+  modelOf,
+  parentOf,
+  prop,
+  pullFrom,
+  pushInto,
+  setParent,
+  setProp,
+  setRef,
+  type ModdleFactory,
+} from '@canvas/model/moddle.ts';
+import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/model/remove.ts';
 import type {
   Bounds,
   ModdleObject,
@@ -57,109 +93,13 @@ const BOUNDS_TYPE = 'dc:Bounds';
 const SHAPE_DI_TYPE = 'bpmndi:BPMNShape';
 const EDGE_DI_TYPE = 'bpmndi:BPMNEdge';
 
-// --- moddle access helpers --------------------------------------------------
-
-/** Read a property off a moddle element, tolerating a plain parsed bag. */
-function prop(target: ModdleObject | undefined, name: string): unknown {
-  if (!target) return undefined;
-  const getter = (target as { get?: (n: string) => unknown }).get;
-  return typeof getter === 'function'
-    ? getter.call(target, name)
-    : (target as Record<string, unknown>)[name];
-}
-
-/** Set a property on a moddle element via its `set`, else assign directly. */
-function setProp(target: ModdleObject, name: string, value: unknown): void {
-  const setter = (target as { set?: (n: string, v: unknown) => void }).set;
-  if (typeof setter === 'function') setter.call(target, name, value);
-  else (target as Record<string, unknown>)[name] = value;
-}
-
-function asModdle(value: unknown): ModdleObject | undefined {
-  return value && typeof value === 'object' && typeof (value as ModdleObject).$type === 'string'
-    ? (value as ModdleObject)
-    : undefined;
-}
-
-/** A moddle factory: the `$model` a moddle object was minted by. */
-type ModdleFactory = { create?: (type: string, props: object) => ModdleObject };
-
-/** The moddle factory that minted `target` (`$model`), if any. */
-function modelOf(target: ModdleObject | undefined): ModdleFactory | undefined {
-  const model = (target as { $model?: unknown } | undefined)?.$model;
-  return model && typeof model === 'object' ? (model as ModdleFactory) : undefined;
-}
-
-/** The moddle `$parent` back-link (a meta field moddle's `get` does not serve). */
-function parentOf(target: ModdleObject | undefined): ModdleObject | undefined {
-  return asModdle((target as { $parent?: unknown } | undefined)?.$parent);
-}
-
-function setParent(child: ModdleObject, parent: ModdleObject | undefined): void {
-  if (parent) (child as { $parent?: unknown }).$parent = parent;
-}
-
-/**
- * Mint a moddle object of `type` through `factory` (the `$model` of an object the
- * document already holds), falling back to a plain bag when no factory is reachable
- * — the same defensive shape the sync helpers above use, so a hand-built test scene
- * without a real `bpmn-moddle` still works.
- */
-function mint(factory: ModdleFactory | undefined, type: string, props: object = {}): ModdleObject {
-  if (factory?.create) return factory.create(type, props);
-  return { $type: type, ...props } as ModdleObject;
-}
-
-/** Whether `name` is a list-valued (`isMany`) property of `target`'s moddle descriptor. */
-function isManyProperty(target: ModdleObject, name: string): boolean {
-  const descriptor = (target as {
-    $descriptor?: { propertiesByName?: Record<string, { isMany?: boolean } | undefined> };
-  }).$descriptor;
-  return descriptor?.propertiesByName?.[name]?.isMany === true;
-}
-
-/** Append `value` to the list-valued property `name` of `owner`, creating the list if absent. */
-function pushInto(owner: ModdleObject, name: string, value: ModdleObject): void {
-  const current = prop(owner, name);
-  if (Array.isArray(current)) {
-    if (!current.includes(value)) current.push(value);
-    return;
-  }
-  setProp(owner, name, [value]);
-}
-
-/** Remove `value` from the list-valued property `name` of `owner` (no-op when absent). */
-function pullFrom(owner: ModdleObject | undefined, name: string, value: ModdleObject): void {
-  if (!owner) return;
-  const current = prop(owner, name);
-  if (!Array.isArray(current)) return;
-  const index = current.indexOf(value);
-  if (index >= 0) current.splice(index, 1);
-}
-
-/**
- * Write a reference property, honouring the schema's cardinality: `sourceRef` is a
- * single `bpmn:FlowNode` on a `bpmn:SequenceFlow` but a *list* of item-aware
- * elements on a `bpmn:DataInputAssociation`, so the descriptor decides.
- */
-function setRef(owner: ModdleObject, name: string, value: ModdleObject | undefined): void {
-  if (!value) {
-    setProp(owner, name, isManyProperty(owner, name) ? [] : undefined);
-    return;
-  }
-  setProp(owner, name, isManyProperty(owner, name) ? [value] : value);
-}
+// --- moddle access ----------------------------------------------------------
+// The readers/writers/minters live in `model/moddle.ts`, so every module that
+// mutates the live tree shares one set of cardinality-aware primitives.
 
 /** The `bpmn:Definitions` root reachable from a scene's root plane, if any. */
 export function definitionsOf(scene: Scene): ModdleObject | undefined {
-  let cursor: ModdleObject | undefined = scene.rootPlane.di;
-  const guard = new Set<ModdleObject>();
-  while (cursor && !guard.has(cursor)) {
-    guard.add(cursor);
-    if (cursor.$type === 'bpmn:Definitions') return cursor;
-    cursor = parentOf(cursor);
-  }
-  return undefined;
+  return definitionsAbove(scene.rootPlane.di);
 }
 
 // --- containment resolution -------------------------------------------------
@@ -401,6 +341,28 @@ export interface AddConnectionSpec {
   id?: string;
 }
 
+/** What {@link Writeback.addDataAssociation} needs; the direction is derived. */
+export interface AddDataAssociationSpec {
+  /** The end the association is drawn from — a data shape, or the activity. */
+  source: SceneNode;
+  /** The end the association is drawn to — the activity, or a data shape. */
+  target: SceneNode;
+  /** Routed (and cropped) waypoints — see `routing/orthogonal.ts` `route`. */
+  waypoints?: Point[];
+  /** The plane the `BPMNEdge` is filed in. Defaults to the scene's root plane. */
+  plane?: Plane;
+  /** Explicit id; minted from {@link IdGenerator} when absent. */
+  id?: string;
+}
+
+/** What {@link Writeback.setExpanded} wrote, and what the caller must re-draw. */
+export interface ExpandedResult {
+  /** Elements whose geometry/flags changed (the node, then any followed edges). */
+  changed: SceneElement[];
+  /** The contents whose visibility follows the container — hidden or revealed. */
+  contents: SceneElement[];
+}
+
 /** The endpoints a {@link Writeback.reconnect} rewrites; omit one to keep it. */
 export interface ReconnectEnds {
   source?: SceneNode;
@@ -447,6 +409,18 @@ export class Writeback {
    * elements that changed (the node first, then any followed edges).
    */
   setNodeBounds(node: SceneNode, bounds: PartialBounds): SceneElement[] {
+    const changed: SceneElement[] = [node, ...this.applyBounds(node, bounds)];
+    this.finish(changed);
+    return changed;
+  }
+
+  /**
+   * Move/resize `node` and write the DI **without** bumping the revision or firing —
+   * the shared body of {@link Writeback.setNodeBounds} and {@link Writeback.setExpanded},
+   * so a toggle that resizes a sub-process stays one revision and one event batch.
+   * Returns the edges whose docking waypoints followed.
+   */
+  private applyBounds(node: SceneNode, bounds: PartialBounds): SceneEdge[] {
     const oldX = node.x;
     const oldY = node.y;
     const oldCx = node.x + node.width / 2;
@@ -460,22 +434,69 @@ export class Writeback {
     const edges = dockConnectedEdges(node, node.x - oldX, node.y - oldY);
     syncNodeBoundsToDi(node);
     for (const edge of edges) syncEdgeWaypointsToDi(edge);
+    return edges;
+  }
 
+  // --- DI flags (design §1 "expand/collapse subprocess", "gateway marker") ---
+
+  /**
+   * Expand or collapse a sub-process (or a choreography container): write
+   * `BPMNShape.isExpanded` on the live DI object, resize the shape to match — the
+   * plain activity box when collapsed, the footprint it had before when expanded
+   * again — and report the contents whose visibility just changed so the caller can
+   * re-draw them (`model/expand.ts`).
+   *
+   * Collapsing **hides**; it never deletes. Every contained business object stays in
+   * `flowElements` and every contained `BPMNShape`/`BPMNEdge` stays in whatever plane
+   * holds it, so a collapse+expand round-trips to a structurally identical document.
+   *
+   * Returns the changed elements (the node first, then any edges whose docking
+   * followed the resize) — empty when the type cannot be expanded or nothing moved.
+   */
+  setExpanded(
+    node: SceneNode,
+    expanded: boolean,
+    options: SetExpandedOptions = {},
+  ): ExpandedResult {
+    const plan = applyExpanded(this.scene, node, expanded, options);
+    if (!plan.applied) return { changed: [], contents: plan.contents };
+    const edges = plan.bounds ? this.applyBounds(node, plan.bounds) : [];
     const changed: SceneElement[] = [node, ...edges];
     this.finish(changed);
-    return changed;
+    return { changed, contents: plan.contents };
+  }
+
+  /** Toggle `node`'s expanded state; see {@link Writeback.setExpanded}. */
+  toggleExpanded(node: SceneNode, options: SetExpandedOptions = {}): ExpandedResult {
+    return this.setExpanded(node, node.isExpanded === false, options);
+  }
+
+  /**
+   * Show or hide a gateway's marker: write `BPMNShape.isMarkerVisible` on the live DI
+   * object (the × of an exclusive gateway — design §2). Returns whether anything was
+   * written; a no-op leaves the document and its serialization untouched.
+   */
+  setMarkerVisible(node: SceneNode, visible: boolean): boolean {
+    if (!applyMarkerVisible(node, visible)) return false;
+    this.finish([node]);
+    return true;
+  }
+
+  /** Whether `node`'s type carries a meaningful `isExpanded` (`model/expand.ts`). */
+  canExpand(node: SceneNode): boolean {
+    return isExpandable(node.type);
   }
 
   /**
    * Write `name` onto a moddle object in place and report the edit as a change to
    * `elements`. `target` defaults to the first element's own business object (the
-   * ordinary label edit); `interaction/labelEditing.ts` passes a choreography
-   * participant instead when a band is edited, mirroring the modeler's
-   * `modeling.updateModdleProperties(element, participant, { name })`.
-   *
-   * A single `target` can be depicted by several elements — one `bpmn:Participant` is
-   * referenced by every choreography task it takes part in — which is why `elements`
-   * is a list: one write, one revision bump, `element.changed` for each depiction.
+   * ordinary label edit); pass one explicitly to name an object a *different* set of
+   * elements depicts, mirroring the modeler's
+   * `modeling.updateModdleProperties(element, moddleElement, { name })`. That is what
+   * {@link Writeback.setBandName} does with a choreography participant: one
+   * `bpmn:Participant` is referenced by every choreography task it takes part in,
+   * which is why `elements` is a list — one write, one revision bump,
+   * `element.changed` for each depiction.
    *
    * A no-op edit (same text, or clearing an already-absent name) neither bumps the
    * revision nor fires — so an inline editor closed unchanged leaves no trace.
@@ -501,6 +522,81 @@ export class Writeback {
     this.finish([element]);
   }
 
+  // --- choreography bands (design §2, `model/choreography.ts`) --------------
+
+  /**
+   * Write a choreography participant band's text — the inverse of
+   * `readChoreographyBands` (`@core/document/choreography.ts`). A band renders a
+   * `bpmn:Participant`'s `name`, NOT the task's, so this writes the participant the
+   * task references, minting the `[top, bottom]` pair (and, in a process-rooted
+   * document, the `bpmn:Collaboration` that holds it) the first time a band is
+   * edited.
+   *
+   * One participant is shared by every choreography task it takes part in, so a
+   * rename invalidates a band on each of them: the whole set is returned (and gets
+   * one `element.changed` each) for the caller to re-draw. Band *geometry* is
+   * derived from the task's single `dc:Bounds` (`render/shapes.ts`
+   * `choreographyBandHeight`) and is deliberately untouched — a rename cannot move a
+   * band.
+   *
+   * Returns the elements to re-draw, or `[]` when nothing was written (same text, an
+   * unchanged pair, or a non-choreography element).
+   */
+  setBandName(node: SceneNode, band: ParticipantBand, name: string): SceneElement[] {
+    if (!isChoreographyTask(node)) return [];
+    const write = applyBandName(node, band, name, this.idGenerator);
+    if (!write) return [];
+    if (!write.renamed && !write.minted) return [];
+    const affected = tasksReferencing(this.scene, write.participant, node);
+    this.finish(affected);
+    return affected;
+  }
+
+  /**
+   * Point a choreography task's `initiatingParticipantRef` at the participant of
+   * `band` (which band is drawn as the initiating one — design §2). Mints the
+   * participant pair if the task has none. Returns whether anything was written.
+   */
+  setInitiator(node: SceneNode, band: ParticipantBand): boolean {
+    if (!isChoreographyTask(node)) return false;
+    if (!applyInitiator(node, band, this.idGenerator)) return false;
+    this.finish([node]);
+    return true;
+  }
+
+  /** Flip which choreography band initiates ({@link Writeback.setInitiator}). */
+  swapInitiator(node: SceneNode): boolean {
+    if (!isChoreographyTask(node)) return false;
+    const current = readChoreographyBands(node.businessObject).initiator;
+    return this.setInitiator(node, current === 'top' ? 'bottom' : 'top');
+  }
+
+  // --- colour (design §1 "colour … → BO `di.fill`/`di.stroke` attrs") --------
+
+  /**
+   * Write `colors` onto each element's `bpmndi:BPMNShape`/`BPMNEdge` in the bpmn.io
+   * colour extension — both the current (`color:background-color` /
+   * `color:border-color`) and the legacy (`bioc:fill` / `bioc:stroke`) vocabulary,
+   * exactly as the modeler's `mutate.setColor` path does (`model/color.ts`).
+   *
+   * A field left out of `colors` is untouched; a field present but falsy clears that
+   * colour. A connection takes a stroke only. Returns the elements actually written
+   * — a no-op writes nothing, bumps nothing, and fires nothing, so re-applying the
+   * colour an element already has leaves the serialization byte-identical.
+   *
+   * The patch is normalized once *before* the first element is touched, so an
+   * invalid colour throws with nothing half-written.
+   */
+  setColor(elements: SceneElement | readonly SceneElement[], colors: ElementColors): SceneElement[] {
+    const list = Array.isArray(elements)
+      ? (elements as readonly SceneElement[])
+      : [elements as SceneElement];
+    const patch = normalizeColors(colors);
+    const changed = list.filter((element) => applyColors(element, patch));
+    if (changed.length > 0) this.finish(changed);
+    return changed;
+  }
+
   /** Replace `edge`'s waypoints (scene + `di:waypoint`), bump the revision, fire. */
   setEdgeWaypoints(edge: SceneEdge, points: Point[]): void {
     edge.waypoints = points.map((p) => ({ x: p.x, y: p.y }));
@@ -519,6 +615,21 @@ export class Writeback {
       else syncEdgeWaypointsToDi(el);
     }
     if (elements.length > 0) this.finish(elements);
+  }
+
+  // --- deletion (design §1 "delete → remove BO **and** planeElement") -------
+
+  /**
+   * Delete `elements` and everything that cannot survive them — a container's
+   * descendants and nested-plane contents, attached boundary events, and every
+   * incident edge — from the live moddle tree, its DI, and the scene
+   * (`model/remove.ts`). Bumps the revision once and fires `elements.removed`,
+   * `element.changed` per touched survivor, and `elements.changed`.
+   *
+   * The scene half only: the caller owns the SVG (see `Canvas.deleteElements`).
+   */
+  deleteElements(elements: SceneElement | readonly SceneElement[]): DeleteResult {
+    return removeFromScene(this.scene, this.bus, elements);
   }
 
   // --- creation (design §1 "add shape" / "add edge") ------------------------
@@ -617,6 +728,12 @@ export class Writeback {
    * BPMN schema, so a message flow / association is deliberately *not* pushed onto
    * them; the scene's own `source.outgoing` / `target.incoming` lists always get the
    * edge (mirroring `model/import.ts`), which is what routing and drag read.
+   *
+   * A **data association** is wired differently — its refs point at a data shape and
+   * an io slot, and it is filed on the activity rather than in a container — so the
+   * two data-association types are handed to `model/dataAssociation.ts`
+   * ({@link Writeback.addDataAssociation}). That keeps the connect gesture, which
+   * only knows the type the rules named, on the single correct path.
    */
   addConnection(spec: AddConnectionSpec): SceneEdge {
     const scene = this.scene;
@@ -643,13 +760,27 @@ export class Writeback {
       );
     }
 
-    setRef(bo, 'sourceRef', spec.source.businessObject);
-    setRef(bo, 'targetRef', spec.target.businessObject);
-    if (isBpmnSubtypeOf(type, 'bpmn:SequenceFlow')) {
-      pushInto(spec.source.businessObject, 'outgoing', bo);
-      pushInto(spec.target.businessObject, 'incoming', bo);
+    const isDataAssociation = isDataAssociationType(type);
+    const dataEnds = isDataAssociation ? dataAssociationEnds(spec.source, spec.target) : undefined;
+    if (isDataAssociation && !dataEnds) {
+      // Unreachable through the rules, which only name these types for a pair that
+      // sorts — so a direct caller asking for one that does not is a bug worth
+      // hearing about, not a half-wired association silently left in the document.
+      throw new Error(
+        `${type} is not valid between ${spec.source.type} and ${spec.target.type}`,
+      );
     }
-    this.fileConnection(bo, type, spec.source, spec.target, plane);
+    if (dataEnds) {
+      wireDataAssociation(bo, dataEnds, this.idGenerator);
+    } else {
+      setRef(bo, 'sourceRef', spec.source.businessObject);
+      setRef(bo, 'targetRef', spec.target.businessObject);
+      if (isBpmnSubtypeOf(type, 'bpmn:SequenceFlow')) {
+        pushInto(spec.source.businessObject, 'outgoing', bo);
+        pushInto(spec.target.businessObject, 'incoming', bo);
+      }
+      this.fileConnection(bo, type, spec.source, spec.target, plane);
+    }
 
     const di = mint(factory, EDGE_DI_TYPE, { id: this.diIdFor(id), bpmnElement: bo });
     setParent(di, plane.di);
@@ -686,6 +817,31 @@ export class Writeback {
     syncEdgeWaypointsToDi(edge);
     this.finish([edge, spec.source, spec.target]);
     return edge;
+  }
+
+  /**
+   * Create a data association between a data shape and an activity: the
+   * `bpmn:DataInputAssociation` / `bpmn:DataOutputAssociation` business object
+   * (filed on the *activity*, with its refs at the schema's own cardinality and its
+   * `ioSpecification` slot minted when the activity declares one) AND the
+   * `bpmndi:BPMNEdge` + `di:waypoint` list — see `model/dataAssociation.ts`.
+   *
+   * The direction is derived from which end is the data shape, so a caller only has
+   * to pass the pair in the order it drew them. Returns `undefined` when the pair is
+   * not one data shape and one non-data shape — exactly when the rules would have
+   * refused it.
+   */
+  addDataAssociation(spec: AddDataAssociationSpec): SceneEdge | undefined {
+    const ends = dataAssociationEnds(spec.source, spec.target);
+    if (!ends) return undefined;
+    return this.addConnection({
+      type: typeForDirection(ends.direction),
+      source: spec.source,
+      target: spec.target,
+      waypoints: spec.waypoints,
+      plane: spec.plane,
+      id: spec.id,
+    });
   }
 
   /**
@@ -798,17 +954,8 @@ export class Writeback {
         return;
       }
     }
-    if (type === 'bpmn:DataInputAssociation') {
-      // Data associations hang off the activity, not off the container.
-      setParent(bo, target.businessObject);
-      pushInto(target.businessObject, 'dataInputAssociations', bo);
-      return;
-    }
-    if (type === 'bpmn:DataOutputAssociation') {
-      setParent(bo, source.businessObject);
-      pushInto(source.businessObject, 'dataOutputAssociations', bo);
-      return;
-    }
+    // Data associations never reach here — they hang off the activity, and
+    // `addConnection` routes them to `model/dataAssociation.ts` before filing.
     const { owner } = flowContainerOf(source.parent ?? target.parent, plane);
     setParent(bo, owner);
     pushInto(owner, containmentPropertyFor(type), bo);

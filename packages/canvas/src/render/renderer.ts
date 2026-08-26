@@ -12,6 +12,8 @@
 import { BPMN } from '@core/constants.ts';
 import { toLocalName } from '@core/naming.ts';
 
+import { isCollapsed, isHiddenByCollapse } from '@canvas/model/expand.ts';
+import { prop } from '@canvas/model/moddle.ts';
 import type {
   ModdleObject,
   Scene,
@@ -42,7 +44,6 @@ import {
 } from '@canvas/render/labels.ts';
 import {
   drawIcon,
-  MARKER_ICONS,
   type IconResolver,
 } from '@canvas/render/icons.ts';
 
@@ -121,14 +122,6 @@ function eventKind(node: SceneNode): EventKind {
 
 const DEFAULT_STROKE = '#22242A';
 const DEFAULT_FILL = '#ffffff';
-
-/** Read a moddle property tolerating a plain bag (mirrors the importer's `prop`). */
-function prop(target: ModdleObject | undefined, name: string): unknown {
-  if (!target) return undefined;
-  const getter = (target as { get?: (n: string) => unknown }).get;
-  const value = typeof getter === 'function' ? getter.call(target, name) : (target as Record<string, unknown>)[name];
-  return value;
-}
 
 /** First defined color among a set of bpmn.io / DI attribute names. */
 function colorAttr(di: ModdleObject | undefined, names: string[]): string | undefined {
@@ -213,12 +206,27 @@ export class Renderer {
     return g;
   }
 
+  /**
+   * Drop a deleted element's graphics: detach its `<g>` from the layer it was
+   * mounted in and forget it. Returns whether anything was rendered for that id.
+   */
+  erase(id: string): boolean {
+    const g = this.graphicsById.get(id);
+    if (!g) return false;
+    remove(g);
+    this.graphicsById.delete(id);
+    return true;
+  }
+
   /** Draw one node as a translated `<g>`; returns the group. */
   drawShape(node: SceneNode): SVGGElement {
     const g = group(node.x, node.y, {
       class: 'sf-shape',
       'data-element-id': node.id,
       'data-element-type': node.type,
+      // Contents of a collapsed sub-process still exist in the document; they are
+      // simply not drawn while their container hides them (`model/expand.ts`).
+      display: isHiddenByCollapse(node) ? 'none' : null,
     });
     const style = styleOf(node);
     const category = categoryOf(node.type);
@@ -299,7 +307,9 @@ export class Renderer {
   /** Bottom-centre activity markers (subprocess-collapsed, adhoc) — the toolchain-free subset. */
   private drawMarkers(g: SVGGElement, node: SceneNode, color: string): void {
     const markers: string[] = [];
-    if (node.type === BPMN.SubProcess && node.isExpanded === false) markers.push('subprocess');
+    // A collapsed sub-process is drawn as a plain activity box carrying the ⊞ that
+    // says "there is more inside" (design §2 markers).
+    if (isCollapsed(node)) markers.push('subprocess');
     if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
     if (markers.length === 0) return;
 
@@ -308,7 +318,10 @@ export class Renderer {
     const markerY = node.height - MARKER_SIZE - gap;
     const offsetX = (node.width - markers.length * MARKER_SIZE) / 2;
     markers.forEach((marker, i) => {
-      drawIcon(g, MARKER_ICONS[marker], offsetX + i * MARKER_SIZE, markerY, MARKER_SIZE, color, this.iconResolver);
+      // The marker KEY, not its glyph: `drawIcon` resolves it through the injected
+      // resolver first and only then falls back to `MARKER_ICONS[key]` (⊞, ~) — handing
+      // it the glyph skipped both and drew a `?` placeholder.
+      drawIcon(g, marker, offsetX + i * MARKER_SIZE, markerY, MARKER_SIZE, color, this.iconResolver);
     });
   }
 
@@ -385,6 +398,7 @@ export class Renderer {
       class: 'sf-connection',
       'data-element-id': edge.id,
       'data-element-type': edge.type,
+      display: isHiddenByCollapse(edge) ? 'none' : null,
     });
     const points = edge.waypoints.map((p) => `${p.x},${p.y}`).join(' ');
     const stroke = colorAttr(edge.di, ['stroke', 'border-color', 'bioc:stroke', 'color:border-color']) ?? DEFAULT_STROKE;
@@ -429,7 +443,15 @@ export function markerIdFor(type: string): string {
   return 'sf-arrow-sequence';
 }
 
-/** Read choreography participant band names + initiator from the BO (best-effort). */
+/**
+ * Read choreography participant band names + initiator from the BO (best-effort).
+ *
+ * Deliberately NOT `model/choreography.ts`'s `readChoreographyBands`: that one is
+ * the *editing* reader and substitutes the `Participant A`/`Participant B`
+ * placeholders for a task that has no participants yet, so the inline editor opens
+ * on something typable. A drawn band must stay **empty** in that case — the document
+ * says nothing, so neither does the diagram.
+ */
 function readBands(bo: ModdleObject): { top: string; bottom: string; initiator: 'top' | 'bottom' } {
   const participants = prop(bo, 'participantRef');
   const list = Array.isArray(participants) ? participants : [];

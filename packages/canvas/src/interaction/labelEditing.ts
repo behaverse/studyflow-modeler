@@ -19,16 +19,16 @@
  * the task's, so a band commit writes `participantRef[0|1].name` — creating the two
  * `bpmn:Participant` objects (and, in a process-rooted document, the
  * `bpmn:Collaboration` that holds them) on first edit, exactly as the modeler's
- * `ensureChoreographyParticipants` does.
+ * `ensureChoreographyParticipants` does. That whole model half lives in
+ * `model/choreography.ts` and is committed through {@link Writeback.setBandName}; this
+ * module only decides *which* band the gesture landed on and where to put the overlay.
  */
 
-import { BPMN } from '@core/constants.ts';
-
 import type { EventBus } from '@canvas/events/bus.ts';
-import { IdGenerator } from '@canvas/model/ids.ts';
+import { isChoreographyTask, readChoreographyBands } from '@canvas/model/choreography.ts';
+import { nameOf } from '@canvas/model/moddle.ts';
 import type {
   Bounds,
-  ModdleObject,
   Point,
   Scene,
   SceneElement,
@@ -102,66 +102,6 @@ export interface ActivateOptions {
 /** Minimum on-screen size of the overlay, so a tiny shape is still typable. */
 const MIN_EDITOR_PX = { width: 40, height: 16 };
 
-/** Read a moddle property, tolerating a plain parsed bag (mirrors `writeback.ts`). */
-function prop(target: ModdleObject | undefined, name: string): unknown {
-  if (!target) return undefined;
-  const getter = (target as { get?: (n: string) => unknown }).get;
-  return typeof getter === 'function'
-    ? getter.call(target, name)
-    : (target as Record<string, unknown>)[name];
-}
-
-/** Set a moddle property via its `set`, else assign directly (mirrors `writeback.ts`). */
-function setProp(target: ModdleObject, name: string, value: unknown): void {
-  const setter = (target as { set?: (n: string, v: unknown) => void }).set;
-  if (typeof setter === 'function') setter.call(target, name, value);
-  else (target as Record<string, unknown>)[name] = value;
-}
-
-/** The element's `name`, as a string (`''` when absent). */
-export function nameOf(bo: ModdleObject | undefined): string {
-  const value = prop(bo, 'name');
-  return typeof value === 'string' ? value : '';
-}
-
-/** Whether `node` is drawn as a choreography task (two bands + a name band). */
-export function isChoreographyTask(node: SceneNode): boolean {
-  return node.type === BPMN.ChoreographyTask;
-}
-
-/**
- * Placeholder band names for a choreography task with no participants yet. Mirrors
- * `@core/document/choreography`'s `DEFAULT_TOP`/`DEFAULT_BOTTOM` — kept as local
- * constants (and pinned by a test) rather than imported, because that core module
- * pulls the whole document/format layer, and its `bpmn-moddle` types, into a package
- * that must stay a leaf.
- */
-export const DEFAULT_TOP = 'Participant A';
-/** @see DEFAULT_TOP */
-export const DEFAULT_BOTTOM = 'Participant B';
-
-/**
- * The two band names of a choreography task plus which side initiates — a local
- * mirror of `@core/document/choreography`'s `readChoreographyBands`, including its
- * fallback to the placeholder names when a participant carries none.
- */
-export function readChoreographyBands(bo: ModdleObject): {
-  top: string;
-  bottom: string;
-  initiator: 'top' | 'bottom';
-} {
-  const refs = prop(bo, 'participantRef');
-  const list = Array.isArray(refs) ? (refs as ModdleObject[]) : [];
-  const top = list[0];
-  const bottom = list[1];
-  const initiating = prop(bo, 'initiatingParticipantRef');
-  return {
-    top: nameOf(top) || DEFAULT_TOP,
-    bottom: nameOf(bottom) || DEFAULT_BOTTOM,
-    initiator: initiating && initiating === bottom && bottom !== top ? 'bottom' : 'top',
-  };
-}
-
 /**
  * The choreography band a diagram-space `point` falls in — top band, bottom band, or
  * the task-name region between them. Ports `ChoreographyLabelEditing.bandAt` without
@@ -228,98 +168,6 @@ function fontWeightFor(node: SceneNode, band: LabelBand): string {
   }
 }
 
-// --- choreography participants ----------------------------------------------
-
-/** The `bpmn:Definitions` root above a business object, if reachable. */
-function definitionsOf(bo: ModdleObject | undefined): ModdleObject | undefined {
-  let current: ModdleObject | undefined = bo;
-  const seen = new Set<ModdleObject>();
-  while (current && current.$type !== 'bpmn:Definitions' && !seen.has(current)) {
-    seen.add(current);
-    current = (current as { $parent?: ModdleObject }).$parent;
-  }
-  return current?.$type === 'bpmn:Definitions' ? current : undefined;
-}
-
-/** The moddle factory that minted `target` (`$model`), if any. */
-function modelOf(target: ModdleObject | undefined): {
-  create?: (type: string, props: object) => ModdleObject;
-} | undefined {
-  const model = (target as { $model?: unknown } | undefined)?.$model;
-  return model && typeof model === 'object'
-    ? (model as { create?: (t: string, p: object) => ModdleObject })
-    : undefined;
-}
-
-/**
- * The element that owns `participants` for a choreography task — its enclosing
- * `bpmn:Choreography` (the studyflow choreography root) or, in a process-rooted
- * document, a `bpmn:Collaboration` among the root elements. One is created (with no
- * DI plane, so its participants live in the XML without drawing) when neither exists.
- */
-function participantHolder(bo: ModdleObject, ids: IdGenerator): ModdleObject | undefined {
-  let current: ModdleObject | undefined = (bo as { $parent?: ModdleObject }).$parent;
-  const seen = new Set<ModdleObject>();
-  while (current && !seen.has(current)) {
-    seen.add(current);
-    if (Array.isArray(prop(current, 'participants'))) return current;
-    current = (current as { $parent?: ModdleObject }).$parent;
-  }
-
-  const definitions = definitionsOf(bo);
-  if (!definitions) return undefined;
-  const roots = prop(definitions, 'rootElements');
-  const list = Array.isArray(roots) ? (roots as ModdleObject[]) : [];
-  const existing = list.find((re) => Array.isArray(prop(re, 'participants')));
-  if (existing) return existing;
-
-  const created = modelOf(definitions)?.create?.('bpmn:Collaboration', {
-    id: ids.nextPrefixed('Collaboration_'),
-    participants: [],
-  });
-  if (!created) return undefined;
-  (created as { $parent?: unknown }).$parent = definitions;
-  setProp(definitions, 'rootElements', [...list, created]);
-  return created;
-}
-
-/**
- * The `[top, bottom]` participants of a choreography task, creating either that the
- * document lacks (ported from the modeler's `ensureChoreographyParticipants`, minus
- * its `modeling`/`bpmnFactory` services — everything is mutated in place through
- * moddle). Returns `undefined` when the document offers no moddle factory to mint
- * with, in which case a band edit is skipped rather than silently dropped.
- */
-export function ensureChoreographyParticipants(
-  node: SceneNode,
-  ids: IdGenerator,
-): [ModdleObject, ModdleObject] | undefined {
-  const bo = node.businessObject;
-  const refs = prop(bo, 'participantRef');
-  const list = Array.isArray(refs) ? (refs as ModdleObject[]) : [];
-  if (list.length >= 2) return [list[0], list[1]];
-
-  const model = modelOf(bo) ?? modelOf(definitionsOf(bo));
-  if (!model?.create) return undefined;
-  const holder = participantHolder(bo, ids);
-  if (!holder) return undefined;
-
-  const make = (name: string): ModdleObject => model.create!('bpmn:Participant', {
-    id: ids.nextPrefixed('Participant_'),
-    name,
-  });
-  const top = list[0] ?? make(DEFAULT_TOP);
-  const bottom = list[1] ?? make(DEFAULT_BOTTOM);
-  const fresh = [top, bottom].filter((_p, i) => !list[i]);
-
-  for (const p of fresh) (p as { $parent?: unknown }).$parent = holder;
-  const held = prop(holder, 'participants');
-  setProp(holder, 'participants', [...(Array.isArray(held) ? held : []), ...fresh]);
-  setProp(bo, 'participantRef', [top, bottom]);
-  setProp(bo, 'initiatingParticipantRef', prop(bo, 'initiatingParticipantRef') ?? top);
-  return [top, bottom];
-}
-
 // --- the editor -------------------------------------------------------------
 
 /**
@@ -338,8 +186,6 @@ export class LabelEditing {
   private input?: HTMLTextAreaElement;
   /** Guards the blur→complete path while the overlay is being torn down. */
   private closing = false;
-  /** Lazily seeded from the live document, for minting participant/collaboration ids. */
-  private ids?: IdGenerator;
 
   private readonly onKeyDown = (ev: Event) => this.handleKeyDown(ev as KeyboardEvent);
   private readonly onBlur = () => {
@@ -380,10 +226,9 @@ export class LabelEditing {
     if (this.input) this.input.value = text;
   }
 
-  /** Drop the id generator's document seed (called on a fresh import). */
+  /** Close any open session (called on a fresh import). */
   reset(): void {
     this.cancel();
-    this.ids = undefined;
   }
 
   /**
@@ -501,43 +346,11 @@ export class LabelEditing {
     const text = value.trim();
 
     if (session.band === 'name') return writeback.setName(element, text) ? [element] : [];
-
-    // A band's text belongs to the participant, not the choreography task.
-    const refs = prop(element.businessObject, 'participantRef');
-    const hadPair = Array.isArray(refs) && refs.length >= 2;
-    const participants = ensureChoreographyParticipants(element, this.idGenerator(element));
-    if (!participants) return [];
-    const target = session.band === 'top' ? participants[0] : participants[1];
-    const affected = this.tasksReferencing(target, element);
-    const named = writeback.setName(affected, text, target);
-    // Minting the participant pair is itself a document edit, even when the typed
-    // text matches the placeholder name it was seeded with.
-    if (!named && !hadPair) writeback.touch(element);
-    return named || !hadPair ? affected : [];
-  }
-
-  /**
-   * Every choreography task in the scene that references `participant`, with `first`
-   * at the head. One participant is shared across the tasks it takes part in, so a
-   * rename changes a band on each of them.
-   */
-  private tasksReferencing(participant: ModdleObject, first: SceneNode): SceneElement[] {
-    const out: SceneElement[] = [first];
-    const scene = this.getScene();
-    if (!scene) return out;
-    for (const element of scene.elementsById.values()) {
-      if (element.kind !== 'node' || element === first) continue;
-      if (!isChoreographyTask(element)) continue;
-      const refs = prop(element.businessObject, 'participantRef');
-      if (Array.isArray(refs) && refs.includes(participant)) out.push(element);
-    }
-    return out;
-  }
-
-  /** The document-seeded id source (built once per import). */
-  private idGenerator(node: SceneNode): IdGenerator {
-    if (!this.ids) this.ids = IdGenerator.fromDefinitions(definitionsOf(node.businessObject));
-    return this.ids;
+    // A band's text belongs to the *participant*, not the choreography task, and one
+    // participant is depicted by a band on every task that references it — so the
+    // whole model half (mint the pair, write the name, report the stale depictions)
+    // is `Writeback.setBandName`, which returns exactly what has to be re-drawn.
+    return writeback.setBandName(element, session.band, text);
   }
 
   /** Build, position, mount, and focus the overlay `<textarea>`. */
