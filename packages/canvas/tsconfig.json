@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "json-schema", "vite/client"],
+    "paths": {
+      "@canvas/*": ["./src/*"],
+      "@core/*": ["../core/src/*"],
+      "#assets/*": ["../../assets/*"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

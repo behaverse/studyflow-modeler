@@ -1,0 +1,23 @@
+{
+  "name": "@behaverse/studyflow-canvas",
+  "version": "26.0615",
+  "description": "Editable SVG canvas for studyflow diagrams (vanilla TS + SVG, no bpmn-js).",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@behaverse/studyflow-core": "*",
+    "bpmn-moddle": "10.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}
