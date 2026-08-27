@@ -11,8 +11,7 @@ import { dataUrlToBytes, embedDrawioIntoPng, embedStudyflowIntoPng } from '@core
 import { embedDrawioIntoSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type ExportDiagramCommand = {
   type: 'ExportDiagram';
@@ -20,10 +19,9 @@ export type ExportDiagramCommand = {
   embed?: Partial<EmbedOptions>;
 };
 
-async function toExportableXml(modeler: PortHandle): Promise<string> {
-  const editor = getEditorPort(modeler);
-  const { xml } = await editor.saveXML({ format: true });
-  return toWireXml(xml, editor.model.moddle());
+async function toExportableXml(modeler: Editor): Promise<string> {
+  const { xml } = await modeler.saveXML({ format: true });
+  return toWireXml(xml, modeler.model.moddle());
 }
 
 /**
@@ -33,27 +31,29 @@ async function toExportableXml(modeler: PortHandle): Promise<string> {
  * bodies (`draw/iconCache.ts`, parity addendum 6 §2), so what the canvas serializes
  * is already what the export carries.
  */
-async function renderSvg(modeler: PortHandle): Promise<{ svg: string; xml: string }> {
-  const editor = getEditorPort(modeler);
-  const [{ svg }, compactXml] = await Promise.all([editor.saveSVG(), toExportableXml(modeler)]);
-  const xml = await toStandardBpmnXml(compactXml, editor.model.moddle());
+async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }> {
+  // The SVG first, synchronously: it is a snapshot of the canvas as it stands, and
+  // `toExportableXml` walks the same live moddle tree.
+  const svg = modeler.canvas.toSVG();
+  const compactXml = await toExportableXml(modeler);
+  const xml = await toStandardBpmnXml(compactXml, modeler.model.moddle());
   const cleaned = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
   return { svg: cleaned, xml };
 }
 
 const ENCODERS: Record<ExportFormatId, (ctx: {
-  modeler: PortHandle;
+  modeler: Editor;
   embed: EmbedOptions;
   renderSvg: () => Promise<{ svg: string; xml: string }>;
   /** The semantic view of the diagram, built on demand; only the interchange formats read it. */
   exportModel: () => ExportModel;
 }) => Promise<BlobPart> | BlobPart> = {
   studyflow: async ({ modeler }) =>
-    xmlToStudyflow(await toExportableXml(modeler), getEditorPort(modeler).model.moddle()),
+    xmlToStudyflow(await toExportableXml(modeler), modeler.model.moddle()),
 
   // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
   bpmn: async ({ modeler }) =>
-    toStandardBpmnXml(await toExportableXml(modeler), getEditorPort(modeler).model.moddle()),
+    toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle()),
 
   drawio: ({ modeler }) => exportToDrawio(modeler),
   linkml: ({ exportModel }) => exportToLinkML(exportModel()),
@@ -78,7 +78,7 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
   },
 };
 
-export async function runExportDiagram(modeler: PortHandle, command: ExportDiagramCommand): Promise<void> {
+export async function runExportDiagram(modeler: Editor, command: ExportDiagramCommand): Promise<void> {
   const format = getExportFormat(command.format ?? 'studyflow');
   const embed = { ...DEFAULT_EMBED_OPTIONS, ...command.embed };
 

@@ -7,7 +7,7 @@ The visual editor for studyflows: a native SVG canvas ([`@behaverse/studyflow-ca
 - It owns **authoring** and nothing else. What a studyflow *means* lives in [`@behaverse/studyflow-core`](../core/); what a studyflow *does* lives in the runners.
 - It never imports from [`packages/runner`](../runner/). ESLint refuses it. Shared code goes to core.
 - It hands a studyflow to the browser runner through `localStorage` under `studyflow-modeler:handoff:<id>` (an 8-character uuid slice, swept after an hour) and opens `/run/?diagram=<id>`. There is no code path between the two apps.
-- **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, the canvas package's own SVG inside. `src/editor/canvasBackend.ts` mounts that canvas and assembles the `EditorPort` facade over it — the right first file to read for canvas behavior. `src/editor/port.ts` is the facade itself, and the only way app code reaches the editor.
+- **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, the canvas package's own SVG inside. `src/editor/mount.ts` mounts that canvas and `src/editor/editor.ts` assembles the `Editor` facade over it — the right first pair of files to read for canvas behavior. `src/editor/port.ts` is the app's door onto the facade, and the only way app code reaches the editor.
 - **Views dispatch commands by name** and never call a handler directly: a command's `type` *is* its handler's name, so `{ type: 'SetColor' }` runs `runSetColor`, exported from a feature's `commands.ts`. Both sides of the pixel split dispatch onto the same bus, `src/commandBus.ts`.
 - **Adding an element type is a schema edit, not a code edit.** Dropping a `*.moddle.yaml` into `assets/schemas/` gives you a palette entry, inspector fields and tabs, connection rules, templates, and round-tripping, with no code here.
 - It stamps the provenance trail on export: `created` on a fresh diagram, `modified` afterwards, once per edit batch. It never writes `executed`. The only other entry it writes is the `invalidated` marker behind the ✕ gesture.
@@ -19,7 +19,7 @@ One folder per feature. Everything the palette is lives in `src/palette/`: its d
 | Folder | What it holds |
 | --- | --- |
 | `src/app/` | the shell: `App.tsx`, `Modeler.tsx`, contexts, notices, boot commands |
-| `src/editor/` | the editor facade: `port.ts` (the interface), `canvasBackend.ts` (the one implementation), history, popup registry |
+| `src/editor/` | the editor facade: `port.ts` (the door), `editor.ts` (the assembly), `mount.ts` (canvas + app services), history, popup registry |
 | `src/palette/` `src/popup/` `src/commandPalette/` | the three ways to place an element |
 | `src/inspector/` | the attribute panel: tabs, editors, sections, data neighbors |
 | `src/draw/` `src/shape/` | icon and choreography-band geometry the canvas reads, and how an element's business object is built |

@@ -1,7 +1,7 @@
 /**
  * The document history the editor hangs its undo/redo off.
  *
- * `EditorPort.revision()` and the `commandStack.changed` topic are the app's
+ * `Editor.revision()` and the `commandStack.changed` topic are the app's
  * "the document moved" signals: autosave (`settings/attachAutosave.ts`), the
  * provenance trail (`provenance/trail.ts`) and the undo/redo buttons
  * (`provenance/Provenance.tsx`) all read them.
@@ -12,28 +12,21 @@
  * undo/redo restore a snapshot by re-importing it into the live editor.
  *
  * {@link DocumentHistory} stays an interface rather than collapsing into the one
- * implementation: it is what `EditorPort` delegates to, and the topic names above
- * are the app's contract, not the canvas's.
+ * implementation: it is what `Editor` delegates to, and the topic names above
+ * are the app's contract, not the canvas's. It IS `EditorHistory` — the dependency
+ * the facade declares — plus the disposal only its owner performs.
  *
  * Snapshots are taken *after* the write, asynchronously (bpmn-moddle's `toXML` is
  * async while `mutate.*` is not), through a single promise queue so they land in
  * order. Consecutive snapshots with identical XML collapse, which is what makes the
- * two mutation signals `editor/canvasBackend.ts` wires up — the adapter's own
+ * two mutation signals `editor/mount.ts` wires up — the facade's own
  * per-mutation `record` and the scene's change events — safe to overlap.
  */
 
-/** The history slice the `EditorPort` delegates to. */
-export interface DocumentHistory {
-  /** Monotonic edit counter; import resets it silently. */
-  revision(): number;
-  undo(): void;
-  redo(): void;
-  canUndo(): boolean;
-  canRedo(): boolean;
-  /** One mutation happened, from wherever; the commit point, immediately after it applied. */
-  record(): void;
-  /** A fresh document was imported: forget the past, re-baseline silently. */
-  reset(): void;
+import type { EditorHistory } from '@modeler/editor/port';
+
+/** The history slice the `Editor` delegates to, and the store that owns it. */
+export interface DocumentHistory extends EditorHistory {
   /** Detach listeners / drop snapshots. */
   dispose(): void;
 }
@@ -43,7 +36,7 @@ export interface SnapshotHistoryOptions {
   serialize(): Promise<string>;
   /**
    * Re-import a snapshot into the live editor. Must NOT call back into
-   * `EditorPort.importXML` — that resets the history it is restoring.
+   * `Editor.importXML` — that resets the history it is restoring.
    */
   restore(xml: string): Promise<void>;
   /** Fire `commandStack.changed` (and anything else the app hangs off a mutation). */

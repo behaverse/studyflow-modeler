@@ -1,12 +1,12 @@
 /**
  * Minimal event bus (design §3 `events/bus.ts`). A tiny publish/subscribe emitter
- * carrying the topic names the app already subscribes to through the editor facade
- * (`packages/modeler/src/editor/port.ts` `EditorEvents`): `selection.changed`,
- * `element.changed`, `elements.changed`, plus whatever else the canvas fires.
+ * carrying the topic names the app subscribes to through the editor facade:
+ * `selection.changed`, `element.changed`, `elements.changed`, plus whatever else the
+ * canvas fires.
  *
- * The surface mirrors `EditorEvents` — `on`/`off`/`fire` — so the `EditorPort`
- * adapter (design §4) is a thin projection. Listeners run in SUBSCRIPTION order:
- * nothing in the canvas or the app has ever needed to jump the queue, so there is no
+ * This IS `Editor.events` — the facade publishes the bus itself rather than a
+ * projection of it (`port/editor.ts`). Listeners run in SUBSCRIPTION order: nothing
+ * in the canvas or the app has ever needed to jump the queue, so there is no
  * priority to reason about.
  */
 
@@ -33,13 +33,20 @@ export class EventBus {
     else this.topics.delete(topic);
   }
 
-  /** Fire `topic` with `payload`, invoking listeners in subscription order. */
+  /**
+   * Fire `topic` with `payload`, invoking listeners in subscription order.
+   *
+   * A missing payload is delivered as `{}`, never `undefined`: app-side listeners
+   * read `event.element` off whatever arrives, and a bare `fire('tokenSimulation.toggle')`
+   * would otherwise throw inside the listener rather than say "nothing to report".
+   */
   fire<P = unknown>(topic: string, payload?: P): void {
     const subs = this.topics.get(topic);
     if (!subs || subs.length === 0) return;
+    const event = (payload ?? {}) as P;
     // Copy so listeners may (de)subscribe during dispatch.
     for (const listener of subs.slice()) {
-      (listener as EventListener<P | undefined>)(payload);
+      (listener as EventListener<P>)(event);
     }
   }
 

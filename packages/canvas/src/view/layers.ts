@@ -32,7 +32,7 @@ let gridPatternSeq = 0;
 
 /**
  * Marks a HOST layer — one the app asked for by name through the port
- * (`port/adapter.ts` `view.getLayer`), which lives above the built-in stack so its
+ * ({@link Canvas.getHostLayer}), which lives above the built-in stack so its
  * chrome is not buried under the selection handles, and which an import drops the
  * way diagram-js drops its own overlays.
  */

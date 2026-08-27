@@ -10,8 +10,7 @@ import {
   loopKindOf,
   supportsLoopCharacteristics,
 } from '@modeler/inspector/loopCharacteristics';
-import type { EditorPort } from '@modeler/editor/port';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 /** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
 
@@ -25,14 +24,14 @@ const packages: Record<string, any> = Object.fromEntries(
 const moddle = new BpmnModdle(packages) as any;
 
 /**
- * A handle over a partial `EditorPort`: the command reaches the document through
- * `mutate` and `model` alone, so those two are all the fake owes it. `mutate`
+ * A partial `Editor`: the command reaches the document through `mutate` and
+ * `model` alone, so those two are all the fake owes it. `mutate`
  * applies each write the way a real backend's undo step would, and records which
  * of the two writers ran — the distinction the tests below are about.
  */
-function fakeModeler(): { modeler: PortHandle; calls: string[] } {
+function fakeModeler(): { modeler: Editor; calls: string[] } {
   const calls: string[] = [];
-  const editor = {
+  const modeler = {
     mutate: {
       updateProperties(element: any, properties: Record<string, any>) {
         calls.push('updateProperties');
@@ -46,9 +45,9 @@ function fakeModeler(): { modeler: PortHandle; calls: string[] } {
     model: {
       createBusinessObject: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
     },
-  } as unknown as EditorPort;
+  } as unknown as Editor;
 
-  return { modeler: { editor, destroy() {} }, calls };
+  return { modeler, calls };
 }
 
 function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {

@@ -11,10 +11,10 @@ import { ContextPad } from '@modeler/contextPad/ContextPad';
 import { Breadcrumbs } from '@modeler/drilldown/Breadcrumbs';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export function App() {
-  const [modeler, setModeler] = useState<PortHandle | undefined>(undefined);
+  const [modeler, setModeler] = useState<Editor | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const isSimulating = useIsSimulating(modeler);

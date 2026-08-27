@@ -1,9 +1,8 @@
 /**
- * The native-canvas editor: `@behaverse/studyflow-canvas` plus the halves the
- * canvas deliberately does not own (design §4 EDITORPORT MAPPING, "(A)").
+ * `mountEditor` — put a canvas in a container and hand back the {@link Editor}.
  *
- * The canvas is a leaf package — no bpmn-js, no `@modeler/*` — so everything
- * schema-, document- or app-chrome-shaped is assembled here and injected:
+ * The canvas is a leaf package — no `@modeler/*` — so everything schema-,
+ * document- or app-chrome-shaped is assembled here and injected:
  *
  * - **model** — a bare `bpmn-moddle` carrying the enabled extension schemas, which
  *   is the document model `importXML` / `saveXML` round-trip through. Id
@@ -13,25 +12,33 @@
  *   command stack, so every mutation — through `mutate.*` *or* through a direct
  *   canvas gesture (drag, create, delete, inline rename) — is recorded here, and
  *   undo/redo replay a snapshot back into the canvas.
- * - **templates / simulation** — app services.
+ * - **templates / simulation** — app services the canvas has no part of at all, so
+ *   they are not injected: they are fastened onto the facade here, alongside
+ *   `destroy`, to make the `Editor` the app holds.
  */
 
 import { BpmnModdle } from 'bpmn-moddle';
-import { Canvas, IdGenerator, createCanvasEditorPort, defaultSizeFor, prefixFor } from '@canvas/index.ts';
+import { Canvas, IdGenerator, defaultSizeFor, prefixFor } from '@canvas/index.ts';
 import type { IconDef, SceneNode } from '@canvas/index.ts';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement, getRawAttribute } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS, SVG_ICON_PATHS } from '@modeler/draw/icons';
 import { lookupIcon, onIconResolved, primeIconCache } from '@modeler/draw/iconCache';
+import { createEditor, type EditorCore } from '@modeler/editor/editor';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import Templates, { TEMPLATE_FLOW_ELEMENTS } from '@modeler/templates/Templates';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import { materializeTemplateFlow } from '@modeler/templates/factory';
-import type { EditorModel, EditorPort, ModelElement } from '@modeler/editor/port';
-import type { PortHandle } from '@modeler/editor/registry';
+import type {
+  Editor,
+  EditorModel,
+  EditorSimulation,
+  EditorTemplates,
+  ModelElement,
+} from '@modeler/editor/port';
 
-export type CanvasBackendOptions = {
+export type MountEditorOptions = {
   container: HTMLElement;
   extensionSchemas: Record<string, any>;
 };
@@ -119,7 +126,7 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
 }
 
 /** Mount the canvas into `container` and assemble the facade over it. */
-export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
+export function mountEditor(options: MountEditorOptions): Editor {
   const canvas = new Canvas({
     container: options.container,
     onWarning: (warning: unknown) => console.warn('Canvas import warning:', warning),
@@ -160,9 +167,9 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
 
   const bus = canvas.getEventBus();
 
-  // Late-bound: the history serializes through the port, and the port takes the
+  // Late-bound: the history serializes through the facade, and the facade takes the
   // history as a dependency. One holder breaks the knot.
-  const mounted: { port?: EditorPort } = {};
+  const mounted: { port?: EditorCore } = {};
 
   const history = createSnapshotHistory({
     serialize: async () => (await mounted.port!.saveXML({ format: true })).xml,
@@ -176,14 +183,14 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       canvas.importDefinitions(rootElement as any);
       canvas.getViewport().setViewbox(viewbox);
       lastSceneRevision = canvas.getScene()?.revision ?? 0;
-      // The same pair `EditorPort.importXML` fires, minus the history reset that
+      // The same pair `Editor.importXML` fires, minus the history reset that
       // would throw away the very stack this is walking. Both go out BEFORE the
       // reselect: `root.set` means "the document was replaced, fall back to the
       // root", so anything listening (the inspector) resets on it — restoring the
       // selection afterwards is what makes the undo land on the element the user
       // was editing rather than on the diagram root.
       bus.fire('import.done', { error: null, warnings: [] });
-      bus.fire('root.set', { element: mounted.port!.elements.root() });
+      bus.fire('root.set', { element: canvas.getRoot() });
       const restored = canvas.getScene();
       const reselect = selectedIds
         .map((id: string) => restored?.elementsById.get(id))
@@ -287,35 +294,33 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
   bus.on('element.changed', materializePending);
   bus.on('elements.changed', materializePending);
 
-  const port = createCanvasEditorPort(canvas, {
-    model,
-    // Supplying a history also hands it `commandStack.changed`: it fires that topic
-    // once per recorded mutation, from every mutation source and not just `mutate.*`.
-    history,
-    templates: {
-      getAll: () => templatesService.getAll(),
-      // `templates/factory.ts` over the shim factory above, so a template's pinned
-      // attributes, loop characteristics, event definitions and extension all land
-      // the same way a hand-authored element's would. Its nested flow (a pool's or
-      // sub-process's contents) is stashed on the returned root and materialized
-      // once the canvas places it.
-      createElement: (template: any) => {
-        const shape = templatesService.createElement(template);
-        const flowElements = shape[TEMPLATE_FLOW_ELEMENTS];
-        pendingTemplate = flowElements?.length
-          ? { businessObject: shape.businessObject, flowElements }
-          : undefined;
-        delete shape[TEMPLATE_FLOW_ELEMENTS];
-        return shape;
-      },
+  /**
+   * The palette's templates. `templates/factory.ts` over the shim factory above, so
+   * a template's pinned attributes, loop characteristics, event definitions and
+   * extension all land the way a hand-authored element's would. Its nested flow (a
+   * pool's or sub-process's contents) is stashed on the returned root and
+   * materialized once the canvas places it.
+   *
+   * An app service through and through: the canvas neither implements nor takes it,
+   * so it is fastened onto the facade at the bottom of this function.
+   */
+  const templates: EditorTemplates = {
+    getAll: () => templatesService.getAll(),
+    createElement: (template: any) => {
+      const shape = templatesService.createElement(template);
+      const flowElements = shape[TEMPLATE_FLOW_ELEMENTS];
+      pendingTemplate = flowElements?.length
+        ? { businessObject: shape.businessObject, flowElements }
+        : undefined;
+      delete shape[TEMPLATE_FLOW_ELEMENTS];
+      return shape;
     },
-    simulation: {
-      // Constructed just below, once `port` exists — `TokenSimulator` runs off the
-      // port itself (P6b §3D), and the port needs this slot to be built.
-      toggle: () => simulator?.toggle(),
-      isActive: () => simulator?.isActive() ?? false,
-    },
-  });
+  };
+
+  // The canvas supplies everything but the two app services and teardown; the
+  // history it takes also owns `commandStack.changed`, which it fires once per
+  // recorded mutation, from every mutation source and not just `mutate.*`.
+  const port = createEditor(canvas, { model, history });
   mounted.port = port;
 
   /**
@@ -326,6 +331,11 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
    * subscribes to.
    */
   const simulator = new TokenSimulator(port);
+
+  const simulation: EditorSimulation = {
+    toggle: () => simulator.toggle(),
+    isActive: () => simulator.isActive(),
+  };
 
   /**
    * The two grid settings (P6b §3C, parity spec addendum 7). The canvas paints the
@@ -388,8 +398,11 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
     }, ICON_REDRAW_DEBOUNCE_MS);
   });
 
-  return {
-    editor: port,
+  // The canvas half plus the app's three. This is the one place the two halves meet,
+  // and the annotated return type is what checks that together they make an `Editor`.
+  return Object.assign(port, {
+    templates,
+    simulation,
     destroy: () => {
       simulator.dispose();
       unsubscribeSettings();
@@ -407,5 +420,5 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       // every stale instance would still answer Delete.
       canvas.destroy();
     },
-  };
+  });
 }

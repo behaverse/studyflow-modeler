@@ -66,7 +66,7 @@ test('the "Show grid" setting paints and unpaints the canvas grid', async ({ pag
 });
 
 // P6b §3D: one simulator now drives both backends — `TokenSimulator` runs off the
-// `EditorPort` (`events` / `elements.filter` / `view.getLayer('token-simulation')`),
+// `Editor` (`events` / `elements.filter` / `view.getLayer('token-simulation')`),
 // so this spec is backend-neutral like the rest of the suite.
 test('the token simulator runs: a token appears and Stop restores editing', async ({ page }) => {
   await gotoModeler(page);

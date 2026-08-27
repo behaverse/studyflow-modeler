@@ -1,8 +1,7 @@
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight } from '@modeler/draw/choreographyLayout';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */
 const ACTIVITY_POINTS = 'points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],'
@@ -288,18 +287,17 @@ function edgeCell(element: any, known: Set<string>): string {
     + '        </mxCell>\n';
 }
 
-export function exportToDrawio(modeler: PortHandle): string {
-  const editor = getEditorPort(modeler);
-  const root = editor.elements.root();
+export function exportToDrawio(modeler: Editor): string {
+  const root = modeler.elements.root();
   const shapes: any[] = [];
   const connections: any[] = [];
 
-  editor.elements.forEach((element: any) => {
+  modeler.elements.forEach((element: any) => {
     if (element === root || element.type === 'label' || !element.businessObject) return;
     // Only what the CURRENT plane depicts: the facade knows which root an element
     // belongs to, and a scene element's own parent chain stops at the plane's top
     // node rather than at the root, so `findRoot` is the portable question.
-    if (editor.elements.findRoot(element) !== root) return;
+    if (modeler.elements.findRoot(element) !== root) return;
     if (element.waypoints) connections.push(element);
     else if (Number.isFinite(element.x) && Number.isFinite(element.y)) shapes.push(element);
   });

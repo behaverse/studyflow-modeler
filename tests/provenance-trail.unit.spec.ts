@@ -14,8 +14,7 @@ import {
 } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
-import type { EditorPort } from '@modeler/editor/port';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 /** `<prov:activity>` elements on the primary root, stamped once per *fact* so re-rendering stays byte-stable. */
 
@@ -87,14 +86,11 @@ test.describe('provenance trail', () => {
     // revision counter `editor/history.ts` serves, one bump per applied mutation.
     // `edit()` is that bump.
     let revision = 0;
-    const modeler: PortHandle = {
-      editor: {
-        getDefinitions: () => definitions,
-        revision: () => revision,
-        model: { moddle: () => moddle },
-      } as unknown as EditorPort,
-      destroy() {},
-    };
+    const modeler = {
+      getDefinitions: () => definitions,
+      revision: () => revision,
+      model: { moddle: () => moddle },
+    } as unknown as Editor;
     const edit = () => { revision += 1; };
 
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');

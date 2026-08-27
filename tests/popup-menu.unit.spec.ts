@@ -10,7 +10,7 @@ import { loadSchemaModels } from './schemas';
  * of them (P6b §3A).
  *
  * Browserless: the entry builder is pure, and the commands only ever touch the
- * `EditorPort`, so a hand-written port stands in for the whole editor. Where the
+ * `Editor`, so a hand-written stand-in serves for the whole editor. Where the
  * appended element LANDS is the editor's business and is measured in
  * `tests/canvas-autoplace.unit.spec.ts`.
  */
@@ -65,7 +65,7 @@ test.describe('popup menu entries', () => {
   });
 });
 
-/** A minimal `EditorPort` — only the members the append commands reach. */
+/** A minimal `Editor` — only the members the append commands reach. */
 function fakePort() {
   const calls: any[] = [];
   const root = { id: 'Process_1' };
@@ -79,9 +79,13 @@ function fakePort() {
     },
     elements: { root: () => root, findRoot: () => root },
     rules: { allowed: (action: string, ctx: any) => action === 'shape.append' && !!ctx.element },
-    gestures: {
+    canvas: {
       createShape: (attrs: any) => ({ ...attrs, width: 36, height: 36 }),
       startCreate: (...args: any[]) => calls.push(['startCreate', ...args]),
+    },
+    // An append WRITES — one shape, one flow, one undo step — so it is a mutation
+    // and not a gesture (`@canvas/port/mutations.ts`).
+    mutate: {
       appendShape: (source: any, shape: any) => {
         calls.push(['appendShape', source, shape]);
         return created;
@@ -90,16 +94,16 @@ function fakePort() {
     selection: { get: () => [], select: (e: any) => calls.push(['select', e]) },
     revision: () => 0,
   };
-  return { handle: { editor: port, destroy: () => {} } as any, port, calls, created };
+  return { port, calls, created };
 }
 
 test.describe('append commands', () => {
   const source = { id: 'Task_1', x: 100, y: 200, width: 100, height: 80, parent: undefined };
 
   test('a click-append hands the source and a freshly minted shape to the editor', () => {
-    const { handle, calls, created } = fakePort();
+    const { port, calls, created } = fakePort();
 
-    const result = runAppendElement(handle, {
+    const result = runAppendElement(port, {
       type: 'AppendElement',
       source,
       bpmnType: 'bpmn:EndEvent',
@@ -117,27 +121,32 @@ test.describe('append commands', () => {
   });
 
   test('a refused append selects nothing', () => {
-    const { handle, port, calls } = fakePort();
-    port.gestures.appendShape = () => undefined;
+    const { port, calls } = fakePort();
+    port.mutate.appendShape = () => undefined;
 
-    expect(runAppendElement(handle, { type: 'AppendElement', source, bpmnType: 'bpmn:Task' })).toBeUndefined();
+    expect(runAppendElement(port, { type: 'AppendElement', source, bpmnType: 'bpmn:Task' })).toBeUndefined();
     expect(calls.some((c) => c[0] === 'select')).toBe(false);
   });
 
-  test('a drag-append hands the source to the create gesture instead of placing anything', () => {
-    const { handle, calls } = fakePort();
+  test('a drag-append starts a create gesture instead of placing anything', () => {
+    const { port, calls } = fakePort();
     const event = { clientX: 10, clientY: 20 };
 
-    runStartAppendElement(handle, {
+    runStartAppendElement(port, {
       type: 'StartAppendElement',
       source,
       bpmnType: 'bpmn:BoundaryEvent',
       event,
     });
 
-    const [, gestureEvent, , context] = calls.find((c) => c[0] === 'startCreate')!;
+    // The palette's own event, and the shape to drag — the canvas create gesture
+    // takes nothing else. (The facade used to accept a `{ source }` context here and
+    // drop it unread, so a drag-append has never connected on drop; it still does
+    // not, but the call site no longer implies otherwise.)
+    const [, gestureEvent, shape, ...rest] = calls.find((c) => c[0] === 'startCreate')!;
     expect(gestureEvent).toBe(event);
-    expect(context).toEqual({ source });
+    expect(shape.type).toBe('bpmn:BoundaryEvent');
+    expect(rest).toEqual([]);
     expect(calls.some((c) => c[0] === 'appendShape')).toBe(false);
   });
 
@@ -147,8 +156,8 @@ test.describe('append commands', () => {
   });
 
   test('the append affordance asks the editor, and answers no without a selection', () => {
-    const { handle } = fakePort();
-    expect(canAppendFrom(handle, source)).toBe(true);
-    expect(canAppendFrom(handle, undefined)).toBe(false);
+    const { port } = fakePort();
+    expect(canAppendFrom(port, source)).toBe(true);
+    expect(canAppendFrom(port, undefined)).toBe(false);
   });
 });

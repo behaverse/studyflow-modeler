@@ -21,7 +21,6 @@ import { readChoreographyBands } from '@core/document';
 import { getAttributeSpec } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { getEditorPort } from '@modeler/editor/registry';
 import { useInspectedElement } from '@modeler/inspector/state';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { ExpressionRow } from '@modeler/inspector/inputs';
@@ -421,14 +420,13 @@ type Direction = 'input' | 'output';
 export function DataFlowSection({ direction }: { direction: Direction }) {
   const element = useInspectedElement();
   const modeler = useRequiredModeler();
-  const editor = getEditorPort(modeler);
 
   const [, setRevision] = useState(0);
   useEffect(() => {
     const bump = () => setRevision((r) => r + 1);
-    editor.events.on('elements.changed', bump);
-    return () => editor.events.off('elements.changed', bump);
-  }, [editor]);
+    modeler.events.on('elements.changed', bump);
+    return () => modeler.events.off('elements.changed', bump);
+  }, [modeler]);
 
   const inScope = getPropertiesInScope(element);
   const neighbors: Record<Direction, DataNeighbor[]> = {

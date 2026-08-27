@@ -1,7 +1,6 @@
 import { trailTimestamp } from '@modeler/provenance/trail';
 import { voids } from '@modeler/provenance/records';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type InvalidateProvenanceRecordCommand = {
   type: 'InvalidateProvenanceRecord';
@@ -12,11 +11,10 @@ export type InvalidateProvenanceRecordCommand = {
 };
 
 export function runInvalidateProvenanceRecord(
-  modeler: PortHandle,
+  modeler: Editor,
   command: InvalidateProvenanceRecordCommand,
 ): boolean {
-  const editor = getEditorPort(modeler);
-  const element = editor.elements.get(command.elementId);
+  const element = modeler.elements.get(command.elementId);
   const bo = element?.businessObject;
   const extensionElements = bo?.extensionElements;
   const values: any[] = extensionElements?.values ?? [];
@@ -33,9 +31,9 @@ export function runInvalidateProvenanceRecord(
   if (command.who) stamp.who = command.who;
   if (command.with) stamp.with = command.with;
 
-  const marker = editor.model.create('prov:Activity', stamp);
+  const marker = modeler.model.create('prov:Activity', stamp);
   marker.$parent = extensionElements;
-  editor.mutate.updateModdleProperties(element, extensionElements, {
+  modeler.mutate.updateModdleProperties(element, extensionElements, {
     values: [...values, marker],
   });
   return true;

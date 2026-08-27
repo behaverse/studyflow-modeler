@@ -18,7 +18,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useState, Fragment } from 'react';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { getEditorPort } from '@modeler/editor/registry';
 import { goToCrumb, planeCrumbs, type Crumb } from '@modeler/drilldown/commands';
 import { breadcrumbs as s } from '@modeler/drilldown/styles';
 
@@ -39,14 +38,13 @@ export function Breadcrumbs() {
   const [anchor, setAnchor] = useState<{ left: number; top: number } | undefined>(undefined);
 
   useEffect(() => {
-    const editor = getEditorPort(modeler);
-    const sync = (): void => setCrumbs(planeCrumbs(editor));
+    const sync = (): void => setCrumbs(planeCrumbs(modeler));
     sync();
-    editor.events.on('root.set', sync);
-    editor.events.on('import.done', sync);
+    modeler.events.on('root.set', sync);
+    modeler.events.on('import.done', sync);
     return () => {
-      editor.events.off('root.set', sync);
-      editor.events.off('import.done', sync);
+      modeler.events.off('root.set', sync);
+      modeler.events.off('import.done', sync);
     };
   }, [modeler]);
 
@@ -55,7 +53,7 @@ export function Breadcrumbs() {
      diagram. Re-measured whenever the container resizes — which is also what a panel
      opening or closing does to it. */
   useLayoutEffect(() => {
-    const container = getEditorPort(modeler).view.getContainer();
+    const container = modeler.view.getContainer();
     if (!container) return;
     const measure = (): void => {
       const rect = container.getBoundingClientRect();
@@ -72,7 +70,7 @@ export function Breadcrumbs() {
   }, [modeler, crumbs.length]);
 
   const go = useCallback((crumb: Crumb) => {
-    goToCrumb(getEditorPort(modeler), crumb);
+    goToCrumb(modeler, crumb);
   }, [modeler]);
 
   if (crumbs.length < 2 || !anchor) return null;

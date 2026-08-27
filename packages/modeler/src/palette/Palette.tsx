@@ -15,7 +15,7 @@ import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 import { Popup, SchemaPopup } from '@modeler/palette/flyouts';
 import { palette } from '@modeler/palette/styles';
 import type { PaletteSchema } from '@modeler/palette/commands';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 
 type ButtonProps = {
@@ -52,7 +52,7 @@ function PaletteButton({
   );
 }
 
-function usePaletteSchemas(modeler: PortHandle): PaletteSchema[] {
+function usePaletteSchemas(modeler: Editor): PaletteSchema[] {
   const [schemas, setSchemas] = useState<PaletteSchema[]>([]);
 
   useEffect(() => {

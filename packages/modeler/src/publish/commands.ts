@@ -1,6 +1,5 @@
 import { URLS } from '@modeler/constants';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type PublishDiagramCommand = {
   type: 'PublishDiagram';
@@ -12,8 +11,8 @@ export type PublishResult = {
   previewUrl?: string;
 };
 
-export async function runPublishDiagram(modeler: PortHandle, command: PublishDiagramCommand): Promise<PublishResult> {
-  const { xml } = await getEditorPort(modeler).saveXML({ format: true });
+export async function runPublishDiagram(modeler: Editor, command: PublishDiagramCommand): Promise<PublishResult> {
+  const { xml } = await modeler.saveXML({ format: true });
 
   const response = await fetch(`${URLS.apiBase}/v1/studies/${command.studyName}/flow`, {
     method: 'POST',

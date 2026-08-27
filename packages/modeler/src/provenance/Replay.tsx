@@ -16,8 +16,7 @@ import {
   type Point,
 } from '@modeler/simulation/TokenSimulator';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorElements, EditorPort, EditorView } from '@modeler/editor/port';
+import type { EditorElements, Editor, EditorView } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -56,7 +55,7 @@ function resetSvgStyles(view: EditorView): void {
 }
 
 /** Dim the canvas, light up elements as their records land, and float a token on the active one. */
-function useReplayHighlights(editor: EditorPort, shown: ProvenanceRecord[]): void {
+function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   const marked = useRef<Array<[string, string]>>([]);
   const tokenRef = useRef<any>(null);
   const tokenPos = useRef<{ x: number; y: number; elId: string; rootId?: string } | null>(null);
@@ -293,7 +292,7 @@ const scopeName = (r: ProvenanceRecord) =>
   (r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId);
 
 export function ReplayPanel({ onClose }: Props) {
-  const editor = getEditorPort(useRequiredModeler());
+  const editor = useRequiredModeler();
   // `importXML` fires no `commandStack.changed`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
@@ -304,7 +303,7 @@ export function ReplayPanel({ onClose }: Props) {
 }
 
 function ReplayTimeline({ onClose }: Props) {
-  const editor = getEditorPort(useRequiredModeler());
+  const editor = useRequiredModeler();
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     editor.events.on('commandStack.changed', bumpRevision);

@@ -59,13 +59,14 @@ export type { IconDef, IconResolver } from './render/icons.ts';
 
 // --- the editor facade ------------------------------------------------------
 /**
- * The adapter the app assigns to its own `EditorPort`. That assignment is the
- * conformance check between the two halves — see `port/adapter.ts`.
+ * The editor facade, declared once in `port/editor.ts` and re-exported to the app
+ * through `@modeler/editor/port`. Most of it IS the canvas — `selection`, `events`
+ * and `canvas` are the objects above — so the only thing built here is the
+ * undoable-mutation half, which needs a commit point the canvas has no way to
+ * provide. `@modeler/editor/editor.ts` assembles the two.
  */
-export {
-  createCanvasEditorPort,
-  type CanvasEditorPort,
-  type CanvasPortDeps,
-  type CanvasPortHistory,
-  type PortRoot,
-} from './port/adapter.ts';
+export { createMutations, type MutationHistory } from './port/mutations.ts';
+export type {
+  Editor,
+  EditorHistory,
+} from './port/editor.ts';

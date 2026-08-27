@@ -43,7 +43,7 @@ function flow(id: string, type: string, source: any, target: any, bo: Record<str
 }
 
 /**
- * `EditorPort.elements.findRoot`: the topmost ancestor of `element` — the plane it
+ * `Editor.elements.findRoot`: the topmost ancestor of `element` — the plane it
  * is drawn on. A shape nested in a sub-process still answers ROOT; one parented to
  * another plane's root answers that plane, which is how `exportToDrawio` drops
  * everything the current plane does not depict.
@@ -60,14 +60,11 @@ function findRoot(element: any): any {
 
 function fakeModeler(elements: any[]): any {
   return {
-    editor: {
-      elements: {
-        forEach: (fn: any) => elements.forEach(fn),
-        root: () => ROOT,
-        findRoot,
-      },
+    elements: {
+      forEach: (fn: any) => elements.forEach(fn),
+      root: () => ROOT,
+      findRoot,
     },
-    destroy() {},
   };
 }
 

@@ -28,15 +28,15 @@
  * previous value on the way out.
  *
  * The drill-down badge (`sub/frame_10`) is drawn from here into a custom overlay
- * layer supplied by the host (`port/adapter.ts` passes `view.getLayer('drilldown',
- * 900)`), because it is view chrome with no scene element behind it.
+ * layer supplied by the host ({@link Canvas.getHostLayer}`('drilldown', 900)`),
+ * because it is view chrome with no scene element behind it.
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
 import type { EventBus } from '@canvas/events/bus.ts';
 import { isCollapsed, isExpandable, nestedPlanesOf } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
-import type { Plane, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type { ModdleObject, Plane, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { append, clear, create, remove } from '@canvas/render/svg.ts';
 
 // --- geometry (measured off `edge-videos/sub/frame_10` at zoom ≈ 2) ------------
@@ -138,6 +138,63 @@ function directPlanes(scene: Scene): Map<SceneElement, Plane> {
   }
   directIndex.set(scene, { revision: scene.revision, map });
   return map;
+}
+
+// --- the plane as an element ---------------------------------------------------
+
+/**
+ * A plane, projected onto the shape of a scene element.
+ *
+ * App code reads `editor.elements.root()` for the diagram name, for export scoping
+ * and as the inspector's fallback selection. A `bpmndi:BPMNPlane` is exactly that,
+ * but it is not a {@link SceneElement} — so it is projected onto one here (`id`,
+ * `type`, `businessObject`, `di`, `children`) and memoized per plane, so identity
+ * comparisons (`e.element === editor.elements.root()`) hold.
+ */
+export interface PlaneRoot {
+  id: string;
+  type: string;
+  readonly isRoot: true;
+  businessObject: ModdleObject;
+  di: ModdleObject;
+  children: SceneElement[];
+  parent: undefined;
+  plane: Plane;
+}
+
+const roots = new WeakMap<Plane, PlaneRoot>();
+
+/** The memoized {@link PlaneRoot} projection of `plane`. */
+export function rootOf(plane: Plane): PlaneRoot {
+  let root = roots.get(plane);
+  if (!root) {
+    root = {
+      id: String(prop(plane.businessObject, 'id') ?? plane.id),
+      type: plane.businessObject.$type,
+      isRoot: true,
+      businessObject: plane.businessObject,
+      di: plane.di,
+      children: plane.children,
+      parent: undefined,
+      plane,
+    };
+    roots.set(plane, root);
+  }
+  // The projection is memoized for identity (`e.element === elements.root()`), but
+  // everything it mirrors can move underneath it: the child list is rebuilt on
+  // create/delete, and dropping the first pool REPLACES the business object the
+  // plane depicts (`Writeback.promoteRootToCollaboration`). So refresh, never rebuild.
+  root.children = plane.children;
+  root.businessObject = plane.businessObject;
+  root.di = plane.di;
+  root.id = String(prop(plane.businessObject, 'id') ?? plane.id);
+  root.type = plane.businessObject.$type;
+  return root;
+}
+
+/** Whether `value` is a plane projection rather than a real scene element. */
+export function isPlaneRoot(value: unknown): value is PlaneRoot {
+  return !!value && (value as PlaneRoot).isRoot === true;
 }
 
 /** The label a drill-down badge shows for `node` — its name, else its id. */

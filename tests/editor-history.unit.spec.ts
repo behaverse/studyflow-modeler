@@ -6,7 +6,7 @@ import { createSnapshotHistory } from '@modeler/editor/history';
  * The document history the canvas backend brought with it — the app-level undo
  * stack that stands in for a command stack.
  *
- * It does not belong to the editor: it is what `EditorPort.revision()` /
+ * It does not belong to the editor: it is what `Editor.revision()` /
  * `undo()` / `redo()` answer with, so provenance, autosave and dirty-tracking
  * read it without knowing where the mutation came from.
  *
@@ -16,7 +16,7 @@ import { createSnapshotHistory } from '@modeler/editor/history';
 
 /**
  * A document that is one string. `serialize` reads it, `restore` writes it — the
- * same contract `editor/canvasBackend.ts` fulfils with `saveXML` /
+ * same contract `editor/mount.ts` fulfils with `saveXML` /
  * `canvas.importDefinitions`.
  */
 function fakeDocument(initial: string) {
@@ -108,7 +108,7 @@ test('two mutation signals for one edit collapse into one undo state', async () 
   history.reset();
   await settle();
 
-  // What the canvas backend does on a `mutate.*` call: the adapter's per-mutation
+  // What the editor does on a `mutate.*` call: the mutations' per-mutation
   // commit and the scene's own change event both arrive for a single write.
   state.xml = '<b/>';
   history.record();
@@ -164,7 +164,7 @@ test('the writes an undo itself causes are not recorded as edits', async () => {
     restore: async (xml) => {
       state.xml = xml;
       // The canvas fires `element.changed` while a snapshot is being applied; the
-      // watcher in `canvasBackend.ts` calls straight back into `record`.
+      // watcher in `editor/mount.ts` calls straight back into `record`.
       history.record();
       recordsDuringRestore += 1;
     },

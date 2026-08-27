@@ -33,6 +33,7 @@ import type {
   Scene,
   SceneEdge,
   SceneElement,
+  SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
 import { hitTest, nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
@@ -74,7 +75,7 @@ import { isCollapsed, isExpandable, isHiddenByCollapse } from '@canvas/model/exp
 import { ExternalLabels, isLabelElement } from '@canvas/model/externalLabel.ts';
 import type { SetExpandedOptions } from '@canvas/model/expand.ts';
 import { depthOf } from '@canvas/model/tree.ts';
-import { Writeback } from '@canvas/model/writeback.ts';
+import { Writeback, definitionsOf } from '@canvas/model/writeback.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
 import { CONNECTION, Rules, type RuleElement } from '@canvas/rules/rules.ts';
 import {
@@ -97,8 +98,16 @@ import {
 import { drawPreviewEdge } from '@canvas/render/preview.ts';
 import type { RendererOptions } from '@canvas/render/renderer.ts';
 import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
+import { PlaneCursor, isPlaneRoot, rootOf } from '@canvas/view/plane.ts';
+import type { PlaneRoot } from '@canvas/view/plane.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { sceneBounds, Viewport } from '@canvas/view/viewport.ts';
+import type {
+  EditorElement,
+  EditorElements,
+  Rect,
+  Viewbox as EditorViewbox,
+} from '@canvas/port/editor.ts';
 
 /** Options for constructing a {@link Canvas}. */
 export interface CanvasOptions extends RendererOptions {
@@ -271,6 +280,15 @@ function isTextEntry(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
+/**
+ * Whether an entry of `Scene.elementsById` is a DRAWABLE element (node or edge)
+ * rather than a label. Exported because the facade's element view and the mutations
+ * both filter the registry with it.
+ */
+export function isSceneElement(value: SceneElement | SceneLabel | undefined): value is SceneElement {
+  return !!value && (value.kind === 'node' || value.kind === 'edge');
+}
+
 /** Which end of an edge an endpoint-waypoint index refers to, if either. */
 function endpointOf(edge: SceneEdge, index: number): ConnectionEnd | undefined {
   if (index === 0) return 'source';
@@ -291,6 +309,17 @@ export class Canvas {
   private readonly rules: Rules;
   private readonly create: Create;
   private readonly connect: Connect;
+  /**
+   * The current-plane cursor: which plane is on screen, the drill-down badges that
+   * offer the trip, and the double click that takes it. Owned here rather than by
+   * the host, so sub-process navigation exists for every canvas and comes down with
+   * {@link Canvas.destroy}.
+   */
+  private readonly planes: PlaneCursor;
+  /** HOST-owned `<g>` layers, by name ({@link Canvas.getHostLayer}). */
+  private readonly customLayers = new Map<string, SVGGElement>();
+  /** The {@link EditorElements} view of the scene, minted once per canvas. */
+  private elements?: EditorElements;
   private readonly onWarning?: ImportOptions['onWarning'];
   private readonly gridSize?: number;
   private readonly minNodeSize?: number;
@@ -405,6 +434,9 @@ export class Canvas {
       // gateway is selected with an outline and no resize handles. An external
       // LABEL is never resizable either — it is sized by its text.
       canResize: (node) => !isLabelElement(node) && this.rules.canResize(node),
+      // `Editor.selection` IS this object, and app chrome selects by whatever it is
+      // holding — an id, the shape a command just made, the plane projection.
+      resolve: (value) => this.resolveElement(value),
     });
 
     this.labelEditing = new LabelEditing({
@@ -489,6 +521,19 @@ export class Canvas {
     if (!this.root.hasAttribute('tabindex')) this.root.setAttribute('tabindex', '0');
     if (!this.container.hasAttribute('tabindex')) this.container.setAttribute('tabindex', '0');
     this.container.addEventListener('keydown', this.onShortcut);
+
+    // LAST, and deliberately so: the cursor's own `dblclick` handler must register
+    // after this canvas's, which is what decides the two-handler race on a double
+    // click whose target IS the root (both then run at AT_TARGET, in registration
+    // order). Expanding a container in place therefore still wins over drilling into
+    // it, exactly as it did while the host built this cursor after the canvas.
+    this.planes = new PlaneCursor({
+      canvas: this,
+      layer: () => this.getHostLayer('drilldown', 900),
+      // `root.set` on every move: the inspector, the popup menus and the breadcrumb
+      // all listen to it already — it is the same topic an import fires.
+      onChange: (plane) => this.bus.fire('root.set', { element: rootOf(plane) }),
+    });
   }
 
   /**
@@ -520,6 +565,11 @@ export class Canvas {
     this.clearMarquee();
     this.endGesture();
 
+    // Before `bus.clear()`, which would strip the cursor's subscriptions out from
+    // under it and leave its capture-phase `dblclick` listener and its badge group
+    // behind on a root that is about to be detached.
+    this.planes.destroy();
+
     this.root.removeEventListener('pointerdown', this.onDown);
     this.root.removeEventListener('dblclick', this.onDblClick);
     this.root.removeEventListener('pointermove', this.onHover);
@@ -529,6 +579,7 @@ export class Canvas {
     this.bus.clear();
     this.labels.clear();
     this.layers.clear();
+    this.customLayers.clear();
     this.renderer.graphicsById.clear();
     remove(this.root);
     this.scene = undefined;
@@ -626,7 +677,7 @@ export class Canvas {
 
   /**
    * Park a HOST-owned `<g>` above the built-in layer stack, ordered by `index` — the
-   * canvas side of the facade's `view.getLayer` (`port/adapter.ts`). Above, because
+   * raw half of {@link Canvas.getHostLayer}. Above the stack, because
    * the chrome hosts put here (the drill-down badges, the simulation tokens) anchors
    * to a shape and has to stay clickable while that shape is selected; below the
    * selection layer, a badge at a shape's bottom-right corner sits under a resize
@@ -637,6 +688,28 @@ export class Canvas {
    */
   attachHostLayer(layer: SVGGElement, index = 0): void {
     this.layers.attachCustom(layer, index);
+  }
+
+  /**
+   * A HOST layer BY NAME, created on first use and stable afterwards — the drill-down
+   * badges (`'drilldown'`), the simulation tokens (`'token-simulation'`), the
+   * provenance replay overlay. `index` orders it among the other host layers.
+   *
+   * An import detaches every host layer ({@link Layers.clear}) the way diagram-js
+   * drops its own overlays; the same `<g>` comes back attached on the next call, so
+   * a host that keeps a reference across an import re-attaches simply by asking again.
+   */
+  getHostLayer(name: string, index?: number): SVGGElement {
+    let layer = this.customLayers.get(name);
+    if (!layer) {
+      layer = create('g', {
+        class: `sf-layer sf-layer-${name}`,
+        'data-layer': name,
+      }) as SVGGElement;
+      this.customLayers.set(name, layer);
+    }
+    if (!layer.parentNode) this.attachHostLayer(layer, index ?? 0);
+    return layer;
   }
 
   /** The event bus (`selection.changed`, `element(s).changed`, …). */
@@ -657,6 +730,160 @@ export class Canvas {
   /** The rule engine gating create/connect/reconnect (design §3 `rules/rules.ts`). */
   getRules(): Rules {
     return this.rules;
+  }
+
+  // --- the scene, as the editor facade reads it -------------------------------
+
+  /** The `bpmn:Definitions` root of the imported document, or `undefined` before one. */
+  getDefinitions(): ModdleObject | undefined {
+    return this.scene ? definitionsOf(this.scene) : undefined;
+  }
+
+  /**
+   * Resolve anything the host may name an element by — a scene element, an id, a
+   * detached shape carrying one, a {@link PlaneRoot} — to the scene element it stands
+   * for. `undefined` when nothing on the current scene answers to it, which is how
+   * every lenient entry point ({@link Canvas.getAbsoluteBBox}, `Selection.select`,
+   * the mutations) turns a stale reference into a no-op rather than a throw.
+   */
+  resolveElement(value: unknown): SceneElement | undefined {
+    if (typeof value === 'string') {
+      const found = this.scene?.elementsById.get(value);
+      return isSceneElement(found) ? found : undefined;
+    }
+    if (!value || isPlaneRoot(value)) return undefined;
+    const candidate = value as { kind?: string; id?: string };
+    if (candidate.kind === 'node' || candidate.kind === 'edge') return value as SceneElement;
+    const found = candidate.id ? this.scene?.elementsById.get(candidate.id) : undefined;
+    return isSceneElement(found) ? found : undefined;
+  }
+
+  /**
+   * Element lookup for the editor facade (`editor.elements`) — the scene's own
+   * registry, plus the plane projection app code calls "the root".
+   *
+   * Minted once and returned by identity, so a host may hold on to it.
+   */
+  getElements(): EditorElements {
+    if (this.elements) return this.elements;
+    const elements: EditorElements = {
+      get: (id) => {
+        const scene = this.scene;
+        if (!scene) return undefined;
+        const root = this.getRoot();
+        if (id === root.id) return root;
+        return scene.elementsById.get(id);
+      },
+      forEach: (fn) => {
+        const scene = this.scene;
+        if (!scene) return;
+        // Root first, then import order — the order export code walks (`export/drawio.ts`).
+        fn(this.getRoot());
+        for (const element of scene.elementsById.values()) {
+          if (isSceneElement(element)) fn(element);
+        }
+      },
+      filter: (fn) => {
+        const out: EditorElement[] = [];
+        elements.forEach((element) => {
+          if (fn(element)) out.push(element);
+        });
+        return out;
+      },
+      root: () => this.getRoot(),
+      findRoot: (element) => {
+        const scene = this.scene;
+        if (!scene || !element) return undefined;
+        if (isPlaneRoot(element)) return element;
+        const target = this.resolveElement(element);
+        if (!target) return undefined;
+        // Climb to the topmost node, then find the plane that lists it.
+        let top: SceneElement = target;
+        while (top.parent) top = top.parent;
+        for (const plane of scene.planes) {
+          if (plane.children.includes(top)) return rootOf(plane);
+        }
+        return rootOf(scene.rootPlane);
+      },
+      getGraphics: (element) => {
+        if (isPlaneRoot(element)) return this.root;
+        const id = typeof element === 'string' ? element : element?.id;
+        const gfx = id ? this.getGraphics(id) : undefined;
+        if (!gfx) throw new Error(`@behaverse/studyflow-canvas: no graphics for '${String(id)}'`);
+        return gfx;
+      },
+    };
+    this.elements = elements;
+    return elements;
+  }
+
+  /**
+   * The plane ON SCREEN as an element — the document root until a drill-down moves
+   * the cursor, and from then on the sub-process's own plane, so app chrome that asks
+   * "what am I looking at" is answered with the plane and not the document
+   * (drill-down spec §2).
+   */
+  getRoot(): PlaneRoot {
+    return rootOf(this.planes.current() ?? this.requireScene().rootPlane);
+  }
+
+  /** Root → the plane on screen: the trail a sub-process breadcrumb renders. */
+  planePath(): PlaneRoot[] {
+    return this.planes.planePath().map(rootOf);
+  }
+
+  /**
+   * Show the plane `root` stands for (a member of {@link Canvas.planePath}). Purely a
+   * view move: nothing is written and no undo step is recorded. Returns whether the
+   * view moved.
+   */
+  goToPlane(root: unknown): boolean {
+    return isPlaneRoot(root) ? this.planes.goToPlane(root.plane) : false;
+  }
+
+  /** @internal The plane cursor itself — a test seam; hosts use the three methods above. */
+  getPlaneCursor(): PlaneCursor {
+    return this.planes;
+  }
+
+  /**
+   * The viewbox plus the two extents host chrome measures against: `inner`, the
+   * drawn diagram, and `outer`, the container in screen pixels
+   * (`provenance/Replay.tsx` divides by both).
+   *
+   * Kept apart from {@link Viewport.getViewbox}, which every gesture frame calls and
+   * which must stay O(1): `inner` is a scan of the scene.
+   */
+  getViewbox(): EditorViewbox {
+    const box = this.viewport.getViewbox();
+    const drawable: SceneElement[] = [];
+    if (this.scene) {
+      for (const element of this.scene.elementsById.values()) {
+        if (isSceneElement(element)) drawable.push(element);
+      }
+    }
+    return {
+      ...box,
+      inner: drawable.length > 0 ? sceneBounds(drawable) : { x: 0, y: 0, width: 0, height: 0 },
+      outer: {
+        width: this.container.clientWidth || box.width,
+        height: this.container.clientHeight || box.height,
+      },
+    };
+  }
+
+  /** The screen-space (container coordinate) bounding box of `element`. */
+  getAbsoluteBBox(element: unknown): Rect {
+    const target = this.resolveElement(element);
+    return this.viewport.getAbsoluteBBox(
+      target ? sceneBounds([target]) : { x: 0, y: 0, width: 0, height: 0 },
+    );
+  }
+
+  /** The current scene, or a throw — for the paths that have no meaning without one. */
+  private requireScene(): Scene {
+    if (!this.scene) throw new Error('@behaverse/studyflow-canvas: no diagram imported yet');
+    return this.scene;
   }
 
   // The four below are TEST SEAMS. Every gesture the app can start has a facade
@@ -687,17 +914,15 @@ export class Canvas {
   // --- create / connect gestures (P4) ---------------------------------------
 
   /**
-   * Turn a palette descriptor into a detached prototype — the facade's
-   * `gestures.createShape` (`packages/modeler/src/editor/port.ts`). The result has
-   * no scene identity; hand it to {@link Canvas.startCreate} or
-   * {@link Canvas.createElement}.
+   * Turn a palette descriptor into a detached prototype. The result has no scene
+   * identity; hand it to {@link Canvas.startCreate} or {@link Canvas.createElement}.
    */
   createShape(descriptor: ShapeDescriptor | CreatePrototype): CreatePrototype {
     return createShape(descriptor);
   }
 
   /**
-   * Begin a palette create drag — the facade's `gestures.startCreate`. `event` is
+   * Begin a palette create drag. `event` is
    * the palette's own mouse event (it may originate outside the canvas), so the
    * document-level pointer listeners are installed here rather than on a canvas
    * `pointerdown`. With no event the prototype starts at the viewport centre.
@@ -835,7 +1060,7 @@ export class Canvas {
    * the old one onto it, drop the old one — with two differences that matter here:
    *
    * - it is ONE logical edit. Every step below runs against the same scene and the
-   *   same moddle tree before the caller's snapshot is taken, so the port's `step()`
+   *   same moddle tree before the caller's snapshot is taken, so `createMutations`' `step()`
    *   bracket makes the whole thing a single undo state;
    * - the NAME comes across, because a name is the user's, not the type's. Nothing
    *   else does: properties of the old type are meaningless on the new one, and

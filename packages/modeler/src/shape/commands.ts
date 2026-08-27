@@ -1,7 +1,5 @@
-import { getEditorPort } from '@modeler/editor/registry';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
-import type { EditorElement } from '@modeler/editor/port';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { EditorElement, Editor } from '@modeler/editor/port';
 
 export type SetColorCommand = {
   type: 'SetColor';
@@ -19,10 +17,10 @@ function colorTarget(element: any): any {
   return element?.labelTarget ?? element;
 }
 
-export function runSetColor(modeler: PortHandle, command: SetColorCommand): void {
+export function runSetColor(modeler: Editor, command: SetColorCommand): void {
   const targets = command.elements.map(colorTarget);
   // De-duplicated: selecting an element and its own caption must not paint it twice.
-  getEditorPort(modeler).mutate.setColor([...new Set(targets)], command.color);
+  modeler.mutate.setColor([...new Set(targets)], command.color);
 }
 
 
@@ -40,12 +38,12 @@ export type DeleteElementsCommand = {
  * everything actually removed.
  */
 export function runDeleteElements(
-  modeler: PortHandle,
+  modeler: Editor,
   command: DeleteElementsCommand,
 ): EditorElement[] {
   const { elements } = command;
   if (!elements || elements.length === 0) return [];
-  return getEditorPort(modeler).mutate.removeElements(elements);
+  return modeler.mutate.removeElements(elements);
 }
 
 
@@ -65,12 +63,12 @@ export type ReplaceElementCommand = {
  * the swap, or the entry that was picked names the type the shape already is.
  */
 export function runReplaceElement(
-  modeler: PortHandle,
+  modeler: Editor,
   command: ReplaceElementCommand,
 ): EditorElement | undefined {
   const { element, bpmnType, extensionType } = command;
   if (!element || !bpmnType) return undefined;
-  return getEditorPort(modeler).mutate.replaceShape(element, {
+  return modeler.mutate.replaceShape(element, {
     type: bpmnType,
     ...(extensionType ? { extensionType } : {}),
   });
@@ -95,10 +93,10 @@ export type SwapChoreographyInitiatorCommand = {
  * does.
  */
 export function runSwapChoreographyInitiator(
-  modeler: PortHandle,
+  modeler: Editor,
   command: SwapChoreographyInitiatorCommand,
 ): void {
-  const { mutate, model } = getEditorPort(modeler);
+  const { mutate, model } = modeler;
   swapChoreographyInitiator(command.element, mutate, { create: model.createBusinessObject });
 }
 
@@ -114,6 +112,10 @@ export type StartConnectCommand = {
  * that starts from the pad rather than from the palette, with the editor's own live
  * preview following the pointer. Returns whether the gesture started.
  */
-export function runStartConnect(modeler: PortHandle, command: StartConnectCommand): boolean {
-  return getEditorPort(modeler).gestures.startConnect(command.source, command.event);
+export function runStartConnect(modeler: Editor, command: StartConnectCommand): boolean {
+  // Only a NODE can start a connection drag; a stale or off-plane reference, or a
+  // connection, simply does not start one.
+  const source = modeler.canvas.resolveElement(command.source);
+  if (!source || source.kind !== 'node') return false;
+  return modeler.canvas.startConnect(source, command.event);
 }

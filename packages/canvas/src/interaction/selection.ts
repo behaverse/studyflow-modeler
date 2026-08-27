@@ -1,9 +1,11 @@
 /**
  * Selection (design §3 `interaction/selection.ts`, §6 P2). Owns the current
  * selection set, paints the editor chrome that says what is selected, and toggles
- * marker CSS classes on element graphics. Fires `selection.changed` on every change,
- * matching the facade's `EditorSelection` / `EditorEvents` contract
- * (`packages/modeler/src/editor/port.ts`).
+ * marker CSS classes on element graphics. Fires `selection.changed` on every change.
+ *
+ * This IS `Editor.selection`: the facade publishes this object rather than a
+ * projection of it (`port/editor.ts`), which is why {@link Selection.select} is
+ * lenient about what a caller names an element by.
  *
  * The chrome is split the way bpmn-js splits it, because the two halves want
  * different coordinate frames:
@@ -74,6 +76,16 @@ export interface SelectionOptions {
    * bare `Selection` outside a `Canvas` gets.
    */
   canResize?: (node: SceneNode) => boolean;
+  /**
+   * Turns whatever a caller names an element by — an id, a detached shape, a plane
+   * projection — into the scene element it stands for ({@link Canvas.resolveElement}).
+   *
+   * It exists so `Editor.selection` can BE this object: app chrome selects by
+   * whatever it happens to be holding, and an unresolvable reference must drop out of
+   * the set rather than enter it. Defaults to "take it as given", which is what a
+   * bare `Selection` outside a `Canvas` gets.
+   */
+  resolve?: (value: unknown) => SceneElement | undefined;
 }
 
 /** Edge of the square resize chip (diagram-js `HANDLE_SIZE`). */
@@ -164,6 +176,7 @@ export class Selection {
   private readonly bus: EventBus;
   private readonly root?: Element;
   private readonly canResize: (node: SceneNode) => boolean;
+  private readonly resolve: (value: unknown) => SceneElement | undefined;
 
   private selected: SceneElement[] = [];
   /** The connection the pointer is over, if any (bendpoints, and nothing else). */
@@ -179,6 +192,7 @@ export class Selection {
     this.bus = options.bus;
     this.root = options.root;
     this.canResize = options.canResize ?? (() => true);
+    this.resolve = options.resolve ?? ((value) => value as SceneElement | undefined);
   }
 
   /** The current selection, in selection order (a copy). */
@@ -194,10 +208,22 @@ export class Selection {
 
   /**
    * Replace the selection with `elements` (or, when `add` is true, union them in).
-   * `null`/`[]` with `add` falsy clears. Mirrors `EditorSelection.select`.
+   * `null`/`undefined`/`[]` with `add` falsy clears.
+   *
+   * Lenient about what an element IS ({@link SelectionOptions.resolve}): host chrome
+   * hands over ids and detached shapes as readily as scene elements, and anything
+   * that resolves to nothing is simply not selected.
    */
-  select(elements: SceneElement | SceneElement[] | null, add = false): void {
-    const list = elements == null ? [] : Array.isArray(elements) ? elements : [elements];
+  select(
+    elements: SceneElement | string | readonly (SceneElement | string)[] | null | undefined,
+    add = false,
+  ): void {
+    const named = elements == null ? [] : Array.isArray(elements) ? elements : [elements];
+    const list: SceneElement[] = [];
+    for (const value of named as readonly unknown[]) {
+      const element = this.resolve(value);
+      if (element) list.push(element);
+    }
     const old = this.selected;
     let next: SceneElement[];
     if (add) {

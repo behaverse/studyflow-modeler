@@ -6,7 +6,7 @@ import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/settings/attachAutosave';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 const s = {
   root: 'relative flex flex-1 h-full',
@@ -27,7 +27,7 @@ export function Modeler() {
   useEffect(() => {
     let cancelled = false;
     let detach: (() => void) | undefined;
-    let created: PortHandle | undefined;
+    let created: Editor | undefined;
 
     const initialXml = getSettings().diagramAutoSave === 'local' ? loadAutosavedDiagram() : undefined;
     executeCommand(null, { type: 'DownloadSchemas' })
@@ -37,17 +37,17 @@ export function Modeler() {
         extensionSchemas: schemas,
         initialDiagramXml: initialXml,
       }))
-      .then((handle: PortHandle) => {
+      .then((editor: Editor) => {
         // `CreateModeler` is async: under StrictMode the cleanup below runs before this resolves.
         if (cancelled) {
-          handle?.destroy?.();
+          editor?.destroy?.();
           return;
         }
-        created = handle;
-        detach = attachAutosave(handle);
-        // The handle already carries the facade (one per editor, so its revision
-        // counter spans the editor's whole life); the app holds it from here on.
-        setModeler(handle);
+        created = editor;
+        detach = attachAutosave(editor);
+        // One facade per editor (so its revision counter spans the editor's whole
+        // life); the app holds it from here on.
+        setModeler(editor);
         setLoading(false);
       })
       .catch((err: unknown) => {

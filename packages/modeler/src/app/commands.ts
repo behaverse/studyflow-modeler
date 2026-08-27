@@ -3,15 +3,14 @@ import { fromStandardBpmnXml, fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
-import { createCanvasBackend } from '@modeler/editor/canvasBackend';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import { mountEditor } from '@modeler/editor/mount';
+import type { Editor } from '@modeler/editor/port';
 
 export type DownloadSchemasCommand = {
   type: 'DownloadSchemas';
 };
 
-export async function runDownloadSchemas(_modeler: PortHandle | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
+export async function runDownloadSchemas(_modeler: Editor | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
   return loadSchemas(getSettings().enabledSchemas);
 }
 
@@ -19,12 +18,12 @@ export async function runDownloadSchemas(_modeler: PortHandle | null, _command: 
 export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
-export function runUndo(modeler: PortHandle, _command: UndoCommand): void {
-  getEditorPort(modeler).undo();
+export function runUndo(modeler: Editor, _command: UndoCommand): void {
+  modeler.undo();
 }
 
-export function runRedo(modeler: PortHandle, _command: RedoCommand): void {
-  getEditorPort(modeler).redo();
+export function runRedo(modeler: Editor, _command: RedoCommand): void {
+  modeler.redo();
 }
 
 const DEFAULT_SEED = 42;
@@ -51,14 +50,14 @@ export function openRunnerTab(): Window | null {
   return window.open('', '_blank');
 }
 
-export async function runOpenRunner(modeler: PortHandle, command: OpenRunnerCommand): Promise<void> {
+export async function runOpenRunner(modeler: Editor, command: OpenRunnerCommand): Promise<void> {
   // `undefined` means the caller never tried; `null` means it tried and the browser said no.
   const target = command.target === undefined ? openRunnerTab() : command.target;
   if (!target) fail(POPUP_BLOCKED);
 
   let xml: string;
   try {
-    ({ xml } = await getEditorPort(modeler).saveXML({ format: true }));
+    ({ xml } = await modeler.saveXML({ format: true }));
   } catch (err) {
     target.close();
     throw err;
@@ -99,17 +98,15 @@ export type CreateModelerCommand = {
 };
 
 /**
- * Mount the editor into `container` and hand back the handle the app holds from
- * here on. Everything after this line talks to `handle.editor` — the `EditorPort`
- * facade — never to the canvas (`editor/canvasBackend.ts`) itself.
+ * Mount the editor into `container` and hand back the {@link Editor} facade the app
+ * holds from here on (`editor/mount.ts`).
  */
-export async function runCreateModeler(_modeler: PortHandle | null, command: CreateModelerCommand): Promise<PortHandle> {
-  const handle = createCanvasBackend({
+export async function runCreateModeler(_modeler: Editor | null, command: CreateModelerCommand): Promise<Editor> {
+  const editor = mountEditor({
     container: command.container as HTMLElement,
     extensionSchemas: command.extensionSchemas,
   });
 
-  const editor = getEditorPort(handle);
   const provided = command.initialDiagramXml;
   if (provided) {
     try {
@@ -119,7 +116,7 @@ export async function runCreateModeler(_modeler: PortHandle | null, command: Cre
         moddle,
       );
       await editor.importXML(await ensureDiagramLayout(wireXml, moddle));
-      return handle;
+      return editor;
     } catch (err) {
       console.warn(
         'Failed to import the initial diagram; falling back to a new diagram. ' +
@@ -130,5 +127,5 @@ export async function runCreateModeler(_modeler: PortHandle | null, command: Cre
     }
   }
   await editor.importXML(new_diagram);
-  return handle;
+  return editor;
 }

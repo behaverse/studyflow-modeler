@@ -1,9 +1,8 @@
 import { COMPOUND_EXTENSIONS } from '@modeler/export/formats';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
-export function getDiagramName(modeler: PortHandle): string | undefined {
-  const name = modeler ? getEditorPort(modeler).elements.root()?.businessObject?.name : undefined;
+export function getDiagramName(modeler: Editor): string | undefined {
+  const name = modeler ? modeler.elements.root()?.businessObject?.name : undefined;
   return typeof name === 'string' && name.length > 0 ? name : undefined;
 }
 

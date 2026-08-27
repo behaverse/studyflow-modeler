@@ -69,20 +69,17 @@ function mockModeler(definitions: any) {
   };
   for (const root of definitions.rootElements ?? []) index(root);
 
-  // A handle over a partial `EditorPort`: invalidation looks an element up, creates
-  // one moddle object, and writes it back as a single undoable mutation.
+  // A partial `Editor`: invalidation looks an element up, creates one moddle
+  // object, and writes it back as a single undoable mutation.
   return {
-    editor: {
-      getDefinitions: () => definitions,
-      elements: { get: (id: string) => registry.get(id) },
-      model: { create: (type: string, props: Record<string, any>) => moddle.create(type, props) },
-      mutate: {
-        updateModdleProperties(_element: any, moddleObject: any, props: Record<string, any>) {
-          Object.assign(moddleObject, props);
-        },
+    getDefinitions: () => definitions,
+    elements: { get: (id: string) => registry.get(id) },
+    model: { create: (type: string, props: Record<string, any>) => moddle.create(type, props) },
+    mutate: {
+      updateModdleProperties(_element: any, moddleObject: any, props: Record<string, any>) {
+        Object.assign(moddleObject, props);
       },
     },
-    destroy() {},
   };
 }
 

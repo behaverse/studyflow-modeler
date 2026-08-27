@@ -20,7 +20,6 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMous
 import { getExtensionType } from '@core/element';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
-import { getEditorPort } from '@modeler/editor/registry';
 import { registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
 import { ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
 import { buildElementEntries } from '@modeler/popup/entries';
@@ -66,12 +65,11 @@ export function PopupMenus() {
   const close = useCallback(() => setOpen(null), []);
 
   useEffect(() => {
-    const editor = getEditorPort(modeler);
 
     const opener = (providerId: string) => (position: PopupPosition, options?: PopupOptions) => {
       // Snapshot the selection: the menu is chrome outside the diagram, and what it
       // acts on must not drift while it is open.
-      setOpen({ providerId, position, options, elements: editor.selection.get() });
+      setOpen({ providerId, position, options, elements: modeler.selection.get() });
     };
 
     const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
@@ -81,7 +79,7 @@ export function PopupMenus() {
     const onKeyboardAppend = (event: { elements?: EditorElement[] }): void => {
       const element = event?.elements?.[0];
       if (!element) return;
-      const box = editor.view.getAbsoluteBBox(element);
+      const box = modeler.view.getAbsoluteBBox(element);
       setOpen({
         providerId: APPEND_MENU,
         position: {
@@ -93,22 +91,21 @@ export function PopupMenus() {
         elements: [element],
       });
     };
-    editor.events.on(KEYBOARD_APPEND_EVENT, onKeyboardAppend);
+    modeler.events.on(KEYBOARD_APPEND_EVENT, onKeyboardAppend);
 
     return () => {
       detach.forEach((off) => off());
-      editor.events.off(KEYBOARD_APPEND_EVENT, onKeyboardAppend);
+      modeler.events.off(KEYBOARD_APPEND_EVENT, onKeyboardAppend);
     };
   }, [modeler]);
 
   // Any document replacement invalidates the snapshotted selection.
   useEffect(() => {
-    const editor = getEditorPort(modeler);
-    editor.events.on('root.set', close);
-    editor.events.on('import.done', close);
+    modeler.events.on('root.set', close);
+    modeler.events.on('import.done', close);
     return () => {
-      editor.events.off('root.set', close);
-      editor.events.off('import.done', close);
+      modeler.events.off('root.set', close);
+      modeler.events.off('import.done', close);
     };
   }, [modeler, close]);
 
@@ -130,7 +127,7 @@ export function PopupMenus() {
             swatch: { fill: color.fill ?? DEFAULT_FILL, stroke: color.stroke ?? DEFAULT_STROKE },
             onSelect: () => {
               // The colour swatches are the app's only route to `SetColor`; the
-              // handler reaches the editor through `getEditorPort` like every other.
+              // handler reaches the diagram through the `Editor` facade like every other.
               executeCommand(modeler, { type: 'SetColor', elements, color });
             },
           })),
@@ -154,7 +151,6 @@ export function PopupMenus() {
       // The same catalog the create/append menus offer, trimmed to what the editor
       // would actually accept in this element's place — and with the element's own
       // type dropped, because "change it to what it already is" is not a choice.
-      const editor = getEditorPort(modeler);
       const currentBpmn = (source as { type?: string })?.type;
       const currentExtension = getExtensionType(source);
       const sections = buildElementEntries()
@@ -164,7 +160,7 @@ export function PopupMenus() {
           items: group.entries
             .filter((entry) => (
               !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension)
-              && editor.rules.allowed('shape.replace', { element: source, targetType: entry.bpmnType })
+              && modeler.rules.allowed('shape.replace', { element: source, targetType: entry.bpmnType })
             ))
             .map((entry): PopupMenuItem => ({
               id: entry.id,

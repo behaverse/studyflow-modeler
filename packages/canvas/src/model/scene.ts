@@ -6,8 +6,8 @@
  * Each element is intentionally shaped like the editor facade's `EditorElement`
  * (`packages/modeler/src/editor/port.ts`): `id`, `type`, `businessObject`, `di`,
  * `x`/`y`/`width`/`height` (nodes) or `waypoints` (edges), `source`, `target`,
- * `parent`, `label`, `incoming`/`outgoing`. Aligning the two makes the eventual
- * `EditorPort` adapter (design §4) a thin projection rather than a translation.
+ * `parent`, `label`, `incoming`/`outgoing`. Aligning the two is what lets the
+ * facade hand these elements OUT unchanged, with no projection in between.
  *
  * P1 (read-only renderer) uses these types verbatim; downstream stages
  * (`model/import.ts`, `model/writeback.ts`, `render/*`) add the logic. This file

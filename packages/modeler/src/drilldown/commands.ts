@@ -10,7 +10,7 @@
  * `view.goToPlane` through the port directly.
  */
 
-import type { EditorElement, EditorPort } from '@modeler/editor/port';
+import type { EditorElement, Editor } from '@modeler/editor/port';
 
 /** One step of the breadcrumb trail. */
 export interface Crumb {
@@ -37,7 +37,7 @@ export function crumbLabel(root: EditorElement): string {
  * the reference hides the bar entirely there (`edge-videos/sub/frame_00` shows no
  * breadcrumb).
  */
-export function planeCrumbs(editor: EditorPort): Crumb[] {
+export function planeCrumbs(editor: Editor): Crumb[] {
   const path: EditorElement[] = editor.view.planePath();
   if (path.length < 2) return [];
   return path.map((root, index) => ({
@@ -49,7 +49,7 @@ export function planeCrumbs(editor: EditorPort): Crumb[] {
 }
 
 /** Navigate to `crumb`'s plane; the current one is a no-op. */
-export function goToCrumb(editor: EditorPort, crumb: Crumb): void {
+export function goToCrumb(editor: Editor, crumb: Crumb): void {
   if (crumb.isCurrent) return;
   editor.view.goToPlane(crumb.root);
 }

@@ -23,9 +23,9 @@
  *
  * Everything here is pure and side-effect free — the same verdict function backs
  * the connect/create gestures, the context-pad append menu, and the
- * `EditorPort.rules` adapter, whose `allowed(action, context): boolean` shape
+ * facade's `Editor.rules`, whose `allowed(action, context): boolean` shape
  * {@link Rules.allowed} deliberately mirrors (a truthy {@link ConnectionSpec} or
- * `'attach'` collapses to `true` under the adapter's `!!`).
+ * `'attach'` collapses to `true` under the facade's `!!`).
  */
 
 import { getExtensionType } from '@core/element/index.ts';

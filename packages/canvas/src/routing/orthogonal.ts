@@ -460,7 +460,7 @@ function lanePath(lane: Lane, s: Bounds, t: Bounds, cs: Point, ct: Point, cleara
 
 // --- geometry helpers -------------------------------------------------------
 
-/** The plain box of a routable shape (`port/adapter.ts`'s `boundsOf` is the scene-wide one). */
+/** The plain box of a routable shape (`view/viewport.ts`'s `sceneBounds` is the scene-wide one). */
 function shapeBounds(shape: RoutableShape): Bounds {
   return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 }

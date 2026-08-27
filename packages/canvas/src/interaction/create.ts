@@ -102,10 +102,9 @@ export function defaultSizeFor(type: string, isExpanded?: boolean): { width: num
 }
 
 /**
- * Turn a palette descriptor into a detached {@link CreatePrototype}. This is the
- * `gestures.createShape` of the editor facade (`packages/modeler/src/editor/port.ts`):
- * the app calls it, then hands the result to {@link Create.start} /
- * `Canvas.startCreate`.
+ * Turn a palette descriptor into a detached {@link CreatePrototype}. Published as
+ * `Canvas.createShape`: the app calls it, then hands the result to
+ * {@link Create.start} / `Canvas.startCreate`.
  */
 export function createShape(descriptor: ShapeDescriptor | CreatePrototype): CreatePrototype {
   if ('kind' in descriptor && descriptor.kind === 'prototype') return descriptor;

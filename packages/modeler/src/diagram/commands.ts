@@ -7,18 +7,17 @@ import { extractXmlFromSvg, filenameStem } from '@modeler/diagram/file';
 import { importableFormatFor } from '@modeler/export/formats';
 import { extractXmlFromPng } from '@core/document/png';
 import { buildStudyflowXml, importJsPsychTimeline } from '@modeler/import';
-import { getEditorPort } from '@modeler/editor/registry';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
 import { getSettings } from '@modeler/settings/store';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type ResetZoomCommand = {
   type: 'ResetZoom';
 };
 
-export function runResetZoom(modeler: PortHandle, _command: ResetZoomCommand): void {
-  getEditorPort(modeler).view.zoomToFit();
+export function runResetZoom(modeler: Editor, _command: ResetZoomCommand): void {
+  modeler.view.zoomToFit();
 }
 
 
@@ -26,9 +25,9 @@ export type NewDiagramCommand = {
   type: 'NewDiagram';
 };
 
-export async function runNewDiagram(modeler: PortHandle, _command: NewDiagramCommand): Promise<any> {
+export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand): Promise<any> {
   const result = await importXml(modeler, { xml: new_diagram });
-  getEditorPort(modeler).view.zoomToFit();
+  modeler.view.zoomToFit();
   return result;
 }
 
@@ -39,7 +38,7 @@ export type ImportJsPsychCommand = {
   content: string;
 };
 
-export async function runImportJsPsych(modeler: PortHandle, command: ImportJsPsychCommand): Promise<any> {
+export async function runImportJsPsych(modeler: Editor, command: ImportJsPsychCommand): Promise<any> {
   const name = filenameStem(command.filename);
   const study = importJsPsychTimeline(command.content, { name });
   for (const warning of study.warnings) console.warn(`jsPsych import: ${warning}`);
@@ -59,14 +58,13 @@ type ImportXmlPayload = {
   xml: string;
 };
 
-async function importXml(modeler: PortHandle, command: ImportXmlPayload): Promise<any> {
-  const editor = getEditorPort(modeler);
-  const wireXml = await applyXmlPasses(command.xml, editor.model.moddle(), [
+async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<any> {
+  const wireXml = await applyXmlPasses(command.xml, modeler.model.moddle(), [
     choreographyToProcessRoot,
     inlineIoSpecification,
   ]);
-  const xml = await ensureDiagramLayout(wireXml, editor.model.moddle());
-  const result = await editor.importXML(xml);
+  const xml = await ensureDiagramLayout(wireXml, modeler.model.moddle());
+  const result = await modeler.importXML(xml);
   // `importXML` clears the command stack, so the trail bookkeeping has to restart with it.
   resetTrailStamping(modeler);
   return result;
@@ -79,7 +77,7 @@ export type OpenDiagramCommand = {
   content: string | ArrayBuffer;
 };
 
-async function toXml(modeler: PortHandle, filename: string, content: string | ArrayBuffer): Promise<string> {
+async function toXml(modeler: Editor, filename: string, content: string | ArrayBuffer): Promise<string> {
   const format = importableFormatFor(filename);
 
   if (format?.id === 'png') {
@@ -90,25 +88,24 @@ async function toXml(modeler: PortHandle, filename: string, content: string | Ar
   const text = typeof content === 'string' ? content : new TextDecoder().decode(content);
   if (format?.id === 'svg') return extractXmlFromSvg(text);
   if (looksLikeXml(text)) return text;
-  return studyflowToXml(text, getEditorPort(modeler).model.moddle());
+  return studyflowToXml(text, modeler.model.moddle());
 }
 
-export async function runOpenDiagram(modeler: PortHandle, command: OpenDiagramCommand): Promise<any> {
+export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<any> {
   const xml = await toXml(modeler, command.filename, command.content);
 
   const result = await importXml(modeler, { xml });
 
-  const editor = getEditorPort(modeler);
   try {
-    editor.view.zoomToFit();
+    modeler.view.zoomToFit();
   } catch (err) {
     console.warn('Zoom to fit-viewport failed after open; leaving default zoom.', err);
   }
 
-  const root = editor.elements.root();
+  const root = modeler.elements.root();
   const embedded = root?.businessObject?.name;
   if (root && (typeof embedded !== 'string' || embedded.length === 0)) {
-    setAttribute(root, 'name', filenameStem(command.filename), editor.mutate);
+    setAttribute(root, 'name', filenameStem(command.filename), modeler.mutate);
   }
 
   return result;

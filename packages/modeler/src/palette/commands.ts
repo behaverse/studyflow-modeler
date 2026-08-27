@@ -2,9 +2,8 @@ import { isExpandable } from '@canvas/index.ts';
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
-import { getEditorPort } from '@modeler/editor/registry';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type PaletteStartCreateTemplateCommand = {
   type: 'PaletteStartCreateTemplate';
@@ -12,18 +11,16 @@ export type PaletteStartCreateTemplateCommand = {
   event: MouseEvent | any;
 };
 
-export function runPaletteStartCreateTemplate(modeler: PortHandle, command: PaletteStartCreateTemplateCommand): any {
-  const editor = getEditorPort(modeler);
-  const template = editor.templates.getAll().find((t: any) => t.id === command.templateId);
+export function runPaletteStartCreateTemplate(modeler: Editor, command: PaletteStartCreateTemplateCommand): any {
+  const template = modeler.templates.getAll().find((t: any) => t.id === command.templateId);
   if (!template) return undefined;
 
-  const created = editor.templates.createElement(template);
+  const created = modeler.templates.createElement(template);
 
-  if (Array.isArray(created)) {
-    editor.gestures.startCreate(command.event, created, { hints: { autoSelect: [created[0]] } });
-  } else {
-    editor.gestures.startCreate(command.event, created);
-  }
+  // A template may describe several shapes; the create gesture drags the ROOT one
+  // and the rest are materialized once it lands (`editor/mount.ts`).
+  const root = Array.isArray(created) ? created[0] : created;
+  if (root) modeler.canvas.startCreate(command.event, root);
 
   return created;
 }
@@ -37,13 +34,12 @@ export type PaletteStartCreateCommand = {
   extensionType?: string;
 };
 
-export function runPaletteStartCreate(modeler: PortHandle, command: PaletteStartCreateCommand): any {
-  const editor = getEditorPort(modeler);
-  const bo = buildBusinessObject(editor.model, command.bpmnType, {
+export function runPaletteStartCreate(modeler: Editor, command: PaletteStartCreateCommand): any {
+  const bo = buildBusinessObject(modeler.model, command.bpmnType, {
     attributes: command.attributes,
     extensionType: command.extensionType,
   });
-  const shape = editor.gestures.createShape({
+  const shape = modeler.canvas.createShape({
     type: command.bpmnType,
     businessObject: bo,
     // A container dropped from the palette is born COLLAPSED — a 100×80 activity box
@@ -55,7 +51,7 @@ export function runPaletteStartCreate(modeler: PortHandle, command: PaletteStart
     ...(isExpandable(command.bpmnType) ? { isExpanded: false } : {}),
   });
 
-  editor.gestures.startCreate(command.event, shape);
+  modeler.canvas.startCreate(command.event, shape);
 
   return shape;
 }
@@ -81,11 +77,14 @@ export type PaletteOpenPopupCommand = {
   title: string;
 };
 
-export function runPaletteActivateLasso(modeler: PortHandle, command: PaletteActivateLassoCommand): void {
-  getEditorPort(modeler).gestures.startLasso(command.event);
+export function runPaletteActivateLasso(modeler: Editor, _command: PaletteActivateLassoCommand): void {
+  // ARMS the tool; the NEXT drag draws the marquee. The button's own event is
+  // deliberately not passed on — dragging empty canvas pans (parity spec §10), so
+  // there is no gesture to continue from here, only a mode to enter.
+  modeler.canvas.activateLasso();
 }
 
-export function runPaletteOpenPopup(_modeler: PortHandle, command: PaletteOpenPopupCommand): void {
+export function runPaletteOpenPopup(_modeler: Editor, command: PaletteOpenPopupCommand): void {
   openPopupMenu(command.popupType, command.position, {
     title: command.title,
     width: 300,
@@ -132,7 +131,7 @@ export type ResolvePaletteSchemasCommand = {
 };
 
 export function runResolvePaletteSchemas(
-  _modeler: PortHandle,
+  _modeler: Editor,
   _command: ResolvePaletteSchemasCommand,
 ): PaletteSchema[] {
   return getCatalog().schemas.map((schema): PaletteSchema => ({

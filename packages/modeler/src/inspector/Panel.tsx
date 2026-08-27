@@ -8,8 +8,7 @@ import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';
 import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from '@modeler/inspector/panelWidth';
 import { loadInspectorWidth, saveInspectorWidth } from '@modeler/settings/store';
 import { inspector as s } from '@modeler/inspector/styles';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorPort } from '@modeler/editor/port';
+import type { Editor } from '@modeler/editor/port';
 
 function Header({ element }: { element: any }) {
   return (
@@ -31,7 +30,7 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
   );
 }
 
-function useSelectedElement(editor: EditorPort): any {
+function useSelectedElement(editor: Editor): any {
   const [element, setElement] = useState<any>(() => editor.elements.root());
   const [seededFor, setSeededFor] = useState<any>(editor);
   const [, bumpVersion] = useReducer((version) => version + 1, 0);
@@ -73,7 +72,7 @@ function useSelectedElement(editor: EditorPort): any {
 
 export function Panel() {
   const modeler = useRequiredModeler();
-  const element = useSelectedElement(getEditorPort(modeler));
+  const element = useSelectedElement(modeler);
   const [isVisible, setIsVisible] = useState(true);
   const [width, setWidth] = useState(() =>
     clampPanelWidth(loadInspectorWidth() ?? DEFAULT_PANEL_WIDTH, window.innerWidth));

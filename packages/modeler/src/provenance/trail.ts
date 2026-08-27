@@ -1,6 +1,5 @@
 import { primaryRoots } from '@core/document';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type TrailStamp = {
   action: string;
@@ -71,28 +70,27 @@ function pruneEmpty(stamp: TrailStamp): Record<string, string> {
 
 const lastStampedAt = new WeakMap<object, number>();
 
-export function resetTrailStamping(modeler: PortHandle): void {
+export function resetTrailStamping(modeler: Editor): void {
   // Import clears the edit history without moving the revision counter, so the
   // baseline re-anchors to the current revision: a reopened trail-carrying
   // document nobody edits is left untouched.
-  lastStampedAt.set(modeler, getEditorPort(modeler).revision());
+  lastStampedAt.set(modeler, modeler.revision());
 }
 
 export function stampTrailForExport(
-  modeler: PortHandle,
+  modeler: Editor,
   identity: { who?: string; tool: string },
 ): any | undefined {
-  const editor = getEditorPort(modeler);
-  const definitions = editor.getDefinitions();
+  const definitions = modeler.getDefinitions();
   if (!definitions) return undefined;
 
-  const revision = editor.revision();
+  const revision = modeler.revision();
   const trail = readTrail(definitions);
   // A never-reset baseline is the counter's starting value (0): fresh port, no edits.
   const edited = revision !== (lastStampedAt.get(modeler) ?? 0);
   if (trail.length > 0 && !edited) return undefined;
 
-  const entry = appendTrailEntry(definitions, editor.model.moddle(), {
+  const entry = appendTrailEntry(definitions, modeler.model.moddle(), {
     action: trail.length === 0 ? 'created' : 'modified',
     when: trailTimestamp(),
     who: identity.who,

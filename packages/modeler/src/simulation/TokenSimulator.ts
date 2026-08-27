@@ -1,18 +1,18 @@
 /**
- * Token simulation, written against the {@link EditorPort} rather than diagram-js DI.
+ * Token simulation, written against the {@link Editor} rather than diagram-js DI.
  *
  * P6b §3D: this used to be a `didi` service (`$inject = ['eventBus','elementRegistry','canvas']`)
  * drawing through `tiny-svg` — a dependency that only resolved while bpmn-js was in
  * `node_modules` (§2c). It now takes a {@link SimulationHost}, a structural subset of
- * `EditorPort` (`events` + `elements` + `view`), constructed directly over the port by
- * `editor/canvasBackend.ts`. Nothing here knows what draws the diagram.
+ * `Editor` (`events` + `elements` + `view`), constructed directly over the port by
+ * `editor/editor.ts`. Nothing here knows what draws the diagram.
  *
  * The SVG helpers come from the canvas's dependency-free `render/svg.ts`, which
  * reimplements exactly the `create`/`attr`/`append`/`remove` quartet used here.
  */
 
 import { is } from '@modeler/editor/port';
-import type { EditorElement, EditorElements, EditorEvents, EditorView } from '@modeler/editor/port';
+import type { EditorElement, EditorElements, EditorView, EventBus } from '@modeler/editor/port';
 import {
   create as svgCreate,
   attr as svgAttr,
@@ -24,7 +24,7 @@ import { nextHops } from '@modeler/simulation/flowWalk';
 export type Point = { x: number; y: number };
 
 /**
- * What the simulator needs from the editor — a structural subset of `EditorPort`, so
+ * What the simulator needs from the editor — a structural subset of `Editor`, so
  * a whole port satisfies it and a hand-built adapter (or a test fake) does too.
  *
  * - `events` carries `root.set` in and {@link TOGGLE_SIMULATION_EVENT} out;
@@ -34,7 +34,7 @@ export type Point = { x: number; y: number };
  *   pan/zoom to the root `viewBox`), so token positions are plain element coordinates.
  */
 export interface SimulationHost {
-  events: Pick<EditorEvents, 'on' | 'off' | 'fire'>;
+  events: Pick<EventBus, 'on' | 'off' | 'fire'>;
   elements: Pick<EditorElements, 'filter' | 'root' | 'findRoot'>;
   view: Pick<EditorView, 'getLayer'>;
 }

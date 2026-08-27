@@ -13,7 +13,6 @@ import {
 } from '@modeler/provenance/records';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
-import { getEditorPort } from '@modeler/editor/registry';
 import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };
@@ -50,21 +49,20 @@ export function shortWhen(when?: string): string | undefined {
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useRequiredModeler();
-  const editor = getEditorPort(modeler);
   const { openReplay } = useContext(ReplayContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    editor.events.on('commandStack.changed', bumpRevision);
-    return () => editor.events.off('commandStack.changed', bumpRevision);
-  }, [editor]);
+    modeler.events.on('commandStack.changed', bumpRevision);
+    return () => modeler.events.off('commandStack.changed', bumpRevision);
+  }, [modeler]);
 
   // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.
   const [scope, setScope] = useState(scopeId);
   const [showReused, setShowReused] = useState(true);
   const allRecords = useMemo(
-    () => collectProvenance(editor.getDefinitions()),
+    () => collectProvenance(modeler.getDefinitions()),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
-    [editor, revision],
+    [modeler, revision],
   );
   const hasReused = allRecords.some((r) => r.action === 'reused');
   const visible = displayOrder(allRecords.filter((r) =>
@@ -74,8 +72,8 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   // Room for every lane plus a pending-branch stub curving right of the last one.
   const gutter = (laneCount + 1) * LANE_W;
 
-  const canUndo = editor.canUndo();
-  const canRedo = editor.canRedo();
+  const canUndo = modeler.canUndo();
+  const canRedo = modeler.canRedo();
 
   const invalidate = async (r: ProvenanceRecord) => {
     await executeCommand(modeler, {

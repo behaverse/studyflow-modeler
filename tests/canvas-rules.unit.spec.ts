@@ -464,7 +464,7 @@ test.describe('canvas rules: allowed(action, context)', () => {
     expect(rules.allowed('elements.move', { shapes: [node('bpmn:Participant')] })).toBe(true);
   });
 
-  test('every verdict collapses to the boolean the EditorPort.rules adapter needs', () => {
+  test('every verdict collapses to the boolean the Editor.rules adapter needs', () => {
     const verdicts = [
       rules.allowed('connection.create', { source: node('bpmn:Task'), target: node('bpmn:EndEvent') }),
       rules.allowed('shape.attach', { shape: node('bpmn:BoundaryEvent'), parent: node('bpmn:Task') }),

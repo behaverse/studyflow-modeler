@@ -4,20 +4,18 @@ import {
   saveAutosavedDiagram,
 } from '@modeler/settings/store';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
 
 const isOn = () => getSettings().diagramAutoSave === 'local';
 
-export function attachAutosave(modeler: PortHandle): () => void {
-  const editor = getEditorPort(modeler);
+export function attachAutosave(modeler: Editor): () => void {
   let timer: number | undefined;
 
   const flush = () => {
     if (!isOn()) return;
-    editor.saveXML({ format: true })
+    modeler.saveXML({ format: true })
       .then(({ xml }: { xml: string }) => {
         if (xml) saveAutosavedDiagram(xml);
       })
@@ -30,8 +28,8 @@ export function attachAutosave(modeler: PortHandle): () => void {
     timer = window.setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
-  editor.events.on('commandStack.changed', schedule);
-  editor.events.on('import.done', schedule);
+  modeler.events.on('commandStack.changed', schedule);
+  modeler.events.on('import.done', schedule);
 
   let wasOn = isOn();
   const unsub = subscribeSettings((next) => {
@@ -47,8 +45,8 @@ export function attachAutosave(modeler: PortHandle): () => void {
   });
 
   return () => {
-    editor.events.off('commandStack.changed', schedule);
-    editor.events.off('import.done', schedule);
+    modeler.events.off('commandStack.changed', schedule);
+    modeler.events.off('import.done', schedule);
     unsub();
     if (timer) window.clearTimeout(timer);
   };

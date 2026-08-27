@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { executeCommand } from '@modeler/commandBus';
 import { getDiagramName } from '@modeler/diagram/file';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';
 
-export function useDiagramName(modeler: PortHandle): {
+export function useDiagramName(modeler: Editor): {
   diagramName: string;
   rename: (name: string) => void;
 } {
@@ -14,23 +13,22 @@ export function useDiagramName(modeler: PortHandle): {
 
   useEffect(() => {
     if (!modeler) return;
-    const editor = getEditorPort(modeler);
     const sync = () => setDiagramName(getDiagramName(modeler) ?? DEFAULT_DIAGRAM_NAME);
     const onRootChanged = (e: any) => {
-      if (e?.element === editor.elements.root()) sync();
+      if (e?.element === modeler.elements.root()) sync();
     };
     sync();
-    editor.events.on('import.done', sync);
-    editor.events.on('element.changed', onRootChanged);
+    modeler.events.on('import.done', sync);
+    modeler.events.on('element.changed', onRootChanged);
     return () => {
-      editor.events.off('import.done', sync);
-      editor.events.off('element.changed', onRootChanged);
+      modeler.events.off('import.done', sync);
+      modeler.events.off('element.changed', onRootChanged);
     };
   }, [modeler]);
 
   const rename = useCallback((name: string) => {
     if (!modeler) return;
-    const root = getEditorPort(modeler).elements.root();
+    const root = modeler.elements.root();
     if (!root) return;
     const value = name === DEFAULT_DIAGRAM_NAME ? undefined : name;
     if (root.businessObject.name === value) return;

@@ -463,26 +463,30 @@ test('toggleExpanded flips whichever way the shape currently sits', async () => 
 });
 
 test('double-clicking a sub-process toggles it instead of opening the label editor', async () => {
-  const { canvas } = await loadExample();
-  const select = node(canvas, 'select_model');
+  // `Sub_P` owns no `BPMNDiagram` of its own, so it is a sub-process you open IN
+  // PLACE. A collapsed one that DOES own a plane is a drill-down target instead, and
+  // the double click navigates rather than expands (`canvas-plane.unit.spec.ts`);
+  // `view/plane.ts` settles that in the capture phase, before this handler runs.
+  const { canvas } = await loadCanvas(PLAIN_XML);
+  const sub = node(canvas, 'Sub_P');
 
-  fireMouse(canvas, 'dblclick', center(select));
-  expect(select.isExpanded).toBe(true);
+  fireMouse(canvas, 'dblclick', center(sub));
+  expect(sub.isExpanded).toBe(false);
   expect(canvas.getLabelEditing().isActive()).toBe(false);
-  expect(canvas.getSelection().get().map((el) => el.id)).toEqual(['select_model']);
+  expect(canvas.getSelection().get().map((el) => el.id)).toEqual(['Sub_P']);
 
   // A plain activity keeps the rename gesture.
-  fireMouse(canvas, 'dblclick', center(node(canvas, 'select_features')));
+  fireMouse(canvas, 'dblclick', center(node(canvas, 'Task_P')));
   expect(canvas.getLabelEditing().isActive()).toBe(true);
-  expect(canvas.getLabelEditing().getValue()).toBe('select_features');
+  expect(canvas.getLabelEditing().getValue()).toBe('Plain');
 });
 
 test('the double-click affordance can be switched off', async () => {
-  const { canvas } = await loadCanvas(exampleXml(EXAMPLE), { toggleExpandOnDoubleClick: false });
+  const { canvas } = await loadCanvas(PLAIN_XML, { toggleExpandOnDoubleClick: false });
 
-  const select = node(canvas, 'select_model');
-  fireMouse(canvas, 'dblclick', center(select));
-  expect(select.isExpanded).toBe(false);
+  const sub = node(canvas, 'Sub_P');
+  fireMouse(canvas, 'dblclick', center(sub));
+  expect(sub.isExpanded).toBeUndefined();
   expect(canvas.getLabelEditing().isActive()).toBe(true);
 });
 

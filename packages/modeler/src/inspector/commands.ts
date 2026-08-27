@@ -1,9 +1,7 @@
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
 import { ensureChoreographyParticipants } from '@modeler/shape/choreographyParticipants';
 import { definitionsOf, getStateProperties, nextPropertyId } from '@modeler/inspector/stateProperties';
-import { getEditorPort } from '@modeler/editor/registry';
-import type { EditorPort } from '@modeler/editor/port';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type UpdateAttributeCommand = {
   type: 'UpdateAttribute';
@@ -12,8 +10,8 @@ export type UpdateAttributeCommand = {
   value: any;
 };
 
-export function runUpdateAttribute(modeler: PortHandle, command: UpdateAttributeCommand): void {
-  setAttribute(command.element, command.attributeName, command.value, getEditorPort(modeler).mutate);
+export function runUpdateAttribute(modeler: Editor, command: UpdateAttributeCommand): void {
+  setAttribute(command.element, command.attributeName, command.value, modeler.mutate);
 }
 
 
@@ -25,10 +23,10 @@ export type UpdateExpressionLanguageCommand = {
 };
 
 export function runUpdateExpressionLanguage(
-  modeler: PortHandle,
+  modeler: Editor,
   command: UpdateExpressionLanguageCommand,
 ): void {
-  setExpressionLanguage(command.element, command.attributeName, command.language, getEditorPort(modeler).mutate);
+  setExpressionLanguage(command.element, command.attributeName, command.language, modeler.mutate);
 }
 
 
@@ -41,10 +39,10 @@ export type UpdateChoreographyParticipantsCommand = {
 );
 
 export function runUpdateChoreographyParticipants(
-  modeler: PortHandle,
+  modeler: Editor,
   command: UpdateChoreographyParticipantsCommand,
 ): void {
-  const { mutate, model } = getEditorPort(modeler);
+  const { mutate, model } = modeler;
   // `mutate` covers the `modeling` surface the helper uses; the factory shim maps `create` onto the facade.
   const [top, bottom] = ensureChoreographyParticipants(command.element, mutate, { create: model.createBusinessObject });
 
@@ -70,8 +68,8 @@ export type UpdateTransformationCommand = {
   | { field: 'language'; value: string | undefined }
 );
 
-export function runUpdateTransformation(modeler: PortHandle, command: UpdateTransformationCommand): void {
-  const { mutate, model } = getEditorPort(modeler);
+export function runUpdateTransformation(modeler: Editor, command: UpdateTransformationCommand): void {
+  const { mutate, model } = modeler;
   const association = toBusinessObject(command.element);
   const expression = association.get?.('transformation') ?? association.transformation;
 
@@ -100,33 +98,32 @@ export type UpdateLoopCharacteristicsCommand = {
   properties?: Record<string, any>;
 };
 
-export function runUpdateLoopCharacteristics(modeler: PortHandle, command: UpdateLoopCharacteristicsCommand): void {
+export function runUpdateLoopCharacteristics(modeler: Editor, command: UpdateLoopCharacteristicsCommand): void {
   const { element, loopType, properties = {} } = command;
-  const editor = getEditorPort(modeler);
   const businessObject = toBusinessObject(element);
   const existing = businessObject?.loopCharacteristics;
 
   if (!loopType) {
-    if (existing) editor.mutate.updateProperties(element, { loopCharacteristics: undefined });
+    if (existing) modeler.mutate.updateProperties(element, { loopCharacteristics: undefined });
     return;
   }
 
   if (existing && existing.$type === loopType) {
     if (Object.keys(properties).length > 0) {
-      editor.mutate.updateModdleProperties(element, existing, coerceExpressions(editor, properties, existing));
+      modeler.mutate.updateModdleProperties(element, existing, coerceExpressions(modeler, properties, existing));
     }
     return;
   }
 
-  const loopCharacteristics = editor.model.createBusinessObject(loopType, {});
+  const loopCharacteristics = modeler.model.createBusinessObject(loopType, {});
   loopCharacteristics.$parent = businessObject;
-  const coerced = coerceExpressions(editor, properties, loopCharacteristics);
+  const coerced = coerceExpressions(modeler, properties, loopCharacteristics);
   for (const [name, value] of Object.entries(coerced)) loopCharacteristics.set(name, value);
-  editor.mutate.updateProperties(element, { loopCharacteristics });
+  modeler.mutate.updateProperties(element, { loopCharacteristics });
 }
 
 /** Wrap a string `loopCondition` into BPMN's concrete `xsi:type` expression form (empty clears it). */
-function coerceExpressions(editor: EditorPort, properties: Record<string, any>, parent: any): Record<string, any> {
+function coerceExpressions(editor: Editor, properties: Record<string, any>, parent: any): Record<string, any> {
   if (!('loopCondition' in properties)) return properties;
   const raw = properties.loopCondition;
   if (typeof raw !== 'string' || raw === '') return { ...properties, loopCondition: undefined };
@@ -146,13 +143,13 @@ export type UpdateStatePropertiesCommand = {
   | { action: 'retype'; propertyId: string; itemType: string }
 );
 
-function findDefinitions(editor: EditorPort, businessObject: any): any {
+function findDefinitions(editor: Editor, businessObject: any): any {
   return definitionsOf(businessObject)
     ?? editor.elements.root()?.businessObject?.$parent
     ?? null;
 }
 
-function ensureItemDefinition(editor: EditorPort, element: any, businessObject: any, structureRef: string): any {
+function ensureItemDefinition(editor: Editor, element: any, businessObject: any, structureRef: string): any {
   const definitions = findDefinitions(editor, businessObject);
   if (!definitions) return null;
 
@@ -176,9 +173,8 @@ function ensureItemDefinition(editor: EditorPort, element: any, businessObject: 
   return itemDefinition;
 }
 
-export function runUpdateStateProperties(modeler: PortHandle, command: UpdateStatePropertiesCommand): void {
+export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePropertiesCommand): void {
   const { element } = command;
-  const editor = getEditorPort(modeler);
   const businessObject = toBusinessObject(element);
   if (!businessObject) return;
 
@@ -187,9 +183,9 @@ export function runUpdateStateProperties(modeler: PortHandle, command: UpdateSta
 
   if (command.action === 'add') {
     const id = nextPropertyId(element);
-    const property = editor.model.createBusinessObject('bpmn:Property', { id, name: '' });
+    const property = modeler.model.createBusinessObject('bpmn:Property', { id, name: '' });
     property.$parent = businessObject;
-    editor.mutate.updateModdleProperties(element, businessObject, {
+    modeler.mutate.updateModdleProperties(element, businessObject, {
       properties: [...moddleElements, property],
     });
     return;
@@ -199,24 +195,24 @@ export function runUpdateStateProperties(modeler: PortHandle, command: UpdateSta
   if (!target) return;
 
   if (command.action === 'remove') {
-    editor.mutate.updateModdleProperties(element, businessObject, {
+    modeler.mutate.updateModdleProperties(element, businessObject, {
       properties: moddleElements.filter((p) => p !== target.moddleElement),
     });
     return;
   }
 
   if (command.action === 'rename') {
-    editor.mutate.updateModdleProperties(element, target.moddleElement, { name: command.name });
+    modeler.mutate.updateModdleProperties(element, target.moddleElement, { name: command.name });
     return;
   }
 
   if (!command.itemType) {
-    editor.mutate.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: undefined });
+    modeler.mutate.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: undefined });
     return;
   }
-  const itemDefinition = ensureItemDefinition(editor, element, businessObject, command.itemType);
+  const itemDefinition = ensureItemDefinition(modeler, element, businessObject, command.itemType);
   if (itemDefinition) {
-    editor.mutate.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: itemDefinition });
+    modeler.mutate.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: itemDefinition });
   }
 }
 
@@ -259,7 +255,7 @@ function findPropertyInScope(businessObject: any, propertyId: string): any {
 }
 
 function nextAssociationId(
-  model: EditorPort['model'],
+  model: Editor['model'],
   businessObject: any,
   propertyId: string,
   direction: 'input' | 'output',
@@ -276,9 +272,9 @@ function nextAssociationId(
   return id;
 }
 
-export function runUpdateDataBinding(modeler: PortHandle, command: UpdateDataBindingCommand): void {
+export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBindingCommand): void {
   const { element, direction } = command;
-  const { mutate, model } = getEditorPort(modeler);
+  const { mutate, model } = modeler;
   const businessObject = toBusinessObject(element);
   if (!businessObject) return;
 

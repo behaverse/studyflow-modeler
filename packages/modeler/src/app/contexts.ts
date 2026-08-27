@@ -1,11 +1,11 @@
 import { createContext } from 'react';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 const noop = () => {};
 
 export const ModelerContext = createContext<{
-  modeler: PortHandle | undefined;
-  setModeler: (modeler: PortHandle | undefined) => void;
+  modeler: Editor | undefined;
+  setModeler: (modeler: Editor | undefined) => void;
 }>({ modeler: undefined, setModeler: noop });
 
 export const SettingsViewContext = createContext<{

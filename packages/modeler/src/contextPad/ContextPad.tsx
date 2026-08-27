@@ -6,9 +6,9 @@
  *
  * The split is the usual one: `contextPad/entries.ts` decides WHAT is offered (pure,
  * unit-tested), this file positions the box and wires each `action` to a command on
- * the bus. It reaches the editor only through the facade — `EditorPort.rules` for
- * its gates, `EditorPort.view.getAbsoluteBBox` for its anchor and
- * `EditorPort.gestures` for the two gestures it starts — and app chrome's own
+ * the bus. It reaches the editor only through the facade — `Editor.rules` for
+ * its gates, `Editor.view.getAbsoluteBBox` for its anchor and
+ * `Editor.gestures` for the two gestures it starts — and app chrome's own
  * `openPopupMenu` for the three menus its entries open.
  *
  * **Hover preview** (addendum 5): an entry that appends ONE known element previews
@@ -26,14 +26,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
-import { getEditorPort } from '@modeler/editor/registry';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
 import { contextPadEntries, type ContextPadAppend, type ContextPadEntry } from '@modeler/contextPad/entries';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { t } from '@modeler/i18n';
-import { is, type EditorElement, type EditorPort, type Rect } from '@modeler/editor/port';
+import { is, type EditorElement, type Editor, type Rect } from '@modeler/editor/port';
 
 /** Gap between the selection OUTLINE's right edge and the pad (ux-spec §4). */
 const OFFSET = 8;
@@ -103,7 +102,7 @@ function ownerOf(element: EditorElement): EditorElement {
 }
 
 /** The union bbox of `elements` in screen coordinates, skipping off-plane ones. */
-function selectionBBox(editor: EditorPort, elements: EditorElement[]): Rect | undefined {
+function selectionBBox(editor: Editor, elements: EditorElement[]): Rect | undefined {
   let box: Rect | undefined;
   for (const element of elements) {
     let next: Rect;
@@ -137,16 +136,15 @@ export function ContextPad() {
   const tooltipTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
-    const editor = getEditorPort(modeler);
-    const sync = (): void => setElements(editor.selection.get());
+    const sync = (): void => setElements(modeler.selection.get());
     sync();
-    editor.events.on('selection.changed', sync);
-    editor.events.on('root.set', sync);
-    editor.events.on('import.done', sync);
+    modeler.events.on('selection.changed', sync);
+    modeler.events.on('root.set', sync);
+    modeler.events.on('import.done', sync);
     return () => {
-      editor.events.off('selection.changed', sync);
-      editor.events.off('root.set', sync);
-      editor.events.off('import.done', sync);
+      modeler.events.off('selection.changed', sync);
+      modeler.events.off('root.set', sync);
+      modeler.events.off('import.done', sync);
     };
   }, [modeler]);
 
@@ -161,7 +159,7 @@ export function ContextPad() {
 
   /** Drop the ghost and the tooltip whenever the pad goes away or the selection moves. */
   const clearPreview = useCallback(() => {
-    getEditorPort(modeler).gestures.clearPreview();
+    modeler.canvas.clearAppendPreview();
     clearTimeout(tooltipTimer.current);
     setTooltip(null);
   }, [modeler]);
@@ -192,13 +190,12 @@ export function ContextPad() {
      of them is a React state change. */
   useEffect(() => {
     if (!visible) return;
-    const editor = getEditorPort(modeler);
     // The editor publishes the gesture in flight on its root as `data-gesture`; the
     // pad goes away for the duration of one. `edge-videos/dnd/frame_01` and
     // `frame_05` show a shape being dragged with NO pad riding along — which is the
     // point: the pad would sit on top of the very ghost the user is aiming, and its
     // trash would be under the cursor at the moment of the drop.
-    const diagram = editor.view.getContainer().querySelector('svg.sf-canvas');
+    const diagram = modeler.view.getContainer().querySelector('svg.sf-canvas');
     let frame = 0;
     let last = '';
     // Tracked separately from `last`, because the two answer different questions:
@@ -212,7 +209,7 @@ export function ContextPad() {
       frame = requestAnimationFrame(tick);
       const node = ref.current;
       if (!node) return;
-      const box = diagram?.hasAttribute('data-gesture') ? undefined : selectionBBox(editor, elements);
+      const box = diagram?.hasAttribute('data-gesture') ? undefined : selectionBBox(modeler, elements);
       if (!box) {
         if (shown) {
           node.style.visibility = 'hidden';
@@ -224,7 +221,7 @@ export function ContextPad() {
         }
         return;
       }
-      const outline = OUTLINE_OFFSET * editor.view.zoom();
+      const outline = OUTLINE_OFFSET * modeler.view.zoom();
       const left = Math.round(Math.max(4, Math.min(
         box.x + box.width + outline + OFFSET,
         window.innerWidth - node.offsetWidth - 4,
@@ -250,10 +247,9 @@ export function ContextPad() {
 
   const entries = useMemo<ContextPadEntry[]>(() => {
     if (!visible) return [];
-    const editor = getEditorPort(modeler);
     const single = elements.length === 1 ? elements[0] : undefined;
     const askAppend = (targetType?: string): boolean => (
-      !!single && editor.rules.allowed('shape.append', {
+      !!single && modeler.rules.allowed('shape.append', {
         element: single,
         source: single,
         ...(targetType ? { targetType } : {}),
@@ -265,7 +261,7 @@ export function ContextPad() {
       isConnection: !!single && isConnectionElement(single),
       canAppend: askAppend(),
       canAnnotate: askAppend('bpmn:TextAnnotation'),
-      canReplace: !!single && editor.rules.allowed('shape.replace', { element: single }),
+      canReplace: !!single && modeler.rules.allowed('shape.replace', { element: single }),
       isChoreographyTask: !!single && is(single, 'bpmn:ChoreographyTask'),
     });
   }, [modeler, visible, elements]);
@@ -284,20 +280,20 @@ export function ContextPad() {
 
   /** Show the transient ghost of what this entry would append (addendum 5). */
   const preview = useCallback((append: ContextPadAppend | undefined) => {
-    const editor = getEditorPort(modeler);
     // An entry that appends nothing still ENDS the previous ghost. `mouseleave`
     // already fires before the neighbour's `mouseenter`, so this is belt-and-braces
     // — but it is the belt that survives a pointer jumping between entries without
     // ever crossing the gap between them.
     if (!append || !element) {
-      editor.gestures.clearPreview();
+      modeler.canvas.clearAppendPreview();
       return;
     }
     // No business object: a ghost is a picture, and minting one would claim an id
     // for an element that is never created. The type carries the footprint, the
     // silhouette and the rules verdict, which is everything the preview needs.
-    const shape = editor.gestures.createShape({ type: append.bpmnType });
-    editor.gestures.previewAppend(element, shape);
+    const shape = modeler.canvas.createShape({ type: append.bpmnType });
+    const source = modeler.canvas.resolveElement(element);
+    if (source) modeler.canvas.previewAppend(source, shape);
   }, [modeler, element]);
 
   const run = useCallback((entry: ContextPadEntry) => {

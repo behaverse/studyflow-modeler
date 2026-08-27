@@ -1,15 +1,14 @@
-import { getEditorPort } from '@modeler/editor/registry';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 export type ToggleSimulationCommand = {
   type: 'ToggleSimulation';
 };
 
 export function runToggleSimulation(
-  modeler: PortHandle,
+  modeler: Editor,
   _command: ToggleSimulationCommand,
 ): { active: boolean } {
-  const { simulation } = getEditorPort(modeler);
+  const { simulation } = modeler;
   simulation.toggle();
   return { active: simulation.isActive() };
 }

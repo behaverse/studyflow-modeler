@@ -8,7 +8,7 @@ import * as provenance from '@modeler/provenance/commands';
 import * as publish from '@modeler/publish/commands';
 import * as shape from '@modeler/shape/commands';
 import * as simulation from '@modeler/simulation/commands';
-import type { PortHandle } from '@modeler/editor/registry';
+import type { Editor } from '@modeler/editor/port';
 
 /* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
 const FEATURES = [app, diagram, exportDiagram, inspector, palette, popup, provenance, publish, shape, simulation] as const;
@@ -27,12 +27,12 @@ type CommandResult<C extends ControllerCommand> = {
 }[RunKey];
 
 /**
- * Dispatch `command` against the editor `handle` (or `null`, at boot, for the
- * handlers that accept it). The handle is opaque: it is what `runCreateModeler`
- * built, and handlers reach the editor through `getEditorPort` alone.
+ * Dispatch `command` against the {@link Editor} (or `null`, at boot, for the
+ * handlers that accept it) — the facade `runCreateModeler` built, which is the
+ * only way a handler reaches the diagram.
  */
 export async function executeCommand<C extends ControllerCommand>(
-  modeler: PortHandle | null,
+  modeler: Editor | null,
   command: C,
 ): Promise<CommandResult<C>> {
   const name = `run${command.type}`;
