@@ -154,7 +154,7 @@ These attributes describe the study's schedule in visits and days, which is what
 |:--|:--|:--|:--|
 | `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, under a declared standard. | `format`, `schema`, `catalog`, `storage`; `bdmDataLevel` or `bidsDataType` |
 | `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`), `body` |
-| `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema`, `rowCount` |
+| `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema` |
 | `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled recording. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
 | `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
 | `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a variant of the study is a value change, not a redraw. | `values` |
