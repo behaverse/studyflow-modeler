@@ -299,28 +299,50 @@ export function drawSvgPaths(
 }
 
 /**
- * Draw a short text glyph (e.g. a behaverse scene abbreviation) centred in an icon
- * box — a self-contained port of `draw/utils.ts` `drawIconText`, using a plain
- * font stack instead of the modeler's bundled family.
+ * Placement of a short abbreviation drawn over an icon box, by its length — px
+ * offsets/sizes tuned to centre a 2-4-char abbreviation, carried over verbatim from
+ * `draw/utils.ts` `MARKER_2CHAR` / `MARKER_3CHAR` / `MARKER_LONG`.
+ *
+ * These are BASELINE-anchored fixed coordinates, not a centring computation: the
+ * glyph is monospace, so the tuned numbers land it in the middle of the box for
+ * every string of a given length, and reproducing them exactly is what keeps a
+ * behaverse task looking like it did before the canvas migration.
+ */
+const ICON_TEXT_2CHAR = { x: 9, y: 20, fontSize: 11 };
+const ICON_TEXT_3CHAR = { x: 8, y: 22, fontSize: 11 };
+const ICON_TEXT_LONG = { x: 8.5, y: 21, fontSize: 8 };
+const ICON_TEXT_MAX_CHARS = 4;
+
+/**
+ * Draw a short text glyph (a behaverse scene abbreviation) over the top-left icon
+ * box — a self-contained port of `draw/utils.ts` `drawIconText`, using a plain font
+ * stack instead of the modeler's bundled family.
+ *
+ * Anything longer than {@link ICON_TEXT_MAX_CHARS} is truncated rather than shrunk
+ * further; four monospace characters at 8px is already the width of the box.
  */
 export function drawIconText(
   container: SVGElement,
   marker: string | undefined,
   color: string,
-  x = 4,
-  y = 4,
-  size = 24,
 ): SVGElement | undefined {
   if (!marker) return undefined;
-  const glyph = marker.length > 4 ? marker.slice(0, 4) : marker;
-  const fontSize = glyph.length <= 2 ? 11 : glyph.length === 3 ? 10 : 8;
+
+  let glyph = marker;
+  let placement: { x: number; y: number; fontSize: number };
+  if (glyph.length === 2) placement = ICON_TEXT_2CHAR;
+  else if (glyph.length === 3) placement = ICON_TEXT_3CHAR;
+  else {
+    placement = ICON_TEXT_LONG;
+    glyph = glyph.substring(0, ICON_TEXT_MAX_CHARS);
+  }
+
   const text = create('text', {
-    x: x + size / 2,
-    y: y + size / 2,
-    'text-anchor': 'middle',
-    'dominant-baseline': 'central',
+    class: 'sf-icon-text',
+    x: placement.x,
+    y: placement.y,
     'font-family': PLACEHOLDER_FONT,
-    'font-size': fontSize,
+    'font-size': placement.fontSize,
     'font-weight': 'bold',
     fill: color,
     'stroke-width': 0,

@@ -153,6 +153,111 @@ test('every drawn glyph carries the icon KEY it was asked for', async () => {
     .toBe('UserTask');
 });
 
+// --- behaverse scene glyph ---------------------------------------------------
+
+/**
+ * Behaverse tasks: a two-letter scene (`NB`), a long one (`SART`), and the
+ * not-chosen-yet sentinel. The scene lives on the `cognitive:behaverseTask`
+ * extension; `instrument` is the schema default `behaverse`, never written out.
+ */
+const BEHAVERSE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
+    id="Defs_B" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_B" isExecutable="false">
+    <bpmn:task id="Task_NB" name="N-Back">
+      <bpmn:extensionElements><cognitive:behaverseTask behaverseScene="NB" /></bpmn:extensionElements>
+    </bpmn:task>
+    <bpmn:task id="Task_SART" name="SART">
+      <bpmn:extensionElements><cognitive:behaverseTask behaverseScene="SART" /></bpmn:extensionElements>
+    </bpmn:task>
+    <bpmn:task id="Task_None" name="Not chosen">
+      <bpmn:extensionElements><cognitive:behaverseTask behaverseScene="undefined" /></bpmn:extensionElements>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_B">
+    <bpmndi:BPMNPlane id="Plane_B" bpmnElement="Process_B">
+      <bpmndi:BPMNShape id="Task_NB_di" bpmnElement="Task_NB">
+        <dc:Bounds x="100" y="100" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SART_di" bpmnElement="Task_SART">
+        <dc:Bounds x="260" y="100" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_None_di" bpmnElement="Task_None">
+        <dc:Bounds x="420" y="100" width="120" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** The scene glyph drawn inside an element's `<g>`, if any. */
+function sceneGlyph(canvas: Canvas, id: string): SVGTextElement | null {
+  return graphics(canvas, id).querySelector('text.sf-icon-text');
+}
+
+test('a behaverse task draws its scene abbreviation over the hex icon', async () => {
+  // The two-letter glyph is a hardcoded display convention of the behaverse
+  // instrument (`draw/Renderer.drawActivity` before the canvas migration): the hex
+  // icon alone does not say WHICH assessment a task runs, and every shipped battery
+  // is a row of otherwise identical hexagons.
+  const canvas = await loadCanvas(BEHAVERSE_XML, {
+    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
+  }).then((loaded) => loaded.canvas);
+
+  const glyph = sceneGlyph(canvas, 'Task_NB')!;
+  expect(glyph).toBeTruthy();
+  expect(glyph.textContent).toBe('NB');
+  // The recovered `MARKER_2CHAR` placement: fixed baseline coordinates, monospace
+  // and bold, in the element's own stroke colour.
+  expect(glyph.getAttribute('x')).toBe('9');
+  expect(glyph.getAttribute('y')).toBe('20');
+  expect(glyph.getAttribute('font-size')).toBe('11');
+  expect(glyph.getAttribute('font-weight')).toBe('bold');
+  expect(glyph.getAttribute('font-family')).toContain('monospace');
+  expect(glyph.getAttribute('fill')).toBe('#22242A');
+
+  // It sits ALONGSIDE the hex, not instead of it.
+  expect(graphics(canvas, 'Task_NB').querySelectorAll('svg.sf-icon')).toHaveLength(1);
+});
+
+test('a long scene takes the small placement, and widens the icon behind it', async () => {
+  const canvas = await loadCanvas(BEHAVERSE_XML, {
+    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
+  }).then((loaded) => loaded.canvas);
+
+  const glyph = sceneGlyph(canvas, 'Task_SART')!;
+  expect(glyph.textContent).toBe('SART');
+  // `MARKER_LONG`: four monospace characters at 8px, which is already the box width.
+  expect(glyph.getAttribute('x')).toBe('8.5');
+  expect(glyph.getAttribute('y')).toBe('21');
+  expect(glyph.getAttribute('font-size')).toBe('8');
+
+  // …and the hex grows to hold them, the way `ICON_SIZE_LARGE` grew it. A two-letter
+  // scene leaves the icon at its usual size.
+  const sizeOf = (id: string): string | null =>
+    graphics(canvas, id).querySelector('svg.sf-icon')!.getAttribute('width');
+  expect(sizeOf('Task_SART')).toBe('26');
+  expect(sizeOf('Task_NB')).toBe('22');
+});
+
+test('the not-chosen-yet scene draws no glyph at all', async () => {
+  // `undefined` is the sentinel a behaverse task carries before an assessment is
+  // picked (the runner reads it the same way, `nodes/behaverse/parser.ts`). Drawing
+  // it would put the literal word "UNDE" on the shape.
+  const canvas = await loadCanvas(BEHAVERSE_XML, {
+    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
+  }).then((loaded) => loaded.canvas);
+
+  expect(sceneGlyph(canvas, 'Task_None')).toBeNull();
+  // The hex icon itself is untouched — only the abbreviation is suppressed.
+  expect(graphics(canvas, 'Task_None').querySelectorAll('svg.sf-icon')).toHaveLength(1);
+  // A non-behaverse task never had one to begin with.
+  const plain = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
+  expect(sceneGlyph(plain, 'Task_1')).toBeNull();
+});
+
 test('a resolver answering `null` draws nothing at all — not a placeholder box', async () => {
   // `undefined` means "I don't know this key", and the placeholder is the honest
   // answer to that. `null` means "this key HAS no glyph", which is the app's answer

@@ -11,7 +11,12 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
+import {
+  getAttribute,
+  getRawAttribute,
+  isDataOperationActivity,
+  StudyflowElement,
+} from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 
 import { readChoreographyBands } from '@canvas/model/choreography.ts';
@@ -58,6 +63,7 @@ import {
 } from '@canvas/render/labels.ts';
 import {
   drawIcon,
+  drawIconText,
   type IconResolver,
 } from '@canvas/render/icons.ts';
 
@@ -117,6 +123,41 @@ export function categoryOf(type: string): NodeCategory {
   if (type === BPMN.TextAnnotation) return 'annotation';
   if (type === BPMN.Participant || type === BPMN.Lane) return 'participant';
   return 'unknown';
+}
+
+/**
+ * The top-left type glyph's box, and the size it grows to when a scene abbreviation
+ * too long for the plain box is drawn over it.
+ *
+ * The canvas draws the box at (5, 5) where `draw/Renderer` drew it at (4, 4), so the
+ * sizes are 22/26 rather than its 24/28: both pairs put the box centre at 18 and both
+ * grow by 4, which is what the fixed glyph placements in `render/icons.ts` are tuned
+ * against. Moving either number without the other decentres every abbreviation.
+ */
+const TYPE_ICON_SIZE = 22;
+const TYPE_ICON_SIZE_LARGE = 26;
+
+/** Longest scene abbreviation the plain {@link TYPE_ICON_SIZE} box still fits. */
+const LONG_SCENE_LENGTH = 2;
+
+/**
+ * The scene abbreviation a behaverse task draws over its hex icon (`'NB'`, `'SART'`),
+ * or `undefined` for any other task.
+ *
+ * A hardcoded display convention of the behaverse instrument, not schema data —
+ * ported from `draw/Renderer.drawActivity`. Two tasks draw nothing: one whose scene
+ * is the literal `undefined` sentinel a task carries before an assessment is picked
+ * (`runner/nodes/behaverse/parser.ts` reads it the same way), and one carrying its
+ * OWN `icon` attribute, whose icon stays uncovered (the old `preservePrimaryIcon`).
+ */
+function behaverseScene(businessObject: ModdleObject | undefined): string | undefined {
+  if (getAttribute(businessObject, 'instrument') !== 'behaverse') return undefined;
+  const element = StudyflowElement.fromBusinessObject(businessObject);
+  if (getRawAttribute(element.extension ?? businessObject, 'icon')) return undefined;
+  const scene = getAttribute(businessObject, 'behaverseScene');
+  if (typeof scene !== 'string' || !scene) return undefined;
+  const glyph = scene.toUpperCase();
+  return glyph === 'UNDEFINED' ? undefined : glyph;
 }
 
 /** Inset of a text annotation's note from its bracket (bpmn-js `TEXT_ANNOTATION_PADDING`). */
@@ -330,12 +371,21 @@ export class Renderer {
         drawEvent(g, node.width, node.height, style, eventKind(node));
         this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
-      case 'task':
+      case 'task': {
         drawTask(g, node.width, node.height, style, THICK_ACTIVITY.has(node.type));
-        this.drawTypeIcon(g, node, style.stroke);
+        // A behaverse task's scene abbreviation is drawn OVER its hex icon, and a
+        // long one widens the hex to make room — so the glyph has to be derived
+        // before the icon is sized.
+        const scene = behaverseScene(node.businessObject);
+        const iconSize = scene && scene.length > LONG_SCENE_LENGTH
+          ? TYPE_ICON_SIZE_LARGE
+          : TYPE_ICON_SIZE;
+        this.drawTypeIcon(g, node, style.stroke, iconSize);
+        drawIconText(g, scene, style.stroke);
         this.drawMarkers(g, node, style.stroke);
         drawInternalLabel(g, node, name, style.stroke);
         break;
+      }
       case 'gateway':
         drawDiamond(g, node.width, node.height, style);
         this.drawGatewayGlyph(g, node, style.stroke);
@@ -371,7 +421,7 @@ export class Renderer {
     return g;
   }
 
-  private drawTypeIcon(g: SVGGElement, node: SceneNode, color: string): void {
+  private drawTypeIcon(g: SVGGElement, node: SceneNode, color: string, size = TYPE_ICON_SIZE): void {
     // The top-left type glyph; a placeholder unless a resolver is injected.
     const key = toLocalName(node.type);
     if (!key) return;
@@ -382,7 +432,7 @@ export class Renderer {
     // agentic step in the shipped examples is one). Asking the resolver first is what
     // keeps the two apart: no resolver, or no answer, and nothing is drawn.
     if (key === 'Task' && !this.iconResolver?.(key, node.businessObject)) return;
-    drawIcon(g, key, 5, 5, 22, color, this.iconResolver, node.businessObject);
+    drawIcon(g, key, 5, 5, size, color, this.iconResolver, node.businessObject);
   }
 
   private drawGatewayGlyph(g: SVGGElement, node: SceneNode, color: string): void {
