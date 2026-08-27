@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, isOrthogonal, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
+import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { loadCanvas } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element"
@@ -22,19 +19,6 @@ import { loadSchemaModels } from './schemas';
  * `targetRef` and the `incoming`/`outgoing` back-references bpmn-moddle serializes),
  * and the whole thing re-imports.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 /** `Start_1 → Task_1 → End_1`, so the replaced task has a flow on each side. */
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -75,11 +59,7 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(xml = FIXTURE_XML): Promise<{ canvas: Canvas; definitions: any; moddle: any }> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 function node(canvas: Canvas, id: string): SceneNode {

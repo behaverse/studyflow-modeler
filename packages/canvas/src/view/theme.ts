@@ -15,8 +15,8 @@
  *     --lasso-fill-color                        →    --sf-lasso-fill-color
  *     --element-dragger-color                   →    --sf-element-dragger-color
  *
- * so the two backends can be re-themed with the same vocabulary and a value can be
- * checked against the parity spec by reading one file.
+ * — so a value can be checked against the parity spec by reading one file, and the
+ * name it is checked under is the one the reference editor used for it.
  *
  * The tokens are declared on `.sf-canvas` (the root `<svg>`), not on `:root`, which
  * is what makes the sheet theme-safe: a host redefines any of them for its dark
@@ -28,7 +28,7 @@
  *
  * Stroke widths are CSS pixels, which inside the root `viewBox` means *diagram*
  * units — exactly as in diagram-js, where the same widths sit inside the viewport
- * transform. Chrome therefore scales with zoom on both backends.
+ * transform. Chrome therefore scales with zoom.
  */
 
 /** `id` of the injected `<style>` element (one per document). */
@@ -314,14 +314,14 @@ export const CANVAS_CSS = `
 }
 
 /*
- * Context-pad hover preview (parity spec addendum 5): the ghost of the element a
- * pad entry would append, plus the connection that would reach it. The shape half
- * wears \`sf-dragger\` and is therefore already blue-outline-only; only its
- * connection needs painting, and it borrows the same dragger colour so ghost and
- * ghost-flow read as one object. Inert to the pointer — it is a picture of the
- * future, not something to click.
+ * Both gesture previews are pictures of the future, not things to click: the context
+ * pad's append ghost (parity spec addendum 5 — the element a pad entry would create
+ * plus the connection that would reach it) and the live connect / reconnect rubber
+ * band. Neither may take a hit, or the drop would land on the promise instead of on
+ * the shape underneath it.
  */
-.sf-canvas .sf-append-preview {
+.sf-canvas .sf-append-preview,
+.sf-canvas .sf-connect-preview {
   pointer-events: none;
 }
 
@@ -353,10 +353,6 @@ export const CANVAS_CSS = `
 .sf-canvas[data-connect-status="pending"],
 .sf-canvas[data-connect-status="rejected"] {
   background-color: var(--sf-drop-not-ok-fill-color);
-}
-
-.sf-canvas .sf-connect-preview {
-  pointer-events: none;
 }
 
 /*
@@ -465,7 +461,11 @@ export const CANVAS_CSS = `
  * computed per session from the viewport, and nothing else may own them.
  */
 .sf-label-editor {
-  /* Pure black, deliberately NOT the #22242A the renderer strokes labels with:
+  /* These three tokens stay HERE rather than joining the palette on \`.sf-canvas\`:
+     the editor is a sibling of the \`<svg>\`, not a descendant of it, so a custom
+     property declared there would not reach it. Same reason its rules are unprefixed.
+
+     Pure black, deliberately NOT the #22242A the renderer strokes labels with:
      parity spec §5 measured rgb(0,0,0) in both editor variants. */
   --sf-label-editor-color: #000000;
   --sf-label-editor-external-fill: hsl(0, 0%, 100%);

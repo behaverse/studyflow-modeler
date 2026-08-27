@@ -5,24 +5,23 @@
  * The facade itself lives in the app (`packages/modeler/src/editor/port.ts`), but
  * this package must not import from `packages/modeler` (hard rule: the canvas is a
  * leaf). So the port shape is re-declared here, member for member, and the app
- * assigns the result to its own `EditorPort` **structurally** — one interface, two
- * adapters, checked at the assignment site.
+ * assigns the result to its own `EditorPort` **structurally** — one interface, one
+ * adapter, checked at the assignment site.
  *
  * Split of responsibilities (design §4):
  *
  * - **(C) canvas implements** — `elements`, `view`, `mutate`, `selection`, `events`,
- *   `rules`, `gestures`, `saveSVG`, `getDefinitions`.
- * - **(A) app supplies** — the history quartet (`revision`/`undo`/`redo`/`canUndo`/
- *   `canRedo`), `importXML`/`saveXML`, `model` (bpmn-moddle), `popup`, `templates`,
- *   `simulation`. Every one of those arrives through {@link CanvasPortDeps} and the
- *   adapter forwards; sensible defaults exist for the ones that can be expressed
- *   over `deps.model` + the canvas alone (import/save XML), so a test can drive the
- *   port with nothing but a moddle instance.
+ *   `rules`, `gestures`, `saveSVG`, `getDefinitions`, `importXML`/`saveXML`.
+ * - **(A) app supplies** — the history quintet (`revision`/`undo`/`redo`/`canUndo`/
+ *   `canRedo`), `model` (bpmn-moddle), `templates`, `simulation`. Every one of those
+ *   arrives through {@link CanvasPortDeps} and the adapter forwards; a test can drive
+ *   the port with nothing but a moddle instance.
  *
- * The canvas has no command stack. Each `mutate.*` call is one logical undo step:
- * the adapter brackets it with `history.beginMutation`/`endMutation` (the app's
- * snapshot points) and then fires `commandStack.changed` on the canvas bus, so
- * autosave / provenance / dirty-tracking keep working unchanged on both backends.
+ * The canvas has no command stack. Each `mutate.*` call is one logical undo step,
+ * closed with `history.record` — the app's commit point, from which autosave,
+ * provenance and dirty-tracking take their `commandStack.changed`. Given no history
+ * the adapter fires that topic itself, because then nothing else would; see
+ * {@link CanvasPortDeps.history}.
  */
 
 import { Canvas } from '@canvas/Canvas.ts';
@@ -112,10 +111,8 @@ export interface PortView {
   setSnapToGrid(on: boolean): void;
   addMarker(elementOrId: PortElement | string, marker: string): void;
   removeMarker(elementOrId: PortElement | string, marker: string): void;
-  scrollToElement(
-    element: PortElement,
-    padding?: number | { top: number; right: number; bottom: number; left: number },
-  ): void;
+  /** Bring `element` into view by centring it. */
+  scrollToElement(element: PortElement): void;
 }
 
 /** Undoable document mutations (`EditorMutations`); each call is one undo step. */
@@ -168,7 +165,6 @@ export interface PortSelection {
 /** Event bus projection (`EditorEvents`). */
 export interface PortEvents {
   on(topic: string, listener: PortEventListener): void;
-  on(topic: string, priority: number, listener: PortEventListener): void;
   off(topic: string, listener: PortEventListener): void;
   fire(topic: string, payload?: Record<string, unknown>): void;
 }
@@ -187,42 +183,24 @@ export interface PortGestures {
     context?: { hints?: Record<string, unknown>; source?: PortElement },
   ): void;
   startLasso(event: MouseEvent | any): void;
-  /** Retired on this backend (design §4 (3)) — a diagram-js `dragging` workaround. */
-  primeHover(event: MouseEvent | any): void;
-  /**
-   * Canvas-only extension: begin a connect drag out of `source` (context pad /
-   * append). The bpmn-js backend reaches the same gesture through its context pad.
-   */
+  /** Begin a connect drag out of `source` (context pad / append). */
   startConnect(source: PortElement, event?: MouseEvent | any): boolean;
   /**
-   * Canvas-only extension: click-append — place `shape` one gap to the right of
-   * `source`, vertically centred, and connect the two, as ONE undo step
-   * (`interaction/autoplace.ts`). The bpmn-js backend gets the same gesture from
-   * `bpmn-js-create-append-anything`'s `autoPlace.append`, so the app calls this
-   * optionally and falls back to a create-then-connect pair.
+   * Click-append — place `shape` one gap to the right of `source`, vertically
+   * centred, and connect the two, as ONE undo step (`interaction/autoplace.ts`).
    *
    * `undefined` when the rules reject the shape; nothing is written in that case.
    */
   appendShape(source: PortElement, shape: PortElement): PortElement | undefined;
   /**
-   * Canvas-only extension: draw a transient GHOST of what
-   * {@link PortGestures.appendShape} would create, at the position it would create
-   * it (parity spec addendum 5 — the context pad's hover preview). Returns whether
-   * a ghost went up; nothing is written either way, and
-   * {@link PortGestures.clearPreview} takes it down.
+   * Draw a transient GHOST of what {@link PortGestures.appendShape} would create, at
+   * the position it would create it (parity spec addendum 5 — the context pad's
+   * hover preview). Returns whether a ghost went up; nothing is written either way,
+   * and {@link PortGestures.clearPreview} takes it down.
    */
   previewAppend(source: PortElement, shape: PortElement): boolean;
   /** Remove any transient gesture preview ({@link PortGestures.previewAppend}). */
   clearPreview(): void;
-}
-
-/** Popup menus opened from app chrome (`EditorPopup`) — app-fulfilled here. */
-export interface PortPopup {
-  open(
-    providerId: string,
-    position: { x: number; y: number; cursor: { x: number; y: number } },
-    options?: { title?: string; width?: number; search?: boolean },
-  ): void;
 }
 
 /** Schema-aware document model access (`EditorModel`) — always bpmn-moddle. */
@@ -252,8 +230,8 @@ export interface PortSimulation {
 
 /**
  * The full facade this adapter produces. Structurally identical to the app's
- * `EditorPort` (plus `gestures.startConnect`), so
- * `const port: EditorPort = createCanvasEditorPort(canvas, deps)` type-checks.
+ * `EditorPort`, so `const port: EditorPort = createCanvasEditorPort(canvas, deps)`
+ * type-checks with no cast — that assignment IS the conformance check.
  */
 export interface CanvasEditorPort {
   revision(): number;
@@ -274,7 +252,6 @@ export interface CanvasEditorPort {
   events: PortEvents;
   rules: PortRules;
   gestures: PortGestures;
-  popup: PortPopup;
   model: PortModel;
   templates: PortTemplates;
   simulation: PortSimulation;
@@ -284,10 +261,9 @@ export interface CanvasEditorPort {
 
 /**
  * The app-level history the canvas backend borrows in place of a command stack
- * (design §4 (1)). `revision` is the app's monotonic edit counter; the adapter
- * brackets every `mutate.*` call with {@link CanvasPortHistory.beginMutation} and
- * {@link CanvasPortHistory.endMutation} so the app can snapshot the moddle document
- * either side of the write.
+ * (design §4 (1)). `revision` is the app's monotonic edit counter; the adapter calls
+ * {@link CanvasPortHistory.record} immediately after every `mutate.*` write so
+ * the app can snapshot the moddle document.
  */
 export interface CanvasPortHistory {
   revision(): number;
@@ -295,10 +271,8 @@ export interface CanvasPortHistory {
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
-  /** Snapshot point: called immediately BEFORE a mutation applies. */
-  beginMutation?(label: string): void;
   /** Commit point: called immediately AFTER a mutation applied. */
-  endMutation?(label: string): void;
+  record(): void;
   /** Called after an import, which resets the history silently (no revision bump). */
   reset?(): void;
 }
@@ -307,24 +281,18 @@ export interface CanvasPortHistory {
 export interface CanvasPortDeps {
   /** The bpmn-moddle bridge. Required — the document model outlives the editor. */
   model: PortModel;
-  /** App-level undo/redo. Omitted: the port reports an empty, unusable history. */
+  /**
+   * App-level undo/redo. Omitted: the port reports an empty, unusable history AND
+   * announces each mutation on `commandStack.changed` itself, since with no history
+   * layer nothing else would. A host that DOES supply a history owns that topic —
+   * it fires once per recorded mutation, from every mutation source and not just
+   * `mutate.*`, so the adapter stays quiet.
+   */
   history?: CanvasPortHistory;
-  /** App-owned popup menus (append menu, colour picker). Omitted: `open` is a no-op. */
-  popup?: PortPopup;
   /** Palette element templates. Omitted: `getAll()` is empty. */
   templates?: PortTemplates;
   /** Token simulation. Omitted: inert. */
   simulation?: PortSimulation;
-  /** Override the default `fromXML` → `importDefinitions` import. */
-  importXML?: (xml: string) => Promise<{ warnings: unknown[] }>;
-  /** Override the default `toXML(getDefinitions())` serialization. */
-  saveXML?: (options?: { format?: boolean }) => Promise<{ xml: string }>;
-  /**
-   * Fire `commandStack.changed` on the canvas bus after each mutation. Default
-   * `true` — the app's `attachAutosave` / provenance hooks subscribe to it. Turn it
-   * off when the app history layer owns that topic itself.
-   */
-  emitCommandStackChanged?: boolean;
 }
 
 // --- root elements ------------------------------------------------------------
@@ -400,13 +368,16 @@ function boundsOf(element: SceneElement): Bounds {
 
 /**
  * Build the editor facade over `canvas`. One adapter per canvas instance (the app
- * memoizes it the way `getEditorPort` does for bpmn-js), so the revision fallback
- * counter spans the canvas's whole life.
+ * memoizes it per handle in `editor/registry.ts`), so the revision fallback counter
+ * spans the canvas's whole life.
  */
 export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): CanvasEditorPort {
   const bus: EventBus = canvas.getEventBus();
   const model = deps.model;
-  const emitCommandStack = deps.emitCommandStackChanged ?? true;
+  // With no app history there is nothing else to announce a mutation, so the adapter
+  // takes the topic; with one, the history owns it (and hears every mutation source,
+  // not just `mutate.*`), so firing here too would double-count.
+  const emitCommandStack = deps.history === undefined;
   /** Fallback revision when no app history is injected (design §4: canvas counts scene mutations). */
   let localRevision = 0;
   /** Custom `<g>` layers the app asks for by name (`view.getLayer`). */
@@ -451,15 +422,14 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
   };
 
   /**
-   * Run one logical undo step: snapshot point, the write, commit point, revision
-   * bump, `commandStack.changed`. `apply` returns the elements to re-draw.
+   * Run one logical undo step: the write, the commit point, the revision bump and
+   * `commandStack.changed`. `apply` returns the elements to re-draw.
    */
-  const step = <T>(label: string, apply: () => T, changed?: (result: T) => SceneElement[]): T => {
-    deps.history?.beginMutation?.(label);
+  const step = <T>(apply: () => T, changed?: (result: T) => SceneElement[]): T => {
     const result = apply();
     const dirty = changed?.(result) ?? [];
     if (dirty.length > 0) canvas.redrawElements(dirty);
-    deps.history?.endMutation?.(label);
+    deps.history?.record();
     localRevision += 1;
     if (emitCommandStack) bus.fire('commandStack.changed', {});
     return result;
@@ -592,7 +562,6 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       const target = resolve(elementOrId);
       if (target) canvas.getSelection().removeMarker(target, marker);
     },
-    // `padding` is a diagram-js scroll hint; the canvas centres the element instead.
     scrollToElement: (element) => {
       const target = resolve(element);
       if (!target) throw new Error('@behaverse/studyflow-canvas: element is not on the current plane');
@@ -605,13 +574,12 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       const list = (Array.isArray(targets) ? targets : [targets])
         .map(resolve)
         .filter((element): element is SceneElement => !!element);
-      step('setColor', () => canvas.setColor(list, colors));
+      step(() => canvas.setColor(list, colors));
     },
     updateProperties: (element, properties) => {
       const target = resolve(element);
       const bo: ModdleObject = target?.businessObject ?? element?.businessObject ?? element;
       step(
-        'updateProperties',
         () => writeProps(bo, properties),
         (touched) => (touched && target ? [target] : []),
       );
@@ -626,7 +594,6 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     updateModdleProperties: (element, moddleElement, properties) => {
       const target = resolve(element);
       step(
-        'updateModdleProperties',
         () => writeProps(moddleElement as ModdleObject, properties),
         (touched) => (touched && target ? [target] : []),
       );
@@ -636,22 +603,21 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     resizeShape: (shape, bounds) => {
       const target = resolve(shape);
       if (!target || target.kind !== 'node') return;
-      step('resizeShape', () => canvas.getWriteback()?.setNodeBounds(target, bounds) ?? [], (changed) => changed);
+      step(() => canvas.getWriteback()?.setNodeBounds(target, bounds) ?? [], (changed) => changed);
     },
     createShape: (shape, position, _parent, _hints) => step(
-      'createShape',
       () => canvas.createElement(shape as ShapeDescriptor | CreatePrototype, {
         x: position.x,
         y: position.y,
       } as Point),
     ),
-    createConnection: (source, target, _connection, _parent, _hints) => step('createConnection', () => {
+    createConnection: (source, target, _connection, _parent, _hints) => step(() => {
       const from = resolve(source);
       const to = resolve(target);
       if (!from || from.kind !== 'node' || !to || to.kind !== 'node') return undefined;
       return canvas.connectElements(from as SceneNode, to as SceneNode);
     }),
-    replaceShape: (element, attrs) => step('replaceShape', () => {
+    replaceShape: (element, attrs) => step(() => {
       const target = resolve(element);
       if (!target || target.kind !== 'node') return undefined;
       return canvas.replaceElement(target as SceneNode, attrs as ShapeDescriptor);
@@ -661,7 +627,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
         .map(resolve)
         .filter((element): element is SceneElement => !!element);
       if (list.length === 0) return [];
-      return step('removeElements', () => canvas.deleteElements(list));
+      return step(() => canvas.deleteElements(list));
     },
   };
 
@@ -680,13 +646,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
   };
 
   const events: PortEvents = {
-    on: (topic: string, priorityOrListener: number | PortEventListener, listener?: PortEventListener) => {
-      if (typeof priorityOrListener === 'number') {
-        if (listener) bus.on(topic, priorityOrListener, listener);
-      } else {
-        bus.on(topic, priorityOrListener);
-      }
-    },
+    on: (topic, listener) => bus.on(topic, listener),
     off: (topic, listener) => bus.off(topic, listener),
     fire: (topic, payload) => bus.fire(topic, payload ?? {}),
   };
@@ -702,12 +662,10 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       if (!first) return;
       canvas.startCreate(event ?? undefined, first as ShapeDescriptor | CreatePrototype);
     },
-    // Dragging empty canvas PANS on this backend (parity spec §10), so the palette's
+    // Dragging empty canvas PANS (parity spec §10), so the palette's
     // lasso button is the only way to lasso: it arms the tool, and the next drag
     // draws the marquee.
     startLasso: () => canvas.activateLasso(),
-    // Design §4 (3): a diagram-js `dragging` workaround with no native counterpart.
-    primeHover: () => undefined,
     startConnect: (source, event) => {
       const from = resolve(source);
       if (!from || from.kind !== 'node') return false;
@@ -717,7 +675,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     // A CONNECTION is a legal source here (never for `startConnect`): the one append
     // a selected sequence flow offers is "Add text annotation" (ux-spec §4), and the
     // canvas gates the pair through `Rules.canAppendType` either way.
-    appendShape: (source, shape) => step('appendShape', () => {
+    appendShape: (source, shape) => step(() => {
       const from = resolve(source);
       if (!from) return undefined;
       return canvas.appendElement(from, shape as ShapeDescriptor | CreatePrototype);
@@ -733,7 +691,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     clearPreview: () => canvas.clearAppendPreview(),
   };
 
-  const defaultImportXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
+  const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
     const warnings: unknown[] = [];
     const { rootElement } = await model.fromXML(xml);
     canvas.importDefinitions(rootElement as ModdleObject);
@@ -744,7 +702,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     return { warnings };
   };
 
-  const defaultSaveXML = async (options?: { format?: boolean }): Promise<{ xml: string }> => {
+  const saveXML = async (options?: { format?: boolean }): Promise<{ xml: string }> => {
     const definitions = port.getDefinitions();
     if (!definitions) throw new Error('@behaverse/studyflow-canvas: nothing to serialize');
     const { xml } = await model.toXML(definitions, options);
@@ -758,8 +716,8 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     canUndo: () => !!deps.history?.canUndo(),
     canRedo: () => !!deps.history?.canRedo(),
 
-    importXML: (xml) => (deps.importXML ?? defaultImportXML)(xml),
-    saveXML: (options) => (deps.saveXML ?? defaultSaveXML)(options),
+    importXML,
+    saveXML,
     saveSVG: async () => ({ svg: canvas.toSVG() }),
     getDefinitions: () => {
       const s = scene();
@@ -774,7 +732,6 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     rules,
     gestures,
 
-    popup: deps.popup ?? { open: () => undefined },
     model,
     templates: deps.templates ?? { getAll: () => [], createElement: () => [] },
     simulation: deps.simulation ?? { toggle: () => undefined, isActive: () => false },

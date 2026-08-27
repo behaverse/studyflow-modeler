@@ -1,20 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import {
-  Canvas,
-  PlaneCursor,
-  isDrillable,
-  nestedPlaneOf,
-  planeOf,
-  setDocument,
-} from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
+import { isDrillable, nestedPlaneOf, PlaneCursor, planeOf } from '@canvas/view/plane.ts';
 import type { Scene, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { installDocument, loadCanvas, jsdomWindow } from './canvasHarness';
 
 /**
  * AUTHORING a sub-process — the other half of the drill-down
@@ -39,14 +29,8 @@ import { loadSchemaModels } from './schemas';
  * - deleting the sub-process takes its diagram with it.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
+const doc = installDocument();
+const win = jsdomWindow();
 
 /** A one-start-event process — the file the app itself opens on "new diagram". */
 const BLANK = `<?xml version="1.0" encoding="UTF-8"?>
@@ -72,11 +56,9 @@ interface Loaded {
 }
 
 async function load(): Promise<Loaded> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(BLANK);
-  const canvas = new Canvas();
-  const scene = canvas.importDefinitions(definitions);
-  const layer = dom.window.document.createElementNS(
+  const { canvas, definitions, moddle } = await loadCanvas(BLANK);
+  const scene = canvas.getScene()!;
+  const layer = doc.createElementNS(
     'http://www.w3.org/2000/svg',
     'g',
   ) as unknown as SVGElement;
@@ -93,7 +75,7 @@ async function toXML(loaded: Loaded): Promise<string> {
 /** Re-parse the serialized document, so every assertion is made on real XML. */
 async function reparse(loaded: Loaded): Promise<Document> {
   const xml = await toXML(loaded);
-  return new dom.window.DOMParser().parseFromString(xml, 'text/xml') as unknown as Document;
+  return new win.DOMParser().parseFromString(xml, 'text/xml') as unknown as Document;
 }
 
 function byTag(doc: Document, local: string): Element[] {

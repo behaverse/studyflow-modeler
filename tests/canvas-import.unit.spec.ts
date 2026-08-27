@@ -1,12 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
 import { importDefinitions } from '@canvas/index.ts';
 import type { Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/index.ts';
-
-import { loadSchemaModels } from './schemas';
+import { nestedPlanesOf } from '@canvas/model/expand.ts';
+import { freshModdle } from './canvasHarness';
 import { exampleXml } from './utils';
 
 /**
@@ -16,16 +13,6 @@ import { exampleXml } from './utils';
  * assert the scene mirrors the DI exactly — one node per `BPMNShape` at its
  * `dc:Bounds`, one edge per `BPMNEdge` through its `di:waypoint`, endpoints joined.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 async function sceneOfXml(xml: string): Promise<{ scene: Scene; definitions: any }> {
   const moddle = freshModdle();
@@ -309,5 +296,63 @@ test.describe('canvas import: pool / lane containment', () => {
     const pool = scene.elementsById.get('Pool_1') as SceneNode;
     expect((scene.elementsById.get('Task_Top') as SceneNode).parent).toBe(pool);
     expect((scene.elementsById.get('Task_Bottom') as SceneNode).parent).toBe(pool);
+  });
+});
+
+test.describe('a drilled-down pool', () => {
+  /**
+   * A collaboration whose participant's process carries its own `BPMNDiagram` —
+   * how bpmn-js writes a pool you have drilled into.
+   */
+  const DRILLED_POOL_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_Drill" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_1" name="Lab" processRef="Process_1" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="Task_1" name="Inside" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_Root">
+    <bpmndi:BPMNPlane id="Plane_Root" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Pool_1_di" bpmnElement="Pool_1" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="600" height="250" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="Diag_Pool">
+    <bpmndi:BPMNPlane id="Plane_Pool" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="700" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+  /**
+   * The plane a pool owns is filed under the PROCESS it points at, not under the
+   * participant, so `nestedPlanesOf` has to follow `processRef` to find it — which
+   * is what makes the pool a drill-down target (`view/plane.ts` `nestedPlaneOf`)
+   * and what makes a delete take the extra `BPMNDiagram` with it.
+   */
+  test('its nested plane is found through processRef', async () => {
+    const { scene } = await sceneOfXml(DRILLED_POOL_XML);
+    const pool = scene.elementsById.get('Pool_1') as SceneNode;
+    const planes = nestedPlanesOf(scene, pool);
+
+    expect(planes.map((plane) => plane.id)).toEqual(['Plane_Pool']);
+    expect(planes[0]).not.toBe(scene.rootPlane);
+    expect(planes[0].businessObject).toBe(pool.businessObject.processRef);
+    // …and what that plane depicts is spliced under the pool, as the tree contract says.
+    expect((scene.elementsById.get('Task_1') as SceneNode).parent).toBe(pool);
+  });
+
+  test('a plain sub-process still matches on its own business object', async () => {
+    const { scene } = await sceneOfXml(DRILLED_POOL_XML);
+    // Nothing else in the document owns a plane: a task is not a drill-down target.
+    expect(nestedPlanesOf(scene, scene.elementsById.get('Task_1') as SceneNode)).toEqual([]);
   });
 });

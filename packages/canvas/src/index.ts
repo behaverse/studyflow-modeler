@@ -1,13 +1,25 @@
 /**
- * @behaverse/studyflow-canvas — editable SVG canvas for studyflow diagrams.
+ * `@behaverse/studyflow-canvas` — the editable SVG canvas the modeler runs on.
+ * Vanilla TS + SVG DOM, no rendering dependency.
  *
- * Vanilla TS + SVG DOM; no bpmn-js / diagram-js. See the architecture design for
- * the module layout and phasing. P1 exposes the scene model, the read-only
- * renderer, the viewport/layers, and the top-level `Canvas` facade; richer surface
- * (interactions, writeback, EditorPort adapter) lands in later phases.
+ * This barrel is the SUPPORTED surface: what a host needs to mount a canvas, hand it
+ * a document, and drive it through the editor facade. It is deliberately short.
+ *
+ * Everything else is reachable, and reaching for it is fine — the package declares
+ * `"exports": { "./*": "./src/*" }`, so `@canvas/routing/crop.ts` or
+ * `@canvas/interaction/segments.ts` is a first-class import, and that is how the
+ * unit specs and the token simulator already read the internals. The distinction the
+ * barrel draws is not "public vs private" but "stable vs free to move": a name here
+ * is one this package promises to keep, a deep import is one you are reading at your
+ * own risk. Re-exporting all ~200 internals, as this file used to, made that promise
+ * about every helper in the package and meant deleting a private function was a
+ * cross-cutting edit.
  */
 
-// --- Scene model ------------------------------------------------------------
+// --- the canvas -------------------------------------------------------------
+export { Canvas, type CanvasOptions } from './Canvas.ts';
+
+// --- the document it edits --------------------------------------------------
 export type {
   Scene,
   Plane,
@@ -23,430 +35,37 @@ export type {
 } from './model/scene.ts';
 
 export { importDefinitions, type ImportOptions } from './model/import.ts';
+/** Id minting, which the host shares so app-made elements land in the same space. */
 export { IdGenerator, prefixFor } from './model/ids.ts';
-/** One definition of containment depth — paint order, hit priority and mount agree on it. */
-export { depthOf } from './model/tree.ts';
+/** Whether a type can be collapsed — the palette asks before offering the marker. */
+export { isExpandable } from './model/expand.ts';
+/** The footprint a palette drop of `type` gets, so host chrome can size a ghost. */
+export { defaultSizeFor } from './interaction/create.ts';
 
-export {
-  asList,
-  asModdle,
-  definitionsAbove,
-  listProp,
-  mint,
-  modelOf,
-  nameOf,
-  parentOf,
-  prop,
-  pullFrom,
-  pushInto,
-  refBO,
-  refBOs,
-  setProp,
-  setRef,
-  unfile,
-  type ModdleFactory,
-} from './model/moddle.ts';
+// --- the DOM it draws into --------------------------------------------------
+/**
+ * `setDocument` installs the {@link Document} the canvas mints SVG into — required
+ * before constructing a {@link Canvas} outside a browser (a jsdom harness, an
+ * export worker). `svgRemove` is here because a host that draws into a custom layer
+ * (`Canvas.attachHostLayer`) has to be able to take its own nodes down again.
+ */
+export { setDocument, ownerDocument, remove as svgRemove } from './render/svg.ts';
 
-export {
-  Writeback,
-  definitionsOf,
-  flowContainerOf,
-  containmentPropertyFor,
-  syncNodeBoundsToDi,
-  syncEdgeWaypointsToDi,
-  syncLabelBoundsToDi,
-  translateLabel,
-  dockConnectedEdges,
-  type AddShapeSpec,
-  type AddConnectionSpec,
-  type AddDataAssociationSpec,
-  type FlowContainer,
-  type ReconnectEnds,
-  type PartialBounds,
-  type ExpandedResult,
-  type ElementChangedEvent,
-  type ElementsChangedEvent,
-} from './model/writeback.ts';
-
-export {
-  applyBandName,
-  applyInitiator,
-  ensureChoreographyParticipants,
-  isChoreographyTask,
-  isChoreographyType,
-  participantRefs,
-  readChoreographyBands,
-  tasksReferencing,
-  DEFAULT_BOTTOM,
-  DEFAULT_TOP,
-  type BandWrite,
-  type ChoreographyBands,
-  type ParticipantBand,
-} from './model/choreography.ts';
-
-export {
-  applyColors,
-  normalizeColor,
-  normalizeColors,
-  readColors,
-  readColorsOf,
-  COLOR_PROPERTIES,
-  type ElementColors,
-} from './model/color.ts';
-
-export {
-  activityOf,
-  dataAssociationEnds,
-  directionOf,
-  isDataAssociationType,
-  pruneDataAssociation,
-  typeForDirection,
-  wireDataAssociation,
-  DATA_INPUT_ASSOCIATION,
-  DATA_OUTPUT_ASSOCIATION,
-  type DataAssociationDirection,
-  type DataAssociationEnds,
-} from './model/dataAssociation.ts';
-
-export {
-  applyExpanded,
-  applyMarkerVisible,
-  contentsOf,
-  expandedFootprintOf,
-  isCollapsed,
-  isExpandable,
-  isExpanded,
-  isHiddenByCollapse,
-  nestedPlanesOf,
-  rememberExpandedFootprint,
-  COLLAPSED_SUBPROCESS_SIZE,
-  EXPANDABLE_TYPES,
-  type ExpandPlan,
-  type SetExpandedOptions,
-} from './model/expand.ts';
-
-export {
-  deleteElements,
-  collectRemoval,
-  type DeleteResult,
-  type ElementsRemovedEvent,
-} from './model/remove.ts';
-
-// --- Rendering --------------------------------------------------------------
-export {
-  create as svgCreate,
-  attr as svgAttr,
-  append as svgAppend,
-  group as svgGroup,
-  transform as svgTransform,
-  clear as svgClear,
-  setDocument,
-  ownerDocument,
-  SVG_NS,
-} from './render/svg.ts';
-
-export {
-  ensureOutline,
-  outlineSpecFor,
-  OUTLINE_CLASS,
-  OUTLINE_OFFSET,
-  OUTLINE_RADIUS,
-  type OutlineSpec,
-} from './render/outline.ts';
-
-export {
-  drawEvent,
-  eventRadius,
-  drawTask,
-  drawDiamond,
-  drawDataObject,
-  drawDataStore,
-  drawGroup,
-  drawTextAnnotation,
-  drawParticipant,
-  bandPath,
-  choreographyBandHeight,
-  CORNER_RADIUS,
-  type ShapeStyle,
-  type EventKind,
-} from './render/shapes.ts';
-
-export {
-  drawIcon,
-  drawCssIcon,
-  drawInlineSvgIcon,
-  drawSvgPaths,
-  drawIconText,
-  SVG_ICON_PATHS,
-  MARKER_ICONS,
-  type CssIconDef,
-  type IconDef,
-  type IconResolver,
-  type InlineSvgIconDef,
-  type SvgIconDef,
-} from './render/icons.ts';
-
-export {
-  fit,
-  wrap,
-  drawInternalLabel,
-  drawExternalLabel,
-  drawEdgeLabel,
-  edgeLabelBounds,
-  edgeLabelTextBounds,
-  externalLabelBounds,
-  externalLabelTextBounds,
-  labelIdOf,
-  measureLabelWidth,
-  flowLabelPosition,
-  waypointsMid,
-  FLOW_LABEL_INDENT,
-  EDGE_LABEL_FONT_SIZE,
-  EXTERNAL_LABEL_CLASS,
-  EXTERNAL_LABEL_FONT_SIZE,
-  LABEL_CLASS,
-  LABEL_FONT,
-  LABEL_LINE_HEIGHT,
-} from './render/labels.ts';
-
-export {
-  ExternalLabels,
-  hasExternalLabel,
-  isLabelElement,
-  labelBoundsOf,
-  labelOwnerOf,
-} from './model/externalLabel.ts';
-
-export {
-  Renderer,
-  categoryOf,
-  edgeDashArray,
-  ensureArrowMarkers,
-  markerEndFor,
-  markerIdFor,
-  roundedPathData,
-  EDGE_CORNER_RADIUS,
-  type NodeCategory,
-  type RendererOptions,
-} from './render/renderer.ts';
-
-// --- Viewport ---------------------------------------------------------------
-export { Viewport, sceneBounds, type Viewbox } from './view/viewport.ts';
-export { Layers, LAYER_ORDER, type LayerName } from './view/layers.ts';
-export {
-  PlaneCursor,
-  isDrillable,
-  nestedPlaneOf,
-  nodeName,
-  planeName,
-  planeOf,
-  planeOwner,
-  planePathOf,
-  DRILLDOWN_BADGE_OFFSET,
-  DRILLDOWN_BADGE_RADIUS,
-  DRILLDOWN_BADGE_SIZE,
-  type PlaneCursorOptions,
-} from './view/plane.ts';
+/** The chrome stylesheet, for a host that would rather ship it through its own CSS. */
 export { injectCanvasStyles, CANVAS_CSS, CANVAS_STYLE_ID } from './view/theme.ts';
 
-// --- Events -----------------------------------------------------------------
-export { EventBus, type EventListener } from './events/bus.ts';
+/** Glyphs are resolved by the host: {@link CanvasOptions.iconResolver} returns these. */
+export type { IconDef, IconResolver } from './render/icons.ts';
 
-// --- Interaction ------------------------------------------------------------
-export {
-  hitTest,
-  hitTestDom,
-  orderedNodes,
-  orderedEdges,
-  pointInNode,
-  isContainerNode,
-  nodesIntersecting,
-  distanceToPolyline,
-  normalizeRect,
-  type HitOptions,
-} from './interaction/hit.ts';
-
-export {
-  Selection,
-  resizeHandleRect,
-  RESIZE_HANDLES,
-  type ResizeHandle,
-  type SelectionOptions,
-  type SelectionChangedEvent,
-  type HandleHit,
-  type SegmentHit,
-  type WaypointHit,
-} from './interaction/selection.ts';
-
-export {
-  collectSnapTargets,
-  snapMove,
-  snapPoint,
-  snapValue,
-  SNAP_TOLERANCE,
-  type SnapKind,
-  type SnapResult,
-  type SnapTargets,
-} from './interaction/snapping.ts';
-
-export {
-  Drag,
-  dockingPoint,
-  snapTo,
-  withDescendants,
-  DEFAULT_GRID_SIZE,
-  DEFAULT_MIN_SIZE,
-  type DragKind,
-  type DragOptions,
-  type GridAxes,
-  type MinSize,
-} from './interaction/drag.ts';
-
-export {
-  LabelEditing,
-  choreographyBandAt,
-  editorBounds,
-  labelBounds,
-  labelPlacement,
-  type LabelPlacement,
-  type ActivateOptions,
-  type DirectEditingEvent,
-  type ElementDblClickEvent,
-  type LabelBand,
-  type LabelEditingOptions,
-  type LabelEditingSession,
-} from './interaction/labelEditing.ts';
-
-export {
-  Create,
-  createShape,
-  boundsFor,
-  defaultSizeFor,
-  DEFAULT_SIZES,
-  EXPANDED_SUBPROCESS_SIZE,
-  type CreateOptions,
-  type CreatePrototype,
-  type DropTarget,
-  type ShapeDescriptor,
-} from './interaction/create.ts';
-
-export {
-  Connect,
-  type ConnectionEnd,
-  type ConnectOptions,
-} from './interaction/connect.ts';
-
-export {
-  segmentsOf,
-  segmentAt,
-  isGrippable,
-  insideGrip,
-  moveSegment,
-  moveBendpoint,
-  redockEnd,
-  freeMoveEnd,
-  distanceToSegment,
-  MIN_GRIP_SEGMENT_LENGTH,
-  SEGMENT_ALIGN_TOLERANCE,
-  SEGMENT_BODY_TOLERANCE,
-  SEGMENT_GRIP_LENGTH,
-  SEGMENT_GRIP_WIDTH,
-  type Segment,
-  type SegmentAxis,
-  type SegmentShapes,
-} from './interaction/segments.ts';
-
-export {
-  ANNOTATION_APPEND_DISTANCE,
-  APPEND_DISTANCE,
-  appendElement,
-  appendPosition,
-  type AppendResult,
-  type AutoPlaceHost,
-} from './interaction/autoplace.ts';
-
-// --- Rules ------------------------------------------------------------------
-export {
-  Rules,
-  defaultRules,
-  canContain,
-  structuralConnection,
-  defaultConnectionType,
-  bpmnTypeOf,
-  typeRefOf,
-  participantOf,
-  containerOf,
-  containerFor,
-  isDataShape,
-  isResizable,
-  minSizeFor,
-  CONNECTION,
-  MIN_SIZES,
-  FALLBACK_MIN_SIZE,
-  type ConnectionSpec,
-  type RuleContext,
-  type RuleElement,
-  type RuleVerdict,
-  type RulesOptions,
-  type Size,
-} from './rules/rules.ts';
-
-// --- Routing ----------------------------------------------------------------
-export {
-  route,
-  routeCenters,
-  routeEdge,
-  routeFor,
-  straightRoute,
-  isStraightRouted,
-  rerouteEdge,
-  rerouteEdges,
-  edgesAffectedBy,
-  isOrthogonal,
-  orthogonalize,
-  DEFAULT_CLEARANCE,
-  DEFAULT_STRAIGHT_TOLERANCE,
-  ORTHOGONAL_TOLERANCE,
-  type RouteOptions,
-  type RoutableShape,
-} from './routing/orthogonal.ts';
-
-export {
-  cropWaypoints,
-  cropPoint,
-  outlinePoint,
-  outlineFor,
-  containsPoint,
-  centerOf,
-  type CroppableShape,
-  type Outline,
-} from './routing/crop.ts';
-
-// --- Facade -----------------------------------------------------------------
-export { Canvas, type CanvasOptions } from './Canvas.ts';
-
-// --- EditorPort adapter (design §3 `port/adapter.ts`, §4) --------------------
+// --- the editor facade ------------------------------------------------------
+/**
+ * The adapter the app assigns to its own `EditorPort`. That assignment is the
+ * conformance check between the two halves — see `port/adapter.ts`.
+ */
 export {
   createCanvasEditorPort,
   type CanvasEditorPort,
   type CanvasPortDeps,
   type CanvasPortHistory,
-  type PortElement,
-  type PortElements,
-  type PortEventListener,
-  type PortEvents,
-  type PortGestures,
-  type PortModdle,
-  type PortModel,
-  type PortModelElement,
-  type PortMutations,
-  type PortPopup,
-  type PortRect,
   type PortRoot,
-  type PortRules,
-  type PortSelection,
-  type PortSimulation,
-  type PortTemplates,
-  type PortView,
-  type PortViewbox,
 } from './port/adapter.ts';

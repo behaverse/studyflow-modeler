@@ -1,12 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, LAYER_ORDER, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
+import { LAYER_ORDER } from '@canvas/view/layers.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * The background dot grid (P6b §3C) — the canvas's answer to `diagram-js-grid`.
@@ -16,15 +13,6 @@ import { loadSchemaModels } from './schemas';
  * pan and zoom), it sits BEHIND everything the diagram draws, and it is chrome —
  * an import must not clear it and an export must not carry it.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
 
 const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -49,13 +37,9 @@ async function load(): Promise<Canvas> {
 }
 
 async function loadWithDefinitions(): Promise<{ canvas: Canvas; definitions: any }> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(PROCESS_XML);
   // No options: every default is the shipped one, which is the point of the
   // grid-snapping block below.
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions };
+  return loadCanvas(PROCESS_XML);
 }
 
 /** The `<rect>` the grid pattern is painted into, if it is currently painted. */
@@ -119,7 +103,7 @@ test.describe('background grid', () => {
     const canvas = await load();
     canvas.setGridVisible(true);
 
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const { rootElement } = await moddle.fromXML(PROCESS_XML);
     canvas.importDefinitions(rootElement);
 
@@ -161,17 +145,6 @@ test.describe('grid snapping', () => {
     throw new Error(`no BPMNShape for ${id}`);
   }
 
-  function firePointer(canvas: Canvas, target: EventTarget, type: string, at: { x: number; y: number }): void {
-    const screen = canvas.getViewport().toScreen(at);
-    target.dispatchEvent(new dom.window.MouseEvent(type, {
-      bubbles: true,
-      cancelable: true,
-      clientX: screen.x,
-      clientY: screen.y,
-      button: 0,
-    }));
-  }
-
   test('a dropped shape lands on multiples of 10 with no options passed — DI included', async () => {
     const { canvas, definitions } = await loadWithDefinitions();
     expect(canvas.isSnapToGrid(), 'grid snapping ships on').toBe(true);
@@ -179,11 +152,9 @@ test.describe('grid snapping', () => {
     const task = canvas.getScene()!.elementsById.get('Task_1') as any;
     const from = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
     const to = { x: from.x + 23, y: from.y - 16 };
-    const svg = canvas.getSvg();
-    const doc = svg.ownerDocument!;
-    firePointer(canvas, svg, 'pointerdown', from);
-    firePointer(canvas, doc, 'pointermove', to);
-    firePointer(canvas, doc, 'pointerup', to);
+    pointerDown(canvas, from);
+    pointerMove(canvas, to);
+    pointerUp(canvas, to);
 
     // 200 + 23 → 220, 80 - 16 → 60. The raw pointer would have said 223 / 64.
     const landed = boundsOf(definitions, 'Task_1');

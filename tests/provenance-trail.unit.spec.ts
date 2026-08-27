@@ -84,11 +84,10 @@ test.describe('provenance trail', () => {
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('drawn_loop.studyflow.png')));
     // A partial mock: stamping reads the document and `moddle`, and decides off the
-    // revision counter — which every backend serves from `editor/history.ts`, one
-    // bump per applied mutation. `edit()` is that bump.
+    // revision counter `editor/history.ts` serves, one bump per applied mutation.
+    // `edit()` is that bump.
     let revision = 0;
     const modeler: PortHandle = {
-      backend: 'canvas',
       editor: {
         getDefinitions: () => definitions,
         revision: () => revision,

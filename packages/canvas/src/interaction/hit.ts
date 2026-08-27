@@ -42,30 +42,73 @@ export interface HitOptions {
 const DEFAULT_TOLERANCE = 5;
 
 /**
- * Every node of `scene` in draw order (bottom → top): ancestors first, so a child
- * container's contents sit after (above) it. Mirrors `renderScene`'s stable depth
- * sort, so the *last* node containing a point is the topmost one.
+ * The draw-order index of one scene: every node depth-sorted, every edge in
+ * document order. Rebuilt only when the document moves.
+ *
+ * A pointer frame asks for this several times over (a container pass, an edge pass,
+ * a label pass, and again from {@link nodesIntersecting} while a marquee is live),
+ * and a drag asks once per `pointermove`. Rebuilding it meant a full scan of
+ * `elementsById` plus an `O(n log n)` sort with a {@link depthOf} walk per
+ * comparison, every frame, for an ordering that changes only when an element is
+ * added, removed or reparented — and every one of those goes through
+ * `Writeback.finish`, which bumps `Scene.revision`. So the revision is the key.
+ *
+ * What is deliberately NOT in here:
+ *
+ * - **Geometry.** A node's `x`/`y` moves continuously mid-drag and never affects
+ *   the ordering, so a live gesture reuses the cached index — the case this exists
+ *   for in the first place.
+ * - **Visibility.** `isHiddenByCollapse` is applied at QUERY time, by
+ *   {@link orderedNodes} / {@link orderedEdges}, because it is not revision-stable:
+ *   drilling into a sub-process sets `SceneNode.isExpanded` on the containers along
+ *   the way as pure VIEW state (`view/plane.ts`), writing nothing and bumping
+ *   nothing. Caching it made a drill-down's children permanently unclickable.
+ *
+ * An import mints a whole new {@link Scene}, and the `WeakMap` lets the old one's
+ * index go with it.
  */
-export function orderedNodes(scene: Scene): SceneNode[] {
+interface DrawOrder {
+  revision: number;
+  nodes: SceneNode[];
+  edges: SceneEdge[];
+}
+
+const drawOrders = new WeakMap<Scene, DrawOrder>();
+
+function drawOrderOf(scene: Scene): DrawOrder {
+  const cached = drawOrders.get(scene);
+  if (cached && cached.revision === scene.revision) return cached;
+
   const nodes: SceneNode[] = [];
+  const edges: SceneEdge[] = [];
   for (const element of scene.elementsById.values()) {
-    // What a collapsed container hides is not drawn, so it cannot be clicked either
-    // (`model/expand.ts`) — the collapsed container itself takes the hit.
-    if (isNode(element) && !isHiddenByCollapse(element)) nodes.push(element);
+    if (isNode(element)) nodes.push(element);
+    else if (isEdge(element)) edges.push(element);
   }
   // Stable sort by containment depth (ancestors first). Array.prototype.sort is
   // stable in modern engines, preserving document (insertion) order within a depth.
   nodes.sort((a, b) => depthOf(a) - depthOf(b));
-  return nodes;
+
+  const order: DrawOrder = { revision: scene.revision, nodes, edges };
+  drawOrders.set(scene, order);
+  return order;
 }
 
-/** Every edge of `scene`, in document order (what a collapse hides is left out). */
+/**
+ * Every VISIBLE node of `scene` in draw order (bottom → top): ancestors first, so a
+ * child container's contents sit after (above) it. Mirrors `renderScene`'s stable
+ * depth sort, so the *last* node containing a point is the topmost one.
+ *
+ * What a collapsed container hides is not drawn, so it cannot be clicked either
+ * (`model/expand.ts`) — the collapsed container itself takes the hit.
+ */
+export function orderedNodes(scene: Scene): SceneNode[] {
+  return drawOrderOf(scene).nodes.filter((node) => !isHiddenByCollapse(node));
+}
+
+/** Every visible edge of `scene`, in document order. See {@link orderedNodes}. */
 export function orderedEdges(scene: Scene): SceneEdge[] {
-  const edges: SceneEdge[] = [];
-  for (const element of scene.elementsById.values()) {
-    if (isEdge(element) && !isHiddenByCollapse(element)) edges.push(element);
-  }
-  return edges;
+  return drawOrderOf(scene).edges.filter((edge) => !isHiddenByCollapse(edge));
 }
 
 /**
@@ -102,6 +145,10 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
  * point of it), and clicking the text a user can see must select the connection it
  * names — the same affordance diagram-js gets from registering the label as its own
  * element. The box is {@link edgeLabelBounds}, shared with the drawer.
+ *
+ * One pass over the edges answers both questions: the line always outranks a label,
+ * so the first label hit is remembered but only returned when no line came within
+ * `tolerance`.
  */
 function nearestEdge(
   scene: Scene,
@@ -109,21 +156,20 @@ function nearestEdge(
   tolerance: number,
   accept?: (element: SceneElement) => boolean,
 ): SceneEdge | undefined {
-  const edges = accept ? orderedEdges(scene).filter(accept) : orderedEdges(scene);
   let best: SceneEdge | undefined;
   let bestDist = tolerance;
-  for (const edge of edges) {
+  let labelled: SceneEdge | undefined;
+  for (const edge of orderedEdges(scene)) {
+    if (accept && !accept(edge)) continue;
     const d = distanceToPolyline(point, edge.waypoints);
     if (d <= bestDist) {
       bestDist = d;
       best = edge;
+    } else if (!best && !labelled && pointInEdgeLabel(point, edge)) {
+      labelled = edge;
     }
   }
-  if (best) return best;
-  for (const edge of edges) {
-    if (pointInEdgeLabel(point, edge)) return edge;
-  }
-  return undefined;
+  return best ?? labelled;
 }
 
 /** Whether `point` falls in the box an edge's name is painted into. */
@@ -161,34 +207,6 @@ const FRAME_TYPES = new Set([
   'bpmn:Lane',
   'bpmn:Group',
 ]);
-
-/**
- * SVG `elementFromPoint` fast path for real browsers (design §3). Resolves the
- * element id off the nearest ancestor carrying `data-element-id`, then looks it up
- * in the scene. Returns `undefined` under jsdom (no `elementFromPoint`) so callers
- * fall back to {@link hitTest}.
- */
-export function hitTestDom(
-  scene: Scene,
-  doc: Document,
-  clientX: number,
-  clientY: number,
-): SceneElement | undefined {
-  const from = (doc as Document & {
-    elementFromPoint?: (x: number, y: number) => Element | null;
-  }).elementFromPoint;
-  if (typeof from !== 'function') return undefined;
-  let el: Element | null = from.call(doc, clientX, clientY);
-  while (el) {
-    const id = el.getAttribute?.('data-element-id');
-    if (id) {
-      const found = scene.elementsById.get(id);
-      if (found && (isNode(found) || isEdge(found))) return found;
-    }
-    el = el.parentElement;
-  }
-  return undefined;
-}
 
 /** Whether `point` lies inside `node`'s (padded) axis-aligned bounds. */
 export function pointInNode(point: Point, node: SceneNode, padding = 0): boolean {

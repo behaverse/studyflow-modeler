@@ -1,11 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
 import { readChoreographyBands as coreReadBands } from '@core/document/choreography';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import {
   DEFAULT_BOTTOM,
   DEFAULT_TOP,
@@ -15,8 +11,9 @@ import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+
+import { freshModdle, installDocument, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
  * P5 choreography band writeback (design §1, §2 "ChoreographyTask — two participant
@@ -38,18 +35,7 @@ import { exampleXml } from './utils';
  * leave the serialized `dc:Bounds` byte-identical — asserted throughout.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+installDocument();
 
 const EXAMPLE = 'choreography_demo.studyflow.png';
 
@@ -80,22 +66,8 @@ const BARE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
-async function load(xml: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
-}
-
 function loadExample(): Promise<Loaded> {
-  return load(exampleXml(EXAMPLE));
+  return loadCanvas(exampleXml(EXAMPLE));
 }
 
 // --- live-tree readers (never the scene) -------------------------------------
@@ -266,7 +238,7 @@ test('a band edit is refused on anything that is not a choreography task', async
 // --- minting the pair --------------------------------------------------------
 
 test('a band edit on a task with no participants mints the pair and a collaboration', async () => {
-  const loaded = await load(BARE_XML);
+  const loaded = await loadCanvas(BARE_XML);
   const { canvas } = loaded;
   const task = node(canvas, 'Chore_1');
   expect(bo(task).get('participantRef')).toHaveLength(0);
@@ -302,7 +274,7 @@ test('a band edit on a task with no participants mints the pair and a collaborat
 });
 
 test('minting the pair counts as an edit even when the typed text matches the placeholder', async () => {
-  const loaded = await load(BARE_XML);
+  const loaded = await loadCanvas(BARE_XML);
   const { canvas } = loaded;
   const task = node(canvas, 'Chore_1');
 
@@ -316,7 +288,7 @@ test('minting the pair counts as an edit even when the typed text matches the pl
 });
 
 test('a second task mints its own pair; the two do not share participants', async () => {
-  const loaded = await load(BARE_XML);
+  const loaded = await loadCanvas(BARE_XML);
   const { canvas } = loaded;
   canvas.setBandName(node(canvas, 'Chore_1'), 'top', 'A');
   canvas.setBandName(node(canvas, 'Chore_2'), 'top', 'B');
@@ -521,7 +493,7 @@ test('band geometry is derived from the single dc:Bounds and stays consistent', 
 });
 
 test('a resized choreography task keeps all three bands drawable', async () => {
-  const loaded = await load(BARE_XML);
+  const loaded = await loadCanvas(BARE_XML);
   const { canvas } = loaded;
   const task = node(canvas, 'Chore_1');
   const minimum = canvas.getRules().canResize(task, { width: 100, height: 80 });

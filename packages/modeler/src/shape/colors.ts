@@ -1,16 +1,12 @@
 /**
  * The studyflow element palette — six colours, one definition.
  *
- * These started life inline in `contextPad/ColorPickerProvider.ts` (the bpmn-js
- * `color-picker` popup provider). P6b §3B gives the canvas backend its own React
- * swatch popover, and the two must not drift, so the list moved here and both
- * render from it. The provider keeps its DI shape and its `injector` dispatch;
- * only the literal array left.
+ * The `color-picker` popup's swatch grid and the inspector's colour fields render
+ * from this one list, so the two cannot drift.
  *
  * `model/color.ts::normalizeColor` in the canvas accepts `#rgb`, `#rrggbb` and
  * `rgb(r,g,b)` and THROWS on anything else — never introduce a CSS colour name
- * here. `undefined` is the "clear it" value on both backends
- * (`SetColorHandler` and `applyColors` both read falsy as "remove").
+ * here. `undefined` is the "clear it" value (`applyColors` reads falsy as "remove").
  */
 
 export type ElementColor = {

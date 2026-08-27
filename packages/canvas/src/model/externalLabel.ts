@@ -26,15 +26,11 @@ import {
   labelIdOf,
 } from '@canvas/render/labels.ts';
 import { categoryOf } from '@canvas/render/renderer.ts';
+import { boxContains } from '@canvas/routing/crop.ts';
 
 /** Whether `element` is the synthetic element of an external label. */
 export function isLabelElement(element: SceneElement | undefined): boolean {
   return !!element?.labelTarget;
-}
-
-/** The element a label names — itself, for anything that is not a label. */
-export function labelOwnerOf(element: SceneElement): SceneElement {
-  return element.labelTarget ?? element;
 }
 
 /** Whether a node's name is drawn BESIDE it (events, gateways, data shapes). */
@@ -124,7 +120,7 @@ export class ExternalLabels {
       // What a collapsed container hides draws no caption either.
       if (isHiddenByCollapse(element)) continue;
       const bounds = labelBoundsOf(element);
-      if (!bounds || !contains(bounds, point)) continue;
+      if (!bounds || !boxContains(bounds, point)) continue;
       found = this.of(element);
     }
     return found;
@@ -139,9 +135,4 @@ export class ExternalLabels {
   clear(): void {
     this.cache.clear();
   }
-}
-
-function contains(bounds: Bounds, point: Point): boolean {
-  return point.x >= bounds.x && point.x <= bounds.x + bounds.width
-    && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
 }

@@ -1,14 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
 import {
   DEFAULT_BOTTOM as CORE_DEFAULT_BOTTOM,
   DEFAULT_TOP as CORE_DEFAULT_TOP,
 } from '@core/document';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import { choreographyBandAt, editorBounds, labelBounds } from '@canvas/interaction/labelEditing.ts';
 import { CANVAS_CSS } from '@canvas/view/theme.ts';
 import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@canvas/model/choreography.ts';
@@ -18,7 +14,7 @@ import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas, jsdomWindow, type Loaded } from './canvasHarness';
 import { exampleXml } from './utils';
 
 /**
@@ -36,25 +32,7 @@ import { exampleXml } from './utils';
  * what a user's keystrokes end up producing.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  /** The moddle instance the tree was parsed with — reused to serialize it back. */
-  moddle: any;
-}
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const win = jsdomWindow();
 
 /** Start event (named, so it has an external label) → task → exclusive gateway. */
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -138,11 +116,7 @@ const BARE_CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(xml: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 /** Serialize the SAME tree back to XML and re-parse it — the edit→save→reload path. */
@@ -182,7 +156,7 @@ interface Pt { x: number; y: number; }
 
 function fireMouse(canvas: Canvas, target: EventTarget, type: string, diagram: Pt): void {
   const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
+  target.dispatchEvent(new win.MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: screen.x,
@@ -199,7 +173,7 @@ function dblclick(canvas: Canvas, at: Pt): void {
 function key(canvas: Canvas, name: string, init: KeyboardEventInit = {}): void {
   const input = canvas.getLabelEditing().getInput();
   if (!input) throw new Error('no inline editor is open');
-  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+  input.dispatchEvent(new win.KeyboardEvent('keydown', {
     key: name,
     bubbles: true,
     cancelable: true,
@@ -213,7 +187,7 @@ function key(canvas: Canvas, name: string, init: KeyboardEventInit = {}): void {
  * key pressed over the diagram actually looks like.
  */
 function pressKey(canvas: Canvas, name: string, init: KeyboardEventInit = {}): void {
-  canvas.getContainer().dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+  canvas.getContainer().dispatchEvent(new win.KeyboardEvent('keydown', {
     key: name,
     bubbles: true,
     cancelable: true,
@@ -226,7 +200,7 @@ function type(canvas: Canvas, text: string): void {
   const input = canvas.getLabelEditing().getInput();
   if (!input) throw new Error('no inline editor is open');
   input.value = text;
-  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  input.dispatchEvent(new win.Event('input', { bubbles: true }));
 }
 
 /** A scene element's business object, as the untyped moddle bag it really is. */
@@ -403,7 +377,7 @@ test('blur commits the editor', async () => {
   const task = node(canvas, 'Task_1');
   dblclick(canvas, center(task));
   type(canvas, 'Blurred');
-  canvas.getLabelEditing().getInput()!.dispatchEvent(new dom.window.Event('blur'));
+  canvas.getLabelEditing().getInput()!.dispatchEvent(new win.Event('blur'));
 
   expect(bo(task).get('name')).toBe('Blurred');
   expect(overlay(canvas)).toBeNull();
@@ -756,12 +730,12 @@ test('an internal editor centres its text on the label, and re-centres as lines 
   expect(parseFloat(input.style.paddingTop)).toBeCloseTo((80 - 12 * 1.2) / 2, 6);
 
   input.value = 'Two\nlines';
-  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  input.dispatchEvent(new win.Event('input', { bubbles: true }));
   expect(parseFloat(input.style.paddingTop)).toBeCloseTo((80 - 2 * 12 * 1.2) / 2, 6);
 
   // It never goes under the 7px the spec measured, however many lines there are.
   input.value = 'a\nb\nc\nd\ne\nf\ng\nh';
-  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  input.dispatchEvent(new win.Event('input', { bubbles: true }));
   expect(parseFloat(input.style.paddingTop)).toBe(7);
 });
 

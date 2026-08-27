@@ -1,10 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, createCanvasEditorPort, setDocument } from '@canvas/index.ts';
+import { Canvas, createCanvasEditorPort } from '@canvas/index.ts';
 import type {
   CanvasEditorPort,
   CanvasPortHistory,
@@ -15,7 +11,7 @@ import type { SceneNode } from '@canvas/model/scene.ts';
 // so the "one interface, two adapters" claim is checked here, in the test project.
 import type { EditorPort } from '@modeler/editor/port';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, pointerMove, pointerUp, jsdomWindow } from './canvasHarness';
 
 /**
  * P6a — the canvas `EditorPort` adapter (design §3 `port/adapter.ts`, §4 mapping).
@@ -30,18 +26,7 @@ import { loadSchemaModels } from './schemas';
  * jsdom via `setDocument`, same setup as the other `canvas-*` specs.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const win = jsdomWindow();
 
 /** The `EditorModel` slice the app injects — always bpmn-moddle, on both backends. */
 function editorModel(moddle: any): PortModel {
@@ -68,9 +53,8 @@ function recordingHistory(): CanvasPortHistory & { log: string[]; bumps: number 
     redo: () => state.log.push('redo'),
     canUndo: () => state.bumps > 0,
     canRedo: () => false,
-    beginMutation: (label: string) => state.log.push(`begin:${label}`),
-    endMutation: (label: string) => {
-      state.log.push(`end:${label}`);
+    record: () => {
+      state.log.push('record');
       state.bumps += 1;
     },
     reset: () => {
@@ -128,18 +112,6 @@ async function mount(xml = PROCESS_XML): Promise<Mounted> {
   return { canvas, port, moddle, history };
 }
 
-interface Pt { x: number; y: number; }
-
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Pt): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: screen.x,
-    clientY: screen.y,
-    button: 0,
-  }));
-}
 
 // --- the facade contract -----------------------------------------------------
 
@@ -151,7 +123,7 @@ test('the canvas adapter is structurally an EditorPort', () => {
   for (const method of ['revision', 'undo', 'redo', 'canUndo', 'canRedo', 'importXML', 'saveXML', 'saveSVG', 'getDefinitions'] as const) {
     expect(typeof port[method]).toBe('function');
   }
-  for (const slice of ['elements', 'view', 'mutate', 'selection', 'events', 'rules', 'gestures', 'popup', 'model', 'templates', 'simulation'] as const) {
+  for (const slice of ['elements', 'view', 'mutate', 'selection', 'events', 'rules', 'gestures', 'model', 'templates', 'simulation'] as const) {
     expect(port[slice]).toBeTruthy();
   }
 });
@@ -268,10 +240,14 @@ test('mutate.updateProperties writes the business object and saveXML emits it', 
   expect(port.revision()).toBe(0);
   port.mutate.updateProperties(port.elements.get('Task_1'), { name: 'Renamed' });
 
-  // One logical undo step: bracketed for the app's snapshot layer, then announced.
-  expect(history.log).toEqual(['reset', 'begin:updateProperties', 'end:updateProperties']);
+  // One logical undo step, closed on the app's snapshot layer.
+  expect(history.log).toEqual(['reset', 'record']);
   expect(port.revision()).toBe(1);
-  expect(commands.length).toBe(1);
+  // …and NOT announced by the adapter: a port with an injected history hands that
+  // topic over, because the history hears every mutation source and the adapter
+  // hears only `mutate.*`. Firing both would double-count every write. A port
+  // WITHOUT a history does fire it — asserted at the bottom of this file.
+  expect(commands.length).toBe(0);
   expect(changed).toContain('Task_1');
 
   const { xml } = await port.saveXML({ format: true });
@@ -381,19 +357,18 @@ test('rules.allowed coerces the canvas verdict to a boolean', async () => {
 
 // --- gestures ----------------------------------------------------------------
 
-test('gestures.startCreate mints a node on drop; primeHover is retired', async () => {
+test('gestures.startCreate mints a node on drop', async () => {
   const { canvas, port } = await mount();
-  const doc = dom.window.document;
   const before = canvas.getScene()!.elementsById.size;
 
   const prototype = port.gestures.createShape({ type: 'bpmn:Task', attrs: { name: 'Dropped' } });
   const start = canvas.getViewport().toScreen({ x: 500, y: 400 });
   port.gestures.startCreate(
-    new dom.window.MouseEvent('mousedown', { clientX: start.x, clientY: start.y, button: 0 }),
+    new win.MouseEvent('mousedown', { clientX: start.x, clientY: start.y, button: 0 }),
     prototype,
   );
-  firePointer(canvas, doc, 'pointermove', { x: 520, y: 400 });
-  firePointer(canvas, doc, 'pointerup', { x: 520, y: 400 });
+  pointerMove(canvas, { x: 520, y: 400 });
+  pointerUp(canvas, { x: 520, y: 400 });
 
   expect(canvas.getScene()!.elementsById.size).toBe(before + 1);
   const dropped = port.elements.filter((e: any) => e.businessObject?.name === 'Dropped');
@@ -404,9 +379,6 @@ test('gestures.startCreate mints a node on drop; primeHover is retired', async (
   expect({ x: node.x, y: node.y }).toEqual({ x: 470, y: 360 });
   // …and selected, the way a palette drop leaves it.
   expect(port.selection.get().map((e: any) => e.id)).toEqual([node.id]);
-
-  // Design §4 (3): a diagram-js `dragging` workaround with no native counterpart.
-  expect(port.gestures.primeHover(undefined as any)).toBeUndefined();
 
   // The palette's lasso button ARMS the tool — dragging empty canvas pans, so this
   // is the only way to lasso (parity spec §8). It leaves the selection alone.
@@ -419,11 +391,10 @@ test('gestures.startCreate mints a node on drop; primeHover is retired', async (
 
 test('gestures.startConnect drags a flow out of a node', async () => {
   const { canvas, port } = await mount();
-  const doc = dom.window.document;
 
   expect(port.gestures.startConnect(port.elements.get('Task_1'))).toBe(true);
-  firePointer(canvas, doc, 'pointermove', { x: 418, y: 118 });
-  firePointer(canvas, doc, 'pointerup', { x: 418, y: 118 });
+  pointerMove(canvas, { x: 418, y: 118 });
+  pointerUp(canvas, { x: 418, y: 118 });
 
   const selected = port.selection.get();
   expect(selected.length).toBe(1);
@@ -434,22 +405,24 @@ test('gestures.startConnect drags a flow out of a node', async () => {
 
 // --- events ------------------------------------------------------------------
 
-test('events.on / off / fire round-trip, priority included', async () => {
+test('events.on / off / fire round-trip, in subscription order', async () => {
   const { port } = await mount();
   const order: string[] = [];
 
-  const low = () => order.push('low');
-  const high = () => order.push('high');
-  port.events.on('tokenSimulation.toggle', low);
-  port.events.on('tokenSimulation.toggle', 2000, high);
+  const first = () => order.push('first');
+  const second = () => order.push('second');
+  port.events.on('tokenSimulation.toggle', first);
+  port.events.on('tokenSimulation.toggle', second);
 
+  // No priorities: listeners run in the order they subscribed, and nothing in the
+  // canvas or the app has ever needed to jump that queue.
   port.events.fire('tokenSimulation.toggle');
-  expect(order).toEqual(['high', 'low']);
+  expect(order).toEqual(['first', 'second']);
 
-  port.events.off('tokenSimulation.toggle', high);
+  port.events.off('tokenSimulation.toggle', second);
   order.length = 0;
   port.events.fire('tokenSimulation.toggle', { active: true });
-  expect(order).toEqual(['low']);
+  expect(order).toEqual(['first']);
 });
 
 // --- SVG export --------------------------------------------------------------
@@ -475,16 +448,14 @@ test('the app-level half is forwarded, and inert when not injected', async () =>
   port.redo();
   expect(history.log.slice(-2)).toEqual(['undo', 'redo']);
 
-  // Popup / templates / simulation are app services the adapter merely holds.
-  const opened: string[] = [];
+  // Templates / simulation are app services the adapter merely holds. Popup menus
+  // are NOT among them any more: app chrome only ever opened them THROUGH the facade
+  // because bpmn-js resolved `providerId` in diagram-js's own provider registry.
   const bare = createCanvasEditorPort(new Canvas(), {
     model: editorModel(freshModdle()),
-    popup: { open: (providerId) => opened.push(providerId) },
     templates: { getAll: () => [{ id: 'tpl' }], createElement: () => ({ type: 'bpmn:Task' }) },
     simulation: { toggle: () => undefined, isActive: () => true },
   });
-  bare.popup.open('bpmn-append', { x: 0, y: 0, cursor: { x: 0, y: 0 } });
-  expect(opened).toEqual(['bpmn-append']);
   expect(bare.templates.getAll().length).toBe(1);
   expect(bare.simulation.isActive()).toBe(true);
 
@@ -494,7 +465,26 @@ test('the app-level half is forwarded, and inert when not injected', async () =>
   expect(inert.canUndo()).toBe(false);
   expect(inert.canRedo()).toBe(false);
   expect(() => inert.undo()).not.toThrow();
-  expect(inert.popup.open('x', { x: 0, y: 0, cursor: { x: 0, y: 0 } })).toBeUndefined();
   expect(inert.templates.getAll()).toEqual([]);
   expect(inert.simulation.isActive()).toBe(false);
+});
+
+test('a port with no history owns commandStack.changed itself', async () => {
+  // The counterpart of the `commands.length === 0` assertion further up: the topic
+  // has to be fired by SOMEONE, and with no history layer to do it the adapter does.
+  // This is what the `emitCommandStackChanged` flag used to select; there is nothing
+  // left to configure, because the two cases ARE the two answers.
+  const canvas = new Canvas();
+  const moddle = freshModdle();
+  const { rootElement } = await moddle.fromXML(PROCESS_XML);
+  canvas.importDefinitions(rootElement);
+  const port = createCanvasEditorPort(canvas, { model: editorModel(moddle) });
+
+  const commands: number[] = [];
+  port.events.on('commandStack.changed', () => commands.push(1));
+  port.mutate.updateProperties(port.elements.get('Task_1'), { name: 'Renamed' });
+
+  expect(commands.length).toBe(1);
+  // …and the port counts its own revisions when nothing else will.
+  expect(port.revision()).toBe(1);
 });

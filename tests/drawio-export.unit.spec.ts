@@ -60,7 +60,6 @@ function findRoot(element: any): any {
 
 function fakeModeler(elements: any[]): any {
   return {
-    backend: 'canvas',
     editor: {
       elements: {
         forEach: (fn: any) => elements.forEach(fn),

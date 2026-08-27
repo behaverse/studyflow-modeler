@@ -34,7 +34,8 @@ import type { Writeback } from '@canvas/model/writeback.ts';
 import { routableEnd, routeFor, type RouteOptions } from '@canvas/routing/orthogonal.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
 import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/rules/rules.ts';
-import { markerEndFor, roundedPathData } from '@canvas/render/renderer.ts';
+import { markerEndFor } from '@canvas/render/renderer.ts';
+import { previewEdgeAttrs } from '@canvas/render/preview.ts';
 import { freeMoveEnd, redockEnd } from '@canvas/interaction/segments.ts';
 import { append, attr, create as svgCreate, remove } from '@canvas/render/svg.ts';
 
@@ -316,8 +317,17 @@ export class Connect {
     status: 'pending' | 'ok' | 'rejected',
     type?: string,
   ): void {
-    if (points.length < 2) return;
     const scale = this.scale();
+    // Rounded bends and a verbatim waypoint list, exactly as the committed edge —
+    // and as the context pad's hover ghost (`render/preview.ts`). `undefined` when
+    // the route is not yet a line, which is nothing to paint.
+    const geometry = previewEdgeAttrs(points, {
+      fill: 'none',
+      width: 1.5 / scale,
+      dash: status === 'ok' ? null : `${4 / scale},${3 / scale}`,
+      markerEnd: status === 'ok' ? markerEndFor(type ?? CONNECTION.sequenceFlow) : null,
+    });
+    if (!geometry) return;
     if (!this.preview) {
       this.preview = svgCreate('g', { class: 'sf-connect-preview' }) as SVGGElement;
       append(this.preview, svgCreate('path', { class: 'sf-connect-preview-line' }));
@@ -330,16 +340,7 @@ export class Connect {
     // is, including over the shape that is refusing the drop.
     this.setRootStatus(status);
     const line = this.preview.firstElementChild as SVGPathElement | null;
-    if (!line) return;
-    attr(line, {
-      // Rounded bends, exactly as the committed edge would be drawn.
-      d: roundedPathData(points),
-      'data-waypoints': points.map((p) => `${p.x},${p.y}`).join(' '),
-      fill: 'none',
-      'stroke-width': 1.5 / scale,
-      'stroke-dasharray': status === 'ok' ? null : `${4 / scale},${3 / scale}`,
-      'marker-end': status === 'ok' ? markerEndFor(type ?? CONNECTION.sequenceFlow) : null,
-    });
+    if (line) attr(line, geometry);
   }
 
   private clearPreview(): void {

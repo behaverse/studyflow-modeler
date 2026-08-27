@@ -100,9 +100,8 @@ export type CreateModelerCommand = {
 
 /**
  * Mount the editor into `container` and hand back the handle the app holds from
- * here on. Since P6b there is one backend — the native canvas
- * (`editor/canvasBackend.ts`) — and everything after this line talks to
- * `handle.editor`, never to the backend itself.
+ * here on. Everything after this line talks to `handle.editor` — the `EditorPort`
+ * facade — never to the canvas (`editor/canvasBackend.ts`) itself.
  */
 export async function runCreateModeler(_modeler: PortHandle | null, command: CreateModelerCommand): Promise<PortHandle> {
   const handle = createCanvasBackend({

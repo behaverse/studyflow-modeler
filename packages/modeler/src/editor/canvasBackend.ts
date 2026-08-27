@@ -1,23 +1,19 @@
 /**
- * The native-canvas backend: `@behaverse/studyflow-canvas` plus the halves the
+ * The native-canvas editor: `@behaverse/studyflow-canvas` plus the halves the
  * canvas deliberately does not own (design §4 EDITORPORT MAPPING, "(A)").
  *
  * The canvas is a leaf package — no bpmn-js, no `@modeler/*` — so everything
  * schema-, document- or app-chrome-shaped is assembled here and injected:
  *
- * - **model** — a bare `bpmn-moddle` carrying the enabled extension schemas. It is
- *   the document model on *both* backends, which is what makes `importXML` /
- *   `saveXML` byte-comparable across the switch. Id bookkeeping delegates to the
- *   canvas writeback's own {@link IdGenerator}, so palette-minted ids and
- *   writeback-minted ids draw from one pool.
+ * - **model** — a bare `bpmn-moddle` carrying the enabled extension schemas, which
+ *   is the document model `importXML` / `saveXML` round-trip through. Id
+ *   bookkeeping delegates to the canvas writeback's own {@link IdGenerator}, so
+ *   palette-minted ids and writeback-minted ids draw from one pool.
  * - **history** — the app snapshot store (`editor/history.ts`). The canvas has no
  *   command stack, so every mutation — through `mutate.*` *or* through a direct
  *   canvas gesture (drag, create, delete, inline rename) — is recorded here, and
  *   undo/redo replay a snapshot back into the canvas.
- * - **popup** — app chrome (`editor/popupMenus.ts`); the canvas contributes only
- *   anchor geometry.
- * - **templates / simulation** — app services, unchanged in intent from the bpmn
- *   backend's DI-provided ones.
+ * - **templates / simulation** — app services.
  */
 
 import { BpmnModdle } from 'bpmn-moddle';
@@ -28,7 +24,6 @@ import { StudyflowElement, getRawAttribute } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS, SVG_ICON_PATHS } from '@modeler/draw/icons';
 import { lookupIcon, onIconResolved, primeIconCache } from '@modeler/draw/iconCache';
 import { createSnapshotHistory } from '@modeler/editor/history';
-import { openPopupMenu } from '@modeler/editor/popupMenus';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import Templates, { TEMPLATE_FLOW_ELEMENTS } from '@modeler/templates/Templates';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
@@ -43,8 +38,8 @@ export type CanvasBackendOptions = {
 
 /**
  * The moddle types bpmn-js's `BpmnFactory` mints ids for. Mirrored so a business
- * object built through `EditorModel.createBusinessObject` carries the same id on
- * either backend (`ExtensionElements` and friends stay id-less, as upstream).
+ * object built through `EditorModel.createBusinessObject` is numbered the way the
+ * documents in the wild are (`ExtensionElements` and friends stay id-less, as upstream).
  */
 const ID_BEARING_TYPES = [
   'bpmn:RootElement',
@@ -209,7 +204,7 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
     const revision = canvas.getScene()?.revision ?? 0;
     if (revision === lastSceneRevision) return;
     lastSceneRevision = revision;
-    history.record('scene');
+    history.record();
   };
   bus.on('element.changed', onSceneChanged);
   bus.on('elements.changed', onSceneChanged);
@@ -294,17 +289,16 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
 
   const port = createCanvasEditorPort(canvas, {
     model,
+    // Supplying a history also hands it `commandStack.changed`: it fires that topic
+    // once per recorded mutation, from every mutation source and not just `mutate.*`.
     history,
-    // The history fires `commandStack.changed` itself, once per recorded mutation.
-    emitCommandStackChanged: false,
-    popup: { open: (providerId, position, opts) => openPopupMenu(providerId, position, opts) },
     templates: {
       getAll: () => templatesService.getAll(),
-      // The same `templates/factory.ts` the bpmn backend runs, over the shim
-      // factory above — so a template's pinned attributes, loop characteristics,
-      // event definitions and extension all land identically on either backend.
-      // Its nested flow (a pool's or sub-process's contents) is stashed on the
-      // returned root and materialized once the canvas places it.
+      // `templates/factory.ts` over the shim factory above, so a template's pinned
+      // attributes, loop characteristics, event definitions and extension all land
+      // the same way a hand-authored element's would. Its nested flow (a pool's or
+      // sub-process's contents) is stashed on the returned root and materialized
+      // once the canvas places it.
       createElement: (template: any) => {
         const shape = templatesService.createElement(template);
         const flowElements = shape[TEMPLATE_FLOW_ELEMENTS];
@@ -321,7 +315,7 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       toggle: () => simulator?.toggle(),
       isActive: () => simulator?.isActive() ?? false,
     },
-  }) as EditorPort;
+  });
   mounted.port = port;
 
   /**
@@ -329,24 +323,23 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
    * layer `view.getLayer('token-simulation', 1000)` — which the canvas parks inside
    * its `overlays` layer, in diagram coordinates — and announces itself on
    * `port.events` under `TOGGLE_SIMULATION_EVENT`, which is what `useIsSimulating`
-   * already subscribes to on both backends.
+   * subscribes to.
    */
   const simulator = new TokenSimulator(port);
 
   /**
    * The two grid settings (P6b §3C, parity spec addendum 7). The canvas paints the
-   * dots and quantizes the drags; this backend owner subscribes to the preferences —
-   * the halves that used to be `diagram-js-grid` and `diagram-js`'s `GridSnapping`,
-   * now without the DI. Applied once up front because both settings are already
-   * loaded by the time the canvas mounts.
+   * dots and quantizes the drags; this module subscribes to the preferences.
+   * Applied once up front because both settings are already loaded by the time the
+   * canvas mounts.
    *
    * They are deliberately independent: "Show grid" is a backdrop, "Snap to grid" is
    * where a drag may come to rest, and wanting one without the other is ordinary.
    */
   const applyGrid = (): void => {
     const settings = getSettings();
-    port.view.setGridVisible?.(settings.showGrid);
-    port.view.setSnapToGrid?.(settings.snapToGrid);
+    port.view.setGridVisible(settings.showGrid);
+    port.view.setSnapToGrid(settings.snapToGrid);
   };
   applyGrid();
   const unsubscribeSettings = subscribeSettings(applyGrid);
@@ -359,8 +352,8 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
    * so typing in the inspector is untouched.
    *
    * `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes, and that is the whole vocabulary:
-   * `Ctrl+Y` is deliberately NOT a second redo, because it is not one on the bpmn
-   * backend either (parity spec §9 records it as unbound, verified).
+   * `Ctrl+Y` is deliberately NOT a second redo (parity spec §9 records it as
+   * unbound in the reference, verified).
    */
   const onHistoryKey = (event: KeyboardEvent): void => {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
@@ -396,7 +389,6 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
   });
 
   return {
-    backend: 'canvas',
     editor: port,
     destroy: () => {
       simulator.dispose();
@@ -410,9 +402,9 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       history.dispose();
       stopIconWatch();
       clearTimeout(iconRedraw);
-      // The canvas owns listeners on the container (which the host keeps across a
-      // backend switch) and on the document; detaching the SVG alone would leak
-      // them, and every stale instance would still answer Delete.
+      // The canvas owns listeners on the container (which the host outlives this
+      // mount) and on the document; detaching the SVG alone would leak them, and
+      // every stale instance would still answer Delete.
       canvas.destroy();
     },
   };

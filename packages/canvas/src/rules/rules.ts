@@ -2,17 +2,14 @@
  * Rules — the canvas's single answer to "may this edit happen?" (design §3
  * "Rules", §6 P4).
  *
- * This is the standalone port of what `packages/modeler/src/bpmn/behaviors.ts`
- * registers on diagram-js today: `StudyflowRules` (the schema's own
- * `meta.connectsTo` allow-list, evaluated through
- * `TypeCatalog.connectionRule`, `packages/core/src/notation/query.ts`) layered
- * over `ResizableTasks` and bpmn-js's structural `BpmnRules`. No bpmn-js /
- * diagram-js is involved: the schema half is consumed straight from
- * `@behaverse/studyflow-core`, the structural half is expressed against the
- * static BPMN type hierarchy `@core/notation/bpmn` already publishes.
+ * Two layers — the schema's own `meta.connectsTo` allow-list (evaluated through
+ * `TypeCatalog.connectionRule`, `packages/core/src/notation/query.ts`) over plain
+ * structural BPMN sense. Nothing here is a wrapper: the schema half is consumed
+ * straight from `@behaverse/studyflow-core`, the structural half is expressed
+ * against the static BPMN type hierarchy `@core/notation/bpmn` already publishes.
  *
- * Two layers, in the same precedence order the modeler uses (schema rules are
- * registered at priority 1500, above BpmnRules' 1000):
+ * They are consulted in that precedence order (which is why the ported rules used
+ * to register at priority 1500, above the structural ones at 1000):
  *
  * 1. **Schema layer** — `catalog.connectionRule(sourceRef, targetRef)` returns
  *    `true` / `false` / `'defer'`. A `false` vetoes outright; a `true` wins over
@@ -25,11 +22,10 @@
  *    boundary, associations for artifacts, data associations for data shapes.
  *
  * Everything here is pure and side-effect free — the same verdict function backs
- * the connect/create gestures, the context-pad append menu, and (later) the
+ * the connect/create gestures, the context-pad append menu, and the
  * `EditorPort.rules` adapter, whose `allowed(action, context): boolean` shape
  * {@link Rules.allowed} deliberately mirrors (a truthy {@link ConnectionSpec} or
- * `'attach'` collapses to `true` under the adapter's `!!`, exactly as it does in
- * diagram-js).
+ * `'attach'` collapses to `true` under the adapter's `!!`).
  */
 
 import { getExtensionType } from '@core/element/index.ts';
@@ -113,11 +109,24 @@ export const CONNECTION = {
   dataOutputAssociation: 'bpmn:DataOutputAssociation',
 } as const;
 
-/** Data shapes: they carry data associations, never sequence flow. */
-const DATA_TYPES: ReadonlySet<string> = new Set([
+/**
+ * Data shapes: they carry data associations, never sequence flow.
+ *
+ * The single definition of the set — the rules mint associations to these types,
+ * `render/renderer.ts` categorizes them as `'data'` and `routing/crop.ts` therefore
+ * crops to a page/cylinder outline. When the three disagreed, a `bpmn:DataStore`
+ * was a legal association end that drew as an anonymous rectangle.
+ */
+export const DATA_TYPES: ReadonlySet<string> = new Set([
   'bpmn:DataObjectReference',
   'bpmn:DataStoreReference',
   'bpmn:DataObject',
+  'bpmn:DataStore',
+]);
+
+/** The data shapes drawn (and cropped) as a cylinder rather than a dog-eared page. */
+export const DATA_STORE_TYPES: ReadonlySet<string> = new Set([
+  'bpmn:DataStoreReference',
   'bpmn:DataStore',
 ]);
 
@@ -128,6 +137,11 @@ const DATA_TYPES: ReadonlySet<string> = new Set([
  */
 export function isDataShape(type: string): boolean {
   return DATA_TYPES.has(type);
+}
+
+/** Whether `type` is a data STORE — {@link DATA_STORE_TYPES}, drawn as a cylinder. */
+export function isDataStore(type: string): boolean {
+  return DATA_STORE_TYPES.has(type);
 }
 
 /** `bpmn:Group` / `bpmn:TextAnnotation` — framed commentary, wired with associations. */
@@ -191,8 +205,12 @@ export function participantOf(element: RuleElement | undefined): RuleElement | u
  * `undefined` at the plane root. Lanes and groups are *visual* nesting only —
  * their contents belong to the enclosing pool/process — so both are skipped.
  * Sequence flow is legal only inside one container.
+ *
+ * Named for its layer on purpose: `model/import.ts` walks the *moddle* tree
+ * (`moddleContainerOf`) and `interaction/create.ts` resolves a *hit* to a container
+ * node — three different questions that used to share the name `containerOf`.
  */
-export function containerOf(element: RuleElement | undefined): RuleElement | undefined {
+export function ruleContainerOf(element: RuleElement | undefined): RuleElement | undefined {
   let current = element?.parent;
   for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
     const type = bpmnTypeOf(current);
@@ -385,7 +403,7 @@ export function structuralConnection(
   if (isBpmnSubtypeOf(targetType, 'bpmn:StartEvent')) return false;
   if (isBpmnSubtypeOf(targetType, 'bpmn:BoundaryEvent')) return false;
   // Sequence flow never leaves its container (pool or subprocess).
-  if (containerOf(source) !== containerOf(target)) return false;
+  if (ruleContainerOf(source) !== ruleContainerOf(target)) return false;
 
   return { type: CONNECTION.sequenceFlow };
 }

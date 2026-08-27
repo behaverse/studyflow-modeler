@@ -33,12 +33,12 @@ export function crumbLabel(root: EditorElement): string {
 }
 
 /**
- * Root → current plane. Empty when the backend publishes no plane cursor, and
- * empty at the document root too: one crumb is not a trail, and the reference hides
- * the bar entirely there (`edge-videos/sub/frame_00` shows no breadcrumb).
+ * Root → current plane. Empty at the document root: one crumb is not a trail, and
+ * the reference hides the bar entirely there (`edge-videos/sub/frame_00` shows no
+ * breadcrumb).
  */
 export function planeCrumbs(editor: EditorPort): Crumb[] {
-  const path: EditorElement[] = editor.view.planePath?.() ?? [];
+  const path: EditorElement[] = editor.view.planePath();
   if (path.length < 2) return [];
   return path.map((root, index) => ({
     id: String(root?.id ?? index),
@@ -51,5 +51,5 @@ export function planeCrumbs(editor: EditorPort): Crumb[] {
 /** Navigate to `crumb`'s plane; the current one is a no-op. */
 export function goToCrumb(editor: EditorPort, crumb: Crumb): void {
   if (crumb.isCurrent) return;
-  editor.view.goToPlane?.(crumb.root);
+  editor.view.goToPlane(crumb.root);
 }

@@ -140,15 +140,6 @@ function directPlanes(scene: Scene): Map<SceneElement, Plane> {
   return map;
 }
 
-/** The label a crumb (and the badge's `title`) shows for a plane: its name, else its id. */
-export function planeName(plane: Plane): string {
-  const bo = plane.businessObject;
-  const name = prop(bo, 'name');
-  if (typeof name === 'string' && name.trim()) return name;
-  const id = prop(bo, 'id');
-  return typeof id === 'string' && id ? id : plane.id;
-}
-
 /** The label a drill-down badge shows for `node` — its name, else its id. */
 export function nodeName(node: SceneNode): string {
   const name = prop(node.businessObject, 'name');

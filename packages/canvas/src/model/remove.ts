@@ -28,6 +28,7 @@ import {
   isDataAssociationType,
   pruneDataAssociation,
 } from '@canvas/model/dataAssociation.ts';
+import { nestedPlanesOf } from '@canvas/model/expand.ts';
 import {
   asModdle,
   clearParent,
@@ -48,6 +49,7 @@ import type {
   SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
+import { depthOf } from '@canvas/model/tree.ts';
 
 /** The `bpmn:Definitions` root reachable from a scene's root plane, if any. */
 function definitionsOfScene(scene: Scene): ModdleObject | undefined {
@@ -55,19 +57,6 @@ function definitionsOfScene(scene: Scene): ModdleObject | undefined {
 }
 
 // --- removal closure ---------------------------------------------------------
-
-/** How deeply a node is nested (used to delete children before their container). */
-function depthOf(element: SceneElement): number {
-  let depth = 0;
-  let cursor = element.parent;
-  const guard = new Set<SceneNode>();
-  while (cursor && !guard.has(cursor)) {
-    guard.add(cursor);
-    depth += 1;
-    cursor = cursor.parent;
-  }
-  return depth;
-}
 
 /** Index of host business object → the boundary events attached to it. */
 function attachedIndex(scene: Scene): Map<ModdleObject, SceneNode[]> {
@@ -83,18 +72,6 @@ function attachedIndex(scene: Scene): Map<ModdleObject, SceneNode[]> {
   return index;
 }
 
-/** Index of root business object → the NESTED plane that depicts it (never the root plane). */
-function nestedPlaneIndex(scene: Scene): Map<ModdleObject, Plane[]> {
-  const index = new Map<ModdleObject, Plane[]>();
-  for (const plane of scene.planes) {
-    if (plane === scene.rootPlane) continue;
-    const list = index.get(plane.businessObject);
-    if (list) list.push(plane);
-    else index.set(plane.businessObject, [plane]);
-  }
-  return index;
-}
-
 /** Every `bpmn:Lane` node in the scene (they claim members by reference, not containment). */
 function laneNodes(scene: Scene): SceneNode[] {
   const lanes: SceneNode[] = [];
@@ -102,14 +79,6 @@ function laneNodes(scene: Scene): SceneNode[] {
     if (element.kind === 'node' && element.type === 'bpmn:Lane') lanes.push(element);
   }
   return lanes;
-}
-
-/** The nested planes that depict `node` (its own BO, or the process a pool points at). */
-function nestedPlanesOf(node: SceneNode, index: Map<ModdleObject, Plane[]>): Plane[] {
-  const planes = [...(index.get(node.businessObject) ?? [])];
-  const processRef = asModdle(prop(node.businessObject, 'processRef'));
-  if (processRef) for (const plane of index.get(processRef) ?? []) planes.push(plane);
-  return planes;
 }
 
 /**
@@ -157,7 +126,6 @@ export function collectRemoval(
   seeds: readonly SceneElement[],
 ): SceneElement[] {
   const attached = attachedIndex(scene);
-  const nested = nestedPlaneIndex(scene);
   const referencing = danglingRefIndex(scene);
   const out: SceneElement[] = [];
   const seen = new Set<SceneElement>();
@@ -171,7 +139,7 @@ export function collectRemoval(
     for (const child of element.children.slice()) visit(child);
     for (const edge of [...element.incoming, ...element.outgoing]) visit(edge);
     for (const boundary of attached.get(element.businessObject) ?? []) visit(boundary);
-    for (const plane of nestedPlanesOf(element, nested)) {
+    for (const plane of nestedPlanesOf(scene, element)) {
       for (const child of plane.children.slice()) visit(child);
     }
   };
@@ -228,7 +196,6 @@ export function deleteElements(
   const changed = new Set<SceneElement>();
   const definitions = definitionsOfScene(scene);
   const lanes = laneNodes(scene);
-  const nested = nestedPlaneIndex(scene);
   // Snapshot: a nested plane is unlisted from the scene below, but its own
   // `planeElement` list still has to give up the DI of everything it depicted.
   const planes = scene.planes.slice();
@@ -242,7 +209,7 @@ export function deleteElements(
 
   for (const edge of edges) detachEdge(edge, removedSet, changed);
   for (const node of nodes) {
-    detachNode(node, scene, definitions, lanes, nested, removedSet, changed);
+    detachNode(node, scene, definitions, lanes, removedSet, changed);
   }
 
   // DI + scene indexes, for both kinds alike.
@@ -339,7 +306,6 @@ function detachNode(
   scene: Scene,
   definitions: ModdleObject | undefined,
   lanes: readonly SceneNode[],
-  nested: Map<ModdleObject, Plane[]>,
   removedSet: Set<SceneElement>,
   changed: Set<SceneElement>,
 ): void {
@@ -367,7 +333,7 @@ function detachNode(
   }
 
   // The extra `bpmndi:BPMNDiagram` an expanded sub-process / drilled-down pool owned.
-  for (const plane of nestedPlanesOf(node, nested)) removePlane(scene, definitions, plane);
+  for (const plane of nestedPlanesOf(scene, node)) removePlane(scene, definitions, plane);
 }
 
 /** Drop the `bpmn:Process` a deleted pool depicted, unless something still needs it. */

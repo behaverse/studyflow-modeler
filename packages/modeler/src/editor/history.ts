@@ -9,20 +9,17 @@
  * The canvas has no command stack, so the app supplies one: each mutation is
  * bracketed by {@link DocumentHistory.record}, which bumps the revision, fires
  * `commandStack.changed` and queues an XML snapshot of the moddle document;
- * undo/redo restore a snapshot by re-importing it into the live backend.
+ * undo/redo restore a snapshot by re-importing it into the live editor.
  *
- * This was a seam with two sides until P6b — `createCommandStackHistory` wrapped
- * bpmn-js's native stack, reading `commandStack.changed` instead of snapshotting.
- * It went with the backend it read. {@link DocumentHistory} stays an interface
- * rather than collapsing into the one implementation: it is what `EditorPort`
- * delegates to, and the topic names above are the app's contract, not the
- * canvas's.
+ * {@link DocumentHistory} stays an interface rather than collapsing into the one
+ * implementation: it is what `EditorPort` delegates to, and the topic names above
+ * are the app's contract, not the canvas's.
  *
  * Snapshots are taken *after* the write, asynchronously (bpmn-moddle's `toXML` is
  * async while `mutate.*` is not), through a single promise queue so they land in
  * order. Consecutive snapshots with identical XML collapse, which is what makes the
- * two mutation signals the canvas backend listens to — the adapter's `endMutation`
- * and the scene's own change events — safe to overlap.
+ * two mutation signals `editor/canvasBackend.ts` wires up — the adapter's own
+ * per-mutation `record` and the scene's change events — safe to overlap.
  */
 
 /** The history slice the `EditorPort` delegates to. */
@@ -33,12 +30,8 @@ export interface DocumentHistory {
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
-  /** Snapshot point, immediately before a mutation applies (no-op on both today). */
-  beginMutation(label: string): void;
-  /** Commit point, immediately after a mutation applied. */
-  endMutation(label: string): void;
-  /** One mutation happened, from wherever. Equivalent to `endMutation`. */
-  record(label?: string): void;
+  /** One mutation happened, from wherever; the commit point, immediately after it applied. */
+  record(): void;
   /** A fresh document was imported: forget the past, re-baseline silently. */
   reset(): void;
   /** Detach listeners / drop snapshots. */
@@ -49,7 +42,7 @@ export interface SnapshotHistoryOptions {
   /** Serialize the live document. Called off the mutation, on the snapshot queue. */
   serialize(): Promise<string>;
   /**
-   * Re-import a snapshot into the live backend. Must NOT call back into
+   * Re-import a snapshot into the live editor. Must NOT call back into
    * `EditorPort.importXML` — that resets the history it is restoring.
    */
   restore(xml: string): Promise<void>;
@@ -60,7 +53,7 @@ export interface SnapshotHistoryOptions {
 }
 
 /**
- * App-level undo for a backend without a command stack: a bounded ring of XML
+ * App-level undo for an editor without a command stack: a bounded ring of XML
  * snapshots plus a cursor. `entries[index]` is always the state on screen.
  */
 export function createSnapshotHistory(options: SnapshotHistoryOptions): DocumentHistory {
@@ -138,8 +131,6 @@ export function createSnapshotHistory(options: SnapshotHistoryOptions): Document
     canRedo: () => index >= 0 && index < entries.length - 1,
     undo: () => travel(-1),
     redo: () => travel(+1),
-    beginMutation: () => undefined,
-    endMutation: () => record(),
     record: () => record(),
     reset: () => {
       entries = [];

@@ -1,34 +1,30 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
+import { roundedPathData } from '@canvas/render/renderer.ts';
 import {
-  Canvas,
   centerOf,
   containsPoint,
   cropPoint,
   cropWaypoints,
+  outlineFor,
+  outlinePoint,
+} from '@canvas/routing/crop.ts';
+import type { CroppableShape } from '@canvas/routing/crop.ts';
+import {
   edgesAffectedBy,
   isOrthogonal,
   isStraightRouted,
-  outlineFor,
   orthogonalize,
-  outlinePoint,
   rerouteEdge,
   route,
   routeCenters,
   routeEdge,
   routeFor,
   straightRoute,
-  roundedPathData,
-  setDocument,
-  type CroppableShape,
-} from '@canvas/index.ts';
+} from '@canvas/routing/orthogonal.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, installDocument, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
  * P4 orthogonal routing + endpoint cropping (design §3 `routing/*`, §6 P4).
@@ -45,17 +41,10 @@ import { loadSchemaModels } from './schemas';
  *   to the live `di:waypoint` moddle objects (the P3 write-through contract), so
  *   re-serializing the SAME `Definitions` tree emits them.
  *
- * jsdom via `setDocument`, same setup as the other `canvas-*` specs.
+ * jsdom via `tests/canvasHarness.ts`, same setup as the other `canvas-*` specs.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
+installDocument();
 
 // --- shape fixtures ----------------------------------------------------------
 
@@ -480,16 +469,8 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
-
-async function load(): Promise<{ canvas: Canvas; definitions: any; moddle: any }> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(FIXTURE_XML);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+async function load(): Promise<Loaded> {
+  return loadCanvas(FIXTURE_XML);
 }
 
 function diWaypoints(definitions: any, id: string): Point[] {

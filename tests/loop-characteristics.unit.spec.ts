@@ -48,7 +48,7 @@ function fakeModeler(): { modeler: PortHandle; calls: string[] } {
     },
   } as unknown as EditorPort;
 
-  return { modeler: { backend: 'canvas', editor, destroy() {} }, calls };
+  return { modeler: { editor, destroy() {} }, calls };
 }
 
 function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {

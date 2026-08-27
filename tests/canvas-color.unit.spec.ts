@@ -1,16 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import { normalizeColor, readColors, COLOR_PROPERTIES } from '@canvas/model/color.ts';
 import type { SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+
+import { freshModdle, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
  * P5 colour writeback (design §1 "colour (studyflow uses the bpmn.io colour
@@ -29,19 +26,6 @@ import { exampleXml } from './utils';
  * were saved with. That is what this spec pins: `toXML` of the SAME live tree the
  * canvas edited, plus a reload of it.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 /** A pre-coloured example: `consort2025` carries all four attributes on real shapes. */
 const COLORED_EXAMPLE = 'consort2025.studyflow.png';
@@ -78,18 +62,8 @@ const PLAIN_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 async function load(xml: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 // --- live-tree readers (never the scene) -------------------------------------

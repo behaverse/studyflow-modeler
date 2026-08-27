@@ -24,10 +24,9 @@
  * `SceneNode` satisfies structurally, so the routing tests can use plain objects.
  */
 
-import { BPMN } from '@core/constants.ts';
-
 import type { Bounds, Point } from '@canvas/model/scene.ts';
 import { categoryOf } from '@canvas/render/renderer.ts';
+import { isDataStore } from '@canvas/rules/rules.ts';
 
 /** Anything the cropper can trim to: DI bounds plus the business-object `$type`. */
 export interface CroppableShape extends Bounds {
@@ -65,9 +64,7 @@ export function outlineFor(type: string | undefined): Outline {
     case 'gateway':
       return 'diamond';
     case 'data':
-      return type === BPMN.DataStoreReference || type === BPMN.DataStore
-        ? 'dataStore'
-        : 'dataObject';
+      return isDataStore(type) ? 'dataStore' : 'dataObject';
     default:
       // Tasks, (collapsed or expanded) subprocesses, choreography tasks, pools,
       // lanes, groups and text annotations are all rectangular silhouettes.
@@ -80,7 +77,22 @@ export function centerOf(bounds: Bounds): Point {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
 }
 
+/** Euclidean distance between two points — the package's one copy. */
+export function distance(a: Point, b: Point): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
 // --- containment ------------------------------------------------------------
+
+/**
+ * Whether `point` lies inside (or on) an axis-aligned box. The plain-rectangle
+ * counterpart of {@link containsPoint}, which tests the *drawn* outline: use this
+ * one for boxes that have no silhouette (a label's text box, a marquee).
+ */
+export function boxContains(box: Bounds, point: Point): boolean {
+  return point.x >= box.x && point.x <= box.x + box.width
+    && point.y >= box.y && point.y <= box.y + box.height;
+}
 
 /** Whether `point` lies inside (or on) `shape`'s drawn outline. */
 export function containsPoint(shape: CroppableShape, point: Point): boolean {

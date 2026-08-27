@@ -1,14 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, isOrthogonal, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
+import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import type { ElementsChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
  * P4 connect + reconnect gestures (design §3 `interaction/connect.ts`, §1 "add edge").
@@ -21,21 +18,8 @@ import { loadSchemaModels } from './schemas';
  * geometry, references and all. A vetoed pair writes nothing; a reconnect rewrites
  * the refs on both sides and re-routes.
  *
- * jsdom via `setDocument`, same setup as the other `canvas-*` specs.
+ * Driven through `tests/canvasHarness.ts`.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 // --- fixtures ----------------------------------------------------------------
 
@@ -113,18 +97,8 @@ const POOLS_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 async function load(xml = PROCESS_XML): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 // --- live-tree readers -------------------------------------------------------
@@ -157,17 +131,6 @@ async function roundTrip(loaded: Loaded): Promise<{ xml: string; reloaded: any }
 }
 
 // --- pointer helpers ---------------------------------------------------------
-
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Point): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: screen.x,
-    clientY: screen.y,
-    button: 0,
-  }));
-}
 
 function node(canvas: Canvas, id: string): SceneNode {
   return canvas.getScene()!.elementsById.get(id) as SceneNode;
@@ -308,7 +271,6 @@ test('crossing a pool boundary mints a MessageFlow into the collaboration', asyn
 test('startConnect drags a rubber band and drops a flow on the hovered target', async () => {
   const { canvas, definitions } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const one = node(canvas, 'Task_1');
   const two = node(canvas, 'Task_2');
 
@@ -316,7 +278,7 @@ test('startConnect drags a rubber band and drops a flow on the hovered target', 
   expect(canvas.getConnect().getKind()).toBe('connect');
 
   // Over empty space: the preview shows the pair is not (yet) connectable.
-  firePointer(canvas, doc, 'pointermove', { x: 350, y: 400 });
+  pointerMove(canvas, { x: 350, y: 400 });
   const preview = svg.querySelector('.sf-connect-preview');
   expect(preview).not.toBeNull();
   expect(preview!.getAttribute('data-allowed')).toBe('false');
@@ -325,14 +287,14 @@ test('startConnect drags a rubber band and drops a flow on the hovered target', 
   expect(svg.getAttribute('data-connect-status')).toBe('pending');
 
   // Over the target: allowed, and the preview is already the routed path.
-  firePointer(canvas, doc, 'pointermove', center(two));
+  pointerMove(canvas, center(two));
   expect(svg.querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('true');
   // The preview is a rounded PATH like the edge it previews; its raw geometry is
   // kept alongside it (`render/renderer.ts roundedPathData`).
   expect(svg.querySelector('.sf-connect-preview')!.firstElementChild!.getAttribute('data-waypoints'))
     .toBe('300,120 400,120');
 
-  firePointer(canvas, doc, 'pointerup', center(two));
+  pointerUp(canvas, center(two));
   expect(canvas.getConnect().isActive()).toBe(false);
   expect(svg.querySelector('.sf-connect-preview')).toBeNull();
   expect(svg.getAttribute('data-connect-status')).toBeNull();
@@ -347,20 +309,19 @@ test('startConnect drags a rubber band and drops a flow on the hovered target', 
 
 test('dropping a connect gesture on empty space (or a vetoed target) creates nothing', async () => {
   const { canvas, definitions } = await load();
-  const doc = canvas.getSvg().ownerDocument!;
   const one = node(canvas, 'Task_1');
   const start = node(canvas, 'Start_1');
   const before = process(definitions).flowElements.length;
 
   canvas.startConnect(one);
-  firePointer(canvas, doc, 'pointerup', { x: 350, y: 500 });
+  pointerUp(canvas, { x: 350, y: 500 });
   expect(process(definitions).flowElements.length).toBe(before);
 
   // A start event is never a target.
   canvas.startConnect(one);
-  firePointer(canvas, doc, 'pointermove', center(start));
+  pointerMove(canvas, center(start));
   expect(canvas.getSvg().querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('false');
-  firePointer(canvas, doc, 'pointerup', center(start));
+  pointerUp(canvas, center(start));
   expect(process(definitions).flowElements.length).toBe(before);
   expect(one.outgoing).toEqual([]);
 });
@@ -448,7 +409,6 @@ test('a vetoed reconnect changes nothing', async () => {
 test('dragging a selected edge\'s endpoint handle reconnects it', async () => {
   const { canvas, definitions } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const flow = edge(canvas, 'Flow_1');
   const two = node(canvas, 'Task_2');
 
@@ -456,12 +416,12 @@ test('dragging a selected edge\'s endpoint handle reconnects it', async () => {
   canvas.getSelection().select(flow);
   const endpoint = flow.waypoints[flow.waypoints.length - 1];
 
-  firePointer(canvas, svg, 'pointerdown', endpoint);
-  firePointer(canvas, doc, 'pointermove', center(two));
+  pointerDown(canvas, endpoint);
+  pointerMove(canvas, center(two));
   expect(canvas.getConnect().getKind()).toBe('reconnect');
   expect(svg.querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('true');
 
-  firePointer(canvas, doc, 'pointerup', center(two));
+  pointerUp(canvas, center(two));
   expect(svg.querySelector('.sf-connect-preview')).toBeNull();
   expect(flow.target).toBe(two);
   expect((flow.businessObject as any).targetRef.id).toBe('Task_2');
@@ -471,16 +431,15 @@ test('dragging a selected edge\'s endpoint handle reconnects it', async () => {
 test('an endpoint dropped on open space keeps P3\'s free waypoint move', async () => {
   const { canvas, definitions } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const flow = edge(canvas, 'Flow_1');
   const one = node(canvas, 'Task_1');
 
   canvas.getSelection().select(flow);
   const endpoint = flow.waypoints[flow.waypoints.length - 1];
-  firePointer(canvas, svg, 'pointerdown', endpoint);
-  firePointer(canvas, doc, 'pointermove', { x: 250, y: 400 });
+  pointerDown(canvas, endpoint);
+  pointerMove(canvas, { x: 250, y: 400 });
   expect(svg.querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('false');
-  firePointer(canvas, doc, 'pointerup', { x: 250, y: 400 });
+  pointerUp(canvas, { x: 250, y: 400 });
 
   // No shape took the endpoint, so the refs are untouched and the TIP simply moved
   // to where the pointer let go — written through to the DI. The route to it is
@@ -495,8 +454,6 @@ test('an endpoint dropped on open space keeps P3\'s free waypoint move', async (
 
 test('dragging an INTERIOR waypoint still bends the edge (P3), it does not reconnect', async () => {
   const { canvas, definitions } = await load();
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const flow = edge(canvas, 'Flow_1');
   const one = node(canvas, 'Task_1');
 
@@ -508,10 +465,10 @@ test('dragging an INTERIOR waypoint still bends the edge (P3), it does not recon
   ]);
   canvas.getSelection().select(flow);
 
-  firePointer(canvas, svg, 'pointerdown', { x: 170, y: 200 });
-  firePointer(canvas, doc, 'pointermove', { x: 170, y: 260 });
+  pointerDown(canvas, { x: 170, y: 200 });
+  pointerMove(canvas, { x: 170, y: 260 });
   expect(canvas.getConnect().isActive()).toBe(false);
-  firePointer(canvas, doc, 'pointerup', { x: 170, y: 260 });
+  pointerUp(canvas, { x: 170, y: 260 });
 
   expect(flow.target).toBe(one);
   expect(flow.waypoints[1]).toEqual({ x: 170, y: 260 });
@@ -529,7 +486,6 @@ test('dragging an INTERIOR waypoint still bends the edge (P3), it does not recon
 test('a connect drag tints the shape under the cursor, and lets it go on drop', async () => {
   const { canvas } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const one = node(canvas, 'Task_1');
   const two = node(canvas, 'Task_2');
 
@@ -537,7 +493,7 @@ test('a connect drag tints the shape under the cursor, and lets it go on drop', 
 
   // Over empty space nothing is tinted — and, unlike a CREATE drag, the root is not
   // either: empty canvas can hold a new shape, but it cannot hold a connection.
-  firePointer(canvas, doc, 'pointermove', { x: 350, y: 400 });
+  pointerMove(canvas, { x: 350, y: 400 });
   expect(svg.querySelectorAll('.sf-new-parent')).toHaveLength(0);
   expect(svg.classList.contains('sf-new-parent')).toBe(false);
 
@@ -545,19 +501,19 @@ test('a connect drag tints the shape under the cursor, and lets it go on drop', 
   // `sf-connect-ok`, not `sf-new-parent` — ux-spec §4/§7 keeps "this would take the
   // flow" apart from "this would contain the shape", even though both are painted
   // the same pale tint.
-  firePointer(canvas, doc, 'pointermove', center(two));
+  pointerMove(canvas, center(two));
   expect(canvas.getGraphics('Task_2')!.classList.contains('sf-connect-ok')).toBe(true);
   expect(canvas.getGraphics('Task_2')!.classList.contains('sf-new-parent')).toBe(false);
   expect(svg.querySelectorAll('.sf-drop-not-ok')).toHaveLength(0);
 
   // Crossing back to the SOURCE, which may not connect to itself: refused, and the
   // mark is exact — the tint left on `Task_2` is taken off in the same frame.
-  firePointer(canvas, doc, 'pointermove', center(one));
+  pointerMove(canvas, center(one));
   expect(canvas.getGraphics('Task_1')!.classList.contains('sf-drop-not-ok')).toBe(true);
   expect(canvas.getGraphics('Task_2')!.classList.contains('sf-connect-ok')).toBe(false);
 
-  firePointer(canvas, doc, 'pointermove', center(two));
-  firePointer(canvas, doc, 'pointerup', center(two));
+  pointerMove(canvas, center(two));
+  pointerUp(canvas, center(two));
   // The gesture is over: no tint survives it anywhere.
   expect(svg.querySelectorAll('.sf-connect-ok, .sf-new-parent, .sf-drop-not-ok')).toHaveLength(0);
 });
@@ -568,15 +524,14 @@ test('a reconnect onto a target the rules refuse says so on the root, so the cur
   // is what a headless test can pin — and until now only the VALID drop was covered.
   const { canvas } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const flow = edge(canvas, 'Flow_1');
   const note = node(canvas, 'Note_1');
 
   canvas.getSelection().select(flow);
-  firePointer(canvas, svg, 'pointerdown', flow.waypoints[flow.waypoints.length - 1]);
+  pointerDown(canvas, flow.waypoints[flow.waypoints.length - 1]);
 
   // A text annotation cannot be the target of a sequence flow.
-  firePointer(canvas, doc, 'pointermove', center(note));
+  pointerMove(canvas, center(note));
   expect(canvas.getConnect().getKind()).toBe('reconnect');
   expect(canvas.getConnect().reconnectVerdict(flow, 'target', note)).toBe(false);
   expect(svg.getAttribute('data-connect-status')).toBe('rejected');
@@ -585,7 +540,7 @@ test('a reconnect onto a target the rules refuse says so on the root, so the cur
 
   // Dropping there writes nothing at all, and the verdict comes off the root.
   const before = flow.waypoints.map((p) => ({ ...p }));
-  firePointer(canvas, doc, 'pointerup', center(note));
+  pointerUp(canvas, center(note));
   expect(flow.target).toBe(node(canvas, 'Task_1'));
   expect(flow.waypoints).toEqual(before);
   expect(svg.getAttribute('data-connect-status')).toBeNull();

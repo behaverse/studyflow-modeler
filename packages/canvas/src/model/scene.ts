@@ -148,7 +148,11 @@ export interface Plane {
  */
 export interface Scene {
   planes: Plane[];
-  /** The plane currently rendered (root by default). */
+  /**
+   * The document's own root plane — the process/collaboration diagram, never the
+   * plane a drill-down is currently *showing*. Which plane is displayed is a view
+   * concern (`view/plane.ts` `PlaneCursor`), not a property of the model.
+   */
   rootPlane: Plane;
   /** All elements and labels keyed by id. */
   elementsById: Map<string, SceneElement | SceneLabel>;

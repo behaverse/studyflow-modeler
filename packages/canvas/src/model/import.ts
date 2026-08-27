@@ -332,8 +332,8 @@ function laneNesting(lane: ModdleObject): number {
   return depth;
 }
 
-/** The next container up from `bo` — a reference link if one exists, else `$parent`. */
-function containerOf(
+/** The next MODDLE container up from `bo` — a reference link if one exists, else `$parent`. */
+function moddleContainerOf(
   bo: ModdleObject,
   containment: Map<ModdleObject, ModdleObject>,
 ): ModdleObject | undefined {
@@ -351,13 +351,13 @@ function findParentNode(
   rootNode: SceneNode | undefined,
   containment: Map<ModdleObject, ModdleObject>,
 ): SceneNode | undefined {
-  let bo: ModdleObject | undefined = containerOf(element.businessObject, containment);
+  let bo: ModdleObject | undefined = moddleContainerOf(element.businessObject, containment);
   const guard = new Set<ModdleObject>();
   while (bo && !guard.has(bo)) {
     guard.add(bo);
     const node = asNode(byBusinessObject.get(bo));
     if (node && node !== element) return node;
-    bo = containerOf(bo, containment);
+    bo = moddleContainerOf(bo, containment);
   }
   return rootNode && rootNode !== element ? rootNode : undefined;
 }

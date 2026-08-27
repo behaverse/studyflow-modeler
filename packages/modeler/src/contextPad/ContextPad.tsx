@@ -1,18 +1,15 @@
 /**
  * The per-shape context pad (parity spec addendum 4 + 5, ux-spec §4).
  *
- * This is the affordance the canvas backend lost with bpmn-js: diagram-js floated a
- * `.djs-context-pad` beside the selection, and the two plugin entries the app cared
- * about (append-anything, the colour picker) plus its own `choreography.swap-initiator`
- * hung off it. P6b shipped a two-button stand-in — `popup/SelectionToolbar.tsx` — and
- * deferred the pad; this replaces that toolbar outright, because two affordances for
- * one selection is worse than either.
+ * The floating box beside the selection: append-anything, the colour picker, the
+ * wrench, the trash, connect, and studyflow's own `choreography.swap-initiator`.
  *
  * The split is the usual one: `contextPad/entries.ts` decides WHAT is offered (pure,
  * unit-tested), this file positions the box and wires each `action` to a command on
- * the bus. Nothing here knows which editor is underneath — the pad reads
- * `EditorPort.rules` for its gates, `EditorPort.view.getAbsoluteBBox` for its anchor
- * and `EditorPort.gestures` for the two gestures it starts.
+ * the bus. It reaches the editor only through the facade — `EditorPort.rules` for
+ * its gates, `EditorPort.view.getAbsoluteBBox` for its anchor and
+ * `EditorPort.gestures` for the two gestures it starts — and app chrome's own
+ * `openPopupMenu` for the three menus its entries open.
  *
  * **Hover preview** (addendum 5): an entry that appends ONE known element previews
  * it — the editor draws a blue ghost of the shape at its auto-place position, with
@@ -30,6 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { getEditorPort } from '@modeler/editor/registry';
+import { openPopupMenu } from '@modeler/editor/popupMenus';
 import { contextPadEntries, type ContextPadAppend, type ContextPadEntry } from '@modeler/contextPad/entries';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus';
@@ -163,7 +161,7 @@ export function ContextPad() {
 
   /** Drop the ghost and the tooltip whenever the pad goes away or the selection moves. */
   const clearPreview = useCallback(() => {
-    getEditorPort(modeler).gestures.clearPreview?.();
+    getEditorPort(modeler).gestures.clearPreview();
     clearTimeout(tooltipTimer.current);
     setTooltip(null);
   }, [modeler]);
@@ -277,12 +275,12 @@ export function ContextPad() {
     if (!node) return;
     const rect = node.getBoundingClientRect();
     const anchor = { x: Math.round(rect.right + 6), y: Math.round(rect.top) };
-    getEditorPort(modeler).popup.open(
+    openPopupMenu(
       providerId,
       { ...anchor, cursor: { ...anchor } },
       { title: t(MENU_TITLES[providerId] ?? 'Set color'), width: 260 },
     );
-  }, [modeler]);
+  }, []);
 
   /** Show the transient ghost of what this entry would append (addendum 5). */
   const preview = useCallback((append: ContextPadAppend | undefined) => {
@@ -292,14 +290,14 @@ export function ContextPad() {
     // — but it is the belt that survives a pointer jumping between entries without
     // ever crossing the gap between them.
     if (!append || !element) {
-      editor.gestures.clearPreview?.();
+      editor.gestures.clearPreview();
       return;
     }
     // No business object: a ghost is a picture, and minting one would claim an id
     // for an element that is never created. The type carries the footprint, the
     // silhouette and the rules verdict, which is everything the preview needs.
     const shape = editor.gestures.createShape({ type: append.bpmnType });
-    editor.gestures.previewAppend?.(element, shape);
+    editor.gestures.previewAppend(element, shape);
   }, [modeler, element]);
 
   const run = useCallback((entry: ContextPadEntry) => {

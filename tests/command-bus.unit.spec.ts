@@ -22,7 +22,7 @@ test('a handler goes through the port facade, so a partial port stands in for th
       setColor: (elements: unknown, color: unknown) => painted.push({ elements, color }),
     },
   } as unknown as EditorPort;
-  const modeler: PortHandle = { backend: 'canvas', editor, destroy() {} };
+  const modeler: PortHandle = { editor, destroy() {} };
   const elements = [{ id: 'Task_1' }];
   const color = { fill: '#eeeeee', stroke: '#333333' };
 

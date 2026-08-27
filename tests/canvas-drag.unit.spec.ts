@@ -1,20 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 
+import { freshModdle, jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+
 /**
- * P3 direct manipulation + DI writeback (design §6). The canvas runs under jsdom via
- * `setDocument` (same setup as `canvas-render`/`canvas-selection`), and gestures are
- * dispatched as real pointer events on the SVG DOM.
+ * P3 direct manipulation + DI writeback (design §6). The canvas is driven through
+ * `tests/canvasHarness.ts`, and gestures are dispatched as real pointer events on the
+ * SVG DOM.
  *
  * The contract under test is the one design §1 calls "write-through": a geometry edit
  * mutates BOTH the scene field AND the live DI moddle object the scene was imported
@@ -28,25 +25,7 @@ import { exampleXml } from './utils';
  * `viewport.toScreen`, which round-trips exactly.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  /** The moddle instance the tree was parsed with — reused to serialize it back. */
-  moddle: any;
-}
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const win = jsdomWindow();
 
 /**
  * A deterministic three-shape process: start → task → end, with round numbers so a
@@ -101,20 +80,12 @@ async function load(
   xml: string,
   options: { snapToGrid?: boolean; gridSize?: number; minNodeSize?: number } = {},
 ): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas({ snapToGrid: false, ...options });
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml, { snapToGrid: false, ...options });
 }
 
 /** A STOCK canvas — no options at all, so every default is the shipped one. */
 async function loadStock(xml: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 async function loadExample(name: string): Promise<Loaded> {
@@ -169,7 +140,7 @@ function firePointer(
   init: MouseEventInit = {},
 ): void {
   const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
+  target.dispatchEvent(new win.MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: screen.x,
@@ -181,19 +152,15 @@ function firePointer(
 
 /** A full press–move–release gesture from one diagram point to another. */
 function dragBy(canvas: Canvas, from: Pt, to: Pt): void {
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
+  pointerUp(canvas, to);
 }
 
 /** A press with no movement — selects whatever is under the point. */
 function click(canvas: Canvas, at: Pt): void {
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', at);
-  firePointer(canvas, doc, 'pointerup', at);
+  pointerDown(canvas, at);
+  pointerUp(canvas, at);
 }
 
 function center(node: SceneNode): Pt {
@@ -487,14 +454,14 @@ test('Escape cancels an in-flight drag and leaves the DI untouched', async () =>
   const doc = svg.ownerDocument!;
   const from = center(task);
 
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', { x: from.x + 60, y: from.y + 60 });
+  pointerDown(canvas, from);
+  pointerMove(canvas, { x: from.x + 60, y: from.y + 60 });
   expect(task.x, 'the scene moves live during the gesture').toBe(260);
   // …but the DI has NOT been written yet — writeback happens on drop.
   expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80, width: 100, height: 80 });
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  firePointer(canvas, doc, 'pointerup', { x: from.x + 60, y: from.y + 60 });
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerUp(canvas, { x: from.x + 60, y: from.y + 60 });
 
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
   expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80, width: 100, height: 80 });
@@ -540,10 +507,10 @@ const OFFGRID_FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 function dragThenEscape(canvas: Canvas, from: Pt, to: Pt): void {
   const svg = canvas.getSvg();
   const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerUp(canvas, to);
 }
 
 test('Escape under grid snap restores an off-grid move EXACTLY, and never writes the DI', async () => {
@@ -624,11 +591,10 @@ test('resize: the rules gate startDrag even when a stale handle hit is fed to it
   expect(canvas.getRules().canResize(start)).toBe(false);
   expect(drag.isActive()).toBe(false);
   const grab = handlePoint(start, 'se');
-  const svg = canvas.getSvg();
-  firePointer(canvas, svg, 'pointerdown', grab);
-  firePointer(canvas, svg.ownerDocument!, 'pointermove', { x: grab.x + 40, y: grab.y + 40 });
+  pointerDown(canvas, grab);
+  pointerMove(canvas, { x: grab.x + 40, y: grab.y + 40 });
   expect(drag.getKind()).toBeUndefined();
-  firePointer(canvas, svg.ownerDocument!, 'pointerup', { x: grab.x + 40, y: grab.y + 40 });
+  pointerUp(canvas, { x: grab.x + 40, y: grab.y + 40 });
 });
 
 // --- shipped example ----------------------------------------------------------
@@ -843,14 +809,14 @@ test('Escape mid-drag restores the label too, and never writes the BPMNLabel', a
   const doc = svg.ownerDocument!;
   const from = center(start);
 
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', { x: from.x + 60, y: from.y + 60 });
+  pointerDown(canvas, from);
+  pointerMove(canvas, { x: from.x + 60, y: from.y + 60 });
   expect({ x: start.label?.x, y: start.label?.y }).toEqual({ x: 246, y: 303 });
   expect(labelBoundsOf(definitions, 'Start_1'), 'the DI is written on drop, not per frame')
     .toEqual({ x: 186, y: 243, width: 24, height: 14 });
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  firePointer(canvas, doc, 'pointerup', { x: from.x + 60, y: from.y + 60 });
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerUp(canvas, { x: from.x + 60, y: from.y + 60 });
 
   expect({ x: start.label?.x, y: start.label?.y }).toEqual({ x: 186, y: 243 });
   expect(labelBoundsOf(definitions, 'Start_1')).toEqual({ x: 186, y: 243, width: 24, height: 14 });
@@ -1080,12 +1046,11 @@ test('drag feedback: the moved element becomes the ghost and leaves a dimmed cop
   const { canvas } = await load(FIXTURE_XML);
   const task = node(canvas, 'Task_1');
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const from = center(task);
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', { x: from.x + 60, y: from.y + 40 });
+  pointerDown(canvas, from);
+  pointerMove(canvas, { x: from.x + 60, y: from.y + 40 });
 
   // The live element IS the ghost: the style layer paints `.sf-dragger` as a blue
   // outline with no fills, so nothing has to be rendered twice.
@@ -1105,7 +1070,7 @@ test('drag feedback: the moved element becomes the ghost and leaves a dimmed cop
   expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers[data-overlay-for="Task_1"]'))
     .toHaveLength(0);
 
-  firePointer(canvas, doc, 'pointerup', { x: from.x + 60, y: from.y + 40 });
+  pointerUp(canvas, { x: from.x + 60, y: from.y + 40 });
   expect(canvas.getGraphics('Task_1')!.classList.contains('sf-dragger')).toBe(false);
   expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-dragging-edge')).toBe(false);
   expect(overlays(canvas).querySelector('.sf-drag-originals')).toBeNull();
@@ -1122,11 +1087,11 @@ test('drag feedback: Escape takes the ghost down with the gesture', async () => 
   const from = center(task);
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', { x: from.x + 60, y: from.y + 40 });
+  pointerDown(canvas, from);
+  pointerMove(canvas, { x: from.x + 60, y: from.y + 40 });
   expect(overlays(canvas).querySelector('.sf-drag-originals')).not.toBeNull();
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   expect(overlays(canvas).querySelector('.sf-drag-originals')).toBeNull();
   expect(canvas.getGraphics('Task_1')!.classList.contains('sf-dragger')).toBe(false);
 });
@@ -1135,16 +1100,15 @@ test('drag feedback: a resize hides that shape\'s chips, and restores them on dr
   const { canvas } = await load(FIXTURE_XML);
   const task = node(canvas, 'Task_1');
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   click(canvas, center(task));
   const grab = handlePoint(task, 'se');
 
-  firePointer(canvas, svg, 'pointerdown', grab);
-  firePointer(canvas, doc, 'pointermove', { x: grab.x + 60, y: grab.y + 40 });
+  pointerDown(canvas, grab);
+  pointerMove(canvas, { x: grab.x + 60, y: grab.y + 40 });
   expect(canvas.getGraphics('Task_1')!.classList.contains('sf-resizing')).toBe(true);
   expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers')).toHaveLength(0);
 
-  firePointer(canvas, doc, 'pointerup', { x: grab.x + 60, y: grab.y + 40 });
+  pointerUp(canvas, { x: grab.x + 60, y: grab.y + 40 });
   expect(canvas.getGraphics('Task_1')!.classList.contains('sf-resizing')).toBe(false);
   expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers')).toHaveLength(1);
 });
@@ -1185,8 +1149,6 @@ test('snap lines: a move that aligns with a neighbour snaps to it and draws the 
   const { canvas, definitions } = await load(FIXTURE_XML);
   const task = node(canvas, 'Task_1');
   const start = node(canvas, 'Start_1');
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
 
   // Start's centre is (118, 118); the task's is (250, 120). Drop the task's centre
   // one unit BELOW the start event's — inside diagram-js's 7-unit tolerance.
@@ -1194,8 +1156,8 @@ test('snap lines: a move that aligns with a neighbour snaps to it and draws the 
   const to = { x: from.x + 60, y: start.y + start.height / 2 + 1 };
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
 
   // Pulled onto the alignment: the centres are level, exactly.
   expect(task.y + task.height / 2).toBe(start.y + start.height / 2);
@@ -1208,7 +1170,7 @@ test('snap lines: a move that aligns with a neighbour snaps to it and draws the 
   expect(lines[0].getAttribute('y1')).toBe('118');
   expect(lines[0].getAttribute('y2')).toBe('118');
 
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerUp(canvas, to);
   // The snapped geometry is what gets committed to the DI, not the raw pointer.
   expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 260, y: 78, width: 100, height: 80 });
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
@@ -1217,18 +1179,16 @@ test('snap lines: a move that aligns with a neighbour snaps to it and draws the 
 test('snap lines: a drag that aligns with nothing draws none and is left alone', async () => {
   const { canvas } = await load(FIXTURE_XML);
   const task = node(canvas, 'Task_1');
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const from = center(task);
   const to = { x: from.x + 37, y: from.y + 53 };
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
 
   expect({ x: task.x, y: task.y }).toEqual({ x: 237, y: 133 });
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerUp(canvas, to);
 });
 
 test('snap lines: both axes can take at once, and Escape leaves nothing behind', async () => {
@@ -1242,8 +1202,8 @@ test('snap lines: both axes can take at once, and Escape leaves nothing behind',
   const to = { x: end.x + end.width / 2 + 2, y: end.y + end.height / 2 - 2 };
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
 
   expect(task.x + task.width / 2).toBe(418);
   expect(task.y + task.height / 2).toBe(118);
@@ -1252,7 +1212,7 @@ test('snap lines: both axes can take at once, and Escape leaves nothing behind',
   expect(lines[0].getAttribute('x1')).toBe('418');
   expect(lines[1].getAttribute('y1')).toBe('118');
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
 });
@@ -1260,13 +1220,11 @@ test('snap lines: both axes can take at once, and Escape leaves nothing behind',
 test('snap lines: a GRID landing draws none — the guides mean alignment and nothing else', async () => {
   const { canvas } = await load(FIXTURE_XML, { snapToGrid: true });
   const task = node(canvas, 'Task_1');
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const from = center(task);
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', { x: from.x + 33, y: from.y + 17 });
+  pointerDown(canvas, from);
+  pointerMove(canvas, { x: from.x + 33, y: from.y + 17 });
 
   // The shape really did land on the grid…
   expect({ x: task.x, y: task.y }).toEqual({ x: 230, y: 100 });
@@ -1275,7 +1233,7 @@ test('snap lines: a GRID landing draws none — the guides mean alignment and no
   // already showing where the steps are.
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
 
-  firePointer(canvas, doc, 'pointerup', { x: from.x + 33, y: from.y + 17 });
+  pointerUp(canvas, { x: from.x + 33, y: from.y + 17 });
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
 });
 
@@ -1283,15 +1241,13 @@ test('drag: connected edges re-route on every frame, and are gray rather than bl
   const { canvas } = await load(FIXTURE_XML);
   const task = node(canvas, 'Task_1');
   const flow = edge(canvas, 'Flow_2');
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const from = center(task);
 
   expect(flow.waypoints, 'a straight two-point flow to start with').toHaveLength(2);
 
   click(canvas, from);
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', { x: from.x, y: from.y + 60 });
+  pointerDown(canvas, from);
+  pointerMove(canvas, { x: from.x, y: from.y + 60 });
 
   // MID-GESTURE the elbow already exists: the connection is being laid out live, not
   // frozen and re-drawn on drop (parity spec addendum 2 §3).
@@ -1304,21 +1260,20 @@ test('drag: connected edges re-route on every frame, and are gray rather than bl
   }
   expect(canvas.getGraphics('Flow_2')!.classList.contains('sf-dragging-edge')).toBe(true);
 
-  firePointer(canvas, doc, 'pointerup', { x: from.x, y: from.y + 60 });
+  pointerUp(canvas, { x: from.x, y: from.y + 60 });
   expect(canvas.getGraphics('Flow_2')!.classList.contains('sf-dragging-edge')).toBe(false);
 });
 
 test('lasso: the rect and the root class the secondary outline colour keys off', async () => {
   const { canvas } = await load(FIXTURE_XML);
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const from = { x: 100, y: 40 };
   const to = { x: 460, y: 220 };
 
   // The lasso is the palette tool's, not an empty-canvas drag's (parity spec §8).
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
   const rect = overlays(canvas).querySelector('.sf-lasso-overlay')!;
   expect(rect).not.toBeNull();
   // Fill, stroke and weight are the style layer's; the geometry is here.
@@ -1332,7 +1287,7 @@ test('lasso: the rect and the root class the secondary outline colour keys off',
   expect(canvas.getGraphics('Task_1')!.querySelector('.sf-outline')).not.toBeNull();
   expect(canvas.getSelection().get()).toEqual([]);
 
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerUp(canvas, to);
   expect(overlays(canvas).querySelector('.sf-lasso-overlay')).toBeNull();
   expect(svg.classList.contains('sf-dragging-active-lasso')).toBe(false);
   expect(canvas.getSelection().get().length).toBeGreaterThan(1);
@@ -1344,11 +1299,11 @@ test('lasso: an abandoned marquee leaves no marks behind', async () => {
   const doc = svg.ownerDocument!;
 
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', { x: 100, y: 40 });
-  firePointer(canvas, doc, 'pointermove', { x: 460, y: 220 });
+  pointerDown(canvas, { x: 100, y: 40 });
+  pointerMove(canvas, { x: 460, y: 220 });
   expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(true);
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(false);
   expect(canvas.getSelection().get()).toEqual([]);
   expect(overlays(canvas).querySelector('.sf-lasso-overlay')).toBeNull();
@@ -1356,8 +1311,6 @@ test('lasso: an abandoned marquee leaves no marks behind', async () => {
 
 test('lasso: Shift adds to the selection instead of replacing it (parity spec §8)', async () => {
   const { canvas } = await load(FIXTURE_XML);
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const selection = canvas.getSelection();
   const changes: number[] = [];
   canvas.getEventBus().on('selection.changed', () => changes.push(selection.get().length));
@@ -1369,14 +1322,14 @@ test('lasso: Shift adds to the selection instead of replacing it (parity spec §
 
   // A shift-marquee over the start event and the task only.
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', { x: 60, y: 40 }, { shiftKey: true });
-  firePointer(canvas, doc, 'pointermove', { x: 320, y: 220 }, { shiftKey: true });
+  pointerDown(canvas, { x: 60, y: 40 }, { shiftKey: true });
+  pointerMove(canvas, { x: 320, y: 220 }, { shiftKey: true });
   // Marked live, and the standing selection keeps its own mark throughout.
   expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(true);
   expect(canvas.getGraphics('End_1')!.classList.contains('selected')).toBe(true);
   expect(changes).toEqual([]);
 
-  firePointer(canvas, doc, 'pointerup', { x: 320, y: 220 }, { shiftKey: true });
+  pointerUp(canvas, { x: 320, y: 220 }, { shiftKey: true });
   expect(selection.get().map((e) => e.id).sort()).toEqual(['End_1', 'Start_1', 'Task_1']);
   // One event for the whole gesture, on release — never one per pointer frame.
   expect(changes).toEqual([3]);
@@ -1384,8 +1337,8 @@ test('lasso: Shift adds to the selection instead of replacing it (parity spec §
   // …and without Shift the same rectangle REPLACES the selection (the tool is
   // one-shot, so it has to be armed again).
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', { x: 60, y: 40 });
-  firePointer(canvas, doc, 'pointermove', { x: 320, y: 220 });
-  firePointer(canvas, doc, 'pointerup', { x: 320, y: 220 });
+  pointerDown(canvas, { x: 60, y: 40 });
+  pointerMove(canvas, { x: 320, y: 220 });
+  pointerUp(canvas, { x: 320, y: 220 });
   expect(selection.get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
 });

@@ -2,15 +2,17 @@ import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog, type TypeEntry } from '@core/notation';
 import { buildElementEntries, isAppendable } from '@modeler/popup/entries';
-import { APPEND_DISTANCE, canAppendFrom, mustDragToAppend, runAppendElement, runStartAppendElement } from '@modeler/popup/commands';
+import { canAppendFrom, mustDragToAppend, runAppendElement, runStartAppendElement } from '@modeler/popup/commands';
 import { loadSchemaModels } from './schemas';
 
 /**
- * The catalog half of the app-rendered create/append menus, and the click-append
- * geometry that stands in for the `autoPlace` the canvas does not have (P6b §3A).
+ * The catalog half of the app-rendered create/append menus, and the two routes out
+ * of them (P6b §3A).
  *
  * Browserless: the entry builder is pure, and the commands only ever touch the
- * `EditorPort`, so a hand-written port is a complete stand-in for either backend.
+ * `EditorPort`, so a hand-written port stands in for the whole editor. Where the
+ * appended element LANDS is the editor's business and is measured in
+ * `tests/canvas-autoplace.unit.spec.ts`.
  */
 
 setCatalog(buildCatalog(loadSchemaModels()));
@@ -80,29 +82,22 @@ function fakePort() {
     gestures: {
       createShape: (attrs: any) => ({ ...attrs, width: 36, height: 36 }),
       startCreate: (...args: any[]) => calls.push(['startCreate', ...args]),
-      primeHover: () => calls.push(['primeHover']),
-    },
-    mutate: {
-      createShape: (shape: any, position: any, parent: any) => {
-        calls.push(['createShape', shape, position, parent]);
+      appendShape: (source: any, shape: any) => {
+        calls.push(['appendShape', source, shape]);
         return created;
-      },
-      createConnection: (...args: any[]) => {
-        calls.push(['createConnection', ...args]);
-        return { id: 'Flow_1' };
       },
     },
     selection: { get: () => [], select: (e: any) => calls.push(['select', e]) },
     revision: () => 0,
   };
-  return { handle: { backend: 'canvas', editor: port, destroy: () => {} } as any, port, calls, created, root };
+  return { handle: { editor: port, destroy: () => {} } as any, port, calls, created };
 }
 
 test.describe('append commands', () => {
   const source = { id: 'Task_1', x: 100, y: 200, width: 100, height: 80, parent: undefined };
 
-  test('a click-append lands one gap right of its source, centred on it, and is connected', () => {
-    const { handle, calls, created, root } = fakePort();
+  test('a click-append hands the source and a freshly minted shape to the editor', () => {
+    const { handle, calls, created } = fakePort();
 
     const result = runAppendElement(handle, {
       type: 'AppendElement',
@@ -113,25 +108,20 @@ test.describe('append commands', () => {
 
     expect(result).toBe(created);
 
-    const [, shape, position, parent] = calls.find((c) => c[0] === 'createShape')!;
+    const [, from, shape] = calls.find((c) => c[0] === 'appendShape')!;
+    expect(from).toBe(source);
     expect(shape.type).toBe('bpmn:EndEvent');
-    // 100 + 100 + 50 + half the 36-wide event.
-    expect(position).toEqual({ x: 100 + 100 + APPEND_DISTANCE + 18, y: 240 });
-    // No parent of its own: the source's plane.
-    expect(parent).toBe(root);
-
-    const [, from, to] = calls.find((c) => c[0] === 'createConnection')!;
-    expect([from, to]).toEqual([source, created]);
+    expect(shape.businessObject.$type).toBe('bpmn:EndEvent');
     // Nobody selected it, so the command does.
     expect(calls.some((c) => c[0] === 'select' && c[1] === created)).toBe(true);
   });
 
-  test('a rejected drop writes no connection', () => {
+  test('a refused append selects nothing', () => {
     const { handle, port, calls } = fakePort();
-    port.mutate.createShape = () => undefined;
+    port.gestures.appendShape = () => undefined;
 
     expect(runAppendElement(handle, { type: 'AppendElement', source, bpmnType: 'bpmn:Task' })).toBeUndefined();
-    expect(calls.some((c) => c[0] === 'createConnection')).toBe(false);
+    expect(calls.some((c) => c[0] === 'select')).toBe(false);
   });
 
   test('a drag-append hands the source to the create gesture instead of placing anything', () => {
@@ -148,10 +138,10 @@ test.describe('append commands', () => {
     const [, gestureEvent, , context] = calls.find((c) => c[0] === 'startCreate')!;
     expect(gestureEvent).toBe(event);
     expect(context).toEqual({ source });
-    expect(calls.some((c) => c[0] === 'createShape')).toBe(false);
+    expect(calls.some((c) => c[0] === 'appendShape')).toBe(false);
   });
 
-  test('a boundary event is the one type that must be dragged, as on the bpmn backend', () => {
+  test('a boundary event is the one type that must be dragged, never auto-placed', () => {
     expect(mustDragToAppend('bpmn:BoundaryEvent')).toBe(true);
     expect(mustDragToAppend('bpmn:Task')).toBe(false);
   });

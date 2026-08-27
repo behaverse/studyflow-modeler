@@ -1,9 +1,9 @@
 /**
  * What the per-shape context pad offers — the entry list, as data.
  *
- * The pad is the affordance diagram-js floated beside a selection and the canvas
- * backend lost with bpmn-js (parity spec addendum 4; ux-spec §4 measures the
- * geometry and lists the entries in DOM order). This module is the half that can be
+ * The pad is the box that floats beside a selection (parity spec addendum 4;
+ * ux-spec §4 measures the geometry and lists the entries in DOM order, and the
+ * reference frames named below are the source). This module is the half that can be
  * decided without a DOM: given what is selected and what the rules allow, WHICH
  * entries appear and in what order. `ContextPad.tsx` renders them and wires each
  * `action` to a command.

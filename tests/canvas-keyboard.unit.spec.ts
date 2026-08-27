@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import type { SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { installDocument, loadCanvas, jsdomWindow, type Loaded } from './canvasHarness';
 
 /**
  * The canvas keyboard map — parity spec §9, whose table was captured empirically
@@ -25,18 +21,8 @@ import { loadSchemaModels } from './schemas';
  * is a `keydown` dispatched there — exactly what the app produces.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const doc = installDocument();
+const win = jsdomWindow();
 
 /** Start event → task → task, one flow, so a nudge has an edge to drag along. */
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -69,35 +55,25 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 /**
  * A container with a real layout. jsdom reports `clientWidth === 0`, and the
  * viewport falls back to the viewBox width for that — which would make every zoom a
  * no-op and hide exactly the bug a zoom test is for.
  */
 function sizedContainer(): HTMLElement {
-  const el = dom.window.document.createElement('div');
+  const el = doc.createElement('div');
   Object.defineProperty(el, 'clientWidth', { value: 800 });
   Object.defineProperty(el, 'clientHeight', { value: 600 });
   return el as unknown as HTMLElement;
 }
 
 async function load(xml = FIXTURE_XML): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas({ container: sizedContainer() });
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml, { container: sizedContainer() });
 }
 
 /** A `keydown` on the canvas container — what a key pressed over the diagram is. */
 function press(canvas: Canvas, key: string, init: KeyboardEventInit = {}): KeyboardEvent {
-  const event = new dom.window.KeyboardEvent('keydown', {
+  const event = new win.KeyboardEvent('keydown', {
     key,
     bubbles: true,
     cancelable: true,
@@ -328,10 +304,10 @@ test('no shortcut fires while a text field has the key', async () => {
   canvas.getLabelEditing().cancel();
 
   // …and the same for any other input in the app chrome that happens to bubble.
-  const input = dom.window.document.createElement('input');
+  const input = doc.createElement('input');
   canvas.getContainer().appendChild(input);
   const withInput = snapshot(canvas);
-  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+  input.dispatchEvent(new win.KeyboardEvent('keydown', {
     key: 'Delete',
     bubbles: true,
     cancelable: true,

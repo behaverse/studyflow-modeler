@@ -68,6 +68,7 @@ import type {
 } from '@canvas/model/scene.ts';
 import { labelIdOf } from '@canvas/render/labels.ts';
 import { containerFor } from '@canvas/rules/rules.ts';
+import { sceneBounds } from '@canvas/view/viewport.ts';
 
 /** Payload for the `element.changed` event (one element edited). */
 export interface ElementChangedEvent {
@@ -176,8 +177,8 @@ export function containmentPropertyFor(type: string): 'participants' | 'artifact
  * Padding a promoted pool leaves around the contents it adopts, and the width of
  * its vertical name band — `HORIZONTAL_PARTICIPANT_PADDING`,
  * `VERTICAL_PARTICIPANT_PADDING` and `PARTICIPANT_BORDER_WIDTH` from bpmn-js's
- * `CreateParticipantBehavior`, so a promoted pool has the same slack on either
- * backend.
+ * `CreateParticipantBehavior`, so a promoted pool keeps the slack the shipped
+ * documents were drawn with.
  */
 const PARTICIPANT_PADDING = { horizontal: 20, vertical: 20, band: 30 };
 
@@ -200,28 +201,14 @@ function participantBoundsAround(dropped: Bounds, contents: readonly SceneElemen
   };
 }
 
-/** The box enclosing every node footprint and edge waypoint in `elements`. */
+/**
+ * The box enclosing every node footprint and edge waypoint in `elements` —
+ * {@link sceneBounds} (the accumulator `zoomToFit` uses) with an empty answer of
+ * `undefined` instead of its "show me the origin" fallback box.
+ */
 function boundsAround(elements: readonly SceneElement[]): Bounds | undefined {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  const grow = (x: number, y: number): void => {
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x);
-    maxY = Math.max(maxY, y);
-  };
-  for (const element of elements) {
-    if (element.kind === 'node') {
-      grow(element.x, element.y);
-      grow(element.x + element.width, element.y + element.height);
-    } else {
-      for (const point of element.waypoints) grow(point.x, point.y);
-    }
-  }
-  if (!Number.isFinite(minX)) return undefined;
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  const encloses = elements.some((el) => el.kind === 'node' || el.waypoints.length > 0);
+  return encloses ? sceneBounds(elements) : undefined;
 }
 
 /** The `bpmn:Collaboration` a message flow is filed in, if the document has one. */
@@ -1319,11 +1306,14 @@ export class Writeback {
 
   private finish(elements: SceneElement[]): void {
     this.scene.revision += 1;
-    for (const element of elements) {
+    // One event per element: a self-connection names the same node as both ends,
+    // and a batch may list a container twice through two of its children.
+    const touched = elements.length > 1 ? [...new Set(elements)] : elements;
+    for (const element of touched) {
       this.bus.fire<ElementChangedEvent>('element.changed', { element });
     }
-    if (elements.length > 1) {
-      this.bus.fire<ElementsChangedEvent>('elements.changed', { elements: elements.slice() });
+    if (touched.length > 1) {
+      this.bus.fire<ElementsChangedEvent>('elements.changed', { elements: touched.slice() });
     }
   }
 }

@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { loadCanvas, pointerDown, pointerMove, pointerUp, jsdomWindow } from './canvasHarness';
 
 /**
  * The two snaps a move gesture runs under, and how they COMPOSE — parity spec
@@ -23,18 +19,12 @@ import { loadSchemaModels } from './schemas';
  *   because the reference draws none for a grid landing;
  * - the two verdicts are independent, so one axis can align while the other steps.
  *
- * Everything runs under jsdom (`setDocument`), where the viewport maps screen to
- * diagram 1:1, so a pointer event's client coordinates round-trip exactly.
+ * Everything runs under jsdom (driven through `tests/canvasHarness.ts`), where the
+ * viewport maps screen to diagram 1:1, so a pointer event's client coordinates
+ * round-trip exactly.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
+const win = jsdomWindow();
 
 /**
  * Two shapes far enough apart that a drag between them is unambiguous, and — this is
@@ -68,11 +58,7 @@ async function load(options: { snapToGrid?: boolean } = {}): Promise<{
   canvas: Canvas;
   definitions: any;
 }> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(FIXTURE_XML);
-  const canvas = new Canvas(options);
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions };
+  return loadCanvas(FIXTURE_XML, options);
 }
 
 interface Pt { x: number; y: number; }
@@ -85,27 +71,15 @@ function centre(n: SceneNode): Pt {
   return { x: n.x + n.width / 2, y: n.y + n.height / 2 };
 }
 
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Pt): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: screen.x,
-    clientY: screen.y,
-    button: 0,
-  }));
-}
-
 /** Press on `from`, move to `to`, and STOP there — the gesture stays live. */
 function dragTo(canvas: Canvas, from: Pt, to: Pt): void {
-  const svg = canvas.getSvg();
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, svg.ownerDocument!, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
 }
 
 /** …and let go. */
 function drop(canvas: Canvas, at: Pt): void {
-  firePointer(canvas, canvas.getSvg().ownerDocument!, 'pointerup', at);
+  pointerUp(canvas, at);
 }
 
 function guides(canvas: Canvas): Element[] {
@@ -211,12 +185,12 @@ test('a keyboard nudge is not grid-snapped: 1 unit means 1 unit (parity spec §9
   canvas.getSelection().select(task);
   const svg = canvas.getSvg();
 
-  svg.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  svg.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
   expect({ x: task.x, y: task.y }).toEqual({ x: 201, y: 80 });
   expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 201, y: 80 });
 
   // …and Shift still means 10, landing back on the grid by arithmetic, not by snap.
-  svg.dispatchEvent(new dom.window.KeyboardEvent(
+  svg.dispatchEvent(new win.KeyboardEvent(
     'keydown',
     { key: 'ArrowDown', shiftKey: true, bubbles: true },
   ));
@@ -229,20 +203,20 @@ test('a resize grid-snaps the dragged edges too, and Escape still restores off-g
   const svg = canvas.getSvg();
   const doc = svg.ownerDocument!;
 
-  firePointer(canvas, svg, 'pointerdown', centre(task));
-  firePointer(canvas, doc, 'pointerup', centre(task));
+  pointerDown(canvas, centre(task));
+  pointerUp(canvas, centre(task));
 
   // The se chip sits on the corner with a 20x20 hit box; 4 units diagonally out of
   // the corner lands squarely in it.
   const grab = { x: task.x + task.width + 4, y: task.y + task.height + 4 };
   const to = { x: grab.x + 33, y: grab.y + 17 };
-  firePointer(canvas, svg, 'pointerdown', grab);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, grab);
+  pointerMove(canvas, to);
   expect(task.width % 10, 'the dragged edge landed on the grid').toBe(0);
   expect(task.height % 10).toBe(0);
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  firePointer(canvas, doc, 'pointerup', to);
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerUp(canvas, to);
   expect({ x: task.x, y: task.y, width: task.width, height: task.height })
     .toEqual({ x: 200, y: 80, width: 100, height: 80 });
   expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80 });

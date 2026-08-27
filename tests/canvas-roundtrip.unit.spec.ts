@@ -2,17 +2,13 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import { readColorsOf } from '@canvas/model/color.ts';
 import { isHiddenByCollapse } from '@canvas/model/expand.ts';
 import type { Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas } from './canvasHarness';
 import { exampleXml } from './utils';
 
 /**
@@ -47,19 +43,6 @@ import { exampleXml } from './utils';
  * rather than failed; every run also prints a `COVER` line per example naming what
  * it actually exercised.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 /** Every `.studyflow.png` example, in directory order (the P1/P6 corpus). */
 function exampleFiles(): string[] {
@@ -542,11 +525,10 @@ interface Loaded {
 }
 
 async function load(filename: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(exampleXml(filename));
   const warnings: string[] = [];
-  const canvas = new Canvas({ onWarning: (message: string) => warnings.push(message) });
-  canvas.importDefinitions(definitions);
+  const { canvas, definitions, moddle } = await loadCanvas(exampleXml(filename), {
+    onWarning: (message: string) => warnings.push(message),
+  });
   return { moddle, reader: freshModdle(), definitions, canvas, warnings };
 }
 

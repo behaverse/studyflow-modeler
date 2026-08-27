@@ -38,7 +38,6 @@ export function fakeModeler(businessObjects: any[], { diagramName }: FakeModeler
     : undefined;
 
   return {
-    backend: 'canvas',
     editor: {
       elements: {
         forEach: (fn: any) => elements.forEach(fn),

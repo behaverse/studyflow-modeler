@@ -1,19 +1,19 @@
 /**
- * App chrome for the three editor popup menus (P6b §3A, §3B).
+ * App chrome for the four popup menus (P6b §3A, §3B).
  *
- * `EditorPort.popup.open(providerId, position, options)` names a menu; the canvas
- * backend forwards it straight into `editor/popupMenus.ts`, which is what this
- * host registers against. The editor supplies the anchor geometry and nothing
- * else, so "open the append menu" is one call that knows no React and no editor.
+ * `openPopupMenu(providerId, position, options)` (`editor/popupMenus.ts`) names a
+ * menu and hands over anchor geometry; this host is what registers against those
+ * ids. So "open the append menu" is one call from anywhere — the palette, the
+ * context pad, the canvas's `a` key — that knows no React.
  *
- * Three ids:
+ * Four ids:
  *
  * | id             | renders                                              | opened by |
  * |----------------|------------------------------------------------------|-----------|
  * | `bpmn-create`  | every creatable element; drag or click to place       | the palette's "More BPMN elements..." button |
- * | `bpmn-append`  | the same list, wired to append from the selection     | the selection toolbar's append button, and the canvas's `a` key |
+ * | `bpmn-append`  | the same list, wired to append from the selection     | the context pad's append entry, and the canvas's `a` key |
  * | `bpmn-replace` | the same list, trimmed to what may replace the selection | the context pad's wrench ("Change element") |
- * | `color-picker` | the six studyflow colours                             | the selection toolbar's colour button |
+ * | `color-picker` | the six studyflow colours                             | the context pad's brush |
  */
 
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
@@ -77,8 +77,7 @@ export function PopupMenus() {
     const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
       .map((id) => registerPopupMenu(id, opener(id)));
 
-    // The canvas fires this for `a`; bpmn-js binds its own append shortcut, so this
-    // topic simply never arrives there.
+    // The canvas fires this topic for the `a` key.
     const onKeyboardAppend = (event: { elements?: EditorElement[] }): void => {
       const element = event?.elements?.[0];
       if (!element) return;

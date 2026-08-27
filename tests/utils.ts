@@ -35,13 +35,11 @@ export async function gotoModeler(page: Page): Promise<void> {
 /**
  * Pin *which* editor actually mounted.
  *
- * Every other selector in this suite is deliberately backend-agnostic, which is
- * what let one spec set drive both backends while both existed. Now that only the
- * canvas ships, this is the run-time proof that bpmn-js is really gone: diagram-js
- * owns `.djs-container`, the native canvas owns `svg.sf-canvas`, and neither ever
- * renders the other's root — so a resurrected bpmn-js mount fails here rather than
- * passing quietly under agnostic selectors. The dependency is gone from
- * `package.json`, but this is the assertion that a re-added one would trip.
+ * The run-time proof that bpmn-js is really gone: diagram-js owns
+ * `.djs-container`, the native canvas owns `svg.sf-canvas`, and neither ever
+ * renders the other's root. The dependency is gone from `package.json`, but this
+ * is the assertion a re-added one would trip — the rest of the suite's selectors
+ * are generic enough to pass quietly under either.
  */
 export async function expectBackendMounted(page: Page): Promise<void> {
   const canvas = page.getByTestId('modeler-canvas');

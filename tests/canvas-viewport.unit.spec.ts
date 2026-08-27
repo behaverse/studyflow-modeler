@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, CANVAS_CSS, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
+import { CANVAS_CSS } from '@canvas/view/theme.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * Viewport gestures — parity spec §10 ("Zoom, pan and pointer gestures") and §8
@@ -26,14 +23,7 @@ import { loadSchemaModels } from './schemas';
  * diagram units are 1:1 and `getViewbox().scale` reads 1 (see `canvas-drag`).
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
+const win = jsdomWindow();
 
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -62,24 +52,13 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(): Promise<Canvas> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(FIXTURE_XML);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
+  const { canvas } = await loadCanvas(FIXTURE_XML);
   return canvas;
 }
 
-interface Pt { x: number; y: number; }
-
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Pt, init: MouseEventInit = {}): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true, cancelable: true, clientX: screen.x, clientY: screen.y, button: 0, ...init,
-  }));
-}
 
 function fireWheel(canvas: Canvas, init: WheelEventInit): void {
-  canvas.getSvg().dispatchEvent(new dom.window.WheelEvent('wheel', {
+  canvas.getSvg().dispatchEvent(new win.WheelEvent('wheel', {
     bubbles: true, cancelable: true, deltaMode: 0, ...init,
   }));
 }
@@ -95,13 +74,12 @@ const box = (canvas: Canvas) => canvas.getViewport().getViewbox();
 test('empty canvas: a drag PANS the viewport and lassoes nothing (parity spec §10)', async () => {
   const canvas = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const before = box(canvas);
   const empty = { x: before.x + 10, y: before.y + 10 };
   expect(canvas.hitTest(empty), 'the gesture starts on empty space').toBeUndefined();
 
-  firePointer(canvas, svg, 'pointerdown', empty);
-  firePointer(canvas, doc, 'pointermove', { x: empty.x + 120, y: empty.y + 80 });
+  pointerDown(canvas, empty);
+  pointerMove(canvas, { x: empty.x + 120, y: empty.y + 80 });
 
   // The content follows the pointer: the viewBox moves the other way.
   const during = box(canvas);
@@ -113,21 +91,19 @@ test('empty canvas: a drag PANS the viewport and lassoes nothing (parity spec §
   // `grabbing` for as long as the pan runs (the idle `grab` is on `.sf-canvas`).
   expect(svg.classList.contains('sf-panning')).toBe(true);
 
-  firePointer(canvas, doc, 'pointerup', { x: empty.x + 120, y: empty.y + 80 });
+  pointerUp(canvas, { x: empty.x + 120, y: empty.y + 80 });
   expect(svg.classList.contains('sf-panning')).toBe(false);
   expect(canvas.getSelection().get()).toEqual([]);
 });
 
 test('empty canvas: a plain CLICK still clears the selection', async () => {
   const canvas = await load();
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   canvas.getSelection().select(node(canvas, 'Task_1'));
   const before = box(canvas);
 
   const empty = { x: before.x + 10, y: before.y + 10 };
-  firePointer(canvas, svg, 'pointerdown', empty);
-  firePointer(canvas, doc, 'pointerup', empty);
+  pointerDown(canvas, empty);
+  pointerUp(canvas, empty);
 
   expect(canvas.getSelection().get()).toEqual([]);
   // A click is not a pan.
@@ -147,7 +123,6 @@ test('the idle cursor over the canvas is grab, and grabbing while panning', asyn
 test('lasso: only the palette tool arms it, and it disarms after one gesture', async () => {
   const canvas = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const before = box(canvas);
   const from = { x: before.x + 10, y: before.y + 10 };
   const to = { x: 350, y: 200 };
@@ -157,40 +132,39 @@ test('lasso: only the palette tool arms it, and it disarms after one gesture', a
   expect(canvas.isLassoArmed()).toBe(true);
   expect(svg.classList.contains('sf-lasso-tool')).toBe(true);
 
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
   expect(svg.querySelector('.sf-lasso-overlay')).not.toBeNull();
   // A lasso does not pan.
   expect({ x: box(canvas).x, y: box(canvas).y }).toEqual({ x: before.x, y: before.y });
 
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerUp(canvas, to);
   expect(canvas.getSelection().get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
   // One shot: the next empty-canvas drag pans again.
   expect(canvas.isLassoArmed()).toBe(false);
   expect(svg.classList.contains('sf-lasso-tool')).toBe(false);
 
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
   expect(svg.querySelector('.sf-lasso-overlay')).toBeNull();
   expect(box(canvas).x).not.toBe(before.x);
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerUp(canvas, to);
 });
 
 test('lasso: an armed tool ignores what is under the pointer', async () => {
   const canvas = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const task = node(canvas, 'Task_1');
   const onTask = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
 
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', onTask);
+  pointerDown(canvas, onTask);
   // Pressing on a shape with the lasso armed neither selects nor moves it.
   expect(canvas.getSelection().get()).toEqual([]);
-  firePointer(canvas, doc, 'pointermove', { x: onTask.x + 100, y: onTask.y + 100 });
+  pointerMove(canvas, { x: onTask.x + 100, y: onTask.y + 100 });
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
   expect(svg.querySelector('.sf-lasso-overlay')).not.toBeNull();
-  firePointer(canvas, doc, 'pointerup', { x: onTask.x + 100, y: onTask.y + 100 });
+  pointerUp(canvas, { x: onTask.x + 100, y: onTask.y + 100 });
 });
 
 test('Escape disarms the lasso tool', async () => {
@@ -198,9 +172,9 @@ test('Escape disarms the lasso tool', async () => {
   const svg = canvas.getSvg();
   const doc = svg.ownerDocument!;
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', { x: box(canvas).x + 10, y: box(canvas).y + 10 });
-  firePointer(canvas, doc, 'pointermove', { x: 350, y: 200 });
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerDown(canvas, { x: box(canvas).x + 10, y: box(canvas).y + 10 });
+  pointerMove(canvas, { x: 350, y: 200 });
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   expect(canvas.isLassoArmed()).toBe(false);
   expect(svg.querySelector('.sf-lasso-overlay')).toBeNull();
 });

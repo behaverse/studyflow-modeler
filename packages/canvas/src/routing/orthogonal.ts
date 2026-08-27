@@ -33,7 +33,13 @@
 import { BPMN } from '@core/constants.ts';
 
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import { centerOf, cropPoint, cropWaypoints, type CroppableShape } from '@canvas/routing/crop.ts';
+import {
+  centerOf,
+  cropPoint,
+  cropWaypoints,
+  distance,
+  type CroppableShape,
+} from '@canvas/routing/crop.ts';
 
 /** A shape the router can connect: DI bounds plus the business-object `$type`. */
 export type RoutableShape = CroppableShape;
@@ -85,8 +91,8 @@ export function straightRoute(
   target: RoutableShape,
   options: RouteOptions = {},
 ): Point[] {
-  const cs = centerOf(boundsOf(source));
-  const ct = centerOf(boundsOf(target));
+  const cs = centerOf(shapeBounds(source));
+  const ct = centerOf(shapeBounds(target));
   if (options.crop === false) return [cs, ct];
   return [cropPoint(source, ct), cropPoint(target, cs)];
 }
@@ -147,10 +153,6 @@ export function pathMidpoint(waypoints: readonly Point[]): Point {
   return { ...waypoints[waypoints.length - 1] };
 }
 
-function distance(a: Point, b: Point): number {
-  return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
-}
-
 /**
  * Whether a flow of `type` is drawn as a straight line rather than an orthogonal
  * route. Only the plain `bpmn:Association` is: a DATA association still routes
@@ -172,8 +174,8 @@ export function routeCenters(
 ): Point[] {
   const clearance = options.clearance ?? DEFAULT_CLEARANCE;
   const tolerance = options.straightTolerance ?? DEFAULT_STRAIGHT_TOLERANCE;
-  const s = boundsOf(source);
-  const t = boundsOf(target);
+  const s = shapeBounds(source);
+  const t = shapeBounds(target);
   const cs = centerOf(s);
   const ct = centerOf(t);
 
@@ -458,7 +460,8 @@ function lanePath(lane: Lane, s: Bounds, t: Bounds, cs: Point, ct: Point, cleara
 
 // --- geometry helpers -------------------------------------------------------
 
-function boundsOf(shape: RoutableShape): Bounds {
+/** The plain box of a routable shape (`port/adapter.ts`'s `boundsOf` is the scene-wide one). */
+function shapeBounds(shape: RoutableShape): Bounds {
   return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 }
 

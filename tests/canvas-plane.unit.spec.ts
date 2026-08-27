@@ -1,25 +1,20 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
+import { Canvas, createCanvasEditorPort } from '@canvas/index.ts';
 import {
-  Canvas,
-  PlaneCursor,
-  createCanvasEditorPort,
+  DRILLDOWN_BADGE_SIZE,
   isDrillable,
   nestedPlaneOf,
+  PlaneCursor,
   planeOf,
   planeOwner,
   planePathOf,
-  setDocument,
-  DRILLDOWN_BADGE_SIZE,
-} from '@canvas/index.ts';
+} from '@canvas/view/plane.ts';
 import type { Plane, Scene, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+
+import { freshModdle, installDocument, jsdomWindow, loadCanvas } from './canvasHarness';
 
 /**
  * P6b drill-down — the CURRENT-PLANE view cursor (`packages/canvas/src/view/plane.ts`,
@@ -41,18 +36,8 @@ import { exampleXml } from './utils';
  *   (plan §5-D5). That assertion is made against `bpmn-moddle`, never the scene.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const doc = installDocument();
+const win = jsdomWindow();
 
 const EXAMPLE = 'sklearn_pipeline.studyflow.png';
 
@@ -66,11 +51,9 @@ interface Loaded {
 }
 
 async function load(): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(exampleXml(EXAMPLE));
-  const canvas = new Canvas();
-  const scene = canvas.importDefinitions(definitions);
-  const layer = dom.window.document.createElementNS(
+  const { canvas, definitions, moddle } = await loadCanvas(exampleXml(EXAMPLE));
+  const scene = canvas.getScene()!;
+  const layer = doc.createElementNS(
     'http://www.w3.org/2000/svg',
     'g',
   ) as unknown as SVGElement;
@@ -207,7 +190,7 @@ test.describe('plane cursor', () => {
     expect(rect?.getAttribute('fill')).toBe('hsl(205, 100%, 50%)');
 
     // Clicking it enters the plane, and the badge goes with the plane it belonged to.
-    badge.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }) as unknown as Event);
+    badge.dispatchEvent(new win.MouseEvent('click', { bubbles: true }) as unknown as Event);
     expect(loaded.cursor.current()).toBe(subPlane(loaded));
     expect(loaded.layer.querySelectorAll('.sf-drilldown').length).toBe(0);
   });
@@ -220,7 +203,7 @@ test.describe('plane cursor', () => {
     expect(graphics).toBeTruthy();
 
     const screen = loaded.canvas.getViewport().toScreen(centre(loaded.scene, 'select_model'));
-    graphics!.dispatchEvent(new dom.window.MouseEvent('dblclick', {
+    graphics!.dispatchEvent(new win.MouseEvent('dblclick', {
       bubbles: true,
       cancelable: true,
       clientX: screen.x,
@@ -261,7 +244,7 @@ test.describe('plane cursor', () => {
       .querySelector('[data-layer="drilldown"] [data-drilldown="select_model"]');
     expect(badge).toBeTruthy();
 
-    badge!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }) as unknown as Event);
+    badge!.dispatchEvent(new win.MouseEvent('click', { bubbles: true }) as unknown as Event);
     const path = port.view.planePath();
     expect(path.map((root) => root.id)).toEqual(['sklearn_pipeline', 'select_model']);
     // `elements.root()` follows the view, so the inspector resolves against the plane

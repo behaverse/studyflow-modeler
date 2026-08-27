@@ -1,16 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import type { SelectionChangedEvent } from '@canvas/interaction/selection.ts';
 import type { ElementsRemovedEvent } from '@canvas/model/remove.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas, keyEvent, type Loaded } from './canvasHarness';
 
 /**
  * P5 deletion writeback (design §1 "delete → remove BO from its container **and**
@@ -28,18 +24,6 @@ import { loadSchemaModels } from './schemas';
  * byte as it went in.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 // --- fixtures ----------------------------------------------------------------
 
@@ -194,18 +178,8 @@ const POOL_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 async function load(xml = CHAIN_XML): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 // --- live-tree readers (never the scene) -------------------------------------
@@ -463,7 +437,7 @@ test('Delete and Backspace on the canvas delete the selection', async () => {
   for (const key of ['Delete', 'Backspace']) {
     const { canvas } = await load();
     canvas.getSelection().select(node(canvas, 'Task_2'));
-    const event = new dom.window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    const event = keyEvent('keydown', { key });
     canvas.getSvg().dispatchEvent(event);
 
     expect(canvas.getScene()!.elementsById.has('Task_2')).toBe(false);
@@ -478,12 +452,12 @@ test('Backspace inside the inline label editor edits text instead of deleting', 
   expect(canvas.getLabelEditing().activate(task)).toBe(true);
 
   const input = canvas.getLabelEditing().getInput()!;
-  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+  input.dispatchEvent(keyEvent('keydown', { key: 'Backspace' }));
   expect(canvas.getScene()!.elementsById.has('Task_2')).toBe(true);
 
   // With no editor open the same key does delete it.
   canvas.getLabelEditing().cancel();
-  canvas.getSvg().dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+  canvas.getSvg().dispatchEvent(keyEvent('keydown', { key: 'Backspace' }));
   expect(canvas.getScene()!.elementsById.has('Task_2')).toBe(false);
 });
 
@@ -491,7 +465,7 @@ test('a key with no selection deletes nothing', async () => {
   const loaded = await load();
   const { canvas } = loaded;
   const before = await toXML(loaded);
-  const event = new dom.window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+  const event = keyEvent('keydown', { key: 'Delete' });
   canvas.getSvg().dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
   expect(await toXML(loaded)).toBe(before);

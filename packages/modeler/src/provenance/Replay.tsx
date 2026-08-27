@@ -163,7 +163,7 @@ function useReplayHighlights(editor: EditorPort, shown: ProvenanceRecord[]): voi
     if (!from || from.rootId !== rootId) {
       const place = () => {
         setPos(to, target.id, rootId);
-        try { view.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
+        try { view.scrollToElement(target); } catch { /* off-root elements can decline */ }
         view.setViewbox(camera(to));
       };
       const svg = view.getContainer()?.querySelector('svg');
@@ -233,7 +233,7 @@ function useReplayHighlights(editor: EditorPort, shown: ProvenanceRecord[]): voi
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
           setPos(to, target.id, rootId);
-          try { view.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
+          try { view.scrollToElement(target); } catch { /* off-root elements can decline */ }
           const dest = camera(to);
           view.setViewbox(doorway(doorOut));
           svg.style.transition = 'none';

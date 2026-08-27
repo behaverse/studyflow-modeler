@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { dragBy, freshModdle, jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
  * Dragging an external LABEL (parity spec addendum 3 §2/§5, `edge-videos/labels`).
@@ -22,24 +18,7 @@ import { loadSchemaModels } from './schemas';
  * and every event's client coordinates are computed through `viewport.toScreen`.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const win = jsdomWindow();
 
 /**
  * A named flow whose caption the document POSITIONS (`bpmndi:BPMNLabel`), plus a
@@ -80,11 +59,7 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(options: { snapToGrid?: boolean } = {}): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(FIXTURE_XML);
-  const canvas = new Canvas({ snapToGrid: false, ...options });
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(FIXTURE_XML, { snapToGrid: false, ...options });
 }
 
 // --- DI readers (walk the live moddle tree, never the scene) ------------------
@@ -116,32 +91,13 @@ function diWaypoints(definitions: any, id: string): { x: number; y: number }[] {
 
 interface Pt { x: number; y: number; }
 
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Pt): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: screen.x,
-    clientY: screen.y,
-    button: 0,
-  }));
-}
-
-function dragBy(canvas: Canvas, from: Pt, to: Pt): void {
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
-  firePointer(canvas, doc, 'pointerup', to);
-}
-
 function dragThenEscape(canvas: Canvas, from: Pt, to: Pt): void {
   const svg = canvas.getSvg();
   const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerUp(canvas, to);
 }
 
 function elementOf(canvas: Canvas, id: string): any {

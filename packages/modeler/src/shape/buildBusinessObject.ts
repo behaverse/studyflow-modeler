@@ -10,9 +10,8 @@ export type BuildBusinessObjectOptions = {
 
 /**
  * Mint a business object for `bpmnType`. Takes the `EditorModel` slice rather than a
- * whole port or a bpmn-js resolver: the append menu builds one from an injector,
- * the palette reads it off the active port, and both backends share the document
- * model, so this is the one thing all three have.
+ * whole port: the palette, the append menu and the template factory all reach the
+ * same document model, and none of them needs anything else off the port.
  */
 export function buildBusinessObject(
   model: EditorModel,

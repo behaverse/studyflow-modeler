@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { loadCanvas } from './canvasHarness';
 
 /**
  * Dropping the first pool on a `bpmn:Process` root (P6b §3A,
@@ -24,15 +20,6 @@ import { loadSchemaModels } from './schemas';
  * inside the pool whose process owns it. Get that wrong and the document still
  * validates — it just re-imports as a pool standing next to its own contents.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
 
 /** A blank diagram, as "New" produces one: a process root with a single start event. */
 const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -78,11 +65,7 @@ const SUBPROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(xml: string): Promise<{ canvas: Canvas; definitions: any; moddle: any }> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 function rootElement(definitions: any, type: string): ModdleObject | undefined {

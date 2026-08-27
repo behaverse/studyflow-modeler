@@ -96,8 +96,8 @@ function paintRank(element: any): number {
   if (element.type === 'bpmn:Group') return 1;
   const isSubProcess = element.type === 'bpmn:SubProcess' || element.type === 'bpmn:Transaction'
     || element.type === 'bpmn:AdHocSubProcess';
-  // `collapsed` is diagram-js's flag; the canvas carries the same state on the DI
-  // (`BPMNShape.isExpanded`), so read whichever the backend supplied.
+  // The canvas carries collapse state on the DI (`BPMNShape.isExpanded`); a
+  // `collapsed` flag on the element itself wins where one is set.
   const collapsed = element.collapsed ?? element.di?.isExpanded === false;
   const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && !collapsed);
   return isFrame ? 0 : 2;

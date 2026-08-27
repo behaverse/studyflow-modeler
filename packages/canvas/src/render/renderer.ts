@@ -18,6 +18,7 @@ import { normalizeColor } from '@canvas/model/color.ts';
 import { isCollapsed, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import { depthOf } from '@canvas/model/tree.ts';
+import { DATA_TYPES, isDataStore } from '@canvas/rules/rules.ts';
 import type {
   ModdleObject,
   Point,
@@ -26,7 +27,7 @@ import type {
   SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
-import { append, attr, create, group, remove } from '@canvas/render/svg.ts';
+import { append, create, group, remove } from '@canvas/render/svg.ts';
 import {
   bandPath,
   choreographyBandHeight,
@@ -87,9 +88,6 @@ const TASK_TYPES = new Set<string>([
 const GATEWAY_TYPES = new Set<string>([
   BPMN.ExclusiveGateway, BPMN.ParallelGateway, BPMN.InclusiveGateway,
   BPMN.ComplexGateway, BPMN.EventBasedGateway,
-]);
-const DATA_TYPES = new Set<string>([
-  BPMN.DataObjectReference, BPMN.DataStoreReference, BPMN.DataObject,
 ]);
 const THICK_ACTIVITY = new Set<string>([BPMN.CallActivity, 'bpmn:Transaction']);
 
@@ -236,6 +234,10 @@ export class Renderer {
   /**
    * Render every node and edge of `scene` into the given layers. Nodes are drawn
    * ancestors-first so containers sit behind their children; edges go under nodes.
+   *
+   * EVERY plane is drawn, not just the visible one: which graphics a drill-down
+   * shows is a view concern — `view/plane.ts` hides the off-plane `<g>`s with
+   * `display: none` and `Canvas.setPlaneScope` gates hit-testing to match.
    */
   renderScene(scene: Scene, shapesLayer: SVGElement, connectionsLayer: SVGElement): void {
     this.graphicsById.clear();
@@ -337,7 +339,7 @@ export class Renderer {
         this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'data':
-        if (node.type === BPMN.DataStoreReference) drawDataStore(g, node.width, node.height, style);
+        if (isDataStore(node.type)) drawDataStore(g, node.width, node.height, style);
         else drawDataObject(g, node.width, node.height, style);
         this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
@@ -399,10 +401,9 @@ export class Renderer {
   }
 
   /**
-   * Bottom-centre activity markers (design §2), the same set and order the modeler's
-   * bpmn-js renderer draws (`draw/Renderer.ts` `drawMarkers`) so a diagram reads the
-   * same on either backend. Each marker is drawn by KEY; the injected resolver turns
-   * the key into a glyph.
+   * Bottom-centre activity markers (design §2) — the set and order BPMN prescribes,
+   * kept from the ported `drawMarkers` so the shipped documents read unchanged. Each
+   * marker is drawn by KEY; the injected resolver turns the key into a glyph.
    */
   private drawMarkers(g: SVGGElement, node: SceneNode, color: string): void {
     const markers: string[] = [];
@@ -663,8 +664,8 @@ export function roundedPathData(
     const prev = waypoints[i - 1];
     const corner = waypoints[i];
     const next = waypoints[i + 1];
-    const inLength = distance(prev, corner);
-    const outLength = distance(corner, next);
+    const inLength = Math.hypot(corner.x - prev.x, corner.y - prev.y);
+    const outLength = Math.hypot(next.x - corner.x, next.y - corner.y);
     const r = Math.min(radius, inLength / 2, outLength / 2);
     const inDir = direction(prev, corner);
     const outDir = direction(corner, next);
@@ -685,12 +686,8 @@ export function roundedPathData(
 
 /** Unit vector from `a` to `b` (the zero vector when they coincide). */
 function direction(a: Point, b: Point): Point {
-  const length = distance(a, b);
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
   return length < 1e-6 ? { x: 0, y: 0 } : { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
-}
-
-function distance(a: Point, b: Point): number {
-  return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
 /** Path numbers are trimmed to 3 decimals: an arc endpoint is never a round number. */
@@ -760,6 +757,3 @@ function makeMarker(id: string, kind: 'filled' | 'open'): SVGMarkerElement {
   append(marker, path);
   return marker;
 }
-
-/** Re-export tiny helpers used by callers wiring the renderer into layers. */
-export { attr, remove };

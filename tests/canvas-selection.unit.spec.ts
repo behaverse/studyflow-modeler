@@ -1,28 +1,19 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import {
-  CANVAS_CSS,
-  CANVAS_STYLE_ID,
-  Canvas,
-  isContainerNode,
-  pointInNode,
-  setDocument,
-} from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
+import { isContainerNode, pointInNode } from '@canvas/interaction/hit.ts';
+import { CANVAS_CSS, CANVAS_STYLE_ID } from '@canvas/view/theme.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import type { SelectionChangedEvent } from '@canvas/interaction/selection.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+
+import { freshModdle, jsdomWindow, loadCanvas as loadCanvasXml, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * P2 hit-testing + selection + lasso (design §6). The canvas is presentation-
- * agnostic and runs under jsdom via `setDocument` (same setup as
- * `canvas-render.unit.spec.ts`). We build a scene from a shipped example and drive
- * pointer events directly on the SVG DOM.
+ * agnostic and driven through `tests/canvasHarness.ts`. We build a scene from a
+ * shipped example and drive pointer events directly on the SVG DOM.
  *
  * jsdom has no layout engine, so `getBoundingClientRect` returns zeros and the
  * viewport maps screen↔diagram at unit scale with a `box.x/y` offset. That is
@@ -31,28 +22,14 @@ import { exampleXml } from './utils';
  * (absent) layout.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
+const win = jsdomWindow();
 
 const EXAMPLE = 'drawn_loop.studyflow.png';
 /** Carries a `bpmn:Group`, a pool/lane and an expanded subprocess — every frame kind. */
 const NESTED_EXAMPLE = 'kitchensink.studyflow.png';
 
 async function loadCanvas(example = EXAMPLE): Promise<Canvas> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(exampleXml(example));
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
+  const { canvas } = await loadCanvasXml(exampleXml(example));
   return canvas;
 }
 
@@ -81,7 +58,7 @@ function firePointer(
   opts: { shiftKey?: boolean } = {},
 ): void {
   const screen = canvas.getViewport().toScreen(diagram);
-  const ev = new dom.window.MouseEvent(type, {
+  const ev = new win.MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: screen.x,
@@ -94,10 +71,8 @@ function firePointer(
 
 /** Simulate a click (down+up, no move) at a node's centre. */
 function click(canvas: Canvas, node: SceneNode, opts: { shiftKey?: boolean } = {}): void {
-  const svg = canvas.getSvg();
-  const doc = canvas.getSvg().ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', center(node), opts);
-  firePointer(canvas, doc, 'pointerup', center(node), opts);
+  pointerDown(canvas, center(node), opts);
+  pointerUp(canvas, center(node), opts);
 }
 
 test('hit-testing: a point inside a shape returns that node; empty space returns none', async () => {
@@ -209,7 +184,6 @@ test('selection: a plain click on a member of a multi-selection collapses to it'
 
 test('selection: a PRESS on a multi-selection keeps the group, so a group drag moves all', async () => {
   const canvas = await loadCanvas();
-  const doc = canvas.getSvg().ownerDocument!;
   const [a, b] = leafNodes(canvas);
   const from = { x: a.x, y: a.y };
   const fromB = { x: b.x, y: b.y };
@@ -218,12 +192,12 @@ test('selection: a PRESS on a multi-selection keeps the group, so a group drag m
   click(canvas, b, { shiftKey: true });
 
   const start = center(a);
-  firePointer(canvas, canvas.getSvg(), 'pointerdown', start);
+  pointerDown(canvas, start);
   // The press alone must NOT collapse — the gesture may still become a group drag.
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id, b.id]);
 
-  firePointer(canvas, doc, 'pointermove', { x: start.x + 40, y: start.y + 20 });
-  firePointer(canvas, doc, 'pointerup', { x: start.x + 40, y: start.y + 20 });
+  pointerMove(canvas, { x: start.x + 40, y: start.y + 20 });
+  pointerUp(canvas, { x: start.x + 40, y: start.y + 20 });
 
   expect(canvas.getSelection().get().map((e) => e.id), 'a drag keeps the group').toEqual([a.id, b.id]);
   // Grid snapping is ON by default (parity spec addendum 7): the LEAD node's origin
@@ -267,10 +241,8 @@ test('selection: a plain click on empty space clears the selection', async () =>
     minY = Math.min(minY, n.y);
   }
   const empty = { x: minX - 300, y: minY - 300 };
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', empty);
-  firePointer(canvas, doc, 'pointerup', empty);
+  pointerDown(canvas, empty);
+  pointerUp(canvas, empty);
 
   expect(canvas.getSelection().get().length).toBe(0);
 });
@@ -295,13 +267,11 @@ test('lasso: a marquee over a region selects the intersecting nodes', async () =
   const end = { x: maxX + 20, y: maxY + 20 };
   expect(canvas.hitTest(start), 'marquee starts on empty space').toBeUndefined();
 
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   // Dragging empty canvas PANS; the marquee belongs to the palette's lasso tool.
   canvas.activateLasso();
-  firePointer(canvas, svg, 'pointerdown', start);
-  firePointer(canvas, doc, 'pointermove', end);
-  firePointer(canvas, doc, 'pointerup', end);
+  pointerDown(canvas, start);
+  pointerMove(canvas, end);
+  pointerUp(canvas, end);
 
   const selectedIds = new Set(canvas.getSelection().get().map((e) => e.id));
   // Every node whose bounds fall within the marquee is selected.
@@ -366,10 +336,7 @@ const FRAMES_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function loadFrames(): Promise<Canvas> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(FRAMES_XML);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
+  const { canvas } = await loadCanvasXml(FRAMES_XML);
   return canvas;
 }
 
@@ -722,5 +689,49 @@ test('markers: addMarker/removeMarker toggle a class on element graphics', async
 
   selection.removeMarker(node.id, 'sf-highlight');
   expect(canvas.getGraphics(node.id)?.classList.contains('sf-highlight')).toBe(false);
+  expect(selection.hasMarker(node.id, 'sf-highlight')).toBe(false);
+});
+
+/**
+ * Markers are remembered in a map keyed by element ID, and IDs are minted PER
+ * DOCUMENT (`model/ids.ts`) — so an entry that outlives the element it described
+ * is not merely stale, it is a booby trap: the next element to be handed that ID
+ * inherits a dead element's classes the first time `restoreMarkers` runs for it
+ * (which the renderer does on every redraw, e.g. mid-drag). The two tests below
+ * pin the two ways an ID stops being live: a whole new document, and a delete.
+ */
+
+test('markers: an import forgets them, so a re-used id starts clean', async () => {
+  const canvas = await loadCanvas();
+  const node = leafNodes(canvas)[0];
+  const selection = canvas.getSelection();
+
+  selection.addMarker(node.id, 'sf-highlight');
+  expect(selection.hasMarker(node.id, 'sf-highlight')).toBe(true);
+
+  // Re-import the SAME example: every id in the incoming document collides with
+  // one from the outgoing one, which is precisely how a leak would surface.
+  const moddle = freshModdle();
+  const { rootElement } = await moddle.fromXML(exampleXml(EXAMPLE));
+  canvas.importDefinitions(rootElement);
+  expect(canvas.getScene()!.elementsById.get(node.id)).toBeDefined();
+
+  expect(selection.hasMarker(node.id, 'sf-highlight')).toBe(false);
+  // …and the redraw path cannot resurrect it either.
+  selection.restoreMarkers(node.id);
+  expect(canvas.getGraphics(node.id)?.classList.contains('sf-highlight')).toBe(false);
+});
+
+test('markers: deleting an element forgets its markers', async () => {
+  const canvas = await loadCanvas();
+  const node = leafNodes(canvas)[0];
+  const selection = canvas.getSelection();
+
+  selection.addMarker(node.id, 'sf-highlight');
+  expect(selection.hasMarker(node.id, 'sf-highlight')).toBe(true);
+
+  const removed = canvas.deleteElements(node);
+  expect(removed.map((element) => element.id)).toContain(node.id);
+
   expect(selection.hasMarker(node.id, 'sf-highlight')).toBe(false);
 });

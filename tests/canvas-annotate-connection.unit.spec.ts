@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas } from './canvasHarness';
 
 /**
  * Annotating a CONNECTION — the third entry ux-spec §4 records on a selected flow's
@@ -22,19 +18,6 @@ import { loadSchemaModels } from './schemas';
  * `model/remove.ts` takes away with the flow. If any one drifts, `toXML` emits an
  * association pointing at a business object that is not in the document.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 /** `Start_1 → Task_1`, joined by a plain horizontal flow at y=118. */
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -64,11 +47,7 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(): Promise<{ canvas: Canvas; definitions: any; moddle: any }> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(FIXTURE_XML);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(FIXTURE_XML);
 }
 
 function process(definitions: any): any {

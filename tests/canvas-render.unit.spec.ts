@@ -2,15 +2,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
 import { exampleXml } from './utils';
 
 /**
@@ -31,20 +27,9 @@ import { exampleXml } from './utils';
 const GOLDEN_DIR = path.join(process.cwd(), 'packages/canvas/tests/__golden__');
 const UPDATE = process.env.UPDATE_GOLDENS === '1';
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
-
 // A single jsdom document backs every render; the canvas is presentation-agnostic
 // and only needs a DOM to mint SVG nodes into.
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
+installDocument();
 
 /** Every `.studyflow.png` example, in directory order. */
 function exampleFiles(): string[] {
@@ -170,10 +155,7 @@ for (const filename of files) {
 
 /** Render one example and hand back its canvas. */
 async function render(filename: string): Promise<Canvas> {
-  const { rootElement: definitions } = await freshModdle().fromXML(exampleXml(filename));
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return canvas;
+  return (await loadCanvas(exampleXml(filename))).canvas;
 }
 
 /** The `<text>` lines the renderer drew inside an element's `<g>`. */
@@ -210,6 +192,52 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
   // Top-left inside the bracket, inset by bpmn-js's TEXT_ANNOTATION_PADDING.
   expect(first.getAttribute('x')).toBe('7');
   expect(first.getAttribute('text-anchor')).toBeNull();
+});
+
+/**
+ * Every type the rules call a data shape must also DRAW as one. `bpmn:DataStore`
+ * was in the rules' set (so associations could be drawn to it) but not the
+ * renderer's, so it fell through to the unknown-vocabulary rect — and the cropper's
+ * data-store branch, which lives under the `'data'` category, was unreachable.
+ */
+const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_Data" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:dataStore id="Store_1" name="Vault" />
+  <bpmn:process id="Process_Data" isExecutable="false">
+    <bpmn:dataStoreReference id="StoreRef_1" name="Ref" dataStoreRef="Store_1" />
+    <bpmn:dataObjectReference id="ObjRef_1" name="Obj" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_Data">
+    <bpmndi:BPMNPlane id="Plane_Data" bpmnElement="Process_Data">
+      <bpmndi:BPMNShape id="Store_1_di" bpmnElement="Store_1">
+        <dc:Bounds x="100" y="100" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StoreRef_1_di" bpmnElement="StoreRef_1">
+        <dc:Bounds x="200" y="100" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ObjRef_1_di" bpmnElement="ObjRef_1">
+        <dc:Bounds x="300" y="100" width="36" height="50" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', async () => {
+  const { canvas } = await loadCanvas(DATA_XML);
+  const pathOf = (id: string): string => canvas.getGraphics(id)!.querySelector('path')!.getAttribute('d') ?? '';
+
+  // A cylinder: the body path opens with the lid's elliptical arc.
+  expect(pathOf('Store_1')).toContain('A');
+  expect(pathOf('Store_1')).toBe(pathOf('StoreRef_1'));
+  // …and it is NOT the unknown-vocabulary fallback, which is a rounded <rect>.
+  expect(canvas.getGraphics('Store_1')!.querySelector('rect')).toBeNull();
+
+  // A data OBJECT still draws as the dog-eared page (no arcs at all).
+  expect(pathOf('ObjRef_1')).not.toContain('A');
 });
 
 test('a choreography task draws its name in the MIDDLE band, not on the divider', async () => {

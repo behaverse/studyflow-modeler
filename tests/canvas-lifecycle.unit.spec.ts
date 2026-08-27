@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, installDocument, pointerDown, pointerMove, pointerUp, jsdomWindow } from './canvasHarness';
 
 /**
  * `Canvas` teardown (CanvasReview H4).
@@ -19,21 +15,11 @@ import { loadSchemaModels } from './schemas';
  * all keep the same `<div>` — so a canvas that cannot be torn down keeps answering
  * keystrokes forever and pins its whole `bpmn:Definitions` moddle tree.
  *
- * jsdom via `setDocument`, same setup as the other `canvas-*` specs.
+ * Driven through `tests/canvasHarness.ts`, same setup as the other `canvas-*` specs.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const doc = installDocument();
+const win = jsdomWindow();
 
 const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -63,8 +49,8 @@ async function parse(xml = PROCESS_XML): Promise<any> {
 }
 
 function container(): HTMLElement {
-  const el = dom.window.document.createElement('div');
-  dom.window.document.body.appendChild(el);
+  const el = doc.createElement('div');
+  doc.body.appendChild(el);
   return el as unknown as HTMLElement;
 }
 
@@ -88,13 +74,6 @@ function trackListeners(target: any): { live: () => string[] } {
 
 function node(canvas: Canvas, id: string): SceneNode {
   return canvas.getScene()!.elementsById.get(id) as SceneNode;
-}
-
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: { x: number; y: number }): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true, cancelable: true, clientX: screen.x, clientY: screen.y, button: 0,
-  }));
 }
 
 // --- H4: destroy() ------------------------------------------------------------
@@ -134,7 +113,7 @@ test('destroy: a stale canvas no longer answers Delete on a container it shared'
   live.importDefinitions(liveDefs);
   live.getSelection().select(node(live, 'Start_1'));
 
-  host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+  host.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
 
   const ids = (defs: any): string[] =>
     defs.rootElements[0].flowElements.map((el: any) => el.id).sort();
@@ -153,8 +132,8 @@ test('destroy mid-gesture abandons the drag and drops the document-level listene
   const tracked = trackListeners(doc);
   const task = node(canvas, 'Task_1');
 
-  firePointer(canvas, canvas.getSvg(), 'pointerdown', { x: 250, y: 120 });
-  firePointer(canvas, doc, 'pointermove', { x: 310, y: 180 });
+  pointerDown(canvas, { x: 250, y: 120 });
+  pointerMove(canvas, { x: 310, y: 180 });
   expect(tracked.live()).toEqual(['keydown', 'pointermove', 'pointerup']);
   expect(task.x, 'the scene moved live').toBe(260);
 
@@ -169,6 +148,6 @@ test('destroy mid-gesture abandons the drag and drops the document-level listene
   expect({ x: bounds.x, y: bounds.y }).toEqual({ x: 200, y: 80 });
 
   // A late event from the in-flight gesture must not reach a torn-down canvas.
-  firePointer(canvas, doc, 'pointerup', { x: 310, y: 180 });
+  pointerUp(canvas, { x: 310, y: 180 });
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
 });

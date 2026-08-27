@@ -93,8 +93,8 @@ import {
   ensureArrowMarkers,
   markerEndFor,
   Renderer,
-  roundedPathData,
 } from '@canvas/render/renderer.ts';
+import { drawPreviewEdge } from '@canvas/render/preview.ts';
 import type { RendererOptions } from '@canvas/render/renderer.ts';
 import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
@@ -346,7 +346,7 @@ export class Canvas {
   private panFrom?: Point;
   /**
    * The palette's lasso tool is armed: the next press starts a marquee instead of a
-   * pan. Dragging empty canvas PANS on this backend (parity spec §10), so the lasso
+   * pan. Dragging empty canvas PANS here (parity spec §10), so the lasso
    * is reachable only this way — exactly as in the reference, where the marquee is
    * the palette's first tool and nothing else.
    */
@@ -549,6 +549,9 @@ export class Canvas {
   importDefinitions(definitions: ModdleObject): Scene {
     this.labelEditing.reset();
     this.selection.clear();
+    // …and the remembered markers with it: the incoming document mints its own ids
+    // (`model/ids.ts`), so an entry kept from the last one would land on a stranger.
+    this.selection.forget();
     this.selection.setHovered(undefined);
     this.labels.clear();
     // A fresh document is a fresh view: whatever plane the last one was scoped to
@@ -646,19 +649,9 @@ export class Canvas {
     return this.selection;
   }
 
-  /** The inline label editor (design §3 `interaction/labelEditing.ts`). */
-  getLabelEditing(): LabelEditing {
-    return this.labelEditing;
-  }
-
   /** The DI writeback for the current scene, or `undefined` before an import. */
   getWriteback(): Writeback | undefined {
     return this.writeback;
-  }
-
-  /** The drag/resize gesture runner, or `undefined` before an import. */
-  getDrag(): Drag | undefined {
-    return this.drag;
   }
 
   /** The rule engine gating create/connect/reconnect (design §3 `rules/rules.ts`). */
@@ -666,12 +659,27 @@ export class Canvas {
     return this.rules;
   }
 
-  /** The palette create gesture (design §3 `interaction/create.ts`). */
+  // The four below are TEST SEAMS. Every gesture the app can start has a facade
+  // method on `Canvas` itself (`startCreate`, `startConnect`, `editLabel`, …); these
+  // hand out the runner behind it so a unit spec can assert on its internal state
+  // without driving a full pointer gesture. App code should never reach for them.
+
+  /** @internal The inline label editor (design §3 `interaction/labelEditing.ts`). */
+  getLabelEditing(): LabelEditing {
+    return this.labelEditing;
+  }
+
+  /** @internal The drag/resize gesture runner, or `undefined` before an import. */
+  getDrag(): Drag | undefined {
+    return this.drag;
+  }
+
+  /** @internal The palette create gesture (design §3 `interaction/create.ts`). */
   getCreate(): Create {
     return this.create;
   }
 
-  /** The connect/reconnect gesture (design §3 `interaction/connect.ts`). */
+  /** @internal The connect/reconnect gesture (design §3 `interaction/connect.ts`). */
   getConnect(): Connect {
     return this.connect;
   }
@@ -972,13 +980,9 @@ export class Canvas {
     const spec = this.rules.canConnect(source, probe);
     const type = spec ? spec.type : CONNECTION.sequenceFlow;
     const points = routeFor(type, routableEnd(source), { ...bounds, type: prototype.type });
-    if (points.length < 2) return undefined;
-    return create('path', {
-      class: 'sf-append-preview-line',
-      d: roundedPathData(points),
-      'data-waypoints': points.map((p) => `${p.x},${p.y}`).join(' '),
-      'stroke-dasharray': edgeDashArray(type),
-      'marker-end': markerEndFor(type),
+    return drawPreviewEdge(points, 'sf-append-preview-line', {
+      dash: edgeDashArray(type),
+      markerEnd: markerEndFor(type),
     });
   }
 
@@ -1147,7 +1151,12 @@ export class Canvas {
       // …and a caption goes with the element it names.
       && !(element.labelTarget && removedIds.has(element.labelTarget.id))
     ));
-    for (const element of removed) this.renderer.erase(element.id);
+    for (const element of removed) {
+      this.renderer.erase(element.id);
+      // Markers are remembered by id and ids are re-used across documents, so a
+      // deleted element's must go with it (`Selection.forget`).
+      this.selection.forget(element.id);
+    }
     this.selection.select(keep.length > 0 ? keep : null);
     this.redrawElements(changed);
     return removed;
@@ -1319,10 +1328,6 @@ export class Canvas {
   }
 
   /**
-   * The topmost {@link SceneElement} under a diagram-coordinate `point`, or
-   * `undefined` for empty space. Geometry-based (works under jsdom).
-   */
-  /**
    * Put the keyboard focus on the diagram (the SVG root), so canvas-scoped
    * shortcuts reach it. Called on every press, and whenever an overlay that stole
    * the focus — the inline label editor — hands it back.
@@ -1334,6 +1339,15 @@ export class Canvas {
       .focus?.({ preventScroll: true });
   }
 
+  /**
+   * The topmost {@link SceneElement} under a diagram-coordinate `point`, or
+   * `undefined` over empty space — the PURE scene query, narrowed to the current
+   * plane scope. Geometry only, so it answers the same under jsdom as in a browser.
+   *
+   * {@link Canvas.elementAt} is the one gestures go through: it consults the drawn
+   * captions first. Use this when the question really is "what shape is at this
+   * point".
+   */
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
     if (!this.scene) return undefined;
     return hitTest(this.scene, point, this.scopedHitOptions(options));
@@ -1376,14 +1390,11 @@ export class Canvas {
    * The companion of {@link Canvas.setPlaneScope} — scope decides what is SEEN, this
    * decides where what is MADE goes — and `view/plane.ts` moves both together. Like
    * the scope, setting it writes nothing.
+   *
+   * @internal `view/plane.ts` drives this; nothing outside the canvas should.
    */
   setActivePlane(plane?: Plane): void {
     this.activePlane = plane;
-  }
-
-  /** The plane new elements are filed in — the root plane unless a drill-down moved it. */
-  getActivePlane(): Plane | undefined {
-    return this.activePlane ?? this.scene?.rootPlane;
   }
 
   /** Whether `element` is inside the current plane scope (always true without one). */
@@ -1446,7 +1457,7 @@ export class Canvas {
   }
 
   /**
-   * Arm the palette's lasso tool — the ONLY way to lasso on this backend, because
+   * Arm the palette's lasso tool — the ONLY way to lasso, because
    * dragging empty canvas pans (parity spec §8/§10). The next press starts a
    * marquee whatever is under it; the tool disarms itself when that gesture ends,
    * and `Escape` disarms it too.
@@ -2081,7 +2092,7 @@ export class Canvas {
    * Draw the snap guides at diagram `x` (a vertical line) and/or `y` (a horizontal
    * one), each spanning the visible viewport. Passing neither hides them.
    */
-  showSnapLines(x?: number, y?: number): void {
+  private showSnapLines(x?: number, y?: number): void {
     if (x === undefined && y === undefined) {
       this.hideSnapLines();
       return;
@@ -2107,7 +2118,7 @@ export class Canvas {
   }
 
   /** Take the snap guides down. */
-  hideSnapLines(): void {
+  private hideSnapLines(): void {
     remove(this.snapLines);
     this.snapLines = undefined;
   }

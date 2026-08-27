@@ -29,10 +29,9 @@ export type Point = { x: number; y: number };
  *
  * - `events` carries `root.set` in and {@link TOGGLE_SIMULATION_EVENT} out;
  * - `elements` finds the start events to spawn from, scoped to the current root;
- * - `view.getLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. Both
- *   backends put custom layers in the diagram's own coordinate space (diagram-js layers
- *   sit under the viewport transform; the canvas applies pan/zoom to the root `viewBox`),
- *   so token positions are plain element coordinates on either.
+ * - `view.getLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. A
+ *   custom layer lives in the diagram's own coordinate space (the canvas applies
+ *   pan/zoom to the root `viewBox`), so token positions are plain element coordinates.
  */
 export interface SimulationHost {
   events: Pick<EditorEvents, 'on' | 'off' | 'fire'>;
@@ -161,7 +160,7 @@ export default class TokenSimulator {
     this._host.events.on('root.set', this._handleRootSet);
   }
 
-  /** Stop, and let go of the editor. Called when the backend is torn down. */
+  /** Stop, and let go of the editor. Called when the editor is torn down. */
   dispose(): void {
     this.stop();
     this._host.events.off('root.set', this._handleRootSet);
@@ -220,8 +219,8 @@ export default class TokenSimulator {
 
   private _handleRootSet = () => {
     if (!this._active) return;
-    // An import replaces the diagram — and with it the layer, which both backends
-    // drop on `Layers.clear()` / `Canvas.clear()`. Re-fetch rather than reuse.
+    // An import replaces the diagram — and with it the layer, which the canvas
+    // drops on `Layers.clear()`. Re-fetch rather than reuse.
     this._layer = this._host.view.getLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this._startEvents = this._getVisibleStartEvents();
     this._clearTokens();
@@ -231,10 +230,9 @@ export default class TokenSimulator {
   /**
    * Top-level start events on the current root plane.
    *
-   * The parent test is written for both element models: diagram-js parents a
-   * top-level shape on the root element itself, while a canvas scene element at the
-   * top of a plane simply has no `parent` — and the canvas registry spans every
-   * plane, so those need `findRoot` to keep a nested plane's start events out.
+   * A canvas scene element at the top of a plane simply has no `parent`, and the
+   * registry spans every plane — so the test is `parent === root || !parent`, plus
+   * `findRoot` to keep a nested plane's start events out.
    */
   private _getVisibleStartEvents(): EditorElement[] {
     const root = this._rootElement();

@@ -20,9 +20,7 @@ export default defineConfig({
       testMatch: '**/*.unit.spec.ts',
       fullyParallel: true,
     },
-    // P6b: one editor, one e2e project. The `e2e-bpmn` companion went with the
-    // bpmn-js backend it drove (plan step 7) — there is no second backend left for
-    // `?editor=` to point the same specs at.
+    // Browser specs against the one editor the app ships.
     {
       name: 'e2e',
       testIgnore: '**/*.unit.spec.ts',

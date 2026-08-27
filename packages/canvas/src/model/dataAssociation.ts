@@ -73,13 +73,6 @@ export function isDataAssociationType(type: string): boolean {
   return type === DATA_INPUT_ASSOCIATION || type === DATA_OUTPUT_ASSOCIATION;
 }
 
-/** The direction a data-association type carries, or `undefined` for any other type. */
-export function directionOf(type: string): DataAssociationDirection | undefined {
-  if (type === DATA_INPUT_ASSOCIATION) return 'input';
-  if (type === DATA_OUTPUT_ASSOCIATION) return 'output';
-  return undefined;
-}
-
 /** The association type for a direction. */
 export function typeForDirection(direction: DataAssociationDirection): string {
   return direction === 'input' ? DATA_INPUT_ASSOCIATION : DATA_OUTPUT_ASSOCIATION;

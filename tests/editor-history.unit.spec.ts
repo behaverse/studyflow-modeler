@@ -70,7 +70,7 @@ test('undo restores the previous snapshot and redo puts it back', async () => {
   await settle();
 
   state.xml = '<b/>';
-  history.endMutation('updateProperties');
+  history.record();
   await settle();
 
   expect(history.canUndo()).toBe(true);
@@ -108,11 +108,11 @@ test('two mutation signals for one edit collapse into one undo state', async () 
   history.reset();
   await settle();
 
-  // What the canvas backend does on a `mutate.*` call: the adapter's `endMutation`
-  // and the scene's own change event both arrive for a single write.
+  // What the canvas backend does on a `mutate.*` call: the adapter's per-mutation
+  // commit and the scene's own change event both arrive for a single write.
   state.xml = '<b/>';
-  history.endMutation('setColor');
-  history.record('scene');
+  history.record();
+  history.record();
   await settle();
 
   history.undo();
@@ -165,7 +165,7 @@ test('the writes an undo itself causes are not recorded as edits', async () => {
       state.xml = xml;
       // The canvas fires `element.changed` while a snapshot is being applied; the
       // watcher in `canvasBackend.ts` calls straight back into `record`.
-      history.record('scene');
+      history.record();
       recordsDuringRestore += 1;
     },
   });

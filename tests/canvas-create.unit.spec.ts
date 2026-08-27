@@ -1,20 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
 import { getExtensionType } from '@core/element';
-import {
-  Canvas,
-  createShape,
-  defaultSizeFor,
-  setDocument,
-} from '@canvas/index.ts';
+import { Canvas, defaultSizeFor } from '@canvas/index.ts';
+import { createShape } from '@canvas/interaction/create.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, installDocument, loadCanvas, pointerDown, pointerMove, pointerUp, keyEvent, type Loaded } from './canvasHarness';
 
 /**
  * P4 palette create gesture (design §3 `interaction/create.ts`, §1 "add shape").
@@ -32,18 +24,7 @@ import { loadSchemaModels } from './schemas';
  * jsdom's zero-sized layout).
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+installDocument();
 
 // --- fixtures ----------------------------------------------------------------
 
@@ -122,18 +103,8 @@ const FLOW_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 async function load(xml = PROCESS_XML): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 // --- live-tree readers (never the scene) -------------------------------------
@@ -155,21 +126,6 @@ async function roundTrip(loaded: Loaded): Promise<{ xml: string; reloaded: any }
   const { xml } = await loaded.moddle.toXML(loaded.definitions);
   const { rootElement: reloaded } = await freshModdle().fromXML(xml);
   return { xml, reloaded };
-}
-
-// --- pointer helpers ---------------------------------------------------------
-
-interface Pt { x: number; y: number; }
-
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Pt): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: screen.x,
-    clientY: screen.y,
-    button: 0,
-  }));
 }
 
 function node(canvas: Canvas, id: string): SceneNode {
@@ -347,13 +303,12 @@ test('every created element draws a fresh id, never colliding with the document'
 test('startCreate follows the pointer with a preview and drops where the pointer is', async () => {
   const { canvas, definitions } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const overlays = svg.querySelector('.sf-layer-overlays') ?? svg;
 
   expect(canvas.startCreate(undefined, { type: 'bpmn:UserTask' })).toBe(true);
   expect(canvas.getCreate().isActive()).toBe(true);
 
-  firePointer(canvas, doc, 'pointermove', { x: 600, y: 400 });
+  pointerMove(canvas, { x: 600, y: 400 });
   const preview = overlays.querySelector('.sf-create-preview');
   expect(preview).not.toBeNull();
   expect(preview!.getAttribute('data-allowed')).toBe('true');
@@ -367,7 +322,7 @@ test('startCreate follows the pointer with a preview and drops where the pointer
   expect(ghost.hasAttribute('data-element-id')).toBe(false);
   expect(ghost.querySelector('rect')).not.toBeNull();
 
-  firePointer(canvas, doc, 'pointerup', { x: 600, y: 400 });
+  pointerUp(canvas, { x: 600, y: 400 });
   expect(canvas.getCreate().isActive()).toBe(false);
   expect(svg.querySelector('.sf-create-preview')).toBeNull();
 
@@ -381,16 +336,15 @@ test('startCreate follows the pointer with a preview and drops where the pointer
 test('the preview reports a forbidden target, and dropping there creates nothing', async () => {
   const { canvas, definitions } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const task = node(canvas, 'Task_1');
   const over = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
   const before = process(definitions).flowElements.length;
 
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
-  firePointer(canvas, doc, 'pointermove', over);
+  pointerMove(canvas, over);
   expect(svg.querySelector('.sf-create-preview')!.getAttribute('data-allowed')).toBe('false');
 
-  firePointer(canvas, doc, 'pointerup', over);
+  pointerUp(canvas, over);
   expect(process(definitions).flowElements.length).toBe(before);
   expect(svg.querySelector('.sf-create-preview')).toBeNull();
   expect(canvas.getSelection().get()).toEqual([]);
@@ -404,8 +358,8 @@ test('Escape abandons a create gesture without touching the document', async () 
   const revision = canvas.getScene()!.revision;
 
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
-  firePointer(canvas, doc, 'pointermove', { x: 600, y: 500 });
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  pointerMove(canvas, { x: 600, y: 500 });
+  doc.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
 
   expect(canvas.getCreate().isActive()).toBe(false);
   expect(svg.querySelector('.sf-create-preview')).toBeNull();
@@ -487,12 +441,10 @@ function dropMarks(canvas: Canvas): { id: string; mark: string }[] {
 
 test('a drop selects the new element AND opens its label editor', async () => {
   const { canvas } = await load();
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
 
   canvas.startCreate(undefined, { type: 'bpmn:UserTask' });
-  firePointer(canvas, doc, 'pointermove', { x: 600, y: 400 });
-  firePointer(canvas, doc, 'pointerup', { x: 600, y: 400 });
+  pointerMove(canvas, { x: 600, y: 400 });
+  pointerUp(canvas, { x: 600, y: 400 });
 
   const created = canvas.getSelection().get()[0] as SceneNode;
   expect(created.type).toBe('bpmn:UserTask');
@@ -506,15 +458,13 @@ test('a drop selects the new element AND opens its label editor', async () => {
 
 test('click-to-place creates too, and lands the same element in the same state', async () => {
   const { canvas, definitions } = await load();
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const before = process(definitions).flowElements.length;
 
   // The palette's click gesture: `startCreate` with no canvas press behind it, then
   // a plain click on the canvas — a pointerdown that must NOT become a marquee.
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
-  firePointer(canvas, svg, 'pointerdown', { x: 700, y: 500 });
-  firePointer(canvas, doc, 'pointerup', { x: 700, y: 500 });
+  pointerDown(canvas, { x: 700, y: 500 });
+  pointerUp(canvas, { x: 700, y: 500 });
 
   expect(process(definitions).flowElements.length).toBe(before + 1);
   const created = canvas.getSelection().get()[0] as SceneNode;
@@ -539,7 +489,6 @@ test('an event or a gateway is selected on drop but opens no editor', async () =
 test('drop feedback: an invalid target is tinted red, a valid container tinted grey', async () => {
   const { canvas } = await load();
   const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const task = node(canvas, 'Task_1');
   const over = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
 
@@ -547,16 +496,16 @@ test('drop feedback: an invalid target is tinted red, a valid container tinted g
   // The cursor says "carrying something" for the whole gesture.
   expect(svg.classList.contains('sf-drag-active')).toBe(true);
 
-  firePointer(canvas, doc, 'pointermove', over);
+  pointerMove(canvas, over);
   expect(dropMarks(canvas)).toEqual([{ id: 'Task_1', mark: 'sf-drop-not-ok' }]);
   expect(svg.classList.contains('sf-new-parent')).toBe(false);
 
   // Off the shape: empty canvas takes it, and the ROOT is what gets marked.
-  firePointer(canvas, doc, 'pointermove', { x: 800, y: 600 });
+  pointerMove(canvas, { x: 800, y: 600 });
   expect(dropMarks(canvas)).toEqual([]);
   expect(svg.classList.contains('sf-new-parent')).toBe(true);
 
-  firePointer(canvas, doc, 'pointerup', { x: 800, y: 600 });
+  pointerUp(canvas, { x: 800, y: 600 });
   // Every mark is as short-lived as the gesture.
   expect(dropMarks(canvas)).toEqual([]);
   expect(svg.classList.contains('sf-new-parent')).toBe(false);
@@ -565,20 +514,18 @@ test('drop feedback: an invalid target is tinted red, a valid container tinted g
 
 test('drop feedback: a pool accepts the drop', async () => {
   const { canvas } = await load(POOL_XML);
-  const doc = canvas.getSvg().ownerDocument!;
   const pool = node(canvas, 'Pool_1');
 
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
-  firePointer(canvas, doc, 'pointermove', { x: pool.x + 400, y: pool.y + 150 });
+  pointerMove(canvas, { x: pool.x + 400, y: pool.y + 150 });
   expect(dropMarks(canvas)).toEqual([{ id: 'Pool_1', mark: 'sf-new-parent' }]);
 
-  firePointer(canvas, doc, 'pointerup', { x: pool.x + 400, y: pool.y + 150 });
+  pointerUp(canvas, { x: pool.x + 400, y: pool.y + 150 });
   expect(dropMarks(canvas)).toEqual([]);
 });
 
 test('drop feedback: dropping onto a sequence flow marks the CONNECTION as accepting', async () => {
   const { canvas, definitions } = await load(FLOW_XML);
-  const doc = canvas.getSvg().ownerDocument!;
   const flow = canvas.getScene()!.elementsById.get('Flow_1') as any;
   // Mid-way along the flow, clear of both shapes it joins.
   const mid = { x: 170, y: 118 };
@@ -586,12 +533,12 @@ test('drop feedback: dropping onto a sequence flow marks the CONNECTION as accep
   const before = process(definitions).flowElements.length;
 
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
-  firePointer(canvas, doc, 'pointermove', mid);
+  pointerMove(canvas, mid);
   // Insert-on-flow is allowed, and it is the connection under the pointer that
   // carries the mark — not the container the shape would land in (spec §7 `dropOnFlow`).
   expect(dropMarks(canvas)).toEqual([{ id: 'Flow_1', mark: 'sf-new-parent' }]);
 
-  firePointer(canvas, doc, 'pointerup', mid);
+  pointerUp(canvas, mid);
   expect(process(definitions).flowElements.length).toBe(before + 1);
   expect(dropMarks(canvas)).toEqual([]);
 });
@@ -603,10 +550,10 @@ test('Escape during a create clears the tint and the cursor with the ghost', asy
   const task = node(canvas, 'Task_1');
 
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
-  firePointer(canvas, doc, 'pointermove', { x: task.x + 10, y: task.y + 10 });
+  pointerMove(canvas, { x: task.x + 10, y: task.y + 10 });
   expect(dropMarks(canvas)).toHaveLength(1);
 
-  doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  doc.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
   expect(dropMarks(canvas)).toEqual([]);
   expect(svg.classList.contains('sf-drag-active')).toBe(false);
   expect(svg.querySelector('.sf-create-preview')).toBeNull();

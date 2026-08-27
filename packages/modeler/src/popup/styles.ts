@@ -2,9 +2,9 @@ import { border, radius, shadow, surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 /**
- * The React popover that replaces `.djs-popup` on the canvas backend. It borrows the
- * palette flyout's material so a menu opened from the palette and one opened from a
- * shape's context pad look like one family.
+ * The popover every app menu renders into. It borrows the palette flyout's material
+ * so a menu opened from the palette and one opened from a shape's context pad look
+ * like one family.
  *
  * z-order: palette 210 < context pad 215 < palette flyouts 300 < popover 320.
  */

@@ -184,9 +184,9 @@ export function drawInlineSvgIcon(
 }
 
 /**
- * Mount a CSS-class glyph inside a `<foreignObject>` — the shape the modeler's own
- * renderer produces (`draw/utils.ts`), so styling and SVG export behave identically
- * on either backend.
+ * Mount a CSS-class glyph inside a `<foreignObject>` — the shape the modeler's
+ * icon sheet expects (`packages/modeler/src/draw/icons.ts`), so one class name
+ * styles a glyph the same in the canvas and in an exported SVG.
  */
 export function drawCssIcon(
   container: SVGElement,

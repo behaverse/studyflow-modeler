@@ -38,7 +38,7 @@ import type {
   SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
-import { prop, setProp } from '@canvas/model/moddle.ts';
+import { asModdle, prop, setProp } from '@canvas/model/moddle.ts';
 
 // --- the expandable vocabulary ------------------------------------------------
 
@@ -95,10 +95,21 @@ export function isHiddenByCollapse(element: SceneElement): boolean {
   return false;
 }
 
-/** Every nested plane that depicts `node` (never the root plane). */
+/**
+ * Every nested plane that depicts `node` (never the root plane).
+ *
+ * A plane may depict the node's own business object (a sub-process) **or** the
+ * `bpmn:Process` a pool points at through `processRef` — a drilled-down pool's
+ * `BPMNPlane.bpmnElement` is the process, not the participant. Both count, which is
+ * what lets a drill-down (`view/plane.ts` `nestedPlaneOf`) and a delete
+ * (`model/remove.ts`) find the same plane for the same node.
+ */
 export function nestedPlanesOf(scene: Scene, node: SceneNode): Plane[] {
+  const processRef = asModdle(prop(node.businessObject, 'processRef'));
   return scene.planes.filter(
-    (plane) => plane !== scene.rootPlane && plane.businessObject === node.businessObject,
+    (plane) => plane !== scene.rootPlane
+      && (plane.businessObject === node.businessObject
+        || (processRef !== undefined && plane.businessObject === processRef)),
   );
 }
 

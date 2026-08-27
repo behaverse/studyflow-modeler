@@ -37,7 +37,7 @@ export type DeleteElementsCommand = {
  * Deletion has lived in the editor since P5 — the canvas answers `Delete`/`Backspace`
  * itself and closes the removal over contents and incident edges — so this is the
  * app-chrome doorway to that same closure, not a second implementation. Returns
- * everything actually removed; empty when the backend publishes no delete of its own.
+ * everything actually removed.
  */
 export function runDeleteElements(
   modeler: PortHandle,
@@ -45,7 +45,7 @@ export function runDeleteElements(
 ): EditorElement[] {
   const { elements } = command;
   if (!elements || elements.length === 0) return [];
-  return getEditorPort(modeler).mutate.removeElements?.(elements) ?? [];
+  return getEditorPort(modeler).mutate.removeElements(elements);
 }
 
 
@@ -70,7 +70,7 @@ export function runReplaceElement(
 ): EditorElement | undefined {
   const { element, bpmnType, extensionType } = command;
   if (!element || !bpmnType) return undefined;
-  return getEditorPort(modeler).mutate.replaceShape?.(element, {
+  return getEditorPort(modeler).mutate.replaceShape(element, {
     type: bpmnType,
     ...(extensionType ? { extensionType } : {}),
   });
@@ -115,5 +115,5 @@ export type StartConnectCommand = {
  * preview following the pointer. Returns whether the gesture started.
  */
 export function runStartConnect(modeler: PortHandle, command: StartConnectCommand): boolean {
-  return getEditorPort(modeler).gestures.startConnect?.(command.source, command.event) ?? false;
+  return getEditorPort(modeler).gestures.startConnect(command.source, command.event);
 }

@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, isOrthogonal, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
+import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { loadCanvas, jsdomWindow, dragBy } from './canvasHarness';
 
 /**
  * A connection's OVERLAY — parity spec §1 (a blue handle on every waypoint, both
@@ -20,18 +17,7 @@ import { loadSchemaModels } from './schemas';
  * same question asked of the canvas: what is on screen, and what may be grabbed.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+const win = jsdomWindow();
 
 /**
  * One flow with a genuine Z shape: (300,120) → (350,120) → (350,280) → (400,280),
@@ -66,10 +52,7 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(xml = FIXTURE_XML): Promise<Canvas> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
+  const { canvas } = await loadCanvas(xml);
   return canvas;
 }
 
@@ -91,23 +74,16 @@ function placedAt(element: Element): Point {
   return { x: Number(match?.[1]), y: Number(match?.[2]) };
 }
 
+/** A hover: a `pointermove` fired on the SVG itself, which the local shim keeps. */
 function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Point): void {
   const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
+  target.dispatchEvent(new win.MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: screen.x,
     clientY: screen.y,
     button: 0,
   }));
-}
-
-function dragBy(canvas: Canvas, from: Point, to: Point): void {
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-  firePointer(canvas, svg, 'pointerdown', from);
-  firePointer(canvas, doc, 'pointermove', to);
-  firePointer(canvas, doc, 'pointerup', to);
 }
 
 // --- bendpoints --------------------------------------------------------------

@@ -3,6 +3,7 @@ import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
 import { getEditorPort } from '@modeler/editor/registry';
+import { openPopupMenu } from '@modeler/editor/popupMenus';
 import type { PortHandle } from '@modeler/editor/registry';
 
 export type PaletteStartCreateTemplateCommand = {
@@ -23,7 +24,6 @@ export function runPaletteStartCreateTemplate(modeler: PortHandle, command: Pale
   } else {
     editor.gestures.startCreate(command.event, created);
   }
-  editor.gestures.primeHover?.(command.event);
 
   return created;
 }
@@ -56,7 +56,6 @@ export function runPaletteStartCreate(modeler: PortHandle, command: PaletteStart
   });
 
   editor.gestures.startCreate(command.event, shape);
-  editor.gestures.primeHover?.(command.event);
 
   return shape;
 }
@@ -86,8 +85,8 @@ export function runPaletteActivateLasso(modeler: PortHandle, command: PaletteAct
   getEditorPort(modeler).gestures.startLasso(command.event);
 }
 
-export function runPaletteOpenPopup(modeler: PortHandle, command: PaletteOpenPopupCommand): void {
-  getEditorPort(modeler).popup.open(command.popupType, command.position, {
+export function runPaletteOpenPopup(_modeler: PortHandle, command: PaletteOpenPopupCommand): void {
+  openPopupMenu(command.popupType, command.position, {
     title: command.title,
     width: 300,
     search: false,

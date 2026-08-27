@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, isOrthogonal, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
+import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
  * Endpoint drags — parity spec §1 ("drag an ENDPOINT handle → reconnect/re-dock")
@@ -20,19 +17,6 @@ import { loadSchemaModels } from './schemas';
  * - a shape the rules refuse → nothing at all (the ∅ cursor was already saying so);
  * - empty space → P3's free endpoint move, which is how an edge is bent by its tip.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 /**
  * `Start_1 → Task_1`, with `Task_2` off to the right as the reconnect candidate and
@@ -73,18 +57,8 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 async function load(xml = FIXTURE_XML): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(xml);
 }
 
 function process(definitions: any): any {
@@ -122,26 +96,13 @@ function last(edge: SceneEdge): Point {
 
 // --- pointer helpers ---------------------------------------------------------
 
-function firePointer(canvas: Canvas, target: EventTarget, type: string, diagram: Point): void {
-  const screen = canvas.getViewport().toScreen(diagram);
-  target.dispatchEvent(new dom.window.MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: screen.x,
-    clientY: screen.y,
-    button: 0,
-  }));
-}
-
 /** Select `flow`, grab its LAST waypoint and drop it at `to`. */
 function dragTargetEnd(canvas: Canvas, flow: SceneEdge, to: Point): void {
   canvas.getSelection().select(flow);
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
   const grab = { ...last(flow) };
-  firePointer(canvas, svg, 'pointerdown', grab);
-  firePointer(canvas, doc, 'pointermove', to);
-  firePointer(canvas, doc, 'pointerup', to);
+  pointerDown(canvas, grab);
+  pointerMove(canvas, to);
+  pointerUp(canvas, to);
 }
 
 // --- an accepted target ------------------------------------------------------

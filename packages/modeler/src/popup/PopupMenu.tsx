@@ -1,12 +1,9 @@
 /**
- * The app's popup menu — one component, every `EditorPort.popup` menu id.
+ * The app's popup menu — one component, every menu id.
  *
- * `editor/popupMenus.ts` is the backend-neutral socket: the editor names a menu
- * and hands over anchor geometry, and app chrome renders it. On the bpmn backend
- * nothing reaches that socket (bpmn-js resolves the same ids through its own
- * provider registry), so this is what the *canvas* backend's `bpmn-create`,
- * `bpmn-append` and `color-picker` menus are made of — see `PopupMenus.tsx` for
- * the registrations.
+ * `editor/popupMenus.ts` is the socket: a caller names a menu and hands over
+ * anchor geometry, and this renders it. See `PopupMenus.tsx` for the four
+ * registrations.
  *
  * Two variants, because two shapes of menu are all the three ids need:
  *
@@ -16,9 +13,8 @@
  * - `swatches` — a colour grid.
  *
  * Anchoring: `position` is in CLIENT coordinates (what `view.getAbsoluteBBox`
- * returns on the canvas backend, and what the palette computes from a button
- * rect), so the panel is `position: fixed` and clamped into the viewport after
- * measuring.
+ * returns, and what the palette computes from a button rect), so the panel is
+ * `position: fixed` and clamped into the viewport after measuring.
  */
 
 import {
@@ -59,14 +55,13 @@ export type PopupMenuSection = {
 
 export type PopupMenuModel = {
   title?: string;
-  /** Panel width in px; `EditorPort.popup.open` passes the editor's request through. */
+  /** Panel width in px, as the opener asked for it. */
   width?: number;
   variant?: 'list' | 'swatches';
   /**
    * Forces the search field on. Left unset, a list grows one once it passes
-   * {@link SEARCH_THRESHOLD} rows — `EditorPort.popup.open`'s `search` option is a
-   * floor, not a ceiling, because the caller cannot know how long the catalog made
-   * the menu.
+   * {@link SEARCH_THRESHOLD} rows — the opener's `search` option is a floor, not a
+   * ceiling, because the caller cannot know how long the catalog made the menu.
    */
   search?: boolean;
   emptyText?: string;

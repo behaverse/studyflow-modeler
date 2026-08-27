@@ -10,10 +10,10 @@ import {
   Rules,
   canContain,
   containerFor,
-  containerOf,
   isResizable,
   minSizeFor,
   participantOf,
+  ruleContainerOf,
   structuralConnection,
   type RuleElement,
 } from '@canvas/rules/rules.ts';
@@ -196,8 +196,8 @@ test.describe('canvas rules: sequence-flow restrictions', () => {
     const subProcess = node('bpmn:SubProcess');
     const inside = node('bpmn:Task', { parent: subProcess });
     const outside = node('bpmn:Task');
-    expect(containerOf(inside)).toBe(subProcess);
-    expect(containerOf(outside)).toBe(undefined);
+    expect(ruleContainerOf(inside)).toBe(subProcess);
+    expect(ruleContainerOf(outside)).toBe(undefined);
     expect(rules.canConnect(inside, outside)).toBe(false);
     expect(rules.canConnect(inside, node('bpmn:EndEvent', { parent: subProcess }))).toEqual({
       type: 'bpmn:SequenceFlow',
@@ -210,7 +210,7 @@ test.describe('canvas rules: sequence-flow restrictions', () => {
     const laneB = node('bpmn:Lane', { parent: pool });
     const a = node('bpmn:Task', { parent: laneA });
     const b = node('bpmn:Task', { parent: laneB });
-    expect(containerOf(a)).toBe(pool);
+    expect(ruleContainerOf(a)).toBe(pool);
     expect(rules.canConnect(a, b)).toEqual({ type: 'bpmn:SequenceFlow' });
   });
 });

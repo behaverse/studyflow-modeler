@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { APPEND_DISTANCE, Canvas, appendPosition, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
+import { APPEND_DISTANCE, appendPosition } from '@canvas/interaction/autoplace.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { loadCanvas } from './canvasHarness';
 
 /**
  * Click-append and its placement solver (P6b §3A, `interaction/autoplace.ts`).
@@ -18,15 +15,6 @@ import { loadSchemaModels } from './schemas';
  * connects the two, writing BOTH halves (business object + DI) for each, exactly as
  * a dropped shape and a dragged connection would.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
 
 /** A start event, a task, and an end event — three appendability verdicts in one file. */
 const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -56,11 +44,7 @@ const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(): Promise<{ canvas: Canvas; definitions: any }> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(PROCESS_XML);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions };
+  return loadCanvas(PROCESS_XML);
 }
 
 function node(canvas: Canvas, id: string): SceneNode {

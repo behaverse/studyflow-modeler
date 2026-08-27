@@ -14,9 +14,8 @@
  *
  * Members marked *app-backed* are not the editor's to answer at all: the history
  * quartet, `importXML`/`saveXML` and `model` are served by the app
- * (`editor/history.ts`, bpmn-moddle), so they survive any editor.
- * `@modeler/editor/registry` hands out the implementation; nothing app-side may
- * branch on which one it got.
+ * (`editor/history.ts`, bpmn-moddle), so they outlive the editor under them.
+ * `@modeler/editor/registry` hands out the implementation.
  */
 
 /**
@@ -51,8 +50,8 @@ export type Viewbox = Rect & {
  * `elementTemplates.changed`.
  *
  * `commandStack.changed` means "one mutation was applied" — not "one command stack
- * step". On the bpmn backend the command stack fires it; on the canvas backend the
- * app history layer (`editor/history.ts`) does, once per recorded mutation.
+ * step". The editor has no command stack; the app history layer
+ * (`editor/history.ts`) fires it, once per recorded mutation.
  */
 export type EditorEventListener = (event: any) => any;
 
@@ -81,46 +80,32 @@ export interface EditorView {
   getAbsoluteBBox(element: EditorElement): Rect;
   /** The DOM element hosting the diagram (queried for its `svg`, class toggles, rects). */
   getContainer(): HTMLElement;
-  /**
-   * A custom SVG layer, created on first use. `index` is a z-order *hint*: the
-   * bpmn backend orders layers by it, the canvas backend only records it.
-   */
+  /** A custom SVG layer, created on first use. Layers are ordered by `index`. */
   getLayer(name: string, index?: number): SVGElement;
   /**
    * The trail of plane roots from the document root to the one on screen — what the
    * sub-process breadcrumb renders (`drilldown/Breadcrumbs.tsx`). A single entry
-   * means "at the root". Optional: a backend with no plane cursor publishes nothing
-   * here and the breadcrumb stays down, so callers say `planePath?.()`.
+   * means "at the root", and the breadcrumb stays down.
    */
-  planePath?(): EditorElement[];
+  planePath(): EditorElement[];
   /**
    * Show the plane `root` stands for (a member of `planePath()`). View-only: it
    * writes nothing and records no undo step. Returns whether the view moved.
    */
-  goToPlane?(root: EditorElement): boolean;
-  /**
-   * Show or hide the background grid ("Show grid" in settings). Optional: a backend
-   * that paints its own grid from the setting need not publish it, so callers say
-   * `setGridVisible?.(…)`.
-   */
-  setGridVisible?(visible: boolean): void;
+  goToPlane(root: EditorElement): boolean;
+  /** Show or hide the background grid ("Show grid" in settings). */
+  setGridVisible(visible: boolean): void;
   /**
    * Turn grid SNAPPING on or off ("Snap to grid" in settings) — the other half of
    * the grid, and a separate preference: the dots are a backdrop, the snap decides
    * where a drag may land (parity spec addendum 7, which asks for it on by default
-   * "and keep a setting to disable"). Optional, like {@link setGridVisible}.
+   * "and keep a setting to disable").
    */
-  setSnapToGrid?(on: boolean): void;
+  setSnapToGrid(on: boolean): void;
   addMarker(elementOrId: EditorElement | string, marker: string): void;
   removeMarker(elementOrId: EditorElement | string, marker: string): void;
-  /**
-   * May throw for elements outside the current root; callers guard. `padding` is a
-   * hint: the bpmn backend honours it, the canvas backend centres the element.
-   */
-  scrollToElement(
-    element: EditorElement,
-    padding?: number | { top: number; right: number; bottom: number; left: number },
-  ): void;
+  /** Centre the view on `element`. May throw for elements outside the current root; callers guard. */
+  scrollToElement(element: EditorElement): void;
 }
 
 /** Undoable document mutations (bpmn-js: `modeling`; each call is one undo step). */
@@ -144,7 +129,7 @@ export interface EditorMutations {
     properties: Record<string, unknown>,
   ): void;
   resizeShape(shape: EditorElement, bounds: Rect): void;
-  /** `undefined` when the backend's rules reject the drop. */
+  /** `undefined` when the editor's rules reject the drop. */
   createShape(
     shape: EditorElement,
     position: Rect | { x: number; y: number },
@@ -152,7 +137,7 @@ export interface EditorMutations {
     hints?: Record<string, unknown>,
   ): EditorElement | undefined;
   /**
-   * `undefined` when the backend's rules reject the connection. `connection` and
+   * `undefined` when the editor's rules reject the connection. `connection` and
    * `parent` are hints: the canvas derives the flow type from its own rules.
    */
   createConnection(
@@ -167,23 +152,21 @@ export interface EditorMutations {
    * wrench, "Change element" (ux-spec §4 entry 4). The name comes across; the
    * incident flows are rewired onto the replacement; the old element goes.
    *
-   * `undefined` when the backend's rules refuse the swap, when the element already
-   * IS that type, or when the backend publishes no replace at all — so callers say
-   * `replaceShape?.(…)` and treat a falsy answer as "nothing happened".
+   * `undefined` when the editor's rules refuse the swap, or when the element
+   * already IS that type — callers treat a falsy answer as "nothing happened".
    */
-  replaceShape?(
+  replaceShape(
     element: EditorElement,
     attrs: { type: string } & Record<string, unknown>,
   ): EditorElement | undefined;
   /**
    * Delete `elements` and their closure (a container's contents, a node's incident
    * edges) as one undo step — the context pad's trash, and any other app-side
-   * delete. Optional: callers say `removeElements?.(…)`, because the keyboard route
-   * belongs to the editor and a backend may publish nothing here.
+   * delete. The keyboard route belongs to the editor and reaches the same closure.
    *
    * Returns everything actually removed.
    */
-  removeElements?(elements: EditorElement | EditorElement[]): EditorElement[];
+  removeElements(elements: EditorElement | EditorElement[]): EditorElement[];
 }
 
 export interface EditorSelection {
@@ -193,7 +176,6 @@ export interface EditorSelection {
 
 export interface EditorEvents {
   on(topic: string, listener: EditorEventListener): void;
-  on(topic: string, priority: number, listener: EditorEventListener): void;
   off(topic: string, listener: EditorEventListener): void;
   fire(topic: string, payload?: Record<string, unknown>): void;
 }
@@ -216,49 +198,25 @@ export interface EditorGestures {
   /** Begins lasso selection from `event`. */
   startLasso(event: MouseEvent | any): void;
   /**
-   * Primes hover on the root so a create drag previews before the first mouse move.
-   * A diagram-js `dragging` workaround with no counterpart elsewhere — optional, and
-   * absent on backends that need no priming. Call it as `primeHover?.(event)`.
-   */
-  primeHover?(event: MouseEvent | any): void;
-  /**
    * Click-append: place `shape` beside `source` and connect the two, as one undo
-   * step. Optional — app chrome calls `appendShape?.(…)` and falls back to
-   * `mutate.createShape` + `mutate.createConnection` for a backend that solves no
-   * placement of its own.
+   * step (`@canvas/interaction/autoplace.ts`).
    *
-   * `undefined` when the backend's rules reject the shape.
+   * `undefined` when the editor's rules reject the shape.
    */
-  appendShape?(source: EditorElement, shape: EditorElement): EditorElement | undefined;
+  appendShape(source: EditorElement, shape: EditorElement): EditorElement | undefined;
   /**
    * Begin dragging a new connection out of `source` — the context pad's connect
-   * entry (parity spec addendum 4). Optional: a backend whose own context pad owns
-   * the gesture publishes nothing here.
+   * entry (parity spec addendum 4). Returns whether the gesture started.
    */
-  startConnect?(source: EditorElement, event?: MouseEvent | any): boolean;
+  startConnect(source: EditorElement, event?: MouseEvent | any): boolean;
   /**
    * Draw a transient GHOST of what `appendShape` would create, where it would create
    * it — the context pad's hover preview (parity spec addendum 5). Writes nothing;
    * `clearPreview` takes it down. Returns whether a ghost went up.
    */
-  previewAppend?(source: EditorElement, shape: EditorElement): boolean;
+  previewAppend(source: EditorElement, shape: EditorElement): boolean;
   /** Remove any transient gesture preview (`previewAppend`). */
-  clearPreview?(): void;
-}
-
-/**
- * Popup menus opened from app chrome, anchored on the current root.
- *
- * `providerId` names a menu, not a diagram-js provider: the bpmn backend resolves
- * it through `popupMenu`'s provider registry, and any other backend must fulfil the
- * same ids from app chrome, using `view.getAbsoluteBBox` for the anchor geometry.
- */
-export interface EditorPopup {
-  open(
-    providerId: string,
-    position: { x: number; y: number; cursor: { x: number; y: number } },
-    options?: { title?: string; width?: number; search?: boolean },
-  ): void;
+  clearPreview(): void;
 }
 
 /** Schema-aware document model access (bpmn-moddle). */
@@ -296,16 +254,16 @@ export interface EditorPort {
    * App-backed. Monotonic revision of the document's edit history: bumps on every
    * applied, undone or redone mutation (not on import, which resets the history
    * silently). The app's answer to "has the document changed since I last looked?",
-   * served by `editor/history.ts` on both backends.
+   * served by `editor/history.ts`.
    */
   revision(): number;
-  /** App-backed: the bpmn command stack, or the app's snapshot history. */
+  /** App-backed: the app's snapshot history (`editor/history.ts`). */
   undo(): void;
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
 
-  /** App-backed: parsed with bpmn-moddle, then handed to the backend. */
+  /** App-backed: parsed with bpmn-moddle, then handed to the editor. */
   importXML(xml: string): Promise<{ warnings: unknown[] }>;
   saveXML(options?: { format?: boolean }): Promise<{ xml: string }>;
   saveSVG(): Promise<{ svg: string }>;
@@ -319,7 +277,6 @@ export interface EditorPort {
   events: EditorEvents;
   rules: EditorRules;
   gestures: EditorGestures;
-  popup: EditorPopup;
   model: EditorModel;
   templates: EditorTemplates;
   simulation: EditorSimulation;

@@ -29,6 +29,7 @@ import type { EventBus } from '@canvas/events/bus.ts';
 import { isLabelElement } from '@canvas/model/externalLabel.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { ensureOutline, OUTLINE_OFFSET } from '@canvas/render/outline.ts';
+import { boxContains, centerOf } from '@canvas/routing/crop.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 import {
   isGrippable,
@@ -320,6 +321,23 @@ export class Selection {
   }
 
   /**
+   * Drop every marker remembered for `elementOrId` — the element is gone.
+   *
+   * The map is keyed by ID, and IDs are minted PER DOCUMENT (`model/ids.ts`), so a
+   * surviving entry is not merely stale: delete `Activity_1`, draw a new one, and it
+   * would come back wearing the dead one's markers. `Canvas.deleteElements` calls
+   * this for everything it removes; pass no argument on import, which replaces the
+   * whole id space at once.
+   */
+  forget(elementOrId?: SceneElement | string): void {
+    if (elementOrId === undefined) {
+      this.markers.clear();
+      return;
+    }
+    this.markers.delete(typeof elementOrId === 'string' ? elementOrId : elementOrId.id);
+  }
+
+  /**
    * Re-apply the `selected` class, any markers and the selection outline to an
    * element's graphics. The renderer replaces the `<g>` wholesale when an element is
    * redrawn (a live drag), which would otherwise drop all three.
@@ -505,8 +523,8 @@ export class Selection {
     const owner = label.labelTarget;
     if (!owner) return;
     const box = labelOutlineBox(label);
-    const target = closestPointOn(owner, centreOf(box));
-    if (!target || contains(box, target)) return;
+    const target = closestPointOn(owner, centerOf(box));
+    if (!target || boxContains(box, target)) return;
     const from = nearestSideMidpoint(box, target);
     const g = create('g', { class: 'sf-label-leaders', 'data-overlay-for': label.id }) as SVGGElement;
     append(g, create('line', {
@@ -675,15 +693,6 @@ export function labelOutlineBox(label: SceneNode): Bounds {
   };
 }
 
-function centreOf(box: Bounds): Point {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-}
-
-function contains(box: Bounds, point: Point): boolean {
-  return point.x >= box.x && point.x <= box.x + box.width
-    && point.y >= box.y && point.y <= box.y + box.height;
-}
-
 /**
  * The point of `owner` nearest `from` — a point on the polyline for a connection,
  * a point on the bounds rectangle for a shape. This is where a caption's leader
@@ -773,11 +782,4 @@ function handleOffset(anchor: ResizeHandle): [number, number] {
   const x = anchor.includes('e') ? HANDLE_OFFSET : anchor.includes('w') ? -HANDLE_OFFSET : 0;
   const y = anchor.includes('s') ? HANDLE_OFFSET : anchor.includes('n') ? -HANDLE_OFFSET : 0;
   return [x, y];
-}
-
-/** The chip geometry for one handle, as `[x, y, size]` in diagram coordinates. */
-export function resizeHandleRect(node: SceneNode, anchor: ResizeHandle): [number, number, number] {
-  const [cx, cy] = handleAnchor(node, anchor);
-  const [ox, oy] = handleOffset(anchor);
-  return [cx + ox - HANDLE_SIZE / 2, cy + oy - HANDLE_SIZE / 2, HANDLE_SIZE];
 }

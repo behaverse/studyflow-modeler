@@ -72,7 +72,6 @@ function mockModeler(definitions: any) {
   // A handle over a partial `EditorPort`: invalidation looks an element up, creates
   // one moddle object, and writes it back as a single undoable mutation.
   return {
-    backend: 'canvas',
     editor: {
       getDefinitions: () => definitions,
       elements: { get: (id: string) => registry.get(id) },

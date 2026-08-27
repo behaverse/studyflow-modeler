@@ -1,19 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import {
-  Canvas,
-  COLLAPSED_SUBPROCESS_SIZE,
-  EXPANDED_SUBPROCESS_SIZE,
-  setDocument,
-} from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
+import { EXPANDED_SUBPROCESS_SIZE } from '@canvas/interaction/create.ts';
+import { COLLAPSED_SUBPROCESS_SIZE } from '@canvas/model/expand.ts';
 import type { SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+
+import { freshModdle, installDocument, loadCanvas, jsdomWindow, type Loaded } from './canvasHarness';
 
 /**
  * P5 expand/collapse writeback (design §1 "expand/collapse subprocess →
@@ -39,18 +33,8 @@ import { exampleXml } from './utils';
  * edited (and a reload of it), never against the scene alone.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+installDocument();
+const win = jsdomWindow();
 
 const EXAMPLE = 'sklearn_pipeline.studyflow.png';
 
@@ -81,22 +65,8 @@ const PLAIN_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
-async function load(xml: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
-}
-
 function loadExample(): Promise<Loaded> {
-  return load(exampleXml(EXAMPLE));
+  return loadCanvas(exampleXml(EXAMPLE));
 }
 
 // --- live-tree readers (never the scene) -------------------------------------
@@ -205,7 +175,7 @@ interface Pt { x: number; y: number; }
 
 function fireMouse(canvas: Canvas, type: string, diagram: Pt): void {
   const screen = canvas.getViewport().toScreen(diagram);
-  canvas.getSvg().dispatchEvent(new dom.window.MouseEvent(type, {
+  canvas.getSvg().dispatchEvent(new win.MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: screen.x,
@@ -423,7 +393,7 @@ test('a gateway marker toggles through to isMarkerVisible in toXML', async () =>
 });
 
 test('a gateway with no isMarkerVisible attribute gains one on the first toggle', async () => {
-  const loaded = await load(PLAIN_XML);
+  const loaded = await loadCanvas(PLAIN_XML);
   const { canvas, definitions } = loaded;
   const gate = node(canvas, 'Gate_P');
 
@@ -436,7 +406,7 @@ test('a gateway with no isMarkerVisible attribute gains one on the first toggle'
 // --- the canvas surface -------------------------------------------------------------
 
 test('only expandable types toggle; everything else is refused and writes nothing', async () => {
-  const loaded = await load(PLAIN_XML);
+  const loaded = await loadCanvas(PLAIN_XML);
   const { canvas } = loaded;
   const before = await toXML(loaded);
   const revision = canvas.getScene()!.revision;
@@ -451,7 +421,7 @@ test('only expandable types toggle; everything else is refused and writes nothin
 });
 
 test('`resize: false` flips the flag and leaves the footprint alone', async () => {
-  const loaded = await load(PLAIN_XML);
+  const loaded = await loadCanvas(PLAIN_XML);
   const { canvas, definitions } = loaded;
   const sub = node(canvas, 'Sub_P');
 
@@ -467,7 +437,7 @@ test('`resize: false` flips the flag and leaves the footprint alone', async () =
 });
 
 test('writing the flag onto an already-expanded shape leaves its footprint alone', async () => {
-  const loaded = await load(PLAIN_XML);
+  const loaded = await loadCanvas(PLAIN_XML);
   const { canvas, definitions } = loaded;
   const sub = node(canvas, 'Sub_P');
 
@@ -508,10 +478,7 @@ test('double-clicking a sub-process toggles it instead of opening the label edit
 });
 
 test('the double-click affordance can be switched off', async () => {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(exampleXml(EXAMPLE));
-  const canvas = new Canvas({ toggleExpandOnDoubleClick: false });
-  canvas.importDefinitions(definitions);
+  const { canvas } = await loadCanvas(exampleXml(EXAMPLE), { toggleExpandOnDoubleClick: false });
 
   const select = node(canvas, 'select_model');
   fireMouse(canvas, 'dblclick', center(select));

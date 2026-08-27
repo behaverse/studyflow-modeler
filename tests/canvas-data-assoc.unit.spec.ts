@@ -1,16 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
 import { expandIoSpecification, inlineIoSpecification } from '@core/document/io-specification';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import { dataAssociationEnds } from '@canvas/model/dataAssociation.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
+
+import { freshModdle, installDocument, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
  * P5 data-association writeback (design §1 "add edge … delete → remove BO from its
@@ -33,18 +30,7 @@ import { exampleXml } from './utils';
  * live tree the canvas edited (and a reload of it), never against the scene alone.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+installDocument();
 
 /**
  * The compact form: a task, a data object and a data store, no `ioSpecification`
@@ -133,20 +119,6 @@ const DECLARED_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
-async function load(xml: string): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
-}
-
 // --- live-tree readers (never the scene) -------------------------------------
 
 async function toXML(loaded: Loaded): Promise<string> {
@@ -207,7 +179,7 @@ function bo(element: SceneNode | SceneEdge): any {
 // --- classification ----------------------------------------------------------
 
 test('the rules classify a data-shape pair as the matching association, either way round', async () => {
-  const { canvas } = await load(COMPACT_XML);
+  const { canvas } = await loadCanvas(COMPACT_XML);
   const rules = canvas.getRules();
   const task = node(canvas, 'Task_1');
   const data = node(canvas, 'Data_In');
@@ -227,7 +199,7 @@ test('the rules classify a data-shape pair as the matching association, either w
 // --- create: the compact form ------------------------------------------------
 
 test('creating an input association mints the BO on the activity AND a BPMNEdge', async () => {
-  const loaded = await load(COMPACT_XML);
+  const loaded = await loadCanvas(COMPACT_XML);
   const { canvas, definitions } = loaded;
   const edge = canvas.createDataAssociation(node(canvas, 'Data_In'), node(canvas, 'Task_1'))!;
   expect(edge).toBeTruthy();
@@ -260,7 +232,7 @@ test('creating an input association mints the BO on the activity AND a BPMNEdge'
 });
 
 test('creating an output association files it under dataOutputAssociations, target-side', async () => {
-  const loaded = await load(COMPACT_XML);
+  const loaded = await loadCanvas(COMPACT_XML);
   const { canvas, definitions } = loaded;
   const edge = canvas.createDataAssociation(node(canvas, 'Task_1'), node(canvas, 'Store_Out'))!;
   expect(edge.type).toBe('bpmn:DataOutputAssociation');
@@ -280,7 +252,7 @@ test('creating an output association files it under dataOutputAssociations, targ
 });
 
 test('a created association is drawn, indexed, and wired to both scene endpoints', async () => {
-  const { canvas } = await load(COMPACT_XML);
+  const { canvas } = await loadCanvas(COMPACT_XML);
   const data = node(canvas, 'Data_In');
   const task = node(canvas, 'Task_1');
   const edge = canvas.createDataAssociation(data, task)!;
@@ -299,7 +271,7 @@ test('a created association is drawn, indexed, and wired to both scene endpoints
 });
 
 test('the compact form a create leaves behind is exactly what core expands on save', async () => {
-  const loaded = await load(COMPACT_XML);
+  const loaded = await loadCanvas(COMPACT_XML);
   const { canvas, definitions } = loaded;
   canvas.createDataAssociation(node(canvas, 'Data_In'), node(canvas, 'Task_1'));
   canvas.createDataAssociation(node(canvas, 'Task_1'), node(canvas, 'Store_Out'));
@@ -323,7 +295,7 @@ test('the compact form a create leaves behind is exactly what core expands on sa
 // --- create: the declared form ----------------------------------------------
 
 test('an activity that already declares an ioSpecification gets a real slot minted', async () => {
-  const loaded = await load(DECLARED_XML);
+  const loaded = await loadCanvas(DECLARED_XML);
   const { canvas, definitions } = loaded;
   const task = boOf(definitions, 'Task_D');
 
@@ -356,7 +328,7 @@ test('an activity that already declares an ioSpecification gets a real slot mint
 // --- delete ------------------------------------------------------------------
 
 test('deleting a created association removes BOTH the BO and the BPMNEdge', async () => {
-  const loaded = await load(COMPACT_XML);
+  const loaded = await loadCanvas(COMPACT_XML);
   const { canvas, definitions } = loaded;
   const before = await toXML(loaded);
   const edge = canvas.createDataAssociation(node(canvas, 'Data_In'), node(canvas, 'Task_1'))!;
@@ -379,7 +351,7 @@ test('deleting a created association removes BOTH the BO and the BPMNEdge', asyn
 });
 
 test('deleting an association gives back the ioSpecification slot it minted', async () => {
-  const loaded = await load(DECLARED_XML);
+  const loaded = await loadCanvas(DECLARED_XML);
   const { canvas, definitions } = loaded;
   const before = await toXML(loaded);
   const edge = canvas.createDataAssociation(node(canvas, 'Model'), node(canvas, 'Task_D'))!;
@@ -397,7 +369,7 @@ test('deleting an association gives back the ioSpecification slot it minted', as
 });
 
 test('deleting the LAST association drops an ioSpecification that now declares nothing', async () => {
-  const loaded = await load(DECLARED_XML);
+  const loaded = await loadCanvas(DECLARED_XML);
   const { canvas, definitions } = loaded;
   const seed = canvas.getScene()!.elementsById.get('DataInput_Seed') as SceneEdge;
   expect(seed.type).toBe('bpmn:DataInputAssociation');
@@ -419,7 +391,7 @@ test('deleting the LAST association drops an ioSpecification that now declares n
 });
 
 test('deleting the data shape takes its associations with it', async () => {
-  const loaded = await load(COMPACT_XML);
+  const loaded = await loadCanvas(COMPACT_XML);
   const { canvas, definitions } = loaded;
   const input = canvas.createDataAssociation(node(canvas, 'Data_In'), node(canvas, 'Task_1'))!;
   const output = canvas.createDataAssociation(node(canvas, 'Task_1'), node(canvas, 'Store_Out'))!;
@@ -439,7 +411,7 @@ test('deleting the data shape takes its associations with it', async () => {
 });
 
 test('deleting the activity takes every association hanging off it', async () => {
-  const loaded = await load(COMPACT_XML);
+  const loaded = await loadCanvas(COMPACT_XML);
   const { canvas } = loaded;
   const input = canvas.createDataAssociation(node(canvas, 'Data_In'), node(canvas, 'Task_1'))!;
   const output = canvas.createDataAssociation(node(canvas, 'Task_1'), node(canvas, 'Store_Out'))!;
@@ -459,7 +431,7 @@ test('deleting the activity takes every association hanging off it', async () =>
 // --- the shipped example -----------------------------------------------------
 
 test('the sklearn_pipeline example imports its data associations with both ends resolved', async () => {
-  const { canvas } = await load(exampleXml('sklearn_pipeline.studyflow.png'));
+  const { canvas } = await loadCanvas(exampleXml('sklearn_pipeline.studyflow.png'));
   const scene = canvas.getScene()!;
   const associations = [...scene.elementsById.values()].filter(
     (el): el is SceneEdge => el.kind === 'edge'
@@ -480,7 +452,7 @@ test('the sklearn_pipeline example imports its data associations with both ends 
 });
 
 test('a real example round-trips byte-identically through a create+delete', async () => {
-  const loaded = await load(exampleXml('sklearn_pipeline.studyflow.png'));
+  const loaded = await loadCanvas(exampleXml('sklearn_pipeline.studyflow.png'));
   const { canvas } = loaded;
   const before = await toXML(loaded);
   const scene = canvas.getScene()!;

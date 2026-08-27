@@ -1,14 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { BPMN } from '@core/constants';
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, isOrthogonal, markerEndFor, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
+import { markerEndFor } from '@canvas/render/renderer.ts';
+import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadSchemaModels } from './schemas';
+import { freshModdle, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
  * The text-annotation LEADER (parity spec addendum 5 §1/§3, `edge-videos/preview/frame_08`).
@@ -30,19 +28,6 @@ import { loadSchemaModels } from './schemas';
  *    is a fix to the default case and not a blanket removal.
  */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
-
 /** One task, sitting on round numbers so the leader's endpoints are exact. */
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -62,18 +47,8 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-interface Loaded {
-  canvas: Canvas;
-  definitions: any;
-  moddle: any;
-}
-
 async function load(): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(XML);
-  const canvas = new Canvas();
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return loadCanvas(XML);
 }
 
 function node(canvas: Canvas, id: string): SceneNode {

@@ -25,8 +25,9 @@
  *   The re-route touches only `edge.waypoints`; the DI is written on {@link Drag.end}
  *   like everything else.
  * - **resize** — the docking waypoint is re-docked to the new outline via
- *   {@link dockingPoint} (the segment from the node centre toward the neighbouring
- *   waypoint, clipped to the bounds).
+ *   `routing/crop.ts` `cropPoint`: the segment from the node centre toward the
+ *   neighbouring waypoint, clipped to the SILHOUETTE, so an endpoint on a gateway
+ *   lands on the rhombus and not on its bounding box.
  *
  * An explicitly positioned external label (`bpmndi:BPMNLabel` with a `dc:Bounds`)
  * rides along with its shape — translated by the move delta, re-anchored to the shape
@@ -54,6 +55,7 @@ import {
   type SegmentShapes,
 } from '@canvas/interaction/segments.ts';
 import { rerouteEdge } from '@canvas/routing/orthogonal.ts';
+import { cropPoint } from '@canvas/routing/crop.ts';
 
 /** Grid step used when snapping is enabled. */
 export const DEFAULT_GRID_SIZE = 10;
@@ -200,26 +202,6 @@ interface LabelState {
 }
 
 type DragState = MoveState | ResizeState | WaypointState | SegmentState | LabelState;
-
-/**
- * The point on `node`'s outline in the direction of `towards` — the segment from the
- * node centre to `towards`, clipped to the (axis-aligned) bounds. Used to re-dock an
- * edge endpoint after its node is resized.
- */
-export function dockingPoint(node: SceneNode, towards: Point): Point {
-  const cx = node.x + node.width / 2;
-  const cy = node.y + node.height / 2;
-  const dx = towards.x - cx;
-  const dy = towards.y - cy;
-  if (dx === 0 && dy === 0) return { x: cx, y: cy };
-  const hw = node.width / 2;
-  const hh = node.height / 2;
-  const tx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
-  const ty = dy !== 0 ? hh / Math.abs(dy) : Infinity;
-  const t = Math.min(tx, ty);
-  if (!Number.isFinite(t)) return { x: cx, y: cy };
-  return { x: cx + dx * t, y: cy + dy * t };
-}
 
 /** `value` rounded to the nearest multiple of `step` (a non-positive step is a no-op). */
 export function snapTo(value: number, step: number): number {
@@ -476,20 +458,27 @@ export class Drag {
   /**
    * Finish the gesture at diagram `point`: apply it one last time, then commit the
    * scene geometry through to the DI moddle objects (bumping the scene revision and
-   * firing `element.changed` / `elements.changed`). Returns the changed elements.
+   * firing `element.changed` / `elements.changed`). Returns what was committed.
+   *
+   * Only what actually MOVED is committed. A move gesture carries every descendant
+   * of the dragged shape plus every incident edge — dragging a 30-lane pool one grid
+   * step and back would otherwise rewrite the DI of all thirty and fire a change per
+   * element for a document that is byte-identical. The live frames still redraw the
+   * whole set (see {@link Drag.update}); it is the DI write that is narrowed.
    */
   end(point: Point, grid: GridAxes = BOTH_AXES): SceneElement[] {
     const state = this.state;
     if (!state) return [];
-    const changed = this.update(point, grid);
+    const touched = this.update(point, grid);
     this.state = undefined;
     // A label commits through its OWN writeback call: `commit` would write the
     // owner's `dc:Bounds`/`di:waypoint` too, and a caption move must leave both
     // exactly as the document has them (parity spec addendum 3 §5).
     if (state.kind === 'label') {
       this.writeback.setLabelBounds(state.owner, currentLabelBounds(state));
-      return changed;
+      return touched;
     }
+    const changed = touched.filter((element) => movedFrom(state, element));
     if (changed.length > 0) this.writeback.commit(changed);
     return changed;
   }
@@ -624,8 +613,8 @@ export class Drag {
       if (!original || original.length === 0) continue;
       const points = original.map((p) => ({ x: p.x, y: p.y }));
       const last = points.length - 1;
-      if (edge.source === node) points[0] = dockingPoint(node, original[1] ?? original[0]);
-      if (edge.target === node) points[last] = dockingPoint(node, original[last - 1] ?? original[last]);
+      if (edge.source === node) points[0] = cropPoint(node, original[1] ?? original[0]);
+      if (edge.target === node) points[last] = cropPoint(node, original[last - 1] ?? original[last]);
       edge.waypoints = points;
     }
 
@@ -707,6 +696,44 @@ export class Drag {
     );
     return [state.edge];
   }
+}
+
+// --- what actually moved (Drag.end) -----------------------------------------
+
+/**
+ * Whether `element`'s geometry differs from the snapshot the gesture opened with.
+ * Read against the SAME maps {@link Drag.cancel} restores from, so "unchanged" here
+ * means exactly "restoring it would be a no-op". An element the gesture kept no
+ * snapshot for counts as changed — the safe answer, since it cannot be proven still.
+ */
+function movedFrom(state: DragState, element: SceneElement): boolean {
+  if (element.kind === 'edge') {
+    const original = state.kind === 'move' || state.kind === 'resize'
+      ? state.edgeOrigins.get(element)
+      : state.kind === 'waypoint' || state.kind === 'segment'
+        ? state.original
+        : undefined;
+    return !original || !samePoints(original, element.waypoints);
+  }
+  if (state.kind === 'move') {
+    const from = state.nodeOrigins.get(element);
+    return !from || from.x !== element.x || from.y !== element.y;
+  }
+  if (state.kind === 'resize') {
+    const b = state.bounds;
+    return b.x !== element.x || b.y !== element.y
+      || b.width !== element.width || b.height !== element.height;
+  }
+  return true;
+}
+
+/** Point-by-point equality of two polylines. */
+function samePoints(a: readonly Point[], b: readonly Point[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].x !== b[i].x || a[i].y !== b[i].y) return false;
+  }
+  return true;
 }
 
 // --- snapshot restore (Drag.cancel) -----------------------------------------

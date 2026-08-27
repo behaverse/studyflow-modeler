@@ -20,6 +20,15 @@ export const LABEL_LINE_HEIGHT = 15;
 const LINE_HEIGHT = LABEL_LINE_HEIGHT;
 
 /**
+ * Height assumed for a `bpmndi:BPMNLabel` that positions itself (`x`/`y`) but omits
+ * a `dc:Bounds` height — two lines' worth. The drawer ({@link drawExternalLabel},
+ * through `externalLabelLayout`) and the hit/edit box ({@link externalLabelBounds})
+ * MUST assume the same one, or a positioned caption is drawn half a line away from
+ * the box the inline editor opens over.
+ */
+const DEFAULT_LABEL_HEIGHT = LINE_HEIGHT * 2;
+
+/**
  * Approximate rendered width of `text` at `fontSize`, from the same glyph-advance
  * heuristic {@link fit} and {@link wrap} measure with — so a box sized by this and a
  * line ellipsized by those agree. Used by the inline editor to sit tight to an
@@ -163,7 +172,7 @@ function externalLabelLayout(
   // An explicit label bound is in diagram coordinates; convert to node-local.
   if (label && label.x !== undefined && label.y !== undefined) {
     cx = label.x - node.x + (label.width ?? 0) / 2;
-    cy = label.y - node.y + (label.height ?? LINE_HEIGHT) / 2;
+    cy = label.y - node.y + (label.height ?? DEFAULT_LABEL_HEIGHT) / 2;
   }
   const maxWidth = Math.max(node.width, 80);
   return { lines: wrap(name, maxWidth * 1.5, fontSize, 2), cx, cy };
@@ -247,7 +256,7 @@ export function drawExternalLabel(
  */
 export function externalLabelBounds(node: SceneNode, label?: SceneLabel): Bounds {
   const width = Math.max(node.width, 80) * 1.5;
-  const height = LINE_HEIGHT * 2;
+  const height = DEFAULT_LABEL_HEIGHT;
   if (label && label.x !== undefined && label.y !== undefined) {
     return {
       x: label.x,

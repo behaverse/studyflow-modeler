@@ -11,7 +11,6 @@
  */
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
-export const XLINK_NS = 'http://www.w3.org/1999/xlink';
 
 let activeDoc: Document | undefined =
   typeof document !== 'undefined' ? document : undefined;
@@ -70,12 +69,6 @@ export function createHtml<K extends keyof HTMLElementTagNameMap>(
 export function append<E extends Node>(parent: Node, child: E): E {
   parent.appendChild(child);
   return child;
-}
-
-/** Append several children in order; returns `parent`. */
-export function appendTo(parent: Node, ...children: Node[]): Node {
-  for (const child of children) parent.appendChild(child);
-  return parent;
 }
 
 /** Remove `element` from its parent, if any. */

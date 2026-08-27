@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { JSDOM } from 'jsdom';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { Canvas, setDocument } from '@canvas/index.ts';
+import type { Canvas } from '@canvas/index.ts';
 import type { IconDef, SceneElement } from '@canvas/index.ts';
 
-import { loadSchemaModels } from './schemas';
+import { loadCanvas } from './canvasHarness';
 
 /**
  * Native SVG icons at render time (parity addendum 6 §1).
@@ -25,19 +21,6 @@ import { loadSchemaModels } from './schemas';
  * arriving later (the app's async icon cache) replaces the placeholder in place on a
  * re-draw — the two states a document can be serialized in.
  */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
-
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-setDocument(dom.window.document as unknown as Document);
-
-function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
 
 /** One user task (its type icon is the top-left glyph) plus a looping task (a marker glyph). */
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -66,10 +49,7 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 const GLYPH = '<path d="M4 4h16v16H4z" fill="currentColor"/>';
 
 async function load(iconResolver?: (key: string, bo?: any) => IconDef | null | undefined): Promise<Canvas> {
-  const { rootElement: definitions } = await freshModdle().fromXML(XML);
-  const canvas = new Canvas({ iconResolver });
-  canvas.importDefinitions(definitions);
-  return canvas;
+  return (await loadCanvas(XML, { iconResolver })).canvas;
 }
 
 /** The `<g>` the renderer drew for `id`. */
