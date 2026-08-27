@@ -38,7 +38,7 @@ export function crumbLabel(root: EditorElement): string {
  * breadcrumb).
  */
 export function planeCrumbs(editor: Editor): Crumb[] {
-  const path: EditorElement[] = editor.view.planePath();
+  const path: EditorElement[] = editor.canvas.planePath();
   if (path.length < 2) return [];
   return path.map((root, index) => ({
     id: String(root?.id ?? index),
@@ -51,5 +51,5 @@ export function planeCrumbs(editor: Editor): Crumb[] {
 /** Navigate to `crumb`'s plane; the current one is a no-op. */
 export function goToCrumb(editor: Editor, crumb: Crumb): void {
   if (crumb.isCurrent) return;
-  editor.view.goToPlane(crumb.root);
+  editor.canvas.goToPlane(crumb.root);
 }

@@ -84,7 +84,7 @@ function fakePort() {
       startCreate: (...args: any[]) => calls.push(['startCreate', ...args]),
     },
     // An append WRITES — one shape, one flow, one undo step — so it is a mutation
-    // and not a gesture (`@canvas/port/mutations.ts`).
+    // and not a gesture (`@canvas/model/mutations.ts`).
     mutate: {
       appendShape: (source: any, shape: any) => {
         calls.push(['appendShape', source, shape]);

@@ -5,7 +5,7 @@
  * canvas fires.
  *
  * This IS `Editor.events` — the facade publishes the bus itself rather than a
- * projection of it (`port/editor.ts`). Listeners run in SUBSCRIPTION order: nothing
+ * projection of it (`../editor.ts`). Listeners run in SUBSCRIPTION order: nothing
  * in the canvas or the app has ever needed to jump the queue, so there is no
  * priority to reason about.
  */

@@ -12,15 +12,16 @@
  * which hears every mutation source (a drag, an inline rename, a keyboard delete)
  * and not just `mutate.*`; firing it here as well would double-count every write.
  *
- * It lives in the canvas package because it is written in canvas internals —
- * `prop`/`setProp`, {@link Canvas.resolveElement}, `Writeback.touch`.
+ * It lives here, beside `model/writeback.ts`, because that is what it orchestrates
+ * and what it is written in: `prop`/`setProp`, {@link Canvas.resolveElement},
+ * `Writeback.touch`.
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
 import type { CreatePrototype, ShapeDescriptor } from '@canvas/interaction/create.ts';
 import { prop, setProp } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Point, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import type { EditorElement, EditorMutations } from '@canvas/port/editor.ts';
+import type { EditorElement, EditorMutations } from '@canvas/editor.ts';
 
 /** The commit point a mutation closes on — the app's snapshot history. */
 export interface MutationHistory {

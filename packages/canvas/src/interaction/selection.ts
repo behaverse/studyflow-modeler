@@ -4,7 +4,7 @@
  * marker CSS classes on element graphics. Fires `selection.changed` on every change.
  *
  * This IS `Editor.selection`: the facade publishes this object rather than a
- * projection of it (`port/editor.ts`), which is why {@link Selection.select} is
+ * projection of it (`../editor.ts`), which is why {@link Selection.select} is
  * lenient about what a caller names an element by.
  *
  * The chrome is split the way bpmn-js splits it, because the two halves want

@@ -348,8 +348,8 @@ export function mountEditor(options: MountEditorOptions): Editor {
    */
   const applyGrid = (): void => {
     const settings = getSettings();
-    port.view.setGridVisible(settings.showGrid);
-    port.view.setSnapToGrid(settings.snapToGrid);
+    canvas.setGridVisible(settings.showGrid);
+    canvas.setSnapToGrid(settings.snapToGrid);
   };
   applyGrid();
   const unsubscribeSettings = subscribeSettings(applyGrid);

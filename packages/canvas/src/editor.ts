@@ -8,7 +8,7 @@
  * that is the vocabulary the app grew up on and the fastest way to read what a
  * member means.
  *
- * It lives in the canvas package rather than the app because the dependency is
+ * It lives beside {@link Canvas} rather than in the app because the dependency is
  * one-directional: the canvas is a leaf and must not import `@modeler/*`, while
  * `@modeler/*` already imports `@canvas/*` freely. `@modeler/editor/port`
  * re-exports every name here, so app-side imports are unchanged — and there is no
@@ -20,6 +20,12 @@
  * `mutate` (the undo-step bracket), the history quintet, `importXML`/`saveXML` (a
  * moddle round trip) and the three app services (`model`, `templates`,
  * `simulation`) — and those are assembled in `@modeler/editor/editor.ts`.
+ *
+ * There is deliberately no `view` member. Viewport, layers and per-element view
+ * state are the canvas's own (`zoomToFit`, `getViewbox`, `getViewport().setViewbox`,
+ * `getHostLayer`, `planePath`, `goToPlane`, `addMarker`, `scrollToElement`, …), and
+ * app chrome calls them on {@link Editor.canvas}: a second set of names for them
+ * bought nothing but a projection to keep in step.
  *
  * The canvas has no command stack. Each `mutate.*` call is one logical undo step,
  * closed with {@link EditorHistory.record} — the app's commit point, from which
@@ -81,45 +87,6 @@ export interface EditorElements {
   findRoot(element: EditorElement): EditorElement | undefined;
   /** The SVG graphics group rendered for `element`. */
   getGraphics(element: EditorElement): SVGElement;
-}
-
-/** Viewport, layers and per-element view state (bpmn-js: `canvas`). */
-export interface EditorView {
-  /** Current zoom scale. */
-  zoom(): number;
-  zoomToFit(): void;
-  viewbox(): Viewbox;
-  setViewbox(box: Rect): void;
-  /** Bounding box of `element` in screen (container) coordinates. */
-  getAbsoluteBBox(element: EditorElement): Rect;
-  /** The DOM element hosting the diagram (queried for its `svg`, class toggles, rects). */
-  getContainer(): HTMLElement;
-  /** A custom SVG layer, created on first use. Layers are ordered by `index`. */
-  getLayer(name: string, index?: number): SVGElement;
-  /**
-   * The trail of plane roots from the document root to the one on screen — what the
-   * sub-process breadcrumb renders (`drilldown/Breadcrumbs.tsx`). A single entry
-   * means "at the root", and the breadcrumb stays down.
-   */
-  planePath(): EditorElement[];
-  /**
-   * Show the plane `root` stands for (a member of `planePath()`). View-only: it
-   * writes nothing and records no undo step. Returns whether the view moved.
-   */
-  goToPlane(root: EditorElement): boolean;
-  /** Show or hide the background grid ("Show grid" in settings). */
-  setGridVisible(visible: boolean): void;
-  /**
-   * Turn grid SNAPPING on or off ("Snap to grid" in settings) — the other half of
-   * the grid, and a separate preference: the dots are a backdrop, the snap decides
-   * where a drag may land (parity spec addendum 7, which asks for it on by default
-   * "and keep a setting to disable").
-   */
-  setSnapToGrid(on: boolean): void;
-  addMarker(elementOrId: EditorElement | string, marker: string): void;
-  removeMarker(elementOrId: EditorElement | string, marker: string): void;
-  /** Centre the view on `element`. May throw for elements outside the current root; callers guard. */
-  scrollToElement(element: EditorElement): void;
 }
 
 /** Undoable document mutations (bpmn-js: `modeling`; each call is one undo step). */
@@ -274,7 +241,6 @@ export interface Editor extends EditorHistoryView {
   getDefinitions(): ModelElement | undefined;
 
   elements: EditorElements;
-  view: EditorView;
   mutate: EditorMutations;
   rules: EditorRules;
   /** The canvas's own selection set + overlay, under the facade's name. */
@@ -282,11 +248,17 @@ export interface Editor extends EditorHistoryView {
   /** The canvas's own event bus, under the facade's name. */
   events: EventBus;
   /**
-   * The canvas itself — the escape hatch, and the home of every INTERACTIVE gesture
-   * app chrome starts: `createShape`, `startCreate`, `activateLasso`, `startConnect`,
-   * `previewAppend`/`clearAppendPreview`, `toSVG`. None of those writes the document
-   * (an append does, and lives on {@link EditorMutations} for exactly that reason),
-   * so none of them needs a facade name of its own.
+   * The canvas itself — and the home of everything the facade does not rename.
+   *
+   * Every INTERACTIVE gesture app chrome starts: `createShape`, `startCreate`,
+   * `activateLasso`, `startConnect`, `previewAppend`/`clearAppendPreview`, `toSVG`.
+   * None of those writes the document (an append does, and lives on
+   * {@link EditorMutations} for exactly that reason), so none needs a facade name.
+   *
+   * And every VIEW member: `zoomToFit`, `getViewbox`, `getViewport()`,
+   * `getAbsoluteBBox`, `getContainer`, `getHostLayer`, `planePath`, `goToPlane`,
+   * `setGridVisible`, `setSnapToGrid`, `addMarker`/`removeMarker`,
+   * `scrollToElement`.
    */
   canvas: Canvas;
   /** Injected, then republished: the document model outlives the editor. */

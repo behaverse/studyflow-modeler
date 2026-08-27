@@ -4,7 +4,7 @@
  * P6b §3D: this used to be a `didi` service (`$inject = ['eventBus','elementRegistry','canvas']`)
  * drawing through `tiny-svg` — a dependency that only resolved while bpmn-js was in
  * `node_modules` (§2c). It now takes a {@link SimulationHost}, a structural subset of
- * `Editor` (`events` + `elements` + `view`), constructed directly over the port by
+ * `Editor` (`events` + `elements` + `canvas`), constructed directly over the port by
  * `editor/editor.ts`. Nothing here knows what draws the diagram.
  *
  * The SVG helpers come from the canvas's dependency-free `render/svg.ts`, which
@@ -12,7 +12,7 @@
  */
 
 import { is } from '@modeler/editor/port';
-import type { EditorElement, EditorElements, EditorView, EventBus } from '@modeler/editor/port';
+import type { Canvas, EditorElement, EditorElements, EventBus } from '@modeler/editor/port';
 import {
   create as svgCreate,
   attr as svgAttr,
@@ -29,14 +29,14 @@ export type Point = { x: number; y: number };
  *
  * - `events` carries `root.set` in and {@link TOGGLE_SIMULATION_EVENT} out;
  * - `elements` finds the start events to spawn from, scoped to the current root;
- * - `view.getLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. A
+ * - `canvas.getHostLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. A
  *   custom layer lives in the diagram's own coordinate space (the canvas applies
  *   pan/zoom to the root `viewBox`), so token positions are plain element coordinates.
  */
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
   elements: Pick<EditorElements, 'filter' | 'root' | 'findRoot'>;
-  view: Pick<EditorView, 'getLayer'>;
+  canvas: Pick<Canvas, 'getHostLayer'>;
 }
 
 const TOKEN_RADIUS = 8;
@@ -179,7 +179,7 @@ export default class TokenSimulator {
     if (this._active) return;
     this._active = true;
     this._ensureBounceKeyframes();
-    this._layer = this._host.view.getLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
+    this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
 
     this._startEvents = this._getVisibleStartEvents();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
@@ -221,7 +221,7 @@ export default class TokenSimulator {
     if (!this._active) return;
     // An import replaces the diagram — and with it the layer, which the canvas
     // drops on `Layers.clear()`. Re-fetch rather than reuse.
-    this._layer = this._host.view.getLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
+    this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this._startEvents = this._getVisibleStartEvents();
     this._clearTokens();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);

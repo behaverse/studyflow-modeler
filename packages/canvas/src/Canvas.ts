@@ -107,7 +107,7 @@ import type {
   EditorElements,
   Rect,
   Viewbox as EditorViewbox,
-} from '@canvas/port/editor.ts';
+} from '@canvas/editor.ts';
 
 /** Options for constructing a {@link Canvas}. */
 export interface CanvasOptions extends RendererOptions {
@@ -878,6 +878,37 @@ export class Canvas {
     return this.viewport.getAbsoluteBBox(
       target ? sceneBounds([target]) : { x: 0, y: 0, width: 0, height: 0 },
     );
+  }
+
+  /**
+   * Add a marker CSS class to whatever `element` names — an id, a scene element, a
+   * stale reference. Unknown names are dropped rather than remembered: hosts mark
+   * elements they read off a record (`provenance/Replay.tsx` walks a trail whose ids
+   * may no longer be in the document), and {@link Selection.addMarker} keyed by a
+   * dead id would hand the marker to the next element minted under it.
+   */
+  addMarker(element: unknown, marker: string): void {
+    const target = this.resolveElement(element);
+    if (target) this.selection.addMarker(target, marker);
+  }
+
+  /** Drop a marker class from `element`; a no-op when nothing answers to it. */
+  removeMarker(element: unknown, marker: string): void {
+    const target = this.resolveElement(element);
+    if (target) this.selection.removeMarker(target, marker);
+  }
+
+  /**
+   * Centre the viewport on `element`. Throws for anything the current plane does not
+   * hold — unlike {@link Canvas.getAbsoluteBBox}, which answers a zero rect, there is
+   * no sensible place to scroll to, and callers guard.
+   */
+  scrollToElement(element: unknown): void {
+    const target = this.resolveElement(element);
+    if (!target) {
+      throw new Error('@behaverse/studyflow-modeler: element is not on the current plane');
+    }
+    this.viewport.scrollToElement(target);
   }
 
   /** The current scene, or a throw — for the paths that have no meaning without one. */

@@ -16,7 +16,7 @@ import {
   type Point,
 } from '@modeler/simulation/TokenSimulator';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
-import type { EditorElements, Editor, EditorView } from '@modeler/editor/port';
+import type { Canvas, EditorElements, Editor } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -46,8 +46,8 @@ function elementsOf(record: ProvenanceRecord, elements: EditorElements): any[] {
   return found;
 }
 
-function resetSvgStyles(view: EditorView): void {
-  const svg = view.getContainer()?.querySelector('svg');
+function resetSvgStyles(canvas: Canvas): void {
+  const svg = canvas.getContainer()?.querySelector('svg');
   if (!svg) return;
   svg.style.transition = '';
   svg.style.transform = '';
@@ -63,17 +63,17 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   const planeShift = useRef<number | null>(null);
 
   useEffect(() => {
-    const { view, elements } = editor;
-    view.getContainer()?.classList.add('replay-active');
+    const { canvas, elements } = editor;
+    canvas.getContainer()?.classList.add('replay-active');
     return () => {
-      view.getContainer()?.classList.remove('replay-active');
-      for (const [id, m] of marked.current) if (elements.get(id)) view.removeMarker(id, m);
+      canvas.getContainer()?.classList.remove('replay-active');
+      for (const [id, m] of marked.current) if (elements.get(id)) canvas.removeMarker(id, m);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
       glideFrame.current = null;
       if (planeShift.current) clearTimeout(planeShift.current);
       planeShift.current = null;
-      resetSvgStyles(view);
+      resetSvgStyles(canvas);
       tokenPos.current = null;
       tokenRef.current?.remove();
       tokenRef.current = null;
@@ -81,7 +81,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   }, [editor]);
 
   useEffect(() => {
-    const { view, elements: registry } = editor;
+    const { canvas, elements: registry } = editor;
+    const viewport = canvas.getViewport();
 
     const touched = new Set<string>();
     const newest = new Map<string, ProvenanceRecord>();
@@ -97,11 +98,11 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       if (touched.has(conn.source.id) && touched.has(conn.target.id)) touched.add(conn.id);
     }
 
-    for (const [id, m] of marked.current) if (registry.get(id)) view.removeMarker(id, m);
+    for (const [id, m] of marked.current) if (registry.get(id)) canvas.removeMarker(id, m);
     marked.current = [];
     const add = (id: string, m: string) => {
       if (!registry.get(id)) return;
-      view.addMarker(id, m);
+      canvas.addMarker(id, m);
       marked.current.push([id, m]);
     };
     for (const id of touched) add(id, 'replay-touched');
@@ -110,7 +111,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     // The token: a pulsing circle on the element the newest record activates or mentions.
     const current = shown[shown.length - 1];
     const target = current ? elementsOf(current, registry).find((el) => el.width) : undefined;
-    const layer = view.getLayer('provenance-replay', 1000);
+    const layer = canvas.getHostLayer('provenance-replay', 1000);
     if (!tokenRef.current) {
       tokenRef.current = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       tokenRef.current.setAttribute('r', '8');
@@ -133,7 +134,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     if (planeShift.current) {
       clearTimeout(planeShift.current);
       planeShift.current = null;
-      resetSvgStyles(view);
+      resetSvgStyles(canvas);
     }
 
     if (!target) {
@@ -150,7 +151,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
 
     // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
     const camera = (center: Point) => {
-      const vb = view.viewbox();
+      const vb = canvas.getViewbox();
       const scale = Math.min(1.3, Math.max(0.6, vb.scale));
       const width = vb.outer.width / scale;
       const height = vb.outer.height / scale;
@@ -162,10 +163,10 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     if (!from || from.rootId !== rootId) {
       const place = () => {
         setPos(to, target.id, rootId);
-        try { view.scrollToElement(target); } catch { /* off-root elements can decline */ }
-        view.setViewbox(camera(to));
+        try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
+        viewport.setViewbox(camera(to));
       };
-      const svg = view.getContainer()?.querySelector('svg');
+      const svg = canvas.getContainer()?.querySelector('svg');
       if (!from || !svg) {
         place();
         return;
@@ -180,19 +181,19 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       const inward = !!doorIn && registry.findRoot(doorIn) === oldRoot;
       const outward = !inward && !!doorOut && registry.findRoot(doorOut) === newRoot;
       const doorway = (shape: any) => {
-        const vb = view.viewbox();
+        const vb = canvas.getViewbox();
         const scale = Math.min(3, vb.outer.width / (shape.width * 1.5), vb.outer.height / (shape.height * 1.5));
         const width = vb.outer.width / scale;
         const height = vb.outer.height / scale;
         return { x: shape.x + shape.width / 2 - width / 2, y: shape.y + shape.height / 2 - height / 2, width, height };
       };
       const fly = (dest: any, ms: number, fade: 'out' | 'in', then?: () => void) => {
-        const vb0 = view.viewbox();
+        const vb0 = canvas.getViewbox();
         const start = performance.now();
         const frame = (now: number) => {
           const t = Math.min((now - start) / ms, 1);
           const eased = smootherstep(t);
-          view.setViewbox({
+          viewport.setViewbox({
             x: vb0.x + (dest.x - vb0.x) * eased,
             y: vb0.y + (dest.y - vb0.y) * eased,
             width: vb0.width + (dest.width - vb0.width) * eased,
@@ -219,7 +220,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
           svg.style.opacity = '1';
           svg.style.transform = 'scale(1)';
           planeShift.current = window.setTimeout(() => {
-            resetSvgStyles(view);
+            resetSvgStyles(canvas);
             planeShift.current = null;
           }, 320);
         });
@@ -232,11 +233,11 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
           setPos(to, target.id, rootId);
-          try { view.scrollToElement(target); } catch { /* off-root elements can decline */ }
+          try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
           const dest = camera(to);
-          view.setViewbox(doorway(doorOut));
+          viewport.setViewbox(doorway(doorOut));
           svg.style.transition = 'none';
-          fly(dest, 420, 'in', () => resetSvgStyles(view));
+          fly(dest, 420, 'in', () => resetSvgStyles(canvas));
         }, 170);
         return;
       }
@@ -250,7 +251,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         svg.style.transition = 'opacity 280ms ease-out';
         svg.style.opacity = '1';
         planeShift.current = window.setTimeout(() => {
-          resetSvgStyles(view);
+          resetSvgStyles(canvas);
           planeShift.current = null;
         }, 300);
       }, 210);
@@ -268,13 +269,13 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     const { segLengths, totalDist } = computeSegLengths(points);
     const duration = Math.min(450, Math.max(200, totalDist / 0.7));
     const start = performance.now();
-    const vb0 = view.viewbox();
+    const vb0 = canvas.getViewbox();
     const dest = camera(to);
     const frame = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
       const eased = smootherstep(t);
       setPos(samplePolyline(points, segLengths, eased * totalDist), target.id, rootId);
-      view.setViewbox({
+      viewport.setViewbox({
         x: vb0.x + (dest.x - vb0.x) * eased,
         y: vb0.y + (dest.y - vb0.y) * eased,
         width: vb0.width + (dest.width - vb0.width) * eased,

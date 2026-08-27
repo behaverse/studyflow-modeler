@@ -59,14 +59,14 @@ export type { IconDef, IconResolver } from './render/icons.ts';
 
 // --- the editor facade ------------------------------------------------------
 /**
- * The editor facade, declared once in `port/editor.ts` and re-exported to the app
- * through `@modeler/editor/port`. Most of it IS the canvas — `selection`, `events`
- * and `canvas` are the objects above — so the only thing built here is the
+ * The editor facade, declared once in `editor.ts` and re-exported to the app through
+ * `@modeler/editor/port`. Most of it IS the canvas — `selection`, `events` and
+ * `canvas` are the objects above — so the only thing built here is the
  * undoable-mutation half, which needs a commit point the canvas has no way to
  * provide. `@modeler/editor/editor.ts` assembles the two.
  */
-export { createMutations, type MutationHistory } from './port/mutations.ts';
+export { createMutations, type MutationHistory } from './model/mutations.ts';
 export type {
   Editor,
   EditorHistory,
-} from './port/editor.ts';
+} from './editor.ts';

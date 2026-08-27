@@ -7,7 +7,7 @@
  * The split is the usual one: `contextPad/entries.ts` decides WHAT is offered (pure,
  * unit-tested), this file positions the box and wires each `action` to a command on
  * the bus. It reaches the editor only through the facade — `Editor.rules` for
- * its gates, `Editor.view.getAbsoluteBBox` for its anchor and
+ * its gates, `Editor.canvas.getAbsoluteBBox` for its anchor and
  * `Editor.gestures` for the two gestures it starts — and app chrome's own
  * `openPopupMenu` for the three menus its entries open.
  *
@@ -107,7 +107,7 @@ function selectionBBox(editor: Editor, elements: EditorElement[]): Rect | undefi
   for (const element of elements) {
     let next: Rect;
     try {
-      next = editor.view.getAbsoluteBBox(element);
+      next = editor.canvas.getAbsoluteBBox(element);
     } catch {
       // Off-plane elements throw rather than answer; skip them.
       continue;
@@ -195,7 +195,7 @@ export function ContextPad() {
     // `frame_05` show a shape being dragged with NO pad riding along — which is the
     // point: the pad would sit on top of the very ghost the user is aiming, and its
     // trash would be under the cursor at the moment of the drop.
-    const diagram = modeler.view.getContainer().querySelector('svg.sf-canvas');
+    const diagram = modeler.canvas.getContainer().querySelector('svg.sf-canvas');
     let frame = 0;
     let last = '';
     // Tracked separately from `last`, because the two answer different questions:
@@ -221,7 +221,7 @@ export function ContextPad() {
         }
         return;
       }
-      const outline = OUTLINE_OFFSET * modeler.view.zoom();
+      const outline = OUTLINE_OFFSET * modeler.canvas.getViewport().zoom();
       const left = Math.round(Math.max(4, Math.min(
         box.x + box.width + outline + OFFSET,
         window.innerWidth - node.offsetWidth - 4,

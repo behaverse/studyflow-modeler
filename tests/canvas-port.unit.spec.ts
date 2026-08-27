@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
-import type { EditorHistory, EditorModel } from '@canvas/port/editor.ts';
+import type { EditorHistory, EditorModel } from '@canvas/editor.ts';
 
 import { createEditor, type EditorCore } from '@modeler/editor/editor';
 
 import { freshModdle, installDocument } from './canvasHarness';
 
 /**
- * The `Editor` facade (`@modeler/editor/editor.ts`, `@canvas/port/editor.ts`).
+ * The `Editor` facade (`@modeler/editor/editor.ts`, `@canvas/editor.ts`).
  *
  * What is asserted here is only what the facade ADDS to the canvas: the moddle
  * round trip of `importXML`/`saveXML`, the plane projected as `elements.root()`,
@@ -184,13 +184,19 @@ test('elements.get / forEach / filter / findRoot / getGraphics span the scene', 
   expect(port.elements.getGraphics(port.elements.root())).toBe(canvas.getSvg());
 });
 
-// --- view --------------------------------------------------------------------
+// --- the view members app chrome reaches on `Editor.canvas` -------------------
 
-test('view exposes the viewbox (with outer extents), zoom, layers and markers', async () => {
+// There is no `view` projection: viewport, layers and markers are the canvas's own,
+// and `Editor.canvas` is how app chrome calls them (`provenance/Replay.tsx`,
+// `contextPad/ContextPad.tsx`, `drilldown/commands.ts`). Asserted here because this
+// is the set the facade is answerable for handing over intact — including the three
+// LENIENT ones (`addMarker`/`removeMarker`/`scrollToElement`), which resolve whatever
+// a host names an element by.
+test('the canvas exposes the viewbox (with outer extents), zoom, layers and markers', async () => {
   const { canvas, port } = await mount();
 
-  port.view.zoomToFit();
-  const box = port.view.viewbox();
+  canvas.zoomToFit();
+  const box = canvas.getViewbox();
   expect(box.width).toBeGreaterThan(0);
   expect(box.scale).toBeGreaterThan(0);
   // `provenance/Replay.tsx` divides by `outer.width`/`outer.height`; both must exist.
@@ -200,32 +206,40 @@ test('view exposes the viewbox (with outer extents), zoom, layers and markers', 
   expect(box.inner.x).toBe(100);
   expect(box.inner.width).toBe(336);
 
-  port.view.setViewbox({ x: 0, y: 0, width: 500, height: 500 });
-  expect(port.view.viewbox()).toMatchObject({ x: 0, y: 0, width: 500, height: 500 });
-  expect(port.view.zoom()).toBeCloseTo(1, 5);
+  canvas.getViewport().setViewbox({ x: 0, y: 0, width: 500, height: 500 });
+  expect(canvas.getViewbox()).toMatchObject({ x: 0, y: 0, width: 500, height: 500 });
+  expect(canvas.getViewport().zoom()).toBeCloseTo(1, 5);
 
   // Screen-space bbox of a shape at the current viewbox (jsdom: 1:1, origin 0,0).
-  expect(port.view.getAbsoluteBBox(port.elements.get('Task_1')))
+  expect(canvas.getAbsoluteBBox(port.elements.get('Task_1')))
     .toMatchObject({ x: 200, y: 78, width: 100, height: 80 });
 
-  expect(port.view.getContainer()).toBe(canvas.getContainer());
+  expect(port.canvas.getContainer()).toBe(canvas.getContainer());
 
-  // A named custom layer (`view.getLayer('provenance-replay', 1000)`), created on
+  // A named custom layer (`getHostLayer('provenance-replay', 1000)`), created on
   // first use, stable afterwards, and attached inside the canvas overlay stack.
-  const layer = port.view.getLayer('provenance-replay', 1000);
+  const layer = canvas.getHostLayer('provenance-replay', 1000);
   expect(layer.getAttribute('data-layer')).toBe('provenance-replay');
-  expect(port.view.getLayer('provenance-replay')).toBe(layer);
+  expect(canvas.getHostLayer('provenance-replay')).toBe(layer);
   expect(layer.parentNode).toBeTruthy();
 
-  port.view.addMarker('Task_1', 'replay-hit');
+  // Lenient in what it names an element by — an id here, an element below.
+  canvas.addMarker('Task_1', 'replay-hit');
   expect(canvas.getSelection().hasMarker('Task_1', 'replay-hit')).toBe(true);
-  port.view.removeMarker('Task_1', 'replay-hit');
+  canvas.removeMarker('Task_1', 'replay-hit');
   expect(canvas.getSelection().hasMarker('Task_1', 'replay-hit')).toBe(false);
 
+  // ...and a name nothing answers to is dropped, not remembered against the id.
+  canvas.addMarker('Ghost_1', 'replay-hit');
+  expect(canvas.getSelection().hasMarker('Ghost_1', 'replay-hit')).toBe(false);
+
   // Scrolling recentres the viewport on the element.
-  port.view.scrollToElement(port.elements.get('Task_1'));
-  const after = port.view.viewbox();
+  canvas.scrollToElement(port.elements.get('Task_1'));
+  const after = canvas.getViewbox();
   expect(after.x + after.width / 2).toBeCloseTo(250, 5);
+
+  // Off-plane elements decline rather than answer (`Replay.tsx` guards on it).
+  expect(() => canvas.scrollToElement('Ghost_1')).toThrow(/not on the current plane/);
 });
 
 // --- mutation + XML round-trip ----------------------------------------------

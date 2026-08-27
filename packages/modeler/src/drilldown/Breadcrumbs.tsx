@@ -53,7 +53,7 @@ export function Breadcrumbs() {
      diagram. Re-measured whenever the container resizes — which is also what a panel
      opening or closing does to it. */
   useLayoutEffect(() => {
-    const container = modeler.view.getContainer();
+    const container = modeler.canvas.getContainer();
     if (!container) return;
     const measure = (): void => {
       const rect = container.getBoundingClientRect();

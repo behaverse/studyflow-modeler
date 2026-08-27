@@ -246,7 +246,7 @@ test.describe('plane cursor', () => {
     port.events.on('root.set', (event: any) => roots.push(event?.element?.id));
     await port.importXML(exampleXml(EXAMPLE));
 
-    expect(port.view.planePath().map((root: any) => root.id)).toEqual(['sklearn_pipeline']);
+    expect(port.canvas.planePath().map((root: any) => root.id)).toEqual(['sklearn_pipeline']);
     expect(port.elements.root().id).toBe('sklearn_pipeline');
 
     // The badges go into a host layer above the built-in stack, so an import drops
@@ -256,14 +256,14 @@ test.describe('plane cursor', () => {
     expect(badge).toBeTruthy();
 
     badge!.dispatchEvent(new win.MouseEvent('click', { bubbles: true }) as unknown as Event);
-    const path = port.view.planePath();
+    const path = port.canvas.planePath();
     expect(path.map((root: any) => root.id)).toEqual(['sklearn_pipeline', 'select_model']);
     // `elements.root()` follows the view, so the inspector resolves against the plane
     // on screen rather than the document root — and `root.set` says so.
     expect(port.elements.root().id).toBe('select_model');
     expect(roots[roots.length - 1]).toBe('select_model');
 
-    expect(port.view.goToPlane(path[0])).toBe(true);
+    expect(port.canvas.goToPlane(path[0])).toBe(true);
     expect(port.elements.root().id).toBe('sklearn_pipeline');
     expect(roots[roots.length - 1]).toBe('sklearn_pipeline');
   });

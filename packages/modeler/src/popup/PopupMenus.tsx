@@ -79,7 +79,7 @@ export function PopupMenus() {
     const onKeyboardAppend = (event: { elements?: EditorElement[] }): void => {
       const element = event?.elements?.[0];
       if (!element) return;
-      const box = modeler.view.getAbsoluteBBox(element);
+      const box = modeler.canvas.getAbsoluteBBox(element);
       setOpen({
         providerId: APPEND_MENU,
         position: {
