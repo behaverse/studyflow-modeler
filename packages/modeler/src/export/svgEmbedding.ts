@@ -1,41 +1,13 @@
-import { Canvg } from 'canvg';
-
+/**
+ * A resolved icon glyph: the body of an `<svg>` plus the viewBox it is drawn in.
+ * Fetched by `export/iconSource.ts` and cached by `draw/iconCache.ts`, which hands
+ * it to the canvas renderer — so glyphs are drawn INTO the scene and an exported SVG
+ * needs no icon substitution pass at all (parity addendum 6 §2).
+ */
 export type IconSvg = { content: string; viewBox: string };
 
 export interface IconSource {
   resolve(iconClass: string): Promise<IconSvg | null>;
-}
-
-export async function embedIconsInSvg(svgString: string, source: IconSource): Promise<string> {
-  const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
-  const foreignObjects = svgDoc.querySelectorAll('foreignObject.icon-container');
-
-  for (const foreignObject of foreignObjects) {
-    const iconDiv = foreignObject.querySelector('div[data-icon-class], DIV[data-icon-class]');
-    const iconClass = iconDiv?.getAttribute('data-icon-class');
-    if (!iconClass) continue;
-
-    const iconData = await source.resolve(iconClass);
-    if (!iconData) continue;
-
-    const color = iconDiv?.getAttribute('data-icon-color')
-      || foreignObject.getAttribute('color')
-      || foreignObject.getAttribute('style')?.match(/color:\s*([^;]+)/)?.[1];
-
-    const iconSvg = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    iconSvg.setAttribute('x', foreignObject.getAttribute('x') || '0');
-    iconSvg.setAttribute('y', foreignObject.getAttribute('y') || '0');
-    iconSvg.setAttribute('width', foreignObject.getAttribute('width') || '24');
-    iconSvg.setAttribute('height', foreignObject.getAttribute('height') || '24');
-    iconSvg.setAttribute('viewBox', iconData.viewBox);
-    iconSvg.setAttribute('stroke', 'none');
-    iconSvg.innerHTML = color ? iconData.content.replace(/currentColor/g, color) : iconData.content;
-
-    foreignObject.parentNode?.replaceChild(iconSvg, foreignObject);
-  }
-
-  return new XMLSerializer().serializeToString(svgDoc);
 }
 
 export function embedStudyflowIntoSvg(svg: string, xml: string): string {
@@ -91,11 +63,56 @@ export function padSvg(svg: string, padding = EXPORT_PADDING): string {
   return new XMLSerializer().serializeToString(doc);
 }
 
+/** The pixel size a padded export SVG declares: its `width`/`height`, else its viewBox. */
+function svgSize(svg: string): { width: number; height: number } | undefined {
+  const el = new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('svg');
+  if (!el) return undefined;
+
+  const declared = (['width', 'height'] as const).map((name) => Number(el.getAttribute(name)));
+  if (declared.every((value) => Number.isFinite(value) && value > 0)) {
+    return { width: declared[0], height: declared[1] };
+  }
+
+  const box = (el.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number);
+  if (box.length === 4 && box.slice(2).every((value) => Number.isFinite(value) && value > 0)) {
+    return { width: box[2], height: box[3] };
+  }
+  return undefined;
+}
+
+/** Load an SVG string as an `<img>` through a blob URL, revoking it either way. */
+function loadSvgImage(svg: string): Promise<HTMLImageElement> {
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  const image = new Image();
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('the diagram SVG could not be rasterized'));
+    image.src = url;
+  }).finally(() => URL.revokeObjectURL(url));
+}
+
+/**
+ * Rasterize the diagram SVG to a PNG data URL, natively: the browser already knows
+ * how to draw an SVG image, so the document goes through a blob URL into an `<img>`
+ * and onto a 2d canvas. This replaced Canvg (parity addendum 6 §3) — which existed to
+ * paint icons the browser could not, back when they were `foreignObject`s; the
+ * renderer now draws real glyphs, so plain `drawImage` covers the whole document.
+ */
 export async function exportToPng(svg: string): Promise<string> {
+  const padded = padSvg(svg);
+  const image = await loadSvgImage(padded);
+
+  // An SVG image's intrinsic size is only reliable when the document declares one;
+  // the padded root always does, and the viewBox is the fallback for anything else.
+  const size = svgSize(padded)
+    ?? (image.naturalWidth > 0 ? { width: image.naturalWidth, height: image.naturalHeight } : undefined);
+
   const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(size?.width ?? image.width));
+  canvas.height = Math.max(1, Math.round(size?.height ?? image.height));
+
   const context = canvas.getContext('2d')!;
-  const canvg = Canvg.fromString(context, padSvg(svg));
-  await canvg.render();
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   // White background under the rendered SVG so transparent areas don't appear black.
   context.globalCompositeOperation = 'destination-over';

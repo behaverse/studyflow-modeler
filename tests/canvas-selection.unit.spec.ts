@@ -226,8 +226,14 @@ test('selection: a PRESS on a multi-selection keeps the group, so a group drag m
   firePointer(canvas, doc, 'pointerup', { x: start.x + 40, y: start.y + 20 });
 
   expect(canvas.getSelection().get().map((e) => e.id), 'a drag keeps the group').toEqual([a.id, b.id]);
-  expect({ x: a.x - from.x, y: a.y - from.y }).toEqual({ x: 40, y: 20 });
-  expect({ x: b.x - fromB.x, y: b.y - fromB.y }, 'the other member moved too').toEqual({ x: 40, y: 20 });
+  // Grid snapping is ON by default (parity spec addendum 7): the LEAD node's origin
+  // lands on the 10-unit grid, and the whole group moves by THAT delta, not the raw one.
+  const delta = {
+    x: Math.round((from.x + 40) / 10) * 10 - from.x,
+    y: Math.round((from.y + 20) / 10) * 10 - from.y,
+  };
+  expect({ x: a.x - from.x, y: a.y - from.y }).toEqual(delta);
+  expect({ x: b.x - fromB.x, y: b.y - fromB.y }, 'the other member moved too').toEqual(delta);
 });
 
 test('selection: dblclick from a multi-selection leaves exactly one element selected', async () => {
@@ -672,8 +678,9 @@ test('style layer: the parity colours and weights live in one place', () => {
   expect(CANVAS_CSS).toContain('--sf-lasso-fill-color: hsla(205, 100%, 50%, 0.15)');
   expect(CANVAS_CSS).toContain('--sf-element-dragging-opacity: 0.3');
 
-  // Solid, never dashed — and no `stroke-dasharray` anywhere in the chrome.
-  expect(CANVAS_CSS).not.toContain('stroke-dasharray');
+  // Solid, with ONE deliberate exception: a selected caption's leader back to the
+  // element it names is dashed (parity spec addendum 3 §3, `labels/frame_08`).
+  expect(CANVAS_CSS.replace(/\.sf-label-leader\s*\{[^}]*\}/, '')).not.toContain('stroke-dasharray');
   expect(CANVAS_CSS).toContain('stroke-linecap: round');
 
   // The one hover rule that exists is on connections; there is no shape-hover rule.

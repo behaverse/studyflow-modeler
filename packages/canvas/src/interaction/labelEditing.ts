@@ -38,6 +38,7 @@ import type { Writeback } from '@canvas/model/writeback.ts';
 import {
   EDGE_LABEL_FONT_SIZE,
   edgeLabelBounds,
+  edgeLabelTextBounds,
   externalLabelBounds,
   LABEL_FONT,
   LABEL_LINE_HEIGHT,
@@ -132,6 +133,20 @@ const MIN_EDITOR_PX = { width: 40, height: 16 };
  */
 const MIN_EXTERNAL_EDITOR_PX = { width: 14, height: 14 };
 
+/**
+ * Width (in DIAGRAM units) of the external editor opened on an element that has no
+ * caption yet — `edge-videos/labels/frame_01`, where double-clicking a bare sequence
+ * flow opens a comfortably wide empty box with a caret in it, not a hairline.
+ *
+ * Sizing tight to the text is right for a caption that EXISTS (ux-spec §5 measured
+ * 14×16 px around "go"); applied to the empty string it produced a 14px sliver that
+ * looked like a rendering fault rather than somewhere to type. bpmn-js draws the same
+ * distinction — `LabelEditingProvider` falls back to a default 90-wide box exactly
+ * when the element has no external label — and the box narrows to the text on the
+ * first keystroke, which is what the reference shows next (`frame_02`).
+ */
+const EMPTY_EXTERNAL_EDITOR_WIDTH = 90;
+
 /** The `7px` of `.sf-label-editor-internal`'s padding, as a number to compute with. */
 const TEXT_PADDING_PX = 7;
 /** `line-height: 1.2` of `.sf-label-editor`, likewise. */
@@ -220,16 +235,27 @@ export function labelBounds(element: SceneElement, band: LabelBand): Bounds {
  *   external editor is a visible white box (parity spec §5: the reference measured
  *   14×16 px around the two-letter caption "go", not the whole label region).
  *
+ * `minWidth` (diagram units) raises the floor for the whole session when the element
+ * had NO caption to begin with — {@link EMPTY_EXTERNAL_EDITOR_WIDTH}, so naming a
+ * bare sequence flow starts in a real box and does not jump around as it is typed
+ * (`edge-videos/labels/frame_01` → `frame_02`, where the box is the same size before
+ * and after "Hello.").
+ *
  * Exported so the geometry can be asserted directly, and so a host that positions
  * its own editor gets the same answer.
  */
-export function editorBounds(element: SceneElement, band: LabelBand, text: string): Bounds {
+export function editorBounds(
+  element: SceneElement,
+  band: LabelBand,
+  text: string,
+  minWidth = MIN_EXTERNAL_EDITOR_PX.width,
+): Bounds {
   const region = labelBounds(element, band);
   if (labelPlacement(element) === 'internal') return region;
   const fontSize = fontSizeFor(element, band);
   const lines = text.split(/\r?\n/);
   const width = Math.max(
-    MIN_EXTERNAL_EDITOR_PX.width,
+    minWidth,
     ...lines.map((line) => measureLabelWidth(line, fontSize)),
   );
   const height = Math.max(1, lines.length) * LABEL_LINE_HEIGHT;
@@ -301,7 +327,7 @@ export class LabelEditing {
     const session = this.session;
     const input = this.input;
     if (!session || !input) return;
-    this.place(input, session.element, session.band, input.value, session.bounds);
+    this.place(input, session.element, session.band, input.value, session.bounds, session.initial);
   };
 
   constructor(options: LabelEditingOptions) {
@@ -467,7 +493,25 @@ export class LabelEditing {
     if (!writeback) return [];
     const text = value.trim();
 
-    if (session.band === 'name') return writeback.setName(element, text) ? [element] : [];
+    if (session.band === 'name') {
+      // A connection that is GAINING a caption gains a `bpmndi:BPMNLabel` with it,
+      // exactly as bpmn-js's `LabelBehavior` mints one the moment a flow is named
+      // (parity spec addendum 3 §1/§5). Without it the new caption has no position
+      // of its own: it is derived from the waypoints, so re-routing the flow drags
+      // it around and dragging the label has nothing to write.
+      //
+      // Minted `silent`, so the mint and the name are ONE revision bump and
+      // therefore one undo step — the user typed a label, not two edits.
+      if (
+        element.kind === 'edge'
+        && text
+        && !element.label
+        && text !== nameOf(element.businessObject)
+      ) {
+        writeback.setLabelBounds(element, edgeLabelTextBounds(element, text), { silent: true });
+      }
+      return writeback.setName(element, text) ? [element] : [];
+    }
     // Only a choreography task (a node) has bands at all.
     if (element.kind !== 'node') return [];
     // A band's text belongs to the *participant*, not the choreography task, and one
@@ -512,7 +556,7 @@ export class LabelEditing {
       fontSize: `${fontSizeFor(element, band) * this.scale()}px`,
       fontWeight: LABEL_FONT_WEIGHT,
     });
-    this.place(input, element, band, initial, bounds);
+    this.place(input, element, band, initial, bounds, initial);
 
     input.addEventListener('keydown', this.onKeyDown);
     input.addEventListener('input', this.onInput);
@@ -532,6 +576,11 @@ export class LabelEditing {
    * tight to its content ({@link editorBounds}), so it is re-placed on every
    * keystroke — the box grows with the caption and stays centred on it, which is
    * what keeps a white 1px-bordered box from looking like a form field.
+   *
+   * `initial` is the text the SESSION opened with, not the text being placed: an
+   * element that had no caption keeps the wider empty-box floor for as long as it is
+   * being named, so the box does not snap from wide to hairline on the first
+   * keystroke ({@link EMPTY_EXTERNAL_EDITOR_WIDTH}).
    */
   private place(
     input: HTMLTextAreaElement,
@@ -539,11 +588,13 @@ export class LabelEditing {
     band: LabelBand,
     text: string,
     region: Bounds,
+    initial = text,
   ): void {
     const placement = labelPlacement(element);
+    const floor = initial === '' ? EMPTY_EXTERNAL_EDITOR_WIDTH : undefined;
     const bounds = placement === 'internal'
       ? region
-      : editorBounds(element, band, text);
+      : editorBounds(element, band, text, floor);
     const min = placement === 'internal' ? MIN_EDITOR_PX : MIN_EXTERNAL_EDITOR_PX;
     const box = this.viewport.getAbsoluteBBox(bounds);
     const host = this.container.getBoundingClientRect();

@@ -257,6 +257,18 @@ function EditorSection() {
       />
 
       <Row
+        label="Snap to grid"
+        help="Land dragged, resized and newly created elements on the grid. Turn this off to place them freely."
+        control={
+          <ToggleControl
+            label="Snap to grid"
+            checked={settings.snapToGrid}
+            onChange={(snapToGrid) => update({ snapToGrid })}
+          />
+        }
+      />
+
+      <Row
         label="Auto-save"
         help="Keep the diagram you are editing in this browser, so it persists across a reload."
         control={

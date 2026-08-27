@@ -320,16 +320,22 @@ test('startConnect drags a rubber band and drops a flow on the hovered target', 
   const preview = svg.querySelector('.sf-connect-preview');
   expect(preview).not.toBeNull();
   expect(preview!.getAttribute('data-allowed')).toBe('false');
+  // …and the canvas wears the verdict, which is what puts the ∅ under the cursor
+  // (parity spec §5, `edge-videos/v2/frame_02`; the rule is in `view/theme.ts`).
+  expect(svg.getAttribute('data-connect-status')).toBe('pending');
 
   // Over the target: allowed, and the preview is already the routed path.
   firePointer(canvas, doc, 'pointermove', center(two));
   expect(svg.querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('true');
-  expect(svg.querySelector('.sf-connect-preview')!.firstElementChild!.getAttribute('points'))
+  // The preview is a rounded PATH like the edge it previews; its raw geometry is
+  // kept alongside it (`render/renderer.ts roundedPathData`).
+  expect(svg.querySelector('.sf-connect-preview')!.firstElementChild!.getAttribute('data-waypoints'))
     .toBe('300,120 400,120');
 
   firePointer(canvas, doc, 'pointerup', center(two));
   expect(canvas.getConnect().isActive()).toBe(false);
   expect(svg.querySelector('.sf-connect-preview')).toBeNull();
+  expect(svg.getAttribute('data-connect-status')).toBeNull();
 
   const created = canvas.getSelection().get()[0] as SceneEdge;
   expect(created.kind).toBe('edge');
@@ -476,12 +482,15 @@ test('an endpoint dropped on open space keeps P3\'s free waypoint move', async (
   expect(svg.querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('false');
   firePointer(canvas, doc, 'pointerup', { x: 250, y: 400 });
 
-  // No shape took the endpoint, so the refs are untouched and the endpoint simply
-  // moved — the P3 waypoint-drag contract, written through to the DI.
+  // No shape took the endpoint, so the refs are untouched and the TIP simply moved
+  // to where the pointer let go — written through to the DI. The route to it is
+  // squared on the way (parity spec §4), so the tip is the last waypoint rather than
+  // the second, and no segment is left diagonal.
   expect(flow.target).toBe(one);
   expect((flow.businessObject as any).targetRef.id).toBe('Task_1');
-  expect(flow.waypoints[1]).toEqual({ x: 250, y: 400 });
-  expect(diWaypoints(definitions, 'Flow_1')[1]).toEqual({ x: 250, y: 400 });
+  expect(flow.waypoints.at(-1)).toEqual({ x: 250, y: 400 });
+  expect(isOrthogonal(flow.waypoints)).toBe(true);
+  expect(diWaypoints(definitions, 'Flow_1')).toEqual(flow.waypoints);
 });
 
 test('dragging an INTERIOR waypoint still bends the edge (P3), it does not reconnect', async () => {
@@ -507,4 +516,78 @@ test('dragging an INTERIOR waypoint still bends the edge (P3), it does not recon
   expect(flow.target).toBe(one);
   expect(flow.waypoints[1]).toEqual({ x: 170, y: 260 });
   expect(diWaypoints(definitions, 'Flow_1')[1]).toEqual({ x: 170, y: 260 });
+});
+
+/*
+ * Drop feedback (parity spec addendum 4 §2, `edge-videos/edgemake/frame_02`): the
+ * shape a connect drag is hanging over is TINTED — pale grey when it would take the
+ * flow, pale red when it refuses. Before this, nothing at all told the user the drop
+ * was valid except the ghost line turning solid, which is a change on the far side of
+ * the canvas from the cursor.
+ */
+
+test('a connect drag tints the shape under the cursor, and lets it go on drop', async () => {
+  const { canvas } = await load();
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const one = node(canvas, 'Task_1');
+  const two = node(canvas, 'Task_2');
+
+  canvas.startConnect(one);
+
+  // Over empty space nothing is tinted — and, unlike a CREATE drag, the root is not
+  // either: empty canvas can hold a new shape, but it cannot hold a connection.
+  firePointer(canvas, doc, 'pointermove', { x: 350, y: 400 });
+  expect(svg.querySelectorAll('.sf-new-parent')).toHaveLength(0);
+  expect(svg.classList.contains('sf-new-parent')).toBe(false);
+
+  // Over a valid target: the target itself, and only it. The marker is
+  // `sf-connect-ok`, not `sf-new-parent` — ux-spec §4/§7 keeps "this would take the
+  // flow" apart from "this would contain the shape", even though both are painted
+  // the same pale tint.
+  firePointer(canvas, doc, 'pointermove', center(two));
+  expect(canvas.getGraphics('Task_2')!.classList.contains('sf-connect-ok')).toBe(true);
+  expect(canvas.getGraphics('Task_2')!.classList.contains('sf-new-parent')).toBe(false);
+  expect(svg.querySelectorAll('.sf-drop-not-ok')).toHaveLength(0);
+
+  // Crossing back to the SOURCE, which may not connect to itself: refused, and the
+  // mark is exact — the tint left on `Task_2` is taken off in the same frame.
+  firePointer(canvas, doc, 'pointermove', center(one));
+  expect(canvas.getGraphics('Task_1')!.classList.contains('sf-drop-not-ok')).toBe(true);
+  expect(canvas.getGraphics('Task_2')!.classList.contains('sf-connect-ok')).toBe(false);
+
+  firePointer(canvas, doc, 'pointermove', center(two));
+  firePointer(canvas, doc, 'pointerup', center(two));
+  // The gesture is over: no tint survives it anywhere.
+  expect(svg.querySelectorAll('.sf-connect-ok, .sf-new-parent, .sf-drop-not-ok')).toHaveLength(0);
+});
+
+test('a reconnect onto a target the rules refuse says so on the root, so the cursor shows ∅', async () => {
+  // Parity spec §1 requires the no-drop cursor over an invalid reconnect target. The
+  // cursor itself is a `view/theme.ts` rule keyed on this attribute, so the attribute
+  // is what a headless test can pin — and until now only the VALID drop was covered.
+  const { canvas } = await load();
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const flow = edge(canvas, 'Flow_1');
+  const note = node(canvas, 'Note_1');
+
+  canvas.getSelection().select(flow);
+  firePointer(canvas, svg, 'pointerdown', flow.waypoints[flow.waypoints.length - 1]);
+
+  // A text annotation cannot be the target of a sequence flow.
+  firePointer(canvas, doc, 'pointermove', center(note));
+  expect(canvas.getConnect().getKind()).toBe('reconnect');
+  expect(canvas.getConnect().reconnectVerdict(flow, 'target', note)).toBe(false);
+  expect(svg.getAttribute('data-connect-status')).toBe('rejected');
+  expect(svg.querySelector('.sf-connect-preview')!.getAttribute('data-status')).toBe('rejected');
+  expect(canvas.getGraphics('Note_1')!.classList.contains('sf-drop-not-ok')).toBe(true);
+
+  // Dropping there writes nothing at all, and the verdict comes off the root.
+  const before = flow.waypoints.map((p) => ({ ...p }));
+  firePointer(canvas, doc, 'pointerup', center(note));
+  expect(flow.target).toBe(node(canvas, 'Task_1'));
+  expect(flow.waypoints).toEqual(before);
+  expect(svg.getAttribute('data-connect-status')).toBeNull();
+  expect(svg.querySelectorAll('.sf-drop-not-ok')).toHaveLength(0);
 });

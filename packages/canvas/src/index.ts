@@ -174,6 +174,7 @@ export {
 export {
   drawIcon,
   drawCssIcon,
+  drawInlineSvgIcon,
   drawSvgPaths,
   drawIconText,
   SVG_ICON_PATHS,
@@ -181,6 +182,7 @@ export {
   type CssIconDef,
   type IconDef,
   type IconResolver,
+  type InlineSvgIconDef,
   type SvgIconDef,
 } from './render/icons.ts';
 
@@ -218,8 +220,12 @@ export {
 export {
   Renderer,
   categoryOf,
+  edgeDashArray,
   ensureArrowMarkers,
+  markerEndFor,
   markerIdFor,
+  roundedPathData,
+  EDGE_CORNER_RADIUS,
   type NodeCategory,
   type RendererOptions,
 } from './render/renderer.ts';
@@ -227,6 +233,20 @@ export {
 // --- Viewport ---------------------------------------------------------------
 export { Viewport, sceneBounds, type Viewbox } from './view/viewport.ts';
 export { Layers, LAYER_ORDER, type LayerName } from './view/layers.ts';
+export {
+  PlaneCursor,
+  isDrillable,
+  nestedPlaneOf,
+  nodeName,
+  planeName,
+  planeOf,
+  planeOwner,
+  planePathOf,
+  DRILLDOWN_BADGE_OFFSET,
+  DRILLDOWN_BADGE_RADIUS,
+  DRILLDOWN_BADGE_SIZE,
+  type PlaneCursorOptions,
+} from './view/plane.ts';
 export { injectCanvasStyles, CANVAS_CSS, CANVAS_STYLE_ID } from './view/theme.ts';
 
 // --- Events -----------------------------------------------------------------
@@ -254,6 +274,7 @@ export {
   type SelectionOptions,
   type SelectionChangedEvent,
   type HandleHit,
+  type SegmentHit,
   type WaypointHit,
 } from './interaction/selection.ts';
 
@@ -277,6 +298,7 @@ export {
   DEFAULT_MIN_SIZE,
   type DragKind,
   type DragOptions,
+  type GridAxes,
   type MinSize,
 } from './interaction/drag.ts';
 
@@ -315,6 +337,27 @@ export {
 } from './interaction/connect.ts';
 
 export {
+  segmentsOf,
+  segmentAt,
+  isGrippable,
+  insideGrip,
+  moveSegment,
+  moveBendpoint,
+  redockEnd,
+  freeMoveEnd,
+  distanceToSegment,
+  MIN_GRIP_SEGMENT_LENGTH,
+  SEGMENT_ALIGN_TOLERANCE,
+  SEGMENT_BODY_TOLERANCE,
+  SEGMENT_GRIP_LENGTH,
+  SEGMENT_GRIP_WIDTH,
+  type Segment,
+  type SegmentAxis,
+  type SegmentShapes,
+} from './interaction/segments.ts';
+
+export {
+  ANNOTATION_APPEND_DISTANCE,
   APPEND_DISTANCE,
   appendElement,
   appendPosition,
@@ -353,12 +396,17 @@ export {
   route,
   routeCenters,
   routeEdge,
+  routeFor,
+  straightRoute,
+  isStraightRouted,
   rerouteEdge,
   rerouteEdges,
   edgesAffectedBy,
   isOrthogonal,
+  orthogonalize,
   DEFAULT_CLEARANCE,
   DEFAULT_STRAIGHT_TOLERANCE,
+  ORTHOGONAL_TOLERANCE,
   type RouteOptions,
   type RoutableShape,
 } from './routing/orthogonal.ts';

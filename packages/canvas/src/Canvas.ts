@@ -19,13 +19,16 @@
  */
 
 import { BPMN } from '@core/constants.ts';
+import { getExtensionType } from '@core/element/index.ts';
 
 import { EventBus } from '@canvas/events/bus.ts';
+import { prop } from '@canvas/model/moddle.ts';
 import { importDefinitions } from '@canvas/model/import.ts';
 import type { ImportOptions } from '@canvas/model/import.ts';
 import type {
   Bounds,
   ModdleObject,
+  Plane,
   Point,
   Scene,
   SceneEdge,
@@ -35,11 +38,24 @@ import type {
 import { hitTest, nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
 import type { HitOptions } from '@canvas/interaction/hit.ts';
 import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
-import type { HandleHit, WaypointHit } from '@canvas/interaction/selection.ts';
+import type { HandleHit, SegmentHit, WaypointHit } from '@canvas/interaction/selection.ts';
+import { freeMoveEnd, segmentsOf } from '@canvas/interaction/segments.ts';
 import { DEFAULT_GRID_SIZE, Drag, snapTo, withDescendants } from '@canvas/interaction/drag.ts';
-import { Create, createShape, type CreatePrototype, type ShapeDescriptor } from '@canvas/interaction/create.ts';
+import type { GridAxes } from '@canvas/interaction/drag.ts';
+import {
+  Create,
+  boundsFor,
+  createShape,
+  defaultSizeFor,
+  type CreatePrototype,
+  type ShapeDescriptor,
+} from '@canvas/interaction/create.ts';
 import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
-import { appendElement as autoPlaceAppend } from '@canvas/interaction/autoplace.ts';
+import {
+  appendElement as autoPlaceAppend,
+  appendPosition,
+  appendSourceBounds,
+} from '@canvas/interaction/autoplace.ts';
 import {
   collectSnapTargets,
   snapMove,
@@ -54,24 +70,33 @@ import type {
 import type { ParticipantBand } from '@canvas/model/choreography.ts';
 import type { ElementColors } from '@canvas/model/color.ts';
 import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
-import { isCollapsed, isExpandable } from '@canvas/model/expand.ts';
+import { isCollapsed, isExpandable, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { ExternalLabels, isLabelElement } from '@canvas/model/externalLabel.ts';
 import type { SetExpandedOptions } from '@canvas/model/expand.ts';
 import { depthOf } from '@canvas/model/tree.ts';
 import { Writeback } from '@canvas/model/writeback.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
-import { Rules } from '@canvas/rules/rules.ts';
+import { CONNECTION, Rules, type RuleElement } from '@canvas/rules/rules.ts';
 import {
   edgesAffectedBy,
   rerouteEdges as rerouteEdgeSet,
+  routableEnd,
+  routeFor,
   type RouteOptions,
 } from '@canvas/routing/orthogonal.ts';
 import { labelIdOf } from '@canvas/render/labels.ts';
 import { OUTLINE_CLASS } from '@canvas/render/outline.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
-import { ensureArrowMarkers, Renderer } from '@canvas/render/renderer.ts';
+import {
+  categoryOf,
+  edgeDashArray,
+  ensureArrowMarkers,
+  markerEndFor,
+  Renderer,
+  roundedPathData,
+} from '@canvas/render/renderer.ts';
 import type { RendererOptions } from '@canvas/render/renderer.ts';
-import { Layers } from '@canvas/view/layers.ts';
+import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { sceneBounds, Viewport } from '@canvas/view/viewport.ts';
 
@@ -81,7 +106,16 @@ export interface CanvasOptions extends RendererOptions {
   container?: HTMLElement;
   /** Import-time warning sink, forwarded to {@link importDefinitions}. */
   onWarning?: ImportOptions['onWarning'];
-  /** Snap dragged geometry to a grid (default off — design §3 "behind a flag"). */
+  /**
+   * Snap dragged geometry to the {@link CanvasOptions.gridSize} grid. **Default
+   * `true`** (parity spec addendum 7): diagram-js grid-snaps every move, resize,
+   * create and waypoint drag out of the box, and the drag ghost visibly advances in
+   * grid steps. Element-ALIGNMENT snapping composes with it and wins inside its own
+   * 7-unit tolerance (`Canvas.snapGesture`).
+   *
+   * `snapToGrid: false` — or {@link Canvas.setSnapToGrid} — is the documented way to
+   * drag freely; there is deliberately no app-level setting for it.
+   */
   snapToGrid?: boolean;
   /** Grid step used when {@link CanvasOptions.snapToGrid} is on. */
   gridSize?: number;
@@ -99,6 +133,13 @@ export interface CanvasOptions extends RendererOptions {
 
 /** Screen-pixel drag threshold separating a click from a marquee or a drag. */
 const MARQUEE_THRESHOLD_PX = 3;
+
+/**
+ * Diagram units of breathing room {@link Canvas.toSVG} leaves around the drawing.
+ * Small on purpose: an export is cropped to the diagram, and the modeler adds its own
+ * 8px print margin on top (`export/svgEmbedding.ts padSvg`).
+ */
+const EXPORT_MARGIN = 4;
 
 /** Diagram units one arrow key moves the selection (parity spec §9). */
 const SMALL_NUDGE = 1;
@@ -171,6 +212,8 @@ type GestureIntent =
   | 'move'
   | 'resize'
   | 'waypoint'
+  | 'segment'
+  | 'label'
   | 'create'
   | 'connect'
   | 'reconnect'
@@ -186,6 +229,12 @@ interface SnapContext {
   targets: SnapTargets;
   bounds?: Bounds;
   point?: Point;
+  /**
+   * Restrict the snap to ONE axis. A segment move only travels perpendicular to
+   * itself, so aligning (and guiding) on the axis it cannot move along would claim
+   * a snap the gesture is unable to honour.
+   */
+  axis?: 'x' | 'y';
 }
 
 /** In-flight pointer gesture state (marquee / click / drag discrimination). */
@@ -200,6 +249,10 @@ interface GestureState {
   dragging: boolean;
   handle?: HandleHit;
   waypoint?: WaypointHit;
+  /** The straight run a `'segment'` gesture slides (parity spec §2/§3). */
+  segment?: SegmentHit;
+  /** The caption a `'label'` gesture carries (parity spec addendum 3 §2). */
+  label?: SceneNode;
   /**
    * The already-selected member of a MULTI-selection this gesture pressed on with no
    * modifier. The press keeps the whole set (a group drag has to be possible); if the
@@ -243,6 +296,35 @@ export class Canvas {
   private readonly minNodeSize?: number;
   private readonly toggleExpandOnDoubleClick: boolean;
   private snapToGrid: boolean;
+  /**
+   * Set while a shape is being placed at a position the CALLER worked out rather
+   * than one a pointer chose — {@link Canvas.createElement}, and through it
+   * `interaction/autoplace.ts`. Grid snapping is a gesture aid: rounding an
+   * auto-place position would move the appended shape off the very coordinate
+   * `appendPosition` computed, which is also the coordinate the context pad's hover
+   * ghost drew (addendum 5 §3 — "ghost and commit must agree"), and would nudge a
+   * programmatic placement off the point its caller asked for. diagram-js draws the
+   * same line: `GridSnapping` hooks `create.move`/`create.end`, never
+   * `modeling.createShape`.
+   */
+  private exactPlacement = false;
+  /**
+   * Optional plane scope (drill-down): an element the predicate rejects is not
+   * drawn and cannot be hit. `undefined` = the whole scene, which is the default.
+   */
+  private planeScope?: (element: SceneElement) => boolean;
+  /** Ids the scope is currently hiding, so re-admitting them is exact. */
+  private readonly scopedOutIds = new Set<string>();
+  /**
+   * The plane new elements are FILED into — the twin of {@link Canvas.planeScope},
+   * which only decides what is drawn. `undefined` = the document root plane, which is
+   * what {@link Writeback} defaults to anyway; a drill-down
+   * ({@link Canvas.setActivePlane}, driven by `view/plane.ts`) points it at the
+   * sub-process's own plane so a shape dropped there lands in that plane's
+   * `planeElement` list and in the sub-process's `flowElements` — rather than
+   * silently in the document root, where nothing on screen would show it.
+   */
+  private activePlane?: Plane;
   private scene?: Scene;
   private writeback?: Writeback;
   private drag?: Drag;
@@ -256,6 +338,8 @@ export class Canvas {
   /** Ids currently tinted as a create gesture's drop target (see `markDropTarget`). */
   private dropTargetIds: string[] = [];
   private snapLines?: SVGGElement;
+  /** The context pad's hover ghost, while an append entry is hovered (addendum 5). */
+  private appendPreview?: SVGGElement;
   /** What the live gesture may align to, and what it aligns FROM (see `snapGesture`). */
   private snapContext?: SnapContext;
   /** Screen point the last pan frame was measured from. */
@@ -288,7 +372,7 @@ export class Canvas {
     const doc = ownerDocument();
     this.container = options.container ?? doc.createElement('div');
     this.onWarning = options.onWarning;
-    this.snapToGrid = options.snapToGrid ?? false;
+    this.snapToGrid = options.snapToGrid ?? true;
     this.gridSize = options.gridSize;
     this.minNodeSize = options.minNodeSize;
     this.toggleExpandOnDoubleClick = options.toggleExpandOnDoubleClick ?? true;
@@ -360,7 +444,12 @@ export class Canvas {
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
       getScale: () => this.viewport.getViewbox().scale,
-      snap: (point) => this.snapPoint(point),
+      // Grid snapping applies to the GESTURE — the ghost advances in grid steps and
+      // the drop lands on one (parity spec addendum 7). It does NOT apply to a
+      // position a caller computed and handed over (`Canvas.createElement`,
+      // auto-place); see `exactPlacement`.
+      snap: (point) => (this.exactPlacement ? { ...point } : this.snapPoint(point)),
+      getPlane: () => this.activePlane,
       // The palette ghost is the shape itself in blue outline, and the element under
       // it is tinted by whether it would take the drop — parity spec §7.
       drawGhost: (prototype, bounds) => this.drawCreateGhost(prototype, bounds),
@@ -373,6 +462,12 @@ export class Canvas {
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
       getScale: () => this.viewport.getViewbox().scale,
+      getPlane: () => this.activePlane,
+      // Same pale tint a create drag paints its drop target with, under its own
+      // marker (`sf-connect-ok`, ux-spec §4/§7) because it is a different state —
+      // and never the ROOT variant: empty canvas cannot take a connection, so a
+      // connect drag over nothing tints nothing (parity spec addendum 4 §2).
+      markTarget: (target, allowed) => this.markDropTarget(target, allowed, 'connect'),
     });
 
     this.root.addEventListener('pointerdown', this.onDown);
@@ -420,6 +515,7 @@ export class Canvas {
     this.connect.cancel();
     this.labelEditing.reset();
     this.endMovePreview();
+    this.clearAppendPreview();
     this.hideSnapLines();
     this.clearMarquee();
     this.endGesture();
@@ -455,10 +551,17 @@ export class Canvas {
     this.selection.clear();
     this.selection.setHovered(undefined);
     this.labels.clear();
+    // A fresh document is a fresh view: whatever plane the last one was scoped to
+    // does not exist here (`Canvas.setPlaneScope`).
+    this.planeScope = undefined;
+    this.scopedOutIds.clear();
+    this.activePlane = undefined;
     this.scene = importDefinitions(definitions, { onWarning: this.onWarning });
     this.writeback = new Writeback(this.scene, this.bus, IdGenerator.fromDefinitions(definitions));
     this.create.cancel();
     this.connect.cancel();
+    // `layers.clear()` below drops the overlay contents; forget the handle too.
+    this.appendPreview = undefined;
     this.drag = new Drag({
       writeback: this.writeback,
       redraw: (elements) => this.redrawElements(elements),
@@ -511,9 +614,26 @@ export class Canvas {
     if (!this.scene) return;
     const elements: SceneElement[] = [];
     for (const element of this.scene.elementsById.values()) {
-      if (element.kind === 'node' || element.kind === 'edge') elements.push(element);
+      if (element.kind !== 'node' && element.kind !== 'edge') continue;
+      // Fit what is ON SCREEN: under a plane scope the rest of the diagram is not.
+      if (this.inPlaneScope(element)) elements.push(element);
     }
     this.viewport.fitBounds(sceneBounds(elements), padding);
+  }
+
+  /**
+   * Park a HOST-owned `<g>` above the built-in layer stack, ordered by `index` — the
+   * canvas side of the facade's `view.getLayer` (`port/adapter.ts`). Above, because
+   * the chrome hosts put here (the drill-down badges, the simulation tokens) anchors
+   * to a shape and has to stay clickable while that shape is selected; below the
+   * selection layer, a badge at a shape's bottom-right corner sits under a resize
+   * handle and can never be pressed.
+   *
+   * An import detaches it ({@link Layers.clear}); the host re-attaches by asking for
+   * the layer again, and {@link Canvas.toSVG} strips it, because it is chrome.
+   */
+  attachHostLayer(layer: SVGGElement, index = 0): void {
+    this.layers.attachCustom(layer, index);
   }
 
   /** The event bus (`selection.changed`, `element(s).changed`, …). */
@@ -582,6 +702,7 @@ export class Canvas {
     // `grabbing` for as long as the ghost is out, whether the palette button is still
     // held (press-drag) or was released a click ago (click-to-place). Parity spec §7.
     this.root.classList.add('sf-drag-active');
+    this.markGesture('create');
     this.gesture = {
       downScreen: event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 },
       downDiagram: point,
@@ -600,7 +721,15 @@ export class Canvas {
    * reject the drop.
    */
   createElement(descriptor: ShapeDescriptor | CreatePrototype, center: Point): SceneNode | undefined {
-    const node = this.create.createAt(createShape(descriptor), center);
+    // `center` is the caller's coordinate, not a pointer's: place it there exactly
+    // (see `exactPlacement`).
+    this.exactPlacement = true;
+    let node: SceneNode | undefined;
+    try {
+      node = this.create.createAt(createShape(descriptor), center);
+    } finally {
+      this.exactPlacement = false;
+    }
     if (node) this.placed(node);
     return node;
   }
@@ -628,6 +757,7 @@ export class Canvas {
     if (!this.scene) return false;
     const point = event ? this.eventPoint(event) : { x: source.x + source.width, y: source.y + source.height / 2 };
     if (!this.connect.start(source, point)) return false;
+    this.markGesture('connect');
     this.gesture = {
       downScreen: event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 },
       downDiagram: point,
@@ -644,7 +774,7 @@ export class Canvas {
    * Connect two nodes without a drag: mints the flow the rules name, with routed +
    * cropped waypoints, and selects it. `undefined` when the rules refuse the pair.
    */
-  connectElements(source: SceneNode, target: SceneNode): SceneEdge | undefined {
+  connectElements(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined {
     const edge = this.connect.connect(source, target);
     if (!edge) return undefined;
     this.mount(edge);
@@ -660,20 +790,196 @@ export class Canvas {
    * for a shape, and the connection is scaffolding. That costs a re-select, because
    * both {@link Canvas.createElement} and {@link Canvas.connectElements} select what
    * they made; the alternative is to reach past both into their private halves.
+   *
+   * `source` may be a CONNECTION: a selected sequence flow offers exactly one
+   * append, "Add text annotation" (ux-spec §4), which the rules already allow
+   * ({@link Rules.canAppendType}'s artifact exception) and which lands above the
+   * flow's midpoint on a plain `bpmn:Association`.
    */
   appendElement(
-    source: SceneNode,
+    source: SceneNode | SceneEdge,
     descriptor: ShapeDescriptor | CreatePrototype,
   ): SceneNode | undefined {
     if (!this.scene) return undefined;
     // The same gate the append affordance is enabled by (`shape.append`), asked again
     // here: without it, appending from an end event would mint an orphan shape and
-    // then silently fail to connect it, which is worse than doing nothing.
-    if (!this.rules.canAppend(source)) return undefined;
-    const result = autoPlaceAppend(this, source, descriptor);
+    // then silently fail to connect it, which is worse than doing nothing. Asked with
+    // the successor's TYPE, because an artifact is reached by an association and is
+    // therefore offered where a flow successor is not (`Rules.canAppendType`).
+    const prototype = createShape(descriptor);
+    if (!this.rules.canAppendType(source, prototype.type)) return undefined;
+    const result = autoPlaceAppend(this, source, prototype);
     if (!result) return undefined;
     if (result.connection) this.selection.select(result.shape);
     return result.shape;
+  }
+
+  /**
+   * Retype `node` in place — the context pad's wrench, "Change element"
+   * (ux-spec §4 entry 4). Returns the replacement, or `undefined` when the rules
+   * refuse it ({@link Rules.canReplace}) or the descriptor names what the node
+   * already is.
+   *
+   * There is no such thing as rewriting a business object's `$type`: a moddle object
+   * is an instance of its descriptor, and the properties, the containment property it
+   * is filed under and the DI that depicts it all follow from that. So a replace is
+   * what it is in bpmn-js too — mint the new element, move everything that pointed at
+   * the old one onto it, drop the old one — with two differences that matter here:
+   *
+   * - it is ONE logical edit. Every step below runs against the same scene and the
+   *   same moddle tree before the caller's snapshot is taken, so the port's `step()`
+   *   bracket makes the whole thing a single undo state;
+   * - the NAME comes across, because a name is the user's, not the type's. Nothing
+   *   else does: properties of the old type are meaningless on the new one, and
+   *   carrying them over is how a document grows attributes its schema never
+   *   allowed.
+   *
+   * The footprint is the new type's default — an end event that replaced a task is a
+   * circle, not a 100x80 one — except between two types of the same shape category,
+   * where a deliberately resized box keeps the size the user gave it. Either way the
+   * replacement is CENTRED where the original was, so the diagram does not move.
+   */
+  replaceElement(
+    node: SceneNode,
+    descriptor: ShapeDescriptor | CreatePrototype,
+  ): SceneNode | undefined {
+    const scene = this.scene;
+    const writeback = this.writeback;
+    if (!scene || !writeback || node.kind !== 'node') return undefined;
+
+    const prototype = createShape(descriptor);
+    if (!this.rules.canReplace(node, prototype.type)) return undefined;
+    // Already what it is being asked to become: nothing to write, and writing it
+    // anyway would burn an undo step and a fresh id on a no-op.
+    if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)) {
+      return undefined;
+    }
+
+    const sameCategory = categoryOf(prototype.type) === categoryOf(node.type);
+    const size = sameCategory
+      ? { width: node.width, height: node.height }
+      : defaultSizeFor(prototype.type, prototype.isExpanded);
+    const bounds: Bounds = {
+      x: node.x + node.width / 2 - size.width / 2,
+      y: node.y + node.height / 2 - size.height / 2,
+      width: size.width,
+      height: size.height,
+    };
+    const name = prop(node.businessObject, 'name');
+    const attrs = {
+      ...prototype.attrs,
+      ...(typeof name === 'string' && name ? { name } : {}),
+    };
+
+    const replacement = writeback.addShape({
+      type: prototype.type,
+      bounds,
+      ...(this.activePlane ? { plane: this.activePlane } : {}),
+      ...(node.parent ? { parent: node.parent } : {}),
+      ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
+      ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
+      ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
+    });
+
+    // Incident edges move over BEFORE the old node goes, because deleting a node
+    // takes its edges with it. Re-routing is left to the reroute below, which sees
+    // both ends in their final geometry.
+    for (const edge of [...node.incoming]) writeback.reconnect(edge, { target: replacement });
+    for (const edge of [...node.outgoing]) writeback.reconnect(edge, { source: replacement });
+
+    this.deleteElements([node]);
+    this.mount(replacement);
+    this.rerouteEdges([replacement]);
+    this.selection.select(replacement);
+    return replacement;
+  }
+
+  // --- context-pad hover preview (parity spec addendum 5) --------------------
+
+  /**
+   * Show a transient GHOST of what appending `descriptor` from `source` would
+   * create — the shape at its auto-place position plus the connection that would
+   * reach it — and return the bounds it would occupy. `undefined` when the rules
+   * refuse the append, in which case nothing is drawn.
+   *
+   * Nothing is committed: the ghost is SVG in the overlays layer, drawn from a
+   * detached prototype. No scene element, no business object, no DI, no event, no
+   * revision bump — leaving the pad entry ({@link Canvas.clearAppendPreview}) takes
+   * it away and the document never knew.
+   *
+   * The position comes from the SAME `appendPosition` {@link Canvas.appendElement}
+   * uses, which is the whole point of the affordance: what the hover shows is where
+   * the click lands (addendum 5 §3).
+   */
+  previewAppend(
+    source: SceneNode | SceneEdge,
+    descriptor: ShapeDescriptor | CreatePrototype,
+  ): Bounds | undefined {
+    this.clearAppendPreview();
+    if (!this.scene) return undefined;
+    const prototype = createShape(descriptor);
+    if (!this.rules.canAppendType(source, prototype.type)) return undefined;
+
+    const bounds = boundsFor(
+      prototype,
+      appendPosition(appendSourceBounds(source), prototype, prototype.type),
+    );
+    const preview = create('g', { class: 'sf-append-preview' }) as SVGGElement;
+    const line = this.previewConnection(source, prototype, bounds);
+    // Connection first, so the ghost shape paints over the arrowhead's tip.
+    if (line) append(preview, line);
+    const ghost = this.drawCreateGhost(prototype, bounds);
+    if (ghost) append(preview, ghost);
+    append(this.layers.getLayer('overlays'), preview);
+    this.appendPreview = preview;
+    return bounds;
+  }
+
+  /** Take the hover ghost down ({@link Canvas.previewAppend}). Idempotent. */
+  clearAppendPreview(): void {
+    remove(this.appendPreview);
+    this.appendPreview = undefined;
+  }
+
+  /** Whether an append ghost is currently showing. */
+  hasAppendPreview(): boolean {
+    return this.appendPreview !== undefined;
+  }
+
+  /**
+   * The ghost's connection: the route from `source` to where the shape would land,
+   * wearing the shape, dash and arrowhead of the flow the rules would actually mint
+   * — an orthogonal, arrowheaded sequence flow for a successor
+   * (`edge-videos/preview/frame_02`); a straight, arrowless dotted association for a
+   * text annotation (`frame_08`). Both come out of `routeFor`/`markerEndFor`, the
+   * same pair the commit goes through, so the ghost cannot drift from the edge it is
+   * promising (addendum 5 §3).
+   *
+   * The rules are asked with a probe carrying the source's PARENT, because a
+   * sequence flow may not leave its pool or sub-process and the detached prototype
+   * has no container of its own to be judged by.
+   */
+  private previewConnection(
+    source: SceneNode | SceneEdge,
+    prototype: CreatePrototype,
+    bounds: Bounds,
+  ): SVGElement | undefined {
+    const probe: RuleElement = {
+      type: prototype.type,
+      businessObject: prototype.businessObject,
+      parent: source.parent,
+    };
+    const spec = this.rules.canConnect(source, probe);
+    const type = spec ? spec.type : CONNECTION.sequenceFlow;
+    const points = routeFor(type, routableEnd(source), { ...bounds, type: prototype.type });
+    if (points.length < 2) return undefined;
+    return create('path', {
+      class: 'sf-append-preview-line',
+      d: roundedPathData(points),
+      'data-waypoints': points.map((p) => `${p.x},${p.y}`).join(' '),
+      'stroke-dasharray': edgeDashArray(type),
+      'marker-end': markerEndFor(type),
+    });
   }
 
   /**
@@ -847,13 +1153,21 @@ export class Canvas {
     return removed;
   }
 
-  /** Move one waypoint of an edge to a diagram point and commit it (P3 semantics). */
+  /**
+   * Move one waypoint of an edge to a diagram point and commit it (P3 semantics).
+   *
+   * A TERMINAL waypoint goes through {@link freeMoveEnd}, which keeps every segment
+   * axis-aligned (parity spec §4) while the tip still lands exactly where the
+   * pointer let go (§1's third outcome). An interior one is the plain point move.
+   */
   private moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
     const writeback = this.writeback;
     if (!writeback || index < 0 || index >= edge.waypoints.length) return;
     const at = this.snapPoint(point);
-    const points = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
-    points[index] = at;
+    const end = endpointOf(edge, index);
+    const points = end
+      ? freeMoveEnd(edge.waypoints, end, at)
+      : edge.waypoints.map((p, i) => (i === index ? at : { x: p.x, y: p.y }));
     writeback.setEdgeWaypoints(edge, points);
     this.redrawElements([edge]);
   }
@@ -876,6 +1190,11 @@ export class Canvas {
     if (element.kind === 'node') layer.insertBefore(g, this.firstDeeperThan(layer, element));
     else append(layer, g);
     this.renderer.graphicsById.set(element.id, g);
+    // Something minted while the view is scoped to another plane stays hidden.
+    if (!this.inPlaneScope(element)) {
+      g.setAttribute('display', 'none');
+      this.scopedOutIds.add(element.id);
+    }
     return g;
   }
 
@@ -908,7 +1227,12 @@ export class Canvas {
     return { x: snapTo(point.x, step), y: snapTo(point.y, step) };
   }
 
-  /** Turn grid snapping for drag/resize on or off (design §3, off by default). */
+  /**
+   * Turn grid snapping for drag/resize/create/waypoints on or off. ON by default
+   * (parity spec addendum 7); this is the escape hatch, and the app surfaces it as
+   * the "Snap to grid" setting (`settings/store.ts`), driven through
+   * `PortView.setSnapToGrid`.
+   */
   setSnapToGrid(on: boolean): void {
     this.snapToGrid = on;
     this.drag?.setSnapToGrid(on);
@@ -1012,7 +1336,93 @@ export class Canvas {
 
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
     if (!this.scene) return undefined;
-    return hitTest(this.scene, point, options);
+    return hitTest(this.scene, point, this.scopedHitOptions(options));
+  }
+
+  // --- plane scope (drill-down) ----------------------------------------------
+
+  /**
+   * Restrict the editor to a SUBSET of the scene: an element the predicate rejects
+   * is not drawn and cannot be hit. `undefined` — the default — means the whole
+   * scene.
+   *
+   * This is the seam the sub-process drill-down drives (`view/plane.ts`): entering a
+   * nested plane is a pure VIEW change, so it needs a way to say "only these
+   * elements exist right now" without touching the document, the scene or the DI.
+   * Nothing here writes: the moddle tree is identical before and after, which is
+   * what keeps navigation free of history entries and round-trip diffs.
+   *
+   * The selection is cleared on every scope change, because holding a selection of
+   * elements that are no longer on screen would leave chrome painting over a plane
+   * that does not contain them.
+   */
+  setPlaneScope(scope?: (element: SceneElement) => boolean): void {
+    this.planeScope = scope;
+    this.selection.clear();
+    this.selection.setHovered(undefined);
+    this.applyPlaneScope();
+  }
+
+  /** The current plane scope, if the view is restricted to one. */
+  getPlaneScope(): ((element: SceneElement) => boolean) | undefined {
+    return this.planeScope;
+  }
+
+  /**
+   * Point creation at `plane`: every shape and connection minted from here on is
+   * filed in ITS `planeElement` list, and a drop on empty background is claimed by
+   * the node that plane depicts. `undefined` restores the document root plane.
+   *
+   * The companion of {@link Canvas.setPlaneScope} — scope decides what is SEEN, this
+   * decides where what is MADE goes — and `view/plane.ts` moves both together. Like
+   * the scope, setting it writes nothing.
+   */
+  setActivePlane(plane?: Plane): void {
+    this.activePlane = plane;
+  }
+
+  /** The plane new elements are filed in — the root plane unless a drill-down moved it. */
+  getActivePlane(): Plane | undefined {
+    return this.activePlane ?? this.scene?.rootPlane;
+  }
+
+  /** Whether `element` is inside the current plane scope (always true without one). */
+  private inPlaneScope(element: SceneElement): boolean {
+    return !this.planeScope || this.planeScope(element);
+  }
+
+  /** Hit options carrying the plane scope, composed with any caller's own filter. */
+  private scopedHitOptions(options?: HitOptions): HitOptions | undefined {
+    const scope = this.planeScope;
+    if (!scope) return options;
+    const accept = options?.accept;
+    return { ...options, accept: (el) => scope(el) && (!accept || accept(el)) };
+  }
+
+  /**
+   * Bring the drawn graphics in line with the scope: out-of-scope elements are
+   * hidden outright, and anything the scope has just re-admitted is re-drawn (rather
+   * than un-hidden), because `display` is also how a COLLAPSED container hides its
+   * contents — only the renderer knows which of the two states an element should
+   * come back to.
+   */
+  private applyPlaneScope(): void {
+    const scene = this.scene;
+    if (!scene) return;
+    const restored: SceneElement[] = [];
+    for (const [id] of this.renderer.graphicsById) {
+      const element = scene.elementsById.get(id);
+      // A `SceneLabel` is drawn inside its owner's `<g>`, so it never has graphics
+      // of its own to scope.
+      if (!element || element.kind === 'label') continue;
+      if (!this.inPlaneScope(element)) {
+        this.renderer.graphicsById.get(id)?.setAttribute('display', 'none');
+        this.scopedOutIds.add(id);
+      } else if (this.scopedOutIds.delete(id)) {
+        restored.push(element);
+      }
+    }
+    if (restored.length > 0) this.redrawElements(restored);
   }
 
   /**
@@ -1024,7 +1434,10 @@ export class Canvas {
   elementAt(point: Point, options?: HitOptions): SceneElement | undefined {
     const scene = this.scene;
     if (!scene) return undefined;
-    return this.labels.at(scene, point) ?? hitTest(scene, point, options);
+    const label = this.labels.at(scene, point);
+    // A caption belongs to its owner: out of the plane scope, so is it.
+    if (label && this.inPlaneScope(label.labelTarget ?? label)) return label;
+    return hitTest(scene, point, this.scopedHitOptions(options));
   }
 
   /** The selectable element of `element`'s external label, if it draws one. */
@@ -1126,6 +1539,9 @@ export class Canvas {
     }
     // Take the keyboard focus so the canvas-scoped shortcuts (Delete) reach us.
     this.focus();
+    // A press anywhere on the diagram means the pointer left the context pad; a
+    // ghost of something that is no longer about to be created must not survive it.
+    this.clearAppendPreview();
     // A press ends hover feedback: from here on the chrome belongs to the gesture.
     this.selection.setHovered(undefined);
     const pt = this.eventPoint(ev);
@@ -1148,6 +1564,7 @@ export class Canvas {
 
     let hit: SceneElement | undefined;
     let collapseTo: SceneElement | undefined;
+    let label: SceneNode | undefined;
     // An armed lasso ignores what is under the pointer entirely, as diagram-js's
     // `LassoTool` does — the press starts a rectangle, it does not select a shape.
     if (!handle && !waypoint && !this.lassoArmed) {
@@ -1160,17 +1577,39 @@ export class Canvas {
         // `'move'` intent below reads the set back). diagram-js's `SelectionBehavior`
         // collapses that set to the one element on `element.click` — i.e. only once
         // the gesture has ENDED without becoming a drag — so the decision is deferred
-        // to the release and carried on the gesture (see `handlePointerUp`). A LABEL
-        // is selectable but not draggable here — moving a caption off its shape writes
-        // `bpmndi:BPMNLabel` bounds and is P6b — so a press on one starts no gesture,
-        // but it still collapses on release like any other click.
+        // to the release and carried on the gesture (see `handlePointerUp`).
         if (!ev.shiftKey && this.selection.isSelected(hit) && this.selection.get().length > 1) {
           collapseTo = hit;
         }
-        intent = isLabelElement(hit)
-          ? 'none'
-          : this.selection.isSelected(hit) ? 'move' : 'none';
+        // A LABEL is draggable in its own right (parity spec addendum 3 §2): it
+        // travels ALONE — the element it names stays put — and the drop writes only
+        // its own `bpmndi:BPMNLabel` bounds. That is why it gets its own intent
+        // instead of joining `'move'`, whose whole job is to carry shapes and drag
+        // their connected edges along.
+        if (hit.kind === 'node' && isLabelElement(hit)) {
+          if (this.selection.isSelected(hit)) {
+            intent = 'label';
+            label = hit;
+          } else {
+            intent = 'none';
+          }
+        } else {
+          intent = this.selection.isSelected(hit) ? 'move' : 'none';
+        }
       }
+    }
+
+    // Segment grips and segment BODIES resolve last, after the press has had its
+    // chance to select what it landed on: pressing an unselected connection has to
+    // select it AND be able to reshape it in the same gesture, and the run's chrome
+    // only exists once the connection wears it (`Selection.segmentAt`).
+    // A caption the press has already claimed is not up for grabs either: the label
+    // won the hit test, and a run's grip that happens to sit under the same glyphs
+    // must not take the gesture off it.
+    let segment: SegmentHit | undefined;
+    if (!handle && !waypoint && !label && !this.lassoArmed) {
+      segment = this.selection.segmentAt(pt, { gripsOnly: hit?.kind === 'node' });
+      if (segment) intent = 'segment';
     }
 
     this.gesture = {
@@ -1182,6 +1621,8 @@ export class Canvas {
       dragging: false,
       handle,
       waypoint,
+      segment,
+      label,
       collapseTo,
     };
 
@@ -1237,8 +1678,24 @@ export class Canvas {
     }
     if (this.startDrag(g)) {
       g.dragging = true;
+      this.markGesture(g.intent);
       this.updateGesture(g, pt);
     }
+  }
+
+  /**
+   * Publish the gesture in flight on the canvas root as `data-gesture`.
+   *
+   * It exists for the chrome AROUND the canvas: diagram-js hides the context pad for
+   * the duration of a drag (`edge-videos/dnd/frame_01` and `frame_05` show a moving
+   * ghost with no pad riding on top of it), and app chrome that owns no pointer
+   * listeners of its own needs one thing to read to know that. One attribute, set
+   * where a gesture starts moving and removed in {@link Canvas.endGesture}, rather
+   * than an event topic per gesture kind.
+   */
+  private markGesture(intent: GestureState['intent'] | undefined): void {
+    if (intent) this.root.setAttribute('data-gesture', intent);
+    else this.root.removeAttribute('data-gesture');
   }
 
   /** Feed a live pointer position to whichever gesture the intent named. */
@@ -1247,10 +1704,9 @@ export class Canvas {
     else if (g.intent === 'connect' || g.intent === 'reconnect') this.connect.update(point);
     else {
       // Alignment snapping adjusts where the gesture lands AND draws the guides for
-      // it; grid snapping (off by default) is applied inside `Drag`, so its guides
-      // can only be read off the result.
-      this.drag?.update(this.snapGesture(g, point));
-      if (this.snapToGrid) this.updateGridSnapLines(g);
+      // it; whatever axis it left alone is grid-snapped inside `Drag`.
+      const snapped = this.snapGesture(g, point);
+      this.drag?.update(snapped.point, snapped.grid);
     }
   }
 
@@ -1303,9 +1759,24 @@ export class Canvas {
       this.beginSnapping(g);
       return true;
     }
+    if (g.intent === 'segment' && g.segment) {
+      if (!drag.startSegment(g.segment.edge, g.segment.index, g.downDiagram)) return false;
+      this.beginSnapping(g);
+      return true;
+    }
     if (g.intent === 'reconnect' && g.waypoint) {
       const end = endpointOf(g.waypoint.edge, g.waypoint.index);
       return !!end && this.connect.startReconnect(g.waypoint.edge, end, g.downDiagram);
+    }
+    if (g.intent === 'label' && g.label) {
+      if (!drag.startLabel(g.label, g.downDiagram)) return false;
+      this.beginSnapping(g);
+      // The ghost of a caption IS the caption's text, in blue, with the original
+      // left faint gray behind it (`edge-videos/labels/frame_05`) — which is what
+      // the ordinary move preview already produces, because the label has its own
+      // `<g>` and the style layer paints anything wearing `sf-dragger` that way.
+      this.beginMovePreview([g.label]);
+      return true;
     }
     if (g.intent === 'move') {
       const nodes = this.movableSelection();
@@ -1331,6 +1802,12 @@ export class Canvas {
    * only thing that has to be minted, and it is a static clone — it never updates,
    * because it is a picture of where the drag began. Ids are stripped from the
    * clone so nothing can address it as the element it copies.
+   *
+   * A connected EDGE is not part of the ghost. It is re-routing live under the move
+   * (`interaction/drag.ts` `applyMove`), and the reference paints it FAINT GRAY, not
+   * blue — the blue is reserved for the thing the cursor is carrying
+   * (`edge-videos/dnd/frame_05`). So edges get their own marker, `sf-dragging-edge`,
+   * and the ghost stays the one blue object on screen.
    */
   private beginMovePreview(nodes: readonly SceneNode[]): void {
     this.endMovePreview();
@@ -1352,11 +1829,23 @@ export class Canvas {
       const copy = g.cloneNode(true) as SVGGElement;
       copy.classList.add('sf-dragging');
       copy.classList.remove('selected');
+      // A caption is drawn INSIDE its owner's `<g>`, so for a node's caption the
+      // group's own transform is in the owner's LOCAL frame — lifted into the
+      // overlays layer verbatim it would land at the diagram origin plus that
+      // offset. The label element's bounds are the same box in DIAGRAM coordinates,
+      // so re-stating the transform from them is exact for both a node's caption and
+      // an edge's (whose owner carries no transform at all).
+      if (isLabelElement(element) && element.kind === 'node') {
+        copy.setAttribute('transform', `translate(${element.x}, ${element.y})`);
+      }
       for (const tagged of [copy, ...Array.from(copy.querySelectorAll('[data-element-id]'))]) {
         tagged.removeAttribute('data-element-id');
       }
       append(frozen, copy);
-      this.selection.addMarker(element.id, 'sf-dragger');
+      this.selection.addMarker(
+        element.id,
+        element.kind === 'edge' ? 'sf-dragging-edge' : 'sf-dragger',
+      );
       this.dragGhostIds.push(element.id);
     }
     append(this.layers.getLayer('overlays'), frozen);
@@ -1391,30 +1880,56 @@ export class Canvas {
       ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
     };
     const g = this.renderer.drawShape(ghostNode);
+    if (categoryOf(prototype.type) === 'annotation') {
+      // One exception to "the ghost is the real visual": a text annotation's visual
+      // is a left BRACKET, and the reference ghosts it as the whole rectangular
+      // footprint instead (`edge-videos/preview/frame_08`). It is the right call —
+      // a ghost answers "how much space, and where", and a bracket shows neither the
+      // width of what is about to land nor where its right edge falls.
+      g.querySelector('path')?.setAttribute(
+        'd',
+        `M0,0 L${bounds.width},0 L${bounds.width},${bounds.height} L0,${bounds.height} Z`,
+      );
+    }
     g.removeAttribute('data-element-id');
     g.classList.add('sf-dragger');
     return g;
   }
 
   /**
-   * Tint the element a create gesture is hovering: `sf-new-parent` when it would take
-   * the drop (a container, or a sequence flow the shape is inserted into),
-   * `sf-drop-not-ok` when it would refuse — which also turns the cursor to
-   * `not-allowed` over it and everything inside it. Over empty canvas the ROOT
-   * carries `sf-new-parent`, as the diagram-js root layer does.
+   * Tint the element a gesture is hovering: the accepting tint when it would take
+   * the drop, `sf-drop-not-ok` when it would refuse — which also turns the cursor to
+   * `not-allowed` over it and everything inside it.
    *
    * Marks are exact: whatever was marked last frame is unmarked first, so a gesture
    * that crosses ten shapes leaves none of them tinted.
+   *
+   * `gesture` separates the two that use this, and it decides both halves:
+   *
+   * - a CREATE drag over a shape is asking to be CONTAINED by it, which is
+   *   diagram-js's `new-parent`; over empty canvas it really is landing somewhere —
+   *   the root plane — so the ROOT takes the tint, as the diagram-js root layer does;
+   * - a CONNECT drag is asking to be JOINED to the shape, not filed inside it. That
+   *   is a different state and ux-spec §4/§7 names it separately (`connect-ok`), so
+   *   it gets its own marker even though the two are painted the same pale tint. Over
+   *   empty canvas a connect is landing nowhere at all, and lighting the whole
+   *   diagram up as a valid drop would be a lie.
    */
-  private markDropTarget(target: SceneElement | undefined, allowed: boolean): void {
+  private markDropTarget(
+    target: SceneElement | undefined,
+    allowed: boolean,
+    gesture: 'create' | 'connect' = 'create',
+  ): void {
     for (const id of this.dropTargetIds) {
       this.selection.removeMarker(id, 'sf-new-parent');
+      this.selection.removeMarker(id, 'sf-connect-ok');
       this.selection.removeMarker(id, 'sf-drop-not-ok');
     }
     this.dropTargetIds = [];
-    this.root.classList.toggle('sf-new-parent', allowed && !target);
+    const ok = gesture === 'connect' ? 'sf-connect-ok' : 'sf-new-parent';
+    this.root.classList.toggle('sf-new-parent', gesture === 'create' && allowed && !target);
     if (!target) return;
-    this.selection.addMarker(target.id, allowed ? 'sf-new-parent' : 'sf-drop-not-ok');
+    this.selection.addMarker(target.id, allowed ? ok : 'sf-drop-not-ok');
     this.dropTargetIds = [target.id];
   }
 
@@ -1424,6 +1939,7 @@ export class Canvas {
     this.dragOriginals = undefined;
     for (const id of this.dragGhostIds) {
       this.selection.removeMarker(id, 'sf-dragger');
+      this.selection.removeMarker(id, 'sf-dragging-edge');
       this.selection.removeMarker(id, 'sf-resizing');
     }
     this.dragGhostIds = [];
@@ -1459,6 +1975,19 @@ export class Canvas {
       };
       return;
     }
+    if (g.intent === 'label' && g.label) {
+      // A caption aligns the way a shape does — centre to centre, against the
+      // neighbours' centres (`edge-videos/labels/frame_05` shows the guide running
+      // through the label as it lines up). Its OWNER is deliberately not excluded:
+      // lining a caption back up with the element it names is the alignment a user
+      // most often wants, and it is where an underived label sits anyway.
+      const label = g.label;
+      this.snapContext = {
+        targets: collectSnapTargets(scene, new Set<string>([label.id]), 'mid'),
+        bounds: { x: label.x, y: label.y, width: label.width, height: label.height },
+      };
+      return;
+    }
     if (g.intent === 'resize' && g.handle) {
       const node = g.handle.node;
       const handle = g.handle.handle;
@@ -1478,6 +2007,20 @@ export class Canvas {
         targets: collectSnapTargets(scene, new Set<string>(), 'bounds'),
         point: { x: p.x, y: p.y },
       };
+      return;
+    }
+    if (g.intent === 'segment' && g.segment) {
+      // A run aligns on the one axis it can travel on: a horizontal run flushes its
+      // `y` with a neighbour's edges, and its `x` extent is not the gesture's to
+      // move (see `SnapContext.axis`).
+      const segment = segmentsOf(g.segment.edge.waypoints)
+        .find((s) => s.index === g.segment?.index);
+      if (!segment) return;
+      this.snapContext = {
+        targets: collectSnapTargets(scene, new Set<string>(), 'bounds'),
+        point: { x: segment.mid.x, y: segment.mid.y },
+        axis: segment.axis === 'h' ? 'y' : 'x',
+      };
     }
   }
 
@@ -1486,14 +2029,21 @@ export class Canvas {
    * the snap lines of parity spec §7, which appear when the dragged shape lines up
    * with a neighbour and vanish the moment it does not.
    *
-   * Returns the point the gesture should actually be fed. With grid snapping on the
-   * grid is the snap authority (`Drag` rounds the geometry) and this steps aside.
+   * The two snaps COMPOSE, per axis, exactly as diagram-js composes `Snapping` with
+   * `GridSnapping` (parity spec addendum 7): alignment goes first and wins wherever
+   * it is inside its 7-unit tolerance, and every axis it did NOT claim is handed to
+   * `Drag` to round to the grid. So a shape can lock onto a neighbour's centre line
+   * on `y` while its `x` still advances in grid steps.
+   *
+   * Returns the point the gesture should be fed, plus the axes that are still the
+   * grid's to take. Guides are drawn ONLY for alignment: a grid landing draws none,
+   * because the reference draws none — the dot grid is the only hint it gives.
    */
-  private snapGesture(g: GestureState, point: Point): Point {
+  private snapGesture(g: GestureState, point: Point): { point: Point; grid: GridAxes } {
     const ctx = this.snapContext;
-    if (this.snapToGrid || !ctx || !this.drag?.isActive()) {
-      if (!this.snapToGrid) this.hideSnapLines();
-      return point;
+    if (!ctx || !this.drag?.isActive()) {
+      this.hideSnapLines();
+      return { point, grid: { x: true, y: true } };
     }
     const dx = point.x - g.downDiagram.x;
     const dy = point.y - g.downDiagram.y;
@@ -1501,49 +2051,30 @@ export class Canvas {
     if (ctx.bounds) {
       const snapped = snapMove(ctx.bounds, dx, dy, ctx.targets);
       this.showSnapLines(snapped.guideX, snapped.guideY);
-      return { x: g.downDiagram.x + snapped.dx, y: g.downDiagram.y + snapped.dy };
+      return {
+        point: { x: g.downDiagram.x + snapped.dx, y: g.downDiagram.y + snapped.dy },
+        grid: { x: snapped.guideX === undefined, y: snapped.guideY === undefined },
+      };
     }
     if (ctx.point) {
       const moved = { x: ctx.point.x + dx, y: ctx.point.y + dy };
       const snapped = snapPoint(moved, ctx.targets);
-      this.showSnapLines(snapped.guideX, snapped.guideY);
+      // A single-axis gesture claims only its own axis, guide included.
+      const useX = ctx.axis !== 'y';
+      const useY = ctx.axis !== 'x';
+      const tookX = useX && snapped.guideX !== undefined;
+      const tookY = useY && snapped.guideY !== undefined;
+      this.showSnapLines(useX ? snapped.guideX : undefined, useY ? snapped.guideY : undefined);
       return {
-        x: point.x + (snapped.point.x - moved.x),
-        y: point.y + (snapped.point.y - moved.y),
+        point: {
+          x: point.x + (tookX ? snapped.point.x - moved.x : 0),
+          y: point.y + (tookY ? snapped.point.y - moved.y : 0),
+        },
+        grid: { x: !tookX, y: !tookY },
       };
     }
     this.hideSnapLines();
-    return point;
-  }
-
-  /**
-   * Show where a GRID-snapped gesture landed. Grid snapping is off by default
-   * (`CanvasOptions.snapToGrid`) and the reference editor has no grid snap at all —
-   * the guides a user actually sees there come from {@link Canvas.snapGesture}'s
-   * alignment snapping, which needs no flag.
-   */
-  private updateGridSnapLines(g: GestureState): void {
-    if (!this.snapToGrid || !this.drag?.isActive()) {
-      this.hideSnapLines();
-      return;
-    }
-    if (g.intent === 'move') {
-      const lead = this.movableSelection()[0];
-      if (lead) this.showSnapLines(lead.x, lead.y);
-      return;
-    }
-    if (g.intent === 'resize' && g.handle) {
-      const node = g.handle.node;
-      this.showSnapLines(
-        g.handle.handle.includes('w') ? node.x : node.x + node.width,
-        g.handle.handle.includes('n') ? node.y : node.y + node.height,
-      );
-      return;
-    }
-    if (g.intent === 'waypoint' && g.waypoint) {
-      const p = g.waypoint.edge.waypoints[g.waypoint.index];
-      if (p) this.showSnapLines(p.x, p.y);
-    }
+    return { point, grid: { x: true, y: true } };
   }
 
   /**
@@ -1595,9 +2126,10 @@ export class Canvas {
     // — otherwise a gesture that visibly locked onto an alignment would jump off it
     // by a unit or two the instant it landed. Computed before `endGesture`, which
     // is what drops the snap context.
-    const drop = g && this.scene ? this.snapGesture(g, this.eventPoint(ev)) : undefined;
+    const snapped = g && this.scene ? this.snapGesture(g, this.eventPoint(ev)) : undefined;
+    const drop = snapped?.point;
     this.endGesture();
-    if (!g || !this.scene || !drop) {
+    if (!g || !this.scene || !snapped || !drop) {
       this.clearMarquee();
       return;
     }
@@ -1617,13 +2149,20 @@ export class Canvas {
           else this.redrawElements([edge]);
           this.selection.select(edge);
         } else if (kind === 'reconnect' && g.waypoint) {
-          // The endpoint was not dropped on a shape that would take it: keep P3's
-          // free endpoint move rather than snapping back, so dragging a terminal
-          // waypoint into open space still just bends the edge.
-          this.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
+          // The endpoint was not dropped on a shape that would take it. WHERE it
+          // landed decides what that means (parity spec §1): dropped clear of every
+          // shape it is P3's free endpoint move, so dragging a terminal waypoint
+          // into open space still just bends the edge; dropped ON a shape the rules
+          // refused — the ∅ cursor was showing — nothing happens at all, because
+          // leaving the endpoint buried in a shape it may not connect to is not an
+          // outcome the user asked for.
+          const over = this.hitTest(pt);
+          if (!over || over.kind !== 'node') {
+            this.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
+          }
         }
       } else {
-        this.drag?.end(pt);
+        this.drag?.end(pt, snapped.grid);
       }
     } else if (g.marquee) {
       const from = g.downDiagram;
@@ -1797,12 +2336,25 @@ export class Canvas {
    * positioned external label along and writes `dc:Bounds` exactly as dragging does,
    * rather than being a second, subtly different way to move a shape. Returns whether
    * anything moved.
+   *
+   * Two things it does NOT inherit, both because a nudge is a keyboard correction
+   * rather than a drag with a ghost:
+   *
+   * - **grid snapping** (on by default since parity spec addendum 7) — a 1-unit
+   *   arrow press rounded to the 10-unit grid would move nothing at all, and the
+   *   keyboard step IS the grid a nudge works on: 1, or 10 with Shift (parity spec
+   *   §9). diagram-js draws the same line, keying its keyboard move off `moveSpeed`;
+   * - **live edge re-routing** (parity spec addendum 2 §3) — that is drag feedback,
+   *   and throwing away a hand-shaped route because someone pressed an arrow key
+   *   once would be a surprise. The docking waypoint still follows, as before.
    */
   private nudgeSelection(dx: number, dy: number): boolean {
     const drag = this.drag;
     if (!drag || drag.isActive()) return false;
     const nodes = this.movableSelection();
-    if (nodes.length === 0 || !drag.startMove(nodes, { x: 0, y: 0 })) return false;
+    if (nodes.length === 0) return false;
+    const options = { snapToGrid: false, rerouteEdges: false };
+    if (!drag.startMove(nodes, { x: 0, y: 0 }, options)) return false;
     drag.end({ x: dx, y: dy });
     return true;
   }
@@ -1874,6 +2426,7 @@ export class Canvas {
     this.hideSnapLines();
     this.snapContext = undefined;
     this.panFrom = undefined;
+    this.markGesture(undefined);
     this.root.classList.remove('sf-drag-active');
     this.root.classList.remove('sf-panning');
     const doc = this.root.ownerDocument ?? ownerDocument();
@@ -1923,6 +2476,71 @@ export class Canvas {
     this.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
   }
 
+  /**
+   * The box {@link Canvas.toSVG} frames its export on: everything currently DRAWN,
+   * plus a hairline margin.
+   *
+   * Measured off the live SVG when the host can measure (`getBBox`), because that is
+   * the only thing that knows how wide a caption ran, how far a marker overshot or
+   * how much a stroke added; an element the plane scope has hidden is
+   * `display:none` and contributes nothing, so the export follows the view. Under
+   * jsdom — where `getBBox` does not exist — it falls back to the model box, which is
+   * the same frame minus the text extents.
+   */
+  private exportBounds(): Bounds | undefined {
+    if (!this.scene) return undefined;
+    const measured = this.measuredContentBounds();
+    const box = measured ?? this.modelContentBounds();
+    if (!box) return undefined;
+    const margin = EXPORT_MARGIN;
+    return {
+      x: box.x - margin,
+      y: box.y - margin,
+      width: Math.max(1, box.width + margin * 2),
+      height: Math.max(1, box.height + margin * 2),
+    };
+  }
+
+  /** Union of the drawn layers' `getBBox`, or `undefined` where that is unavailable. */
+  private measuredContentBounds(): Bounds | undefined {
+    let box: Bounds | undefined;
+    for (const name of ['connections', 'shapes'] as const) {
+      const layer = this.layers.getLayer(name) as SVGGElement & { getBBox?: () => DOMRect };
+      if (typeof layer.getBBox !== 'function') return undefined;
+      let rect: DOMRect;
+      try {
+        rect = layer.getBBox();
+      } catch {
+        // An unrendered (detached, or display:none) subtree throws in some engines.
+        continue;
+      }
+      if (!(rect.width > 0 || rect.height > 0)) continue;
+      box = box
+        ? {
+          x: Math.min(box.x, rect.x),
+          y: Math.min(box.y, rect.y),
+          width: Math.max(box.x + box.width, rect.x + rect.width) - Math.min(box.x, rect.x),
+          height: Math.max(box.y + box.height, rect.y + rect.height) - Math.min(box.y, rect.y),
+        }
+        : { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }
+    return box;
+  }
+
+  /** The scene-space box of every in-scope element — the measurement-free fallback. */
+  private modelContentBounds(): Bounds | undefined {
+    const scene = this.scene;
+    if (!scene) return undefined;
+    const elements: SceneElement[] = [];
+    for (const element of scene.elementsById.values()) {
+      if (element.kind !== 'node' && element.kind !== 'edge') continue;
+      if (!this.inPlaneScope(element)) continue;
+      if (isHiddenByCollapse(element)) continue;
+      elements.push(element);
+    }
+    return elements.length > 0 ? sceneBounds(elements) : undefined;
+  }
+
   /** Serialize the live canvas SVG to a string (design §4 `saveSVG`). */
   toSVG(): string {
     const doc = ownerDocument();
@@ -1933,6 +2551,9 @@ export class Canvas {
     // where a layer sweep would not reach them) one by one.
     const copy = this.root.cloneNode(true) as SVGSVGElement;
     copy.removeAttribute('tabindex');
+    // Gesture state is chrome too: an export taken mid-drag is still just the drawing.
+    copy.removeAttribute('data-gesture');
+    copy.removeAttribute('data-connect-status');
     copy.classList.remove(
       'sf-multi-select',
       'sf-dragging-active-lasso',
@@ -1950,8 +2571,26 @@ export class Canvas {
     }
     const overlays = copy.querySelector('[data-layer="overlays"]');
     while (overlays?.firstChild) overlays.removeChild(overlays.firstChild);
+    // Host layers are chrome too — the drill-down badges and the simulation tokens
+    // are things you press, not things the diagram contains.
+    for (const stray of Array.from(copy.querySelectorAll(`[${CUSTOM_LAYER_ATTRIBUTE}]`))) {
+      stray.parentNode?.removeChild(stray);
+    }
     for (const stray of Array.from(copy.querySelectorAll(`.${OUTLINE_CLASS}`))) {
       stray.parentNode?.removeChild(stray);
+    }
+    // An export is the DIAGRAM, not the window it was being looked at through. The
+    // live root's `viewBox` is the viewport — whatever pan and zoom the user left it
+    // at, stretched to the container's aspect ratio — so serializing it verbatim
+    // produced an image the shape of the browser window with the drawing adrift in
+    // it. Re-frame the copy on the drawing itself, which is what bpmn-js's `saveSVG`
+    // always did and what every consumer of `toSVG` (the SVG export, the PNG
+    // rasterizer, the shipped `assets/examples/*.studyflow.png` thumbnails) wants.
+    const framed = this.exportBounds();
+    if (framed) {
+      copy.setAttribute('viewBox', `${framed.x} ${framed.y} ${framed.width} ${framed.height}`);
+      copy.setAttribute('width', String(framed.width));
+      copy.setAttribute('height', String(framed.height));
     }
     const view = (doc.defaultView ?? (typeof window !== 'undefined' ? window : undefined)) as
       | (Window & typeof globalThis)

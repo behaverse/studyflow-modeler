@@ -30,9 +30,18 @@ const GRID_EXTENT = 100000;
 /** Unique per canvas instance: several canvases may share one document. */
 let gridPatternSeq = 0;
 
+/**
+ * Marks a HOST layer — one the app asked for by name through the port
+ * (`port/adapter.ts` `view.getLayer`), which lives above the built-in stack so its
+ * chrome is not buried under the selection handles, and which an import drops the
+ * way diagram-js drops its own overlays.
+ */
+export const CUSTOM_LAYER_ATTRIBUTE = 'data-layer-index';
+
 /** Owns the ordered `<g>` layer stack and the shared `<defs>`. */
 export class Layers {
   readonly defs: SVGDefsElement;
+  private readonly root: SVGSVGElement;
   private readonly layers = new Map<LayerName, SVGGElement>();
   /** The tiled rect, minted on the first {@link Layers.setGridVisible} call. */
   private gridRect: SVGRectElement | undefined;
@@ -40,6 +49,7 @@ export class Layers {
 
   /** Build the layer groups (and `<defs>`) as children of `root`, in z-order. */
   constructor(root: SVGSVGElement) {
+    this.root = root;
     this.defs = create('defs') as SVGDefsElement;
     append(root, this.defs);
     for (const name of LAYER_ORDER) {
@@ -57,7 +67,9 @@ export class Layers {
   }
 
   /**
-   * Remove every child from every layer (keeps `<defs>`).
+   * Remove every child from every layer (keeps `<defs>`), and detach the host's own
+   * layers wholesale — they belong to the document that was open, and the host
+   * re-attaches on its next `getLayer` call.
    *
    * The grid is deliberately exempt: it is view chrome the host toggles from
    * settings, not document content, and an import must not silently turn it off.
@@ -67,6 +79,26 @@ export class Layers {
       if (name === 'grid') continue;
       while (layer.firstChild) layer.removeChild(layer.firstChild);
     }
+    for (const custom of Array.from(this.root.querySelectorAll(`[${CUSTOM_LAYER_ATTRIBUTE}]`))) {
+      remove(custom);
+    }
+  }
+
+  /**
+   * Insert a HOST layer above the built-in stack, ordered among its siblings by
+   * `index` — so the app's own chrome (the drill-down badges, the simulation tokens)
+   * sits over the selection handles rather than under them, which is where
+   * diagram-js's HTML overlay container sits and the only place a badge anchored to a
+   * shape's corner is actually clickable.
+   */
+  attachCustom(layer: SVGGElement, index: number): void {
+    layer.setAttribute(CUSTOM_LAYER_ATTRIBUTE, String(index));
+    const after = Array.from(this.root.children).find((sibling) => {
+      const at = sibling.getAttribute(CUSTOM_LAYER_ATTRIBUTE);
+      return at !== null && Number(at) > index;
+    });
+    if (after) this.root.insertBefore(layer, after);
+    else append(this.root, layer);
   }
 
   /** Whether the background grid is currently painted. */

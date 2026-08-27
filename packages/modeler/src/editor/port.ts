@@ -87,11 +87,30 @@ export interface EditorView {
    */
   getLayer(name: string, index?: number): SVGElement;
   /**
+   * The trail of plane roots from the document root to the one on screen — what the
+   * sub-process breadcrumb renders (`drilldown/Breadcrumbs.tsx`). A single entry
+   * means "at the root". Optional: a backend with no plane cursor publishes nothing
+   * here and the breadcrumb stays down, so callers say `planePath?.()`.
+   */
+  planePath?(): EditorElement[];
+  /**
+   * Show the plane `root` stands for (a member of `planePath()`). View-only: it
+   * writes nothing and records no undo step. Returns whether the view moved.
+   */
+  goToPlane?(root: EditorElement): boolean;
+  /**
    * Show or hide the background grid ("Show grid" in settings). Optional: a backend
    * that paints its own grid from the setting need not publish it, so callers say
    * `setGridVisible?.(…)`.
    */
   setGridVisible?(visible: boolean): void;
+  /**
+   * Turn grid SNAPPING on or off ("Snap to grid" in settings) — the other half of
+   * the grid, and a separate preference: the dots are a backdrop, the snap decides
+   * where a drag may land (parity spec addendum 7, which asks for it on by default
+   * "and keep a setting to disable"). Optional, like {@link setGridVisible}.
+   */
+  setSnapToGrid?(on: boolean): void;
   addMarker(elementOrId: EditorElement | string, marker: string): void;
   removeMarker(elementOrId: EditorElement | string, marker: string): void;
   /**
@@ -143,6 +162,28 @@ export interface EditorMutations {
     parent: EditorElement,
     hints?: Record<string, unknown>,
   ): EditorElement | undefined;
+  /**
+   * Retype `element` to `attrs.type` in place, as one undo step — the context pad's
+   * wrench, "Change element" (ux-spec §4 entry 4). The name comes across; the
+   * incident flows are rewired onto the replacement; the old element goes.
+   *
+   * `undefined` when the backend's rules refuse the swap, when the element already
+   * IS that type, or when the backend publishes no replace at all — so callers say
+   * `replaceShape?.(…)` and treat a falsy answer as "nothing happened".
+   */
+  replaceShape?(
+    element: EditorElement,
+    attrs: { type: string } & Record<string, unknown>,
+  ): EditorElement | undefined;
+  /**
+   * Delete `elements` and their closure (a container's contents, a node's incident
+   * edges) as one undo step — the context pad's trash, and any other app-side
+   * delete. Optional: callers say `removeElements?.(…)`, because the keyboard route
+   * belongs to the editor and a backend may publish nothing here.
+   *
+   * Returns everything actually removed.
+   */
+  removeElements?(elements: EditorElement | EditorElement[]): EditorElement[];
 }
 
 export interface EditorSelection {
@@ -189,6 +230,20 @@ export interface EditorGestures {
    * `undefined` when the backend's rules reject the shape.
    */
   appendShape?(source: EditorElement, shape: EditorElement): EditorElement | undefined;
+  /**
+   * Begin dragging a new connection out of `source` — the context pad's connect
+   * entry (parity spec addendum 4). Optional: a backend whose own context pad owns
+   * the gesture publishes nothing here.
+   */
+  startConnect?(source: EditorElement, event?: MouseEvent | any): boolean;
+  /**
+   * Draw a transient GHOST of what `appendShape` would create, where it would create
+   * it — the context pad's hover preview (parity spec addendum 5). Writes nothing;
+   * `clearPreview` takes it down. Returns whether a ghost went up.
+   */
+  previewAppend?(source: EditorElement, shape: EditorElement): boolean;
+  /** Remove any transient gesture preview (`previewAppend`). */
+  clearPreview?(): void;
 }
 
 /**

@@ -982,3 +982,166 @@ test('labels: the font stack and weight the reference renders with', async () =>
   expect(external.getAttribute('font-weight')).toBe('400');
   expect(external.getAttribute('font-size')).toBe('11');
 });
+
+// --- the label's own chrome (parity spec addendum 3 §1/§3) -------------------
+//
+// A caption that has been dragged clear of the element it names is only readable if
+// something says which element that is: `edge-videos/labels/frame_08` draws a blue
+// DASHED leader from the label box to its flow, plus eight blue chips around the
+// box. The chips are decoration — a label is not resizable — so the leader is the
+// half that carries meaning, and the half these tests are about.
+
+/** The caption element of a connection, and the centre of its box. */
+function edgeLabel(canvas: Canvas, id: string): SceneNode {
+  const owner = canvas.getScene()!.elementsById.get(id) as any;
+  return canvas.labelFor(owner)!;
+}
+
+function boxCentre(box: { x: number; y: number; width: number; height: number }): Pt {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test('a selected caption draws a dashed leader to the flow it names', async () => {
+  const { canvas } = await load(EDGE_LABEL_XML);
+  const label = edgeLabel(canvas, 'Flow_1');
+
+  clickAt(canvas, boxCentre(label));
+
+  const leaders = canvas.getSvg().querySelectorAll('.sf-label-leader');
+  expect(leaders).toHaveLength(1);
+  const leader = leaders[0];
+  expect(leader.getAttribute('data-label-owner')).toBe('Flow_1');
+
+  const x1 = Number(leader.getAttribute('x1'));
+  const y1 = Number(leader.getAttribute('y1'));
+  const y2 = Number(leader.getAttribute('y2'));
+  // It leaves the box from the side that FACES the flow — here the bottom edge of
+  // the outline rect, which is the text box grown by the 5-unit outline offset.
+  expect(x1).toBeCloseTo(boxCentre(label).x, 6);
+  expect(y1).toBeCloseTo(label.y + label.height + 5, 6);
+  // …and lands on the line itself, below the caption.
+  const flow = canvas.getScene()!.elementsById.get('Flow_1') as any;
+  expect(y2).toBeGreaterThan(y1);
+  expect(y2).toBeGreaterThanOrEqual(Math.min(...flow.waypoints.map((p: Pt) => p.y)));
+  expect(y2).toBeLessThanOrEqual(Math.max(...flow.waypoints.map((p: Pt) => p.y)));
+});
+
+test('the leader and the chips go away when the caption is deselected', async () => {
+  const { canvas } = await load(EDGE_LABEL_XML);
+  clickAt(canvas, boxCentre(edgeLabel(canvas, 'Flow_1')));
+  expect(canvas.getSvg().querySelectorAll('.sf-label-leader')).toHaveLength(1);
+
+  canvas.getSelection().clear();
+
+  expect(canvas.getSvg().querySelectorAll('.sf-label-leader')).toHaveLength(0);
+  expect(canvas.getSvg().querySelectorAll('.sf-label-chip')).toHaveLength(0);
+});
+
+test('a selected caption draws eight chips that start no gesture', async () => {
+  const { canvas } = await load(EDGE_LABEL_XML);
+  const label = edgeLabel(canvas, 'Flow_1');
+
+  clickAt(canvas, boxCentre(label));
+
+  const chips = Array.from(canvas.getSvg().querySelectorAll('.sf-label-chip'));
+  expect(chips).toHaveLength(8);
+  // Inert by construction: no `data-handle`, so `Selection.handleAt` can never
+  // report one and no resize gesture can start on a caption (§5-D2).
+  expect(chips.some((chip) => chip.hasAttribute('data-handle'))).toBe(false);
+  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(0);
+  // They sit on the OUTLINE rect (the text box + 5), corners first.
+  const nw = chips.find((chip) => chip.classList.contains('sf-label-chip-nw'))!;
+  expect(Number(nw.getAttribute('x'))).toBeCloseTo(label.x - 5 - 4, 6);
+  expect(Number(nw.getAttribute('y'))).toBeCloseTo(label.y - 5 - 4, 6);
+});
+
+test('the leader survives the caption being dragged, the chips step aside', async () => {
+  const { canvas } = await load(EDGE_LABEL_XML);
+  const label = edgeLabel(canvas, 'Flow_1');
+  const from = boxCentre(label);
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+
+  fireMouse(canvas, svg, 'pointerdown', from);
+  fireMouse(canvas, doc, 'pointermove', { x: from.x, y: from.y - 60 });
+
+  // Mid-gesture: the association is exactly what the user needs to see.
+  expect(canvas.getSvg().querySelectorAll('.sf-label-leader')).toHaveLength(1);
+  expect(canvas.getSvg().querySelectorAll('.sf-label-chip')).toHaveLength(0);
+  // The caption itself is the blue ghost, with the frozen original behind it.
+  expect(canvas.getGraphics('Flow_1_label')!.classList.contains('sf-dragger')).toBe(true);
+  expect(canvas.getSvg().querySelectorAll('.sf-drag-originals')).toHaveLength(1);
+
+  fireMouse(canvas, doc, 'pointerup', { x: from.x, y: from.y - 60 });
+  expect(canvas.getGraphics('Flow_1_label')!.classList.contains('sf-dragger')).toBe(false);
+  expect(canvas.getSvg().querySelectorAll('.sf-label-chip')).toHaveLength(8);
+});
+
+test('dblclick on an UNLABELED flow opens an editor at the midpoint and mints a BPMNLabel', async () => {
+  const loaded = await load(FIXTURE_XML);
+  const { canvas, definitions } = loaded;
+  const flow = canvas.getScene()!.elementsById.get('Flow_1') as any;
+  expect(nameOfBo(definitions, 'Flow_1')).toBe(undefined);
+  const mid = {
+    x: (flow.waypoints[0].x + flow.waypoints[1].x) / 2,
+    y: (flow.waypoints[0].y + flow.waypoints[1].y) / 2,
+  };
+
+  dblclick(canvas, mid);
+
+  const editing = canvas.getLabelEditing();
+  expect(editing.isActive(), 'an unnamed flow is nameable in place').toBe(true);
+  expect(editing.getSession()!.element.id).toBe('Flow_1');
+  expect(editing.getValue()).toBe('');
+  // The box opens ABOVE the line, centred on the midpoint (`labels/frame_02`).
+  const box = editing.getSession()!.bounds;
+  expect(box.x + box.width / 2).toBeCloseTo(mid.x, 6);
+  expect(box.y + box.height / 2).toBeLessThan(mid.y);
+
+  editing.setValue('Hello. this is a label');
+  key(canvas, 'Enter');
+
+  const di = diEdgeOf(definitions, 'Flow_1');
+  expect(di.label, 'naming a flow mints its bpmndi:BPMNLabel').toBeTruthy();
+  expect(di.label.bounds).toBeTruthy();
+  expect(di.label.bounds.x).toBeCloseTo(canvas.labelFor(flow)!.x, 6);
+  expect(di.label.bounds.y).toBeCloseTo(canvas.labelFor(flow)!.y, 6);
+
+  const { xml } = await roundTrip(loaded);
+  expect(xml).toContain('bpmndi:BPMNLabel');
+  expect(xml).toContain('Hello. this is a label');
+});
+
+test('minting a flow caption is ONE edit — one revision bump, one undo step', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const scene = canvas.getScene()!;
+  const flow = scene.elementsById.get('Flow_1') as any;
+  const before = scene.revision;
+  const mid = {
+    x: (flow.waypoints[0].x + flow.waypoints[1].x) / 2,
+    y: (flow.waypoints[0].y + flow.waypoints[1].y) / 2,
+  };
+
+  dblclick(canvas, mid);
+  canvas.getLabelEditing().setValue('go');
+  key(canvas, 'Enter');
+
+  // The label mint is applied silently and the NAME write is what commits, so the
+  // history (which counts revisions) records exactly one step.
+  expect(scene.revision).toBe(before + 1);
+});
+
+/** The `name` of a business object in the live tree, or `undefined`. */
+function nameOfBo(definitions: any, id: string): string | undefined {
+  return boOf(definitions, id)?.name;
+}
+
+/** The `bpmndi:BPMNEdge` of `id` in the live tree. */
+function diEdgeOf(definitions: any, id: string): any {
+  for (const diagram of definitions.diagrams ?? []) {
+    for (const pe of diagram.plane?.planeElement ?? []) {
+      if (pe.$type === 'bpmndi:BPMNEdge' && pe.bpmnElement?.id === id) return pe;
+    }
+  }
+  return undefined;
+}

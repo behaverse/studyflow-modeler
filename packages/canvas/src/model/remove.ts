@@ -113,10 +113,41 @@ function nestedPlanesOf(node: SceneNode, index: Map<ModdleObject, Plane[]>): Pla
 }
 
 /**
+ * Index of business object → the edges that REFERENCE it as an endpoint but do not
+ * link to it in the scene.
+ *
+ * There is one such edge: a `bpmn:Association` reaching a text annotation that
+ * hangs off a CONNECTION (ux-spec §4 — the annotate entry a selected sequence flow
+ * offers). `SceneEdge.source` is a node, so neither the import nor
+ * {@link Writeback.addConnection} can record that end in the scene, and the flow's
+ * own `outgoing` list — a node's list — never holds it either. Without this index a
+ * deleted flow would leave the association behind with a `sourceRef` pointing at a
+ * business object that is no longer in the document, which `toXML` then emits.
+ */
+function danglingRefIndex(scene: Scene): Map<ModdleObject, SceneEdge[]> {
+  const index = new Map<ModdleObject, SceneEdge[]>();
+  for (const element of scene.elementsById.values()) {
+    if (element.kind !== 'edge') continue;
+    for (const end of ['sourceRef', 'targetRef'] as const) {
+      for (const ref of refBOs(prop(element.businessObject, end))) {
+        // Only the ends the scene could NOT link: a shape end is already reachable
+        // through `incoming`/`outgoing`, and listing it twice is just work.
+        if (scene.byBusinessObject.get(ref)?.kind !== 'edge') continue;
+        const list = index.get(ref);
+        if (list) list.push(element);
+        else index.set(ref, [element]);
+      }
+    }
+  }
+  return index;
+}
+
+/**
  * The transitive closure of a deletion: the seeds plus everything that cannot
  * survive them — a container's descendants and the contents of its nested plane,
- * the boundary events attached to a deleted activity, and every edge incident to a
- * deleted node (which in turn may be a data association whose other end stays).
+ * the boundary events attached to a deleted activity, every edge incident to a
+ * deleted node (which in turn may be a data association whose other end stays), and
+ * the association a deleted CONNECTION carries ({@link danglingRefIndex}).
  *
  * Exported so a caller can preview what a delete would take with it (and so the
  * spec can assert the closure directly).
@@ -127,6 +158,7 @@ export function collectRemoval(
 ): SceneElement[] {
   const attached = attachedIndex(scene);
   const nested = nestedPlaneIndex(scene);
+  const referencing = danglingRefIndex(scene);
   const out: SceneElement[] = [];
   const seen = new Set<SceneElement>();
 
@@ -134,6 +166,7 @@ export function collectRemoval(
     if (seen.has(element)) return;
     seen.add(element);
     out.push(element);
+    for (const edge of referencing.get(element.businessObject) ?? []) visit(edge);
     if (element.kind === 'edge') return;
     for (const child of element.children.slice()) visit(child);
     for (const edge of [...element.incoming, ...element.outgoing]) visit(edge);

@@ -22,10 +22,11 @@
 
 import { BpmnModdle } from 'bpmn-moddle';
 import { Canvas, IdGenerator, createCanvasEditorPort, defaultSizeFor, prefixFor } from '@canvas/index.ts';
-import type { IconDef } from '@canvas/index.ts';
+import type { IconDef, SceneNode } from '@canvas/index.ts';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement, getRawAttribute } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS, SVG_ICON_PATHS } from '@modeler/draw/icons';
+import { lookupIcon, onIconResolved, primeIconCache } from '@modeler/draw/iconCache';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
@@ -86,21 +87,40 @@ function idPrefixFor(element: any): string {
  * which is where the schema-driven answer lives. The order mirrors
  * `draw/Renderer.drawShape`: a template's own `icon` wins, then the extension
  * type's `iconClass`, then the plain BPMN override.
+ *
+ * A class resolves to a REAL glyph body whenever `draw/iconCache.ts` already holds
+ * one (addendum 6 §1); otherwise the CSS-class placeholder is drawn and the cache
+ * starts fetching, and the arrival re-draws the scene below. So the class form is a
+ * transient state, not the export format — an exported SVG carries `<path>` glyphs.
+ *
+ * When nothing at all names a glyph, the answer is `null`, not `undefined`: the app
+ * HAS the whole catalog, so "no class for this type" is a final answer and the
+ * canvas must draw nothing rather than a placeholder box. That is what a container
+ * activity is — `bpmn:SubProcess`, `bpmn:CallActivity`, `bpmn:Transaction` and
+ * `bpmn:AdHocSubProcess` carry no top-left type icon in BPMN at all, and were
+ * otherwise exporting a faint box with a letter in it. A MARKER key keeps the
+ * placeholder, because a marker genuinely is meant to be showing something.
  */
-function resolveIcon(iconKey: string, businessObject?: any): IconDef | undefined {
+/** How long a glyph arrival waits for its neighbours before the scene re-paints. */
+const ICON_REDRAW_DEBOUNCE_MS = 50;
+
+function iconFor(cssClass: string): IconDef {
+  return lookupIcon(cssClass) ?? { cssClass };
+}
+
+function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | undefined {
   const marker = MARKER_ICONS[iconKey];
-  if (marker) return { cssClass: marker };
+  if (marker) return iconFor(marker);
 
   if (businessObject) {
     const element = StudyflowElement.fromBusinessObject(businessObject);
     const templateIcon = getRawAttribute(element.extension ?? businessObject, 'icon');
     const extEntry = element.extensionType ? getCatalog().getType(element.extensionType) : undefined;
     const cssClass = templateIcon || extEntry?.iconClass || BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
-    if (typeof cssClass === 'string' && cssClass) return { cssClass };
+    if (typeof cssClass === 'string' && cssClass) return iconFor(cssClass);
   }
 
-  const inline = SVG_ICON_PATHS[iconKey];
-  return inline ? inline : undefined;
+  return SVG_ICON_PATHS[iconKey] ?? null;
 }
 
 /** Mount the canvas into `container` and assemble the facade over it. */
@@ -314,12 +334,20 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
   const simulator = new TokenSimulator(port);
 
   /**
-   * "Show grid" (P6b §3C). The canvas paints the grid and this backend owner
-   * subscribes to the setting — two halves that used to be `diagram-js-grid` plus a
-   * behavior re-asserting the preference over it, now without the DI. Applied once
-   * up front because the setting is already loaded by the time the canvas mounts.
+   * The two grid settings (P6b §3C, parity spec addendum 7). The canvas paints the
+   * dots and quantizes the drags; this backend owner subscribes to the preferences —
+   * the halves that used to be `diagram-js-grid` and `diagram-js`'s `GridSnapping`,
+   * now without the DI. Applied once up front because both settings are already
+   * loaded by the time the canvas mounts.
+   *
+   * They are deliberately independent: "Show grid" is a backdrop, "Snap to grid" is
+   * where a drag may come to rest, and wanting one without the other is ordinary.
    */
-  const applyGrid = (): void => port.view.setGridVisible?.(getSettings().showGrid);
+  const applyGrid = (): void => {
+    const settings = getSettings();
+    port.view.setGridVisible?.(settings.showGrid);
+    port.view.setSnapToGrid?.(settings.snapToGrid);
+  };
   applyGrid();
   const unsubscribeSettings = subscribeSettings(applyGrid);
 
@@ -349,6 +377,24 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
   };
   options.container.addEventListener('keydown', onHistoryKey);
 
+  // Warm every glyph the catalog can produce, and re-draw when one lands: a class
+  // drawn as the CSS placeholder becomes a real `<svg>` glyph in place, with no
+  // document mutation and no export-time substitution (addendum 6 §1).
+  primeIconCache();
+  // Priming resolves dozens of classes, each landing in its own turn of the event
+  // loop: coalesce a burst into ONE re-draw rather than re-painting per glyph.
+  let iconRedraw: ReturnType<typeof setTimeout> | undefined;
+  const stopIconWatch = onIconResolved(() => {
+    clearTimeout(iconRedraw);
+    iconRedraw = setTimeout(() => {
+      const scene = canvas.getScene();
+      if (!scene) return;
+      const nodes = [...scene.elementsById.values()]
+        .filter((element): element is SceneNode => element.kind === 'node');
+      if (nodes.length > 0) canvas.redrawElements(nodes);
+    }, ICON_REDRAW_DEBOUNCE_MS);
+  });
+
   return {
     backend: 'canvas',
     editor: port,
@@ -362,6 +408,8 @@ export function createCanvasBackend(options: CanvasBackendOptions): PortHandle {
       bus.off('element.changed', materializePending);
       bus.off('elements.changed', materializePending);
       history.dispose();
+      stopIconWatch();
+      clearTimeout(iconRedraw);
       // The canvas owns listeners on the container (which the host keeps across a
       // backend switch) and on the document; detaching the SVG alone would leak
       // them, and every stale instance would still answer Delete.

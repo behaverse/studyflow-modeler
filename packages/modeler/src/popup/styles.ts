@@ -2,11 +2,11 @@ import { border, radius, shadow, surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 /**
- * The React popover that replaces `.djs-popup` on the canvas backend, and the
- * selection toolbar that opens it. Both borrow the palette flyout's material so a
- * menu opened from the palette and one opened from a shape look like one family.
+ * The React popover that replaces `.djs-popup` on the canvas backend. It borrows the
+ * palette flyout's material so a menu opened from the palette and one opened from a
+ * shape's context pad look like one family.
  *
- * z-order: palette 210 < selection toolbar 215 < palette flyouts 300 < popover 320.
+ * z-order: palette 210 < context pad 215 < palette flyouts 300 < popover 320.
  */
 export const popupMenu = {
   panel: `fixed z-[320] flex flex-col overflow-hidden
@@ -38,22 +38,3 @@ export const popupMenu = {
   swatchChip: 'w-5 h-5 rounded-[3px] border-2',
 } as const;
 
-export const selectionToolbar = {
-  /**
-   * A narrow vertical strip hugging the selection's right edge — deliberately the
-   * geometry and footprint of diagram-js's context pad, which is what sits here on
-   * the other backend. A wide horizontal bar over the shape swallows clicks meant
-   * for its neighbours.
-   */
-  root: `fixed z-[215] left-0 top-0 flex flex-col items-center gap-0.5 p-0.5
-         ${radius.button} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}`,
-
-  button: `flex items-center justify-center w-7 h-7 ${radius.field}
-           text-stone-600 cursor-pointer
-           hover:bg-black/[0.06] hover:text-stone-900 active:bg-black/[0.1]
-           disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent
-           transition-colors`,
-
-  buttonIcon: 'text-[14px]',
-  colorChip: 'w-[14px] h-[14px] rounded-[3px] border-2 border-stone-500 bg-transparent',
-} as const;

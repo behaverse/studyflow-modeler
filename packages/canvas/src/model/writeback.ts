@@ -63,8 +63,10 @@ import type {
   Scene,
   SceneEdge,
   SceneElement,
+  SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
+import { labelIdOf } from '@canvas/render/labels.ts';
 import { containerFor } from '@canvas/rules/rules.ts';
 
 /** Payload for the `element.changed` event (one element edited). */
@@ -92,6 +94,11 @@ const BOUNDS_TYPE = 'dc:Bounds';
 /** DI wrapper types minted when a shape/connection is created. */
 const SHAPE_DI_TYPE = 'bpmndi:BPMNShape';
 const EDGE_DI_TYPE = 'bpmndi:BPMNEdge';
+/** The `bpmndi:BPMNDiagram`/`bpmndi:BPMNPlane` pair a nested plane is made of. */
+const DIAGRAM_DI_TYPE = 'bpmndi:BPMNDiagram';
+const PLANE_DI_TYPE = 'bpmndi:BPMNPlane';
+/** The `bpmndi:BPMNLabel` that carries an external label's own `dc:Bounds`. */
+const LABEL_DI_TYPE = 'bpmndi:BPMNLabel';
 
 // --- moddle access ----------------------------------------------------------
 // The readers/writers/minters live in `model/moddle.ts`, so every module that
@@ -103,6 +110,20 @@ export function definitionsOf(scene: Scene): ModdleObject | undefined {
 }
 
 // --- containment resolution -------------------------------------------------
+
+/**
+ * The node a NESTED plane depicts — the sub-process (or sub-choreography) you drill
+ * into to reach it. `undefined` for the root plane, whose business object is the
+ * process/collaboration itself and therefore has no shape.
+ *
+ * `view/plane.ts planeOwner` answers the same question for the view layer; this is
+ * the model-side copy, kept here so `model/` does not import from `view/`.
+ */
+export function ownerNodeOf(scene: Scene, plane: Plane): SceneNode | undefined {
+  if (plane === scene.rootPlane) return undefined;
+  const element = scene.byBusinessObject.get(plane.businessObject);
+  return element && element.kind === 'node' ? element : undefined;
+}
 
 /** Where a created shape's business object is filed, and the lane that claims it. */
 export interface FlowContainer {
@@ -279,6 +300,69 @@ export function syncLabelBoundsToDi(element: SceneElement): void {
 }
 
 /**
+ * The SCENE-side label of `owner`, minted at `bounds` when the document carries
+ * none — the first half of "a label a user has moved has a position of its own".
+ *
+ * A label the importer never saw has no {@link SceneLabel} at all: its position is
+ * DERIVED from the owner by `render/labels.ts`, which is exactly why it cannot be
+ * dragged. Seeding one at the box the renderer is currently drawing makes the label
+ * explicit without moving it by a pixel, so the first frame of a label drag starts
+ * from where the caption already is.
+ *
+ * Scene only: no `bpmndi:BPMNLabel` is minted here, nothing is written to the DI, no
+ * revision is bumped. A gesture that is abandoned drops the label again
+ * (`interaction/drag.ts` `cancel`) and the document never learns it existed.
+ */
+export function ensureSceneLabel(owner: SceneElement, bounds: Bounds): SceneLabel {
+  const existing = owner.label;
+  if (existing) {
+    if (existing.x === undefined) existing.x = bounds.x;
+    if (existing.y === undefined) existing.y = bounds.y;
+    if (existing.width === undefined) existing.width = bounds.width;
+    if (existing.height === undefined) existing.height = bounds.height;
+    return existing;
+  }
+  const label: SceneLabel = {
+    id: labelIdOf(owner),
+    kind: 'label',
+    businessObject: owner.businessObject,
+    owner,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+  };
+  owner.label = label;
+  return label;
+}
+
+/**
+ * Drop a {@link SceneLabel} that {@link ensureSceneLabel} minted and the DI never
+ * learned about (an abandoned label drag). A label the document DOES carry — one
+ * with a backing `bpmndi:BPMNLabel` — is left alone; forgetting that one would
+ * detach a caption the file positions.
+ */
+export function dropSceneLabel(owner: SceneElement): void {
+  if (owner.label && !owner.label.di) delete owner.label;
+}
+
+/**
+ * Ensure `owner`'s DI carries a `bpmndi:BPMNLabel` for its external label, minting
+ * one through the DI object's own `$model` when it does not — bpmn-js's
+ * `LabelBehavior` does the same the moment a label acquires a position or a name.
+ * The `dc:Bounds` inside it is left to {@link syncLabelBoundsToDi}. Scene → DI only.
+ */
+function ensureLabelDi(owner: SceneElement): void {
+  const label = owner.label;
+  const di = owner.di;
+  if (!label || label.di || !di) return;
+  const labelDi = mint(modelOf(di), LABEL_DI_TYPE, {});
+  (labelDi as { $parent?: unknown }).$parent = di;
+  setProp(di, 'label', labelDi);
+  label.di = labelDi;
+}
+
+/**
  * Translate an element's external label by `(dx, dy)` in the SCENE only. A label with
  * no explicit position is left alone — the renderer derives it from the owner, so it
  * follows for free.
@@ -376,13 +460,32 @@ export interface AddShapeSpec {
   attachTo?: SceneNode;
   /** Explicit id; minted from {@link IdGenerator} when absent. */
   id?: string;
+  /**
+   * Give an expandable container its own (empty) nested plane
+   * ({@link Writeback.addNestedPlane}). Defaults to `true` for a container created
+   * COLLAPSED (`isExpanded === false`), because a collapsed sub-process with no plane
+   * of its own is a box with no way in: nothing can be drawn inside it, and
+   * `view/plane.ts isDrillable` — which needs a nested plane — never offers the
+   * drill-down. Pass `false` to mint the shape alone.
+   */
+  nestedPlane?: boolean;
 }
 
 /** What {@link Writeback.addConnection} needs to mint a flow + `BPMNEdge` pair. */
 export interface AddConnectionSpec {
   /** The BPMN type to mint (`'bpmn:SequenceFlow'`, `'bpmn:MessageFlow'`, `'bpmn:Association'`, …). */
   type: string;
-  source: SceneNode;
+  /**
+   * The end the connection leaves. A **connection** is legal here for exactly one
+   * case, and it is the case ux-spec §4 records: a `bpmn:Association` reaching a
+   * text annotation that hangs off a sequence flow. BPMN allows it (`sourceRef` is
+   * a `bpmn:BaseElement`), and `model/import.ts` already reads such a document —
+   * it resolves only the ends that are SHAPES ({@link resolveEndpoints}'s
+   * `asNode`), so the scene link is left undefined and the edge is drawn from its
+   * DI waypoints. Creating one takes the same shape, so what the canvas writes and
+   * what it re-imports agree.
+   */
+  source: SceneNode | SceneEdge;
   target: SceneNode;
   /** Routed (and cropped) waypoints — see `routing/orthogonal.ts` `route`. */
   waypoints?: Point[];
@@ -657,6 +760,45 @@ export class Writeback {
   }
 
   /**
+   * Move an element's EXTERNAL LABEL to `bounds`, writing **only** its own
+   * `bpmndi:BPMNLabel/dc:Bounds` (parity spec addendum 3 §5). The owner's
+   * `dc:Bounds` and `di:waypoint` are deliberately untouched: a caption dragged off
+   * its shape must not move the shape, and the round-trip diff of a label move is
+   * one `<bpmndi:BPMNLabel>` and nothing else.
+   *
+   * Both halves are minted on demand — the {@link SceneLabel} (so the position stops
+   * being derived from the owner) and the `bpmndi:BPMNLabel` + `dc:Bounds` under the
+   * owner's `BPMNShape`/`BPMNEdge` (so it survives re-serialization). That is what
+   * turns an unlabeled sequence flow's brand-new caption into a positioned label.
+   *
+   * `options.silent` applies the write without bumping the revision or firing, for a
+   * caller that is about to make one of its own — the inline editor mints the label
+   * and writes the name as ONE edit, which is one undo step, not two.
+   *
+   * Returns whether anything was written (an owner with no DI at all cannot carry a
+   * label, and is left alone).
+   */
+  setLabelBounds(
+    owner: SceneElement,
+    bounds: Bounds,
+    options: { silent?: boolean } = {},
+  ): boolean {
+    if (!owner.di) return false;
+    const label = ensureSceneLabel(owner, bounds);
+    label.x = bounds.x;
+    label.y = bounds.y;
+    label.width = bounds.width;
+    label.height = bounds.height;
+    // A minted label joins the scene index, exactly where `model/import.ts` files
+    // the ones that came in with the document.
+    this.scene.elementsById.set(label.id, label);
+    ensureLabelDi(owner);
+    syncLabelBoundsToDi(owner);
+    if (!options.silent) this.finish([owner]);
+    return true;
+  }
+
+  /**
    * Commit already-updated scene geometry for `elements` (the drag path mutates the
    * scene live, then commits on drop): write each element's DI, bump the revision,
    * fire the change events.
@@ -727,7 +869,11 @@ export class Writeback {
     }
 
     // A boundary event is filed in its host's container and points at the host.
-    const parentNode = spec.attachTo ? spec.attachTo.parent : spec.parent;
+    // Dropped on the empty background of a NESTED plane, the container is the node
+    // that plane depicts — the sub-process you drilled into — exactly as
+    // `model/import.ts` (pass 3) parents a nested plane's own contents.
+    const planeOwner = ownerNodeOf(scene, plane);
+    const parentNode = spec.attachTo ? spec.attachTo.parent : (spec.parent ?? planeOwner);
     if (spec.attachTo) setRef(bo, 'attachedToRef', spec.attachTo.businessObject);
 
     // A pool has nowhere legal to live under a `bpmn:Process`, so dropping the first
@@ -766,9 +912,11 @@ export class Writeback {
     if (parentNode) {
       node.parent = parentNode;
       parentNode.children.push(node);
-    } else {
-      plane.children.push(node);
     }
+    // Top-level *of this plane* is "no container, or the container the plane IS" —
+    // the same test `model/import.ts` applies, and what `view/plane.ts planeOf`
+    // reads to decide which plane an element is drawn in.
+    if (!parentNode || parentNode === planeOwner) plane.children.push(node);
     // A promoted root hands its contents to the pool that promoted it: the pool was
     // sized to enclose them, and in the document they are already where they belong
     // (the pool's `processRef` IS the process that held them).
@@ -783,10 +931,74 @@ export class Writeback {
     scene.elementsById.set(id, node);
     scene.byBusinessObject.set(bo, node);
 
+    // A container created COLLAPSED gets the plane its contents will live in, so the
+    // drill-down badge appears and the thing is authorable the moment it exists.
+    if ((spec.nestedPlane ?? node.isExpanded === false) && isExpandable(type)) {
+      this.addNestedPlane(node, factory);
+    }
+
     // Mints the `dc:Bounds` the shape has none of yet, from the scene geometry.
     syncNodeBoundsToDi(node);
     this.finish([node]);
     return node;
+  }
+
+  /**
+   * Give `node` a nested plane of its own: a fresh `bpmndi:BPMNDiagram` holding a
+   * `bpmndi:BPMNPlane` whose `bpmnElement` is `node`'s business object, filed in
+   * `definitions.diagrams` and indexed in `Scene.planes` — the second half of what
+   * an authored sub-process needs (design §1 "Nested planes").
+   *
+   * This is what turns a collapsed container from a dead box into a place: with a
+   * plane, `view/plane.ts` reports it {@link isDrillable} and draws the drill-down
+   * badge, a double click enters it, and everything created while the cursor is
+   * inside is filed into THIS plane and into the container's own `flowElements`.
+   * Without one, a user who drops a sub-process has no way to put anything in it.
+   *
+   * Idempotent: a node that already owns a nested plane keeps the one it has. The
+   * plane starts empty — no element is moved into it, so the document round-trips
+   * with exactly one more (empty) `BPMNDiagram` and nothing else disturbed. Deleting
+   * the node drops the diagram again (`model/remove.ts removePlane`, which finds it
+   * through the plane DI's `$parent`).
+   */
+  addNestedPlane(node: SceneNode, factory?: ModdleFactory): Plane | undefined {
+    const scene = this.scene;
+    const existing = scene.planes.find(
+      (plane) => plane !== scene.rootPlane && plane.businessObject === node.businessObject,
+    );
+    if (existing) return existing;
+
+    const definitions = definitionsOf(scene);
+    const model = factory
+      ?? modelOf(scene.rootPlane.di)
+      ?? modelOf(definitions)
+      ?? modelOf(node.di)
+      ?? modelOf(node.businessObject);
+
+    const planeDi = mint(model, PLANE_DI_TYPE, {
+      id: this.idGenerator.nextPrefixed('BPMNPlane_'),
+      bpmnElement: node.businessObject,
+    });
+    const diagram = mint(model, DIAGRAM_DI_TYPE, {
+      id: this.idGenerator.nextPrefixed('BPMNDiagram_'),
+      plane: planeDi,
+    });
+    // `model/remove.ts` walks `plane.di.$parent` to find the diagram to unfile, so
+    // the back-link is load-bearing, not decoration.
+    setParent(planeDi, diagram);
+    if (definitions) {
+      setParent(diagram, definitions);
+      pushInto(definitions, 'diagrams', diagram);
+    }
+
+    const plane: Plane = {
+      id: typeof planeDi.id === 'string' ? planeDi.id : `${node.id}_plane`,
+      businessObject: node.businessObject,
+      di: planeDi,
+      children: [],
+    };
+    scene.planes.push(plane);
+    return plane;
   }
 
   /**
@@ -832,7 +1044,9 @@ export class Writeback {
     }
 
     const isDataAssociation = isDataAssociationType(type);
-    const dataEnds = isDataAssociation ? dataAssociationEnds(spec.source, spec.target) : undefined;
+    const dataEnds = isDataAssociation && spec.source.kind === 'node'
+      ? dataAssociationEnds(spec.source, spec.target)
+      : undefined;
     if (isDataAssociation && !dataEnds) {
       // Unreachable through the rules, which only name these types for a pair that
       // sorts — so a direct caller asking for one that does not is a bug worth
@@ -864,10 +1078,15 @@ export class Writeback {
       businessObject: bo,
       di,
       waypoints: (spec.waypoints ?? []).map((p) => ({ x: p.x, y: p.y })),
-      source: spec.source,
+      // A connection SOURCE stays out of the scene link (and out of its
+      // `outgoing` list, which only a node has): `SceneEdge.source` is a node, and
+      // an import of the very document this writes produces the same undefined.
+      // `model/remove.ts` follows the moddle refs rather than the scene link, so
+      // the association still goes when the flow it annotates does.
+      ...(spec.source.kind === 'node' ? { source: spec.source } : {}),
       target: spec.target,
     };
-    spec.source.outgoing.push(edge);
+    if (spec.source.kind === 'node') spec.source.outgoing.push(edge);
     spec.target.incoming.push(edge);
 
     // A connection is drawn in the container both its ends share; a cross-container
@@ -878,9 +1097,10 @@ export class Writeback {
     if (parentNode) {
       edge.parent = parentNode;
       parentNode.children.push(edge);
-    } else {
-      plane.children.push(edge);
     }
+    // …and it is a top-level element of THIS plane when it has no container, or when
+    // its container is the very node the plane depicts (see `addShape`).
+    if (!parentNode || parentNode === ownerNodeOf(scene, plane)) plane.children.push(edge);
     scene.elementsById.set(id, edge);
     scene.byBusinessObject.set(bo, edge);
 
@@ -1068,7 +1288,7 @@ export class Writeback {
   private fileConnection(
     bo: ModdleObject,
     type: string,
-    source: SceneNode,
+    source: SceneNode | SceneEdge,
     target: SceneNode,
     plane: Plane,
   ): void {

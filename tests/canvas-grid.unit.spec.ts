@@ -45,11 +45,17 @@ const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function load(): Promise<Canvas> {
+  return (await loadWithDefinitions()).canvas;
+}
+
+async function loadWithDefinitions(): Promise<{ canvas: Canvas; definitions: any }> {
   const moddle = new BpmnModdle(structuredClone(packages)) as any;
   const { rootElement: definitions } = await moddle.fromXML(PROCESS_XML);
+  // No options: every default is the shipped one, which is the point of the
+  // grid-snapping block below.
   const canvas = new Canvas();
   canvas.importDefinitions(definitions);
-  return canvas;
+  return { canvas, definitions };
 }
 
 /** The `<rect>` the grid pattern is painted into, if it is currently painted. */
@@ -131,5 +137,71 @@ test.describe('background grid', () => {
     expect(svg).not.toContain('data-layer="grid"');
     // The drawing itself is still there.
     expect(svg).toContain('data-element-id="Task_1"');
+  });
+});
+
+/**
+ * Snapping to the grid — the OTHER grid (parity spec addendum 7). One is what the
+ * user sees, the other is what a drag does, and they are independent: diagram-js
+ * paints its dots unconditionally while grid snapping is its own module, and this
+ * canvas keeps the same split. The full composition with element-alignment snapping
+ * lives in `canvas-snapping.unit.spec.ts`; what is under test here is the default
+ * and the DI it writes.
+ */
+test.describe('grid snapping', () => {
+  /** The `dc:Bounds` of a shape, read off the live moddle tree. */
+  function boundsOf(definitions: any, id: string): { x: number; y: number } {
+    for (const diagram of definitions.diagrams ?? []) {
+      for (const pe of diagram.plane?.planeElement ?? []) {
+        if (pe.$type === 'bpmndi:BPMNShape' && pe.bpmnElement?.id === id) {
+          return { x: pe.bounds.x, y: pe.bounds.y };
+        }
+      }
+    }
+    throw new Error(`no BPMNShape for ${id}`);
+  }
+
+  function firePointer(canvas: Canvas, target: EventTarget, type: string, at: { x: number; y: number }): void {
+    const screen = canvas.getViewport().toScreen(at);
+    target.dispatchEvent(new dom.window.MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX: screen.x,
+      clientY: screen.y,
+      button: 0,
+    }));
+  }
+
+  test('a dropped shape lands on multiples of 10 with no options passed — DI included', async () => {
+    const { canvas, definitions } = await loadWithDefinitions();
+    expect(canvas.isSnapToGrid(), 'grid snapping ships on').toBe(true);
+
+    const task = canvas.getScene()!.elementsById.get('Task_1') as any;
+    const from = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
+    const to = { x: from.x + 23, y: from.y - 16 };
+    const svg = canvas.getSvg();
+    const doc = svg.ownerDocument!;
+    firePointer(canvas, svg, 'pointerdown', from);
+    firePointer(canvas, doc, 'pointermove', to);
+    firePointer(canvas, doc, 'pointerup', to);
+
+    // 200 + 23 → 220, 80 - 16 → 60. The raw pointer would have said 223 / 64.
+    const landed = boundsOf(definitions, 'Task_1');
+    expect(landed).toEqual({ x: 220, y: 60 });
+    expect(landed.x % 10).toBe(0);
+    expect(landed.y % 10).toBe(0);
+  });
+
+  test('is independent of the visible dot grid — neither switch moves the other', async () => {
+    const canvas = await load();
+    expect(canvas.isGridVisible()).toBe(false);
+    expect(canvas.isSnapToGrid()).toBe(true);
+
+    canvas.setGridVisible(true);
+    expect(canvas.isSnapToGrid(), 'showing the dots snaps nothing').toBe(true);
+
+    canvas.setSnapToGrid(false);
+    expect(canvas.isGridVisible(), 'and dropping the snap hides nothing').toBe(true);
+    expect(gridRect(canvas)).toBeTruthy();
   });
 });

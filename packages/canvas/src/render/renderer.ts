@@ -14,11 +14,13 @@ import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 
 import { readChoreographyBands } from '@canvas/model/choreography.ts';
+import { normalizeColor } from '@canvas/model/color.ts';
 import { isCollapsed, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import { depthOf } from '@canvas/model/tree.ts';
 import type {
   ModdleObject,
+  Point,
   Scene,
   SceneEdge,
   SceneElement,
@@ -152,6 +154,19 @@ function eventKind(node: SceneNode): EventKind {
 const DEFAULT_STROKE = '#22242A';
 const DEFAULT_FILL = '#ffffff';
 
+/**
+ * Choreography band shading (parity addendum "ChoreographyTask band coloring").
+ *
+ * A coloured choreography task paints its BODY with the chosen fill, keeps the
+ * INITIATING participant's band near-white (the convention bpmn.io draws, so the
+ * initiator reads as the light band whatever the task's colour), and shades the
+ * NON-INITIATING band a step DARKER than the body. An uncoloured task keeps the
+ * white/`#ededed` pair it has always drawn.
+ */
+const INITIATING_BAND_FILL = '#ffffff';
+const RECEIVING_BAND_FILL = '#ededed';
+const BAND_DARKEN = 0.12;
+
 /** First defined color among a set of bpmn.io / DI attribute names. */
 function colorAttr(di: ModdleObject | undefined, names: string[]): string | undefined {
   for (const name of names) {
@@ -165,8 +180,35 @@ function strokeOf(node: SceneNode): string {
   return colorAttr(node.di, ['stroke', 'border-color', 'bioc:stroke', 'color:border-color']) ?? DEFAULT_STROKE;
 }
 
+/** The fill the DI actually carries, or `undefined` for an uncoloured element. */
+function fillAttrOf(node: SceneNode): string | undefined {
+  return colorAttr(node.di, ['fill', 'background-color', 'bioc:fill', 'color:background-color']);
+}
+
 function fillOf(node: SceneNode): string {
-  return colorAttr(node.di, ['fill', 'background-color', 'bioc:fill', 'color:background-color']) ?? DEFAULT_FILL;
+  return fillAttrOf(node) ?? DEFAULT_FILL;
+}
+
+/**
+ * `color` darkened by `amount` (0–1) in plain sRGB, keeping the `#rrggbb` form —
+ * how a choreography's NON-INITIATING band is shaded against the task's own fill.
+ *
+ * A value this cannot parse (a CSS colour *name*, which needs a DOM to resolve) is
+ * returned unchanged rather than thrown over: a band that fails to darken still
+ * paints, and `normalizeColor` is the same parser the colour writeback uses.
+ */
+function darken(color: string, amount = BAND_DARKEN): string {
+  let hex: string | undefined;
+  try {
+    hex = normalizeColor(color);
+  } catch {
+    return color;
+  }
+  if (!hex) return color;
+  const value = Number.parseInt(hex.slice(1), 16);
+  const channels = [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
+    .map((channel) => Math.max(0, Math.min(255, Math.round(channel * (1 - amount)))));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 function styleOf(node: SceneNode): ShapeStyle {
@@ -327,9 +369,15 @@ export class Renderer {
   private drawTypeIcon(g: SVGGElement, node: SceneNode, color: string): void {
     // The top-left type glyph; a placeholder unless a resolver is injected.
     const key = toLocalName(node.type);
-    if (key && key !== 'Task') {
-      drawIcon(g, key, 5, 5, 22, color, this.iconResolver, node.businessObject);
-    }
+    if (!key) return;
+    // A plain `bpmn:Task` has no BPMN type glyph of its own — the empty rounded box
+    // IS the notation — so it never gets the placeholder. It DOES get a glyph when
+    // the host names one, which is how a studyflow extension type's `iconClass`
+    // reaches a task the document typed as a bare `bpmn:Task` (every cognitive /
+    // agentic step in the shipped examples is one). Asking the resolver first is what
+    // keeps the two apart: no resolver, or no answer, and nothing is drawn.
+    if (key === 'Task' && !this.iconResolver?.(key, node.businessObject)) return;
+    drawIcon(g, key, 5, 5, 22, color, this.iconResolver, node.businessObject);
   }
 
   private drawGatewayGlyph(g: SVGGElement, node: SceneNode, color: string): void {
@@ -480,8 +528,12 @@ export class Renderer {
     const { width, height } = node;
     const bandHeight = choreographyBandHeight(height);
     const { stroke, fill } = style;
-    const receiving = '#ededed';
     const bands = readChoreographyBands(node.businessObject);
+    // The chosen colour, not the default: an uncoloured task shades its receiving
+    // band with the flat gray, a coloured one with its own fill darkened.
+    const chosen = fillAttrOf(node);
+    const initiatingFill = INITIATING_BAND_FILL;
+    const receivingFill = chosen ? darken(chosen) : RECEIVING_BAND_FILL;
 
     append(g, create('rect', {
       x: 0, y: 0, rx: CORNER_RADIUS, ry: CORNER_RADIUS, width, height,
@@ -489,8 +541,8 @@ export class Renderer {
       'stroke-linecap': 'round', 'stroke-linejoin': 'round',
     }));
 
-    const topFill = bands.initiator === 'top' ? fill : receiving;
-    const bottomFill = bands.initiator === 'bottom' ? fill : receiving;
+    const topFill = bands.initiator === 'top' ? initiatingFill : receivingFill;
+    const bottomFill = bands.initiator === 'bottom' ? initiatingFill : receivingFill;
     // `data-band` names the two participant bands so their fills (which encode who
     // initiates) can be read back without depending on child order.
     append(g, create('path', {
@@ -524,7 +576,17 @@ export class Renderer {
     }
   }
 
-  /** Draw one edge as a polyline through its waypoints, with a flow-typed arrowhead. */
+  /**
+   * Draw one edge as a path through its waypoints — with ROUNDED corner bends —
+   * carrying a flow-typed arrowhead.
+   *
+   * A `<path>` rather than a `<polyline>` because bpmn-js's bends are arcs, not
+   * mitres (`edge-videos/edgemake/frame_02`, `dnd/frame_08`): diagram-js draws every
+   * connection through `createLine(..., { cornerRadius: 5 })`. The waypoint geometry
+   * is unchanged — the arcs are cut out of the corners, never added around them —
+   * and the raw list is kept verbatim in `data-waypoints` so anything reading the
+   * drawn path's points still can.
+   */
   drawEdge(edge: SceneEdge): SVGGElement {
     const g = group(0, 0, {
       class: 'sf-connection',
@@ -535,20 +597,17 @@ export class Renderer {
     const points = edge.waypoints.map((p) => `${p.x},${p.y}`).join(' ');
     const stroke = colorAttr(edge.di, ['stroke', 'border-color', 'bioc:stroke', 'color:border-color']) ?? DEFAULT_STROKE;
 
-    const dashed = edge.type === BPMN.MessageFlow
-      || edge.type === BPMN.Association
-      || edge.type === 'bpmn:DataInputAssociation'
-      || edge.type === 'bpmn:DataOutputAssociation';
-
-    const line = create('polyline', {
-      points,
+    const line = create('path', {
+      class: 'sf-connection-line',
+      d: roundedPathData(edge.waypoints),
+      'data-waypoints': points,
       fill: 'none',
       stroke,
       'stroke-width': 2,
       'stroke-linejoin': 'round',
       'stroke-linecap': 'round',
-      'stroke-dasharray': dashed ? (edge.type === BPMN.MessageFlow ? '10,8' : '2,6') : null,
-      'marker-end': `url(#${markerIdFor(edge.type)})`,
+      'stroke-dasharray': edgeDashArray(edge.type),
+      'marker-end': markerEndFor(edge.type, edge.businessObject),
     });
     append(g, line);
     const name = prop(edge.businessObject, 'name');
@@ -562,11 +621,115 @@ export class Renderer {
   }
 }
 
+/**
+ * The `stroke-dasharray` a flow type is drawn with, or `null` for a solid line: a
+ * message flow uses the long BPMN dash, an association (data associations included)
+ * the short dot, everything else is solid.
+ *
+ * Exported because the context pad's hover ghost (`Canvas.previewAppend`) draws a
+ * connection that does not exist yet, and it has to look like the one a click would
+ * commit — same dash, same arrowhead ({@link markerIdFor}).
+ */
+/**
+ * Radius of a connection's corner bend — diagram-js's `BpmnRenderer` passes
+ * `cornerRadius: 5` to every `createLine`, and the reference frames show exactly
+ * that soft a turn.
+ */
+export const EDGE_CORNER_RADIUS = 5;
+
+/**
+ * The `d` of a connection: straight runs joined by quarter-arc corners.
+ *
+ * Each corner is cut back by `min(radius, half of either adjacent run)`, so a short
+ * jog rounds proportionally instead of overshooting into its neighbours, and a
+ * corner that is not really a corner (three collinear points, or a degenerate
+ * duplicate) falls back to a plain line — the geometry stays exactly the waypoint
+ * list, which is what the DI holds and what every test measures.
+ *
+ * Exported because the live previews draw connections that do not exist yet
+ * (`Canvas.previewAppend`, `interaction/connect.ts`) and have to look like the one a
+ * drop would commit.
+ */
+export function roundedPathData(
+  waypoints: readonly Point[],
+  radius = EDGE_CORNER_RADIUS,
+): string {
+  if (waypoints.length === 0) return '';
+  const first = waypoints[0];
+  if (waypoints.length === 1) return `M ${round(first.x)} ${round(first.y)}`;
+
+  let d = `M ${round(first.x)} ${round(first.y)}`;
+  for (let i = 1; i < waypoints.length - 1; i += 1) {
+    const prev = waypoints[i - 1];
+    const corner = waypoints[i];
+    const next = waypoints[i + 1];
+    const inLength = distance(prev, corner);
+    const outLength = distance(corner, next);
+    const r = Math.min(radius, inLength / 2, outLength / 2);
+    const inDir = direction(prev, corner);
+    const outDir = direction(corner, next);
+    const cross = inDir.x * outDir.y - inDir.y * outDir.x;
+    if (r <= 0 || Math.abs(cross) < 1e-6) {
+      // Collinear (or degenerate): nothing to round.
+      d += ` L ${round(corner.x)} ${round(corner.y)}`;
+      continue;
+    }
+    const from = { x: corner.x - inDir.x * r, y: corner.y - inDir.y * r };
+    const to = { x: corner.x + outDir.x * r, y: corner.y + outDir.y * r };
+    d += ` L ${round(from.x)} ${round(from.y)}`;
+    d += ` A ${round(r)} ${round(r)} 0 0 ${cross > 0 ? 1 : 0} ${round(to.x)} ${round(to.y)}`;
+  }
+  const last = waypoints[waypoints.length - 1];
+  return `${d} L ${round(last.x)} ${round(last.y)}`;
+}
+
+/** Unit vector from `a` to `b` (the zero vector when they coincide). */
+function direction(a: Point, b: Point): Point {
+  const length = distance(a, b);
+  return length < 1e-6 ? { x: 0, y: 0 } : { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+}
+
+function distance(a: Point, b: Point): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+/** Path numbers are trimmed to 3 decimals: an arc endpoint is never a round number. */
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+export function edgeDashArray(type: string): string | null {
+  if (type === BPMN.MessageFlow) return '10,8';
+  if (
+    type === BPMN.Association
+    || type === 'bpmn:DataInputAssociation'
+    || type === 'bpmn:DataOutputAssociation'
+  ) return '2,6';
+  return null;
+}
+
 /** The arrowhead marker id for a flow type (defined once in the canvas `<defs>`). */
 export function markerIdFor(type: string): string {
   if (type === BPMN.MessageFlow) return 'sf-arrow-message';
   if (EDGE_TYPES.has(type) && type !== BPMN.SequenceFlow) return 'sf-arrow-open';
   return 'sf-arrow-sequence';
+}
+
+/**
+ * `marker-end` for a flow of `type`, or `null` for one drawn with no arrowhead.
+ *
+ * Only a plain `bpmn:Association` can be arrowless, and BPMN says which by its
+ * `associationDirection`: `None` (the default, and what a text-annotation leader
+ * gets) draws a bare dotted line — `edge-videos/preview/frame_08` — while `One` and
+ * `Both` earn the open arrow. Everything else, data associations included, always
+ * points somewhere.
+ */
+export function markerEndFor(type: string, businessObject?: ModdleObject): string | null {
+  if (type === BPMN.Association) {
+    const direction = prop(businessObject, 'associationDirection');
+    if (direction !== 'One' && direction !== 'Both') return null;
+  }
+  return `url(#${markerIdFor(type)})`;
 }
 
 

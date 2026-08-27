@@ -12,12 +12,17 @@ import {
   cropWaypoints,
   edgesAffectedBy,
   isOrthogonal,
+  isStraightRouted,
   outlineFor,
+  orthogonalize,
   outlinePoint,
   rerouteEdge,
   route,
   routeCenters,
   routeEdge,
+  routeFor,
+  straightRoute,
+  roundedPathData,
   setDocument,
   type CroppableShape,
 } from '@canvas/index.ts';
@@ -573,4 +578,105 @@ test('a moved shape re-routes to its new position (drag keeps the P3 docking fol
     { x: 260, y: 340 },
   ]);
   expect(diWaypoints(definitions, 'Flow_1')).toEqual(flow1.waypoints);
+});
+
+// --- rounded corner bends (parity spec §5, addendum 2 §5) --------------------
+
+test('a routed edge renders as a path whose corners are quarter-arcs', async () => {
+  const { canvas } = await load();
+  const scene = canvas.getScene()!;
+  const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
+  expect(flow1.waypoints.length).toBeGreaterThan(2);
+
+  const line = canvas.getGraphics('Flow_1')!.querySelector('path.sf-connection-line')!;
+  const d = line.getAttribute('d')!;
+  // One arc per corner, cut out of the waypoints rather than added around them —
+  // the raw list is still on the element for anything that reads geometry.
+  expect(d.startsWith('M ')).toBe(true);
+  expect((d.match(/ A /g) ?? []).length).toBe(flow1.waypoints.length - 2);
+  expect(line.getAttribute('data-waypoints'))
+    .toBe(flow1.waypoints.map((p) => `${p.x},${p.y}`).join(' '));
+  // The straight two-point flow has nothing to round.
+  const straight = canvas.getGraphics('Flow_2')!.querySelector('path.sf-connection-line')!;
+  expect(straight.getAttribute('d')).not.toContain(' A ');
+});
+
+test('roundedPathData keeps the corner radius inside the shorter neighbouring run', () => {
+  // A 4-unit stub cannot give up 5 units to a corner: the radius shrinks to half of
+  // it, so the arcs never overrun each other.
+  const d = roundedPathData([
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 4 },
+    { x: 200, y: 4 },
+  ]);
+  expect(d).toContain('A 2 2 0 0');
+  expect(roundedPathData([{ x: 0, y: 0 }, { x: 100, y: 0 }])).toBe('M 0 0 L 100 0');
+  expect(roundedPathData([])).toBe('');
+});
+
+// --- orthogonalize -----------------------------------------------------------
+
+test('orthogonalize flattens a near-aligned run by moving the joint, not the dock', () => {
+  const squared = orthogonalize([
+    { x: 100, y: 100 },
+    { x: 200, y: 102 },
+    { x: 200, y: 300 },
+  ]);
+  // The interior joint came onto the endpoint's line; the docked endpoint held.
+  expect(squared).toEqual([
+    { x: 100, y: 100 },
+    { x: 200, y: 100 },
+    { x: 200, y: 300 },
+  ]);
+  expect(isOrthogonal(squared)).toBe(true);
+});
+
+test('orthogonalize grows an elbow for a genuine diagonal and drops what it made redundant', () => {
+  const squared = orthogonalize([{ x: 0, y: 0 }, { x: 100, y: 60 }]);
+  expect(squared).toEqual([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }]);
+  expect(isOrthogonal(squared)).toBe(true);
+
+  // Three points on one line collapse to two.
+  expect(orthogonalize([{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }]))
+    .toEqual([{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+});
+
+test('orthogonalize leaves an imported two-point edge that is off by a hair alone', () => {
+  // Both ends are docks: there is nothing here that may move, and re-cutting the
+  // geometry of an untouched edge is not this function's business.
+  const points = [{ x: 136, y: 118 }, { x: 200, y: 120 }];
+  expect(orthogonalize(points)).toEqual(points);
+});
+
+/*
+ * Not every BPMN flow is orthogonal (parity spec addendum 5, `edge-videos/preview/frame_08`).
+ */
+
+test('a plain association is routed as ONE straight diagonal, cropped to both outlines', () => {
+  const task: CroppableShape = { x: 0, y: 100, width: 100, height: 80, type: 'bpmn:Task' };
+  const note: CroppableShape = { x: 200, y: 0, width: 100, height: 30, type: 'bpmn:TextAnnotation' };
+
+  const points = routeFor('bpmn:Association', task, note);
+  expect(points).toHaveLength(2);
+  // The line runs centre to centre — no elbow anywhere on it.
+  expect(isOrthogonal(points)).toBe(false);
+  // …and both ends sit ON their silhouettes, exactly as a routed edge's do.
+  expect(containsPoint(task, points[0])).toBe(true);
+  expect(containsPoint(note, points[1])).toBe(true);
+  expect(points).toEqual(straightRoute(task, note));
+
+  // The straight treatment is the plain association ALONE. A data association keeps
+  // the orthogonal router, which is how every shipped example's DI already has them.
+  expect(isStraightRouted('bpmn:Association')).toBe(true);
+  expect(isStraightRouted('bpmn:DataOutputAssociation')).toBe(false);
+  expect(isStraightRouted('bpmn:SequenceFlow')).toBe(false);
+  expect(isOrthogonal(routeFor('bpmn:DataOutputAssociation', task, note))).toBe(true);
+  expect(routeFor('bpmn:SequenceFlow', task, note)).toEqual(route(task, note));
+});
+
+test('routeFor with no type is the orthogonal router, so an untyped caller is unchanged', () => {
+  const a: CroppableShape = { x: 0, y: 0, width: 100, height: 80, type: 'bpmn:Task' };
+  const b: CroppableShape = { x: 300, y: 200, width: 100, height: 80, type: 'bpmn:Task' };
+  expect(routeFor(undefined, a, b)).toEqual(route(a, b));
 });

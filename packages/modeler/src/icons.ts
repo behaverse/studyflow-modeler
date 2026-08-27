@@ -103,6 +103,15 @@ export const ICONS = {
   bpmnParticipant: 'iconify bpmn--participant',
   bpmnGroup: 'iconify bpmn--group',
   bpmnCompensationMarker: 'iconify bpmn--compensation-marker',
+
+  /* Context-pad glyphs. The `bpmn-icon-*` font is what diagram-js's own pad wore
+     (parity spec §4 names each entry's icon class); the iconify `bpmn` set carries
+     the same artwork, so the pad reads as the one the reference recordings show. */
+  bpmnTextAnnotation: 'iconify bpmn--text-annotation',
+  bpmnConnection: 'iconify bpmn--connection-multi',
+  bpmnTrash: 'iconify bpmn--trash',
+  bpmnScrewWrench: 'iconify bpmn--screw-wrench',
+  swapVertical: 'iconify mdi--swap-vertical',
 } as const;
 
 export type IconName = keyof typeof ICONS;

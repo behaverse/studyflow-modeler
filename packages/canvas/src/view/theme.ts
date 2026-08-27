@@ -52,12 +52,25 @@ export const CANVAS_CSS = `
   --sf-element-selected-outline-secondary-stroke-color: var(--sf-color-blue-205-100-75);
   --sf-element-dragger-color: var(--sf-color-blue-205-100-50);
   --sf-element-dragging-opacity: 0.3;
+  /* A connection re-routing under a shape that is being moved. Pale gray, NOT the
+     dragger blue: \`edge-videos/dnd/frame_05\` keeps the blue for the one thing the
+     cursor is carrying and lets its flows fade into the background. */
+  --sf-element-dragging-edge-color: hsl(0, 0%, 80%);
 
   --sf-resizer-fill-color: var(--sf-color-blue-205-100-45);
   --sf-resizer-stroke-color: var(--sf-canvas-fill-color);
 
   --sf-bendpoint-fill-color: var(--sf-color-blue-205-100-45);
   --sf-bendpoint-stroke-color: var(--sf-canvas-fill-color);
+  /* The segment grip is DARK, not blue — see the rule below. Same ink the renderer
+     draws an uncoloured element with (\`render/renderer.ts\` DEFAULT_STROKE). */
+  --sf-segment-grip-fill-color: #22242A;
+
+  /* A caption's chrome: the inert chips around it and the dashed leader back to the
+     element it names (\`edge-videos/labels/frame_08\`) are both the selection blue. */
+  --sf-label-chip-fill-color: var(--sf-color-blue-205-100-50);
+  --sf-label-chip-stroke-color: var(--sf-canvas-fill-color);
+  --sf-label-leader-stroke-color: var(--sf-element-selected-outline-stroke-color);
 
   --sf-snap-line-stroke-color: hsla(205, 100%, 45%, 0.3);
 
@@ -67,18 +80,34 @@ export const CANVAS_CSS = `
   --sf-drop-ok-fill-color: hsl(225, 10%, 97%);
   --sf-drop-not-ok-fill-color: hsl(360, 100%, 97%);
 
+  /* The red a refused connect ghost turns — diagram-js's own rejection ink. */
+  --sf-connect-preview-rejected-stroke-color: hsl(4, 90%, 58%);
+
   /* Empty canvas is a pan surface (parity spec §10), so the root reads as one:
      \`grab\` at rest, \`grabbing\` while it is actually being dragged — diagram-js's
      \`djs-cursor-grab\` / \`djs-cursor-grabbing\`, expressed as root state classes. */
   cursor: grab;
 }
 
-/* …but only over the canvas itself: bpmn-js leaves the cursor alone over an element
-   (its own probe reads \`default\` there), and a grab hand over a shape would promise
-   a gesture that is a move, not a pan. */
-.sf-canvas .sf-shape,
+/* …but only over the canvas itself: a grab hand over a shape would promise a pan,
+   and what a press on a shape actually starts is a MOVE. \`edge-videos/dnd/frame_03\`
+   shows the ✥ over the task body, so that is what a shape reads as (parity spec
+   addendum 2 §4). A connection keeps the plain arrow — its own gestures announce
+   themselves through the bendpoint and segment-grip cursors. */
 .sf-canvas .sf-connection {
   cursor: default;
+}
+
+.sf-canvas .sf-shape:not(.sf-external-label) {
+  cursor: move;
+}
+
+/* A caption travels on its own (parity spec addendum 3 §2), so it reads as movable
+   too — including an EDGE's caption, whose \`<g>\` sits inside a \`.sf-connection\`
+   that has just said \`default\` (\`edge-videos/labels/frame_06\` shows the ✥ over
+   the label while the flow under it keeps the arrow). */
+.sf-canvas .sf-external-label {
+  cursor: move;
 }
 
 .sf-canvas.sf-panning,
@@ -190,6 +219,64 @@ export const CANVAS_CSS = `
 }
 
 /*
+ * Label chrome (parity spec addendum 3 §3, \`edge-videos/labels/frame_08\`).
+ *
+ * The LEADER is the piece the reference makes a point of: a blue dashed line from a
+ * selected — or dragged — caption to the element it names, so a label sitting away
+ * from its flow still visibly belongs to it. It is drawn from the selection layer in
+ * diagram coordinates and is inert to the pointer, like every other overlay.
+ *
+ * The CHIPS are decoration and nothing more. A label is not resizable here (there is
+ * no label-resize mutation for the writeback to commit), so they carry no
+ * \`data-handle\`, take no pointer events, and start no gesture — they exist because
+ * the reference draws them and their absence read as "this is not really selected".
+ */
+.sf-canvas .sf-label-leader {
+  stroke: var(--sf-label-leader-stroke-color);
+  stroke-width: 1px;
+  stroke-dasharray: 4, 4;
+  fill: none;
+  pointer-events: none;
+  shape-rendering: geometricPrecision;
+}
+
+.sf-canvas .sf-label-chip {
+  fill: var(--sf-label-chip-fill-color);
+  stroke: var(--sf-label-chip-stroke-color);
+  stroke-width: 1px;
+  pointer-events: none;
+  shape-rendering: geometricPrecision;
+}
+
+/*
+ * Segment-move grips — one per straight run of a connection (parity spec §2), drawn
+ * alongside the bendpoints for a selected OR hovered connection.
+ *
+ * These are the one piece of edge chrome that is NOT diagram-js blue: the reference
+ * (\`edge-videos/v2/frame_10\`) paints the double triangle in the element stroke
+ * colour, dark, so the grip reads as part of the line it moves rather than as a
+ * point on it. The cursor names the one axis the run can travel.
+ */
+.sf-canvas .sf-segment-grip-visual {
+  fill: var(--sf-segment-grip-fill-color);
+  stroke: none;
+  shape-rendering: geometricPrecision;
+}
+
+.sf-canvas .sf-segment-grip-hit {
+  fill: none;
+  pointer-events: all;
+}
+
+.sf-canvas .sf-segment-grip-ns {
+  cursor: ns-resize;
+}
+
+.sf-canvas .sf-segment-grip-ew {
+  cursor: ew-resize;
+}
+
+/*
  * Dragging. The element being dragged becomes the GHOST (blue outline only, label
  * included) and a frozen copy of where it came from stays behind at 0.3.
  */
@@ -208,6 +295,92 @@ export const CANVAS_CSS = `
 .sf-canvas .sf-dragging > * {
   opacity: var(--sf-element-dragging-opacity) !important;
   pointer-events: none !important;
+}
+
+/*
+ * A connection attached to what is moving. It is NOT part of the ghost: it stays a
+ * real, live, re-routing line (\`interaction/drag.ts\` re-routes it on every frame)
+ * and simply fades to gray while the move is in flight, so the eye follows the blue
+ * silhouette and not the rubber-banding flows (\`edge-videos/dnd/frame_01\`, \`f05\`).
+ */
+.sf-canvas .sf-dragging-edge * {
+  stroke: var(--sf-element-dragging-edge-color) !important;
+}
+
+.sf-canvas .sf-dragging-edge text,
+.sf-canvas .sf-dragging-edge tspan {
+  fill: var(--sf-element-dragging-edge-color) !important;
+  stroke: none !important;
+}
+
+/*
+ * Context-pad hover preview (parity spec addendum 5): the ghost of the element a
+ * pad entry would append, plus the connection that would reach it. The shape half
+ * wears \`sf-dragger\` and is therefore already blue-outline-only; only its
+ * connection needs painting, and it borrows the same dragger colour so ghost and
+ * ghost-flow read as one object. Inert to the pointer — it is a picture of the
+ * future, not something to click.
+ */
+.sf-canvas .sf-append-preview {
+  pointer-events: none;
+}
+
+/*
+ * A live connect / reconnect gesture publishes its verdict on the root
+ * (\`interaction/connect.ts\`), and the cursor is where the user reads it: the ∅ of
+ * \`edge-videos/v2/frame_02\` shows both over a shape the rules refuse AND over empty
+ * space, where the drag simply has nowhere to land yet. Only \`ok\` — over a target
+ * that would take the drop — lets the cursor go.
+ */
+.sf-canvas[data-connect-status="pending"],
+.sf-canvas[data-connect-status="pending"] *,
+.sf-canvas[data-connect-status="rejected"],
+.sf-canvas[data-connect-status="rejected"] * {
+  cursor: not-allowed !important;
+}
+
+.sf-canvas[data-connect-status="ok"],
+.sf-canvas[data-connect-status="ok"] * {
+  cursor: crosshair !important;
+}
+
+/*
+ * …and the canvas itself washes pale red for as long as the drop would be refused.
+ * \`edge-videos/v2/frame_02\` tints the WHOLE surface, not just the shape under the
+ * pointer, which is what makes a rejected drag readable when the pointer is out over
+ * empty space with nothing to tint.
+ */
+.sf-canvas[data-connect-status="pending"],
+.sf-canvas[data-connect-status="rejected"] {
+  background-color: var(--sf-drop-not-ok-fill-color);
+}
+
+.sf-canvas .sf-connect-preview {
+  pointer-events: none;
+}
+
+/*
+ * The live connect / reconnect ghost line. Painted from the gesture's own verdict —
+ * blue while it can still land, red once the shape under the pointer has refused —
+ * so the preview blue is the one \`--sf-element-dragger-color\` token every other
+ * piece of drag chrome uses (parity spec §5: rgb(0,149,255)) instead of a second
+ * hard-coded blue drifting away from it. \`interaction/connect.ts\` sets only the
+ * geometry, the dash and the arrowhead.
+ */
+.sf-canvas .sf-connect-preview .sf-connect-preview-line {
+  stroke: var(--sf-element-dragger-color);
+}
+
+.sf-canvas .sf-connect-preview[data-status="rejected"] .sf-connect-preview-line {
+  stroke: var(--sf-connect-preview-rejected-stroke-color);
+}
+
+.sf-canvas .sf-append-preview-line {
+  fill: none;
+  stroke: var(--sf-element-dragger-color);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
 
 /*
@@ -237,6 +410,11 @@ export const CANVAS_CSS = `
  * the cursor also turns to \`not-allowed\` over the target and everything inside it.
  * The ghost itself stays blue in both cases, exactly as bpmn-js leaves it.
  *
+ * A CONNECT drag paints the same accepting tint under its own marker,
+ * \`sf-connect-ok\` — ux-spec §4/§7 keeps the two states apart because they mean
+ * different things ("this would contain the shape" vs "this would take the flow"),
+ * even though the reference paints them the same.
+ *
  * The tinted node is the element's own first visual — the shape body, never the
  * selection outline, which may already be sitting in front of it.
  */
@@ -245,7 +423,9 @@ export const CANVAS_CSS = `
 }
 
 .sf-canvas .sf-new-parent > :first-child:not(.sf-outline),
-.sf-canvas .sf-new-parent > .sf-outline + * {
+.sf-canvas .sf-new-parent > .sf-outline + *,
+.sf-canvas .sf-connect-ok > :first-child:not(.sf-outline),
+.sf-canvas .sf-connect-ok > .sf-outline + * {
   fill: var(--sf-drop-ok-fill-color);
 }
 

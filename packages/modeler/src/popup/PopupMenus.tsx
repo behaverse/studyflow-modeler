@@ -12,10 +12,12 @@
  * |----------------|------------------------------------------------------|-----------|
  * | `bpmn-create`  | every creatable element; drag or click to place       | the palette's "More BPMN elements..." button |
  * | `bpmn-append`  | the same list, wired to append from the selection     | the selection toolbar's append button, and the canvas's `a` key |
+ * | `bpmn-replace` | the same list, trimmed to what may replace the selection | the context pad's wrench ("Change element") |
  * | `color-picker` | the six studyflow colours                             | the selection toolbar's colour button |
  */
 
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { getExtensionType } from '@core/element';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { getEditorPort } from '@modeler/editor/registry';
@@ -29,6 +31,7 @@ import type { EditorElement } from '@modeler/editor/port';
 
 export const CREATE_MENU = 'bpmn-create';
 export const APPEND_MENU = 'bpmn-append';
+export const REPLACE_MENU = 'bpmn-replace';
 export const COLOR_MENU = 'color-picker';
 
 /** The canvas's `a` shortcut names the selection and leaves the menu to the app. */
@@ -71,7 +74,8 @@ export function PopupMenus() {
       setOpen({ providerId, position, options, elements: editor.selection.get() });
     };
 
-    const detach = [CREATE_MENU, APPEND_MENU, COLOR_MENU].map((id) => registerPopupMenu(id, opener(id)));
+    const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
+      .map((id) => registerPopupMenu(id, opener(id)));
 
     // The canvas fires this for `a`; bpmn-js binds its own append shortcut, so this
     // topic simply never arrives there.
@@ -136,9 +140,57 @@ export function PopupMenus() {
     }
 
     const isAppend = providerId === APPEND_MENU;
+    const isReplace = providerId === REPLACE_MENU;
     const source = elements[0];
-    if (isAppend && !source) {
-      return { title: options?.title ?? t('Append element'), width: options?.width ?? 260, sections: [], emptyText: 'Select an element first' };
+    if ((isAppend || isReplace) && !source) {
+      return {
+        title: options?.title ?? t(isReplace ? 'Change element' : 'Append element'),
+        width: options?.width ?? 260,
+        sections: [],
+        emptyText: 'Select an element first',
+      };
+    }
+
+    if (isReplace) {
+      // The same catalog the create/append menus offer, trimmed to what the editor
+      // would actually accept in this element's place — and with the element's own
+      // type dropped, because "change it to what it already is" is not a choice.
+      const editor = getEditorPort(modeler);
+      const currentBpmn = (source as { type?: string })?.type;
+      const currentExtension = getExtensionType(source);
+      const sections = buildElementEntries()
+        .map((group) => ({
+          id: group.id,
+          name: group.name,
+          items: group.entries
+            .filter((entry) => (
+              !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension)
+              && editor.rules.allowed('shape.replace', { element: source, targetType: entry.bpmnType })
+            ))
+            .map((entry): PopupMenuItem => ({
+              id: entry.id,
+              label: entry.label,
+              icon: entry.icon,
+              keywords: entry.keywords,
+              title: `Change to ${entry.label}`,
+              onSelect: () => {
+                executeCommand(modeler, {
+                  type: 'ReplaceElement',
+                  element: source,
+                  bpmnType: entry.bpmnType,
+                  extensionType: entry.extensionType,
+                });
+              },
+            })),
+        }))
+        .filter((group) => group.items.length > 0);
+      return {
+        title: options?.title ?? t('Change element'),
+        width: options?.width ?? 260,
+        search: options?.search,
+        sections,
+        emptyText: 'Nothing can replace this element',
+      };
     }
 
     return {

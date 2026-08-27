@@ -28,6 +28,7 @@ import { EXPANDED_SUBPROCESS_SIZE, isExpandable } from '@canvas/model/expand.ts'
 import type {
   Bounds,
   ModdleObject,
+  Plane,
   Point,
   Scene,
   SceneElement,
@@ -169,6 +170,14 @@ export interface CreateOptions {
   /** Optional coordinate snap (grid), applied to the drop centre. */
   snap?: (point: Point) => Point;
   /**
+   * The plane the drop lands in — the one on screen, which is the root plane until a
+   * drill-down moves the cursor (`view/plane.ts`). It decides both which
+   * `bpmndi:BPMNPlane` the new `BPMNShape` is filed in and, for a drop on empty
+   * background, which container claims the business object: inside a sub-process's
+   * plane that is the sub-process itself. `undefined` = the root plane.
+   */
+  getPlane?: () => Plane | undefined;
+  /**
    * Draw the ghost that follows the cursor — the shape itself, rendered as a blue
    * outline (parity spec §7 "Creating from the app palette"). The canvas injects its
    * renderer here; without it the gesture falls back to a plain dashed footprint,
@@ -285,7 +294,9 @@ export class Create {
     const scene = this.options.getScene();
     if (!scene) return { verdict: false };
     const parent = containerOf(over);
-    const context: RuleElement = parent ?? scene.rootPlane;
+    // Empty background means "the plane on screen" — which inside a drill-down is the
+    // sub-process's own plane, not the document root.
+    const context: RuleElement = parent ?? this.options.getPlane?.() ?? scene.rootPlane;
     // `root` lets the rules tell "the plane this diagram IS" from any other flow
     // container of the same type — the one thing a pool drop turns on (§3A).
     const verdict = this.options.rules.allowed('shape.create', {
@@ -304,9 +315,11 @@ export class Create {
     const writeback = this.options.getWriteback();
     if (!writeback) return undefined;
     const attach = target.verdict === 'attach' ? target.parent : undefined;
+    const plane = this.options.getPlane?.();
     const node = writeback.addShape({
       type: prototype.type,
       bounds: boundsFor(prototype, center),
+      ...(plane ? { plane } : {}),
       ...(prototype.businessObject ? { businessObject: prototype.businessObject } : {}),
       ...(prototype.attrs ? { attrs: prototype.attrs } : {}),
       ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),

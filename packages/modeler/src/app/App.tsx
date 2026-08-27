@@ -7,7 +7,8 @@ import { Notices } from '@modeler/app/Notices';
 import { Panel as InspectorPanel } from '@modeler/inspector/Panel';
 import { Palette } from '@modeler/palette/Palette';
 import { PopupMenus } from '@modeler/popup/PopupMenus';
-import { SelectionToolbar } from '@modeler/popup/SelectionToolbar';
+import { ContextPad } from '@modeler/contextPad/ContextPad';
+import { Breadcrumbs } from '@modeler/drilldown/Breadcrumbs';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import type { PortHandle } from '@modeler/editor/registry';
@@ -37,12 +38,16 @@ export function App() {
             </div>
           )}
           {modeler && isReplaying && <ReplayPanel onClose={() => setIsReplaying(false)} />}
-          {/* App-rendered popup menus (`bpmn-create` / `bpmn-append` / `color-picker`).
-              Registered on both backends; only a backend without its own popup
-              registry — the canvas — ever routes a menu here. The toolbar that opens
-              two of them is canvas-only and stands down during a replay. */}
+          {/* App-rendered popup menus (`bpmn-create` / `bpmn-append` / `color-picker`)
+              and the per-shape context pad that opens two of them (parity spec
+              addendum 4). The pad is the app's only selection affordance — it
+              replaced P6b's two-button `SelectionToolbar` — and stands down during a
+              replay, where the document is read-only. */}
           {modeler && <PopupMenus />}
-          {modeler && !isReplaying && <SelectionToolbar />}
+          {modeler && !isReplaying && <ContextPad />}
+          {/* The sub-process drill-down trail. Like the pad it stands down during a
+              replay, where the view is driven by the recording rather than the user. */}
+          {modeler && !isReplaying && <Breadcrumbs />}
           {isSettingsOpen && <SettingsView onClose={() => setIsSettingsOpen(false)} />}
           <Notices />
         </div>

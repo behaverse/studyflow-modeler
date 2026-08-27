@@ -575,6 +575,60 @@ export class Rules {
   }
 
   /**
+   * `shape.append` narrowed to a KNOWN successor type — what the context pad asks
+   * before it offers (and previews) one specific entry.
+   *
+   * An ARTIFACT is the exception {@link canAppend} cannot express: a text annotation
+   * is reached by an association, not by a sequence flow, so bpmn-js offers "Add text
+   * annotation" on an end event too (`ContextPadProvider` gates the artifact entry on
+   * the flow-node test alone, and the end-event veto only on the successor entries).
+   * Everything else falls back to {@link canAppend}.
+   */
+  canAppendType(source: RuleElement | undefined, targetType: string | undefined): boolean {
+    if (!source) return false;
+    if (targetType && isArtifact(targetType)) return !!bpmnTypeOf(source, this.catalog);
+    return this.canAppend(source);
+  }
+
+  /**
+   * `shape.replace` — whether `shape` may be retyped to `targetType` in place (the
+   * context pad's wrench, ux-spec §4 entry 4).
+   *
+   * Replacement is a create in disguise: the new element has to be something the
+   * SAME container would have accepted, so the containment rule does the work
+   * ({@link canContain} against the parent the shape already lives in). Three things
+   * it cannot express are vetoed here:
+   *
+   * - only a flow node or an artifact is replaceable at all. A pool, a lane or a
+   *   plane root is structure, not a step, and retyping one is a different edit;
+   * - a CONTAINER with contents is not offered, because there is no answer for what
+   *   happens to what is inside it — bpmn-js migrates the children, the canvas has
+   *   no such mutation, and silently dropping them would be the worst of the three;
+   * - a boundary event is attached to a host, and an attachment is not carried
+   *   across a retype.
+   *
+   * With no `targetType` the question is the weaker one the context pad asks before
+   * it offers the wrench at all: may ANYTHING replace this element?
+   */
+  canReplace(shape: RuleElement | undefined, targetType?: string): boolean {
+    if (!shape) return false;
+    const replaceable = (candidate: string): boolean => (
+      isBpmnSubtypeOf(candidate, 'bpmn:FlowNode') || isArtifact(candidate)
+    );
+    const type = bpmnTypeOf(shape, this.catalog);
+    if (!type || !replaceable(type)) return false;
+    if (isBpmnSubtypeOf(type, 'bpmn:BoundaryEvent')) return false;
+    if ((shape.children?.length ?? 0) > 0) return false;
+    // No successor named: the pad asking "is this element replaceable at all?"
+    // before it offers the wrench, the way `canAppend` answers before `canAppendType`.
+    if (!targetType) return true;
+    if (!replaceable(targetType) || isBpmnSubtypeOf(targetType, 'bpmn:BoundaryEvent')) return false;
+    const container = containerFor(shape.parent);
+    const containerType = container ? bpmnTypeOf(container, this.catalog) : 'bpmn:Process';
+    return canContain(targetType, containerType) === true;
+  }
+
+  /**
    * diagram-js-shaped entry point: `allowed(action, context)`. Unknown actions
    * answer `true` — the same "nobody vetoed it" default `Rules#allowed` has in
    * diagram-js, so a gesture the canvas does not gate is not silently blocked.
@@ -607,7 +661,18 @@ export class Rules {
         return this.canAttach(asElement(context.shape), asElement(context.parent ?? context.target));
 
       case 'shape.append':
-        return this.canAppend(asElement(context.source ?? context.element ?? context.shape));
+        return this.canAppendType(
+          asElement(context.source ?? context.element ?? context.shape),
+          // The context pad names the successor it is about to offer; without one
+          // this is the plain "may anything follow?" question.
+          typeof context.targetType === 'string' ? context.targetType : undefined,
+        );
+
+      case 'shape.replace':
+        return this.canReplace(
+          asElement(context.element ?? context.shape),
+          typeof context.targetType === 'string' ? context.targetType : undefined,
+        );
 
       case 'elements.move': {
         const target = asElement(context.target ?? context.parent);

@@ -41,7 +41,8 @@ import type {
   SceneNode,
 } from '@canvas/model/scene.ts';
 import { definitionsOf } from '@canvas/model/writeback.ts';
-import { append, create as svgCreate } from '@canvas/render/svg.ts';
+import { create as svgCreate } from '@canvas/render/svg.ts';
+import { PlaneCursor } from '@canvas/view/plane.ts';
 import { sceneBounds } from '@canvas/view/viewport.ts';
 
 // --- the port shape, re-declared (never imported) -----------------------------
@@ -88,10 +89,27 @@ export interface PortView {
   getContainer(): HTMLElement;
   getLayer(name: string, index?: number): SVGElement;
   /**
+   * Canvas-only extension (sub-process drill-down): the plane trail from the
+   * document root to the plane on screen, one {@link PortRoot} per plane. A single
+   * entry means "at the root"; the breadcrumb renders nothing then.
+   */
+  planePath(): PortRoot[];
+  /**
+   * Canvas-only extension: show the plane `root` stands for. View-only — nothing is
+   * written, so it records no undo step. Returns whether the view moved.
+   */
+  goToPlane(root: PortRoot): boolean;
+  /**
    * Show or hide the background dot grid (P6b §3C). The canvas owns no settings
    * store of its own, so the host drives this from the "Show grid" setting.
    */
   setGridVisible(visible: boolean): void;
+  /**
+   * Turn grid snapping on or off ("Snap to grid" in settings). Snapping is on by
+   * default (parity spec addendum 7); the host drives this from the preference that
+   * disables it.
+   */
+  setSnapToGrid(on: boolean): void;
   addMarker(elementOrId: PortElement | string, marker: string): void;
   removeMarker(elementOrId: PortElement | string, marker: string): void;
   scrollToElement(
@@ -127,6 +145,18 @@ export interface PortMutations {
     parent: PortElement,
     hints?: Record<string, unknown>,
   ): PortElement;
+  /**
+   * Retype a shape in place, as ONE undo step — the context pad's wrench
+   * ("Change element", ux-spec §4). `undefined` when the rules refuse the swap or
+   * the shape is already that type (`Canvas.replaceElement`).
+   */
+  replaceShape(element: PortElement, attrs: { type: string } & Record<string, unknown>): PortElement | undefined;
+  /**
+   * Delete elements and everything that goes with them (a container's contents, a
+   * node's incident edges), as ONE undo step. The canvas has offered this to the
+   * keyboard since P5; the context pad's trash needs it from app chrome too.
+   */
+  removeElements(elements: PortElement | PortElement[]): PortElement[];
 }
 
 /** Selection set (`EditorSelection`). */
@@ -174,6 +204,16 @@ export interface PortGestures {
    * `undefined` when the rules reject the shape; nothing is written in that case.
    */
   appendShape(source: PortElement, shape: PortElement): PortElement | undefined;
+  /**
+   * Canvas-only extension: draw a transient GHOST of what
+   * {@link PortGestures.appendShape} would create, at the position it would create
+   * it (parity spec addendum 5 — the context pad's hover preview). Returns whether
+   * a ghost went up; nothing is written either way, and
+   * {@link PortGestures.clearPreview} takes it down.
+   */
+  previewAppend(source: PortElement, shape: PortElement): boolean;
+  /** Remove any transient gesture preview ({@link PortGestures.previewAppend}). */
+  clearPreview(): void;
 }
 
 /** Popup menus opened from app chrome (`EditorPopup`) — app-fulfilled here. */
@@ -380,6 +420,24 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     return s;
   };
 
+  /**
+   * The current-plane cursor (`view/plane.ts`). It owns the drill-down badges and
+   * the plane scope; the port publishes it as `view.planePath` / `view.goToPlane`
+   * and answers `elements.root()` from it, so app chrome that asks "what am I
+   * looking at" gets the plane on screen and not the document root.
+   *
+   * `root.set` on every move is what the inspector, the popup menus and the
+   * breadcrumb already listen to — the same topic an import fires.
+   */
+  const planes = new PlaneCursor({
+    canvas,
+    layer: () => view.getLayer('drilldown', 900),
+    onChange: (plane) => bus.fire('root.set', { element: rootOf(plane) }),
+  });
+
+  /** The plane on screen — the root plane until a drill-down moves the cursor. */
+  const currentPlane = (): Plane => planes.current() ?? requireScene().rootPlane;
+
   /** Resolve a facade element (or id) to the scene element it stands for. */
   const resolve = (value: PortElement | string): SceneElement | undefined => {
     if (typeof value === 'string') {
@@ -428,7 +486,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
     get: (id) => {
       const s = scene();
       if (!s) return undefined;
-      const root = rootOf(s.rootPlane);
+      const root = rootOf(currentPlane());
       if (id === root.id) return root;
       return s.elementsById.get(id);
     },
@@ -436,7 +494,7 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       const s = scene();
       if (!s) return;
       // Root first, then import order — the order export code walks (`export/drawio.ts`).
-      fn(rootOf(s.rootPlane));
+      fn(rootOf(currentPlane()));
       for (const element of s.elementsById.values()) {
         if (isSceneElement(element)) fn(element);
       }
@@ -448,7 +506,9 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       });
       return out;
     },
-    root: () => rootOf(requireScene().rootPlane),
+    // The plane ON SCREEN, not the document root: drilling into a sub-process makes
+    // its plane the root everything app-side resolves against (drill-down spec §2).
+    root: () => rootOf(currentPlane()),
     findRoot: (element) => {
       const s = scene();
       if (!s || !element) return undefined;
@@ -509,19 +569,21 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
         layer = svgCreate('g', {
           class: `sf-layer sf-layer-${name}`,
           'data-layer': name,
-          'data-layer-index': String(index ?? 0),
         }) as SVGGElement;
         customLayers.set(name, layer);
       }
-      // Custom layers live inside `overlays` so an import (`Layers.clear`) drops them
-      // the way diagram-js drops its own; re-attach if that already happened.
-      if (!layer.parentNode) {
-        const host = canvas.getSvg().querySelector('[data-layer="overlays"]') ?? canvas.getSvg();
-        append(host as Element, layer);
-      }
+      // Custom layers sit ABOVE the built-in stack — badges and tokens anchor to a
+      // shape and must stay pressable while that shape is selected, which they are
+      // not underneath the selection layer's resize handles. An import
+      // (`Layers.clear`) detaches them the way diagram-js drops its own overlays, so
+      // re-attach whenever that has happened.
+      if (!layer.parentNode) canvas.attachHostLayer(layer, index ?? 0);
       return layer;
     },
+    planePath: () => planes.planePath().map(rootOf),
+    goToPlane: (root) => (isRoot(root) ? planes.goToPlane(root.plane) : false),
     setGridVisible: (visible) => canvas.setGridVisible(visible),
+    setSnapToGrid: (on) => canvas.setSnapToGrid(on),
     addMarker: (elementOrId, marker) => {
       const target = resolve(elementOrId);
       if (target) canvas.getSelection().addMarker(target, marker);
@@ -589,6 +651,18 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       if (!from || from.kind !== 'node' || !to || to.kind !== 'node') return undefined;
       return canvas.connectElements(from as SceneNode, to as SceneNode);
     }),
+    replaceShape: (element, attrs) => step('replaceShape', () => {
+      const target = resolve(element);
+      if (!target || target.kind !== 'node') return undefined;
+      return canvas.replaceElement(target as SceneNode, attrs as ShapeDescriptor);
+    }),
+    removeElements: (targets) => {
+      const list = (Array.isArray(targets) ? targets : [targets])
+        .map(resolve)
+        .filter((element): element is SceneElement => !!element);
+      if (list.length === 0) return [];
+      return step('removeElements', () => canvas.deleteElements(list));
+    },
   };
 
   const selection: PortSelection = {
@@ -640,11 +714,23 @@ export function createCanvasEditorPort(canvas: Canvas, deps: CanvasPortDeps): Ca
       return canvas.startConnect(from as SceneNode, event);
     },
     // Shape AND flow inside one `step`: an append is one gesture, so it is one undo.
+    // A CONNECTION is a legal source here (never for `startConnect`): the one append
+    // a selected sequence flow offers is "Add text annotation" (ux-spec §4), and the
+    // canvas gates the pair through `Rules.canAppendType` either way.
     appendShape: (source, shape) => step('appendShape', () => {
       const from = resolve(source);
-      if (!from || from.kind !== 'node') return undefined;
-      return canvas.appendElement(from as SceneNode, shape as ShapeDescriptor | CreatePrototype);
+      if (!from) return undefined;
+      return canvas.appendElement(from, shape as ShapeDescriptor | CreatePrototype);
     }),
+    // NOT a `step`: a preview writes nothing, so it must not open an undo bracket,
+    // bump the revision or fire `commandStack.changed` — hovering a menu is not an
+    // edit (parity spec addendum 5).
+    previewAppend: (source, shape) => {
+      const from = resolve(source);
+      if (!from) return false;
+      return !!canvas.previewAppend(from, shape as ShapeDescriptor | CreatePrototype);
+    },
+    clearPreview: () => canvas.clearAppendPreview(),
   };
 
   const defaultImportXML = async (xml: string): Promise<{ warnings: unknown[] }> => {

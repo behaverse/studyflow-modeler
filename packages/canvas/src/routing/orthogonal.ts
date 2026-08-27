@@ -30,8 +30,10 @@
  * `edge.waypoints`, leaving the DI write to `model/writeback.ts`.
  */
 
+import { BPMN } from '@core/constants.ts';
+
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import { centerOf, cropWaypoints, type CroppableShape } from '@canvas/routing/crop.ts';
+import { centerOf, cropPoint, cropWaypoints, type CroppableShape } from '@canvas/routing/crop.ts';
 
 /** A shape the router can connect: DI bounds plus the business-object `$type`. */
 export type RoutableShape = CroppableShape;
@@ -66,6 +68,96 @@ const EPSILON = 1e-6;
 export function route(source: RoutableShape, target: RoutableShape, options: RouteOptions = {}): Point[] {
   const raw = routeCenters(source, target, options);
   return options.crop === false ? raw : cropWaypoints(raw, source, target);
+}
+
+/**
+ * The two points of a STRAIGHT connection: centre to centre, cropped to both
+ * outlines — i.e. a plain diagonal, with no elbows at all.
+ *
+ * Not every BPMN flow is orthogonal. bpmn-js's `BpmnLayouter` runs the manhattan
+ * layout for sequence and message flows but leaves a plain `bpmn:Association` as the
+ * line between the two mids, which is why a text annotation hangs off its subject on
+ * a slanted dotted leader (`edge-videos/preview/frame_08`) instead of an L-bend.
+ * {@link routeFor} picks between the two by flow type.
+ */
+export function straightRoute(
+  source: RoutableShape,
+  target: RoutableShape,
+  options: RouteOptions = {},
+): Point[] {
+  const cs = centerOf(boundsOf(source));
+  const ct = centerOf(boundsOf(target));
+  if (options.crop === false) return [cs, ct];
+  return [cropPoint(source, ct), cropPoint(target, cs)];
+}
+
+/**
+ * Waypoints for a connection of `type` — {@link straightRoute} for the flow types
+ * BPMN draws as a plain line, {@link route} for everything else.
+ *
+ * Every path that mints or re-routes a connection goes through here so that what a
+ * hover ghost draws, what a connect drag previews and what the drop commits are the
+ * same geometry (parity spec addendum 5 §3).
+ */
+export function routeFor(
+  type: string | undefined,
+  source: RoutableShape,
+  target: RoutableShape,
+  options: RouteOptions = {},
+): Point[] {
+  return isStraightRouted(type) ? straightRoute(source, target, options) : route(source, target, options);
+}
+
+/**
+ * The {@link RoutableShape} that stands in for a connection END.
+ *
+ * A shape routes as its own box. A **connection** — which is an end for exactly
+ * one connection kind, the `bpmn:Association` reaching a text annotation that
+ * hangs off a sequence flow (ux-spec §4) — routes as a zero-size box at the middle
+ * of its path, so the association leaves the flow's midpoint and is cropped to
+ * nothing at that end. That is where bpmn-js hangs the same leader, and it is the
+ * one point on an edge that stays put as the two shapes it joins move.
+ */
+export function routableEnd(element: SceneNode | SceneEdge): RoutableShape {
+  if (element.kind === 'node') return element;
+  const mid = pathMidpoint(element.waypoints);
+  return { x: mid.x, y: mid.y, width: 0, height: 0, type: element.type };
+}
+
+/**
+ * The point half way along a polyline BY LENGTH (not the middle waypoint, which on
+ * an L-bend sits at the corner). An empty path answers the origin.
+ */
+export function pathMidpoint(waypoints: readonly Point[]): Point {
+  if (waypoints.length === 0) return { x: 0, y: 0 };
+  if (waypoints.length === 1) return { ...waypoints[0] };
+  let total = 0;
+  for (let i = 1; i < waypoints.length; i += 1) total += distance(waypoints[i - 1], waypoints[i]);
+  let travelled = 0;
+  for (let i = 1; i < waypoints.length; i += 1) {
+    const a = waypoints[i - 1];
+    const b = waypoints[i];
+    const length = distance(a, b);
+    if (travelled + length >= total / 2) {
+      const t = length < EPSILON ? 0 : (total / 2 - travelled) / length;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    travelled += length;
+  }
+  return { ...waypoints[waypoints.length - 1] };
+}
+
+function distance(a: Point, b: Point): number {
+  return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
+}
+
+/**
+ * Whether a flow of `type` is drawn as a straight line rather than an orthogonal
+ * route. Only the plain `bpmn:Association` is: a DATA association still routes
+ * orthogonally, which is how every shipped example's DI already has them.
+ */
+export function isStraightRouted(type: string | undefined): boolean {
+  return type === BPMN.Association;
 }
 
 /**
@@ -141,7 +233,7 @@ export function routeCenters(
  */
 export function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined {
   if (!edge.source || !edge.target) return undefined;
-  return route(edge.source, edge.target, options);
+  return routeFor(edge.type, edge.source, edge.target, options);
 }
 
 /**
@@ -192,6 +284,89 @@ export function edgesAffectedBy(elements: Iterable<SceneElement>): SceneEdge[] {
     else visit(element);
   }
   return out;
+}
+
+/**
+ * How far off-axis a segment may be before {@link orthogonalize} stops nudging it
+ * straight and grows an elbow instead (diagram units).
+ */
+export const ORTHOGONAL_TOLERANCE = 3;
+
+/**
+ * Square `points` up: every segment comes back axis-aligned, and the points the
+ * squaring made redundant are gone.
+ *
+ * This is the "orthogonal preservation" of parity spec §4, factored out of the
+ * gestures that need it (`interaction/segments.ts`): a run that is a unit or two
+ * off-axis — as imported geometry routinely is — is nudged flat by moving the end
+ * that is free to move (an interior joint before an endpoint, which is docked to a
+ * shape and belongs to the cropper); a genuinely DIAGONAL run gets an elbow, bent
+ * so it leaves perpendicular to the run before it and arrives perpendicular to the
+ * run after it.
+ *
+ * A two-point diagonal is deliberately left alone when it is only off by a hair:
+ * both of its points are docks, so there is nothing here that may move, and an
+ * imported `136,118 → 200,120` flow is not something an unrelated edit should
+ * silently re-cut.
+ */
+export function orthogonalize(
+  points: readonly Point[],
+  tolerance = ORTHOGONAL_TOLERANCE,
+): Point[] {
+  const out = points.map((p) => ({ x: p.x, y: p.y }));
+  if (out.length < 2) return out;
+
+  // Pass 1 — flatten near-aligned runs by pulling an interior end onto the other.
+  for (let i = 0; i < out.length - 1; i += 1) {
+    const a = out[i];
+    const b = out[i + 1];
+    const dx = Math.abs(b.x - a.x);
+    const dy = Math.abs(b.y - a.y);
+    const off = Math.min(dx, dy);
+    if (off < EPSILON || off > tolerance) continue;
+    const horizontal = dy <= dx;
+    if (i + 1 < out.length - 1) {
+      out[i + 1] = horizontal ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+    } else if (i > 0) {
+      out[i] = horizontal ? { x: a.x, y: b.y } : { x: b.x, y: a.y };
+    }
+  }
+
+  // Pass 2 — grow an elbow wherever a run is still diagonal.
+  const squared: Point[] = [out[0]];
+  for (let i = 0; i < out.length - 1; i += 1) {
+    const a = squared[squared.length - 1];
+    const b = out[i + 1];
+    const dx = Math.abs(b.x - a.x);
+    const dy = Math.abs(b.y - a.y);
+    // Within the tolerance there is nothing to bend: either pass 1 already flattened
+    // the run, or both of its ends are docks and neither may move.
+    if (Math.min(dx, dy) <= tolerance) {
+      squared.push(b);
+      continue;
+    }
+    squared.push(elbow(a, b, squared[squared.length - 2], out[i + 2]));
+    squared.push(b);
+  }
+
+  return simplify(squared);
+}
+
+/**
+ * The corner a diagonal `a`–`b` is bent through: leave `a` perpendicular to the run
+ * that arrived there, arrive at `b` perpendicular to the run that leaves it, and
+ * failing both, travel along the dominant axis first.
+ */
+function elbow(a: Point, b: Point, before?: Point, after?: Point): Point {
+  const verticalFirst = { x: a.x, y: b.y };
+  const horizontalFirst = { x: b.x, y: a.y };
+  if (before) {
+    return Math.abs(before.y - a.y) < EPSILON ? verticalFirst : horizontalFirst;
+  }
+  if (after) {
+    return Math.abs(after.y - b.y) < EPSILON ? horizontalFirst : verticalFirst;
+  }
+  return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? horizontalFirst : verticalFirst;
 }
 
 /** Whether every segment of `points` is axis-aligned (the router's contract). */

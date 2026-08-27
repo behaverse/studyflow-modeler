@@ -379,6 +379,121 @@ test('swapInitiator flips the shaded band, and flipping twice restores the docum
   expect(await toXML(loaded)).toBe(before);
 });
 
+// --- band colour --------------------------------------------------------------
+
+/**
+ * Band shading of a COLOURED choreography task (parity addendum "ChoreographyTask
+ * band coloring", from a bpmn-js reference screenshot):
+ *
+ * - the body takes the chosen fill,
+ * - the INITIATING band stays near-white — the convention that makes the initiator
+ *   readable whatever colour the task is,
+ * - the NON-INITIATING band is the chosen fill DARKENED (it used to stay flat gray,
+ *   which is the bug this addendum names),
+ * - every stroke is the chosen stroke.
+ *
+ * The fills are read off the drawn `data-band` paths, which is why the renderer
+ * labels them; an uncoloured task must keep the white/`#ededed` pair it always drew.
+ */
+
+/** The fill of one drawn participant band. */
+function bandFill(canvas: Canvas, id: string, band: 'top' | 'bottom'): string {
+  const path = canvas.getGraphics(id)?.querySelector(`[data-band="${band}"]`);
+  if (!path) throw new Error(`no ${band} band drawn for ${id}`);
+  return path.getAttribute('fill') ?? '';
+}
+
+/** The fill of the task body — the first rect drawn inside the element's `<g>`. */
+function bodyFill(canvas: Canvas, id: string): string {
+  return canvas.getGraphics(id)?.querySelector('rect')?.getAttribute('fill') ?? '';
+}
+
+/** Every stroke colour drawn inside an element, deduplicated. */
+function strokes(canvas: Canvas, id: string): string[] {
+  const drawn = Array.from(canvas.getGraphics(id)?.querySelectorAll('[stroke]') ?? [])
+    .map((el) => el.getAttribute('stroke'))
+    .filter((stroke): stroke is string => !!stroke && stroke !== 'none');
+  return [...new Set(drawn)];
+}
+
+test('colouring a choreography task fills the body, keeps the initiating band light and darkens the other', async () => {
+  const loaded = await loadExample();
+  const { canvas } = loaded;
+  const task = node(canvas, 'Consent');
+  // `Consent` initiates at the TOP (asserted above), so the bottom band is the
+  // receiving one and is the band that has to darken.
+  expect(readChoreographyBands(bo(task)).initiator).toBe('top');
+
+  expect(canvas.setColor(task, { fill: '#e8bcbc', stroke: '#8f3a3a' })).toHaveLength(1);
+
+  expect(bodyFill(canvas, 'Consent')).toBe('#e8bcbc');
+  expect(bandFill(canvas, 'Consent', 'top')).toBe('#ffffff');
+  // 12% down each channel of the chosen fill: darker than the body, same hue.
+  expect(bandFill(canvas, 'Consent', 'bottom')).toBe('#cca5a5');
+  expect(strokes(canvas, 'Consent')).toEqual(['#8f3a3a']);
+
+  // The DI is where the colour lives; the bands are derived paint, never stored.
+  const { xml } = await roundTrip(loaded);
+  expect(xml).toContain('background-color="#e8bcbc"');
+  expect(xml).not.toContain('#cca5a5');
+});
+
+test('the darkened band follows the initiator, not the band position', async () => {
+  const { canvas } = await loadExample();
+  const task = node(canvas, 'Round');
+  expect(readChoreographyBands(bo(task)).initiator).toBe('bottom');
+
+  canvas.setColor(task, { fill: '#88aaff' });
+  expect(bandFill(canvas, 'Round', 'bottom')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Round', 'top')).toBe('#7896e0');
+
+  // Flipping who initiates swaps which band is light, with no further colour edit.
+  canvas.swapInitiator(task);
+  expect(bandFill(canvas, 'Round', 'top')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Round', 'bottom')).toBe('#7896e0');
+});
+
+test('an UNCOLOURED task shades by the initiator too, on the element the addendum shows', async () => {
+  // `First decision round` is the exact task the parity addendum's reference
+  // screenshot was taken of, and the shipped document says
+  // `initiatingParticipantRef="Participant_Experimenter"` with no
+  // `participantBandKind` anywhere. So the Experimenter's band — the BOTTOM one —
+  // is the light one, and the Subject's is the shaded one. The reference screenshot
+  // shows the opposite pair, which means it disagrees with the document rather than
+  // with the rule: whichever participant initiates gets the near-white band.
+  const { canvas } = await loadExample();
+  expect(readChoreographyBands(bo(node(canvas, 'Round'))).initiator).toBe('bottom');
+  expect(bandFill(canvas, 'Round', 'bottom')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Round', 'top')).toBe('#ededed');
+
+  // …and the sibling task, which names the OTHER participant, is shaded the other
+  // way round — from the same rule, with no band-position special case.
+  expect(readChoreographyBands(bo(node(canvas, 'Consent'))).initiator).toBe('top');
+  expect(bandFill(canvas, 'Consent', 'top')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Consent', 'bottom')).toBe('#ededed');
+});
+
+test('clearing the colour restores the default gray bands', async () => {
+  const loaded = await loadExample();
+  const { canvas } = loaded;
+  const before = await toXML(loaded);
+  const task = node(canvas, 'Consent');
+
+  // The uncoloured pair, before anything is written…
+  expect(bandFill(canvas, 'Consent', 'top')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Consent', 'bottom')).toBe('#ededed');
+
+  canvas.setColor(task, { fill: '#e8bcbc', stroke: '#8f3a3a' });
+  expect(bandFill(canvas, 'Consent', 'bottom')).toBe('#cca5a5');
+
+  canvas.setColor(task, { fill: null, stroke: null });
+  expect(bodyFill(canvas, 'Consent')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Consent', 'top')).toBe('#ffffff');
+  expect(bandFill(canvas, 'Consent', 'bottom')).toBe('#ededed');
+  // …and clearing really removed the attributes, rather than writing a default.
+  expect(await toXML(loaded)).toBe(before);
+});
+
 // --- band geometry -----------------------------------------------------------
 
 test('band geometry is derived from the single dc:Bounds and stays consistent', async () => {

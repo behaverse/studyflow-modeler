@@ -291,7 +291,7 @@ test('a created association is drawn, indexed, and wired to both scene endpoints
   // Drawn dotted, like an association (`render/renderer.ts`).
   const g = canvas.getGraphics(edge.id)!;
   expect(g).toBeTruthy();
-  expect(g.querySelector('polyline')!.getAttribute('stroke-dasharray')).toBe('2,6');
+  expect(g.querySelector('path.sf-connection-line')!.getAttribute('stroke-dasharray')).toBe('2,6');
   // It is NOT pushed onto the BPMN `outgoing`/`incoming`, which are sequence-flow
   // typed — a data shape has neither, and the task keeps only its sequence flow.
   expect(bo(data).get('outgoing')).toBeUndefined();

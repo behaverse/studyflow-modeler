@@ -9,13 +9,13 @@ import {
 } from './utils';
 
 /**
- * The app-rendered popup menus and the selection toolbar that opens two of them
- * (P6b §3A, §3B).
+ * The app-rendered popup menus and the context pad that opens two of them
+ * (P6b §3A, §3B; parity spec addendum 4).
  *
- * This chrome is the app's own. bpmn-js used to render all three menus and both
- * buttons as plugin chrome into `.djs-popup` / `.djs-context-pad`, which is why
- * these specs were skipped on that backend while it existed; they run
- * unconditionally now that the React popover is the only implementation.
+ * This chrome is the app's own. bpmn-js used to render all three menus and the pad
+ * as plugin chrome into `.djs-popup` / `.djs-context-pad`, which is why these specs
+ * were skipped on that backend while it existed; they run unconditionally now that
+ * the React popover and `contextPad/ContextPad.tsx` are the only implementations.
  */
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
@@ -54,14 +54,14 @@ test.describe('App popup menus', () => {
     expect(bpmn).toContain('<bpmn2:serviceTask');
   });
 
-  test('the selection toolbar appends a successor and the sequence flow that reaches it', async ({ page }) => {
+  test('the context pad appends a successor and the sequence flow that reaches it', async ({ page }) => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
     await expect(page.getByTestId('inspector-root')).toContainText('Task');
 
-    const append = page.getByTestId('selection-append');
-    await expect(append).toBeEnabled();
+    const append = page.getByTestId('context-pad-append');
+    await expect(append).toBeVisible();
     await append.click();
     await expect(popup(page)).toBeVisible();
 
@@ -96,8 +96,14 @@ test.describe('App popup menus', () => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Events', 'End', { x: 300, y: 220 });
-    await expect(page.getByTestId('selection-toolbar')).toBeVisible();
-    await expect(page.getByTestId('selection-append')).toBeDisabled();
+    await expect(page.getByTestId('context-pad')).toBeVisible();
+    // The successor entries are gone entirely — the pad omits what the rules refuse,
+    // as diagram-js's does. What remains is delete/colour plus the annotation, which
+    // hangs off an end event by an association.
+    await expect(page.getByTestId('context-pad-append')).toHaveCount(0);
+    await expect(page.getByTestId('context-pad-append.end-event')).toHaveCount(0);
+    await expect(page.getByTestId('context-pad-append.text-annotation')).toBeVisible();
+    await expect(page.getByTestId('context-pad-delete')).toBeVisible();
   });
 
   test('the colour picker paints one element, and a whole multi-selection at once', async ({ page }) => {
@@ -106,7 +112,7 @@ test.describe('App popup menus', () => {
     await addPaletteElement(page, 'Activities', 'Task', { x: 260, y: 200 });
     await addPaletteElement(page, 'Activities', 'User', { x: 480, y: 200 });
 
-    await page.getByTestId('selection-color').click();
+    await page.getByTestId('context-pad-set-color').click();
     await expect(popup(page)).toBeVisible();
     await page.getByTestId('popup-menu-entry-blue-color').click();
     await expect(popup(page)).toHaveCount(0);
@@ -120,7 +126,7 @@ test.describe('App popup menus', () => {
     await page.locator('g[data-element-id^="Task_"]').first().click();
     await page.locator('g[data-element-id^="UserTask_"]').first().click({ modifiers: ['Shift'] });
 
-    await page.getByTestId('selection-color').click();
+    await page.getByTestId('context-pad-set-color').click();
     await page.getByTestId('popup-menu-entry-green-color').click();
     await expect(popup(page)).toHaveCount(0);
 

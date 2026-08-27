@@ -16,6 +16,15 @@ type DiagramAutoSave = 'off' | 'local';
 export type Settings = {
   diagramAutoSave: DiagramAutoSave;
   showGrid: boolean;
+  /**
+   * Whether a drag lands on the 10-unit grid. On by default, which is what bpmn-js
+   * does (parity spec addendum 7 — diagram-js's `GridSnapping` is installed and
+   * enabled), and separate from {@link Settings.showGrid}: the dots are a backdrop
+   * you may not want to look at, the snap is where the shape may come to rest.
+   * Element-alignment snapping is unaffected — it wins inside its own threshold
+   * either way.
+   */
+  snapToGrid: boolean;
   /** Moddle prefixes of extension schemas to load at boot. */
   enabledSchemas: string[];
 };
@@ -23,6 +32,7 @@ export type Settings = {
 const DEFAULT_SETTINGS: Settings = {
   diagramAutoSave: 'local',
   showGrid: true,
+  snapToGrid: true,
   enabledSchemas: [...SCHEMA_NAMES],
 };
 

@@ -21,32 +21,61 @@ export interface SvgIconDef {
 }
 
 /**
+ * A resolved glyph handed over as raw SVG **markup** — the shape an iconify body
+ * arrives in (`{ content, viewBox }`, `export/iconSource.ts`). Drawing it produces a
+ * real nested `<svg>`, which is what makes an exported document self-contained: the
+ * `foreignObject` + CSS-class form below only paints where the app's icon toolchain
+ * is loaded (parity addendum 6 §1).
+ */
+export interface InlineSvgIconDef {
+  viewBox: string;
+  content: string;
+}
+
+/**
  * A CSS-class icon: the app's own glyph pipeline (Tailwind 4 + iconify in the
  * modeler) resolves the class at paint time, so the canvas only has to mount a
- * `<div>` carrying it inside a `<foreignObject>`. The `data-icon-class` /
- * `data-icon-color` attributes are the contract the SVG exporter reads when it
- * substitutes real glyph paths for the class (`export/svgEmbedding.ts`).
+ * `<div>` carrying it inside a `<foreignObject>`.
+ *
+ * Since addendum 6 this is the **placeholder** form, not the export form: the app
+ * pre-resolves its classes to {@link InlineSvgIconDef} bodies and re-draws, so the
+ * `foreignObject` only survives for a glyph that has not arrived (or cannot). The
+ * `data-icon-class` / `data-icon-color` attributes stay because they are how a
+ * not-yet-resolved icon is still identifiable in the DOM.
  */
 export interface CssIconDef {
   cssClass: string;
 }
 
 /** What an {@link IconResolver} may return. */
-export type IconDef = SvgIconDef | CssIconDef;
+export type IconDef = SvgIconDef | CssIconDef | InlineSvgIconDef;
 
 /**
  * Injected icon source: given an icon key (a marker name such as `'loop'`, or a
  * BPMN type's local name such as `'UserTask'`) returns either inline SVG paths or
- * a CSS class to mount, or `undefined` to fall back to the placeholder. Kept out of
- * the canvas core so the app owns its icon pipeline.
+ * a CSS class to mount. Kept out of the canvas core so the app owns its icon
+ * pipeline.
+ *
+ * Two ways of answering "nothing", and they mean different things:
+ *
+ * - `undefined` — *I don't know this key.* Fall back to the placeholder box, which
+ *   is what makes a resolver-less canvas still show that a glyph belongs there.
+ * - `null` — *this key HAS no glyph.* Draw nothing at all. A `bpmn:SubProcess` or a
+ *   `bpmn:CallActivity` carries no top-left type icon in BPMN (its marker and its
+ *   border say what it is), and a placeholder box in that corner is not a
+ *   loading state — it is a permanent, exported lie.
  */
 export type IconResolver = (
   iconKey: string,
   businessObject?: ModdleObject,
-) => IconDef | undefined;
+) => IconDef | null | undefined;
 
 function isCssIcon(def: IconDef): def is CssIconDef {
   return typeof (def as CssIconDef).cssClass === 'string';
+}
+
+function isInlineIcon(def: IconDef): def is InlineSvgIconDef {
+  return typeof (def as InlineSvgIconDef).content === 'string';
 }
 
 /**
@@ -102,13 +131,56 @@ export function drawIcon(
 ): SVGElement | undefined {
   if (!iconKey) return undefined;
 
-  const resolved: IconDef | undefined = resolver?.(iconKey, businessObject) ?? SVG_ICON_PATHS[iconKey];
+  const answer = resolver?.(iconKey, businessObject);
+  // An explicit `null` is the resolver saying the key has no glyph — not a miss to
+  // be papered over with a placeholder, and not a reason to consult the bundled
+  // paths either.
+  if (answer === null) return undefined;
+
+  const resolved: IconDef | undefined = answer ?? SVG_ICON_PATHS[iconKey];
   if (resolved) {
-    return isCssIcon(resolved)
-      ? drawCssIcon(container, resolved.cssClass, x, y, size, color)
-      : drawSvgPaths(container, resolved, x, y, size, size, color);
+    if (isCssIcon(resolved)) return drawCssIcon(container, resolved.cssClass, x, y, size, color, iconKey);
+    if (isInlineIcon(resolved)) return drawInlineSvgIcon(container, resolved, x, y, size, color, iconKey);
+    return drawSvgPaths(container, resolved, x, y, size, size, color, iconKey);
   }
   return drawPlaceholder(container, iconKey, x, y, size, color);
+}
+
+/**
+ * Mount a resolved glyph as a real nested `<svg>` — the form the SVG exporter used
+ * to substitute for the `foreignObject` at export time (`embedIconsInSvg`), now drawn
+ * straight into the scene so an export needs no substitution at all.
+ *
+ * `currentColor` inside the body is rewritten to the element's colour, exactly as
+ * that exporter did, and `stroke="none"` on the wrapper keeps the glyph from
+ * inheriting the shape's outline (a body that strokes itself sets its own).
+ *
+ * `iconKey` is stamped as `data-icon-key` so a resolved glyph stays identifiable in
+ * the DOM — the identity the `foreignObject` form carries as `data-icon-class` and
+ * the placeholder carries as `data-icon-key`. Marker glyphs that differ only by a
+ * transform (`parallel` vs `sequential` share their path `d` and differ solely by a
+ * `rotate(90 …)` wrapper) are otherwise indistinguishable to a selector.
+ */
+export function drawInlineSvgIcon(
+  container: SVGElement,
+  def: InlineSvgIconDef,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  iconKey?: string,
+): SVGElement {
+  const svg = create('svg', {
+    x, y, width: size, height: size,
+    class: 'sf-icon',
+    viewBox: def.viewBox,
+    stroke: 'none',
+    color: color || null,
+    'data-icon-key': iconKey ?? null,
+  });
+  svg.innerHTML = color ? def.content.replace(/currentColor/g, color) : def.content;
+  append(container, svg);
+  return svg;
 }
 
 /**
@@ -123,11 +195,13 @@ export function drawCssIcon(
   y: number,
   size: number,
   color: string,
+  iconKey?: string,
 ): SVGElement {
   const foreignObject = create('foreignObject', {
     x, y, width: size, height: size,
     class: 'icon-container',
     color,
+    'data-icon-key': iconKey ?? null,
   });
   const div = createHtml('div');
   div.className = cssClass;
@@ -204,9 +278,10 @@ export function drawSvgPaths(
   width: number,
   height: number,
   fillColor: string,
+  iconKey?: string,
 ): SVGElement {
   const [, , vbW, vbH] = iconDef.viewBox.split(/\s+/).map(Number);
-  const g = create('g');
+  const g = create('g', { 'data-icon-key': iconKey ?? null });
   g.setAttribute('transform', `translate(${x}, ${y})`);
 
   const inner = create('g');

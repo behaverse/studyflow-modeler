@@ -30,6 +30,13 @@ export interface HitOptions {
   tolerance?: number;
   /** Padding (diagram units) grown around node bounds before the inside test. Default `0`. */
   nodePadding?: number;
+  /**
+   * Restrict what may be hit at all — an element the predicate rejects is invisible
+   * to the query and whatever lies under it takes the hit instead. This is how a
+   * drill-down PLANE scopes the editor (`Canvas.setPlaneScope`): the elements of
+   * another plane are neither drawn nor clickable. Default: everything is eligible.
+   */
+  accept?: (element: SceneElement) => boolean;
 }
 
 const DEFAULT_TOLERANCE = 5;
@@ -71,11 +78,13 @@ export function orderedEdges(scene: Scene): SceneEdge[] {
  */
 export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): SceneElement | undefined {
   const nodePadding = options.nodePadding ?? 0;
+  const accept = options.accept;
   const nodes = orderedNodes(scene);
   let container: SceneNode | undefined;
   // Reverse draw order → topmost first.
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
     const node = nodes[i];
+    if (accept && !accept(node)) continue;
     if (!pointInNode(point, node, nodePadding)) continue;
     if (!isContainerNode(node)) return node;
     // Remember the innermost/topmost frame, but keep looking for a leaf below it:
@@ -84,7 +93,7 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
     container ??= node;
   }
 
-  return nearestEdge(scene, point, options.tolerance ?? DEFAULT_TOLERANCE) ?? container;
+  return nearestEdge(scene, point, options.tolerance ?? DEFAULT_TOLERANCE, accept) ?? container;
 }
 
 /**
@@ -94,10 +103,16 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
  * names — the same affordance diagram-js gets from registering the label as its own
  * element. The box is {@link edgeLabelBounds}, shared with the drawer.
  */
-function nearestEdge(scene: Scene, point: Point, tolerance: number): SceneEdge | undefined {
+function nearestEdge(
+  scene: Scene,
+  point: Point,
+  tolerance: number,
+  accept?: (element: SceneElement) => boolean,
+): SceneEdge | undefined {
+  const edges = accept ? orderedEdges(scene).filter(accept) : orderedEdges(scene);
   let best: SceneEdge | undefined;
   let bestDist = tolerance;
-  for (const edge of orderedEdges(scene)) {
+  for (const edge of edges) {
     const d = distanceToPolyline(point, edge.waypoints);
     if (d <= bestDist) {
       bestDist = d;
@@ -105,7 +120,7 @@ function nearestEdge(scene: Scene, point: Point, tolerance: number): SceneEdge |
     }
   }
   if (best) return best;
-  for (const edge of orderedEdges(scene)) {
+  for (const edge of edges) {
     if (pointInEdgeLabel(point, edge)) return edge;
   }
   return undefined;

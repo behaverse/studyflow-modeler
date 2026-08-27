@@ -76,6 +76,10 @@ export class ExternalLabels {
     if (existing && existing.labelTarget === owner) {
       Object.assign(existing, bounds);
       existing.label = owner.label;
+      // The owner may have GAINED a `bpmndi:BPMNLabel` since the element was minted
+      // (a caption dragged for the first time, `Writeback.setLabelBounds`), so the
+      // backing DI is re-read rather than frozen at creation.
+      if (owner.label?.di) existing.di = owner.label.di;
       return existing;
     }
     const label: SceneNode = {

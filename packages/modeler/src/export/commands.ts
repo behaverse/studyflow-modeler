@@ -4,12 +4,11 @@ import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { exportToArtemis } from '@modeler/export/artemis';
 import { exportToDrawio } from '@modeler/export/drawio';
 import { DEFAULT_EMBED_OPTIONS, exportFilename, getExportFormat, type EmbedOptions, type ExportFormatId } from '@modeler/export/formats';
-import { remoteIconSource } from '@modeler/export/iconSource';
 import { exportToLinkML } from '@modeler/export/linkml';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { exportToNidm } from '@modeler/export/nidm';
 import { dataUrlToBytes, embedDrawioIntoPng, embedStudyflowIntoPng } from '@core/document/png';
-import { embedDrawioIntoSvg, embedIconsInSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
+import { embedDrawioIntoSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
 import { getEditorPort } from '@modeler/editor/registry';
@@ -27,12 +26,19 @@ async function toExportableXml(modeler: PortHandle): Promise<string> {
   return toWireXml(xml, editor.model.moddle());
 }
 
+/**
+ * The diagram as a self-contained SVG, plus its XML.
+ *
+ * No icon substitution pass: the renderer draws resolved glyphs as real `<svg>`
+ * bodies (`draw/iconCache.ts`, parity addendum 6 §2), so what the canvas serializes
+ * is already what the export carries.
+ */
 async function renderSvg(modeler: PortHandle): Promise<{ svg: string; xml: string }> {
   const editor = getEditorPort(modeler);
   const [{ svg }, compactXml] = await Promise.all([editor.saveSVG(), toExportableXml(modeler)]);
   const xml = await toStandardBpmnXml(compactXml, editor.model.moddle());
   const cleaned = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
-  return { svg: await embedIconsInSvg(cleaned, remoteIconSource), xml };
+  return { svg: cleaned, xml };
 }
 
 const ENCODERS: Record<ExportFormatId, (ctx: {

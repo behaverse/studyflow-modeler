@@ -86,13 +86,33 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
+/**
+ * A canvas with GRID snapping deliberately OFF.
+ *
+ * Grid snapping is on by default since parity spec addendum 7 (see
+ * `canvas-snapping.unit.spec.ts`, which is where the default belongs), and every
+ * test in this file is about something else: what a gesture writes to the DI, what
+ * survives a round trip, what a cancel restores. Rounding each of them to the
+ * nearest 10 would test the grid over and over and the write-through not at all —
+ * so the deltas here stay exact and the grid is asked for explicitly where it is
+ * the subject.
+ */
 async function load(
   xml: string,
   options: { snapToGrid?: boolean; gridSize?: number; minNodeSize?: number } = {},
 ): Promise<Loaded> {
   const moddle = freshModdle();
   const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas(options);
+  const canvas = new Canvas({ snapToGrid: false, ...options });
+  canvas.importDefinitions(definitions);
+  return { canvas, definitions, moddle };
+}
+
+/** A STOCK canvas — no options at all, so every default is the shipped one. */
+async function loadStock(xml: string): Promise<Loaded> {
+  const moddle = freshModdle();
+  const { rootElement: definitions } = await moddle.fromXML(xml);
+  const canvas = new Canvas();
   canvas.importDefinitions(definitions);
   return { canvas, definitions, moddle };
 }
@@ -237,7 +257,7 @@ test('move → save → reload: the moved shape carries the delta, untouched sha
   expect(boundsOf(reloaded, 'End_1')).toEqual({ x: 400, y: 100, width: 36, height: 36 });
 });
 
-test('move: connected edge endpoints follow the node, the far endpoints do not', async () => {
+test('move: a connected edge re-routes orthogonally; the far shape is not moved', async () => {
   const loaded = await load(FIXTURE_XML);
   const { canvas, definitions } = loaded;
   const task = node(canvas, 'Task_1');
@@ -247,16 +267,28 @@ test('move: connected edge endpoints follow the node, the far endpoints do not',
   const from = center(task);
   dragBy(canvas, from, { x: from.x + dx, y: from.y + dy });
 
-  // Flow_1 targets the task → its LAST waypoint moves; its first (on Start_1) does not.
-  expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 240, y: 95 }]);
-  expect(waypointsOf(definitions, 'Flow_1')).toEqual([{ x: 136, y: 118 }, { x: 240, y: 95 }]);
-  // Flow_2 sources from the task → its FIRST waypoint moves.
-  expect(edge(canvas, 'Flow_2').waypoints).toEqual([{ x: 340, y: 95 }, { x: 400, y: 118 }]);
-  expect(waypointsOf(definitions, 'Flow_2')).toEqual([{ x: 340, y: 95 }, { x: 400, y: 118 }]);
+  // Parity spec addendum 2 §3+§5: a move does not merely drag the docking point along
+  // — it re-lays the connection out, so the two flows come back as clean Z-jogs
+  // through the middle of the gap, cropped to both outlines. Every segment is
+  // axis-aligned, which is the whole reason for doing it.
+  const flow1 = edge(canvas, 'Flow_1').waypoints;
+  expect(flow1).toEqual([
+    { x: 136, y: 118 }, { x: 188, y: 118 }, { x: 188, y: 95 }, { x: 240, y: 95 },
+  ]);
+  expect(waypointsOf(definitions, 'Flow_1')).toEqual(flow1);
+  const flow2 = edge(canvas, 'Flow_2').waypoints;
+  expect(flow2).toEqual([
+    { x: 340, y: 95 }, { x: 370, y: 95 }, { x: 370, y: 118 }, { x: 400, y: 118 },
+  ]);
+  expect(waypointsOf(definitions, 'Flow_2')).toEqual(flow2);
+
+  // The shapes at the far ends stayed exactly where they were.
+  expect(boundsOf(definitions, 'Start_1')).toEqual({ x: 100, y: 100, width: 36, height: 36 });
+  expect(boundsOf(definitions, 'End_1')).toEqual({ x: 400, y: 100, width: 36, height: 36 });
 
   const { reloaded } = await roundTrip(loaded);
-  expect(waypointsOf(reloaded, 'Flow_1')).toEqual([{ x: 136, y: 118 }, { x: 240, y: 95 }]);
-  expect(waypointsOf(reloaded, 'Flow_2')).toEqual([{ x: 340, y: 95 }, { x: 400, y: 118 }]);
+  expect(waypointsOf(reloaded, 'Flow_1')).toEqual(flow1);
+  expect(waypointsOf(reloaded, 'Flow_2')).toEqual(flow2);
 });
 
 test('move: a multi-node selection moves together by one delta', async () => {
@@ -384,39 +416,48 @@ test('waypoint drag: updates edge.waypoints AND di.waypoint, and survives a roun
   click(canvas, { x: 350, y: 119 });
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Flow_2']);
 
-  // Grab waypoint 0 exactly where the overlay draws its handle.
+  // Grab waypoint 0 exactly where the overlay draws its handle. It is a TERMINAL
+  // waypoint dropped clear of every shape, so it free-moves — the tip lands on the
+  // pointer and the route reaches it through an elbow rather than diagonally
+  // (parity spec §1 + §4).
   dragBy(canvas, { x: 300, y: 120 }, { x: 320, y: 150 });
 
-  expect(flow.waypoints).toEqual([{ x: 320, y: 150 }, { x: 400, y: 118 }]);
+  const moved = [{ x: 320, y: 150 }, { x: 320, y: 118 }, { x: 400, y: 118 }];
+  expect(flow.waypoints).toEqual(moved);
   expect(flow.di).toBe(diEdge(definitions, 'Flow_2'));
-  expect(waypointsOf(definitions, 'Flow_2')).toEqual([{ x: 320, y: 150 }, { x: 400, y: 118 }]);
+  expect(waypointsOf(definitions, 'Flow_2')).toEqual(moved);
 
   const { xml, reloaded } = await roundTrip(loaded);
   expect(xml).toContain('<di:waypoint x="320" y="150" />');
-  expect(waypointsOf(reloaded, 'Flow_2')).toEqual([{ x: 320, y: 150 }, { x: 400, y: 118 }]);
+  expect(waypointsOf(reloaded, 'Flow_2')).toEqual(moved);
   // The untouched edge is unchanged.
   expect(waypointsOf(reloaded, 'Flow_1')).toEqual([{ x: 136, y: 118 }, { x: 200, y: 120 }]);
 });
 
 // --- snapping, events, cancel -------------------------------------------------
 
-test('grid snap: off by default, snaps edited coordinates when enabled', async () => {
+test('grid snap: ON by default (addendum 7), and turned off it leaves the delta exact', async () => {
+  const stock = await loadStock(FIXTURE_XML);
+  expect(stock.canvas.isSnapToGrid()).toBe(true);
+  const task = node(stock.canvas, 'Task_1');
+  const from = center(task);
+  // (+7, +23) keeps the shape's centre clear of every neighbour's, so ALIGNMENT
+  // snapping (which is always on — parity spec §7) does not claim either axis and
+  // the grid gets both.
+  dragBy(stock.canvas, from, { x: from.x + 7, y: from.y + 23 });
+  expect({ x: task.x, y: task.y }).toEqual({ x: 210, y: 100 });
+  expect(boundsOf(stock.definitions, 'Task_1')).toEqual({ x: 210, y: 100, width: 100, height: 80 });
+
   const plain = await load(FIXTURE_XML);
   expect(plain.canvas.isSnapToGrid()).toBe(false);
   const loose = node(plain.canvas, 'Task_1');
   const looseFrom = center(loose);
-  // (+7, +23) keeps the shape's centre clear of every neighbour's, so ALIGNMENT
-  // snapping (which is always on — parity spec §7) leaves the delta exact.
   dragBy(plain.canvas, looseFrom, { x: looseFrom.x + 7, y: looseFrom.y + 23 });
   expect({ x: loose.x, y: loose.y }).toEqual({ x: 207, y: 103 });
 
-  const snapped = await load(FIXTURE_XML, { snapToGrid: true });
-  expect(snapped.canvas.isSnapToGrid()).toBe(true);
-  const task = node(snapped.canvas, 'Task_1');
-  const from = center(task);
-  dragBy(snapped.canvas, from, { x: from.x + 7, y: from.y + 23 });
-  expect({ x: task.x, y: task.y }).toEqual({ x: 210, y: 100 });
-  expect(boundsOf(snapped.definitions, 'Task_1')).toEqual({ x: 210, y: 100, width: 100, height: 80 });
+  // …and the switch works on a live canvas, not just at construction.
+  plain.canvas.setSnapToGrid(true);
+  expect(plain.canvas.isSnapToGrid()).toBe(true);
 });
 
 test('a committed drag bumps scene.revision and fires element.changed', async () => {
@@ -963,11 +1004,14 @@ test('move: dragging a pool carries its lane and every shape inside it, in the s
     expect(n.y >= pool.y && n.y + n.height <= pool.y + pool.height, `${id} inside the pool`).toBe(true);
   }
 
-  // Both endpoints of the internal flow moved, so it translates whole; the message
-  // flow only re-docks the end that moved.
+  // Both endpoints of the internal flow moved, so it translates whole and keeps its
+  // shape; the message flow, with only one end travelling, is re-routed instead —
+  // out of the moved pool, through the middle of the vertical gap, into the other.
   expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 186, y: 168 }, { x: 250, y: 168 }]);
   expect(waypointsOf(definitions, 'Flow_1')).toEqual([{ x: 186, y: 168 }, { x: 250, y: 168 }]);
-  expect(waypointsOf(definitions, 'Msg_1')).toEqual([{ x: 300, y: 208 }, { x: 250, y: 440 }]);
+  expect(waypointsOf(definitions, 'Msg_1')).toEqual([
+    { x: 300, y: 208 }, { x: 300, y: 324 }, { x: 250, y: 324 }, { x: 250, y: 440 },
+  ]);
 
   // …and it all survives save → reload off the same tree.
   const { reloaded } = await roundTrip(loaded);
@@ -1053,14 +1097,17 @@ test('drag feedback: the moved element becomes the ghost and leaves a dimmed cop
   expect(frozen).not.toBeNull();
   expect(frozen.querySelectorAll('.sf-dragging').length).toBeGreaterThan(0);
   expect(frozen.querySelectorAll('[data-element-id]')).toHaveLength(0);
-  // Every attached connection is dimmed with it, so the ghost is the only blue.
-  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-dragger')).toBe(true);
+  // Every attached connection fades to gray — `sf-dragging-edge`, NOT `sf-dragger`
+  // — so the ghost is the only blue thing on screen (dnd/frame_05).
+  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-dragging-edge')).toBe(true);
+  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-dragger')).toBe(false);
   // The shape's own resize chips step aside while it is the one moving.
   expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers[data-overlay-for="Task_1"]'))
     .toHaveLength(0);
 
   firePointer(canvas, doc, 'pointerup', { x: from.x + 60, y: from.y + 40 });
   expect(canvas.getGraphics('Task_1')!.classList.contains('sf-dragger')).toBe(false);
+  expect(canvas.getGraphics('Flow_1')!.classList.contains('sf-dragging-edge')).toBe(false);
   expect(overlays(canvas).querySelector('.sf-drag-originals')).toBeNull();
   // The chips come back around the shape at its new home.
   expect(svg.querySelectorAll('[data-layer="selection"] .sf-resizers[data-overlay-for="Task_1"]'))
@@ -1210,34 +1257,55 @@ test('snap lines: both axes can take at once, and Escape leaves nothing behind',
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
 });
 
-test('snap lines: drawn only while grid snapping is on, and cleared with the gesture', async () => {
-  const { canvas } = await load(FIXTURE_XML);
+test('snap lines: a GRID landing draws none — the guides mean alignment and nothing else', async () => {
+  const { canvas } = await load(FIXTURE_XML, { snapToGrid: true });
   const task = node(canvas, 'Task_1');
   const svg = canvas.getSvg();
   const doc = svg.ownerDocument!;
   const from = center(task);
 
-  // Snapping is off by default, so a plain drag draws no guides at all.
   click(canvas, from);
   firePointer(canvas, svg, 'pointerdown', from);
   firePointer(canvas, doc, 'pointermove', { x: from.x + 33, y: from.y + 17 });
+
+  // The shape really did land on the grid…
+  expect({ x: task.x, y: task.y }).toEqual({ x: 230, y: 100 });
+  // …and drew no guide for it. A snap line is an ALIGNMENT with a neighbour (parity
+  // spec §7); the reference draws none for a grid landing, because the dot grid is
+  // already showing where the steps are.
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+
   firePointer(canvas, doc, 'pointerup', { x: from.x + 33, y: from.y + 17 });
-
-  canvas.setSnapToGrid(true);
-  const at = center(node(canvas, 'Task_1'));
-  click(canvas, at);
-  firePointer(canvas, svg, 'pointerdown', at);
-  firePointer(canvas, doc, 'pointermove', { x: at.x + 33, y: at.y + 17 });
-  const lines = overlays(canvas).querySelectorAll('.sf-snap-line');
-  expect(lines).toHaveLength(2);
-  // They pass through the snapped origin, which is where the shape actually landed.
-  const moved = node(canvas, 'Task_1');
-  expect(lines[0].getAttribute('x1')).toBe(String(moved.x));
-  expect(lines[1].getAttribute('y1')).toBe(String(moved.y));
-
-  firePointer(canvas, doc, 'pointerup', { x: at.x + 33, y: at.y + 17 });
   expect(overlays(canvas).querySelectorAll('.sf-snap-line')).toHaveLength(0);
+});
+
+test('drag: connected edges re-route on every frame, and are gray rather than blue', async () => {
+  const { canvas } = await load(FIXTURE_XML);
+  const task = node(canvas, 'Task_1');
+  const flow = edge(canvas, 'Flow_2');
+  const svg = canvas.getSvg();
+  const doc = svg.ownerDocument!;
+  const from = center(task);
+
+  expect(flow.waypoints, 'a straight two-point flow to start with').toHaveLength(2);
+
+  click(canvas, from);
+  firePointer(canvas, svg, 'pointerdown', from);
+  firePointer(canvas, doc, 'pointermove', { x: from.x, y: from.y + 60 });
+
+  // MID-GESTURE the elbow already exists: the connection is being laid out live, not
+  // frozen and re-drawn on drop (parity spec addendum 2 §3).
+  expect(flow.waypoints.length, 'the elbow forms while the shape is in flight')
+    .toBeGreaterThan(2);
+  for (let i = 1; i < flow.waypoints.length; i += 1) {
+    const a = flow.waypoints[i - 1];
+    const b = flow.waypoints[i];
+    expect(a.x === b.x || a.y === b.y, `segment ${i} is axis-aligned`).toBe(true);
+  }
+  expect(canvas.getGraphics('Flow_2')!.classList.contains('sf-dragging-edge')).toBe(true);
+
+  firePointer(canvas, doc, 'pointerup', { x: from.x, y: from.y + 60 });
+  expect(canvas.getGraphics('Flow_2')!.classList.contains('sf-dragging-edge')).toBe(false);
 });
 
 test('lasso: the rect and the root class the secondary outline colour keys off', async () => {

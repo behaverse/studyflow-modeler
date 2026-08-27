@@ -23,6 +23,7 @@
  */
 
 import type {
+  Plane,
   Point,
   Scene,
   SceneEdge,
@@ -30,9 +31,11 @@ import type {
   SceneNode,
 } from '@canvas/model/scene.ts';
 import type { Writeback } from '@canvas/model/writeback.ts';
-import { route, type RouteOptions } from '@canvas/routing/orthogonal.ts';
+import { routableEnd, routeFor, type RouteOptions } from '@canvas/routing/orthogonal.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
-import type { ConnectionSpec, Rules } from '@canvas/rules/rules.ts';
+import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/rules/rules.ts';
+import { markerEndFor, roundedPathData } from '@canvas/render/renderer.ts';
+import { freeMoveEnd, redockEnd } from '@canvas/interaction/segments.ts';
 import { append, attr, create as svgCreate, remove } from '@canvas/render/svg.ts';
 
 /** Which end of an existing connection a reconnect gesture is dragging. */
@@ -54,6 +57,20 @@ export interface ConnectOptions {
   getScale: () => number;
   /** Router tuning forwarded to `routing/orthogonal.ts` `route`. */
   routeOptions?: RouteOptions;
+  /**
+   * The plane a new `bpmndi:BPMNEdge` is filed in — the one on screen, which is the
+   * root plane until a drill-down moves the cursor (`view/plane.ts`). `undefined`
+   * leaves it to {@link Writeback}, which defaults to the root plane.
+   */
+  getPlane?: () => Plane | undefined;
+  /**
+   * Tint the shape under the pointer: `allowed` when the drop would mint (or
+   * re-dock) a flow there, refused otherwise, and `undefined` for "nothing is
+   * hovered". Addendum 4 §2 — `edge-videos/edgemake/frame_02` fills the target
+   * light-gray for as long as the drag hangs over it, which is the only thing that
+   * tells the user the drop will take before they let go.
+   */
+  markTarget?: (target: SceneNode | undefined, allowed: boolean) => void;
 }
 
 interface ConnectState {
@@ -128,14 +145,24 @@ export class Connect {
       const spec = hovered ? this.options.rules.canConnect(state.source, hovered) : false;
       state.target = spec ? hovered : undefined;
       state.spec = spec || undefined;
-      this.drawPreview(this.connectPreviewPoints(state), !!spec);
+      this.options.markTarget?.(hovered, !!spec);
+      this.drawPreview(
+        this.connectPreviewPoints(state),
+        spec ? 'ok' : hovered ? 'rejected' : 'pending',
+        spec ? spec.type : undefined,
+      );
       return;
     }
 
-    const allowed = !!(hovered && this.reconnectVerdict(state.edge, state.end, hovered));
-    state.candidate = allowed ? hovered : undefined;
-    state.allowed = allowed;
-    this.drawPreview(this.reconnectPreviewPoints(state), allowed);
+    const verdict = hovered ? this.reconnectVerdict(state.edge, state.end, hovered) : false;
+    state.candidate = verdict ? hovered : undefined;
+    state.allowed = !!verdict;
+    this.options.markTarget?.(hovered, !!verdict);
+    this.drawPreview(
+      this.reconnectPreviewPoints(state),
+      verdict ? 'ok' : hovered ? 'rejected' : 'pending',
+      state.edge.type,
+    );
   }
 
   /**
@@ -154,7 +181,11 @@ export class Connect {
       return state.target ? this.connect(state.source, state.target) : undefined;
     }
     if (!state.candidate) return undefined;
-    return this.reconnect(state.edge, state.end, state.candidate) ? state.edge : undefined;
+    // The drop POINT is carried through: a reconnect docks on the side of the target
+    // the user let go over, not on the side the router would have picked.
+    return this.reconnect(state.edge, state.end, state.candidate, state.point)
+      ? state.edge
+      : undefined;
   }
 
   /** Abandon the gesture. Nothing was written. */
@@ -167,17 +198,23 @@ export class Connect {
    * Create a connection from `source` to `target` without a pointer gesture (the
    * context-pad / append path, and what tests drive). Returns `undefined` when the
    * rules refuse the pair.
+   *
+   * `source` may be a CONNECTION, for the one pair BPMN allows there and ux-spec §4
+   * offers: the association reaching a text annotation appended from a selected
+   * sequence flow. It routes from the middle of that flow ({@link routableEnd}).
    */
-  connect(source: SceneNode, target: SceneNode): SceneEdge | undefined {
+  connect(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined {
     const writeback = this.options.getWriteback();
     if (!writeback) return undefined;
     const spec = this.options.rules.canConnect(source, target);
     if (!spec) return undefined;
+    const plane = this.options.getPlane?.();
     return writeback.addConnection({
       type: spec.type,
       source,
       target,
-      waypoints: route(source, target, this.options.routeOptions),
+      waypoints: routeFor(spec.type, routableEnd(source), target, this.options.routeOptions),
+      ...(plane ? { plane } : {}),
     });
   }
 
@@ -185,15 +222,28 @@ export class Connect {
    * Move the `end` endpoint of `edge` onto `node`: rewrite `sourceRef`/`targetRef`
    * (and the endpoints' `outgoing`/`incoming`), then re-route. Returns whether the
    * rules allowed it.
+   *
+   * `at` — where the endpoint was actually dropped — re-docks the moved end to the
+   * NEAREST SIDE of `node` and crops it to the outline (parity spec §1/§4), instead
+   * of leaving it wherever the centre-anchored router happened to put it. Omitting
+   * it (the programmatic path, `Canvas.reconnectElement`) keeps the plain re-route.
    */
-  reconnect(edge: SceneEdge, end: ConnectionEnd, node: SceneNode): boolean {
+  reconnect(edge: SceneEdge, end: ConnectionEnd, node: SceneNode, at?: Point): boolean {
     const writeback = this.options.getWriteback();
     if (!writeback) return false;
     if (!this.reconnectVerdict(edge, end, node)) return false;
 
     const source = end === 'source' ? node : edge.source;
     const target = end === 'target' ? node : edge.target;
-    const waypoints = source && target ? route(source, target, this.options.routeOptions) : undefined;
+    let waypoints = source && target
+      ? routeFor(edge.type, source, target, this.options.routeOptions)
+      : undefined;
+    if (waypoints && at) {
+      waypoints = redockEnd(waypoints, end, node, at, {
+        ...(source ? { source } : {}),
+        ...(target ? { target } : {}),
+      });
+    }
     writeback.reconnect(edge, end === 'source' ? { source: node } : { target: node }, waypoints);
     return true;
   }
@@ -219,44 +269,98 @@ export class Connect {
 
   /** Preview polyline for a new connection: routed when over a target, else a rubber band. */
   private connectPreviewPoints(state: ConnectState): Point[] {
-    if (state.target) return route(state.source, state.target, this.options.routeOptions);
+    if (state.target) {
+      return routeFor(state.spec?.type, state.source, state.target, this.options.routeOptions);
+    }
     return [cropPoint(state.source, state.point), state.point];
   }
 
-  /** Preview polyline for a reconnect: the edge with the dragged endpoint moved. */
+  /**
+   * Preview polyline for a reconnect: the edge with the dragged endpoint moved.
+   *
+   * Over no candidate the drop would be the free endpoint move, so the preview is
+   * exactly what that move would commit — {@link freeMoveEnd}, elbow and all —
+   * rather than a diagonal rubber band that would snap square on release.
+   */
   private reconnectPreviewPoints(state: ReconnectState): Point[] {
     const { edge, end, candidate } = state;
     const source = end === 'source' ? candidate ?? edge.source : edge.source;
     const target = end === 'target' ? candidate ?? edge.target : edge.target;
-    if (candidate && source && target) return route(source, target, this.options.routeOptions);
-    const points = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
-    points[end === 'source' ? 0 : points.length - 1] = { ...state.point };
-    return points;
+    if (candidate && source && target) {
+      return routeFor(edge.type, source, target, this.options.routeOptions);
+    }
+    return freeMoveEnd(edge.waypoints, end, state.point);
   }
 
-  private drawPreview(points: readonly Point[], allowed: boolean): void {
+  /**
+   * Paint the live preview. Three states, which is what the reference recording
+   * shows (`edge-videos/v2/frame_02` vs `frame_05`, addendum 4 §2):
+   *
+   * - `pending` — over empty space: a BLUE dashed rubber band, no arrowhead. The
+   *   gesture is fine, it just has nowhere to land yet.
+   * - `ok` — over a shape the rules accept: the routed path, SOLID blue with the
+   *   arrowhead of the flow that would be minted — the edge, previewed.
+   * - `rejected` — over a shape the rules refuse: red, and still dashed.
+   *
+   * `type` is the connection type the drop would produce, and only decides which
+   * arrowhead marker the `ok` state wears — none at all for the one flow BPMN draws
+   * without one ({@link markerEndFor}).
+   *
+   * The COLOURS are not set here: the status is published on the wrapper and
+   * `view/theme.ts` paints from it, so the preview blue is the same
+   * `--sf-element-dragger-color` token as every other piece of drag chrome (parity
+   * spec §5 — rgb(0,149,255)) rather than a second hard-coded blue.
+   */
+  private drawPreview(
+    points: readonly Point[],
+    status: 'pending' | 'ok' | 'rejected',
+    type?: string,
+  ): void {
     if (points.length < 2) return;
     const scale = this.scale();
     if (!this.preview) {
       this.preview = svgCreate('g', { class: 'sf-connect-preview' }) as SVGGElement;
-      append(this.preview, svgCreate('polyline', { class: 'sf-connect-preview-line' }));
+      append(this.preview, svgCreate('path', { class: 'sf-connect-preview-line' }));
       append(this.options.layer, this.preview);
     }
-    this.preview.setAttribute('data-allowed', String(allowed));
-    const line = this.preview.firstElementChild as SVGPolylineElement | null;
+    this.preview.setAttribute('data-allowed', String(status === 'ok'));
+    this.preview.setAttribute('data-status', status);
+    // The no-drop cursor of the reference (`edge-videos/v2/frame_02`) is a state of
+    // the whole canvas, not of the ghost line: it has to show wherever the pointer
+    // is, including over the shape that is refusing the drop.
+    this.setRootStatus(status);
+    const line = this.preview.firstElementChild as SVGPathElement | null;
     if (!line) return;
     attr(line, {
-      points: points.map((p) => `${p.x},${p.y}`).join(' '),
+      // Rounded bends, exactly as the committed edge would be drawn.
+      d: roundedPathData(points),
+      'data-waypoints': points.map((p) => `${p.x},${p.y}`).join(' '),
       fill: 'none',
-      stroke: allowed ? '#1a73e8' : '#d93025',
       'stroke-width': 1.5 / scale,
-      'stroke-dasharray': `${4 / scale},${3 / scale}`,
+      'stroke-dasharray': status === 'ok' ? null : `${4 / scale},${3 / scale}`,
+      'marker-end': status === 'ok' ? markerEndFor(type ?? CONNECTION.sequenceFlow) : null,
     });
   }
 
   private clearPreview(): void {
     remove(this.preview);
     this.preview = undefined;
+    this.setRootStatus(undefined);
+    // The tint goes with the ghost: a gesture that ended over a shape must not leave
+    // it filled as though a drop were still pending there.
+    this.options.markTarget?.(undefined, false);
+  }
+
+  /**
+   * Publish the gesture's verdict on the canvas root (`data-connect-status`), which
+   * is where `view/theme.ts` hangs the ∅ cursor: a drop that would be refused — and
+   * a drag that has nowhere to land yet — says so under the pointer.
+   */
+  private setRootStatus(status?: 'pending' | 'ok' | 'rejected'): void {
+    const root = this.options.layer.ownerSVGElement;
+    if (!root) return;
+    if (status) root.setAttribute('data-connect-status', status);
+    else root.removeAttribute('data-connect-status');
   }
 
   private scale(): number {

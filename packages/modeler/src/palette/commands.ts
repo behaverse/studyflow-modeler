@@ -1,3 +1,4 @@
+import { isExpandable } from '@canvas/index.ts';
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
 import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
@@ -45,6 +46,13 @@ export function runPaletteStartCreate(modeler: PortHandle, command: PaletteStart
   const shape = editor.gestures.createShape({
     type: command.bpmnType,
     businessObject: bo,
+    // A container dropped from the palette is born COLLAPSED — a 100×80 activity box
+    // wearing the ⊞ marker and a drill-down badge, whose contents live in a nested
+    // plane the create path mints alongside it (`Writeback.addNestedPlane`).
+    // Without the explicit flag a `BPMNShape` that omits `isExpanded` reads as
+    // expanded, and the drop produced a bare rectangle with no marker, no badge and
+    // no way to author anything inside it.
+    ...(isExpandable(command.bpmnType) ? { isExpanded: false } : {}),
   });
 
   editor.gestures.startCreate(command.event, shape);

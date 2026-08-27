@@ -121,21 +121,35 @@ for (const filename of files) {
       });
     }
 
-    // (c) One polyline per BPMNEdge, through its di:waypoint list.
-    const polylines = root.querySelectorAll('polyline');
-    expect(polylines.length, `${filename}: one <polyline> per BPMNEdge`).toBe(
+    // (c) One line per BPMNEdge, through its di:waypoint list.
+    //
+    // A `<path>`, not the `<polyline>` this asserted through P5: diagram-js draws
+    // connections with ROUNDED corner bends, so the parity round cut arcs into the
+    // corners (`render/renderer.ts drawEdge`, edge-videos `edgemake/frame_02`). The
+    // waypoint list itself is unchanged — it is kept verbatim in `data-waypoints`,
+    // which is what this compares, so the DI-mirrors-the-drawing contract is exactly
+    // as strict as it was.
+    const lines = root.querySelectorAll('path.sf-connection-line');
+    expect(lines.length, `${filename}: one connection <path> per BPMNEdge`).toBe(
       edges.length,
     );
     for (const di of edges) {
       const id = di.bpmnElement?.id as string;
       const g = canvas.getGraphics(id);
       expect(g, `${filename}: edge ${id} has a rendered group`).toBeTruthy();
-      const line = g!.querySelector('polyline');
-      expect(line, `${filename}: edge ${id} draws a polyline`).toBeTruthy();
+      const line = g!.querySelector('path.sf-connection-line');
+      expect(line, `${filename}: edge ${id} draws a connection path`).toBeTruthy();
       const expected = (di.waypoint ?? [])
         .map((wp: any) => `${wp.x},${wp.y}`)
         .join(' ');
-      expect(line!.getAttribute('points')).toBe(expected);
+      expect(line!.getAttribute('data-waypoints')).toBe(expected);
+      // The drawn geometry still STARTS at the first waypoint, whatever the
+      // corners in between do (arcs are cut out of a corner, never added around it).
+      const first = (di.waypoint ?? [])[0];
+      const at = (value: number): number => Math.round(value * 1000) / 1000;
+      expect(line!.getAttribute('d')).toMatch(
+        new RegExp(`^M ${at(first.x)} ${at(first.y)}\\b`),
+      );
     }
 
     // (d) Golden snapshot of the serialized SVG.

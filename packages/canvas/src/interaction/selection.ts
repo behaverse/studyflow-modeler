@@ -26,9 +26,17 @@
  */
 
 import type { EventBus } from '@canvas/events/bus.ts';
-import type { Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import { ensureOutline } from '@canvas/render/outline.ts';
+import { isLabelElement } from '@canvas/model/externalLabel.ts';
+import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import { ensureOutline, OUTLINE_OFFSET } from '@canvas/render/outline.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
+import {
+  isGrippable,
+  segmentAt as segmentOfPath,
+  segmentsOf,
+  SEGMENT_GRIP_LENGTH,
+  SEGMENT_GRIP_WIDTH,
+} from '@canvas/interaction/segments.ts';
 
 /** The eight resize-handle anchors, in `data-handle` naming. */
 export const RESIZE_HANDLES = ['nw', 'ne', 'se', 'sw', 'n', 'e', 's', 'w'] as const;
@@ -113,6 +121,40 @@ export interface WaypointHit {
   edge: SceneEdge;
   index: number;
 }
+
+/** A straight run of a connection grabbed by its move grip (or by its body). */
+export interface SegmentHit {
+  edge: SceneEdge;
+  /** Index of the run's FIRST waypoint (`interaction/segments.ts`). */
+  index: number;
+}
+
+/**
+ * The segment grip's glyph, re-measured off `edge-videos/v2/frame_10` pixel by
+ * pixel (the frame is a 2x capture; the grip beside the vertical run under
+ * "Announce readiness" draws each triangle ~16px wide and ~14px tall with an ~8px
+ * channel between them, i.e. 8 x 7 units with a 4-unit gap).
+ *
+ * The gap is the load-bearing number. An earlier revision used reach 5 / gap 1,
+ * which leaves only two units of white between the two bases: at 100% zoom that
+ * channel closes and the pair reads as one solid diamond, which says "drag me
+ * anywhere" rather than "this run slides across". `REACH` is how far a tip sits
+ * from the run, `GAP` where its base starts, so a triangle is `REACH - GAP` long
+ * and `2 * BASE` across its base.
+ */
+const GRIP_TRIANGLE_REACH = 8;
+const GRIP_TRIANGLE_BASE = 3.5;
+/** Gap between the run and the base of each triangle — half the channel between them. */
+const GRIP_TRIANGLE_GAP = 3;
+
+/**
+ * Edge of the blue chip drawn at each corner and side midpoint of a SELECTED
+ * label's outline (`edge-videos/labels/frame_08`). The same 8 units as a resize
+ * chip — it is visibly the same widget — but these are INERT: a label is not
+ * resizable (there is no label-resize mutation to write back), so they carry no
+ * `data-handle` and {@link Selection.handleAt} can never report one.
+ */
+const LABEL_CHIP_SIZE = 8;
 
 /** The selection set plus its on-canvas chrome and marker toggling. */
 export class Selection {
@@ -346,7 +388,44 @@ export class Selection {
     return undefined;
   }
 
+  /**
+   * The straight RUN of a connection under a diagram-space `point`, or `undefined`
+   * — the segment-move gesture of parity spec §2/§3. Offered for the same
+   * connections the bendpoints are (a single selected one, or the hovered one) and
+   * mirroring exactly what {@link Selection.drawOverlay} draws: the grip box first,
+   * then the run's own body, which is how a bend is ADDED to an edge that has none.
+   *
+   * Bendpoints win over runs — {@link Canvas} asks {@link Selection.waypointAt}
+   * first — so a grab near a joint moves the joint, never the line through it.
+   *
+   * `gripsOnly` narrows the query to the drawn grip boxes, dropping the run's body.
+   * A press that landed on a SHAPE passes it: chrome the user can see wins over the
+   * shape under it, but a connection merely crossing a pool must not quietly steal
+   * every press that lands within five units of it.
+   */
+  segmentAt(point: Point, options: { gripsOnly?: boolean } = {}): SegmentHit | undefined {
+    for (const edge of this.edgesWithChrome()) {
+      const segment = segmentOfPath(edge.waypoints, point, options);
+      if (segment) return { edge, index: segment.index };
+    }
+    return undefined;
+  }
+
   // --- internals ------------------------------------------------------------
+
+  /**
+   * The connections currently wearing edge chrome (bendpoints and segment grips):
+   * a lone selected one, plus the hovered one. A multi-selection has none, as in
+   * diagram-js — the gestures they offer only make sense one connection at a time.
+   */
+  private edgesWithChrome(): SceneEdge[] {
+    if (this.selected.length > 1) return [];
+    const out: SceneEdge[] = [];
+    for (const el of this.selected) if (el.kind === 'edge') out.push(el);
+    const hovered = this.hovered;
+    if (hovered && !this.isSelected(hovered)) out.push(hovered);
+    return out;
+  }
 
   /**
    * Whether `id`'s resize chips are currently suppressed — it is the element a
@@ -392,14 +471,84 @@ export class Selection {
     clear(this.layer);
     const multi = this.selected.length > 1;
     for (const el of this.selected) {
-      if (el.kind === 'node') this.drawResizers(el);
+      // A caption is its own element, and its chrome is its own too: inert chips
+      // plus the dashed leader that says which element it names (addendum 3 §3).
+      if (isLabelElement(el)) this.drawLabelChrome(el as SceneNode);
+      else if (el.kind === 'node') this.drawResizers(el);
       // Bendpoints are force-hidden under a multi-selection, as in diagram-js: the
       // gesture they offer only makes sense for one connection at a time.
-      else if (!multi) this.drawBendpoints(el);
+      else if (!multi) this.drawEdgeChrome(el);
     }
-    // Hovering a connection reveals the same bendpoints without selecting it.
+    // Hovering a connection reveals the same chrome without selecting it.
     const hovered = this.hovered;
-    if (hovered && !multi && !this.isSelected(hovered)) this.drawBendpoints(hovered);
+    if (hovered && !multi && !this.isSelected(hovered)) this.drawEdgeChrome(hovered);
+  }
+
+  /**
+   * A selected caption's whole overlay (parity spec addendum 3 §3,
+   * `edge-videos/labels/frame_08`): a dashed blue LEADER back to the element it
+   * names, and eight blue chips around its outline.
+   *
+   * The leader is what the user's callout was about — a label dragged clear of its
+   * flow otherwise reads as a free-floating annotation. It is drawn even while the
+   * caption is being dragged (that is when the association is hardest to see);
+   * the chips step aside for the gesture like every other handle.
+   */
+  private drawLabelChrome(label: SceneNode): void {
+    this.drawLabelLeader(label);
+    if (this.handlesSuppressed(label.id)) return;
+    this.drawLabelChips(label);
+  }
+
+  /** The dashed line from a caption's nearest side to the element it names. */
+  private drawLabelLeader(label: SceneNode): void {
+    const owner = label.labelTarget;
+    if (!owner) return;
+    const box = labelOutlineBox(label);
+    const target = closestPointOn(owner, centreOf(box));
+    if (!target || contains(box, target)) return;
+    const from = nearestSideMidpoint(box, target);
+    const g = create('g', { class: 'sf-label-leaders', 'data-overlay-for': label.id }) as SVGGElement;
+    append(g, create('line', {
+      class: 'sf-label-leader',
+      'data-label-owner': owner.id,
+      x1: from.x,
+      y1: from.y,
+      x2: target.x,
+      y2: target.y,
+    }));
+    append(this.layer, g);
+  }
+
+  /**
+   * The eight chips of `edge-videos/labels/frame_08`. Decoration ONLY — see
+   * {@link LABEL_CHIP_SIZE}: no `data-handle`, so no gesture can start on them.
+   */
+  private drawLabelChips(label: SceneNode): void {
+    const box = labelOutlineBox(label);
+    const g = create('g', { class: 'sf-label-chips', 'data-overlay-for': label.id }) as SVGGElement;
+    for (const anchor of RESIZE_HANDLES) {
+      const x = anchor.includes('w')
+        ? box.x
+        : anchor.includes('e') ? box.x + box.width : box.x + box.width / 2;
+      const y = anchor.includes('n')
+        ? box.y
+        : anchor.includes('s') ? box.y + box.height : box.y + box.height / 2;
+      append(g, create('rect', {
+        class: `sf-label-chip sf-label-chip-${anchor}`,
+        x: x - LABEL_CHIP_SIZE / 2,
+        y: y - LABEL_CHIP_SIZE / 2,
+        width: LABEL_CHIP_SIZE,
+        height: LABEL_CHIP_SIZE,
+      }));
+    }
+    append(this.layer, g);
+  }
+
+  /** A connection's whole overlay: a dot per waypoint, a grip per straight run. */
+  private drawEdgeChrome(edge: SceneEdge): void {
+    this.drawBendpoints(edge);
+    this.drawSegmentGrips(edge);
   }
 
   /** The eight resize chips on a node's own bounds, if it may be resized. */
@@ -454,6 +603,147 @@ export class Selection {
     });
     append(this.layer, g);
   }
+
+  /**
+   * One move grip per straight run — the affordance parity spec §2 calls "the big
+   * missing piece". A horizontal run carries the `ns` grip (it travels up/down), a
+   * vertical one the `ew` grip, which is the pairing `edge-videos/v2/frame_10`
+   * shows: `◄ ►` sitting on the vertical segment below the source task.
+   *
+   * The glyph is a pair of solid DARK triangles pointing apart — the one piece of
+   * edge chrome that is not diagram-js blue — over an invisible 20x14 hit box, the
+   * same box {@link Selection.segmentAt} tests against.
+   */
+  private drawSegmentGrips(edge: SceneEdge): void {
+    const grips = segmentsOf(edge.waypoints).filter(isGrippable);
+    if (grips.length === 0) return;
+    // Decoration, not the edge — see `drawResizers` on `data-overlay-for`.
+    const g = create('g', { class: 'sf-segment-grips', 'data-overlay-for': edge.id }) as SVGGElement;
+    for (const segment of grips) {
+      const direction = segment.axis === 'h' ? 'ns' : 'ew';
+      const grip = create('g', {
+        class: `sf-segment-grip sf-segment-grip-${direction}`,
+        'data-segment': segment.index,
+        transform: `translate(${segment.mid.x}, ${segment.mid.y})`,
+      }) as SVGGElement;
+      append(grip, create('path', {
+        class: 'sf-segment-grip-visual',
+        d: gripGlyph(direction),
+      }));
+      append(grip, create('rect', {
+        class: 'sf-segment-grip-hit',
+        x: -(segment.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH) / 2,
+        y: -(segment.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH) / 2,
+        width: segment.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH,
+        height: segment.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH,
+      }));
+      append(g, grip);
+    }
+    append(this.layer, g);
+  }
+}
+
+/**
+ * The double-triangle glyph of a segment grip, in the grip's own frame: `▲▼` for a
+ * run that may travel up and down, `◄►` for one that may travel left and right.
+ */
+function gripGlyph(direction: 'ns' | 'ew'): string {
+  const reach = GRIP_TRIANGLE_REACH;
+  const base = GRIP_TRIANGLE_BASE;
+  const gap = GRIP_TRIANGLE_GAP;
+  if (direction === 'ns') {
+    return `M 0 ${-reach} L ${-base} ${-gap} L ${base} ${-gap} Z`
+      + ` M 0 ${reach} L ${-base} ${gap} L ${base} ${gap} Z`;
+  }
+  return `M ${-reach} 0 L ${-gap} ${-base} L ${-gap} ${base} Z`
+    + ` M ${reach} 0 L ${gap} ${-base} L ${gap} ${base} Z`;
+}
+
+// --- label chrome geometry (pure; asserted directly by the unit tests) -------
+
+/**
+ * The box a caption's chrome hangs off: its text box grown by the same
+ * {@link OUTLINE_OFFSET} its selection outline uses, so the chips sit ON the outline
+ * and the leader starts where the user sees the box end, not where the glyphs do.
+ */
+export function labelOutlineBox(label: SceneNode): Bounds {
+  return {
+    x: label.x - OUTLINE_OFFSET,
+    y: label.y - OUTLINE_OFFSET,
+    width: label.width + OUTLINE_OFFSET * 2,
+    height: label.height + OUTLINE_OFFSET * 2,
+  };
+}
+
+function centreOf(box: Bounds): Point {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+function contains(box: Bounds, point: Point): boolean {
+  return point.x >= box.x && point.x <= box.x + box.width
+    && point.y >= box.y && point.y <= box.y + box.height;
+}
+
+/**
+ * The point of `owner` nearest `from` — a point on the polyline for a connection,
+ * a point on the bounds rectangle for a shape. This is where a caption's leader
+ * lands: on the line it names, at its closest approach.
+ */
+export function closestPointOn(owner: SceneElement, from: Point): Point | undefined {
+  if (owner.kind === 'edge') {
+    const points = owner.waypoints;
+    if (points.length === 0) return undefined;
+    let best = points[0];
+    let bestDistance = Infinity;
+    for (let i = 0; i + 1 < points.length; i += 1) {
+      const candidate = closestPointOnSegment(points[i], points[i + 1], from);
+      const distance = Math.hypot(candidate.x - from.x, candidate.y - from.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = candidate;
+      }
+    }
+    return { x: best.x, y: best.y };
+  }
+  if (owner.kind !== 'node') return undefined;
+  return {
+    x: Math.min(Math.max(from.x, owner.x), owner.x + owner.width),
+    y: Math.min(Math.max(from.y, owner.y), owner.y + owner.height),
+  };
+}
+
+/** The point of segment `a`→`b` nearest `p` (clamped to the segment). */
+function closestPointOnSegment(a: Point, b: Point, p: Point): Point {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return { x: a.x, y: a.y };
+  const t = Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSquared));
+  return { x: a.x + t * dx, y: a.y + t * dy };
+}
+
+/**
+ * The midpoint of whichever side of `box` faces `target` — the leader leaves the
+ * caption from its bottom edge when the flow runs below it (`labels/frame_08`),
+ * from its left edge when the flow is off to the left, and so on.
+ */
+export function nearestSideMidpoint(box: Bounds, target: Point): Point {
+  const sides: Point[] = [
+    { x: box.x + box.width / 2, y: box.y },
+    { x: box.x + box.width / 2, y: box.y + box.height },
+    { x: box.x, y: box.y + box.height / 2 },
+    { x: box.x + box.width, y: box.y + box.height / 2 },
+  ];
+  let best = sides[0];
+  let bestDistance = Infinity;
+  for (const side of sides) {
+    const distance = Math.hypot(side.x - target.x, side.y - target.y);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = side;
+    }
+  }
+  return best;
 }
 
 /** Whether a marker class changes which handles the overlay is allowed to draw. */
