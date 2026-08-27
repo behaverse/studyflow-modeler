@@ -114,6 +114,36 @@ test('a choreography task adds the app\'s swap-initiator entry, last', () => {
   expect(actions).toContain('append.end-event');
 });
 
+test('an expandable container adds the toggle and the drill-down, last and together', () => {
+  // The canvas has exactly two container gestures — a double click that toggles and a
+  // 20-unit badge that opens — and neither is discoverable or keyboard-reachable. The
+  // pad names both. They are gated on ONE flag, so no expandable subclass can end up
+  // with the toggle and not the trip, which is the split the report was about.
+  const actions = actionsOf(context({
+    canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true,
+  }));
+
+  expect(actions.slice(-2)).toEqual(['expand.toggle', 'drilldown.enter']);
+  // The reference's own six keep the two rows they wrap into.
+  expect(actions.slice(0, 6)).toEqual([
+    'append.end-event', 'append.text-annotation', 'append', 'replace', 'delete', 'set-color',
+  ]);
+
+  // A plain task offers neither.
+  expect(actionsOf(context({ canAppend: true }))).not.toContain('expand.toggle');
+  expect(actionsOf(context({ canAppend: true }))).not.toContain('drilldown.enter');
+  // Nor does a multi-selection: both act on one element.
+  expect(actionsOf(context({ count: 2, isExpandable: true }))).not.toContain('expand.toggle');
+});
+
+test('the toggle entry says which way it will go', () => {
+  const titleOf = (ctx: ContextPadContext): string | undefined =>
+    contextPadEntries(ctx).find((entry) => entry.action === 'expand.toggle')?.title;
+
+  expect(titleOf(context({ isExpandable: true, isExpanded: false }))).toBe('Expand');
+  expect(titleOf(context({ isExpandable: true, isExpanded: true }))).toBe('Collapse');
+});
+
 test('a multi-selection of choreography tasks offers no swap, because the swap acts on one', () => {
   expect(actionsOf(context({ count: 3, isChoreographyTask: true }))).not.toContain(
     'choreography.swap-initiator',

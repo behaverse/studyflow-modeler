@@ -20,11 +20,16 @@
  * (`interaction/hit.ts`), so there is no second source of truth to keep in sync and
  * a collapse **never** touches a descendant's document state.
  *
- * Deliberately out of scope (design §1 keeps the DI where the document put it): a
- * toggle does not migrate a nested plane's `planeElement` entries into the parent
- * plane, nor re-base their coordinates. Expanding reveals the children where their
- * own DI puts them; collapsing hides them again. A no-op collapse+expand therefore
- * round-trips to a structurally identical document.
+ * A nested plane is the one case where revealing is not enough. Its contents live in
+ * their OWN coordinate space (`sklearn_pipeline`'s `select_model` sits at 1204,230
+ * while its `build_pipeline` child sits at 256,160), so simply un-hiding them draws
+ * the interior a thousand units away from the frame that is supposed to contain it.
+ * Expanding such a container therefore INLINES the plane —
+ * `model/writeback.ts inlineNestedPlane` re-bases the contents rigidly into the new
+ * frame and moves their `planeElement` entries up into the parent plane, exactly the
+ * shape an inline-expanded sub-process already has — and collapsing puts the plane
+ * back, verbatim, from a parked snapshot. A no-op collapse+expand (either way round)
+ * therefore still round-trips to a byte-identical document.
  *
  * This module is pure: it mutates the scene node and its DI and reports what the
  * caller must apply/redraw. Revision bumps and bus events belong to
@@ -34,7 +39,9 @@
 import type {
   Bounds,
   Plane,
+  Point,
   Scene,
+  SceneEdge,
   SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
@@ -147,6 +154,29 @@ export const COLLAPSED_SUBPROCESS_SIZE = { width: 100, height: 80 } as const;
 export const EXPANDED_SUBPROCESS_SIZE = { width: 350, height: 200 } as const;
 
 /**
+ * Inset of a nested plane's contents inside the frame that reveals them. The top is
+ * the deepest side, leaving the band a BPMN frame conventionally reserves for the
+ * container's own name clear of the first row of children.
+ */
+export const EXPANDED_CONTENT_PADDING = { top: 40, right: 30, bottom: 30, left: 30 } as const;
+
+/**
+ * The frame that holds `contents` when a container is expanded around them: the
+ * contents' bounding box grown by {@link EXPANDED_CONTENT_PADDING}, never smaller
+ * than {@link EXPANDED_SUBPROCESS_SIZE}, anchored at `origin` — the toggle keeps the
+ * shape's top-left corner and grows right and down, as every resize on this path does.
+ */
+export function frameAround(origin: Point, contents: Bounds): Bounds {
+  const pad = EXPANDED_CONTENT_PADDING;
+  return {
+    x: origin.x,
+    y: origin.y,
+    width: Math.max(EXPANDED_SUBPROCESS_SIZE.width, contents.width + pad.left + pad.right),
+    height: Math.max(EXPANDED_SUBPROCESS_SIZE.height, contents.height + pad.top + pad.bottom),
+  };
+}
+
+/**
  * The footprint a node had the last time it was expanded, remembered per DI object
  * so a collapse→expand round-trip restores the exact `dc:Bounds` the document came
  * in with (and therefore serializes byte-identically). Keyed weakly: nothing here
@@ -167,6 +197,89 @@ export function rememberExpandedFootprint(node: SceneNode): void {
 /** The remembered expanded footprint of `node`, if a collapse recorded one. */
 export function expandedFootprintOf(node: SceneNode): { width: number; height: number } | undefined {
   return expandedFootprint.get(footprintKey(node));
+}
+
+// --- incident-edge routing memory ----------------------------------------------
+
+/** Every edge docked to `node`, each listed once (a self-loop is both ends). */
+export function incidentEdgesOf(node: SceneNode): SceneEdge[] {
+  const out: SceneEdge[] = [];
+  for (const edge of node.outgoing) if (!out.includes(edge)) out.push(edge);
+  for (const edge of node.incoming) if (!out.includes(edge)) out.push(edge);
+  return out;
+}
+
+/** How the edges docked to a node were routed while it wore a given footprint. */
+interface IncidentRouting {
+  bounds: Bounds;
+  waypoints: Map<SceneEdge, Point[]>;
+}
+
+/**
+ * The incident routing a node had in each of its two states, remembered per DI
+ * object beside {@link expandedFootprint}.
+ *
+ * A toggle re-docks and re-routes every incident edge against the new outline
+ * (`model/writeback.ts redockToOutline`), and a *computed* route is not the route the
+ * document shipped: without this, collapsing and re-expanding a sub-process would
+ * leave the diagram subtly re-cut and the serialization no longer byte-identical.
+ * So the routing is parked on the way out of a state and put back verbatim on the
+ * way in — but only when the footprint being returned to is EXACTLY the one that was
+ * parked with it, so a resize or a move in between falls through to a fresh route.
+ */
+const incidentRouting = new WeakMap<object, Map<boolean, IncidentRouting>>();
+
+/** Whether two waypoint lists describe the same path. */
+export function samePoints(a: readonly Point[], b: readonly Point[]): boolean {
+  return a.length === b.length
+    && a.every((p, i) => Math.abs(p.x - b[i].x) < 1e-6 && Math.abs(p.y - b[i].y) < 1e-6);
+}
+
+/** Park `node`'s current incident routing under the state it is in RIGHT NOW. */
+export function rememberIncidentRouting(node: SceneNode): void {
+  const key = footprintKey(node);
+  let byState = incidentRouting.get(key);
+  if (!byState) {
+    byState = new Map<boolean, IncidentRouting>();
+    incidentRouting.set(key, byState);
+  }
+  const waypoints = new Map<SceneEdge, Point[]>();
+  for (const edge of incidentEdgesOf(node)) {
+    waypoints.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
+  }
+  byState.set(node.isExpanded !== false, {
+    bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
+    waypoints,
+  });
+}
+
+/**
+ * Put back the routing parked for the state `node` is in now, when the footprint
+ * matches and the incident set is unchanged. Returns the edges actually moved, or
+ * `undefined` when there is nothing trustworthy to restore and the caller must
+ * re-dock from scratch.
+ */
+export function restoreIncidentRouting(node: SceneNode): SceneEdge[] | undefined {
+  const memory = incidentRouting.get(footprintKey(node))?.get(node.isExpanded !== false);
+  if (!memory) return undefined;
+  const box = memory.bounds;
+  if (box.x !== node.x || box.y !== node.y || box.width !== node.width || box.height !== node.height) {
+    return undefined;
+  }
+  const edges = incidentEdgesOf(node);
+  // An edge added or deleted since the snapshot makes it stale wholesale — nothing
+  // is written until the whole set is known good.
+  if (edges.length !== memory.waypoints.size) return undefined;
+  for (const edge of edges) if (!memory.waypoints.has(edge)) return undefined;
+
+  const restored: SceneEdge[] = [];
+  for (const edge of edges) {
+    const points = memory.waypoints.get(edge) as Point[];
+    if (samePoints(edge.waypoints, points)) continue;
+    edge.waypoints = points.map((p) => ({ x: p.x, y: p.y }));
+    restored.push(edge);
+  }
+  return restored;
 }
 
 // --- the toggle ----------------------------------------------------------------

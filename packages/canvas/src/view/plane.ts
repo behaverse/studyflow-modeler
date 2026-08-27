@@ -29,12 +29,22 @@
  *
  * The drill-down badge (`sub/frame_10`) is drawn from here into a custom overlay
  * layer supplied by the host ({@link Canvas.getHostLayer}`('drilldown', 900)`),
- * because it is view chrome with no scene element behind it.
+ * because it is view chrome with no scene element behind it. The badge is the ONLY
+ * gesture that navigates: a double click belongs to `Canvas.handleDoubleClick`,
+ * which toggles the container in place. The two used to fight over the same event —
+ * this module settled it in the capture phase for a collapsed, planed container and
+ * let it through for everything else, which is exactly how one sub-process came to
+ * drill and its neighbour to expand.
+ *
+ * Not every container the badge appears on owns a plane. One whose children are
+ * filed in the parent plane is entered through a SYNTHESIZED scope
+ * ({@link virtualPlaneOf}) — a `Plane`-shaped object that never joins
+ * `Scene.planes`, so the document is navigable without being restructured.
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
 import type { EventBus } from '@canvas/events/bus.ts';
-import { isCollapsed, isExpandable, nestedPlanesOf } from '@canvas/model/expand.ts';
+import { isExpandable, nestedPlanesOf } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Plane, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { append, clear, create, remove } from '@canvas/render/svg.ts';
@@ -65,6 +75,7 @@ const BADGE_FILL = 'hsl(205, 100%, 50%)';
  * process/collaboration itself.
  */
 export function planeOwner(scene: Scene, plane: Plane): SceneNode | undefined {
+  if (isVirtualPlane(plane)) return plane.owner;
   if (plane === scene.rootPlane) return undefined;
   const element = scene.byBusinessObject.get(plane.businessObject);
   return element && element.kind === 'node' ? element : undefined;
@@ -80,13 +91,90 @@ export function nestedPlaneOf(scene: Scene, node: SceneNode): Plane | undefined 
 }
 
 /**
- * Whether `node` offers a drill-down from the plane it is drawn in: an expandable
- * container, drawn COLLAPSED, that owns a plane of its own (drill-down spec §1).
- * An inline-expanded sub-process draws its contents where they already are, so it
- * needs no badge.
+ * Whether `node` offers a drill-down from the plane it is drawn in — TRUE for every
+ * expandable container, whatever the document does with its contents and whichever
+ * state it is drawn in.
+ *
+ * This used to require `isCollapsed(node) && nestedPlaneOf(…)`, and those two extra
+ * conjuncts were the whole of the "some sub-processes drill, some don't" report:
+ * `sklearn_pipeline`'s `select_model` owns a `BPMNDiagram` and got a badge, while
+ * `prepare_data` — same type, contents merely filed in the parent plane — got none,
+ * and an expanded container lost its badge the moment it opened. A container with no
+ * plane of its own is entered through a SYNTHESIZED scope ({@link virtualPlaneOf}),
+ * which is a pure view construct: nothing is added to `scene.planes`, nothing is
+ * written, and the document is not restructured to make the trip possible.
+ *
+ * `scene` is unused now but kept in the signature: every caller has one, and the
+ * moment a subclass wants a document-derived answer this is where it goes.
  */
-export function isDrillable(scene: Scene, node: SceneNode): boolean {
-  return isExpandable(node.type) && isCollapsed(node) && nestedPlaneOf(scene, node) !== undefined;
+export function isDrillable(_scene: Scene, node: SceneNode): boolean {
+  return isExpandable(node.type);
+}
+
+// --- synthesized scopes ---------------------------------------------------------
+
+/**
+ * A view scope around a container that owns no `bpmndi:BPMNDiagram` — shaped like a
+ * {@link Plane} so breadcrumbs, `elements.root()`, `goToPlane` and the badge painter
+ * all keep working, but deliberately NEVER pushed into `Scene.planes`, so
+ * `nestedPlanesOf`, `model/remove.ts`, export scoping and the importer never see a
+ * plane the document does not have.
+ */
+export interface VirtualPlane extends Plane {
+  /** The container this scope stands for. */
+  readonly owner: SceneNode;
+}
+
+/** Whether `plane` is a synthesized scope rather than a real `bpmndi:BPMNPlane`. */
+export function isVirtualPlane(plane: Plane): plane is VirtualPlane {
+  return (plane as VirtualPlane).owner !== undefined;
+}
+
+const virtualPlanes = new WeakMap<SceneNode, VirtualPlane>();
+
+/**
+ * The memoized synthesized scope for `node` — memoized for identity, because
+ * `rootOf` and `Canvas.goToPlane` compare plane objects, and refreshed on every call
+ * because the container's child list is rebuilt by create and delete.
+ */
+export function virtualPlaneOf(node: SceneNode): VirtualPlane {
+  let plane = virtualPlanes.get(node);
+  if (!plane) {
+    plane = {
+      id: `${node.id}__scope`,
+      businessObject: node.businessObject,
+      di: node.di ?? node.businessObject,
+      children: node.children,
+      owner: node,
+    };
+    virtualPlanes.set(node, plane);
+  }
+  plane.children = node.children;
+  plane.businessObject = node.businessObject;
+  plane.di = node.di ?? node.businessObject;
+  return plane;
+}
+
+/** Whether `element` sits anywhere under `node` in the scene containment tree. */
+export function isDescendantOf(element: SceneElement, node: SceneNode): boolean {
+  const guard = new Set<SceneNode>();
+  let cursor = element.parent;
+  while (cursor && !guard.has(cursor)) {
+    if (cursor === node) return true;
+    guard.add(cursor);
+    cursor = cursor.parent;
+  }
+  return false;
+}
+
+/**
+ * Whether `element` belongs to the view scope `plane` stands for — the ONE predicate
+ * behind what is drawn, what is hit-tested and which nodes wear a badge, so a real
+ * plane and a synthesized one cannot drift apart.
+ */
+export function inScopeOf(scene: Scene, plane: Plane, element: SceneElement): boolean {
+  if (isVirtualPlane(plane)) return element !== plane.owner && isDescendantOf(element, plane.owner);
+  return planeOf(scene, element) === plane;
 }
 
 /**
@@ -246,7 +334,6 @@ export class PlaneCursor {
     this.layerOf = options.layer;
     this.onChange = options.onChange;
     this.bus = options.canvas.getEventBus();
-    this.canvas.getSvg().addEventListener('dblclick', this.onDblClick, true);
     // BOTH topics. `Writeback.finish` fires `elements.changed` only for a BATCH, so
     // watching the plural alone missed every single-element edit — including the one
     // that matters most here, a palette drop of a sub-process, whose badge would then
@@ -277,24 +364,28 @@ export class PlaneCursor {
   }
 
   /**
-   * Enter the plane `node` owns. Returns whether the view moved — a node with no
-   * plane of its own (an ordinary task, an inline-expanded sub-process) is not a
-   * drill-down target and leaves the view where it is.
+   * Enter `node`'s contents. Returns whether the view moved.
+   *
+   * A container that owns a `bpmndi:BPMNDiagram` opens THAT plane; one whose children
+   * are filed in the parent plane opens a SYNTHESIZED scope over them
+   * ({@link virtualPlaneOf}) — same breadcrumb, same "only these elements exist"
+   * restriction, same authoring target — because which of the two shapes a document
+   * happens to use is not something the user should have to know. Nothing is written
+   * either way. A non-expandable node has no contents to enter and is refused.
    */
   enterPlane(node: SceneNode): boolean {
     this.sync();
     const scene = this.scene;
-    if (!scene) return false;
-    const target = nestedPlaneOf(scene, node);
-    return target ? this.goToPlane(target) : false;
+    if (!scene || !isExpandable(node.type)) return false;
+    return this.goToPlane(nestedPlaneOf(scene, node) ?? virtualPlaneOf(node));
   }
 
-  /** Show `plane`. Returns whether the view moved. */
+  /** Show `plane` (real or synthesized). Returns whether the view moved. */
   goToPlane(plane: Plane): boolean {
     this.sync();
     const scene = this.scene;
     if (!scene || this.plane === plane) return false;
-    if (!scene.planes.includes(plane)) return false;
+    if (!scene.planes.includes(plane) && !isVirtualPlane(plane)) return false;
 
     this.plane = plane;
     this.applyPlane(scene, plane);
@@ -313,7 +404,6 @@ export class PlaneCursor {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.canvas.getSvg().removeEventListener('dblclick', this.onDblClick, true);
     this.bus.off('element.changed', this.onElementsChanged);
     this.bus.off('elements.changed', this.onElementsChanged);
     this.bus.off('import.done', this.onImportDone);
@@ -332,6 +422,7 @@ export class PlaneCursor {
     // The nodes in `opened` belong to the previous scene: their flags went with it.
     this.opened.clear();
     this.canvas.setActivePlane(undefined);
+    this.canvas.setActiveContainer(undefined);
     this.drawBadges();
   }
 
@@ -362,11 +453,21 @@ export class PlaneCursor {
 
     const scoped = plane === scene.rootPlane
       ? undefined
-      : (element: SceneElement): boolean => planeOf(scene, element) === plane;
+      : (element: SceneElement): boolean => inScopeOf(scene, plane, element);
     this.canvas.setPlaneScope(scoped);
     // What is DRAWN and what is MADE move together: a palette drop while drilled in
     // belongs to the plane on screen, not to the document root (`Canvas.setActivePlane`).
-    this.canvas.setActivePlane(plane === scene.rootPlane ? undefined : plane);
+    //
+    // A SYNTHESIZED scope splits the two halves of that. Its contents' DI is filed in
+    // a REAL plane — the one the container itself is drawn in — so that is what the
+    // active plane must be, while the container is the active CONTAINER, which is
+    // where a drop's business object goes (`flowElements`). Setting the virtual plane
+    // as the active one would file `planeElement` entries into an object the document
+    // does not contain.
+    const virtual = isVirtualPlane(plane) ? plane : undefined;
+    const real = virtual ? planeOf(scene, virtual.owner) : plane;
+    this.canvas.setActivePlane(real === scene.rootPlane ? undefined : real);
+    this.canvas.setActiveContainer(virtual?.owner);
     // `setPlaneScope` hides what left the scope and redraws what re-entered it, but
     // an element can also change visibility WITHOUT changing scope: everything in a
     // freshly opened container was `display:none` a moment ago. Redraw the whole
@@ -381,7 +482,7 @@ export class PlaneCursor {
     this.drawBadges();
   }
 
-  /** Draw one badge per drillable node of the current plane; clear the rest. */
+  /** Draw one badge per drillable node of the current scope; clear the rest. */
   private drawBadges(): void {
     if (this.destroyed) return;
     const group = this.badges();
@@ -392,7 +493,7 @@ export class PlaneCursor {
     for (const element of scene.elementsById.values()) {
       if (element.kind !== 'node') continue;
       if (!isDrillable(scene, element)) continue;
-      if (planeOf(scene, element) !== plane) continue;
+      if (!inScopeOf(scene, plane, element)) continue;
       append(group, this.badge(element));
     }
   }
@@ -466,35 +567,32 @@ export class PlaneCursor {
     return g;
   }
 
-  /**
-   * A double click on a collapsed sub-process enters its plane (drill-down spec §2).
-   *
-   * Bound in the CAPTURE phase so it settles the gesture before `Canvas`'s own
-   * `dblclick` handler sees it: that handler would otherwise toggle the sub-process
-   * open, which writes `BPMNShape.isExpanded` and its `dc:Bounds`. Every other
-   * double click — including one on an EXPANDED container, which keeps the inline
-   * toggle — passes straight through.
-   */
-  private readonly onDblClick = (ev: Event): void => {
-    const scene = this.canvas.getScene();
-    if (!scene || !isMouseLike(ev)) return;
-    this.sync();
-    const mouse = ev as MouseEvent;
-    const point = this.canvas.getViewport().toDiagram({ x: mouse.clientX, y: mouse.clientY });
-    const hit = this.canvas.elementAt(point);
-    if (!hit || hit.kind !== 'node' || !isDrillable(scene, hit)) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    this.enterPlane(hit);
-  };
-
   /** Geometry moved or an element came and went: the badges follow. */
   private readonly onElementsChanged = (): void => {
     if (this.destroyed) return;
     this.sync();
+    this.refreshOpened();
     this.rehideOutOfScope();
     this.drawBadges();
   };
+
+  /**
+   * Re-read the `isExpanded` the DOCUMENT holds for every container the cursor
+   * opened on its way in.
+   *
+   * The cursor forces `SceneNode.isExpanded` true while you are inside a container
+   * and restores the remembered value on the way out. Now that a toggle is reachable
+   * from the context pad *while drilled in*, that remembered value can go stale — and
+   * restoring it would silently revert a genuine `Writeback.setExpanded`. The DI flag
+   * is the document's own answer, so take it from there.
+   */
+  private refreshOpened(): void {
+    if (this.opened.size === 0) return;
+    for (const node of [...this.opened.keys()]) {
+      const flag = node.di ? prop(node.di, 'isExpanded') : undefined;
+      this.opened.set(node, typeof flag === 'boolean' ? flag : undefined);
+    }
+  }
 
   private readonly onImportDone = (): void => {
     if (this.destroyed) return;
@@ -517,8 +615,3 @@ export class PlaneCursor {
   }
 }
 
-/** Whether `ev` carries the client coordinates a mouse event does (jsdom synthetics). */
-function isMouseLike(ev: Event): boolean {
-  const candidate = ev as Partial<MouseEvent>;
-  return typeof candidate.clientX === 'number' && typeof candidate.clientY === 'number';
-}

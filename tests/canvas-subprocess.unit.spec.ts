@@ -287,47 +287,66 @@ test('a hidden child is neither hit-testable nor a drop target', async () => {
 
 // --- expanding ------------------------------------------------------------------
 
-test('expanding a drilled-down sub-process reveals its sub-plane contents and leaves the plane where it is', async () => {
+test('expanding a drilled-down sub-process inlines its plane INTO the frame, keeping the interior layout', async () => {
   const loaded = await loadExample();
   const { canvas, definitions } = loaded;
   const select = node(canvas, 'select_model');
   const contents = descendants(canvas, 'select_model');
 
-  // Its contents live in a nested plane and start out hidden.
+  // Its contents live in a nested plane, at coordinates that have nothing to do with
+  // the container: the frame sits at 1204,230 and `build_pipeline` at 256,160. Simply
+  // un-hiding them would scatter the interior a thousand units across the diagram —
+  // which is why an expand RE-BASES the plane instead of merely revealing it.
   const nested = definitions.diagrams[1].plane;
   expect(nested.bpmnElement.id).toBe('select_model');
   expect(contents).toContain('cross_validate');
   for (const id of contents) expect(isDrawnHidden(canvas, id), id).toBe(true);
   expect(glyphs(canvas, 'select_model')).toContain('⊞');
+  expect([select.x, select.y, select.width, select.height]).toEqual([1204, 230, 100, 80]);
 
-  const nestedBefore = nested.planeElement.map((pe: any) => ({
-    id: pe.bpmnElement?.id,
-    bounds: pe.bounds ? { ...pe.bounds } : undefined,
+  const before = new Map(contents.map((id) => {
+    const el = canvas.getScene()!.elementsById.get(id) as SceneNode;
+    return [id, { x: el.x, y: el.y }];
   }));
 
   expect(canvas.setExpanded(select, true)).toBe(true);
 
   expect(select.isExpanded).toBe(true);
   expect(diShapes(definitions).get('select_model').isExpanded).toBe(true);
-  // Nothing was remembered (the document came in collapsed), so it takes the default
-  // expanded footprint.
-  expect([select.width, select.height])
-    .toEqual([EXPANDED_SUBPROCESS_SIZE.width, EXPANDED_SUBPROCESS_SIZE.height]);
+  // The frame is fitted to what it now holds, not to the flat default: the default
+  // 350×200 would crop an interior that measures 752×182.
+  expect(select.width).toBeGreaterThan(EXPANDED_SUBPROCESS_SIZE.width);
+  expect([select.x, select.y]).toEqual([1204, 230]);
 
-  // Revealed, and drawn where their OWN DI puts them — the sub-plane is untouched.
-  for (const id of contents) expect(isDrawnHidden(canvas, id), id).toBe(false);
+  // Revealed, INSIDE the frame, and rigidly: one translation for the whole interior,
+  // so every pairwise offset the author drew is preserved bit for bit.
+  const deltas = new Set<string>();
+  for (const id of contents) {
+    expect(isDrawnHidden(canvas, id), id).toBe(false);
+    const el = canvas.getScene()!.elementsById.get(id) as SceneNode;
+    if (el.kind !== 'node') continue;
+    const was = before.get(id)!;
+    deltas.add(`${el.x - was.x},${el.y - was.y}`);
+    expect(el.x, id).toBeGreaterThanOrEqual(select.x);
+    expect(el.y, id).toBeGreaterThanOrEqual(select.y);
+    expect(el.x + el.width, id).toBeLessThanOrEqual(select.x + select.width);
+    expect(el.y + el.height, id).toBeLessThanOrEqual(select.y + select.height);
+  }
+  expect(deltas.size, 'one delta for the whole interior').toBe(1);
   expect(glyphs(canvas, 'select_model')).not.toContain('⊞');
-  expect(definitions.diagrams).toHaveLength(3);
-  expect(nested.planeElement.map((pe: any) => ({
-    id: pe.bpmnElement?.id,
-    bounds: pe.bounds ? { ...pe.bounds } : undefined,
-  }))).toEqual(nestedBefore);
 
+  // The document says the same: the nested `BPMNDiagram` is gone (its contents are
+  // now `planeElement`s of the parent plane, exactly as an inline-expanded
+  // sub-process files them), and `build_pipeline` is filed at its new coordinates.
   const { xml, reloaded } = await roundTrip(loaded);
   expect(shapeTag(xml, 'Select_di')).toContain('isExpanded="true"');
-  expect(reloaded.diagrams).toHaveLength(3);
-  expect(reloaded.diagrams[1].plane.bpmnElement.id).toBe('select_model');
-  expect(diShapes(reloaded).get('build_pipeline').bounds.x).toBe(256);
+  expect(reloaded.diagrams).toHaveLength(2);
+  expect(diShapes(reloaded).get('build_pipeline').bounds.x).toBe(1310);
+  expect(reloaded.diagrams[0].plane.planeElement.some((pe: any) => pe.bpmnElement?.id === 'build_pipeline'))
+    .toBe(true);
+  // …and the business objects never moved: inlining is a DI edit only.
+  expect((boOf(reloaded, 'select_model').flowElements ?? []).map((el: any) => el.id))
+    .toContain('build_pipeline');
 });
 
 test('expanding restores the exact footprint the collapse took away', async () => {
@@ -490,15 +509,27 @@ test('the double-click affordance can be switched off', async () => {
   expect(canvas.getLabelEditing().isActive()).toBe(true);
 });
 
-test('a collapse fires one revision bump and one element.changed for the container', async () => {
+test('a collapse fires one revision bump for the container and the edges it re-docked', async () => {
   const { canvas } = await loadExample();
   const changed: string[] = [];
+  const batches: string[][] = [];
   canvas.getEventBus().on<{ element: SceneElement }>('element.changed', (e) => changed.push(e.element.id));
+  canvas.getEventBus().on<{ elements: SceneElement[] }>(
+    'elements.changed',
+    (e) => batches.push(e.elements.map((el) => el.id)),
+  );
   const scene = canvas.getScene()!;
   const revision = scene.revision;
 
   canvas.setExpanded(node(canvas, 'prepare_data'), false);
 
+  // ONE revision bump, and therefore ONE undo step: the flag, the shape's new
+  // `dc:Bounds` and every re-docked incident waypoint land in the same
+  // `Writeback.finish`. A follow-up `rerouteEdges` would have made it two.
   expect(scene.revision).toBe(revision + 1);
-  expect(ids(changed.map((id) => scene.elementsById.get(id) as SceneElement))).toEqual(['prepare_data']);
+  expect(batches).toHaveLength(1);
+  // The container plus exactly the edges docked to it — never its interior, which a
+  // toggle must leave alone.
+  expect(ids(changed.map((id) => scene.elementsById.get(id) as SceneElement)))
+    .toEqual(['flow_prepare_done', 'flow_start', 'prepare_data']);
 });

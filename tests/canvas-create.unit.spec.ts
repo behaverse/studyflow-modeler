@@ -386,9 +386,13 @@ test('a pre-built business object is filed as-is, and only once', async () => {
 
 // --- z-order of a newly mounted element (CanvasReview H5) ---------------------
 
-/** The `data-element-id`s in the shapes layer, in paint order (bottom → top). */
+/**
+ * The `data-element-id`s of the SHAPES in the element layer, in paint order
+ * (bottom → top). Nodes and edges share one layer (`view/layers.ts`), so the
+ * z-order this test is about is read off the `sf-shape` groups.
+ */
 function shapeOrder(canvas: Canvas): string[] {
-  return Array.from(canvas.getSvg().querySelectorAll('[data-layer="shapes"] > g'))
+  return Array.from(canvas.getSvg().querySelectorAll('[data-layer="elements"] > g.sf-shape'))
     .map((g) => g.getAttribute('data-element-id') ?? '');
 }
 

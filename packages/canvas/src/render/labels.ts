@@ -145,6 +145,31 @@ export function drawInternalLabel(
   });
 }
 
+/**
+ * The DIAGRAM-space box the glyphs of a node's INTERNAL label cover — the mirror of
+ * {@link externalLabelTextBounds} for the captions {@link drawInternalLabel} centres
+ * inside an activity, laid out by the very same rules so the two cannot drift.
+ *
+ * It exists because an internal label is not an element of its own: unlike an
+ * external caption, nothing hit-tests it. `Canvas.handleDoubleClick` needs it to
+ * answer "did the user double-click the NAME or the shape?", which is what keeps a
+ * container renameable now that a double click on its body toggles it.
+ *
+ * `undefined` for an unnamed node, which draws no caption at all.
+ */
+export function internalLabelTextBounds(
+  node: SceneNode,
+  name: string,
+  fontSize = 12,
+): Bounds | undefined {
+  if (!name) return undefined;
+  const maxLines = Math.max(1, Math.min(4, Math.floor(node.height / LINE_HEIGHT)));
+  const lines = wrap(name, node.width, fontSize, maxLines);
+  if (lines.length === 0) return undefined;
+  const box = textBox(lines, node.width / 2, node.height / 2, fontSize);
+  return { x: node.x + box.x, y: node.y + box.y, width: box.width, height: box.height };
+}
+
 /** Font size an external (below-the-shape) label is drawn at. */
 export const EXTERNAL_LABEL_FONT_SIZE = 11;
 

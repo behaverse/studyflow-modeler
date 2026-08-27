@@ -1,8 +1,9 @@
 /**
  * Per-type renderer dispatch (design §3 `render/renderer.ts`, mirrors the modeler's
- * `draw/Renderer.drawShape`). Given a {@link Scene}, draws every node into the
- * shapes layer and every edge into the connections layer, each as one `<g>` placed
- * at its DI bounds. Read-only for P1: no interaction, no writeback.
+ * `draw/Renderer.drawShape`). Given a {@link Scene}, draws every node and every edge
+ * into the single `elements` layer, each as one `<g>` placed at its DI bounds, in the
+ * composite z-order of `model/tree.ts zRankOf`. Read-only for P1: no interaction, no
+ * writeback.
  *
  * Node types are categorized from the business-object `$type` local name (no
  * bpmn-js `ModelUtil.is`); the drawer set is the finite studyflow vocabulary
@@ -17,7 +18,7 @@ import { readChoreographyBands } from '@canvas/model/choreography.ts';
 import { normalizeColor } from '@canvas/model/color.ts';
 import { isCollapsed, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
-import { depthOf } from '@canvas/model/tree.ts';
+import { zRankOf } from '@canvas/model/tree.ts';
 import { DATA_TYPES, isDataStore } from '@canvas/rules/rules.ts';
 import type {
   ModdleObject,
@@ -220,8 +221,8 @@ export interface RendererOptions {
 }
 
 /**
- * Draws a {@link Scene} into a shapes layer and a connections layer. Holds a
- * `graphicsById` map (element id → its `<g>`) for later hit-testing / selection.
+ * Draws a {@link Scene} into the element layer. Holds a `graphicsById` map
+ * (element id → its `<g>`) for later hit-testing / selection.
  */
 export class Renderer {
   private readonly iconResolver?: IconResolver;
@@ -232,33 +233,35 @@ export class Renderer {
   }
 
   /**
-   * Render every node and edge of `scene` into the given layers. Nodes are drawn
-   * ancestors-first so containers sit behind their children; edges go under nodes.
+   * Render every node and edge of `scene` into the ONE element layer, in the
+   * composite order {@link zRankOf} defines: shallowest first, and within one depth
+   * the edges before the nodes.
+   *
+   * Both halves of that key are load-bearing. Depth-first keeps containers behind
+   * their contents, so an expanded sub-process's interior flows paint OVER its
+   * opaque frame instead of under it (which is what a flat connections-below-shapes
+   * stack got wrong). Edges-before-nodes *within* a depth keeps a root sequence
+   * flow's arrowhead passing beneath the shape it points at, exactly as the split
+   * stack drew it — a naive "edges last" would lift every arrowhead onto its target.
    *
    * EVERY plane is drawn, not just the visible one: which graphics a drill-down
    * shows is a view concern — `view/plane.ts` hides the off-plane `<g>`s with
    * `display: none` and `Canvas.setPlaneScope` gates hit-testing to match.
    */
-  renderScene(scene: Scene, shapesLayer: SVGElement, connectionsLayer: SVGElement): void {
+  renderScene(scene: Scene, layer: SVGElement): void {
     this.graphicsById.clear();
 
-    const nodes: SceneNode[] = [];
-    const edges: SceneEdge[] = [];
+    const drawable: SceneElement[] = [];
     for (const element of scene.elementsById.values()) {
-      if (element.kind === 'node') nodes.push(element);
-      else if (element.kind === 'edge') edges.push(element);
+      if (element.kind === 'node' || element.kind === 'edge') drawable.push(element);
     }
-    nodes.sort((a, b) => depthOf(a) - depthOf(b));
+    // A STABLE sort, so elements that tie on the key keep document order.
+    drawable.sort((a, b) => zRankOf(a) - zRankOf(b));
 
-    for (const edge of edges) {
-      const g = this.drawEdge(edge);
-      append(connectionsLayer, g);
-      if (edge.id) this.graphicsById.set(edge.id, g);
-    }
-    for (const node of nodes) {
-      const g = this.drawShape(node);
-      append(shapesLayer, g);
-      if (node.id) this.graphicsById.set(node.id, g);
+    for (const element of drawable) {
+      const g = element.kind === 'node' ? this.drawShape(element) : this.drawEdge(element);
+      append(layer, g);
+      if (element.id) this.graphicsById.set(element.id, g);
     }
   }
 

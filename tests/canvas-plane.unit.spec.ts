@@ -101,9 +101,13 @@ test.describe('plane cursor', () => {
     expect(sub.isExpanded).toBe(false);
     expect(isDrillable(loaded.scene, sub)).toBe(true);
     expect(planeOwner(loaded.scene, subPlane(loaded))).toBe(sub);
-    // An inline-expanded sub-process draws its children where they already are, so
-    // it offers no drill-down.
-    expect(isDrillable(loaded.scene, node(loaded.scene, 'prepare_data'))).toBe(false);
+    // …and so does the INLINE-EXPANDED one, which owns no plane at all. How a
+    // document stores a sub-process's contents is not something the user should have
+    // to know: `prepare_data` is entered through a synthesized scope over its
+    // children (`view/plane.ts virtualPlaneOf`), and gets the same badge for it.
+    expect(isDrillable(loaded.scene, node(loaded.scene, 'prepare_data'))).toBe(true);
+    // A shape that is not a container still offers nothing.
+    expect(isDrillable(loaded.scene, node(loaded.scene, 'is_good_enough'))).toBe(false);
     // The contents of the collapsed phase start out hidden, on their own plane.
     expect(planeOf(loaded.scene, node(loaded.scene, 'cross_validate'))).toBe(subPlane(loaded));
     expect(planeOf(loaded.scene, node(loaded.scene, 'select_model'))).toBe(loaded.scene.rootPlane);
@@ -167,14 +171,16 @@ test.describe('plane cursor', () => {
     expect(loaded.scene.revision).toBe(revision);
   });
 
-  test('a collapsed sub-process wears a blue drill-down badge titled `Open <name>`', async () => {
+  test('every sub-process wears a blue drill-down badge titled `Open <name>`', async () => {
     const loaded = await load();
     loaded.cursor.refresh();
 
-    // Both collapsed phases of the fixture own a plane, so both offer the trip.
+    // EVERY expandable container of the plane on screen, whichever way the document
+    // stores its contents and whichever state it is drawn in: the inline-expanded
+    // `prepare_data` alongside the two collapsed, planed phases.
     const badges = [...loaded.layer.querySelectorAll('.sf-drilldown')];
     expect(badges.map((g) => g.getAttribute('data-drilldown')))
-      .toEqual(['select_model', 'evaluate_and_report']);
+      .toEqual(['prepare_data', 'select_model', 'evaluate_and_report']);
     const badge = loaded.layer.querySelector('[data-drilldown="select_model"]') as SVGGElement;
     expect(badge.querySelector('title')?.textContent).toBe('Open select_model');
     // The attribute too: `page.getByTitle` matches that one, never the child.
@@ -195,10 +201,10 @@ test.describe('plane cursor', () => {
     expect(loaded.layer.querySelectorAll('.sf-drilldown').length).toBe(0);
   });
 
-  test('double-clicking a collapsed sub-process enters its plane instead of expanding it', async () => {
+  test('double-clicking a collapsed sub-process expands it in place rather than navigating', async () => {
     const loaded = await load();
     const sub = node(loaded.scene, 'select_model');
-    const before = await toXML(loaded);
+    const root = loaded.scene.rootPlane;
     const graphics = loaded.canvas.getGraphics('select_model');
     expect(graphics).toBeTruthy();
 
@@ -210,10 +216,49 @@ test.describe('plane cursor', () => {
       clientY: screen.y,
     }) as unknown as Event);
 
-    expect(loaded.cursor.current()).toBe(subPlane(loaded));
-    // The canvas's own double-click would have TOGGLED the sub-process open, which
-    // writes `isExpanded` and a new `dc:Bounds`. The capture-phase handler stops it.
-    expect(sub.di?.isExpanded).toBe(false);
+    // The cursor stayed put — drill-down belongs to the badge now. The plane cursor
+    // used to steal this event in the capture phase for a COLLAPSED, PLANED container
+    // and let it through for every other one, which is precisely why one sub-process
+    // of this fixture navigated and its neighbour expanded.
+    expect(loaded.cursor.current()).toBe(root);
+    expect(sub.di?.isExpanded).toBe(true);
+    expect(sub.isExpanded).toBe(true);
+    // …and the badge is still there, so the trip in is one click away.
+    loaded.cursor.refresh();
+    expect(loaded.layer.querySelector('[data-drilldown="select_model"]')).toBeTruthy();
+  });
+
+  test('a container with no plane of its own is entered through a synthesized scope, writing nothing', async () => {
+    const loaded = await load();
+    const prepare = node(loaded.scene, 'prepare_data');
+    const before = await toXML(loaded);
+    const revision = loaded.scene.revision;
+    const diagrams = loaded.definitions.diagrams.length;
+
+    expect(loaded.cursor.enterPlane(prepare)).toBe(true);
+
+    // The scope is its children — drawn and clickable — and nothing else.
+    expect(isDrawn(loaded, 'select_features')).toBe(true);
+    expect(isDrawn(loaded, 'Flow_Select_Features_Select_Target')).toBe(true);
+    expect(isDrawn(loaded, 'select_model')).toBe(false);
+    expect(isDrawn(loaded, 'prepare_data')).toBe(false);
+    expect(loaded.canvas.elementAt(centre(loaded.scene, 'select_model'))).toBeUndefined();
+
+    // The trail names the container, and `elements.root()` follows it.
+    const path = loaded.cursor.planePath();
+    expect(path).toHaveLength(2);
+    expect(path[0]).toBe(loaded.scene.rootPlane);
+    expect(loaded.canvas.getRoot().id).toBe('prepare_data');
+
+    // Nothing was synthesized INTO the document: no extra plane, no extra diagram,
+    // no revision bump — and the serialization is byte-identical, there and back.
+    expect(loaded.scene.planes).toHaveLength(3);
+    expect(loaded.definitions.diagrams).toHaveLength(diagrams);
+    expect(await toXML(loaded)).toBe(before);
+
+    expect(loaded.cursor.goToPlane(loaded.scene.rootPlane)).toBe(true);
+    expect(isDrawn(loaded, 'select_model')).toBe(true);
+    expect(loaded.scene.revision).toBe(revision);
     expect(await toXML(loaded)).toBe(before);
   });
 

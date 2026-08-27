@@ -6,22 +6,47 @@ import { expect, test } from '@playwright/test';
 import {
   addPaletteElement,
   exportDiagram,
+  expectEditorText,
   gotoModeler,
+  labelEditor,
   pressOnCanvas,
   readDownloadText,
 } from './utils';
 
 /**
- * Sub-process drill-down, end to end (`scratchpad/subprocess-drilldown-spec.md`,
- * frames `edge-videos/sub/*`).
+ * Sub-process drill-down AND in-place expand, end to end
+ * (`scratchpad/subprocess-drilldown-spec.md`, frames `edge-videos/sub/*`; the
+ * uniformity report of 2026-08-27).
  *
- * `sklearn_pipeline` is the fixture because it ships the real shape of the feature:
- * `select_model` is drawn COLLAPSED and owns its own `bpmndi:BPMNDiagram`, so its
- * contents exist in the document but are on a plane of their own — invisible until
- * you drill in. The three things the reference recording does are the three things
- * asserted here: the badge is there, entering shows the plane and the trail, and a
- * crumb brings you back.
+ * `sklearn_pipeline` is the fixture because it ships BOTH shapes of the feature at
+ * once: `select_model` is drawn collapsed and owns its own `bpmndi:BPMNDiagram`,
+ * while `prepare_data` is drawn expanded with its children filed in the parent
+ * plane. The editor used to treat those two as different kinds of thing — badge and
+ * drill-on-double-click for one, no badge and toggle-on-double-click for the other.
+ * Every test below asserts the SAME behaviour for both.
  */
+
+/**
+ * What an element's `<g>` actually covers on screen, plus its computed `display`.
+ *
+ * `toBeVisible` is unusable for a straight connection: Playwright reads an
+ * axis-aligned line's zero-height box as hidden. It is also exactly the assertion
+ * that MISSED the reported bug, where the flows were painted-over rather than hidden.
+ */
+async function painted(locator: import('@playwright/test').Locator): Promise<{
+  x: number; y: number; width: number; height: number; display: string;
+}> {
+  return locator.evaluate((g) => {
+    const rect = (g as SVGGElement).getBoundingClientRect();
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      display: getComputedStyle(g as Element).display,
+    };
+  });
+}
 
 async function openExample(page: import('@playwright/test').Page): Promise<void> {
   await gotoModeler(page);
@@ -34,15 +59,48 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 }
 
 test.describe('sub-process drill-down', () => {
-  test('a collapsed sub-process shows the drill-down badge, an expanded one does not', async ({ page }) => {
+  test('every sub-process shows the drill-down badge, whichever way its contents are stored', async ({ page }) => {
     await openExample(page);
 
+    // The reported defect, from the outside: `select_model` owns a nested plane and
+    // `prepare_data` does not, and that difference used to decide whether the trip in
+    // was offered at all.
     await expect(page.getByTitle('Open select_model')).toBeVisible();
-    // `prepare_data` is inline-expanded: its contents are already on screen, so it
-    // offers no trip (`edge-videos/sub/frame_07`).
-    await expect(page.getByTitle('Open prepare_data')).toHaveCount(0);
+    await expect(page.getByTitle('Open evaluate_and_report')).toBeVisible();
+    await expect(page.getByTitle('Open prepare_data')).toBeVisible();
     // At the root the trail is one crumb long, and the reference draws none.
     await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
+  });
+
+  test('an expanded sub-process draws the flows between its children, not just the children', async ({ page }) => {
+    await openExample(page);
+
+    // Defect 2. The interior shapes were always drawn; the interior EDGES were not —
+    // they sat in a connections layer below every shape, so the container's own opaque
+    // frame painted over them. Nothing about their `display` was ever wrong, which is
+    // why this assertion is about geometry and paint order rather than visibility.
+    const frame = page.locator('g[data-element-id="prepare_data"]');
+    const flow = page.locator('g[data-element-id="Flow_Select_Features_Select_Target"]');
+    await expect(flow).toBeAttached();
+
+    // A horizontal flow has a zero-height box, which `toBeVisible` reads as hidden —
+    // so painted-ness is measured directly: not `display:none`, and a real extent
+    // inside the frame that used to cover it.
+    const flowBox = await painted(flow);
+    expect(flowBox.display).not.toBe('none');
+    expect(flowBox.width).toBeGreaterThan(0);
+    const frameBox = (await frame.boundingBox())!;
+    expect(flowBox.x).toBeGreaterThanOrEqual(frameBox.x - 1);
+    expect(flowBox.y).toBeGreaterThanOrEqual(frameBox.y - 1);
+    expect(flowBox.x + flowBox.width).toBeLessThanOrEqual(frameBox.x + frameBox.width + 1);
+
+    // Painted AFTER the frame, in the one element layer — the invariant that broke.
+    const order = await page.locator('svg.sf-canvas [data-layer="elements"] > g')
+      .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-element-id')));
+    expect(order.indexOf('Flow_Select_Features_Select_Target'))
+      .toBeGreaterThan(order.indexOf('prepare_data'));
+    // …and a root-level flow still passes under the shape it points at.
+    expect(order.indexOf('flow_start')).toBeLessThan(order.indexOf('prepare_data'));
   });
 
   test('the badge enters the plane and the breadcrumb shows the path back', async ({ page }) => {
@@ -68,16 +126,108 @@ test.describe('sub-process drill-down', () => {
     await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
   });
 
-  test('double-clicking a collapsed sub-process drills in rather than expanding it', async ({ page }) => {
+  test('the badge enters an in-parent sub-process too, through a synthesized scope', async ({ page }) => {
     await openExample(page);
+
+    await page.getByTitle('Open prepare_data').click();
+
+    // Same trip, same trail, for a container the document gave no plane of its own.
+    const crumbs = page.getByTestId('drilldown-breadcrumbs');
+    await expect(crumbs).toContainText('sklearn_pipeline');
+    await expect(crumbs).toContainText('prepare_data');
+    await expect(page.locator('g[data-element-id="select_features"]')).toBeVisible();
+    expect((await painted(page.locator('g[data-element-id="Flow_Select_Features_Select_Target"]'))).display)
+      .not.toBe('none');
+    await expect(page.locator('g[data-element-id="select_model"]')).toBeHidden();
+
+    await page.getByTestId('breadcrumb-sklearn_pipeline').click();
+    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
+    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
+  });
+
+  test('double-clicking a collapsed sub-process expands it in place and re-routes its flows', async ({ page }) => {
+    await openExample(page);
+
+    const flow = page.locator('g[data-element-id="flow_select_done"] .sf-connection-line');
+    const before = await flow.getAttribute('data-waypoints');
+    // The shape's own `<rect>` carries its footprint in DIAGRAM units, so the
+    // assertion survives the zoom a re-fit chooses — which a pixel box does not.
+    // `:not(.sf-outline)` skips the selection outline, which is drawn in the same
+    // group and is 10 units wider than the shape it wraps.
+    const frameWidth = page.locator('g[data-element-id="select_model"] rect:not(.sf-outline)').first();
+    await expect(frameWidth).toHaveAttribute('width', '100');
 
     await page.locator('g[data-element-id="select_model"]').dblclick();
 
+    // Defect 1: the double click no longer navigates — it opens the container where
+    // it stands, and the badge keeps the trip.
+    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
+    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
+    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
+    // Fitted to the interior it now holds, not to the flat 350-unit default.
+    await expect.poll(async () => Number(await frameWidth.getAttribute('width')))
+      .toBeGreaterThan(350);
+
+    // Defect 3: the outline changed, so the flows docked to it moved with it. They
+    // used to keep the waypoints of the 100x80 box and start inside the new frame.
+    await expect.poll(async () => flow.getAttribute('data-waypoints')).not.toBe(before);
+
+    // …and it is ONE undo step: the flag, the bounds and the waypoints all go back
+    // together, because they were written in one revision.
+    await pressOnCanvas(page, 'ControlOrMeta+z');
+    await expect.poll(async () => flow.getAttribute('data-waypoints')).toBe(before);
+    await expect(page.locator('g[data-element-id="select_model"] rect:not(.sf-outline)').first())
+      .toHaveAttribute('width', '100');
+    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeHidden();
+  });
+
+  test('double-clicking an in-parent sub-process collapses it, and its name still renames', async ({ page }) => {
+    await openExample(page);
+
+    const frame = page.locator('g[data-element-id="prepare_data"]');
+    const width = page.locator('g[data-element-id="prepare_data"] rect:not(.sf-outline)').first();
+    await expect(width).toHaveAttribute('width', '650');
+    const box = (await frame.boundingBox())!;
+
+    // The BODY, clear of the caption: it collapses in place rather than navigating.
+    await frame.dblclick({ position: { x: 12, y: box.height - 12 } });
+    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
+    await expect(page.locator('g[data-element-id="select_features"]')).toBeHidden();
+    await expect(page.locator('g[data-element-id="prepare_data"] rect:not(.sf-outline)').first())
+      .toHaveAttribute('width', '100');
+
+    await pressOnCanvas(page, 'ControlOrMeta+z');
+    await expect(page.locator('g[data-element-id="select_features"]')).toBeVisible();
+    await expect(page.locator('g[data-element-id="prepare_data"] rect:not(.sf-outline)').first())
+      .toHaveAttribute('width', '650');
+
+    // Rename stays reachable: `e` on the selection, and a double click on the
+    // container's own NAME rather than on its body.
+    await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
+    await pressOnCanvas(page, 'e');
+    await expectEditorText(page, 'prepare_data');
+    await pressOnCanvas(page, 'Escape');
+    await expect(labelEditor(page)).toHaveCount(0);
+  });
+
+  test('the context pad names both container actions, for both storage kinds', async ({ page }) => {
+    await openExample(page);
+
+    // The badge is 20 units square and the double click is overloaded; the pad is the
+    // discoverable, keyboard-reachable route to the same two actions — and it says
+    // which way the toggle will go.
+    for (const [id, expected] of [['prepare_data', 'Collapse'], ['select_model', 'Expand']] as const) {
+      await page.locator(`g[data-element-id="${id}"]`).click({ position: { x: 12, y: 12 } });
+      await expect(page.getByTestId('context-pad')).toBeVisible();
+      await expect(page.getByTestId('context-pad-drilldown.enter')).toBeVisible();
+      await page.getByTestId('context-pad-expand.toggle').hover();
+      await expect(page.getByTestId('context-pad-tooltip')).toHaveText(expected);
+    }
+
+    // The pad's Open entry takes the same trip the badge does.
+    await page.getByTestId('context-pad-drilldown.enter').click();
     await expect(page.getByTestId('drilldown-breadcrumbs')).toContainText('select_model');
     await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
-    // Navigation is view-only: the sub-process is not opened in place, so nothing
-    // was written and undo has nothing to give back.
-    await expect(page.locator('g[data-element-id="select_model"]')).toBeHidden();
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {

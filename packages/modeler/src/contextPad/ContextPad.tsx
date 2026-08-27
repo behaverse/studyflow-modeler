@@ -248,6 +248,13 @@ export function ContextPad() {
   const entries = useMemo<ContextPadEntry[]>(() => {
     if (!visible) return [];
     const single = elements.length === 1 ? elements[0] : undefined;
+    // The scene node behind the selection, when it is a container that can be
+    // expanded — both container entries are gated on the one answer, so no subclass
+    // can get the toggle without the drill-down or the other way round.
+    const resolved = single ? modeler.canvas.resolveElement(single) : undefined;
+    const expandable = resolved && resolved.kind === 'node' && modeler.canvas.canExpand(resolved)
+      ? resolved
+      : undefined;
     const askAppend = (targetType?: string): boolean => (
       !!single && modeler.rules.allowed('shape.append', {
         element: single,
@@ -263,6 +270,8 @@ export function ContextPad() {
       canAnnotate: askAppend('bpmn:TextAnnotation'),
       canReplace: !!single && modeler.rules.allowed('shape.replace', { element: single }),
       isChoreographyTask: !!single && is(single, 'bpmn:ChoreographyTask'),
+      isExpandable: !!expandable,
+      isExpanded: !!expandable && expandable.isExpanded !== false,
     });
   }, [modeler, visible, elements]);
 
@@ -340,6 +349,12 @@ export function ContextPad() {
         return;
       case 'choreography.swap-initiator':
         if (element) void executeCommand(modeler, { type: 'SwapChoreographyInitiator', element });
+        return;
+      case 'expand.toggle':
+        if (element) void executeCommand(modeler, { type: 'ToggleExpanded', element });
+        return;
+      case 'drilldown.enter':
+        if (element) void executeCommand(modeler, { type: 'EnterContainer', element });
         return;
       default:
         return;

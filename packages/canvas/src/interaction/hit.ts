@@ -13,9 +13,10 @@
  *
  * Containers paint a frame around a transparent interior, so they must not swallow
  * the elements they enclose — a task inside a `bpmn:Group` and a sequence flow
- * inside a pool both stay clickable. Among overlapping nodes of the same class the
- * deepest / last-drawn one wins, matching the renderer's ancestors-first draw order
- * (`render/renderer.ts` `renderScene`).
+ * inside a pool both stay clickable. Among overlapping LEAF shapes the deepest /
+ * last-drawn one wins, matching the renderer's ancestors-first draw order
+ * (`render/renderer.ts` `renderScene`); among overlapping FRAMES the innermost wins
+ * by geometry instead of by paint order (see {@link outranksFrame}).
  */
 
 import { isHiddenByCollapse } from '@canvas/model/expand.ts';
@@ -130,13 +131,41 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
     if (accept && !accept(node)) continue;
     if (!pointInNode(point, node, nodePadding)) continue;
     if (!isContainerNode(node)) return node;
-    // Remember the innermost/topmost frame, but keep looking for a leaf below it:
-    // a `bpmn:Group` is an artifact, so the shapes it frames are not its children
+    // Remember the innermost frame, but keep looking for a leaf below it: a
+    // `bpmn:Group` is an artifact, so the shapes it frames are not its children
     // and may well be drawn before it.
-    container ??= node;
+    if (!container || outranksFrame(node, container)) container = node;
   }
 
   return nearestEdge(scene, point, options.tolerance ?? DEFAULT_TOLERANCE, accept) ?? container;
+}
+
+/**
+ * Whether frame `candidate` should be preferred over the frame `current` already
+ * found under the same point — i.e. whether it is the more INNER of the two.
+ *
+ * Paint order cannot answer this. Frames overlap without nesting in the document:
+ * a `bpmn:Group` is an *artifact*, so the activities it visually frames are not its
+ * children, and it is drawn after (above) them. Ranking by draw order therefore
+ * handed every point of an expanded sub-process that a group happens to overlap to
+ * the GROUP — the sub-process could not be double-clicked shut over the upper half
+ * of its own frame, and the gesture opened a rename on the group instead.
+ *
+ * So rank by geometry, which is what "innermost" means to a user aiming at a frame:
+ *
+ * - The smaller-area frame wins. A frame nested inside another always has the
+ *   smaller area, so genuine nesting (lane in pool, sub-process in group, group in
+ *   sub-process) is ranked correctly whichever way round the document nests it,
+ *   and partial overlaps fall out sensibly too.
+ * - On equal area — two frames drawn exactly on top of each other — the deeper one
+ *   in the containment tree wins.
+ * - Failing both, the first frame reached wins, i.e. the topmost in draw order.
+ */
+function outranksFrame(candidate: SceneNode, current: SceneNode): boolean {
+  const candidateArea = candidate.width * candidate.height;
+  const currentArea = current.width * current.height;
+  if (candidateArea !== currentArea) return candidateArea < currentArea;
+  return depthOf(candidate) > depthOf(current);
 }
 
 /**

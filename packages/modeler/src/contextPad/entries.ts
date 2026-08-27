@@ -33,7 +33,9 @@ export type ContextPadAction =
   | 'connect'
   | 'delete'
   | 'set-color'
-  | 'choreography.swap-initiator';
+  | 'choreography.swap-initiator'
+  | 'expand.toggle'
+  | 'drilldown.enter';
 
 /** A fixed successor a pad entry appends, which is also what its hover ghost draws. */
 export type ContextPadAppend = {
@@ -83,6 +85,14 @@ export type ContextPadContext = {
   canReplace: boolean;
   /** Whether the single selection is a `bpmn:ChoreographyTask`. */
   isChoreographyTask: boolean;
+  /**
+   * Whether the single selection is an expandable CONTAINER (`Canvas.canExpand` —
+   * the sub-process family plus the choreography containers). Both container entries
+   * hang off this one flag, so every subclass gets both or neither.
+   */
+  isExpandable?: boolean;
+  /** Whether that container is currently drawn expanded — the toggle's wording. */
+  isExpanded?: boolean;
 };
 
 /** The end event the pad's first entry appends — the palette's End tile, verbatim. */
@@ -155,6 +165,27 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
       action: 'choreography.swap-initiator',
       title: 'Switch initiating participant',
       icon: ICONS.swapVertical,
+    });
+  }
+
+  // The two CONTAINER entries, also app-contributed, also after the reference's six
+  // so its two rows stay the two rows it draws.
+  //
+  // They exist because the canvas has exactly two gestures for a container — a double
+  // click that toggles it and a 20-unit badge that opens it — and neither is
+  // discoverable or keyboard-reachable. The pad is: it names both actions, it says
+  // which way the toggle will go, and it is the non-destructive route for a user who
+  // wants to look inside without rewriting `isExpanded`.
+  if (single && context.isShape && context.isExpandable) {
+    entries.push({
+      action: 'expand.toggle',
+      title: context.isExpanded ? 'Collapse' : 'Expand',
+      icon: ICONS.bpmnSubprocess,
+    });
+    entries.push({
+      action: 'drilldown.enter',
+      title: 'Open contents',
+      icon: ICONS.boxArrowInDown,
     });
   }
 

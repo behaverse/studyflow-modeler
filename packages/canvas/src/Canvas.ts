@@ -74,7 +74,7 @@ import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAs
 import { isCollapsed, isExpandable, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { ExternalLabels, isLabelElement } from '@canvas/model/externalLabel.ts';
 import type { SetExpandedOptions } from '@canvas/model/expand.ts';
-import { depthOf } from '@canvas/model/tree.ts';
+import { zRankOf } from '@canvas/model/tree.ts';
 import { Writeback, definitionsOf } from '@canvas/model/writeback.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
 import { CONNECTION, Rules, type RuleElement } from '@canvas/rules/rules.ts';
@@ -85,7 +85,7 @@ import {
   routeFor,
   type RouteOptions,
 } from '@canvas/routing/orthogonal.ts';
-import { labelIdOf } from '@canvas/render/labels.ts';
+import { internalLabelTextBounds, labelIdOf } from '@canvas/render/labels.ts';
 import { OUTLINE_CLASS } from '@canvas/render/outline.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import {
@@ -149,6 +149,13 @@ const MARQUEE_THRESHOLD_PX = 3;
  * 8px print margin on top (`export/svgEmbedding.ts padSvg`).
  */
 const EXPORT_MARGIN = 4;
+
+/**
+ * How far outside an internal caption's glyph box a double click still counts as
+ * "on the name" (diagram units). The box is tight to the text, and a rename gesture
+ * aimed at a short name should not have to be pixel-exact.
+ */
+const LABEL_HIT_SLACK = 4;
 
 /** Diagram units one arrow key moves the selection (parity spec §9). */
 const SMALL_NUDGE = 1;
@@ -354,6 +361,17 @@ export class Canvas {
    * silently in the document root, where nothing on screen would show it.
    */
   private activePlane?: Plane;
+  /**
+   * The CONTAINER new elements are filed under, when the view is scoped to one that
+   * owns no plane of its own ({@link Canvas.setActiveContainer}).
+   *
+   * A real nested plane answers both halves of "where does a drop go" at once —
+   * `Writeback.addShape` reads the container back off the plane
+   * (`ownerNodeOf`). A synthesized scope cannot: its DI belongs to a plane the
+   * container merely lives in, so the plane says where the `planeElement` goes and
+   * this says whose `flowElements` the business object joins.
+   */
+  private activeContainer?: SceneNode;
   private scene?: Scene;
   private writeback?: Writeback;
   private drag?: Drag;
@@ -482,6 +500,7 @@ export class Canvas {
       // auto-place); see `exactPlacement`.
       snap: (point) => (this.exactPlacement ? { ...point } : this.snapPoint(point)),
       getPlane: () => this.activePlane,
+      getContainer: () => this.activeContainer,
       // The palette ghost is the shape itself in blue outline, and the element under
       // it is tinted by whether it would take the drop — parity spec §7.
       drawGhost: (prototype, bounds) => this.drawCreateGhost(prototype, bounds),
@@ -610,6 +629,7 @@ export class Canvas {
     this.planeScope = undefined;
     this.scopedOutIds.clear();
     this.activePlane = undefined;
+    this.activeContainer = undefined;
     this.scene = importDefinitions(definitions, { onWarning: this.onWarning });
     this.writeback = new Writeback(this.scene, this.bus, IdGenerator.fromDefinitions(definitions));
     this.create.cancel();
@@ -629,11 +649,7 @@ export class Canvas {
         : {}),
     });
     this.layers.clear();
-    this.renderer.renderScene(
-      this.scene,
-      this.layers.getLayer('shapes'),
-      this.layers.getLayer('connections'),
-    );
+    this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
     this.zoomToFit();
     return this.scene;
   }
@@ -1139,7 +1155,7 @@ export class Canvas {
       type: prototype.type,
       bounds,
       ...(this.activePlane ? { plane: this.activePlane } : {}),
-      ...(node.parent ? { parent: node.parent } : {}),
+      ...(node.parent ?? this.activeContainer ? { parent: node.parent ?? this.activeContainer } : {}),
       ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
       ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
       ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
@@ -1440,20 +1456,19 @@ export class Canvas {
   /**
    * Draw a newly created element's graphics into its layer and index them.
    *
-   * A node is spliced in at its DEPTH, not appended: the shapes layer is kept in
-   * the same ancestors-first order `Renderer.renderScene` builds (and
-   * `interaction/hit.ts` assumes), so a container dropped around existing shapes —
-   * an expanded sub-process, a second participant — paints BEHIND them instead of
-   * covering them with its own fill. Edges share one flat layer under the shapes,
-   * so they simply append.
+   * EVERY element — edge included — is spliced in at its composite z-rank
+   * (`model/tree.ts zRankOf`), not appended: the element layer is kept in the same
+   * order `Renderer.renderScene` builds (and `interaction/hit.ts` assumes), so a
+   * container dropped around existing shapes — an expanded sub-process, a second
+   * participant — paints BEHIND them instead of covering them with its own fill, and
+   * a flow drawn INSIDE that container paints above its frame.
    */
   private mount(element: SceneElement): SVGGElement {
     const g = element.kind === 'node'
       ? this.renderer.drawShape(element)
       : this.renderer.drawEdge(element);
-    const layer = this.layers.getLayer(element.kind === 'node' ? 'shapes' : 'connections');
-    if (element.kind === 'node') layer.insertBefore(g, this.firstDeeperThan(layer, element));
-    else append(layer, g);
+    const layer = this.layers.getLayer('elements');
+    layer.insertBefore(g, this.firstAbove(layer, element));
     this.renderer.graphicsById.set(element.id, g);
     // Something minted while the view is scoped to another plane stays hidden.
     if (!this.inPlaneScope(element)) {
@@ -1464,17 +1479,19 @@ export class Canvas {
   }
 
   /**
-   * The first child of `layer` drawn for a node nested strictly deeper than `node`
-   * — the insertion point that keeps the layer depth-ordered — or `null` to append.
+   * The first child of `layer` drawn for an element that ranks strictly ABOVE
+   * `element` ({@link zRankOf}) — the insertion point that keeps the layer ordered —
+   * or `null` to append.
    */
-  private firstDeeperThan(layer: SVGGElement, node: SceneNode): ChildNode | null {
+  private firstAbove(layer: SVGGElement, element: SceneElement): ChildNode | null {
     const scene = this.scene;
     if (!scene) return null;
-    const depth = depthOf(node);
+    const rank = zRankOf(element);
     for (const child of Array.from(layer.childNodes)) {
       const id = (child as Element).getAttribute?.('data-element-id');
       const other = id ? scene.elementsById.get(id) : undefined;
-      if (other && other.kind === 'node' && depthOf(other) > depth) return child;
+      if (!other || (other.kind !== 'node' && other.kind !== 'edge')) continue;
+      if (zRankOf(other) > rank) return child;
     }
     return null;
   }
@@ -1531,7 +1548,16 @@ export class Canvas {
    */
   redrawElements(elements: SceneElement[]): void {
     for (const element of elements) {
-      this.renderer.redraw(element);
+      const g = this.renderer.redraw(element);
+      // A re-draw derives `display` from the COLLAPSE state alone, so re-drawing an
+      // element the current plane scope excludes would pop it back on screen — which
+      // is how an icon-cache repaint (`editor/mount.ts`) could un-hide the whole
+      // parent plane from under a drill-down. The scope is re-applied here, at the
+      // source, rather than patched up reactively by whoever notices.
+      if (g && !this.inPlaneScope(element)) {
+        g.setAttribute('display', 'none');
+        this.scopedOutIds.add(element.id);
+      }
       this.selection.restoreMarkers(element.id);
       // An element's caption is drawn inside its `<g>`, so a re-draw replaced it:
       // re-point the label element at the new geometry and put its own chrome back.
@@ -1651,6 +1677,22 @@ export class Canvas {
    */
   setActivePlane(plane?: Plane): void {
     this.activePlane = plane;
+  }
+
+  /**
+   * Point creation at the CONTAINER `node`: a shape minted from here on is parented
+   * to it and files its business object into its `flowElements`, while its DI still
+   * goes to whatever {@link Canvas.setActivePlane} named. `undefined` restores "the
+   * plane decides", which is what a real plane scope wants.
+   *
+   * This is the second half of a SYNTHESIZED drill-down scope (`view/plane.ts`
+   * `virtualPlaneOf`), where the container has no plane of its own to be read back
+   * from. Like the scope and the active plane, setting it writes nothing.
+   *
+   * @internal `view/plane.ts` drives this; nothing outside the canvas should.
+   */
+  setActiveContainer(node?: SceneNode): void {
+    this.activeContainer = node;
   }
 
   /** Whether `element` is inside the current plane scope (always true without one). */
@@ -2465,10 +2507,17 @@ export class Canvas {
    * shape is drawn *outside* its bounds, so a click that misses every shape is given
    * a second chance against the external-label boxes.
    *
-   * On a sub-process the double click means "open me up" instead: it toggles the
-   * expanded state ({@link Canvas.setExpanded}) — the minimal UI affordance for the
-   * P5 expand/collapse writeback, switchable off with
-   * {@link CanvasOptions.toggleExpandOnDoubleClick}.
+   * On an expandable CONTAINER the double click means "open me up" instead: it
+   * toggles the expanded state ({@link Canvas.setExpanded}) — in BOTH directions and
+   * whatever the document does with the contents. Drill-down is the badge's job
+   * (`view/plane.ts`), which used to steal this event for a collapsed container that
+   * owned a plane and let it through for one that did not; that split is the whole of
+   * the "some sub-processes expand, some navigate" report.
+   *
+   * Renaming stays reachable two ways: a double click on the container's own NAME
+   * opens the inline editor rather than toggling (the label box below), and the
+   * context pad carries an explicit entry. {@link CanvasOptions.toggleExpandOnDoubleClick}
+   * still switches the toggle off wholesale.
    */
   private handleDoubleClick(ev: MouseEvent): void {
     if (!this.scene) return;
@@ -2495,11 +2544,37 @@ export class Canvas {
       this.toggleExpandOnDoubleClick
       && element.kind === 'node'
       && isExpandable(element.type)
+      && !this.hitsOwnLabel(element, pt)
     ) {
       this.toggleExpanded(element);
       return;
     }
     this.labelEditing.activate(element, { at: pt });
+  }
+
+  /**
+   * Whether `pt` landed on `node`'s own caption rather than on its body — the escape
+   * hatch that keeps an expandable container renameable now that a double click on it
+   * toggles. An external caption is already an element of its own and never reaches
+   * here as the container; an INTERNAL one is only glyphs, so its box is recomputed
+   * from the very layout the renderer drew it with (`render/labels.ts`), inflated by
+   * a few units so a click a hair off the text still counts as the name.
+   *
+   * Only for a shape the document draws as a FRAME (`isExpanded === true`). A
+   * task-sized container's caption fills its box, so honouring it there would mean a
+   * double click near the middle renames instead of toggling — the gesture would
+   * stop being predictable, which is the whole complaint this change answers. On
+   * those, rename stays on `e` and on the context pad.
+   */
+  private hitsOwnLabel(node: SceneNode, pt: Point): boolean {
+    if (node.isExpanded !== true) return false;
+    const name = prop(node.businessObject, 'name');
+    if (typeof name !== 'string' || !name) return false;
+    const box = internalLabelTextBounds(node, name);
+    if (!box) return false;
+    const slack = LABEL_HIT_SLACK;
+    return pt.x >= box.x - slack && pt.x <= box.x + box.width + slack
+      && pt.y >= box.y - slack && pt.y <= box.y + box.height + slack;
   }
 
   /**
@@ -2768,30 +2843,19 @@ export class Canvas {
     };
   }
 
-  /** Union of the drawn layers' `getBBox`, or `undefined` where that is unavailable. */
+  /** The drawn element layer's `getBBox`, or `undefined` where that is unavailable. */
   private measuredContentBounds(): Bounds | undefined {
-    let box: Bounds | undefined;
-    for (const name of ['connections', 'shapes'] as const) {
-      const layer = this.layers.getLayer(name) as SVGGElement & { getBBox?: () => DOMRect };
-      if (typeof layer.getBBox !== 'function') return undefined;
-      let rect: DOMRect;
-      try {
-        rect = layer.getBBox();
-      } catch {
-        // An unrendered (detached, or display:none) subtree throws in some engines.
-        continue;
-      }
-      if (!(rect.width > 0 || rect.height > 0)) continue;
-      box = box
-        ? {
-          x: Math.min(box.x, rect.x),
-          y: Math.min(box.y, rect.y),
-          width: Math.max(box.x + box.width, rect.x + rect.width) - Math.min(box.x, rect.x),
-          height: Math.max(box.y + box.height, rect.y + rect.height) - Math.min(box.y, rect.y),
-        }
-        : { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    const layer = this.layers.getLayer('elements') as SVGGElement & { getBBox?: () => DOMRect };
+    if (typeof layer.getBBox !== 'function') return undefined;
+    let rect: DOMRect;
+    try {
+      rect = layer.getBBox();
+    } catch {
+      // An unrendered (detached, or display:none) subtree throws in some engines.
+      return undefined;
     }
-    return box;
+    if (!(rect.width > 0 || rect.height > 0)) return undefined;
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   }
 
   /** The scene-space box of every in-scope element — the measurement-free fallback. */

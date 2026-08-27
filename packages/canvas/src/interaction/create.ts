@@ -177,6 +177,14 @@ export interface CreateOptions {
    */
   getPlane?: () => Plane | undefined;
   /**
+   * The CONTAINER the drop lands in when the view is scoped to one that owns no plane
+   * of its own (`Canvas.setActiveContainer`, driven by a synthesized drill-down
+   * scope). It answers the half {@link CreateOptions.getPlane} cannot there: the
+   * plane says where the `BPMNShape` is filed, this says whose `flowElements` the
+   * business object joins. `undefined` = let the plane decide, as a real plane does.
+   */
+  getContainer?: () => SceneNode | undefined;
+  /**
    * Draw the ghost that follows the cursor — the shape itself, rendered as a blue
    * outline (parity spec §7 "Creating from the app palette"). The canvas injects its
    * renderer here; without it the gesture falls back to a plain dashed footprint,
@@ -293,9 +301,13 @@ export class Create {
     const scene = this.options.getScene();
     if (!scene) return { verdict: false };
     const parent = containerOf(over);
-    // Empty background means "the plane on screen" — which inside a drill-down is the
-    // sub-process's own plane, not the document root.
-    const context: RuleElement = parent ?? this.options.getPlane?.() ?? scene.rootPlane;
+    // Empty background means "the scope on screen" — which inside a drill-down is the
+    // sub-process's own plane (or, when it has none, the sub-process itself), not the
+    // document root.
+    const context: RuleElement = parent
+      ?? this.options.getContainer?.()
+      ?? this.options.getPlane?.()
+      ?? scene.rootPlane;
     // `root` lets the rules tell "the plane this diagram IS" from any other flow
     // container of the same type — the one thing a pool drop turns on (§3A).
     const verdict = this.options.rules.allowed('shape.create', {
@@ -315,6 +327,9 @@ export class Create {
     if (!writeback) return undefined;
     const attach = target.verdict === 'attach' ? target.parent : undefined;
     const plane = this.options.getPlane?.();
+    // A drop on the empty background of a synthesized scope has no geometric parent;
+    // the scope's container is the one it belongs to.
+    const container = target.parent ?? this.options.getContainer?.();
     const node = writeback.addShape({
       type: prototype.type,
       bounds: boundsFor(prototype, center),
@@ -323,7 +338,7 @@ export class Create {
       ...(prototype.attrs ? { attrs: prototype.attrs } : {}),
       ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
       ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
-      ...(attach ? { attachTo: attach } : { ...(target.parent ? { parent: target.parent } : {}) }),
+      ...(attach ? { attachTo: attach } : { ...(container ? { parent: container } : {}) }),
     });
     // A prototype carrying a pre-built business object must not file that same
     // object twice; the next drop of the same palette entry mints a fresh one.

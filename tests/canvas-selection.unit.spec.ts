@@ -340,6 +340,72 @@ async function loadFrames(): Promise<Canvas> {
   return canvas;
 }
 
+/**
+ * Overlapping frames that do NOT nest in the document: an expanded sub-process
+ * (100,300 350×200) holding one task, a big `bpmn:Group` (60,260 500×180) laid over
+ * its upper half, and a small group (300,440 60×40) sitting inside it. Both groups
+ * are artifacts — neither is the sub-process's parent or child — and both are
+ * declared AFTER it, so paint order puts them on top.
+ *
+ * This is the kitchensink geometry that made an expanded container impossible to
+ * double-click shut: the group took every hit over the upper half of the frame and
+ * the gesture opened a rename on the GROUP instead of collapsing the container.
+ */
+const OVERLAPPING_FRAMES_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_2" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_2" isExecutable="false">
+    <bpmn:subProcess id="Sub_1" name="Sub">
+      <bpmn:task id="Child_1" name="Child" />
+    </bpmn:subProcess>
+    <bpmn:group id="Group_Big" />
+    <bpmn:group id="Group_Small" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_2">
+    <bpmndi:BPMNPlane id="Plane_2" bpmnElement="Process_2">
+      <bpmndi:BPMNShape id="Sub_1_di" bpmnElement="Sub_1" isExpanded="true">
+        <dc:Bounds x="100" y="300" width="350" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Child_1_di" bpmnElement="Child_1">
+        <dc:Bounds x="150" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Group_Big_di" bpmnElement="Group_Big">
+        <dc:Bounds x="60" y="260" width="500" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Group_Small_di" bpmnElement="Group_Small">
+        <dc:Bounds x="300" y="440" width="60" height="40" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('hit-testing: among overlapping frames the innermost wins, not the last drawn', async () => {
+  const { canvas } = await loadCanvasXml(OVERLAPPING_FRAMES_XML);
+  const scene = canvas.getScene()!;
+  const sub = scene.elementsById.get('Sub_1') as SceneNode;
+  const big = scene.elementsById.get('Group_Big') as SceneNode;
+
+  const overlap = { x: 420, y: 320 };
+  expect(pointInNode(overlap, sub), 'the probe is inside the expanded sub-process').toBe(true);
+  expect(pointInNode(overlap, big), 'and inside the group drawn over it').toBe(true);
+
+  // The group is bigger, so the sub-process is the innermost frame under the point
+  // even though the group paints above it — this is what makes a double click there
+  // collapse the container instead of renaming the group.
+  expect(canvas.hitTest(overlap)?.id, 'sub-process under an overlapping bigger group').toBe('Sub_1');
+
+  // The rule is geometric, not type-based: a group SMALLER than the sub-process it
+  // sits in still wins, and a point in the group alone still hits the group.
+  expect(canvas.hitTest({ x: 330, y: 460 })?.id, 'small group inside the sub-process').toBe('Group_Small');
+  expect(canvas.hitTest({ x: 100, y: 280 })?.id, 'group interior clear of the sub-process').toBe('Group_Big');
+
+  // Leaves still outrank every frame over them.
+  expect(canvas.hitTest({ x: 200, y: 420 })?.id, 'task inside both frames').toBe('Child_1');
+});
+
 test('hit-testing: frames rank below the shapes and edges they enclose', async () => {
   const canvas = await loadFrames();
   const scene = canvas.getScene()!;

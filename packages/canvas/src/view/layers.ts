@@ -1,8 +1,19 @@
 /**
  * Ordered SVG layer stack (design §3 `view/layers.ts`). A fixed z-order of `<g>`
- * layers inside the canvas root: grid (bottom), connections, shapes, overlays,
- * selection (top). The renderer draws edges into `connections` and nodes into
- * `shapes`; later phases use `overlays`/`selection`.
+ * layers inside the canvas root: grid (bottom), elements, overlays, selection (top).
+ * The renderer draws every node AND every edge into the single `elements` layer;
+ * later phases use `overlays`/`selection`.
+ *
+ * **Why one element layer.** The stack used to split `connections` (below) from
+ * `shapes` (above), which made an expanded sub-process's opaque frame paint over the
+ * very flows it contains: the interior shapes were spliced into the shapes layer
+ * *after* their container and so stayed visible, while the interior edges sat in a
+ * lower layer no depth splice could reach. Rendering and hit-testing then disagreed
+ * — `interaction/hit.ts` happily returned an edge nobody could see. Merging the two
+ * lets ONE composite order (`model/tree.ts depthOf`, then edges before nodes within
+ * a depth) govern both: a container's frame still sits under the flows drawn at its
+ * own level, so root arrowheads keep passing beneath their target shapes, while a
+ * depth-1 interior flow now paints above the depth-0 frame that encloses it.
  *
  * All layers share the root's coordinate space (pan/zoom is applied to the root
  * `viewBox` by {@link Viewport}), so a layer is a plain untransformed group.
@@ -11,10 +22,22 @@
 import { append, create, remove } from '@canvas/render/svg.ts';
 
 /** The layers, bottom to top. */
-export const LAYER_ORDER = ['grid', 'connections', 'shapes', 'overlays', 'selection'] as const;
+export const LAYER_ORDER = ['grid', 'elements', 'overlays', 'selection'] as const;
 
 /** A layer name. */
 export type LayerName = (typeof LAYER_ORDER)[number];
+
+/**
+ * The names the pre-merge stack used, kept resolving to the merged layer so a host
+ * that still asks for `'shapes'` or `'connections'` gets a group rather than a throw.
+ */
+const LAYER_ALIASES: Readonly<Record<string, LayerName>> = {
+  shapes: 'elements',
+  connections: 'elements',
+};
+
+/** A layer name, or one of the two names the split stack answered to. */
+export type LayerNameOrAlias = LayerName | 'shapes' | 'connections';
 
 /**
  * Grid geometry, verbatim from `diagram-js-grid` (P6b §3C): a dot every
@@ -59,9 +82,10 @@ export class Layers {
     }
   }
 
-  /** The `<g>` for a named layer. */
-  getLayer(name: LayerName): SVGGElement {
-    const layer = this.layers.get(name);
+  /** The `<g>` for a named layer (the two legacy names resolve to `elements`). */
+  getLayer(name: LayerNameOrAlias): SVGGElement {
+    const resolved = LAYER_ALIASES[name] ?? (name as LayerName);
+    const layer = this.layers.get(resolved);
     if (!layer) throw new Error(`@behaverse/studyflow-canvas: unknown layer '${name}'`);
     return layer;
   }

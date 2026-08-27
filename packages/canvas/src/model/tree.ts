@@ -12,6 +12,23 @@
 import type { SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
 /**
+ * The z-order key of a drawable element inside the single `elements` layer
+ * (`view/layers.ts`): `depth * 2`, plus one for a NODE.
+ *
+ * Two rules in one number. Shallower paints first, so a container sits behind
+ * everything it contains — without which an expanded sub-process's opaque frame
+ * covers its own interior flows. Within one depth the EDGES paint first, so a
+ * sequence flow's arrowhead still passes under the shape it docks to, which is how
+ * the diagram looked when connections had a layer of their own below the shapes.
+ *
+ * `render/renderer.ts` sorts by this on a full render and `Canvas.mount` splices a
+ * newly created element in at the matching rank, so the two orders cannot drift.
+ */
+export function zRankOf(element: SceneElement): number {
+  return depthOf(element) * 2 + (element.kind === 'node' ? 1 : 0);
+}
+
+/**
  * Containment depth of `element` (`0` at a plane root), guarded against a cyclic
  * `parent` chain so a malformed import cannot hang the render.
  */

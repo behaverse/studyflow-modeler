@@ -119,3 +119,45 @@ export function runStartConnect(modeler: Editor, command: StartConnectCommand): 
   if (!source || source.kind !== 'node') return false;
   return modeler.canvas.startConnect(source, command.event);
 }
+
+
+export type ToggleExpandedCommand = {
+  type: 'ToggleExpanded';
+  element: EditorElement;
+};
+
+/**
+ * Expand or collapse an expandable container in place — the context pad's
+ * discoverable twin of the double click (`Canvas.handleDoubleClick`).
+ *
+ * It writes: `bpmndi:BPMNShape.isExpanded`, the shape's `dc:Bounds`, and the
+ * re-docked waypoints of every incident edge, all inside one `Writeback.finish` and
+ * therefore one undo step. Returns whether anything was written — a non-container,
+ * or a stale reference, writes nothing.
+ */
+export function runToggleExpanded(modeler: Editor, command: ToggleExpandedCommand): boolean {
+  const node = modeler.canvas.resolveElement(command.element);
+  if (!node || node.kind !== 'node' || !modeler.canvas.canExpand(node)) return false;
+  return modeler.canvas.toggleExpanded(node);
+}
+
+
+export type EnterContainerCommand = {
+  type: 'EnterContainer';
+  element: EditorElement;
+};
+
+/**
+ * Drill INTO a container — the pad's twin of the ↘ badge, and the reason the badge
+ * is no longer the only way in (it is 20 units square and unreachable from the
+ * keyboard).
+ *
+ * Navigation is view-only: the container's own plane when it owns one, a synthesized
+ * scope over its children when it does not (`view/plane.ts`), and nothing is written
+ * either way. Returns whether the view moved.
+ */
+export function runEnterContainer(modeler: Editor, command: EnterContainerCommand): boolean {
+  const node = modeler.canvas.resolveElement(command.element);
+  if (!node || node.kind !== 'node') return false;
+  return modeler.canvas.getPlaneCursor().enterPlane(node);
+}

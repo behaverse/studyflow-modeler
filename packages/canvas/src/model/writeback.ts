@@ -36,7 +36,16 @@ import {
 import {
   applyExpanded,
   applyMarkerVisible,
+  contentsOf,
+  EXPANDED_CONTENT_PADDING,
+  frameAround,
+  incidentEdgesOf,
+  isCollapsed,
   isExpandable,
+  nestedPlanesOf,
+  rememberIncidentRouting,
+  restoreIncidentRouting,
+  samePoints,
   type SetExpandedOptions,
 } from '@canvas/model/expand.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
@@ -67,7 +76,10 @@ import type {
   SceneNode,
 } from '@canvas/model/scene.ts';
 import { labelIdOf } from '@canvas/render/labels.ts';
+import { cropPoint } from '@canvas/routing/crop.ts';
+import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import { containerFor } from '@canvas/rules/rules.ts';
+import { planeOf } from '@canvas/view/plane.ts';
 import { sceneBounds } from '@canvas/view/viewport.ts';
 
 /** Payload for the `element.changed` event (one element edited). */
@@ -423,6 +435,148 @@ export function dockConnectedEdges(node: SceneNode, dx: number, dy: number): Sce
   return affected;
 }
 
+/**
+ * Re-dock every edge incident to `node` against its NEW outline, in the SCENE only.
+ *
+ * {@link dockConnectedEdges} is a pure *translation* helper — it shifts a docking
+ * waypoint by the delta the node moved and bows out when that delta is zero. An
+ * expand/collapse keeps the top-left corner and changes only the WIDTH and HEIGHT,
+ * so the delta is always zero and nothing was ever re-docked: a collapsed
+ * sub-process's flows kept aiming at the 350×200 frame that had just become 100×80,
+ * starting inside the box or docking well off-centre. This is the resize path's
+ * behaviour (`interaction/drag.ts applyResize`) applied to that outline change:
+ *
+ * - a route with no author bendpoints (≤ 2 waypoints) is re-cut wholesale by the
+ *   orthogonal router, which crops both ends to the shapes it connects;
+ * - a route the author bent is only RE-DOCKED — the docked end is projected onto the
+ *   new outline and the run is squared — so the interior bends survive.
+ *
+ * Only `node`'s own edges are touched, never `edgesAffectedBy`, which descends into
+ * the container's children and would re-route the whole interior.
+ *
+ * Returns the edges whose waypoints actually moved; the caller writes their DI.
+ */
+export function redockToOutline(node: SceneNode): SceneEdge[] {
+  const changed: SceneEdge[] = [];
+  for (const edge of incidentEdgesOf(node)) {
+    const before = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
+    if (edge.waypoints.length <= 2) {
+      // Dangling (no source or target)? `rerouteEdge` says so and leaves it alone.
+      rerouteEdge(edge);
+    } else {
+      const points = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
+      const last = points.length - 1;
+      // A self-loop names this node at BOTH ends; both are cropped in the one pass.
+      if (edge.source === node) points[0] = cropPoint(node, points[1]);
+      if (edge.target === node) points[last] = cropPoint(node, points[last - 1]);
+      edge.waypoints = orthogonalize(points);
+    }
+    if (!samePoints(before, edge.waypoints)) changed.push(edge);
+  }
+  return changed;
+}
+
+// --- nested-plane inlining (the expand half of design §1 "Nested planes") ----
+
+/** One content element's geometry, exactly as the document filed it. */
+interface ParkedGeometry {
+  element: SceneElement;
+  bounds?: Bounds;
+  waypoints?: Point[];
+  label?: { x?: number; y?: number };
+}
+
+/**
+ * A nested plane taken out of the document while its container is drawn expanded,
+ * with everything needed to put it back EXACTLY as it was — the plane's slot in
+ * `Scene.planes`, its `BPMNDiagram`'s slot in `definitions.diagrams`, its
+ * `planeElement` list in document order, and the untranslated geometry of every
+ * element it held.
+ */
+interface ParkedPlane {
+  plane: Plane;
+  planeIndex: number;
+  diagram?: ModdleObject;
+  diagramIndex: number;
+  definitions?: ModdleObject;
+  planeElements: ModdleObject[];
+  geometry: ParkedGeometry[];
+}
+
+/** Parked per DI shape, so a re-import simply starts with nothing parked. */
+const parkedPlanes = new WeakMap<object, ParkedPlane>();
+
+/** The parking key for a node — its DI shape when it has one, else the node itself. */
+function parkKey(node: SceneNode): object {
+  return node.di ?? node;
+}
+
+/** The `planeElement` list of a `bpmndi:BPMNPlane`, as a live array. */
+function planeElementsOf(planeDi: ModdleObject): ModdleObject[] {
+  const list = prop(planeDi, 'planeElement');
+  return Array.isArray(list) ? (list as ModdleObject[]) : [];
+}
+
+/**
+ * The nested plane an EXPAND of `node` should inline, or `undefined` when there is
+ * nothing to inline: the node is not opening, owns no plane of its own, or owns one
+ * that is still empty (a freshly authored container — there are no coordinates to
+ * re-base, and unfiling its `BPMNDiagram` would only churn the document).
+ */
+function inlinablePlaneOf(scene: Scene, node: SceneNode): Plane | undefined {
+  if (!isCollapsed(node)) return undefined;
+  const plane = nestedPlanesOf(scene, node)[0];
+  if (!plane) return undefined;
+  return planeElementsOf(plane.di).length > 0 ? plane : undefined;
+}
+
+/** Snapshot `element`'s geometry so a collapse can put it back verbatim. */
+function parkGeometry(element: SceneElement): ParkedGeometry {
+  const parked: ParkedGeometry = { element };
+  if (element.kind === 'node') {
+    parked.bounds = { x: element.x, y: element.y, width: element.width, height: element.height };
+  } else {
+    parked.waypoints = element.waypoints.map((p) => ({ x: p.x, y: p.y }));
+  }
+  const label = element.label;
+  if (label) parked.label = { ...(label.x !== undefined ? { x: label.x } : {}), ...(label.y !== undefined ? { y: label.y } : {}) };
+  return parked;
+}
+
+/** Move `element` by `(dx, dy)` — scene, label and backing DI. */
+function translateElement(element: SceneElement, dx: number, dy: number): void {
+  if (element.kind === 'node') {
+    element.x += dx;
+    element.y += dy;
+    translateLabel(element, dx, dy);
+    syncNodeBoundsToDi(element);
+  } else {
+    element.waypoints = element.waypoints.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+    translateLabel(element, dx, dy);
+    syncEdgeWaypointsToDi(element);
+  }
+}
+
+/** Put a parked element back where the document had it — scene, label and DI. */
+function restoreGeometry(parked: ParkedGeometry): void {
+  const element = parked.element;
+  if (element.kind === 'node' && parked.bounds) {
+    element.x = parked.bounds.x;
+    element.y = parked.bounds.y;
+    element.width = parked.bounds.width;
+    element.height = parked.bounds.height;
+  } else if (element.kind === 'edge' && parked.waypoints) {
+    element.waypoints = parked.waypoints.map((p) => ({ x: p.x, y: p.y }));
+  }
+  const label = element.label;
+  if (label && parked.label) {
+    if (parked.label.x !== undefined) label.x = parked.label.x;
+    if (parked.label.y !== undefined) label.y = parked.label.y;
+  }
+  if (element.kind === 'node') syncNodeBoundsToDi(element);
+  else syncEdgeWaypointsToDi(element);
+}
+
 // --- committing API ---------------------------------------------------------
 
 /** What {@link Writeback.addShape} needs to mint a business object + `BPMNShape` pair. */
@@ -589,8 +743,20 @@ export class Writeback {
    * re-draw them (`model/expand.ts`).
    *
    * Collapsing **hides**; it never deletes. Every contained business object stays in
-   * `flowElements` and every contained `BPMNShape`/`BPMNEdge` stays in whatever plane
-   * holds it, so a collapse+expand round-trips to a structurally identical document.
+   * `flowElements`, so a collapse+expand round-trips to a structurally identical
+   * document. A container that owns a NESTED plane is the one case where the DI does
+   * move: expanding inlines that plane into the parent one and re-bases its contents
+   * rigidly into the new frame ({@link Writeback.inlineNestedPlane}), because the
+   * plane's own coordinate space has nothing to do with the frame's; collapsing puts
+   * the plane back verbatim from a parked snapshot.
+   *
+   * Because the toggle CHANGES THE OUTLINE, every incident edge is re-docked,
+   * orthogonally re-routed and cropped against the new frame in the same breath
+   * ({@link redockToOutline}) — before the single {@link Writeback.finish}, so the
+   * geometry and the flag land in ONE revision bump and therefore one undo step. The
+   * routing a state was left with is parked and restored on the way back
+   * (`model/expand.ts restoreIncidentRouting`), which is what keeps a collapse+expand
+   * byte-identical rather than silently re-cutting the document's own routes.
    *
    * Returns the changed elements (the node first, then any edges whose docking
    * followed the resize) — empty when the type cannot be expanded or nothing moved.
@@ -600,9 +766,40 @@ export class Writeback {
     expanded: boolean,
     options: SetExpandedOptions = {},
   ): ExpandedResult {
-    const plan = applyExpanded(this.scene, node, expanded, options);
+    // Park the routing the CURRENT state is leaving behind, before anything moves.
+    rememberIncidentRouting(node);
+    const outline = { x: node.x, y: node.y, width: node.width, height: node.height };
+
+    // A nested plane sizes the frame it is about to land in: fit the footprint to the
+    // contents rather than taking the flat default that would crop them.
+    //
+    // `resize: false` means "flip the flag and nothing else", so it opts out of the
+    // inlining too: re-basing an interior into a frame that is deliberately not being
+    // resized would file it inside a 100×80 box.
+    const inlinable = expanded && options.resize !== false
+      ? inlinablePlaneOf(this.scene, node)
+      : undefined;
+    const contentBox = inlinable ? sceneBounds(contentsOf(this.scene, node)) : undefined;
+    const settings: SetExpandedOptions = contentBox && options.bounds === undefined && options.resize !== false
+      ? { ...options, bounds: frameAround(node, contentBox) }
+      : options;
+
+    const plan = applyExpanded(this.scene, node, expanded, settings);
     if (!plan.applied) return { changed: [], contents: plan.contents };
-    const edges = plan.bounds ? this.applyBounds(node, plan.bounds) : [];
+    const moved = plan.bounds ? this.applyBounds(node, plan.bounds) : [];
+    if (inlinable && contentBox) this.inlineNestedPlane(node, inlinable, plan.contents, contentBox);
+    else if (!expanded) this.restoreNestedPlane(node);
+
+    // A flag-only write (a `BPMNShape` that merely omitted `isExpanded`) leaves the
+    // frame exactly where it was, and an edge nobody's outline moved must not be
+    // re-cut. Only a real change of outline re-docks.
+    const resized = node.x !== outline.x || node.y !== outline.y
+      || node.width !== outline.width || node.height !== outline.height;
+    const redocked = resized ? (restoreIncidentRouting(node) ?? redockToOutline(node)) : [];
+    for (const edge of redocked) syncEdgeWaypointsToDi(edge);
+
+    const edges: SceneEdge[] = [...moved];
+    for (const edge of redocked) if (!edges.includes(edge)) edges.push(edge);
     const changed: SceneElement[] = [node, ...edges];
     this.finish(changed);
     return { changed, contents: plan.contents };
@@ -611,6 +808,107 @@ export class Writeback {
   /** Toggle `node`'s expanded state; see {@link Writeback.setExpanded}. */
   toggleExpanded(node: SceneNode, options: SetExpandedOptions = {}): ExpandedResult {
     return this.setExpanded(node, node.isExpanded === false, options);
+  }
+
+  /**
+   * Inline the nested plane `plane` into the plane `node` is drawn in: re-base its
+   * contents rigidly into `node`'s new frame and move their `planeElement` entries up
+   * into the parent plane, leaving the container in exactly the shape an
+   * *inline-expanded* sub-process already has (`model/import.ts` files such children
+   * under the parent plane and parents them under the sub-process).
+   *
+   * Why this is not optional. A nested plane's contents live in their own coordinate
+   * space — `sklearn_pipeline` draws `select_model` at 1204,230 and its
+   * `build_pipeline` child at 256,160 — so revealing them in place would scatter the
+   * interior a thousand units from the frame that is supposed to hold it. bpmn-js
+   * does the same re-base in `SubProcessPlaneBehavior`.
+   *
+   * Only a single TRANSLATION is applied, so the interior's relative layout is
+   * preserved bit for bit, and the original geometry, the plane's slot in
+   * `Scene.planes`, the `BPMNDiagram`'s slot in `definitions.diagrams` and the
+   * `planeElement` order are all parked so {@link Writeback.restoreNestedPlane} can
+   * put the document back byte-identically on the way out.
+   */
+  private inlineNestedPlane(
+    node: SceneNode,
+    plane: Plane,
+    contents: SceneElement[],
+    contentBox: Bounds,
+  ): void {
+    const scene = this.scene;
+    const parentPlane = planeOf(scene, node);
+    const planeElements = [...planeElementsOf(plane.di)];
+    const diagram = parentOf(plane.di);
+    const definitions = definitionsOf(scene);
+    const diagrams = definitions && Array.isArray(prop(definitions, 'diagrams'))
+      ? (prop(definitions, 'diagrams') as ModdleObject[])
+      : [];
+
+    const parked: ParkedPlane = {
+      plane,
+      planeIndex: scene.planes.indexOf(plane),
+      diagramIndex: diagram ? diagrams.indexOf(diagram) : -1,
+      planeElements,
+      geometry: contents.map(parkGeometry),
+      ...(diagram ? { diagram } : {}),
+      ...(definitions ? { definitions } : {}),
+    };
+
+    const pad = EXPANDED_CONTENT_PADDING;
+    const dx = node.x + pad.left - contentBox.x;
+    const dy = node.y + pad.top - contentBox.y;
+    // Risk 10 of the plan: a document whose nested plane already holds coordinates
+    // inside the frame must not be shifted at all.
+    if (dx !== 0 || dy !== 0) for (const element of contents) translateElement(element, dx, dy);
+
+    for (const di of planeElements) {
+      pullFrom(plane.di, 'planeElement', di);
+      pushInto(parentPlane.di, 'planeElement', di);
+      setParent(di, parentPlane.di);
+    }
+    if (parked.planeIndex >= 0) scene.planes.splice(parked.planeIndex, 1);
+    if (diagram && definitions) pullFrom(definitions, 'diagrams', diagram);
+
+    parkedPlanes.set(parkKey(node), parked);
+  }
+
+  /**
+   * Put back the plane {@link Writeback.inlineNestedPlane} took out — the same
+   * `BPMNDiagram` object, in the same slot, holding the same `planeElement` list in
+   * the same order, with every content element back at the coordinates the document
+   * gave it. Restoring from a snapshot rather than translating by `-delta` is what
+   * makes the round trip byte-identical rather than merely close.
+   */
+  private restoreNestedPlane(node: SceneNode): void {
+    const key = parkKey(node);
+    const parked = parkedPlanes.get(key);
+    if (!parked) return;
+    parkedPlanes.delete(key);
+
+    const scene = this.scene;
+    const parentPlane = planeOf(scene, node);
+    for (const di of parked.planeElements) {
+      pullFrom(parentPlane.di, 'planeElement', di);
+      setParent(di, parked.plane.di);
+    }
+    // The whole list at once, so document order comes back exactly as it left.
+    setProp(parked.plane.di, 'planeElement', parked.planeElements);
+
+    for (const geometry of parked.geometry) restoreGeometry(geometry);
+
+    if (parked.diagram && parked.definitions) {
+      const diagrams = prop(parked.definitions, 'diagrams');
+      if (Array.isArray(diagrams)) {
+        const at = parked.diagramIndex >= 0 ? Math.min(parked.diagramIndex, diagrams.length) : diagrams.length;
+        if (!diagrams.includes(parked.diagram)) diagrams.splice(at, 0, parked.diagram);
+      } else {
+        setProp(parked.definitions, 'diagrams', [parked.diagram]);
+      }
+    }
+    if (!scene.planes.includes(parked.plane)) {
+      const at = parked.planeIndex >= 0 ? Math.min(parked.planeIndex, scene.planes.length) : scene.planes.length;
+      scene.planes.splice(at, 0, parked.plane);
+    }
   }
 
   /**
