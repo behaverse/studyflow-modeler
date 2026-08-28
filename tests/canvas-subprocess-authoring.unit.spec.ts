@@ -214,4 +214,47 @@ test.describe('authoring a sub-process', () => {
       planeFor(doc, 'Study_1')?.querySelector(`[bpmnElement="${task.id}"]`),
     ).toBeTruthy();
   });
+
+  test('a shape added while EXPANDED is visible after a drill-down (empty nested plane falls back to the children)', async () => {
+    const loaded = await load();
+    const sub = dropSubProcess(loaded);
+    loaded.canvas.setExpanded(sub, true);
+
+    // Authored inline: the DI goes to the ROOT plane, the BO to the sub-process.
+    const task = loaded.canvas.createElement(
+      { type: 'bpmn:Task' },
+      { x: sub.x + sub.width / 2, y: sub.y + sub.height / 2 },
+    )!;
+    expect(task.parent).toBe(sub);
+
+    // Drilling down must show it — the sub-process's REAL plane is still empty, so
+    // the trip goes to the synthesized scope over the children instead.
+    expect(loaded.cursor.enterPlane(sub)).toBe(true);
+    const g = loaded.canvas.getGraphics(task.id);
+    expect(!!g && g.getAttribute('display') !== 'none').toBe(true);
+  });
+
+  test('collapsing files inline-authored contents into the nested plane', async () => {
+    const loaded = await load();
+    const sub = dropSubProcess(loaded);
+    loaded.canvas.setExpanded(sub, true);
+    const task = loaded.canvas.createElement(
+      { type: 'bpmn:Task' },
+      { x: sub.x + sub.width / 2, y: sub.y + sub.height / 2 },
+    )!;
+
+    loaded.canvas.setExpanded(sub, false);
+
+    // Document: the task's BPMNShape now lives in the sub-process's own plane,
+    // and the root plane no longer lists it.
+    const doc = await reparse(loaded);
+    expect(planeFor(doc, sub.id)?.querySelector(`[bpmnElement="${task.id}"]`)).toBeTruthy();
+    expect(planeFor(doc, 'Study_1')?.querySelector(`[bpmnElement="${task.id}"]`)).toBeNull();
+
+    // Drill-down now opens the real plane and finds the task.
+    expect(loaded.cursor.enterPlane(sub)).toBe(true);
+    expect(planeOf(loaded.scene, task)).toBe(nestedPlaneOf(loaded.scene, sub));
+    const g = loaded.canvas.getGraphics(task.id);
+    expect(!!g && g.getAttribute('display') !== 'none').toBe(true);
+  });
 });

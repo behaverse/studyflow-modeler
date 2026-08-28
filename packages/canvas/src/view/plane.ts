@@ -380,7 +380,15 @@ export class PlaneCursor {
     this.sync();
     const scene = this.scene;
     if (!scene || !isExpandable(node.type)) return false;
-    return this.goToPlane(nestedPlaneOf(scene, node) ?? virtualPlaneOf(node));
+    // A real plane that holds nothing while the node HAS children means the
+    // contents were authored inline, in the parent plane, while the container was
+    // drawn expanded — opening the empty plane would show none of them, so the
+    // synthesized scope over the children is where the trip actually goes.
+    const plane = nestedPlaneOf(scene, node);
+    const usable = plane && (plane.children.length > 0 || node.children.length === 0)
+      ? plane
+      : undefined;
+    return this.goToPlane(usable ?? virtualPlaneOf(node));
   }
 
   /** Show `plane` (real or synthesized). Returns whether the view moved. */

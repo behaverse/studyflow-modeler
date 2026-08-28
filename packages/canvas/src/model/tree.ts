@@ -25,7 +25,19 @@ import type { SceneElement, SceneNode } from '@canvas/model/scene.ts';
  * newly created element in at the matching rank, so the two orders cannot drift.
  */
 export function zRankOf(element: SceneElement): number {
-  return depthOf(element) * 2 + (element.kind === 'node' ? 1 : 0);
+  if (element.kind === 'edge') {
+    // An edge crossing a container boundary (outside element → expanded
+    // sub-process child) is parented at the common ancestor, but must paint
+    // above every frame it enters — so it ranks at its DEEPEST endpoint, not
+    // at its parent. For a same-depth edge the two are equal.
+    const depth = Math.max(
+      depthOf(element),
+      element.source ? depthOf(element.source) : 0,
+      element.target ? depthOf(element.target) : 0,
+    );
+    return depth * 2;
+  }
+  return depthOf(element) * 2 + 1;
 }
 
 /**

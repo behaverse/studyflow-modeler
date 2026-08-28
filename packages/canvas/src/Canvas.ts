@@ -36,7 +36,7 @@ import type {
   SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
-import { hitTest, nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
+import { hitTest, isContainerNode, nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
 import type { HitOptions } from '@canvas/interaction/hit.ts';
 import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
 import type { HandleHit, SegmentHit, WaypointHit } from '@canvas/interaction/selection.ts';
@@ -71,13 +71,13 @@ import type {
 import type { ParticipantBand } from '@canvas/model/choreography.ts';
 import type { ElementColors } from '@canvas/model/color.ts';
 import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
-import { isCollapsed, isExpandable, isHiddenByCollapse } from '@canvas/model/expand.ts';
+import { contentsOf, isCollapsed, isExpandable, isHiddenByCollapse } from '@canvas/model/expand.ts';
 import { ExternalLabels, isLabelElement } from '@canvas/model/externalLabel.ts';
 import type { SetExpandedOptions } from '@canvas/model/expand.ts';
 import { zRankOf } from '@canvas/model/tree.ts';
 import { Writeback, definitionsOf } from '@canvas/model/writeback.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
-import { CONNECTION, Rules, type RuleElement } from '@canvas/rules/rules.ts';
+import { CONNECTION, containerFor, Rules, type RuleElement } from '@canvas/rules/rules.ts';
 import {
   edgesAffectedBy,
   rerouteEdges as rerouteEdgeSet,
@@ -263,6 +263,12 @@ interface GestureState {
   marquee: boolean;
   /** Set once a {@link Drag} session has actually started. */
   dragging: boolean;
+  /**
+   * A context-pad connect that may still be a CLICK: releasing without having
+   * moved keeps the gesture live (click-to-arm), and the next click commits or
+   * cancels it — the connect twin of the palette's click-to-place.
+   */
+  sticky?: boolean;
   handle?: HandleHit;
   waypoint?: WaypointHit;
   /** The straight run a `'segment'` gesture slides (parity spec §2/§3). */
@@ -1045,6 +1051,7 @@ export class Canvas {
       intent: 'connect',
       marquee: false,
       dragging: true,
+      sticky: true,
     };
     this.listen();
     return true;
@@ -1846,6 +1853,15 @@ export class Canvas {
       this.create.update(drop);
       return;
     }
+    // Same for a click-armed connect: this press is where the flow lands (its
+    // release commits or cancels), not the start of a new gesture.
+    if (this.gesture?.intent === 'connect') {
+      const drop = this.eventPoint(ev);
+      this.gesture.downScreen = { x: ev.clientX, y: ev.clientY };
+      this.gesture.downDiagram = drop;
+      this.connect.update(drop);
+      return;
+    }
     // Take the keyboard focus so the canvas-scoped shortcuts (Delete) reach us.
     this.focus();
     // A press anywhere on the diagram means the pointer left the context pad; a
@@ -2016,6 +2032,9 @@ export class Canvas {
       // it; whatever axis it left alone is grid-snapped inside `Drag`.
       const snapped = this.snapGesture(g, point);
       this.drag?.update(snapped.point, snapped.grid);
+      // A MOVE can also be a re-parenting drop: tint the container under the
+      // pointer that would take (or refuse) the shapes, the way a create does.
+      if (g.intent === 'move') this.trackMoveDropTarget(point);
     }
   }
 
@@ -2261,6 +2280,79 @@ export class Canvas {
     );
   }
 
+  // --- move as a re-parenting drop (drag INTO / OUT OF a container) -----------
+
+  /**
+   * The container a MOVE gesture hovering `point` would drop its shapes into, and
+   * the rules' verdict on that. The moving shapes themselves are invisible to the
+   * hit test — the element under the ghost is the one that would receive it — and
+   * a `bpmn:Group` hands the drop to its own container, exactly as a create does.
+   * `parent` is `undefined` over empty canvas (the plane root / active scope).
+   */
+  private moveDropTarget(
+    point: Point,
+  ): { over?: SceneElement; parent?: SceneNode; allowed: boolean } | undefined {
+    const scene = this.scene;
+    if (!scene) return undefined;
+    const moving = withDescendants(this.movableSelection());
+    if (moving.length === 0) return undefined;
+    const ids = new Set(moving.map((node) => node.id));
+    const over = this.hitTest(point, { accept: (el) => !ids.has(el.id) });
+    // Only a container FRAME receives a move drop; a leaf shape (or an edge)
+    // under the ghost stands for the container it sits in.
+    const hit = !over
+      ? undefined
+      : over.kind === 'node' && isContainerNode(over) ? over : over.parent;
+    const container = containerFor(hit) as SceneNode | undefined;
+    const parent = container && container.kind === 'node' ? container : undefined;
+    const roots = moving.filter((node) => !(node.parent && ids.has(node.parent.id)));
+    const allowed = this.rules.allowed('elements.move', {
+      shapes: roots,
+      target: parent ?? this.activeContainer ?? this.activePlane ?? scene.rootPlane,
+    }) !== false;
+    return { ...(over ? { over } : {}), ...(parent ? { parent } : {}), allowed };
+  }
+
+  /** The moved roots whose container would actually CHANGE by landing in `parent`. */
+  private reparentable(parent: SceneNode | undefined): SceneNode[] {
+    const selected = this.movableSelection();
+    const set = new Set(selected);
+    const target = parent ?? this.activeContainer;
+    return selected.filter((node) =>
+      !(node.parent && set.has(node.parent))
+      && node !== target
+      && (node.parent ?? undefined) !== target);
+  }
+
+  /** Tint the container a live MOVE is hovering, when the drop would re-home something. */
+  private trackMoveDropTarget(point: Point): void {
+    const target = this.moveDropTarget(point);
+    if (!target) return;
+    const show = !target.allowed || this.reparentable(target.parent).length > 0;
+    this.markDropTarget(show ? target.over : undefined, show && target.allowed);
+  }
+
+  /** Commit a move drop's containment change and re-splice graphics at their new depth. */
+  private reparentDropped(parent: SceneNode | undefined): void {
+    const scene = this.scene;
+    const writeback = this.writeback;
+    const roots = this.reparentable(parent);
+    if (!scene || !writeback || roots.length === 0) return;
+    const changed = writeback.reparent(roots, parent ?? this.activeContainer);
+    // Containment depth IS the z-order (`model/tree.ts zRankOf`), so every
+    // re-homed element's <g> — contents included — is re-spliced at its new rank.
+    const layer = this.layers.getLayer('elements');
+    const moved = new Set<SceneElement>();
+    for (const element of changed) {
+      moved.add(element);
+      if (element.kind === 'node') for (const inner of contentsOf(scene, element)) moved.add(inner);
+    }
+    for (const element of [...moved].sort((a, b) => zRankOf(a) - zRankOf(b))) {
+      const g = this.renderer.graphicsById.get(element.id);
+      if (g) layer.insertBefore(g, this.firstAbove(layer, element));
+    }
+  }
+
   /**
    * Capture what the gesture starting now may align to: the coordinates of every
    * OTHER shape, plus the geometry the alignment is measured from — a moving set's
@@ -2430,6 +2522,15 @@ export class Canvas {
 
   private handlePointerUp(ev: MouseEvent): void {
     const g = this.gesture;
+    // A context-pad connect released without moving was a CLICK, not a drag: the
+    // gesture stays live (preview follows the pointer) and the NEXT release
+    // commits — on a valid target it mints the flow, anywhere else it cancels.
+    if (g?.intent === 'connect' && g.sticky) {
+      g.sticky = false;
+      const moved = Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y)
+        >= MARQUEE_THRESHOLD_PX;
+      if (!moved) return;
+    }
     // The drop point, snapped exactly as every live frame was: what gets COMMITTED
     // has to be what the user was looking at when they let go, not the raw pointer
     // — otherwise a gesture that visibly locked onto an alignment would jump off it
@@ -2471,7 +2572,11 @@ export class Canvas {
           }
         }
       } else {
+        // Resolve the drop container BEFORE the commit — the hit test must run
+        // against the same scene the gesture was hovering.
+        const target = this.drag?.getKind() === 'move' ? this.moveDropTarget(pt) : undefined;
         this.drag?.end(pt, snapped.grid);
+        if (target?.allowed) this.reparentDropped(target.parent);
       }
     } else if (g.marquee) {
       const from = g.downDiagram;
@@ -2765,6 +2870,8 @@ export class Canvas {
   private endGesture(): void {
     this.gesture = undefined;
     this.endMovePreview();
+    // A move's drop-target tint is gesture chrome too (a create clears its own).
+    this.markDropTarget(undefined, false);
     this.hideSnapLines();
     this.snapContext = undefined;
     this.panFrom = undefined;

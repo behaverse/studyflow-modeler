@@ -18,6 +18,7 @@ import {
   StudyflowElement,
 } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
+import { getCatalog } from '@core/notation/index.ts';
 
 import { readChoreographyBands } from '@canvas/model/choreography.ts';
 import { normalizeColor } from '@canvas/model/color.ts';
@@ -64,6 +65,8 @@ import {
 import {
   drawIcon,
   drawIconText,
+  drawSvgPaths,
+  SVG_ICON_PATHS,
   type IconResolver,
 } from '@canvas/render/icons.ts';
 
@@ -158,6 +161,46 @@ function behaverseScene(businessObject: ModdleObject | undefined): string | unde
   if (typeof scene !== 'string' || !scene) return undefined;
   const glyph = scene.toUpperCase();
   return glyph === 'UNDEFINED' ? undefined : glyph;
+}
+
+/**
+ * Icon keys of schema attributes declaring `meta.icon` that hold a value on `bo`
+ * (studyflow's "overlay icon drawn on the event when this attribute is set").
+ * A canvas running without loaded schemas has no catalog — then there are none.
+ */
+function overlayIconsOf(bo: ModdleObject | undefined): string[] {
+  if (!bo) return [];
+  let catalog: ReturnType<typeof getCatalog>;
+  try {
+    catalog = getCatalog();
+  } catch {
+    return [];
+  }
+  const typeName = StudyflowElement.fromBusinessObject(bo).extensionType ?? bo.$type;
+  const keys: string[] = [];
+  for (const attr of catalog.instanceAttributesOf(typeName)) {
+    const icon = attr.meta?.icon;
+    if (typeof icon === 'string' && icon && getAttribute(bo, attr.name)) keys.push(icon);
+  }
+  return keys;
+}
+
+/**
+ * The icon key of a data store's dataset format — the `DatasetFormatEnum` literal
+ * matching its `format` attribute (`'bids'` → the BIDS logotype), or `undefined`
+ * when no format is set, the literal declares no icon, or no schemas are loaded.
+ */
+function formatIconOf(bo: ModdleObject | undefined): string | undefined {
+  const format = getAttribute(bo, 'format');
+  if (typeof format !== 'string' || !format) return undefined;
+  let catalog: ReturnType<typeof getCatalog>;
+  try {
+    catalog = getCatalog();
+  } catch {
+    return undefined;
+  }
+  const icon = catalog.enumOf('DatasetFormatEnum')?.literals.find((l) => l.value === format)?.icon;
+  return typeof icon === 'string' && icon ? icon : undefined;
 }
 
 /** Inset of a text annotation's note from its bracket (bpmn-js `TEXT_ANNOTATION_PADDING`). */
@@ -369,6 +412,7 @@ export class Renderer {
     switch (category) {
       case 'event':
         drawEvent(g, node.width, node.height, style, eventKind(node));
+        this.drawEventIcons(g, node, style.stroke);
         this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'task': {
@@ -383,21 +427,26 @@ export class Renderer {
         this.drawTypeIcon(g, node, style.stroke, iconSize);
         drawIconText(g, scene, style.stroke);
         this.drawMarkers(g, node, style.stroke);
+        this.drawOverlayIcons(g, node, style.stroke);
         drawInternalLabel(g, node, name, style.stroke);
         break;
       }
       case 'gateway':
         drawDiamond(g, node.width, node.height, style);
         this.drawGatewayGlyph(g, node, style.stroke);
+        this.drawOverlayIcons(g, node, style.stroke);
         this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'data':
         if (isDataStore(node.type)) drawDataStore(g, node.width, node.height, style);
         else drawDataObject(g, node.width, node.height, style);
+        this.drawDataIcons(g, node, style.stroke);
+        this.drawOverlayIcons(g, node, style.stroke);
         this.registerLabel(node, drawExternalLabel(g, node, name, style.stroke, node.label));
         break;
       case 'choreography':
         this.drawChoreography(g, node, style, name);
+        this.drawOverlayIcons(g, node, style.stroke);
         break;
       case 'group':
         drawGroup(g, node.width, node.height, style);
@@ -435,7 +484,100 @@ export class Renderer {
     drawIcon(g, key, 5, 5, size, color, this.iconResolver, node.businessObject);
   }
 
+  /**
+   * Overlay glyphs on an event circle: the BPMN event-definition symbol (error,
+   * timer, message…) first, then every schema attribute declaring `meta.icon`
+   * that holds a value — the ported `draw/Renderer.drawEventWithIcon`. Gated on
+   * the resolver ANSWERING, so a resolver-less canvas keeps the bare circle
+   * instead of a placeholder box inside it.
+   */
+  private drawEventIcons(g: SVGGElement, node: SceneNode, color: string): void {
+    const resolver = this.iconResolver;
+    if (!resolver) return;
+    const bo = node.businessObject;
+
+    const defs = prop(bo, 'eventDefinitions');
+    const def = Array.isArray(defs) ? (defs[0] as ModdleObject | undefined) : undefined;
+    const defKey = def ? toLocalName(def.$type) : undefined;
+    // The DEFINITION is the business object here: its own $type picks the glyph,
+    // and the event's extension icon must not shadow it.
+    if (defKey && resolver(defKey, def)) {
+      drawIcon(g, defKey, 6, 6, 24, color, resolver, def);
+    }
+
+    for (const key of overlayIconsOf(bo)) {
+      if (resolver(key)) drawIcon(g, key, 6, 6, 24, color, resolver);
+    }
+  }
+
+  /**
+   * Schema-attribute overlay glyphs (`meta.icon` declaring an icon, drawn when the
+   * attribute holds a value) on a NON-event shape, as a badge row in the top-right
+   * corner, stacking leftward. Events keep their own centred placement
+   * ({@link drawEventIcons}); like there, a resolver that does not answer draws
+   * nothing rather than a placeholder.
+   */
+  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string): void {
+    const resolver = this.iconResolver;
+    if (!resolver) return;
+    const size = 16;
+    const gap = 2;
+    let x = node.width - size - 4;
+    for (const key of overlayIconsOf(node.businessObject)) {
+      if (!resolver(key)) continue;
+      drawIcon(g, key, x, 4, size, color, resolver);
+      x -= size + gap;
+    }
+  }
+
+  /**
+   * Glyphs on a data object / data store — the ported `draw/Renderer.drawDataStore`
+   * plus the type icon the old renderer never got around to:
+   *
+   * - A data store whose `format` attribute matches a `DatasetFormatEnum` literal
+   *   declaring an `icon` draws that icon low in the cylinder (BIDS logo, BDM hex).
+   * - Otherwise the extension type's / template's own glyph is drawn centred in the
+   *   shape. A plain `bpmn:DataObjectReference`/`DataStoreReference` draws nothing —
+   *   the folded document / cylinder IS the notation, and the resolver answers
+   *   `null` for it (`editor/mount.ts resolveIcon`).
+   */
+  private drawDataIcons(g: SVGGElement, node: SceneNode, color: string): void {
+    const resolver = this.iconResolver;
+    if (!resolver) return;
+
+    // Format icons are drawn dimmed, like the old renderer's stroke + `bb` alpha.
+    let hex: string | undefined;
+    try { hex = normalizeColor(color); } catch { /* named colour; fall back below */ }
+    const dimmed = `${hex ?? '#000000'}bb`;
+
+    if (isDataStore(node.type)) {
+      const key = formatIconOf(node.businessObject);
+      if (key) {
+        const def = SVG_ICON_PATHS[key];
+        // A wide logotype (BIDS) scales into a low band across the cylinder; a
+        // square iconify glyph sits centred just above the bottom rim — the old
+        // (4, 28, 42×14) / (15, 27, 20) placements, generalized to the node size.
+        if (def) drawSvgPaths(g, def, 4, node.height - 22, node.width - 8, 14, dimmed, key);
+        else drawIcon(g, key, (node.width - 20) / 2, node.height - 23, 20, dimmed, resolver);
+        return;
+      }
+    }
+
+    const key = toLocalName(node.type);
+    if (!key || !resolver(key, node.businessObject)) return;
+    const size = 20;
+    drawIcon(g, key, (node.width - size) / 2, (node.height - size) / 2, size, color, resolver, node.businessObject);
+  }
+
   private drawGatewayGlyph(g: SVGGElement, node: SceneNode, color: string): void {
+    // The resolver knows richer glyphs than the unicode table below: the
+    // extension type's `meta.icon` (a random gateway's dice) or the app's BPMN
+    // overrides — the ported `draw/Renderer.drawGateway` placement (13, 13, 24).
+    const key = toLocalName(node.type);
+    if (key && this.iconResolver?.(key, node.businessObject)) {
+      drawIcon(g, key, 13, 13, 24, color, this.iconResolver, node.businessObject);
+      return;
+    }
     const glyph = GATEWAY_GLYPH[node.type];
     if (!glyph) return;
     // Exclusive marker only shows when the DI flags it (BPMNShape.isMarkerVisible).

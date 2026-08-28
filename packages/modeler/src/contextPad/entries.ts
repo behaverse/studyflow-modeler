@@ -75,6 +75,12 @@ export type ContextPadContext = {
   isConnection?: boolean;
   /** `rules.allowed('shape.append')` — may a flow successor follow this element? */
   canAppend: boolean;
+  /**
+   * `rules.allowed('connection.start')` — may ANY edge start here? Wider than
+   * `canAppend`: a data object/store takes no successor but can source a data
+   * input association.
+   */
+  canConnect: boolean;
   /** …and the same question for a text annotation, which an end event still takes. */
   canAnnotate: boolean;
   /**
@@ -149,7 +155,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
 
   // Last, which is where ux-spec §4's table puts it: the first six wrap into two
   // rows of three inside the 72px box and `connect` starts a third on its own.
-  if (single && context.isShape && context.canAppend) {
+  if (single && context.isShape && context.canConnect) {
     entries.push({
       action: 'connect',
       title: 'Connect to other element',

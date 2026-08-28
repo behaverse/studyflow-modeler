@@ -1342,3 +1342,85 @@ test('lasso: Shift adds to the selection instead of replacing it (parity spec §
   pointerUp(canvas, { x: 320, y: 220 });
   expect(selection.get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
 });
+
+// --- move as a re-parenting drop ---------------------------------------------
+
+/** Root task beside an EXPANDED sub-process that already holds one child. */
+const REPARENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="Task_1" name="Outside" />
+    <bpmn:subProcess id="Sub_1">
+      <bpmn:task id="Inner_1" name="Inner" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="100" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_1_di" bpmnElement="Sub_1" isExpanded="true">
+        <dc:Bounds x="400" y="60" width="320" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Inner_1_di" bpmnElement="Inner_1">
+        <dc:Bounds x="440" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('move: dropping a shape inside an expanded sub-process re-parents it (BO + scene)', async () => {
+  const loaded = await load(REPARENT_XML);
+  const { canvas, definitions } = loaded;
+  const task = node(canvas, 'Task_1');
+  const sub = node(canvas, 'Sub_1');
+  const process = definitions.rootElements.find((el: any) => el.id === 'Process_1');
+  expect(process.flowElements.map((el: any) => el.id)).toContain('Task_1');
+
+  // Drag the task's centre into empty interior of the sub-process frame.
+  dragBy(canvas, center(task), { x: 620, y: 220 });
+
+  expect(task.parent).toBe(sub);
+  expect(sub.children).toContain(task);
+  // Business object refiled: subProcess.flowElements gains it, process loses it.
+  expect((sub.businessObject as any).flowElements.map((el: any) => el.id)).toContain('Task_1');
+  expect(process.flowElements.map((el: any) => el.id)).not.toContain('Task_1');
+  expect(task.businessObject.$parent).toBe(sub.businessObject);
+
+  // …and it serializes that way: the task's XML element sits under the subProcess.
+  const { xml } = await roundTrip(loaded);
+  expect(xml).toMatch(/<bpmn:subProcess[^>]*>[\s\S]*id="Task_1"[\s\S]*<\/bpmn:subProcess>/);
+});
+
+test('move: dragging a child OUT of a sub-process re-parents it back to the root', async () => {
+  const { canvas, definitions } = await load(REPARENT_XML);
+  const inner = node(canvas, 'Inner_1');
+  const sub = node(canvas, 'Sub_1');
+  const process = definitions.rootElements.find((el: any) => el.id === 'Process_1');
+  expect(inner.parent).toBe(sub);
+
+  // Drag the inner task's centre onto empty canvas, clear of the frame.
+  dragBy(canvas, center(inner), { x: 150, y: 400 });
+
+  expect(inner.parent).toBeUndefined();
+  expect(sub.children).not.toContain(inner);
+  expect(sub.businessObject.flowElements ?? []).not.toContain(inner.businessObject);
+  expect(process.flowElements.map((el: any) => el.id)).toContain('Inner_1');
+});
+
+test('move: dragging within the same container re-parents nothing', async () => {
+  const { canvas, definitions } = await load(REPARENT_XML);
+  const inner = node(canvas, 'Inner_1');
+  const sub = node(canvas, 'Sub_1');
+  const process = definitions.rootElements.find((el: any) => el.id === 'Process_1');
+
+  // A short hop that stays inside the frame.
+  dragBy(canvas, center(inner), { x: 620, y: 220 });
+
+  expect(inner.parent).toBe(sub);
+  expect((sub.businessObject as any).flowElements.map((el: any) => el.id)).toContain('Inner_1');
+  expect(process.flowElements.map((el: any) => el.id)).not.toContain('Inner_1');
+});

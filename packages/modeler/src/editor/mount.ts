@@ -114,11 +114,19 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
   const marker = MARKER_ICONS[iconKey];
   if (marker) return iconFor(marker);
 
+  // A key that already IS an icon class: schema attribute `meta.icon` overlay
+  // values reach the renderer verbatim (`drawEventIcons`).
+  if (iconKey.startsWith('iconify ') || iconKey.startsWith('i-')) return iconFor(iconKey);
+
   if (businessObject) {
     const element = StudyflowElement.fromBusinessObject(businessObject);
     const templateIcon = getRawAttribute(element.extension ?? businessObject, 'icon');
     const extEntry = element.extensionType ? getCatalog().getType(element.extensionType) : undefined;
-    const cssClass = templateIcon || extEntry?.iconClass || BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
+    // No BPMN-override fallback for a data reference: the palette uses that entry
+    // (`palette/groups.ts`), but on the canvas a plain data object's folded-document
+    // shape IS the notation — only an extension's or template's own glyph draws.
+    const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
+    const cssClass = templateIcon || extEntry?.iconClass || bpmnFallback;
     if (typeof cssClass === 'string' && cssClass) return iconFor(cssClass);
   }
 

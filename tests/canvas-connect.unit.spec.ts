@@ -326,6 +326,51 @@ test('dropping a connect gesture on empty space (or a vetoed target) creates not
   expect(one.outgoing).toEqual([]);
 });
 
+test('a context-pad connect CLICK arms the gesture; the second click commits', async () => {
+  const { canvas, definitions } = await load();
+  const one = node(canvas, 'Task_1');
+  const two = node(canvas, 'Task_2');
+  const before = process(definitions).flowElements.length;
+
+  // The pad presses with a real pointer event; a release without movement is a
+  // click, which must LEAVE THE GESTURE ARMED rather than cancel it.
+  const at = canvas.getViewport().toScreen(center(one));
+  const win = canvas.getSvg().ownerDocument!.defaultView!;
+  canvas.startConnect(one, new win.MouseEvent('pointerdown', { clientX: at.x, clientY: at.y, button: 0 }));
+  pointerUp(canvas, center(one));
+  expect(canvas.getConnect().isActive()).toBe(true);
+
+  // The preview keeps following the pointer between the two clicks.
+  pointerMove(canvas, center(two));
+  expect(canvas.getSvg().querySelector('.sf-connect-preview')!.getAttribute('data-allowed')).toBe('true');
+
+  // Second click (down + up) on a valid target commits the flow.
+  pointerDown(canvas, center(two));
+  pointerUp(canvas, center(two));
+  expect(canvas.getConnect().isActive()).toBe(false);
+  expect(process(definitions).flowElements.length).toBe(before + 1);
+  const created = canvas.getSelection().get()[0] as SceneEdge;
+  expect(created.source).toBe(one);
+  expect(created.target).toBe(two);
+});
+
+test('an armed connect cancels on a second click over empty space', async () => {
+  const { canvas, definitions } = await load();
+  const one = node(canvas, 'Task_1');
+  const before = process(definitions).flowElements.length;
+
+  const at = canvas.getViewport().toScreen(center(one));
+  const win = canvas.getSvg().ownerDocument!.defaultView!;
+  canvas.startConnect(one, new win.MouseEvent('pointerdown', { clientX: at.x, clientY: at.y, button: 0 }));
+  pointerUp(canvas, center(one));
+  expect(canvas.getConnect().isActive()).toBe(true);
+
+  pointerDown(canvas, { x: 350, y: 500 });
+  pointerUp(canvas, { x: 350, y: 500 });
+  expect(canvas.getConnect().isActive()).toBe(false);
+  expect(process(definitions).flowElements.length).toBe(before);
+});
+
 // --- reconnect ---------------------------------------------------------------
 
 test('reconnect rewrites sourceRef/targetRef on both sides and re-routes', async () => {

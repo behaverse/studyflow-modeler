@@ -267,6 +267,7 @@ export function ContextPad() {
       isShape: !!single && isShapeElement(single),
       isConnection: !!single && isConnectionElement(single),
       canAppend: askAppend(),
+      canConnect: !!single && !!modeler.rules.allowed('connection.start', { source: single }),
       canAnnotate: askAppend('bpmn:TextAnnotation'),
       canReplace: !!single && modeler.rules.allowed('shape.replace', { element: single }),
       isChoreographyTask: !!single && is(single, 'bpmn:ChoreographyTask'),

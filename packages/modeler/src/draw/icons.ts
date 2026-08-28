@@ -16,6 +16,20 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   [BPMN.ComplexGateway]:      ICONS.asterisk,
   [BPMN.EventBasedGateway]:   ICONS.pentagon,
   [BPMN.DataObjectReference]: ICONS.document,
+
+  // Event-definition symbols, drawn centred on the event circle. bpmn-js drew
+  // these itself; since its removal the canvas asks the resolver per definition
+  // $type (`render/renderer.ts drawEventIcons`).
+  'bpmn:MessageEventDefinition':     ICONS.envelope,
+  'bpmn:TimerEventDefinition':       'iconify mdi--clock-outline',
+  'bpmn:ErrorEventDefinition':       'iconify mdi--lightning-bolt-outline',
+  'bpmn:SignalEventDefinition':      'iconify mdi--triangle-outline',
+  'bpmn:EscalationEventDefinition':  'iconify mdi--chevron-double-up',
+  'bpmn:ConditionalEventDefinition': 'iconify mdi--text-box-outline',
+  'bpmn:LinkEventDefinition':        'iconify mdi--arrow-right',
+  'bpmn:TerminateEventDefinition':   'iconify mdi--circle',
+  'bpmn:CompensateEventDefinition':  ICONS.bpmnCompensationMarker,
+  'bpmn:CancelEventDefinition':      ICONS.closeAlt,
 };
 
 export const MARKER_ICONS: Record<string, string> = {

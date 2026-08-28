@@ -61,6 +61,7 @@ import {
   setParent,
   setProp,
   setRef,
+  unfile,
   type ModdleFactory,
 } from '@canvas/model/moddle.ts';
 import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/model/remove.ts';
@@ -502,6 +503,8 @@ interface ParkedPlane {
   definitions?: ModdleObject;
   planeElements: ModdleObject[];
   geometry: ParkedGeometry[];
+  /** Translation the inline applied — undone for elements ADDED while expanded. */
+  delta: Point;
 }
 
 /** Parked per DI shape, so a re-import simply starts with nothing parked. */
@@ -576,6 +579,21 @@ function restoreGeometry(parked: ParkedGeometry): void {
   }
   if (element.kind === 'node') syncNodeBoundsToDi(element);
   else syncEdgeWaypointsToDi(element);
+}
+
+/**
+ * Take `element` out of its current spot in the scene tree: its parent's child
+ * list and, when it is listed as one of `plane`'s top-level elements, that list
+ * too. The element's `parent` field is the caller's to rewrite.
+ */
+function unlinkFromTree(element: SceneElement, plane: Plane): void {
+  const siblings = element.parent?.children;
+  if (siblings) {
+    const at = siblings.indexOf(element);
+    if (at >= 0) siblings.splice(at, 1);
+  }
+  const top = plane.children.indexOf(element);
+  if (top >= 0) plane.children.splice(top, 1);
 }
 
 // --- committing API ---------------------------------------------------------
@@ -845,19 +863,20 @@ export class Writeback {
       ? (prop(definitions, 'diagrams') as ModdleObject[])
       : [];
 
+    const pad = EXPANDED_CONTENT_PADDING;
+    const dx = node.x + pad.left - contentBox.x;
+    const dy = node.y + pad.top - contentBox.y;
+
     const parked: ParkedPlane = {
       plane,
       planeIndex: scene.planes.indexOf(plane),
       diagramIndex: diagram ? diagrams.indexOf(diagram) : -1,
       planeElements,
       geometry: contents.map(parkGeometry),
+      delta: { x: dx, y: dy },
       ...(diagram ? { diagram } : {}),
       ...(definitions ? { definitions } : {}),
     };
-
-    const pad = EXPANDED_CONTENT_PADDING;
-    const dx = node.x + pad.left - contentBox.x;
-    const dy = node.y + pad.top - contentBox.y;
     // Risk 10 of the plan: a document whose nested plane already holds coordinates
     // inside the frame must not be shifted at all.
     if (dx !== 0 || dy !== 0) for (const element of contents) translateElement(element, dx, dy);
@@ -883,32 +902,62 @@ export class Writeback {
   private restoreNestedPlane(node: SceneNode): void {
     const key = parkKey(node);
     const parked = parkedPlanes.get(key);
-    if (!parked) return;
-    parkedPlanes.delete(key);
+    if (parked) {
+      parkedPlanes.delete(key);
 
-    const scene = this.scene;
-    const parentPlane = planeOf(scene, node);
-    for (const di of parked.planeElements) {
-      pullFrom(parentPlane.di, 'planeElement', di);
-      setParent(di, parked.plane.di);
-    }
-    // The whole list at once, so document order comes back exactly as it left.
-    setProp(parked.plane.di, 'planeElement', parked.planeElements);
+      const scene = this.scene;
+      const parentPlane = planeOf(scene, node);
+      for (const di of parked.planeElements) {
+        pullFrom(parentPlane.di, 'planeElement', di);
+        setParent(di, parked.plane.di);
+      }
+      // The whole list at once, so document order comes back exactly as it left.
+      setProp(parked.plane.di, 'planeElement', parked.planeElements);
 
-    for (const geometry of parked.geometry) restoreGeometry(geometry);
+      for (const geometry of parked.geometry) restoreGeometry(geometry);
 
-    if (parked.diagram && parked.definitions) {
-      const diagrams = prop(parked.definitions, 'diagrams');
-      if (Array.isArray(diagrams)) {
-        const at = parked.diagramIndex >= 0 ? Math.min(parked.diagramIndex, diagrams.length) : diagrams.length;
-        if (!diagrams.includes(parked.diagram)) diagrams.splice(at, 0, parked.diagram);
-      } else {
-        setProp(parked.definitions, 'diagrams', [parked.diagram]);
+      if (parked.diagram && parked.definitions) {
+        const diagrams = prop(parked.definitions, 'diagrams');
+        if (Array.isArray(diagrams)) {
+          const at = parked.diagramIndex >= 0 ? Math.min(parked.diagramIndex, diagrams.length) : diagrams.length;
+          if (!diagrams.includes(parked.diagram)) diagrams.splice(at, 0, parked.diagram);
+        } else {
+          setProp(parked.definitions, 'diagrams', [parked.diagram]);
+        }
+      }
+      if (!scene.planes.includes(parked.plane)) {
+        const at = parked.planeIndex >= 0 ? Math.min(parked.planeIndex, scene.planes.length) : scene.planes.length;
+        scene.planes.splice(at, 0, parked.plane);
       }
     }
-    if (!scene.planes.includes(parked.plane)) {
-      const at = parked.planeIndex >= 0 ? Math.min(parked.planeIndex, scene.planes.length) : scene.planes.length;
-      scene.planes.splice(at, 0, parked.plane);
+    this.adoptInlineContents(node, parked?.delta);
+  }
+
+  /**
+   * File into `node`'s own nested plane any content whose DI still sits in the
+   * PARENT plane — an element authored while the container was drawn expanded had
+   * its `BPMNShape` filed in the plane on screen, and without this a drill-down
+   * after the collapse opens the nested plane and finds none of it. `delta` is the
+   * translation the expand applied ({@link Writeback.inlineNestedPlane}); undoing
+   * it puts an adopted element in the same coordinate space as the plane's own
+   * restored contents. Runs on every collapse; with no nested plane, or nothing
+   * inline, it is a no-op.
+   */
+  private adoptInlineContents(node: SceneNode, delta?: Point): void {
+    const scene = this.scene;
+    const plane = nestedPlanesOf(scene, node)[0];
+    if (!plane) return;
+    const parentPlane = planeOf(scene, node);
+    for (const element of contentsOf(scene, node)) {
+      const di = element.di;
+      if (!di || !pullFrom(parentPlane.di, 'planeElement', di)) continue;
+      pushInto(plane.di, 'planeElement', di);
+      setParent(di, plane.di);
+      if (delta && (delta.x !== 0 || delta.y !== 0)) translateElement(element, -delta.x, -delta.y);
+      const at = parentPlane.children.indexOf(element);
+      if (at >= 0) parentPlane.children.splice(at, 1);
+      // A plane lists only its TOP-LEVEL elements — the container's direct children.
+      if (element.parent === node && !plane.children.includes(element)) plane.children.push(element);
     }
   }
 
@@ -1110,6 +1159,75 @@ export class Writeback {
    */
   deleteElements(elements: SceneElement | readonly SceneElement[]): DeleteResult {
     return removeFromScene(this.scene, this.bus, elements);
+  }
+
+  // --- containment (move drop onto another container) -----------------------
+
+  /**
+   * Re-home `nodes` (their contents come along through the scene tree) under
+   * `parent` — `undefined` meaning the root of the plane they are drawn in — after
+   * a move gesture dropped them onto a different container.
+   *
+   * Both halves move: the business object is refiled into the new container's
+   * `flowElements`/`artifacts` (lane membership via `flowNodeRef`, resolved by
+   * {@link flowContainerOf} exactly as a create is), and the scene tree is
+   * re-linked. The DI `planeElement` stays where it is — a drop target is always
+   * on the same plane the shape is drawn in.
+   *
+   * An incident edge follows `addConnection`'s rule — it lives in the container
+   * both its ends share, else at the plane root — so any edge whose shared
+   * container just changed is re-homed with them.
+   */
+  reparent(nodes: readonly SceneNode[], parent?: SceneNode): SceneElement[] {
+    const scene = this.scene;
+    const changed: SceneElement[] = [];
+    for (const node of nodes) {
+      if (node === parent || (node.parent ?? undefined) === parent) continue;
+      const plane = planeOf(scene, node);
+      const planeOwner = ownerNodeOf(scene, plane);
+      const from = flowContainerOf(node.parent, plane);
+      const to = flowContainerOf(parent, plane);
+      const bo = node.businessObject;
+      unfile(bo, [parentOf(bo), from.owner, from.lane]);
+      this.fileBusinessObject(bo, node.type, to.owner, modelOf(bo) ?? modelOf(plane.di));
+      if (to.lane && isBpmnSubtypeOf(node.type, 'bpmn:FlowNode')) pushInto(to.lane, 'flowNodeRef', bo);
+      unlinkFromTree(node, plane);
+      node.parent = parent;
+      if (parent) parent.children.push(node);
+      if (!parent || parent === planeOwner) plane.children.push(node);
+      changed.push(node);
+    }
+    if (changed.length === 0) return [];
+
+    const edges = new Set<SceneEdge>();
+    for (const el of changed) {
+      if (el.kind !== 'node') continue;
+      for (const edge of [...el.incoming, ...el.outgoing]) edges.add(edge);
+    }
+    for (const edge of edges) {
+      const plane = planeOf(scene, edge);
+      const planeOwner = ownerNodeOf(scene, plane);
+      const next = edge.source && edge.source.parent === edge.target?.parent
+        ? edge.source.parent
+        : undefined;
+      if ((edge.parent ?? undefined) === next) continue;
+      // Only a flow-container-owned edge is refiled; a data association lives on
+      // its activity and a message flow on the collaboration, and both moved (or
+      // stayed) with their owner already.
+      if (edge.type === 'bpmn:SequenceFlow' || edge.type === 'bpmn:Association') {
+        const bo = edge.businessObject;
+        unfile(bo, [parentOf(bo)]);
+        this.fileBusinessObject(bo, edge.type, flowContainerOf(next, plane).owner, modelOf(bo));
+      }
+      unlinkFromTree(edge, plane);
+      edge.parent = next;
+      if (next) next.children.push(edge);
+      if (!next || next === planeOwner) plane.children.push(edge);
+      changed.push(edge);
+    }
+
+    this.finish(changed);
+    return changed;
   }
 
   // --- creation (design §1 "add shape" / "add edge") ------------------------

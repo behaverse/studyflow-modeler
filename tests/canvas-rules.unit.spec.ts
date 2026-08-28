@@ -444,6 +444,15 @@ test.describe('canvas rules: shape.append', () => {
     expect(rules.allowed('shape.append', { element: node('bpmn:Task') })).toBe(true);
     expect(rules.allowed('shape.append', { element: node('bpmn:EndEvent') })).toBe(false);
   });
+
+  test('connection.start is wider: a data shape can source a data input association', () => {
+    for (const type of ['bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference']) {
+      expect(rules.allowed('connection.start', { source: node(type) }), type).toBe(true);
+    }
+    for (const type of ['bpmn:EndEvent', 'bpmn:TextAnnotation', 'bpmn:Participant']) {
+      expect(rules.allowed('connection.start', { source: node(type) }), type).toBe(false);
+    }
+  });
 });
 
 // --- the diagram-js-shaped entry point --------------------------------------

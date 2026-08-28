@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import type { Canvas } from '@canvas/index.ts';
 import type { IconDef, SceneElement } from '@canvas/index.ts';
 
+import { getCatalog, setCatalog } from '@core/notation';
+
 import { loadCanvas } from './canvasHarness';
 
 /**
@@ -275,4 +277,166 @@ test('a resolver answering `null` draws nothing at all — not a placeholder box
   // `undefined` still placeholders, so a resolver-less canvas is unchanged.
   const unknown = await load(() => undefined);
   expect(graphics(unknown, 'Task_1').querySelectorAll('.sf-icon-placeholder')).toHaveLength(1);
+});
+
+// --- gateway and event glyphs through the resolver ---------------------------
+
+/** An exclusive gateway plus an end event carrying an error definition. */
+const GATEWAY_EVENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    id="Defs_G" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_G" isExecutable="false">
+    <bpmn:exclusiveGateway id="Gateway_1" />
+    <bpmn:endEvent id="End_1">
+      <bpmn:errorEventDefinition id="ErrorDef_1" />
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_G">
+    <bpmndi:BPMNPlane id="Plane_G" bpmnElement="Process_G">
+      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1" isMarkerVisible="true">
+        <dc:Bounds x="100" y="100" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="200" y="107" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('a gateway asks the resolver for its glyph before falling back to the unicode table', async () => {
+  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
+    iconResolver: (key: string) => (key === 'ExclusiveGateway'
+      ? { content: GLYPH, viewBox: '0 0 24 24' }
+      : undefined),
+  });
+  const g = graphics(canvas, 'Gateway_1');
+  expect(g.querySelectorAll('svg.sf-icon[data-icon-key="ExclusiveGateway"]')).toHaveLength(1);
+  // The resolver's glyph REPLACES the unicode placeholder, not stacks on it.
+  expect(g.querySelector('text')?.textContent ?? '').not.toBe('×');
+});
+
+test('without a resolver answer a gateway keeps its unicode glyph — no placeholder box', async () => {
+  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {});
+  const g = graphics(canvas, 'Gateway_1');
+  expect(g.querySelector('text')?.textContent).toBe('×');
+  expect(g.querySelectorAll('.sf-icon-placeholder')).toHaveLength(0);
+});
+
+test('an event definition draws its symbol keyed by the definition $type', async () => {
+  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
+    iconResolver: (key: string) => (key === 'ErrorEventDefinition'
+      ? { content: GLYPH, viewBox: '0 0 24 24' }
+      : undefined),
+  });
+  const g = graphics(canvas, 'End_1');
+  expect(g.querySelectorAll('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')).toHaveLength(1);
+
+  // A resolver that does not know the definition leaves the circle bare — no
+  // placeholder box inside an event.
+  const { canvas: bare } = await loadCanvas(GATEWAY_EVENT_XML, {});
+  expect(graphics(bare, 'End_1').querySelectorAll('.sf-icon-placeholder, svg.sf-icon')).toHaveLength(0);
+});
+
+/**
+ * Data-element glyphs (`renderer.drawDataIcons`): a data store's dataset-format
+ * icon (`DatasetFormatEnum` literal, the ported `draw/Renderer.drawDataStore`),
+ * and the extension type's own glyph centred in the shape. A plain data
+ * reference stays bare — the shape is the notation.
+ */
+const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
+    id="Defs_D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_D" isExecutable="false">
+    <bpmn:dataStoreReference id="Store_bids" name="BIDS">
+      <bpmn:extensionElements><studyflow:dataset format="bids" /></bpmn:extensionElements>
+    </bpmn:dataStoreReference>
+    <bpmn:dataStoreReference id="Store_bdm" name="BDM">
+      <bpmn:extensionElements><studyflow:dataset format="bdm" /></bpmn:extensionElements>
+    </bpmn:dataStoreReference>
+    <bpmn:dataObjectReference id="Obj_table" name="Table">
+      <bpmn:extensionElements><studyflow:table /></bpmn:extensionElements>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObjectReference id="Obj_plain" name="Plain" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_D">
+    <bpmndi:BPMNPlane id="Plane_D" bpmnElement="Process_D">
+      <bpmndi:BPMNShape id="Store_bids_di" bpmnElement="Store_bids">
+        <dc:Bounds x="100" y="100" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Store_bdm_di" bpmnElement="Store_bdm">
+        <dc:Bounds x="200" y="100" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Obj_table_di" bpmnElement="Obj_table">
+        <dc:Bounds x="300" y="100" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Obj_plain_di" bpmnElement="Obj_plain">
+        <dc:Bounds x="400" y="100" width="36" height="50" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** Emulates `editor/mount.ts resolveIcon` for the data cases. */
+function dataResolver(key: string, bo?: any): IconDef | null | undefined {
+  if (key.startsWith('iconify ')) return { content: GLYPH, viewBox: '0 0 24 24' };
+  if (bo?.extensionElements) return { content: GLYPH, viewBox: '0 0 24 24' };
+  return null;
+}
+
+test('a data store with a BIDS format draws the bundled logotype, dimmed', async () => {
+  const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
+  const icon = graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"]');
+  expect(icon).toBeTruthy();
+  // The old renderer's stroke + `bb` alpha.
+  expect(icon!.querySelector('path')!.getAttribute('fill')!.toLowerCase()).toBe('#22242abb');
+});
+
+test('a data store format naming an iconify class resolves through the app pipeline', async () => {
+  const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
+  const g = graphics(canvas, 'Store_bdm');
+  expect(g.querySelector('svg.sf-icon[data-icon-key="iconify bi--hexagon"]')).toBeTruthy();
+});
+
+test('an extension-typed data object draws its type glyph; a plain one stays bare', async () => {
+  const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
+  expect(graphics(canvas, 'Obj_table').querySelector('svg.sf-icon[data-icon-key="DataObjectReference"]')).toBeTruthy();
+  expect(graphics(canvas, 'Obj_plain').querySelectorAll('.sf-icon-placeholder, svg.sf-icon, foreignObject')).toHaveLength(0);
+});
+
+test('a schema attribute declaring meta.icon badges a non-event shape top-right when set', async () => {
+  // No shipped task attribute declares `meta.icon` yet, so patch one in: every
+  // catalog read is delegated to the real catalog except `instanceAttributesOf`
+  // for the fixture's user task.
+  const real = getCatalog();
+  const patched = new Proxy(real, {
+    get(target: any, prop: string | symbol) {
+      if (prop === 'instanceAttributesOf') {
+        return (typeName: string | undefined) => {
+          const base = target.instanceAttributesOf(typeName);
+          return typeName === 'bpmn:UserTask'
+            ? [...base, { name: 'name', meta: { icon: 'iconify mdi--test-badge' } }]
+            : base;
+        };
+      }
+      const value = Reflect.get(target, prop, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+  setCatalog(patched as any);
+  try {
+    const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
+    // `Task_1` is a 100-wide user task whose `name` is set — the badge sits in the
+    // top-right corner (100 - 16 - 4), leftward of nothing else.
+    const badge = graphics(canvas, 'Task_1').querySelector('svg.sf-icon[data-icon-key="iconify mdi--test-badge"]');
+    expect(badge).toBeTruthy();
+    expect(badge!.getAttribute('x')).toBe('80');
+    expect(badge!.getAttribute('y')).toBe('4');
+  } finally {
+    setCatalog(real);
+  }
 });

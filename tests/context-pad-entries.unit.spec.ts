@@ -28,6 +28,9 @@ function context(overrides: Partial<ContextPadContext> = {}): ContextPadContext 
     count: 1,
     isShape: true,
     canAppend: false,
+    // Connect follows append unless a case pulls them apart (a data shape can
+    // start an edge but take no successor).
+    canConnect: overrides.canAppend ?? false,
     canAnnotate: false,
     canReplace: false,
     isChoreographyTask: false,
@@ -64,6 +67,14 @@ test('the wrench is gated on its own rule, not on the append one', () => {
     'replace',
     'delete',
     'set-color',
+  ]);
+});
+
+test('a data shape gets connect (a data input association may start there) but no append', () => {
+  expect(actionsOf(context({ canAppend: false, canConnect: true }))).toEqual([
+    'delete',
+    'set-color',
+    'connect',
   ]);
 });
 

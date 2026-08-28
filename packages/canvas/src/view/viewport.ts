@@ -129,25 +129,43 @@ export class Viewport {
     this.applyViewbox();
   }
 
+  /**
+   * How the browser actually maps the viewBox into the container: the root SVG
+   * carries `preserveAspectRatio="xMidYMid meet"`, i.e. ONE uniform scale with the
+   * box centred on the letterboxed axis. `fitBounds`/`zoom` keep the two aspects
+   * equal, where this is identical to the old per-axis math — but a viewBox minted
+   * while the container had no size (a hidden tab) is square in a non-square
+   * container, and mapping per-axis there put every pointer event tens of units
+   * off, which made the whole canvas click-dead.
+   */
+  private rendering(): { rect: DOMRect; scale: number; ox: number; oy: number } {
+    const rect = this.container.getBoundingClientRect();
+    const width = rect.width || this.box.width;
+    const height = rect.height || this.box.height;
+    const scale = Math.min(width / this.box.width, height / this.box.height);
+    return {
+      rect,
+      scale,
+      ox: (width - this.box.width * scale) / 2,
+      oy: (height - this.box.height * scale) / 2,
+    };
+  }
+
   /** Convert a screen point (client coords) to diagram coordinates. */
   toDiagram(screen: Point): Point {
-    const rect = this.container.getBoundingClientRect();
-    const scaleX = this.box.width / (rect.width || this.box.width);
-    const scaleY = this.box.height / (rect.height || this.box.height);
+    const { rect, scale, ox, oy } = this.rendering();
     return {
-      x: this.box.x + (screen.x - rect.left) * scaleX,
-      y: this.box.y + (screen.y - rect.top) * scaleY,
+      x: this.box.x + (screen.x - rect.left - ox) / scale,
+      y: this.box.y + (screen.y - rect.top - oy) / scale,
     };
   }
 
   /** Convert a diagram point to a screen point (client coords). */
   toScreen(diagram: Point): Point {
-    const rect = this.container.getBoundingClientRect();
-    const scaleX = (rect.width || this.box.width) / this.box.width;
-    const scaleY = (rect.height || this.box.height) / this.box.height;
+    const { rect, scale, ox, oy } = this.rendering();
     return {
-      x: rect.left + (diagram.x - this.box.x) * scaleX,
-      y: rect.top + (diagram.y - this.box.y) * scaleY,
+      x: rect.left + ox + (diagram.x - this.box.x) * scale,
+      y: rect.top + oy + (diagram.y - this.box.y) * scale,
     };
   }
 

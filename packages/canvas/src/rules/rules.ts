@@ -593,6 +593,18 @@ export class Rules {
   }
 
   /**
+   * `connection.start` — whether the context pad offers "connect from here".
+   * Wider than {@link canAppend}: a data shape is no FlowNode and takes no
+   * successor, but a data INPUT association may start from it toward an activity.
+   */
+  canStartConnection(source: RuleElement | undefined): boolean {
+    if (!source) return false;
+    if (this.canAppend(source)) return true;
+    const type = bpmnTypeOf(source, this.catalog);
+    return !!type && isDataShape(type);
+  }
+
+  /**
    * `shape.append` narrowed to a KNOWN successor type — what the context pad asks
    * before it offers (and previews) one specific entry.
    *
@@ -655,6 +667,9 @@ export class Rules {
     switch (action) {
       case 'connection.create':
         return this.canConnect(asElement(context.source), asElement(context.target));
+
+      case 'connection.start':
+        return this.canStartConnection(asElement(context.source ?? context.element));
 
       case 'connection.reconnect':
       case 'connection.reconnectStart':
