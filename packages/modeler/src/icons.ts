@@ -86,11 +86,6 @@ export const ICONS = {
   pentagon: 'iconify mdi--pentagon-outline',
   hexagon: 'iconify tabler--hexagon',
 
-  bpmnTask: 'iconify bpmn--task-none',
-  bpmnUserTask: 'iconify bpmn--user-task',
-  bpmnServiceTask: 'iconify bpmn--service-task',
-  bpmnScriptTask: 'iconify bpmn--script-task',
-  bpmnManualTask: 'iconify bpmn--manual-task',
   bpmnSubprocess: 'iconify bpmn--subprocess-collapsed',
   bpmnStartEvent: 'iconify bpmn--start-event-none',
   bpmnIntermediateEvent: 'iconify bpmn--intermediate-event-none',

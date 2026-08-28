@@ -171,13 +171,17 @@ test.describe('plane cursor', () => {
     expect(loaded.scene.revision).toBe(revision);
   });
 
-  test('every sub-process wears a blue drill-down badge titled `Open <name>`', async () => {
+  test('a selected sub-process wears a blue drill-down badge titled `Open <name>`', async () => {
     const loaded = await load();
     loaded.cursor.refresh();
 
-    // EVERY expandable container of the plane on screen, whichever way the document
-    // stores its contents and whichever state it is drawn in: the inline-expanded
-    // `prepare_data` alongside the two collapsed, planed phases.
+    // Badges are selection-gated: an unselected canvas shows none.
+    expect(loaded.layer.querySelectorAll('.sf-drilldown').length).toBe(0);
+
+    // EVERY selected expandable container of the plane on screen, whichever way the
+    // document stores its contents and whichever state it is drawn in: the
+    // inline-expanded `prepare_data` alongside the two collapsed, planed phases.
+    loaded.canvas.getSelection().select(['prepare_data', 'select_model', 'evaluate_and_report']);
     const badges = [...loaded.layer.querySelectorAll('.sf-drilldown')];
     expect(badges.map((g) => g.getAttribute('data-drilldown')))
       .toEqual(['prepare_data', 'select_model', 'evaluate_and_report']);
@@ -223,8 +227,8 @@ test.describe('plane cursor', () => {
     expect(loaded.cursor.current()).toBe(root);
     expect(sub.di?.isExpanded).toBe(true);
     expect(sub.isExpanded).toBe(true);
-    // …and the badge is still there, so the trip in is one click away.
-    loaded.cursor.refresh();
+    // …and once selected the badge is there, so the trip in is one click away.
+    loaded.canvas.getSelection().select('select_model');
     expect(loaded.layer.querySelector('[data-drilldown="select_model"]')).toBeTruthy();
   });
 
@@ -296,6 +300,8 @@ test.describe('plane cursor', () => {
 
     // The badges go into a host layer above the built-in stack, so an import drops
     // them with everything else and the next paint re-attaches (`Canvas.getHostLayer`).
+    // Selection-gated: the badge appears once its container is selected.
+    canvas.getSelection().select('select_model');
     const badge = canvas.getSvg()
       .querySelector('[data-layer="drilldown"] [data-drilldown="select_model"]');
     expect(badge).toBeTruthy();
@@ -315,6 +321,7 @@ test.describe('plane cursor', () => {
 
   test('destroying the canvas takes the cursor down with it', async () => {
     const loaded = await load();
+    loaded.canvas.getSelection().select('select_model');
     loaded.cursor.refresh();
     expect(loaded.layer.querySelectorAll('.sf-drilldown').length).toBeGreaterThan(0);
 

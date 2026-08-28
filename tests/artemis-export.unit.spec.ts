@@ -32,16 +32,18 @@ function eegDiagram(): any {
     format: 'parquet',
   });
 
-  const clean = wrapperElement('bpmn:ServiceTask', 'functional:Filter', {
+  const clean = moddle.create('bpmn:ServiceTask', {
     id: 'Filter_1',
     name: 'Remove artifacts',
+    implementation: 'docker://sccn/eegprep',
   });
   clean.dataInputAssociations = [dataInput(recording)];
   clean.dataOutputAssociations = [dataOutput(cleaned)];
 
-  const summarize = wrapperElement('bpmn:ServiceTask', 'functional:Reduce', {
+  const summarize = moddle.create('bpmn:ServiceTask', {
     id: 'Reduce_1',
     name: 'Fit model',
+    implementation: 'python://sklearn.linear_model.LinearRegression',
   });
   summarize.dataInputAssociations = [dataInput(cleaned)];
 
@@ -73,13 +75,13 @@ test.describe('ARTEM-IS export', () => {
     expect(preprocessing[0]).toMatchObject({
       element_id: 'Filter_1',
       label: 'Remove artifacts',
-      operation: 'filter',
-      studyflow_type: 'functional:Filter',
+      implementation: 'docker://sccn/eegprep',
+      studyflow_type: 'bpmn:ServiceTask',
     });
 
     expect(Array.isArray(analysis), JSON.stringify(analysis)).toBe(true);
     expect(analysis.map((entry: any) => entry.element_id)).toEqual(['Reduce_1']);
-    expect(analysis[0].operation).toBe('reduce');
+    expect(analysis[0].implementation).toBe('python://sklearn.linear_model.LinearRegression');
   });
 
   test('reports the EEG recording as a dataset with its declared attributes', () => {

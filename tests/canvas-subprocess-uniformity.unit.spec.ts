@@ -211,6 +211,10 @@ function onOutline(n: SceneNode, p: Point): boolean {
 
 /** The drill-down badges currently painted, by the element they belong to. */
 function badges(canvas: Canvas): string[] {
+  // Badges are selection-gated: select every drillable container so they paint.
+  const scene = canvas.getScene()!;
+  canvas.getSelection().select([...scene.elementsById.values()]
+    .filter((e) => e.kind === 'node' && isDrillable(scene, e)));
   canvas.getPlaneCursor().refresh();
   return [...canvas.getHostLayer('drilldown', 900).querySelectorAll('.sf-drilldown')]
     .map((g) => g.getAttribute('data-drilldown') ?? '');

@@ -31,7 +31,7 @@ function toOperationEntry(operation: ExportedElement): GenericRecord {
   return {
     element_id: operation.id,
     label: operation.name,
-    operation: operation.attributes.operationType ?? null,
+    implementation: operation.attributes.implementation ?? null,
     studyflow_type: operation.type,
     documentation: operation.documentation ?? null,
   };

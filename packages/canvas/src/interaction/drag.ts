@@ -636,8 +636,9 @@ export class Drag {
       );
       return [state.edge];
     }
-    // A BENDPOINT drag keeps the route Manhattan: the neighbours come along on the
-    // axis of the run they share with the moved joint (parity spec §1/§4).
+    // A BENDPOINT drag moves just that joint: the neighbours stay put and the two
+    // runs meeting it bend diagonal when that is where the pointer went — only the
+    // docks are re-cropped to their shapes.
     state.edge.waypoints = moveBendpoint(
       state.original,
       state.index,

@@ -8,10 +8,11 @@ import { loadCanvas, jsdomWindow, dragBy } from './canvasHarness';
 
 /**
  * A connection's OVERLAY — parity spec §1 (a blue handle on every waypoint, both
- * endpoints included) and §2 (a move grip on every straight run, `ns` on a
- * horizontal one and `ew` on a vertical one, as `edge-videos/v2/frame_10` shows).
- * Both appear for a SELECTED connection and for a merely HOVERED one, and both
- * disappear under a multi-selection, which is diagram-js's rule.
+ * endpoints included) and §2 (a move grip on the straight run the pointer HOVERS,
+ * following the pointer along it — `ns` on a horizontal run and `ew` on a vertical
+ * one, as `edge-videos/v2/frame_10` shows). Bendpoints appear for a SELECTED
+ * connection and for a merely HOVERED one, and everything disappears under a
+ * multi-selection, which is diagram-js's rule.
  *
  * Also home to the plane-scope seam (`Canvas.setPlaneScope`), because it is the
  * same question asked of the canvas: what is on screen, and what may be grabbed.
@@ -123,37 +124,53 @@ test('a multi-selection draws no edge chrome at all', async () => {
 
 // --- segment grips -----------------------------------------------------------
 
-test('each straight run draws exactly one grip, ns for horizontal and ew for vertical', async () => {
+test('the grip appears on the hovered run only, and follows the pointer along it', async () => {
   const canvas = await load();
   canvas.getSelection().select(edge(canvas, 'Flow_1'));
 
-  const grips = chrome(canvas, '.sf-segment-grip');
-  expect(grips).toHaveLength(3);
-  expect(grips.map((g) => g.getAttribute('data-segment'))).toEqual(['0', '1', '2']);
-  // Horizontal runs travel up/down, the vertical one left/right.
-  expect(grips.map((g) => g.classList.contains('sf-segment-grip-ns')))
-    .toEqual([true, false, true]);
-  expect(grips[1].classList.contains('sf-segment-grip-ew')).toBe(true);
-  // Each sits at its run's midpoint.
-  expect(grips.map(placedAt)).toEqual([
-    { x: 325, y: 120 },
-    { x: 350, y: 200 },
-    { x: 375, y: 280 },
-  ]);
+  // Selected but not hovered: bendpoints only, no grips anywhere.
+  expect(chrome(canvas, '.sf-segment-grip')).toHaveLength(0);
+
+  // Hover partway down the vertical run (a few units off its line still counts):
+  // ONE grip, ew, at the pointer's projection onto the run — not at its midpoint.
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 353, y: 170 });
+  let grips = chrome(canvas, '.sf-segment-grip');
+  expect(grips).toHaveLength(1);
+  expect(grips[0].getAttribute('data-segment')).toBe('1');
+  expect(grips[0].classList.contains('sf-segment-grip-ew')).toBe(true);
+  expect(placedAt(grips[0])).toEqual({ x: 350, y: 170 });
+
+  // It travels with the pointer along the same run…
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 350, y: 220 });
+  expect(placedAt(chrome(canvas, '.sf-segment-grip')[0])).toEqual({ x: 350, y: 220 });
+
+  // …and hovering the first horizontal run offers THAT run's ns grip instead.
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 320, y: 120 });
+  grips = chrome(canvas, '.sf-segment-grip');
+  expect(grips).toHaveLength(1);
+  expect(grips[0].getAttribute('data-segment')).toBe('0');
+  expect(grips[0].classList.contains('sf-segment-grip-ns')).toBe(true);
   // The glyph is a pair of triangles with a CHANNEL between them (`v2/frame_10`):
   // one tip 8 units above the run, the other 8 below, neither base closer than 3 —
   // a 6-unit gap, without which the pair closes up into one solid diamond.
   expect(grips[0].querySelector('.sf-segment-grip-visual')?.getAttribute('d'))
     .toBe('M 0 -8 L -3.5 -3 L 3.5 -3 Z M 0 8 L -3.5 3 L 3.5 3 Z');
   expect(grips[0].querySelector('.sf-segment-grip-hit')?.getAttribute('width')).toBe('20');
+
+  // Inside a bendpoint's reach the joint's own handle wins: no grip on offer.
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 350, y: 126 });
+  expect(chrome(canvas, '.sf-segment-grip')).toHaveLength(0);
 });
 
-test('a hovered connection offers the grips too, and a run shorter than the grip gets none', async () => {
+test('a merely hovered connection offers the grip too, and a run shorter than the grip gets none', async () => {
   const canvas = await load();
   firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 350, y: 200 });
-  expect(chrome(canvas, '.sf-segment-grip')).toHaveLength(3);
+  expect(canvas.getSelection().get()).toEqual([]);
+  const grips = chrome(canvas, '.sf-segment-grip');
+  expect(grips).toHaveLength(1);
+  expect(grips[0].getAttribute('data-segment')).toBe('1');
 
-  // Shrink the middle run below the grip's own length: it stops being grabbable.
+  // Shrink the middle run below the grip's own length: hovering it offers nothing.
   const flow = edge(canvas, 'Flow_1');
   flow.waypoints = [
     { x: 300, y: 120 },
@@ -162,14 +179,13 @@ test('a hovered connection offers the grips too, and a run shorter than the grip
     { x: 400, y: 130 },
   ];
   canvas.redrawElements([flow]);
-  canvas.getSelection().select(flow);
-  expect(chrome(canvas, '.sf-segment-grip').map((g) => g.getAttribute('data-segment')))
-    .toEqual(['0', '2']);
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 350, y: 125 });
+  expect(chrome(canvas, '.sf-segment-grip')).toHaveLength(0);
 });
 
-// --- bendpoint drags keep the route square -----------------------------------
+// --- bendpoint drags move one joint, and one joint only ----------------------
 
-test('dragging a middle bendpoint takes its neighbours along and keeps every run axis-aligned', async () => {
+test('dragging a middle bendpoint moves it alone — its neighbours stay put and the runs go diagonal', async () => {
   const canvas = await load();
   const flow = edge(canvas, 'Flow_1');
   canvas.getSelection().select(flow);
@@ -177,11 +193,12 @@ test('dragging a middle bendpoint takes its neighbours along and keeps every run
   // Grab the second waypoint (the top corner of the Z) and pull it right and down.
   dragBy(canvas, { x: 350, y: 120 }, { x: 380, y: 150 });
 
-  expect(isOrthogonal(flow.waypoints)).toBe(true);
-  // The corner moved, and the two runs meeting it followed it onto their own axes.
+  // The joint went exactly where the pointer let go; its interior neighbour did
+  // not follow, so the edge is now genuinely bent out of Manhattan.
+  expect(flow.waypoints).toHaveLength(4);
   expect(flow.waypoints[1]).toEqual({ x: 380, y: 150 });
-  expect(flow.waypoints[0].y).toBe(150);
-  expect(flow.waypoints[2].x).toBe(380);
+  expect(flow.waypoints[2]).toEqual({ x: 350, y: 280 });
+  expect(isOrthogonal(flow.waypoints)).toBe(false);
 });
 
 // --- the plane-scope seam ----------------------------------------------------

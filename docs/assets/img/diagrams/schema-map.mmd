@@ -8,16 +8,10 @@ flowchart LR
   PROV[/"`**prov** · order 15 · core
   1 type, no templates
   Activity — one entry of the trail`"/]
-  FUNC[/"`**functional** · order 30 · core
-  4 types · 5 templates
-  Transform · Map · Reduce · Filter`"/]
   COG[/"`**cognitive** · order 40 · core
   10 types · 4 templates
   CognitiveTask · Questionnaire · RandomGateway`"/]
 
-  ML[/"`**ml** · order 50 · optional
-  **no types** · 12 templates
-  Train/test split · Cross-validate · Model`"/]
   AGENTIC[/"`**agentic** · order 60 · optional
   7 types · 5 templates
   Agent · LLMCall · Tool · HumanApproval`"/]
@@ -36,19 +30,15 @@ flowchart LR
 
   SF ==>|"always loads into"| CATALOG
   PROV ==>|"always loads into"| CATALOG
-  FUNC ==>|"always loads into"| CATALOG
   COG ==>|"always loads into"| CATALOG
 
-  ML -->|"loads only when enabled in"| SETTINGS
   AGENTIC -->|"loads only when enabled in"| SETTINGS
   EEG -->|"loads only when enabled in"| SETTINGS
   SETTINGS -->|"adds whatever is enabled to"| CATALOG
 
-  ML -.->|"roots all 12 presets at, adding<br/>no type of its own"| FUNC
-
   classDef core fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
   classDef opt fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
   classDef app fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
-  class SF,PROV,FUNC,COG core
-  class ML,AGENTIC,EEG opt
+  class SF,PROV,COG core
+  class AGENTIC,EEG opt
   class SETTINGS,CATALOG app

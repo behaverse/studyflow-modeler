@@ -59,14 +59,23 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 }
 
 test.describe('sub-process drill-down', () => {
-  test('every sub-process shows the drill-down badge, whichever way its contents are stored', async ({ page }) => {
+  test('every SELECTED sub-process shows the drill-down badge, whichever way its contents are stored', async ({ page }) => {
     await openExample(page);
+
+    // Badges are selection-gated: nothing selected, nothing offered.
+    await expect(page.getByTitle('Open select_model')).toBeHidden();
+    await expect(page.getByTitle('Open prepare_data')).toBeHidden();
 
     // The reported defect, from the outside: `select_model` owns a nested plane and
     // `prepare_data` does not, and that difference used to decide whether the trip in
-    // was offered at all.
+    // was offered at all. Selecting either offers the same badge.
+    await page.locator('g[data-element-id="select_model"]').click();
     await expect(page.getByTitle('Open select_model')).toBeVisible();
+    await page.locator('g[data-element-id="evaluate_and_report"]').click();
     await expect(page.getByTitle('Open evaluate_and_report')).toBeVisible();
+    // …and the badge follows the selection out again.
+    await expect(page.getByTitle('Open select_model')).toBeHidden();
+    await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
     await expect(page.getByTitle('Open prepare_data')).toBeVisible();
     // At the root the trail is one crumb long, and the reference draws none.
     await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
@@ -106,6 +115,8 @@ test.describe('sub-process drill-down', () => {
   test('the badge enters the plane and the breadcrumb shows the path back', async ({ page }) => {
     await openExample(page);
 
+    // Select first: the badge only paints on the selected container.
+    await page.locator('g[data-element-id="select_model"]').click();
     await page.getByTitle('Open select_model').click();
 
     // The plane's own contents are on screen…
@@ -129,6 +140,9 @@ test.describe('sub-process drill-down', () => {
   test('the badge enters an in-parent sub-process too, through a synthesized scope', async ({ page }) => {
     await openExample(page);
 
+    // The caption, not the body: a body click would land on a child of the
+    // expanded frame. Selecting paints the badge; the badge takes the trip.
+    await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
     await page.getByTitle('Open prepare_data').click();
 
     // Same trip, same trail, for a container the document gave no plane of its own.
@@ -243,8 +257,9 @@ test.describe('sub-process drill-down', () => {
     await expect(sub).toBeVisible();
     const id = await sub.getAttribute('data-element-id');
 
-    // Drawn collapsed (the ⊞ marker) and offering the trip in.
+    // Drawn collapsed (the ⊞ marker) and, once selected, offering the trip in.
     await expect(sub.locator('[data-icon-key="subprocess"]')).toHaveCount(1);
+    await sub.click();
     const badge = page.getByTitle(`Open ${id}`);
     await expect(badge).toBeVisible();
 

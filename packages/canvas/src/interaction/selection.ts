@@ -34,11 +34,14 @@ import { ensureOutline, OUTLINE_OFFSET } from '@canvas/render/outline.ts';
 import { boxContains, centerOf } from '@canvas/routing/crop.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 import {
+  gripPositionAt,
+  insideGrip,
   isGrippable,
   segmentAt as segmentOfPath,
   segmentsOf,
   SEGMENT_GRIP_LENGTH,
   SEGMENT_GRIP_WIDTH,
+  type SegmentAxis,
 } from '@canvas/interaction/segments.ts';
 
 /** The eight resize-handle anchors, in `data-handle` naming. */
@@ -181,6 +184,8 @@ export class Selection {
   private selected: SceneElement[] = [];
   /** The connection the pointer is over, if any (bendpoints, and nothing else). */
   private hovered?: SceneEdge;
+  /** The one segment grip on offer: the run under the pointer, and where its glyph sits. */
+  private hoveredGrip?: { edge: SceneEdge; index: number; axis: SegmentAxis; at: Point };
   /** Elements a live lasso has enclosed so far — marked, not yet selected. */
   private previewed: SceneElement[] = [];
   /** Applied markers per element id, so `removeMarker` can no-op cleanly. */
@@ -298,15 +303,21 @@ export class Selection {
   }
 
   /**
-   * Note which element the pointer is over. Hovering a SHAPE is deliberately inert
-   * — bpmn-js changes nothing on screen for it, and the canvas matches that by
-   * having nothing to change. Hovering a CONNECTION reveals its bendpoints, which is
-   * the one hover that renders. Returns whether anything changed.
+   * Note which element the pointer is over — and, with `point`, WHERE it is.
+   * Hovering a SHAPE is deliberately inert — bpmn-js changes nothing on screen for
+   * it, and the canvas matches that by having nothing to change. Hovering a
+   * CONNECTION reveals its bendpoints, and hovering one of its straight RUNS puts
+   * the segment-move grip under the pointer ({@link Selection.drawSegmentGrips}) —
+   * the two hovers that render. Returns whether anything changed.
    */
-  setHovered(element: SceneElement | undefined): boolean {
+  setHovered(element: SceneElement | undefined, point?: Point): boolean {
     const next = element && element.kind === 'edge' ? element : undefined;
-    if (next === this.hovered) return false;
+    const edgeChanged = next !== this.hovered;
     this.hovered = next;
+    const grip = this.gripUnder(point);
+    const gripChanged = !sameGrip(grip, this.hoveredGrip);
+    this.hoveredGrip = grip;
+    if (!edgeChanged && !gripChanged) return false;
     this.drawOverlay();
     return true;
   }
@@ -469,6 +480,26 @@ export class Selection {
     const hovered = this.hovered;
     if (hovered && !this.isSelected(hovered)) out.push(hovered);
     return out;
+  }
+
+  /**
+   * The grip a pointer at `point` earns: the first grippable run of a connection
+   * wearing edge chrome that the point is over — anywhere along the run, not just
+   * its middle — with the glyph placed at the pointer's projection onto it. Near
+   * the run's ends (`insideGrip`'s inset) the joint's own handle wins and no grip
+   * is offered, which is diagram-js's rule too.
+   */
+  private gripUnder(
+    point: Point | undefined,
+  ): { edge: SceneEdge; index: number; axis: SegmentAxis; at: Point } | undefined {
+    if (!point) return undefined;
+    for (const edge of this.edgesWithChrome()) {
+      const segment = segmentsOf(edge.waypoints).find((s) => isGrippable(s) && insideGrip(s, point));
+      if (segment) {
+        return { edge, index: segment.index, axis: segment.axis, at: gripPositionAt(segment, point) };
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -649,42 +680,54 @@ export class Selection {
   }
 
   /**
-   * One move grip per straight run — the affordance parity spec §2 calls "the big
-   * missing piece". A horizontal run carries the `ns` grip (it travels up/down), a
-   * vertical one the `ew` grip, which is the pairing `edge-videos/v2/frame_10`
-   * shows: `◄ ►` sitting on the vertical segment below the source task.
+   * The move grip of the ONE run the pointer is over — the affordance parity spec
+   * §2 calls "the big missing piece". A horizontal run carries the `ns` grip (it
+   * travels up/down), a vertical one the `ew` grip, which is the pairing
+   * `edge-videos/v2/frame_10` shows: `◄ ►` sitting on the vertical segment below
+   * the source task.
+   *
+   * As in diagram-js, the grip is not parked at the run's midpoint: it appears on
+   * whichever segment the pointer hovers and travels with it along the run
+   * ({@link Selection.gripUnder}), so hovering any place of a segment offers the
+   * slide — and the rest of the connection shows only its bendpoints.
    *
    * The glyph is a pair of solid DARK triangles pointing apart — the one piece of
-   * edge chrome that is not diagram-js blue — over an invisible 20x14 hit box, the
-   * same box {@link Selection.segmentAt} tests against.
+   * edge chrome that is not diagram-js blue — over an invisible 20x18 hit box.
    */
   private drawSegmentGrips(edge: SceneEdge): void {
-    const grips = segmentsOf(edge.waypoints).filter(isGrippable);
-    if (grips.length === 0) return;
+    const hovered = this.hoveredGrip;
+    if (!hovered || hovered.edge.id !== edge.id) return;
+    const direction = hovered.axis === 'h' ? 'ns' : 'ew';
     // Decoration, not the edge — see `drawResizers` on `data-overlay-for`.
     const g = create('g', { class: 'sf-segment-grips', 'data-overlay-for': edge.id }) as SVGGElement;
-    for (const segment of grips) {
-      const direction = segment.axis === 'h' ? 'ns' : 'ew';
-      const grip = create('g', {
-        class: `sf-segment-grip sf-segment-grip-${direction}`,
-        'data-segment': segment.index,
-        transform: `translate(${segment.mid.x}, ${segment.mid.y})`,
-      }) as SVGGElement;
-      append(grip, create('path', {
-        class: 'sf-segment-grip-visual',
-        d: gripGlyph(direction),
-      }));
-      append(grip, create('rect', {
-        class: 'sf-segment-grip-hit',
-        x: -(segment.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH) / 2,
-        y: -(segment.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH) / 2,
-        width: segment.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH,
-        height: segment.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH,
-      }));
-      append(g, grip);
-    }
+    const grip = create('g', {
+      class: `sf-segment-grip sf-segment-grip-${direction}`,
+      'data-segment': hovered.index,
+      transform: `translate(${hovered.at.x}, ${hovered.at.y})`,
+    }) as SVGGElement;
+    append(grip, create('path', {
+      class: 'sf-segment-grip-visual',
+      d: gripGlyph(direction),
+    }));
+    append(grip, create('rect', {
+      class: 'sf-segment-grip-hit',
+      x: -(hovered.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH) / 2,
+      y: -(hovered.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH) / 2,
+      width: hovered.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH,
+      height: hovered.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH,
+    }));
+    append(g, grip);
     append(this.layer, g);
   }
+}
+
+/** Whether two grip offers are the same run at the same spot. */
+function sameGrip(
+  a: { edge: SceneEdge; index: number; at: Point } | undefined,
+  b: { edge: SceneEdge; index: number; at: Point } | undefined,
+): boolean {
+  if (!a || !b) return a === b;
+  return a.edge === b.edge && a.index === b.index && a.at.x === b.at.x && a.at.y === b.at.y;
 }
 
 /**

@@ -2814,8 +2814,10 @@ export class Canvas {
     // `elementAt`, not `hitTest`: over a connection's CAPTION the element under the
     // pointer is the label, which is a shape — so the bendpoints stay down, as they
     // do in bpmn-js where the label is its own element.
-    const hit = this.elementAt(this.eventPoint(ev));
-    this.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
+    const pt = this.eventPoint(ev);
+    const hit = this.elementAt(pt);
+    // The point rides along so the segment grip can follow the pointer down a run.
+    this.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined, pt);
   }
 
   /**

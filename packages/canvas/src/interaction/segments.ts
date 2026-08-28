@@ -35,7 +35,7 @@ import {
   cropWaypoints,
   type CroppableShape,
 } from '@canvas/routing/crop.ts';
-import { orthogonalize } from '@canvas/routing/orthogonal.ts';
+import { ORTHOGONAL_TOLERANCE, orthogonalize, simplify } from '@canvas/routing/orthogonal.ts';
 
 /** Which way a straight segment runs. */
 export type SegmentAxis = 'h' | 'v';
@@ -132,11 +132,10 @@ export function isGrippable(segment: Segment): boolean {
  * The segment a press at `point` grabs, or `undefined`. Two ways in, both of which
  * diagram-js routes through `ConnectionSegmentMove`:
  *
- * - the move GRIP — the 20x14 box drawn at the run's midpoint (parity spec §2);
+ * - the move GRIP — which follows the pointer along its run ({@link insideGrip}),
+ *   so anywhere on a grippable run within the grip's reach counts (parity spec §2);
  * - the run's BODY — anywhere within `tolerance` of the line, which is how a bend
  *   is *added* to an edge that has none (parity spec §3).
- *
- * Later segments win a tie, so the grip (which is drawn on top) is never shadowed.
  */
 export function segmentAt(
   waypoints: readonly Point[],
@@ -157,12 +156,43 @@ export function segmentAt(
   return undefined;
 }
 
-/** Whether `point` falls inside a segment's grip box. */
+/**
+ * Whether `point` falls inside a segment's grip reach. The grip travels with the
+ * pointer along its run ({@link gripPositionAt}), so its reach is the run's extent
+ * along the axis and the grip's own {@link SEGMENT_GRIP_WIDTH} across it — wherever
+ * on the run the pointer is, the grip is drawn under it. The extent is inset half a
+ * grip length off each end: that close to a joint (or a dock, where a press means
+ * the SHAPE) the run's own handle is not the grip, and no grip is drawn there.
+ */
 export function insideGrip(segment: Segment, point: Point): boolean {
-  const along = segment.axis === 'h' ? SEGMENT_GRIP_LENGTH : SEGMENT_GRIP_WIDTH;
-  const across = segment.axis === 'h' ? SEGMENT_GRIP_WIDTH : SEGMENT_GRIP_LENGTH;
-  return Math.abs(point.x - segment.mid.x) <= along / 2
-    && Math.abs(point.y - segment.mid.y) <= across / 2;
+  const across = SEGMENT_GRIP_WIDTH / 2;
+  const inset = SEGMENT_GRIP_LENGTH / 2;
+  if (segment.axis === 'h') {
+    return point.x >= Math.min(segment.a.x, segment.b.x) + inset
+      && point.x <= Math.max(segment.a.x, segment.b.x) - inset
+      && Math.abs(point.y - segment.mid.y) <= across;
+  }
+  return point.y >= Math.min(segment.a.y, segment.b.y) + inset
+    && point.y <= Math.max(segment.a.y, segment.b.y) - inset
+    && Math.abs(point.x - segment.mid.x) <= across;
+}
+
+/**
+ * Where the grip glyph sits while the pointer hovers `point`: the pointer's
+ * projection onto the run, clamped half a grip length off each end so the glyph
+ * never sits on top of the bendpoints (diagram-js moves its segment dragger with
+ * the cursor the same way).
+ */
+export function gripPositionAt(segment: Segment, point: Point): Point {
+  const half = SEGMENT_GRIP_LENGTH / 2;
+  if (segment.axis === 'h') {
+    const lo = Math.min(segment.a.x, segment.b.x) + half;
+    const hi = Math.max(segment.a.x, segment.b.x) - half;
+    return roundPoint({ x: Math.min(Math.max(point.x, lo), hi), y: segment.mid.y });
+  }
+  const lo = Math.min(segment.a.y, segment.b.y) + half;
+  const hi = Math.max(segment.a.y, segment.b.y) - half;
+  return roundPoint({ x: segment.mid.x, y: Math.min(Math.max(point.y, lo), hi) });
 }
 
 // --- moving a segment -------------------------------------------------------
@@ -212,12 +242,17 @@ export function moveSegment(
 }
 
 /**
- * `waypoints` with the INTERIOR bendpoint `index` moved to `to`, keeping the route
- * Manhattan: each neighbour is re-projected onto the axis of the run it shares with
- * the moved point, so the two adjacent segments stay axis-aligned instead of
- * fanning out into diagonals (parity spec §1 "neighboring segments stay
- * orthogonal"). A terminal index is returned untouched — dragging an ENDPOINT is
- * the reconnect/free-move gesture, not this one.
+ * `waypoints` with the INTERIOR bendpoint `index` moved to `to` — and nothing else
+ * rewired. This is diagram-js's `BendpointMove`: the joint goes exactly where the
+ * pointer is, its neighbours stay put, and the two runs meeting it become diagonal
+ * when that is what the drag asked for. The route is deliberately NOT re-squared —
+ * a bendpoint is the one gesture that may bend an orthogonal edge out of Manhattan.
+ *
+ * With `shapes` given the two ends are re-cropped to their outlines (a joint next
+ * to an endpoint changes the terminal run's direction, and the dock slides along
+ * the silhouette to meet it), and joints the move made redundant — dragged onto a
+ * neighbour, or exactly back into line — are dropped. A terminal index is returned
+ * untouched: dragging an ENDPOINT is the reconnect/free-move gesture, not this one.
  */
 export function moveBendpoint(
   waypoints: readonly Point[],
@@ -225,46 +260,13 @@ export function moveBendpoint(
   to: Point,
   shapes: SegmentShapes = {},
 ): Point[] {
-  const original = clonePath(waypoints);
-  if (index <= 0 || index >= original.length - 1) return original;
-
-  const points = clonePath(original);
+  const points = clonePath(waypoints);
+  if (index <= 0 || index >= points.length - 1) return points;
   points[index] = { x: to.x, y: to.y };
-
-  // Keep square what WAS square. A run that is already diagonal — a hand-bent
-  // association, an imported edge nobody routed — is not this gesture's to
-  // re-cut, and dragging its joint is P3's plain point move.
-  const before = isAlignedRun(original[index - 1], original[index]);
-  const after = isAlignedRun(original[index], original[index + 1]);
-  if (!before && !after) return points;
-
-  if (before) alignNeighbour(points, original, index, index - 1);
-  if (after) alignNeighbour(points, original, index, index + 1);
-  return settle(points, shapes);
-}
-
-/** Whether a run is axis-aligned to within the routing tolerance. */
-function isAlignedRun(a: Point, b: Point): boolean {
-  return Math.min(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) <= SEGMENT_ALIGN_TOLERANCE;
-}
-
-/**
- * Move `neighbour` onto the moved point's axis, along the direction the run
- * between them already had: a horizontal run keeps both ends on one `y`, a
- * vertical one on one `x`.
- */
-function alignNeighbour(
-  points: Point[],
-  original: readonly Point[],
-  index: number,
-  neighbour: number,
-): void {
-  const from = original[index];
-  const other = original[neighbour];
-  const horizontal = Math.abs(other.y - from.y) <= Math.abs(other.x - from.x);
-  points[neighbour] = horizontal
-    ? { x: other.x, y: points[index].y }
-    : { x: points[index].x, y: other.y };
+  const cropped = shapes.source || shapes.target
+    ? cropWaypoints(points, shapes.source, shapes.target)
+    : points;
+  return roundPath(simplify(cropped));
 }
 
 /**
@@ -427,25 +429,30 @@ export function freeMoveEnd(
   const elbow = horizontal ? { x: to.x, y: anchor.y } : { x: anchor.x, y: to.y };
   points[i] = { x: to.x, y: to.y };
   points.splice(end === 'source' ? 1 : last, 0, elbow);
-  // `orthogonalize` squares anything the insertion left crooked (an imported run
+  // `orthogonalize` flattens anything the insertion left crooked (an imported run
   // that was a unit or two off-axis) and drops the elbow again when the drag was
-  // along the run and it became redundant.
-  return roundPath(orthogonalize(points));
+  // along the run and it became redundant. Elbow-growing is off: a genuinely
+  // diagonal run elsewhere on the path (a hand-bent joint) is the author's and
+  // must survive this edit untouched.
+  return roundPath(orthogonalize(points, ORTHOGONAL_TOLERANCE, false));
 }
 
 /**
- * The common tail of every edit here: square the route, drop the joints the edit
- * made redundant, and re-crop both ends to their shapes — twice, because a
- * collapse (the detour dragged flat) hands the endpoints a NEW neighbour to be
- * cropped against, which is what lets a reshaped edge become straight again.
+ * The common tail of every edit here: flatten the runs the edit left near-aligned,
+ * drop the joints it made redundant, and re-crop both ends to their shapes —
+ * twice, because a collapse (the detour dragged flat) hands the endpoints a NEW
+ * neighbour to be cropped against, which is what lets a reshaped edge become
+ * straight again. Elbow-growing is off throughout: a genuinely diagonal run (a
+ * hand-bent joint, see {@link moveBendpoint}) is the author's, and sliding one
+ * segment must not re-cut the rest of the path.
  */
 function settle(waypoints: readonly Point[], shapes: SegmentShapes): Point[] {
-  let points = orthogonalize(waypoints);
+  let points = orthogonalize(waypoints, ORTHOGONAL_TOLERANCE, false);
   if (!shapes.source && !shapes.target) return roundPath(points);
   const before = points.length;
-  points = orthogonalize(cropWaypoints(points, shapes.source, shapes.target));
+  points = orthogonalize(cropWaypoints(points, shapes.source, shapes.target), ORTHOGONAL_TOLERANCE, false);
   if (points.length !== before) {
-    points = orthogonalize(cropWaypoints(points, shapes.source, shapes.target));
+    points = orthogonalize(cropWaypoints(points, shapes.source, shapes.target), ORTHOGONAL_TOLERANCE, false);
   }
   return roundPath(points);
 }
@@ -457,10 +464,11 @@ function settle(waypoints: readonly Point[], shapes: SegmentShapes): Point[] {
  * diagram unit is far below anything that renders.
  */
 function roundPath(points: readonly Point[]): Point[] {
-  return points.map((p) => ({
-    x: Math.round(p.x * 1000) / 1000,
-    y: Math.round(p.y * 1000) / 1000,
-  }));
+  return points.map(roundPoint);
+}
+
+function roundPoint(p: Point): Point {
+  return { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 };
 }
 
 // --- geometry ---------------------------------------------------------------

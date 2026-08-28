@@ -341,6 +341,9 @@ export class PlaneCursor {
     this.bus.on('element.changed', this.onElementsChanged);
     this.bus.on('elements.changed', this.onElementsChanged);
     this.bus.on('import.done', this.onImportDone);
+    // Badges are shown only for SELECTED containers, so they come and go with the
+    // selection, not just with the document.
+    this.bus.on('selection.changed', this.onSelectionChanged);
   }
 
   /** The plane currently rendered — the root plane until a drill-down moves it. */
@@ -407,6 +410,7 @@ export class PlaneCursor {
     this.bus.off('element.changed', this.onElementsChanged);
     this.bus.off('elements.changed', this.onElementsChanged);
     this.bus.off('import.done', this.onImportDone);
+    this.bus.off('selection.changed', this.onSelectionChanged);
     remove(this.badgeGroup);
     this.badgeGroup = undefined;
   }
@@ -482,7 +486,11 @@ export class PlaneCursor {
     this.drawBadges();
   }
 
-  /** Draw one badge per drillable node of the current scope; clear the rest. */
+  /**
+   * Draw one badge per SELECTED drillable node of the current scope; clear the
+   * rest. Selection-gated so the canvas stays free of chrome until the user is
+   * looking at a particular container.
+   */
   private drawBadges(): void {
     if (this.destroyed) return;
     const group = this.badges();
@@ -490,8 +498,10 @@ export class PlaneCursor {
     const scene = this.scene;
     const plane = this.plane;
     if (!scene || !plane) return;
+    const selection = this.canvas.getSelection();
     for (const element of scene.elementsById.values()) {
       if (element.kind !== 'node') continue;
+      if (!selection.isSelected(element)) continue;
       if (!isDrillable(scene, element)) continue;
       if (!inScopeOf(scene, plane, element)) continue;
       append(group, this.badge(element));
@@ -566,6 +576,12 @@ export class PlaneCursor {
     g.addEventListener('dblclick', enter);
     return g;
   }
+
+  /** The selection moved: the badges follow it. */
+  private readonly onSelectionChanged = (): void => {
+    if (this.destroyed) return;
+    this.drawBadges();
+  };
 
   /** Geometry moved or an element came and went: the badges follow. */
   private readonly onElementsChanged = (): void => {

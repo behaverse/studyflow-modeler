@@ -249,8 +249,9 @@ export const CANVAS_CSS = `
 }
 
 /*
- * Segment-move grips — one per straight run of a connection (parity spec §2), drawn
- * alongside the bendpoints for a selected OR hovered connection.
+ * Segment-move grips — the one straight run the pointer hovers (parity spec §2),
+ * drawn alongside the bendpoints of a selected OR hovered connection, following
+ * the pointer along the run.
  *
  * These are the one piece of edge chrome that is NOT diagram-js blue: the reference
  * (\`edge-videos/v2/frame_10\`) paints the double triangle in the element stroke

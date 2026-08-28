@@ -310,10 +310,16 @@ export const ORTHOGONAL_TOLERANCE = 3;
  * both of its points are docks, so there is nothing here that may move, and an
  * imported `136,118 → 200,120` flow is not something an unrelated edit should
  * silently re-cut.
+ *
+ * With `elbows` false, pass 2 is skipped: near-aligned runs are still flattened
+ * and redundant joints still dropped, but a genuinely diagonal run is left as the
+ * author bent it (`interaction/segments.ts` `moveBendpoint`) rather than being
+ * re-cut into an L.
  */
 export function orthogonalize(
   points: readonly Point[],
   tolerance = ORTHOGONAL_TOLERANCE,
+  elbows = true,
 ): Point[] {
   const out = points.map((p) => ({ x: p.x, y: p.y }));
   if (out.length < 2) return out;
@@ -333,6 +339,8 @@ export function orthogonalize(
       out[i] = horizontal ? { x: a.x, y: b.y } : { x: b.x, y: a.y };
     }
   }
+
+  if (!elbows) return simplify(out);
 
   // Pass 2 — grow an elbow wherever a run is still diagonal.
   const squared: Point[] = [out[0]];
@@ -481,8 +489,8 @@ function pathLength(points: readonly Point[]): number {
   return total;
 }
 
-/** Drop duplicate and collinear intermediate points, returning fresh objects. */
-function simplify(points: readonly Point[]): Point[] {
+/** Drop duplicate and (axis-aligned) collinear intermediate points, returning fresh objects. */
+export function simplify(points: readonly Point[]): Point[] {
   const out: Point[] = [];
   for (const p of points) {
     const last = out[out.length - 1];

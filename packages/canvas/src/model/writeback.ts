@@ -469,7 +469,8 @@ export function redockToOutline(node: SceneNode): SceneEdge[] {
       // A self-loop names this node at BOTH ends; both are cropped in the one pass.
       if (edge.source === node) points[0] = cropPoint(node, points[1]);
       if (edge.target === node) points[last] = cropPoint(node, points[last - 1]);
-      edge.waypoints = orthogonalize(points);
+      // No elbow-growing: a run the author bent diagonal stays diagonal.
+      edge.waypoints = orthogonalize(points, undefined, false);
     }
     if (!samePoints(before, edge.waypoints)) changed.push(edge);
   }

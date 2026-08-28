@@ -111,7 +111,7 @@ These records are also what makes a partial re-run possible: the runner skips a 
 
 ## Extending the notation
 
-![The seven element sets that ship with Studyflow: four always load, and three you switch on in the modeler's settings.](assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="A flowchart. The four core sets, studyflow, prov, functional, and cognitive, always load into the catalog. The three optional sets, ml, agentic, and eeg, load only when enabled in Settings, Extensions. The ml set declares no types of its own and roots its twelve presets at the functional set. The catalog compiles every enabled set into the palette, the inspector tabs, and the namespaces the XML may use."}
+![The five element sets that ship with Studyflow: three always load, and two you switch on in the modeler's settings.](assets/img/diagrams/schema-map.svg){#fig-schema-map fig-alt="A flowchart. The three core sets, studyflow, prov, and cognitive, always load into the catalog. The two optional sets, agentic and eeg, load only when enabled in Settings, Extensions. The catalog compiles every enabled set into the palette, the inspector tabs, and the namespaces the XML may use."}
 
 You can add your own vocabulary as an extension set. Each new type extends an existing one and adds its own attributes, so files that use it stay well formed and still open in generic BPMN tools. Before you declare a type, it is worth checking whether you need one at all. An attribute on an existing type is often enough.
 

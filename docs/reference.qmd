@@ -3,16 +3,14 @@ title: "Reference"
 description: "Every element you can put in a studyflow, the attributes each one takes, and the files a study is stored in."
 ---
 
-![One live instance of every element the shipped sets declare, in a labelled band per set.](assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic LLM and agent workflows, and functional function composition beside a smaller band of data IO presets. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
+![One live instance of every element the shipped sets declare, in a labelled band per set.](assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic LLM and agent workflows, and BPMN loops beside a smaller band of data IO service tasks. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
 
 | Set | Declares | Loaded |
 |:--|:--|:--|
 | `studyflow` | the study itself, its data elements, scheduling and classification attributes | always |
 | `prov` | `Activity`, one entry of the record of what ran | always |
-| `functional` | `Transform`, `Map`, `Reduce`, `Filter` | always |
 | `cognitive` | what a participant meets, and the research gateways | always |
 | `agentic` | agents, model calls, tools | on request |
-| `ml` | analysis presets only; no types of its own | on request |
 | `eeg` | biosignal sessions and recordings | on request |
 
 # How a studyflow fits together
@@ -173,7 +171,7 @@ These attributes describe the study's schedule in visits and days, which is what
 
 The scheme says how the software is found: `python://` is an importable callable, `docker://` a container image pinned by tag or digest, and `https://` or `file://` a script at an address. Anything else is accepted and recorded, and reported as unresolved.
 
-Four operations describe the shape of a data step, each drawn as a service task with a function marker: `Transform` applies a function to data, `Map` applies it to every item in a stream, `Reduce` combines a stream into one value, and `Filter` keeps the items matching a condition. A `Filter` drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
+A data step is a plain service task: `implementation` names what runs, and the drawn data edges say what it reads and writes. A step that drops rows drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
 
 ## Agents, biosignals, and the trail
 
