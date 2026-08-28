@@ -5,8 +5,8 @@
  * ux-spec §4 measures the geometry and lists the entries in DOM order, and the
  * reference frames named below are the source). This module is the half that can be
  * decided without a DOM: given what is selected and what the rules allow, WHICH
- * entries appear and in what order. `ContextPad.tsx` renders them and wires each
- * `action` to a command.
+ * entries appear and in what order. The host's `ContextPad.tsx` renders them and
+ * wires each `action` to a command.
  *
  * Order matters — it is what makes the 72px box wrap into rows of three the way the
  * reference does. For a task that is ux-spec §4's table verbatim: append end-event /
@@ -21,8 +21,7 @@
  * `append` covers them through the searchable menu.
  */
 
-import { BPMN } from '@core/constants';
-import { ICONS } from '@modeler/icons';
+import { BPMN } from '@core/constants.ts';
 
 /** `data-action` of a pad entry — diagram-js's own names, so the two pads compare. */
 export type ContextPadAction =
@@ -37,6 +36,23 @@ export type ContextPadAction =
   | 'expand.toggle'
   | 'drilldown.enter';
 
+/**
+ * Symbolic name of an entry's icon. Icon ART is host chrome (Iconify classes, SVG,
+ * whatever the host draws with), so this table names the picture and the host's
+ * renderer maps each key to its own asset.
+ */
+export type ContextPadIcon =
+  | 'end-event'
+  | 'annotation'
+  | 'append'
+  | 'wrench'
+  | 'trash'
+  | 'palette'
+  | 'connect'
+  | 'swap'
+  | 'subprocess'
+  | 'drilldown';
+
 /** A fixed successor a pad entry appends, which is also what its hover ghost draws. */
 export type ContextPadAppend = {
   bpmnType: string;
@@ -48,12 +64,12 @@ export type ContextPadEntry = {
   /**
    * Tooltip text (parity spec addendum 5 §2 — every entry has one), as an English
    * TRANSLATION KEY. This module stays pure and locale-free so its table can be
-   * asserted verbatim; `ContextPad.tsx` puts each title through `t()` when it
-   * renders, which is where the rest of the app's chrome translates too.
+   * asserted verbatim; the host's `ContextPad.tsx` puts each title through `t()`
+   * when it renders, which is where the rest of the app's chrome translates too.
    */
   title: string;
-  /** Iconify class, rendered by `palette/PaletteIcon`-style `<span>`. */
-  icon: string;
+  /** Symbolic icon key — the host maps it to its own asset at render time. */
+  icon: ContextPadIcon;
   /**
    * Present when the entry appends one KNOWN element: the pad previews it on hover
    * and commits exactly it on click (addendum 5 §3 — ghost and commit must agree).
@@ -130,7 +146,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     entries.push({
       action: 'append.end-event',
       title: 'Append end event',
-      icon: ICONS.bpmnEndEvent,
+      icon: 'end-event',
       append: END_EVENT_APPEND,
     });
   }
@@ -138,20 +154,20 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     entries.push({
       action: 'append.text-annotation',
       title: 'Add text annotation',
-      icon: ICONS.bpmnTextAnnotation,
+      icon: 'annotation',
       append: TEXT_ANNOTATION_APPEND,
     });
   }
 
   if (single && context.isShape && context.canAppend) {
-    entries.push({ action: 'append', title: 'Append element', icon: ICONS.threeDots });
+    entries.push({ action: 'append', title: 'Append element', icon: 'append' });
   }
   if (single && context.isShape && context.canReplace) {
-    entries.push({ action: 'replace', title: 'Change element', icon: ICONS.bpmnScrewWrench });
+    entries.push({ action: 'replace', title: 'Change element', icon: 'wrench' });
   }
 
-  entries.push({ action: 'delete', title: 'Delete', icon: ICONS.bpmnTrash });
-  entries.push({ action: 'set-color', title: 'Set color', icon: ICONS.palette });
+  entries.push({ action: 'delete', title: 'Delete', icon: 'trash' });
+  entries.push({ action: 'set-color', title: 'Set color', icon: 'palette' });
 
   // Last, which is where ux-spec §4's table puts it: the first six wrap into two
   // rows of three inside the 72px box and `connect` starts a third on its own.
@@ -159,7 +175,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     entries.push({
       action: 'connect',
       title: 'Connect to other element',
-      icon: ICONS.bpmnConnection,
+      icon: 'connect',
     });
   }
 
@@ -170,7 +186,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     entries.push({
       action: 'choreography.swap-initiator',
       title: 'Switch initiating participant',
-      icon: ICONS.swapVertical,
+      icon: 'swap',
     });
   }
 
@@ -186,12 +202,12 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     entries.push({
       action: 'expand.toggle',
       title: context.isExpanded ? 'Collapse' : 'Expand',
-      icon: ICONS.bpmnSubprocess,
+      icon: 'subprocess',
     });
     entries.push({
       action: 'drilldown.enter',
       title: 'Open contents',
-      icon: ICONS.boxArrowInDown,
+      icon: 'drilldown',
     });
   }
 

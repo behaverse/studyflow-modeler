@@ -19,7 +19,7 @@
  * {@link Canvas}. Only four carry meaning the canvas does not have on its own —
  * `mutate` (the undo-step bracket), the history quintet, `importXML`/`saveXML` (a
  * moddle round trip) and the three app services (`model`, `templates`,
- * `simulation`) — and those are assembled in `@modeler/editor/editor.ts`.
+ * `simulation`) — and those are assembled by {@link createEditor} below.
  *
  * There is deliberately no `view` member. Viewport, layers and per-element view
  * state are the canvas's own (`zoomToFit`, `getViewbox`, `getViewport().setViewbox`,
@@ -32,9 +32,12 @@
  * autosave, provenance and dirty-tracking take their `commandStack.changed`.
  */
 
-import type { Canvas } from '@canvas/Canvas.ts';
-import type { EventBus } from '@canvas/events/bus.ts';
-import type { Selection } from '@canvas/interaction/selection.ts';
+// Concrete modules, not the barrel: `index.ts` re-exports from this file, so
+// importing it back here would be a cycle.
+import type { Canvas } from './Canvas.ts';
+import { createMutations } from './model/mutations.ts';
+import type { EventBus } from './events/bus.ts';
+import type { Selection } from './interaction/selection.ts';
 
 export type { Canvas, EventBus, Selection };
 
@@ -273,4 +276,85 @@ export interface Editor extends EditorHistoryView {
    * host unmounts (`app/Modeler.tsx`); the instance is dead afterwards.
    */
   destroy(): void;
+}
+
+/**
+ * `createEditor` — the {@link Editor} the app holds, assembled over a live canvas.
+ *
+ * There is almost nothing here, and that is the point. Most of the facade IS the
+ * canvas under another name (`selection`, `events`, `canvas`), so this only
+ * carries the members the canvas genuinely does not have:
+ *
+ * - **the history quintet** — the canvas has no command stack; undo is the app's
+ *   snapshot store (`editor/history.ts`), and the facade republishes it;
+ * - **`importXML` / `saveXML`** — a bpmn-moddle round trip, then the canvas import
+ *   and the `import.done` + `root.set` pair app chrome re-reads itself on;
+ * - **`rules`** — a `!!` over the canvas's verdict, which is a `ConnectionSpec`;
+ * - **`mutate`** — built beside it (`model/mutations.ts`), which is where the
+ *   undo-step bracket's internals live.
+ *
+ * Nothing forwards. The view members app chrome used to reach through `Editor.view`
+ * are the canvas's own and are called on `Editor.canvas` directly.
+ *
+ * `@modeler/editor/mount.ts` builds the canvas and the app services this takes, and
+ * fastens `templates`, `simulation` and `destroy` onto the result.
+ */
+
+/** The facade minus the three members the app fastens on last (`@modeler/editor/mount.ts`). */
+export type EditorCore = Omit<Editor, 'templates' | 'simulation' | 'destroy'>;
+
+/** What the facade cannot get from the canvas alone — both outlive the editor. */
+export interface EditorDeps {
+  /** The bpmn-moddle bridge; the document model outlives the editor. */
+  model: EditorModel;
+  /**
+   * App-level undo/redo (`editor/history.ts`). It also owns the
+   * `commandStack.changed` topic, firing once per recorded mutation.
+   */
+  history: EditorHistory;
+}
+
+/** Assemble the editor facade over `canvas`. One per canvas instance. */
+export function createEditor(canvas: Canvas, deps: EditorDeps): EditorCore {
+  const { model, history } = deps;
+  const bus = canvas.getEventBus();
+
+  const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
+    const warnings: unknown[] = [];
+    const { rootElement } = await model.fromXML(xml);
+    canvas.importDefinitions(rootElement as ModelElement);
+    history.reset();
+    bus.fire('import.done', { error: null, warnings });
+    bus.fire('root.set', { element: canvas.getRoot() });
+    return { warnings };
+  };
+
+  const saveXML = async (options?: { format?: boolean }): Promise<{ xml: string }> => {
+    const definitions = canvas.getDefinitions();
+    if (!definitions) throw new Error('@behaverse/studyflow-modeler: nothing to serialize');
+    const { xml } = await model.toXML(definitions, options);
+    return { xml };
+  };
+
+  return {
+    revision: () => history.revision(),
+    undo: () => history.undo(),
+    redo: () => history.redo(),
+    canUndo: () => history.canUndo(),
+    canRedo: () => history.canRedo(),
+
+    importXML,
+    saveXML,
+    getDefinitions: () => canvas.getDefinitions(),
+
+    elements: canvas.getElements(),
+    mutate: createMutations(canvas, history),
+    // `Rules.allowed` answers a truthy `ConnectionSpec`; app chrome asks yes/no.
+    rules: { allowed: (action, context) => !!canvas.getRules().allowed(action, context ?? {}) },
+    selection: canvas.getSelection(),
+    events: bus,
+    canvas,
+
+    model,
+  };
 }

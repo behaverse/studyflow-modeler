@@ -1,6 +1,6 @@
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
-import { choreographyBandHeight } from '@modeler/draw/choreographyLayout';
+import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 import type { Editor } from '@modeler/editor/port';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */
@@ -231,7 +231,7 @@ function cell(id: string, value: string, style: string, parent: string, geometry
 function choreographyCells(element: any): string {
   const id = toCellId(element.id);
   const { width, height } = element;
-  const band = choreographyBandHeight(element);
+  const band = choreographyBandHeight(element.height);
   const { top, bottom, initiator } = readChoreographyBands(element.businessObject);
   const shade = (edge: 'top' | 'bottom') => (initiator === edge ? '' : `fillColor=${RECEIVING_BAND_FILL};`);
 

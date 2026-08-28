@@ -9,12 +9,8 @@ import {
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
 import { shortWhen } from '@modeler/provenance/Provenance';
-import {
-  computeSegLengths,
-  samplePolyline,
-  smootherstep,
-  type Point,
-} from '@modeler/simulation/TokenSimulator';
+import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
+import type { Point } from '@canvas/model/scene.ts';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, EditorElements, Editor } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';

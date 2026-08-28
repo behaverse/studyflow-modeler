@@ -66,7 +66,7 @@ function planeElements(definitions: any): any[] {
   return definitions.diagrams?.[0]?.plane?.planeElement ?? [];
 }
 
-/** The annotation the pad's entry appends, as `contextPad/entries.ts` describes it. */
+/** The annotation the pad's entry appends, as `@canvas/rules/contextPadEntries.ts` describes it. */
 const ANNOTATION = { type: 'bpmn:TextAnnotation' };
 
 // --- the append --------------------------------------------------------------

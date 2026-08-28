@@ -4,8 +4,8 @@
  * The floating box beside the selection: append-anything, the colour picker, the
  * wrench, the trash, connect, and studyflow's own `choreography.swap-initiator`.
  *
- * The split is the usual one: `contextPad/entries.ts` decides WHAT is offered (pure,
- * unit-tested), this file positions the box and wires each `action` to a command on
+ * The split is the usual one: `@canvas/rules/contextPadEntries.ts` decides WHAT is
+ * offered (pure, unit-tested), this file positions the box and wires each `action` to a command on
  * the bus. It reaches the editor only through the facade — `Editor.rules` for
  * its gates, `Editor.canvas.getAbsoluteBBox` for its anchor and
  * `Editor.gestures` for the two gestures it starts — and app chrome's own
@@ -27,7 +27,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
-import { contextPadEntries, type ContextPadAppend, type ContextPadEntry } from '@modeler/contextPad/entries';
+import { contextPadEntries, type ContextPadAppend, type ContextPadEntry, type ContextPadIcon } from '@canvas/rules/contextPadEntries.ts';
+import { ICONS } from '@modeler/icons';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
@@ -59,6 +60,24 @@ const TOOLTIP_DROP = 18;
  * ghost that goes up in the same instant (see `armTooltip`).
  */
 const TOOLTIP_DELAY = 700;
+
+/**
+ * The entry table names its icons symbolically (it lives in the canvas package and
+ * knows nothing of Iconify); this maps each key to the app's Iconify class at render
+ * time, the way the titles go through `t()`.
+ */
+const ICON_CLASSES: Record<ContextPadIcon, string> = {
+  'end-event': ICONS.bpmnEndEvent,
+  annotation: ICONS.bpmnTextAnnotation,
+  append: ICONS.threeDots,
+  wrench: ICONS.bpmnScrewWrench,
+  trash: ICONS.bpmnTrash,
+  palette: ICONS.palette,
+  connect: ICONS.bpmnConnection,
+  swap: ICONS.swapVertical,
+  subprocess: ICONS.bpmnSubprocess,
+  drilldown: ICONS.boxArrowInDown,
+};
 
 /** Heading each pad entry that opens a popup gives the menu it opens. */
 const MENU_TITLES: Record<string, string> = {
@@ -420,7 +439,7 @@ export function ContextPad() {
                 ? { onPointerDown: startConnect }
                 : { onClick: () => run(entry) })}
             >
-              <span className={`${entry.icon} ${s.entryIcon}`} aria-hidden="true" />
+              <span className={`${ICON_CLASSES[entry.icon]} ${s.entryIcon}`} aria-hidden="true" />
             </button>
           );
         })}

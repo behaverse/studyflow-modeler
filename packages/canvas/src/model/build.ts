@@ -1,6 +1,7 @@
 import { getDefaults, StudyflowElement } from '@core/element';
 import { toLocalName } from '@core/naming';
-import type { EditorModel } from '@modeler/editor/port';
+
+import type { EditorModel } from '../editor.ts';
 
 export type BuildBusinessObjectOptions = {
   attributes?: Record<string, unknown>;

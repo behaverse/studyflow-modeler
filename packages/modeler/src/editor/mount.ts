@@ -18,13 +18,15 @@
  */
 
 import { BpmnModdle } from 'bpmn-moddle';
-import { Canvas, IdGenerator, defaultSizeFor, prefixFor } from '@canvas/index.ts';
+import { Canvas, IdGenerator, defaultSizeFor } from '@canvas/index.ts';
 import type { IconDef, SceneNode } from '@canvas/index.ts';
+import { idPrefixFor, needsId } from '@canvas/model/ids.ts';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement, getRawAttribute } from '@core/element';
-import { BPMN_ICON_OVERRIDES, MARKER_ICONS, SVG_ICON_PATHS } from '@modeler/draw/icons';
+import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
+import { SVG_ICON_PATHS } from '@canvas/render/icons.ts';
 import { lookupIcon, onIconResolved, primeIconCache } from '@modeler/draw/iconCache';
-import { createEditor, type EditorCore } from '@modeler/editor/editor';
+import { createEditor, type EditorCore } from '@canvas/editor.ts';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import Templates, { TEMPLATE_FLOW_ELEMENTS } from '@modeler/templates/Templates';
@@ -42,43 +44,6 @@ export type MountEditorOptions = {
   container: HTMLElement;
   extensionSchemas: Record<string, any>;
 };
-
-/**
- * The moddle types bpmn-js's `BpmnFactory` mints ids for. Mirrored so a business
- * object built through `EditorModel.createBusinessObject` is numbered the way the
- * documents in the wild are (`ExtensionElements` and friends stay id-less, as upstream).
- */
-const ID_BEARING_TYPES = [
-  'bpmn:RootElement',
-  'bpmn:FlowElement',
-  'bpmn:MessageFlow',
-  'bpmn:DataAssociation',
-  'bpmn:Artifact',
-  'bpmn:Participant',
-  'bpmn:Lane',
-  'bpmn:LaneSet',
-  'bpmn:Process',
-  'bpmn:Collaboration',
-  'bpmndi:BPMNShape',
-  'bpmndi:BPMNEdge',
-  'bpmndi:BPMNDiagram',
-  'bpmndi:BPMNPlane',
-  'bpmn:Property',
-  'bpmn:CategoryValue',
-];
-
-function needsId(element: any): boolean {
-  return ID_BEARING_TYPES.some((type) => element?.$instanceOf?.(type));
-}
-
-/** bpmn-js's semantic id prefixes (`bpmn:UserTask` → `Activity_`), reimplemented. */
-function idPrefixFor(element: any): string {
-  if (element?.$instanceOf?.('bpmn:Activity')) return 'Activity_';
-  if (element?.$instanceOf?.('bpmn:Event')) return 'Event_';
-  if (element?.$instanceOf?.('bpmn:Gateway')) return 'Gateway_';
-  if (element?.$instanceOf?.('bpmn:SequenceFlow') || element?.$instanceOf?.('bpmn:MessageFlow')) return 'Flow_';
-  return prefixFor(String(element?.$type ?? ''));
-}
 
 /**
  * The app's glyph pipeline, handed to the canvas as an {@link IconResolver}.

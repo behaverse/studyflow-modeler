@@ -3,12 +3,12 @@ import { expect, test } from '@playwright/test';
 import { Canvas } from '@canvas/index.ts';
 import type { EditorHistory, EditorModel } from '@canvas/editor.ts';
 
-import { createEditor, type EditorCore } from '@modeler/editor/editor';
+import { createEditor, type EditorCore } from '@canvas/editor.ts';
 
 import { freshModdle, installDocument } from './canvasHarness';
 
 /**
- * The `Editor` facade (`@modeler/editor/editor.ts`, `@canvas/editor.ts`).
+ * The `Editor` facade (`@canvas/editor.ts`).
  *
  * What is asserted here is only what the facade ADDS to the canvas: the moddle
  * round trip of `importXML`/`saveXML`, the plane projected as `elements.root()`,

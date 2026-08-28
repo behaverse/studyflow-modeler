@@ -1,7 +1,7 @@
 /**
  * Prefixed id generation for the scene (design §3 "Scene model", `model/ids.ts`).
  *
- * Mirrors the modeler's `buildBusinessObject.ts:22–35` contract — a
+ * Mirrors `model/build.ts`'s `buildBusinessObject` contract — a
  * `nextPrefixed(prefix, element)` that hands back a document-unique id derived
  * from a type-local prefix (e.g. `'UserTask_'`) — but is self-contained: it must
  * not pull in bpmn-js's `moddle.ids` service (a bare `bpmn-moddle` instance has
@@ -21,6 +21,46 @@ import type { ModdleObject } from '@canvas/model/scene.ts';
 export function prefixFor(type: string): string {
   const local = toLocalName(type) ?? type;
   return `${local}_`;
+}
+
+/** A moddle object as the id rules below see it: `$instanceOf` answers type membership. */
+type IdBearingCandidate = (ModdleObject & { $instanceOf?: (type: string) => boolean }) | undefined | null;
+
+/**
+ * The moddle types bpmn-js's `BpmnFactory` mints ids for. Mirrored so a business
+ * object built through `EditorModel.createBusinessObject` is numbered the way the
+ * documents in the wild are (`ExtensionElements` and friends stay id-less, as upstream).
+ */
+export const ID_BEARING_TYPES = [
+  'bpmn:RootElement',
+  'bpmn:FlowElement',
+  'bpmn:MessageFlow',
+  'bpmn:DataAssociation',
+  'bpmn:Artifact',
+  'bpmn:Participant',
+  'bpmn:Lane',
+  'bpmn:LaneSet',
+  'bpmn:Process',
+  'bpmn:Collaboration',
+  'bpmndi:BPMNShape',
+  'bpmndi:BPMNEdge',
+  'bpmndi:BPMNDiagram',
+  'bpmndi:BPMNPlane',
+  'bpmn:Property',
+  'bpmn:CategoryValue',
+];
+
+export function needsId(element: IdBearingCandidate): boolean {
+  return ID_BEARING_TYPES.some((type) => element?.$instanceOf?.(type));
+}
+
+/** bpmn-js's semantic id prefixes (`bpmn:UserTask` → `Activity_`), reimplemented. */
+export function idPrefixFor(element: IdBearingCandidate): string {
+  if (element?.$instanceOf?.('bpmn:Activity')) return 'Activity_';
+  if (element?.$instanceOf?.('bpmn:Event')) return 'Event_';
+  if (element?.$instanceOf?.('bpmn:Gateway')) return 'Gateway_';
+  if (element?.$instanceOf?.('bpmn:SequenceFlow') || element?.$instanceOf?.('bpmn:MessageFlow')) return 'Flow_';
+  return prefixFor(String(element?.$type ?? ''));
 }
 
 /**

@@ -604,7 +604,7 @@ export interface AddShapeSpec {
   type: string;
   /** Where the shape lands, in diagram coordinates. */
   bounds: Bounds;
-  /** A pre-built business object (the app's palette builds one; see `shape/buildBusinessObject.ts`). */
+  /** A pre-built business object (the app's palette builds one; see `model/build.ts`). */
   businessObject?: ModdleObject;
   /** Attributes written onto the business object (`name`, …). */
   attrs?: Record<string, unknown>;

@@ -7,7 +7,7 @@
  *
  * 1. {@link createShape} turns a palette descriptor into a **detached prototype** —
  *    a type, a footprint, and (optionally) a business object the app already built
- *    (`packages/modeler/src/shape/buildBusinessObject.ts`). It has no scene
+ *    (`model/build.ts`). It has no scene
  *    identity, which is exactly what `rules.allowed('shape.create')` is built to
  *    judge (`rules/rules.ts` `RuleElement`).
  * 2. {@link Create.start} / {@link Create.update} track the pointer with a live

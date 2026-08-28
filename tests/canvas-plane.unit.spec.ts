@@ -12,7 +12,7 @@ import {
 } from '@canvas/view/plane.ts';
 import type { Plane, Scene, SceneNode } from '@canvas/model/scene.ts';
 
-import { createEditor } from '@modeler/editor/editor';
+import { createEditor } from '@canvas/editor.ts';
 
 import { exampleXml } from './utils';
 

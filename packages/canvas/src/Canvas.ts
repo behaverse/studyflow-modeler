@@ -1783,8 +1783,8 @@ export class Canvas {
   }
 
   /**
-   * Wheel gestures (parity spec §10), ported from diagram-js's `ZoomScroll` so the
-   * numbers match to the digit: a plain wheel PANS (vertically, or horizontally with
+   * Wheel gestures adapted from diagram-js (see THIRD_PARTY_NOTICES.md) so the numbers
+   * match to the digit: a plain wheel PANS (vertically, or horizontally with
    * `Shift`), and `Ctrl`/`Cmd`+wheel zooms about the cursor in half-steps of the
    * keyboard zoom, capped to diagram-js's own 0.2…4 range.
    */

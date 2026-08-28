@@ -47,21 +47,7 @@
 }
 
 /*
- * Single source of truth for modeler styling - there are exactly two:
- *
- *   1. THIS file - `@theme` color tokens above + the global rules below that
- *      reach DOM React does not own: the canvas ground, and the simulation /
- *      replay states painted onto elements the canvas renders.
- *
- *   2. `src/modeler/ui/styles.ts` - Tailwind class strings for every chrome
- *      surface we render in React (navbar, palette, paletteFlyout,
- *      inspector, field, codeEditor) and the menu primitives.
- *
- * Everything that used to sit here styling bpmn-js's own chrome - the
- * "Powered by" watermark, its stock palette, the subprocess breadcrumbs, the
- * `.djs-popup` create menu and the `.djs-context-pad` chips - went with
- * bpmn-js. Their replacements are React components carrying Tailwind classes,
- * so they need nothing global.
+ * source of truth for modeler styling
  */
 
 svg text.bi {

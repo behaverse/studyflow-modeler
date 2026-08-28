@@ -9,8 +9,9 @@
  * import `@modeler/*`; the modeler imports `@canvas/*` in the backend, the palette
  * and the simulator already.)
  *
- * `editor/editor.ts` assembles the one instance and `editor/mount.ts` builds the
- * canvas under it; the app carries it on `ModelerContext` from there on.
+ * `@canvas/editor.ts`'s `createEditor` assembles the one instance and
+ * `editor/mount.ts` builds the canvas under it; the app carries it on
+ * `ModelerContext` from there on.
  */
 
 export type {

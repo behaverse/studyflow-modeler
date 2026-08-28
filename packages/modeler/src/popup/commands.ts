@@ -10,7 +10,7 @@
  * and picks the route.
  */
 
-import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
+import { buildBusinessObject } from '@canvas/model/build.ts';
 import type { Editor, EditorElement } from '@modeler/editor/port';
 
 /** Whether `element` may be appended from at all (`rules.allowed('shape.append')`). */
