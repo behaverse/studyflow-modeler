@@ -12,7 +12,7 @@ const e = {
   itemHeader: 'flex flex-col gap-0.5',
   itemTitle: 'font-semibold tracking-tight text-stone-900',
   itemFilename: 'font-mono text-[11px] text-stone-500 shrink-0',
-  itemDescription: 'text-[13px] leading-relaxed text-stone-600 mt-1 line-clamp-3',
+  itemDescription: 'text-sm leading-relaxed text-stone-600 mt-1 line-clamp-3',
   itemBusy: 'text-xs text-stone-500 mt-1',
 } as const;
 

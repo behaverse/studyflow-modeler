@@ -27,8 +27,8 @@ const navbar = {
           px-1.5`,
 
   diagramSlot: 'flex items-center min-w-0 flex-shrink',
-  diagramName: `text-[13px] font-medium ${text.secondary} cursor-pointer px-2 py-1 ${radius.field} hover:bg-black/[0.05] transition-colors truncate`,
-  diagramNameInput: `text-[13px] font-medium ${text.primary} ${surface.card} ${radius.field} px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-cream-400`,
+  diagramName: `text-sm font-medium ${text.secondary} cursor-pointer px-2 py-1 ${radius.field} hover:bg-black/[0.05] transition-colors truncate`,
+  diagramNameInput: `text-sm font-medium ${text.primary} ${surface.card} ${radius.field} px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-[hsl(205,100%,45%)]`,
 
   menuContainer: 'flex items-center gap-0.5 ml-1 flex-shrink-0',
 } as const;
@@ -38,7 +38,7 @@ const navBurgerBtnCls =
 
 const navDividerCls = 'w-px h-4 bg-black/[0.10] mr-2 ml-2';
 
-const SIMULATE_BASE = 'inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold rounded-l-lg h-7 px-3.5 transition-colors text-white';
+const SIMULATE_BASE = 'inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-l-lg h-7 px-3.5 transition-colors text-white';
 const SIMULATE_ACTIVE = 'bg-red-700 hover:bg-red-800';
 const SIMULATE_IDLE = 'bg-[#C028B0] hover:bg-[#A32295]';
 
@@ -64,7 +64,7 @@ function SimulateButton() {
   );
 }
 
-const RUN_BUTTON_CLS = 'inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold rounded-r-lg h-7 px-3.5 transition-colors text-white bg-[#520BBF] hover:bg-[#4309A2] disabled:opacity-50 disabled:cursor-wait';
+const RUN_BUTTON_CLS = 'inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-r-lg h-7 px-3.5 transition-colors text-white bg-[#520BBF] hover:bg-[#4309A2] disabled:opacity-50 disabled:cursor-wait';
 
 function RunButton() {
   const modeler = useModeler();

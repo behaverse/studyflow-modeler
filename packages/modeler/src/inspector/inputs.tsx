@@ -47,8 +47,8 @@ export function ExpressionRow({ name, placeholder, value, language, onCommit, on
           : 'Type an expression first'}
         onChange={(e) => onCommitLanguage(e.target.value || undefined)}
         className="shrink-0 w-11 rounded-md border border-black/[0.08] bg-cream-200
-          text-[10px] text-stone-500 px-1 cursor-pointer focus:outline-2
-          focus:-outline-offset-2 focus:outline-cream-400 disabled:opacity-40
+          text-[11px] text-stone-500 px-1 cursor-pointer focus:outline-2
+          focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)] disabled:opacity-40
           disabled:cursor-default"
       >
         <option value="">-</option>
@@ -234,7 +234,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
                   className="ml-2 my-auto shrink-0 accent-stone-700"
                 />
               ) : (
-                <span className="ml-2 my-auto shrink-0 text-stone-400" aria-hidden="true">•</span>
+                <span className="ml-2 my-auto shrink-0 text-stone-500" aria-hidden="true">•</span>
               )}
               <Input
                 type="text"

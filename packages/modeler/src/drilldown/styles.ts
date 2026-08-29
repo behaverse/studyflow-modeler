@@ -7,7 +7,9 @@
  *
  * The two crumb kinds must be told apart AT REST, not only under the pointer
  * (`sub/frame_02`): an ancestor is drawn in the drill-down blue — the same hue as
- * the badge that brought you here (`canvas/view/plane.ts` `BADGE_FILL`) — while the
+ * the badge that brought you here (`canvas/view/plane.ts` `BADGE_FILL`), darkened
+ * to 38% lightness because 14px text needs 4.5:1 and the badge's 50% step is a
+ * chrome colour, not a text colour — while the
  * plane you are ON is bold near-black. Styling both alike and relying on the hover
  * chip alone makes the only clickable thing in the bar invisible until it is already
  * found. Hover then does what `sub/frame_04` shows: the blue goes dark and a light
@@ -27,12 +29,12 @@ export const breadcrumbs = {
   /** Positioned by the component from the canvas container's rect. */
   root: `fixed z-[214] -translate-x-1/2 flex items-center gap-1 px-3 py-1.5
          ${radius.pill} ${surface.chrome} ${shadow.panel} border border-black/[0.06]
-         text-[14px] leading-none select-none`,
+         text-sm leading-none select-none`,
 
   /** An ancestor: clickable, and it says so in blue before it is ever hovered. */
   crumb: `px-2 py-1 rounded-full font-semibold cursor-pointer
-          text-[hsl(205,100%,42%)] hover:text-stone-900
-          hover:bg-black/[0.06] transition-colors duration-[120ms] ease-linear`,
+          text-[hsl(205,100%,38%)] hover:text-stone-900
+          hover:bg-black/[0.05] transition-colors duration-[120ms] ease-linear`,
 
   /** The plane you are already looking at — the trail's end, so it is not a button. */
   crumbCurrent: `px-2 py-1 font-semibold ${text.primary}`,

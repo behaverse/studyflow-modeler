@@ -15,6 +15,8 @@
  * slot the selection toolbar it replaces used to occupy.
  */
 
+import { tooltip as tooltipMaterial } from '@modeler/ui/styles';
+
 export const contextPad = {
   /** 72px wide, entries inline → three per row. Positioned by `transform`. */
   root: 'fixed z-[215] left-0 top-0 w-[72px] leading-none select-none',
@@ -36,7 +38,6 @@ export const contextPad = {
    * because the reference's tooltips are the browser's own `title` bubbles and
    * those follow the cursor rather than the element.
    */
-  tooltip: `pointer-events-none fixed z-[216] px-2 py-1 rounded-md
-            bg-stone-800 text-cream-50 text-[11.5px] whitespace-nowrap
-            shadow-[0_2px_8px_rgba(0,0,0,0.18)]`,
+  tooltip: `pointer-events-none fixed z-[216] px-2 py-1 whitespace-nowrap
+            ${tooltipMaterial} text-xs`,
 } as const;

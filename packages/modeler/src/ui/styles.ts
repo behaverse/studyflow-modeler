@@ -15,7 +15,24 @@ export const shadow = {
 
 export const border = {
   hairline: 'border border-black/[0.08]',
+  /** Controls (inputs, selects, checkboxes) need >=3:1 against their surface
+      (WCAG 1.4.11) -- the hairline is for panels and dividers, which are exempt. */
+  control: 'border border-black/[0.45]',
 } as const;
+
+/** Focus indicator: the canvas selection blue (>=3:1 on cream), not cream-on-cream. */
+export const focus = {
+  ring: 'focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
+  within: 'focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
+} as const;
+
+/** One tooltip material everywhere; callers add size, padding and positioning. */
+export const tooltip = 'bg-stone-900/90 backdrop-blur-md text-cream-50 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.18)]';
+
+/* Type scale, small end: 11 (micro-labels, hints, badges), 12 (tooltips, help),
+   14 (body, items, inputs), 16 (titles). No fractional sizes -- adjacent steps
+   closer than ~25% stop reading as different sizes. Icon glyphs are exempt.
+   Tints: hover bg-black/[0.05], active/selected bg-black/[0.08]. */
 
 export const text = {
   primary: 'text-stone-900',
@@ -46,7 +63,7 @@ export const dialog = {
   panelXl: 'w-full max-w-6xl',
   panelBody: 'flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
 
-  title: 'text-[17px] tracking-tight text-stone-900 font-semibold',
+  title: 'text-base tracking-tight text-stone-900 font-semibold',
   closeButton: 'text-sm/6 text-stone-500 hover:text-stone-900 ml-2 float-end cursor-pointer transition-colors',
   titleAction: 'text-sm/6 text-stone-500 enabled:hover:text-stone-900 enabled:cursor-pointer disabled:opacity-30 transition-colors',
 
@@ -55,7 +72,7 @@ export const dialog = {
 
   fieldset: 'space-y-6',
   label: 'text-sm font-medium text-stone-800',
-  input: `mt-2 block w-full ${radius.button} border border-black/[0.08] ${surface.card} py-2 px-3 font-mono text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400`,
+  input: `mt-2 block w-full ${radius.button} ${border.control} ${surface.card} py-2 px-3 font-mono text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]`,
   helpText: 'text-xs text-stone-500 mt-1.5',
 
   primaryBtn: `${radius.button} bg-stone-900 hover:bg-stone-800 py-1.5 px-3.5 text-sm/6 text-cream-50 font-medium transition-colors cursor-pointer`,

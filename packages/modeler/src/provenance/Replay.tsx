@@ -385,7 +385,7 @@ function ReplayTimeline({ onClose }: Props) {
       <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat} text-stone-900 px-3 py-2`}>
         <div className="flex items-center gap-1">
           <h1
-            className="text-[15px] font-semibold text-stone-900 tracking-tight pr-2"
+            className="text-base font-semibold text-stone-900 tracking-tight pr-2"
             title="Elements light up as their records land; the token marks the active step, colored by branch"
           >
             Replay
@@ -428,22 +428,22 @@ function ReplayTimeline({ onClose }: Props) {
                   </span>
                   {recordDetails(current).map(([label, value]) => (
                     <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[11px] font-mono text-stone-500" title={`${label}: ${value}`}>
-                      <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-400`} aria-hidden="true" />
+                      <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-500`} aria-hidden="true" />
                       <span className="truncate max-w-[10rem]">{value}</span>
                     </span>
                   ))}
-                  <span className="text-[11px] font-mono text-stone-400 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
+                  <span className="text-[11px] font-mono text-stone-500 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
                   {current.note && <span className="text-xs italic text-stone-500 truncate min-w-0" title={current.note}>{current.note}</span>}
                 </div>
               ) : (
                 <p className="flex-1 text-xs text-stone-500 italic">Before the first record.</p>
               )}
               {runs > 0 && (
-                <span className="text-[11px] text-stone-400 whitespace-nowrap shrink-0">
+                <span className="text-[11px] text-stone-500 whitespace-nowrap shrink-0">
                   <strong className="text-stone-500">{runs}</strong> {runs === 1 ? 'run' : 'runs'}
                 </span>
               )}
-              <span className="text-[11px] font-mono text-stone-400 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
+              <span className="text-[11px] font-mono text-stone-500 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
             </>
           )}
           <button type="button" onClick={onClose} className={btn} title="Stop the replay and bring the inspector back" aria-label="Close replay">

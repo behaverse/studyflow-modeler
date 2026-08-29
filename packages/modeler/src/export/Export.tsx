@@ -20,23 +20,23 @@ import { ICONS } from '@modeler/icons';
 
 const s = {
   formatRow: 'flex items-center gap-3',
-  formatLabel: `text-[13px] font-medium ${text.secondary} shrink-0`,
+  formatLabel: `text-sm font-medium ${text.secondary} shrink-0`,
   selectWrapper: 'relative flex-1 min-w-0',
   select: `appearance-none w-full px-2.5 py-1.5 pr-8 ${radius.field}
-           border border-black/[0.08] bg-cream-100 text-[13px] text-stone-900
-           focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer`,
-  selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2.5 text-stone-500 text-[12px]`,
+           border border-black/[0.08] bg-cream-100 text-sm text-stone-900
+           focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)] cursor-pointer`,
+  selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2.5 text-stone-500 text-xs`,
 
   options: 'mt-4 pt-4 border-t border-black/[0.06] space-y-3',
-  optionsLabel: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500',
+  optionsLabel: 'text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500',
   option: 'flex items-start gap-3',
   optionText: 'min-w-0 flex-1',
-  optionLabel: `text-[13px] font-medium ${text.secondary}`,
-  optionDescription: 'text-[12px] leading-snug text-stone-500 mt-0.5',
+  optionLabel: `text-sm font-medium ${text.secondary}`,
+  optionDescription: 'text-xs leading-snug text-stone-500 mt-0.5',
 
   footer: 'mt-5 pt-4 border-t border-black/[0.06] flex items-center justify-between gap-4',
-  filename: 'font-mono text-[12px] text-stone-500 truncate',
-  error: 'text-[12px] text-red-500 mt-2',
+  filename: 'font-mono text-xs text-stone-500 truncate',
+  error: 'text-xs text-red-500 mt-2',
 } as const;
 
 type Props = {

@@ -15,7 +15,7 @@ import { ICONS } from '@modeler/icons';
 
 const g = {
   filters: 'flex flex-wrap items-center gap-1.5 pb-4 shrink-0',
-  chip: `px-3 py-1 ${radius.pill} text-[12.5px] border transition-colors cursor-pointer`,
+  chip: `px-3 py-1 ${radius.pill} text-xs border transition-colors cursor-pointer`,
   chipIdle: 'border-black/[0.06] text-stone-600 hover:bg-black/[0.04]',
   chipActive: 'bg-stone-900 border-stone-900 text-cream-50',
 
@@ -33,10 +33,10 @@ const g = {
   thumbSpinner: `${ICONS.arrowRepeat} text-stone-500 animate-spin`,
 
   body: 'flex flex-col gap-1 px-3.5 py-3',
-  eyebrow: 'text-[10.5px] font-semibold uppercase tracking-[0.08em] text-stone-400',
-  title: 'text-[13.5px] font-semibold tracking-tight text-stone-900 line-clamp-2',
-  summary: 'text-[12.5px] leading-snug text-stone-500 line-clamp-2',
-  error: 'text-[12.5px] text-red-500',
+  eyebrow: 'text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-500',
+  title: 'text-sm font-semibold tracking-tight text-stone-900 line-clamp-2',
+  summary: 'text-xs leading-snug text-stone-500 line-clamp-2',
+  error: 'text-xs text-red-500',
 } as const;
 
 type Props = {

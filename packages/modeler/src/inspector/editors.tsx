@@ -125,8 +125,8 @@ export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
 
 const cn = {
   cell: 'px-2 py-1.5',
-  monoInput: 'w-full bg-transparent focus:outline-none font-mono text-[12px]',
-  moveBtn: 'text-stone-400 hover:text-stone-900 disabled:opacity-30 px-1',
+  monoInput: 'w-full bg-transparent focus:outline-none font-mono text-xs',
+  moveBtn: 'text-stone-500 hover:text-stone-900 disabled:opacity-30 px-1',
   formatRadio: 'flex items-center gap-1.5',
 };
 
@@ -253,14 +253,14 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
                 <tbody>
                   {columns.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-2 py-4 text-center text-stone-400 italic">
+                      <td colSpan={6} className="px-2 py-4 text-center text-stone-500 italic">
                         No columns yet. Click "Add column" to begin.
                       </td>
                     </tr>
                   ) : (
                     columns.map((c, idx) => (
                       <tr key={idx} className="border-t border-black/[0.04]">
-                        <td className="px-2 py-1.5 text-stone-400 text-xs text-center">{idx + 1}</td>
+                        <td className="px-2 py-1.5 text-stone-500 text-xs text-center">{idx + 1}</td>
                         <td className={cn.cell}>
                           <input
                             type="text"
@@ -287,7 +287,7 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
                             type="text"
                             value={c.description}
                             onChange={(e) => updateColumn(idx, { description: e.target.value })}
-                            className="w-full bg-transparent focus:outline-none text-[12px]"
+                            className="w-full bg-transparent focus:outline-none text-xs"
                             placeholder="(optional)"
                           />
                         </td>
@@ -321,7 +321,7 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
                             type="button"
                             onClick={() => removeColumn(idx)}
                             title="Remove column"
-                            className="text-stone-400 hover:text-red-700 px-1"
+                            className="text-stone-500 hover:text-red-700 px-1"
                           >
                             ×
                           </button>

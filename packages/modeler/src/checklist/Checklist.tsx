@@ -59,7 +59,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
                               aria-label={item.text}
                             />
                           ) : (
-                            <span className="mt-1 text-stone-400" aria-hidden="true">
+                            <span className="mt-1 text-stone-500" aria-hidden="true">
                               •
                             </span>
                           )}

@@ -11,7 +11,7 @@ export function DialogHelp({ children }: { children: ReactNode }) {
         onClick={() => setPinned((v) => !v)}
         aria-label="Show help"
         aria-expanded={pinned}
-        className="text-stone-400 hover:text-stone-700 cursor-pointer p-0.5 leading-none"
+        className="text-stone-500 hover:text-stone-700 cursor-pointer p-0.5 leading-none"
       >
         <i className={`${ICONS.help} text-base`}></i>
       </button>

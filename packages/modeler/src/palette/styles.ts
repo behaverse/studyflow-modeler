@@ -1,4 +1,4 @@
-import { surface, shadow, border, radius } from '@modeler/ui/styles';
+import { surface, shadow, border, radius, tooltip as tooltipMaterial } from '@modeler/ui/styles';
 
 export const palette = {
   wrapper: `fixed top-1/2 -translate-y-1/2 left-2 z-[210] flex flex-col
@@ -21,8 +21,8 @@ export const palette = {
   groupChevron: 'absolute right-[3px] top-1/2 w-[3px] h-[3px] border-r-[1.4px] border-b-[1.4px] border-stone-600 rotate-[-45deg] -translate-y-1/2',
 
   tooltip: `pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2
-            bg-stone-900/85 backdrop-blur-md text-cream-50 text-[11.5px] font-medium
-            px-2.5 py-1 rounded-lg whitespace-nowrap
+            ${tooltipMaterial} text-xs font-medium
+            px-2.5 py-1 whitespace-nowrap
             opacity-0 group-hover:opacity-100 transition-opacity
             z-[200]`,
 } as const;
@@ -40,9 +40,9 @@ export const paletteFlyout = {
 
   header: 'text-xs font-semibold uppercase tracking-[0.1em] text-stone-500 pb-2 mb-2 px-1 border-b border-black/[0.08]',
 
-  sectionHeader: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 px-1 mt-2 mb-1 first:mt-0',
+  sectionHeader: 'text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500 px-1 mt-2 mb-1 first:mt-0',
 
-  extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[9.5px] font-semibold uppercase tracking-[0.1em] bg-transparent text-current border border-current',
+  extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[11px] font-semibold uppercase tracking-[0.1em] bg-transparent text-current border border-current',
 
   grid: 'grid grid-cols-3 gap-1 max-h-56 overflow-y-auto overflow-x-hidden overscroll-contain palette-flyout-scroll',
 

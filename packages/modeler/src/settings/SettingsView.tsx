@@ -200,7 +200,7 @@ function AccountSection() {
                 Sign out
               </button>
             )}
-            {isGuest && loginError && <p className="text-[12px] text-red-700">{loginError}</p>}
+            {isGuest && loginError && <p className="text-xs text-red-700">{loginError}</p>}
           </div>
         }
       />
