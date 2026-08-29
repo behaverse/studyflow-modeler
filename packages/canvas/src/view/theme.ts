@@ -87,6 +87,10 @@ export const CANVAS_CSS = `
      \`grab\` at rest, \`grabbing\` while it is actually being dragged — diagram-js's
      \`djs-cursor-grab\` / \`djs-cursor-grabbing\`, expressed as root state classes. */
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* …but only over the canvas itself: a grab hand over a shape would promise a pan,

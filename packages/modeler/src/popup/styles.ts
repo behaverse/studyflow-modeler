@@ -24,17 +24,17 @@ export const popupMenu = {
 
   groupLabel: 'text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500 px-2 pt-2 pb-1 first:pt-0.5',
 
-  item: `flex items-center gap-2.5 w-full text-left px-2 py-1.5 ${radius.button}
+  item: `touch-none select-none flex items-center gap-2.5 w-full text-left px-2 py-1.5 ${radius.button}
          text-sm ${text.secondary} cursor-grab transition-colors`,
   itemActive: 'bg-black/[0.08] text-stone-900',
   itemIcon: 'shrink-0 w-[18px] h-[18px] flex items-center justify-center text-stone-500',
   itemLabel: 'flex-1 truncate',
 
-  swatchGrid: 'grid grid-cols-3 gap-1 p-2',
-  swatchItem: `flex flex-col items-center justify-center gap-1 p-2 ${radius.button}
-               text-xs text-stone-600 hover:text-stone-900 hover:bg-black/[0.05]
-               active:bg-black/[0.08] transition-colors cursor-pointer`,
-  swatchItemActive: 'bg-black/[0.08] text-stone-900',
-  swatchChip: 'w-5 h-5 rounded-[3px] border-2',
+  /** One row of unlabelled chips — the swatch names live in each chip's tooltip. */
+  swatchGrid: 'flex gap-1 p-1.5',
+  swatchItem: `flex items-center justify-center p-1 ${radius.button}
+               hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-pointer`,
+  swatchItemActive: 'bg-black/[0.08]',
+  swatchChip: 'w-6 h-6 rounded-md border-2',
 } as const;
 

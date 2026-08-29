@@ -410,12 +410,16 @@ export class Canvas {
   private readonly labels = new ExternalLabels();
   /** What `Ctrl+C` / `Ctrl+X` last took (see {@link Canvas.getClipboard}). */
   private clipboard: SceneElement[] = [];
-  private readonly onMove = (ev: Event) => this.handlePointerMove(ev as MouseEvent);
-  private readonly onUp = (ev: Event) => this.handlePointerUp(ev as MouseEvent);
+  private touches = new Map<number, Point>();
+  /** The two-finger gesture */
+  private pinch?: { prevMid: Point; prevDist: number };
+  private readonly onMove = (ev: Event) => this.handlePointerMove(ev as PointerEvent);
+  private readonly onUp = (ev: Event) => this.handlePointerUp(ev as PointerEvent);
+  private readonly onCancel = (ev: Event) => this.handlePointerCancel(ev as PointerEvent);
   private readonly onKeyDown = (ev: Event) => this.handleKeyDown(ev as KeyboardEvent);
   private readonly onShortcut = (ev: Event) => this.handleShortcut(ev as KeyboardEvent);
   // Bound fields, not inline arrows: `destroy()` has to be able to remove these.
-  private readonly onDown = (ev: Event) => this.handlePointerDown(ev as MouseEvent);
+  private readonly onDown = (ev: Event) => this.handlePointerDown(ev as PointerEvent);
   private readonly onDblClick = (ev: Event) => this.handleDoubleClick(ev as MouseEvent);
   private readonly onHover = (ev: Event) => this.handleHover(ev as MouseEvent);
   private readonly onWheel = (ev: Event) => this.handleWheel(ev as WheelEvent);
@@ -1837,15 +1841,19 @@ export class Canvas {
     return this.viewport.toDiagram({ x: ev.clientX, y: ev.clientY });
   }
 
-  private handlePointerDown(ev: MouseEvent): void {
+  private handlePointerDown(ev: PointerEvent): void {
     if (!this.scene) return;
     // Only the primary button starts a selection gesture.
     if (typeof ev.button === 'number' && ev.button !== 0) return;
-    // A palette create is already in flight — it was armed by `startCreate` from a
-    // gesture that began outside the canvas, so this press is where the shape
-    // lands, not the start of a new one. Overwriting the gesture here would turn
-    // the pending drop into a marquee (click-to-place: click the palette tile,
-    // then click the canvas).
+    if (ev.pointerType === 'touch') {
+      if (this.touches.size >= 2) return; // a third finger joins nothing
+      this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (this.touches.size === 2) {
+        this.startPinch();
+        return;
+      }
+    }
+
     if (this.gesture?.intent === 'create') {
       const drop = this.eventPoint(ev);
       this.gesture.downScreen = { x: ev.clientX, y: ev.clientY };
@@ -1960,10 +1968,44 @@ export class Canvas {
     const doc = this.root.ownerDocument ?? ownerDocument();
     doc.addEventListener('pointermove', this.onMove);
     doc.addEventListener('pointerup', this.onUp);
+    doc.addEventListener('pointercancel', this.onCancel);
     doc.addEventListener('keydown', this.onKeyDown);
   }
 
-  private handlePointerMove(ev: MouseEvent): void {
+  private startPinch(): void {
+    this.cancelGesture();
+    const [a, b] = [...this.touches.values()];
+    this.pinch = {
+      prevMid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      prevDist: Math.hypot(b.x - a.x, b.y - a.y),
+    };
+    this.listen();
+  }
+
+  private updatePinch(): void {
+    const p = this.pinch;
+    if (!p || this.touches.size < 2) return;
+    const [a, b] = [...this.touches.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    if (p.prevDist > 0 && dist > 0) {
+      // The centre has to be read BEFORE the zoom: it is a diagram coordinate, and
+      // zooming is exactly what changes which diagram point sits under the fingers.
+      const center = this.viewport.toDiagram(mid);
+      this.viewport.zoom(this.viewport.getViewbox().scale * (dist / p.prevDist), center);
+    }
+    this.panBy(mid.x - p.prevMid.x, mid.y - p.prevMid.y);
+    this.pinch = { prevMid: mid, prevDist: dist };
+  }
+
+  private handlePointerMove(ev: PointerEvent): void {
+    if (ev.pointerType === 'touch' && this.touches.has(ev.pointerId)) {
+      this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    }
+    if (this.pinch) {
+      this.updatePinch();
+      return;
+    }
     const g = this.gesture;
     if (!g) return;
     // Panning is measured in SCREEN pixels: the viewBox moves under the pointer, so
@@ -2520,7 +2562,21 @@ export class Canvas {
       >= MARQUEE_THRESHOLD_PX;
   }
 
-  private handlePointerUp(ev: MouseEvent): void {
+  private handlePointerUp(ev: PointerEvent): void {
+    if (ev.pointerType === 'touch') this.touches.delete(ev.pointerId);
+    // A pinch commits NOTHING, so it never reaches the drop path below. The finger
+    // still down does not become a one-finger pan either: taking over mid-gesture
+    // would fling the diagram by whatever the lift disturbed. Teardown waits for
+    // the LAST finger, not the first: `endGesture` removes the document listeners,
+    // and removing them while a finger is still down would strand that finger's
+    // entry in the map, to be miscounted as a second finger next touch.
+    if (this.pinch) {
+      if (this.touches.size === 0) {
+        this.pinch = undefined;
+        this.endGesture();
+      }
+      return;
+    }
     const g = this.gesture;
     // A context-pad connect released without moving was a CLICK, not a drag: the
     // gesture stays live (preview follows the pointer) and the NEXT release
@@ -2531,11 +2587,6 @@ export class Canvas {
         >= MARQUEE_THRESHOLD_PX;
       if (!moved) return;
     }
-    // The drop point, snapped exactly as every live frame was: what gets COMMITTED
-    // has to be what the user was looking at when they let go, not the raw pointer
-    // — otherwise a gesture that visibly locked onto an alignment would jump off it
-    // by a unit or two the instant it landed. Computed before `endGesture`, which
-    // is what drops the snap context.
     const snapped = g && this.scene ? this.snapGesture(g, this.eventPoint(ev)) : undefined;
     const drop = snapped?.point;
     this.endGesture();
@@ -2858,6 +2909,14 @@ export class Canvas {
   /** Escape abandons an in-flight drag without writing anything back. */
   private handleKeyDown(ev: KeyboardEvent): void {
     if (ev.key !== 'Escape' || !this.gesture) return;
+    this.cancelGesture();
+  }
+
+  /**
+   * Abandon whatever is in flight, writing nothing back — Escape's behaviour, also
+   * what a second finger ({@link Canvas.startPinch}) and a `pointercancel` do.
+   */
+  private cancelGesture(): void {
     this.drag?.cancel();
     this.create.cancel();
     this.connect.cancel();
@@ -2866,9 +2925,23 @@ export class Canvas {
     this.setLassoArmed(false);
   }
 
+  /**
+   * The system took the pointer away (a touch turned into an OS gesture, the finger
+   * left the digitizer). There is no drop point, so the gesture is abandoned rather
+   * than committed — a cancelled pointer is not a release.
+   */
+  private handlePointerCancel(_ev: PointerEvent): void {
+    // Clear the whole map, not just this pointer: `cancelGesture` removes the
+    // document listeners, so a sibling finger's own cancel/up will never arrive
+    // to delete its entry.
+    this.touches.clear();
+    this.cancelGesture();
+  }
+
   /** Drop the gesture state, its drag feedback, and its document-level listeners. */
   private endGesture(): void {
     this.gesture = undefined;
+    this.pinch = undefined;
     this.endMovePreview();
     // A move's drop-target tint is gesture chrome too (a create clears its own).
     this.markDropTarget(undefined, false);
@@ -2881,13 +2954,12 @@ export class Canvas {
     const doc = this.root.ownerDocument ?? ownerDocument();
     doc.removeEventListener('pointermove', this.onMove);
     doc.removeEventListener('pointerup', this.onUp);
+    doc.removeEventListener('pointercancel', this.onCancel);
     doc.removeEventListener('keydown', this.onKeyDown);
   }
 
   /**
-   * The lasso rectangle. `sf-dragging-active-lasso` goes on the root for as long as
-   * it is being dragged, which is what drops every enclosed element's outline to the
-   * secondary blue — the same class, and the same effect, as in diagram-js.
+   * The lasso rectangle.
    */
   private drawMarquee(a: Point, b: Point): void {
     const rect = normalizeRect({ x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y });
@@ -2917,7 +2989,7 @@ export class Canvas {
    * live, so a drag never has handles blinking in and out under it.
    */
   private handleHover(ev: MouseEvent): void {
-    if (!this.scene || this.gesture) return;
+    if (!this.scene || this.gesture || this.pinch) return;
     // `elementAt`, not `hitTest`: over a connection's CAPTION the element under the
     // pointer is the label, which is a shape — so the bendpoints stay down, as they
     // do in bpmn-js where the label is its own element.

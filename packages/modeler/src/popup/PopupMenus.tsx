@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { getExtensionType } from '@core/element';
+import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
@@ -151,8 +152,16 @@ export function PopupMenus() {
       // The same catalog the create/append menus offer, trimmed to what the editor
       // would actually accept in this element's place — and with the element's own
       // type dropped, because "change it to what it already is" is not a choice.
+      // Offered within the element's own family only (a task becomes another task,
+      // a gateway another gateway): a cross-family retype rewires semantics the
+      // in-place swap cannot carry, so the menu keeps it to siblings.
       const currentBpmn = (source as { type?: string })?.type;
       const currentExtension = getExtensionType(source);
+      const families = ['bpmn:Activity', 'bpmn:ChoreographyActivity', 'bpmn:Event', 'bpmn:Gateway', 'bpmn:Artifact'];
+      const familyOf = (type?: string): string | undefined => (
+        type ? families.find((family) => isBpmnSubtypeOf(type, family)) : undefined
+      );
+      const currentFamily = familyOf(currentBpmn);
       const sections = buildElementEntries()
         .map((group) => ({
           id: group.id,
@@ -160,6 +169,7 @@ export function PopupMenus() {
           items: group.entries
             .filter((entry) => (
               !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension)
+              && familyOf(entry.bpmnType) === currentFamily
               && modeler.rules.allowed('shape.replace', { element: source, targetType: entry.bpmnType })
             ))
             .map((entry): PopupMenuItem => ({

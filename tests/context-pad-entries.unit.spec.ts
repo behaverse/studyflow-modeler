@@ -115,6 +115,20 @@ test('a selected connection gets three: a note may hang off the flow itself', ()
   ]);
 });
 
+test('a sequence flow out of a gateway offers the default-flow toggle, worded by its state', () => {
+  const base = { isShape: false, isConnection: true, canToggleDefault: true };
+  expect(actionsOf(context(base))).toEqual(['delete', 'set-color', 'flow.toggle-default']);
+
+  const titleOf = (ctx: Parameters<typeof contextPadEntries>[0]) =>
+    contextPadEntries(ctx).find((entry) => entry.action === 'flow.toggle-default')?.title;
+  expect(titleOf(context(base))).toBe('Set as default flow');
+  expect(titleOf(context({ ...base, isDefault: true }))).toBe('Unset default flow');
+
+  // A flow whose source takes no default (parallel gateway, event) offers nothing.
+  expect(actionsOf(context({ isShape: false, isConnection: true })))
+    .not.toContain('flow.toggle-default');
+});
+
 test('a choreography task adds the app\'s swap-initiator entry, last', () => {
   const actions = actionsOf(context({ canAppend: true, canAnnotate: true, canReplace: true, isChoreographyTask: true }));
 

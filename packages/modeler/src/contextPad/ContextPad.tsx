@@ -32,6 +32,7 @@ import { ICONS } from '@modeler/icons';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
+import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
 import { is, type EditorElement, type Editor, type Rect } from '@modeler/editor/port';
 
@@ -68,14 +69,15 @@ const TOOLTIP_DELAY = 700;
  */
 const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'end-event': ICONS.bpmnEndEvent,
-  annotation: ICONS.bpmnTextAnnotation,
+  annotation: ICONS.cardText,
   append: ICONS.threeDots,
-  wrench: ICONS.bpmnScrewWrench,
-  trash: ICONS.bpmnTrash,
+  wrench: ICONS.arrowRepeat,
+  trash: ICONS.trash,
   palette: ICONS.palette,
-  connect: ICONS.bpmnConnection,
+  connect: ICONS.arrowUpRight,
+  'default-flow': ICONS.slash,
   swap: ICONS.swapVertical,
-  subprocess: ICONS.bpmnSubprocess,
+  subprocess: ICONS.arrowsAngleExpand,
   drilldown: ICONS.boxArrowInDown,
 };
 
@@ -155,13 +157,17 @@ export function ContextPad() {
   const tooltipTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
-    const sync = (): void => setElements(modeler.selection.get());
+    // A fresh array every sync: a mutation that keeps the selection (toggling a
+    // flow's default) must still recompute the entries.
+    const sync = (): void => setElements([...modeler.selection.get()]);
     sync();
     modeler.events.on('selection.changed', sync);
+    modeler.events.on('element.changed', sync);
     modeler.events.on('root.set', sync);
     modeler.events.on('import.done', sync);
     return () => {
       modeler.events.off('selection.changed', sync);
+      modeler.events.off('element.changed', sync);
       modeler.events.off('root.set', sync);
       modeler.events.off('import.done', sync);
     };
@@ -274,6 +280,18 @@ export function ContextPad() {
     const expandable = resolved && resolved.kind === 'node' && modeler.canvas.canExpand(resolved)
       ? resolved
       : undefined;
+    // A sequence flow leaving a source that takes a `default` (the exclusive
+    // gateway family, or an activity) gets the toggle-default entry.
+    const flow = resolved && resolved.kind === 'edge' && resolved.type === 'bpmn:SequenceFlow'
+      ? resolved
+      : undefined;
+    const flowSourceType = flow?.source?.type;
+    const canToggleDefault = !!flowSourceType && (
+      ['bpmn:ExclusiveGateway', 'bpmn:InclusiveGateway', 'bpmn:ComplexGateway'].includes(flowSourceType)
+      || isBpmnSubtypeOf(flowSourceType, 'bpmn:Activity')
+    );
+    const isDefault = canToggleDefault
+      && (flow?.source?.businessObject as { default?: unknown } | undefined)?.default === flow?.businessObject;
     const askAppend = (targetType?: string): boolean => (
       !!single && modeler.rules.allowed('shape.append', {
         element: single,
@@ -289,6 +307,8 @@ export function ContextPad() {
       canConnect: !!single && !!modeler.rules.allowed('connection.start', { source: single }),
       canAnnotate: askAppend('bpmn:TextAnnotation'),
       canReplace: !!single && modeler.rules.allowed('shape.replace', { element: single }),
+      canToggleDefault,
+      isDefault,
       isChoreographyTask: !!single && is(single, 'bpmn:ChoreographyTask'),
       isExpandable: !!expandable,
       isExpanded: !!expandable && expandable.isExpanded !== false,
@@ -367,6 +387,9 @@ export function ContextPad() {
         }
         void executeCommand(modeler, { type: 'DeleteElements', elements });
         return;
+      case 'flow.toggle-default':
+        if (element) void executeCommand(modeler, { type: 'ToggleDefaultFlow', element });
+        return;
       case 'choreography.swap-initiator':
         if (element) void executeCommand(modeler, { type: 'SwapChoreographyInitiator', element });
         return;
@@ -412,8 +435,7 @@ export function ContextPad() {
             <button
               key={entry.action}
               type="button"
-              className={`${s.entry}${entry.action === 'connect' ? ` ${s.entryDraggable}` : ''}`}
-              title={title}
+              className={`${s.entry}${entry.action === 'connect' ? ` ${s.entryDraggable}` : ''}${entry.action === 'delete' ? ` ${s.entryDanger}` : ''}`}
               aria-label={title}
               data-action={entry.action}
               data-testid={`context-pad-${entry.action}`}

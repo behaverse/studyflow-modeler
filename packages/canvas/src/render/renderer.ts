@@ -804,6 +804,7 @@ export class Renderer {
       'stroke-linecap': 'round',
       'stroke-dasharray': edgeDashArray(edge.type),
       'marker-end': markerEndFor(edge.type, edge.businessObject),
+      'marker-start': isDefaultFlow(edge) ? 'url(#sf-marker-default)' : null,
     });
     append(g, line);
     const name = prop(edge.businessObject, 'name');
@@ -900,6 +901,17 @@ export function edgeDashArray(type: string): string | null {
   return null;
 }
 
+/**
+ * Whether `edge` is its source's DEFAULT sequence flow — the one a gateway (or
+ * activity) takes when no condition matches, which BPMN notates as a short slash
+ * across the line just after it leaves the source.
+ */
+export function isDefaultFlow(edge: SceneEdge): boolean {
+  return edge.type === BPMN.SequenceFlow
+    && !!edge.businessObject
+    && prop(edge.source?.businessObject, 'default') === edge.businessObject;
+}
+
 /** The arrowhead marker id for a flow type (defined once in the canvas `<defs>`). */
 export function markerIdFor(type: string): string {
   if (type === BPMN.MessageFlow) return 'sf-arrow-message';
@@ -931,6 +943,27 @@ export function ensureArrowMarkers(defs: SVGDefsElement): void {
   defs.appendChild(makeMarker('sf-arrow-sequence', 'filled'));
   defs.appendChild(makeMarker('sf-arrow-message', 'open'));
   defs.appendChild(makeMarker('sf-arrow-open', 'open'));
+  defs.appendChild(makeDefaultFlowMarker());
+}
+
+/** The default-flow slash ({@link isDefaultFlow}), oriented with the line's start. */
+function makeDefaultFlowMarker(): SVGMarkerElement {
+  const marker = create('marker', {
+    id: 'sf-marker-default',
+    markerWidth: 12,
+    markerHeight: 12,
+    refX: 0,
+    refY: 6,
+    orient: 'auto',
+    markerUnits: 'userSpaceOnUse',
+  }) as SVGMarkerElement;
+  append(marker, create('path', {
+    d: 'M4,2 L8,10',
+    fill: 'none',
+    stroke: 'context-stroke',
+    'stroke-width': 1.5,
+  }));
+  return marker;
 }
 
 function makeMarker(id: string, kind: 'filled' | 'open'): SVGMarkerElement {

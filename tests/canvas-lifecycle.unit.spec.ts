@@ -134,7 +134,7 @@ test('destroy mid-gesture abandons the drag and drops the document-level listene
 
   pointerDown(canvas, { x: 250, y: 120 });
   pointerMove(canvas, { x: 310, y: 180 });
-  expect(tracked.live()).toEqual(['keydown', 'pointermove', 'pointerup']);
+  expect(tracked.live()).toEqual(['keydown', 'pointercancel', 'pointermove', 'pointerup']);
   expect(task.x, 'the scene moved live').toBe(260);
 
   canvas.destroy();

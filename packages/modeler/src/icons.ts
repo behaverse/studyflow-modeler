@@ -99,13 +99,13 @@ export const ICONS = {
   bpmnGroup: 'iconify bpmn--group',
   bpmnCompensationMarker: 'iconify bpmn--compensation-marker',
 
-  /* Context-pad glyphs. The `bpmn-icon-*` font is what diagram-js's own pad wore
-     (parity spec §4 names each entry's icon class); the iconify `bpmn` set carries
-     the same artwork, so the pad reads as the one the reference recordings show. */
-  bpmnTextAnnotation: 'iconify bpmn--text-annotation',
-  bpmnConnection: 'iconify bpmn--connection-multi',
-  bpmnTrash: 'iconify bpmn--trash',
-  bpmnScrewWrench: 'iconify bpmn--screw-wrench',
+  /* Context-pad glyphs — bi/mdi like the rest of the chrome, so the pad's icons
+     read as one family with the toolbar and menus rather than the bpmn font's. */
+  cardText: 'iconify bi--card-text',
+  arrowUpRight: 'iconify bi--arrow-up-right',
+  trash: 'iconify bi--trash3',
+  arrowsAngleExpand: 'iconify bi--arrows-angle-expand',
+  slash: 'iconify bi--slash-lg',
   swapVertical: 'iconify mdi--swap-vertical',
 } as const;
 

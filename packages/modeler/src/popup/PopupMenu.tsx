@@ -24,7 +24,9 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { DRAG_THRESHOLD } from '@modeler/palette/usePaletteDrag';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 import { popupMenu as s } from '@modeler/popup/styles';
 import type { PopupPosition } from '@modeler/editor/popupMenus';
@@ -112,6 +114,7 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const pressed = useRef(false);
   const dragged = useRef(false);
+  const pressPos = useRef({ x: 0, y: 0 });
 
   const total = useMemo(
     () => menu.sections.reduce((n, section) => n + section.items.length, 0),
@@ -146,7 +149,7 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
   }, [showSearch]);
 
   useEffect(() => {
-    const onPointerDown = (event: globalThis.MouseEvent) => {
+    const onPointerDown = (event: globalThis.PointerEvent) => {
       if (!ref.current?.contains(event.target as Node)) onClose();
     };
     const onKey = (event: KeyboardEvent) => {
@@ -168,10 +171,10 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
         onClose();
       }
     };
-    document.addEventListener('mousedown', onPointerDown, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('keydown', onKey, true);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKey, true);
     };
   }, [ref, onClose, flat, active]);
@@ -179,19 +182,22 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
   /* Press-drag vs click, mirroring `palette/usePaletteDrag`: the first move with
      the button down starts the drag, and the click that follows is swallowed. */
   const itemHandlers = (item: PopupMenuItem) => ({
-    onMouseDown: (event: ReactMouseEvent) => {
+    onPointerDown: (event: ReactPointerEvent) => {
       pressed.current = true;
       dragged.current = false;
+      pressPos.current = { x: event.clientX, y: event.clientY };
       event.preventDefault();
     },
-    onMouseMove: (event: ReactMouseEvent) => {
+    onPointerMove: (event: ReactPointerEvent) => {
       if (!item.onDragStart || !pressed.current || dragged.current) return;
+      const { x, y } = pressPos.current;
+      if (Math.hypot(event.clientX - x, event.clientY - y) < DRAG_THRESHOLD) return;
       dragged.current = true;
       event.preventDefault();
       item.onDragStart(event);
       onClose();
     },
-    onMouseUp: () => { pressed.current = false; },
+    onPointerUp: () => { pressed.current = false; },
     onClick: (event: ReactMouseEvent) => {
       event.preventDefault();
       pressed.current = false;
@@ -212,7 +218,8 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
         left: anchor.x,
         top: anchor.y,
         visibility: 'hidden',
-        width: menu.width ?? DEFAULT_WIDTH,
+        // A swatch row sizes to its chips; only the list variant takes a set width.
+        width: variant === 'swatches' ? undefined : (menu.width ?? DEFAULT_WIDTH),
         maxHeight: MAX_HEIGHT,
       }}
       role="dialog"
@@ -252,6 +259,7 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
               key={item.id}
               type="button"
               title={item.title ?? item.label}
+              aria-label={item.title ?? item.label}
               data-testid={`popup-menu-entry-${item.id}`}
               className={`${s.swatchItem} ${index === activeIndex ? s.swatchItemActive : ''}`}
               onMouseEnter={() => setActiveIndex(index)}
@@ -265,7 +273,6 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
                 }}
                 aria-hidden="true"
               />
-              <span>{item.label}</span>
             </button>
           ))}
         </div>

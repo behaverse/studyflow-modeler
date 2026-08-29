@@ -21,8 +21,8 @@ import { ICONS } from '@modeler/icons';
 type ButtonProps = {
   title: string;
   onClick?: MouseEventHandler<HTMLButtonElement>;
-  onMouseUp?: () => void;
-  onMouseLeave?: () => void;
+  onPointerUp?: () => void;
+  onPointerLeave?: () => void;
   ariaExpanded?: boolean;
   className?: string;
   children: ReactNode;
@@ -31,8 +31,8 @@ type ButtonProps = {
 function PaletteButton({
   title,
   onClick,
-  onMouseUp,
-  onMouseLeave,
+  onPointerUp,
+  onPointerLeave,
   ariaExpanded,
   className = '',
   children,
@@ -44,8 +44,8 @@ function PaletteButton({
       className={`${palette.toolButton} ${className}`.trim()}
       aria-expanded={ariaExpanded}
       onClick={onClick}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
     >
       {children}
     </button>
@@ -219,8 +219,8 @@ export function Palette({ className = '' }: { className?: string }) {
       >
         <PaletteButton
           title="More BPMN elements..."
-          onMouseUp={dragHandlers.onMouseUp}
-          onMouseLeave={dragHandlers.onMouseUp}
+          onPointerUp={dragHandlers.onPointerUp}
+          onPointerLeave={dragHandlers.onPointerUp}
           onClick={handleMoreElementsClick}
         >
           <PaletteIcon icon={ICONS.threeDots} size={22} />

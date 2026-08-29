@@ -32,6 +32,7 @@ export type ContextPadAction =
   | 'connect'
   | 'delete'
   | 'set-color'
+  | 'flow.toggle-default'
   | 'choreography.swap-initiator'
   | 'expand.toggle'
   | 'drilldown.enter';
@@ -49,6 +50,7 @@ export type ContextPadIcon =
   | 'trash'
   | 'palette'
   | 'connect'
+  | 'default-flow'
   | 'swap'
   | 'subprocess'
   | 'drilldown';
@@ -105,6 +107,14 @@ export type ContextPadContext = {
    * is why the wrench is a gated entry rather than a fixture of every pad.
    */
   canReplace: boolean;
+  /**
+   * Whether the single selection is a sequence flow whose SOURCE takes a default
+   * flow (an exclusive/inclusive/complex gateway, or an activity) — the gate on
+   * the `flow.toggle-default` entry.
+   */
+  canToggleDefault?: boolean;
+  /** Whether that flow currently IS its source's default — the toggle's wording. */
+  isDefault?: boolean;
   /** Whether the single selection is a `bpmn:ChoreographyTask`. */
   isChoreographyTask: boolean;
   /**
@@ -168,6 +178,15 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
 
   entries.push({ action: 'delete', title: 'Delete', icon: 'trash' });
   entries.push({ action: 'set-color', title: 'Set color', icon: 'palette' });
+
+  // A sequence flow leaving a gateway/activity that takes a default: toggle it.
+  if (single && context.isConnection && context.canToggleDefault) {
+    entries.push({
+      action: 'flow.toggle-default',
+      title: context.isDefault ? 'Unset default flow' : 'Set as default flow',
+      icon: 'default-flow',
+    });
+  }
 
   // Last, which is where ux-spec §4's table puts it: the first six wrap into two
   // rows of three inside the 72px box and `connect` starts a third on its own.

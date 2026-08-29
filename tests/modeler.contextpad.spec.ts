@@ -58,8 +58,8 @@ test.describe('The context pad', () => {
     expect(padBox.x).toBeGreaterThan(shape.x + shape.width);
     expect(padBox.x - (shape.x + shape.width)).toBeLessThan(40);
     expect(Math.abs(padBox.y - shape.y)).toBeLessThan(30);
-    // The 72px box is what makes the entries wrap three to a row.
-    expect(padBox.width).toBe(72);
+    // The 98px box is what makes the entries wrap three to a row.
+    expect(padBox.width).toBe(98);
   });
 
   test('hovering the end-event entry ghosts the shape and its flow, and leaving removes both', async ({ page }) => {
@@ -410,11 +410,21 @@ test.describe('The context pad', () => {
     await page.mouse.click(line.x + line.width / 2, line.y + line.height / 2);
 
     await expect(pad(page)).toBeVisible();
-    await expect(pad(page).locator('button')).toHaveCount(3);
+    // Annotate, delete, colour — plus the default-flow toggle, because this flow
+    // leaves an activity.
+    await expect(pad(page).locator('button')).toHaveCount(4);
     await expect(entry(page, 'append.text-annotation')).toBeVisible();
+    await expect(entry(page, 'flow.toggle-default')).toBeVisible();
     // The two that need a shape to flow OUT of stay away.
     await expect(entry(page, 'connect')).toHaveCount(0);
     await expect(entry(page, 'append.end-event')).toHaveCount(0);
+
+    // Toggling default draws the slash at the flow's start, and toggling again
+    // removes it — one attribute on the source, round-tripped as `default="..."`.
+    await entry(page, 'flow.toggle-default').click();
+    await expect(flowLine).toHaveAttribute('marker-start', 'url(#sf-marker-default)');
+    await entry(page, 'flow.toggle-default').click();
+    await expect(flowLine).not.toHaveAttribute('marker-start', /./);
 
     // Hovering ghosts the note above the flow; clicking commits exactly it.
     await entry(page, 'append.text-annotation').hover();

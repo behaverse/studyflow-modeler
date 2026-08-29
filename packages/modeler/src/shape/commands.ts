@@ -101,6 +101,34 @@ export function runSwapChoreographyInitiator(
 }
 
 
+export type ToggleDefaultFlowCommand = {
+  type: 'ToggleDefaultFlow';
+  element: EditorElement;
+};
+
+/**
+ * Mark a sequence flow as its source's `default` — or unmark it, when it already
+ * is. The write lands on the SOURCE's business object (that is where BPMN keeps
+ * the reference), but the command names the FLOW, because the flow is what the
+ * user selected and what re-draws with the slash marker.
+ */
+export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlowCommand): void {
+  const flow = modeler.canvas.resolveElement(command.element);
+  if (!flow || flow.kind !== 'edge' || !flow.source?.businessObject) return;
+  const sourceBo = flow.source.businessObject as { default?: unknown };
+  // The slash MOVES rather than multiplies: when another edge was the default, it
+  // has to lose its marker in the same act this one gains it — the write below
+  // only redraws the toggled edge.
+  const previous = flow.source.outgoing?.find(
+    (edge) => edge !== flow && edge.businessObject === sourceBo.default,
+  );
+  modeler.mutate.updateModdleProperties(command.element, flow.source.businessObject, {
+    default: sourceBo.default === flow.businessObject ? undefined : flow.businessObject,
+  });
+  if (previous) modeler.canvas.redrawElements([previous]);
+}
+
+
 export type StartConnectCommand = {
   type: 'StartConnect';
   source: EditorElement;
