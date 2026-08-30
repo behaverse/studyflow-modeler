@@ -141,7 +141,7 @@ export async function addSchemaPaletteElement(
   label: string,
   position: { x: number; y: number },
 ): Promise<void> {
-  await page.getByRole('button', { name: `More ${schemaName} elements...` }).click();
+  await page.getByRole('button', { name: `${schemaName} elements...` }).click();
   await clickPaletteTile(page, label);
   await page.getByTestId('modeler-canvas').click({ position });
 }

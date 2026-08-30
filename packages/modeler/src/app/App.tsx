@@ -26,7 +26,7 @@ export function App() {
         <div className={`App flex flex-col h-screen${isSimulating ? ' simulation-active' : ''}${isReplaying ? ' replay-active' : ''}`} data-testid="modeler-app" data-modeler-ready={modeler ? 'true' : 'false'}>
           {modeler && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
           {modeler && <NavBar />}
-          <div className="w-screen h-full">
+          <div className="w-full h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
               {modeler && <Palette className="md:flex studyflow-palette" />}
               <Modeler />

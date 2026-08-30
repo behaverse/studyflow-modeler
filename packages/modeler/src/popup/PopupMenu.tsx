@@ -74,8 +74,17 @@ export type PopupMenuModel = {
 export const SEARCH_THRESHOLD = 8;
 
 const MARGIN = 8;
+
+/* Base-scale sizes (16.25rem / 26.25rem). The menu's contents are rem-sized, so
+   the box has to be too, or a 4K screen gets 20px labels in a 260px column. */
 const DEFAULT_WIDTH = 260;
 const MAX_HEIGHT = 420;
+
+/** The UI scale as a plain factor — see `--ui-scale` in `assets/css/app.css`. */
+function uiScale(): number {
+  const root = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return Number.isFinite(root) && root > 0 ? root / 16 : 1;
+}
 
 type Props = {
   anchor: PopupPosition;
@@ -219,8 +228,8 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
         top: anchor.y,
         visibility: 'hidden',
         // A swatch row sizes to its chips; only the list variant takes a set width.
-        width: variant === 'swatches' ? undefined : (menu.width ?? DEFAULT_WIDTH),
-        maxHeight: MAX_HEIGHT,
+        width: variant === 'swatches' ? undefined : (menu.width ?? DEFAULT_WIDTH) * uiScale(),
+        maxHeight: Math.min(MAX_HEIGHT * uiScale(), window.innerHeight - 2 * MARGIN),
       }}
       role="dialog"
       aria-label={menu.title ?? 'Menu'}

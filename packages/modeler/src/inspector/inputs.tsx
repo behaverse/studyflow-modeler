@@ -47,7 +47,7 @@ export function ExpressionRow({ name, placeholder, value, language, onCommit, on
           : 'Type an expression first'}
         onChange={(e) => onCommitLanguage(e.target.value || undefined)}
         className="shrink-0 w-11 rounded-md border border-black/[0.08] bg-cream-200
-          text-[11px] text-stone-500 px-1 cursor-pointer focus:outline-2
+          text-[0.6875rem] text-stone-500 px-1 cursor-pointer focus:outline-2
           focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)] disabled:opacity-40
           disabled:cursor-default"
       >

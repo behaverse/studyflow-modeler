@@ -32,7 +32,7 @@ test.describe('App popup menus', () => {
   test('the palette\'s more-elements button opens a searchable create menu that places what you pick', async ({ page }) => {
     await gotoModeler(page);
 
-    await page.getByRole('button', { name: 'More BPMN elements...' }).click();
+    await page.getByRole('button', { name: 'BPMN elements...' }).click();
     await expect(popup(page)).toBeVisible();
 
     // Long enough to have earned a search field, whatever the editor asked for.

@@ -11,7 +11,7 @@ const e = {
   item: `w-full h-full flex flex-col text-left ${radius.card} ${surface.card} border border-black/[0.06] hover:bg-cream-300 hover:border-black/[0.10] disabled:opacity-50 disabled:cursor-not-allowed transition-all p-4 cursor-pointer`,
   itemHeader: 'flex flex-col gap-0.5',
   itemTitle: 'font-semibold tracking-tight text-stone-900',
-  itemFilename: 'font-mono text-[11px] text-stone-500 shrink-0',
+  itemFilename: 'font-mono text-[0.6875rem] text-stone-500 shrink-0',
   itemDescription: 'text-sm leading-relaxed text-stone-600 mt-1 line-clamp-3',
   itemBusy: 'text-xs text-stone-500 mt-1',
 } as const;

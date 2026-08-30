@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler & npm run dev -w @behaverse/studyflow-runner & wait",
+    "dev:lan": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler -- --host & npm run dev -w @behaverse/studyflow-runner & wait",
     "build": "npm run build -w @behaverse/studyflow-modeler && npm run build -w @behaverse/studyflow-runner",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",

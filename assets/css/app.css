@@ -174,3 +174,74 @@ body.resizing-inspector {
 body.resizing-inspector * {
   cursor: col-resize !important;
 }
+
+/* ---------------------------------------------------------------------------
+ * UI scale.
+ *
+ * Every piece of app chrome is sized in rem (Tailwind's spacing, type and radius
+ * scales all are), so ONE root font-size resizes the whole modeler. That is the
+ * fix for "tiny on a 4K panel": at 3840px the old fixed-px chrome was 11% of the
+ * width it occupied on a laptop, and no amount of per-component tweaking gets
+ * that back.
+ *
+ * Steps, not a fluid `clamp()`: a fractional root size rounds font metrics
+ * inconsistently between browsers and blurs the 1px hairlines the panels wear.
+ * Each step is >=12% from its neighbour, which is the smallest difference that
+ * reads as deliberate rather than as a rendering accident.
+ *
+ * Height is in every query because the scarce axis on an ultrawide (3840x1080,
+ * or any half-screen split) is vertical: growing the chrome there would push the
+ * palette off the bottom of the window.
+ *
+ * 1.0 is the FLOOR. Small screens get a layout answer (below), never smaller
+ * text -- 13px inspector labels is not "responsive", it is unreadable.
+ */
+:root { --ui-scale: 1; }
+
+@media (min-width: 1800px) and (min-height: 900px)  { :root { --ui-scale: 1.125; } }
+@media (min-width: 2400px) and (min-height: 1200px) { :root { --ui-scale: 1.25;  } }
+@media (min-width: 3200px) and (min-height: 1600px) { :root { --ui-scale: 1.5;   } }
+
+html { font-size: calc(16px * var(--ui-scale)); }
+
+/*
+ * Top-chrome gutters, and the navbar centring that falls out of them.
+ *
+ * The brand (left) and the inspector (right) are both `position: fixed`, so the
+ * navbar has to centre itself in what is LEFT between them. It used to do that
+ * with four hand-tuned offsets keyed to a 288px inspector
+ * (`50% - 72px - (var(--inspector-width) - 288px)/2`), which drifted the moment
+ * the panel was dragged, the wordmark wrapped, or the scale changed. One
+ * `calc()` off two gutters is correct at every size, by construction.
+ *
+ * They live on `body`, not `:root`: a custom property is substituted against the
+ * element it is declared on, and `--inspector-gutter` is what `body` carries the
+ * collapsed/expanded state in.
+ */
+:root {
+  --brand-gutter: 3.75rem;  /* logo only */
+}
+
+/* The wordmark only renders from `lg` up (see `NavBar`), so only then is it gutter. */
+@media (min-width: 1024px) { :root { --brand-gutter: 10rem; } }
+
+body {
+  /* Collapsed, or narrow: the inspector is an overlay, so it reserves only its toggle. */
+  --inspector-gutter: 3.25rem;
+
+  --navbar-left: calc(var(--brand-gutter) + (100vw - var(--brand-gutter) - var(--inspector-gutter)) / 2);
+  --navbar-max-width: calc(100vw - var(--brand-gutter) - var(--inspector-gutter) - 1.5rem);
+}
+
+/*
+ * Expanded, on a screen wide enough to sit beside the canvas. Below 900px there
+ * is no arrangement where a full inspector, a palette and a usable canvas all
+ * fit side by side -- so the canvas wins and the panel floats over it, the way
+ * it already does on a tablet. (`Panel` opens collapsed there for the same
+ * reason; this rule is what keeps the navbar centred if it is reopened.)
+ */
+@media (min-width: 901px) {
+  body:not(.inspector-collapsed) {
+    --inspector-gutter: calc(var(--inspector-width, 18rem) + 1rem);
+  }
+}

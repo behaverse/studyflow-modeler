@@ -25,6 +25,18 @@ export interface Viewbox {
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
 
+/**
+ * The host app's UI scale as a plain factor — `--ui-scale` in `assets/css/app.css`
+ * lands on the root font size, so one `getComputedStyle` reads it without the
+ * canvas package having to know the variable's name. 1 on any display that has not
+ * stepped up, which is what keeps a fit 1:1 everywhere it used to be.
+ */
+function uiScale(): number {
+  if (typeof document === 'undefined') return 1;
+  const root = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return Number.isFinite(root) && root > 0 ? root / 16 : 1;
+}
+
 /** Manages the root `viewBox` and screen↔diagram transforms. */
 export class Viewport {
   private readonly root: SVGSVGElement;
@@ -109,13 +121,16 @@ export class Viewport {
     let boxHeight = height + padding * 2;
     if (boxWidth / boxHeight < aspect) boxWidth = boxHeight * aspect;
     else boxHeight = boxWidth / aspect;
-    // A fit shows everything; it never MAGNIFIES. Without this cap a one-shape
-    // diagram is blown up until a 36px event fills the window, which makes every
-    // screen→diagram coordinate wildly off. diagram-js caps its own
-    // `zoom('fit-viewport')` at 1:1 the same way, so both editors open a small
-    // diagram at 100%. The box already carries the viewport's aspect ratio, so one
+    // A fit shows everything; it never magnifies past the UI scale. Without a cap
+    // a one-shape diagram is blown up until a 36px event fills the window, which
+    // makes every screen→diagram coordinate wildly off. diagram-js caps its own
+    // `zoom('fit-viewport')` at 1:1; the cap here is the app's UI scale
+    // (`--ui-scale`, `assets/css/app.css`), which IS 1:1 on a normal display and
+    // rises only where the chrome around the canvas grew too — otherwise a 4K
+    // panel opens every diagram at 100%, a third the apparent size of the toolbar
+    // beside it. The box already carries the viewport's aspect ratio, so one
     // factor scales both axes and keeps it.
-    const magnification = this.clientWidth() / boxWidth;
+    const magnification = this.clientWidth() / boxWidth / uiScale();
     if (Number.isFinite(magnification) && magnification > 1) {
       boxWidth *= magnification;
       boxHeight *= magnification;

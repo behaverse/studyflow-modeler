@@ -11,18 +11,19 @@ import { surface, shadow, border, text, radius } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 const navbar = {
-  brand: 'fixed top-2 left-[-10px] z-50 flex items-center gap-2.5 px-4 h-12 select-none',
-  brandImage: 'h-12 w-12',
-  brandWordmark: 'text-md leading-none select-none text-violet-800',
+  brand: 'fixed top-2 left-0 z-50 flex items-center gap-2.5 px-1.5 h-12 select-none',
+  brandImage: 'h-12 w-12 shrink-0',
+  /* The wordmark is the first thing to go when the top row gets tight: it is a
+     label on a logo that already identifies the app, and the two buttons it
+     would crowd out are not. `--brand-gutter` flips at the same 1024px. */
+  brandWordmark: 'hidden lg:inline-block text-base leading-none select-none text-violet-800',
   brandWordmarkLight: 'font-light',
   brandWordmarkBold: 'font-semibold',
 
-  shell: `fixed top-2 left-1/2 -translate-x-1/2 z-50 flex items-center h-10
-          max-w-[calc(100vw-32px)]
-          md:left-[calc(50%-72px-(var(--inspector-width,288px)-288px)/2)]
-          md:max-w-[calc(100vw-176px-var(--inspector-width,288px))]
-          [body.inspector-collapsed_&]:md:left-[calc(50%+55px)]
-          [body.inspector-collapsed_&]:md:max-w-[calc(100vw-220px)]
+  /* Centred in the gap the brand and the inspector leave, at every width and
+     every UI scale -- see the `--navbar-*` note in `assets/css/app.css`. */
+  shell: `fixed top-2 z-50 flex items-center h-10
+          left-[var(--navbar-left)] -translate-x-1/2 max-w-[var(--navbar-max-width)]
           ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
           px-1.5`,
 
@@ -162,7 +163,7 @@ export function NavBar() {
           </div>
 
           {modeler && (
-            <div className="hidden md:flex items-center flex-shrink-0">
+            <div className="hidden sm:flex items-center flex-shrink-0">
               <div className={navDividerCls} />
               <SimulateButton />
               <RunButton />

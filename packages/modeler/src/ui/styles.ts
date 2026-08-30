@@ -47,7 +47,7 @@ export const radius = {
   button: 'rounded-lg',
   field: 'rounded-md',
   /** Off-scale on purpose: 10px is the concentric fit inside the palette wrapper's `card` radius. */
-  paletteTool: 'rounded-[10px]',
+  paletteTool: 'rounded-[0.625rem]',
 } as const;
 
 export const dialog = {

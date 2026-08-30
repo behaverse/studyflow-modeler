@@ -5,7 +5,7 @@ import { InspectorContext } from '@modeler/inspector/state';
 import { CategoryTabs } from '@modeler/inspector/CategoryTabs';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
 import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';
-import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from '@modeler/inspector/panelWidth';
+import { clampPanelWidth, defaultPanelWidth, fromStoredWidth, toStoredWidth } from '@modeler/inspector/panelWidth';
 import { loadInspectorWidth, saveInspectorWidth } from '@modeler/settings/store';
 import { inspector as s } from '@modeler/inspector/styles';
 import type { Editor } from '@modeler/editor/port';
@@ -73,9 +73,15 @@ function useSelectedElement(editor: Editor): any {
 export function Panel() {
   const modeler = useRequiredModeler();
   const element = useSelectedElement(modeler);
-  const [isVisible, setIsVisible] = useState(true);
+  // Below 900px an open panel leaves no canvas worth drawing on (the same
+  // threshold `--inspector-gutter` uses), so it starts out of the way. The
+  // toggle is still there, and reopening floats it over the canvas.
+  const [isVisible, setIsVisible] = useState(() => window.innerWidth > 900);
   const [width, setWidth] = useState(() =>
-    clampPanelWidth(loadInspectorWidth() ?? DEFAULT_PANEL_WIDTH, window.innerWidth));
+    clampPanelWidth(fromStoredWidth(loadInspectorWidth() ?? undefined), window.innerWidth));
+  // The width the user actually chose, scale-independent. A resize that crosses a
+  // `--ui-scale` step re-derives from this, so the panel grows with its contents.
+  const baseWidth = useRef(toStoredWidth(width));
 
   useEffect(() => {
     document.body.classList.toggle('inspector-collapsed', !isVisible);
@@ -87,14 +93,15 @@ export function Panel() {
   }, [width]);
 
   useEffect(() => {
-    const onResize = () => setWidth((current) => clampPanelWidth(current, window.innerWidth));
+    const onResize = () => setWidth(clampPanelWidth(fromStoredWidth(baseWidth.current), window.innerWidth));
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
   const commitWidth = (next: number) => {
     setWidth(next);
-    saveInspectorWidth(next);
+    baseWidth.current = toStoredWidth(next);
+    saveInspectorWidth(baseWidth.current);
   };
 
   const toggle = () => setIsVisible((v) => !v);
@@ -172,7 +179,7 @@ function ResizeHandle({ width, onResize, onCommit }: Props) {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const next = event.key === 'ArrowLeft' ? width + KEYBOARD_STEP
       : event.key === 'ArrowRight' ? width - KEYBOARD_STEP
-        : event.key === 'Home' ? DEFAULT_PANEL_WIDTH
+        : event.key === 'Home' ? defaultPanelWidth()
           : undefined;
     if (next === undefined) return;
     event.preventDefault();
@@ -188,7 +195,7 @@ function ResizeHandle({ width, onResize, onCommit }: Props) {
       aria-valuenow={Math.round(width)}
       tabIndex={0}
       onPointerDown={startDrag}
-      onDoubleClick={() => onCommit(DEFAULT_PANEL_WIDTH)}
+      onDoubleClick={() => onCommit(defaultPanelWidth())}
       onKeyDown={onKeyDown}
       className={s.resizeHandle}
     />

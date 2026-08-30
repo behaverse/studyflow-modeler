@@ -412,7 +412,7 @@ function ReplayTimeline({ onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setSpeedIdx((i) => (i + 1) % SPEEDS.length)}
-                className="px-1.5 py-0.5 rounded-md text-[11px] font-mono text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer transition-colors"
+                className="px-1.5 py-0.5 rounded-md text-[0.6875rem] font-mono text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer transition-colors"
                 title="Speed"
                 aria-label={`Speed ${SPEEDS[speedIdx].label}`}
               >
@@ -423,27 +423,27 @@ function ReplayTimeline({ onClose }: Props) {
                 <div className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden whitespace-nowrap">
                   {current.icon && <i className={`${current.icon} size-3.5 shrink-0 text-stone-500`} aria-hidden="true" />}
                   <span className={`text-sm font-semibold shrink-0 ${current.action === 'invalidated' ? 'text-red-600' : 'text-stone-900'}`}>{current.action}</span>
-                  <span className="text-[11px] font-mono text-stone-500 truncate max-w-[14rem]" title={current.isDocument ? current.scopeId : current.scopeLabel}>
+                  <span className="text-[0.6875rem] font-mono text-stone-500 truncate max-w-[14rem]" title={current.isDocument ? current.scopeId : current.scopeLabel}>
                     {scopeName(current)}
                   </span>
                   {recordDetails(current).map(([label, value]) => (
-                    <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[11px] font-mono text-stone-500" title={`${label}: ${value}`}>
+                    <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[0.6875rem] font-mono text-stone-500" title={`${label}: ${value}`}>
                       <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-500`} aria-hidden="true" />
                       <span className="truncate max-w-[10rem]">{value}</span>
                     </span>
                   ))}
-                  <span className="text-[11px] font-mono text-stone-500 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
+                  <span className="text-[0.6875rem] font-mono text-stone-500 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
                   {current.note && <span className="text-xs italic text-stone-500 truncate min-w-0" title={current.note}>{current.note}</span>}
                 </div>
               ) : (
                 <p className="flex-1 text-xs text-stone-500 italic">Before the first record.</p>
               )}
               {runs > 0 && (
-                <span className="text-[11px] text-stone-500 whitespace-nowrap shrink-0">
+                <span className="text-[0.6875rem] text-stone-500 whitespace-nowrap shrink-0">
                   <strong className="text-stone-500">{runs}</strong> {runs === 1 ? 'run' : 'runs'}
                 </span>
               )}
-              <span className="text-[11px] font-mono text-stone-500 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
+              <span className="text-[0.6875rem] font-mono text-stone-500 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
             </>
           )}
           <button type="button" onClick={onClose} className={btn} title="Stop the replay and bring the inspector back" aria-label="Close replay">
@@ -466,7 +466,7 @@ function ReplayTimeline({ onClose }: Props) {
             onPointerMove={(e) => { if (e.buttons & 1) scrub(e.clientX); }}
           >
             <div className="absolute inset-x-0 top-1/2 h-px bg-black/10" aria-hidden="true" />
-            <div className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-stone-400/40" style={{ left: 0, width: frac(at) }} aria-hidden="true" />
+            <div className="absolute top-1/2 h-[0.1875rem] -translate-y-1/2 rounded-full bg-stone-400/40" style={{ left: 0, width: frac(at) }} aria-hidden="true" />
             {trail.map(({ record: r, lane }, i) => {
               // Run stamps read as tall section marks, invalidation markers as red, the rest by lane.
               const stamp = r.isDocument && r.action === 'executed';
@@ -474,7 +474,7 @@ function ReplayTimeline({ onClose }: Props) {
               return (
                 <span
                   key={i}
-                  className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity ${stamp ? 'w-[5px] h-5' : 'w-[3px] h-2.5'} ${i < at ? '' : 'opacity-25'}`}
+                  className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity ${stamp ? 'w-[0.3125rem] h-5' : 'w-[0.1875rem] h-2.5'} ${i < at ? '' : 'opacity-25'}`}
                   style={{ left: frac(i + 1), backgroundColor: color }}
                   title={`${i + 1}/${total} · ${r.action} ${scopeName(r)} — ${shortWhen(r.when) ?? '—'}`}
                 />
@@ -486,8 +486,8 @@ function ReplayTimeline({ onClose }: Props) {
               style={{ left: frac(at) }}
               aria-hidden="true"
             >
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] rounded-full bg-stone-900" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 rounded-[2px] rotate-45 bg-stone-900" />
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[0.125rem] rounded-full bg-stone-900" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 rounded-[0.125rem] rotate-45 bg-stone-900" />
             </div>
           </div>
         )}

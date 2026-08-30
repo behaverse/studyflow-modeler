@@ -8,12 +8,17 @@
  * it, then a connection. The router orthogonalizes and crops the flow afterwards,
  * so nothing here computes waypoints.
  *
- * What is deliberately NOT ported: bpmn-js also *nudges* the position downwards
- * when the slot it picked is already occupied, so appending twice from one element
- * fans out. Here the second append lands on top of the first. Both are one undo
- * step, so an unwanted placement costs one undo either way.
+ * The slot it picks may be TAKEN, and then it nudges downwards until one is free,
+ * the way bpmn-js's `findFreePosition` does — so appending twice from one element
+ * fans out instead of stacking.
  *
- * The module is host-agnostic on purpose — it takes the two canvas entry points it
+ * That nudge is not cosmetic. `Create.createAt` hit-tests the drop centre and asks
+ * the rules whether the shape may go in whatever is under it; a slot occupied by a
+ * task therefore resolves to "a task inside a task", which the rules refuse, and
+ * the whole append is dropped on the floor with nothing to show for it. Appending
+ * next to an existing shape simply did nothing until the search below went in.
+ *
+ * The module is host-agnostic on purpose — it takes the canvas entry points it
  * needs as an interface rather than the {@link Canvas} itself, which keeps it free
  * of the import cycle `Canvas → autoplace → Canvas` and testable on a stub.
  */
@@ -76,13 +81,96 @@ export function appendSourceBounds(source: SceneNode | SceneEdge): Bounds {
   return routableEnd(source);
 }
 
-/** The two canvas entry points an append needs ({@link Canvas} satisfies it). */
+/**
+ * Spacing between successive probes once the search is under way — one task height
+ * plus a gap, so a fanned-out append column reads as a column rather than a smear.
+ *
+ * The FIRST step away from the original slot is usually larger; see
+ * {@link verticalEscape}.
+ */
+export const APPEND_NUDGE = 100;
+
+/**
+ * How many slots to try before giving up and using the first one anyway. Ten rows
+ * is far past any diagram a click-append is a reasonable way to build; the cap is
+ * only here so a pathological document cannot spin.
+ */
+const MAX_PROBES = 10;
+
+/**
+ * How far down a nudged successor has to sit before its flow leaves the source
+ * DOWNWARDS instead of sideways — centre-to-centre horizontal distance, plus one
+ * unit to win the tie.
+ *
+ * `routing/orthogonal` bends a diagonal pair through a single elbow along the
+ * DOMINANT axis. While the drop is nearer than it is lower, that axis is the
+ * horizontal one, so the flow runs sideways at the SOURCE's y first — straight
+ * under the sibling this append is dodging in the first place, and out of sight
+ * behind it. Past this offset the elbow flips: the flow drops out of the source's
+ * bottom and comes in at the successor's left edge, clear of the sibling.
+ *
+ * Fixing it here rather than in the router is deliberate. The router is explicitly
+ * not obstacle-avoiding ("a third shape sitting in the way is the user's to fix by
+ * dragging a waypoint, exactly as in bpmn-js"), and the single-elbow diagonal is a
+ * pinned design decision. An auto-PLACER, though, exists precisely to pick a spot
+ * that reads well, and it is the one thing here that knows a sibling is in the way.
+ */
+function verticalEscape(source: Bounds, size: { width: number; height: number }): number {
+  return source.width / 2 + APPEND_DISTANCE + size.width / 2 + 1;
+}
+
+/**
+ * The first FREE centre point for a shape of `size` appended from `source`.
+ *
+ * Probe 0 is the plain {@link appendPosition}; every probe after it steps AWAY from
+ * the source — down for a flow successor, up for an annotation, which starts above
+ * the source and would otherwise nudge straight back into it. The first step also
+ * clears {@link verticalEscape}, so a fanned-out flow is drawn where it can be seen.
+ *
+ * ponytail: one direction only, and it gives up after {@link MAX_PROBES} — a source
+ * with ten occupied rows under it falls back to the blocked slot and the append is
+ * dropped, exactly as it was before this search existed. Alternate both ways the
+ * way bpmn-js's `generateGetNextPosition` does if anyone ever hits it.
+ *
+ * Both the click ({@link appendElement}) and the hover ghost (`Canvas.previewAppend`)
+ * go through here, because a preview that shows a different slot than the click
+ * takes is worse than no preview.
+ */
+export function freeAppendPosition(
+  source: Bounds,
+  size: { width: number; height: number },
+  type: string | undefined,
+  isOccupied: (bounds: Bounds) => boolean,
+): Point {
+  const start = appendPosition(source, size, type);
+  // An annotation hangs ABOVE the source, so "away" is upwards for it alone.
+  const up = type === BPMN.TextAnnotation;
+  const step = up ? -APPEND_NUDGE : APPEND_NUDGE;
+  const first = up ? -APPEND_NUDGE : Math.max(APPEND_NUDGE, verticalEscape(source, size));
+
+  for (let probe = 0; probe < MAX_PROBES; probe += 1) {
+    const offset = probe === 0 ? 0 : first + (probe - 1) * step;
+    const at = { x: start.x, y: start.y + offset };
+    const bounds = {
+      x: at.x - size.width / 2,
+      y: at.y - size.height / 2,
+      width: size.width,
+      height: size.height,
+    };
+    if (!isOccupied(bounds)) return at;
+  }
+  return start;
+}
+
+/** The canvas entry points an append needs ({@link Canvas} satisfies it). */
 export interface AutoPlaceHost {
   createElement(
     descriptor: ShapeDescriptor | CreatePrototype,
     center: Point,
   ): SceneNode | undefined;
   connectElements(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined;
+  /** Whether a shape placed at `bounds` would land on top of something. */
+  isAreaOccupied(bounds: Bounds): boolean;
 }
 
 /** What an append produced; `connection` is absent when the rules refuse the flow. */
@@ -101,7 +189,12 @@ export function appendElement(
   descriptor: ShapeDescriptor | CreatePrototype,
 ): AppendResult | undefined {
   const prototype = createShape(descriptor);
-  const position = appendPosition(appendSourceBounds(source), prototype, prototype.type);
+  const position = freeAppendPosition(
+    appendSourceBounds(source),
+    prototype,
+    prototype.type,
+    (bounds) => host.isAreaOccupied(bounds),
+  );
   const shape = host.createElement(prototype, position);
   if (!shape) return undefined;
   return { shape, connection: host.connectElements(source, shape) };

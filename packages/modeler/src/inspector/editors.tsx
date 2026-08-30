@@ -234,14 +234,14 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
             )}
 
             {showSource ? (
-              <pre className="bg-stone-50 border border-black/[0.06] rounded p-3 text-[11px] overflow-auto">
+              <pre className="bg-stone-50 border border-black/[0.06] rounded p-3 text-[0.6875rem] overflow-auto">
                 {sourcePreview}
               </pre>
             ) : (
               <div className="overflow-x-auto border border-black/[0.06] rounded">
                 <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500">
+                  <tr className="bg-stone-50 text-left text-[0.6875rem] uppercase tracking-wide text-stone-500">
                     <th className="px-2 py-1.5 w-8"></th>
                     <th className={cn.cell}>Name</th>
                     <th className="px-2 py-1.5 w-32">Datatype</th>

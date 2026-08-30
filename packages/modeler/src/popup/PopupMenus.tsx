@@ -1,21 +1,3 @@
-/**
- * App chrome for the four popup menus (P6b §3A, §3B).
- *
- * `openPopupMenu(providerId, position, options)` (`editor/popupMenus.ts`) names a
- * menu and hands over anchor geometry; this host is what registers against those
- * ids. So "open the append menu" is one call from anywhere — the palette, the
- * context pad, the canvas's `a` key — that knows no React.
- *
- * Four ids:
- *
- * | id             | renders                                              | opened by |
- * |----------------|------------------------------------------------------|-----------|
- * | `bpmn-create`  | every creatable element; drag or click to place       | the palette's "More BPMN elements..." button |
- * | `bpmn-append`  | the same list, wired to append from the selection     | the context pad's append entry, and the canvas's `a` key |
- * | `bpmn-replace` | the same list, trimmed to what may replace the selection | the context pad's wrench ("Change element") |
- * | `color-picker` | the six studyflow colours                             | the context pad's brush |
- */
-
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { getExtensionType } from '@core/element';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';

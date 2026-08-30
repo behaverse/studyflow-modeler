@@ -202,7 +202,7 @@ export function Palette({ className = '' }: { className?: string }) {
               onMouseEnter={onMouseEnter}
               onMouseLeave={onMouseLeave}
             >
-              <PaletteButton title={`More ${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
+              <PaletteButton title={`${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
                 <PaletteIcon icon={schema.icon ?? ICONS.hexagon} size={24} />
                 <span className={palette.groupChevron} />
               </PaletteButton>
@@ -218,7 +218,7 @@ export function Palette({ className = '' }: { className?: string }) {
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton
-          title="More BPMN elements..."
+          title="BPMN elements..."
           onPointerUp={dragHandlers.onPointerUp}
           onPointerLeave={dragHandlers.onPointerUp}
           onClick={handleMoreElementsClick}

@@ -15,7 +15,7 @@ import { border, radius, shadow, surface, tooltip as tooltipMaterial } from '@mo
 
 export const contextPad = {
   /** 3 × 28px entries + 2px gaps + 4px padding + 1px borders. Positioned by `transform`. */
-  root: `fixed z-[215] left-0 top-0 w-[98px] select-none
+  root: `fixed z-[215] left-0 top-0 w-[6.125rem] select-none
          flex flex-wrap gap-0.5 p-1
          ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}`,
 
@@ -33,7 +33,7 @@ export const contextPad = {
   /** The connect entry is dragged out of the pad, so it says so. */
   entryDraggable: 'cursor-crosshair',
 
-  entryIcon: 'text-[18px]',
+  entryIcon: 'text-lg',
 
   /**
    * Dark tooltip, hung down-and-right of the POINTER — the placement every

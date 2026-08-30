@@ -5,7 +5,7 @@ export const inspector = {
   wrapper: 'fixed top-2 right-2 z-[220]',
   /** Width is set inline (see `inspector/panelWidth`): drag-resizable, so size is state, not a class. */
   panel: `relative ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
-          text-stone-900 max-h-[calc(100vh-80px)] overflow-y-auto`,
+          text-stone-900 max-h-[calc(100vh-5rem)] overflow-y-auto`,
   panelHidden: 'hidden',
   panelBody: 'w-full',
 
@@ -19,10 +19,10 @@ export const inspector = {
                  w-8 h-8 rounded-md
                  text-stone-500 hover:text-stone-900 hover:bg-black/[0.05]
                  transition-colors`,
-  toggleIcon: 'text-[24px]',
+  toggleIcon: 'text-2xl',
 
   headerTitle: 'pb-0 text-base font-semibold p-2 pb-0 text-stone-900 tracking-tight',
-  headerSubtitle: 'text-[11px] text-left font-mono px-2 pb-2 text-stone-500',
+  headerSubtitle: 'text-[0.6875rem] text-left font-mono px-2 pb-2 text-stone-500',
 
   tabList: 'flex flex-wrap gap-0.5 px-2 pb-2 border-b border-black/[0.08]',
   tabBase: 'px-1.5 py-1 text-xs font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(205,100%,45%)]',
@@ -85,14 +85,14 @@ export const field = {
   dataFlowEquals: 'shrink-0 self-start py-1 px-0.5 font-mono text-sm/6 text-stone-500 select-none',
   dataFlowValue: 'flex-1 min-w-0 px-2 py-1 rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 break-words',
   dataFlowScoped: 'flex flex-col',
-  dataFlowScope: 'px-2 italic text-[11px] text-stone-500 truncate',
+  dataFlowScope: 'px-2 italic text-[0.6875rem] text-stone-500 truncate',
 
   stateRow: 'flex items-stretch rounded-md border border-black/[0.20] bg-cream-200 overflow-hidden focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
   stateNameInput: 'flex-1 min-w-0 px-2 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
   stateTypeField: 'relative shrink-0 flex items-stretch w-[8rem] border-l border-black/[0.08] bg-black/[0.03] focus-within:bg-black/[0.05]',
   stateTypeInput: 'w-full min-w-0 pl-2 pr-6 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-600 placeholder-stone-400 placeholder:italic focus:outline-none',
   stateTypeChevronBtn: 'absolute top-0 right-0 h-full w-5 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
-  stateTypeChevron: `${ICONS.caretDown} shrink-0 text-[11px] text-stone-500`,
+  stateTypeChevron: `${ICONS.caretDown} shrink-0 text-[0.6875rem] text-stone-500`,
   stateTypeOptions: `z-[240] mt-1 w-max min-w-[var(--input-width)] max-w-[15rem] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 ${shadow.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
   stateTypeOption: 'px-2.5 py-1 font-mono text-sm text-stone-800 truncate data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
   stateTypeUntyped: 'font-sans italic text-stone-500',
@@ -117,7 +117,7 @@ export const codeEditor = {
   modalSectionGrow: 'px-4 sm:px-5 py-3 flex-1 min-h-0 flex flex-col',
   modalSubLabel: 'block text-sm font-medium mb-2 text-stone-700',
   modalLanguageSelect: 'appearance-none p-2 w-full rounded-md border border-black/[0.45] text-sm text-stone-800 bg-cream-200',
-  modalEditorFrame: 'flex-1 min-h-[200px] w-full overflow-auto rounded-lg bg-cream-200 border border-black/[0.06] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
+  modalEditorFrame: 'flex-1 min-h-[12.5rem] w-full overflow-auto rounded-lg bg-cream-200 border border-black/[0.06] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
   modalEditor: 'min-h-full font-mono text-sm/6 text-stone-900',
   modalActions: 'px-4 sm:px-5 py-3 flex justify-end gap-2 border-t border-black/[0.06] shrink-0',
   modalCancelBtn: 'px-3 py-1.5 rounded-lg cursor-pointer text-stone-700 hover:bg-black/[0.05]',

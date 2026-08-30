@@ -196,7 +196,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 {repoRecipe && (
                   <span className="inline-flex items-center gap-1.5 ml-auto pl-4">
                     <code
-                      className="text-[11px] font-mono text-stone-500 truncate max-w-[22rem]"
+                      className="text-[0.6875rem] font-mono text-stone-500 truncate max-w-[22rem]"
                       title="The repository's history — each run is a started/finished commit pair, each post-invalidation re-run a run/<stamp> branch"
                     >
                       {repoRecipe}
@@ -236,7 +236,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                     >
                       {r.icon && (
                         <i
-                          className={`${r.icon} size-3.5 absolute left-0 top-[9px] ${red ? 'text-red-400' : 'text-stone-500'} ${muted ? 'opacity-60' : ''}`}
+                          className={`${r.icon} size-3.5 absolute left-0 top-[0.5625rem] ${red ? 'text-red-400' : 'text-stone-500'} ${muted ? 'opacity-60' : ''}`}
                           aria-hidden="true"
                         />
                       )}
@@ -271,7 +271,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         )}
                       </svg>
                       <span
-                        className={`absolute top-[11.5px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : laneOf(g.lane).dot}`}
+                        className={`absolute top-[0.71875rem] size-[0.5625rem] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : laneOf(g.lane).dot}`}
                         style={{ left: ICON_GUTTER + g.lane * 12 }}
                         aria-hidden="true"
                       />
@@ -284,14 +284,14 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                           {r.action}
                         </span>
                         <span
-                          className={`text-[11px] font-mono truncate max-w-[12rem] shrink-0 ${red ? 'text-red-700/80' : 'text-stone-500'}`}
+                          className={`text-[0.6875rem] font-mono truncate max-w-[12rem] shrink-0 ${red ? 'text-red-700/80' : 'text-stone-500'}`}
                           title={r.isDocument ? r.scopeId : r.scopeLabel}
                         >
                           {r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId}
                         </span>
                         {g.pendingBranch && (
                           <span
-                            className="inline-flex items-center gap-1 text-[11px] text-red-500/90 whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-[0.6875rem] text-red-500/90 whitespace-nowrap"
                             title="The next run starts a new run/<stamp> branch just before this step — only the step and what depends on it re-execute"
                           >
                             <i className={`${ICONS.branch} size-3 shrink-0`} aria-hidden="true" />
@@ -300,7 +300,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         )}
                         {r.action === 'invalidated' && !r.isDocument && !r.what && (
                           <span
-                            className="inline-flex items-center gap-1 text-[11px] text-amber-600/90 whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-[0.6875rem] text-amber-600/90 whitespace-nowrap"
                             title="A marker naming no specific record: this step re-runs every time, in place — it never branches and never ages out"
                           >
                             <i className={`${ICONS.pin} size-3 shrink-0`} aria-hidden="true" />
@@ -310,7 +310,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         {recordDetails(r).map(([label, value]) => (
                           <span
                             key={label}
-                            className={`inline-flex items-center gap-1 min-w-0 text-[11px] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
+                            className={`inline-flex items-center gap-1 min-w-0 text-[0.6875rem] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
                             title={`${label}: ${value}`}
                           >
                             <i
@@ -322,7 +322,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         ))}
                         <span className="flex-1" aria-hidden="true" />
                         <span
-                          className={`text-[11px] font-mono whitespace-nowrap shrink-0 ${red ? 'text-red-400' : 'text-stone-500'}`}
+                          className={`text-[0.6875rem] font-mono whitespace-nowrap shrink-0 ${red ? 'text-red-400' : 'text-stone-500'}`}
                           title={r.when}
                         >
                           {shortWhen(r.when) ?? '—'}

@@ -28,7 +28,7 @@ const s = {
   selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2.5 text-stone-500 text-xs`,
 
   options: 'mt-4 pt-4 border-t border-black/[0.06] space-y-3',
-  optionsLabel: 'text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500',
+  optionsLabel: 'text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-stone-500',
   option: 'flex items-start gap-3',
   optionText: 'min-w-0 flex-1',
   optionLabel: `text-sm font-medium ${text.secondary}`,

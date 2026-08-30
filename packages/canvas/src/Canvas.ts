@@ -54,7 +54,7 @@ import {
 import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
 import {
   appendElement as autoPlaceAppend,
-  appendPosition,
+  freeAppendPosition,
   appendSourceBounds,
 } from '@canvas/interaction/autoplace.ts';
 import {
@@ -1106,6 +1106,27 @@ export class Canvas {
   }
 
   /**
+   * Whether a shape placed at `bounds` would land on top of something — the probe
+   * the auto-placer nudges by ({@link freeAppendPosition}).
+   *
+   * Two kinds of node are NOT an obstacle, and both would otherwise wedge the search:
+   *
+   * - **Containers.** A pool or an expanded sub-process encloses the whole lane an
+   *   append lands in, so counting it as occupancy would report every slot taken and
+   *   send each append to the fallback position — exactly the bug this exists to fix.
+   *   Landing INSIDE one is the normal case, not a collision.
+   * - **Captions.** A label is a floating scrap of text, not a shape a flow can reach.
+   *   Nudging a whole row to dodge one moves the successor further from its source
+   *   than the overlap it avoids is worth.
+   */
+  isAreaOccupied(bounds: Bounds): boolean {
+    if (!this.scene) return false;
+    return nodesIntersecting(this.scene, bounds).some(
+      (node) => !node.labelTarget && !isContainerNode(node),
+    );
+  }
+
+  /**
    * Retype `node` in place — the context pad's wrench, "Change element"
    * (ux-spec §4 entry 4). Returns the replacement, or `undefined` when the rules
    * refuse it ({@link Rules.canReplace}) or the descriptor names what the node
@@ -1213,7 +1234,12 @@ export class Canvas {
 
     const bounds = boundsFor(
       prototype,
-      appendPosition(appendSourceBounds(source), prototype, prototype.type),
+      freeAppendPosition(
+        appendSourceBounds(source),
+        prototype,
+        prototype.type,
+        (area) => this.isAreaOccupied(area),
+      ),
     );
     const preview = create('g', { class: 'sf-append-preview' }) as SVGGElement;
     const line = this.previewConnection(source, prototype, bounds);

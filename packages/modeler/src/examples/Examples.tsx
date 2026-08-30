@@ -33,7 +33,7 @@ const g = {
   thumbSpinner: `${ICONS.arrowRepeat} text-stone-500 animate-spin`,
 
   body: 'flex flex-col gap-1 px-3.5 py-3',
-  eyebrow: 'text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-500',
+  eyebrow: 'text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-stone-500',
   title: 'text-sm font-semibold tracking-tight text-stone-900 line-clamp-2',
   summary: 'text-xs leading-snug text-stone-500 line-clamp-2',
   error: 'text-xs text-red-500',
