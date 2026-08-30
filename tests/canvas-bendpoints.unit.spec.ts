@@ -124,28 +124,29 @@ test('a multi-selection draws no edge chrome at all', async () => {
 
 // --- segment grips -----------------------------------------------------------
 
-test('the grip appears on the hovered run only, and follows the pointer along it', async () => {
+test('the grip sits at the hovered run\'s middle, and nowhere else along it', async () => {
   const canvas = await load();
   canvas.getSelection().select(edge(canvas, 'Flow_1'));
 
   // Selected but not hovered: bendpoints only, no grips anywhere.
   expect(chrome(canvas, '.sf-segment-grip')).toHaveLength(0);
 
-  // Hover partway down the vertical run (a few units off its line still counts):
-  // ONE grip, ew, at the pointer's projection onto the run — not at its midpoint.
-  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 353, y: 170 });
+  // Hover the middle of the vertical run (a few units off its line still counts):
+  // ONE grip, ew, parked at the run's midpoint — diagram-js's segment dragger.
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 353, y: 203 });
   let grips = chrome(canvas, '.sf-segment-grip');
   expect(grips).toHaveLength(1);
   expect(grips[0].getAttribute('data-segment')).toBe('1');
   expect(grips[0].classList.contains('sf-segment-grip-ew')).toBe(true);
-  expect(placedAt(grips[0])).toEqual({ x: 350, y: 170 });
+  expect(placedAt(grips[0])).toEqual({ x: 350, y: 200 });
 
-  // It travels with the pointer along the same run…
-  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 350, y: 220 });
-  expect(placedAt(chrome(canvas, '.sf-segment-grip')[0])).toEqual({ x: 350, y: 220 });
+  // Further along the SAME run the grip is gone: that stretch belongs to the drag
+  // that inserts a bendpoint (`canvas-segment-move.unit.spec.ts`).
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 350, y: 250 });
+  expect(chrome(canvas, '.sf-segment-grip')).toHaveLength(0);
 
-  // …and hovering the first horizontal run offers THAT run's ns grip instead.
-  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 320, y: 120 });
+  // Hovering the middle of the first horizontal run offers THAT run's ns grip.
+  firePointer(canvas, canvas.getSvg(), 'pointermove', { x: 325, y: 120 });
   grips = chrome(canvas, '.sf-segment-grip');
   expect(grips).toHaveLength(1);
   expect(grips[0].getAttribute('data-segment')).toBe('0');

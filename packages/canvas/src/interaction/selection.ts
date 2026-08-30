@@ -34,7 +34,6 @@ import { ensureOutline, OUTLINE_OFFSET } from '@canvas/render/outline.ts';
 import { boxContains, centerOf } from '@canvas/routing/crop.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 import {
-  gripPositionAt,
   insideGrip,
   isGrippable,
   segmentAt as segmentOfPath,
@@ -136,6 +135,13 @@ export interface HandleHit {
 export interface WaypointHit {
   edge: SceneEdge;
   index: number;
+  /**
+   * Whether `index` names a joint that does not exist YET: a press on a connection's
+   * body inserts one there and drags it (diagram-js's floating bendpoint). The
+   * insertion happens when the gesture actually starts moving, so a plain click on a
+   * flow still just selects it.
+   */
+  insert?: boolean;
 }
 
 /** A straight run of a connection grabbed by its move grip (or by its body). */
@@ -143,6 +149,8 @@ export interface SegmentHit {
   edge: SceneEdge;
   /** Index of the run's FIRST waypoint (`interaction/segments.ts`). */
   index: number;
+  /** `true` for the grip (slide the run), `false` for its body (insert a joint). */
+  grip: boolean;
 }
 
 /**
@@ -448,7 +456,8 @@ export class Selection {
    * — the segment-move gesture of parity spec §2/§3. Offered for the same
    * connections the bendpoints are (a single selected one, or the hovered one) and
    * mirroring exactly what {@link Selection.drawOverlay} draws: the grip box first,
-   * then the run's own body, which is how a bend is ADDED to an edge that has none.
+   * then the run's own body, whose press ADDS a joint rather than sliding the run
+   * (`grip: false` — see {@link SegmentHit}).
    *
    * Bendpoints win over runs — {@link Canvas} asks {@link Selection.waypointAt}
    * first — so a grab near a joint moves the joint, never the line through it.
@@ -461,7 +470,7 @@ export class Selection {
   segmentAt(point: Point, options: { gripsOnly?: boolean } = {}): SegmentHit | undefined {
     for (const edge of this.edgesWithChrome()) {
       const segment = segmentOfPath(edge.waypoints, point, options);
-      if (segment) return { edge, index: segment.index };
+      if (segment) return { edge, index: segment.index, grip: segment.grip };
     }
     return undefined;
   }
@@ -484,10 +493,9 @@ export class Selection {
 
   /**
    * The grip a pointer at `point` earns: the first grippable run of a connection
-   * wearing edge chrome that the point is over — anywhere along the run, not just
-   * its middle — with the glyph placed at the pointer's projection onto it. Near
-   * the run's ends (`insideGrip`'s inset) the joint's own handle wins and no grip
-   * is offered, which is diagram-js's rule too.
+   * wearing edge chrome whose grip box the point is inside. The glyph sits at the
+   * run's MIDDLE, where diagram-js parks its segment dragger — the rest of the run
+   * belongs to the joint-inserting drag ({@link Selection.segmentAt}).
    */
   private gripUnder(
     point: Point | undefined,
@@ -495,9 +503,7 @@ export class Selection {
     if (!point) return undefined;
     for (const edge of this.edgesWithChrome()) {
       const segment = segmentsOf(edge.waypoints).find((s) => isGrippable(s) && insideGrip(s, point));
-      if (segment) {
-        return { edge, index: segment.index, axis: segment.axis, at: gripPositionAt(segment, point) };
-      }
+      if (segment) return { edge, index: segment.index, axis: segment.axis, at: segment.mid };
     }
     return undefined;
   }
@@ -686,10 +692,9 @@ export class Selection {
    * `edge-videos/v2/frame_10` shows: `◄ ►` sitting on the vertical segment below
    * the source task.
    *
-   * As in diagram-js, the grip is not parked at the run's midpoint: it appears on
-   * whichever segment the pointer hovers and travels with it along the run
-   * ({@link Selection.gripUnder}), so hovering any place of a segment offers the
-   * slide — and the rest of the connection shows only its bendpoints.
+   * As in diagram-js, the grip is parked at the run's midpoint and appears while the
+   * pointer is inside its box ({@link Selection.gripUnder}) — the rest of the
+   * connection shows only its bendpoints, and a drag there inserts one.
    *
    * The glyph is a pair of solid DARK triangles pointing apart — the one piece of
    * edge chrome that is not diagram-js blue — over an invisible 20x18 hit box.

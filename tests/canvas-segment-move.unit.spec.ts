@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
-import { moveSegment, segmentsOf } from '@canvas/interaction/segments.ts';
+import { moveBendpoint, moveSegment, segmentsOf } from '@canvas/interaction/segments.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
@@ -164,20 +164,61 @@ test('the moved waypoints are written to di:waypoint and round-trip through bpmn
   expect(diWaypoints(reloaded, 'Flow_1')).toEqual(expected);
 });
 
-test('a press on a run BODY reshapes the edge as its grip would (parity spec §3)', async () => {
+test('a press on a run BODY inserts a bendpoint under the pointer and drags it', async () => {
   const { canvas } = await load();
   const flow = edge(canvas, 'Flow_1');
 
-  // Not the midpoint: an arbitrary point on the line, well clear of both the grip
-  // box and either bendpoint.
+  // Not the midpoint: an arbitrary point on the line, clear of the grip box at the
+  // run's middle. The joint is minted where the press landed, and follows the drag.
   dragBy(canvas, { x: 320, y: 120 }, { x: 320, y: 180 });
 
   expect(points(flow)).toEqual([
-    { x: 250, y: 160 },
-    { x: 250, y: 180 },
-    { x: 450, y: 180 },
-    { x: 450, y: 160 },
+    { x: 300, y: 120 },
+    { x: 320, y: 180 },
+    { x: 400, y: 120 },
   ]);
+});
+
+test('a press on a DIAGONAL run inserts a bendpoint too', async () => {
+  const { canvas } = await load();
+  const flow = edge(canvas, 'Flow_1');
+  // Bend the flow out of Manhattan first, the way a bendpoint drag does — this is
+  // the run that used to swallow the gesture whole and reshape nothing.
+  flow.waypoints = [{ x: 300, y: 120 }, { x: 400, y: 150 }];
+  canvas.redrawElements([flow]);
+
+  // (320, 126) is on that diagonal, and well clear of the grip box at its middle.
+  dragBy(canvas, { x: 320, y: 126 }, { x: 320, y: 200 });
+
+  expect(flow.waypoints).toHaveLength(3);
+  expect(flow.waypoints[1]).toEqual({ x: 320, y: 200 });
+});
+
+test('a joint dragged back into line with its neighbours is dropped, at any angle', async () => {
+  // Pure geometry: the 180° corner rule is not axis-aligned, so it has no shapes to
+  // dock against — `simplify` only ever dropped the horizontal/vertical case.
+  const bent = [{ x: 300, y: 120 }, { x: 320, y: 180 }, { x: 400, y: 220 }];
+
+  // Onto the straight line from (300, 120) to (400, 220): the joint goes away.
+  expect(moveBendpoint(bent, 1, { x: 350, y: 170 }))
+    .toEqual([{ x: 300, y: 120 }, { x: 400, y: 220 }]);
+
+  // Five units off it is still redundant (diagram-js's accuracy); further is a bend.
+  expect(moveBendpoint(bent, 1, { x: 353, y: 167 })).toHaveLength(2);
+  expect(moveBendpoint(bent, 1, { x: 370, y: 150 })).toHaveLength(3);
+});
+
+test('a body drag that goes nowhere leaves the connection alone', async () => {
+  const { canvas, definitions } = await load();
+  const flow = edge(canvas, 'Flow_1');
+  const before = points(flow);
+
+  // Pressed on the line and released 2 units away: under the drag threshold, so no
+  // joint is minted and nothing is written.
+  dragBy(canvas, { x: 320, y: 120 }, { x: 322, y: 120 });
+
+  expect(points(flow)).toEqual(before);
+  expect(diWaypoints(definitions, 'Flow_1')).toEqual(before);
 });
 
 test('an unselected connection is selected and reshaped by the same gesture', async () => {

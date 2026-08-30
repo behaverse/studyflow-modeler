@@ -128,71 +128,58 @@ export function isGrippable(segment: Segment): boolean {
   return segment.aligned && segment.length >= MIN_GRIP_SEGMENT_LENGTH;
 }
 
+/** What a press on a connection landed on: the run, and which of its two zones. */
+export interface SegmentPress extends Segment {
+  /** `true` for the move GRIP, `false` for the run's plain body. */
+  grip: boolean;
+}
+
 /**
- * The segment a press at `point` grabs, or `undefined`. Two ways in, both of which
- * diagram-js routes through `ConnectionSegmentMove`:
+ * The segment a press at `point` grabs, or `undefined` — and which gesture it means,
+ * exactly as diagram-js splits them:
  *
- * - the move GRIP — which follows the pointer along its run ({@link insideGrip}),
- *   so anywhere on a grippable run within the grip's reach counts (parity spec §2);
- * - the run's BODY — anywhere within `tolerance` of the line, which is how a bend
- *   is *added* to an edge that has none (parity spec §3).
+ * - the move GRIP, its segment dragger: a fixed box at the run's MIDDLE
+ *   ({@link insideGrip}), which slides the whole run (parity spec §2);
+ * - the run's BODY — anywhere else within `tolerance` of the line — which INSERTS a
+ *   bendpoint under the pointer and drags it (diagram-js's floating bendpoint).
+ *
+ * The body hit does not ask the run to be axis-aligned: a diagonal run (one a
+ * previous bendpoint drag bent, {@link moveBendpoint}) is grabbable like any other,
+ * and before this it was the one place on a connection where a drag did nothing.
  */
 export function segmentAt(
   waypoints: readonly Point[],
   point: Point,
   options: { tolerance?: number; gripsOnly?: boolean } = {},
-): Segment | undefined {
+): SegmentPress | undefined {
   const segments = segmentsOf(waypoints);
   for (const segment of segments) {
-    if (isGrippable(segment) && insideGrip(segment, point)) return segment;
+    if (isGrippable(segment) && insideGrip(segment, point)) return { ...segment, grip: true };
   }
   if (options.gripsOnly) return undefined;
   const tolerance = options.tolerance ?? SEGMENT_BODY_TOLERANCE;
   for (const segment of segments) {
-    if (segment.aligned && distanceToSegment(segment.a, segment.b, point) <= tolerance) {
-      return segment;
+    if (distanceToSegment(segment.a, segment.b, point) <= tolerance) {
+      return { ...segment, grip: false };
     }
   }
   return undefined;
 }
 
 /**
- * Whether `point` falls inside a segment's grip reach. The grip travels with the
- * pointer along its run ({@link gripPositionAt}), so its reach is the run's extent
- * along the axis and the grip's own {@link SEGMENT_GRIP_WIDTH} across it — wherever
- * on the run the pointer is, the grip is drawn under it. The extent is inset half a
- * grip length off each end: that close to a joint (or a dock, where a press means
- * the SHAPE) the run's own handle is not the grip, and no grip is drawn there.
+ * Whether `point` falls inside a segment's grip: the {@link SEGMENT_GRIP_LENGTH} x
+ * {@link SEGMENT_GRIP_WIDTH} box drawn at the run's MIDDLE, which is where
+ * diagram-js parks its segment dragger. The rest of the run is deliberately left
+ * alone — that is the stretch a drag adds a bendpoint on.
  */
 export function insideGrip(segment: Segment, point: Point): boolean {
+  const along = SEGMENT_GRIP_LENGTH / 2;
   const across = SEGMENT_GRIP_WIDTH / 2;
-  const inset = SEGMENT_GRIP_LENGTH / 2;
-  if (segment.axis === 'h') {
-    return point.x >= Math.min(segment.a.x, segment.b.x) + inset
-      && point.x <= Math.max(segment.a.x, segment.b.x) - inset
-      && Math.abs(point.y - segment.mid.y) <= across;
-  }
-  return point.y >= Math.min(segment.a.y, segment.b.y) + inset
-    && point.y <= Math.max(segment.a.y, segment.b.y) - inset
-    && Math.abs(point.x - segment.mid.x) <= across;
-}
-
-/**
- * Where the grip glyph sits while the pointer hovers `point`: the pointer's
- * projection onto the run, clamped half a grip length off each end so the glyph
- * never sits on top of the bendpoints (diagram-js moves its segment dragger with
- * the cursor the same way).
- */
-export function gripPositionAt(segment: Segment, point: Point): Point {
-  const half = SEGMENT_GRIP_LENGTH / 2;
-  if (segment.axis === 'h') {
-    const lo = Math.min(segment.a.x, segment.b.x) + half;
-    const hi = Math.max(segment.a.x, segment.b.x) - half;
-    return roundPoint({ x: Math.min(Math.max(point.x, lo), hi), y: segment.mid.y });
-  }
-  const lo = Math.min(segment.a.y, segment.b.y) + half;
-  const hi = Math.max(segment.a.y, segment.b.y) - half;
-  return roundPoint({ x: segment.mid.x, y: Math.min(Math.max(point.y, lo), hi) });
+  const dx = Math.abs(point.x - segment.mid.x);
+  const dy = Math.abs(point.y - segment.mid.y);
+  return segment.axis === 'h'
+    ? dx <= along && dy <= across
+    : dy <= along && dx <= across;
 }
 
 // --- moving a segment -------------------------------------------------------
@@ -251,8 +238,9 @@ export function moveSegment(
  * With `shapes` given the two ends are re-cropped to their outlines (a joint next
  * to an endpoint changes the terminal run's direction, and the dock slides along
  * the silhouette to meet it), and joints the move made redundant — dragged onto a
- * neighbour, or exactly back into line — are dropped. A terminal index is returned
- * untouched: dragging an ENDPOINT is the reconnect/free-move gesture, not this one.
+ * neighbour, or back into line with them at ANY angle ({@link dropRedundant}) — are
+ * dropped. A terminal index is returned untouched: dragging an ENDPOINT is the
+ * reconnect/free-move gesture, not this one.
  */
 export function moveBendpoint(
   waypoints: readonly Point[],
@@ -266,7 +254,7 @@ export function moveBendpoint(
   const cropped = shapes.source || shapes.target
     ? cropWaypoints(points, shapes.source, shapes.target)
     : points;
-  return roundPath(simplify(cropped));
+  return roundPath(dropRedundant(simplify(cropped)));
 }
 
 /**
@@ -498,6 +486,27 @@ function dockAlong(value: number, min: number, max: number): number {
   const middle = (min + max) / 2;
   if (Math.abs(value - middle) <= DOCK_SNAP_TOLERANCE) return middle;
   return clamp(value, min, max);
+}
+
+/**
+ * How far off the line through its neighbours an interior joint may sit and still
+ * count as redundant — diagram-js's `pointsOnLine` accuracy.
+ */
+const COLLINEAR_TOLERANCE = 5;
+
+/**
+ * `points` without the interior joints that no longer bend anything: a joint whose
+ * two neighbours it lies (within {@link COLLINEAR_TOLERANCE}) on the line between is
+ * a 180° corner, and diagram-js drops it — which is what lets a bendpoint be REMOVED
+ * by dragging it back into line, at any angle, not just an axis-aligned one.
+ * Endpoints are never dropped: they are docked, not bent.
+ */
+export function dropRedundant(points: readonly Point[]): Point[] {
+  const out = clonePath(points);
+  for (let i = out.length - 2; i >= 1; i -= 1) {
+    if (distanceToSegment(out[i - 1], out[i + 1], out[i]) <= COLLINEAR_TOLERANCE) out.splice(i, 1);
+  }
+  return out;
 }
 
 /** Distance from `p` to the finite segment `a`–`b`. */

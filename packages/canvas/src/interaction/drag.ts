@@ -162,7 +162,14 @@ interface WaypointState {
   origin: Point;
   edge: SceneEdge;
   index: number;
+  /**
+   * The geometry the gesture opened with — WITHOUT the joint an `insert` drag adds,
+   * so cancelling restores the connection the document still has and a drag that
+   * changed nothing commits nothing.
+   */
   original: Point[];
+  /** Whether `index` is a joint this gesture mints at {@link WaypointState.origin}. */
+  insert: boolean;
 }
 
 /** A whole straight run sliding perpendicular to itself (parity spec §2/§3). */
@@ -369,15 +376,25 @@ export class Drag {
     return true;
   }
 
-  /** Begin dragging waypoint `index` of `edge` (an endpoint included). */
-  startWaypoint(edge: SceneEdge, index: number, origin: Point): boolean {
-    if (index < 0 || index >= edge.waypoints.length) return false;
+  /**
+   * Begin dragging waypoint `index` of `edge` (an endpoint included).
+   *
+   * With `insert` the joint does not exist yet: `index` is where it goes and
+   * `origin` — the press, a point on the connection's own line — is where it starts,
+   * which is diagram-js's floating bendpoint. Nothing is inserted until the gesture
+   * moves, because the insertion is re-derived from the snapshot on every frame.
+   */
+  startWaypoint(edge: SceneEdge, index: number, origin: Point, insert = false): boolean {
+    const limit = edge.waypoints.length + (insert ? 1 : 0);
+    if (index < 0 || index >= limit) return false;
+    if (insert && (index < 1 || index > edge.waypoints.length - 1)) return false;
     this.state = {
       kind: 'waypoint',
       origin: { ...origin },
       edge,
       index,
       original: edge.waypoints.map((p) => ({ x: p.x, y: p.y })),
+      insert,
     };
     return true;
   }
@@ -622,15 +639,24 @@ export class Drag {
   }
 
   private applyWaypoint(state: WaypointState, dx: number, dy: number): SceneElement[] {
-    const from = state.original[state.index];
+    // An insert drag works on the snapshot WITH its new joint spliced in — rebuilt
+    // every frame, so the gesture stays a pure function of the original geometry.
+    const base = state.insert
+      ? [
+        ...state.original.slice(0, state.index),
+        { ...state.origin },
+        ...state.original.slice(state.index),
+      ]
+      : state.original;
+    const from = base[state.index];
     const to = { x: this.maybeSnap(from.x + dx, 'x'), y: this.maybeSnap(from.y + dy, 'y') };
-    const terminal = state.index === 0 || state.index === state.original.length - 1;
+    const terminal = state.index === 0 || state.index === base.length - 1;
     if (terminal) {
       // An ENDPOINT drag that got this far was dropped clear of every shape, so it
       // is the free endpoint move: the tip goes exactly where the pointer is
       // (parity spec §1) and the route reaches it squarely (§4).
       state.edge.waypoints = freeMoveEnd(
-        state.original,
+        base,
         state.index === 0 ? 'source' : 'target',
         to,
       );
@@ -640,7 +666,7 @@ export class Drag {
     // runs meeting it bend diagonal when that is where the pointer went — only the
     // docks are re-cropped to their shapes.
     state.edge.waypoints = moveBendpoint(
-      state.original,
+      base,
       state.index,
       to,
       this.shapesOf(state.edge),

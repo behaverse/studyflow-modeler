@@ -1908,7 +1908,7 @@ export class Canvas {
     // Selection-overlay handles are checked first and never change the selection:
     // they sit on top of everything and belong to an already-selected element.
     const handle = this.selection.handleAt(pt);
-    const waypoint = handle ? undefined : this.selection.waypointAt(pt);
+    let waypoint = handle ? undefined : this.selection.waypointAt(pt);
 
     // Empty canvas PANS (parity spec §10); the marquee is the palette lasso tool's,
     // and nothing else arms it ({@link Canvas.activateLasso}).
@@ -1967,8 +1967,17 @@ export class Canvas {
     // must not take the gesture off it.
     let segment: SegmentHit | undefined;
     if (!handle && !waypoint && !label && !this.lassoArmed) {
-      segment = this.selection.segmentAt(pt, { gripsOnly: hit?.kind === 'node' });
-      if (segment) intent = 'segment';
+      const run = this.selection.segmentAt(pt, { gripsOnly: hit?.kind === 'node' });
+      if (run?.grip) {
+        segment = run;
+        intent = 'segment';
+      } else if (run) {
+        // A press on the run's BODY adds a joint there and drags it — diagram-js's
+        // floating bendpoint, and the reason dragging a connection anywhere reshapes
+        // it. Nothing is inserted unless the gesture actually moves.
+        waypoint = { edge: run.edge, index: run.index + 1, insert: true };
+        intent = 'waypoint';
+      }
     }
 
     this.gesture = {
@@ -2151,7 +2160,8 @@ export class Canvas {
       return true;
     }
     if (g.intent === 'waypoint' && g.waypoint) {
-      if (!drag.startWaypoint(g.waypoint.edge, g.waypoint.index, g.downDiagram)) return false;
+      const { edge, index, insert } = g.waypoint;
+      if (!drag.startWaypoint(edge, index, g.downDiagram, insert)) return false;
       this.beginSnapping(g);
       return true;
     }
