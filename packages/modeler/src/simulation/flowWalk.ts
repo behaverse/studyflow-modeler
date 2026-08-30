@@ -1,4 +1,4 @@
-import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { is } from '@modeler/editor/port';
 
 export type Hop =
   | { kind: 'end' }

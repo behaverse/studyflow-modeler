@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { readChoreographyBands } from '@core/document';
-import { ensureChoreographyParticipants, swapChoreographyInitiator } from '@modeler/bpmn/choreographyParticipants';
+import { ensureChoreographyParticipants, swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 

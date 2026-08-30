@@ -45,7 +45,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
                   <li key={g.id} className="border border-black/[0.06] rounded-lg p-3 bg-white/40">
                     <div className="flex items-baseline justify-between gap-3 pb-2">
                       <h4 className="text-sm font-semibold text-stone-900">{g.label}</h4>
-                      <span className="text-[11px] font-mono text-stone-500">{g.type}</span>
+                      <span className="text-[0.6875rem] font-mono text-stone-500">{g.type}</span>
                     </div>
                     <ul className="space-y-1">
                       {g.items.map((item, idx) => (
@@ -59,7 +59,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
                               aria-label={item.text}
                             />
                           ) : (
-                            <span className="mt-1 text-stone-400" aria-hidden="true">
+                            <span className="mt-1 text-stone-500" aria-hidden="true">
                               •
                             </span>
                           )}

@@ -50,10 +50,10 @@ function PaletteTile({ draggable, icon, title, label, handlers }: TileProps) {
       type="button"
       title={title}
       className={paletteFlyout.item}
-      onMouseDown={(e) => handlers.onMouseDown(draggable, e)}
-      onMouseMove={(e) => handlers.onMouseMove(draggable, e)}
-      onMouseUp={handlers.onMouseUp}
-      onMouseLeave={handlers.onMouseUp}
+      onPointerDown={(e) => handlers.onPointerDown(draggable, e)}
+      onPointerMove={(e) => handlers.onPointerMove(draggable, e)}
+      onPointerUp={handlers.onPointerUp}
+      onPointerLeave={handlers.onPointerUp}
       onClick={(e) => handlers.onClick(draggable, e)}
     >
       <PaletteIcon icon={icon} size={22} />

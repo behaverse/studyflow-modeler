@@ -10,7 +10,7 @@ import {
   loopKindOf,
   supportsLoopCharacteristics,
 } from '@modeler/inspector/loopCharacteristics';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 /** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
 
@@ -23,11 +23,16 @@ const packages: Record<string, any> = Object.fromEntries(
 );
 const moddle = new BpmnModdle(packages) as any;
 
-/** Fake DI container: modeling applies writes like bpmn-js would and records the handler used. */
-function fakeModeler() {
+/**
+ * A partial `Editor`: the command reaches the document through `mutate` and
+ * `model` alone, so those two are all the fake owes it. `mutate`
+ * applies each write the way a real backend's undo step would, and records which
+ * of the two writers ran — the distinction the tests below are about.
+ */
+function fakeModeler(): { modeler: Editor; calls: string[] } {
   const calls: string[] = [];
-  const services: Record<string, any> = {
-    modeling: {
+  const modeler = {
+    mutate: {
       updateProperties(element: any, properties: Record<string, any>) {
         calls.push('updateProperties');
         for (const [name, value] of Object.entries(properties)) element.businessObject.set(name, value);
@@ -37,12 +42,12 @@ function fakeModeler() {
         for (const [name, value] of Object.entries(properties)) moddleElement.set(name, value);
       },
     },
-    bpmnFactory: {
-      create: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
+    model: {
+      createBusinessObject: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
     },
-  };
-  // A partial mock: these handlers only resolve services.
-  return { modeler: { get: (name: string) => services[name] } as unknown as Modeler, calls };
+  } as unknown as Editor;
+
+  return { modeler, calls };
 }
 
 function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {

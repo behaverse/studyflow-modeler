@@ -4,14 +4,17 @@ import * as saveDiagram from '@modeler/diagram/save';
 import * as exportDiagram from '@modeler/export/commands';
 import * as inspector from '@modeler/inspector/commands';
 import * as palette from '@modeler/palette/commands';
+import * as popup from '@modeler/popup/commands';
 import * as provenance from '@modeler/provenance/commands';
 import * as publish from '@modeler/publish/commands';
 import * as shape from '@modeler/shape/commands';
 import * as simulation from '@modeler/simulation/commands';
-import type { ServiceResolver } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 /* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
-const FEATURES = [app, diagram, exportDiagram, inspector, palette, provenance, publish, saveDiagram, shape, simulation] as const;
+const FEATURES = [
+  app, diagram, exportDiagram, inspector, palette, popup, provenance, publish, saveDiagram, shape, simulation,
+] as const;
 
 type UnionToIntersection<U> =
   (U extends unknown ? (u: U) => void : never) extends (i: infer I) => void ? I : never;
@@ -26,8 +29,13 @@ type CommandResult<C extends ControllerCommand> = {
   [K in RunKey]: C extends Parameters<Handlers[K]>[1] ? Awaited<ReturnType<Handlers[K]>> : never;
 }[RunKey];
 
+/**
+ * Dispatch `command` against the {@link Editor} (or `null`, at boot, for the
+ * handlers that accept it) — the facade `runCreateModeler` built, which is the
+ * only way a handler reaches the diagram.
+ */
 export async function executeCommand<C extends ControllerCommand>(
-  modeler: ServiceResolver | null,
+  modeler: Editor | null,
   command: C,
 ): Promise<CommandResult<C>> {
   const name = `run${command.type}`;

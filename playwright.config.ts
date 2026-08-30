@@ -20,6 +20,7 @@ export default defineConfig({
       testMatch: '**/*.unit.spec.ts',
       fullyParallel: true,
     },
+    // Browser specs against the one editor the app ships.
     {
       name: 'e2e',
       testIgnore: ['**/*.unit.spec.ts', '**/*.webkit.spec.ts'],

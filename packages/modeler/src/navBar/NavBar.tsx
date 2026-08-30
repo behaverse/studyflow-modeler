@@ -12,24 +12,25 @@ import { surface, shadow, border, text, radius, button } from '@modeler/ui/style
 import { ICONS } from '@modeler/icons';
 
 const navbar = {
-  brand: 'fixed top-2 left-[-10px] z-50 flex items-center gap-2.5 px-4 h-12 select-none',
-  brandImage: 'h-12 w-12',
-  brandWordmark: 'text-md leading-none select-none text-violet-800',
+  brand: 'fixed top-2 left-0 z-50 flex items-center gap-2.5 px-1.5 h-12 select-none',
+  brandImage: 'h-12 w-12 shrink-0',
+  /* The wordmark is the first thing to go when the top row gets tight: it is a
+     label on a logo that already identifies the app, and the two buttons it
+     would crowd out are not. `--brand-gutter` flips at the same 1024px. */
+  brandWordmark: 'hidden lg:inline-block text-base leading-none select-none text-violet-800',
   brandWordmarkLight: 'font-light',
   brandWordmarkBold: 'font-semibold',
 
-  shell: `fixed top-2 left-1/2 -translate-x-1/2 z-50 flex items-center h-10
-          max-w-[calc(100vw-32px)]
-          md:left-[calc(50%-72px-(var(--inspector-width,288px)-288px)/2)]
-          md:max-w-[calc(100vw-176px-var(--inspector-width,288px))]
-          [body.inspector-collapsed_&]:md:left-[calc(50%+55px)]
-          [body.inspector-collapsed_&]:md:max-w-[calc(100vw-220px)]
+  /* Centred in the gap the brand and the inspector leave, at every width and
+     every UI scale -- see the `--navbar-*` note in `assets/css/app.css`. */
+  shell: `fixed top-2 z-50 flex items-center h-10
+          left-[var(--navbar-left)] -translate-x-1/2 max-w-[var(--navbar-max-width)]
           ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
           px-1.5`,
 
   diagramSlot: 'flex items-center min-w-0 flex-shrink',
-  diagramName: `text-[13px] font-medium ${text.secondary} cursor-pointer px-2 py-1 ${radius.field} hover:bg-black/[0.05] transition-colors truncate`,
-  diagramNameInput: `text-[13px] font-medium ${text.primary} ${surface.card} ${radius.field} px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-cream-400`,
+  diagramName: `text-sm font-medium ${text.secondary} cursor-pointer px-2 py-1 ${radius.field} hover:bg-black/[0.05] transition-colors truncate`,
+  diagramNameInput: `text-sm font-medium ${text.primary} ${surface.card} ${radius.field} px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-[hsl(205,100%,45%)]`,
 
   menuContainer: 'flex items-center gap-0.5 ml-1 flex-shrink-0',
 } as const;
@@ -65,7 +66,7 @@ function SimulateButton() {
   );
 }
 
-const RUN_BUTTON_CLS = 'inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold rounded-r-lg h-7 px-3.5 transition-colors text-white bg-[#520BBF] hover:bg-[#4309A2] disabled:opacity-50 disabled:cursor-wait';
+const RUN_BUTTON_CLS = 'inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-r-lg h-7 px-3.5 transition-colors text-white bg-[#520BBF] hover:bg-[#4309A2] disabled:opacity-50 disabled:cursor-wait';
 
 function RunButton() {
   const modeler = useModeler();
@@ -165,7 +166,7 @@ export function NavBar() {
           </div>
 
           {modeler && (
-            <div className="hidden md:flex items-center flex-shrink-0">
+            <div className="hidden sm:flex items-center flex-shrink-0">
               <div className={navDividerCls} />
               <SimulateButton />
               <RunButton />

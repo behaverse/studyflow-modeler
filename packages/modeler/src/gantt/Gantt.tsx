@@ -119,7 +119,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                   </section>
                 ))}
                 {!hasScale && (
-                  <p className="text-[11px] text-stone-500 italic">
+                  <p className="text-[0.6875rem] text-stone-500 italic">
                     No parseable <code>onset</code> values found; bars are placed at column 0
                     and sized by <code>duration</code> only.
                   </p>

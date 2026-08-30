@@ -1,22 +1,9 @@
+import { isExpandable } from '@canvas/index.ts';
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
-import { buildBusinessObject } from '@modeler/shape/buildBusinessObject';
-import type { Modeler } from '@modeler/bpmn/types';
-
-/** Without a primed hover the dragger draws no CreatePreview until the next mouse move. */
-function primeHoverFromEvent(modeler: Modeler, event: MouseEvent | any): void {
-  if (!event || typeof event.clientX !== 'number') return;
-
-  const dragging = modeler.get('dragging');
-  const canvas = modeler.get('canvas');
-  const elementRegistry = modeler.get('elementRegistry');
-  const rootElement = canvas.getRootElement();
-  const rootGfx = elementRegistry.getGraphics(rootElement);
-
-  dragging.hover({ element: rootElement, gfx: rootGfx });
-  dragging.move(event);
-}
-
+import { buildBusinessObject } from '@canvas/model/build.ts';
+import { openPopupMenu } from '@modeler/editor/popupMenus';
+import type { Editor } from '@modeler/editor/port';
 
 export type PaletteStartCreateTemplateCommand = {
   type: 'PaletteStartCreateTemplate';
@@ -24,20 +11,16 @@ export type PaletteStartCreateTemplateCommand = {
   event: MouseEvent | any;
 };
 
-export function runPaletteStartCreateTemplate(modeler: Modeler, command: PaletteStartCreateTemplateCommand): any {
-  const elementTemplates = modeler.get('elementTemplates');
-  const template = elementTemplates.getAll().find((t: any) => t.id === command.templateId);
+export function runPaletteStartCreateTemplate(modeler: Editor, command: PaletteStartCreateTemplateCommand): any {
+  const template = modeler.templates.getAll().find((t: any) => t.id === command.templateId);
   if (!template) return undefined;
 
-  const created = elementTemplates.createElement(template);
-  const create = modeler.get('create');
+  const created = modeler.templates.createElement(template);
 
-  if (Array.isArray(created)) {
-    create.start(command.event, created, { hints: { autoSelect: [created[0]] } });
-  } else {
-    create.start(command.event, created);
-  }
-  primeHoverFromEvent(modeler, command.event);
+  // A template may describe several shapes; the create gesture drags the ROOT one
+  // and the rest are materialized once it lands (`editor/mount.ts`).
+  const root = Array.isArray(created) ? created[0] : created;
+  if (root) modeler.canvas.startCreate(command.event, root);
 
   return created;
 }
@@ -51,18 +34,24 @@ export type PaletteStartCreateCommand = {
   extensionType?: string;
 };
 
-export function runPaletteStartCreate(modeler: Modeler, command: PaletteStartCreateCommand): any {
-  const bo = buildBusinessObject(modeler, command.bpmnType, {
+export function runPaletteStartCreate(modeler: Editor, command: PaletteStartCreateCommand): any {
+  const bo = buildBusinessObject(modeler.model, command.bpmnType, {
     attributes: command.attributes,
     extensionType: command.extensionType,
   });
-  const shape = modeler.get('elementFactory').createShape({
+  const shape = modeler.canvas.createShape({
     type: command.bpmnType,
     businessObject: bo,
+    // A container dropped from the palette is born COLLAPSED — a 100×80 activity box
+    // wearing the ⊞ marker and a drill-down badge, whose contents live in a nested
+    // plane the create path mints alongside it (`Writeback.addNestedPlane`).
+    // Without the explicit flag a `BPMNShape` that omits `isExpanded` reads as
+    // expanded, and the drop produced a bare rectangle with no marker, no badge and
+    // no way to author anything inside it.
+    ...(isExpandable(command.bpmnType) ? { isExpanded: false } : {}),
   });
 
-  modeler.get('create').start(command.event, shape);
-  primeHoverFromEvent(modeler, command.event);
+  modeler.canvas.startCreate(command.event, shape);
 
   return shape;
 }
@@ -88,14 +77,15 @@ export type PaletteOpenPopupCommand = {
   title: string;
 };
 
-export function runPaletteActivateLasso(modeler: Modeler, command: PaletteActivateLassoCommand): void {
-  modeler.get('lassoTool').activateSelection(command.event);
+export function runPaletteActivateLasso(modeler: Editor, _command: PaletteActivateLassoCommand): void {
+  // ARMS the tool; the NEXT drag draws the marquee. The button's own event is
+  // deliberately not passed on — dragging empty canvas pans (parity spec §10), so
+  // there is no gesture to continue from here, only a mode to enter.
+  modeler.canvas.activateLasso();
 }
 
-export function runPaletteOpenPopup(modeler: Modeler, command: PaletteOpenPopupCommand): void {
-  // `popupMenu.open` types its target more narrowly than the `RootLike` it accepts.
-  const rootElement = modeler.get('canvas').getRootElement() as any;
-  modeler.get('popupMenu').open(rootElement, command.popupType, command.position, {
+export function runPaletteOpenPopup(_modeler: Editor, command: PaletteOpenPopupCommand): void {
+  openPopupMenu(command.popupType, command.position, {
     title: command.title,
     width: 300,
     search: false,
@@ -141,7 +131,7 @@ export type ResolvePaletteSchemasCommand = {
 };
 
 export function runResolvePaletteSchemas(
-  _modeler: Modeler,
+  _modeler: Editor,
   _command: ResolvePaletteSchemasCommand,
 ): PaletteSchema[] {
   return getCatalog().schemas.map((schema): PaletteSchema => ({

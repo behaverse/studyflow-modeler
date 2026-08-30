@@ -9,13 +9,10 @@ import {
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
 import { shortWhen } from '@modeler/provenance/Provenance';
-import {
-  computeSegLengths,
-  samplePolyline,
-  smootherstep,
-  type Point,
-} from '@modeler/simulation/TokenSimulator';
+import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
+import type { Point } from '@canvas/model/scene.ts';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
+import type { Canvas, EditorElements, Editor } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -36,17 +33,17 @@ const DETAIL_ICONS: Record<string, string> = {
   what: ICONS.script,
 };
 
-/** An element the registry knows for this record: its own scope, or the flow its `what` mentions. */
-function elementsOf(record: ProvenanceRecord, registry: any): any[] {
+/** An element the editor knows for this record: its own scope, or the flow its `what` mentions. */
+function elementsOf(record: ProvenanceRecord, elements: EditorElements): any[] {
   const found: any[] = [];
-  if (!record.isDocument && registry.get(record.scopeId)) found.push(registry.get(record.scopeId));
+  if (!record.isDocument && elements.get(record.scopeId)) found.push(elements.get(record.scopeId));
   // `what` is a flow id on gateway decisions, a timestamp elsewhere; only the former resolves.
-  if (record.what && registry.get(record.what)) found.push(registry.get(record.what));
+  if (record.what && elements.get(record.what)) found.push(elements.get(record.what));
   return found;
 }
 
-function resetSvgStyles(canvas: any): void {
-  const svg = canvas?.getContainer?.()?.querySelector('svg');
+function resetSvgStyles(canvas: Canvas): void {
+  const svg = canvas.getContainer()?.querySelector('svg');
   if (!svg) return;
   svg.style.transition = '';
   svg.style.transform = '';
@@ -54,7 +51,7 @@ function resetSvgStyles(canvas: any): void {
 }
 
 /** Dim the canvas, light up elements as their records land, and float a token on the active one. */
-function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
+function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   const marked = useRef<Array<[string, string]>>([]);
   const tokenRef = useRef<any>(null);
   const tokenPos = useRef<{ x: number; y: number; elId: string; rootId?: string } | null>(null);
@@ -62,13 +59,11 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
   const planeShift = useRef<number | null>(null);
 
   useEffect(() => {
-    const canvas = modeler?.get?.('canvas', false);
-    if (!canvas) return undefined;
+    const { canvas, elements } = editor;
     canvas.getContainer()?.classList.add('replay-active');
     return () => {
       canvas.getContainer()?.classList.remove('replay-active');
-      const registry = modeler.get('elementRegistry', false);
-      for (const [id, m] of marked.current) if (registry?.get(id)) canvas.removeMarker(id, m);
+      for (const [id, m] of marked.current) if (elements.get(id)) canvas.removeMarker(id, m);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
       glideFrame.current = null;
@@ -79,12 +74,11 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       tokenRef.current?.remove();
       tokenRef.current = null;
     };
-  }, [modeler]);
+  }, [editor]);
 
   useEffect(() => {
-    const canvas = modeler?.get?.('canvas', false);
-    const registry = modeler?.get?.('elementRegistry', false);
-    if (!canvas || !registry) return;
+    const { canvas, elements: registry } = editor;
+    const viewport = canvas.getViewport();
 
     const touched = new Set<string>();
     const newest = new Map<string, ProvenanceRecord>();
@@ -113,7 +107,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     // The token: a pulsing circle on the element the newest record activates or mentions.
     const current = shown[shown.length - 1];
     const target = current ? elementsOf(current, registry).find((el) => el.width) : undefined;
-    const layer = canvas.getLayer('provenance-replay', 1000);
+    const layer = canvas.getHostLayer('provenance-replay', 1000);
     if (!tokenRef.current) {
       tokenRef.current = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       tokenRef.current.setAttribute('r', '8');
@@ -148,12 +142,12 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     token.style.display = '';
     token.style.opacity = '';
     const to = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-    const rootId = canvas.findRoot?.(target)?.id;
+    const rootId = registry.findRoot(target)?.id;
     const from = tokenPos.current;
 
     // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
     const camera = (center: Point) => {
-      const vb = canvas.viewbox();
+      const vb = canvas.getViewbox();
       const scale = Math.min(1.3, Math.max(0.6, vb.scale));
       const width = vb.outer.width / scale;
       const height = vb.outer.height / scale;
@@ -165,8 +159,8 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     if (!from || from.rootId !== rootId) {
       const place = () => {
         setPos(to, target.id, rootId);
-        try { canvas.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
-        canvas.viewbox(camera(to));
+        try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
+        viewport.setViewbox(camera(to));
       };
       const svg = canvas.getContainer()?.querySelector('svg');
       if (!from || !svg) {
@@ -176,26 +170,26 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       // The doorway: the collapsed shape being entered (on the old plane), or the shape the old
       // plane belongs to (on the new one); the camera flies through it, so the move is visible.
       const shapeOf = (root: any) => (root?.businessObject?.id ? registry.get(root.businessObject.id) : undefined);
-      const oldRoot = canvas.getRootElement?.();
-      const newRoot = canvas.findRoot?.(target);
+      const oldRoot = registry.root();
+      const newRoot = registry.findRoot(target);
       const doorIn = shapeOf(newRoot);
       const doorOut = shapeOf(oldRoot);
-      const inward = !!doorIn && canvas.findRoot?.(doorIn) === oldRoot;
-      const outward = !inward && !!doorOut && canvas.findRoot?.(doorOut) === newRoot;
+      const inward = !!doorIn && registry.findRoot(doorIn) === oldRoot;
+      const outward = !inward && !!doorOut && registry.findRoot(doorOut) === newRoot;
       const doorway = (shape: any) => {
-        const vb = canvas.viewbox();
+        const vb = canvas.getViewbox();
         const scale = Math.min(3, vb.outer.width / (shape.width * 1.5), vb.outer.height / (shape.height * 1.5));
         const width = vb.outer.width / scale;
         const height = vb.outer.height / scale;
         return { x: shape.x + shape.width / 2 - width / 2, y: shape.y + shape.height / 2 - height / 2, width, height };
       };
       const fly = (dest: any, ms: number, fade: 'out' | 'in', then?: () => void) => {
-        const vb0 = canvas.viewbox();
+        const vb0 = canvas.getViewbox();
         const start = performance.now();
         const frame = (now: number) => {
           const t = Math.min((now - start) / ms, 1);
           const eased = smootherstep(t);
-          canvas.viewbox({
+          viewport.setViewbox({
             x: vb0.x + (dest.x - vb0.x) * eased,
             y: vb0.y + (dest.y - vb0.y) * eased,
             width: vb0.width + (dest.width - vb0.width) * eased,
@@ -235,9 +229,9 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
           setPos(to, target.id, rootId);
-          try { canvas.scrollToElement(target, 80); } catch { /* off-root elements can decline */ }
+          try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
           const dest = camera(to);
-          canvas.viewbox(doorway(doorOut));
+          viewport.setViewbox(doorway(doorOut));
           svg.style.transition = 'none';
           fly(dest, 420, 'in', () => resetSvgStyles(canvas));
         }, 170);
@@ -271,13 +265,13 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
     const { segLengths, totalDist } = computeSegLengths(points);
     const duration = Math.min(450, Math.max(200, totalDist / 0.7));
     const start = performance.now();
-    const vb0 = canvas.viewbox();
+    const vb0 = canvas.getViewbox();
     const dest = camera(to);
     const frame = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
       const eased = smootherstep(t);
       setPos(samplePolyline(points, segLengths, eased * totalDist), target.id, rootId);
-      canvas.viewbox({
+      viewport.setViewbox({
         x: vb0.x + (dest.x - vb0.x) * eased,
         y: vb0.y + (dest.y - vb0.y) * eased,
         width: vb0.width + (dest.width - vb0.width) * eased,
@@ -286,7 +280,7 @@ function useReplayHighlights(modeler: any, shown: ProvenanceRecord[]): void {
       glideFrame.current = t < 1 ? requestAnimationFrame(frame) : null;
     };
     glideFrame.current = requestAnimationFrame(frame);
-  }, [modeler, shown]);
+  }, [editor, shown]);
 }
 
 type Props = { onClose: () => void };
@@ -295,32 +289,28 @@ const scopeName = (r: ProvenanceRecord) =>
   (r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId);
 
 export function ReplayPanel({ onClose }: Props) {
-  const modeler = useRequiredModeler();
+  const editor = useRequiredModeler();
   // `importXML` fires no `commandStack.changed`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const eventBus = modeler?.get?.('eventBus', false);
-    if (!eventBus) return undefined;
-    eventBus.on('import.done', bumpDocVersion);
-    return () => eventBus.off('import.done', bumpDocVersion);
-  }, [modeler]);
+    editor.events.on('import.done', bumpDocVersion);
+    return () => editor.events.off('import.done', bumpDocVersion);
+  }, [editor]);
   return <ReplayTimeline key={docVersion} onClose={onClose} />;
 }
 
 function ReplayTimeline({ onClose }: Props) {
-  const modeler = useRequiredModeler();
+  const editor = useRequiredModeler();
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const eventBus = modeler?.get?.('eventBus', false);
-    if (!eventBus) return undefined;
-    eventBus.on('commandStack.changed', bumpRevision);
-    return () => eventBus.off('commandStack.changed', bumpRevision);
-  }, [modeler]);
+    editor.events.on('commandStack.changed', bumpRevision);
+    return () => editor.events.off('commandStack.changed', bumpRevision);
+  }, [editor]);
 
   const records = useMemo(
-    () => collectProvenance(modeler?.getDefinitions?.()),
+    () => collectProvenance(editor.getDefinitions()),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
-    [modeler, revision],
+    [editor, revision],
   );
   const total = records.length;
 
@@ -346,7 +336,7 @@ function ReplayTimeline({ onClose }: Props) {
   // Clones per step: `applyStatuses` re-derives the as-of-this-moment flags without touching the originals.
   const shown = applyStatuses(records.slice(0, at).map((r) => ({ ...r })));
   const current = shown[shown.length - 1];
-  useReplayHighlights(modeler, shown);
+  useReplayHighlights(editor, shown);
 
   const jump = (to: number) => {
     setPlaying(false);
@@ -395,7 +385,7 @@ function ReplayTimeline({ onClose }: Props) {
       <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat} text-stone-900 px-3 py-2`}>
         <div className="flex items-center gap-1">
           <h1
-            className="text-[15px] font-semibold text-stone-900 tracking-tight pr-2"
+            className="text-base font-semibold text-stone-900 tracking-tight pr-2"
             title="Elements light up as their records land; the token marks the active step, colored by branch"
           >
             Replay
@@ -422,7 +412,7 @@ function ReplayTimeline({ onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setSpeedIdx((i) => (i + 1) % SPEEDS.length)}
-                className="px-1.5 py-0.5 rounded-md text-[11px] font-mono text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer transition-colors"
+                className="px-1.5 py-0.5 rounded-md text-[0.6875rem] font-mono text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer transition-colors"
                 title="Speed"
                 aria-label={`Speed ${SPEEDS[speedIdx].label}`}
               >
@@ -433,27 +423,27 @@ function ReplayTimeline({ onClose }: Props) {
                 <div className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden whitespace-nowrap">
                   {current.icon && <i className={`${current.icon} size-3.5 shrink-0 text-stone-500`} aria-hidden="true" />}
                   <span className={`text-sm font-semibold shrink-0 ${current.action === 'invalidated' ? 'text-red-600' : 'text-stone-900'}`}>{current.action}</span>
-                  <span className="text-[11px] font-mono text-stone-500 truncate max-w-[14rem]" title={current.isDocument ? current.scopeId : current.scopeLabel}>
+                  <span className="text-[0.6875rem] font-mono text-stone-500 truncate max-w-[14rem]" title={current.isDocument ? current.scopeId : current.scopeLabel}>
                     {scopeName(current)}
                   </span>
                   {recordDetails(current).map(([label, value]) => (
-                    <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[11px] font-mono text-stone-500" title={`${label}: ${value}`}>
-                      <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-400`} aria-hidden="true" />
+                    <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[0.6875rem] font-mono text-stone-500" title={`${label}: ${value}`}>
+                      <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-500`} aria-hidden="true" />
                       <span className="truncate max-w-[10rem]">{value}</span>
                     </span>
                   ))}
-                  <span className="text-[11px] font-mono text-stone-400 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
+                  <span className="text-[0.6875rem] font-mono text-stone-500 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
                   {current.note && <span className="text-xs italic text-stone-500 truncate min-w-0" title={current.note}>{current.note}</span>}
                 </div>
               ) : (
                 <p className="flex-1 text-xs text-stone-500 italic">Before the first record.</p>
               )}
               {runs > 0 && (
-                <span className="text-[11px] text-stone-400 whitespace-nowrap shrink-0">
+                <span className="text-[0.6875rem] text-stone-500 whitespace-nowrap shrink-0">
                   <strong className="text-stone-500">{runs}</strong> {runs === 1 ? 'run' : 'runs'}
                 </span>
               )}
-              <span className="text-[11px] font-mono text-stone-400 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
+              <span className="text-[0.6875rem] font-mono text-stone-500 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
             </>
           )}
           <button type="button" onClick={onClose} className={btn} title="Stop the replay and bring the inspector back" aria-label="Close replay">
@@ -476,7 +466,7 @@ function ReplayTimeline({ onClose }: Props) {
             onPointerMove={(e) => { if (e.buttons & 1) scrub(e.clientX); }}
           >
             <div className="absolute inset-x-0 top-1/2 h-px bg-black/10" aria-hidden="true" />
-            <div className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-stone-400/40" style={{ left: 0, width: frac(at) }} aria-hidden="true" />
+            <div className="absolute top-1/2 h-[0.1875rem] -translate-y-1/2 rounded-full bg-stone-400/40" style={{ left: 0, width: frac(at) }} aria-hidden="true" />
             {trail.map(({ record: r, lane }, i) => {
               // Run stamps read as tall section marks, invalidation markers as red, the rest by lane.
               const stamp = r.isDocument && r.action === 'executed';
@@ -484,7 +474,7 @@ function ReplayTimeline({ onClose }: Props) {
               return (
                 <span
                   key={i}
-                  className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity ${stamp ? 'w-[5px] h-5' : 'w-[3px] h-2.5'} ${i < at ? '' : 'opacity-25'}`}
+                  className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity ${stamp ? 'w-[0.3125rem] h-5' : 'w-[0.1875rem] h-2.5'} ${i < at ? '' : 'opacity-25'}`}
                   style={{ left: frac(i + 1), backgroundColor: color }}
                   title={`${i + 1}/${total} · ${r.action} ${scopeName(r)} — ${shortWhen(r.when) ?? '—'}`}
                 />
@@ -496,8 +486,8 @@ function ReplayTimeline({ onClose }: Props) {
               style={{ left: frac(at) }}
               aria-hidden="true"
             >
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] rounded-full bg-stone-900" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 rounded-[2px] rotate-45 bg-stone-900" />
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[0.125rem] rounded-full bg-stone-900" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 rounded-[0.125rem] rotate-45 bg-stone-900" />
             </div>
           </div>
         )}

@@ -420,14 +420,13 @@ type Direction = 'input' | 'output';
 export function DataFlowSection({ direction }: { direction: Direction }) {
   const element = useInspectedElement();
   const modeler = useRequiredModeler();
-  const eventBus = modeler.get('eventBus');
 
   const [, setRevision] = useState(0);
   useEffect(() => {
     const bump = () => setRevision((r) => r + 1);
-    eventBus.on('elements.changed', bump);
-    return () => eventBus.off('elements.changed', bump);
-  }, [eventBus]);
+    modeler.events.on('elements.changed', bump);
+    return () => modeler.events.off('elements.changed', bump);
+  }, [modeler]);
 
   const inScope = getPropertiesInScope(element);
   const neighbors: Record<Direction, DataNeighbor[]> = {

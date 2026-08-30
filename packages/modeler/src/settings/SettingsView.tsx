@@ -201,7 +201,7 @@ function AccountSection() {
                 Sign out
               </button>
             )}
-            {isGuest && loginError && <p className="text-[12px] text-red-700">{loginError}</p>}
+            {isGuest && loginError && <p className="text-xs text-red-700">{loginError}</p>}
           </div>
         }
       />
@@ -253,6 +253,18 @@ function EditorSection() {
             label="Show grid"
             checked={settings.showGrid}
             onChange={(showGrid) => update({ showGrid })}
+          />
+        }
+      />
+
+      <Row
+        label="Snap to grid"
+        help="Land dragged, resized and newly created elements on the grid. Turn this off to place them freely."
+        control={
+          <ToggleControl
+            label="Snap to grid"
+            checked={settings.snapToGrid}
+            onChange={(snapToGrid) => update({ snapToGrid })}
           />
         }
       />

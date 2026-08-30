@@ -1,4 +1,4 @@
-import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { is } from '@modeler/editor/port';
 import { getCatalog } from '@core/notation';
 import { toBusinessObject, type ModdleElement } from '@core/element';
 import { isDeclaredProperty } from '@core/constants';

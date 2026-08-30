@@ -1,5 +1,5 @@
 import { StudyflowElement } from '@core/element';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 type TimingAttrs = {
   onset?: string;
@@ -137,11 +137,11 @@ function buildGanttRow(el: any, anchor: number): Row | null {
 }
 
 /** One row per element carrying a timing attribute; onsets are relative to a single shared anchor. */
-export function collectGanttRows(modeler: Modeler): Row[] {
+export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
   const rows: Row[] = [];
   const anchor = Date.now();
-  modeler.get('elementRegistry').forEach((el: any) => {
+  modeler.elements.forEach((el: any) => {
     if (el.type === 'label') return;
     const row = buildGanttRow(el, anchor);
     if (row) rows.push(row);

@@ -4,45 +4,54 @@ import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { exportToArtemis } from '@modeler/export/artemis';
 import { exportToDrawio } from '@modeler/export/drawio';
 import { carriesDiagram, exportFilename, getExportFormat, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
-import { remoteIconSource } from '@modeler/export/iconSource';
 import { exportToLinkML } from '@modeler/export/linkml';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { exportToNidm } from '@modeler/export/nidm';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
-import { embedIconsInSvg, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
+import { embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 export type ExportDiagramCommand = {
   type: 'ExportDiagram';
   format?: ExportFormatId;
 };
 
-async function toExportableXml(modeler: Modeler): Promise<string> {
+async function toExportableXml(modeler: Editor): Promise<string> {
   const { xml } = await modeler.saveXML({ format: true });
-  return toWireXml(xml, modeler.get('moddle'));
+  return toWireXml(xml, modeler.model.moddle());
 }
 
-async function renderSvg(modeler: Modeler): Promise<{ svg: string; xml: string }> {
-  const [{ svg }, compactXml] = await Promise.all([modeler.saveSVG(), toExportableXml(modeler)]);
-  const xml = await toStandardBpmnXml(compactXml, modeler.get('moddle'));
+/**
+ * The diagram as a self-contained SVG, plus its XML.
+ *
+ * No icon substitution pass: the renderer draws resolved glyphs as real `<svg>`
+ * bodies (`draw/iconCache.ts`, parity addendum 6 §2), so what the canvas serializes
+ * is already what the export carries.
+ */
+async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }> {
+  // The SVG first, synchronously: it is a snapshot of the canvas as it stands, and
+  // `toExportableXml` walks the same live moddle tree.
+  const svg = modeler.canvas.toSVG();
+  const compactXml = await toExportableXml(modeler);
+  const xml = await toStandardBpmnXml(compactXml, modeler.model.moddle());
   const cleaned = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
-  return { svg: await embedIconsInSvg(cleaned, remoteIconSource), xml };
+  return { svg: cleaned, xml };
 }
 
 const ENCODERS: Record<ExportFormatId, (ctx: {
-  modeler: Modeler;
+  modeler: Editor;
   renderSvg: () => Promise<{ svg: string; xml: string }>;
   /** The semantic view of the diagram, built on demand; only the interchange formats read it. */
   exportModel: () => ExportModel;
 }) => Promise<BlobPart> | BlobPart> = {
   studyflow: async ({ modeler }) =>
-    xmlToStudyflow(await toExportableXml(modeler), modeler.get('moddle')),
+    xmlToStudyflow(await toExportableXml(modeler), modeler.model.moddle()),
 
   // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
   bpmn: async ({ modeler }) =>
-    toStandardBpmnXml(await toExportableXml(modeler), modeler.get('moddle')),
+    toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle()),
 
   drawio: ({ modeler }) => exportToDrawio(modeler),
   linkml: ({ exportModel }) => exportToLinkML(exportModel()),
@@ -71,7 +80,7 @@ const ENCODERS: Record<ExportFormatId, (ctx: {
  * Lives here rather than beside the rest of the trail because it reads the build version through
  * `import.meta`, and `provenance/trail.ts` is loaded by the browserless unit specs, which cannot.
  */
-export function stampProvenance(modeler: Modeler, format: ExportFormat): void {
+export function stampProvenance(modeler: Editor, format: ExportFormat): void {
   if (!carriesDiagram(format)) return;
   stampTrailForExport(modeler, {
     who: getStoredUserEmail(),
@@ -81,7 +90,7 @@ export function stampProvenance(modeler: Modeler, format: ExportFormat): void {
 
 /** The bytes of the diagram in one format. Shared with saving, which writes them straight to disk. */
 export function encodeDiagram(
-  modeler: Modeler,
+  modeler: Editor,
   format: ExportFormat,
 ): Promise<BlobPart> | BlobPart {
   return ENCODERS[format.id]({
@@ -91,7 +100,7 @@ export function encodeDiagram(
   });
 }
 
-export async function runExportDiagram(modeler: Modeler, command: ExportDiagramCommand): Promise<void> {
+export async function runExportDiagram(modeler: Editor, command: ExportDiagramCommand): Promise<void> {
   const format = getExportFormat(command.format ?? 'studyflow');
 
   stampProvenance(modeler, format);

@@ -2,11 +2,18 @@ import { expect, test } from '@playwright/test';
 
 import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
-/** One selector over BPMN's four repetition states, kept in sync with the canvas marker and the saved YAML. */
+/**
+ * One selector over BPMN's four repetition states, kept in sync with the canvas marker and the saved YAML.
+ *
+ * The marker's identity is its icon KEY, not its geometry: since the canvas resolves
+ * glyphs to inline `<svg class="sf-icon">` bodies, `parallel` and `sequential` share
+ * their `<path d>` verbatim and differ only by a `rotate(90 …)` wrapper — a
+ * path-based selector would match both and these assertions would pass vacuously.
+ */
 
-const LOOP_MARKER = '[data-icon-class="iconify mdi--loop"]';
-const PARALLEL_MARKER = '[data-icon-class="iconify solar--hamburger-menu-linear rotate-90"]';
-const SEQUENTIAL_MARKER = '[data-icon-class="iconify solar--hamburger-menu-linear"]';
+const LOOP_MARKER = '[data-icon-key="loop"]';
+const PARALLEL_MARKER = '[data-icon-key="parallel"]';
+const SEQUENTIAL_MARKER = '[data-icon-key="sequential"]';
 
 test.describe('Inspector repetition controls', () => {
   test('edits loopCharacteristics with live canvas markers, undo, and YAML round-trip', async ({ page }) => {

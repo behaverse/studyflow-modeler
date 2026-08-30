@@ -8,6 +8,7 @@
 
     "paths": {
         "@core/*": ["./packages/core/src/*"],
+        "@canvas/*": ["./packages/canvas/src/*"],
         "@modeler/*": ["./packages/modeler/src/*"],
         "@runner/*": ["./packages/runner/src/*"],
         "#assets/*": ["./assets/*"]

@@ -21,6 +21,8 @@ export const ICONS = {
   help: 'iconify bi--patch-question',
   book: 'iconify bi--book',
   arrowLeft: 'iconify bi--arrow-left',
+  arrowRight: 'iconify bi--arrow-right',
+  palette: 'iconify bi--palette',
   arrowRepeat: 'iconify bi--arrow-repeat',
   arrowClockwise: 'iconify bi--arrow-clockwise',
   arrowCounterclockwise: 'iconify bi--arrow-counterclockwise',
@@ -88,11 +90,6 @@ export const ICONS = {
   pentagon: 'iconify mdi--pentagon-outline',
   hexagon: 'iconify tabler--hexagon',
 
-  bpmnTask: 'iconify bpmn--task-none',
-  bpmnUserTask: 'iconify bpmn--user-task',
-  bpmnServiceTask: 'iconify bpmn--service-task',
-  bpmnScriptTask: 'iconify bpmn--script-task',
-  bpmnManualTask: 'iconify bpmn--manual-task',
   bpmnSubprocess: 'iconify bpmn--subprocess-collapsed',
   bpmnStartEvent: 'iconify bpmn--start-event-none',
   bpmnIntermediateEvent: 'iconify bpmn--intermediate-event-none',
@@ -105,6 +102,15 @@ export const ICONS = {
   bpmnParticipant: 'iconify bpmn--participant',
   bpmnGroup: 'iconify bpmn--group',
   bpmnCompensationMarker: 'iconify bpmn--compensation-marker',
+
+  /* Context-pad glyphs — bi/mdi like the rest of the chrome, so the pad's icons
+     read as one family with the toolbar and menus rather than the bpmn font's. */
+  cardText: 'iconify bi--card-text',
+  arrowUpRight: 'iconify bi--arrow-up-right',
+  trash: 'iconify bi--trash3',
+  arrowsAngleExpand: 'iconify bi--arrows-angle-expand',
+  slash: 'iconify bi--slash-lg',
+  swapVertical: 'iconify mdi--swap-vertical',
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -6,7 +6,7 @@ import { notify } from '@modeler/app/noticeStore';
 import { executeCommand } from '@modeler/commandBus';
 import { linkOpenedFile } from '@modeler/diagram/fileHandle';
 import { OPENABLE_EXTENSIONS } from '@modeler/export/formats';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 export const OPEN_INVALID_MESSAGE =
   'Choose a .studyflow.yaml, .bpmn, .svg, .png, or jsPsych .json file.';
@@ -25,7 +25,7 @@ export const isBinaryDiagram = (filename: string): boolean => filename.toLowerCa
  * `<input>` never does — links the file, so later saves write back into it.
  */
 export async function openDiagramFile(
-  modeler: Modeler,
+  modeler: Editor,
   file: File,
   handle?: FileSystemFileHandle,
 ): Promise<boolean> {

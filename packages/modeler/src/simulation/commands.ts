@@ -1,14 +1,14 @@
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 export type ToggleSimulationCommand = {
   type: 'ToggleSimulation';
 };
 
 export function runToggleSimulation(
-  modeler: Modeler,
+  modeler: Editor,
   _command: ToggleSimulationCommand,
 ): { active: boolean } {
-  const simulator = modeler.get('tokenSimulator');
-  simulator.toggle();
-  return { active: simulator.isActive() };
+  const { simulation } = modeler;
+  simulation.toggle();
+  return { active: simulation.isActive() };
 }

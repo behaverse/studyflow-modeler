@@ -15,14 +15,14 @@ import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 import { Popup, SchemaPopup } from '@modeler/palette/flyouts';
 import { palette } from '@modeler/palette/styles';
 import type { PaletteSchema } from '@modeler/palette/commands';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 import { ICONS } from '@modeler/icons';
 
 type ButtonProps = {
   title: string;
   onClick?: MouseEventHandler<HTMLButtonElement>;
-  onMouseUp?: () => void;
-  onMouseLeave?: () => void;
+  onPointerUp?: () => void;
+  onPointerLeave?: () => void;
   ariaExpanded?: boolean;
   className?: string;
   children: ReactNode;
@@ -31,8 +31,8 @@ type ButtonProps = {
 function PaletteButton({
   title,
   onClick,
-  onMouseUp,
-  onMouseLeave,
+  onPointerUp,
+  onPointerLeave,
   ariaExpanded,
   className = '',
   children,
@@ -44,15 +44,15 @@ function PaletteButton({
       className={`${palette.toolButton} ${className}`.trim()}
       aria-expanded={ariaExpanded}
       onClick={onClick}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
     >
       {children}
     </button>
   );
 }
 
-function usePaletteSchemas(modeler: Modeler): PaletteSchema[] {
+function usePaletteSchemas(modeler: Editor): PaletteSchema[] {
   const [schemas, setSchemas] = useState<PaletteSchema[]>([]);
 
   useEffect(() => {
@@ -202,7 +202,7 @@ export function Palette({ className = '' }: { className?: string }) {
               onMouseEnter={onMouseEnter}
               onMouseLeave={onMouseLeave}
             >
-              <PaletteButton title={`More ${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
+              <PaletteButton title={`${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
                 <PaletteIcon icon={schema.icon ?? ICONS.hexagon} size={24} />
                 <span className={palette.groupChevron} />
               </PaletteButton>
@@ -218,9 +218,9 @@ export function Palette({ className = '' }: { className?: string }) {
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton
-          title="More BPMN elements..."
-          onMouseUp={dragHandlers.onMouseUp}
-          onMouseLeave={dragHandlers.onMouseUp}
+          title="BPMN elements..."
+          onPointerUp={dragHandlers.onPointerUp}
+          onPointerLeave={dragHandlers.onPointerUp}
           onClick={handleMoreElementsClick}
         >
           <PaletteIcon icon={ICONS.threeDots} size={22} />

@@ -52,17 +52,15 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const { openReplay } = useContext(ReplayContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const eventBus = modeler?.get?.('eventBus', false);
-    if (!eventBus) return undefined;
-    eventBus.on('commandStack.changed', bumpRevision);
-    return () => eventBus.off('commandStack.changed', bumpRevision);
+    modeler.events.on('commandStack.changed', bumpRevision);
+    return () => modeler.events.off('commandStack.changed', bumpRevision);
   }, [modeler]);
 
   // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.
   const [scope, setScope] = useState(scopeId);
   const [showReused, setShowReused] = useState(true);
   const allRecords = useMemo(
-    () => collectProvenance(modeler?.getDefinitions?.()),
+    () => collectProvenance(modeler.getDefinitions()),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
     [modeler, revision],
   );
@@ -74,9 +72,8 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   // Room for every lane plus a pending-branch stub curving right of the last one.
   const gutter = (laneCount + 1) * LANE_W;
 
-  const commandStack = modeler?.get?.('commandStack', false);
-  const canUndo = !!commandStack?.canUndo?.();
-  const canRedo = !!commandStack?.canRedo?.();
+  const canUndo = modeler.canUndo();
+  const canRedo = modeler.canRedo();
 
   const invalidate = async (r: ProvenanceRecord) => {
     await executeCommand(modeler, {
@@ -158,7 +155,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                   <button
                     type="button"
                     onClick={() => setScope(undefined)}
-                    className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer pt-1 "
+                    className="text-stone-500 hover:text-stone-700 transition-colors cursor-pointer pt-1 "
                     title="Clear the filter and show the whole timeline"
                     aria-label="Clear provenance filter"
                   >
@@ -199,7 +196,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 {repoRecipe && (
                   <span className="inline-flex items-center gap-1.5 ml-auto pl-4">
                     <code
-                      className="text-[10px] font-mono text-stone-400 truncate max-w-[22rem]"
+                      className="text-[0.6875rem] font-mono text-stone-500 truncate max-w-[22rem]"
                       title="The repository's history — each run is a started/finished commit pair, each post-invalidation re-run a run/<stamp> branch"
                     >
                       {repoRecipe}
@@ -207,7 +204,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                     <button
                       type="button"
                       onClick={copyRecipe}
-                      className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
+                      className="text-stone-500 hover:text-stone-700 transition-colors cursor-pointer"
                       title="Copy the git command"
                       aria-label="Copy the git history command"
                     >
@@ -239,7 +236,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                     >
                       {r.icon && (
                         <i
-                          className={`${r.icon} size-3.5 absolute left-0 top-[9px] ${red ? 'text-red-400' : 'text-stone-500'} ${muted ? 'opacity-60' : ''}`}
+                          className={`${r.icon} size-3.5 absolute left-0 top-[0.5625rem] ${red ? 'text-red-400' : 'text-stone-500'} ${muted ? 'opacity-60' : ''}`}
                           aria-hidden="true"
                         />
                       )}
@@ -274,7 +271,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         )}
                       </svg>
                       <span
-                        className={`absolute top-[11.5px] size-[9px] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : laneOf(g.lane).dot}`}
+                        className={`absolute top-[0.71875rem] size-[0.5625rem] rounded-full ring-2 ring-cream-100 ${voided ? 'bg-red-300' : muted ? 'bg-stone-300 opacity-60' : red ? 'bg-red-500' : laneOf(g.lane).dot}`}
                         style={{ left: ICON_GUTTER + g.lane * 12 }}
                         aria-hidden="true"
                       />
@@ -287,14 +284,14 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                           {r.action}
                         </span>
                         <span
-                          className={`text-[11px] font-mono truncate max-w-[12rem] shrink-0 ${red ? 'text-red-700/80' : 'text-stone-500'}`}
+                          className={`text-[0.6875rem] font-mono truncate max-w-[12rem] shrink-0 ${red ? 'text-red-700/80' : 'text-stone-500'}`}
                           title={r.isDocument ? r.scopeId : r.scopeLabel}
                         >
                           {r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId}
                         </span>
                         {g.pendingBranch && (
                           <span
-                            className="inline-flex items-center gap-1 text-[11px] text-red-500/90 whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-[0.6875rem] text-red-500/90 whitespace-nowrap"
                             title="The next run starts a new run/<stamp> branch just before this step — only the step and what depends on it re-execute"
                           >
                             <i className={`${ICONS.branch} size-3 shrink-0`} aria-hidden="true" />
@@ -303,7 +300,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         )}
                         {r.action === 'invalidated' && !r.isDocument && !r.what && (
                           <span
-                            className="inline-flex items-center gap-1 text-[11px] text-amber-600/90 whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-[0.6875rem] text-amber-600/90 whitespace-nowrap"
                             title="A marker naming no specific record: this step re-runs every time, in place — it never branches and never ages out"
                           >
                             <i className={`${ICONS.pin} size-3 shrink-0`} aria-hidden="true" />
@@ -313,11 +310,11 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         {recordDetails(r).map(([label, value]) => (
                           <span
                             key={label}
-                            className={`inline-flex items-center gap-1 min-w-0 text-[11px] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
+                            className={`inline-flex items-center gap-1 min-w-0 text-[0.6875rem] font-mono ${red ? 'text-red-700/70' : 'text-stone-500'}`}
                             title={`${label}: ${value}`}
                           >
                             <i
-                              className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 ${red ? 'text-red-400' : 'text-stone-400'}`}
+                              className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 ${red ? 'text-red-400' : 'text-stone-500'}`}
                               aria-hidden="true"
                             />
                             <span className="truncate max-w-[10rem]">{value}</span>
@@ -325,7 +322,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         ))}
                         <span className="flex-1" aria-hidden="true" />
                         <span
-                          className={`text-[11px] font-mono whitespace-nowrap shrink-0 ${red ? 'text-red-400' : 'text-stone-400'}`}
+                          className={`text-[0.6875rem] font-mono whitespace-nowrap shrink-0 ${red ? 'text-red-400' : 'text-stone-500'}`}
                           title={r.when}
                         >
                           {shortWhen(r.when) ?? '—'}
@@ -334,7 +331,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                           <button
                             type="button"
                             onClick={() => invalidate(r)}
-                            className="text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
+                            className="text-stone-500 hover:text-red-600 transition-colors cursor-pointer"
                             title="Invalidate this run record — kept in the timeline; the next run branches just before this step and re-executes only what depends on it"
                             aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
                           >

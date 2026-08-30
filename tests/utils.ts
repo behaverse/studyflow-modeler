@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, type Download, type Page } from '@playwright/test';
+import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
 import { xmlToStudyflow } from '@core/document';
 import { extractXmlFromPng } from '@core/document/png';
@@ -44,6 +44,38 @@ export async function gotoModeler(page: Page, { pickers = false } = {}): Promise
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
+  await expectBackendMounted(page);
+}
+
+/**
+ * Pin *which* editor actually mounted.
+ *
+ * The run-time proof that bpmn-js is really gone: diagram-js owns
+ * `.djs-container`, the native canvas owns `svg.sf-canvas`, and neither ever
+ * renders the other's root. The dependency is gone from `package.json`, but this
+ * is the assertion a re-added one would trip — the rest of the suite's selectors
+ * are generic enough to pass quietly under either.
+ */
+export async function expectBackendMounted(page: Page): Promise<void> {
+  const canvas = page.getByTestId('modeler-canvas');
+
+  await expect(canvas.locator('svg.sf-canvas'), 'expected the native canvas to be mounted').toBeVisible();
+  await expect(canvas.locator('.djs-container'), 'diagram-js must not be mounted at all').toHaveCount(0);
+}
+
+/**
+ * The in-place label editor: a single `<textarea>` the canvas overlays on the
+ * label being edited (`canvas/interaction/labelEditing.ts`). diagram-js used to
+ * mount a `contenteditable` div here instead, which is why reading the text went
+ * through {@link expectEditorText} rather than `toHaveValue`.
+ */
+export function labelEditor(page: Page): Locator {
+  return page.locator('.sf-label-editor');
+}
+
+/** Assert the open label editor's text. */
+export async function expectEditorText(page: Page, expected: string): Promise<void> {
+  await expect(labelEditor(page)).toHaveValue(expected);
 }
 
 export async function pressOnCanvas(page: Page, key: string): Promise<void> {
@@ -117,7 +149,7 @@ export async function addSchemaPaletteElement(
   label: string,
   position: { x: number; y: number },
 ): Promise<void> {
-  await page.getByRole('button', { name: `More ${schemaName} elements...` }).click();
+  await page.getByRole('button', { name: `${schemaName} elements...` }).click();
   await clickPaletteTile(page, label);
   await page.getByTestId('modeler-canvas').click({ position });
 }

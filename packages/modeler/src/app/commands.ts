@@ -1,21 +1,16 @@
 import new_diagram from '#assets/examples/new_diagram.bpmn?raw';
-import BpmnColorPickerModule from 'bpmn-js-color-picker';
-import BpmnModeler from 'bpmn-js/lib/Modeler';
-import GridModule from 'diagram-js-grid';
 import { fromStandardBpmnXml, fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
-import { StudyflowModelerModule } from '@modeler/bpmn/module';
-import { MODELER_FONT_FAMILY } from '@modeler/constants';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
-import { CreateAppendAnythingModule, CreateAppendElementTemplatesModule } from 'bpmn-js-create-append-anything';
-import type { Modeler } from '@modeler/bpmn/types';
+import { mountEditor } from '@modeler/editor/mount';
+import type { Editor } from '@modeler/editor/port';
 
 export type DownloadSchemasCommand = {
   type: 'DownloadSchemas';
 };
 
-export async function runDownloadSchemas(_modeler: Modeler | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
+export async function runDownloadSchemas(_modeler: Editor | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
   return loadSchemas(getSettings().enabledSchemas);
 }
 
@@ -23,12 +18,12 @@ export async function runDownloadSchemas(_modeler: Modeler | null, _command: Dow
 export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
-export function runUndo(modeler: Modeler, _command: UndoCommand): void {
-  modeler.get('commandStack').undo();
+export function runUndo(modeler: Editor, _command: UndoCommand): void {
+  modeler.undo();
 }
 
-export function runRedo(modeler: Modeler, _command: RedoCommand): void {
-  modeler.get('commandStack').redo();
+export function runRedo(modeler: Editor, _command: RedoCommand): void {
+  modeler.redo();
 }
 
 const DEFAULT_SEED = 42;
@@ -55,7 +50,7 @@ export function openRunnerTab(): Window | null {
   return window.open('', '_blank');
 }
 
-export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand): Promise<void> {
+export async function runOpenRunner(modeler: Editor, command: OpenRunnerCommand): Promise<void> {
   // `undefined` means the caller never tried; `null` means it tried and the browser said no.
   const target = command.target === undefined ? openRunnerTab() : command.target;
   if (!target) fail(POPUP_BLOCKED);
@@ -95,14 +90,6 @@ export async function runOpenRunner(modeler: Modeler, command: OpenRunnerCommand
   }
 }
 
-const ADDITIONAL_MODULES = [
-  CreateAppendAnythingModule,
-  BpmnColorPickerModule,
-  CreateAppendElementTemplatesModule,
-  GridModule,
-  StudyflowModelerModule,
-];
-
 export type CreateModelerCommand = {
   type: 'CreateModeler';
   container: any;
@@ -110,28 +97,26 @@ export type CreateModelerCommand = {
   initialDiagramXml?: string;
 };
 
-export async function runCreateModeler(_modeler: Modeler | null, command: CreateModelerCommand): Promise<Modeler> {
-  // Cast narrows to the app's `Modeler` alias: upstream types `saveXML().xml` as optional.
-  const modeler = new BpmnModeler({
-    container: command.container,
-    textRenderer: {
-      defaultStyle: {
-        fontFamily: MODELER_FONT_FAMILY,
-      },
-    },
-    moddleExtensions: command.extensionSchemas,
-    additionalModules: ADDITIONAL_MODULES,
-  }) as unknown as Modeler;
+/**
+ * Mount the editor into `container` and hand back the {@link Editor} facade the app
+ * holds from here on (`editor/mount.ts`).
+ */
+export async function runCreateModeler(_modeler: Editor | null, command: CreateModelerCommand): Promise<Editor> {
+  const editor = mountEditor({
+    container: command.container as HTMLElement,
+    extensionSchemas: command.extensionSchemas,
+  });
 
   const provided = command.initialDiagramXml;
   if (provided) {
     try {
+      const moddle = editor.model.moddle();
       const wireXml = await fromStandardBpmnXml(
-        await fromWireXml(provided, modeler.get('moddle')),
-        modeler.get('moddle'),
+        await fromWireXml(provided, moddle),
+        moddle,
       );
-      await modeler.importXML(await ensureDiagramLayout(wireXml, modeler.get('moddle')));
-      return modeler;
+      await editor.importXML(await ensureDiagramLayout(wireXml, moddle));
+      return editor;
     } catch (err) {
       console.warn(
         'Failed to import the initial diagram; falling back to a new diagram. ' +
@@ -141,6 +126,6 @@ export async function runCreateModeler(_modeler: Modeler | null, command: Create
       clearAutosavedDiagram();
     }
   }
-  await modeler.importXML(new_diagram);
-  return modeler;
+  await editor.importXML(new_diagram);
+  return editor;
 }

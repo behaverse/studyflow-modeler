@@ -65,11 +65,11 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
-  test('adds a schema-backed functional element and preserves operation defaults', async ({ page }) => {
+  test('adds a schema-backed cognitive element and preserves pinned defaults', async ({ page }) => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
-    await addSchemaPaletteElement(page, 'Functional', 'Map', { x: 320, y: 180 });
+    await addSchemaPaletteElement(page, 'Cognitive', 'Behaverse Task', { x: 320, y: 180 });
 
     await stubIconify(page);
 
@@ -77,36 +77,26 @@ test.describe('Studyflow modeler palette flows', () => {
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
 
-    // Map's pinned default (operationType="map") stays implicit in the schema, not serialized onto the element.
-    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:serviceTask\b/);
+    // BehaverseTask's pinned default (instrument="behaverse") stays implicit in the schema, not serialized onto the element.
+    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:task\b/);
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
-    expect(normalizedEmbeddedStudyflow).toContain('<functional:map/>');
+    expect(normalizedEmbeddedStudyflow).toContain('<cognitive:behaverseTask');
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    expect(studyflowText).toContain('type: functional:Map');
-    expect(studyflowText).toContain('operationType: map');
+    expect(studyflowText).toContain('type: cognitive:BehaverseTask');
+    expect(studyflowText).toContain('instrument: behaverse');
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });
 
-  test('adds a template-backed functional operation with its function reference', async ({ page }) => {
-    await gotoModeler(page);
-
-    // Group is a template (a Map bound to a grouping function), not a type.
-    await addSchemaPaletteElement(page, 'Functional', 'Group', { x: 320, y: 180 });
-
-    const studyflowDownload = await exportDiagram(page, 'studyflow');
-    const studyflowText = await readDownloadText(studyflowDownload);
-
-    expect(studyflowText).toContain('type: functional:Map');
-    expect(studyflowText).toContain('name: Group');
-    expect(studyflowText).toContain('operationType: group');
-    expect(studyflowText).toContain('implementation: python://itertools.groupby');
-    expect(studyflowText).toContain('key: participant');
-  });
-
   test('a participant template arrives with its flow, not as an empty pool', async ({ page }) => {
+    // `eeg:Session` extends `bpmn:Participant`, and a blank diagram's root plane is a
+    // `bpmn:Process`, which can never contain a pool. Both backends therefore PROMOTE
+    // the root on this drop — mint a `bpmn:Collaboration`, point the pool at the
+    // process the plane used to depict, re-point the BPMNPlane. bpmn-js does it in
+    // `CreateParticipantBehavior` + `UpdateCanvasRootBehavior`; the canvas does it in
+    // `Writeback.promoteRootToCollaboration` (P6b §3A).
     await gotoModeler(page);
 
     await addSchemaPaletteElement(page, 'EEG', 'EEG session', { x: 420, y: 300 });
@@ -128,8 +118,8 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    // EEGPrep is a template, not a type: a functional Map bound to the preprocessing tool.
-    expect(studyflowText).toContain('type: functional:Map');
+    // EEGPrep is a template, not a type: a service task bound to the preprocessing tool.
+    expect(studyflowText).toContain('type: bpmn:ServiceTask');
     expect(studyflowText).toContain('name: EEGPrep');
     expect(studyflowText).toContain('implementation: docker://sccn/eegprep');
     expect(studyflowText).toContain('asr_criterion: 20');

@@ -29,6 +29,7 @@ export default defineConfig({
     alias: [
       // Workspace packages are consumed as TypeScript source (see root vite.config note).
       { find: '@core', replacement: resolve(__dirname, '../core/src') },
+      { find: '@canvas', replacement: resolve(__dirname, '../canvas/src') },
       { find: '@modeler', replacement: resolve(__dirname, 'src') },
       { find: '#assets', replacement: resolve(__dirname, '../../assets') },
     ],

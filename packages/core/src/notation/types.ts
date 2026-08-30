@@ -128,7 +128,7 @@ export type CategoryEntry = {
   synthetic: boolean;
 };
 
-/* Field names below are the bpmn-js-create-append-anything contract, plus studyflow extras. */
+/* Field names below are the create/append template contract, plus studyflow extras. */
 
 export interface TemplateFlowNode {
   id: string;

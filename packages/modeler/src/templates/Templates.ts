@@ -1,4 +1,4 @@
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { getBusinessObject } from '@modeler/editor/port';
 import { bpmnSelfAndAncestors } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { createTemplateConnection } from '@modeler/templates/factory';

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { StudyflowElement } from '@core/element';
 import { exportToNidm } from '@modeler/export/nidm';
 import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
 
@@ -46,11 +47,12 @@ function analysisDiagram(): any {
     name: 'Trial table',
     format: 'parquet',
   });
-  const filter = wrapperElement('bpmn:ServiceTask', 'functional:Filter', {
+  const filter = moddle.create('bpmn:ServiceTask', {
     id: 'Filter_1',
     name: 'Filter signal',
-    'bpmn:documentation': 'Band-pass 1-100 Hz.',
+    implementation: 'python://scipy.signal.butter',
   });
+  StudyflowElement.fromBusinessObject(filter).setAttribute('documentation', 'Band-pass 1-100 Hz.');
   filter.dataInputAssociations = [dataInput(recording)];
   filter.dataOutputAssociations = [dataOutput(table)];
 
@@ -70,12 +72,11 @@ test.describe('NIDM export', () => {
     expectEveryPrefixDeclared(exportToNidm(fakeExportModel([])));
   });
 
-  test("writes an activity's operation as a core: predicate", () => {
+  test("writes an activity's implementation as a core: predicate", () => {
     const turtle = exportToNidm(analysisDiagram());
 
-    // `functional:Filter` pins `operationType: filter` in the schema.
-    expect(turtle).toContain('core:operation "filter"');
-    expect(turtle).toContain('core:Filter_1 a prov:Activity , core:Filter ;');
+    expect(turtle).toContain('core:implementation "python://scipy.signal.butter"');
+    expect(turtle).toContain('core:Filter_1 a prov:Activity , core:ServiceTask ;');
     expect(turtle).toContain('rdfs:comment "Band-pass 1-100 Hz."');
   });
 

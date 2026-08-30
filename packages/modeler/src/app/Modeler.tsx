@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState, useContext } from 'react';
 
-import 'bpmn-js/dist/assets/diagram-js.css';
-import 'bpmn-js/dist/assets/bpmn-js.css';
-import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
-import 'bpmn-js-color-picker/colors/color-picker.css';
 import { ModelerContext } from '@modeler/app/contexts';
 import { executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
@@ -11,7 +7,7 @@ import { attachAutosave } from '@modeler/diagram/autosave';
 import { restoreLink } from '@modeler/diagram/fileHandle';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 const s = {
   root: 'relative flex flex-1 h-full',
@@ -32,7 +28,7 @@ export function Modeler() {
   useEffect(() => {
     let cancelled = false;
     let detach: (() => void) | undefined;
-    let created: any;
+    let created: Editor | undefined;
 
     const initialXml = getSettings().diagramAutoSave === 'local' ? loadAutosavedDiagram() : undefined;
     executeCommand(null, { type: 'DownloadSchemas' })
@@ -42,14 +38,14 @@ export function Modeler() {
         extensionSchemas: schemas,
         initialDiagramXml: initialXml,
       }))
-      .then((modeler: Modeler) => {
+      .then((editor: Editor) => {
         // `CreateModeler` is async: under StrictMode the cleanup below runs before this resolves.
         if (cancelled) {
-          modeler?.destroy?.();
+          editor?.destroy?.();
           return;
         }
-        created = modeler;
-        detach = attachAutosave(modeler);
+        created = editor;
+        detach = attachAutosave(editor);
         // Picks the previous session's file back up, but only when the canvas was restored along
         // with it. Without the restored diagram this is a fresh blank canvas, and a link would
         // point saving at a file this diagram never came from. Permission has reset to `prompt`
@@ -57,7 +53,9 @@ export function Modeler() {
         if (initialXml) {
           restoreLink().catch((err) => console.warn('Could not restore the linked file.', err));
         }
-        setModeler(modeler);
+        // One facade per editor (so its revision counter spans the editor's whole
+        // life); the app holds it from here on.
+        setModeler(editor);
         setLoading(false);
       })
       .catch((err: unknown) => {

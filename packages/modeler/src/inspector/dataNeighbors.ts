@@ -1,4 +1,4 @@
-import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
+import { getBusinessObject, is } from '@modeler/editor/port';
 import { getCatalog, isBpmnSubtypeOf } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 

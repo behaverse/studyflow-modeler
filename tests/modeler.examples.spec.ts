@@ -68,6 +68,6 @@ test.describe('New Diagram gallery', () => {
 
     await page.getByTestId('new-diagram-blank').click();
     await expect(page.getByTestId('gallery-dialog')).toBeHidden();
-    await expect(page.locator('.djs-element[data-element-id="StartEvent_1"]')).toBeVisible();
+    await expect(page.locator('g[data-element-id="StartEvent_1"]')).toBeVisible();
   });
 });

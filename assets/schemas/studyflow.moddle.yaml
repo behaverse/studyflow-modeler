@@ -460,13 +460,6 @@ types:
         meta:
           categories:
             - Data
-      - name: rowCount
-        description: Expected or declared number of rows.
-        isAttr: true
-        type: Integer
-        meta:
-          categories:
-            - Data
   - name: Timeseries
     description: >-
       A recording sampled continuously over time (EEG, EMG, eye tracking,

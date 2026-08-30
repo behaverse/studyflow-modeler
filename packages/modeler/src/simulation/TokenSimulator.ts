@@ -1,8 +1,43 @@
-import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as svgRemove } from 'tiny-svg';
-import { nextHops } from '@modeler/simulation/flowWalk';
+/**
+ * Token simulation, written against the {@link Editor} rather than diagram-js DI.
+ *
+ * P6b §3D: this used to be a `didi` service (`$inject = ['eventBus','elementRegistry','canvas']`)
+ * drawing through `tiny-svg` — a dependency that only resolved while bpmn-js was in
+ * `node_modules` (§2c). It now takes a {@link SimulationHost}, a structural subset of
+ * `Editor` (`events` + `elements` + `canvas`), constructed directly over the port by
+ * `editor/editor.ts`. Nothing here knows what draws the diagram.
+ *
+ * The SVG helpers come from the canvas's dependency-free `render/svg.ts`, which
+ * reimplements exactly the `create`/`attr`/`append`/`remove` quartet used here.
+ */
 
-export type Point = { x: number; y: number };
+import { is } from '@modeler/editor/port';
+import type { Canvas, EditorElement, EditorElements, EventBus } from '@modeler/editor/port';
+import {
+  create as svgCreate,
+  attr as svgAttr,
+  append as svgAppend,
+  remove as svgRemove,
+} from '@canvas/render/svg.ts';
+import { nextHops } from '@modeler/simulation/flowWalk';
+import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
+import type { Point } from '@canvas/model/scene.ts';
+
+/**
+ * What the simulator needs from the editor — a structural subset of `Editor`, so
+ * a whole port satisfies it and a hand-built adapter (or a test fake) does too.
+ *
+ * - `events` carries `root.set` in and {@link TOGGLE_SIMULATION_EVENT} out;
+ * - `elements` finds the start events to spawn from, scoped to the current root;
+ * - `canvas.getHostLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. A
+ *   custom layer lives in the diagram's own coordinate space (the canvas applies
+ *   pan/zoom to the root `viewBox`), so token positions are plain element coordinates.
+ */
+export interface SimulationHost {
+  events: Pick<EventBus, 'on' | 'off' | 'fire'>;
+  elements: Pick<EditorElements, 'filter' | 'root' | 'findRoot'>;
+  canvas: Pick<Canvas, 'getHostLayer'>;
+}
 
 const TOKEN_RADIUS = 8;
 
@@ -23,39 +58,6 @@ function removeTokenSvg(svg: any): void {
   svgRemove(svg);
 }
 
-/** Perlin's smootherstep: zero first and second derivatives at both ends. */
-export function smootherstep(t: number): number {
-  return t * t * t * (t * (t * 6 - 15) + 10);
-}
-
-export function computeSegLengths(points: Point[]): { segLengths: number[]; totalDist: number } {
-  const segLengths: number[] = [];
-  let totalDist = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    const dx = points[i + 1].x - points[i].x;
-    const dy = points[i + 1].y - points[i].y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    segLengths.push(len);
-    totalDist += len;
-  }
-  return { segLengths, totalDist };
-}
-
-export function samplePolyline(points: Point[], segLengths: number[], dist: number): Point {
-  let remaining = dist;
-  for (let i = 0; i < segLengths.length; i++) {
-    if (remaining <= segLengths[i]) {
-      const t = segLengths[i] > 0 ? remaining / segLengths[i] : 0;
-      return {
-        x: points[i].x + (points[i + 1].x - points[i].x) * t,
-        y: points[i].y + (points[i + 1].y - points[i].y) * t,
-      };
-    }
-    remaining -= segLengths[i];
-  }
-  return points[points.length - 1];
-}
-
 const TOKEN_SPEED = 200; // pixels per sec
 const ACTIVITY_PAUSE_MS = 500;
 const SPAWN_INTERVAL_MS = 1000;
@@ -70,6 +72,10 @@ const TOKEN_COLORS = [
 ];
 
 export const TOGGLE_SIMULATION_EVENT = 'tokenSimulation.toggle';
+
+/** The custom layer tokens are drawn into, and its z-order hint (above everything). */
+const TOKEN_LAYER = 'token-simulation';
+const TOKEN_LAYER_INDEX = 1000;
 
 interface Token {
   svg: any;
@@ -105,11 +111,7 @@ function makeToken(svg: any, color: string, cx: number, cy: number): Token {
 }
 
 export default class TokenSimulator {
-  static $inject = ['eventBus', 'elementRegistry', 'canvas'];
-
-  private _eventBus: any;
-  private _elementRegistry: any;
-  private _canvas: any;
+  private _host: SimulationHost;
 
   private _active = false;
   private _tokens: Token[] = [];
@@ -120,11 +122,15 @@ export default class TokenSimulator {
   private _lastTimestamp = 0;
   private _startEvents: any[] = [];
 
-  constructor(eventBus: any, elementRegistry: any, canvas: any) {
-    this._eventBus = eventBus;
-    this._elementRegistry = elementRegistry;
-    this._canvas = canvas;
-    this._eventBus.on('root.set', this._handleRootSet);
+  constructor(host: SimulationHost) {
+    this._host = host;
+    this._host.events.on('root.set', this._handleRootSet);
+  }
+
+  /** Stop, and let go of the editor. Called when the editor is torn down. */
+  dispose(): void {
+    this.stop();
+    this._host.events.off('root.set', this._handleRootSet);
   }
 
   isActive(): boolean {
@@ -140,7 +146,7 @@ export default class TokenSimulator {
     if (this._active) return;
     this._active = true;
     this._ensureBounceKeyframes();
-    this._layer = this._canvas.getLayer('token-simulation', 1000);
+    this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
 
     this._startEvents = this._getVisibleStartEvents();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
@@ -155,7 +161,7 @@ export default class TokenSimulator {
     this._lastTimestamp = performance.now();
     this._animFrameId = requestAnimationFrame(this._tick);
 
-    this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: true });
+    this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: true });
   }
 
   stop() {
@@ -175,23 +181,44 @@ export default class TokenSimulator {
     this._clearTokens();
     this._startEvents = [];
 
-    this._eventBus.fire(TOGGLE_SIMULATION_EVENT, { active: false });
+    this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: false });
   }
 
   private _handleRootSet = () => {
     if (!this._active) return;
-    this._layer = this._canvas.getLayer('token-simulation', 1000);
+    // An import replaces the diagram — and with it the layer, which the canvas
+    // drops on `Layers.clear()`. Re-fetch rather than reuse.
+    this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this._startEvents = this._getVisibleStartEvents();
     this._clearTokens();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
   };
 
-  private _getVisibleStartEvents() {
-    const root = this._canvas.getRootElement();
+  /**
+   * Top-level start events on the current root plane.
+   *
+   * A canvas scene element at the top of a plane simply has no `parent`, and the
+   * registry spans every plane — so the test is `parent === root || !parent`, plus
+   * `findRoot` to keep a nested plane's start events out.
+   */
+  private _getVisibleStartEvents(): EditorElement[] {
+    const root = this._rootElement();
     if (!root) return [];
-    return this._elementRegistry.filter(
-      (el: any) => is(el, 'bpmn:StartEvent') && el.type !== 'label' && el.parent === root,
+    return this._host.elements.filter(
+      (el: EditorElement) => is(el, 'bpmn:StartEvent')
+        && el.type !== 'label'
+        && !el.labelTarget
+        && (el.parent === root || (!el.parent && this._host.elements.findRoot(el) === root)),
     );
+  }
+
+  /** The current root, or `undefined` before anything is imported (the canvas throws). */
+  private _rootElement(): EditorElement | undefined {
+    try {
+      return this._host.elements.root() ?? undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private _clearTokens() {

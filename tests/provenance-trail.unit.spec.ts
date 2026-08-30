@@ -14,7 +14,7 @@ import {
 } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 /** `<prov:activity>` elements on the primary root, stamped once per *fact* so re-rendering stays byte-stable. */
 
@@ -82,13 +82,16 @@ test.describe('provenance trail', () => {
 
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('drawn_loop.studyflow.png')));
-    const commandStack = { _stackIdx: -1 };
-    // A partial mock: `stampTrailForExport` only reads the document and two services.
+    // A partial mock: stamping reads the document and `moddle`, and decides off the
+    // revision counter `editor/history.ts` serves, one bump per applied mutation.
+    // `edit()` is that bump.
+    let revision = 0;
     const modeler = {
       getDefinitions: () => definitions,
-      get: (name: string, _strict?: boolean) =>
-        ({ moddle, commandStack } as Record<string, any>)[name],
-    } as unknown as Modeler;
+      revision: () => revision,
+      model: { moddle: () => moddle },
+    } as unknown as Editor;
+    const edit = () => { revision += 1; };
 
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
     expect(readTrail(definitions)).toHaveLength(1);
@@ -96,14 +99,13 @@ test.describe('provenance trail', () => {
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(1);
 
-    commandStack._stackIdx = 3;
+    edit();
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('modified');
     expect(readTrail(definitions)).toHaveLength(2);
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
 
-    // Reopened (import clears the command stack): a trail-carrying document nobody edits is left untouched.
+    // Reopened (import resets the edit history without moving the revision): a trail-carrying document nobody edits is left untouched.
     resetTrailStamping(modeler);
-    commandStack._stackIdx = -1;
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(2);
   });

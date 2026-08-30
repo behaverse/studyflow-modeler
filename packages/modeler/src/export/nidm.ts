@@ -36,7 +36,7 @@ export function exportToNidm(model: ExportModel): string {
   if (activities.length === 0 && entities.length === 0) {
     return `${PREFIXES}
 # No data-operation activities or data-plane elements found in this diagram.
-# Add a Transform / Map / Filter / Reduce task associated with a Dataset to populate this export.
+# Add a service task with an implementation associated with a Dataset to populate this export.
 
 <#diagram> a prov:Bundle ;
   dct:title "${escape(diagramName)}" ;
@@ -65,8 +65,8 @@ export function exportToNidm(model: ExportModel): string {
     const lex: string[] = [];
     lex.push(`${turtleId(act.id)} a prov:Activity , ${turtleClass(act.type, 'Activity')} ;`);
     lex.push(`  rdfs:label "${escape(act.name)}"`);
-    const operation = text(act, 'operationType');
-    if (operation) lex.push(` ;\n  core:operation "${escape(operation)}"`);
+    const implementation = text(act, 'implementation');
+    if (implementation) lex.push(` ;\n  core:implementation "${escape(implementation)}"`);
     if (act.documentation) lex.push(` ;\n  rdfs:comment "${escape(act.documentation)}"`);
     for (const inp of act.inputs) {
       lex.push(` ;\n  prov:used ${turtleId(inp)}`);

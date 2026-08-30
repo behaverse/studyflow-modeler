@@ -5,6 +5,12 @@ import { expect, test } from '@playwright/test';
 
 import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
+/**
+ * The two specs that drill into `select_model`'s own plane read it through the
+ * current-plane cursor (`packages/canvas/src/view/plane.ts`): the `Open <name>`
+ * badge enters the plane, and everything drawn there becomes visible and clickable.
+ */
+
 /** The inspector's Execution tab: `bpmn:Property` declarations plus the data associations that bind them. */
 
 test.describe('Inspector execution tab', () => {
@@ -113,6 +119,7 @@ test.describe('Inspector execution tab', () => {
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
     // `cross_validate` sits on the collapsed `select_model` phase's own DI plane; drill down first.
+    await page.locator('g[data-element-id="select_model"]').click();
     await page.getByTitle('Open select_model').click();
     await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
 
@@ -149,6 +156,7 @@ test.describe('Inspector execution tab', () => {
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
     // `build_pipeline` is drawn on the collapsed `select_model` phase's own plane; drill down first.
+    await page.locator('g[data-element-id="select_model"]').click();
     await page.getByTitle('Open select_model').click();
     await expect(page.locator('g[data-element-id="build_pipeline"]')).toBeVisible();
 

@@ -1,15 +1,22 @@
-import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { executeCommand } from '@modeler/commandBus';
 import type { PaletteEntry } from '@modeler/palette/groups';
 import type { PaletteTemplate } from '@modeler/palette/commands';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
+
+/** Pointer travel (px) that separates a tap from a drag. */
+export const DRAG_THRESHOLD = 3;
 
 export type PaletteDraggable = PaletteEntry | (PaletteTemplate & { __template: true });
 
 export type PaletteDragHandlers = {
-  onMouseDown: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
-  onMouseMove: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
-  onMouseUp: () => void;
+  onPointerDown: (draggable: PaletteDraggable, event: ReactPointerEvent) => void;
+  onPointerMove: (draggable: PaletteDraggable, event: ReactPointerEvent) => void;
+  onPointerUp: () => void;
   onClick: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
 };
 
@@ -18,11 +25,13 @@ function isTemplate(draggable: PaletteDraggable): draggable is PaletteTemplate &
 }
 
 export function usePaletteDrag(
-  modeler: Modeler,
+  modeler: Editor,
   onBeforeAction?: () => void,
 ): PaletteDragHandlers {
-  const mouseDownRef = useRef(false);
+  const pressedRef = useRef(false);
   const startedRef = useRef(false);
+  /* Touch fingers jitter a pixel the instant they land; without a threshold every tap starts a dead drag. */
+  const pressPosRef = useRef({ x: 0, y: 0 });
 
   const dispatchCreate = (draggable: PaletteDraggable, nativeEvent: MouseEvent) => {
     if (isTemplate(draggable)) {
@@ -43,23 +52,26 @@ export function usePaletteDrag(
   };
 
   return {
-    onMouseDown: (_draggable, event) => {
-      mouseDownRef.current = true;
+    onPointerDown: (_draggable, event) => {
+      pressedRef.current = true;
       startedRef.current = false;
+      pressPosRef.current = { x: event.clientX, y: event.clientY };
       event.preventDefault();
     },
 
-    onMouseMove: (draggable, event) => {
+    onPointerMove: (draggable, event) => {
       if (!modeler) return;
-      if (!mouseDownRef.current || startedRef.current) return;
+      if (!pressedRef.current || startedRef.current) return;
+      const { x, y } = pressPosRef.current;
+      if (Math.hypot(event.clientX - x, event.clientY - y) < DRAG_THRESHOLD) return;
       startedRef.current = true;
       event.preventDefault();
       onBeforeAction?.();
       dispatchCreate(draggable, event.nativeEvent);
     },
 
-    onMouseUp: () => {
-      mouseDownRef.current = false;
+    onPointerUp: () => {
+      pressedRef.current = false;
     },
 
     onClick: (draggable, event) => {
@@ -67,7 +79,7 @@ export function usePaletteDrag(
       event.preventDefault();
       if (startedRef.current) {
         startedRef.current = false;
-        mouseDownRef.current = false;
+        pressedRef.current = false;
         return;
       }
       onBeforeAction?.();

@@ -13,7 +13,7 @@ import {
   saveAutosavedDiagram,
   subscribeSettings,
 } from '@modeler/settings/store';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
 
@@ -29,8 +29,7 @@ const fileIsOn = () => {
   return getSettings().autoSaveToFile && !!file && autoSavable(file.format);
 };
 
-export function attachAutosave(modeler: Modeler): () => void {
-  const eventBus = modeler.get('eventBus');
+export function attachAutosave(modeler: Editor): () => void {
   let timer: number | undefined;
 
   const flush = () => {
@@ -59,8 +58,8 @@ export function attachAutosave(modeler: Modeler): () => void {
     schedule();
   };
 
-  eventBus.on('commandStack.changed', onEdited);
-  eventBus.on('import.done', schedule);
+  modeler.events.on('commandStack.changed', onEdited);
+  modeler.events.on('import.done', schedule);
 
   // Turning either destination on has to arm the timer; turning the local copy off also drops
   // the entry, so a stale diagram is never restored from a switch the user has since flipped.
@@ -76,8 +75,8 @@ export function attachAutosave(modeler: Modeler): () => void {
   });
 
   return () => {
-    eventBus.off('commandStack.changed', onEdited);
-    eventBus.off('import.done', schedule);
+    modeler.events.off('commandStack.changed', onEdited);
+    modeler.events.off('import.done', schedule);
     unsub();
     if (timer) window.clearTimeout(timer);
   };

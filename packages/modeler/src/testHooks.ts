@@ -1,10 +1,9 @@
 import { SCHEMAS } from '@core/notation/loader';
-import { embedIconsInSvg, exportToPng, padSvg } from '@modeler/export/svgEmbedding';
+import { exportToPng, padSvg } from '@modeler/export/svgEmbedding';
 
 declare global {
   interface Window {
     __studyflowTest?: {
-      embedIconsInSvg: typeof embedIconsInSvg;
       exportToPng: typeof exportToPng;
       padSvg: typeof padSvg;
       schemas: typeof SCHEMAS;
@@ -13,7 +12,7 @@ declare global {
 }
 
 if (import.meta.env.DEV) {
-  window.__studyflowTest = { embedIconsInSvg, exportToPng, padSvg, schemas: SCHEMAS };
+  window.__studyflowTest = { exportToPng, padSvg, schemas: SCHEMAS };
 }
 
 export {};

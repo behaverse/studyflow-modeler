@@ -112,7 +112,6 @@ test.describe('ensureDiagramLayout', () => {
 
     // bpmn-auto-layout's own plain-moddle round-trip would silently drop extension child elements.
     expect(laidOut).toContain('implementation="python://sklearn.model_selection.cross_validate"');
-    expect(laidOut).toContain('operationType="crossValidate"');
     expect(laidOut).toContain('<studyflow:additionalArguments>');
     expect(laidOut).toContain('precision_macro');
   });

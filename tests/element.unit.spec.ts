@@ -109,10 +109,10 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
   });
 
   test('pinned wrapper defaults win over stale business-object values', () => {
-    const map = moddle.create('bpmn:ServiceTask', { id: 'Map_1' });
-    map.set('operationType', 'stale');
-    StudyflowElement.fromBusinessObject(map).ensureExtension('functional:Map', moddle, {});
-    expect(getAttribute(map, 'operationType')).toBe('map');
+    const task = moddle.create('bpmn:Task', { id: 'NBack_1' });
+    task.set('instrument', 'stale');
+    StudyflowElement.fromBusinessObject(task).ensureExtension('cognitive:BehaverseTask', moddle, {});
+    expect(getAttribute(task, 'instrument')).toBe('behaverse');
   });
 
   test('template-stamped values still appear (a Recording stamps its layout)', () => {

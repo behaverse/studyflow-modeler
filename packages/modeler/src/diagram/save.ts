@@ -32,7 +32,7 @@ import {
   type ExportFormat,
   type ExportFormatId,
 } from '@modeler/export/formats';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 export type SaveDiagramCommand = {
   type: 'SaveDiagram';
@@ -60,7 +60,7 @@ function reportWriteFailure(name: string, err: unknown): string {
   return message;
 }
 
-export async function runSaveDiagram(modeler: Modeler, command: SaveDiagramCommand): Promise<SaveOutcome> {
+export async function runSaveDiagram(modeler: Editor, command: SaveDiagramCommand): Promise<SaveOutcome> {
   const { file } = getLink();
 
   if (command.saveAs || !file) {
@@ -75,7 +75,7 @@ export async function runSaveDiagram(modeler: Modeler, command: SaveDiagramComma
   return saveInPlace(modeler, file, command.auto === true);
 }
 
-async function saveToNewFile(modeler: Modeler, format: ExportFormat): Promise<SaveOutcome> {
+async function saveToNewFile(modeler: Editor, format: ExportFormat): Promise<SaveOutcome> {
   // No picker in this browser: the downloads folder is the only place a page may put a file.
   if (!supportsFileSystemAccess()) {
     await runExportDiagram(modeler, { type: 'ExportDiagram', format: format.id });
@@ -93,7 +93,7 @@ async function saveToNewFile(modeler: Modeler, format: ExportFormat): Promise<Sa
 
 /** Written where the user asked, then forgotten. Edits do not follow it. */
 async function writeOnce(
-  modeler: Modeler,
+  modeler: Editor,
   handle: FileSystemFileHandle,
   format: ExportFormat,
 ): Promise<SaveOutcome> {
@@ -110,7 +110,7 @@ async function writeOnce(
 /** Set while a conflict stands, so a debounced auto-save reports it once rather than every tick. */
 let reportedConflictFor: FileSystemFileHandle | undefined;
 
-async function saveInPlace(modeler: Modeler, file: LinkedFile, auto: boolean): Promise<SaveOutcome> {
+async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Promise<SaveOutcome> {
   // Rendering an image costs seconds, which is no way to spend a debounce tick; those files wait
   // for a save the user asked for, and the chip goes on saying there are unsaved edits until then.
   if (auto && !autoSavable(file.format)) return 'skipped';

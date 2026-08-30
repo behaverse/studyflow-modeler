@@ -19,7 +19,7 @@ expression traits) a domain pack must not copy.
 | `name`, `prefix`, `uri` | Identity. `prefix` must be unique; a duplicate is a load diagnostic (first wins). |
 | `description` | First sentence becomes the Settings row blurb. |
 | `icon` | Iconify class (or URL) for the palette flyout header. |
-| `core` | `true` = always loaded, cannot be disabled (studyflow, prov, functional, cognitive). |
+| `core` | `true` = always loaded, cannot be disabled (studyflow, prov, cognitive). |
 | `order` | Load/display order; unordered schemas sort after ordered ones, then by prefix. |
 | `version` | `YY.MMDD` string (lint-enforced). |
 | `xml.tagAlias` | moddle pass-through (`lowerCase`). |
@@ -105,7 +105,7 @@ A template stamps a pre-configured element (or a small flow) into the canvas:
 `eventDefinitions`, and `mixins` (pull in a named type's `defaults`).
 Undeclared properties fail the schema lint. Prefer templates over new classes:
 a verb ("fit a model", "5-fold CV") is a template over a generic type, not a
-class; see the `ml` file and the `eeg`/`functional` template sections.
+class; see the `eeg` template sections.
 
 ## Icons
 

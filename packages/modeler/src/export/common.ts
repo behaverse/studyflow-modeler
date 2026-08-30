@@ -1,6 +1,6 @@
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 import { getDiagramName } from '@modeler/diagram/file';
 
-export function exportDiagramName(modeler: Modeler): string {
+export function exportDiagramName(modeler: Editor): string {
   return getDiagramName(modeler) ?? 'diagram';
 }

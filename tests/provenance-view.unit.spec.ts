@@ -69,16 +69,18 @@ function mockModeler(definitions: any) {
   };
   for (const root of definitions.rootElements ?? []) index(root);
 
-  const services: Record<string, any> = {
-    elementRegistry: { get: (id: string) => registry.get(id) },
-    moddle,
-    modeling: {
+  // A partial `Editor`: invalidation looks an element up, creates one moddle
+  // object, and writes it back as a single undoable mutation.
+  return {
+    getDefinitions: () => definitions,
+    elements: { get: (id: string) => registry.get(id) },
+    model: { create: (type: string, props: Record<string, any>) => moddle.create(type, props) },
+    mutate: {
       updateModdleProperties(_element: any, moddleObject: any, props: Record<string, any>) {
         Object.assign(moddleObject, props);
       },
     },
   };
-  return { get: (name: string) => services[name], getDefinitions: () => definitions };
 }
 
 test.describe('provenance view model', () => {

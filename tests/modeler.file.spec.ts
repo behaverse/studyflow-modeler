@@ -34,10 +34,10 @@ test.describe('Studyflow modeler file flows', () => {
     });
 
     await expect(page.getByTitle('Click to edit diagram name')).toHaveText('Layout-less demo');
-    await expect(page.locator('.djs-element[data-element-id="Enroll"]')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id="Eligibility_Gateway"]')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id="DidNotStart"]')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id="Done"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="Enroll"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="Eligibility_Gateway"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="DidNotStart"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="Done"]')).toBeVisible();
   });
 
   test('opens a jsPsych timeline JSON, converting it on the way in', async ({ page }) => {
@@ -51,10 +51,10 @@ test.describe('Studyflow modeler file flows', () => {
     });
 
     await expect(page.getByTitle('Click to edit diagram name')).toHaveText('flanker.timeline');
-    await expect(page.locator('.djs-element[data-element-id="Start"]')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id="Flanker_test"]')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id="End"]')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id="Consent"]')).toHaveCount(0);
+    await expect(page.locator('[data-element-id="Start"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="Flanker_test"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="End"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="Consent"]')).toHaveCount(0);
   });
 
   test('downloads the current diagram as a YAML studyflow file', async ({ page }) => {
@@ -85,7 +85,7 @@ test.describe('Studyflow modeler file flows', () => {
 
     await expect(page.getByTitle('Click to edit diagram name')).toHaveText('roundtrip');
     await expect(page.getByTestId('modeler-canvas')).toBeVisible();
-    await expect(page.locator('.djs-element[data-element-id^="StartEvent"]').first()).toBeVisible();
+    await expect(page.locator('[data-element-id^="StartEvent"]').first()).toBeVisible();
   });
 
   test('exported PNG embeds the diagram and opens again (UI round trip)', async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe('Studyflow modeler file flows', () => {
     });
 
     await expect(page.getByTitle('Click to edit diagram name')).toHaveText('roundtrip');
-    await expect(page.locator('.djs-element[data-element-id^="StartEvent"]').first()).toBeVisible();
+    await expect(page.locator('[data-element-id^="StartEvent"]').first()).toBeVisible();
   });
 
   test('the rasterizer pads the figure, so nothing at the edge is clipped', async ({ page }) => {
@@ -189,6 +189,6 @@ test.describe('Studyflow modeler file flows', () => {
     await page.getByTestId('new-diagram-blank').click();
 
     await expect(page.getByTitle('Click to edit diagram name')).not.toHaveText('sample');
-    await expect(page.locator('.djs-element[data-element-id="StartEvent_1"]')).toBeVisible();
+    await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   });
 });

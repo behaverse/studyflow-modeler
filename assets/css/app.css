@@ -47,147 +47,11 @@
 }
 
 /*
- * Single source of truth for modeler styling - there are exactly two:
- *
- *   1. THIS file - `@theme` color tokens above + global / bpmn-js DOM
- *      overrides below (canvas, breadcrumbs, watermark, .djs-popup,
- *      .djs-context-pad chips, etc.).
- *
- *   2. `src/modeler/ui/styles.ts` - Tailwind class strings for every chrome
- *      surface we render in React (navbar, palette, paletteFlyout,
- *      inspector, field, codeEditor) and the menu primitives.
+ * source of truth for modeler styling
  */
 
 svg text.bi {
     font-family: bootstrap-icons !important;
-}
-
-/* BPMN.io "Powered by" watermark in the corner. */
-.bjs-powered-by {
-  @apply fixed left-2;
-  right: unset !important;
-  color: var(--color-stone-400) !important;
-  @apply w-12;
-}
-
-.bjs-powered-by:hover {
-  color: var(--color-stone-500) !important;
-}
-
-.bjs-powered-by::before {
-  content: 'Powered by';
-  @apply text-[8px];
-  display: block;
-}
-
-.bjs-powered-by svg {
-  @apply w-12 h-auto;
-}
-
-/* Hide the bpmn-js default palette - we render our own (palette/Palette.tsx). */
-.djs-palette {
-  @apply hidden;
-}
-
-/* bpmn-js subprocess breadcrumbs (drilled-into-subprocess navigation). */
-.bjs-breadcrumbs,
-.djs-palette-shown .bjs-breadcrumbs,
-.djs-palette-shown.djs-palette-two-column .bjs-breadcrumbs {
-  position: fixed !important;
-  /* Clear the floating navbar (top-2 + h-10 = 48px) plus 12px breathing room. */
-  top: 60px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  display: none;
-  align-items: center;
-  gap: 4px;
-  margin: 0;
-  padding: 4px 12px 0px;
-  list-style: none;
-  z-index: 40;
-
-  background: rgba(247, 245, 238, 0.78); /* cream-100 */
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
-  color: var(--color-stone-700);
-  white-space: nowrap;
-  line-height: 1.5;
-}
-
-.bjs-breadcrumbs-shown .bjs-breadcrumbs {
-  display: flex;
-}
-
-.bjs-breadcrumbs li {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-}
-
-.bjs-breadcrumbs li a {
-  cursor: pointer;
-  padding: 2px 7px;
-  border-radius: 6px;
-  color: var(--color-stone-600);
-  text-decoration: none;
-}
-
-.bjs-breadcrumbs li a:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--color-stone-900);
-}
-
-.bjs-breadcrumbs li:last-of-type a {
-  color: var(--color-stone-900);
-  font-weight: 600;
-  cursor: default;
-}
-
-.bjs-breadcrumbs li:last-of-type a:hover {
-  background: transparent;
-}
-
-.bjs-breadcrumbs li:not(:first-child)::before {
-  content: '';
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin: 0 2px;
-  background-color: rgba(0, 0, 0, 0.4);
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M3 2l3 3-3 3' stroke='black' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat center / contain;
-  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M3 2l3 3-3 3' stroke='black' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat center / contain;
-}
-
-.bjs-breadcrumbs .bjs-crumb {
-  display: inline-block;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Hide bpmn-token-simulation chrome we don't surface. */
-.bts-palette, .bts-set-animation-speed {
-    display: none;
-}
-
-.bts-scope, .bts-token-count {
-  color: transparent !important;
-}
-
-.bts-token .bts-text {
-  fill: transparent !important;
-  opacity: 0;
 }
 
 /* Mask-based icon utility - used in the palette to recolor the BIDS SVG. */
@@ -201,14 +65,20 @@ svg text.bi {
   background-color: currentColor;
 }
 
-/* the main canvas. */
-.bjs-container,
-.djs-container {
-  background-color: var(--color-cream-50) !important;
+/*
+ * The main canvas.
+ *
+ * The host div `Modeler.tsx` hands the canvas is the container `EditorPort`'s
+ * `view.getContainer()` returns, so it is what carries the run-state classes
+ * below. The native canvas paints no ground of its own - its root `<svg>` is
+ * transparent - so this rule is the ground.
+ */
+[data-testid="modeler-canvas"] {
+  background-color: var(--color-cream-50);
 }
 
 /* Green border on canvas when simulation is active. */
-.simulation-active .bjs-container {
+.simulation-active [data-testid="modeler-canvas"] {
   box-shadow: inset 0 0 0 3px #34c759, inset 0 0 40px rgba(52, 199, 89, 0.12);
   transition: box-shadow 0.3s ease;
 }
@@ -232,22 +102,29 @@ svg text.bi {
 .replay-active .studyflow-palette {
   display: none;
 }
-.djs-container.replay-active {
+/* `Replay.tsx` puts `replay-active` on `view.getContainer()`, i.e. this div. */
+[data-testid="modeler-canvas"].replay-active {
   box-shadow: inset 0 0 0 3px rgba(139, 92, 246, 0.6), inset 0 0 40px rgba(139, 92, 246, 0.08);
   transition: box-shadow 0.3s ease;
 }
 
-.replay-active .djs-element {
+/*
+ * Dim every rendered element, then light the touched ones back up. The canvas
+ * puts `sf-shape` / `sf-connection` on each element's own `<g>` - the same `<g>`
+ * `view.addMarker` writes `replay-touched` / `replay-voided` onto - which is
+ * where diagram-js's `djs-element` used to sit.
+ */
+.replay-active :is(.sf-shape, .sf-connection) {
   opacity: 0.22;
   transition: opacity 0.25s ease;
 }
 
-.replay-active .djs-element.replay-touched {
+.replay-active :is(.sf-shape, .sf-connection).replay-touched {
   opacity: 1;
 }
 
 /* Invalidated as of the replay cursor: lit, but glowing red. */
-.replay-active .djs-element.replay-voided {
+.replay-active :is(.sf-shape, .sf-connection).replay-voided {
   opacity: 0.9;
   filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.85));
 }
@@ -266,68 +143,6 @@ svg text.bi {
 @keyframes replay-token-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.4); }
-}
-
-/* --- bpmn-js native "create element" popup (used by SchemaPopupMenu).
- *
- * Matches the cream-300 menu character used by navbar dropdowns and
- * palette flyouts so all menu/popover surfaces share one identity.
- */
-.djs-popup {
-  @apply bg-cream-300/85 backdrop-blur-2xl backdrop-saturate-150 border border-black/[0.08] rounded-2xl;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 12px 36px rgba(0, 0, 0, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.djs-popup .entry:hover {
-  @apply bg-black/[0.05];
-}
-
-.djs-popup .entry.selected {
-  @apply bg-black/[0.08];
-}
-
-/* Search box inside the popup - recessed against the cream-300 surface. */
-.djs-popup-search input {
-  @apply border border-black/[0.08] rounded-lg bg-cream-100 text-stone-900;
-  @apply focus:border-stone-500 focus:ring-stone-500 focus:bg-cream-100;
-}
-
-.djs-popup-group .group {
-  @apply text-[11px] font-semibold uppercase tracking-wider text-stone-500 px-3 pt-2 pb-1;
-}
-
-.entry.more-palette {
-  position: relative;
-}
-
-.entry.more-palette::after {
-  content: '';
-  position: absolute;
-  bottom: 8px;
-  right: 4px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-top: 4px solid transparent;
-  border-right: 4px solid currentColor;
-  border-bottom: 4px solid currentColor;
-}
-
-/* --- bpmn-js context pad - action chips next to a selected element. */
-.djs-context-pad .entry {
-  background-color: transparent !important;
-  box-shadow: none !important;
-  @apply text-stone-700 rounded-lg;
-  transition: background-color 120ms ease, color 120ms ease;
-}
-
-.djs-context-pad .entry:hover {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  box-shadow: none !important;
-  @apply text-stone-900;
 }
 
 /* --- Palette flyout: force a visible (classic, non-overlay) scrollbar
@@ -358,4 +173,75 @@ body.resizing-inspector {
 }
 body.resizing-inspector * {
   cursor: col-resize !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * UI scale.
+ *
+ * Every piece of app chrome is sized in rem (Tailwind's spacing, type and radius
+ * scales all are), so ONE root font-size resizes the whole modeler. That is the
+ * fix for "tiny on a 4K panel": at 3840px the old fixed-px chrome was 11% of the
+ * width it occupied on a laptop, and no amount of per-component tweaking gets
+ * that back.
+ *
+ * Steps, not a fluid `clamp()`: a fractional root size rounds font metrics
+ * inconsistently between browsers and blurs the 1px hairlines the panels wear.
+ * Each step is >=12% from its neighbour, which is the smallest difference that
+ * reads as deliberate rather than as a rendering accident.
+ *
+ * Height is in every query because the scarce axis on an ultrawide (3840x1080,
+ * or any half-screen split) is vertical: growing the chrome there would push the
+ * palette off the bottom of the window.
+ *
+ * 1.0 is the FLOOR. Small screens get a layout answer (below), never smaller
+ * text -- 13px inspector labels is not "responsive", it is unreadable.
+ */
+:root { --ui-scale: 1; }
+
+@media (min-width: 1800px) and (min-height: 900px)  { :root { --ui-scale: 1.125; } }
+@media (min-width: 2400px) and (min-height: 1200px) { :root { --ui-scale: 1.25;  } }
+@media (min-width: 3200px) and (min-height: 1600px) { :root { --ui-scale: 1.5;   } }
+
+html { font-size: calc(16px * var(--ui-scale)); }
+
+/*
+ * Top-chrome gutters, and the navbar centring that falls out of them.
+ *
+ * The brand (left) and the inspector (right) are both `position: fixed`, so the
+ * navbar has to centre itself in what is LEFT between them. It used to do that
+ * with four hand-tuned offsets keyed to a 288px inspector
+ * (`50% - 72px - (var(--inspector-width) - 288px)/2`), which drifted the moment
+ * the panel was dragged, the wordmark wrapped, or the scale changed. One
+ * `calc()` off two gutters is correct at every size, by construction.
+ *
+ * They live on `body`, not `:root`: a custom property is substituted against the
+ * element it is declared on, and `--inspector-gutter` is what `body` carries the
+ * collapsed/expanded state in.
+ */
+:root {
+  --brand-gutter: 3.75rem;  /* logo only */
+}
+
+/* The wordmark only renders from `lg` up (see `NavBar`), so only then is it gutter. */
+@media (min-width: 1024px) { :root { --brand-gutter: 10rem; } }
+
+body {
+  /* Collapsed, or narrow: the inspector is an overlay, so it reserves only its toggle. */
+  --inspector-gutter: 3.25rem;
+
+  --navbar-left: calc(var(--brand-gutter) + (100vw - var(--brand-gutter) - var(--inspector-gutter)) / 2);
+  --navbar-max-width: calc(100vw - var(--brand-gutter) - var(--inspector-gutter) - 1.5rem);
+}
+
+/*
+ * Expanded, on a screen wide enough to sit beside the canvas. Below 900px there
+ * is no arrangement where a full inspector, a palette and a usable canvas all
+ * fit side by side -- so the canvas wins and the panel floats over it, the way
+ * it already does on a tablet. (`Panel` opens collapsed there for the same
+ * reason; this rule is what keeps the navbar centred if it is reopened.)
+ */
+@media (min-width: 901px) {
+  body:not(.inspector-collapsed) {
+    --inspector-gutter: calc(var(--inspector-width, 18rem) + 1rem);
+  }
 }

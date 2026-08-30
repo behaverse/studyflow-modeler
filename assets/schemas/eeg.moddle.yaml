@@ -135,11 +135,10 @@ templates:
           x: 520
           y: 178
         - id: eeg_export
-          type: functional:Transform
+          type: bpmn:ServiceTask
           bpmn:name: Export recording
           icon: iconify mdi--database-arrow-down-outline
           bpmn:documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
-          operationType: write
           implementation: python://datatrove.pipeline.writers.ParquetWriter
           additionalArguments: "output_folder: bids/"
           x: 680
@@ -168,7 +167,7 @@ templates:
   - description: Filter EEG data and remove artifacts in one step.
     object:
       bpmn:name: EEGPrep
-      type: functional:Map
+      type: bpmn:ServiceTask
       bpmn:documentation: |
         Filters, cleans, and normalizes EEG data; the input has to be in BIDS
         format.
@@ -190,7 +189,7 @@ templates:
   - description: Preprocess fMRI data for a single subject.
     object:
       bpmn:name: fMRIPrep
-      type: functional:Map
+      type: bpmn:ServiceTask
       bpmn:documentation: "Filters, cleans, and normalizes fMRI data; the input has to be in BIDS format."
       icon: iconify streamline--brain
       keywords:

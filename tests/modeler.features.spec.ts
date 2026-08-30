@@ -41,6 +41,34 @@ test('the Settings view opens and its Extensions section lists every schema', as
   }
 });
 
+/**
+ * P6b §3C: "Show grid" drives a real grid. The canvas paints its own `<pattern>`
+ * into a `data-layer="grid"` group and fills it with a single `<rect>`, so the
+ * setting is observable as that rect existing or not.
+ */
+const GRID_RECT = '[data-testid="modeler-canvas"] [data-layer="grid"] rect';
+
+test('the "Show grid" setting paints and unpaints the canvas grid', async ({ page }) => {
+  await gotoModeler(page);
+  const grid = page.locator(GRID_RECT);
+  // `showGrid` defaults to true, so the grid is up before anything is touched.
+  await expect(grid).toHaveCount(1);
+
+  await runPaletteCommand(page, 'Settings...');
+  await page.getByText('Editor', { exact: true }).first().click();
+  const toggle = page.getByRole('switch', { name: 'Show grid' });
+  await expect(toggle).toBeVisible();
+
+  await toggle.click();
+  await expect(grid).toHaveCount(0);
+
+  await toggle.click();
+  await expect(grid).toHaveCount(1);
+});
+
+// P6b §3D: one simulator now drives both backends — `TokenSimulator` runs off the
+// `Editor` (`events` / `elements.filter` / `canvas.getHostLayer('token-simulation')`),
+// so this spec is backend-neutral like the rest of the suite.
 test('the token simulator runs: a token appears and Stop restores editing', async ({ page }) => {
   await gotoModeler(page);
   await page.getByRole('button', { name: 'Simulate' }).click();

@@ -8,18 +8,17 @@ import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
 import { importableFormatFor, JSPSYCH_EXTENSION } from '@modeler/export/formats';
 import { extractXmlFromPng } from '@core/document/png';
 import { buildStudyflowXml, importJsPsychTimeline } from '@modeler/import';
-import { modelingUpdater } from '@modeler/bpmn/modeling';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
 import { getSettings } from '@modeler/settings/store';
-import type { Modeler } from '@modeler/bpmn/types';
+import type { Editor } from '@modeler/editor/port';
 
 export type ResetZoomCommand = {
   type: 'ResetZoom';
 };
 
-export function runResetZoom(modeler: Modeler, _command: ResetZoomCommand): void {
-  modeler.get('canvas').zoom('fit-viewport');
+export function runResetZoom(modeler: Editor, _command: ResetZoomCommand): void {
+  modeler.canvas.zoomToFit();
 }
 
 
@@ -27,9 +26,9 @@ export type NewDiagramCommand = {
   type: 'NewDiagram';
 };
 
-export async function runNewDiagram(modeler: Modeler, _command: NewDiagramCommand): Promise<any> {
+export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand): Promise<any> {
   const result = await importXml(modeler, { xml: new_diagram });
-  modeler.get('canvas').zoom('fit-viewport');
+  modeler.canvas.zoomToFit();
   return result;
 }
 
@@ -51,17 +50,17 @@ type ImportXmlPayload = {
   xml: string;
 };
 
-async function importXml(modeler: Modeler, command: ImportXmlPayload): Promise<any> {
+async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<any> {
   // Whatever was linked described the canvas being replaced. Carrying the link across would point
   // auto-save at that file and overwrite it with an unrelated diagram; `runOpenDiagram` links
   // again once it knows which file the new canvas actually came from.
   unlinkFile();
 
-  const wireXml = await applyXmlPasses(command.xml, modeler.get('moddle'), [
+  const wireXml = await applyXmlPasses(command.xml, modeler.model.moddle(), [
     choreographyToProcessRoot,
     inlineIoSpecification,
   ]);
-  const xml = await ensureDiagramLayout(wireXml, modeler.get('moddle'));
+  const xml = await ensureDiagramLayout(wireXml, modeler.model.moddle());
   const result = await modeler.importXML(xml);
   // `importXML` clears the command stack, so the trail bookkeeping has to restart with it.
   resetTrailStamping(modeler);
@@ -78,7 +77,7 @@ export type OpenDiagramCommand = {
   content: string | ArrayBuffer;
 };
 
-async function toXml(modeler: Modeler, filename: string, content: string | ArrayBuffer): Promise<string> {
+async function toXml(modeler: Editor, filename: string, content: string | ArrayBuffer): Promise<string> {
   const format = importableFormatFor(filename);
 
   if (format?.id === 'png') {
@@ -90,24 +89,24 @@ async function toXml(modeler: Modeler, filename: string, content: string | Array
   if (format?.id === 'svg') return extractXmlFromSvg(text);
   if (looksLikeXml(text)) return text;
   if (filename.toLowerCase().endsWith(JSPSYCH_EXTENSION)) return jsPsychToXml(filename, text);
-  return studyflowToXml(text, modeler.get('moddle'));
+  return studyflowToXml(text, modeler.model.moddle());
 }
 
-export async function runOpenDiagram(modeler: Modeler, command: OpenDiagramCommand): Promise<any> {
+export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<any> {
   const xml = await toXml(modeler, command.filename, command.content);
 
   const result = await importXml(modeler, { xml });
 
   try {
-    modeler.get('canvas').zoom('fit-viewport');
+    modeler.canvas.zoomToFit();
   } catch (err) {
     console.warn('Zoom to fit-viewport failed after open; leaving default zoom.', err);
   }
 
-  const root = modeler.get('canvas').getRootElement();
+  const root = modeler.elements.root();
   const embedded = root?.businessObject?.name;
   if (root && (typeof embedded !== 'string' || embedded.length === 0)) {
-    setAttribute(root, 'name', filenameStem(command.filename), modelingUpdater(modeler.get('modeling')));
+    setAttribute(root, 'name', filenameStem(command.filename), modeler.mutate);
   }
 
   // Everything up to here is the file, not an edit of it, so auto-save has nothing to write yet.

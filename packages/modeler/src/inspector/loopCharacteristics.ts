@@ -1,4 +1,4 @@
-import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { is } from '@modeler/editor/port';
 import { toBusinessObject } from '@core/element';
 
 export type LoopKind = 'none' | 'loop' | 'parallel' | 'sequential';
