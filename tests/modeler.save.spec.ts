@@ -118,11 +118,24 @@ test.describe('Saving back into the opened file', () => {
     expect((await disk(page)).text).toContain('<?xml');
   });
 
+  test('the palette Save writes the linked file; Save As... is how the dialog is reached', async ({ page }) => {
+    await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
+    await gotoModeler(page, { pickers: true });
+    await browseForDiagram(page);
+
+    await runPaletteCommand(page, 'Save demo.bpmn');
+    await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+    await expect.poll(async () => (await disk(page)).writes).toBe(1);
+
+    await runPaletteCommand(page, 'Save As...');
+    await expect(page.getByTestId('save-dialog')).toBeVisible();
+  });
+
   test('Export saves to a file the user places, and keeps saving there', async ({ page }) => {
     await installFakeDisk(page, 'unused.bpmn', '');
     await gotoModeler(page, { pickers: true });
 
-    await runPaletteCommand(page, 'Save...');
+    await runPaletteCommand(page, 'Save As...');
     await page.getByTestId('export-format').selectOption('studyflow');
     await page.getByTestId('save-submit').click();
 
@@ -214,7 +227,7 @@ test.describe('Saving back into the opened file', () => {
   test('without a picker the modeler falls back to the file input and downloads', async ({ page }) => {
     await gotoModeler(page);
 
-    await runPaletteCommand(page, 'Save...');
+    await runPaletteCommand(page, 'Save As...');
     // Same destination, different mechanism: the button offers a download, not a place to put it.
     await expect(page.getByTestId('save-submit')).toContainText('Download');
     await page.keyboard.press('Escape');

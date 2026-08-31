@@ -244,8 +244,8 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
             ref={searchRef}
             type="text"
             className={s.searchInput}
-            placeholder="Search elements..."
-            aria-label="Search elements"
+            placeholder="Search..."
+            aria-label="Search"
             data-testid="popup-menu-search"
             value={query}
             onChange={(event) => {

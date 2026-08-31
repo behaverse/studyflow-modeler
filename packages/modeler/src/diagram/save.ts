@@ -18,6 +18,7 @@ import {
   markSaving,
   pickSaveTarget,
   readFile,
+  reconnectLink,
   supportsFileSystemAccess,
   writeToFile,
   type LinkedFile,
@@ -148,4 +149,17 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Pr
     markError(reportWriteFailure(file.name, err));
     return 'skipped';
   }
+}
+
+/**
+ * The one save gesture behind the title-bar chip, ⌘S, and the palette's Save: write straight back
+ * into the linked file. Reports `false` when nothing is linked, so callers open the dialog instead.
+ */
+export async function saveLinkedFile(modeler: Editor): Promise<boolean> {
+  const { file, state } = getLink();
+  if (!file) return false;
+  // Permission has to be re-granted from inside the gesture; `SaveDiagram` alone cannot ask.
+  if (state === 'blocked' && !(await reconnectLink())) return true;
+  await runSaveDiagram(modeler, { type: 'SaveDiagram' });
+  return true;
 }

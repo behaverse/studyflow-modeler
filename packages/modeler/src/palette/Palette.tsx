@@ -161,7 +161,7 @@ export function Palette({ className = '' }: { className?: string }) {
         onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
       >
         <PaletteButton title="Select elements with lasso tool" onClick={handleLassoToolClick}>
-          <PaletteIcon icon={ICONS.inkSelection} size={22} />
+          <PaletteIcon icon={ICONS.lasso} size={22} />
         </PaletteButton>
         <span className={palette.tooltip}>Select multiple elements</span>
       </div>

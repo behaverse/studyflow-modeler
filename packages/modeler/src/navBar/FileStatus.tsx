@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { executeCommand } from '@modeler/commandBus';
-import { getLink, reconnectLink, subscribeLink, type LinkState } from '@modeler/diagram/fileHandle';
+import { getLink, subscribeLink, type LinkState } from '@modeler/diagram/fileHandle';
+import { saveLinkedFile } from '@modeler/diagram/save';
 import { autoSavable } from '@modeler/export/formats';
 import { MOD_LABEL } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
@@ -45,16 +45,10 @@ export function FileStatus() {
 
   const needsAttention = link.state === 'conflict' || link.state === 'blocked' || link.state === 'error';
 
-  const save = async () => {
-    // Permission has to be re-granted from inside this click; `SaveDiagram` alone cannot ask.
-    if (link.state === 'blocked' && !(await reconnectLink())) return;
-    await executeCommand(modeler, { type: 'SaveDiagram' });
-  };
-
   return (
     <button
       type="button"
-      onClick={() => { void save(); }}
+      onClick={() => { void saveLinkedFile(modeler); }}
       data-testid="file-status"
       data-file-state={link.state}
       title={link.message ?? explanation}

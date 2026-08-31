@@ -17,6 +17,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { MOD_LABEL } from '@modeler/constants';
 import { DIAGRAM_OPEN_ACCEPT, getLinkedFileName, linkOpenedFile, subscribeLink } from '@modeler/diagram/fileHandle';
+import { saveLinkedFile } from '@modeler/diagram/save';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
 import { OPENABLE_EXTENSIONS } from '@modeler/export/formats';
 import { isBinaryDiagram, isOpenable, OPEN_FAILURE_MESSAGE, OPEN_INVALID_MESSAGE } from '@modeler/open/openFile';
@@ -160,8 +161,8 @@ export function CommandPalette({ ref }: Props) {
         if (isOpen) close();
         // The quick write only exists once there is a file to write; without one — or with Shift,
         // to reach the format and destination controls — this is the dialog's job.
-        if (e.shiftKey || !linkedFileName) setDialog({ id: 'save' });
-        else void executeCommand(modeler, { type: 'SaveDiagram' });
+        if (e.shiftKey) setDialog({ id: 'save' });
+        else void saveLinkedFile(modeler).then((saved) => { if (!saved) setDialog({ id: 'save' }); });
         return;
       }
       // `/` opens, never closes; in the palette it is just a character to search with.

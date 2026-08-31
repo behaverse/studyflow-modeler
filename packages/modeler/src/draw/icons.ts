@@ -9,10 +9,10 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   [BPMN.ScriptTask]:          ICONS.script,
   [BPMN.SendTask]:            `${ICONS.envelope} !ms-[2px] !w-5 !h-5`,
   [BPMN.ReceiveTask]:         `${ICONS.envelopeOpen} !ms-[2px] !w-5 !h-5`,
-  [BPMN.BusinessRuleTask]:    ICONS.tableAlt,
-  [BPMN.ExclusiveGateway]:    ICONS.closeAlt,
-  [BPMN.ParallelGateway]:     ICONS.plusAlt,
-  [BPMN.InclusiveGateway]:    ICONS.radioBlank,
+  [BPMN.BusinessRuleTask]:    ICONS.tableGrid,
+  [BPMN.ExclusiveGateway]:    ICONS.crossThin,
+  [BPMN.ParallelGateway]:     ICONS.plusThin,
+  [BPMN.InclusiveGateway]:    ICONS.circleOutline,
   [BPMN.ComplexGateway]:      ICONS.asterisk,
   [BPMN.EventBasedGateway]:   ICONS.pentagon,
   [BPMN.DataObjectReference]: ICONS.document,
@@ -29,7 +29,7 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:LinkEventDefinition':        'iconify mdi--arrow-right',
   'bpmn:TerminateEventDefinition':   'iconify mdi--circle',
   'bpmn:CompensateEventDefinition':  ICONS.bpmnCompensationMarker,
-  'bpmn:CancelEventDefinition':      ICONS.closeAlt,
+  'bpmn:CancelEventDefinition':      ICONS.crossThin,
 };
 
 export const MARKER_ICONS: Record<string, string> = {

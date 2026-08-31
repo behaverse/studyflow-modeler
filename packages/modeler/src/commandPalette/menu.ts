@@ -1,5 +1,6 @@
 import { executeCommand } from '@modeler/commandBus';
 import { openRunnerTab } from '@modeler/app/commands';
+import { saveLinkedFile } from '@modeler/diagram/save';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
@@ -37,14 +38,25 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       // Takes any diagram format, and a jsPsych timeline, which it converts on the way in.
       action: () => openDialog('open'),
     },
-    {
+    // Nothing to overwrite until a file is linked, so until then "Save As..." is the only save.
+    ...(linkedFileName ? [{
       id: 'save',
       group: 'File',
-      // The dialog is where format and destination live; the shortcut is the fast path past it.
-      label: linkedFileName ? `Save ${linkedFileName}...` : 'Save...',
+      label: `Save ${linkedFileName}`,
       icon: ICONS.save,
       hint: `${MOD_LABEL}S`,
-      keywords: 'export download publish png svg yaml bpmn',
+      keywords: 'overwrite write file',
+      // Same gesture as the title-bar chip: writes straight back into the linked file, no dialog.
+      action: () => { void saveLinkedFile(modeler); },
+    }] : []),
+    // Format and destination live here; this is where an unlinked diagram gets its file.
+    {
+      id: 'save-as',
+      group: 'File',
+      label: 'Save As...',
+      icon: ICONS.saveAs,
+      hint: `${MOD_LABEL}⇧S`,
+      keywords: 'export download publish png svg yaml bpmn copy',
       action: () => openDialog('save'),
     },
 
@@ -85,7 +97,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'view-gantt',
       group: 'View',
       label: 'View as Gantt...',
-      icon: ICONS.barChartSteps,
+      icon: ICONS.gantt,
       action: () => openDialog('gantt'),
     },
     {
@@ -99,7 +111,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     {
       id: 'replay-provenance',
       group: 'View',
-      label: 'Replay Provenance',
+      label: 'Replay',
       icon: ICONS.playFill,
       action: openReplay,
     },

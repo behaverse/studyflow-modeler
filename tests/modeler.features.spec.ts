@@ -14,7 +14,7 @@ test('the app loader and the Node twin agree on the schema manifest', async ({ p
 
 test('publishing is a destination in the Save dialog, and a bogus key fails inline (not via alert)', async ({ page }) => {
   await gotoModeler(page);
-  await runPaletteCommand(page, 'Save...');
+  await runPaletteCommand(page, 'Save As...');
   const dialog = page.getByTestId('save-dialog');
   await expect(dialog).toBeVisible();
 

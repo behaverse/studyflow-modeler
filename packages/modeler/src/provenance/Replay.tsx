@@ -395,7 +395,7 @@ function ReplayTimeline({ onClose }: Props) {
           ) : (
             <>
               <button type="button" onClick={() => jump(0)} disabled={at <= 0} className={btn} title="Start" aria-label="Jump to start">
-                <i className={`${ICONS.skipStart} size-4 block`} aria-hidden="true" />
+                <i className={`${ICONS.jumpToStart} size-4 block`} aria-hidden="true" />
               </button>
               <button type="button" onClick={() => step(-1)} disabled={at <= 0} className={btn} title="Back" aria-label="Step back">
                 <i className={`${ICONS.chevronLeft} size-4 block`} aria-hidden="true" />
@@ -407,7 +407,7 @@ function ReplayTimeline({ onClose }: Props) {
                 <i className={`${ICONS.chevronRight} size-4 block`} aria-hidden="true" />
               </button>
               <button type="button" onClick={() => jump(total)} disabled={at >= total} className={btn} title="End" aria-label="Jump to end">
-                <i className={`${ICONS.skipEnd} size-4 block`} aria-hidden="true" />
+                <i className={`${ICONS.jumpToEnd} size-4 block`} aria-hidden="true" />
               </button>
               <button
                 type="button"

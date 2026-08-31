@@ -112,7 +112,7 @@ export async function stubIconify(page: Page): Promise<void> {
 }
 
 export async function exportDiagram(page: Page, format: string): Promise<Download> {
-  await runPaletteCommand(page, 'Save...');
+  await runPaletteCommand(page, 'Save As...');
   await expect(page.getByTestId('save-dialog')).toBeVisible();
   await page.getByTestId('export-format').selectOption(format);
 

@@ -69,16 +69,16 @@ const TOOLTIP_DELAY = 700;
  */
 const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'end-event': ICONS.bpmnEndEvent,
-  annotation: ICONS.cardText,
+  annotation: ICONS.note,
+  connect: ICONS.arrowUpRight,
   append: ICONS.threeDots,
   wrench: ICONS.arrowRepeat,
   trash: ICONS.trash,
-  palette: ICONS.palette,
-  connect: ICONS.arrowUpRight,
+  palette: ICONS.paintBrush,
   'default-flow': ICONS.slash,
   swap: ICONS.swapVertical,
-  subprocess: ICONS.arrowsAngleExpand,
-  drilldown: ICONS.boxArrowInDown,
+  subprocess: ICONS.expand,
+  // drilldown: ICONS.drillDown,
 };
 
 /** Heading each pad entry that opens a popup gives the menu it opens. */
