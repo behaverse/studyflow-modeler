@@ -5,7 +5,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { bpmnSelfAndAncestors, buildCatalog } from '@core/notation';
+import { studyflowToDefinitions } from '@core/document';
+import { bpmnSelfAndAncestors, buildCatalog, setCatalog } from '@core/notation';
 import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
 import { SCHEMAS, loadSchemaModels } from './schemas';
 
@@ -326,4 +327,24 @@ test.describe('moddle registration', () => {
 test('the shipped schemas compile with no diagnostics', () => {
   const catalog = buildCatalog(loadSchemaModels());
   expect(catalog.diagnostics).toEqual([]);
+});
+
+test('schema examples are complete studyflows that compile to BPMN', async () => {
+  const models = loadSchemaModels();
+  setCatalog(buildCatalog(models));
+  const packages = Object.fromEntries(
+    models.map((model) => [model.prefix, toModdlePackages(model, models)]),
+  );
+
+  for (const model of models) {
+    for (const [index, example] of (model.examples ?? []).entries()) {
+      const doc = typeof example.studyflow === 'string' ? example.studyflow : yaml.dump(example.studyflow);
+      const warnings: string[] = [];
+      const moddle = new BpmnModdle(structuredClone(packages)) as any;
+      const definitions = studyflowToDefinitions(doc, moddle, (message) => warnings.push(message));
+      const { xml } = await moddle.toXML(definitions, { format: true });
+      expect(warnings, `${model.prefix} example ${index + 1}`).toEqual([]);
+      expect(xml, `${model.prefix} example ${index + 1}`).toContain('bpmn:process');
+    }
+  }
 });

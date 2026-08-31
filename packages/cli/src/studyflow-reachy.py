@@ -59,8 +59,12 @@ PASSTHROUGH_TAGS = {"startEvent", "intermediateCatchEvent", "intermediateThrowEv
 DEFAULTS: dict[str, dict[str, Any]] = {
     "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80"},
     "say": {"text": ""},
-    "gesture": {"move": "cheerful1"},
-    "lookAt": {"target": "face"},
+    "gesture": {"move": "cheerful1", "dataset": "pollen-robotics/reachy-mini-emotions-library"},
+    "goto": {"roll": "0", "pitch": "0", "yaw": "0", "x": "0", "y": "0", "z": "0",
+             "leftAntenna": "0", "rightAntenna": "0", "bodyYaw": "0",
+             "durationSeconds": "2", "interpolation": "minjerk"},
+    "playSound": {"file": ""},
+    "lookAt": {"target": "face", "trackingWeight": "1"},
     "listen": {"timeoutSeconds": "10"},
     "converse": {"model": "", "persona": "", "maxTurns": "10", "stopPhrase": ""},
     "teleoperation": {"instructions": ""},
@@ -68,7 +72,7 @@ DEFAULTS: dict[str, dict[str, Any]] = {
     "perceptionGateway": {"channel": "face_count"},
 }
 
-AUTO_SAMPLES = {"face_count": "1", "sound_level": "42.0", "emotion": "neutral", "speech_intent": "chat"}
+AUTO_SAMPLES = {"face_count": "1", "sound_angle": "1.57", "speech_detected": "1", "speech_intent": "chat"}
 AUTO_LINES = ["It went well — the second block was hard!", "goodbye"]
 
 
@@ -202,7 +206,9 @@ class TerminalRobot:
     label = "dry run"
 
     def speak(self, text: str) -> None: ...
-    def gesture(self, move: str) -> None: ...
+    def gesture(self, move: str, dataset: str | None = None) -> None: ...
+    def goto(self, spec: dict[str, Any]) -> None: ...
+    def play_sound(self, file: str) -> None: ...
     def look_at(self, target: str) -> None: ...
     def listening(self) -> None: ...
     def perk(self) -> None: ...
@@ -298,14 +304,54 @@ class SimRobot:
         # No TTS in the headless sim: tap the antennas while the line prints.
         self._act([(None, [0.25, -0.25], 0.15, None), (None, [0.0, 0.0], 0.15, None)])
 
-    def gesture(self, move: str) -> None:
+    def gesture(self, move: str, dataset: str | None = None) -> None:
         try:
+            move = MOVE_ALIASES.get(move, move)
+            if move in ("wake_up", "goto_sleep"):
+                # Built-in moves live behind their own daemon endpoints, not a dataset.
+                self._post(f"/api/move/play/{move}")
+                return
+            dataset = dataset or EMOTIONS_LIBRARY
             if self._moves is None:
+                self._moves = {}
+            if dataset not in self._moves:
                 from reachy_mini.motion.recorded_move import RecordedMoves
-                self._moves = RecordedMoves(EMOTIONS_LIBRARY)
-            self.mini.play_move(self._moves.get(MOVE_ALIASES.get(move, move)), initial_goto_duration=1.0, sound=False)
+                self._moves[dataset] = RecordedMoves(dataset)
+            self.mini.play_move(self._moves[dataset].get(move), initial_goto_duration=1.0, sound=False)
         except Exception as error:
             print(f"    (sim move failed: {error})")
+
+    def _post(self, path: str, body: dict[str, Any] | None = None) -> None:
+        import urllib.request
+        urllib.request.urlopen(
+            urllib.request.Request(
+                f"http://{self.host}:8000{path}",
+                data=json.dumps(body).encode() if body is not None else None,
+                headers={"content-type": "application/json"}, method="POST",
+            ),
+            timeout=10,
+        )
+
+    def goto(self, spec: dict[str, Any]) -> None:
+        # The daemon's goto speaks radians and meters, exactly as the schema does.
+        try:
+            duration = float(spec["durationSeconds"])
+            self._post("/api/move/goto", {
+                "head_pose": {k: float(spec[k]) for k in ("x", "y", "z", "roll", "pitch", "yaw")},
+                "antennas": [float(spec["leftAntenna"]), float(spec["rightAntenna"])],
+                "body_yaw": float(spec["bodyYaw"]),
+                "duration": duration,
+                "interpolation": spec["interpolation"],
+            })
+            time.sleep(duration)  # goto returns a move uuid immediately; wait it out
+        except Exception as error:
+            print(f"    (goto failed: {error})")
+
+    def play_sound(self, file: str) -> None:
+        try:
+            self._post("/api/media/play_sound", {"file": file})
+        except Exception as error:
+            print(f"    (sound failed: {error})")
 
     def look_at(self, target: str) -> None:
         try:
@@ -398,7 +444,20 @@ def run_say(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
 
 def run_gesture(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
     print(f"    Reachy plays the '{spec['move']}' move")
-    run.robot.gesture(str(spec["move"]))
+    run.robot.gesture(str(spec["move"]), str(spec["dataset"]))
+    return None
+
+
+def run_goto(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+    print(f"    Reachy moves to pose (roll {spec['roll']}, pitch {spec['pitch']}, yaw {spec['yaw']}, "
+          f"body {spec['bodyYaw']}) over {spec['durationSeconds']}s ({spec['interpolation']})")
+    run.robot.goto(spec)
+    return None
+
+
+def run_play_sound(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+    print(f"    Reachy plays the sound '{spec['file']}'")
+    run.robot.play_sound(str(spec["file"]))
     return None
 
 
@@ -459,6 +518,8 @@ def sample_perception(run: Run, element: ET.Element, spec: dict[str, Any]) -> di
 HANDLERS: dict[str, Callable[[Run, ET.Element, dict[str, Any]], Any]] = {
     "say": run_say,
     "gesture": run_gesture,
+    "goto": run_goto,
+    "playSound": run_play_sound,
     "lookAt": run_look_at,
     "listen": run_listen,
     "converse": run_converse,
@@ -767,9 +828,9 @@ def main() -> int:
         host = str(config["host"])
         if sim and host == DEFAULTS["robot"]["host"]:
             host = "localhost"
-        local = host in ("localhost", "127.0.0.1")
+        local_host = host in ("localhost", "127.0.0.1")
         # The sim has no camera; a Lite's camera hangs off this machine, a wireless unit streams its own.
-        media = "no_media" if sim else ("default" if local else "webrtc")
+        media = "no_media" if sim else ("default" if local_host else "webrtc")
         robot = SimRobot(host=host, media_backend=media)
         try:
             robot.connect()

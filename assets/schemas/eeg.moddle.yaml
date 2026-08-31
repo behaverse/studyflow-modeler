@@ -85,8 +85,78 @@ types:
         type: Real
         default: 250
 
+examples:
+  - title: EEG session
+    description: An EEG session - fit the cap, record a baseline, run a task, export.
+    icon: iconify mdi--chip
+    studyflow:
+      id: eeg_session
+      definitions:
+        targetNamespace: http://bpmn.io/schema/bpmn
+      EEG_Session:
+        type: bpmn:Process
+        name: EEG session
+        documentation: An EEG session covering headset fitting through data export.
+        extensionElements:
+          - type: studyflow:Study
+        flowElements:
+          Start:
+            type: bpmn:StartEvent
+            name: Start
+          Mount_Cap:
+            type: bpmn:ManualTask
+            name: Mount cap & check impedance
+            documentation: |
+              Fit the cap, place the electrodes, and check that every one of them
+              makes good contact before recording starts.
+          Baseline:
+            type: bpmn:Task
+            name: Resting baseline
+            extensionElements:
+              - type: cognitive:Rest
+                configurations: |
+                  condition: eyes_closed   # eyes_open | eyes_closed | alternating
+                  durationSeconds: 120
+          Cognitive_Task:
+            type: bpmn:Task
+            name: Cognitive task
+            extensionElements:
+              - type: cognitive:CognitiveTask
+                instrument: psychopy
+                configurations: |
+                  triggerChannel: markers  # stimulus marker stream sent with biosignals
+          Export_Recording:
+            type: bpmn:ServiceTask
+            name: Export recording
+            documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
+            implementation: python://datatrove.pipeline.writers.ParquetWriter
+            additionalArguments: "output_folder: bids/"
+          End:
+            type: bpmn:EndEvent
+            name: End
+          Flow_Start_Mount:
+            type: bpmn:SequenceFlow
+            sourceRef: Start
+            targetRef: Mount_Cap
+          Flow_Mount_Baseline:
+            type: bpmn:SequenceFlow
+            sourceRef: Mount_Cap
+            targetRef: Baseline
+          Flow_Baseline_Task:
+            type: bpmn:SequenceFlow
+            sourceRef: Baseline
+            targetRef: Cognitive_Task
+          Flow_Task_Export:
+            type: bpmn:SequenceFlow
+            sourceRef: Cognitive_Task
+            targetRef: Export_Recording
+          Flow_Export_End:
+            type: bpmn:SequenceFlow
+            sourceRef: Export_Recording
+            targetRef: End
+
 templates:
-  - description: An EEG session - fit the cap, record a baseline, run a task, export.
+  - description: An EEG session pool - fit the cap, record a baseline, run a task, export.
     object:
       type: Session
       bpmn:name: EEG session

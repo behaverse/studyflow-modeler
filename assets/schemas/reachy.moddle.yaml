@@ -5,14 +5,15 @@ prefix: reachy
 description: >-
   Human-robot interaction with the Reachy Mini desktop robot: robot sessions,
   expressive behaviors, spoken dialogue, perception-driven branching, and
-  interaction recordings.
+  interaction recordings. Motion, media, and sensing elements map one-to-one
+  onto the robot daemon's REST API (`http://<host>:8000/api`).
 uri: https://w3id.org/studyflow/reachy
 # The Reachy Mini silhouette, inlined so the badge needs no icon service or external host.
 icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%233f3f46' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 8.5 6.5 2.5M22 8.5 25.5 2.5M15 14.5h2M10.5 21C8.3 23.6 7 26.3 7 29.2h18c0-2.9-1.3-5.6-3.5-8.2'/%3E%3Crect x='5' y='8' width='22' height='13' rx='5.5'/%3E%3Ccircle cx='12' cy='14.5' r='3'/%3E%3Ccircle cx='20' cy='14.5' r='3'/%3E%3C/svg%3E"
 order: 104
 xml:
   tagAlias: lowerCase
-version: 26.0822
+version: 26.0831
 
 enumerations:
   - name: VariantEnum
@@ -32,7 +33,8 @@ enumerations:
     description: >-
       Recorded expressive move played on the head, body, and antennas - a
       curated pick from the SDK's emotions library
-      (`pollen-robotics/reachy-mini-emotions-library`, 81 moves in all).
+      (`pollen-robotics/reachy-mini-emotions-library`, 81 moves in all),
+      plus the daemon's two built-in moves.
     literalValues:
       - name: Cheerful
         value: cheerful1
@@ -52,6 +54,24 @@ enumerations:
         value: dance1
       - name: Sleep
         value: sleep1
+      - name: Wake up
+        value: wake_up
+        description: The daemon's built-in wake-up move (`POST /api/move/play/wake_up`).
+      - name: Go to sleep
+        value: goto_sleep
+        description: The daemon's built-in sleep move (`POST /api/move/play/goto_sleep`).
+
+  - name: InterpolationEnum
+    description: How the daemon interpolates a motion toward its target.
+    literalValues:
+      - name: Min-jerk
+        value: minjerk
+      - name: Linear
+        value: linear
+      - name: Ease in-out
+        value: ease_in_out
+      - name: Cartoon
+        value: cartoon
 
   - name: LookTargetEnum
     description: What the robot orients its head toward.
@@ -68,31 +88,33 @@ enumerations:
     literalValues:
       - name: Wake word
         value: wake_word
+        description: A spoken phrase, recognized app-side (the daemon exposes no wake-word API).
       - name: Face detected
         value: face_detected
+        description: The daemon's face tracker reports a face (`GET /api/media/tracking/face`).
       - name: Speech detected
         value: speech_detected
-      - name: Loud sound
-        value: loud_sound
-      - name: Picked up
-        value: picked_up
-        description: The IMU senses the robot being lifted or shaken (wireless only).
+        description: The mic array hears speech (`GET /api/state/doa`).
 
   - name: PerceptionChannelEnum
     description: Perception feed a gateway's branch conditions read.
     literalValues:
       - name: Face count
         value: face_count
-        description: How many faces the camera currently sees.
-      - name: Emotion
-        value: emotion
-        description: Dominant facial expression of the nearest face.
+        description: >-
+          Faces currently seen - 0 or 1 from the daemon's single-face tracker
+          (`GET /api/media/tracking/face`).
+      - name: Speech detected
+        value: speech_detected
+        description: Whether the mic array currently hears speech (`GET /api/state/doa`).
+      - name: Sound angle
+        value: sound_angle
+        description: >-
+          Direction the sound comes from, in radians - 0 left, π/2 front,
+          π right (`GET /api/state/doa`).
       - name: Speech intent
         value: speech_intent
-        description: What the participant's last utterance asked for.
-      - name: Sound level
-        value: sound_level
-        description: Microphone loudness.
+        description: What the participant's last utterance (from Listen or Converse) asked for.
 
 types:
   - name: Robot
@@ -114,8 +136,9 @@ types:
           editable: true
       - name: host
         description: >-
-          Hostname or IP where the robot's daemon listens - `reachy-mini.local`
-          for a wireless unit, `localhost` for a Lite or a simulation.
+          Hostname or IP where the robot's daemon serves its REST API
+          (`http://<host>:8000/api`) - `reachy-mini.local` for a wireless
+          unit, `localhost` for a Lite or a simulation.
         isAttr: true
         type: String
         default: reachy-mini.local
@@ -136,7 +159,7 @@ types:
           order: 3
           optional: true
       - name: volume
-        description: Speaker volume, 0-100.
+        description: Speaker volume, 0-100, applied at session start (`POST /api/volume/set`).
         isAttr: true
         type: Integer
         default: 80
@@ -145,7 +168,10 @@ types:
 
   # Actuation steps are service tasks: `studyflow:Implementation` lets a runner bind each to a Python entry point over the reachy_mini SDK.
   - name: Say
-    description: The robot speaks a text aloud.
+    description: >-
+      The robot speaks a text aloud. The daemon has no TTS endpoint: a runner
+      synthesizes the audio and plays it through the robot's speaker (SDK
+      media stream, or upload + `POST /api/media/play_sound`).
     superClass:
       - bpmn:ServiceTask
     meta:
@@ -159,7 +185,10 @@ types:
           order: 1
 
   - name: Gesture
-    description: The robot plays a recorded expressive move - head, body rotation, and antennas.
+    description: >-
+      The robot plays a recorded expressive move - head, body rotation, and
+      antennas (`POST /api/move/play/recorded-move-dataset/{dataset}/{move}`;
+      `wake_up` and `goto_sleep` use their own endpoints).
     superClass:
       - bpmn:ServiceTask
     meta:
@@ -167,17 +196,133 @@ types:
     properties:
       - name: move
         description: >-
-          Recorded move to play; any name from the emotions library or a
-          custom recorded move is also accepted.
+          Recorded move to play; any name from the dataset or a custom
+          recorded move is also accepted.
         isAttr: true
         type: MoveEnum
         default: cheerful1
         meta:
           order: 1
           editable: true
+      - name: dataset
+        description: >-
+          Hugging Face dataset the move comes from
+          (`GET /api/move/recorded-move-datasets/list/{dataset}` lists its moves).
+        isAttr: true
+        type: String
+        default: pollen-robotics/reachy-mini-emotions-library
+        meta:
+          order: 2
+
+  - name: Goto
+    description: >-
+      The robot moves head, antennas, and body to a target pose in one smooth
+      motion - the daemon's motion primitive (`POST /api/move/goto`).
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify mdi--axis-arrow
+    properties:
+      - name: roll
+        description: Head roll, radians.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 1
+      - name: pitch
+        description: Head pitch, radians.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 2
+      - name: yaw
+        description: Head yaw, radians.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 3
+      - name: x
+        description: Head position x, meters.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 4
+      - name: y
+        description: Head position y, meters.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 5
+      - name: z
+        description: Head position z, meters.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 6
+      - name: leftAntenna
+        description: Left antenna joint position, radians.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 7
+      - name: rightAntenna
+        description: Right antenna joint position, radians.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 8
+      - name: bodyYaw
+        description: Body rotation, radians.
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 9
+      - name: durationSeconds
+        description: How long the motion takes, seconds.
+        isAttr: true
+        type: Real
+        default: 2
+        meta:
+          order: 10
+      - name: interpolation
+        description: How the motion is interpolated toward the target.
+        isAttr: true
+        type: InterpolationEnum
+        default: minjerk
+        meta:
+          order: 11
+
+  - name: PlaySound
+    description: >-
+      The robot plays a sound from its sound library
+      (`POST /api/media/play_sound`; `GET /api/media/sounds` lists the files,
+      `POST /api/media/sounds/upload` adds one).
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify mdi--music-note
+    properties:
+      - name: file
+        description: Sound file name from the robot's sound library (e.g. `chime.wav`).
+        isAttr: true
+        type: String
+        meta:
+          order: 1
 
   - name: LookAt
-    description: The robot orients its head toward a target and holds or tracks it.
+    description: >-
+      The robot orients its head toward a target and holds or tracks it -
+      faces via the daemon's tracker (`POST /api/media/tracking/enable`),
+      sounds via the mic array's direction of arrival (`GET /api/state/doa`).
     superClass:
       - bpmn:ServiceTask
     meta:
@@ -190,6 +335,16 @@ types:
         default: face
         meta:
           order: 1
+      - name: trackingWeight
+        description: How strongly face tracking pulls the head, 0-1.
+        isAttr: true
+        type: Real
+        default: 1
+        meta:
+          order: 2
+          condition:
+            body:
+              target: face
 
   - name: Listen
     description: >-
@@ -217,7 +372,9 @@ types:
     meta:
       icon: iconify mdi--forum-outline
     properties:
-      # `implementation` (e.g. an `hf://` app) comes from the `studyflow:Implementation` trait.
+      # `implementation` (e.g. an `hf://` app) comes from the `studyflow:Implementation` trait;
+      # a runner starts it through the apps API (`POST /api/apps/start-app/{app}`) and stops it
+      # after (`POST /api/apps/stop-current-app`).
       - name: model
         description: Model identifier that drives the dialogue (e.g. `claude-haiku-4-5`, `ollama/llama3.3`).
         isAttr: true
@@ -278,7 +435,7 @@ types:
           order: 1
 
   - name: SenseEvent
-    description: Waits until the robot senses something - a wake word, a face, a sound, being picked up.
+    description: Waits until the robot senses something - a wake word, a face, or speech.
     superClass:
       - bpmn:IntermediateCatchEvent
     meta:
