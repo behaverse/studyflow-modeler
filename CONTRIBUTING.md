@@ -36,7 +36,6 @@ npm run test:e2e     # e2e only; first run needs `npx playwright install chromiu
 | --- | --- |
 | `npm run lint` | the two architecture boundaries: `core/` is framework-free (no bpmn-js service *names* either, even as `any`), and modeler and runner never import each other. See the comments in `eslint.config.js`. |
 | `npm run lint:schemas` | the shipped schemas parse, compile, and stay well-formed |
-| `npm run lint:docs` | every element name a page prints resolves to one a shipped schema declares; retired names stay retired; every relative link resolves and stays inside `docs/`; every page declares a title and a description, keeps the reader's register, and stays inside its section's reading budget |
 | `npm run typecheck` | the command bus's name check, which is only real where `tsc` runs; CI runs it on every push |
 
 ## Schemas
@@ -45,4 +44,4 @@ Drop a `*.moddle.yaml` into `assets/schemas/` and reload; no registration is nee
 
 ## Docs
 
-`docs/` is the specification of the notation, written for cognitive scientists and AI researchers. Engineering detail belongs in the READMEs above, and `npm run lint:docs` enforces the split. [`docs/README.md`](docs/README.md) is the style guide.
+`npm run docs` previews and `npm run docs:build` renders docs using Quarto.
