@@ -1,29 +1,39 @@
 ---
 title: "Studyflow"
-description: "Write an experiment once, as one flowchart file that is also its protocol, its runnable session, its analysis specification, and its figure."
+subtitle: "A visual notation for experiments"
 reference-location: margin
 citation-location: margin
 ---
 
-Studyflow is a graphical notation for describing and coordinating experiments: AI evaluations, behavioral research, clinical studies. Think of a workflow language: your codes compute, studyflow coordinates them[^gelernter]. A diagram is the single source of truth needed to recreate an experiment, and both machines and humans can read it. You draw the experiment once, and the result is one file that is at once the protocol, the runnable code, the analysis specification, the final report, and the manuscript figure.
+Studyflow is a graphical notation for describing and coordinating experiments such as AI evaluation, harness, behavioral and cognitive research, or clinical studies. Think of a workflow language that is just an image file, and you can open it in a browser, edit it, run it, or produce a protocol document from it. While your codes compute, studyflow coordinates them[^gelernter].
 
-A studyflow is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/) file, extended with domain-specific elements through BPMN's own extension mechanisms.
+A studyflow diagram is the single source of truth to recreate an experiment, and both machines and humans can understand it. You draw the experiment once, and the diagram is one file that is at once the protocol, the plan, the runnable code, the analysis specification, the provenance history, the final report, and the manuscript figure.
 
-![Hypothetical experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open the png in the [Studyflow Modeler](https://behaverse.org/studyflow-modeler/app) app, you can see the details, edit it, or run it.](assets/img/studyflow_example_1.svg){#figs-studyflow}
+The notation is designed to be compatible with other tools and formats. A studyflow diagram is a valid [BPMN 2.0](https://www.omg.org/spec/BPMN/2.0/), extended with domain-specific elements through BPMN's own extension mechanisms.
+
+Here is an example of a cognitive experiment described as a studyflow diagram:
+
+![Example cognitive experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open this SVG image in the [Modeler app](https://behaverse.org/studyflow-modeler/app), you can see the details, edit it, or run it.](assets/img/example-experiment.studyflow.svg)
+
+But an experiment can be more than a description of data collection. And the same notation can describe a data analysis, from raw data to final figures. And the same notation can be used to run the analysis in different environments (local, HPC, or cloud):
+
+![Example analysis as a studyflow diagram: raw data, preprocessing, feature extraction, model training, evaluation, and final figure. You can edit this PNG image in the [Modeler app](https://behaverse.org/studyflow-modeler/app) and see the provenance of the previous runs (commands > "Provenance"). Alternatively you can run it in the [Runner app](https://behaverse.org/studyflow-modeler/run). All the history of the runs will be stored in the diagram itself, and the output of the run is a git repository with the checkpoints, figures, logs, and all intermediate files stored. The git commits in the new run repository will reflect the provenance, so you can see what ran, when, and by whom.](assets/img/example-analysis.studyflow.png)
 
 ## Why
 
-Today an experimental study is described many times: a protocol in PDF for the ethics board, a preregistration form, a script for the data collection, a notebook for the analysis, a figure for the manuscript, and it continues. Each copy is maintained separately, and nothing checks them against each other, so they drift apart (we are not anymore surprised when the preregistration says four conditions, the data collection script implements five, the analysis code uses three, and the figure only shows two).
+Today an experiment is described many times: a protocol or plan in PDF for the ethics approval, a preregistration form, a custom script for the data collection, a notebook for the analysis, a figure for the manuscript, and it continues. Each copy is maintained separately, and nothing checks them against each other, so they drift apart (we are not anymore surprised when the preregistration says four conditions, the data collection script implements five, the analysis code uses three, and the figure shows only two).
 
-Replications usually stop on exactly this gap between what was described and what actually ran[^hardwicke] [^variability]. AI research has the same gap under different names: the eval described in the paper, the harness that actually ran it, and the config that drifted somewhere in between.
+Replications usually stop on exactly this gap between the many aspects of an experiment that was described and what actually ran[^hardwicke] [^variability]. AI and clinical research has the same gap under different names: the eval described in the paper, the harness that actually ran it, and the config that drifted somewhere in between.
 
-A studyflow diagram replaces all these copies with one file. Each document you need is produced, or more precisely *projected*, from this file.
+A studyflow diagram replaces all these copies with one file. Each document you need is produced, or more precisely *projected* as a view of this single file.
 
 ## How it works
 
-You build a study in the [*Modeler app*](https://behaverse.org/studyflow-modeler/app) (open source, in browser) or any other compatible app. The elements you can use are the same as in BPMN: tasks, events, gateways, and flows. You can also add your own domain-specific elements (questionnaire, cognitive tasks, brain imaging sessions, data analysis functions in Python). Then you attach metadata to each element (e.g., a script to run, a data file to read, or a figure to produce).
+You build a study (the main container of an experiment) in the [*modeler*](https://behaverse.org/studyflow-modeler/app) (open source, works offline in browser) or any other compatible app (e.g., BPMN editors). The elements you can use are the same as in BPMN: tasks, events, gateways, and flows. You can also add your own domain-specific elements (e.g., for cognitive scientists: questionnaire, cognitive tasks, brain imaging sessions, data analysis functions in Python). Then you describe each element using their metadata (e.g., a script to run, a data file to read, or a figure to produce).
 
-The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the file and execute it in many environments: a web browser, a Python script, or a containerized workflow. Or *projections* can read the file and produce a protocol document, a Gantt chart, a figure, or a checklist.
+The file saves as a YAML file or an image with embedded metadata. From here, downstream *runners* can read the file and execute it in many environments, e.g., a web browser, a local Python env, on HPC, or a container. Or *projections* can read the file and produce a protocol document, a Gantt chart, a figure, or a checklist. Additionally, the file can be versioned in Git and all the provenance of the runs can be stored in the file itself, so you can see what ran, when, and by whom.
+
+Here is the same diagram as above, projected into three different views: a timeline, a checklist, and a provenance log.
 
 ::: {layout-ncol=3}
 ![Timeline: when each part happens](assets/img/views/gantt.png){#figs-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
@@ -33,7 +43,7 @@ The file saves as YAML (or as a PNG with embedded YAML). *Runners* can read the 
 ![Provenance: what ran, when, by whom](assets/img/views/provenance.png){#figs-provenance fig-alt="A dialog titled Provenance View listing entries across three runs, each row naming an action, an element, an actor, a tool, and a timestamp."}
 :::
 
-To try it, [open the modeler](https://behaverse.org/studyflow-modeler/app) and load an example from its gallery.
+To try it, [open the modeler](https://behaverse.org/studyflow-modeler/app) and load an example from its gallery (command menu > "New...").
 
 [^gelernter]: Gelernter, D., & Carriero, N. (1992). Coordination languages and their significance. *Communications of the ACM*, 35(2), 97-107.
 

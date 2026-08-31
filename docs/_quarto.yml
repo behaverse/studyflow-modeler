@@ -20,20 +20,20 @@ website:
     contents:
       - text: Overview
         href: index.qmd
-      - text: Developers
-        href: developers.qmd
-      - text: Reference
-        href: reference.qmd
       - text: Glossary
         href: glossary.qmd
+      - text: Reference
+        href: reference.qmd
+      - text: Developers
+        href: developers.qmd
       - "---"
-      - text: Open Modeler
+      - text: Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
         icon: box-arrow-up-right
         target: _blank
       - icon: github
         href: https://github.com/behaverse/studyflow-modeler
-    footer: "© 2025 [xCIT.org](https://xcit.org)"
+    footer: "&copy; 2026 [xCIT.org](https://xcit.org)"
   open-graph: true
 
 format:
@@ -54,4 +54,4 @@ format:
     highlight-style: github
     link-external-icon: true
     link-external-newwindow: true
-    link-external-filter: '^(?:http://|https://)(?:[^/]*\.)?(behaverse\.org/studyflow-modeler/)|(xcit.org)'
+    link-external-filter: '^(?:http://|https://)(?:[^/]*\.)?(behaverse\.org/studyflow-modeler/docs/|xcit\.org)'
