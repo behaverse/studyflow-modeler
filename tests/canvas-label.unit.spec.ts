@@ -816,12 +816,13 @@ test('external label: clicking it selects the LABEL, with its own outline rect',
   expect(canvas.getGraphics('Start_1')!.classList.contains('selected')).toBe(false);
 });
 
-test('external label: no resize handles, and Delete on one is a no-op', async () => {
+test('external label: resize handles, and Delete on one is a no-op', async () => {
   const { canvas, definitions } = await load(FIXTURE_XML);
   clickAt(canvas, labelCentre(canvas, 'Gate_1'));
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Gate_1_label']);
-  // A caption is sized by its text: the overlay offers no resize gesture.
-  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(0);
+  // A caption's box is the region its text wraps in, so it resizes like any other
+  // box — with the ordinary chips, not decoration.
+  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(8);
 
   const before = canvas.getScene()!.elementsById.size;
   expect(canvas.deleteSelection()).toEqual([]);
@@ -1008,25 +1009,23 @@ test('the leader and the chips go away when the caption is deselected', async ()
   canvas.getSelection().clear();
 
   expect(canvas.getSvg().querySelectorAll('.sf-label-leader')).toHaveLength(0);
-  expect(canvas.getSvg().querySelectorAll('.sf-label-chip')).toHaveLength(0);
+  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(0);
 });
 
-test('a selected caption draws eight chips that start no gesture', async () => {
+test('a selected caption draws eight resize chips that DO start a gesture', async () => {
   const { canvas } = await load(EDGE_LABEL_XML);
   const label = edgeLabel(canvas, 'Flow_1');
 
   clickAt(canvas, boxCentre(label));
 
-  const chips = Array.from(canvas.getSvg().querySelectorAll('.sf-label-chip'));
+  const chips = Array.from(canvas.getSvg().querySelectorAll('.sf-resizer'));
   expect(chips).toHaveLength(8);
-  // Inert by construction: no `data-handle`, so `Selection.handleAt` can never
-  // report one and no resize gesture can start on a caption (§5-D2).
-  expect(chips.some((chip) => chip.hasAttribute('data-handle'))).toBe(false);
-  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(0);
-  // They sit on the OUTLINE rect (the text box + 5), corners first.
-  const nw = chips.find((chip) => chip.classList.contains('sf-label-chip-nw'))!;
-  expect(Number(nw.getAttribute('x'))).toBeCloseTo(label.x - 5 - 4, 6);
-  expect(Number(nw.getAttribute('y'))).toBeCloseTo(label.y - 5 - 4, 6);
+  // The ordinary resize widget: each carries its `data-handle`, so `handleAt`
+  // reports it and the caption's box can be dragged (its text re-wraps to it).
+  expect(chips.every((chip) => chip.hasAttribute('data-handle'))).toBe(true);
+  const nw = chips.find((chip) => chip.classList.contains('sf-resizer-nw'))!;
+  expect(nw.getAttribute('transform')).toBe(`translate(${label.x}, ${label.y})`);
+  expect(canvas.getSelection().handleAt({ x: label.x - 2, y: label.y - 2 })?.handle).toBe('nw');
 });
 
 test('the leader survives the caption being dragged, the chips step aside', async () => {
@@ -1041,14 +1040,14 @@ test('the leader survives the caption being dragged, the chips step aside', asyn
 
   // Mid-gesture: the association is exactly what the user needs to see.
   expect(canvas.getSvg().querySelectorAll('.sf-label-leader')).toHaveLength(1);
-  expect(canvas.getSvg().querySelectorAll('.sf-label-chip')).toHaveLength(0);
+  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(0);
   // The caption itself is the blue ghost, with the frozen original behind it.
   expect(canvas.getGraphics('Flow_1_label')!.classList.contains('sf-dragger')).toBe(true);
   expect(canvas.getSvg().querySelectorAll('.sf-drag-originals')).toHaveLength(1);
 
   fireMouse(canvas, doc, 'pointerup', { x: from.x, y: from.y - 60 });
   expect(canvas.getGraphics('Flow_1_label')!.classList.contains('sf-dragger')).toBe(false);
-  expect(canvas.getSvg().querySelectorAll('.sf-label-chip')).toHaveLength(8);
+  expect(canvas.getSvg().querySelectorAll('.sf-resizer')).toHaveLength(8);
 });
 
 test('dblclick on an UNLABELED flow opens an editor at the midpoint and mints a BPMNLabel', async () => {

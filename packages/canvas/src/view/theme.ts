@@ -68,8 +68,6 @@ export const CANVAS_CSS = `
 
   /* A caption's chrome: the inert chips around it and the dashed leader back to the
      element it names (\`edge-videos/labels/frame_08\`) are both the selection blue. */
-  --sf-label-chip-fill-color: var(--sf-color-blue-205-100-50);
-  --sf-label-chip-stroke-color: var(--sf-canvas-fill-color);
   --sf-label-leader-stroke-color: var(--sf-element-selected-outline-stroke-color);
 
   --sf-snap-line-stroke-color: hsla(205, 100%, 45%, 0.3);
@@ -230,24 +228,15 @@ export const CANVAS_CSS = `
  * from its flow still visibly belongs to it. It is drawn from the selection layer in
  * diagram coordinates and is inert to the pointer, like every other overlay.
  *
- * The CHIPS are decoration and nothing more. A label is not resizable here (there is
- * no label-resize mutation for the writeback to commit), so they carry no
- * \`data-handle\`, take no pointer events, and start no gesture — they exist because
- * the reference draws them and their absence read as "this is not really selected".
+ * The CHIPS are the ordinary resize chips (\`.sf-resizer\`, above): a caption's box is
+ * the region its text wraps in (\`render/labels.ts\`), so it is resized with the same
+ * widget, the same \`data-handle\` and the same directional cursors as any other box.
  */
 .sf-canvas .sf-label-leader {
   stroke: var(--sf-label-leader-stroke-color);
   stroke-width: 1px;
   stroke-dasharray: 4, 4;
   fill: none;
-  pointer-events: none;
-  shape-rendering: geometricPrecision;
-}
-
-.sf-canvas .sf-label-chip {
-  fill: var(--sf-label-chip-fill-color);
-  stroke: var(--sf-label-chip-stroke-color);
-  stroke-width: 1px;
   pointer-events: none;
   shape-rendering: geometricPrecision;
 }

@@ -33,7 +33,7 @@ import {
 const caption = (page: Page): Locator =>
   page.locator('svg.sf-canvas g.sf-external-label[data-element-id$="_label"]');
 const leader = (page: Page): Locator => page.locator('svg.sf-canvas .sf-label-leader');
-const chips = (page: Page): Locator => page.locator('svg.sf-canvas .sf-label-chip');
+const chips = (page: Page): Locator => page.locator('svg.sf-canvas .sf-resizer');
 
 async function centreOf(locator: Locator): Promise<{ x: number; y: number }> {
   const box = await locator.boundingBox();
@@ -74,7 +74,6 @@ test.describe('Edge labels', () => {
     await page.mouse.click(captionCentre.x, captionCentre.y);
     await expect(leader(page)).toHaveCount(1);
     await expect(chips(page)).toHaveCount(8);
-    await expect(page.locator('svg.sf-canvas .sf-resizer')).toHaveCount(0);
 
     // 3 — drag it clear of the line.
     const flowBefore = (await flowLine.boundingBox())!;

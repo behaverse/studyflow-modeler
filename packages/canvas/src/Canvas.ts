@@ -460,8 +460,10 @@ export class Canvas {
       root: this.root,
       // The overlay offers exactly the gestures the rules allow: an event or a
       // gateway is selected with an outline and no resize handles. An external
-      // LABEL is never resizable either — it is sized by its text.
-      canResize: (node) => !isLabelElement(node) && this.rules.canResize(node),
+      // LABEL is resizable whatever it names — its box is the region its text wraps
+      // in (`render/labels.ts` `wrapsInto`), not the shape's geometry, so the rules'
+      // per-type verdict for the owner has nothing to say about it.
+      canResize: (node) => isLabelElement(node) || this.rules.canResize(node),
       // `Editor.selection` IS this object, and app chrome selects by whatever it is
       // holding — an id, the shape a command just made, the plane projection.
       resolve: (value) => this.resolveElement(value),
@@ -2149,8 +2151,9 @@ export class Canvas {
     if (g.intent === 'resize' && g.handle) {
       // The rule engine has the last word, even though the overlay only draws
       // handles where it already said yes (`Selection.canResize`): a host that
-      // swaps the rules mid-session must not leave a live gesture ungated.
-      if (!this.rules.canResize(g.handle.node)) return false;
+      // swaps the rules mid-session must not leave a live gesture ungated. A
+      // caption is not the rules' business (see `canResize` above).
+      if (!isLabelElement(g.handle.node) && !this.rules.canResize(g.handle.node)) return false;
       if (!drag.startResize(g.handle.node, g.handle.handle, g.downDiagram)) return false;
       this.beginSnapping(g);
       // The shape being resized drops its own outline and chips, so the geometry

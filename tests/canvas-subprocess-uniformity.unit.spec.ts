@@ -468,19 +468,21 @@ test('a double click on an expanded frame\'s own name opens the rename editor', 
   const container = node(canvas, 'C');
   expect(container.isExpanded).toBe(true);
 
-  // The caption is drawn centred in the frame (`render/labels.ts drawInternalLabel`),
-  // and that is the one spot a double click means "rename" rather than "collapse" —
-  // the escape hatch requirement A asks for, beside the context pad's own entry.
-  fireMouse(canvas, 'dblclick', centre(container));
+  // An expanded frame captions its TOP-centre (`render/labels.ts
+  // drawInternalLabel`), and that is the one spot a double click means "rename"
+  // rather than "collapse" — the escape hatch requirement A asks for, beside the
+  // context pad's own entry.
+  fireMouse(canvas, 'dblclick', { x: container.x + container.width / 2, y: container.y + 12 });
 
   expect(canvas.getLabelEditing().isActive()).toBe(true);
   expect(canvas.getLabelEditing().getValue()).toBe('Container');
   expect(container.isExpanded).toBe(true);
 
-  // …and a double click on the BODY, clear of the caption, still collapses it: the
-  // escape hatch is the name, not the whole frame.
+  // …and a double click on the BODY, clear of the caption — the middle of the frame
+  // included, now that the name has moved off it — still collapses: the escape hatch
+  // is the name, not the whole frame.
   canvas.getLabelEditing().cancel();
-  fireMouse(canvas, 'dblclick', { x: container.x + 12, y: container.y + container.height - 12 });
+  fireMouse(canvas, 'dblclick', centre(container));
   expect(container.isExpanded).toBe(false);
 });
 

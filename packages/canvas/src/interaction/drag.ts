@@ -54,6 +54,8 @@ import {
   segmentsOf,
   type SegmentShapes,
 } from '@canvas/interaction/segments.ts';
+import { fitLabelHeight, labelMinSize } from '@canvas/render/labels.ts';
+import { prop } from '@canvas/model/moddle.ts';
 import { rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
 
@@ -153,6 +155,17 @@ interface ResizeState {
   min: MinSize;
   /** Snapshot of the node's positioned external label's top-left, if it has one. */
   labelOrigin?: Point;
+  /**
+   * Set when `node` is the synthetic element of a CAPTION (`model/externalLabel.ts`):
+   * the element the caption names, whose `bpmndi:BPMNLabel` the drop writes. A
+   * caption resize is the box its text wraps in (`render/labels.ts` `wrapsInto`), so
+   * it commits like a caption move — the owner's own bounds are never touched.
+   */
+  labelOwner?: SceneElement;
+  /** The caption's text, for the grow-to-fit height clamp. */
+  labelName?: string;
+  /** Whether THIS gesture minted the owner's {@link SceneLabel} (see LabelState). */
+  minted?: boolean;
   edges: SceneEdge[];
   edgeOrigins: Map<SceneEdge, Point[]>;
 }
@@ -225,6 +238,12 @@ function labelOrigin(node: SceneNode): Point | undefined {
   return label && label.x !== undefined && label.y !== undefined
     ? { x: label.x, y: label.y }
     : undefined;
+}
+
+/** An element's `name`, or `''` — the text a caption resize has to keep room for. */
+function nameOf(element: SceneElement): string {
+  const name = prop(element.businessObject, 'name');
+  return typeof name === 'string' ? name : '';
 }
 
 /** Place `node`'s external label at `(x, y)` when it is explicitly positioned. */
@@ -362,14 +381,25 @@ export class Drag {
       edgeOrigins.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
       edges.push(edge);
     }
+    const bounds: Bounds = { x: node.x, y: node.y, width: node.width, height: node.height };
+    // A caption's box becomes explicit the moment it is resized, exactly as it does
+    // when it is dragged ({@link Drag.startLabel}) — the DI half is minted on the drop.
+    const owner = node.labelTarget;
+    const name = owner ? nameOf(owner) : '';
+    const minted = !!owner && !owner.label;
+    if (owner) ensureSceneLabel(owner, bounds);
     this.state = {
       kind: 'resize',
       origin: { ...origin },
       node,
       handle,
-      bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
-      min: min ?? this.minSizeOf?.(node) ?? { width: this.minSize, height: this.minSize },
+      bounds,
+      min: min
+        ?? (owner ? labelMinSize(name) : undefined)
+        ?? this.minSizeOf?.(node)
+        ?? { width: this.minSize, height: this.minSize },
       ...(labelOrigin(node) ? { labelOrigin: labelOrigin(node) } : {}),
+      ...(owner ? { labelOwner: owner, labelName: name, minted } : {}),
       edges,
       edgeOrigins,
     };
@@ -495,6 +525,13 @@ export class Drag {
       this.writeback.setLabelBounds(state.owner, currentLabelBounds(state));
       return touched;
     }
+    if (state.kind === 'resize' && state.labelOwner) {
+      // The caption's box lives on the OWNER's label, not on the synthetic element:
+      // every frame's redraw re-points that element at the drawn caption
+      // (`model/externalLabel.ts`), so by the drop it is no longer the gesture's.
+      this.writeback.setLabelBounds(state.labelOwner, labelBoxOf(state));
+      return touched;
+    }
     const changed = touched.filter((element) => movedFrom(state, element));
     if (changed.length > 0) this.writeback.commit(changed);
     return changed;
@@ -610,6 +647,16 @@ export class Drag {
       else bottom = top + min.height;
     }
 
+    // A caption never shrinks below the text it has to wrap: the floor above keeps
+    // the widest word on one line, and this keeps every line on the box.
+    if (state.labelOwner) {
+      const needed = fitLabelHeight(state.labelName ?? '', right - left);
+      if (bottom - top < needed) {
+        if (handle.includes('n')) top = bottom - needed;
+        else bottom = top + needed;
+      }
+    }
+
     node.x = left;
     node.y = top;
     node.width = right - left;
@@ -623,6 +670,20 @@ export class Drag {
       const dcx = node.x + node.width / 2 - (bounds.x + bounds.width / 2);
       const dcy = node.y + node.height / 2 - (bounds.y + bounds.height / 2);
       placeLabel(node, anchor.x + dcx, anchor.y + dcy);
+    }
+
+    // A caption resize edits the OWNER's label box; the owner is what redraws,
+    // because the caption is drawn inside its `<g>` (`render/labels.ts`).
+    const owner = state.labelOwner;
+    if (owner) {
+      const label = owner.label;
+      if (label) {
+        label.x = node.x;
+        label.y = node.y;
+        label.width = node.width;
+        label.height = node.height;
+      }
+      return [owner];
     }
 
     for (const edge of state.edges) {
@@ -791,6 +852,18 @@ function restoreResize(state: ResizeState): SceneElement[] {
   node.y = bounds.y;
   node.width = bounds.width;
   node.height = bounds.height;
+  const owner = state.labelOwner;
+  if (owner) {
+    const label = owner.label;
+    if (label) {
+      label.x = bounds.x;
+      label.y = bounds.y;
+      label.width = bounds.width;
+      label.height = bounds.height;
+    }
+    if (state.minted) dropSceneLabel(owner);
+    return [owner];
+  }
   if (state.labelOrigin) placeLabel(node, state.labelOrigin.x, state.labelOrigin.y);
   for (const edge of state.edges) {
     const original = state.edgeOrigins.get(edge);
@@ -802,6 +875,18 @@ function restoreResize(state: ResizeState): SceneElement[] {
 function restoreWaypoint(state: WaypointState | SegmentState): SceneElement[] {
   state.edge.waypoints = state.original.map((p) => ({ x: p.x, y: p.y }));
   return [state.edge];
+}
+
+/** The box a caption RESIZE has arrived at, from the owner's label (see `Drag.end`). */
+function labelBoxOf(state: ResizeState): Bounds {
+  const label = state.labelOwner?.label;
+  const { x, y, width, height } = state.node;
+  return {
+    x: label?.x ?? x,
+    y: label?.y ?? y,
+    width: label?.width ?? width,
+    height: label?.height ?? height,
+  };
 }
 
 /** The caption's box as the live scene now has it (what the drop commits). */

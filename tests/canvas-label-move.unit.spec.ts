@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { dragBy, freshModdle, jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+import { click, dragBy, freshModdle, jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+import { measureLabelWidth } from '@canvas/render/labels.ts';
 
 /**
  * Dragging an external LABEL (parity spec addendum 3 §2/§5, `edge-videos/labels`).
@@ -217,3 +218,100 @@ test('a caption drag leaves the edge it names selectable and unmoved in the scen
   // The caption, not the flow, is what the gesture selected.
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Flow_1_label']);
 });
+
+// --- resizing a caption (the box its text wraps in) ---------------------------
+
+/**
+ * A caption long enough to wrap, positioned by the document — the resize half of
+ * the feature: a label's `bpmndi:BPMNLabel/dc:Bounds` is the REGION its text is laid
+ * out in (`render/labels.ts` `wrapsInto`), so dragging its handles re-wraps it.
+ */
+const WRAPPING_XML = FIXTURE_XML.replace(
+  '<bpmn:sequenceFlow id="Flow_1" name="ship" sourceRef="Start_1" targetRef="Task_1" />',
+  '<bpmn:sequenceFlow id="Flow_1" name="ship the parcel today" sourceRef="Start_1" targetRef="Task_1" />',
+).replace(
+  '<dc:Bounds x="200" y="80" width="30" height="15" />',
+  '<dc:Bounds x="180" y="60" width="140" height="15" />',
+);
+
+/** The lines the caption of `id` is currently drawn as. */
+function labelLines(canvas: Canvas, id: string): string[] {
+  const g = canvas.getSvg().querySelector(`[data-element-id="${id}_label"]`);
+  return [...(g?.querySelectorAll('text') ?? [])].map((t) => t.textContent ?? '');
+}
+
+/** A point inside the caption's `se` resize chip (see `canvas-drag`'s `handlePoint`). */
+function seHandle(box: { x: number; y: number; width: number; height: number }): Pt {
+  return { x: box.x + box.width + 4, y: box.y + box.height + 4 };
+}
+
+test('resizing a caption re-wraps its text and writes only its BPMNLabel bounds', async () => {
+  const { canvas, definitions } = await loadCanvas(WRAPPING_XML, { snapToGrid: false });
+  expect(labelLines(canvas, 'Flow_1')).toEqual(['ship the parcel today']);
+  const label = { ...labelOf(canvas, 'Flow_1') };
+  const waypointsBefore = diWaypoints(definitions, 'Flow_1');
+
+  click(canvas, centre(label));
+  const grab = seHandle(label);
+  // Narrow to ~half the width, and tall enough for the lines that forces.
+  dragBy(canvas, grab, { x: grab.x - 75, y: grab.y + 30 });
+
+  expect(labelLines(canvas, 'Flow_1').length).toBeGreaterThan(1);
+  expect(labelLines(canvas, 'Flow_1').join(' ')).toBe('ship the parcel today');
+
+  const written = diLabelBounds(definitions, 'Flow_1');
+  expect(written.width).toBeCloseTo(label.width - 75, 6);
+  // Grown to fit the lines that width forces (`render/labels.ts` `fitLabelHeight`).
+  expect(written.height).toBe(labelLines(canvas, 'Flow_1').length * 15);
+  // The flow itself is untouched — same contract as a caption move.
+  expect(diWaypoints(definitions, 'Flow_1')).toEqual(waypointsBefore);
+  expect(diBounds(definitions, 'Start_1')).toEqual({ x: 100, y: 100, width: 36, height: 36 });
+});
+
+test('a resized caption survives the round trip', async () => {
+  const loaded = await loadCanvas(WRAPPING_XML, { snapToGrid: false });
+  const { canvas, definitions, moddle } = loaded;
+  const label = labelOf(canvas, 'Flow_1');
+
+  click(canvas, centre(label));
+  const grab = seHandle(label);
+  dragBy(canvas, grab, { x: grab.x - 75, y: grab.y + 30 });
+  const lines = labelLines(canvas, 'Flow_1');
+  expect(lines.length).toBeGreaterThan(1);
+
+  const { xml } = await moddle.toXML(definitions);
+  const { rootElement: reloaded } = await freshModdle().fromXML(xml);
+  const reopened = new Canvas();
+  reopened.importDefinitions(reloaded as any);
+  expect(labelLines(reopened, 'Flow_1')).toEqual(lines);
+});
+
+test('a caption never resizes below the text it has to hold', async () => {
+  const { canvas } = await loadCanvas(WRAPPING_XML, { snapToGrid: false });
+  const label = labelOf(canvas, 'Flow_1');
+
+  click(canvas, centre(label));
+  const grab = seHandle(label);
+  // Drag the corner far past the top-left: the box stops at the longest word, and
+  // grows tall enough for the lines that width forces.
+  dragBy(canvas, grab, { x: grab.x - 300, y: grab.y - 300 });
+
+  const after = labelOf(canvas, 'Flow_1');
+  expect(after.width).toBeGreaterThanOrEqual(measureLabelWidth('parcel', 11));
+  expect(labelLines(canvas, 'Flow_1').some((line) => line.endsWith('…'))).toBe(false);
+  expect(after.height).toBeGreaterThanOrEqual(labelLines(canvas, 'Flow_1').length * 15);
+});
+
+test('Escape abandons a caption resize, leaving the BPMNLabel as the document had it', async () => {
+  const { canvas, definitions } = await loadCanvas(WRAPPING_XML, { snapToGrid: false });
+  const label = labelOf(canvas, 'Flow_1');
+  const before = diLabelBounds(definitions, 'Flow_1');
+
+  click(canvas, centre(label));
+  const grab = seHandle(label);
+  dragThenEscape(canvas, grab, { x: grab.x - 75, y: grab.y + 30 });
+
+  expect(diLabelBounds(definitions, 'Flow_1')).toEqual(before);
+  expect(labelLines(canvas, 'Flow_1')).toEqual(['ship the parcel today']);
+});
+

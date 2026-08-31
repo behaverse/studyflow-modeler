@@ -14,6 +14,12 @@ import type { Bounds, Point, SceneEdge, SceneLabel, SceneNode } from '@canvas/mo
 /** Approx glyph advance as a fraction of font size — matches the ported heuristic. */
 const CHAR_WIDTH_RATIO = 0.58;
 
+/** What {@link fit} cuts a too-long line short with. */
+const ELLIPSIS = '\u2026';
+
+/** Slack {@link fit} and {@link wrap} leave inside a box (the ported heuristic's `- 8`). */
+const WRAP_PADDING = 2;
+
 /** Baseline-to-baseline spacing of wrapped label lines (diagram units). */
 export const LABEL_LINE_HEIGHT = 15;
 
@@ -41,15 +47,15 @@ export function measureLabelWidth(text: string, fontSize: number): number {
 /** Ellipsize `text` to fit `maxWidth` at `fontSize` (ported from choreographyLayout). */
 export function fit(text: string, maxWidth: number, fontSize: number): string {
   const perChar = fontSize * CHAR_WIDTH_RATIO;
-  const maxChars = Math.max(1, Math.floor((maxWidth - 8) / perChar));
+  const maxChars = Math.max(1, Math.floor((maxWidth - WRAP_PADDING) / perChar));
   if (text.length <= maxChars) return text;
-  return text.slice(0, Math.max(1, maxChars - 1)).trimEnd() + '…';
+  return text.slice(0, Math.max(1, maxChars - 1)).trimEnd() + ELLIPSIS;
 }
 
 /** Word-wrap `text` into at most `maxLines` lines, ellipsizing the last (ported). */
 export function wrap(text: string, maxWidth: number, fontSize: number, maxLines: number): string[] {
   const perChar = fontSize * CHAR_WIDTH_RATIO;
-  const maxChars = Math.max(1, Math.floor((maxWidth - 8) / perChar));
+  const maxChars = Math.max(1, Math.floor((maxWidth - WRAP_PADDING) / perChar));
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let current = '';
@@ -118,6 +124,36 @@ function textLine(content: string, opts: TextOptions): SVGTextElement {
 }
 
 /**
+ * Padding above the caption of an EXPANDED container, and — doubled — the height of
+ * the region the inline editor opens over there ({@link INTERNAL_TOP_LABEL_HEIGHT}).
+ */
+const TOP_LABEL_PADDING = 5;
+
+/**
+ * Height of the strip an expanded container's caption lives in: twice the centre of
+ * its first line, so text centred in the strip lands exactly on the drawn line.
+ */
+export const INTERNAL_TOP_LABEL_HEIGHT = 2 * (TOP_LABEL_PADDING + LABEL_LINE_HEIGHT / 2);
+
+/** The wrapped lines of a node's internal label. */
+function internalLabelLines(node: SceneNode, name: string, fontSize: number): string[] {
+  const maxLines = Math.max(1, Math.min(4, Math.floor(node.height / LINE_HEIGHT)));
+  return wrap(name, node.width, fontSize, maxLines);
+}
+
+/**
+ * Centre of the FIRST line of a node's internal label (node-local `y`).
+ *
+ * An expanded sub-process is a FRAME around its contents, so its name sits at the
+ * top — centred over the middle would print it across the children. Everything else
+ * (tasks, choreography name bands) keeps the caption in the middle of its box.
+ */
+function internalLabelFirstY(node: SceneNode, lines: number): number {
+  if (node.isExpanded === true) return TOP_LABEL_PADDING + LINE_HEIGHT / 2;
+  return node.height / 2 - ((lines - 1) * LINE_HEIGHT) / 2;
+}
+
+/**
  * Draw a node's name centred inside its box (tasks, subprocesses, participants),
  * wrapped to the available height. Coordinates are node-local (origin `0,0`).
  */
@@ -129,9 +165,8 @@ export function drawInternalLabel(
   fontSize = 12,
 ): void {
   if (!name) return;
-  const maxLines = Math.max(1, Math.min(4, Math.floor(node.height / LINE_HEIGHT)));
-  const lines = wrap(name, node.width, fontSize, maxLines);
-  const firstY = node.height / 2 - ((lines.length - 1) * LINE_HEIGHT) / 2;
+  const lines = internalLabelLines(node, name, fontSize);
+  const firstY = internalLabelFirstY(node, lines.length);
   lines.forEach((line, i) => {
     append(container, textLine(line, {
       x: node.width / 2,
@@ -163,10 +198,10 @@ export function internalLabelTextBounds(
   fontSize = 12,
 ): Bounds | undefined {
   if (!name) return undefined;
-  const maxLines = Math.max(1, Math.min(4, Math.floor(node.height / LINE_HEIGHT)));
-  const lines = wrap(name, node.width, fontSize, maxLines);
+  const lines = internalLabelLines(node, name, fontSize);
   if (lines.length === 0) return undefined;
-  const box = textBox(lines, node.width / 2, node.height / 2, fontSize);
+  const cy = internalLabelFirstY(node, lines.length) + ((lines.length - 1) * LINE_HEIGHT) / 2;
+  const box = textBox(lines, node.width / 2, cy, fontSize);
   return { x: node.x + box.x, y: node.y + box.y, width: box.width, height: box.height };
 }
 
@@ -185,19 +220,103 @@ export function labelIdOf(owner: { id: string }): string {
   return `${owner.id}_label`;
 }
 
+/**
+ * The most lines any label wraps into — a ceiling on the search {@link wrapsInto}
+ * runs, not a layout rule (a box tall enough for more has stopped being a caption).
+ */
+const MAX_WRAP_LINES = 20;
+
+/**
+ * Widest single word of `name`: the narrowest a box can be and still wrap the text
+ * without cutting a word short. The floor a label resize clamps to
+ * ({@link labelMinSize}).
+ */
+function longestWordWidth(name: string, fontSize: number): number {
+  const words = name.split(/\s+/).filter(Boolean);
+  return Math.max(0, ...words.map((word) => measureLabelWidth(word, fontSize)));
+}
+
+/**
+ * The smallest box a caption may be resized to: wide enough for its longest word and
+ * one line tall, so a resize can never produce a box its own text does not fit —
+ * which is what keeps {@link wrapsInto} saying yes for every box a user drew.
+ */
+export function labelMinSize(
+  name: string,
+  fontSize = EXTERNAL_LABEL_FONT_SIZE,
+): { width: number; height: number } {
+  return { width: longestWordWidth(name, fontSize) + WRAP_PADDING, height: LINE_HEIGHT };
+}
+
+/**
+ * How tall a caption box must be to hold `name` at `width` — the grow-to-fit a label
+ * resize clamps against, so a box a user drags short simply stops shrinking instead
+ * of ellipsizing its own text (and stays a box {@link wrapsInto} accepts).
+ */
+export function fitLabelHeight(
+  name: string,
+  width: number,
+  fontSize = EXTERNAL_LABEL_FONT_SIZE,
+): number {
+  return wrap(name, width, fontSize, MAX_WRAP_LINES).length * LINE_HEIGHT;
+}
+
+/**
+ * `name` wrapped to `box`, or `undefined` when the box cannot hold it.
+ *
+ * This is what makes a caption's OWN bounds mean something: a label a user has
+ * resized wraps to the box they drew, in as many lines as it is tall. A box that
+ * cannot hold the text is not one: `bpmndi:BPMNLabel/dc:Bounds` in a foreign
+ * document is measured with the authoring tool's font metrics, not the heuristic
+ * here ({@link measureLabelWidth}), so honouring those widths verbatim would
+ * ellipsize captions that are perfectly fine in the tool that wrote them. Rejecting
+ * a box the text overflows leaves every such caption on the derived layout — and
+ * every box this editor writes fits by construction ({@link labelMinSize} plus the
+ * resize's grow-to-fit height), so a label resized here survives the round trip.
+ */
+function wrapsInto(name: string, box: Bounds, fontSize: number): string[] | undefined {
+  const lines = wrap(name, box.width, fontSize, MAX_WRAP_LINES);
+  if (lines.some((line) => line.endsWith(ELLIPSIS))) return undefined;
+  if (lines.length * LINE_HEIGHT > box.height + 0.5) return undefined;
+  return lines;
+}
+
+/**
+ * Whether a caption carries a box of its OWN — a `bpmndi:BPMNLabel/dc:Bounds` with a
+ * size, which is what a move or a resize in this editor writes. Only such a box is
+ * offered to {@link wrapsInto}: a derived caption has no size to honour.
+ */
+function isSizedLabel(label?: SceneLabel): boolean {
+  return !!label && label.x !== undefined && label.y !== undefined
+    && label.width !== undefined && label.height !== undefined;
+}
+
 /** The wrapped lines, and the centre they hang off, of a node's external label. */
 function externalLabelLayout(
   node: SceneNode,
   name: string,
   label?: SceneLabel,
   fontSize = EXTERNAL_LABEL_FONT_SIZE,
-): { lines: string[]; cx: number; cy: number } {
+): { lines: string[]; cx: number; cy: number; box?: Bounds } {
   let cx = node.width / 2;
   let cy = node.height + LINE_HEIGHT * 0.9;
   // An explicit label bound is in diagram coordinates; convert to node-local.
   if (label && label.x !== undefined && label.y !== undefined) {
     cx = label.x - node.x + (label.width ?? 0) / 2;
     cy = label.y - node.y + (label.height ?? DEFAULT_LABEL_HEIGHT) / 2;
+  }
+  // A caption the user has SIZED is that box — the text wraps to it and the element
+  // IS it, so the handles stay where they were dragged. One that is merely
+  // positioned (or foreign) keeps the tight text box parity spec §2 outlines.
+  const region = externalLabelBounds(node, label);
+  const sized = isSizedLabel(label) ? wrapsInto(name, region, fontSize) : undefined;
+  if (sized) {
+    return {
+      lines: sized,
+      cx,
+      cy,
+      box: { x: region.x - node.x, y: region.y - node.y, width: region.width, height: region.height },
+    };
   }
   const maxWidth = Math.max(node.width, 80);
   return { lines: wrap(name, maxWidth * 1.5, fontSize, 2), cx, cy };
@@ -226,8 +345,8 @@ export function externalLabelTextBounds(
   label?: SceneLabel,
   fontSize = EXTERNAL_LABEL_FONT_SIZE,
 ): Bounds {
-  const { lines, cx, cy } = externalLabelLayout(node, name, label, fontSize);
-  const box = textBox(lines, cx, cy, fontSize);
+  const { lines, cx, cy, box: sized } = externalLabelLayout(node, name, label, fontSize);
+  const box = sized ?? textBox(lines, cx, cy, fontSize);
   return { x: node.x + box.x, y: node.y + box.y, width: box.width, height: box.height };
 }
 
@@ -252,18 +371,19 @@ export function drawExternalLabel(
   fontSize = EXTERNAL_LABEL_FONT_SIZE,
 ): SVGGElement | undefined {
   if (!name) return undefined;
-  const { lines, cx, cy } = externalLabelLayout(node, name, label, fontSize);
-  const box = textBox(lines, cx, cy, fontSize);
+  const { lines, cx, cy, box: sized } = externalLabelLayout(node, name, label, fontSize);
+  const box = sized ?? textBox(lines, cx, cy, fontSize);
   const g = create('g', {
     class: EXTERNAL_LABEL_CLASS,
     'data-element-id': labelIdOf(node),
     'data-label-owner': node.id,
     transform: `translate(${box.x}, ${box.y})`,
   }) as SVGGElement;
+  const top = (box.height - lines.length * LINE_HEIGHT) / 2;
   lines.forEach((line, i) => {
     append(g, textLine(line, {
       x: box.width / 2,
-      y: (i + 0.5) * LINE_HEIGHT,
+      y: top + (i + 0.5) * LINE_HEIGHT,
       fontSize,
       color,
     }));
@@ -364,9 +484,15 @@ export function edgeLabelBounds(edge: SceneEdge, name: string, label?: SceneLabe
   return { x: mid.x - width / 2, y: mid.y - height / 2, width, height };
 }
 
-/** The text an edge's name is drawn as, ellipsized to its box. */
-function edgeLabelText(edge: SceneEdge, name: string, label?: SceneLabel): string {
-  return fit(name, edgeLabelBounds(edge, name, label).width * 1.5, EDGE_LABEL_FONT_SIZE);
+/**
+ * The lines an edge's name is drawn as: wrapped to the caption's own box when it
+ * holds them ({@link wrapsInto}), else the single ellipsized line the derived box
+ * has always carried.
+ */
+function edgeLabelLines(edge: SceneEdge, name: string, label?: SceneLabel): string[] {
+  const region = edgeLabelBounds(edge, name, label);
+  const sized = isSizedLabel(label) ? wrapsInto(name, region, EDGE_LABEL_FONT_SIZE) : undefined;
+  return sized ?? [fit(name, region.width * 1.5, EDGE_LABEL_FONT_SIZE)];
 }
 
 /**
@@ -376,9 +502,9 @@ function edgeLabelText(edge: SceneEdge, name: string, label?: SceneLabel): strin
  */
 export function edgeLabelTextBounds(edge: SceneEdge, name: string, label?: SceneLabel): Bounds {
   const region = edgeLabelBounds(edge, name, label);
-  const text = edgeLabelText(edge, name, label);
+  if (isSizedLabel(label) && wrapsInto(name, region, EDGE_LABEL_FONT_SIZE)) return region;
   return textBox(
-    [text],
+    edgeLabelLines(edge, name, label),
     region.x + region.width / 2,
     region.y + region.height / 2,
     EDGE_LABEL_FONT_SIZE,
@@ -412,12 +538,16 @@ export function drawEdgeLabel(
     'data-label-owner': edge.id,
     transform: `translate(${box.x}, ${box.y})`,
   }) as SVGGElement;
-  append(g, textLine(edgeLabelText(edge, name, label), {
-    x: box.width / 2,
-    y: box.height / 2,
-    fontSize: EDGE_LABEL_FONT_SIZE,
-    color,
-  }));
+  const lines = edgeLabelLines(edge, name, label);
+  const top = (box.height - lines.length * LINE_HEIGHT) / 2;
+  lines.forEach((line, i) => {
+    append(g, textLine(line, {
+      x: box.width / 2,
+      y: top + (i + 0.5) * LINE_HEIGHT,
+      fontSize: EDGE_LABEL_FONT_SIZE,
+      color,
+    }));
+  });
   append(container, g);
   return g;
 }

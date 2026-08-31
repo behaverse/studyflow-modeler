@@ -171,15 +171,6 @@ const GRIP_TRIANGLE_BASE = 3.5;
 /** Gap between the run and the base of each triangle — half the channel between them. */
 const GRIP_TRIANGLE_GAP = 3;
 
-/**
- * Edge of the blue chip drawn at each corner and side midpoint of a SELECTED
- * label's outline (`edge-videos/labels/frame_08`). The same 8 units as a resize
- * chip — it is visibly the same widget — but these are INERT: a label is not
- * resizable (there is no label-resize mutation to write back), so they carry no
- * `data-handle` and {@link Selection.handleAt} can never report one.
- */
-const LABEL_CHIP_SIZE = 8;
-
 /** The selection set plus its on-canvas chrome and marker toggling. */
 export class Selection {
   private readonly layer: SVGGElement;
@@ -568,17 +559,21 @@ export class Selection {
   /**
    * A selected caption's whole overlay (parity spec addendum 3 §3,
    * `edge-videos/labels/frame_08`): a dashed blue LEADER back to the element it
-   * names, and eight blue chips around its outline.
+   * names, and the eight resize chips around its box.
    *
    * The leader is what the user's callout was about — a label dragged clear of its
    * flow otherwise reads as a free-floating annotation. It is drawn even while the
    * caption is being dragged (that is when the association is hardest to see);
    * the chips step aside for the gesture like every other handle.
+   *
+   * The chips are the REAL ones ({@link Selection.drawResizers}), not decoration:
+   * a caption's box is the region its text wraps in (`render/labels.ts`), so it
+   * resizes like any other box — with the same widget, the same `data-handle` and
+   * the same directional cursors.
    */
   private drawLabelChrome(label: SceneNode): void {
     this.drawLabelLeader(label);
-    if (this.handlesSuppressed(label.id)) return;
-    this.drawLabelChips(label);
+    this.drawResizers(label);
   }
 
   /** The dashed line from a caption's nearest side to the element it names. */
@@ -598,31 +593,6 @@ export class Selection {
       x2: target.x,
       y2: target.y,
     }));
-    append(this.layer, g);
-  }
-
-  /**
-   * The eight chips of `edge-videos/labels/frame_08`. Decoration ONLY — see
-   * {@link LABEL_CHIP_SIZE}: no `data-handle`, so no gesture can start on them.
-   */
-  private drawLabelChips(label: SceneNode): void {
-    const box = labelOutlineBox(label);
-    const g = create('g', { class: 'sf-label-chips', 'data-overlay-for': label.id }) as SVGGElement;
-    for (const anchor of RESIZE_HANDLES) {
-      const x = anchor.includes('w')
-        ? box.x
-        : anchor.includes('e') ? box.x + box.width : box.x + box.width / 2;
-      const y = anchor.includes('n')
-        ? box.y
-        : anchor.includes('s') ? box.y + box.height : box.y + box.height / 2;
-      append(g, create('rect', {
-        class: `sf-label-chip sf-label-chip-${anchor}`,
-        x: x - LABEL_CHIP_SIZE / 2,
-        y: y - LABEL_CHIP_SIZE / 2,
-        width: LABEL_CHIP_SIZE,
-        height: LABEL_CHIP_SIZE,
-      }));
-    }
     append(this.layer, g);
   }
 

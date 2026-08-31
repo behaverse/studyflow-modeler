@@ -40,6 +40,7 @@ import {
   edgeLabelBounds,
   edgeLabelTextBounds,
   externalLabelBounds,
+  INTERNAL_TOP_LABEL_HEIGHT,
   LABEL_FONT,
   LABEL_LINE_HEIGHT,
   measureLabelWidth,
@@ -222,7 +223,12 @@ export function labelBounds(element: SceneElement, band: LabelBand): Bounds {
       // The vertical title band on the left (`Renderer.drawParticipantLabel`).
       return { x: node.x, y: node.y, width: Math.min(30, node.width), height: node.height };
     default:
-      return { x: node.x, y: node.y, width: node.width, height: node.height };
+      // An expanded container captions its top strip, not its middle
+      // (`render/labels.ts`), so the editor opens over the strip — otherwise the
+      // text jumps to the centre of the frame the moment it is edited.
+      return node.isExpanded === true
+        ? { x: node.x, y: node.y, width: node.width, height: INTERNAL_TOP_LABEL_HEIGHT }
+        : { x: node.x, y: node.y, width: node.width, height: node.height };
   }
 }
 
