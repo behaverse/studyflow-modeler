@@ -38,8 +38,10 @@ import type {
 } from '@canvas/model/scene.ts';
 import {
   hitTest,
+  edgesIntersecting,
   isContainerNode,
   nodesIntersecting,
+  orderedNodes,
   normalizeRect,
   pointInNode,
 } from '@canvas/interaction/hit.ts';
@@ -666,6 +668,9 @@ export class Canvas {
       ...(this.minNodeSize === undefined
         ? { minSizeFor: (node: SceneNode) => this.rules.minSizeFor(node) }
         : {}),
+      // So a flow re-routed under the pointer steps around whatever the dragged
+      // shape has been pulled next to, instead of being drawn straight over it.
+      obstacles: (moving) => this.routeObstacles(moving),
     });
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
@@ -1121,11 +1126,16 @@ export class Canvas {
   isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean {
     if (!this.scene) return false;
     const origin = from ? centerOf(appendSourceBounds(from)) : undefined;
-    return nodesIntersecting(this.scene, bounds).some((node) => {
+    const onNode = nodesIntersecting(this.scene, bounds).some((node) => {
       if (node.labelTarget || node === from) return false;
       if (!isContainerNode(node)) return true;
       return origin !== undefined && !pointInNode(origin, node);
     });
+    if (onNode) return true;
+    // A slot no shape claims can still have a flow drawn across it, and a successor
+    // dropped there sits on the line. The source's OWN edges count: the slot on top of
+    // an existing outgoing flow is exactly the overlap this dodges.
+    return edgesIntersecting(this.scene, bounds).some((edge) => edge !== from);
   }
 
   /**
@@ -1640,12 +1650,35 @@ export class Canvas {
       : Array.isArray(elements)
         ? (elements as readonly SceneElement[])
         : [elements as SceneElement];
-    const changed = rerouteEdgeSet(edgesAffectedBy(list), options);
+    const changed = rerouteEdgeSet(edgesAffectedBy(list), {
+      obstacles: this.routeObstacles(),
+      ...options,
+    });
     if (changed.length > 0) {
       writeback.commit(changed);
       this.redrawElements(changed);
     }
     return changed;
+  }
+
+  /**
+   * The boxes a re-route steers around ({@link RouteOptions.obstacles}): every shape
+   * on the plane except `exclude` — the nodes a move is carrying, whose bounds are in
+   * flight and which are the route's own endpoints anyway.
+   *
+   * Labels and containers are skipped for the same reasons {@link Canvas.isAreaOccupied}
+   * skips them: a caption is not something a flow collides with, and a pool or an
+   * expanded sub-process is a frame every edge inside it legitimately crosses.
+   */
+  private routeObstacles(exclude: readonly SceneNode[] = []): Bounds[] {
+    if (!this.scene) return [];
+    const skip = new Set<SceneNode>(exclude);
+    const out: Bounds[] = [];
+    for (const node of orderedNodes(this.scene)) {
+      if (skip.has(node) || node.labelTarget || isContainerNode(node)) continue;
+      out.push({ x: node.x, y: node.y, width: node.width, height: node.height });
+    }
+    return out;
   }
 
   /**

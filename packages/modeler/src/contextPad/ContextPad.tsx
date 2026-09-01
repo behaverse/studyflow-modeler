@@ -78,7 +78,6 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'default-flow': ICONS.slash,
   swap: ICONS.swapVertical,
   subprocess: ICONS.expand,
-  // drilldown: ICONS.drillDown,
 };
 
 /** Heading each pad entry that opens a popup gives the menu it opens. */
@@ -395,9 +394,6 @@ export function ContextPad() {
         return;
       case 'expand.toggle':
         if (element) void executeCommand(modeler, { type: 'ToggleExpanded', element });
-        return;
-      case 'drilldown.enter':
-        if (element) void executeCommand(modeler, { type: 'EnterContainer', element });
         return;
       default:
         return;

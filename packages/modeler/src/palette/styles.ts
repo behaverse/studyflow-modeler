@@ -54,7 +54,7 @@ export const paletteFlyout = {
 
   grid: 'grid grid-cols-3 gap-1 max-h-56 overflow-y-auto overflow-x-hidden overscroll-contain palette-flyout-scroll',
 
-  item: 'touch-none select-none flex flex-col items-center justify-center gap-1 p-2 rounded-lg text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-grab active:cursor-grabbing min-w-0',
+  item: 'touch-pan-y select-none flex flex-col items-center justify-center gap-1 p-2 rounded-lg text-stone-700 hover:text-stone-900 hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-grab active:cursor-grabbing min-w-0',
 
   itemLabel: 'text-xs leading-tight text-center text-pretty hyphens-auto w-full',
 } as const;

@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import type { ChangeEvent, ComponentType } from 'react';
 import { Checkbox, Input, Label, Textarea } from '@headlessui/react';
 import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@core/notation';
@@ -133,7 +134,20 @@ function namedInput(name: string | undefined) {
     : undefined;
 }
 
-export function pickInput(attrDef: AttributeSpec) {
+/**
+ * The editor for one attribute, chosen by {@link pickInput}.
+ *
+ * The picker itself stays private: a `.tsx` module that exports anything but
+ * components loses React Fast Refresh for the whole file, and this one is nothing but
+ * editors.
+ */
+export function AttributeInput({ attrDef }: { attrDef: AttributeSpec }) {
+  // `createElement` rather than a capitalized local: react-hooks would read the latter
+  // as a component defined during render.
+  return createElement(pickInput(attrDef), { attrDef });
+}
+
+function pickInput(attrDef: AttributeSpec) {
   if (attrDef.meta?.readonly) return ReadonlyInput;
   if (attrDef.meta?.expression) return ExpressionInput;
 

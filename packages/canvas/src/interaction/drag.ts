@@ -115,6 +115,13 @@ export interface DragOptions {
    * Falls back to the single {@link DragOptions.minSize} number when absent.
    */
   minSizeFor?: (node: SceneNode) => MinSize;
+  /**
+   * Boxes a live re-route steers around ({@link RouteOptions.obstacles}) — every
+   * other shape on the plane. Asked ONCE per move, with the nodes the gesture is
+   * carrying, so a dragged shape is never an obstacle to its own flows and the scan
+   * does not run per frame.
+   */
+  obstacles?: (moving: readonly SceneNode[]) => Bounds[];
 }
 
 /** How a followed edge reacts to its node moving. */
@@ -129,6 +136,8 @@ interface MoveState {
    * the 10-unit grid would swallow entirely.
    */
   snap: boolean;
+  /** Boxes the live re-route steers around, captured at the start of the gesture. */
+  obstacles: Bounds[];
   /**
    * Whether connected edges are re-laid-out as the move runs. A keyboard nudge opts
    * out of this too: re-routing is what a DRAG shows the user (the flows visibly
@@ -275,6 +284,7 @@ export class Drag {
   private readonly gridSize: number;
   private readonly minSize: number;
   private readonly minSizeOf?: (node: SceneNode) => MinSize;
+  private readonly obstaclesFor?: (moving: readonly SceneNode[]) => Bounds[];
   private snap: boolean;
   private state?: DragState;
   /** Axes the current frame may grid-snap (see {@link GridAxes}). */
@@ -287,6 +297,7 @@ export class Drag {
     this.minSize = options.minSize ?? DEFAULT_MIN_SIZE;
     this.minSizeOf = options.minSizeFor;
     this.snap = options.snapToGrid ?? true;
+    this.obstaclesFor = options.obstacles;
   }
 
   /** Whether a gesture is currently in flight. */
@@ -354,6 +365,7 @@ export class Drag {
       origin: { ...origin },
       snap: options?.snapToGrid ?? this.snap,
       reroute: options?.rerouteEdges ?? true,
+      obstacles: this.obstaclesFor?.(moving) ?? [],
       nodes: moving,
       nodeOrigins,
       labelOrigins,
@@ -616,7 +628,7 @@ export class Drag {
       // flight and the drop commits exactly what was on screen. Dragging the docking
       // point first is not redundant — it is what a DANGLING edge (no source or no
       // target, which the router declines) falls back to.
-      rerouteEdge(edge);
+      rerouteEdge(edge, { obstacles: state.obstacles });
     }
 
     return [...state.nodes, ...state.edges];

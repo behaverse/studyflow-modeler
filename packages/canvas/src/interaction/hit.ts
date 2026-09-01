@@ -261,6 +261,65 @@ export function nodesIntersecting(scene: Scene, rect: {
   return out;
 }
 
+/**
+ * Edges of `scene` whose ROUTE passes through `rect` — the other half of the
+ * auto-placer's occupancy probe ({@link Canvas.isAreaOccupied}). A slot that is clear
+ * of every shape can still be crossed by a flow, and a successor dropped there sits on
+ * top of the line.
+ *
+ * Labels are not consulted: an edge's caption is a floating scrap of text, and dodging
+ * one is not worth moving a whole row (the same call the node probe makes).
+ */
+export function edgesIntersecting(scene: Scene, rect: Rect): SceneEdge[] {
+  const r = normalizeRect(rect);
+  const out: SceneEdge[] = [];
+  for (const edge of orderedEdges(scene)) {
+    const points = edge.waypoints ?? [];
+    for (let i = 0; i < points.length - 1; i += 1) {
+      if (segmentIntersectsRect(points[i], points[i + 1], r)) {
+        out.push(edge);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether the segment `a`–`b` touches `rect` — Liang–Barsky, which handles the
+ * diagonal segments a data association or an annotation link is drawn with as well as
+ * the orthogonal ones a sequence flow gets.
+ */
+function segmentIntersectsRect(a: Point, b: Point, rect: Rect): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  // Each edge of the box as `p * t <= q`; the segment survives while [t0, t1] is non-empty.
+  const clips: [number, number][] = [
+    [-dx, a.x - rect.x],
+    [dx, rect.x + rect.width - a.x],
+    [-dy, a.y - rect.y],
+    [dy, rect.y + rect.height - a.y],
+  ];
+  let t0 = 0;
+  let t1 = 1;
+  for (const [p, q] of clips) {
+    if (p === 0) {
+      // Parallel to this edge: outside it means no crossing at all.
+      if (q < 0) return false;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) {
+      if (t > t1) return false;
+      if (t > t0) t0 = t;
+    } else {
+      if (t < t0) return false;
+      if (t < t1) t1 = t;
+    }
+  }
+  return true;
+}
+
 // --- helpers ----------------------------------------------------------------
 
 function isNode(el: SceneElement | { kind: string }): el is SceneNode {

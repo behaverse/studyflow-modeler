@@ -169,23 +169,3 @@ export function runToggleExpanded(modeler: Editor, command: ToggleExpandedComman
   return modeler.canvas.toggleExpanded(node);
 }
 
-
-export type EnterContainerCommand = {
-  type: 'EnterContainer';
-  element: EditorElement;
-};
-
-/**
- * Drill INTO a container — the pad's twin of the ↘ badge, and the reason the badge
- * is no longer the only way in (it is 20 units square and unreachable from the
- * keyboard).
- *
- * Navigation is view-only: the container's own plane when it owns one, a synthesized
- * scope over its children when it does not (`view/plane.ts`), and nothing is written
- * either way. Returns whether the view moved.
- */
-export function runEnterContainer(modeler: Editor, command: EnterContainerCommand): boolean {
-  const node = modeler.canvas.resolveElement(command.element);
-  if (!node || node.kind !== 'node') return false;
-  return modeler.canvas.getPlaneCursor().enterPlane(node);
-}

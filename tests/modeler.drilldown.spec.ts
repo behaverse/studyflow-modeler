@@ -224,24 +224,18 @@ test.describe('sub-process drill-down', () => {
     await expect(labelEditor(page)).toHaveCount(0);
   });
 
-  test('the context pad names both container actions, for both storage kinds', async ({ page }) => {
+  test('the context pad names the expand toggle, for both storage kinds', async ({ page }) => {
     await openExample(page);
 
-    // The badge is 20 units square and the double click is overloaded; the pad is the
-    // discoverable, keyboard-reachable route to the same two actions — and it says
-    // which way the toggle will go.
     for (const [id, expected] of [['prepare_data', 'Collapse'], ['select_model', 'Expand']] as const) {
       await page.locator(`g[data-element-id="${id}"]`).click({ position: { x: 12, y: 12 } });
       await expect(page.getByTestId('context-pad')).toBeVisible();
-      await expect(page.getByTestId('context-pad-drilldown.enter')).toBeVisible();
       await page.getByTestId('context-pad-expand.toggle').hover();
       await expect(page.getByTestId('context-pad-tooltip')).toHaveText(expected);
+      // Drilling in is NOT duplicated here: the ↘ badge is already beside the
+      // selection, and it is what the two tests above take the trip through.
+      await expect(page.getByTestId('context-pad-drilldown.enter')).toHaveCount(0);
     }
-
-    // The pad's Open entry takes the same trip the badge does.
-    await page.getByTestId('context-pad-drilldown.enter').click();
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toContainText('select_model');
-    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {

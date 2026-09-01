@@ -54,6 +54,7 @@ function PaletteTile({ draggable, icon, title, label, handlers }: TileProps) {
       onPointerMove={(e) => handlers.onPointerMove(draggable, e)}
       onPointerUp={handlers.onPointerUp}
       onPointerLeave={handlers.onPointerUp}
+      onPointerCancel={handlers.onPointerUp}
       onClick={(e) => handlers.onClick(draggable, e)}
     >
       <PaletteIcon icon={icon} size={22} />

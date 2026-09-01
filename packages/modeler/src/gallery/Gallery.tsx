@@ -102,7 +102,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
     if (!modeler || busy) return;
     setBusy(entry.filename);
     try {
-      const content = entry.content ?? await fetch(entry.url!).then((r) => r.arrayBuffer());
+      const content = entry.content ?? await (await fetch(entry.url!)).arrayBuffer();
       await executeCommand(modeler, {
         type: 'OpenDiagram',
         filename: entry.filename,

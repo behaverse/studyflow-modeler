@@ -34,8 +34,7 @@ export type ContextPadAction =
   | 'set-color'
   | 'flow.toggle-default'
   | 'choreography.swap-initiator'
-  | 'expand.toggle'
-  | 'drilldown.enter';
+  | 'expand.toggle';
 
 /**
  * Symbolic name of an entry's icon. Icon ART is host chrome (Iconify classes, SVG,
@@ -52,8 +51,7 @@ export type ContextPadIcon =
   | 'connect'
   | 'default-flow'
   | 'swap'
-  | 'subprocess'
-  | 'drilldown';
+  | 'subprocess';
 
 /** A fixed successor a pad entry appends, which is also what its hover ghost draws. */
 export type ContextPadAppend = {
@@ -209,24 +207,18 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     });
   }
 
-  // The two CONTAINER entries, also app-contributed, also after the reference's six
-  // so its two rows stay the two rows it draws.
+  // The CONTAINER entry, also app-contributed, also after the reference's six so its
+  // two rows stay the two rows it draws.
   //
-  // They exist because the canvas has exactly two gestures for a container — a double
-  // click that toggles it and a 20-unit badge that opens it — and neither is
-  // discoverable or keyboard-reachable. The pad is: it names both actions, it says
-  // which way the toggle will go, and it is the non-destructive route for a user who
-  // wants to look inside without rewriting `isExpanded`.
+  // It exists because the canvas's toggle gesture is a double click — not discoverable,
+  // not keyboard-reachable — and the pad names it and says which way it will go.
+  // DRILLING IN is not here: the ↘ badge sits right beside the selected container, so
+  // a pad entry for it would be a second button for what is already on screen.
   if (single && context.isShape && context.isExpandable) {
     entries.push({
       action: 'expand.toggle',
       title: context.isExpanded ? 'Collapse' : 'Expand',
       icon: 'subprocess',
-    });
-    entries.push({
-      action: 'drilldown.enter',
-      title: 'Open contents',
-      icon: 'drilldown',
     });
   }
 

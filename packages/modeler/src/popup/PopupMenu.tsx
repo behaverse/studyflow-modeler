@@ -207,6 +207,7 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
       onClose();
     },
     onPointerUp: () => { pressed.current = false; },
+    onPointerCancel: () => { pressed.current = false; },
     onClick: (event: ReactMouseEvent) => {
       event.preventDefault();
       pressed.current = false;

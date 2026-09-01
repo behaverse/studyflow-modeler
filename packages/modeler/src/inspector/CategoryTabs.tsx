@@ -1,4 +1,4 @@
-import { createElement, useState } from 'react';
+import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { Field, Label, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import type { AttributeSpec } from '@core/notation';
@@ -8,7 +8,7 @@ import { useRequiredModeler } from '@modeler/app/useModeler';
 import { useInspectedElement } from '@modeler/inspector/state';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { elementKey } from '@modeler/inspector/element';
-import { pickInput } from '@modeler/inspector/registry';
+import { AttributeInput } from '@modeler/inspector/registry';
 import { ExpressionRow } from '@modeler/inspector/inputs';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import {
@@ -35,10 +35,9 @@ function AttributeField({ attrDef }: { attrDef: AttributeSpec }) {
 
   if (!isAttributeVisible(attrDef, element)) return null;
 
-  // `createElement` rather than a capitalized local: react-hooks would read the latter as a component defined during render.
   return (
     <Field className={fld.field}>
-      {createElement(pickInput(attrDef), { attrDef })}
+      <AttributeInput attrDef={attrDef} />
     </Field>
   );
 }

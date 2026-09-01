@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
+import { route } from '@canvas/routing/orthogonal.ts';
 
 import { exampleXml } from './utils';
 
@@ -1423,4 +1424,79 @@ test('move: dragging within the same container re-parents nothing', async () => 
   expect(inner.parent).toBe(sub);
   expect((sub.businessObject as any).flowElements.map((el: any) => el.id)).toContain('Inner_1');
   expect(process.flowElements.map((el: any) => el.id)).not.toContain('Inner_1');
+});
+
+/**
+ * A flow whose live re-route would cross a third shape (`RouteOptions.obstacles`).
+ *
+ * `Start_1` is dragged below `Blocker_1`; the elbow the router prefers — out along
+ * the dominant (horizontal) axis first — then runs the length of the blocker. The
+ * same two points bent the other way is clean, and that is what a move now picks.
+ */
+const BLOCKED_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Task_1" name="Task"><bpmn:incoming>Flow_1</bpmn:incoming></bpmn:task>
+    <bpmn:task id="Blocker_1" name="Blocker" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="100" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="400" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Blocker_1_di" bpmnElement="Blocker_1">
+        <dc:Bounds x="200" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="136" y="118" /><di:waypoint x="400" y="140" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** Whether the axis-aligned segment `p`–`q` passes through `box`. */
+function segmentCrosses(p: Pt, q: Pt, box: { x: number; y: number; width: number; height: number }): boolean {
+  return Math.min(p.x, q.x) < box.x + box.width && Math.max(p.x, q.x) > box.x
+    && Math.min(p.y, q.y) < box.y + box.height && Math.max(p.y, q.y) > box.y;
+}
+
+test('a live re-route steers the moved flow around a third shape', async () => {
+  const { canvas, definitions } = await load(BLOCKED_XML);
+  const start = node(canvas, 'Start_1');
+  const blocker = node(canvas, 'Blocker_1');
+
+  // Drag the start event below the blocker: the preferred elbow would now leave
+  // along y = 318 and run straight through it.
+  dragBy(canvas, center(start), { x: center(start).x, y: center(start).y + 200 });
+
+  const points = waypointsOf(definitions, 'Flow_1');
+  expect(points.length).toBeGreaterThan(2);
+  for (let i = 0; i < points.length - 1; i += 1) {
+    expect(
+      segmentCrosses(points[i], points[i + 1], blocker),
+      `segment ${i} runs through the blocker`,
+    ).toBe(false);
+  }
+  // It bent the other way — up out of the start event — rather than detouring.
+  expect(points[1]).toEqual({ x: 118, y: 140 });
+});
+
+test('the shape that is being dragged is not an obstacle to its own flow', async () => {
+  // Nothing else is in the way here, so the route must stay the plain one: a moving
+  // node counted as an obstacle would make every candidate look blocked.
+  const { canvas, definitions } = await load(FIXTURE_XML);
+  const start = node(canvas, 'Start_1');
+
+  dragBy(canvas, center(start), { x: center(start).x, y: center(start).y - 40 });
+
+  expect(waypointsOf(definitions, 'Flow_1')).toEqual(route(start, node(canvas, 'Task_1')));
 });

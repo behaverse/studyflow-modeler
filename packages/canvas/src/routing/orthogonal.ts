@@ -61,6 +61,18 @@ export interface RouteOptions {
   straightTolerance?: number;
   /** Crop the endpoints to the shape outlines. Default `true`. */
   crop?: boolean;
+  /**
+   * Boxes the route should steer around — the other shapes on the plane. ADVISORY:
+   * the router still picks its path from the same short list of shapes it always
+   * has ({@link routeCenters}), and only prefers the ones that miss these boxes; a
+   * pair with no clean candidate keeps the route it would have had. Absent (the
+   * default) nothing is dodged, which is the behaviour every non-move caller wants.
+   *
+   * Boxes overlapping either endpoint are dropped: a route MUST reach its own ends,
+   * so a shape sitting on one of them cannot be avoided and would only veto every
+   * candidate. That is what lets one scene-wide list serve every edge.
+   */
+  obstacles?: readonly Bounds[];
 }
 
 const EPSILON = 1e-6;
@@ -190,41 +202,51 @@ export function routeCenters(
   const dx = ct.x - cs.x;
   const dy = ct.y - cs.y;
   const horizontal = Math.abs(dx) >= Math.abs(dy);
+  // A shape sitting on either endpoint is not dodgeable — see `RouteOptions.obstacles`.
+  const blockers = (options.obstacles ?? []).filter(
+    (box) => !boxesOverlap(box, s) && !boxesOverlap(box, t),
+  );
+  const around = (preferred: Point[], alternates: Point[][] = []): Point[] =>
+    steerAround(preferred, alternates, blockers, s, t, cs, ct, horizontal, clearance);
 
   // Diagonal — a single elbow, leaving along the dominant axis. Neither leg can
-  // cross the other shape: the boxes are separated on BOTH axes.
+  // cross the other shape: the boxes are separated on BOTH axes. The elbow bent the
+  // OTHER way joins the same two points, so it is the first thing to try when a
+  // third shape is in the way.
   if (gapX > 0 && gapY > 0) {
-    return simplify(horizontal
-      ? [cs, { x: ct.x, y: cs.y }, ct]
-      : [cs, { x: cs.x, y: ct.y }, ct]);
+    const alongX = simplify([cs, { x: ct.x, y: cs.y }, ct]);
+    const alongY = simplify([cs, { x: cs.x, y: ct.y }, ct]);
+    return horizontal ? around(alongX, [alongY]) : around(alongY, [alongX]);
   }
 
   // Separated horizontally, overlapping vertically.
   if (gapX > 0) {
-    if (Math.abs(dy) <= tolerance) {
-      const y = (cs.y + ct.y) / 2;
-      return [{ x: cs.x, y }, { x: ct.x, y }];
-    }
     const midX = dx > 0
       ? (s.x + s.width + t.x) / 2
       : (t.x + t.width + s.x) / 2;
-    return simplify([cs, { x: midX, y: cs.y }, { x: midX, y: ct.y }, ct]);
+    const jog = simplify([cs, { x: midX, y: cs.y }, { x: midX, y: ct.y }, ct]);
+    if (Math.abs(dy) <= tolerance) {
+      const y = (cs.y + ct.y) / 2;
+      return around([{ x: cs.x, y }, { x: ct.x, y }], [jog]);
+    }
+    return around(jog);
   }
 
   // Separated vertically, overlapping horizontally.
   if (gapY > 0) {
-    if (Math.abs(dx) <= tolerance) {
-      const x = (cs.x + ct.x) / 2;
-      return [{ x, y: cs.y }, { x, y: ct.y }];
-    }
     const midY = dy > 0
       ? (s.y + s.height + t.y) / 2
       : (t.y + t.height + s.y) / 2;
-    return simplify([cs, { x: cs.x, y: midY }, { x: ct.x, y: midY }, ct]);
+    const jog = simplify([cs, { x: cs.x, y: midY }, { x: ct.x, y: midY }, ct]);
+    if (Math.abs(dx) <= tolerance) {
+      const x = (cs.x + ct.x) / 2;
+      return around([{ x, y: cs.y }, { x, y: ct.y }], [jog]);
+    }
+    return around(jog);
   }
 
   // The boxes overlap on both axes — go around through an outside lane.
-  return simplify(detour(s, t, cs, ct, horizontal, clearance));
+  return simplify(detour(s, t, cs, ct, horizontal, clearance, blockers));
 }
 
 /**
@@ -412,6 +434,76 @@ function selfLoop(s: Bounds, cs: Point, clearance: number): Point[] {
 /** The four lanes a U-detour can use, in the order they are preferred. */
 type Lane = 'below' | 'above' | 'right' | 'left';
 
+/** The lanes tried first, given which way the pair is mainly separated. */
+function laneOrder(horizontal: boolean): Lane[] {
+  return horizontal ? ['below', 'above', 'right', 'left'] : ['right', 'left', 'below', 'above'];
+}
+
+/**
+ * The first of `preferred`, then `alternates`, that misses every box in `blockers` —
+ * and if none of them does, a U through a lane placed clear of whatever is actually
+ * in the way. `preferred` comes back unchanged when there is nothing to dodge or
+ * nothing that dodges it, so a diagram with no obstacle list routes exactly as it
+ * always did.
+ *
+ * ponytail: candidate SELECTION, not a search. It re-uses the handful of path shapes
+ * the router already draws instead of growing an A* over a visibility graph — which
+ * is the whole reason this file could stay geometry. Two shapes with no clean lane
+ * between them keep the crossing route, and dragging a waypoint is still the fix.
+ */
+function steerAround(
+  preferred: Point[],
+  alternates: Point[][],
+  blockers: readonly Bounds[],
+  s: Bounds, t: Bounds, cs: Point, ct: Point,
+  horizontal: boolean,
+  clearance: number,
+): Point[] {
+  if (blockers.length === 0) return preferred;
+  const inTheWay = blockers.filter((box) => pathCrosses(preferred, box));
+  if (inTheWay.length === 0) return preferred;
+
+  for (const alternate of alternates) {
+    if (!blockers.some((box) => pathCrosses(alternate, box))) return alternate;
+  }
+
+  // Both endpoints plus everything the direct route ran into: a lane beyond THAT is
+  // clear of the obstruction without being flung to the far side of the diagram by
+  // some unrelated shape.
+  const span = unionOf([s, t, ...inTheWay]);
+  for (const lane of laneOrder(horizontal)) {
+    const path = lanePath(lane, span, cs, ct, clearance);
+    // The stubs still have to clear the two endpoint shapes, as in `detour`.
+    if (crossesBox(path[0], path[1], t) || crossesBox(path[2], path[3], s)) continue;
+    if (blockers.some((box) => pathCrosses(path, box))) continue;
+    return simplify(path);
+  }
+  return preferred;
+}
+
+/** Whether any segment of `points` passes through `box`. */
+function pathCrosses(points: readonly Point[], box: Bounds): boolean {
+  for (let i = 0; i < points.length - 1; i += 1) {
+    if (crossesBox(points[i], points[i + 1], box)) return true;
+  }
+  return false;
+}
+
+/** Whether two boxes share any area (touching edges do not count). */
+function boxesOverlap(a: Bounds, b: Bounds): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x
+    && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/** The smallest box containing all of `boxes`. */
+function unionOf(boxes: readonly Bounds[]): Bounds {
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  const right = Math.max(...boxes.map((b) => b.x + b.width));
+  const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
+
 /**
  * Route around two boxes that overlap on both axes: leave both shapes towards a
  * lane placed `clearance` beyond their common extent and traverse there. Lanes are
@@ -424,16 +516,16 @@ function detour(
   s: Bounds, t: Bounds, cs: Point, ct: Point,
   horizontal: boolean,
   clearance: number,
+  blockers: readonly Bounds[] = [],
 ): Point[] {
-  const order: Lane[] = horizontal
-    ? ['below', 'above', 'right', 'left']
-    : ['right', 'left', 'below', 'above'];
+  const span = unionOf([s, t]);
 
   let fallback: Point[] | undefined;
   let fallbackLength = Infinity;
-  for (const lane of order) {
-    const path = lanePath(lane, s, t, cs, ct, clearance);
-    const clean = !crossesBox(path[0], path[1], t) && !crossesBox(path[2], path[3], s);
+  for (const lane of laneOrder(horizontal)) {
+    const path = lanePath(lane, span, cs, ct, clearance);
+    const clean = !crossesBox(path[0], path[1], t) && !crossesBox(path[2], path[3], s)
+      && !blockers.some((box) => pathCrosses(path, box));
     if (clean) return path;
     const length = pathLength(path);
     if (length < fallbackLength) {
@@ -444,23 +536,23 @@ function detour(
   return fallback ?? [cs, ct];
 }
 
-/** The four-point path through one lane. */
-function lanePath(lane: Lane, s: Bounds, t: Bounds, cs: Point, ct: Point, clearance: number): Point[] {
+/** The four-point path through one lane, placed `clearance` beyond `span`. */
+function lanePath(lane: Lane, span: Bounds, cs: Point, ct: Point, clearance: number): Point[] {
   switch (lane) {
     case 'below': {
-      const y = Math.max(s.y + s.height, t.y + t.height) + clearance;
+      const y = span.y + span.height + clearance;
       return [cs, { x: cs.x, y }, { x: ct.x, y }, ct];
     }
     case 'above': {
-      const y = Math.min(s.y, t.y) - clearance;
+      const y = span.y - clearance;
       return [cs, { x: cs.x, y }, { x: ct.x, y }, ct];
     }
     case 'right': {
-      const x = Math.max(s.x + s.width, t.x + t.width) + clearance;
+      const x = span.x + span.width + clearance;
       return [cs, { x, y: cs.y }, { x, y: ct.y }, ct];
     }
     case 'left': {
-      const x = Math.min(s.x, t.x) - clearance;
+      const x = span.x - clearance;
       return [cs, { x, y: cs.y }, { x, y: ct.y }, ct];
     }
   }

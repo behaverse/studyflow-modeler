@@ -388,3 +388,65 @@ test.describe('auto-place around a foreign container', () => {
     expect({ x: preview!.x, y: preview!.y }).toEqual({ x: appended.x, y: appended.y });
   });
 });
+
+test.describe('auto-place around edges', () => {
+  /**
+   * `Task_1`'s append slot is crossed by a sequence flow that has nothing to do with
+   * it: `Up` → `Down` runs vertically at x 380, straight through the slot at x
+   * 350-386. Nothing SHAPED is there, so the slot used to read as free and the
+   * successor was minted on top of the line.
+   */
+  const CROSSED_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="Task_1" name="Task" />
+    <bpmn:task id="Up" name="Up" />
+    <bpmn:task id="Down" name="Down" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Up" targetRef="Down" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="200" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Up_di" bpmnElement="Up">
+        <dc:Bounds x="330" y="-180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Down_di" bpmnElement="Down">
+        <dc:Bounds x="330" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="380" y="-100" />
+        <di:waypoint x="380" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+  test('a slot a flow runs through is occupied, shape or no shape', async () => {
+    const { canvas } = await loadCanvas(CROSSED_XML);
+    const source = node(canvas, 'Task_1');
+
+    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
+
+    expect(appended, 'the append happened').toBeTruthy();
+    const crossing = canvas.getScene()!.elementsById.get('Flow_1') as SceneEdge;
+    for (const [a, b] of segments(crossing.waypoints)) {
+      expect(crosses(a, b, appended), 'the successor sits on the flow').toBe(false);
+    }
+  });
+
+  test('a clear row is still taken in one go — an edge elsewhere moves nothing', async () => {
+    const { canvas } = await loadCanvas(CROSSED_XML);
+    const source = node(canvas, 'Up');
+
+    // `Up`'s own slot (x 480-580) is clear of its outgoing flow at x 380.
+    const appended = canvas.appendElement(source, { type: 'bpmn:Task' })!;
+
+    expect(appended.y).toBe(source.y);
+  });
+});

@@ -661,3 +661,53 @@ test('routeFor with no type is the orthogonal router, so an untyped caller is un
   const b: CroppableShape = { x: 300, y: 200, width: 100, height: 80, type: 'bpmn:Task' };
   expect(routeFor(undefined, a, b)).toEqual(route(a, b));
 });
+
+/**
+ * Obstacle steering (`RouteOptions.obstacles`).
+ *
+ * The router is still not a general obstacle-avoiding one — it picks among the path
+ * shapes it already draws, preferring the ones that miss the boxes it is handed. That
+ * is what a MOVE feeds it (`Canvas.routeObstacles`), so a flow re-routed under the
+ * pointer does not end up drawn straight across the shape its element was dropped
+ * beside.
+ */
+test.describe('routing around obstacles', () => {
+  const a: CroppableShape = { x: 0, y: 240, width: 100, height: 80, type: 'bpmn:Task' };
+  const b: CroppableShape = { x: 400, y: 0, width: 100, height: 80, type: 'bpmn:Task' };
+
+  test('an elbow bends the other way when a shape sits on the preferred leg', () => {
+    // Dominant axis is horizontal, so the plain route leaves along y = 280 …
+    const plain = routeCenters(a, b);
+    expect(plain).toEqual([{ x: 50, y: 280 }, { x: 450, y: 280 }, { x: 450, y: 40 }]);
+
+    // …straight through this one. The same two points joined the other way is clean.
+    const blocker = { x: 200, y: 240, width: 100, height: 80 };
+    expect(routeCenters(a, b, { obstacles: [blocker] }))
+      .toEqual([{ x: 50, y: 280 }, { x: 50, y: 40 }, { x: 450, y: 40 }]);
+  });
+
+  test('neither elbow clean: a lane is opened beyond what is actually in the way', () => {
+    const c: CroppableShape = { x: 400, y: 240, width: 100, height: 80, type: 'bpmn:Task' };
+    const blocker = { x: 200, y: 240, width: 100, height: 80 };
+    const points = routeCenters(a, c, { obstacles: [blocker] });
+
+    // A straight run at y = 280 would go through it, so the path drops below the
+    // three boxes (320 + DEFAULT_CLEARANCE) and comes back up.
+    expect(points).toEqual([
+      { x: 50, y: 280 }, { x: 50, y: 340 }, { x: 450, y: 340 }, { x: 450, y: 280 },
+    ]);
+  });
+
+  test('a box on either endpoint is ignored rather than vetoing every candidate', () => {
+    // One scene-wide obstacle list serves every edge, so the edge's OWN shapes (and
+    // anything overlapping them) are in it. Steering around them is impossible.
+    const onEnd = { x: 10, y: 250, width: 40, height: 40 };
+    expect(routeCenters(a, b, { obstacles: [onEnd] })).toEqual(routeCenters(a, b));
+  });
+
+  test('an obstacle nothing crosses changes nothing', () => {
+    const elsewhere = { x: 900, y: 900, width: 100, height: 80 };
+    expect(routeCenters(a, b, { obstacles: [elsewhere] })).toEqual(routeCenters(a, b));
+    expect(route(a, b, { obstacles: [elsewhere] })).toEqual(route(a, b));
+  });
+});
