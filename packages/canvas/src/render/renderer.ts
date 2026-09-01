@@ -804,7 +804,7 @@ export class Renderer {
       'stroke-linecap': 'round',
       'stroke-dasharray': edgeDashArray(edge.type),
       'marker-end': markerEndFor(edge.type, edge.businessObject),
-      'marker-start': isDefaultFlow(edge) ? 'url(#sf-marker-default)' : null,
+      'marker-start': markerStartFor(edge.type, isDefaultFlow(edge)),
     });
     append(g, line);
     const name = prop(edge.businessObject, 'name');
@@ -937,6 +937,23 @@ export function markerEndFor(type: string, businessObject?: ModdleObject): strin
 }
 
 
+/**
+ * `marker-start` for a flow, or `null` for one that starts bare.
+ *
+ * Two flows carry one. A MESSAGE flow starts with a small open circle: BPMN's
+ * Collaboration notation is a dashed line with an open circle at the source end and
+ * an open arrowhead at the target end, and the circle is what tells it apart from an
+ * association — which is dashed too — at a glance. A DEFAULT sequence flow starts
+ * with the slash across the line ({@link isDefaultFlow}).
+ *
+ * Exported for the previews, which draw a connection that does not exist yet and
+ * have to look like the one a drop would commit.
+ */
+export function markerStartFor(type: string, isDefault = false): string | null {
+  if (type === BPMN.MessageFlow) return 'url(#sf-marker-message-start)';
+  return isDefault ? 'url(#sf-marker-default)' : null;
+}
+
 /** Install the arrowhead marker `<defs>` once into `defs`. */
 export function ensureArrowMarkers(defs: SVGDefsElement): void {
   if (defs.querySelector('#sf-arrow-sequence')) return;
@@ -944,6 +961,41 @@ export function ensureArrowMarkers(defs: SVGDefsElement): void {
   defs.appendChild(makeMarker('sf-arrow-message', 'open'));
   defs.appendChild(makeMarker('sf-arrow-open', 'open'));
   defs.appendChild(makeDefaultFlowMarker());
+  defs.appendChild(makeMessageStartMarker());
+}
+
+/**
+ * The open circle a message flow starts with ({@link markerStartFor}).
+ *
+ * Filled with the CANVAS colour rather than left transparent: the path starts at the
+ * circle's centre, so an unfilled one would have the line showing through it. That is
+ * the same trick — and the same token — the resize handles and bendpoints use, so it
+ * follows a re-themed canvas instead of pinning white into the document.
+ */
+function makeMessageStartMarker(): SVGMarkerElement {
+  const marker = create('marker', {
+    id: 'sf-marker-message-start',
+    markerWidth: 12,
+    markerHeight: 12,
+    // The circle sits just PAST the docking point rather than centred on it: the
+    // route is cropped to the source's outline, and this canvas paints a shape over
+    // the edges at its own depth (`model/tree.ts zRankOf` — what keeps an arrowhead
+    // under the shape it points at), so a centred circle would be half swallowed by
+    // the activity it leaves. `6 - (r + stroke/2)` puts its near edge on the outline.
+    refX: 2,
+    refY: 6,
+    orient: 'auto',
+    markerUnits: 'userSpaceOnUse',
+  }) as SVGMarkerElement;
+  append(marker, create('circle', {
+    cx: 6,
+    cy: 6,
+    r: 3.5,
+    fill: 'var(--sf-canvas-fill-color)',
+    stroke: 'context-stroke',
+    'stroke-width': 1,
+  }));
+  return marker;
 }
 
 /** The default-flow slash ({@link isDefaultFlow}), oriented with the line's start. */

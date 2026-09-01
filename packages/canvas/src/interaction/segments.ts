@@ -83,16 +83,6 @@ export const SEGMENT_GRIP_WIDTH = 18;
 /** How close a press must be to a segment's BODY to grab it (parity spec §3). */
 export const SEGMENT_BODY_TOLERANCE = 5;
 
-/** How far a re-docked endpoint is kept from the corners of the side it lands on. */
-const DOCK_INSET = 6;
-
-/**
- * How near the middle of a side a drop has to land to dock exactly there —
- * diagram-js's `SNAP_TOLERANCE`, the window `BendpointSnapping` offers the target's
- * mid in.
- */
-const DOCK_SNAP_TOLERANCE = 7;
-
 const EPSILON = 1e-6;
 
 // --- reading a path ---------------------------------------------------------
@@ -323,24 +313,28 @@ function dockTerminal(
 }
 
 /**
- * Re-dock a connection's `end` where it was actually DROPPED (parity spec §1/§4:
- * "re-docks to the nearest sensible SIDE, cropped").
+ * Re-dock a connection's `end` where it was actually DROPPED.
  *
- * The side is not a free choice: an orthogonal route may only meet a shape square
- * on, so the run that arrives at the endpoint decides WHICH side it lands on
- * (horizontal → a flank, vertical → the top or bottom). What the drop decides is
- * the position ALONG that side — clamped off the corners, and snapped to the middle
- * of the side within {@link DOCK_SNAP_TOLERANCE} the way diagram-js's
- * `BendpointSnapping` does ({@link dockAlong}) — which is the whole point of the
- * gesture: the edge ends where the user let go rather than at the centre the router
- * would have anchored it to, while a drop AIMED at the centre still lands there
- * exactly.
+ * ONE rule, the one diagram-js and draw.io both use: walk from the drop point toward
+ * the neighbour the run comes from and take the point where that walk leaves the
+ * shape's outline ({@link cropPoint}). The path behind it is left alone, save for the
+ * joint that follows a square terminal run ({@link moveTerminal}).
  *
- * Keeping the route square then costs one of two things: an interior neighbour is
- * simply pulled onto the new line, and a two-point route (nothing interior to move,
- * and an opposite end that is docked and may NOT be moved) grows a Z-jog through the
- * middle — the same shape `routing/orthogonal.ts` produces for two shapes that are
- * offset on both axes.
+ * Both halves of "where does it dock" fall out of that walk, without a rule each:
+ *
+ * - dropped in the MIDDLE of the shape, the walk starts at the middle, so the dock is
+ *   the centre-crossing point — the connection points at the shape, not at a spot on
+ *   it, and every later re-route reproduces it;
+ * - dropped near an EDGE, the walk starts there and leaves the outline right beside
+ *   it, so the dock is where the pointer said.
+ *
+ * It replaces a slide-along-the-side-the-run-arrives-from rule that also clamped off
+ * the corners, snapped to the side's middle, and grew a Z-jog to keep a two-point
+ * route square. That is four rules deciding where an edge ends instead of the user.
+ *
+ * The OPPOSITE end is re-cropped, never re-placed: a drag that swings the path round
+ * changes the direction it arrives from, and a dock left facing the old one hangs off
+ * the silhouette.
  */
 export function redockEnd(
   waypoints: readonly Point[],
@@ -352,31 +346,19 @@ export function redockEnd(
   const points = clonePath(waypoints);
   if (points.length < 2) return points;
   const last = points.length - 1;
-  const i = end === 'source' ? 0 : last;
   const j = end === 'source' ? 1 : last - 1;
-  const dock = points[i];
-  const neighbour = points[j];
-  const horizontal = Math.abs(neighbour.y - dock.y) <= Math.abs(neighbour.x - dock.x);
+  // The joint next to the dock follows a SQUARE terminal run, exactly as it does for
+  // a drop in open space ({@link moveTerminal}) — the drag is the same gesture, and
+  // the shape under it only decides that the tip is cropped to an outline.
+  moveTerminal(points, end, cropPoint(shape, points[j], at));
 
-  const moved: Point = horizontal
-    ? { x: dock.x, y: dockAlong(at.y, shape.y, shape.y + shape.height) }
-    : { x: dockAlong(at.x, shape.x, shape.x + shape.width), y: dock.y };
-  points[i] = moved;
-
-  if (points.length > 2) {
-    points[j] = horizontal
-      ? { x: neighbour.x, y: moved.y }
-      : { x: moved.x, y: neighbour.y };
-  } else {
-    const other = points[end === 'source' ? 1 : 0];
-    const middle = horizontal ? (other.x + moved.x) / 2 : (other.y + moved.y) / 2;
-    const beside = horizontal ? { x: middle, y: other.y } : { x: other.x, y: middle };
-    const across = horizontal ? { x: middle, y: moved.y } : { x: moved.x, y: middle };
-    if (end === 'source') points.splice(1, 0, across, beside);
-    else points.splice(1, 0, beside, across);
+  const other = end === 'source' ? shapes.target : shapes.source;
+  if (other) {
+    const k = end === 'source' ? last : 0;
+    const n = end === 'source' ? last - 1 : 1;
+    points[k] = cropPoint(other, points[n]);
   }
-
-  return settle(points, shapes);
+  return roundPath(dropRedundant(simplify(points)));
 }
 
 /**
@@ -385,18 +367,48 @@ export function redockEnd(
  * connection keeps the element it always pointed at and its tip simply ends up
  * where the pointer let go.
  *
- * The tip going where the pointer is does not mean the PATH may go anywhere. §4 is
- * unconditional ("all resulting segments are axis-aligned"), and a free move is an
- * edit like any other, so the route reaches the drop the way every other edit here
- * reaches anything: it leaves its anchor on the axis the terminal run already had
- * and turns once, through an elbow, into the drop. Dragging the tip straight along
- * that axis collapses the elbow away again and the edge is simply longer or
- * shorter.
+ * An ENDPOINT drags exactly like an interior joint ({@link moveBendpoint}): it goes
+ * where the pointer is, its neighbour stays put, and the terminal run becomes
+ * diagonal when that is what the drag asked for. It used to grow an ELBOW instead,
+ * to keep every run axis-aligned — which meant the one gesture whose whole point is
+ * "put the tip here" answered by re-cutting the edge into a shape the user had not
+ * drawn. diagram-js and draw.io both let the run go diagonal, the router still lays
+ * out every route it computes squarely, and a joint the drag made redundant is
+ * dropped the way a bendpoint's is.
  *
  * No cropping: the endpoint has deliberately LEFT its shape's outline, which is the
  * whole point of the gesture, so `settle`'s re-crop — which would pull the tip back
  * onto the silhouette — is exactly what must not happen here.
  */
+/**
+ * Move the terminal waypoint `i` to `to`, taking the joint next to it ALONG when the
+ * run between them is axis-aligned — and leaving it exactly where it is when that run
+ * is diagonal.
+ *
+ * This is the one thing an endpoint drag does beyond moving the point, and it is what
+ * makes the gesture feel right: a square run stays square (drag the end of a vertical
+ * drop sideways and the whole drop slides with it), while a run somebody has already
+ * bent out of Manhattan is left alone — re-squaring it would undo their bend.
+ *
+ * The neighbour has to be an interior JOINT. In a two-point route the "neighbour" is
+ * the other endpoint, docked to its own shape and not this gesture's to move, so such
+ * a route simply goes diagonal — which is what diagram-js does with it too.
+ */
+export function moveTerminal(points: Point[], end: 'source' | 'target', to: Point): void {
+  const last = points.length - 1;
+  const i = end === 'source' ? 0 : last;
+  const j = end === 'source' ? 1 : last - 1;
+  if (points.length < 2) return;
+  const dock = points[i];
+  const neighbour = points[j];
+  points[i] = { x: to.x, y: to.y };
+  if (points.length <= 2 || j <= 0 || j >= points.length - 1) return;
+  const dx = Math.abs(neighbour.x - dock.x);
+  const dy = Math.abs(neighbour.y - dock.y);
+  if (dy <= SEGMENT_ALIGN_TOLERANCE && dx > dy) points[j] = { x: neighbour.x, y: to.y };
+  else if (dx <= SEGMENT_ALIGN_TOLERANCE && dy > dx) points[j] = { x: to.x, y: neighbour.y };
+}
+
 export function freeMoveEnd(
   waypoints: readonly Point[],
   end: 'source' | 'target',
@@ -404,25 +416,8 @@ export function freeMoveEnd(
 ): Point[] {
   const points = clonePath(waypoints);
   if (points.length < 2) return points;
-  const last = points.length - 1;
-  const i = end === 'source' ? 0 : last;
-  const j = end === 'source' ? 1 : last - 1;
-  const anchor = points[j];
-  const dock = points[i];
-  // The axis the terminal run already had. Taken from the run itself rather than
-  // from the drop, so the edge keeps leaving its anchor the way it left it — a flow
-  // that ran out of a shape's flank goes on doing so, and the turn happens out at
-  // the far end where the pointer is.
-  const horizontal = Math.abs(dock.y - anchor.y) <= Math.abs(dock.x - anchor.x);
-  const elbow = horizontal ? { x: to.x, y: anchor.y } : { x: anchor.x, y: to.y };
-  points[i] = { x: to.x, y: to.y };
-  points.splice(end === 'source' ? 1 : last, 0, elbow);
-  // `orthogonalize` flattens anything the insertion left crooked (an imported run
-  // that was a unit or two off-axis) and drops the elbow again when the drag was
-  // along the run and it became redundant. Elbow-growing is off: a genuinely
-  // diagonal run elsewhere on the path (a hand-bent joint) is the author's and
-  // must survive this edit untouched.
-  return roundPath(orthogonalize(points, ORTHOGONAL_TOLERANCE, false));
+  moveTerminal(points, end, to);
+  return roundPath(dropRedundant(simplify(points)));
 }
 
 /**
@@ -463,29 +458,6 @@ function roundPoint(p: Point): Point {
 
 function clonePath(points: readonly Point[]): Point[] {
   return points.map((p) => ({ x: p.x, y: p.y }));
-}
-
-function clamp(value: number, min: number, max: number): number {
-  const lo = Math.min(min + DOCK_INSET, max);
-  const hi = Math.max(max - DOCK_INSET, min);
-  return Math.min(Math.max(value, Math.min(lo, hi)), Math.max(lo, hi));
-}
-
-/**
- * Where along a side a dropped endpoint docks: the drop position, held off the
- * corners — but SNAPPED to the middle of the side when it lands near it.
- *
- * The snap is diagram-js's (`BendpointSnapping` offers the target's mid on a
- * bendpoint/reconnect drag, `SNAP_TOLERANCE` wide). Without it there is no way to
- * ask for the centred dock every routed edge has, because hitting a 1-unit
- * coordinate with a pointer is not a thing a person can do: every reconnect would
- * leave the flow meeting the shape a few units off-centre, which is the one
- * difference from an edge the router laid out.
- */
-function dockAlong(value: number, min: number, max: number): number {
-  const middle = (min + max) / 2;
-  if (Math.abs(value - middle) <= DOCK_SNAP_TOLERANCE) return middle;
-  return clamp(value, min, max);
 }
 
 /**

@@ -103,6 +103,52 @@ export function isHiddenByCollapse(element: SceneElement): boolean {
 }
 
 /**
+ * The visible shape an edge END actually reaches.
+ *
+ * Normally `node` itself. When it sits inside a collapsed container, though, the
+ * container is what the diagram draws in its place — so that is where a flow from
+ * outside has to dock, and the OUTERMOST collapsed ancestor is the one on screen.
+ *
+ * This is the whole of "a collapsed sub-process's flows connect to the sub-process":
+ * nothing is rewritten, the connection still names the inner element (which is what
+ * makes expanding restore it), and only the geometry follows what is on screen
+ * (`routing/orthogonal.ts routeEdge`).
+ */
+export function visibleEndpointOf(node: SceneNode): SceneNode {
+  let visible = node;
+  const guard = new Set<SceneNode>();
+  for (let cursor = node.parent; cursor && !guard.has(cursor); cursor = cursor.parent) {
+    guard.add(cursor);
+    if (isCollapsed(cursor)) visible = cursor;
+  }
+  return visible;
+}
+
+/**
+ * The edges that CROSS `node`'s boundary: one end among its contents, the other
+ * outside it. They are not incident to `node` — nothing about them changes in the
+ * document when it opens or closes — but what they can reach does, so a toggle has
+ * to re-route them ({@link visibleEndpointOf}).
+ *
+ * An edge with both ends inside is left out: it is hidden with the contents. So is
+ * one that ends on `node` itself, which {@link incidentEdgesOf} already covers.
+ */
+export function crossingEdgesOf(scene: Scene, node: SceneNode): SceneEdge[] {
+  const inside = new Set<SceneElement>(contentsOf(scene, node));
+  const out: SceneEdge[] = [];
+  for (const element of inside) {
+    if (element.kind !== 'node') continue;
+    for (const edge of incidentEdgesOf(element)) {
+      if (out.includes(edge)) continue;
+      const other = edge.source === element ? edge.target : edge.source;
+      if (!other || other === node || inside.has(other)) continue;
+      out.push(edge);
+    }
+  }
+  return out;
+}
+
+/**
  * Every nested plane that depicts `node` (never the root plane).
  *
  * A plane may depict the node's own business object (a sub-process) **or** the
@@ -209,6 +255,17 @@ export function incidentEdgesOf(node: SceneNode): SceneEdge[] {
   return out;
 }
 
+/**
+ * Every edge a toggle of `node` moves: the ones docked to it, plus the ones crossing
+ * into its contents ({@link crossingEdgesOf}), which re-dock onto the frame when it
+ * closes and onto the inner shape again when it opens.
+ */
+export function affectedEdgesOf(scene: Scene, node: SceneNode): SceneEdge[] {
+  const out = incidentEdgesOf(node);
+  for (const edge of crossingEdgesOf(scene, node)) if (!out.includes(edge)) out.push(edge);
+  return out;
+}
+
 /** How the edges docked to a node were routed while it wore a given footprint. */
 interface IncidentRouting {
   bounds: Bounds;
@@ -236,7 +293,7 @@ export function samePoints(a: readonly Point[], b: readonly Point[]): boolean {
 }
 
 /** Park `node`'s current incident routing under the state it is in RIGHT NOW. */
-export function rememberIncidentRouting(node: SceneNode): void {
+export function rememberIncidentRouting(scene: Scene, node: SceneNode): void {
   const key = footprintKey(node);
   let byState = incidentRouting.get(key);
   if (!byState) {
@@ -244,7 +301,7 @@ export function rememberIncidentRouting(node: SceneNode): void {
     incidentRouting.set(key, byState);
   }
   const waypoints = new Map<SceneEdge, Point[]>();
-  for (const edge of incidentEdgesOf(node)) {
+  for (const edge of affectedEdgesOf(scene, node)) {
     waypoints.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
   }
   byState.set(node.isExpanded !== false, {
@@ -259,14 +316,14 @@ export function rememberIncidentRouting(node: SceneNode): void {
  * `undefined` when there is nothing trustworthy to restore and the caller must
  * re-dock from scratch.
  */
-export function restoreIncidentRouting(node: SceneNode): SceneEdge[] | undefined {
+export function restoreIncidentRouting(scene: Scene, node: SceneNode): SceneEdge[] | undefined {
   const memory = incidentRouting.get(footprintKey(node))?.get(node.isExpanded !== false);
   if (!memory) return undefined;
   const box = memory.bounds;
   if (box.x !== node.x || box.y !== node.y || box.width !== node.width || box.height !== node.height) {
     return undefined;
   }
-  const edges = incidentEdgesOf(node);
+  const edges = affectedEdgesOf(scene, node);
   // An edge added or deleted since the snapshot makes it stale wholesale — nothing
   // is written until the whole set is known good.
   if (edges.length !== memory.waypoints.size) return undefined;

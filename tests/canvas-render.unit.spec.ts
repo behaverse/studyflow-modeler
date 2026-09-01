@@ -253,3 +253,63 @@ test('a choreography task draws its name in the MIDDLE band, not on the divider'
   // rather than sitting on the top divider, which is where the un-nested draw put it.
   expect(shift + Number(name.getAttribute('y'))).toBeCloseTo(task.height / 2, 6);
 });
+
+/**
+ * Two pools and the message flow between them — no shipped example carries one, and
+ * BPMN gives it a notation of its own: "a dashed line with an OPEN CIRCLE at the
+ * start and an open arrowhead at the end". The circle is what tells it apart from an
+ * association, which is dashed too.
+ */
+const MESSAGE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_Msg" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_A" name="A" processRef="Process_A" />
+    <bpmn:participant id="Pool_B" name="B" processRef="Process_B" />
+    <bpmn:messageFlow id="Msg_1" sourceRef="Task_A" targetRef="Task_B" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_A" isExecutable="false"><bpmn:task id="Task_A" name="A" /></bpmn:process>
+  <bpmn:process id="Process_B" isExecutable="false"><bpmn:task id="Task_B" name="B" /></bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_Msg">
+    <bpmndi:BPMNPlane id="Plane_Msg" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Pool_A_di" bpmnElement="Pool_A" isHorizontal="true">
+        <dc:Bounds x="100" y="100" width="400" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A_di" bpmnElement="Task_A">
+        <dc:Bounds x="200" y="135" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pool_B_di" bpmnElement="Pool_B" isHorizontal="true">
+        <dc:Bounds x="100" y="300" width="400" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B_di" bpmnElement="Task_B">
+        <dc:Bounds x="200" y="335" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Msg_1_di" bpmnElement="Msg_1">
+        <di:waypoint x="250" y="215" /><di:waypoint x="250" y="335" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('a message flow is dashed AND starts with the open circle BPMN gives it', async () => {
+  const { canvas } = await loadCanvas(MESSAGE_XML);
+  const line = canvas.getGraphics('Msg_1')!.querySelector('.sf-connection-line')!;
+
+  expect(line.getAttribute('stroke-dasharray')).toBe('10,8');
+  expect(line.getAttribute('marker-end')).toBe('url(#sf-arrow-message)');
+  expect(line.getAttribute('marker-start')).toBe('url(#sf-marker-message-start)');
+
+  // The marker is a real circle, filled with the canvas colour so the line does not
+  // show through its middle — the same token the resize handles use, so it follows a
+  // re-themed canvas.
+  const marker = canvas.getSvg().querySelector('#sf-marker-message-start circle')!;
+  expect(marker.getAttribute('r')).toBe('3.5');
+  // Placed just past the docking point, not centred on it: the shape paints over the
+  // edges at its depth, so a centred circle is half swallowed by its own source.
+  expect(marker.parentElement!.getAttribute('refX')).toBe('2');
+  expect(marker.getAttribute('fill')).toBe('var(--sf-canvas-fill-color)');
+  expect(marker.getAttribute('stroke')).toBe('context-stroke');
+});

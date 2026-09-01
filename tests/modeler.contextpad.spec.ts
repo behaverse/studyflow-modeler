@@ -26,6 +26,25 @@ import {
 const pad = (page: Page): Locator => page.getByTestId('context-pad');
 const entry = (page: Page, action: string): Locator => page.getByTestId(`context-pad-${action}`);
 
+/**
+ * The page-space MIDDLE of a rendered connection, taken from the path itself.
+ *
+ * Not the centre of its bounding box: a two-point horizontal flow has a zero-height
+ * box whose centre rounds onto whichever shape is nearest, and a click there lands on
+ * the shape instead of the flow every few runs. `getPointAtLength` is exact for any
+ * path shape. `at` picks how far along to land — the default middle is where the
+ * segment-move grip sits once the flow is selected, so a gesture that must reach the
+ * LINE (a double click to name it) asks for a quarter along instead.
+ */
+async function pointOnPath(locator: Locator, at = 0.5): Promise<{ x: number; y: number }> {
+  return locator.evaluate((el, fraction) => {
+    const path = el as unknown as SVGPathElement;
+    const point = path.getPointAtLength(path.getTotalLength() * fraction);
+    const screen = point.matrixTransform(path.getScreenCTM()!);
+    return { x: screen.x, y: screen.y };
+  }, at);
+}
+
 /** The hover ghost: one `<g>` in the overlay layer, holding the shape and its flow. */
 const ghost = (page: Page): Locator => page.locator('.sf-append-preview');
 
@@ -322,8 +341,8 @@ test.describe('The context pad', () => {
 
     // Name the flow, which is what mints a caption of its own.
     const flowLine = page.locator('svg.sf-canvas g.sf-connection .sf-connection-line').first();
-    const line = await boxOf(flowLine);
-    await page.mouse.dblclick(line.x + line.width / 2, line.y + line.height / 2);
+    const on = await pointOnPath(flowLine, 0.25);
+    await page.mouse.dblclick(on.x, on.y);
     await expect(labelEditor(page)).toBeVisible();
     await labelEditor(page).fill('hello');
     await pressOnCanvas(page, 'Enter');
@@ -406,8 +425,8 @@ test.describe('The context pad', () => {
     await entry(page, 'append.end-event').click();
 
     const flowLine = page.locator('svg.sf-canvas g.sf-connection .sf-connection-line').first();
-    const line = await boxOf(flowLine);
-    await page.mouse.click(line.x + line.width / 2, line.y + line.height / 2);
+    const mid = await pointOnPath(flowLine);
+    await page.mouse.click(mid.x, mid.y);
 
     await expect(pad(page)).toBeVisible();
     // Annotate, delete, colour — plus the default-flow toggle, because this flow

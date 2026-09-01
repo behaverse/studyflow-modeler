@@ -49,6 +49,7 @@ import { dropSceneLabel, ensureSceneLabel, type Writeback } from '@canvas/model/
 import type { ResizeHandle } from '@canvas/interaction/selection.ts';
 import {
   freeMoveEnd,
+  moveTerminal,
   moveBendpoint,
   moveSegment,
   segmentsOf,
@@ -56,8 +57,9 @@ import {
 } from '@canvas/interaction/segments.ts';
 import { fitLabelHeight, labelMinSize } from '@canvas/render/labels.ts';
 import { prop } from '@canvas/model/moddle.ts';
-import { rerouteEdge } from '@canvas/routing/orthogonal.ts';
+import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
+import { visibleEndpointOf } from '@canvas/model/expand.ts';
 
 /** Grid step used when snapping is enabled. */
 export const DEFAULT_GRID_SIZE = 10;
@@ -619,11 +621,31 @@ export class Drag {
         continue;
       }
       const points = original.map((p) => ({ x: p.x, y: p.y }));
+      const end: 'source' | 'target' = mode === 'first' ? 'source' : 'target';
       const index = mode === 'first' ? 0 : points.length - 1;
+      // The shape actually on screen for that end — a collapsed container stands in
+      // for anything inside it, exactly as `routeEdge` resolves it.
+      const shape = mode === 'first' ? edge.source : edge.target;
+      const docked = shape && visibleEndpointOf(shape);
+
+      // A route the author BENT is re-docked, never re-cut. Its interior joints are
+      // the user's, and re-routing threw them away on every move — a hand-shaped edge
+      // snapped back to the router's idea of itself the moment either end was nudged.
+      // The dock is cropped to the moved outline and the joint behind it follows a
+      // SQUARE run, which is the rule an endpoint DRAG follows too
+      // (`interaction/segments.ts moveTerminal`): a shape pulled sideways slides its
+      // flow's vertical drop along instead of leaning it over, and a run somebody bent
+      // stays exactly as they bent it.
+      if (state.reroute && points.length > 2 && docked) {
+        moveTerminal(points, end, cropPoint(docked, points[index === 0 ? 1 : index - 1]));
+        edge.waypoints = orthogonalize(points, undefined, false);
+        continue;
+      }
+
       points[index] = { x: original[index].x + dx, y: original[index].y + dy };
       edge.waypoints = points;
       if (!state.reroute) continue;
-      // …then lay the whole run out again (parity spec addendum 2 §3+§5): the
+      // …otherwise lay the whole run out again (parity spec addendum 2 §3+§5): the
       // reference re-routes live, so the elbow forms while the shape is still in
       // flight and the drop commits exactly what was on screen. Dragging the docking
       // point first is not redundant — it is what a DANGLING edge (no source or no

@@ -55,6 +55,10 @@ export interface RuleElement {
   readonly source?: RuleElement;
   /** Connection target (edges only). */
   readonly target?: RuleElement;
+  /** Connections arriving at this shape — read by {@link Rules.canMove}. */
+  readonly incoming?: readonly RuleElement[];
+  /** Connections leaving this shape — read by {@link Rules.canMove}. */
+  readonly outgoing?: readonly RuleElement[];
   /** Subprocess/participant expanded state; `false` means a collapsed frame. */
   readonly isExpanded?: boolean;
 }
@@ -234,6 +238,23 @@ export function containerFor(parent: RuleElement | undefined): RuleElement | und
   return undefined;
 }
 
+/**
+ * The flow-element container a drop ON `target` lands in — {@link ruleContainerOf}
+ * asked of the target ITSELF rather than of its parent, so the two answers can be
+ * compared. A plane root (a `bpmn:Process` / `bpmn:Collaboration`) is `undefined`,
+ * which is what `ruleContainerOf` reports for the shapes drawn there.
+ */
+export function dropContainerOf(target: RuleElement | undefined): RuleElement | undefined {
+  let current = target;
+  for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
+    const type = bpmnTypeOf(current);
+    if (type === 'bpmn:Process' || type === 'bpmn:Collaboration') return undefined;
+    if (type !== 'bpmn:Lane' && type !== 'bpmn:Group') return current;
+    current = current.parent;
+  }
+  return undefined;
+}
+
 // --- resize -----------------------------------------------------------------
 
 /**
@@ -323,7 +344,16 @@ export function canContain(shapeType: string, containerType: string): boolean | 
 
 // --- connections ------------------------------------------------------------
 
-/** Can this type *emit* a message? Pools, activities and throwing events. */
+/**
+ * Can this type *emit* a message? Pools, activities and throwing events.
+ *
+ * These are BPMN's Collaboration rules, not the Process ones: a message flow joins
+ * two PARTICIPANTS, so the pair is judged by what can throw and what can catch — an
+ * end event is a throw event and may source one, a start event is a catch event and
+ * may target one, and neither is legal at either end of a sequence flow. Two lanes of
+ * one pool are one participant, so nothing here applies to them
+ * ({@link participantOf} walks lanes through to the pool).
+ */
 function isMessageSource(type: string): boolean {
   return type === 'bpmn:Participant'
     || isBpmnSubtypeOf(type, 'bpmn:Activity')
@@ -480,7 +510,18 @@ export class Rules {
       allowSelfLoop: this.allowSelfLoop,
       catalog: this.catalog,
     });
-    if (schema === true) return structural || { type: defaultConnectionType(source, target) };
+    if (schema === true) {
+      if (structural) return structural;
+      // A schema authorises a PAIR of types; it cannot authorise an illegal document.
+      // "A sequence flow must not cross a sub-process (or pool) boundary" is BPMN
+      // structure, not type compatibility, so it survives a schema `true` — the
+      // cross-pool case is already a MESSAGE flow, which is exactly the legal way out.
+      const type = defaultConnectionType(source, target);
+      if (type === CONNECTION.sequenceFlow && ruleContainerOf(source) !== ruleContainerOf(target)) {
+        return false;
+      }
+      return { type };
+    }
     return structural;
   }
 
@@ -506,6 +547,42 @@ export class Rules {
     const existing = bpmnTypeOf(connection, this.catalog);
     if (existing && !isCompatibleConnection(verdict.type, existing)) return false;
     return verdict;
+  }
+
+  /**
+   * `elements.move` — a drop into `target` must be a legal CONTAINMENT for every
+   * shape ({@link Rules.canCreate}) and must not strand a sequence flow.
+   *
+   * The second half is the BPMN rule {@link structuralConnection} already enforces
+   * when a flow is DRAWN: a sequence flow lives in one `flowElements` container and
+   * may not cross a sub-process or pool boundary. Dragging a connected shape across
+   * that boundary would produce the same illegal document without ever asking, so it
+   * is refused here — the way out of a sub-process is the sub-process's own flows, or
+   * a boundary event on it.
+   *
+   * Only a drop that CHANGES a shape's container is judged. Moving one around inside
+   * the container it already lives in is never a containment question, and judging it
+   * would freeze every shape in a document that was imported with a crossing flow
+   * already in it.
+   *
+   * A flow to something that is moving TOO is fine: both ends land in `target`.
+   */
+  canMove(shapes: readonly (RuleElement | undefined)[], target: RuleElement | undefined): boolean {
+    const moving = new Set(shapes.filter((shape): shape is RuleElement => !!shape));
+    if (![...moving].every((shape) => !!this.canCreate(shape, target))) return false;
+
+    const to = dropContainerOf(target);
+    for (const shape of moving) {
+      if (ruleContainerOf(shape) === to) continue;
+      for (const edge of [...(shape.incoming ?? []), ...(shape.outgoing ?? [])]) {
+        const type = bpmnTypeOf(edge, this.catalog);
+        if (!type || !isBpmnSubtypeOf(type, CONNECTION.sequenceFlow)) continue;
+        const other = edge.source === shape ? edge.target : edge.source;
+        if (!other || moving.has(other)) continue;
+        if (ruleContainerOf(other) !== to) return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -594,14 +671,27 @@ export class Rules {
 
   /**
    * `connection.start` — whether the context pad offers "connect from here".
-   * Wider than {@link canAppend}: a data shape is no FlowNode and takes no
-   * successor, but a data INPUT association may start from it toward an activity.
+   *
+   * Wider than {@link canAppend}, which asks only about SEQUENCE flow, and three
+   * kinds of element can start an edge without being able to start one of those:
+   *
+   * - a **data shape** is no FlowNode and takes no successor, but a data INPUT
+   *   association may start from it toward an activity;
+   * - an **end event** is where sequence flow stops — and BPMN's Collaboration rules
+   *   still let it THROW a message to another pool, which is a connection the pad has
+   *   to be able to start or the flow cannot be drawn at all;
+   * - an **artifact** (a text annotation, a group) is reached by, and can start, an
+   *   association.
+   *
+   * The one thing this cannot promise is a legal TARGET — {@link Rules.canConnect}
+   * judges that when the drag lands, exactly as it does for every other source.
    */
   canStartConnection(source: RuleElement | undefined): boolean {
     if (!source) return false;
     if (this.canAppend(source)) return true;
     const type = bpmnTypeOf(source, this.catalog);
-    return !!type && isDataShape(type);
+    if (!type) return false;
+    return isDataShape(type) || isArtifact(type) || isMessageSource(type) || isDataSource(type);
   }
 
   /**
@@ -711,7 +801,7 @@ export class Rules {
         const target = asElement(context.target ?? context.parent);
         if (!target) return true;
         const shapes = Array.isArray(context.shapes) ? context.shapes : [];
-        return shapes.every((shape) => !!this.canCreate(asElement(shape), target));
+        return this.canMove(shapes.map(asElement), target);
       }
 
       default:

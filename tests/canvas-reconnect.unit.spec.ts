@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
+import { cropPoint } from '@canvas/routing/crop.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
 import { freshModdle, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
@@ -122,10 +123,17 @@ test('dragging the target endpoint onto another task reconnects, re-docks where 
   expect(flowElement(definitions, 'Flow_1').targetRef.id).toBe('Task_2');
   expect(flowElement(definitions, 'Task_2').incoming?.map((f: any) => f.id)).toEqual(['Flow_1']);
 
-  // Docked on the side the route arrives from (the left flank), at the height it
-  // was dropped at — held one inset off the corner — and cropped to the outline.
-  expect(last(flow)).toEqual({ x: target.x, y: 154 });
-  expect(isOrthogonal(flow.waypoints)).toBe(true);
+  // Docked where it was DROPPED: the walk from the drop point toward the rest of the
+  // edge leaves Task_2 through its left flank, low down, near the rounded corner it
+  // was let go over — not at the centre-crossing point the router would have picked
+  // (y 120), and not clamped to a fixed inset off the corner either.
+  const tip = last(flow);
+  expect(tip.x).toBe(target.x);
+  expect(tip.y).toBeGreaterThan(target.y + target.height / 2);
+  expect(tip.y).toBeLessThanOrEqual(target.y + target.height);
+  // The run to it is left DIAGONAL: an endpoint drags like an interior joint, and
+  // nothing re-squares the path behind it (diagram-js / draw.io).
+  expect(isOrthogonal(flow.waypoints)).toBe(false);
   // The source end is untouched and still on the start event's circle.
   expect(flow.waypoints[0].x).toBeCloseTo(136, 0);
 });
@@ -168,7 +176,7 @@ test('a rules-refused target leaves the edge untouched', async () => {
 
 // --- empty space -------------------------------------------------------------
 
-test('dropped on empty space the endpoint free-moves, squarely', async () => {
+test('dropped on empty space the endpoint free-moves, exactly like a bendpoint', async () => {
   const loaded = await load();
   const { canvas, definitions } = loaded;
   const flow = edge(canvas, 'Flow_1');
@@ -180,16 +188,14 @@ test('dropped on empty space the endpoint free-moves, squarely', async () => {
   expect(last(flow).x).toBeCloseTo(300, 3);
   expect(last(flow).y).toBeCloseTo(320, 3);
 
-  // …and the ROUTE to it is square. Parity spec §1 says the endpoint free-moves and
-  // §4 says every resulting segment is axis-aligned; both hold, because the free move
-  // reaches the drop through an elbow instead of a diagonal. Reading §1 as licence to
-  // leave a diagonal terminal segment is what left the renderer splicing a corner arc
-  // onto a corner that was not one.
-  expect(isOrthogonal(flow.waypoints)).toBe(true);
-  expect(flow.waypoints).toHaveLength(3);
-  // The edge still LEAVES its source the way it left it — horizontally, off the start
-  // event's flank — and turns out at the drop rather than the moment it undocks.
-  expect(flow.waypoints[1]).toEqual({ x: 300, y: 118 });
+  // …and NOTHING else moved. The endpoint is dragged the way an interior joint is
+  // (`moveBendpoint`): the neighbour stays put and the terminal run goes diagonal,
+  // which is what diagram-js and draw.io both do. It used to grow an elbow to keep
+  // every run square — the one gesture whose whole point is "put the tip here"
+  // answering by re-cutting the edge into a shape nobody drew.
+  expect(flow.waypoints).toHaveLength(2);
+  expect(isOrthogonal(flow.waypoints)).toBe(false);
+  expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
 
   const written = diWaypoints(definitions, 'Flow_1');
   expect(written).toEqual(flow.waypoints);
@@ -222,4 +228,132 @@ test('reconnectElement without a drop point keeps the plain centre-anchored rout
   expect(flow.target?.id).toBe('Task_2');
   expect(last(flow).x).toBe(target.x);
   expect(isOrthogonal(flow.waypoints)).toBe(true);
+});
+
+test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {
+  // The dock follows the DROP, and a drop is a waypoint position: it snaps to the
+  // grid, exactly as a bendpoint drag does. Two drops inside the same grid cell
+  // therefore dock in the same place.
+  const near = await load();
+  const far = await load();
+  const one = node(near.canvas, 'Task_1');
+
+  // 141 and 143 both round to the same grid line…
+  dragTargetEnd(near.canvas, edge(near.canvas, 'Flow_1'), { x: one.x + 6, y: 141 });
+  dragTargetEnd(far.canvas, edge(far.canvas, 'Flow_1'), { x: one.x + 6, y: 143 });
+
+  expect(last(edge(near.canvas, 'Flow_1'))).toEqual(last(edge(far.canvas, 'Flow_1')));
+
+  // …and one that rounds to the NEXT docks somewhere else.
+  const next = await load();
+  dragTargetEnd(next.canvas, edge(next.canvas, 'Flow_1'), { x: one.x + 6, y: 147 });
+  expect(last(edge(next.canvas, 'Flow_1'))).not.toEqual(last(edge(near.canvas, 'Flow_1')));
+});
+
+test('a drop aimed at the middle of a shape docks where the router would anchor it', async () => {
+  // The other half of the same walk: from the centre, the exit point IS the
+  // centre-crossing one — so "point it at the shape" and "point it at a spot on the
+  // shape" are the same gesture, told apart only by where you let go.
+  const { canvas } = await load();
+  const flow = edge(canvas, 'Flow_1');
+  const target = node(canvas, 'Task_2');
+  const centre = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+  const from = { ...flow.waypoints[0] };
+
+  dragTargetEnd(canvas, flow, centre);
+
+  expect(flow.target?.id).toBe('Task_2');
+  // Aimed at the centre, the walk starts at the centre — so the dock is exactly the
+  // point the router itself would have cropped to, with no anchor at all.
+  const anchored = cropPoint(target, from);
+  expect(last(flow).x).toBe(anchored.x);
+  expect(last(flow).y).toBeCloseTo(anchored.y, 0);
+});
+
+test('the drag ghost shows the path the release commits, dock included', async () => {
+  // "What the hover shows is what the click takes" applies to this gesture too: the
+  // ghost is built from the same base path and the same snapped drop point the
+  // commit uses, so an endpoint dragged across a shape does not preview one route
+  // and land on another.
+  const { canvas } = await load();
+  const flow = edge(canvas, 'Flow_1');
+  const target = node(canvas, 'Task_2');
+  const drop = { x: target.x + 20, y: target.y + 65 };
+
+  canvas.getSelection().select(flow);
+  pointerDown(canvas, last(flow));
+  pointerMove(canvas, drop);
+  const ghost = canvas.getSvg().querySelector('.sf-connect-preview-line')!
+    .getAttribute('data-waypoints');
+  pointerUp(canvas, drop);
+
+  expect(ghost).toBe(flow.waypoints.map((p) => `${p.x},${p.y}`).join(' '));
+});
+
+/**
+ * What an endpoint drag does to the joint BEHIND it — the rule the second recording
+ * demonstrates. A square terminal run keeps its shape: drag the end of a vertical
+ * drop sideways and the whole drop slides with it (frames 19.0s → 23.8s, where the
+ * dock and the joint above it both moved from x 871 to x 791). A run somebody has
+ * already bent out of Manhattan is left exactly as they bent it.
+ */
+const BENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_B" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_B" isExecutable="false">
+    <bpmn:startEvent id="Start_B"><bpmn:outgoing>Flow_B</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Task_B" name="B"><bpmn:incoming>Flow_B</bpmn:incoming></bpmn:task>
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="Start_B" targetRef="Task_B" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_B">
+    <bpmndi:BPMNPlane id="Plane_B" bpmnElement="Process_B">
+      <bpmndi:BPMNShape id="Start_B_di" bpmnElement="Start_B">
+        <dc:Bounds x="100" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B_di" bpmnElement="Task_B">
+        <dc:Bounds x="500" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_B_di" bpmnElement="Flow_B">
+        <di:waypoint x="136" y="118" /><di:waypoint x="550" y="118" /><di:waypoint x="550" y="400" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('an endpoint on a SQUARE run takes the joint behind it along', async () => {
+  const { canvas } = await load(BENT_XML);
+  const flow = edge(canvas, 'Flow_B');
+  const task = node(canvas, 'Task_B');
+
+  // The last run drops vertically at x = 550 into the task's top. Drag the dock left.
+  dragTargetEnd(canvas, flow, { x: 520, y: task.y + 10 });
+
+  const [, joint, tip] = flow.waypoints;
+  expect(tip.y).toBe(task.y);
+  // The run is STILL vertical: the joint came along.
+  expect(joint.x).toBe(tip.x);
+  expect(joint.y).toBe(118);
+  expect(tip.x).toBeLessThan(550);
+});
+
+test('an endpoint on a DIAGONAL run leaves the joint where it was bent', async () => {
+  const { canvas } = await load(BENT_XML);
+  const flow = edge(canvas, 'Flow_B');
+  const task = node(canvas, 'Task_B');
+
+  // Bend the last run out of Manhattan first, by dragging the joint sideways.
+  canvas.getSelection().select(flow);
+  pointerDown(canvas, flow.waypoints[1]);
+  pointerMove(canvas, { x: 400, y: 118 });
+  pointerUp(canvas, { x: 400, y: 118 });
+  const bentJoint = { ...flow.waypoints[1] };
+  expect(bentJoint.x).toBe(400);
+
+  dragTargetEnd(canvas, flow, { x: 520, y: task.y + 10 });
+
+  // The joint is exactly where it was left: re-squaring the run would undo the bend.
+  expect(flow.waypoints[1]).toEqual(bentJoint);
 });

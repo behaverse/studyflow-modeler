@@ -32,6 +32,8 @@
 
 import { BPMN } from '@core/constants.ts';
 
+import { visibleEndpointOf } from '@canvas/model/expand.ts';
+
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import {
   centerOf,
@@ -254,10 +256,22 @@ export function routeCenters(
  * "re-route after an endpoint moved (or was re-connected)" helper. Returns
  * `undefined` when the edge is dangling (no `source`/`target`), which the caller
  * should read as "keep what you have".
+ *
+ * Each end is routed to the shape actually ON SCREEN for it
+ * ({@link visibleEndpointOf}): an endpoint inside a collapsed sub-process is drawn as
+ * that sub-process, so the flow docks on the frame rather than aiming at a hidden
+ * shape's parked coordinates. Expanding restores the inner dock, because the edge
+ * never stopped naming the inner element.
+ *
+ * Both ends collapsing into the SAME container answers `undefined`: such an edge is
+ * hidden with the contents, and there is no sensible line between a box and itself.
  */
 export function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined {
   if (!edge.source || !edge.target) return undefined;
-  return routeFor(edge.type, edge.source, edge.target, options);
+  const source = visibleEndpointOf(edge.source);
+  const target = visibleEndpointOf(edge.target);
+  if (source === target && edge.source !== edge.target) return undefined;
+  return routeFor(edge.type, source, target, options);
 }
 
 /**

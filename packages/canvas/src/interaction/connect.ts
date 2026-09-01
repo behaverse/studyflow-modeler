@@ -34,7 +34,7 @@ import type { Writeback } from '@canvas/model/writeback.ts';
 import { routableEnd, routeFor, type RouteOptions } from '@canvas/routing/orthogonal.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
 import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/rules/rules.ts';
-import { markerEndFor } from '@canvas/render/renderer.ts';
+import { markerEndFor, markerStartFor } from '@canvas/render/renderer.ts';
 import { previewEdgeAttrs } from '@canvas/render/preview.ts';
 import { freeMoveEnd, redockEnd } from '@canvas/interaction/segments.ts';
 import { append, attr, create as svgCreate, remove } from '@canvas/render/svg.ts';
@@ -72,6 +72,13 @@ export interface ConnectOptions {
    * tells the user the drop will take before they let go.
    */
   markTarget?: (target: SceneNode | undefined, allowed: boolean) => void;
+  /**
+   * Grid-snap a diagram point (`Canvas.snapPoint`, and a no-op while snapping is
+   * off). Applied to the DROP of a reconnect, which is what decides where along a
+   * shape's side the edge lands — every other waypoint gesture snaps
+   * (`interaction/drag.ts`), and this one used to take the raw pointer.
+   */
+  snap?: (point: Point) => Point;
 }
 
 interface ConnectState {
@@ -184,7 +191,7 @@ export class Connect {
     if (!state.candidate) return undefined;
     // The drop POINT is carried through: a reconnect docks on the side of the target
     // the user let go over, not on the side the router would have picked.
-    return this.reconnect(state.edge, state.end, state.candidate, state.point)
+    return this.reconnect(state.edge, state.end, state.candidate, this.snap(state.point))
       ? state.edge
       : undefined;
   }
@@ -228,6 +235,12 @@ export class Connect {
    * NEAREST SIDE of `node` and crops it to the outline (parity spec §1/§4), instead
    * of leaving it wherever the centre-anchored router happened to put it. Omitting
    * it (the programmatic path, `Canvas.reconnectElement`) keeps the plain re-route.
+   *
+   * A route the author BENT and dropped back on the shape it ALREADY named is
+   * re-docked rather than re-cut ({@link isRedock}): that drop changed where the edge
+   * arrives, not what it connects, and the interior joints are the user's. Landing on
+   * a DIFFERENT shape is a re-wire — the old bends described the old relationship —
+   * so it routes from scratch, as it always did.
    */
   reconnect(edge: SceneEdge, end: ConnectionEnd, node: SceneNode, at?: Point): boolean {
     const writeback = this.options.getWriteback();
@@ -236,9 +249,11 @@ export class Connect {
 
     const source = end === 'source' ? node : edge.source;
     const target = end === 'target' ? node : edge.target;
-    let waypoints = source && target
-      ? routeFor(edge.type, source, target, this.options.routeOptions)
-      : undefined;
+    let waypoints = at !== undefined && isRedock(edge, end, node)
+      ? edge.waypoints.map((p) => ({ x: p.x, y: p.y }))
+      : source && target
+        ? routeFor(edge.type, source, target, this.options.routeOptions)
+        : undefined;
     if (waypoints && at) {
       waypoints = redockEnd(waypoints, end, node, at, {
         ...(source ? { source } : {}),
@@ -261,6 +276,11 @@ export class Connect {
   }
 
   // --- internals ------------------------------------------------------------
+
+  /** Grid-snap a point, when the host gave this gesture a snapper. */
+  private snap(point: Point): Point {
+    return this.options.snap ? this.options.snap(point) : point;
+  }
 
   /** The node under a point: the topmost shape, ignoring edges. */
   private nodeAt(point: Point): SceneNode | undefined {
@@ -287,10 +307,24 @@ export class Connect {
     const { edge, end, candidate } = state;
     const source = end === 'source' ? candidate ?? edge.source : edge.source;
     const target = end === 'target' ? candidate ?? edge.target : edge.target;
-    if (candidate && source && target) {
-      return routeFor(edge.type, source, target, this.options.routeOptions);
+    if (candidate) {
+      // EXACTLY what the drop would commit, both halves of it: the path it starts
+      // from (the author's, re-docked; or a fresh route, re-wired) and the same
+      // snapped drop point. A ghost computed any other way is a promise the release
+      // does not keep.
+      const base = isRedock(edge, end, candidate)
+        ? edge.waypoints
+        : source && target
+          ? routeFor(edge.type, source, target, this.options.routeOptions)
+          : undefined;
+      if (base) {
+        return redockEnd(base, end, candidate, this.snap(state.point), {
+          ...(source ? { source } : {}),
+          ...(target ? { target } : {}),
+        });
+      }
     }
-    return freeMoveEnd(edge.waypoints, end, state.point);
+    return freeMoveEnd(edge.waypoints, end, this.snap(state.point));
   }
 
   /**
@@ -326,6 +360,7 @@ export class Connect {
       width: 1.5 / scale,
       dash: status === 'ok' ? null : `${4 / scale},${3 / scale}`,
       markerEnd: status === 'ok' ? markerEndFor(type ?? CONNECTION.sequenceFlow) : null,
+      markerStart: status === 'ok' ? markerStartFor(type ?? CONNECTION.sequenceFlow) : null,
     });
     if (!geometry) return;
     if (!this.preview) {
@@ -368,4 +403,14 @@ export class Connect {
     const scale = this.options.getScale();
     return Number.isFinite(scale) && scale > 0 ? scale : 1;
   }
+}
+
+/**
+ * Whether moving `edge`'s `end` onto `node` is a RE-DOCK rather than a re-wire: the
+ * endpoint lands back on the shape it already names, and the route has interior
+ * joints somebody placed. Both halves matter — a two-point route holds no decision to
+ * preserve, and a drop on another shape is a new relationship.
+ */
+function isRedock(edge: SceneEdge, end: ConnectionEnd, node: SceneNode): boolean {
+  return edge.waypoints.length > 2 && (end === 'source' ? edge.source : edge.target) === node;
 }

@@ -93,8 +93,7 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
           </li>
         </ul>
         <p className={s.note}>
-          An SVG or PNG opens only if it was exported with its studyflow embedded. A jsPsych
-          timeline is converted to a studyflow on the way in.
+          An SVG or PNG opens only if studyflow is embedded in it.
         </p>
       </div>
     </Modal>

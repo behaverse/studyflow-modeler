@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
-import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
+import type { SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import type { ElementChangedEvent } from '@canvas/model/writeback.ts';
 import { route } from '@canvas/routing/orthogonal.ts';
+import { zRankOf } from '@canvas/model/tree.ts';
 
 import { exampleXml } from './utils';
 
@@ -385,12 +386,12 @@ test('waypoint drag: updates edge.waypoints AND di.waypoint, and survives a roun
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual(['Flow_2']);
 
   // Grab waypoint 0 exactly where the overlay draws its handle. It is a TERMINAL
-  // waypoint dropped clear of every shape, so it free-moves — the tip lands on the
-  // pointer and the route reaches it through an elbow rather than diagonally
-  // (parity spec §1 + §4).
+  // waypoint dropped clear of every shape, so it free-moves — and that is now the
+  // bendpoint gesture: the tip lands on the pointer, its neighbour stays put, and the
+  // run between them is left diagonal.
   dragBy(canvas, { x: 300, y: 120 }, { x: 320, y: 150 });
 
-  const moved = [{ x: 320, y: 150 }, { x: 320, y: 118 }, { x: 400, y: 118 }];
+  const moved = [{ x: 320, y: 150 }, { x: 400, y: 118 }];
   expect(flow.waypoints).toEqual(moved);
   expect(flow.di).toBe(diEdge(definitions, 'Flow_2'));
   expect(waypointsOf(definitions, 'Flow_2')).toEqual(moved);
@@ -1499,4 +1500,141 @@ test('the shape that is being dragged is not an obstacle to its own flow', async
   dragBy(canvas, center(start), { x: center(start).x, y: center(start).y - 40 });
 
   expect(waypointsOf(definitions, 'Flow_1')).toEqual(route(start, node(canvas, 'Task_1')));
+});
+
+/**
+ * An annotation associated with a task outside, and a sub-process to drag it into.
+ *
+ * An ASSOCIATION may cross a container boundary — it is an artifact, with no
+ * execution semantics — where a sequence flow may not (`rules/rules.ts canMove`), so
+ * this is the drop that still changes an edge's depth without re-homing the edge.
+ */
+const CROSSING_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="Outside" name="Outside" />
+    <bpmn:task id="Loose" name="Loose" />
+    <bpmn:textAnnotation id="Note_1"><bpmn:text>Note</bpmn:text></bpmn:textAnnotation>
+    <bpmn:association id="Assoc_1" sourceRef="Outside" targetRef="Note_1" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Outside" targetRef="Loose" />
+    <bpmn:subProcess id="Sub_1" name="Sub" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Outside_di" bpmnElement="Outside">
+        <dc:Bounds x="60" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_1_di" bpmnElement="Sub_1" isExpanded="true">
+        <dc:Bounds x="260" y="100" width="360" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_1_di" bpmnElement="Note_1">
+        <dc:Bounds x="700" y="215" width="100" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Loose_di" bpmnElement="Loose">
+        <dc:Bounds x="700" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_1_di" bpmnElement="Assoc_1">
+        <di:waypoint x="160" y="240" /><di:waypoint x="700" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="160" y="260" /><di:waypoint x="700" y="420" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** The `data-element-id`s of the element layer, bottom-most first. */
+function layerOrder(canvas: Canvas): string[] {
+  const layer = canvas.getSvg().querySelector('[data-layer="elements"]')!;
+  return [...layer.children].map((g) => g.getAttribute('data-element-id') ?? '');
+}
+
+test('dropping a connected shape into a sub-process lifts its edge above the frame', async () => {
+  // The report: the edge lands BEHIND the sub-process, and a reload or an undo/redo
+  // — anything that re-renders the whole scene — puts it right. An edge ranks at its
+  // deepest endpoint (`zRankOf`), so the drop changed its z-order without re-homing
+  // it (its two ends still share no container), and only the elements that WERE
+  // re-homed used to be re-spliced.
+  const { canvas } = await load(CROSSING_XML);
+  const note = node(canvas, 'Note_1');
+
+  expect(layerOrder(canvas).indexOf('Assoc_1')).toBeLessThan(layerOrder(canvas).indexOf('Sub_1'));
+
+  dragBy(canvas, center(note), { x: 500, y: 300 });
+
+  expect(note.parent?.id, 'the drop re-homed it').toBe('Sub_1');
+  const order = layerOrder(canvas);
+  expect(order.indexOf('Assoc_1')).toBeGreaterThan(order.indexOf('Sub_1'));
+  // …and the whole layer still agrees with `zRankOf`, which is what a full re-render
+  // would produce and used to be the only way to get it.
+  const scene = canvas.getScene()!;
+  const ranks = order.map((id) => zRankOf(scene.elementsById.get(id) as SceneElement));
+  expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+});
+
+test('a drop that would drag a sequence flow across the boundary is refused outright', async () => {
+  // BPMN: a sequence flow lives in one `flowElements` container. `Loose` is reached by
+  // one from `Outside`, so it cannot be dropped inside the sub-process — and a refused
+  // drop puts the shape BACK rather than leaving it drawn inside a container it does
+  // not belong to.
+  const { canvas, definitions } = await load(CROSSING_XML);
+  const loose = node(canvas, 'Loose');
+  const before = { x: loose.x, y: loose.y };
+
+  dragBy(canvas, center(loose), { x: 500, y: 300 });
+
+  expect(loose.parent).toBeUndefined();
+  expect({ x: loose.x, y: loose.y }).toEqual(before);
+  expect(boundsOf(definitions, 'Loose')).toEqual({ ...before, width: 100, height: 80 });
+});
+
+test('a hand-placed bend survives moving the shape at either end', async () => {
+  // The report: bend a flow, then move one of its shapes, and the whole route is
+  // re-laid-out — the bend is gone. A route the author shaped is theirs; only the
+  // docking end follows the shape, and the path is squared around it. This is the
+  // rule `redockToOutline` and the resize path already followed.
+  const { canvas, definitions } = await load(FIXTURE_XML);
+  const flow = edge(canvas, 'Flow_2');
+  const end = node(canvas, 'End_1');
+
+  // Bend the flow down: press its body and drag, which inserts a joint.
+  const body = { x: (flow.waypoints[0].x + flow.waypoints[1].x) / 2, y: flow.waypoints[0].y };
+  canvas.getSelection().select(flow);
+  dragBy(canvas, body, { x: body.x, y: body.y + 90 });
+  const bent = flow.waypoints.map((p) => ({ x: p.x, y: p.y }));
+  expect(bent.length).toBeGreaterThan(2);
+
+  // Now move the END EVENT. The interior joints must still be there.
+  dragBy(canvas, center(end), { x: center(end).x + 60, y: center(end).y });
+
+  expect(flow.waypoints.length).toBe(bent.length);
+  // The joints away from the moved end are untouched…
+  expect(flow.waypoints[1]).toEqual(bent[1]);
+  // …and the one BEHIND the dock came along, because that run is square and stays
+  // square (`interaction/segments.ts moveTerminal`) — the rule an endpoint drag
+  // follows, applied to the end a moving shape drags.
+  const joint = flow.waypoints[flow.waypoints.length - 2];
+  const last = flow.waypoints[flow.waypoints.length - 1];
+  expect(joint.x).toBe(last.x);
+  expect(joint.y).toBe(bent[bent.length - 2].y);
+  // The docked end followed the shape and sits on its outline…
+  expect(last.x).toBeGreaterThanOrEqual(end.x - 0.5);
+  expect(last.x).toBeLessThanOrEqual(end.x + end.width + 0.5);
+  // …and the DI has what the screen has.
+  expect(waypointsOf(definitions, 'Flow_2')).toEqual(flow.waypoints);
+});
+
+test('a flow nobody has bent is still re-routed by a move', async () => {
+  // The other half of the rule: a two-point route carries no decision of the user's,
+  // so a move re-cuts it exactly as before.
+  const { canvas } = await load(FIXTURE_XML);
+  const start = node(canvas, 'Start_1');
+
+  dragBy(canvas, center(start), { x: center(start).x, y: center(start).y - 90 });
+
+  expect(edge(canvas, 'Flow_1').waypoints).toEqual(route(start, node(canvas, 'Task_1')));
 });

@@ -487,13 +487,14 @@ test('an endpoint dropped on open space keeps P3\'s free waypoint move', async (
   pointerUp(canvas, { x: 250, y: 400 });
 
   // No shape took the endpoint, so the refs are untouched and the TIP simply moved
-  // to where the pointer let go — written through to the DI. The route to it is
-  // squared on the way (parity spec §4), so the tip is the last waypoint rather than
-  // the second, and no segment is left diagonal.
+  // to where the pointer let go — written through to the DI. Nothing else moved: an
+  // endpoint drags like an interior joint (diagram-js / draw.io), so the run to it is
+  // left DIAGONAL rather than re-cut through an elbow the user did not draw.
   expect(flow.target).toBe(one);
   expect((flow.businessObject as any).targetRef.id).toBe('Task_1');
   expect(flow.waypoints.at(-1)).toEqual({ x: 250, y: 400 });
-  expect(isOrthogonal(flow.waypoints)).toBe(true);
+  expect(flow.waypoints).toHaveLength(2);
+  expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(diWaypoints(definitions, 'Flow_1')).toEqual(flow.waypoints);
 });
 
@@ -590,4 +591,71 @@ test('a reconnect onto a target the rules refuse says so on the root, so the cur
   expect(flow.waypoints).toEqual(before);
   expect(svg.getAttribute('data-connect-status')).toBeNull();
   expect(svg.querySelectorAll('.sf-drop-not-ok')).toHaveLength(0);
+});
+
+test('an endpoint dropped back on the shape it already names KEEPS the bends', async () => {
+  // The report: bend a flow, then drag its end onto the same shape to move where it
+  // arrives, and every joint is thrown away and re-computed. That drop changed WHERE
+  // the edge arrives, not what it connects — the interior is the author's.
+  const { canvas, definitions } = await load();
+  const flow = edge(canvas, 'Flow_1');
+  const one = node(canvas, 'Task_1');
+  canvas.getSelection().select(flow);
+
+  // Bend it: press the run's body, which inserts a joint, and drag it clear.
+  const body = { x: (flow.waypoints[0].x + flow.waypoints[1].x) / 2, y: flow.waypoints[0].y };
+  pointerDown(canvas, body);
+  pointerMove(canvas, { x: body.x, y: body.y - 60 });
+  pointerUp(canvas, { x: body.x, y: body.y - 60 });
+  const bent = flow.waypoints.map((p) => ({ x: p.x, y: p.y }));
+  expect(bent.length).toBeGreaterThan(2);
+
+  // Now drag the END onto `Task_1` again, lower down its left side.
+  const endpoint = flow.waypoints[flow.waypoints.length - 1];
+  const drop = { x: one.x + 10, y: one.y + 65 };
+  pointerDown(canvas, endpoint);
+  pointerMove(canvas, drop);
+  pointerUp(canvas, drop);
+
+  expect(flow.target).toBe(one);
+  // The joints the author placed are still there…
+  expect(flow.waypoints.length).toBe(bent.length);
+  expect(flow.waypoints[1]).toEqual(bent[1]);
+  // …and the end has SLID along the side it arrives from, to where the drop landed
+  // (`interaction/segments.ts redockEnd` docks along that side, it does not jump to
+  // another one).
+  const last = flow.waypoints[flow.waypoints.length - 1];
+  const was = bent[bent.length - 1];
+  expect(last.y).toBe(was.y);
+  expect(last.x).not.toBe(was.x);
+  expect(last.x).toBeGreaterThanOrEqual(one.x);
+  expect(last.x).toBeLessThanOrEqual(one.x + one.width);
+  expect(diWaypoints(definitions, 'Flow_1')).toEqual(flow.waypoints);
+});
+
+test('an endpoint dropped on a DIFFERENT shape is a re-wire, and re-routes', async () => {
+  // The other half: the old bends described the old relationship, so a genuine
+  // reconnect still lays the route out from scratch.
+  const { canvas } = await load();
+  const flow = edge(canvas, 'Flow_1');
+  const two = node(canvas, 'Task_2');
+  canvas.getSelection().select(flow);
+
+  const body = { x: (flow.waypoints[0].x + flow.waypoints[1].x) / 2, y: flow.waypoints[0].y };
+  pointerDown(canvas, body);
+  pointerMove(canvas, { x: body.x, y: body.y - 60 });
+  pointerUp(canvas, { x: body.x, y: body.y - 60 });
+  expect(flow.waypoints.length).toBeGreaterThan(2);
+
+  const endpoint = flow.waypoints[flow.waypoints.length - 1];
+  pointerDown(canvas, endpoint);
+  pointerMove(canvas, center(two));
+  pointerUp(canvas, center(two));
+
+  expect(flow.target).toBe(two);
+  // Nothing of the old shape survived: the route was cut fresh for the element it
+  // now names, and only its tip was then placed where the pointer let go.
+  expect(flow.waypoints.length).toBeLessThanOrEqual(3);
+  expect(flow.waypoints.every((p) => p.y >= 100)).toBe(true);
+  expect(flow.waypoints.at(-1)!.x).toBe(two.x);
 });

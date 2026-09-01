@@ -204,6 +204,23 @@ test.describe('canvas rules: sequence-flow restrictions', () => {
     });
   });
 
+  test('a schema `true` cannot authorise a flow out of a container', () => {
+    // The schema layer sits ABOVE the structural one and wins on type compatibility —
+    // but "a sequence flow must not cross a sub-process boundary" is not a statement
+    // about types, it is what makes the document valid. `lab:Debrief` connects to
+    // `'*'`; it still may not connect INTO a sub-process.
+    const subProcess = node('bpmn:SubProcess');
+    const inside = ofType('lab:Debrief');
+    (inside as any).parent = subProcess;
+    const outside = ofType('lab:Survey');
+
+    expect(rules.schemaVerdict(inside, outside)).toBe(true);
+    expect(rules.canConnect(inside, outside)).toBe(false);
+    // Same pair inside one container is the sequence flow the schema authorised.
+    (outside as any).parent = subProcess;
+    expect(rules.canConnect(inside, outside)).toEqual({ type: 'bpmn:SequenceFlow' });
+  });
+
   test('a lane is visual nesting: flows cross lanes inside one pool', () => {
     const pool = node('bpmn:Participant');
     const laneA = node('bpmn:Lane', { parent: pool });
@@ -242,6 +259,21 @@ test.describe('canvas rules: message flow, associations, data associations', () 
       .toEqual({ type: 'bpmn:MessageFlow' });
     // ...and not the other way round.
     expect(rules.canConnect(node('bpmn:StartEvent', { parent: poolA }), node('bpmn:EndEvent', { parent: poolB })))
+      .toBe(false);
+  });
+
+  test('two LANES of one pool are one participant: no message flow between them', () => {
+    // A message flow crosses a POOL boundary — it is how two participants talk. Lanes
+    // partition one participant, so a flow between them stays internal: a sequence
+    // flow between two flow nodes, and nothing at all between an end and a start
+    // event, which is what the message flow would otherwise have licensed.
+    const laneA = node('bpmn:Lane', { parent: poolA });
+    const laneB = node('bpmn:Lane', { parent: poolA });
+    expect(participantOf(node('bpmn:Task', { parent: laneA }))).toBe(poolA);
+
+    expect(rules.canConnect(node('bpmn:Task', { parent: laneA }), node('bpmn:Task', { parent: laneB })))
+      .toEqual({ type: 'bpmn:SequenceFlow' });
+    expect(rules.canConnect(node('bpmn:EndEvent', { parent: laneA }), node('bpmn:StartEvent', { parent: laneB })))
       .toBe(false);
   });
 
@@ -445,13 +477,28 @@ test.describe('canvas rules: shape.append', () => {
     expect(rules.allowed('shape.append', { element: node('bpmn:EndEvent') })).toBe(false);
   });
 
-  test('connection.start is wider: a data shape can source a data input association', () => {
-    for (const type of ['bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference']) {
+  test('connection.start is wider than append: everything that can start ANY edge', () => {
+    // `shape.append` asks about sequence flow alone. The pad's connect handle has to
+    // cover every edge that can leave an element, or the flow simply cannot be drawn:
+    // a data shape sources a data input association; an END EVENT throws a message to
+    // another pool (BPMN Collaboration) even though sequence flow stops there; a POOL
+    // is a message source in its own right; an artifact sources an association.
+    for (const type of [
+      'bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference',
+      'bpmn:EndEvent', 'bpmn:Participant', 'bpmn:TextAnnotation',
+    ]) {
       expect(rules.allowed('connection.start', { source: node(type) }), type).toBe(true);
     }
-    for (const type of ['bpmn:EndEvent', 'bpmn:TextAnnotation', 'bpmn:Participant']) {
-      expect(rules.allowed('connection.start', { source: node(type) }), type).toBe(false);
-    }
+    // Offering the handle is not promising a target: what the drag may LAND on is
+    // still `canConnect`'s call, and an end event has few legal ones.
+    const poolA = node('bpmn:Participant');
+    const end = node('bpmn:EndEvent', { parent: poolA });
+    expect(rules.canConnect(end, node('bpmn:StartEvent', { parent: node('bpmn:Participant') })))
+      .toEqual({ type: 'bpmn:MessageFlow' });
+    expect(rules.canConnect(end, node('bpmn:Task', { parent: poolA }))).toBe(false);
+    // An end event may not RECEIVE a message either — it throws, it never catches.
+    expect(rules.canConnect(end, node('bpmn:EndEvent', { parent: node('bpmn:Participant') })))
+      .toBe(false);
   });
 });
 
@@ -471,6 +518,53 @@ test.describe('canvas rules: allowed(action, context)', () => {
       .toBe(false);
     // No target: a plain move within the current parent is ungated.
     expect(rules.allowed('elements.move', { shapes: [node('bpmn:Participant')] })).toBe(true);
+  });
+
+  test('elements.move refuses a drop that would drag a sequence flow across a boundary', () => {
+    // BPMN: a sequence flow lives in ONE `flowElements` container and may not cross a
+    // sub-process (or pool) boundary — the same rule `structuralConnection` applies
+    // when the flow is drawn. Dragging a connected shape in or out would produce that
+    // illegal document without ever asking, so the drop is refused instead.
+    const sub = node('bpmn:SubProcess');
+    const outside = node('bpmn:Task');
+    const moving = node('bpmn:Task');
+    const flow = edge('bpmn:SequenceFlow', outside, moving);
+    (moving as any).incoming = [flow];
+    (outside as any).outgoing = [flow];
+
+    expect(rules.allowed('elements.move', { shapes: [moving], target: sub })).toBe(false);
+    // Both ends moving together stay in one container, so that drop is fine…
+    expect(rules.allowed('elements.move', { shapes: [moving, outside], target: sub })).toBe(true);
+    // …and so is a flow whose other end is ALREADY inside the container.
+    const inner = node('bpmn:Task', { parent: sub });
+    const inFlow = edge('bpmn:SequenceFlow', inner, moving);
+    (moving as any).incoming = [inFlow];
+    expect(rules.allowed('elements.move', { shapes: [moving], target: sub })).toBe(true);
+  });
+
+  test('a shape moved inside the container it already lives in is not re-judged', () => {
+    // Only a drop that CHANGES the container is a containment question. Judging every
+    // move would freeze every shape in a document that was imported with a crossing
+    // flow already in it.
+    const sub = node('bpmn:SubProcess');
+    const inner = node('bpmn:Task', { parent: sub });
+    const outside = node('bpmn:Task');
+    const stale = edge('bpmn:SequenceFlow', outside, inner);
+    (inner as any).incoming = [stale];
+
+    expect(rules.allowed('elements.move', { shapes: [inner], target: sub })).toBe(true);
+  });
+
+  test('an ARTIFACT association may cross the boundary a sequence flow may not', () => {
+    // A text annotation has no execution semantics, and its association is an
+    // artifact — nothing about the flow of the process leaves the container.
+    const sub = node('bpmn:SubProcess');
+    const task = node('bpmn:Task');
+    const note = node('bpmn:TextAnnotation');
+    const assoc = edge('bpmn:Association', task, note);
+    (note as any).incoming = [assoc];
+
+    expect(rules.allowed('elements.move', { shapes: [note], target: sub })).toBe(true);
   });
 
   test('every verdict collapses to the boolean the Editor.rules adapter needs', () => {

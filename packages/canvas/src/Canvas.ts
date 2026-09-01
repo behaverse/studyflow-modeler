@@ -540,6 +540,9 @@ export class Canvas {
       // and never the ROOT variant: empty canvas cannot take a connection, so a
       // connect drag over nothing tints nothing (parity spec addendum 4 §2).
       markTarget: (target, allowed) => this.markDropTarget(target, allowed, 'connect'),
+      // Where along a side a reconnect docks is a waypoint position like any other,
+      // so it lands on the grid like any other.
+      snap: (point) => this.snapPoint(point),
     });
 
     this.root.addEventListener('pointerdown', this.onDown);
@@ -2457,14 +2460,31 @@ export class Canvas {
     // re-homed element's <g> — contents included — is re-spliced at its new rank.
     const layer = this.layers.getLayer('elements');
     const moved = new Set<SceneElement>();
-    for (const element of changed) {
+    const add = (element: SceneElement): void => {
       moved.add(element);
-      if (element.kind === 'node') for (const inner of contentsOf(scene, element)) moved.add(inner);
+      if (element.kind !== 'node') return;
+      // An edge INTO the moved node ranks at its deepest end (`zRankOf`), so dropping
+      // a connected shape into a sub-process lifts its flows above that frame — even
+      // though the edge itself was not re-homed (its two ends no longer share a
+      // container, so it stays at the plane root). Without this the flow keeps the
+      // z-position it had outside and paints under the frame until the next full
+      // render, which is what a reload or an undo/redo used to "fix".
+      for (const edge of [...element.incoming, ...element.outgoing]) moved.add(edge);
+    };
+    for (const element of changed) {
+      add(element);
+      if (element.kind === 'node') for (const inner of contentsOf(scene, element)) add(inner);
     }
-    for (const element of [...moved].sort((a, b) => zRankOf(a) - zRankOf(b))) {
-      const g = this.renderer.graphicsById.get(element.id);
-      if (g) layer.insertBefore(g, this.firstAbove(layer, element));
-    }
+    // Detached first, then re-inserted low rank upwards: `firstAbove` reads the ranks
+    // of the siblings it scans, and a sibling that is ALSO in this batch reports its
+    // new rank from its old position. Taking the whole batch out leaves a layer that
+    // is still ordered, which is the only thing that insertion point is correct for.
+    const ordered = [...moved]
+      .map((element) => ({ element, g: this.renderer.graphicsById.get(element.id) }))
+      .filter((entry): entry is { element: SceneElement; g: SVGGElement } => !!entry.g)
+      .sort((a, b) => zRankOf(a.element) - zRankOf(b.element));
+    for (const { g } of ordered) remove(g);
+    for (const { element, g } of ordered) layer.insertBefore(g, this.firstAbove(layer, element));
   }
 
   /**
@@ -2698,8 +2718,17 @@ export class Canvas {
         // Resolve the drop container BEFORE the commit — the hit test must run
         // against the same scene the gesture was hovering.
         const target = this.drag?.getKind() === 'move' ? this.moveDropTarget(pt) : undefined;
-        this.drag?.end(pt, snapped.grid);
-        if (target?.allowed) this.reparentDropped(target.parent);
+        if (target && !target.allowed) {
+          // The ∅ tint was showing under the ghost, so the drop is not an outcome the
+          // user can have: put the shapes back where they were. Committing the move
+          // and skipping only the re-home is worse than either — it leaves a shape
+          // drawn inside a container it does not belong to (and, for the rule this
+          // enforces, a sequence flow drawn across a boundary BPMN forbids).
+          this.drag?.cancel();
+        } else {
+          this.drag?.end(pt, snapped.grid);
+          if (target?.allowed) this.reparentDropped(target.parent);
+        }
       }
     } else if (g.marquee) {
       const from = g.downDiagram;

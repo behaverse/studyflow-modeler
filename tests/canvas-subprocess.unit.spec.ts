@@ -3,11 +3,20 @@ import { expect, test } from '@playwright/test';
 import { Canvas } from '@canvas/index.ts';
 import { EXPANDED_SUBPROCESS_SIZE } from '@canvas/interaction/create.ts';
 import { COLLAPSED_SUBPROCESS_SIZE } from '@canvas/model/expand.ts';
-import type { SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type { SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
 import { exampleXml } from './utils';
 
-import { freshModdle, installDocument, loadCanvas, jsdomWindow, type Loaded } from './canvasHarness';
+import {
+  freshModdle,
+  installDocument,
+  loadCanvas,
+  jsdomWindow,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+  type Loaded,
+} from './canvasHarness';
 
 /**
  * P5 expand/collapse writeback (design §1 "expand/collapse subprocess →
@@ -532,4 +541,119 @@ test('a collapse fires one revision bump for the container and the edges it re-d
   // toggle must leave alone.
   expect(ids(changed.map((id) => scene.elementsById.get(id) as SceneElement)))
     .toEqual(['flow_prepare_done', 'flow_start', 'prepare_data']);
+});
+
+/**
+ * A flow that CROSSES a sub-process boundary — an outside task connected to one
+ * inside. BPMN does not allow this (a sequence flow belongs to one `flowElements`
+ * level), and the editor no longer lets one be drawn or dragged into existence
+ * (`rules/rules.ts canMove`) — but a document can still ARRIVE holding one: written
+ * by another tool, hand-edited, or saved by an older build. It has to be drawn
+ * sanely, and while the container is closed there is nothing on screen for the inner
+ * end. The same treatment carries the artifact associations that legitimately DO
+ * cross the boundary.
+ *
+ * The rule: an edge always names the inner element; the geometry follows what is
+ * drawn. Closed, it docks on the frame; open, on the shape again — and the route the
+ * document shipped comes back verbatim (`model/expand.ts restoreIncidentRouting`).
+ */
+const CROSSING_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_X" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_X" isExecutable="false">
+    <bpmn:task id="Outside" name="Outside" />
+    <bpmn:subProcess id="Sub_X" name="Sub">
+      <bpmn:task id="Inner" name="Inner" />
+    </bpmn:subProcess>
+    <bpmn:sequenceFlow id="Cross_1" sourceRef="Outside" targetRef="Inner" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_X">
+    <bpmndi:BPMNPlane id="Plane_X" bpmnElement="Process_X">
+      <bpmndi:BPMNShape id="Outside_di" bpmnElement="Outside">
+        <dc:Bounds x="60" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_X_di" bpmnElement="Sub_X" isExpanded="true">
+        <dc:Bounds x="260" y="100" width="360" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Inner_di" bpmnElement="Inner">
+        <dc:Bounds x="400" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Cross_1_di" bpmnElement="Cross_1">
+        <di:waypoint x="160" y="240" /><di:waypoint x="400" y="240" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+/** Whether `point` is on the outline of `box` (within a hair). */
+function onOutline(point: { x: number; y: number }, box: SceneNode): boolean {
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+  const withinX = point.x >= box.x - 0.5 && point.x <= box.x + box.width + 0.5;
+  const withinY = point.y >= box.y - 0.5 && point.y <= box.y + box.height + 0.5;
+  return (withinX && (near(point.y, box.y) || near(point.y, box.y + box.height)))
+    || (withinY && (near(point.x, box.x) || near(point.x, box.x + box.width)));
+}
+
+test('collapsing docks a flow that reaches inside onto the sub-process itself', async () => {
+  const loaded = await loadCanvas(CROSSING_XML);
+  const { canvas, definitions } = loaded;
+  const sub = node(canvas, 'Sub_X');
+  const cross = canvas.getScene()!.elementsById.get('Cross_1') as any;
+  const open = cross.waypoints.map((p: any) => ({ x: p.x, y: p.y }));
+
+  canvas.setExpanded(sub, false);
+
+  // The frame is now the plain activity box, and the flow ENDS ON IT — not at the
+  // hidden inner task's parked coordinates, which is where it used to keep pointing.
+  expect({ width: sub.width, height: sub.height }).toEqual(COLLAPSED_SUBPROCESS_SIZE);
+  const docked = cross.waypoints[cross.waypoints.length - 1];
+  expect(onOutline(docked, sub), `docked at ${docked.x},${docked.y}`).toBe(true);
+  expect(cross.waypoints[0]).toEqual(open[0]);
+
+  // The connection still NAMES the inner task — the document is untouched, which is
+  // what makes the trip back lossless.
+  expect(boOf(definitions, 'Cross_1').targetRef.id).toBe('Inner');
+  // …and the new geometry is written through to the DI, so a reload draws it.
+  const edgeDi = (definitions.diagrams[0].plane.planeElement ?? [])
+    .find((pe: any) => pe.bpmnElement?.id === 'Cross_1');
+  expect(edgeDi.waypoint.map((w: any) => ({ x: w.x, y: w.y })))
+    .toEqual(cross.waypoints.map((p: any) => ({ x: p.x, y: p.y })));
+
+  // Re-opening puts the shipped route back verbatim.
+  canvas.setExpanded(sub, true);
+  expect(cross.waypoints.map((p: any) => ({ x: p.x, y: p.y }))).toEqual(open);
+});
+
+test('a collapse+expand with a crossing flow still leaves the document byte-identical', async () => {
+  const loaded = await loadCanvas(CROSSING_XML);
+  const before = await toXML(loaded);
+
+  const sub = node(loaded.canvas, 'Sub_X');
+  loaded.canvas.setExpanded(sub, false);
+  loaded.canvas.setExpanded(sub, true);
+
+  expect(await toXML(loaded)).toBe(before);
+});
+
+test('dragging a COLLAPSED sub-process takes the flow that reaches inside it along', async () => {
+  // The inner end is hidden, so nothing about the flow is docked to what moved — it
+  // follows because the drag carries the container's descendants and re-routes their
+  // edges, and the route lands on the frame (`visibleEndpointOf`).
+  const { canvas } = await loadCanvas(CROSSING_XML, { snapToGrid: false });
+  const sub = node(canvas, 'Sub_X');
+  const cross = canvas.getScene()!.elementsById.get('Cross_1') as SceneEdge;
+  canvas.setExpanded(sub, false);
+
+  const from = { x: sub.x + sub.width / 2, y: sub.y + sub.height / 2 };
+  const to = { x: from.x + 120, y: from.y + 160 };
+  pointerDown(canvas, from);
+  pointerMove(canvas, to);
+  pointerUp(canvas, to);
+
+  expect({ x: sub.x, y: sub.y }).toEqual({ x: 380, y: 260 });
+  const docked = cross.waypoints[cross.waypoints.length - 1];
+  expect(onOutline(docked, sub), `docked at ${docked.x},${docked.y}`).toBe(true);
 });

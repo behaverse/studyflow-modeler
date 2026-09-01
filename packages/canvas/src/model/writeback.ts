@@ -39,6 +39,7 @@ import {
   contentsOf,
   EXPANDED_CONTENT_PADDING,
   frameAround,
+  crossingEdgesOf,
   incidentEdgesOf,
   isCollapsed,
   isExpandable,
@@ -478,6 +479,26 @@ export function redockToOutline(node: SceneNode): SceneEdge[] {
   return changed;
 }
 
+/**
+ * Re-route every edge crossing `node`'s boundary, in the SCENE only — the collapse /
+ * expand counterpart of {@link redockToOutline}. `routeEdge` picks the end that is on
+ * screen (`model/expand.ts visibleEndpointOf`), so this is what moves a flow onto the
+ * closed frame and back onto the inner shape when it opens.
+ *
+ * Author bendpoints are NOT preserved here the way `redockToOutline` preserves them:
+ * the two ends are different shapes in the two states, and the interior bends of a
+ * route drawn to one of them mean nothing for the other. A collapse+expand round trip
+ * still puts the original route back verbatim, from the parked snapshot
+ * (`model/expand.ts restoreIncidentRouting`).
+ *
+ * Returns the edges whose waypoints actually moved; the caller writes their DI.
+ */
+export function rerouteCrossing(scene: Scene, node: SceneNode): SceneEdge[] {
+  const changed: SceneEdge[] = [];
+  for (const edge of crossingEdgesOf(scene, node)) if (rerouteEdge(edge)) changed.push(edge);
+  return changed;
+}
+
 // --- nested-plane inlining (the expand half of design §1 "Nested planes") ----
 
 /** One content element's geometry, exactly as the document filed it. */
@@ -786,7 +807,8 @@ export class Writeback {
     options: SetExpandedOptions = {},
   ): ExpandedResult {
     // Park the routing the CURRENT state is leaving behind, before anything moves.
-    rememberIncidentRouting(node);
+    rememberIncidentRouting(this.scene, node);
+    const flagChanged = (node.isExpanded !== false) !== expanded;
     const outline = { x: node.x, y: node.y, width: node.width, height: node.height };
 
     // A nested plane sizes the frame it is about to land in: fit the footprint to the
@@ -814,7 +836,13 @@ export class Writeback {
     // re-cut. Only a real change of outline re-docks.
     const resized = node.x !== outline.x || node.y !== outline.y
       || node.width !== outline.width || node.height !== outline.height;
-    const redocked = resized ? (restoreIncidentRouting(node) ?? redockToOutline(node)) : [];
+    // A flow reaching INTO the container docks on whatever is on screen for its inner
+    // end — the frame while it is closed, the shape itself once it opens — so the
+    // toggle re-routes those too, even when the frame itself did not move.
+    const redocked = restoreIncidentRouting(this.scene, node) ?? [
+      ...(resized ? redockToOutline(node) : []),
+      ...(flagChanged ? rerouteCrossing(this.scene, node) : []),
+    ];
     for (const edge of redocked) syncEdgeWaypointsToDi(edge);
 
     const edges: SceneEdge[] = [...moved];

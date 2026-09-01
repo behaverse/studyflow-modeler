@@ -29,6 +29,8 @@ export interface PreviewEdgeStyle {
   dash?: string | null;
   /** `marker-end`; `null`/omitted draws it without an arrowhead. */
   markerEnd?: string | null;
+  /** `marker-start` — a message flow's open circle; `null`/omitted starts it bare. */
+  markerStart?: string | null;
   /** `stroke-width` in diagram units. Omitted leaves it to the stylesheet. */
   width?: number;
   /** `fill`. Omitted leaves it to the stylesheet. */
@@ -51,6 +53,7 @@ export function previewEdgeAttrs(
     'stroke-width': style.width ?? null,
     'stroke-dasharray': style.dash ?? null,
     'marker-end': style.markerEnd ?? null,
+    'marker-start': style.markerStart ?? null,
   };
 }
 
