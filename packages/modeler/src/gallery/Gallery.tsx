@@ -8,7 +8,7 @@ import {
   loadExampleEntries,
   type ExampleEntry,
 } from '@modeler/examples/entries';
-import { galleryTags, hasTag, primaryTagOf } from '@modeler/examples/catalog';
+import { galleryCategories } from '@modeler/examples/catalog';
 import { filenameStem } from '@modeler/diagram/file';
 import { surface, radius, button } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
@@ -77,12 +77,12 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
   }, [isOpen, loaded]);
 
   const shelves = useMemo(
-    () => galleryTags(entries.map((entry) => entry.tags)),
+    () => galleryCategories(entries.map((entry) => entry.category)),
     [entries],
   );
   const visible = filter === 'all'
     ? entries
-    : entries.filter((entry) => hasTag(entry.tags, filter));
+    : entries.filter((entry) => entry.category === filter);
 
   const startBlank = async () => {
     if (!modeler || busy) return;
@@ -198,8 +198,8 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                         )}
                       </div>
                       <div className={g.body}>
-                        {entry.tags.length > 0 && (
-                          <span className={g.eyebrow}>{primaryTagOf(entry.tags)}</span>
+                        {entry.category && (
+                          <span className={g.eyebrow}>{entry.category}</span>
                         )}
                         <span className={g.title}>{entry.title}</span>
                         {entry.summary && <span className={g.summary}>{entry.summary}</span>}

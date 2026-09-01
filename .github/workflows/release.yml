@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           tar -xzf packages/cli/dist/release/*-darwin-arm64.tar.gz -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/studyflow" --version
-          "$RUNNER_TEMP/studyflow" info assets/examples/sklearn_pipeline.studyflow.png
+          "$RUNNER_TEMP/studyflow" info "assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png"
 
       - name: Publish the release
         env:

@@ -12,12 +12,12 @@ The canonical format is `.studyflow.yaml`; a diagram can also be embedded in a P
   ```bash
   brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
   brew install studyflow
-  studyflow run assets/examples/sklearn_pipeline.studyflow.png
+  studyflow run 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'
   ```
 
 ## Examples
 
-Example diagrams live in [assets/examples/](assets/examples/) and in the modeler's Examples gallery.
+Example diagrams live in [assets/schemas/examples/](assets/schemas/examples/), one folder per gallery category, and in the modeler's Examples gallery.
 
 ## Develop
 

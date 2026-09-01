@@ -1,4 +1,4 @@
-import new_diagram from '#assets/examples/new_diagram.bpmn?raw';
+import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { applyXmlPasses, choreographyToProcessRoot, inlineIoSpecification, looksLikeXml, studyflowToXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { setAttribute } from '@core/element';

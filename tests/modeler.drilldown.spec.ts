@@ -53,7 +53,7 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
   await page.getByTestId('open-file-input').setInputFiles({
     name: 'sklearn_pipeline.studyflow.png',
     mimeType: 'image/png',
-    buffer: readFileSync(path.join(process.cwd(), 'assets/examples/sklearn_pipeline.studyflow.png')),
+    buffer: readFileSync(path.join(process.cwd(), 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png')),
   });
   await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 }

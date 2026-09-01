@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { browseForDiagram, exampleFile, gotoModeler, runPaletteCommand } from './utils';
+import { blankDiagram, browseForDiagram, exampleFile, gotoModeler, runPaletteCommand } from './utils';
 
-const DIAGRAM = exampleFile('new_diagram.bpmn').toString('utf8');
+const DIAGRAM = blankDiagram().toString('utf8');
 const DIAGRAM_B64 = Buffer.from(DIAGRAM, 'utf8').toString('base64');
 /** A real PNG with the diagram embedded in it, as the modeler's own export produces. */
 const DIAGRAM_PNG_B64 = exampleFile('choreography_demo.studyflow.png').toString('base64');

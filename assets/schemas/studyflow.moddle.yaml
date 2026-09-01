@@ -234,8 +234,7 @@ types:
     properties:
       - name: tags
         description: >-
-          Short labels for the kind of study (`Experimental Design`,
-          `AI/ML`, `Demos`).
+          Short labels for the kind of study (`pilot`, `fMRI`, `longitudinal`).
         isMany: true
         type: String
         meta:

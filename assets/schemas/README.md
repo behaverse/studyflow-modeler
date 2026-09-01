@@ -25,6 +25,7 @@ expression traits) a domain pack must not copy.
 | `xml.tagAlias` | moddle pass-through (`lowerCase`). |
 | `categories` | Inspector tab declarations, **core schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`). |
 | `types`, `enumerations`, `templates` | The content; below. |
+| `examples` | Complete studyflows offered in the New Diagram gallery; below. |
 
 ## Type-level `meta.*`
 
@@ -106,6 +107,21 @@ A template stamps a pre-configured element (or a small flow) into the canvas:
 Undeclared properties fail the schema lint. Prefer templates over new classes:
 a verb ("fit a model", "5-fold CV") is a template over a generic type, not a
 class; see the `eeg` template sections.
+
+## Examples
+
+A schema may ship whole diagrams, not just elements. Each entry under
+`examples:` takes `title`, `description` (first sentence is the card blurb),
+optional `icon`, and `studyflow`: a complete document in the
+`.studyflow.yaml` format, either as a mapping or as raw YAML text. Its gallery
+shelf is the schema's `name` — an example declares no category of its own.
+`eeg.moddle.yaml` has a worked one.
+
+The gallery's other cards are the PNGs under [`examples/`](examples/), each
+one a picture of a diagram with the diagram embedded in it. The folder names
+the shelf (`examples/Demos/`, `examples/Robotics/`, ...), so adding a folder
+adds a filter chip. `npm run examples:render` redraws every PNG from its own
+embedded diagram.
 
 ## Icons
 

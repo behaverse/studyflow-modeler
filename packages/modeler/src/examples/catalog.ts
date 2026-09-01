@@ -1,34 +1,25 @@
-export const UNTAGGED = 'Other';
+export const UNCATEGORIZED = 'Other';
 
-export function tagsOf(tags: string[] | undefined): string[] {
-  const named = (tags ?? []).map((category) => category.trim()).filter(Boolean);
-  return named.length > 0 ? [...new Set(named)] : [UNTAGGED];
+export function categoryOf(category: string | undefined): string {
+  return category?.trim() || UNCATEGORIZED;
 }
 
-export function primaryTagOf(tags: string[] | undefined): string {
-  return tagsOf(tags)[0];
-}
-
-export function galleryTags(entries: Array<string[] | undefined>): string[] {
-  const present = [...new Set(entries.flatMap(tagsOf))];
+export function galleryCategories(entries: Array<string | undefined>): string[] {
+  const present = [...new Set(entries.map(categoryOf))];
   return present
-    .filter((category) => category !== UNTAGGED)
+    .filter((category) => category !== UNCATEGORIZED)
     .sort((a, b) => a.localeCompare(b))
-    .concat(present.includes(UNTAGGED) ? [UNTAGGED] : []);
-}
-
-export function hasTag(tags: string[] | undefined, shelf: string): boolean {
-  return tagsOf(tags).includes(shelf);
+    .concat(present.includes(UNCATEGORIZED) ? [UNCATEGORIZED] : []);
 }
 
 export function compareExamples(
-  a: { tags: string[]; title: string },
-  b: { tags: string[]; title: string },
+  a: { category: string; title: string },
+  b: { category: string; title: string },
 ): number {
-  const shelfA = primaryTagOf(a.tags);
-  const shelfB = primaryTagOf(b.tags);
+  const shelfA = categoryOf(a.category);
+  const shelfB = categoryOf(b.category);
   if (shelfA === shelfB) return a.title.localeCompare(b.title);
-  if (shelfA === UNTAGGED) return 1;
-  if (shelfB === UNTAGGED) return -1;
+  if (shelfA === UNCATEGORIZED) return 1;
+  if (shelfB === UNCATEGORIZED) return -1;
   return shelfA.localeCompare(shelfB);
 }

@@ -9,7 +9,7 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. See README.md for the
 contract this implements and the terms it writes.
 
-    uv run studyflow-run-local.py ../../assets/examples/sklearn_pipeline.studyflow.png
+    uv run studyflow-run-local.py '../../assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'
 
 This is the core: the walk, the values, the records, and the
 partial-runner hand-offs (`studyflow-<name>` siblings claim and execute their

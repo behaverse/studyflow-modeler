@@ -6,9 +6,12 @@ import { basename, readExampleMetadata } from '@modeler/examples/metadata';
 import { filenameStem } from '@modeler/diagram/file';
 import { getSettings } from '@modeler/settings/store';
 
-/** Each example is a PNG carrying its own studyflow (see `export/pngEmbedding`), so the picture on the card is the file that opens. */
+/**
+ * Each example is a PNG carrying its own studyflow (see `export/pngEmbedding`), so the picture on
+ * the card is the file that opens. The folder it sits in names its gallery category.
+ */
 const exampleFiles = import.meta.glob(
-  '#assets/examples/*.png',
+  '#assets/schemas/examples/*/*.png',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -20,7 +23,8 @@ export type ExampleEntry = {
   iconClass?: string;
   title: string;
   summary: string;
-  tags: string[];
+  /** Gallery shelf: the containing folder for a PNG, the schema's name for a schema example. */
+  category: string;
   error?: string;
 };
 
@@ -37,7 +41,7 @@ function schemaExampleEntries(): ExampleEntry[] {
         iconClass: example.icon ?? model.icon,
         title,
         summary: firstSentence(example.description ?? ''),
-        tags: example.tags?.length ? example.tags : [model.name],
+        category: model.name,
       };
     }));
 }
@@ -50,7 +54,7 @@ export function buildInitialEntries(): ExampleEntry[] {
       url,
       title: filenameStem(basename(path)),
       summary: '',
-      tags: [],
+      category: path.split('/').at(-2) ?? '',
     }))
     .sort((a, b) => a.filename.localeCompare(b.filename))
     .concat(schemaExampleEntries());

@@ -15,7 +15,7 @@ import { loadAllSchemas } from '@core/notation/loader.ts';
 import { Canvas } from '@canvas/index.ts';
 
 // Every shipped example PNG, as a URL Vite can fetch. `#assets` is aliased in vite.config.ts.
-const exampleUrls = import.meta.glob('#assets/examples/*.studyflow.png', {
+const exampleUrls = import.meta.glob('#assets/schemas/examples/*/*.studyflow.png', {
   query: '?url',
   import: 'default',
   eager: true,

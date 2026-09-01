@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useContext } from 'react';
 
 import { ModelerContext } from '@modeler/app/contexts';
-import { executeCommand } from '@modeler/commandBus';
+import { connectCommandBus, executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/diagram/autosave';
 import { restoreLink } from '@modeler/diagram/fileHandle';
@@ -45,6 +45,7 @@ export function Modeler() {
           return;
         }
         created = editor;
+        connectCommandBus(editor);
         detach = attachAutosave(editor);
         // Picks the previous session's file back up, but only when the canvas was restored along
         // with it. Without the restored diagram this is a fresh blank canvas, and a link would

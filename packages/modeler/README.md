@@ -46,9 +46,9 @@ PNG and SVG export fetch icon glyphs from `api.iconify.design` at export time, a
 
 ## The examples gallery
 
-`src/examples/` globs `assets/examples/*.png` and reads each card out of the diagram itself: the root's `name` is the title (falling back to its id, then the filename), the first sentence of its `bpmn:documentation` is the blurb, and `studyflow:tags` on the root are the shelves it sits on. All of that is editable in the inspector's Documentation tab. The filter chips are whatever tags the shipped examples declare.
+`src/examples/` globs `assets/schemas/examples/*/*.png` and reads each card out of the diagram itself: the root's `name` is the title (falling back to its id, then the filename) and the first sentence of its `bpmn:documentation` is the blurb, both editable in the inspector's Documentation tab. The shelf is the folder the file sits in, so the diagram carries no category of its own; a schema's own `examples:` sit on a shelf named after the schema. The filter chips are whatever shelves are present.
 
-To add one, drop a `.studyflow.yaml` into `assets/examples/` and render it; the PNG replaces it as the shipped file, and you can then delete the YAML.
+To add one, drop a `.studyflow.yaml` into `assets/schemas/examples/<Category>/` (a new folder starts a new shelf) and run `npm run examples:render`; the PNG replaces it as the shipped file, and you can then delete the YAML.
 
 ```bash
 npm run examples:render              # all of them, from the repo root

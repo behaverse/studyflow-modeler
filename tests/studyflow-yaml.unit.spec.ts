@@ -1,12 +1,9 @@
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '@core/document';
-import { exampleXml } from './utils';
+import { exampleNames as examples, exampleXml } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
@@ -14,15 +11,11 @@ import { loadSchemaModels } from './schemas';
 
 /** Over every bundled example: YAML is a fixed point of YAML -> XML -> YAML, and both feed the runner alike. */
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
-
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
-
-const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
 
 function studyflowOf(file: string): Promise<string> {
   return xmlToStudyflow(exampleXml(file), new BpmnModdle(structuredClone(packages)) as any);

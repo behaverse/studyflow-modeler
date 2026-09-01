@@ -3198,7 +3198,7 @@ export class Canvas {
     // produced an image the shape of the browser window with the drawing adrift in
     // it. Re-frame the copy on the drawing itself, which is what bpmn-js's `saveSVG`
     // always did and what every consumer of `toSVG` (the SVG export, the PNG
-    // rasterizer, the shipped `assets/examples/*.studyflow.png` thumbnails) wants.
+    // rasterizer, the shipped `assets/schemas/examples/*/*.studyflow.png` thumbnails) wants.
     const framed = this.exportBounds();
     if (framed) {
       copy.setAttribute('viewBox', `${framed.x} ${framed.y} ${framed.width} ${framed.height}`);

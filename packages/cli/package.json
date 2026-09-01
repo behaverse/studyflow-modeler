@@ -15,10 +15,10 @@
     "studyflow": "node dist/studyflow.mjs"
   },
   "dependencies": {
-    "@behaverse/studyflow-core": "*",
+    "@behaverse/studyflow-core": "^26.0615",
     "bpmn-moddle": "10.1.0",
     "commander": "^14.0.3",
-    "js-yaml": "^4.3.1"
+    "js-yaml": "^4.3.2"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

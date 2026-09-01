@@ -50,8 +50,6 @@ export type SchemaTemplateModel = {
 export type SchemaExampleModel = {
   title?: string;
   description?: string;
-  /** Gallery shelves; defaults to the schema's display name. */
-  tags?: string[];
   icon?: string;
   /** A full studyflow document (the `.studyflow.yaml` format), as a mapping or raw YAML text. */
   studyflow?: Record<string, any> | string;

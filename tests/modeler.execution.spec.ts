@@ -78,7 +78,7 @@ test.describe('Inspector execution tab', () => {
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'sklearn_pipeline.studyflow.png',
       mimeType: 'image/png',
-      buffer: readFileSync(path.join(process.cwd(), 'assets/examples/sklearn_pipeline.studyflow.png')),
+      buffer: readFileSync(path.join(process.cwd(), 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png')),
     });
     // The `select_model` shape is on the root plane, so its appearance is the imported-and-rendered signal.
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
@@ -109,7 +109,7 @@ test.describe('Inspector execution tab', () => {
     await gotoModeler(page);
 
     const source = readFileSync(
-      path.join(process.cwd(), 'assets/examples/sklearn_pipeline.studyflow.png'),
+      path.join(process.cwd(), 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'),
     );
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'sklearn_pipeline.studyflow.png',
@@ -151,7 +151,7 @@ test.describe('Inspector execution tab', () => {
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'sklearn_pipeline.studyflow.png',
       mimeType: 'image/png',
-      buffer: readFileSync(path.join(process.cwd(), 'assets/examples/sklearn_pipeline.studyflow.png')),
+      buffer: readFileSync(path.join(process.cwd(), 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png')),
     });
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 

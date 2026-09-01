@@ -1,6 +1,3 @@
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
@@ -10,12 +7,9 @@ import { inlineIoSpecification } from '@core/document';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties } from '@modeler/inspector/stateProperties';
 import { loadSchemaModels } from './schemas';
-import { exampleXml } from './utils';
+import { exampleNames as examples, exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
-
-const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
-const examples = readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.png')).sort();
 
 const models = loadSchemaModels();
 const packages: Record<string, any> = Object.fromEntries(

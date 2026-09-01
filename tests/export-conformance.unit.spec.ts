@@ -1,6 +1,3 @@
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
@@ -9,14 +6,11 @@ import { exportToLinkML } from '@modeler/export/linkml';
 import { exportToNidm } from '@modeler/export/nidm';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { fakeModeler, makeModdle } from './exporterFixture';
-import { exampleXml } from './utils';
+import { exampleNames as examples, exampleXml } from './utils';
 
 /** Every interchange exporter over every shipped example. The per-exporter specs pin behaviour on
  * hand-built elements; this one is the blast radius: one semantic model (`buildExportModel`) feeds
  * all three, so a change to what it collects has to hold across every diagram we ship. */
-
-const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
-const examples = readdirSync(EXAMPLES_DIR).filter((file) => file.endsWith('.png')).sort();
 
 const ROOT_TYPES = new Set([
   'bpmn:Process', 'studyflow:Study', 'bpmn:Collaboration', 'bpmn:Choreography',

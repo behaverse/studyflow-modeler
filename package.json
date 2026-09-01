@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "lint:schemas": "playwright test --config playwright.unit.config.ts schemas.unit catalog.unit schema-model.unit schema-primitives.unit",
     "preview": "npm run preview -w @behaverse/studyflow-modeler",
-    "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in assets/examples/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
+    "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in assets/schemas/examples/*/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
     "package:cli": "npm run package -w @behaverse/studyflow-cli",
     "test": "playwright test",
     "test:unit": "playwright test --config playwright.unit.config.ts",
@@ -28,21 +28,21 @@
     "docs:build": "quarto render docs"
   },
   "devDependencies": {
-    "@behaverse/studyflow-core": "*",
-    "@behaverse/studyflow-modeler": "*",
-    "@behaverse/studyflow-runner": "*",
+    "@behaverse/studyflow-core": "^26.0615",
+    "@behaverse/studyflow-modeler": "^26.0615",
+    "@behaverse/studyflow-runner": "^26.0615",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/js-yaml": "^4.0.9",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^25.9.5",
     "@typescript-eslint/parser": "^8.65.0",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.11.0",
+    "globals": "^17.12.0",
     "jsdom": "^30.0.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.69.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

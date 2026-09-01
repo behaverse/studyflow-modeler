@@ -10,8 +10,15 @@
  * priority to reason about.
  */
 
-/** A bus listener. The payload shape is topic-specific; see the emitters. */
-export type EventListener<P = unknown> = (payload: P) => void;
+/**
+ * A bus listener. The payload shape is topic-specific; see the emitters.
+ *
+ * A returned value is the ANSWER `fire` hands back, which is what makes a request
+ * topic possible on the same bus as the notifications: `'command'` carries one
+ * handler that returns the run's promise (`@modeler/commandBus.ts`), while
+ * `element.changed` & co. carry many that return nothing.
+ */
+export type EventListener<P = unknown> = (payload: P) => unknown;
 
 /** A small pub/sub emitter. Listeners fire in the order they subscribed. */
 export class EventBus {
@@ -34,20 +41,25 @@ export class EventBus {
   }
 
   /**
-   * Fire `topic` with `payload`, invoking listeners in subscription order.
+   * Fire `topic` with `payload`, invoking listeners in subscription order, and hand
+   * back the last answer any of them returned (`undefined` when none did, which is
+   * every notification topic).
    *
    * A missing payload is delivered as `{}`, never `undefined`: app-side listeners
    * read `event.element` off whatever arrives, and a bare `fire('tokenSimulation.toggle')`
    * would otherwise throw inside the listener rather than say "nothing to report".
    */
-  fire<P = unknown>(topic: string, payload?: P): void {
+  fire<R = unknown, P = unknown>(topic: string, payload?: P): R | undefined {
     const subs = this.topics.get(topic);
-    if (!subs || subs.length === 0) return;
+    if (!subs || subs.length === 0) return undefined;
     const event = (payload ?? {}) as P;
+    let answer: unknown;
     // Copy so listeners may (de)subscribe during dispatch.
     for (const listener of subs.slice()) {
-      (listener as EventListener<P>)(event);
+      const returned = (listener as EventListener<P>)(event);
+      if (returned !== undefined) answer = returned;
     }
+    return answer as R | undefined;
   }
 
   /** Drop every subscription (used on teardown). */

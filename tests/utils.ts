@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
@@ -6,10 +6,31 @@ import { expect, type Download, type Locator, type Page } from '@playwright/test
 import { xmlToStudyflow } from '@core/document';
 import { extractXmlFromPng } from '@core/document/png';
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'assets/examples');
+const EXAMPLES_DIR = path.join(process.cwd(), 'assets/schemas/examples');
+
+/** Every shipped example PNG by filename; the folder it sits in is its gallery category. */
+const examplePaths = new Map(
+  globSync('*/*.png', { cwd: EXAMPLES_DIR })
+    .map((rel) => [path.basename(rel), path.join(EXAMPLES_DIR, rel)] as const),
+);
+
+/** Example filenames, sorted — the corpus every example-wide suite iterates. */
+export const exampleNames: string[] = [...examplePaths.keys()].sort();
+
+/** Filename → the folder it sits in, which is its gallery category. */
+export const exampleCategories = new Map(
+  [...examplePaths].map(([name, file]) => [name, path.basename(path.dirname(file))]),
+);
 
 export function exampleFile(filename: string): Buffer {
-  return readFileSync(path.join(EXAMPLES_DIR, filename));
+  const file = examplePaths.get(filename);
+  if (!file) throw new Error(`No shipped example named "${filename}".`);
+  return readFileSync(file);
+}
+
+/** The blank diagram the app starts from, the same file `NewDiagram` loads. */
+export function blankDiagram(): Buffer {
+  return readFileSync(path.join(process.cwd(), 'assets/new_diagram.bpmn'));
 }
 
 export function exampleXml(filename: string): string {
@@ -161,7 +182,7 @@ export async function setSelectedElementName(page: Page, value: string): Promise
 }
 
 export async function uploadStudyflowDiagram(page: Page, filename = 'sample.studyflow'): Promise<void> {
-  const diagramBuffer = readFileSync(path.join(process.cwd(), 'assets/examples/new_diagram.bpmn'));
+  const diagramBuffer = blankDiagram();
 
   await page.getByTestId('open-file-input').setInputFiles({
     name: filename,

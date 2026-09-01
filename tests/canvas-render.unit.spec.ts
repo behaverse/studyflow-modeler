@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
@@ -7,7 +7,7 @@ import { Canvas } from '@canvas/index.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
 import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
-import { exampleXml } from './utils';
+import { exampleNames, exampleXml } from './utils';
 
 /**
  * P1 read-only renderer (design §6): render every shipped example diagram to an SVG
@@ -31,13 +31,6 @@ const UPDATE = process.env.UPDATE_GOLDENS === '1';
 // and only needs a DOM to mint SVG nodes into.
 installDocument();
 
-/** Every `.studyflow.png` example, in directory order. */
-function exampleFiles(): string[] {
-  return readdirSync(path.join(process.cwd(), 'assets/examples'))
-    .filter((f) => f.endsWith('.studyflow.png'))
-    .sort();
-}
-
 /** Every DI shape and edge across every diagram/plane, in document order. */
 function diItems(definitions: any): { shapes: any[]; edges: any[] } {
   const shapes: any[] = [];
@@ -60,7 +53,7 @@ function translateOf(g: Element | undefined): { x: number; y: number } {
   return m ? { x: Number(m[1]), y: Number(m[2]) } : { x: 0, y: 0 };
 }
 
-const files = exampleFiles();
+const files = exampleNames;
 
 test('canvas render: exactly 18 studyflow example diagrams are present', () => {
   expect(files.length).toBe(18);

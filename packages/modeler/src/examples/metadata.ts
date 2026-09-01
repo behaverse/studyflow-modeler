@@ -14,7 +14,6 @@ function studyflowAttribute(el: Element, ns: MetadataNamespaces, name: string): 
 export type ExampleMetadata = {
   title: string;
   summary: string;
-  tags: string[];
 };
 
 const ROOT_TYPES = ['process', 'collaboration', 'choreography'];
@@ -45,22 +44,15 @@ function rootsOf(doc: Document, ns: MetadataNamespaces): Element[] {
   return [...primary, ...roots.filter((el) => !primary.includes(el))];
 }
 
-function tagsOf(root: Element, ns: MetadataNamespaces): string[] {
-  return Array.from(root.children)
-    .filter((child) => child.namespaceURI === ns.core && child.localName === 'tags')
-    .map((child) => child.textContent?.trim() ?? '')
-    .filter(Boolean);
-}
-
 function parseXmlExampleMetadata(
   xml: string,
   ns: MetadataNamespaces,
-): { name?: string; id?: string; description?: string; tags: string[] } {
+): { name?: string; id?: string; description?: string } {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
 
   const roots = rootsOf(doc, ns);
-  if (roots.length === 0) return { tags: [] };
+  if (roots.length === 0) return {};
 
   // A card is built field by field: the drawn root leads, but a field it lacks is read from the next root carrying it (a pool splits name and documentation across roots).
   const firstOf = <T>(read: (root: Element) => T | undefined): T | undefined =>
@@ -73,10 +65,6 @@ function parseXmlExampleMetadata(
       (c) => c.namespaceURI === ns.bpmn && c.localName === 'documentation'
         && !isChecklistMarkerValue(studyflowAttribute(c, ns, CHECKLIST_MARKER)),
     )?.textContent?.trim() || undefined),
-    tags: firstOf((root) => {
-      const declared = tagsOf(root, ns);
-      return declared.length > 0 ? declared : undefined;
-    }) ?? [],
   };
 }
 
@@ -85,6 +73,5 @@ export function readExampleMetadata(filename: string, png: ArrayBuffer): Example
   return {
     title: meta.name || (meta.id ? humanizeId(meta.id) : '') || filenameStem(filename),
     summary: firstSentence(meta.description ?? ''),
-    tags: meta.tags,
   };
 }

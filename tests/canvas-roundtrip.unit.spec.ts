@@ -1,5 +1,3 @@
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
@@ -9,7 +7,7 @@ import { isHiddenByCollapse } from '@canvas/model/expand.ts';
 import type { Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
 import { freshModdle, loadCanvas } from './canvasHarness';
-import { exampleXml } from './utils';
+import { exampleNames, exampleXml } from './utils';
 
 /**
  * P5 milestone (design §6): **structural round-trip completeness** over all 18
@@ -43,13 +41,6 @@ import { exampleXml } from './utils';
  * rather than failed; every run also prints a `COVER` line per example naming what
  * it actually exercised.
  */
-
-/** Every `.studyflow.png` example, in directory order (the P1/P6 corpus). */
-function exampleFiles(): string[] {
-  return readdirSync(path.join(process.cwd(), 'assets/examples'))
-    .filter((f) => f.endsWith('.studyflow.png'))
-    .sort();
-}
 
 // --- canonical structure -----------------------------------------------------
 
@@ -544,7 +535,7 @@ async function snapshot(loaded: Loaded): Promise<{ xml: string; structure: Struc
   return { xml, structure: structureOf(rootElement) };
 }
 
-const files = exampleFiles();
+const files = exampleNames;
 
 test('canvas round-trip: all 18 studyflow examples are present', () => {
   expect(files.length).toBe(18);

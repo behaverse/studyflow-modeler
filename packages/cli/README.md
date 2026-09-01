@@ -30,18 +30,18 @@ studyflow <command> --help
 ## Examples
 
 ```bash
-studyflow run assets/examples/sklearn_pipeline.studyflow.png
+studyflow run 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'
 studyflow run runs/*/sklearn_pipeline.studyflow.png                # re-run
 studyflow run runs/*/sklearn_pipeline.studyflow.png --from <ref>   # branch
 studyflow run runs/*/sklearn_pipeline.studyflow.png --fresh        # re-run all
 
 # Reachy Mini example, auto-answered
-studyflow run assets/examples/reachy_session.studyflow.png --auto
+studyflow run assets/schemas/examples/Robotics/reachy_session.studyflow.png --auto
 
 # Reachy Mini as the participant: the robot serves the browser task's response
 # bridge (ResponseSource: external) and answers each trial from its camera, or
 # the screenshot the task attaches. Then run the study in the browser.
-./src/studyflow-reachy.py assets/examples/reachy_participant.studyflow.png --participant --sim
+./src/studyflow-reachy.py assets/schemas/examples/Robotics/reachy_participant.studyflow.png --participant --sim
 ```
 
 ## Extending CLI
