@@ -331,3 +331,60 @@ test.describe('auto-place (click-append)', () => {
     expect(appended!.y).toBe(source.y);
   });
 });
+
+test.describe('auto-place around a foreign container', () => {
+  /**
+   * The report, in the shape the sklearn example has it: a start event with an
+   * EXPANDED SUB-PROCESS occupying the slot to its right. A container is transparent
+   * to hit-testing, so the successor used to be minted on top of `prepare_data` —
+   * reparented into it by `Create.createAt`, and left unconnected, because a flow
+   * from outside a sub-process to a node inside it is refused.
+   */
+  const SUBPROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:startEvent id="Start_1" />
+    <bpmn:subProcess id="Sub_1" name="prepare_data" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="100" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_1_di" bpmnElement="Sub_1" isExpanded="true">
+        <dc:Bounds x="180" y="100" width="350" height="250" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+  test('does not drop the successor inside a sub-process it has to pass', async () => {
+    const { canvas } = await loadCanvas(SUBPROCESS_XML);
+    const source = node(canvas, 'Start_1');
+    const sub = node(canvas, 'Sub_1');
+
+    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
+
+    expect(appended, 'the append happened').toBeTruthy();
+    // Clear of the sub-process, and OUTSIDE it — not reparented into it.
+    expect(appended.y).toBeGreaterThan(sub.y + sub.height);
+    expect(appended.parent?.id).not.toBe('Sub_1');
+    // And reached by a flow, which is what the drop inside the frame used to lose.
+    expect(edgeBetween(canvas, source.id, appended.id), 'the flow was drawn').toBeTruthy();
+  });
+
+  test('the hover ghost agrees with where the click lands', async () => {
+    const { canvas } = await loadCanvas(SUBPROCESS_XML);
+    const source = node(canvas, 'Start_1');
+
+    const preview = canvas.previewAppend(source, { type: 'bpmn:EndEvent' });
+    canvas.clearAppendPreview();
+    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
+
+    expect({ x: preview!.x, y: preview!.y }).toEqual({ x: appended.x, y: appended.y });
+  });
+});

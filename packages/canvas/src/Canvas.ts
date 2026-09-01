@@ -36,7 +36,13 @@ import type {
   SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
-import { hitTest, isContainerNode, nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
+import {
+  hitTest,
+  isContainerNode,
+  nodesIntersecting,
+  normalizeRect,
+  pointInNode,
+} from '@canvas/interaction/hit.ts';
 import type { HitOptions } from '@canvas/interaction/hit.ts';
 import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
 import type { HandleHit, SegmentHit, WaypointHit } from '@canvas/interaction/selection.ts';
@@ -52,6 +58,7 @@ import {
   type ShapeDescriptor,
 } from '@canvas/interaction/create.ts';
 import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
+import { centerOf } from '@canvas/routing/crop.ts';
 import {
   appendElement as autoPlaceAppend,
   freeAppendPosition,
@@ -1110,22 +1117,15 @@ export class Canvas {
   /**
    * Whether a shape placed at `bounds` would land on top of something — the probe
    * the auto-placer nudges by ({@link freeAppendPosition}).
-   *
-   * Two kinds of node are NOT an obstacle, and both would otherwise wedge the search:
-   *
-   * - **Containers.** A pool or an expanded sub-process encloses the whole lane an
-   *   append lands in, so counting it as occupancy would report every slot taken and
-   *   send each append to the fallback position — exactly the bug this exists to fix.
-   *   Landing INSIDE one is the normal case, not a collision.
-   * - **Captions.** A label is a floating scrap of text, not a shape a flow can reach.
-   *   Nudging a whole row to dodge one moves the successor further from its source
-   *   than the overlap it avoids is worth.
    */
-  isAreaOccupied(bounds: Bounds): boolean {
+  isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean {
     if (!this.scene) return false;
-    return nodesIntersecting(this.scene, bounds).some(
-      (node) => !node.labelTarget && !isContainerNode(node),
-    );
+    const origin = from ? centerOf(appendSourceBounds(from)) : undefined;
+    return nodesIntersecting(this.scene, bounds).some((node) => {
+      if (node.labelTarget || node === from) return false;
+      if (!isContainerNode(node)) return true;
+      return origin !== undefined && !pointInNode(origin, node);
+    });
   }
 
   /**
@@ -1240,7 +1240,7 @@ export class Canvas {
         appendSourceBounds(source),
         prototype,
         prototype.type,
-        (area) => this.isAreaOccupied(area),
+        (area) => this.isAreaOccupied(area, source),
       ),
     );
     const preview = create('g', { class: 'sf-append-preview' }) as SVGGElement;

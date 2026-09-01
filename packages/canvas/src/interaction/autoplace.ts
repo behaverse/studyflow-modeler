@@ -91,29 +91,14 @@ export function appendSourceBounds(source: SceneNode | SceneEdge): Bounds {
 export const APPEND_NUDGE = 100;
 
 /**
- * How many slots to try before giving up and using the first one anyway. Ten rows
- * is far past any diagram a click-append is a reasonable way to build; the cap is
- * only here so a pathological document cannot spin.
+ * How many slots to try before giving up and using the first one anyway.
  */
-const MAX_PROBES = 10;
+const MAX_PROBES = 200;
 
 /**
  * How far down a nudged successor has to sit before its flow leaves the source
  * DOWNWARDS instead of sideways — centre-to-centre horizontal distance, plus one
  * unit to win the tie.
- *
- * `routing/orthogonal` bends a diagonal pair through a single elbow along the
- * DOMINANT axis. While the drop is nearer than it is lower, that axis is the
- * horizontal one, so the flow runs sideways at the SOURCE's y first — straight
- * under the sibling this append is dodging in the first place, and out of sight
- * behind it. Past this offset the elbow flips: the flow drops out of the source's
- * bottom and comes in at the successor's left edge, clear of the sibling.
- *
- * Fixing it here rather than in the router is deliberate. The router is explicitly
- * not obstacle-avoiding ("a third shape sitting in the way is the user's to fix by
- * dragging a waypoint, exactly as in bpmn-js"), and the single-elbow diagonal is a
- * pinned design decision. An auto-PLACER, though, exists precisely to pick a spot
- * that reads well, and it is the one thing here that knows a sibling is in the way.
  */
 function verticalEscape(source: Bounds, size: { width: number; height: number }): number {
   return source.width / 2 + APPEND_DISTANCE + size.width / 2 + 1;
@@ -121,16 +106,6 @@ function verticalEscape(source: Bounds, size: { width: number; height: number })
 
 /**
  * The first FREE centre point for a shape of `size` appended from `source`.
- *
- * Probe 0 is the plain {@link appendPosition}; every probe after it steps AWAY from
- * the source — down for a flow successor, up for an annotation, which starts above
- * the source and would otherwise nudge straight back into it. The first step also
- * clears {@link verticalEscape}, so a fanned-out flow is drawn where it can be seen.
- *
- * ponytail: one direction only, and it gives up after {@link MAX_PROBES} — a source
- * with ten occupied rows under it falls back to the blocked slot and the append is
- * dropped, exactly as it was before this search existed. Alternate both ways the
- * way bpmn-js's `generateGetNextPosition` does if anyone ever hits it.
  *
  * Both the click ({@link appendElement}) and the hover ghost (`Canvas.previewAppend`)
  * go through here, because a preview that shows a different slot than the click
@@ -170,7 +145,7 @@ export interface AutoPlaceHost {
   ): SceneNode | undefined;
   connectElements(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined;
   /** Whether a shape placed at `bounds` would land on top of something. */
-  isAreaOccupied(bounds: Bounds): boolean;
+  isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean;
 }
 
 /** What an append produced; `connection` is absent when the rules refuse the flow. */
@@ -193,7 +168,7 @@ export function appendElement(
     appendSourceBounds(source),
     prototype,
     prototype.type,
-    (bounds) => host.isAreaOccupied(bounds),
+    (bounds) => host.isAreaOccupied(bounds, source),
   );
   const shape = host.createElement(prototype, position);
   if (!shape) return undefined;
