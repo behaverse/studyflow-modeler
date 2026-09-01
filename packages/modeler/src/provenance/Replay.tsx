@@ -6,9 +6,9 @@ import {
   collectProvenance,
   displayOrder,
   recordDetails,
+  shortWhen,
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
-import { shortWhen } from '@modeler/provenance/Provenance';
 import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
 import type { Point } from '@canvas/model/scene.ts';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';

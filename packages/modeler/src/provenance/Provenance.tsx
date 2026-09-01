@@ -9,6 +9,7 @@ import {
   collectProvenance,
   displayOrder,
   recordDetails,
+  shortWhen,
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
 import { dialog as d } from '@modeler/ui/styles';
@@ -39,13 +40,6 @@ const laneOf = (lane: number) => LANES[lane % LANES.length];
 const laneX = (lane: number) => lane * LANE_W + 4.5;
 // The element-shape icons sit in their own left column, outside the tree, so they align.
 const ICON_GUTTER = 22;
-
-// Compact UTC render for mixed-offset stamps, seconds included; the raw stamp stays in the tooltip.
-export function shortWhen(when?: string): string | undefined {
-  const parsed = when ? Date.parse(when) : NaN;
-  if (Number.isNaN(parsed)) return when || undefined;
-  return new Date(parsed).toISOString().slice(0, 19).replace('T', ' ');
-}
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useRequiredModeler();

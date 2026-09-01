@@ -297,3 +297,10 @@ export function recordDetails(record: ProvenanceRecord): Array<[string, string]>
   if (record.what) pairs.push(['what', record.what]);
   return pairs;
 }
+
+// Compact UTC render for mixed-offset timestamps
+export function shortWhen(when?: string): string | undefined {
+  const parsed = when ? Date.parse(when) : NaN;
+  if (Number.isNaN(parsed)) return when || undefined;
+  return new Date(parsed).toISOString().slice(0, 19).replace('T', ' ');
+}
