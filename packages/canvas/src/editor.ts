@@ -29,14 +29,14 @@
  *
  * The canvas has no command stack. Each `mutate.*` call is one logical undo step,
  * closed with {@link EditorHistory.record} — the app's commit point, from which
- * autosave, provenance and dirty-tracking take their `commandStack.changed`.
+ * autosave, provenance and dirty-tracking take their `CommandStackChanged`.
  */
 
 // Concrete modules, not the barrel: `index.ts` re-exports from this file, so
 // importing it back here would be a cycle.
 import type { Canvas } from './Canvas.ts';
 import { createMutations } from './model/mutations.ts';
-import type { EventBus } from './events/bus.ts';
+import type { EventBus } from '@core/events/bus.ts';
 import type { Selection } from './interaction/selection.ts';
 
 export type { Canvas, EventBus, Selection };
@@ -67,12 +67,12 @@ export type Viewbox = Rect & {
 /**
  * Event topics cross the seam under their existing (bpmn-js) names, which is what
  * lets `events` be the canvas's own bus. Subscribed app-side: `diagram.init`, `diagram.destroy`,
- * `element.dblclick`, `root.set`, `selection.changed`, `element.changed`,
- * `elements.changed`, `commandStack.changed`, `import.done`,
- * `tokenSimulation.toggle`. Fired app-side: `tokenSimulation.toggle`,
- * `elementTemplates.changed`.
+ * `ElementDblClick`, `RootSet`, `SelectionChanged`, `ElementChanged`,
+ * `ElementsChanged`, `CommandStackChanged`, `ImportDone`,
+ * `TokenSimulationToggle`. Fired app-side: `TokenSimulationToggle`,
+ * `ElementTemplatesChanged`.
  *
- * `commandStack.changed` means "one mutation was applied" — not "one command stack
+ * `CommandStackChanged` means "one mutation was applied" — not "one command stack
  * step". The editor has no command stack; the app history layer
  * (`editor/history.ts`) fires it, once per recorded mutation.
  */
@@ -288,7 +288,7 @@ export interface Editor extends EditorHistoryView {
  * - **the history quintet** — the canvas has no command stack; undo is the app's
  *   snapshot store (`editor/history.ts`), and the facade republishes it;
  * - **`importXML` / `saveXML`** — a bpmn-moddle round trip, then the canvas import
- *   and the `import.done` + `root.set` pair app chrome re-reads itself on;
+ *   and the `ImportDone` + `RootSet` pair app chrome re-reads itself on;
  * - **`rules`** — a `!!` over the canvas's verdict, which is a `ConnectionSpec`;
  * - **`mutate`** — built beside it (`model/mutations.ts`), which is where the
  *   undo-step bracket's internals live.
@@ -309,7 +309,7 @@ export interface EditorDeps {
   model: EditorModel;
   /**
    * App-level undo/redo (`editor/history.ts`). It also owns the
-   * `commandStack.changed` topic, firing once per recorded mutation.
+   * `CommandStackChanged` topic, firing once per recorded mutation.
    */
   history: EditorHistory;
 }
@@ -324,8 +324,8 @@ export function createEditor(canvas: Canvas, deps: EditorDeps): EditorCore {
     const { rootElement } = await model.fromXML(xml);
     canvas.importDefinitions(rootElement as ModelElement);
     history.reset();
-    bus.fire('import.done', { error: null, warnings });
-    bus.fire('root.set', { element: canvas.getRoot() });
+    bus.fire('ImportDone', { error: null, warnings });
+    bus.fire('RootSet', { element: canvas.getRoot() });
     return { warnings };
   };
 

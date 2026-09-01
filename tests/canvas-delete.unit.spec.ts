@@ -244,8 +244,8 @@ test('deleting a node takes both incident edges with it, everywhere', async () =
 
   const removedEvents: string[][] = [];
   const changedEvents: string[] = [];
-  canvas.getEventBus().on<ElementsRemovedEvent>('elements.removed', (e) => removedEvents.push(ids(e.elements)));
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changedEvents.push(e.element.id));
+  canvas.getEventBus().on<ElementsRemovedEvent>('ElementsRemoved', (e) => removedEvents.push(ids(e.elements)));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changedEvents.push(e.element.id));
 
   const start = node(canvas, 'Start_1');
   const end = node(canvas, 'End_1');
@@ -420,7 +420,7 @@ test('deleteSelection removes the selection and narrows it to the survivors', as
   const loaded = await load();
   const { canvas } = loaded;
   const selectionEvents: string[][] = [];
-  canvas.getEventBus().on<SelectionChangedEvent>('selection.changed', (e) => {
+  canvas.getEventBus().on<SelectionChangedEvent>('SelectionChanged', (e) => {
     selectionEvents.push(ids(e.newSelection));
   });
 

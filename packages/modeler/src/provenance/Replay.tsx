@@ -290,11 +290,11 @@ const scopeName = (r: ProvenanceRecord) =>
 
 export function ReplayPanel({ onClose }: Props) {
   const editor = useRequiredModeler();
-  // `importXML` fires no `commandStack.changed`, so we bump a separate version to force a new timeline when the document changes.
+  // `importXML` fires no `CommandStackChanged`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    editor.events.on('import.done', bumpDocVersion);
-    return () => editor.events.off('import.done', bumpDocVersion);
+    editor.events.on('ImportDone', bumpDocVersion);
+    return () => editor.events.off('ImportDone', bumpDocVersion);
   }, [editor]);
   return <ReplayTimeline key={docVersion} onClose={onClose} />;
 }
@@ -303,8 +303,8 @@ function ReplayTimeline({ onClose }: Props) {
   const editor = useRequiredModeler();
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    editor.events.on('commandStack.changed', bumpRevision);
-    return () => editor.events.off('commandStack.changed', bumpRevision);
+    editor.events.on('CommandStackChanged', bumpRevision);
+    return () => editor.events.off('CommandStackChanged', bumpRevision);
   }, [editor]);
 
   const records = useMemo(

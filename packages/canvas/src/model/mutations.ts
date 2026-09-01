@@ -8,7 +8,7 @@
  * ({@link MutationHistory}, `@modeler/editor/history.ts`) and everything that hangs
  * off a commit — autosave, provenance, dirty tracking — hangs off `record()`.
  *
- * `commandStack.changed` is deliberately NOT fired here. It belongs to the history,
+ * `CommandStackChanged` is deliberately NOT fired here. It belongs to the history,
  * which hears every mutation source (a drag, an inline rename, a keyboard delete)
  * and not just `mutate.*`; firing it here as well would double-count every write.
  *
@@ -36,7 +36,7 @@ export function createMutations(canvas: Canvas, history: MutationHistory): Edito
 
   /**
    * Run one logical undo step: the write, the re-draw, and the commit point the
-   * history bumps its revision and fires `commandStack.changed` from. `apply`
+   * history bumps its revision and fires `CommandStackChanged` from. `apply`
    * returns the elements to re-draw.
    */
   const step = <T>(apply: () => T, changed?: (result: T) => SceneElement[]): T => {
@@ -61,8 +61,8 @@ export function createMutations(canvas: Canvas, history: MutationHistory): Edito
   /** Fire the change events for a facade element that is not a scene element. */
   const fireChanged = (element: EditorElement): void => {
     const bus = canvas.getEventBus();
-    bus.fire('element.changed', { element });
-    bus.fire('elements.changed', { elements: [element] });
+    bus.fire('ElementChanged', { element });
+    bus.fire('ElementsChanged', { elements: [element] });
   };
 
   const mutate: EditorMutations = {

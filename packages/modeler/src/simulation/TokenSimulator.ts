@@ -27,7 +27,7 @@ import type { Point } from '@canvas/model/scene.ts';
  * What the simulator needs from the editor — a structural subset of `Editor`, so
  * a whole port satisfies it and a hand-built adapter (or a test fake) does too.
  *
- * - `events` carries `root.set` in and {@link TOGGLE_SIMULATION_EVENT} out;
+ * - `events` carries `RootSet` in and {@link TOGGLE_SIMULATION_EVENT} out;
  * - `elements` finds the start events to spawn from, scoped to the current root;
  * - `canvas.getHostLayer('token-simulation', 1000)` is the `<g>` tokens are drawn into. A
  *   custom layer lives in the diagram's own coordinate space (the canvas applies
@@ -71,7 +71,7 @@ const TOKEN_COLORS = [
   '#2196f3',
 ];
 
-export const TOGGLE_SIMULATION_EVENT = 'tokenSimulation.toggle';
+export const TOGGLE_SIMULATION_EVENT = 'TokenSimulationToggle';
 
 /** The custom layer tokens are drawn into, and its z-order hint (above everything). */
 const TOKEN_LAYER = 'token-simulation';
@@ -124,13 +124,13 @@ export default class TokenSimulator {
 
   constructor(host: SimulationHost) {
     this._host = host;
-    this._host.events.on('root.set', this._handleRootSet);
+    this._host.events.on('RootSet', this._handleRootSet);
   }
 
   /** Stop, and let go of the editor. Called when the editor is torn down. */
   dispose(): void {
     this.stop();
-    this._host.events.off('root.set', this._handleRootSet);
+    this._host.events.off('RootSet', this._handleRootSet);
   }
 
   isActive(): boolean {

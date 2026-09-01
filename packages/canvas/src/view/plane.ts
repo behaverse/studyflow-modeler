@@ -43,7 +43,7 @@
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
-import type { EventBus } from '@canvas/events/bus.ts';
+import type { EventBus } from '@core/events/bus.ts';
 import { isExpandable, nestedPlanesOf } from '@canvas/model/expand.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Plane, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
@@ -303,7 +303,7 @@ export interface PlaneCursorOptions {
    * — an import drops custom layers, and the host re-attaches on the next call.
    */
   layer: () => SVGElement;
-  /** Called after the cursor moved, so the host can fire `root.set` for the new plane. */
+  /** Called after the cursor moved, so the host can fire `RootSet` for the new plane. */
   onChange?: (plane: Plane) => void;
 }
 
@@ -334,16 +334,16 @@ export class PlaneCursor {
     this.layerOf = options.layer;
     this.onChange = options.onChange;
     this.bus = options.canvas.getEventBus();
-    // BOTH topics. `Writeback.finish` fires `elements.changed` only for a BATCH, so
+    // BOTH topics. `Writeback.finish` fires `ElementsChanged` only for a BATCH, so
     // watching the plural alone missed every single-element edit — including the one
     // that matters most here, a palette drop of a sub-process, whose badge would then
     // not appear until something else happened to change.
-    this.bus.on('element.changed', this.onElementsChanged);
-    this.bus.on('elements.changed', this.onElementsChanged);
-    this.bus.on('import.done', this.onImportDone);
+    this.bus.on('ElementChanged', this.onElementsChanged);
+    this.bus.on('ElementsChanged', this.onElementsChanged);
+    this.bus.on('ImportDone', this.onImportDone);
     // Badges are shown only for SELECTED containers, so they come and go with the
     // selection, not just with the document.
-    this.bus.on('selection.changed', this.onSelectionChanged);
+    this.bus.on('SelectionChanged', this.onSelectionChanged);
   }
 
   /** The plane currently rendered — the root plane until a drill-down moves it. */
@@ -415,10 +415,10 @@ export class PlaneCursor {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.bus.off('element.changed', this.onElementsChanged);
-    this.bus.off('elements.changed', this.onElementsChanged);
-    this.bus.off('import.done', this.onImportDone);
-    this.bus.off('selection.changed', this.onSelectionChanged);
+    this.bus.off('ElementChanged', this.onElementsChanged);
+    this.bus.off('ElementsChanged', this.onElementsChanged);
+    this.bus.off('ImportDone', this.onImportDone);
+    this.bus.off('SelectionChanged', this.onSelectionChanged);
     remove(this.badgeGroup);
     this.badgeGroup = undefined;
   }

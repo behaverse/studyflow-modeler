@@ -424,8 +424,8 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
   const [, setRevision] = useState(0);
   useEffect(() => {
     const bump = () => setRevision((r) => r + 1);
-    modeler.events.on('elements.changed', bump);
-    return () => modeler.events.off('elements.changed', bump);
+    modeler.events.on('ElementsChanged', bump);
+    return () => modeler.events.off('ElementsChanged', bump);
   }, [modeler]);
 
   const inScope = getPropertiesInScope(element);

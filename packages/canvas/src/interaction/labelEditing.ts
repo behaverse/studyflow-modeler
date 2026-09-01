@@ -11,7 +11,7 @@
  *
  * On commit the new text is written straight onto the live business object through
  * moddle `set` (via {@link Writeback.setName} — which bumps {@link Scene.revision} and
- * fires `element.changed`), and the element is re-drawn. Nothing is re-serialized or
+ * fires `ElementChanged`), and the element is re-drawn. Nothing is re-serialized or
  * rebuilt: the very moddle object the scene was imported from is mutated, so
  * `bpmn-moddle` re-emits the edited name. `Escape` closes without writing anything.
  *
@@ -24,7 +24,7 @@
  * module only decides *which* band the gesture landed on and where to put the overlay.
  */
 
-import type { EventBus } from '@canvas/events/bus.ts';
+import type { EventBus } from '@core/events/bus.ts';
 import { isChoreographyTask, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { nameOf } from '@canvas/model/moddle.ts';
 import type {
@@ -56,7 +56,7 @@ import type { Viewport } from '@canvas/view/viewport.ts';
  */
 export type LabelBand = 'name' | 'top' | 'bottom';
 
-/** Payload for the `element.dblclick` event Canvas fires (mirrors bpmn-js's shape). */
+/** Payload for the `ElementDblClick` event Canvas fires (mirrors bpmn-js's shape). */
 export interface ElementDblClickEvent {
   element: SceneElement;
   originalEvent?: MouseEvent;
@@ -64,7 +64,7 @@ export interface ElementDblClickEvent {
   point: Point;
 }
 
-/** Payload for `directEditing.activate` / `.complete` / `.cancel`. */
+/** Payload for `DirectEditingActivate` / `.complete` / `.cancel`. */
 export interface DirectEditingEvent {
   element: SceneElement;
   band: LabelBand;
@@ -80,7 +80,7 @@ export interface LabelEditingOptions {
   container: HTMLElement;
   /** Screen↔diagram transforms and the current zoom. */
   viewport: Viewport;
-  /** Bus `element.dblclick` / `directEditing.*` are fired on. */
+  /** Bus `ElementDblClick` / `directEditing.*` are fired on. */
   bus: EventBus;
   /** The live scene, or `undefined` before an import. */
   getScene: () => Scene | undefined;
@@ -425,7 +425,7 @@ export class LabelEditing {
     // The drawn label steps aside while the (transparent) editor stands in for it.
     this.setLabelHidden?.(element, true);
     this.input = this.createInput(element, band, initial, bounds);
-    this.bus.fire<DirectEditingEvent>('directEditing.activate', { element, band, initial });
+    this.bus.fire<DirectEditingEvent>('DirectEditingActivate', { element, band, initial });
     return true;
   }
 
@@ -442,7 +442,7 @@ export class LabelEditing {
     this.close();
 
     const affected = this.write(session, value);
-    this.bus.fire<DirectEditingEvent>('directEditing.complete', {
+    this.bus.fire<DirectEditingEvent>('DirectEditingComplete', {
       element: session.element,
       band: session.band,
       initial: session.initial,
@@ -457,7 +457,7 @@ export class LabelEditing {
     const session = this.session;
     if (!session) return;
     this.close();
-    this.bus.fire<DirectEditingEvent>('directEditing.cancel', {
+    this.bus.fire<DirectEditingEvent>('DirectEditingCancel', {
       element: session.element,
       band: session.band,
       initial: session.initial,

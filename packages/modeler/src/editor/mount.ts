@@ -158,19 +158,19 @@ export function mountEditor(options: MountEditorOptions): Editor {
       lastSceneRevision = canvas.getScene()?.revision ?? 0;
       // The same pair `Editor.importXML` fires, minus the history reset that
       // would throw away the very stack this is walking. Both go out BEFORE the
-      // reselect: `root.set` means "the document was replaced, fall back to the
+      // reselect: `RootSet` means "the document was replaced, fall back to the
       // root", so anything listening (the inspector) resets on it — restoring the
       // selection afterwards is what makes the undo land on the element the user
       // was editing rather than on the diagram root.
-      bus.fire('import.done', { error: null, warnings: [] });
-      bus.fire('root.set', { element: canvas.getRoot() });
+      bus.fire('ImportDone', { error: null, warnings: [] });
+      bus.fire('RootSet', { element: canvas.getRoot() });
       const restored = canvas.getScene();
       const reselect = selectedIds
         .map((id: string) => restored?.elementsById.get(id))
         .filter((element: any) => element && (element.kind === 'node' || element.kind === 'edge'));
       canvas.getSelection().select(reselect.length > 0 ? (reselect as any) : null);
     },
-    onChanged: () => bus.fire('commandStack.changed', {}),
+    onChanged: () => bus.fire('CommandStackChanged', {}),
   });
 
   /**
@@ -186,9 +186,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
     lastSceneRevision = revision;
     history.record();
   };
-  bus.on('element.changed', onSceneChanged);
-  bus.on('elements.changed', onSceneChanged);
-  bus.on('elements.removed', onSceneChanged);
+  bus.on('ElementChanged', onSceneChanged);
+  bus.on('ElementsChanged', onSceneChanged);
+  bus.on('ElementsRemoved', onSceneChanged);
 
   /**
    * The `elementFactory` half of the template pipeline (`templates/factory.ts` is
@@ -261,11 +261,11 @@ export function mountEditor(options: MountEditorOptions): Editor {
     });
     canvas.getSelection().select(placed);
   };
-  // BOTH topics: the writeback fires `elements.changed` only for a batch, and a
+  // BOTH topics: the writeback fires `ElementsChanged` only for a batch, and a
   // template's root arrives as a single `createShape` — so watching the plural alone
   // meant the nested flow of the one template that has one (a pool) never landed.
-  bus.on('element.changed', materializePending);
-  bus.on('elements.changed', materializePending);
+  bus.on('ElementChanged', materializePending);
+  bus.on('ElementsChanged', materializePending);
 
   /**
    * The palette's templates. `templates/factory.ts` over the shim factory above, so
@@ -291,7 +291,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
   };
 
   // The canvas supplies everything but the two app services and teardown; the
-  // history it takes also owns `commandStack.changed`, which it fires once per
+  // history it takes also owns `CommandStackChanged`, which it fires once per
   // recorded mutation, from every mutation source and not just `mutate.*`.
   const port = createEditor(canvas, { model, history });
   mounted.port = port;
@@ -380,11 +380,11 @@ export function mountEditor(options: MountEditorOptions): Editor {
       simulator.dispose();
       unsubscribeSettings();
       options.container.removeEventListener('keydown', onHistoryKey);
-      bus.off('element.changed', onSceneChanged);
-      bus.off('elements.changed', onSceneChanged);
-      bus.off('elements.removed', onSceneChanged);
-      bus.off('element.changed', materializePending);
-      bus.off('elements.changed', materializePending);
+      bus.off('ElementChanged', onSceneChanged);
+      bus.off('ElementsChanged', onSceneChanged);
+      bus.off('ElementsRemoved', onSceneChanged);
+      bus.off('ElementChanged', materializePending);
+      bus.off('ElementsChanged', materializePending);
       history.dispose();
       stopIconWatch();
       clearTimeout(iconRedraw);

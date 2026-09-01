@@ -12,7 +12,7 @@
  * renders nothing at the document root, where the trail is one crumb long.
  *
  * Navigation is VIEW-ONLY: no command, no undo step, no document write (plan
- * §5-D7). `root.set` is what tells the trail it moved, the same topic an import
+ * §5-D7). `RootSet` is what tells the trail it moved, the same topic an import
  * fires, so an import that lands on the root plane collapses the bar by itself.
  */
 
@@ -40,11 +40,11 @@ export function Breadcrumbs() {
   useEffect(() => {
     const sync = (): void => setCrumbs(planeCrumbs(modeler));
     sync();
-    modeler.events.on('root.set', sync);
-    modeler.events.on('import.done', sync);
+    modeler.events.on('RootSet', sync);
+    modeler.events.on('ImportDone', sync);
     return () => {
-      modeler.events.off('root.set', sync);
-      modeler.events.off('import.done', sync);
+      modeler.events.off('RootSet', sync);
+      modeler.events.off('ImportDone', sync);
     };
   }, [modeler]);
 

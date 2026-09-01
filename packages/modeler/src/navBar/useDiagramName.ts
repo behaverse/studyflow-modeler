@@ -18,11 +18,11 @@ export function useDiagramName(modeler: Editor): {
       if (e?.element === modeler.elements.root()) sync();
     };
     sync();
-    modeler.events.on('import.done', sync);
-    modeler.events.on('element.changed', onRootChanged);
+    modeler.events.on('ImportDone', sync);
+    modeler.events.on('ElementChanged', onRootChanged);
     return () => {
-      modeler.events.off('import.done', sync);
-      modeler.events.off('element.changed', onRootChanged);
+      modeler.events.off('ImportDone', sync);
+      modeler.events.off('ElementChanged', onRootChanged);
     };
   }, [modeler]);
 

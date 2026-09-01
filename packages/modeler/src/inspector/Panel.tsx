@@ -41,7 +41,7 @@ function useSelectedElement(editor: Editor): any {
     setElement(editor.elements.root());
   }
 
-  // Matching `element.changed` against a ref keeps the subscription from re-establishing on every selection change.
+  // Matching `ElementChanged` against a ref keeps the subscription from re-establishing on every selection change.
   useEffect(() => {
     elementRef.current = element;
   }, [element]);
@@ -56,14 +56,14 @@ function useSelectedElement(editor: Editor): any {
       if (elementRef.current && e.element?.id === elementRef.current.id) bumpVersion();
     };
 
-    editor.events.on('selection.changed', onSelectionChanged);
-    editor.events.on('root.set', onRootSet);
-    editor.events.on('element.changed', onElementChanged);
+    editor.events.on('SelectionChanged', onSelectionChanged);
+    editor.events.on('RootSet', onRootSet);
+    editor.events.on('ElementChanged', onElementChanged);
 
     return () => {
-      editor.events.off('selection.changed', onSelectionChanged);
-      editor.events.off('root.set', onRootSet);
-      editor.events.off('element.changed', onElementChanged);
+      editor.events.off('SelectionChanged', onSelectionChanged);
+      editor.events.off('RootSet', onRootSet);
+      editor.events.off('ElementChanged', onElementChanged);
     };
   }, [editor]);
 

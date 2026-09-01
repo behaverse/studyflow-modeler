@@ -1,7 +1,7 @@
 /**
  * Selection (design §3 `interaction/selection.ts`, §6 P2). Owns the current
  * selection set, paints the editor chrome that says what is selected, and toggles
- * marker CSS classes on element graphics. Fires `selection.changed` on every change.
+ * marker CSS classes on element graphics. Fires `SelectionChanged` on every change.
  *
  * This IS `Editor.selection`: the facade publishes this object rather than a
  * projection of it (`../editor.ts`), which is why {@link Selection.select} is
@@ -27,7 +27,7 @@
  * literal rather than approximate.
  */
 
-import type { EventBus } from '@canvas/events/bus.ts';
+import type { EventBus } from '@core/events/bus.ts';
 import { isLabelElement } from '@canvas/model/externalLabel.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { ensureOutline, OUTLINE_OFFSET } from '@canvas/render/outline.ts';
@@ -49,7 +49,7 @@ export const RESIZE_HANDLES = ['nw', 'ne', 'se', 'sw', 'n', 'e', 's', 'w'] as co
 /** A resize-handle anchor. */
 export type ResizeHandle = (typeof RESIZE_HANDLES)[number];
 
-/** Payload for the `selection.changed` event. */
+/** Payload for the `SelectionChanged` event. */
 export interface SelectionChangedEvent {
   newSelection: SceneElement[];
   oldSelection: SceneElement[];
@@ -61,7 +61,7 @@ export interface SelectionOptions {
   layer: SVGGElement;
   /** Resolves an element id to its rendered `<g>` (for outlines and markers). */
   getGraphics: (id: string) => SVGGElement | undefined;
-  /** Bus the `selection.changed` event is fired on. */
+  /** Bus the `SelectionChanged` event is fired on. */
   bus: EventBus;
   /**
    * The root `<svg>`, which carries the selection-wide state classes
@@ -259,7 +259,7 @@ export class Selection {
     else this.add(element);
   }
 
-  /** Clear the selection (fires `selection.changed` if it was non-empty). */
+  /** Clear the selection (fires `SelectionChanged` if it was non-empty). */
   clear(): void {
     if (this.selected.length === 0) return;
     this.apply([], this.selected);
@@ -268,7 +268,7 @@ export class Selection {
   /**
    * Mark `elements` as enclosed by a lasso that is still being dragged: they get the
    * `selected` class (and therefore an outline) without entering the selection set
-   * and without firing `selection.changed`.
+   * and without firing `SelectionChanged`.
    *
    * This is how diagram-js does it too — `LassoTool` toggles the marker on
    * `lasso.move` and only calls `selection.select` on `lasso.end` — and it is what
@@ -526,7 +526,7 @@ export class Selection {
     this.root?.classList.toggle(MULTI_SELECT_CLASS, next.length > 1);
     this.drawOverlay();
     const event: SelectionChangedEvent = { newSelection: next.slice(), oldSelection: old.slice() };
-    this.bus.fire('selection.changed', event);
+    this.bus.fire('SelectionChanged', event);
   }
 
   /** Mint/refresh the outline inside a selected element's `<g>`. */

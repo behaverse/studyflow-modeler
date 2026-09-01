@@ -57,7 +57,7 @@ export default class Templates {
 
   set(templates: Template[]): void {
     this._templates = templates;
-    this._eventBus.fire('elementTemplates.changed');
+    this._eventBus.fire('ElementTemplatesChanged');
   }
 
   getLatest(element?: any): Template[] {

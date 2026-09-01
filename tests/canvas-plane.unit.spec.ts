@@ -292,7 +292,7 @@ test.describe('plane cursor', () => {
     });
 
     const roots: string[] = [];
-    port.events.on('root.set', (event: any) => roots.push(event?.element?.id));
+    port.events.on('RootSet', (event: any) => roots.push(event?.element?.id));
     await port.importXML(exampleXml(EXAMPLE));
 
     expect(port.canvas.planePath().map((root: any) => root.id)).toEqual(['sklearn_pipeline']);
@@ -310,7 +310,7 @@ test.describe('plane cursor', () => {
     const path = port.canvas.planePath();
     expect(path.map((root: any) => root.id)).toEqual(['sklearn_pipeline', 'select_model']);
     // `elements.root()` follows the view, so the inspector resolves against the plane
-    // on screen rather than the document root — and `root.set` says so.
+    // on screen rather than the document root — and `RootSet` says so.
     expect(port.elements.root().id).toBe('select_model');
     expect(roots[roots.length - 1]).toBe('select_model');
 

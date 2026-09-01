@@ -98,3 +98,25 @@ export function runStartAppendElement(
 
   return shape;
 }
+
+export type OpenAppendMenuCommand = {
+  type: 'OpenAppendMenu';
+  elements: EditorElement[];
+};
+
+export type AppendMenuAnchor = {
+  element: EditorElement;
+  position: { x: number; y: number; cursor: { x: number; y: number } };
+};
+
+/**
+ * The canvas's `a` key. The menu is React chrome, so the handler only works out
+ * WHERE it opens; `PopupMenus` watches `CommandDone` and opens it there.
+ */
+export function runOpenAppendMenu(modeler: Editor, command: OpenAppendMenuCommand): AppendMenuAnchor | undefined {
+  const element = command.elements[0];
+  if (!element) return undefined;
+  const box = modeler.canvas.getAbsoluteBBox(element);
+  const x = box.x + box.width + 12;
+  return { element, position: { x, y: box.y, cursor: { x, y: box.y + box.height / 2 } } };
+}

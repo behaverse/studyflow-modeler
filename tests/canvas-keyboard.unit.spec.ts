@@ -242,10 +242,10 @@ test('Ctrl+0 resets the zoom to 1:1', async () => {
 
 // --- append ------------------------------------------------------------------
 
-test("'a' names the selection for the append popup the app owns", async () => {
+test("'a' requests the append popup the app owns, as a command on the bus", async () => {
   const { canvas } = await load();
   const seen: any[] = [];
-  canvas.getEventBus().on('keyboard.append', (e: any) => seen.push(e));
+  canvas.getEventBus().on('OpenAppendMenu', (e: any) => seen.push(e));
 
   // Unselected: nothing to append to, so nothing is fired.
   press(canvas, 'a');
@@ -255,7 +255,7 @@ test("'a' names the selection for the append popup the app owns", async () => {
   canvas.getSelection().select(task);
   press(canvas, 'a');
   expect(seen).toHaveLength(1);
-  expect(seen[0].elements).toEqual([task]);
+  expect(seen[0]).toEqual({ type: 'OpenAppendMenu', elements: [task] });
   // The canvas half only: it opens no popup of its own and touches no document.
   expect(canvas.getScene()!.revision).toBe(canvas.getScene()!.revision);
   expect(canvas.getLabelEditing().isActive()).toBe(false);

@@ -429,12 +429,12 @@ test('grid snap: ON by default (addendum 7), and turned off it leaves the delta 
   expect(plain.canvas.isSnapToGrid()).toBe(true);
 });
 
-test('a committed drag bumps scene.revision and fires element.changed', async () => {
+test('a committed drag bumps scene.revision and fires ElementChanged', async () => {
   const { canvas } = await load(FIXTURE_XML);
   const scene = canvas.getScene()!;
   const before = scene.revision;
   const changed: string[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e.element.id));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e.element.id));
 
   const task = node(canvas, 'Task_1');
   const from = center(task);
@@ -1284,7 +1284,7 @@ test('lasso: the rect and the root class the secondary outline colour keys off',
   expect(svg.classList.contains('sf-dragging-active-lasso')).toBe(true);
 
   // Enclosed elements are OUTLINED live (the root class turns them secondary blue)
-  // but not yet selected: `selection.changed` fires once, on release.
+  // but not yet selected: `SelectionChanged` fires once, on release.
   expect(canvas.getGraphics('Task_1')!.classList.contains('selected')).toBe(true);
   expect(canvas.getGraphics('Task_1')!.querySelector('.sf-outline')).not.toBeNull();
   expect(canvas.getSelection().get()).toEqual([]);
@@ -1315,7 +1315,7 @@ test('lasso: Shift adds to the selection instead of replacing it (parity spec §
   const { canvas } = await load(FIXTURE_XML);
   const selection = canvas.getSelection();
   const changes: number[] = [];
-  canvas.getEventBus().on('selection.changed', () => changes.push(selection.get().length));
+  canvas.getEventBus().on('SelectionChanged', () => changes.push(selection.get().length));
 
   // Start from something already selected, well outside the rectangle to come.
   const end = node(canvas, 'End_1');

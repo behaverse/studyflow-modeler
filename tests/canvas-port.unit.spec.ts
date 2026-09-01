@@ -137,12 +137,12 @@ test('importXML builds the scene, announces it, and projects the plane as the ro
   });
 
   const seen: string[] = [];
-  port.events.on('import.done', () => seen.push('import.done'));
-  port.events.on('root.set', () => seen.push('root.set'));
+  port.events.on('ImportDone', () => seen.push('ImportDone'));
+  port.events.on('RootSet', () => seen.push('RootSet'));
 
   const { warnings } = await port.importXML(PROCESS_XML);
   expect(warnings).toEqual([]);
-  expect(seen).toEqual(['import.done', 'root.set']);
+  expect(seen).toEqual(['ImportDone', 'RootSet']);
 
   // `elements.root()` is what the nav bar reads the diagram name from and what
   // export scopes against — the plane's business object, not a scene node.
@@ -249,8 +249,8 @@ test('mutate.updateProperties writes the business object and saveXML emits it', 
 
   const changed: string[] = [];
   const commands: number[] = [];
-  port.events.on('element.changed', (e: any) => changed.push(e.element.id));
-  port.events.on('commandStack.changed', () => commands.push(1));
+  port.events.on('ElementChanged', (e: any) => changed.push(e.element.id));
+  port.events.on('CommandStackChanged', () => commands.push(1));
 
   expect(port.revision()).toBe(0);
   port.mutate.updateProperties(port.elements.get('Task_1'), { name: 'Renamed' });
@@ -258,7 +258,7 @@ test('mutate.updateProperties writes the business object and saveXML emits it', 
   // One logical undo step, closed on the app's snapshot layer.
   expect(history.log).toEqual(['reset', 'record']);
   expect(port.revision()).toBe(1);
-  // …and NOT announced by `mutate`: `commandStack.changed` belongs to the history,
+  // …and NOT announced by `mutate`: `CommandStackChanged` belongs to the history,
   // which hears every mutation source where `mutate.*` hears only its own calls.
   // Firing it there too would double-count every write.
   expect(commands.length).toBe(0);
@@ -278,7 +278,7 @@ test('mutate.updateProperties renames the root (the diagram-name path)', async (
   const root = port.elements.root();
 
   const changed: any[] = [];
-  port.events.on('element.changed', (e: any) => changed.push(e.element));
+  port.events.on('ElementChanged', (e: any) => changed.push(e.element));
 
   port.mutate.updateProperties(root, { name: 'Renamed study' });
   // `navBar/useDiagramName.ts` compares by identity against `elements.root()`.
@@ -354,22 +354,22 @@ test('events.on / off / fire round-trip, in subscription order, with a payload a
     payloads.push(event);
   };
   const second = () => order.push('second');
-  port.events.on('tokenSimulation.toggle', first);
-  port.events.on('tokenSimulation.toggle', second);
+  port.events.on('TokenSimulationToggle', first);
+  port.events.on('TokenSimulationToggle', second);
 
   // No priorities: listeners run in the order they subscribed, and nothing in the
   // canvas or the app has ever needed to jump that queue.
-  port.events.fire('tokenSimulation.toggle');
+  port.events.fire('TokenSimulationToggle');
   expect(order).toEqual(['first', 'second']);
-  // A payload-less fire still delivers an OBJECT: app listeners read `event.element`
-  // off whatever arrives, and `undefined` would throw inside the listener.
-  expect(payloads).toEqual([{}]);
+  // A payload-less fire still delivers a MESSAGE — `{ type }`, the same shape a
+  // command travels in — so app listeners can read `event.element` off whatever arrives.
+  expect(payloads).toEqual([{ type: 'TokenSimulationToggle' }]);
 
-  port.events.off('tokenSimulation.toggle', second);
+  port.events.off('TokenSimulationToggle', second);
   order.length = 0;
-  port.events.fire('tokenSimulation.toggle', { active: true });
+  port.events.fire('TokenSimulationToggle', { active: true });
   expect(order).toEqual(['first']);
-  expect(payloads[1]).toEqual({ active: true });
+  expect(payloads[1]).toEqual({ type: 'TokenSimulationToggle', active: true });
 });
 
 // --- the injected half -------------------------------------------------------

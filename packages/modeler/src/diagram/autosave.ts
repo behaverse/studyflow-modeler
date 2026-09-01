@@ -58,8 +58,8 @@ export function attachAutosave(modeler: Editor): () => void {
     schedule();
   };
 
-  modeler.events.on('commandStack.changed', onEdited);
-  modeler.events.on('import.done', schedule);
+  modeler.events.on('CommandStackChanged', onEdited);
+  modeler.events.on('ImportDone', schedule);
 
   // Turning either destination on has to arm the timer; turning the local copy off also drops
   // the entry, so a stale diagram is never restored from a switch the user has since flipped.
@@ -75,8 +75,8 @@ export function attachAutosave(modeler: Editor): () => void {
   });
 
   return () => {
-    modeler.events.off('commandStack.changed', onEdited);
-    modeler.events.off('import.done', schedule);
+    modeler.events.off('CommandStackChanged', onEdited);
+    modeler.events.off('ImportDone', schedule);
     unsub();
     if (timer) window.clearTimeout(timer);
   };

@@ -160,15 +160,15 @@ export function ContextPad() {
     // flow's default) must still recompute the entries.
     const sync = (): void => setElements([...modeler.selection.get()]);
     sync();
-    modeler.events.on('selection.changed', sync);
-    modeler.events.on('element.changed', sync);
-    modeler.events.on('root.set', sync);
-    modeler.events.on('import.done', sync);
+    modeler.events.on('SelectionChanged', sync);
+    modeler.events.on('ElementChanged', sync);
+    modeler.events.on('RootSet', sync);
+    modeler.events.on('ImportDone', sync);
     return () => {
-      modeler.events.off('selection.changed', sync);
-      modeler.events.off('element.changed', sync);
-      modeler.events.off('root.set', sync);
-      modeler.events.off('import.done', sync);
+      modeler.events.off('SelectionChanged', sync);
+      modeler.events.off('ElementChanged', sync);
+      modeler.events.off('RootSet', sync);
+      modeler.events.off('ImportDone', sync);
     };
   }, [modeler]);
 

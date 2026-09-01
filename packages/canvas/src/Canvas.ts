@@ -21,7 +21,7 @@
 import { BPMN } from '@core/constants.ts';
 import { getExtensionType } from '@core/element/index.ts';
 
-import { EventBus } from '@canvas/events/bus.ts';
+import { EventBus } from '@core/events/bus.ts';
 import { prop } from '@canvas/model/moddle.ts';
 import { importDefinitions } from '@canvas/model/import.ts';
 import type { ImportOptions } from '@canvas/model/import.ts';
@@ -499,14 +499,14 @@ export class Canvas {
     // `directEditing.*` events rather than from inside `LabelEditing` so that EVERY
     // way of opening the editor (double click, `e`, a palette drop) is covered by
     // one rule, and it reuses the very suppression the `sf-resizing` path uses.
-    this.bus.on<DirectEditingEvent>('directEditing.activate', ({ element }) => {
+    this.bus.on<DirectEditingEvent>('DirectEditingActivate', ({ element }) => {
       this.selection.addMarker(element.id, EDITING_MARKER);
     });
     const endEditing = ({ element }: DirectEditingEvent) => {
       this.selection.removeMarker(element.id, EDITING_MARKER);
     };
-    this.bus.on<DirectEditingEvent>('directEditing.complete', endEditing);
-    this.bus.on<DirectEditingEvent>('directEditing.cancel', endEditing);
+    this.bus.on<DirectEditingEvent>('DirectEditingComplete', endEditing);
+    this.bus.on<DirectEditingEvent>('DirectEditingCancel', endEditing);
 
     this.create = new Create({
       getScene: () => this.scene,
@@ -573,9 +573,9 @@ export class Canvas {
     this.planes = new PlaneCursor({
       canvas: this,
       layer: () => this.getHostLayer('drilldown', 900),
-      // `root.set` on every move: the inspector, the popup menus and the breadcrumb
+      // `RootSet` on every move: the inspector, the popup menus and the breadcrumb
       // all listen to it already — it is the same topic an import fires.
-      onChange: (plane) => this.bus.fire('root.set', { element: rootOf(plane) }),
+      onChange: (plane) => this.bus.fire('RootSet', { element: rootOf(plane) }),
     });
   }
 
@@ -755,7 +755,7 @@ export class Canvas {
     return layer;
   }
 
-  /** The event bus (`selection.changed`, `element(s).changed`, …). */
+  /** The event bus (`SelectionChanged`, `element(s).changed`, …). */
   getEventBus(): EventBus {
     return this.bus;
   }
@@ -1639,7 +1639,7 @@ export class Canvas {
    * layout" command asks for.
    *
    * Committed as one batch through {@link Writeback}: one revision bump, one
-   * `elements.changed`, `di:waypoint` written for each edge that actually moved.
+   * `ElementsChanged`, `di:waypoint` written for each edge that actually moved.
    * Returns the edges whose waypoints changed.
    */
   rerouteEdges(
@@ -2101,7 +2101,7 @@ export class Canvas {
       this.drawMarquee(g.downDiagram, pt);
       // Mark what is enclosed SO FAR — outlined, in the secondary blue the root's
       // `sf-dragging-active-lasso` class selects, but not yet in the selection set
-      // (so `selection.changed` fires once, on release, not once per pointer frame).
+      // (so `SelectionChanged` fires once, on release, not once per pointer frame).
       if (this.scene) {
         const rect = normalizeRect({
           x: g.downDiagram.x,
@@ -2759,7 +2759,7 @@ export class Canvas {
   }
 
   /**
-   * A double click fires `element.dblclick` (so the app can hook it) and opens the
+   * A double click fires `ElementDblClick` (so the app can hook it) and opens the
    * inline label editor over the element's label. The label of an event/gateway/data
    * shape is drawn *outside* its bounds, so a click that misses every shape is given
    * a second chance against the external-label boxes.
@@ -2784,7 +2784,7 @@ export class Canvas {
     const element = this.elementAt(pt) ?? this.labelEditing.labelTargetAt(pt);
     if (!element) return;
 
-    this.bus.fire<ElementDblClickEvent>('element.dblclick', {
+    this.bus.fire<ElementDblClickEvent>('ElementDblClick', {
       element,
       originalEvent: ev,
       point: pt,
@@ -2846,7 +2846,7 @@ export class Canvas {
    * | `←` `→` `↑` `↓` | nudge the selection 1 unit, 10 with `Shift` |
    * | `Ctrl/Cmd`+`=` / `-` / `0` | zoom in / out / reset |
    * | `e` | open the label editor on the selection |
-   * | `a` | fire `keyboard.append` (the append-anything popup is app chrome, P6b) |
+   * | `a` | request `OpenAppendMenu` on the bus (the popup is app chrome, P6b) |
    *
    * Everything else is deliberately INERT, and that is as much a parity target as
    * the bindings: `h`/`l`/`s`/`c` (stock diagram-js tool keys — the palette that
@@ -2884,10 +2884,10 @@ export class Canvas {
         return this.editSelection();
       case 'a': {
         // The append-anything popup itself is app chrome (design §4 `popup`), so the
-        // key does the canvas half — name the selection — and lets the host open it.
+        // key sends the command; the host registered its handler on this bus.
         const elements = this.selection.get();
         if (elements.length === 0) return false;
-        this.bus.fire('keyboard.append', { elements });
+        void this.bus.send({ type: 'OpenAppendMenu', elements }).catch(() => undefined);
         return true;
       }
       default:

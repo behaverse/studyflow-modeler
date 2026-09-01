@@ -200,7 +200,7 @@ test('a renamed participant restains every task that draws a band for it', async
   const loaded = await loadExample();
   const { canvas } = loaded;
   const changed: ElementChangedEvent[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e));
 
   expect(canvas.setBandName(node(canvas, 'Consent'), 'bottom', 'Researcher')).toBe(true);
 

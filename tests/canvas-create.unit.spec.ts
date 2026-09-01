@@ -168,7 +168,7 @@ test('dropping a Task mints the business object AND the BPMNShape, and toXML emi
   const { canvas, definitions } = loaded;
   const scene = canvas.getScene()!;
   const changed: string[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e.element.id));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e.element.id));
 
   const beforeFlowElements = process(definitions).flowElements.length;
   const beforePlaneElements = planeElements(definitions).length;

@@ -57,7 +57,7 @@ test('a recorded mutation bumps the revision and fires the change signal at once
   state.xml = '<b/>';
   history.record();
 
-  // Synchronous, because `commandStack.changed` consumers (autosave, provenance,
+  // Synchronous, because `CommandStackChanged` consumers (autosave, provenance,
   // the undo button) read these in the same turn as the mutation.
   expect(history.revision()).toBe(1);
   expect(state.changes).toBeGreaterThanOrEqual(1);
@@ -163,7 +163,7 @@ test('the writes an undo itself causes are not recorded as edits', async () => {
     serialize: async () => state.xml,
     restore: async (xml) => {
       state.xml = xml;
-      // The canvas fires `element.changed` while a snapshot is being applied; the
+      // The canvas fires `ElementChanged` while a snapshot is being applied; the
       // watcher in `editor/mount.ts` calls straight back into `record`.
       history.record();
       recordsDuringRestore += 1;

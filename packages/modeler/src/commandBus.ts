@@ -29,39 +29,40 @@ type CommandResult<C extends ControllerCommand> = {
   [K in RunKey]: C extends Parameters<Handlers[K]>[1] ? Awaited<ReturnType<Handlers[K]>> : never;
 }[RunKey];
 
+function handlerFor(name: string): ((modeler: Editor | null, command: unknown) => unknown) | undefined {
+  const feature = FEATURES.find((f) => typeof (f as any)[name] === 'function');
+  return feature && (feature as any)[name];
+}
+
 /**
- * Dispatch `command` against the {@link Editor} (or `null`, at boot, for the
- * handlers that accept it) — the facade `runCreateModeler` built, which is the
- * only way a handler reaches the diagram.
+ * Dispatch `command`. With an {@link Editor} it goes over the editor's bus
+ * (`events.send`), the same bus `ElementChanged` & co. travel on, so a finished
+ * command lands on `CommandDone` beside them. `null` is boot (`DownloadSchemas`,
+ * `CreateModeler`): there is no bus yet, so the handler is called directly.
  */
 export async function executeCommand<C extends ControllerCommand>(
   modeler: Editor | null,
   command: C,
 ): Promise<CommandResult<C>> {
-  const name = `run${command.type}`;
-  const feature = FEATURES.find((f) => typeof (f as any)[name] === 'function');
-  if (!feature) throw new Error(`No handler '${name}' for command '${command.type}'`);
-  const result = await (feature as any)[name](modeler, command);
-  // One stream: a finished command is announced beside `element.changed` & co., so a
-  // feature can watch what the app DID without the caller wiring it. Facts only —
-  // a thrown command announces nothing. `modeler` is null for the boot pair
-  // (`DownloadSchemas`, `CreateModeler`), which run before there is a bus to say it on.
-  modeler?.events.fire('command.done', { command, result });
-  return result;
+  if (modeler) return modeler.events.send<CommandResult<C>>(command);
+  const run = handlerFor(`run${command.type}`);
+  if (!run) throw new Error(`No handler for command '${command.type}'`);
+  return (await run(null, command)) as CommandResult<C>;
 }
 
 /**
- * Put the command bus ON the event bus: `events.fire('command', { type: 'Undo' })`
- * runs the command and hands back {@link executeCommand}'s promise.
+ * Register every `runX` as the one listener on topic `X`, so `events.send({ type: 'X' })`
+ * runs it. That is what makes commands and events one mechanism: the canvas (a leaf
+ * that cannot import `@modeler/*`) sends `OpenAppendMenu` on the bus it already holds.
  *
- * That is the half {@link executeCommand} cannot serve — it needs the `Editor`, and
- * the canvas is a leaf package that must not import `@modeler/*`. Anything holding
- * the bus can now REQUEST as well as observe, instead of inventing a bespoke topic
- * for the app to translate (which is what `keyboard.append` is).
- *
- * Called once at boot (`app/Modeler.tsx`); the subscription dies with the editor,
+ * Called once at boot (`app/Modeler.tsx`); the subscriptions die with the editor,
  * whose `destroy()` clears the bus.
  */
 export function connectCommandBus(modeler: Editor): void {
-  modeler.events.on('command', (command: ControllerCommand) => executeCommand(modeler, command));
+  for (const feature of FEATURES) {
+    for (const name of Object.keys(feature)) {
+      if (!name.startsWith('run')) continue;
+      modeler.events.on(name.slice(3), (command: unknown) => (feature as any)[name](modeler, command));
+    }
+  }
 }

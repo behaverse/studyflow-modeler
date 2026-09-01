@@ -250,10 +250,10 @@ test('dblclick on a task opens an inline editor seeded with the current name', a
   expect(editing.getSession()!.bounds).toEqual({ x: 200, y: 80, width: 100, height: 80 });
 });
 
-test('dblclick fires element.dblclick on the bus before the editor opens', async () => {
+test('dblclick fires ElementDblClick on the bus before the editor opens', async () => {
   const { canvas } = await load(FIXTURE_XML);
   const seen: ElementDblClickEvent[] = [];
-  canvas.getEventBus().on<ElementDblClickEvent>('element.dblclick', (e) => seen.push(e));
+  canvas.getEventBus().on<ElementDblClickEvent>('ElementDblClick', (e) => seen.push(e));
 
   const task = node(canvas, 'Task_1');
   dblclick(canvas, center(task));
@@ -296,10 +296,10 @@ test('a gateway edits its external label; label placement follows the drawer', a
 
 // --- committing --------------------------------------------------------------
 
-test('commit writes businessObject.name through moddle, bumps the revision, fires element.changed', async () => {
+test('commit writes businessObject.name through moddle, bumps the revision, fires ElementChanged', async () => {
   const { canvas, definitions } = await load(FIXTURE_XML);
   const changed: ElementChangedEvent[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e));
 
   const task = node(canvas, 'Task_1');
   const revisionBefore = canvas.getScene()!.revision;
@@ -361,7 +361,7 @@ test('commit trims the typed text', async () => {
 test('committing unchanged text writes nothing — no revision bump, no event', async () => {
   const { canvas } = await load(FIXTURE_XML);
   const changed: ElementChangedEvent[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e));
   const revisionBefore = canvas.getScene()!.revision;
 
   dblclick(canvas, center(node(canvas, 'Task_1')));
@@ -390,7 +390,7 @@ test('Escape leaves the name unchanged and the document byte-identical', async (
   const { canvas } = loaded;
   const before = (await loaded.moddle.toXML(loaded.definitions)).xml;
   const changed: ElementChangedEvent[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e));
 
   const task = node(canvas, 'Task_1');
   const revisionBefore = canvas.getScene()!.revision;
@@ -410,13 +410,13 @@ test('Escape leaves the name unchanged and the document byte-identical', async (
   expect(xml).toBe(before);
 });
 
-test('directEditing.activate / .complete / .cancel report the session', async () => {
+test('DirectEditingActivate / .complete / .cancel report the session', async () => {
   const { canvas } = await load(FIXTURE_XML);
   const bus = canvas.getEventBus();
   const log: string[] = [];
-  bus.on<DirectEditingEvent>('directEditing.activate', (e) => log.push(`activate:${e.initial}`));
-  bus.on<DirectEditingEvent>('directEditing.complete', (e) => log.push(`complete:${e.value}`));
-  bus.on<DirectEditingEvent>('directEditing.cancel', (e) => log.push(`cancel:${e.initial}`));
+  bus.on<DirectEditingEvent>('DirectEditingActivate', (e) => log.push(`activate:${e.initial}`));
+  bus.on<DirectEditingEvent>('DirectEditingComplete', (e) => log.push(`complete:${e.value}`));
+  bus.on<DirectEditingEvent>('DirectEditingCancel', (e) => log.push(`cancel:${e.initial}`));
 
   dblclick(canvas, center(node(canvas, 'Task_1')));
   type(canvas, 'One');
@@ -456,7 +456,7 @@ test('choreography: editing a band writes the PARTICIPANT name, not the task nam
   const chore = node(canvas, 'Consent');
   const band = choreographyBandHeight(chore.height);
   const changed: ElementChangedEvent[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e));
 
   dblclick(canvas, { x: chore.x + chore.width / 2, y: chore.y + band / 2 });
   type(canvas, 'Volunteer');
@@ -475,7 +475,7 @@ test('choreography: editing a band writes the PARTICIPANT name, not the task nam
   expect(boOf(reloaded, 'Consent').name).toBe('Give consent');
 
   // The participant is shared: every task that draws a band for it goes stale at
-  // once, so all three are re-drawn and all three report `element.changed`.
+  // once, so all three are re-drawn and all three report `ElementChanged`.
   for (const id of ['Consent', 'Round', 'Round2']) {
     expect(renderedText(canvas, id)).toContain('Volunteer');
     expect(renderedText(canvas, id)).not.toContain('Subject');

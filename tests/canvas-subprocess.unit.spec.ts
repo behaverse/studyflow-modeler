@@ -522,9 +522,9 @@ test('a collapse fires one revision bump for the container and the edges it re-d
   const { canvas } = await loadExample();
   const changed: string[] = [];
   const batches: string[][] = [];
-  canvas.getEventBus().on<{ element: SceneElement }>('element.changed', (e) => changed.push(e.element.id));
+  canvas.getEventBus().on<{ element: SceneElement }>('ElementChanged', (e) => changed.push(e.element.id));
   canvas.getEventBus().on<{ elements: SceneElement[] }>(
-    'elements.changed',
+    'ElementsChanged',
     (e) => batches.push(e.elements.map((el) => el.id)),
   );
   const scene = canvas.getScene()!;

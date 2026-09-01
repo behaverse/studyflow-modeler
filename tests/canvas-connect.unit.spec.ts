@@ -153,7 +153,7 @@ test('connecting two tasks mints the SequenceFlow BO + BPMNEdge, and toXML emits
   const one = node(canvas, 'Task_1');
   const two = node(canvas, 'Task_2');
   const batches: string[][] = [];
-  canvas.getEventBus().on<ElementsChangedEvent>('elements.changed', (e) => {
+  canvas.getEventBus().on<ElementsChangedEvent>('ElementsChanged', (e) => {
     batches.push(e.elements.map((el) => el.id));
   });
   const revision = scene.revision;

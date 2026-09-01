@@ -11,13 +11,13 @@
  * using the same moddle instance/factory reached through the DI object's `$model`.
  *
  * Every committing call bumps {@link Scene.revision} (the facade's mutation counter,
- * design §4) and fires `element.changed` / `elements.changed` on the bus.
+ * design §4) and fires `ElementChanged` / `ElementsChanged` on the bus.
  */
 
 import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
-import type { EventBus } from '@canvas/events/bus.ts';
+import type { EventBus } from '@core/events/bus.ts';
 import {
   applyBandName,
   applyInitiator,
@@ -84,12 +84,12 @@ import { containerFor } from '@canvas/rules/rules.ts';
 import { planeOf } from '@canvas/view/plane.ts';
 import { sceneBounds } from '@canvas/view/viewport.ts';
 
-/** Payload for the `element.changed` event (one element edited). */
+/** Payload for the `ElementChanged` event (one element edited). */
 export interface ElementChangedEvent {
   element: SceneElement;
 }
 
-/** Payload for the `elements.changed` event (a batch edited together). */
+/** Payload for the `ElementsChanged` event (a batch edited together). */
 export interface ElementsChangedEvent {
   elements: SceneElement[];
 }
@@ -707,7 +707,7 @@ export interface ReconnectEnds {
 
 /**
  * Applies scene geometry edits through to the DI moddle objects, bumping the scene
- * revision and firing `element.changed` / `elements.changed`. Constructed with the
+ * revision and firing `ElementChanged` / `ElementsChanged`. Constructed with the
  * live {@link Scene} and {@link EventBus} the canvas owns.
  *
  * From P4 it is also the single place that *creates* business-object + DI pairs
@@ -1014,7 +1014,7 @@ export class Writeback {
    * {@link Writeback.setBandName} does with a choreography participant: one
    * `bpmn:Participant` is referenced by every choreography task it takes part in,
    * which is why `elements` is a list — one write, one revision bump,
-   * `element.changed` for each depiction.
+   * `ElementChanged` for each depiction.
    *
    * A no-op edit (same text, or clearing an already-absent name) neither bumps the
    * revision nor fires — so an inline editor closed unchanged leaves no trace.
@@ -1034,7 +1034,7 @@ export class Writeback {
   /**
    * Record that `element` changed without writing any property here — for edits that
    * mutated the moddle tree through another path (e.g. minting a choreography
-   * participant pair). Bumps the revision and fires `element.changed`.
+   * participant pair). Bumps the revision and fires `ElementChanged`.
    */
   touch(element: SceneElement): void {
     this.finish([element]);
@@ -1052,7 +1052,7 @@ export class Writeback {
    *
    * One participant is shared by every choreography task it takes part in, so a
    * rename invalidates a band on each of them: the whole set is returned (and gets
-   * one `element.changed` each) for the caller to re-draw. Band *geometry* is
+   * one `ElementChanged` each) for the caller to re-draw. Band *geometry* is
    * derived from the task's single `dc:Bounds` (`render/shapes.ts`
    * `choreographyBandHeight`) and is deliberately untouched — a rename cannot move a
    * band.
@@ -1180,8 +1180,8 @@ export class Writeback {
    * Delete `elements` and everything that cannot survive them — a container's
    * descendants and nested-plane contents, attached boundary events, and every
    * incident edge — from the live moddle tree, its DI, and the scene
-   * (`model/remove.ts`). Bumps the revision once and fires `elements.removed`,
-   * `element.changed` per touched survivor, and `elements.changed`.
+   * (`model/remove.ts`). Bumps the revision once and fires `ElementsRemoved`,
+   * `ElementChanged` per touched survivor, and `ElementsChanged`.
    *
    * The scene half only: the caller owns the SVG (see `Canvas.deleteElements`).
    */
@@ -1263,7 +1263,7 @@ export class Writeback {
   /**
    * Create a shape: mint the business object into the drop target's container AND
    * the `bpmndi:BPMNShape` + `dc:Bounds` into the plane, then index the resulting
-   * {@link SceneNode} in the scene, bump the revision and fire `element.changed`.
+   * {@link SceneNode} in the scene, bump the revision and fire `ElementChanged`.
    *
    * Both halves are written into the live moddle tree through the factory that
    * minted the plane (`$model`), so `bpmn-moddle`'s `toXML` emits the new element
@@ -1755,10 +1755,10 @@ export class Writeback {
     // and a batch may list a container twice through two of its children.
     const touched = elements.length > 1 ? [...new Set(elements)] : elements;
     for (const element of touched) {
-      this.bus.fire<ElementChangedEvent>('element.changed', { element });
+      this.bus.fire<ElementChangedEvent>('ElementChanged', { element });
     }
     if (touched.length > 1) {
-      this.bus.fire<ElementsChangedEvent>('elements.changed', { elements: touched.slice() });
+      this.bus.fire<ElementsChangedEvent>('ElementsChanged', { elements: touched.slice() });
     }
   }
 }

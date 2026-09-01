@@ -6,7 +6,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
 import { ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
 import { buildElementEntries } from '@modeler/popup/entries';
-import { mustDragToAppend } from '@modeler/popup/commands';
+import { mustDragToAppend, type AppendMenuAnchor } from '@modeler/popup/commands';
 import { PopupMenu, type PopupMenuModel, type PopupMenuItem } from '@modeler/popup/PopupMenu';
 import { t } from '@modeler/i18n';
 import type { EditorElement } from '@modeler/editor/port';
@@ -15,9 +15,6 @@ export const CREATE_MENU = 'bpmn-create';
 export const APPEND_MENU = 'bpmn-append';
 export const REPLACE_MENU = 'bpmn-replace';
 export const COLOR_MENU = 'color-picker';
-
-/** The canvas's `a` shortcut names the selection and leaves the menu to the app. */
-const KEYBOARD_APPEND_EVENT = 'keyboard.append';
 
 type OpenMenu = {
   providerId: string;
@@ -58,37 +55,27 @@ export function PopupMenus() {
     const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
       .map((id) => registerPopupMenu(id, opener(id)));
 
-    // The canvas fires this topic for the `a` key.
-    const onKeyboardAppend = (event: { elements?: EditorElement[] }): void => {
-      const element = event?.elements?.[0];
-      if (!element) return;
-      const box = modeler.canvas.getAbsoluteBBox(element);
-      setOpen({
-        providerId: APPEND_MENU,
-        position: {
-          x: box.x + box.width + 12,
-          y: box.y,
-          cursor: { x: box.x + box.width + 12, y: box.y + box.height / 2 },
-        },
-        options: { title: t('Append element') },
-        elements: [element],
-      });
+    // The canvas's `a` key requests `OpenAppendMenu`; the menu opens where it resolved.
+    const onCommandDone = (done: { command: { type: string }; result?: AppendMenuAnchor }): void => {
+      if (done.command.type !== 'OpenAppendMenu' || !done.result) return;
+      const { element, position } = done.result;
+      setOpen({ providerId: APPEND_MENU, position, options: { title: t('Append element') }, elements: [element] });
     };
-    modeler.events.on(KEYBOARD_APPEND_EVENT, onKeyboardAppend);
+    modeler.events.on('CommandDone', onCommandDone);
 
     return () => {
       detach.forEach((off) => off());
-      modeler.events.off(KEYBOARD_APPEND_EVENT, onKeyboardAppend);
+      modeler.events.off('CommandDone', onCommandDone);
     };
   }, [modeler]);
 
   // Any document replacement invalidates the snapshotted selection.
   useEffect(() => {
-    modeler.events.on('root.set', close);
-    modeler.events.on('import.done', close);
+    modeler.events.on('RootSet', close);
+    modeler.events.on('ImportDone', close);
     return () => {
-      modeler.events.off('root.set', close);
-      modeler.events.off('import.done', close);
+      modeler.events.off('RootSet', close);
+      modeler.events.off('ImportDone', close);
     };
   }, [modeler, close]);
 

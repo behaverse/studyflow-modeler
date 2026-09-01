@@ -1,14 +1,14 @@
 /**
  * The document history the editor hangs its undo/redo off.
  *
- * `Editor.revision()` and the `commandStack.changed` topic are the app's
+ * `Editor.revision()` and the `CommandStackChanged` topic are the app's
  * "the document moved" signals: autosave (`settings/attachAutosave.ts`), the
  * provenance trail (`provenance/trail.ts`) and the undo/redo buttons
  * (`provenance/Provenance.tsx`) all read them.
  *
  * The canvas has no command stack, so the app supplies one: each mutation is
  * bracketed by {@link DocumentHistory.record}, which bumps the revision, fires
- * `commandStack.changed` and queues an XML snapshot of the moddle document;
+ * `CommandStackChanged` and queues an XML snapshot of the moddle document;
  * undo/redo restore a snapshot by re-importing it into the live editor.
  *
  * {@link DocumentHistory} stays an interface rather than collapsing into the one
@@ -39,7 +39,7 @@ export interface SnapshotHistoryOptions {
    * `Editor.importXML` — that resets the history it is restoring.
    */
   restore(xml: string): Promise<void>;
-  /** Fire `commandStack.changed` (and anything else the app hangs off a mutation). */
+  /** Fire `CommandStackChanged` (and anything else the app hangs off a mutation). */
   onChanged?(): void;
   /** How many states to keep, newest first. Default 50. */
   limit?: number;
@@ -83,7 +83,7 @@ export function createSnapshotHistory(options: SnapshotHistoryOptions): Document
         while (entries.length > limit) entries.shift();
         index = entries.length - 1;
         // No `onChanged` here. The snapshot lands asynchronously, long after the
-        // mutation that caused it, and `commandStack.changed` means "the document
+        // mutation that caused it, and `CommandStackChanged` means "the document
         // moved" to everything listening — a second, out-of-band fire re-dirties a
         // document that was just marked saved, which is how opening a file used to
         // trigger an auto-save write of a diagram nobody had edited yet

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { EventBus } from '@canvas/events/bus.ts';
+import { EventBus } from '@core/events/bus.ts';
 import { runSetColor } from '@modeler/shape/commands';
 import type { Editor } from '@modeler/editor/port';
 
@@ -57,26 +57,28 @@ test('every command the app boots with tolerates a null modeler', () => {
   expect(notNullable, 'dispatched with null at boot, but the handler does not accept null').toEqual([]);
 });
 
-test('a request topic answers on the same bus the notifications use', async () => {
-  // `'command'` is what makes the two mechanisms one: a leaf package (the canvas cannot
-  // import `@modeler/*`) requests through the bus it already holds, and `fire` hands the
-  // run's promise back. Notification topics still answer `undefined`.
+test('a command is a topic with one answering listener on the same bus the notifications use', async () => {
+  // `send` is what makes the two mechanisms one: a leaf package (the canvas cannot import
+  // `@modeler/*`) sends on the bus it already holds, and the fact lands on `CommandDone`.
   const bus = new EventBus();
   const seen: unknown[] = [];
 
-  bus.on('element.changed', () => { seen.push('a'); });
-  bus.on('element.changed', () => { seen.push('b'); });
-  expect(bus.fire('element.changed', { element: {} }), 'a notification has no answer').toBeUndefined();
+  bus.on('ElementChanged', () => { seen.push('a'); });
+  bus.on('ElementChanged', () => { seen.push('b'); });
+  expect(bus.fire('ElementChanged', { element: {} }), 'a notification has no answer').toBeUndefined();
   expect(seen, 'every listener still runs, in subscription order').toEqual(['a', 'b']);
 
-  bus.on('command', async (command: any) => `ran ${command.type}`);
-  expect(await bus.fire<Promise<string>>('command', { type: 'Undo' })).toBe('ran Undo');
-  expect(bus.fire('command.done'), 'nobody subscribed').toBeUndefined();
+  bus.on('Undo', async (command: any) => `ran ${command.type}`);
+  bus.on('CommandDone', (done) => seen.push(done));
+  expect(await bus.send<string>({ type: 'Undo' })).toBe('ran Undo');
+  // The fact is a message like any other: same `{ type, ... }` shape a command is sent in.
+  expect(seen[2]).toEqual({ type: 'CommandDone', command: { type: 'Undo' }, result: 'ran Undo' });
+  await expect(bus.send({ type: 'Nope' }), 'no handler').rejects.toThrow(/exactly one handler/);
 });
 
 test('the command bus is joined to the event bus at boot', () => {
-  // Without this the `'command'` topic is dead and the two buses are two mechanisms again.
+  // Without this every command topic is dead and the two buses are two mechanisms again.
   expect(read('app/Modeler.tsx')).toMatch(/connectCommandBus\(editor\)/);
-  expect(read('commandBus.ts'), 'a finished command lands on the stream')
-    .toMatch(/modeler\?\.events\.fire\('command\.done'/);
+  expect(read('commandBus.ts'), 'commands travel over the editor bus')
+    .toMatch(/modeler\.events\.send/);
 });

@@ -22,7 +22,7 @@
  * canvas.
  */
 
-import type { EventBus } from '@canvas/events/bus.ts';
+import type { EventBus } from '@core/events/bus.ts';
 import {
   activityOf,
   isDataAssociationType,
@@ -158,7 +158,7 @@ export interface DeleteResult {
   changed: SceneElement[];
 }
 
-/** Payload for the `elements.removed` event. */
+/** Payload for the `ElementsRemoved` event. */
 export interface ElementsRemovedEvent {
   elements: SceneElement[];
 }
@@ -178,8 +178,8 @@ export interface ElementsRemovedEvent {
  * `bpmn:LaneSet` leaves its owner, the nested `bpmndi:BPMNDiagram` a container
  * owned leaves `definitions.diagrams`, and its `bpmndi:BPMNShape` leaves the plane.
  *
- * Bumps the revision once for the whole batch and fires `elements.removed`,
- * `element.changed` per touched survivor, and `elements.changed`.
+ * Bumps the revision once for the whole batch and fires `ElementsRemoved`,
+ * `ElementChanged` per touched survivor, and `ElementsChanged`.
  */
 export function deleteElements(
   scene: Scene,
@@ -247,9 +247,9 @@ export function deleteElements(
   const changedList = [...changed];
 
   scene.revision += 1;
-  bus.fire<ElementsRemovedEvent>('elements.removed', { elements: removed.slice() });
-  for (const element of changedList) bus.fire('element.changed', { element });
-  bus.fire('elements.changed', { elements: [...removed, ...changedList] });
+  bus.fire<ElementsRemovedEvent>('ElementsRemoved', { elements: removed.slice() });
+  for (const element of changedList) bus.fire('ElementChanged', { element });
+  bus.fire('ElementsChanged', { elements: [...removed, ...changedList] });
 
   return { removed, changed: changedList };
 }

@@ -8,7 +8,7 @@
  * delta (never an accumulated per-move delta, so snapping and clamping stay exact),
  * and {@link Drag.end} commits through {@link Writeback} — which is the moment the
  * backing DI moddle objects (`dc:Bounds`, `di:waypoint`) are written, the scene
- * revision bumps, and `element.changed` fires. {@link Drag.cancel} restores the
+ * revision bumps, and `ElementChanged` fires. {@link Drag.cancel} restores the
  * snapshot without ever touching the DI.
  *
  * While a gesture is live only the SCENE is mutated (and the affected graphics
@@ -519,7 +519,7 @@ export class Drag {
   /**
    * Finish the gesture at diagram `point`: apply it one last time, then commit the
    * scene geometry through to the DI moddle objects (bumping the scene revision and
-   * firing `element.changed` / `elements.changed`). Returns what was committed.
+   * firing `ElementChanged` / `ElementsChanged`). Returns what was committed.
    *
    * Only what actually MOVED is committed. A move gesture carries every descendant
    * of the dragged shape plus every incident edge — dragging a 30-lane pool one grid

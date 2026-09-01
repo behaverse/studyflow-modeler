@@ -177,11 +177,11 @@ test('a coloured element is re-drawn in its new colours', async () => {
   expect(readColors(task)).toEqual({ fill: '#dbe8f5', stroke: '#4a6f9c' });
 });
 
-test('setColor over a batch is one revision bump and one element.changed each', async () => {
+test('setColor over a batch is one revision bump and one ElementChanged each', async () => {
   const loaded = await load(PLAIN_XML);
   const { canvas } = loaded;
   const changed: ElementChangedEvent[] = [];
-  canvas.getEventBus().on<ElementChangedEvent>('element.changed', (e) => changed.push(e));
+  canvas.getEventBus().on<ElementChangedEvent>('ElementChanged', (e) => changed.push(e));
 
   const elements: SceneElement[] = [node(canvas, 'Task_1'), node(canvas, 'Start_1')];
   expect(canvas.setColor(elements, { stroke: '#3f7a4a' }).map((e) => e.id))

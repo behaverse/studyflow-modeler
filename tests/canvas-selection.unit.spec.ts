@@ -114,18 +114,18 @@ test('hit-testing: a point on an edge polyline returns that edge', async () => {
   expect(asserted, 'at least one edge is hittable near its polyline').toBe(true);
 });
 
-test('selection: click selects a single node and fires selection.changed', async () => {
+test('selection: click selects a single node and fires SelectionChanged', async () => {
   const canvas = await loadCanvas();
   const leaves = leafNodes(canvas);
   const node = leaves[0];
 
   const events: SelectionChangedEvent[] = [];
-  canvas.getEventBus().on<SelectionChangedEvent>('selection.changed', (e) => events.push(e));
+  canvas.getEventBus().on<SelectionChangedEvent>('SelectionChanged', (e) => events.push(e));
 
   click(canvas, node);
 
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual([node.id]);
-  expect(events.length, 'selection.changed fired').toBeGreaterThanOrEqual(1);
+  expect(events.length, 'SelectionChanged fired').toBeGreaterThanOrEqual(1);
   const last = events[events.length - 1];
   expect(last.newSelection.map((e) => e.id)).toEqual([node.id]);
   expect(last.oldSelection).toEqual([]);
@@ -164,7 +164,7 @@ test('selection: a plain click on a member of a multi-selection collapses to it'
   expect(svg.classList.contains('sf-multi-select')).toBe(true);
 
   const events: SelectionChangedEvent[] = [];
-  canvas.getEventBus().on<SelectionChangedEvent>('selection.changed', (e) => events.push(e));
+  canvas.getEventBus().on<SelectionChangedEvent>('SelectionChanged', (e) => events.push(e));
 
   // diagram-js's SelectionBehavior on `element.click`: isSelected && multi && !add
   // collapses the set to the one element that was clicked.
@@ -179,7 +179,7 @@ test('selection: a plain click on a member of a multi-selection collapses to it'
   // A second plain click on the now-single selection changes nothing and is silent.
   click(canvas, a);
   expect(canvas.getSelection().get().map((e) => e.id)).toEqual([a.id]);
-  expect(events, 'no redundant selection.changed').toHaveLength(1);
+  expect(events, 'no redundant SelectionChanged').toHaveLength(1);
 });
 
 test('selection: a PRESS on a multi-selection keeps the group, so a group drag moves all', async () => {
