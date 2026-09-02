@@ -5,31 +5,67 @@ description: "TODO"
 
 ## The notation
 
-- **Studyflow.** The notation itself, a standard for describing and coordinating experiments.
-- **study.** What a studyflow describes. In the file, the root process carrying the `studyflow:Study` extension. A studyflow file is a single source of truth for one study.
-- **element.** Anything in the diagram, including events, activities, gateways, data, or edges.
-- **attribute.** A named value on an element. For example, `name` is an attribute on every element, and `implementation` is and attribute on every activity.
-- **activity.** A node that does work when the execution reaches it. A *task* is the plainest kind of activity. Distinct from `prov:Activity`, which is an entry of the provenance record.
-- **sequence flow.** A solid edge for control flow, showing what happens after what.
-- **data association.** A dotted edge for data flow, showing what an element reads and what it writes. What a data edge may state is called binding, written `slot = selection`. The slot names which argument of the element call the value fills, and the selection names which value arrives.
-- **event.** A node that marks something happening: entry, exit, a moment arriving, a condition becoming true.
-- **gateway.** A node where a decision is made about which path to take next. Each kind decides differently: by conditions on the edges, by a random sample (`RandomGateway`), or by criteria (`EligibilityGateway`).
-- **pool.** An `Actor`, standing for a group of humans, models, software agents, or instruments. A pool is a group, not one person. Two pools that deal with each other make the file a collaboration. One member of a pool is called participant, going through the session. A person, or a computational agent when `agentType` is `bot`.
-- **checklist.** Reporting items carried on any element. The Checklist view shows what is reported and what is still open.
-- **view.** A *projection*. It keeps some elements of the diagram and drops the rest, and never adds or renames, so it cannot modify the study. Five ship: Study, Timeline (the Gantt view), Checklist, Provenance, and Figure.
+Studyflow
+: The notation itself, a standard for describing and coordinating experiments.*Modeler* is the authoring app, where you design, validate, import, and export studyflow files. *Runner* is the execution app, where you run studyflows and record what happens. There can be multiple runners and the study's `runtime` or pre-defined attributes in the schemas pick between them. 
 
-## Tools
+study
+: What a studyflow describes. In the file, the root process carrying the `studyflow:Study` extension. A studyflow file is a single source of truth for one study (or experiment). The study is the *prospective* side of the file, and the *retrospective* side is the record of what actually happened when it ran and it is describe by provenance history.
 
-- **modeler.** The authoring app, where you design, validate, import, and export.
-- **runner.** A program that executes a studyflow. There can be multiple runners and the study's `runtime` attribute picks between them.
-- **run.** One walk through the diagram, from a start event to an end event.
-- **state.** The values declared (as `bpmn:Property`) on the study or a sub-process, at one moment of a run. Where a value is declared decides how long it lives (i.e., *scope*). The *state history* is the sequence of states across a run.
-- **partial runner.** Any runner that claims only a subset of a diagram's elements and executes them one hand-off at a time.
-- **instrument.** What delivers a task to the participant: an experiment package, a standard scale, or an identifier of your own.
-- **implementation.** The software a step runs, written `<scheme>://<ref>[@<version>]`.
-- **seed.** The root random seed on the study. Set it and every gateway draw replays exactly.
-- **session.** What one participant goes through in one sitting. In the `eeg` set, a `Session` is one acquisition session, carrying the device settings every phase inside it shares.
-- **plan.** The file before it runs. The prospective side, in W3C PROV terms.
-- **record.** What actually happened, accumulated in the same file as the study runs. The retrospective side. A deviation is a diff of the file against an earlier version of itself.
-- **provenance history.** The flat list of `prov:Activity` entries on the study: what ran, when, by whom, with which seed. A standing record lets a re-run *reuse* it and skip its step. *Invalidating* it voids it, and the voiding cascades downstream.
-- **run repository.** The git repository a local run leaves behind, one commit per checkpoint, with the records restated in the commits.
+element
+: Anything in the diagram. Elements are either nodes or edges. Nodes are activities, events, gateways, and containers. Edges are sequence flows and data associations.
+
+activity
+: A node that performs some work when the execution reaches it. A *task* is the most basic kind of activity. Distinct from `prov:Activity`, which is an entry of the provenance.
+
+attribute
+: A named value on an element. For example, `name` is an attribute on every element, and `implementation` is and attribute on every activity.
+
+sequence flow
+: A solid edge for control flow, showing what happens after what.
+
+
+data association
+: A dotted edge for data flow, showing what an element reads and what it writes. What a data edge may state is called binding, written `slot = selection`. The slot names which argument of the target element the value fills, and the selection names which value arrives from the source.
+
+event
+: A node that marks something happening: start, end, a moment, a condition becoming true.
+
+gateway
+: A node where a decision is made about which path to take next. Each kind decides differently: by conditions on the edges, by a random sample (`RandomGateway`), or by criteria (`EligibilityGateway`). Gateway in studyflow is different from BPMN, which is only a visual metaphor for a decision. In studyflow, a gateway is a *decision making* of the next step, and it can be a random generator or a deterministic generator.
+
+pool
+: Represents a type of actors (a group of humans, software agents, robots, models, or instruments). A pool is a group, not one actor. Two pools that deal with each other make the diagram a collaboration. One member of a pool is called participant, going through the session whether it's a person or a computational agent.
+
+checklist
+: Todo items carried on any element. The Checklist view shows what is done (e.g., reported) and what is still to be done (e.g., missing data). The checklist is a *projection* of the diagram. The main use case is to keep track of what is done and what is still to be done, and to make sure that the study is complete and reproducible.
+
+projection (or view)
+: A different representation of the diagram. Projections are not a new diagram, but a different way to look at the same diagram. They are codes that visualize some aspects of the studyflow diagram by keeping some elements/attributes of the diagram. A projection never adds or renames, so it cannot modify the study. Currently, five projections are supported: Study, Gantt, Checklist, Provenance, and Figure.
+
+## Running a study
+
+run
+: One walk through the diagram, from a start event to an end event.
+
+state
+: The values declared (as `bpmn:Property`) on the diagram, at one moment of a run. Where a value is declared decides its scope. The *state history* is the sequence of states across a run.
+
+partial runner
+: Any runner that claims only a subset of a diagram's elements and executes them. A collection of partial runners can run a studyflow together, each one executing the elements it claims.
+
+implementation
+: The software an element requires to run, written as `<scheme>://<ref>[@<version>]`
+
+seed
+: The main random seed on the study. Set it and every random choice replays exactly.
+
+## Provenance
+
+provenance history
+: The list of execution entries on the study: what ran, when, by whom, with which seed. A stored record lets a re-run *reuse* it and skip its execution. *Invalidating* the record voids it, and the voiding cascades downstream in the provenance history. The provenance history is stored in the same file as the studyflow diagram.
+
+provenance record
+: What actually happened. The retrospective side of the diagram. A deviation in an execution is a diff of the file against an earlier version of itself.
+
+run repository
+: The git repository a run leaves behind, one commit per provenance record, with the records restated in the commits.
