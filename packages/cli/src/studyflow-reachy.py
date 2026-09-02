@@ -62,10 +62,10 @@ DEFAULTS: dict[str, dict[str, Any]] = {
     "gesture": {"move": "cheerful1", "dataset": "pollen-robotics/reachy-mini-emotions-library"},
     "goto": {"roll": "0", "pitch": "0", "yaw": "0", "x": "0", "y": "0", "z": "0",
              "leftAntenna": "0", "rightAntenna": "0", "bodyYaw": "0",
-             "durationSeconds": "2", "interpolation": "minjerk"},
+             "motionDuration": "2", "interpolation": "minjerk"},
     "playSound": {"file": ""},
     "lookAt": {"target": "face", "trackingWeight": "1"},
-    "listen": {"timeoutSeconds": "10"},
+    "listen": {"timeout": "10"},
     "converse": {"model": "", "persona": "", "maxTurns": "10", "stopPhrase": ""},
     "teleoperation": {"instructions": ""},
     "senseEvent": {"trigger": "wake_word", "wakeWord": "Hey Reachy"},
@@ -335,7 +335,7 @@ class SimRobot:
     def goto(self, spec: dict[str, Any]) -> None:
         # The daemon's goto speaks radians and meters, exactly as the schema does.
         try:
-            duration = float(spec["durationSeconds"])
+            duration = float(spec["motionDuration"])
             self._post("/api/move/goto", {
                 "head_pose": {k: float(spec[k]) for k in ("x", "y", "z", "roll", "pitch", "yaw")},
                 "antennas": [float(spec["leftAntenna"]), float(spec["rightAntenna"])],
@@ -450,7 +450,7 @@ def run_gesture(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
 
 def run_goto(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
     print(f"    Reachy moves to pose (roll {spec['roll']}, pitch {spec['pitch']}, yaw {spec['yaw']}, "
-          f"body {spec['bodyYaw']}) over {spec['durationSeconds']}s ({spec['interpolation']})")
+          f"body {spec['bodyYaw']}) over {spec['motionDuration']}s ({spec['interpolation']})")
     run.robot.goto(spec)
     return None
 
@@ -470,7 +470,7 @@ def run_look_at(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
 def run_listen(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
     run.robot.listening()
     canned = run.auto_lines.pop(0) if run.auto and run.auto_lines else "Thanks, that was fun!"
-    return run.ask(f"participant says (within {spec['timeoutSeconds']}s)", canned)
+    return run.ask(f"participant says (within {spec['timeout']}s)", canned)
 
 
 def run_converse(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:

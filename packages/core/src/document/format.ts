@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 
-import type { ModdleElement } from '@core/element/moddle';
+import { getProperty, type ModdleElement } from '@core/element/moddle';
 
 export type YamlDoc = Record<string, unknown>;
 
@@ -27,6 +27,17 @@ export function primaryRoots(definitions: ModdleElement | null | undefined): Mod
   }
   for (const root of roots) if (typeof root?.id === 'string') add(root);
   return ordered;
+}
+
+/**
+ * Where the study is meant to run. The inspector stores `runtime` on the `studyflow:Study` extension of the
+ * process; a bare attribute on the process itself is how older files spelled it. Unset, the schema says `cloud`.
+ */
+export function declaredRuntime(definitions: ModdleElement | null | undefined): string {
+  const root: any = primaryRoots(definitions)[0];
+  const study = root?.extensionElements?.values?.find((ext: any) => ext?.$type === 'studyflow:Study');
+  const value = getProperty(study, 'runtime') ?? root?.runtime ?? root?.$attrs?.runtime ?? root?.$attrs?.['studyflow:runtime'];
+  return typeof value === 'string' && value ? value : 'cloud';
 }
 
 export function inferPlaneRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {

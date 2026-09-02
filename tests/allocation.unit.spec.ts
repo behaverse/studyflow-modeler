@@ -37,9 +37,9 @@ function randomGateway(attributes: Record<string, string>, name?: string): FlowN
 
 test.describe('RandomGateway allocation', () => {
   test('the schema defaults are what the runner draws, so they raise nothing', () => {
-    // `probabilistic` + `uniform` IS an equal-chance draw over the outgoing flows.
+    // `simple` + `1:1` IS an equal-chance draw over the outgoing flows.
     const issues = validateAllocation(
-      randomGateway({ algorithm: 'probabilistic', probabilityFunction: 'uniform' }),
+      randomGateway({ algorithm: 'simple', allocationRatio: '1:1' }),
     );
     expect(issues).toEqual([]);
   });
@@ -48,21 +48,21 @@ test.describe('RandomGateway allocation', () => {
     expect(validateAllocation(randomGateway({}))).toEqual([]);
   });
 
-  test('round-robin assignment is reported, because it needs the rest of the cohort', () => {
-    const issues = validateAllocation(randomGateway({ algorithm: 'round-robin' }));
+  test('block assignment is reported, because it needs the rest of the cohort', () => {
+    const issues = validateAllocation(randomGateway({ algorithm: 'block' }));
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('warning');
     expect(issues[0].nodeId).toBe('Gateway_1');
-    expect(issues[0].message).toContain('round-robin assignment');
+    expect(issues[0].message).toContain('block assignment');
     expect(issues[0].message).toContain('equal probability');
   });
 
-  test('a non-uniform distribution is reported', () => {
-    const issues = validateAllocation(randomGateway({ probabilityFunction: 'poisson' }));
+  test('an unequal allocation ratio is reported', () => {
+    const issues = validateAllocation(randomGateway({ allocationRatio: '2:1' }));
 
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('a poisson distribution');
+    expect(issues[0].message).toContain('a 2:1 allocation ratio');
   });
 
   test('stratification is reported, and names the variable it would balance on', () => {
@@ -74,14 +74,14 @@ test.describe('RandomGateway allocation', () => {
 
   test('everything unhonored is reported once, in one message', () => {
     const issues = validateAllocation(randomGateway({
-      algorithm: 'round-robin',
-      probabilityFunction: 'normal',
+      algorithm: 'minimization',
+      allocationRatio: '2:1',
       stratifyBy: 'site',
     }));
 
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('round-robin assignment');
-    expect(issues[0].message).toContain('a normal distribution');
+    expect(issues[0].message).toContain('minimization assignment');
+    expect(issues[0].message).toContain('a 2:1 allocation ratio');
     expect(issues[0].message).toContain("stratification by 'site'");
   });
 

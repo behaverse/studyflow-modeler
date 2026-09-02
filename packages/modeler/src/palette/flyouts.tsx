@@ -81,7 +81,7 @@ export function Popup({ group, extraItems, isOpen, handlers }: PopupProps) {
       <div className={paletteFlyout.grid}>
         {[...group.items, ...extraItems].map((item) => (
           <PaletteTile
-            key={item.extensionType ?? item.bpmnType}
+            key={item.label}
             draggable={item}
             icon={item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? group.icon}
             title={`Create ${item.label}`}

@@ -2,8 +2,13 @@ import { readString, type FlowNode } from '@runner/flow';
 import type { ValidationIssue } from '@runner/nodes/types';
 
 /* The only allocation a stateless browser session can honour; everything else is warned about, not performed (docs/guides/randomization.qmd). */
-const HONORED_ALGORITHM = 'probabilistic';
-const HONORED_DISTRIBUTION = 'uniform';
+const HONORED_ALGORITHM = 'simple';
+
+/** `1:1`, `1:1:1`, ... : every arm the same size, which an equal-chance draw delivers in expectation. */
+function isEqualRatio(ratio: string): boolean {
+  const parts = ratio.split(':').map((part) => part.trim());
+  return parts.every((part) => part !== '' && part === parts[0]);
+}
 
 /** What this node asks for that the equal-chance draw will not deliver, phrased for the message. */
 function unhonored(node: FlowNode): string[] {
@@ -12,8 +17,8 @@ function unhonored(node: FlowNode): string[] {
   const algorithm = readString(node, 'algorithm');
   if (algorithm && algorithm !== HONORED_ALGORITHM) asked.push(`${algorithm} assignment`);
 
-  const distribution = readString(node, 'probabilityFunction');
-  if (distribution && distribution !== HONORED_DISTRIBUTION) asked.push(`a ${distribution} distribution`);
+  const ratio = readString(node, 'allocationRatio');
+  if (ratio && !isEqualRatio(ratio)) asked.push(`a ${ratio} allocation ratio`);
 
   const stratifyBy = readString(node, 'stratifyBy');
   if (stratifyBy) asked.push(`stratification by '${stratifyBy}'`);

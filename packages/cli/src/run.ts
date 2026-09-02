@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { primaryRoots } from '@core/document';
+import { declaredRuntime } from '@core/document';
 import { onPath } from '@cli/plugin';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 
@@ -16,13 +16,6 @@ export type RunOptions = {
 };
 
 const RUNTIMES = ['browser', 'cloud', 'local', 'hpc'];
-
-/** The study's declared runtime; the schema's default is `cloud`. */
-function declaredRuntime(definitions: any): string {
-  const root = primaryRoots(definitions)[0];
-  const value = root?.runtime ?? root?.$attrs?.runtime ?? root?.$attrs?.['studyflow:runtime'];
-  return typeof value === 'string' && value ? value : 'cloud';
-}
 
 /** Every `studyflow-run-local.py` this build could be sitting next to, best first. */
 function runnerScriptCandidates(): string[] {

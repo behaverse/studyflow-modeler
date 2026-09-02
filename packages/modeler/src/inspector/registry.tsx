@@ -26,7 +26,10 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
   return (
     <>
       <Label className={s.label}>
-        {t(name)}
+        <span>
+          {t(name)}
+          {attrDef.meta?.unit && <span className={s.unit}>{attrDef.meta.unit}</span>}
+        </span>
         <HelpTooltip name={name} description={attrDef?.description} />
       </Label>
       {isMarkdown ? (

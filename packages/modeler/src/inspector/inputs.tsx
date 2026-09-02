@@ -206,7 +206,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
   };
 
   return (
-    <div className={s.field}>
+    <>
       <Label className={s.label}>
         {t(name)}
         <span className={s.labelActions}>
@@ -258,7 +258,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 

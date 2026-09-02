@@ -46,7 +46,7 @@ export function usePaletteDrag(
       type: 'PaletteStartCreate',
       bpmnType: draggable.bpmnType,
       event: nativeEvent,
-      attributes: {},
+      attributes: draggable.attributes ?? {},
       extensionType: draggable.extensionType,
     });
   };

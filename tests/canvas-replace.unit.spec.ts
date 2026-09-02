@@ -194,3 +194,15 @@ test('a container with contents is not replaceable, so nothing inside it can be 
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(false);
   expect(canvas.replaceElement(container, { type: 'bpmn:Task' })).toBeUndefined();
 });
+
+test('replacing an event with a variant of the same type mints the event definition', async () => {
+  const { canvas } = await load();
+  const task = node(canvas, 'Task_1');
+  const end = canvas.replaceElement(task, { type: 'bpmn:EndEvent' })!;
+  const attrs = { eventDefinitions: [{ type: 'bpmn:ErrorEventDefinition' }] };
+  const errorEnd = canvas.replaceElement(end, { type: 'bpmn:EndEvent', attrs })!;
+  expect(errorEnd).toBeDefined();
+  expect((errorEnd.businessObject as any).eventDefinitions[0].$type).toBe('bpmn:ErrorEventDefinition');
+  // The same variant again is "what it already is".
+  expect(canvas.replaceElement(errorEnd, { type: 'bpmn:EndEvent', attrs })).toBeUndefined();
+});

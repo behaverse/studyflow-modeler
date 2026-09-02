@@ -98,12 +98,12 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
 | `Questionnaire` | `bpmn:Task` | A self-report form: a standard instrument, or one of your own. | `instrument` |
-| `CognitiveTask` | `bpmn:Task` | A cognitive test, delivered by an experiment package. | `instrument`, `implementation`, `configurations` |
+| `CognitiveTask` | `bpmn:Task` | A cognitive test, delivered by an experiment package. | `instrument`, `construct`, `implementation`, `configurations` |
 | `BehaverseTask` | `bpmn:Task` | A test from the Behaverse battery. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations`, `agentType`, `botConfigurations` |
 | `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
-| `Rest` | `bpmn:Task` | A break, or a resting-state period. A narrower `CognitiveTask`. | `configurations` |
+| `Rest` | `bpmn:Task` | A break, or a resting-state period. | `restDuration`, `eyes` (`open`, `closed`, `alternating`) |
 
-`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations`. That is how the same file doubles as an AI evaluation.
+`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, PsyToolkit, Gorilla, Inquisit, E-Prime, Psychtoolbox, Presentation, Unity, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations`. That is how the same file doubles as an AI evaluation.
 
 ## Entry and exit
 
@@ -117,7 +117,7 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm` (`probabilistic`, `round-robin`), `probabilityFunction` (`uniform`, `normal`, `exponential`, `poisson`), `stratifyBy`, `strata` |
+| `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm` (`simple`, `block`, `minimization`, `alternation`), `allocationRatio` (`1:1`, `2:1`), `blockSize`, `stratifyBy`, `strata` |
 | `EligibilityGateway` | `bpmn:ExclusiveGateway` | Screening: criteria stated on the gateway, in readable sentences. | `inclusionCriteria`, `exclusionCriteria` |
 | A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `conditionExpression`, on each edge |
 
@@ -159,7 +159,7 @@ These attributes describe the study's schedule in visits and days, which is what
 | `DataCatalog` | not drawn | A listing a dataset is published in; a dataset names one. | `url` |
 | any of them | - | Where the value lives. Unset, it only passes between steps. | `uri` |
 
-`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), which adds `bdmDataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `kedro`.
+`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), which adds `bdmDataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `nwb` ([NWB](https://www.nwb.org/)).
 
 ## What a step runs
 
@@ -185,7 +185,7 @@ A data step is a plain service task: `implementation` names what runs, and the d
 | `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the calls that read it. | `template` |
 | `Memory` | `bpmn:DataStoreReference` | What an agent carries between turns. | `scope` |
 | `Session` | `bpmn:Participant` | One acquisition session, carrying the device settings every phase inside it shares. | `device`, `modalities` |
-| `Recording` | `bpmn:DataStoreReference` | The biosignal data a session produces. A narrower `Dataset`. | `modalities`, `channels`, `samplingRateHz` |
+| `Recording` | `bpmn:DataObjectReference` | The biosignal recording a session produces. A narrower `Timeseries`. | `modalities`, `eventChannel`, plus `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` from `Timeseries` |
 | `Activity` | not drawn | One entry of the record of what ran. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `note` |
 
 An agent stops at its `completionCondition` and never runs past `maxTurns`. A guardrail, or a model used as a judge, is an `LLMCall` with a strict prompt, and retrieval is a `Tool` whose `kind` is retrieval. An eval harness needs nothing beyond this table and the ordinary elements: gateways for the conditions, data elements for the results, and `HumanApproval` where a person has to sign off. It is the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is described on the [Developers](developers.qmd#what-a-run-leaves-behind) page.

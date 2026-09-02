@@ -57,11 +57,11 @@ test.describe('popup menu entries', () => {
     // Ids are unique — they are React keys and e2e handles.
     expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
 
-    // The palette half keeps its ids; the schema half is keyed by extension type.
-    expect(all.find((e) => e.id === 'create-bpmn:ServiceTask')?.label).toBe('Service');
+    // The palette half is keyed by label (variants share a BPMN type); the schema half by extension type.
+    expect(all.find((e) => e.id === 'create-Service')?.label).toBe('Service');
     expect(all.some((e) => e.id.startsWith('append-cognitive:'))).toBe(true);
     // Search matches the label AND the type, so "usertask" finds "User".
-    expect(all.find((e) => e.id === 'create-bpmn:UserTask')?.keywords).toContain('usertask');
+    expect(all.find((e) => e.id === 'create-User')?.keywords).toContain('usertask');
   });
 });
 

@@ -47,6 +47,7 @@ export const field = {
   helpTooltipWide: `fixed w-64 ${tooltip} text-xs p-2 z-[260]`,
   helpTooltipName: 'font-mono text-xs font-bold text-cream-50',
 
+  unit: 'ml-1 text-xs text-stone-500',
   textInput: 'px-2 py-1 w-full rounded-md border border-black/[0.20] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
   textArea: 'px-2 py-1 w-full rounded-md border border-black/[0.20] bg-cream-200 font-mono text-sm/4 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
 

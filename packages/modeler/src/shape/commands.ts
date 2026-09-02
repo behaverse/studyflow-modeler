@@ -31,6 +31,7 @@ export type ReplaceElementCommand = {
   element: EditorElement;
   bpmnType: string;
   extensionType?: string;
+  attributes?: Record<string, unknown>;
 };
 
 /** Retype the selected shape in place, keeping its name, position and flows. */
@@ -40,6 +41,7 @@ export function runReplaceElement(modeler: Editor, command: ReplaceElementComman
   return modeler.canvas.replaceElement(node, {
     type: command.bpmnType,
     ...(command.extensionType ? { extensionType: command.extensionType } : {}),
+    ...(command.attributes ? { attrs: command.attributes } : {}),
   });
 }
 

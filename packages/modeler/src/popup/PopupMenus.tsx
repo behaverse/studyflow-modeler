@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { getExtensionType } from '@core/element';
+import { eventDefinitionTypeOf } from '@canvas/model/moddle.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
@@ -126,6 +127,7 @@ export function PopupMenus() {
       // in-place swap cannot carry, so the menu keeps it to siblings.
       const currentBpmn = (source as { type?: string })?.type;
       const currentExtension = getExtensionType(source);
+      const currentDefinition = eventDefinitionTypeOf((source as { businessObject?: any }).businessObject);
       const families = ['bpmn:Activity', 'bpmn:ChoreographyActivity', 'bpmn:Event', 'bpmn:Gateway', 'bpmn:Artifact'];
       const familyOf = (type?: string): string | undefined => (
         type ? families.find((family) => isBpmnSubtypeOf(type, family)) : undefined
@@ -137,7 +139,8 @@ export function PopupMenus() {
           name: group.name,
           items: group.entries
             .filter((entry) => (
-              !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension)
+              !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension
+                && eventDefinitionTypeOf(entry.attributes as never) === currentDefinition)
               && familyOf(entry.bpmnType) === currentFamily
               && modeler.canvas.getRules().canReplace(source, entry.bpmnType)
             ))
@@ -153,6 +156,7 @@ export function PopupMenus() {
                   element: source,
                   bpmnType: entry.bpmnType,
                   extensionType: entry.extensionType,
+                  attributes: entry.attributes,
                 });
               },
             })),
@@ -183,6 +187,7 @@ export function PopupMenus() {
                 source,
                 bpmnType: entry.bpmnType,
                 extensionType: entry.extensionType,
+                attributes: entry.attributes,
                 event: native,
               });
             } else {
@@ -190,7 +195,7 @@ export function PopupMenus() {
                 type: 'PaletteStartCreate',
                 bpmnType: entry.bpmnType,
                 event: native,
-                attributes: {},
+                attributes: entry.attributes ?? {},
                 extensionType: entry.extensionType,
               });
             }
@@ -212,6 +217,7 @@ export function PopupMenus() {
                   source,
                   bpmnType: entry.bpmnType,
                   extensionType: entry.extensionType,
+                  attributes: entry.attributes,
                 });
                 return;
               }

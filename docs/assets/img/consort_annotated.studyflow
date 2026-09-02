@@ -55,7 +55,7 @@ Process_1:
       type: bpmn:ExclusiveGateway
       extensionElements:
         - type: cognitive:RandomGateway
-          algorithm: round-robin
+          algorithm: alternation
       name: Randomize
       incoming:
         - Flow_08opnol

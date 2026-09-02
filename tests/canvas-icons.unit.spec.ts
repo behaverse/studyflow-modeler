@@ -429,3 +429,46 @@ test('a schema attribute declaring meta.icon badges a non-event shape top-right 
     setCatalog(real);
   }
 });
+
+test('an event without a definition still asks the resolver for its own type glyph (schema event types)', async () => {
+  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
+    iconResolver: (key: string) => (key === 'StartEvent' || key === 'EndEvent'
+      ? { content: GLYPH, viewBox: '0 0 24 24' }
+      : undefined),
+  });
+  // `End_1` carries an error definition the resolver does not know, so the type glyph is the fallback.
+  expect(graphics(canvas, 'End_1').querySelectorAll('svg.sf-icon[data-icon-key="EndEvent"]')).toHaveLength(1);
+});
+
+test('an event whose centre holds a definition symbol moves its attribute badge to the top-right rim', async () => {
+  const xml = GATEWAY_EVENT_XML
+    .replace('xmlns:bpmn=', 'xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:bpmn=')
+    .replace('<bpmn:endEvent id="End_1">', '<bpmn:endEvent id="End_1" studyflow:redirectTo="https://example.org/done">');
+  const { canvas } = await loadCanvas(xml, {
+    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
+  });
+  const g = graphics(canvas, 'End_1');
+  const centre = g.querySelector('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')!;
+  const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify mdi--exit-to-app"]')!;
+  expect(centre.getAttribute('x')).toBe('9');
+  expect(badge).toBeTruthy();
+  expect(Number(badge.getAttribute('x'))).toBeGreaterThan(9);
+  expect(Number(badge.getAttribute('y'))).toBeLessThan(9);
+});
+
+test('a format-less data store draws no glyph: the schema type carries no meta.icon', async () => {
+  const xml = DATA_XML.replace('<studyflow:dataset format="bdm" />', '<studyflow:dataset />');
+  const catalog = getCatalog();
+  expect(catalog.getType('studyflow:Dataset')?.iconClass).toBeUndefined();
+  // Mirrors `editor/mount.ts resolveIcon`: the extension type's `iconClass` is the only source.
+  const { canvas } = await loadCanvas(xml, {
+    iconResolver: (key: string, bo?: any) => {
+      if (key.startsWith('iconify ')) return { content: GLYPH, viewBox: '0 0 24 24' };
+      const ext = bo?.extensionElements?.values?.[0]?.$type;
+      const cls = ext ? catalog.getType(ext)?.iconClass : undefined;
+      return cls ? { content: GLYPH, viewBox: '0 0 24 24' } : null;
+    },
+  });
+  expect(graphics(canvas, 'Store_bdm').querySelectorAll('svg.sf-icon, .sf-icon-placeholder, foreignObject')).toHaveLength(0);
+  expect(graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"]')).toBeTruthy();
+});

@@ -7,7 +7,11 @@ export type PaletteEntry = {
   bpmnType: string;
   extensionType?: string;
   icon?: string;
+  /** Business-object properties the variant needs (`eventDefinitions` for a timer start). */
+  attributes?: Record<string, unknown>;
 };
+
+const def = (type: string) => ({ eventDefinitions: [{ type: `bpmn:${type}EventDefinition` }] });
 
 export type PaletteGroup = {
   label: string;
@@ -21,8 +25,20 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
     icon: ICONS.circle,
     items: [
       { label: 'Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: ICONS.bpmnStartEvent },
+      { label: 'Timer Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-timer', attributes: def('Timer') },
+      { label: 'Message Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-message', attributes: def('Message') },
+      { label: 'Conditional Start', bpmnType: BPMN.StartEvent, extensionType: 'studyflow:StartEvent', icon: 'iconify bpmn--start-event-condition', attributes: def('Conditional') },
       { label: 'Intermediate', bpmnType: BPMN.IntermediateThrowEvent, icon: ICONS.bpmnIntermediateEvent },
+      { label: 'Timer Catch', bpmnType: BPMN.IntermediateCatchEvent, icon: 'iconify bpmn--intermediate-event-catch-timer', attributes: def('Timer') },
+      { label: 'Message Catch', bpmnType: BPMN.IntermediateCatchEvent, icon: 'iconify bpmn--intermediate-event-catch-message', attributes: def('Message') },
+      { label: 'Conditional Catch', bpmnType: BPMN.IntermediateCatchEvent, icon: 'iconify bpmn--intermediate-event-catch-condition', attributes: def('Conditional') },
+      { label: 'Message Throw', bpmnType: BPMN.IntermediateThrowEvent, icon: 'iconify bpmn--intermediate-event-throw-message', attributes: def('Message') },
+      { label: 'Error Boundary', bpmnType: BPMN.BoundaryEvent, icon: 'iconify bpmn--intermediate-event-catch-error', attributes: def('Error') },
+      { label: 'Timer Boundary', bpmnType: BPMN.BoundaryEvent, icon: 'iconify bpmn--intermediate-event-catch-timer', attributes: def('Timer') },
+      { label: 'Message Boundary', bpmnType: BPMN.BoundaryEvent, icon: 'iconify bpmn--intermediate-event-catch-message', attributes: def('Message') },
       { label: 'End', bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent', icon: ICONS.bpmnEndEvent },
+      { label: 'Error End', bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-error', attributes: def('Error') },
+      { label: 'Terminate End', bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent', icon: 'iconify bpmn--end-event-terminate', attributes: def('Terminate') },
     ],
   },
   {
@@ -66,11 +82,11 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
   },
 ];
 
-/** Derived from the groups above, not restated, so the two cannot drift. */
+/** Derived from the groups above, not restated, so the two cannot drift. Variants (a timer start) do not speak for their type. */
 export const PALETTE_BPMN_ICONS: Record<string, string> = Object.fromEntries(
   PALETTE_GROUPS.flatMap((group) =>
     group.items
-      .filter((item): item is PaletteEntry & { icon: string } => !!item.icon)
+      .filter((item): item is PaletteEntry & { icon: string } => !!item.icon && !item.attributes)
       .map((item) => [item.bpmnType, item.icon] as const)
   )
 );

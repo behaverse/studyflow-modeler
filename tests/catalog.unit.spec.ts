@@ -298,7 +298,7 @@ test.describe('catalog: schema-declared vocabulary', () => {
     for (const name of ['studyflow:Dataset', 'studyflow:Table', 'studyflow:Timeseries']) {
       expect(dataElements, name).toContain(name);
     }
-    expect(dataElements, 'eeg:Recording specializes studyflow:Dataset')
+    expect(dataElements, 'eeg:Recording specializes studyflow:Timeseries')
       .toContain('eeg:Recording');
     expect(dataElements).not.toContain('studyflow:DataCatalog');
 

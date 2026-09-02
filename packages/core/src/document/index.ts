@@ -9,7 +9,7 @@ import { studyflowToDefinitions } from '@core/document/deserialize';
 
 /* The package's whole surface: `@core/document` is the only path anything outside `core/document` imports. */
 export { studyflowToDefinitions } from '@core/document/deserialize';
-export { YAML_DUMP_OPTIONS, applyXmlPasses, inferPlaneRoot, primaryRoots, type XmlPass, type YamlDoc } from '@core/document/format';
+export { YAML_DUMP_OPTIONS, applyXmlPasses, declaredRuntime, inferPlaneRoot, primaryRoots, type XmlPass, type YamlDoc } from '@core/document/format';
 export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@core/document/shorthand';
 export {
   checklistItems,

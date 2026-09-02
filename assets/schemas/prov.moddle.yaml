@@ -1,79 +1,68 @@
 # yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-name: Prov
+name: Provenance
 prefix: prov
 description: >-
-  The provenance timeline - who acted on this studyflow, with what tool, and when.
+  The provenance timeline: who acted on this studyflow, with what tool, and when.
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
 core: true   # always loaded
 order: 2
 xml:
   tagAlias: lowerCase
-version: 26.0731
-
+version: 26.0902
 
 enumerations: []
 
-
 types:
-
+  # Entries run oldest first. The modeler appends one on save, import, and
+  # run; an engine appends `executed` entries with the run id and seed.
   - name: Activity
-    description: >-
-      One entry of the timeline - who did something to this studyflow, and when;
-      entries run oldest first.
+    description: 'One timeline entry: who did what to this studyflow, and when.'
     superClass:
       - Element
     properties:
       - name: action
-        description: >-
-          What happened, in one word - `created`, `modified`, `imported`,
-          `executed`, `invalidated`, or `reused`.
+        description: What happened (`created`, `modified`, `imported`, `executed`, `invalidated`, `reused`).
         isAttr: true
         type: String
       - name: when
-        description: >-
-          When it happened, as an ISO 8601 timestamp
-          (`2026-08-01T09:12:04+02:00`).
+        description: When it happened, as an ISO 8601 timestamp.
         isAttr: true
         type: String
       - name: who
-        description: Who acted - a name, an email, or an ORCID.
+        description: 'Who acted: a name, an email, or an ORCID.'
         isAttr: true
         type: String
         meta:
           optional: true
       - name: with
-        description: >-
-          The tool that acted, as `name/version` (`studyflow-modeler/26.0731`).
+        description: The tool that acted, as `name/version`.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: what
-        description: >-
-          What the action touched - element ids, space-separated; for
-          `invalidated` and `reused`, the `when` of the entry it refers to.
+        # For `invalidated` and `reused`, the `when` of the entry it refers to.
+        description: Element ids the action touched, space-separated.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: run
-        description: >-
-          For an `executed` action, the id of the run - the name of the
-          repository holding what that run produced.
+        description: For `executed`, the run id (the repository holding its outputs).
         isAttr: true
         type: String
         meta:
           optional: true
       - name: seed
-        description: For an `executed` action, the root seed the run used.
+        description: For `executed`, the root seed the run used.
         isAttr: true
         type: Integer
         meta:
           optional: true
       - name: note
-        description: One line of free text about the event.
+        description: One line of free text.
         isAttr: true
         type: String
         meta:

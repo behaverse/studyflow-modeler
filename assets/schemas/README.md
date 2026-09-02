@@ -12,6 +12,15 @@ implementation-bound templates. `studyflow.moddle.yaml` is the *core* schema.
 It declares app-wide powers (inspector tab set, `bpmn:*` redefines,
 expression traits) a domain pack must not copy.
 
+## Conventions
+
+- A `description` is one sentence the inspector shows in a 256px tooltip; keep it under about 90 characters. Rationale, engine notes, and endpoint details go in YAML comments beside the key, never in the description.
+- A plain YAML scalar cannot contain `: `; quote a description that does.
+- Attribute names are camelCase nouns. Put a unit in the in the meta (`samplingRate.meta.unit = 'Hz'`). Do not put units in the attribute name (`samplingRateHz` is wrong).
+- An enum attribute that allows values outside its list is `meta.editable: true`.
+- Icons come from the iconify (Bootstrap Icons, Fluent UI, `mdi` or `tabler`) sets unless an icon exists only elsewhere. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
+- Reuse core types by inheritance rather than restating fields: a biosignal recording is a `studyflow:Timeseries`, a battery task a `cognitive:CognitiveTask`.
+
 ## Schema-level keys
 
 | Key | Meaning |
@@ -58,6 +67,7 @@ onto the BPMN element), `superClass` = **wrapper** (its own element inside
 | `expression` | Stored as a BPMN expression element; renders the expression row with a per-expression language picker. |
 | `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
 | `icon` | Event overlay glyph drawn when the attribute has a value (a *different* meaning than type-level `icon`). |
+| `unit` | Unit of a numeric attribute (`Hz`, `s`, `rad`); shown after the field label. Never part of the name. |
 
 ## Attribute precedence
 

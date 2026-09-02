@@ -1,5 +1,6 @@
 import { getDefaults, StudyflowElement } from '@core/element';
 import { toLocalName } from '@core/naming';
+import { attachEventDefinitions } from '@canvas/model/moddle.ts';
 
 /** The document-model slice a palette needs to mint a business object. */
 export interface BusinessObjectModel {
@@ -25,7 +26,9 @@ export function buildBusinessObject(
   const generatedId = id
     ?? (attributes as { id?: string }).id
     ?? (hasIds ? model.ids.nextPrefixed(idPrefix, { $type: bpmnType }) : undefined);
-  const bo = model.createBusinessObject(bpmnType, { ...attributes, ...(generatedId ? { id: generatedId } : {}) });
+  const { eventDefinitions, ...plain } = attributes as { eventDefinitions?: unknown };
+  const bo = model.createBusinessObject(bpmnType, { ...plain, ...(generatedId ? { id: generatedId } : {}) });
+  attachEventDefinitions(model.moddle(), bo, eventDefinitions);
   bo.id = bo.id || (hasIds ? model.ids.nextPrefixed(idPrefix, bo) : undefined);
   if (extensionType) {
     StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, model.moddle(), getDefaults(extensionType));

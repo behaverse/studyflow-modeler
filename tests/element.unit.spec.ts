@@ -121,11 +121,11 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     const el = StudyflowElement.fromBusinessObject(bo);
     el.ensureExtension('eeg:Recording', moddle, {
       ...getDefaults('eeg:Recording'),
-      channels: 16,
-      samplingRateHz: 125,
+      channelCount: 16,
+      samplingRate: 125,
     });
-    expect(el.getAttribute('channels')).toBe(16);
-    expect(el.getAttribute('samplingRateHz')).toBe(125);
+    expect(el.getAttribute('channelCount')).toBe(16);
+    expect(el.getAttribute('samplingRate')).toBe(125);
   });
 
   test('trait defaults apply on bare elements; stored values win (completionCodeType)', () => {

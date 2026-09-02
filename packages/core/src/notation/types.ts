@@ -23,6 +23,8 @@ export interface AttributeMeta {
   expression?: boolean;
   languageAttr?: string;
   icon?: string;
+  /** Unit of a numeric attribute (`Hz`, `s`, `rad`), shown after the field label; never part of the name. */
+  unit?: string;
   [key: string]: unknown;
 }
 

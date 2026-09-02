@@ -72,8 +72,35 @@ export function modelOf(target: ModdleObject | undefined): ModdleFactory | undef
 
 /** Mint through the document's own factory, or a plain bag when there is none. */
 export function mint(factory: ModdleFactory | undefined, type: string, props: object = {}): ModdleObject {
-  if (factory?.create) return factory.create(type, props);
-  return { $type: type, ...props } as ModdleObject;
+  if (!factory?.create) return { $type: type, ...props } as ModdleObject;
+  const { eventDefinitions, ...rest } = props as { eventDefinitions?: unknown };
+  const bo = factory.create(type, rest);
+  attachEventDefinitions(factory, bo, eventDefinitions);
+  return bo;
+}
+
+/**
+ * `eventDefinitions: [{ type: 'bpmn:TimerEventDefinition', ...fields }]` — the palette's
+ * plain description of an event variant — becomes owned moddle objects on `bo`.
+ * Entries that already are moddle objects (`$type`) pass through unchanged.
+ */
+export function attachEventDefinitions(factory: ModdleFactory | undefined, bo: ModdleObject, defs: unknown): void {
+  if (!Array.isArray(defs) || !factory?.create) return;
+  const owned = defs.map((def: Record<string, unknown>) => {
+    if (def.$type) return def as ModdleObject;
+    const { type, ...fields } = def as { type: string };
+    const created = factory.create!(type, fields);
+    (created as { $parent?: unknown }).$parent = bo;
+    return created;
+  });
+  (bo as Record<string, unknown>).eventDefinitions = owned;
+}
+
+/** The `$type` of an event's first definition (`'bpmn:TimerEventDefinition'`), or `undefined` for a plain event. */
+export function eventDefinitionTypeOf(bo: ModdleObject | undefined): string | undefined {
+  const defs = (bo as { eventDefinitions?: unknown } | undefined)?.eventDefinitions;
+  const first = Array.isArray(defs) ? defs[0] : undefined;
+  return first?.$type ?? first?.type;
 }
 
 export function definitionsAbove(target: ModdleObject | undefined): ModdleObject | undefined {

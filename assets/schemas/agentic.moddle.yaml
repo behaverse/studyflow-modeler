@@ -1,17 +1,25 @@
 # yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
+# LLM and agent workflows in the vocabulary of Anthropic's "Building effective
+# agents": prompt chaining, routing, parallelization, orchestrator-workers,
+# evaluator-optimizer, and the autonomous agent; plus tools, memory, and the
+# human in the loop. Patterns are templates over the few types below, not
+# classes of their own.
+
 name: Agentic
 prefix: agentic
 description: >-
-  LLM and agent workflows: model calls, tools, branches, and
+  LLM and agent workflows: model calls, tools, routing, memory, and
   human approval steps.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 order: 102
 xml:
   tagAlias: lowerCase
-version: 26.0717
+version: 26.0902
 
+# Model identifiers are provider-prefixed where the provider is not implied by
+# the name: `claude-opus-4-8`, `claude-haiku-4-5`, `gpt-5`, `ollama/llama3.3`.
 
 enumerations:
   - name: ToolChoiceEnum
@@ -30,10 +38,12 @@ enumerations:
   - name: ToolKindEnum
     description: What kind of capability a tool exposes.
     literalValues:
-      - name: Function call
+      - name: Function
         value: function
+        description: Code the model calls with JSON arguments.
       - name: Retrieval
         value: retrieval
+        description: Looks up documents or facts from a store.
       - name: Code execution
         value: code
       - name: Web search
@@ -42,34 +52,80 @@ enumerations:
         value: mcp
       - name: Ask a human
         value: human
-        description: A person answers it, and the run waits for them.
+        description: A person answers, and the run waits for them.
       - name: Sub-flow
         value: subflow
-        description: A tool whose implementation is another studyflow.
+        description: Another studyflow, run as a tool.
+
+  - name: ResponseFormatEnum
+    description: Shape the model's reply must take.
+    literalValues:
+      - name: Free text
+        value: text
+      - name: JSON
+        value: json
+        description: Any well-formed JSON object.
+      - name: JSON matching a schema
+        value: json_schema
+        description: JSON validated against the call's output schema.
+
+  - name: MemoryKindEnum
+    description: How a memory store holds and retrieves what it keeps.
+    literalValues:
+      - name: Conversation
+        value: conversation
+        description: The message history, replayed in order.
+      - name: Vector
+        value: vector
+        description: Embeddings, searched by similarity.
+      - name: Key-value
+        value: key_value
+        description: Named facts, looked up by key.
+      - name: File
+        value: file
+        description: Notes the agent reads and writes as files.
 
   - name: MemoryScopeEnum
     description: How long a memory store lives.
     literalValues:
       - name: Turn
         value: turn
+        description: Cleared after every model turn.
       - name: Run
         value: run
+        description: Lives for one run of the studyflow.
       - name: Participant
         value: participant
+        description: Persists across a participant's runs.
       - name: Global
         value: global
+        description: Shared by every run and participant.
+
+  - name: TimeoutActionEnum
+    description: What an approval step does when nobody answers in time.
+    literalValues:
+      - name: Reject
+        value: reject
+      - name: Approve
+        value: approve
+      - name: Keep waiting
+        value: wait
+        description: Ignore the timeout and stay paused.
 
 types:
 
+  # The autonomous agent: an ad-hoc sub-process whose `Tool`s the model calls
+  # in an order it decides, turn after turn, until `completionCondition` (from
+  # the core `CompletionCondition` trait) holds or `maxTurns` runs out.
   - name: Agent
-    description: A sub-process whose contained tools the model calls in an order it decides.
+    description: A sub-process whose tools the model calls in an order it decides.
     superClass:
       - bpmn:AdHocSubProcess
     meta:
       icon: iconify mdi--robot-outline
     properties:
       - name: model
-        description: Model identifier (e.g. `claude-opus-4-8`, `gpt-5`, `ollama/llama3.3`).
+        description: Model identifier (`claude-opus-4-8`, `gpt-5`, `ollama/llama3.3`).
         isAttr: true
         type: String
         meta:
@@ -79,30 +135,39 @@ types:
         isAttr: false
         type: studyflow:MarkdownString
         meta:
-          order: 3
+          order: 2
       - name: toolChoice
         description: How freely the agent may call the tools drawn inside it.
         isAttr: true
         type: ToolChoiceEnum
         default: auto
         meta:
-          order: 4
+          order: 3
       - name: temperature
-        description: Sampling temperature; lower values make the agent less exploratory.
+        description: Sampling temperature, 0 to 2; lower is more predictable.
         isAttr: true
         type: Real
         default: 1
         meta:
+          order: 4
+      - name: maxTokens
+        description: Ceiling on the length of each reply, in tokens.
+        isAttr: true
+        type: Integer
+        meta:
           order: 5
+          optional: true
       - name: maxTurns
         description: Hard ceiling on how many turns the agent may take.
         isAttr: true
         type: Integer
         default: 10
         meta:
-          order: 7
+          order: 6
 
-  # The runner refuses `meta.branching: model` at run time; it is not implemented yet.
+  # Routing: the model reads the input and picks one outgoing flow by its
+  # label; the flow marked `default` is taken when it is unsure or fails.
+  # The runner refuses `meta.branching: model` at run time; not implemented yet.
   - name: Router
     description: A branch the model picks, choosing among the outgoing flows' labels.
     superClass:
@@ -124,15 +189,17 @@ types:
         meta:
           order: 2
 
+  # One prompt in, one reply out. Chains, fan-outs, and judges are made of
+  # these; the `Prompt` data element can supply the text by association.
   - name: LLMCall
-    description: One model call - a prompt in, a response out.
+    description: One model call, a prompt in and a reply out.
     superClass:
       - bpmn:ServiceTask
     meta:
       icon: iconify mdi--message-processing-outline
     properties:
       - name: model
-        description: Model identifier (e.g. `ollama/llama3.3`, `claude-opus-4-8`).
+        description: Model identifier (`claude-haiku-4-5`, `gpt-5`, `ollama/llama3.3`).
         isAttr: true
         type: String
         meta:
@@ -142,22 +209,43 @@ types:
         isAttr: false
         type: studyflow:MarkdownString
         meta:
-          order: 3
+          order: 2
       - name: temperature
-        description: Sampling temperature; 0 gives a repeatable call.
+        description: Sampling temperature, 0 to 2; 0 gives a repeatable call.
         isAttr: true
         type: Real
         default: 0
         meta:
-          order: 4
+          order: 3
       - name: maxTokens
-        description: Ceiling on the response length.
+        description: Ceiling on the length of the reply, in tokens.
         isAttr: true
         type: Integer
         meta:
-          order: 5
+          order: 4
           optional: true
+      - name: responseFormat
+        description: Shape the reply must take; free text unless set.
+        isAttr: true
+        type: ResponseFormatEnum
+        default: text
+        meta:
+          order: 5
+          editable: true
+      - name: outputSchema
+        # JSON Schema (as YAML or JSON) the reply is validated against.
+        description: JSON Schema the reply must match.
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 6
+          condition:
+            body:
+              responseFormat: json_schema
 
+  # A capability an agent may call. What runs is `implementation` from the
+  # core `Implementation` trait; `purpose` and `parameters` are what the model
+  # sees as the function definition (name, description, argument schema).
   - name: Tool
     description: A capability an agent may call, run like any other step.
     superClass:
@@ -165,7 +253,6 @@ types:
     meta:
       icon: iconify mdi--tools
     properties:
-      # `implementation` comes from the `studyflow:Implementation` trait on bpmn:ServiceTask.
       - name: kind
         description: What kind of capability this exposes.
         isAttr: true
@@ -174,12 +261,21 @@ types:
         meta:
           order: 1
       - name: purpose
-        description: What the tool does and when to use it, written for the model to read.
+        description: What the tool does and when to use it, written for the model.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
           order: 2
+      - name: parameters
+        # JSON Schema of the arguments; the empty object means no arguments.
+        description: JSON Schema of the tool's arguments, as the model sees it.
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 3
 
+  # Human in the loop: the run pauses until a person approves, edits, or
+  # rejects. The reviewer's answer flows out like any task output.
   - name: HumanApproval
     description: Pauses the run until a person approves, edits, or rejects.
     superClass:
@@ -193,6 +289,24 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
+      - name: timeout
+        description: How long to wait for an answer; unset waits indefinitely.
+        isAttr: true
+        type: Real
+        meta:
+          order: 2
+          optional: true
+          unit: s
+      - name: onTimeout
+        description: What happens when the wait runs out.
+        isAttr: true
+        type: TimeoutActionEnum
+        default: reject
+        meta:
+          order: 3
+          condition:
+            body:
+              timeout: $set
 
   - name: Prompt
     description: A prompt kept as a data element, associated into the calls that read it.
@@ -208,30 +322,38 @@ types:
         meta:
           order: 1
 
+  # Where the bytes live is `uri` from the core `Artifact` trait.
   - name: Memory
-    description: State an agent carries across turns, such as history or retrieved facts.
+    description: State an agent carries across turns, such as history, facts, or notes.
     superClass:
       - bpmn:DataStoreReference
     meta:
       icon: iconify mdi--memory
     properties:
+      - name: kind
+        description: How the memory holds and retrieves what it keeps.
+        isAttr: true
+        type: MemoryKindEnum
+        default: conversation
+        meta:
+          order: 1
       - name: scope
         description: How long the memory lives.
         isAttr: true
         type: MemoryScopeEnum
         default: run
         meta:
-          order: 1
+          order: 2
 
 templates:
 
-  - description: An autonomous agent with tools - the model decides what to call and when.
+  - description: Autonomous agent with tools; the model decides what to call and when.
     object:
       bpmn:name: Agent (tool loop)
       type: Agent
       bpmn:documentation: |
-        The model chooses which of the tools drawn inside to call on each turn,
-        until it is done or the turn budget runs out.
+        Each turn the model picks one of the tools drawn inside, until the
+        completion condition holds or the turn budget runs out.
       icon: iconify mdi--robot-outline
       keywords:
         - agent
@@ -239,7 +361,7 @@ templates:
         - tools
         - loop
         - adhoc
-      model: ollama/llama3.3
+      model: claude-opus-4-8
       systemPrompt: |
         You are a research assistant. Use the available tools to answer the
         question. Stop as soon as you can answer it.
@@ -252,19 +374,23 @@ templates:
           bpmn:name: Search Wikipedia
           kind: search
           purpose: |
-            Look up background facts. Use it when the question needs knowledge
-            you do not already have.
+            Look up background facts the model does not already know.
+          parameters: |
+            type: object
+            properties:
+              query: {type: string, description: Search terms}
+            required: [query]
           implementation: python://wikipedia.search
           additionalArguments: "results: 5"
           x: 200
           y: 140
 
-  - description: Evaluator-optimizer - generate, judge, revise until the score clears the bar.
+  - description: Evaluator-optimizer; generate, judge, revise until the score clears the bar.
     object:
       bpmn:name: Evaluator-optimizer
       type: bpmn:SubProcess
       bpmn:documentation: |
-        A generator drafts, a judge scores it against a rubric, and the
+        A generator drafts, a judge scores the draft against a rubric, and the
         back-edge revises until the score clears the bar.
       icon: iconify mdi--autorenew
       keywords:
@@ -277,7 +403,7 @@ templates:
         - id: eo_generate
           type: LLMCall
           bpmn:name: Draft
-          model: ollama/llama3.3
+          model: claude-haiku-4-5
           temperature: 0.7
           x: 200
           y: 140
@@ -285,9 +411,10 @@ templates:
           type: LLMCall
           bpmn:name: Judge the draft
           model: claude-opus-4-8
+          responseFormat: json
           prompt: |
             Score the draft 1-5 against the rubric and name the deciding
-            criterion. Reply as `score: <n>` on the first line.
+            criterion. Reply as `{"score": <n>, "reason": "<why>"}`.
           x: 380
           y: 140
         - id: eo_gate
@@ -307,13 +434,13 @@ templates:
           sourceRef: eo_gate
           targetRef: eo_generate
 
-  - description: Model-decided routing - a classifier picks one of the outgoing branches.
+  - description: Routing; a classifier model picks one of the outgoing branches.
     object:
       bpmn:name: Route by intent
       type: Router
       bpmn:documentation: |
-        The classifier chooses among the outgoing branch labels, and the flow
-        marked `default` is taken when it is unsure or fails.
+        The model chooses among the labels of the outgoing flows; the flow
+        marked `default` is taken when it is unsure.
       icon: iconify mdi--sign-direction
       keywords:
         - router
@@ -324,10 +451,57 @@ templates:
       model: claude-haiku-4-5
       instructions: |
         Read the request and route it to exactly one branch, using the branch
-        labels on the outgoing flows. If none clearly applies, say so; the
-        default branch is taken.
+        labels on the outgoing flows. If none clearly applies, say so.
 
-  - description: Human approval gate - stop, show the artifact, wait for a person.
+  - description: Parallelization; fan the same input out to several calls, then join.
+    object:
+      bpmn:name: Parallel calls
+      type: bpmn:SubProcess
+      bpmn:documentation: |
+        Independent calls run at once and their replies are joined; add a
+        downstream call to vote or merge them.
+      icon: iconify mdi--call-split
+      keywords:
+        - parallel
+        - parallelization
+        - fan-out
+        - sectioning
+        - voting
+      flowElements:
+        - id: par_split
+          type: bpmn:ParallelGateway
+          x: 160
+          y: 145
+        - id: par_a
+          type: LLMCall
+          bpmn:name: Call A
+          model: claude-haiku-4-5
+          x: 280
+          y: 60
+        - id: par_b
+          type: LLMCall
+          bpmn:name: Call B
+          model: claude-haiku-4-5
+          x: 280
+          y: 220
+        - id: par_join
+          type: bpmn:ParallelGateway
+          x: 460
+          y: 145
+        - type: bpmn:SequenceFlow
+          sourceRef: par_split
+          targetRef: par_a
+        - type: bpmn:SequenceFlow
+          sourceRef: par_split
+          targetRef: par_b
+        - type: bpmn:SequenceFlow
+          sourceRef: par_a
+          targetRef: par_join
+        - type: bpmn:SequenceFlow
+          sourceRef: par_b
+          targetRef: par_join
+
+  - description: Human approval gate; stop, show the artifact, wait for a person.
     object:
       bpmn:name: Human approval
       type: HumanApproval
@@ -348,8 +522,8 @@ templates:
       bpmn:name: Prompt chain
       type: bpmn:SubProcess
       bpmn:documentation: |
-        Fixed steps in the order the diagram sets, with a check on the
-        intermediate result between them.
+        Fixed steps in a set order, with a check on the intermediate result
+        between them.
       icon: iconify mdi--link-variant
       keywords:
         - chain

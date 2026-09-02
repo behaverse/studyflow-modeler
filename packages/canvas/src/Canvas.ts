@@ -20,7 +20,7 @@ import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAs
 import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
 import { syncLabel } from '@canvas/model/labels.ts';
-import { prop, setProp } from '@canvas/model/moddle.ts';
+import { eventDefinitionTypeOf, prop, setProp } from '@canvas/model/moddle.ts';
 import { Mutator } from '@canvas/model/mutator.ts';
 import { isRootElement, type Bounds, type ElementColors, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
 import { boundsOf, contentsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, withDescendants, zRankOf } from '@canvas/model/tree.ts';
@@ -641,7 +641,8 @@ export class Canvas {
     if (!this.scene || !mutator) return undefined;
     const prototype = createShape(descriptor);
     if (!this.rules.canReplace(node, prototype.type)) return undefined;
-    if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)) return undefined;
+    if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
+      && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.businessObject)) return undefined;
     const sameCategory = categoryOf(prototype.type) === categoryOf(node.type);
     const size = sameCategory ? { width: node.width, height: node.height } : defaultSizeFor(prototype.type, prototype.isExpanded);
     const bounds: Bounds = {

@@ -33,6 +33,7 @@ export type PopupElementEntry = {
   label: string;
   bpmnType: string;
   extensionType?: string;
+  attributes?: Record<string, unknown>;
   /** Iconify class or image URL; rendered by `palette/PaletteIcon`. */
   icon?: string;
   /** Lower-cased haystack the search box matches against. */
@@ -64,10 +65,11 @@ export function buildElementEntries(): PopupElementGroup[] {
     id: `bpmn:${group.label}`,
     name: group.label,
     entries: group.items.map((item) => ({
-      id: `create-${item.extensionType ?? item.bpmnType}`,
+      id: `create-${item.label.replace(/\s+/g, '-')}`,
       label: item.label,
       bpmnType: item.bpmnType,
       extensionType: item.extensionType,
+      attributes: item.attributes,
       icon: item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? group.icon,
       keywords: keywordsFor(item.label, item.bpmnType, item.extensionType),
     })),

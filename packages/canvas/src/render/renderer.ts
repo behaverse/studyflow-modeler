@@ -285,20 +285,37 @@ export class Renderer {
     const defs = prop(bo, 'eventDefinitions');
     const def = Array.isArray(defs) ? (defs[0] as ModdleObject | undefined) : undefined;
     const defKey = def ? toLocalName(def.$type) : undefined;
-    if (defKey && resolver(defKey, def)) drawIcon(g, defKey, x, y, EVENT_ICON_SIZE, color, resolver, def);
-    for (const key of overlayIconsOf(bo)) {
-      if (resolver(key)) drawIcon(g, key, x, y, EVENT_ICON_SIZE, color, resolver);
+    let centreTaken = false;
+    if (defKey && resolver(defKey, def)) {
+      drawIcon(g, defKey, x, y, EVENT_ICON_SIZE, color, resolver, def);
+      centreTaken = true;
+    } else {
+      // No definition: the host may still name a glyph for the element itself — a
+      // schema event type's icon (`meta.icon` on an `IntermediateCatchEvent` wrapper).
+      const typeKey = toLocalName(node.type);
+      if (typeKey && resolver(typeKey, bo)) {
+        drawIcon(g, typeKey, x, y, EVENT_ICON_SIZE, color, resolver, bo);
+        centreTaken = true;
+      }
+    }
+    // Attribute badges (consent form, redirect) take the centre of a plain event;
+    // once a glyph sits there they move to the top-right rim, like on other shapes.
+    if (centreTaken) this.drawOverlayIcons(g, node, color, -2);
+    else {
+      for (const key of overlayIconsOf(bo)) {
+        if (resolver(key)) drawIcon(g, key, x, y, EVENT_ICON_SIZE, color, resolver);
+      }
     }
   }
 
   /** Schema-attribute badges in the top-right corner, stacking leftward. */
-  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string): void {
+  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string, inset = 6): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
-    let x = node.width - OVERLAY_ICON_SIZE - 6;
+    let x = node.width - OVERLAY_ICON_SIZE - inset;
     for (const key of overlayIconsOf(node.businessObject)) {
       if (!resolver(key)) continue;
-      drawIcon(g, key, x, 6, OVERLAY_ICON_SIZE, color, resolver);
+      drawIcon(g, key, x, inset, OVERLAY_ICON_SIZE, color, resolver);
       x -= OVERLAY_ICON_SIZE + 2;
     }
   }
