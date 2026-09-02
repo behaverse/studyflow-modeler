@@ -38,9 +38,10 @@ export function fakeModeler(businessObjects: any[], { diagramName }: FakeModeler
     : undefined;
 
   return {
-    elements: {
-      forEach: (fn: any) => elements.forEach(fn),
-      root: () => root,
+    canvas: {
+      all: () => elements,
+      getRoot: () => root,
+      rootOf: () => root,
     },
   };
 }

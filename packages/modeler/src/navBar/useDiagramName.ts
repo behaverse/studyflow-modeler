@@ -15,7 +15,7 @@ export function useDiagramName(modeler: Editor): {
     if (!modeler) return;
     const sync = () => setDiagramName(getDiagramName(modeler) ?? DEFAULT_DIAGRAM_NAME);
     const onRootChanged = (e: any) => {
-      if (e?.element === modeler.elements.root()) sync();
+      if (e?.element === modeler.canvas.getRoot()) sync();
     };
     sync();
     modeler.events.on('ImportDone', sync);
@@ -28,7 +28,7 @@ export function useDiagramName(modeler: Editor): {
 
   const rename = useCallback((name: string) => {
     if (!modeler) return;
-    const root = modeler.elements.root();
+    const root = modeler.canvas.getRoot();
     if (!root) return;
     const value = name === DEFAULT_DIAGRAM_NAME ? undefined : name;
     if (root.businessObject.name === value) return;

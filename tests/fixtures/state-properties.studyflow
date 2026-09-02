@@ -1,17 +1,14 @@
 id: state_probe
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-  xmlns:xsi: http://www.w3.org/2001/XMLSchema-instance
-  xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
 Item_Arm:
-  type: bpmn:ItemDefinition
+  type: ItemDefinition
   structureRef: string
 Item_Count:
-  type: bpmn:ItemDefinition
+  type: ItemDefinition
   structureRef: integer
 Probe:
-  type: bpmn:Process
+  type: Process
   extensionElements:
     - type: studyflow:Study
   properties:
@@ -22,32 +19,20 @@ Probe:
       name: arm
   flowElements:
     Start:
-      type: bpmn:StartEvent
-      outgoing:
-        - Flow_Start_Battery
+      type: StartEvent
     Battery:
-      type: bpmn:SubProcess
+      type: SubProcess
       name: Cognitive battery
-      incoming:
-        - Flow_Start_Battery
-      outgoing:
-        - Flow_Battery_End
       properties:
         Failed_Trials:
           itemSubjectRef: Item_Count
           name: failed_trials
       flowElements:
         Trial_Start:
-          type: bpmn:StartEvent
-          outgoing:
-            - Flow_Trial
+          type: StartEvent
         Run_Trial:
-          type: bpmn:ServiceTask
+          type: ServiceTask
           name: Administer one trial
-          incoming:
-            - Flow_Trial
-          outgoing:
-            - Flow_Trial_End
           dataInputAssociations:
             Wire_Arm_In:
               sourceRef:
@@ -57,26 +42,10 @@ Probe:
               targetRef: Failed_Trials
           implementation: python://battery.run_trial@1.0
         Trial_End:
-          type: bpmn:EndEvent
-          incoming:
-            - Flow_Trial_End
-        Flow_Trial:
-          type: bpmn:SequenceFlow
-          sourceRef: Trial_Start
-          targetRef: Run_Trial
-        Flow_Trial_End:
-          type: bpmn:SequenceFlow
-          sourceRef: Run_Trial
-          targetRef: Trial_End
+          type: EndEvent
+        Flow_Trial: Trial_Start -> Run_Trial
+        Flow_Trial_End: Run_Trial -> Trial_End
     End:
-      type: bpmn:EndEvent
-      incoming:
-        - Flow_Battery_End
-    Flow_Start_Battery:
-      type: bpmn:SequenceFlow
-      sourceRef: Start
-      targetRef: Battery
-    Flow_Battery_End:
-      type: bpmn:SequenceFlow
-      sourceRef: Battery
-      targetRef: End
+      type: EndEvent
+    Flow_Start_Battery: Start -> Battery
+    Flow_Battery_End: Battery -> End

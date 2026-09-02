@@ -291,7 +291,7 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
   const { canvas } = await loadCanvas(MESSAGE_XML);
   const line = canvas.getGraphics('Msg_1')!.querySelector('.sf-connection-line')!;
 
-  expect(line.getAttribute('stroke-dasharray')).toBe('10,8');
+  expect(line.getAttribute('stroke-dasharray')).toBe('8,6');
   expect(line.getAttribute('marker-end')).toBe('url(#sf-arrow-message)');
   expect(line.getAttribute('marker-start')).toBe('url(#sf-marker-message-start)');
 
@@ -299,10 +299,10 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
   // show through its middle — the same token the resize handles use, so it follows a
   // re-themed canvas.
   const marker = canvas.getSvg().querySelector('#sf-marker-message-start circle')!;
-  expect(marker.getAttribute('r')).toBe('3.5');
+  expect(marker.getAttribute('r')).toBe('3');
   // Placed just past the docking point, not centred on it: the shape paints over the
   // edges at its depth, so a centred circle is half swallowed by its own source.
-  expect(marker.parentElement!.getAttribute('refX')).toBe('2');
+  expect(marker.parentElement!.getAttribute('refX')).toBe('1.5');
   expect(marker.getAttribute('fill')).toBe('var(--sf-canvas-fill-color)');
   expect(marker.getAttribute('stroke')).toBe('context-stroke');
 });

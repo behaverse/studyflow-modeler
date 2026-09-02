@@ -246,18 +246,6 @@ function EditorSection() {
       <SectionHeader title="Editor" description="How the canvas and inspector behave." />
 
       <Row
-        label="Show grid"
-        help="Render a faint background grid on the canvas."
-        control={
-          <ToggleControl
-            label="Show grid"
-            checked={settings.showGrid}
-            onChange={(showGrid) => update({ showGrid })}
-          />
-        }
-      />
-
-      <Row
         label="Snap to grid"
         help="Land dragged, resized and newly created elements on the grid. Turn this off to place them freely."
         control={

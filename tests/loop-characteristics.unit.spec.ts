@@ -32,7 +32,7 @@ const moddle = new BpmnModdle(packages) as any;
 function fakeModeler(): { modeler: Editor; calls: string[] } {
   const calls: string[] = [];
   const modeler = {
-    mutate: {
+    canvas: {
       updateProperties(element: any, properties: Record<string, any>) {
         calls.push('updateProperties');
         for (const [name, value] of Object.entries(properties)) element.businessObject.set(name, value);

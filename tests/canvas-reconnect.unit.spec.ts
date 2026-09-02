@@ -145,10 +145,10 @@ test('the reconnected geometry is written to di:waypoint and round-trips through
 
   dragTargetEnd(canvas, flow, { x: 450, y: 155 });
 
-  const written = diWaypoints(definitions, 'Flow_1');
+  const written = diWaypoints((canvas.syncDi(), definitions), 'Flow_1');
   expect(written).toEqual(flow.waypoints.map((p) => ({ x: p.x, y: p.y })));
 
-  const { xml } = await moddle.toXML(definitions);
+  const { xml } = await moddle.toXML((canvas.syncDi(), definitions));
   expect(xml).toContain('targetRef="Task_2"');
   const { rootElement: reloaded } = await freshModdle().fromXML(xml);
   expect(diWaypoints(reloaded, 'Flow_1')).toEqual(written);
@@ -169,7 +169,7 @@ test('a rules-refused target leaves the edge untouched', async () => {
 
   expect(flow.target?.id).toBe('Task_1');
   expect(flow.waypoints).toEqual(before);
-  expect(diWaypoints(definitions, 'Flow_1')).toEqual(before);
+  expect(diWaypoints((canvas.syncDi(), definitions), 'Flow_1')).toEqual(before);
   expect(flowElement(definitions, 'Flow_1').targetRef.id).toBe('Task_1');
   expect(canvas.getScene()!.revision).toBe(revision);
 });
@@ -197,7 +197,7 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
 
-  const written = diWaypoints(definitions, 'Flow_1');
+  const written = diWaypoints((canvas.syncDi(), definitions), 'Flow_1');
   expect(written).toEqual(flow.waypoints);
 });
 

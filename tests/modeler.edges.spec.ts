@@ -58,7 +58,7 @@ test.describe('Connect and reconnect feedback', () => {
     await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
 
     await expect(canvasSvg(page)).toHaveAttribute('data-connect-status', 'ok');
-    await expect(target).toHaveClass(/sf-connect-ok/);
+    await expect(target).toHaveClass(/sf-drop-ok/);
     // Painted, not merely classed: the body under the mark really is the drop-ok fill.
     const body = target.locator('rect:not(.sf-outline)').first();
     expect(await body.evaluate((el: any) => el.ownerDocument.defaultView.getComputedStyle(el).fill))
@@ -67,7 +67,7 @@ test.describe('Connect and reconnect feedback', () => {
 
     await page.mouse.up();
     // Nothing survives the gesture.
-    await expect(page.locator('.sf-connect-ok, .sf-new-parent, .sf-drop-not-ok')).toHaveCount(0);
+    await expect(page.locator('.sf-drop-ok, .sf-drop-not-ok')).toHaveCount(0);
     await expect(canvasSvg(page)).not.toHaveAttribute('data-connect-status', /.*/);
   });
 

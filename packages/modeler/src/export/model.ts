@@ -40,8 +40,8 @@ export function hasRole(element: ExportedElement, role: TypeRole): boolean {
 /** The one registry walk the interchange exporters are built from. */
 export function buildExportModel(modeler: Editor): ExportModel {
   const elements: ExportedElement[] = [];
-  modeler.elements.forEach((el: any) => {
-    if (el.type === 'label') return;
+  modeler.canvas.all().forEach((el: any) => {
+    if (el.kind === 'label') return;
     if (!el.businessObject) return;
     elements.push(readElement(el.businessObject, el.id));
   });

@@ -7,7 +7,7 @@ import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownl
 
 /**
  * The two specs that drill into `select_model`'s own plane read it through the
- * current-plane cursor (`packages/canvas/src/view/plane.ts`): the `Open <name>`
+ * current-plane cursor (`Canvas.enterScope`): the `Open <name>`
  * badge enters the plane, and everything drawn there becomes visible and clickable.
  */
 
@@ -39,7 +39,7 @@ test.describe('Inspector execution tab', () => {
     expect(studyflowText).toContain('properties:');
     expect(studyflowText).toContain('name: arm');
     expect(studyflowText).toContain('name: failed_trials');
-    expect(studyflowText).toContain('type: bpmn:ItemDefinition');
+    expect(studyflowText).toContain('type: ItemDefinition');
     expect(studyflowText).toContain('structureRef: string');
     expect(studyflowText).toContain('structureRef: integer');
     expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_string');
@@ -120,7 +120,7 @@ test.describe('Inspector execution tab', () => {
 
     // `cross_validate` sits on the collapsed `select_model` phase's own DI plane; drill down first.
     await page.locator('g[data-element-id="select_model"]').click();
-    await page.getByTitle('Open select_model').click();
+    await page.getByTestId('context-pad-drilldown').click();
     await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
 
     await page.locator('g[data-element-id="cross_validate"]').click();
@@ -157,7 +157,7 @@ test.describe('Inspector execution tab', () => {
 
     // `build_pipeline` is drawn on the collapsed `select_model` phase's own plane; drill down first.
     await page.locator('g[data-element-id="select_model"]').click();
-    await page.getByTitle('Open select_model').click();
+    await page.getByTestId('context-pad-drilldown').click();
     await expect(page.locator('g[data-element-id="build_pipeline"]')).toBeVisible();
 
     await page.locator('g[data-element-id="build_pipeline"]').click();

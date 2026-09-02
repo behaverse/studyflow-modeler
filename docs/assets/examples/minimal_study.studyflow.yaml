@@ -3,19 +3,19 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 
 Minimal_Study:
-  type: bpmn:Process
+  type: Process
   name: Minimal study
   extensionElements:
     - type: studyflow:Study
   flowElements:
 
     Enrolled:
-      type: bpmn:StartEvent
+      type: StartEvent
       name: Enrolled and consented
       consentFormUri: https://example.org/protocols/minimal-study/consent.md
 
     Flanker:
-      type: bpmn:Task
+      type: Task
       name: Flanker
       extensionElements:
         - type: cognitive:CognitiveTask
@@ -23,16 +23,10 @@ Minimal_Study:
           implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Done:
-      type: bpmn:EndEvent
+      type: EndEvent
       name: Done
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
 
-    Flow_Enrolled_Flanker:
-      type: bpmn:SequenceFlow
-      sourceRef: Enrolled
-      targetRef: Flanker
-    Flow_Flanker_Done:
-      type: bpmn:SequenceFlow
-      sourceRef: Flanker
-      targetRef: Done
+    Flow_Enrolled_Flanker: Enrolled -> Flanker
+    Flow_Flanker_Done: Flanker -> Done

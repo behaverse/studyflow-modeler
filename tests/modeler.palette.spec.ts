@@ -119,7 +119,7 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowText = await readDownloadText(studyflowDownload);
 
     // EEGPrep is a template, not a type: a service task bound to the preprocessing tool.
-    expect(studyflowText).toContain('type: bpmn:ServiceTask');
+    expect(studyflowText).toContain('type: ServiceTask');
     expect(studyflowText).toContain('name: EEGPrep');
     expect(studyflowText).toContain('implementation: docker://sccn/eegprep');
     expect(studyflowText).toContain('asr_criterion: 20');

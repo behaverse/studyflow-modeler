@@ -143,8 +143,8 @@ test('an expandable container adds the expand toggle, last', () => {
     canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true,
   }));
 
-  expect(actions.at(-1)).toBe('expand.toggle');
-  expect(actions).not.toContain('drilldown.enter');
+  expect(actions.at(-2)).toBe('expand.toggle');
+  expect(actions.at(-1)).toBe('drilldown');
   // The reference's own six keep the two rows they wrap into.
   expect(actions.slice(0, 6)).toEqual([
     'append.end-event', 'append.text-annotation', 'append', 'replace', 'delete', 'set-color',
@@ -152,6 +152,7 @@ test('an expandable container adds the expand toggle, last', () => {
 
   // A plain task does not offer it.
   expect(actionsOf(context({ canAppend: true }))).not.toContain('expand.toggle');
+  expect(actionsOf(context({ canAppend: true }))).not.toContain('drilldown');
   expect(actionsOf(context({ count: 2, isExpandable: true }))).not.toContain('expand.toggle');
 });
 

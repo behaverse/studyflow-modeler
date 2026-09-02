@@ -114,15 +114,6 @@ export function Palette({ className = '' }: { className?: string }) {
     };
   };
 
-  const handleLassoToolClick = (e: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!modeler) return;
-    e.preventDefault();
-    executeCommand(modeler, {
-      type: 'PaletteActivateLasso',
-      event: e.nativeEvent,
-    });
-  };
-
   const handleMoreElementsClick = (e: ReactMouseEvent<HTMLButtonElement>) => {
     if (!modeler) return;
     e.preventDefault();
@@ -155,19 +146,6 @@ export function Palette({ className = '' }: { className?: string }) {
       data-testid="palette-root"
       ref={rootRef}
     >
-      <div
-        key="lasso"
-        className={palette.group}
-        onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
-      >
-        <PaletteButton title="Select elements with lasso tool" onClick={handleLassoToolClick}>
-          <PaletteIcon icon={ICONS.lasso} size={22} />
-        </PaletteButton>
-        <span className={palette.tooltip}>Select multiple elements</span>
-      </div>
-
-      <div className={palette.separator} />
-
       {PALETTE_GROUPS.map((group) => {
         const { isOpen, onMouseEnter, onMouseLeave, onClick } = flyoutHandlers(group.label);
         const extraItems = schemas.flatMap((schema) =>

@@ -1,74 +1,31 @@
 /**
- * Icon registry + drawing (design §3 `render/icons.ts`, §5 icon-source risk).
- *
- * The modeler resolves icon *classes* (`i-bootstrap-…`) through a Tailwind 4 +
- * iconify build pipeline. The canvas must NOT inherit that toolchain, so for P1
- * `drawIcon` renders a simple placeholder (a small glyph box) unless an
- * {@link IconResolver} is injected that maps an icon key to inline SVG path data
- * — the presentation-agnostic option (a) from design §5. Inline path glyphs that
- * ship with the document (`SVG_ICON_PATHS`) are drawn directly via
- * {@link drawSvgPaths} (ported from `draw/utils.ts`). Geometry, not icon fidelity,
- * is the P1 goal.
+ * Icons. The host resolves a key (a marker name, a BPMN local name) to a glyph:
+ * inline SVG paths, an SVG body, or a CSS class the host's icon pipeline paints.
  */
 
 import type { ModdleObject } from '@canvas/model/scene.ts';
 import { append, create, createHtml, ownerDocument } from '@canvas/render/svg.ts';
 
-/** An inline SVG glyph: a viewBox and its path `d` strings. */
 export interface SvgIconDef {
   viewBox: string;
   paths: string[];
 }
 
-/**
- * A resolved glyph handed over as raw SVG **markup** — the shape an iconify body
- * arrives in (`{ content, viewBox }`, `export/iconSource.ts`). Drawing it produces a
- * real nested `<svg>`, which is what makes an exported document self-contained: the
- * `foreignObject` + CSS-class form below only paints where the app's icon toolchain
- * is loaded (parity addendum 6 §1).
- */
+/** Raw SVG markup, drawn as a nested `<svg>` so an export is self-contained. */
 export interface InlineSvgIconDef {
   viewBox: string;
   content: string;
 }
 
-/**
- * A CSS-class icon: the app's own glyph pipeline (Tailwind 4 + iconify in the
- * modeler) resolves the class at paint time, so the canvas only has to mount a
- * `<div>` carrying it inside a `<foreignObject>`.
- *
- * Since addendum 6 this is the **placeholder** form, not the export form: the app
- * pre-resolves its classes to {@link InlineSvgIconDef} bodies and re-draws, so the
- * `foreignObject` only survives for a glyph that has not arrived (or cannot). The
- * `data-icon-class` / `data-icon-color` attributes stay because they are how a
- * not-yet-resolved icon is still identifiable in the DOM.
- */
+/** A class the host paints; the placeholder form while a glyph body is still loading. */
 export interface CssIconDef {
   cssClass: string;
 }
 
-/** What an {@link IconResolver} may return. */
 export type IconDef = SvgIconDef | CssIconDef | InlineSvgIconDef;
 
-/**
- * Injected icon source: given an icon key (a marker name such as `'loop'`, or a
- * BPMN type's local name such as `'UserTask'`) returns either inline SVG paths or
- * a CSS class to mount. Kept out of the canvas core so the app owns its icon
- * pipeline.
- *
- * Two ways of answering "nothing", and they mean different things:
- *
- * - `undefined` — *I don't know this key.* Fall back to the placeholder box, which
- *   is what makes a resolver-less canvas still show that a glyph belongs there.
- * - `null` — *this key HAS no glyph.* Draw nothing at all. A `bpmn:SubProcess` or a
- *   `bpmn:CallActivity` carries no top-left type icon in BPMN (its marker and its
- *   border say what it is), and a placeholder box in that corner is not a
- *   loading state — it is a permanent, exported lie.
- */
-export type IconResolver = (
-  iconKey: string,
-  businessObject?: ModdleObject,
-) => IconDef | null | undefined;
+/** `undefined`: unknown key, draw a placeholder. `null`: this key has no glyph, draw nothing. */
+export type IconResolver = (iconKey: string, businessObject?: ModdleObject) => IconDef | null | undefined;
 
 function isCssIcon(def: IconDef): def is CssIconDef {
   return typeof (def as CssIconDef).cssClass === 'string';
@@ -78,10 +35,6 @@ function isInlineIcon(def: IconDef): def is InlineSvgIconDef {
   return typeof (def as InlineSvgIconDef).content === 'string';
 }
 
-/**
- * Inline path glyphs bundled with the document (ported from `draw/icons.ts`).
- * These survive SVG export and need no external toolchain.
- */
 export const SVG_ICON_PATHS: Record<string, SvgIconDef> = {
   'bids-dataset-icon': {
     viewBox: '0 0 135 43.461',
@@ -94,11 +47,7 @@ export const SVG_ICON_PATHS: Record<string, SvgIconDef> = {
   },
 };
 
-/**
- * Activity/subprocess markers (design §2). The modeler maps these keys to iconify
- * classes; the canvas maps them to a compact placeholder glyph so a marker is
- * still visible without the icon toolchain.
- */
+/** Placeholder glyphs for the activity markers, when no resolver answers. */
 export const MARKER_ICONS: Record<string, string> = {
   subprocess: '⊞',
   adhoc: '~',
@@ -110,33 +59,22 @@ export const MARKER_ICONS: Record<string, string> = {
   function: 'ƒ',
 };
 
-/** Font used by placeholder glyphs (a plain system stack; no bundled font). */
 const PLACEHOLDER_FONT = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
-/**
- * Draw `iconKey` into `container` at `(x, y)` sized `size`. Prefers, in order: an
- * injected {@link IconResolver}, a bundled {@link SVG_ICON_PATHS} glyph, then a
- * placeholder (a subtle box + the marker glyph or the key's initial). Returns the
- * appended element, or `undefined` for an empty key.
- */
+/** Draw `iconKey` at `(x, y)` sized `size`: resolver first, bundled paths next, placeholder last. */
 export function drawIcon(
   container: SVGElement,
   iconKey: string | undefined,
-  x = 4,
-  y = 4,
-  size = 24,
-  color = '#000000',
+  x: number,
+  y: number,
+  size: number,
+  color: string,
   resolver?: IconResolver,
   businessObject?: ModdleObject,
 ): SVGElement | undefined {
   if (!iconKey) return undefined;
-
   const answer = resolver?.(iconKey, businessObject);
-  // An explicit `null` is the resolver saying the key has no glyph — not a miss to
-  // be papered over with a placeholder, and not a reason to consult the bundled
-  // paths either.
   if (answer === null) return undefined;
-
   const resolved: IconDef | undefined = answer ?? SVG_ICON_PATHS[iconKey];
   if (resolved) {
     if (isCssIcon(resolved)) return drawCssIcon(container, resolved.cssClass, x, y, size, color, iconKey);
@@ -146,21 +84,6 @@ export function drawIcon(
   return drawPlaceholder(container, iconKey, x, y, size, color);
 }
 
-/**
- * Mount a resolved glyph as a real nested `<svg>` — the form the SVG exporter used
- * to substitute for the `foreignObject` at export time (`embedIconsInSvg`), now drawn
- * straight into the scene so an export needs no substitution at all.
- *
- * `currentColor` inside the body is rewritten to the element's colour, exactly as
- * that exporter did, and `stroke="none"` on the wrapper keeps the glyph from
- * inheriting the shape's outline (a body that strokes itself sets its own).
- *
- * `iconKey` is stamped as `data-icon-key` so a resolved glyph stays identifiable in
- * the DOM — the identity the `foreignObject` form carries as `data-icon-class` and
- * the placeholder carries as `data-icon-key`. Marker glyphs that differ only by a
- * transform (`parallel` vs `sequential` share their path `d` and differ solely by a
- * `rotate(90 …)` wrapper) are otherwise indistinguishable to a selector.
- */
 export function drawInlineSvgIcon(
   container: SVGElement,
   def: InlineSvgIconDef,
@@ -171,12 +94,8 @@ export function drawInlineSvgIcon(
   iconKey?: string,
 ): SVGElement {
   const svg = create('svg', {
-    x, y, width: size, height: size,
-    class: 'sf-icon',
-    viewBox: def.viewBox,
-    stroke: 'none',
-    color: color || null,
-    'data-icon-key': iconKey ?? null,
+    x, y, width: size, height: size, class: 'sf-icon', viewBox: def.viewBox, stroke: 'none',
+    color: color || null, 'data-icon-key': iconKey ?? null,
   });
   svg.innerHTML = color ? def.content.replace(/currentColor/g, color) : def.content;
   append(container, svg);
@@ -184,50 +103,34 @@ export function drawInlineSvgIcon(
 }
 
 /**
- * Iconify paints its classes with a CSS mask. WebKit will not render a mask inside an
- * SVG `<foreignObject>` — the box lays out and a plain background paints, but the
- * masked glyph never appears, so a CSS-class icon silently vanishes in Safari. The
- * mask source is a monochrome SVG held in the class's `--svg` custom property, so we
- * recolour it and paint it as a background image, which WebKit does render. Same
- * pixels in Chromium, and the DOM shape is unchanged.
+ * WebKit will not paint a CSS mask inside a `<foreignObject>`, so an iconify
+ * class's `--svg` source is read once and painted as a tinted background image.
  */
 const ICON_SOURCES = new Map<string, string | undefined>();
 
-/** The `--svg` behind an iconify class, read once per class from a throwaway probe. */
 function iconSvgSource(iconClass: string): string | undefined {
   if (ICON_SOURCES.has(iconClass)) return ICON_SOURCES.get(iconClass);
-
   const doc = ownerDocument();
   const body = doc.body;
   const view = doc.defaultView;
-  // No body (a headless serialization) or no CSS engine: nothing to probe, and the
-  // stylesheet's own mask is left in place.
   if (!body || !view) return undefined;
-
   const probe = doc.createElement('div');
   probe.className = iconClass;
   probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden;pointer-events:none';
   body.appendChild(probe);
   const raw = view.getComputedStyle(probe).getPropertyValue('--svg').trim();
   probe.remove();
-
   const source = /^url\(\s*(['"]?)data:image\/svg\+xml,([\s\S]*?)\1\s*\)$/.exec(raw)?.[2];
   ICON_SOURCES.set(iconClass, source ? decodeURIComponent(source) : undefined);
   return ICON_SOURCES.get(iconClass);
 }
 
-/** These sources are monochrome by construction: they were built to be masks. */
 const tint = (svgText: string, color: string): string =>
   svgText.replace(/(fill|stroke)=(['"])black\2/g, `$1=$2${color}$2`);
 
-/**
- * Paint `iconClass` on `div` without a mask. A class that exposes no `--svg` — an
- * icon set the plugin did not emit — is left to the stylesheet.
- */
 function paintIconAsBackground(div: HTMLElement, iconClass: string, color: string): void {
   const source = iconSvgSource(iconClass);
   if (!source) return;
-
   const url = `url("data:image/svg+xml,${encodeURIComponent(tint(source, color))}")`;
   div.style.setProperty('mask-image', 'none', 'important');
   div.style.setProperty('-webkit-mask-image', 'none', 'important');
@@ -237,11 +140,6 @@ function paintIconAsBackground(div: HTMLElement, iconClass: string, color: strin
   div.style.setProperty('background-repeat', 'no-repeat', 'important');
 }
 
-/**
- * Mount a CSS-class glyph inside a `<foreignObject>` — the shape the modeler's
- * icon sheet expects (`packages/modeler/src/draw/icons.ts`), so one class name
- * styles a glyph the same in the canvas and in an exported SVG.
- */
 export function drawCssIcon(
   container: SVGElement,
   cssClass: string,
@@ -252,10 +150,7 @@ export function drawCssIcon(
   iconKey?: string,
 ): SVGElement {
   const foreignObject = create('foreignObject', {
-    x, y, width: size, height: size,
-    class: 'icon-container',
-    color,
-    'data-icon-key': iconKey ?? null,
+    x, y, width: size, height: size, class: 'icon-container', color, 'data-icon-key': iconKey ?? null,
   });
   const div = createHtml('div');
   div.className = cssClass;
@@ -264,7 +159,6 @@ export function drawCssIcon(
     height: `${size}px`,
     fontSize: `${size}px`,
     color: color || 'currentColor',
-    // Block, not inline: an inline box leaves a baseline gap inside the foreignObject.
     display: 'block',
     lineHeight: '1',
     verticalAlign: 'top',
@@ -280,51 +174,25 @@ export function drawCssIcon(
   return foreignObject;
 }
 
-/** A small labelled placeholder box standing in for an unresolved icon. */
-function drawPlaceholder(
-  container: SVGElement,
-  iconKey: string,
-  x: number,
-  y: number,
-  size: number,
-  color: string,
-): SVGElement {
+function drawPlaceholder(container: SVGElement, iconKey: string, x: number, y: number, size: number, color: string): SVGElement {
   const g = create('g', { class: 'sf-icon-placeholder', 'data-icon-key': iconKey });
-  append(g, create('rect', {
-    x, y, width: size, height: size,
-    rx: 3, ry: 3,
-    fill: 'none',
-    stroke: color,
-    'stroke-width': 1,
-    opacity: 0.4,
-  }));
-  const glyph = MARKER_ICONS[iconKey] ?? glyphFor(iconKey);
+  append(g, create('rect', { x, y, width: size, height: size, rx: 3, ry: 3, fill: 'none', stroke: color, 'stroke-width': 1, opacity: 0.4 }));
   const text = create('text', {
-    x: x + size / 2,
-    y: y + size / 2,
-    'text-anchor': 'middle',
-    'dominant-baseline': 'central',
-    'font-family': PLACEHOLDER_FONT,
-    'font-size': Math.max(8, size * 0.6),
-    fill: color,
-    'stroke-width': 0,
+    x: x + size / 2, y: y + size / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+    'font-family': PLACEHOLDER_FONT, 'font-size': Math.max(8, size * 0.6), fill: color, 'stroke-width': 0,
   });
-  text.textContent = glyph;
+  text.textContent = MARKER_ICONS[iconKey] ?? glyphFor(iconKey);
   append(g, text);
   append(container, g);
   return g;
 }
 
-/** First meaningful character of an icon key, for the placeholder glyph. */
 function glyphFor(iconKey: string): string {
   const cleaned = iconKey.replace(/^i-[a-z]+-/i, '').replace(/[^a-z0-9]/gi, '');
   return (cleaned[0] ?? '?').toUpperCase();
 }
 
-/**
- * Draw inline SVG paths scaled to fit `width × height` at `(x, y)` (ported from
- * `draw/utils.ts` `drawSvgPaths`); these survive SVG export.
- */
+/** Inline SVG paths scaled to fit `width × height` at `(x, y)`. */
 export function drawSvgPaths(
   container: SVGElement,
   iconDef: SvgIconDef,
@@ -336,68 +204,35 @@ export function drawSvgPaths(
   iconKey?: string,
 ): SVGElement {
   const [, , vbW, vbH] = iconDef.viewBox.split(/\s+/).map(Number);
-  const g = create('g', { 'data-icon-key': iconKey ?? null });
-  g.setAttribute('transform', `translate(${x}, ${y})`);
-
+  const g = create('g', { 'data-icon-key': iconKey ?? null, transform: `translate(${x}, ${y})` });
   const inner = create('g');
   const scale = Math.min(width / vbW, height / vbH);
-  const dx = (width - vbW * scale) / 2;
-  const dy = (height - vbH * scale) / 2;
-  inner.setAttribute('transform', `translate(${dx}, ${dy}) scale(${scale})`);
-
-  for (const d of iconDef.paths) {
-    append(inner, create('path', { d, fill: fillColor }));
-  }
+  inner.setAttribute('transform', `translate(${(width - vbW * scale) / 2}, ${(height - vbH * scale) / 2}) scale(${scale})`);
+  for (const d of iconDef.paths) append(inner, create('path', { d, fill: fillColor }));
   append(g, inner);
   append(container, g);
   return g;
 }
 
-/**
- * Placement of a short abbreviation drawn over an icon box, by its length — px
- * offsets/sizes tuned to centre a 2-4-char abbreviation, carried over verbatim from
- * `draw/utils.ts` `MARKER_2CHAR` / `MARKER_3CHAR` / `MARKER_LONG`.
- *
- * These are BASELINE-anchored fixed coordinates, not a centring computation: the
- * glyph is monospace, so the tuned numbers land it in the middle of the box for
- * every string of a given length, and reproducing them exactly is what keeps a
- * behaverse task looking like it did before the canvas migration.
- */
-const ICON_TEXT_2CHAR = { x: 9, y: 20, fontSize: 11 };
-const ICON_TEXT_3CHAR = { x: 8, y: 22, fontSize: 11 };
-const ICON_TEXT_LONG = { x: 8.5, y: 21, fontSize: 8 };
-const ICON_TEXT_MAX_CHARS = 4;
-
-/**
- * Draw a short text glyph (a behaverse scene abbreviation) over the top-left icon
- * box — a self-contained port of `draw/utils.ts` `drawIconText`, using a plain font
- * stack instead of the modeler's bundled family.
- *
- * Anything longer than {@link ICON_TEXT_MAX_CHARS} is truncated rather than shrunk
- * further; four monospace characters at 8px is already the width of the box.
- */
+/** A short abbreviation centred in an icon box (a behaverse scene: `NB`, `SART`). */
 export function drawIconText(
   container: SVGElement,
   marker: string | undefined,
+  x: number,
+  y: number,
+  size: number,
   color: string,
 ): SVGElement | undefined {
   if (!marker) return undefined;
-
-  let glyph = marker;
-  let placement: { x: number; y: number; fontSize: number };
-  if (glyph.length === 2) placement = ICON_TEXT_2CHAR;
-  else if (glyph.length === 3) placement = ICON_TEXT_3CHAR;
-  else {
-    placement = ICON_TEXT_LONG;
-    glyph = glyph.substring(0, ICON_TEXT_MAX_CHARS);
-  }
-
+  const glyph = marker.substring(0, 4);
   const text = create('text', {
     class: 'sf-icon-text',
-    x: placement.x,
-    y: placement.y,
+    x: x + size / 2,
+    y: y + size / 2,
+    'text-anchor': 'middle',
+    'dominant-baseline': 'central',
     'font-family': PLACEHOLDER_FONT,
-    'font-size': placement.fontSize,
+    'font-size': glyph.length <= 2 ? size * 0.55 : size * 0.4,
     'font-weight': 'bold',
     fill: color,
     'stroke-width': 0,
@@ -407,5 +242,4 @@ export function drawIconText(
   return text;
 }
 
-/** `createHtml` re-export kept so a future resolver can build foreignObject icons. */
 export { createHtml };

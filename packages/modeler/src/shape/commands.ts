@@ -7,45 +7,24 @@ export type SetColorCommand = {
   color: { fill?: string; stroke?: string };
 };
 
-/**
- * A caption has no colour of its own: it is painted in the stroke of the element it
- * names, so the brush beside a selected label (`edge-videos/labels/frame_08`) paints
- * that element. bpmn-js resolves `labelTarget` the same way before colouring, and
- * without it the write lands on a `bpmndi:BPMNLabel` where nothing reads it back.
- */
-function colorTarget(element: any): any {
-  return element?.labelTarget ?? element;
-}
-
+/** A caption paints in its owner's colour, so colouring a label colours the element it names. */
 export function runSetColor(modeler: Editor, command: SetColorCommand): void {
-  const targets = command.elements.map(colorTarget);
-  // De-duplicated: selecting an element and its own caption must not paint it twice.
-  modeler.mutate.setColor([...new Set(targets)], command.color);
+  modeler.canvas.setColor(command.elements, command.color);
 }
-
 
 export type DeleteElementsCommand = {
   type: 'DeleteElements';
   elements: EditorElement[];
 };
 
-/**
- * The context pad's trash (parity spec addendum 4 / ux-spec §4 entry `delete`).
- *
- * Deletion has lived in the editor since P5 — the canvas answers `Delete`/`Backspace`
- * itself and closes the removal over contents and incident edges — so this is the
- * app-chrome doorway to that same closure, not a second implementation. Returns
- * everything actually removed.
- */
-export function runDeleteElements(
-  modeler: Editor,
-  command: DeleteElementsCommand,
-): EditorElement[] {
-  const { elements } = command;
-  if (!elements || elements.length === 0) return [];
-  return modeler.mutate.removeElements(elements);
+/** Delete the elements and their closure (contents, incident edges). Returns what was removed. */
+export function runDeleteElements(modeler: Editor, command: DeleteElementsCommand): EditorElement[] {
+  const elements = (command.elements ?? [])
+    .map((element) => modeler.canvas.resolveElement(element))
+    .filter((element): element is NonNullable<typeof element> => !!element);
+  if (elements.length === 0) return [];
+  return modeler.canvas.deleteElements(elements);
 }
-
 
 export type ReplaceElementCommand = {
   type: 'ReplaceElement';
@@ -54,80 +33,41 @@ export type ReplaceElementCommand = {
   extensionType?: string;
 };
 
-/**
- * The context pad's wrench, "Change element" (ux-spec §4 entry 4): retype the
- * selected shape in place, keeping its name, its position and the flows that reach
- * it. One undo step, because the editor treats it as one mutation.
- *
- * Returns the replacement, or `undefined` when nothing happened — the rules refused
- * the swap, or the entry that was picked names the type the shape already is.
- */
-export function runReplaceElement(
-  modeler: Editor,
-  command: ReplaceElementCommand,
-): EditorElement | undefined {
-  const { element, bpmnType, extensionType } = command;
-  if (!element || !bpmnType) return undefined;
-  return modeler.mutate.replaceShape(element, {
-    type: bpmnType,
-    ...(extensionType ? { extensionType } : {}),
+/** Retype the selected shape in place, keeping its name, position and flows. */
+export function runReplaceElement(modeler: Editor, command: ReplaceElementCommand): EditorElement | undefined {
+  const node = modeler.canvas.resolveElement(command.element);
+  if (!node || node.kind !== 'node' || !command.bpmnType) return undefined;
+  return modeler.canvas.replaceElement(node, {
+    type: command.bpmnType,
+    ...(command.extensionType ? { extensionType: command.extensionType } : {}),
   });
 }
-
 
 export type SwapChoreographyInitiatorCommand = {
   type: 'SwapChoreographyInitiator';
   element: EditorElement;
 };
 
-/**
- * Flip which participant band of a choreography task initiates — the studyflow
- * context-pad entry that the app has always contributed
- * (`contextPad/ContextPad.ts` under bpmn-js, ux-spec §4 "the app adds
- * `choreography.swap-initiator`"). The affordance died with the old pad; the helper
- * it called did not, so this is that helper reached through the facade.
- *
- * The two participants are materialized first when the task has none, which is why
- * this can be more than one `mutate` call — they land in one synchronous burst and
- * therefore in one history snapshot, exactly as the inspector's initiator dropdown
- * does.
- */
-export function runSwapChoreographyInitiator(
-  modeler: Editor,
-  command: SwapChoreographyInitiatorCommand,
-): void {
-  const { mutate, model } = modeler;
-  swapChoreographyInitiator(command.element, mutate, { create: model.createBusinessObject });
+export function runSwapChoreographyInitiator(modeler: Editor, command: SwapChoreographyInitiatorCommand): void {
+  swapChoreographyInitiator(command.element, modeler.canvas, { create: modeler.model.createBusinessObject });
 }
-
 
 export type ToggleDefaultFlowCommand = {
   type: 'ToggleDefaultFlow';
   element: EditorElement;
 };
 
-/**
- * Mark a sequence flow as its source's `default` — or unmark it, when it already
- * is. The write lands on the SOURCE's business object (that is where BPMN keeps
- * the reference), but the command names the FLOW, because the flow is what the
- * user selected and what re-draws with the slash marker.
- */
+/** Mark a sequence flow as its source's `default`, or unmark it. The slash moves, never multiplies. */
 export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlowCommand): void {
   const flow = modeler.canvas.resolveElement(command.element);
   if (!flow || flow.kind !== 'edge' || !flow.source?.businessObject) return;
   const sourceBo = flow.source.businessObject as { default?: unknown };
-  // The slash MOVES rather than multiplies: when another edge was the default, it
-  // has to lose its marker in the same act this one gains it — the write below
-  // only redraws the toggled edge.
-  const previous = flow.source.outgoing?.find(
-    (edge) => edge !== flow && edge.businessObject === sourceBo.default,
-  );
-  modeler.mutate.updateModdleProperties(command.element, flow.source.businessObject, {
+  const previous = flow.source.outgoing.find((edge) => edge !== flow && edge.businessObject === sourceBo.default);
+  modeler.canvas.updateModdleProperties(flow, flow.source.businessObject, {
     default: sourceBo.default === flow.businessObject ? undefined : flow.businessObject,
   });
-  if (previous) modeler.canvas.redrawElements([previous]);
+  modeler.canvas.redrawElements(previous ? [flow, previous] : [flow]);
 }
-
 
 export type StartConnectCommand = {
   type: 'StartConnect';
@@ -135,37 +75,31 @@ export type StartConnectCommand = {
   event?: MouseEvent | any;
 };
 
-/**
- * The context pad's connect entry (parity spec addendum 4 §1): a connection drag
- * that starts from the pad rather than from the palette, with the editor's own live
- * preview following the pointer. Returns whether the gesture started.
- */
 export function runStartConnect(modeler: Editor, command: StartConnectCommand): boolean {
-  // Only a NODE can start a connection drag; a stale or off-plane reference, or a
-  // connection, simply does not start one.
   const source = modeler.canvas.resolveElement(command.source);
   if (!source || source.kind !== 'node') return false;
   return modeler.canvas.startConnect(source, command.event);
 }
-
 
 export type ToggleExpandedCommand = {
   type: 'ToggleExpanded';
   element: EditorElement;
 };
 
-/**
- * Expand or collapse an expandable container in place — the context pad's
- * discoverable twin of the double click (`Canvas.handleDoubleClick`).
- *
- * It writes: `bpmndi:BPMNShape.isExpanded`, the shape's `dc:Bounds`, and the
- * re-docked waypoints of every incident edge, all inside one `Writeback.finish` and
- * therefore one undo step. Returns whether anything was written — a non-container,
- * or a stale reference, writes nothing.
- */
 export function runToggleExpanded(modeler: Editor, command: ToggleExpandedCommand): boolean {
   const node = modeler.canvas.resolveElement(command.element);
   if (!node || node.kind !== 'node' || !modeler.canvas.canExpand(node)) return false;
   return modeler.canvas.toggleExpanded(node);
 }
 
+export type DrillDownCommand = {
+  type: 'DrillDown';
+  element: EditorElement;
+};
+
+/** Show only the contents of an expandable container; the breadcrumb trail leads back out. */
+export function runDrillDown(modeler: Editor, command: DrillDownCommand): boolean {
+  const node = modeler.canvas.resolveElement(command.element);
+  if (!node || node.kind !== 'node') return false;
+  return modeler.canvas.enterScope(node);
+}

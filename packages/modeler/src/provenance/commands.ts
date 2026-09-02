@@ -14,8 +14,8 @@ export function runInvalidateProvenanceRecord(
   modeler: Editor,
   command: InvalidateProvenanceRecordCommand,
 ): boolean {
-  const element = modeler.elements.get(command.elementId);
-  const bo = element?.businessObject;
+  const element = modeler.canvas.get(command.elementId);
+  const bo: any = element?.businessObject;
   const extensionElements = bo?.extensionElements;
   const values: any[] = extensionElements?.values ?? [];
   if (!values.includes(command.entry)) return false;
@@ -33,7 +33,7 @@ export function runInvalidateProvenanceRecord(
 
   const marker = modeler.model.create('prov:Activity', stamp);
   marker.$parent = extensionElements;
-  modeler.mutate.updateModdleProperties(element, extensionElements, {
+  modeler.canvas.updateModdleProperties(element, extensionElements, {
     values: [...values, marker],
   });
   return true;

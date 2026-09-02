@@ -141,8 +141,8 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
 
     expect(crossing.length).toBeGreaterThan(0);
     for (const { step, dataElement } of crossing) {
-      // The premise of the scope tag: the two ends really are on two planes.
-      expect(planes.some((shapes) => shapes.has(step.id) && shapes.has(dataElement.id))).toBe(false);
+      // Both ends are drawn on the one plane; the tag reports the container the step sits in.
+      expect(planes.some((shapes) => shapes.has(step.id) && shapes.has(dataElement.id))).toBe(true);
       expect(containerOf(dataElement).name || containerOf(dataElement).id).toBeTruthy();
     }
   });

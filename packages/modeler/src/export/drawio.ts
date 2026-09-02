@@ -95,9 +95,7 @@ function paintRank(element: any): number {
   if (element.type === 'bpmn:Group') return 1;
   const isSubProcess = element.type === 'bpmn:SubProcess' || element.type === 'bpmn:Transaction'
     || element.type === 'bpmn:AdHocSubProcess';
-  // The canvas carries collapse state on the DI (`BPMNShape.isExpanded`); a
-  // `collapsed` flag on the element itself wins where one is set.
-  const collapsed = element.collapsed ?? element.di?.isExpanded === false;
+  const collapsed = element.collapsed ?? element.isExpanded === false;
   const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && !collapsed);
   return isFrame ? 0 : 2;
 }
@@ -179,7 +177,7 @@ function shapeStyle(element: any, bo: any): string {
   if (type === 'bpmn:SubProcess' || type === 'bpmn:Transaction' || type === 'bpmn:AdHocSubProcess') {
     // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an *event* sub-process.
     const transaction = type === 'bpmn:Transaction' ? 'bpmnShapeType=transaction;' : '';
-    const collapsed = (element.collapsed ?? element.di?.isExpanded === false)
+    const collapsed = (element.collapsed ?? element.isExpanded === false)
       ? 'isLoopSub=1;' : 'verticalAlign=top;';
     return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo)}`;
   }
@@ -212,12 +210,9 @@ function edgeStyle(element: any, bo: any): string {
   return base;
 }
 
-/** bpmn-js keeps element colors on the DI, under either the `bioc` or the `color` namespace. */
 function colorStyle(element: any): string {
-  const di = element.di;
-  if (!di?.get) return '';
-  const fill = di.get('color:background-color') || di.get('bioc:fill');
-  const stroke = di.get('color:border-color') || di.get('bioc:stroke');
+  const fill = element.fill;
+  const stroke = element.stroke;
   return (fill ? `fillColor=${fill};` : '') + (stroke ? `strokeColor=${stroke};` : '');
 }
 
@@ -288,16 +283,14 @@ function edgeCell(element: any, known: Set<string>): string {
 }
 
 export function exportToDrawio(modeler: Editor): string {
-  const root = modeler.elements.root();
+  const root = modeler.canvas.getRoot();
   const shapes: any[] = [];
   const connections: any[] = [];
 
-  modeler.elements.forEach((element: any) => {
-    if (element === root || element.type === 'label' || !element.businessObject) return;
-    // Only what the CURRENT plane depicts: the facade knows which root an element
-    // belongs to, and a scene element's own parent chain stops at the plane's top
-    // node rather than at the root, so `findRoot` is the portable question.
-    if (modeler.elements.findRoot(element) !== root) return;
+  modeler.canvas.all().forEach((element: any) => {
+    if (element.kind === 'label' || element.type === 'label' || !element.businessObject) return;
+    // Only what is on screen: the elements of the drilled-into container, or the root plane.
+    if (modeler.canvas.rootOf(element) !== root) return;
     if (element.waypoints) connections.push(element);
     else if (Number.isFinite(element.x) && Number.isFinite(element.y)) shapes.push(element);
   });

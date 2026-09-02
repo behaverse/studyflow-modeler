@@ -16,10 +16,8 @@ import {
  * Four things happen at once when a shape is dragged, and each of them is a separate
  * bit of machinery that has to agree with the others:
  *
- * 1. the shape becomes a blue ghost and leaves a dimmed copy behind (`sf-dragger` +
- *    `sf-drag-originals`);
- * 2. its connections do NOT turn blue — they go faint gray (`sf-dragging-edge`) and
- *    re-route live underneath;
+ * 1. the shape itself moves, live (no ghost, no dimmed copy);
+ * 2. its connections re-route live underneath it;
  * 3. blue hairlines appear along whatever alignment the drag has taken, one per axis;
  * 4. on drop the connection is a clean orthogonal route with ROUNDED corners.
  *
@@ -67,6 +65,8 @@ test.describe('Moving a shape', () => {
 
     const from = await centreOf(task);
     const target = { x: (await centreOf(columnMate)).x, y: (await centreOf(rowMate)).y };
+    const transformBefore = await task.getAttribute('transform');
+    const dBefore = await flow.getAttribute('d');
 
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
@@ -75,11 +75,10 @@ test.describe('Moving a shape', () => {
     await page.mouse.move(from.x - 40, from.y + 40);
     await page.mouse.move(target.x, target.y);
 
-    // 1 + 2 — the ghost is blue, its flow is not.
-    await expect(task).toHaveClass(/sf-dragger/);
-    await expect(page.locator('svg.sf-canvas .sf-drag-originals')).toHaveCount(1);
-    await expect(flowGroup).toHaveClass(/sf-dragging-edge/);
-    await expect(flowGroup).not.toHaveClass(/sf-dragger/);
+    // 1 + 2 — the shape has moved and its flow has re-routed, mid-gesture.
+    await expect(page.locator('svg.sf-canvas')).toHaveClass(/sf-drag-active/);
+    expect(await task.getAttribute('transform')).not.toBe(transformBefore);
+    expect(await flow.getAttribute('d')).not.toBe(dBefore);
 
     // 3 — one guide per axis, and both of them span the viewport rather than the shape.
     await expect(snapLines(page)).toHaveCount(2);
@@ -88,9 +87,7 @@ test.describe('Moving a shape', () => {
 
     // The chrome goes down with the gesture.
     await expect(snapLines(page)).toHaveCount(0);
-    await expect(page.locator('svg.sf-canvas .sf-drag-originals')).toHaveCount(0);
-    await expect(task).not.toHaveClass(/sf-dragger/);
-    await expect(flowGroup).not.toHaveClass(/sf-dragging-edge/);
+    await expect(page.locator('svg.sf-canvas')).not.toHaveClass(/sf-drag-active/);
 
     // 4 — the flow now turns a corner, and every corner it turns is an arc, not a
     // mitre (dnd/frame_08).

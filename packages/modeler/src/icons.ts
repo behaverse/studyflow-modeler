@@ -75,7 +75,6 @@ export const ICONS = {
 
   square: 'iconify fluent--square-16-regular',
   squareDashed: 'iconify mynaui--square-dashed',
-  lasso: 'iconify material-symbols--ink-selection-rounded',
   circle: 'iconify fluent--circle-16-regular',
   diamond: 'iconify fluent--diamond-16-regular',
   pentagon: 'iconify mdi--pentagon-outline',

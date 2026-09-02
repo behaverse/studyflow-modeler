@@ -131,7 +131,7 @@ test('a drag within 7 units of a neighbour\'s centre lands EXACTLY on it, grid o
 
   drop(canvas, to);
   // What was on screen is what was committed — DI included.
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 368, y: 83 });
+  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 368, y: 83 });
   expect(guides(canvas)).toHaveLength(0);
 });
 
@@ -149,7 +149,7 @@ test('beyond the tolerance the drop quantizes to the 10-unit grid instead, with 
   expect(guides(canvas), 'a grid landing draws no hairline').toHaveLength(0);
 
   drop(canvas, to);
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 230, y: 100 });
+  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 230, y: 100 });
 });
 
 test('alignment on one axis composes with the grid on the other', async () => {
@@ -176,7 +176,7 @@ test('alignment on one axis composes with the grid on the other', async () => {
   expect(lines[0].getAttribute('x1')).not.toBe(lines[0].getAttribute('x2'));
 
   drop(canvas, to);
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 240, y: 83 });
+  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 240, y: 83 });
 });
 
 test('a keyboard nudge is not grid-snapped: 1 unit means 1 unit (parity spec §9)', async () => {
@@ -187,7 +187,7 @@ test('a keyboard nudge is not grid-snapped: 1 unit means 1 unit (parity spec §9
 
   svg.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
   expect({ x: task.x, y: task.y }).toEqual({ x: 201, y: 80 });
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 201, y: 80 });
+  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 201, y: 80 });
 
   // …and Shift still means 10, landing back on the grid by arithmetic, not by snap.
   svg.dispatchEvent(new win.KeyboardEvent(
@@ -219,5 +219,5 @@ test('a resize grid-snaps the dragged edges too, and Escape still restores off-g
   pointerUp(canvas, to);
   expect({ x: task.x, y: task.y, width: task.width, height: task.height })
     .toEqual({ x: 200, y: 80, width: 100, height: 80 });
-  expect(boundsOf(definitions, 'Task_1')).toEqual({ x: 200, y: 80 });
+  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 200, y: 80 });
 });

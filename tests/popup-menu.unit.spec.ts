@@ -77,16 +77,14 @@ function fakePort() {
       createBusinessObject: (type: string, props: any) => ({ $type: type, ...props }),
       ids: { nextPrefixed: (prefix: string) => `${prefix}2`, assigned: () => false },
     },
-    elements: { root: () => root, findRoot: () => root },
-    rules: { allowed: (action: string, ctx: any) => action === 'shape.append' && !!ctx.element },
     canvas: {
+      getRoot: () => root,
+      rootOf: () => root,
+      resolveElement: (element: any) => element,
+      getRules: () => ({ canAppend: (element: any) => !!element }),
       createShape: (attrs: any) => ({ ...attrs, width: 36, height: 36 }),
       startCreate: (...args: any[]) => calls.push(['startCreate', ...args]),
-    },
-    // An append WRITES — one shape, one flow, one undo step — so it is a mutation
-    // and not a gesture (`@canvas/model/mutations.ts`).
-    mutate: {
-      appendShape: (source: any, shape: any) => {
+      appendElement: (source: any, shape: any) => {
         calls.push(['appendShape', source, shape]);
         return created;
       },
@@ -122,7 +120,7 @@ test.describe('append commands', () => {
 
   test('a refused append selects nothing', () => {
     const { port, calls } = fakePort();
-    port.mutate.appendShape = () => undefined;
+    port.canvas.appendElement = () => undefined;
 
     expect(runAppendElement(port, { type: 'AppendElement', source, bpmnType: 'bpmn:Task' })).toBeUndefined();
     expect(calls.some((c) => c[0] === 'select')).toBe(false);

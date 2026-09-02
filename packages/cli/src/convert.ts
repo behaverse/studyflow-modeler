@@ -75,7 +75,7 @@ async function openStudyflow(page: any, origin: string, name: string, xml: strin
 /** Export the open diagram as PNG (its studyflow always embedded) and return the bytes. */
 async function exportPng(page: any): Promise<Buffer> {
   await page.getByRole('button', { name: 'Open command palette' }).click();
-  await page.getByRole('dialog').getByText('Save...', { exact: true }).click();
+  await page.getByRole('dialog').getByText('Save As...', { exact: true }).click();
   await page.getByTestId('save-dialog').waitFor();
   await page.getByTestId('export-format').selectOption('png');
 

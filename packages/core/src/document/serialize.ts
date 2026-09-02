@@ -2,13 +2,19 @@ import { isModdleElement } from '@core/element/moddle';
 import { RESERVED_DOC_KEYS, inferPlaneRoot, type YamlDoc } from '@core/document/format';
 import {
   CHECKLIST_MARKER,
+  DI_NODE_TYPES,
+  compactDiNode,
   inlineDocumentationEntries,
   inlineElementList,
   inlineExpressionBody,
   inlineYamlBody,
   inlineYamlValue,
+  impliedTypeName,
+  isImpliedFlowList,
+  isRedundantNamespaceDeclaration,
   keyItemsById,
   planInlineDi,
+  shortTypeName,
 } from '@core/document/shorthand';
 
 type SerializeContext = {
@@ -28,7 +34,7 @@ function serializeValue(value: any, declaredType: string | undefined, ctx?: Seri
 
 function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (el.$type !== declaredType) out.type = el.$type;
+  if (el.$type !== declaredType) out.type = shortTypeName(el.$type);
 
   for (const p of el.$descriptor?.properties ?? []) {
     const value = el[p.name];
@@ -40,6 +46,7 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
     if (p.isMany) {
       if (!Array.isArray(value) || value.length === 0) continue;
       if (p.isReference) {
+        if ((key === 'incoming' || key === 'outgoing') && isImpliedFlowList(el, key, value)) continue;
         out[key] = value.map((ref: any) => ref?.id);
         continue;
       }
@@ -58,8 +65,10 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
   }
 
   for (const [name, value] of Object.entries(el.$attrs ?? {})) {
-    if (!(name in out)) out[name] = value;
+    if (!(name in out) && !isRedundantNamespaceDeclaration(el, name)) out[name] = value;
   }
+  if (DI_NODE_TYPES.has(el.$type)) compactDiNode(out);
+  if (out.type !== undefined && impliedTypeName(out, declaredType) === el.$type) delete out.type;
 
   const di = ctx && typeof el.id === 'string' ? ctx.di.get(el.id) : undefined;
   if (di && ctx && Object.keys(di).every((key) => !(key in out))) {

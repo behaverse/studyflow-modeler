@@ -58,25 +58,25 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
   await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 }
 
+/** The context pad entry that enters the selected container. */
+const drilldown = (page: import('@playwright/test').Page) => page.getByTestId('context-pad-drilldown');
+
 test.describe('sub-process drill-down', () => {
   test('every SELECTED sub-process shows the drill-down badge, whichever way its contents are stored', async ({ page }) => {
     await openExample(page);
 
-    // Badges are selection-gated: nothing selected, nothing offered.
-    await expect(page.getByTitle('Open select_model')).toBeHidden();
-    await expect(page.getByTitle('Open prepare_data')).toBeHidden();
+    // The trip in is offered by the context pad, so it is selection-gated: nothing selected, nothing offered.
+    await expect(drilldown(page)).toBeHidden();
 
     // The reported defect, from the outside: `select_model` owns a nested plane and
     // `prepare_data` does not, and that difference used to decide whether the trip in
     // was offered at all. Selecting either offers the same badge.
     await page.locator('g[data-element-id="select_model"]').click();
-    await expect(page.getByTitle('Open select_model')).toBeVisible();
+    await expect(drilldown(page)).toBeVisible();
     await page.locator('g[data-element-id="evaluate_and_report"]').click();
-    await expect(page.getByTitle('Open evaluate_and_report')).toBeVisible();
-    // …and the badge follows the selection out again.
-    await expect(page.getByTitle('Open select_model')).toBeHidden();
+    await expect(drilldown(page)).toBeVisible();
     await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
-    await expect(page.getByTitle('Open prepare_data')).toBeVisible();
+    await expect(drilldown(page)).toBeVisible();
     // At the root the trail is one crumb long, and the reference draws none.
     await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
   });
@@ -117,7 +117,7 @@ test.describe('sub-process drill-down', () => {
 
     // Select first: the badge only paints on the selected container.
     await page.locator('g[data-element-id="select_model"]').click();
-    await page.getByTitle('Open select_model').click();
+    await drilldown(page).click();
 
     // The plane's own contents are on screen…
     await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
@@ -143,7 +143,7 @@ test.describe('sub-process drill-down', () => {
     // The caption, not the body: a body click would land on a child of the
     // expanded frame. Selecting paints the badge; the badge takes the trip.
     await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
-    await page.getByTitle('Open prepare_data').click();
+    await drilldown(page).click();
 
     // Same trip, same trail, for a container the document gave no plane of its own.
     const crumbs = page.getByTestId('drilldown-breadcrumbs');
@@ -254,7 +254,7 @@ test.describe('sub-process drill-down', () => {
     // Drawn collapsed (the ⊞ marker) and, once selected, offering the trip in.
     await expect(sub.locator('[data-icon-key="subprocess"]')).toHaveCount(1);
     await sub.click();
-    const badge = page.getByTitle(`Open ${id}`);
+    const badge = drilldown(page);
     await expect(badge).toBeVisible();
 
     // In: the trail appears, and a task dropped here lands INSIDE the sub-process.
@@ -267,12 +267,12 @@ test.describe('sub-process drill-down', () => {
     const taskId = await task.getAttribute('data-element-id');
 
     // The document says so: the task's business object is filed under the
-    // sub-process, and its DI in the plane the drop minted.
+    // sub-process, and its DI in the one plane the document has.
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
     expect(bpmn).toContain(`isExpanded="false"`);
     const subProcess = bpmn.slice(bpmn.indexOf(`<bpmn2:subProcess id="${id}"`));
     expect(subProcess.slice(0, subProcess.indexOf('</bpmn2:subProcess>'))).toContain(String(taskId));
-    expect(bpmn.match(/<bpmndi:BPMNDiagram/g) ?? []).toHaveLength(2);
+    expect(bpmn.match(/<bpmndi:BPMNDiagram/g) ?? []).toHaveLength(1);
 
     // Out: the sub-process is collapsed again and its contents are off screen.
     await page.getByTestId('drilldown-breadcrumbs').getByRole('button').first().click();

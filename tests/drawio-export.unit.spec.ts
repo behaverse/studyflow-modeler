@@ -26,7 +26,8 @@ function shape({ id, type, bo = {}, parent = ROOT, collapsed, di }: ShapeSpec): 
     collapsed,
     parent,
     businessObject: { $type: type, ...bo },
-    di: di ? { get: (key: string) => di[key] } : undefined,
+    fill: di?.['color:background-color'] ?? di?.['bioc:fill'],
+    stroke: di?.['color:border-color'] ?? di?.['bioc:stroke'],
   };
 }
 
@@ -60,10 +61,10 @@ function findRoot(element: any): any {
 
 function fakeModeler(elements: any[]): any {
   return {
-    elements: {
-      forEach: (fn: any) => elements.forEach(fn),
-      root: () => ROOT,
-      findRoot,
+    canvas: {
+      all: () => elements,
+      getRoot: () => ROOT,
+      rootOf: findRoot,
     },
   };
 }

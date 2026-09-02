@@ -62,7 +62,7 @@ test.describe('Inspector repetition controls', () => {
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     expect(studyflowText).toContain('loopCharacteristics:');
-    expect(studyflowText).toContain('type: bpmn:StandardLoopCharacteristics');
+    expect(studyflowText).toContain('type: StandardLoopCharacteristics');
     expect(studyflowText).toContain('loopCondition: score < 0.9');
     expect(studyflowText).toContain('loopMaximum: 5');
     expect(studyflowText).toContain('testBefore: true');

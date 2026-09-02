@@ -92,7 +92,7 @@ test.describe('The context pad', () => {
     // One ghost, carrying both halves of what the click would make: the silhouette
     // in drag-blue and the connection that would reach it (`preview/frame_02`).
     await expect(ghost(page)).toHaveCount(1);
-    await expect(ghost(page).locator('.sf-dragger')).toHaveCount(1);
+    await expect(ghost(page).locator('.sf-ghost')).toHaveCount(1);
     await expect(ghost(page).locator('.sf-append-preview-line')).toHaveCount(1);
     // Nothing was committed: the document still holds exactly one shape.
     await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(0);
@@ -136,7 +136,7 @@ test.describe('The context pad', () => {
     // `preview/frame_08`: the annotation ghost sits ABOVE the source with a dotted
     // leader, where the end-event ghost sits to its right. Same entry mechanism,
     // different auto-place rule — so the ghost proves the rule, not just the ghost.
-    const ghostBox = await boxOf(ghost(page).locator('.sf-dragger'));
+    const ghostBox = await boxOf(ghost(page).locator('.sf-ghost'));
     expect(ghostBox.y).toBeLessThan(shape.y);
   });
 
@@ -162,7 +162,7 @@ test.describe('The context pad', () => {
       };
     });
 
-    const previewed = await placement(ghost(page).locator('.sf-dragger'));
+    const previewed = await placement(ghost(page).locator('.sf-ghost'));
 
     await target.click();
     await expect(ghost(page)).toHaveCount(0);

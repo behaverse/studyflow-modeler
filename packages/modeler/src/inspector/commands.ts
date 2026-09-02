@@ -11,7 +11,7 @@ export type UpdateAttributeCommand = {
 };
 
 export function runUpdateAttribute(modeler: Editor, command: UpdateAttributeCommand): void {
-  setAttribute(command.element, command.attributeName, command.value, modeler.mutate);
+  setAttribute(command.element, command.attributeName, command.value, modeler.canvas);
 }
 
 
@@ -26,7 +26,7 @@ export function runUpdateExpressionLanguage(
   modeler: Editor,
   command: UpdateExpressionLanguageCommand,
 ): void {
-  setExpressionLanguage(command.element, command.attributeName, command.language, modeler.mutate);
+  setExpressionLanguage(command.element, command.attributeName, command.language, modeler.canvas);
 }
 
 
@@ -42,7 +42,7 @@ export function runUpdateChoreographyParticipants(
   modeler: Editor,
   command: UpdateChoreographyParticipantsCommand,
 ): void {
-  const { mutate, model } = modeler;
+  const { canvas: mutate, model } = modeler;
   // `mutate` covers the `modeling` surface the helper uses; the factory shim maps `create` onto the facade.
   const [top, bottom] = ensureChoreographyParticipants(command.element, mutate, { create: model.createBusinessObject });
 
@@ -69,7 +69,7 @@ export type UpdateTransformationCommand = {
 );
 
 export function runUpdateTransformation(modeler: Editor, command: UpdateTransformationCommand): void {
-  const { mutate, model } = modeler;
+  const { canvas: mutate, model } = modeler;
   const association = toBusinessObject(command.element);
   const expression = association.get?.('transformation') ?? association.transformation;
 
@@ -104,13 +104,13 @@ export function runUpdateLoopCharacteristics(modeler: Editor, command: UpdateLoo
   const existing = businessObject?.loopCharacteristics;
 
   if (!loopType) {
-    if (existing) modeler.mutate.updateProperties(element, { loopCharacteristics: undefined });
+    if (existing) modeler.canvas.updateProperties(element, { loopCharacteristics: undefined });
     return;
   }
 
   if (existing && existing.$type === loopType) {
     if (Object.keys(properties).length > 0) {
-      modeler.mutate.updateModdleProperties(element, existing, coerceExpressions(modeler, properties, existing));
+      modeler.canvas.updateModdleProperties(element, existing, coerceExpressions(modeler, properties, existing));
     }
     return;
   }
@@ -119,7 +119,7 @@ export function runUpdateLoopCharacteristics(modeler: Editor, command: UpdateLoo
   loopCharacteristics.$parent = businessObject;
   const coerced = coerceExpressions(modeler, properties, loopCharacteristics);
   for (const [name, value] of Object.entries(coerced)) loopCharacteristics.set(name, value);
-  modeler.mutate.updateProperties(element, { loopCharacteristics });
+  modeler.canvas.updateProperties(element, { loopCharacteristics });
 }
 
 /** Wrap a string `loopCondition` into BPMN's concrete `xsi:type` expression form (empty clears it). */
@@ -145,7 +145,7 @@ export type UpdateStatePropertiesCommand = {
 
 function findDefinitions(editor: Editor, businessObject: any): any {
   return definitionsOf(businessObject)
-    ?? editor.elements.root()?.businessObject?.$parent
+    ?? editor.canvas.getRoot()?.businessObject?.$parent
     ?? null;
 }
 
@@ -167,7 +167,7 @@ function ensureItemDefinition(editor: Editor, element: any, businessObject: any,
 
   const itemDefinition = editor.model.createBusinessObject('bpmn:ItemDefinition', { id, structureRef });
   itemDefinition.$parent = definitions;
-  editor.mutate.updateModdleProperties(element, definitions, {
+  editor.canvas.updateModdleProperties(element, definitions, {
     rootElements: [...rootElements, itemDefinition],
   });
   return itemDefinition;
@@ -185,7 +185,7 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
     const id = nextPropertyId(element);
     const property = modeler.model.createBusinessObject('bpmn:Property', { id, name: '' });
     property.$parent = businessObject;
-    modeler.mutate.updateModdleProperties(element, businessObject, {
+    modeler.canvas.updateModdleProperties(element, businessObject, {
       properties: [...moddleElements, property],
     });
     return;
@@ -195,24 +195,24 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
   if (!target) return;
 
   if (command.action === 'remove') {
-    modeler.mutate.updateModdleProperties(element, businessObject, {
+    modeler.canvas.updateModdleProperties(element, businessObject, {
       properties: moddleElements.filter((p) => p !== target.moddleElement),
     });
     return;
   }
 
   if (command.action === 'rename') {
-    modeler.mutate.updateModdleProperties(element, target.moddleElement, { name: command.name });
+    modeler.canvas.updateModdleProperties(element, target.moddleElement, { name: command.name });
     return;
   }
 
   if (!command.itemType) {
-    modeler.mutate.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: undefined });
+    modeler.canvas.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: undefined });
     return;
   }
   const itemDefinition = ensureItemDefinition(modeler, element, businessObject, command.itemType);
   if (itemDefinition) {
-    modeler.mutate.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: itemDefinition });
+    modeler.canvas.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: itemDefinition });
   }
 }
 
@@ -274,7 +274,7 @@ function nextAssociationId(
 
 export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBindingCommand): void {
   const { element, direction } = command;
-  const { mutate, model } = modeler;
+  const { canvas: mutate, model } = modeler;
   const businessObject = toBusinessObject(element);
   if (!businessObject) return;
 

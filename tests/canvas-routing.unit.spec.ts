@@ -11,7 +11,6 @@ import {
 } from '@canvas/routing/crop.ts';
 import type { CroppableShape } from '@canvas/routing/crop.ts';
 import {
-  edgesAffectedBy,
   isOrthogonal,
   isStraightRouted,
   orthogonalize,
@@ -22,6 +21,7 @@ import {
   routeFor,
   straightRoute,
 } from '@canvas/routing/orthogonal.ts';
+import { edgesAffectedBy } from '@canvas/model/tree.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
 import { freshModdle, installDocument, loadCanvas, type Loaded } from './canvasHarness';
@@ -505,13 +505,13 @@ test('Canvas.rerouteEdges routes the affected edges and writes di:waypoint throu
   expect(flow1.waypoints[1]).toEqual({ x: 200, y: 119 });
 
   // DI: the SAME moddle objects now carry the routed geometry…
-  expect(diWaypoints(definitions, 'Flow_1')).toEqual(flow1.waypoints);
-  const flow2 = diWaypoints(definitions, 'Flow_2');
+  expect(diWaypoints((canvas.syncDi(), definitions), 'Flow_1')).toEqual(flow1.waypoints);
+  const flow2 = diWaypoints((canvas.syncDi(), definitions), 'Flow_2');
   expect(flow2[0]).toEqual({ x: 300, y: 119 }); // the task's right edge
   expect(Math.hypot(flow2[1].x - 418, flow2[1].y - 118)).toBeCloseTo(18, 6); // the end event's circle
 
   // …so serializing this very tree and re-parsing it round-trips the route.
-  const { xml } = await moddle.toXML(definitions);
+  const { xml } = await moddle.toXML((canvas.syncDi(), definitions));
   const { rootElement: reloaded } = await freshModdle().fromXML(xml);
   expect(diWaypoints(reloaded, 'Flow_1')).toHaveLength(2);
   expect(diWaypoints(reloaded, 'Flow_1')[1]).toEqual({ x: 200, y: 119 });
@@ -544,7 +544,7 @@ test('a moved shape re-routes to its new position (drag keeps the P3 docking fol
   const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
 
   // A P3 move: the endpoints merely follow the shape, kink and all.
-  canvas.getWriteback()!.setNodeBounds(taskNode, { x: 260, y: 300 });
+  canvas.getMutator()!.setNodeBounds(taskNode, { x: 260, y: 300 });
   expect(flow1.waypoints).toHaveLength(3);
 
   const changed = canvas.rerouteEdges(taskNode);
@@ -558,7 +558,7 @@ test('a moved shape re-routes to its new position (drag keeps the P3 docking fol
     { x: 118, y: 340 },
     { x: 260, y: 340 },
   ]);
-  expect(diWaypoints(definitions, 'Flow_1')).toEqual(flow1.waypoints);
+  expect(diWaypoints((canvas.syncDi(), definitions), 'Flow_1')).toEqual(flow1.waypoints);
 });
 
 // --- rounded corner bends (parity spec §5, addendum 2 §5) --------------------

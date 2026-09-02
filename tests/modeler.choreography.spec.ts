@@ -61,7 +61,7 @@ test.describe('Studyflow choreography tasks', () => {
 
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
 
-    expect(studyflowText).toContain('type: bpmn:Choreography');
+    expect(studyflowText).toContain('type: Choreography');
     expect(studyflowText).toContain('participantRef');
     expect(studyflowText).toContain('initiatingParticipantRef');
     expect(studyflowText).toContain('messageFlows');

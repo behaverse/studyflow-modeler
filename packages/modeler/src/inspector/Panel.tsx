@@ -31,14 +31,14 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
 }
 
 function useSelectedElement(editor: Editor): any {
-  const [element, setElement] = useState<any>(() => editor.elements.root());
+  const [element, setElement] = useState<any>(() => editor.canvas.getRoot());
   const [seededFor, setSeededFor] = useState<any>(editor);
   const [, bumpVersion] = useReducer((version) => version + 1, 0);
   const elementRef = useRef<any>(element);
 
   if (seededFor !== editor) {
     setSeededFor(editor);
-    setElement(editor.elements.root());
+    setElement(editor.canvas.getRoot());
   }
 
   // Matching `ElementChanged` against a ref keeps the subscription from re-establishing on every selection change.
@@ -47,10 +47,10 @@ function useSelectedElement(editor: Editor): any {
   }, [element]);
 
   useEffect(() => {
-    const onRootSet = () => setElement(editor.elements.root());
+    const onRootSet = () => setElement(editor.canvas.getRoot());
     const onSelectionChanged = (e: any) => {
       const selection = e.newSelection ?? [];
-      setElement(selection.length === 1 ? selection[0] : editor.elements.root());
+      setElement(selection.length === 1 ? selection[0] : editor.canvas.getRoot());
     };
     const onElementChanged = (e: any) => {
       if (elementRef.current && e.element?.id === elementRef.current.id) bumpVersion();

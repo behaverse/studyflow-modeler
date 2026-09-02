@@ -169,16 +169,17 @@ export function keyItemsById(items: unknown[]): Record<string, unknown> | undefi
     if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
     const { id, ...body } = item as Record<string, unknown>;
     if (typeof id !== 'string' || id === '' || id in out) return undefined;
-    out[id] = body;
+    out[id] = inlineFlow(item) ?? body;
   }
   return out;
 }
 
 export function keyedMapToList(raw: unknown): unknown[] {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
-  return Object.entries(raw as Record<string, unknown>).map(([id, body]) =>
-    body && typeof body === 'object' && !Array.isArray(body) ? { id, ...(body as object) } : { id },
-  );
+  return Object.entries(raw as Record<string, unknown>).map(([id, body]) => {
+    if (body && typeof body === 'object' && !Array.isArray(body)) return { id, ...(body as object) };
+    return typeof body === 'string' ? { id, [INLINE_BODY]: body } : { id };
+  });
 }
 
 /* 5. expression-body */
@@ -268,4 +269,166 @@ export function expandDocumentationEntry(text: string): Record<string, unknown> 
 
 export function expandChecklistEntry(text: string): Record<string, unknown> {
   return { type: DOCUMENTATION_TYPE, [CHECKLIST_MARKER]: true, text };
+}
+
+/* 7. type names: BPMN is the default namespace, so `bpmn:StartEvent` is spelled `StartEvent` */
+
+const BPMN_PREFIX = 'bpmn:';
+
+export function shortTypeName(qname: string): string {
+  return qname.startsWith(BPMN_PREFIX) ? qname.slice(BPMN_PREFIX.length) : qname;
+}
+
+/** A prefixed name is kept; a bare one is BPMN (a lower-case first letter is tolerated). */
+export function longTypeName(name: string): string {
+  if (name.includes(':')) return name;
+  return `${BPMN_PREFIX}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+}
+
+/* 8. geometry and colour on a DI node: `bounds: x y width height`, `waypoint: x,y x,y`, `fill` / `stroke` */
+
+export const DI_NODE_TYPES = new Set(['bpmndi:BPMNShape', 'bpmndi:BPMNEdge']);
+
+type Box = { x: number; y: number; width: number; height: number };
+
+const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+
+function boxToText(box: unknown): string | undefined {
+  if (!box || typeof box !== 'object' || Array.isArray(box)) return undefined;
+  const { x, y, width, height, ...rest } = box as Record<string, unknown>;
+  if (Object.keys(rest).length > 0 || ![x, y, width, height].every(isFiniteNumber)) return undefined;
+  return `${x} ${y} ${width} ${height}`;
+}
+
+function textToBox(text: string): Box | undefined {
+  const parts = text.trim().split(/\s+/).map(Number);
+  if (parts.length !== 4 || !parts.every(Number.isFinite)) return undefined;
+  const [x, y, width, height] = parts;
+  return { x, y, width, height };
+}
+
+function pointsToText(points: unknown): string | undefined {
+  if (!Array.isArray(points) || points.length === 0) return undefined;
+  const pairs: string[] = [];
+  for (const point of points) {
+    if (!point || typeof point !== 'object') return undefined;
+    const { x, y, ...rest } = point as Record<string, unknown>;
+    if (Object.keys(rest).length > 0 || !isFiniteNumber(x) || !isFiniteNumber(y)) return undefined;
+    pairs.push(`${x},${y}`);
+  }
+  return pairs.join(' ');
+}
+
+function textToPoints(text: string): { x: number; y: number }[] | undefined {
+  const points = text.trim().split(/\s+/).map((pair) => pair.split(',').map(Number));
+  if (points.some((point) => point.length !== 2 || !point.every(Number.isFinite))) return undefined;
+  return points.map(([x, y]) => ({ x, y }));
+}
+
+/** Each colour role's DI property names by local name: the `color` vocabulary first, the `bioc` one second. */
+const COLOR_KEYS = {
+  fill: ['background-color', 'fill'],
+  stroke: ['border-color', 'stroke'],
+} as const;
+
+/** Rewrite a serialized DI node in place: geometry on one line, one key per colour. */
+export function compactDiNode(node: Record<string, unknown>): void {
+  const bounds = boxToText(node.bounds);
+  if (bounds !== undefined) node.bounds = bounds;
+  const waypoint = pointsToText(node.waypoint);
+  if (waypoint !== undefined) node.waypoint = waypoint;
+  const label = node.label;
+  if (label && typeof label === 'object' && !Array.isArray(label)) {
+    const { bounds: labelBounds, ...rest } = label as Record<string, unknown>;
+    const text = Object.keys(rest).length === 0 ? boxToText(labelBounds) : undefined;
+    if (text !== undefined) node.label = text;
+  }
+  for (const role of ['fill', 'stroke'] as const) {
+    const [colorKey, biocKey] = COLOR_KEYS[role];
+    const value = node[colorKey] ?? node[biocKey];
+    delete node[colorKey];
+    delete node[biocKey];
+    if (value !== undefined) node[role] = value;
+  }
+}
+
+/** The inverse, on the raw keys of a DI node: strings back to mappings, one colour into both vocabularies. */
+export function expandDiNode(props: Record<string, unknown>): void {
+  if (typeof props.bounds === 'string') {
+    const box = textToBox(props.bounds);
+    if (box) props.bounds = box;
+  }
+  if (typeof props.waypoint === 'string') {
+    const points = textToPoints(props.waypoint);
+    if (points) props.waypoint = points;
+  }
+  if (typeof props.label === 'string') {
+    const box = textToBox(props.label);
+    if (box) props.label = { bounds: box };
+  }
+  for (const role of ['fill', 'stroke'] as const) {
+    const value = props[role];
+    if (value === undefined) continue;
+    delete props[role];
+    for (const key of COLOR_KEYS[role]) props[key] = value;
+  }
+}
+
+/* 9. incoming / outgoing: implied by the sequence flows, so only a list that says something else is written */
+
+export function isImpliedFlowList(el: any, key: 'incoming' | 'outgoing', refs: unknown[]): boolean {
+  const end = key === 'incoming' ? 'targetRef' : 'sourceRef';
+  const siblings: any[] = el.$parent?.flowElements ?? [];
+  const implied = siblings.filter((item) => item?.$instanceOf?.('bpmn:SequenceFlow') && item[end] === el);
+  return implied.length === refs.length && implied.every((flow, i) => flow === refs[i]);
+}
+
+/* 10. a bare flow of any kind: `Flow_1: A -> B` (what kind it is, its place in the file already says) */
+
+const ARROW = /^\s*(\S+)\s*->\s*(\S+)\s*$/;
+
+/** The key a keyed list item carries its string body under, until {@link expandInlineFlow} reads it. */
+export const INLINE_BODY = '$inline';
+
+export function inlineFlow(item: unknown): string | undefined {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
+  const { id, sourceRef, targetRef, ...rest } = item as Record<string, unknown>;
+  if (Object.keys(rest).length > 0 || typeof id !== 'string' || typeof targetRef !== 'string') return undefined;
+  // A data association lists its sources; one source still reads as an arrow.
+  const source = Array.isArray(sourceRef) && sourceRef.length === 1 ? sourceRef[0] : sourceRef;
+  return typeof source === 'string' ? `${source} -> ${targetRef}` : undefined;
+}
+
+export function expandInlineFlow(item: unknown): unknown {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+  const { [INLINE_BODY]: body, ...rest } = item as Record<string, unknown>;
+  if (typeof body !== 'string') return item;
+  const arrow = ARROW.exec(body);
+  if (!arrow) throw new Error(`'${rest.id}: ${body}' is not a flow; write 'source -> target' or a mapping`);
+  return { ...rest, sourceRef: arrow[1], targetRef: arrow[2] };
+}
+
+/* 11. namespace declarations the writer restores on its own */
+
+export function isRedundantNamespaceDeclaration(el: any, name: string): boolean {
+  if (el.$type !== 'bpmn:Definitions' || !name.startsWith('xmlns:')) return false;
+  const prefix = name.slice('xmlns:'.length);
+  if (prefix === 'xsi') return true;
+  const packages: any[] = el.$model?.getPackages?.() ?? [];
+  return packages.some((pkg) => pkg?.prefix === prefix);
+}
+
+/* 12. types the container and the keys already imply */
+
+/** Under an abstract list type, these keys settle the concrete type, so `type:` is not written. */
+const IMPLIED_TYPES: Record<string, ReadonlyArray<readonly [readonly string[], string]>> = {
+  'bpmn:FlowElement': [[['sourceRef', 'targetRef'], 'bpmn:SequenceFlow']],
+  'bpmn:Artifact': [[['sourceRef', 'targetRef'], 'bpmn:Association'], [['text'], 'bpmn:TextAnnotation']],
+};
+
+export function impliedTypeName(node: Record<string, unknown>, declaredType: string | undefined): string | undefined {
+  for (const [keys, type] of IMPLIED_TYPES[declaredType ?? ''] ?? []) {
+    if (keys.every((key) => key in node)) return type;
+  }
+  return undefined;
 }

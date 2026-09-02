@@ -83,7 +83,7 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
   expect(replacement!.type).toBe('bpmn:UserTask');
   expect(replacement!.id).not.toBe('Task_1');
 
-  const xml = await serialize(moddle, definitions);
+  const xml = await (canvas.syncDi(), serialize(moddle, definitions));
 
   // The old element is gone from the document, not merely from the scene.
   expect(xml).not.toContain('id="Task_1"');
@@ -126,7 +126,7 @@ test('a task becomes an end event at the same CENTRE, in the end event\'s own fo
 test('two types of the same shape keep a size the user chose', async () => {
   const { canvas } = await load();
   const task = node(canvas, 'Task_1');
-  canvas.getWriteback()!.setNodeBounds(task, { x: 200, y: 80, width: 160, height: 120 });
+  canvas.getMutator()!.setNodeBounds(task, { x: 200, y: 80, width: 160, height: 120 });
 
   const replacement = canvas.replaceElement(task, { type: 'bpmn:ServiceTask' })!;
 
@@ -154,13 +154,13 @@ test('the replacement becomes the selection', async () => {
 
 test('replacing an element with the type it already is writes nothing', async () => {
   const { canvas, definitions, moddle } = await load();
-  const before = await serialize(moddle, definitions);
+  const before = await (canvas.syncDi(), serialize(moddle, definitions));
   const revision = canvas.getScene()!.revision;
 
   expect(canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:Task' })).toBeUndefined();
 
   expect(canvas.getScene()!.revision).toBe(revision);
-  expect(await serialize(moddle, definitions)).toBe(before);
+  expect(await (canvas.syncDi(), serialize(moddle, definitions))).toBe(before);
 });
 
 test('the rules refuse what cannot be retyped in place', async () => {

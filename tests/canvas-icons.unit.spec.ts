@@ -104,7 +104,7 @@ test('a marker glyph is drawn inline too, and `currentColor` takes the element c
   expect(marker).toBeTruthy();
   // The default stroke colour, substituted the way `embedIconsInSvg` substituted it:
   // a document opened anywhere paints the glyph, with no `currentColor` to inherit.
-  expect(marker!.querySelector('path')!.getAttribute('fill')).toBe('#22242A');
+  expect(marker!.querySelector('path')!.getAttribute('fill')).toBe('#78716c');
   expect(canvas.toSVG()).not.toContain('currentColor');
 });
 
@@ -211,37 +211,27 @@ test('a behaverse task draws its scene abbreviation over the hex icon', async ()
   const glyph = sceneGlyph(canvas, 'Task_NB')!;
   expect(glyph).toBeTruthy();
   expect(glyph.textContent).toBe('NB');
-  // The recovered `MARKER_2CHAR` placement: fixed baseline coordinates, monospace
-  // and bold, in the element's own stroke colour.
-  expect(glyph.getAttribute('x')).toBe('9');
-  expect(glyph.getAttribute('y')).toBe('20');
-  expect(glyph.getAttribute('font-size')).toBe('11');
+  // Centred on the icon box, monospace and bold, in the element's own stroke colour.
+  expect(glyph.getAttribute('x')).toBe('19');
+  expect(glyph.getAttribute('y')).toBe('17');
+  expect(glyph.getAttribute('text-anchor')).toBe('middle');
   expect(glyph.getAttribute('font-weight')).toBe('bold');
   expect(glyph.getAttribute('font-family')).toContain('monospace');
-  expect(glyph.getAttribute('fill')).toBe('#22242A');
+  expect(glyph.getAttribute('fill')).toBe('#44403c');
 
   // It sits ALONGSIDE the hex, not instead of it.
   expect(graphics(canvas, 'Task_NB').querySelectorAll('svg.sf-icon')).toHaveLength(1);
 });
 
-test('a long scene takes the small placement, and widens the icon behind it', async () => {
+test('a long scene shrinks its glyph to stay inside the icon box', async () => {
   const canvas = await loadCanvas(BEHAVERSE_XML, {
     iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
   }).then((loaded) => loaded.canvas);
 
   const glyph = sceneGlyph(canvas, 'Task_SART')!;
   expect(glyph.textContent).toBe('SART');
-  // `MARKER_LONG`: four monospace characters at 8px, which is already the box width.
-  expect(glyph.getAttribute('x')).toBe('8.5');
-  expect(glyph.getAttribute('y')).toBe('21');
-  expect(glyph.getAttribute('font-size')).toBe('8');
-
-  // …and the hex grows to hold them, the way `ICON_SIZE_LARGE` grew it. A two-letter
-  // scene leaves the icon at its usual size.
-  const sizeOf = (id: string): string | null =>
-    graphics(canvas, id).querySelector('svg.sf-icon')!.getAttribute('width');
-  expect(sizeOf('Task_SART')).toBe('26');
-  expect(sizeOf('Task_NB')).toBe('22');
+  const short = sceneGlyph(canvas, 'Task_NB')!;
+  expect(Number(glyph.getAttribute('font-size'))).toBeLessThan(Number(short.getAttribute('font-size')));
 });
 
 test('the not-chosen-yet scene draws no glyph at all', async () => {
@@ -317,10 +307,10 @@ test('a gateway asks the resolver for its glyph before falling back to the unico
   expect(g.querySelector('text')?.textContent ?? '').not.toBe('×');
 });
 
-test('without a resolver answer a gateway keeps its unicode glyph — no placeholder box', async () => {
+test('without a resolver answer a gateway draws its own glyph — no placeholder box', async () => {
   const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {});
   const g = graphics(canvas, 'Gateway_1');
-  expect(g.querySelector('text')?.textContent).toBe('×');
+  expect(g.querySelectorAll('path').length).toBeGreaterThan(0);
   expect(g.querySelectorAll('.sf-icon-placeholder')).toHaveLength(0);
 });
 
@@ -392,8 +382,7 @@ test('a data store with a BIDS format draws the bundled logotype, dimmed', async
   const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
   const icon = graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"]');
   expect(icon).toBeTruthy();
-  // The old renderer's stroke + `bb` alpha.
-  expect(icon!.querySelector('path')!.getAttribute('fill')!.toLowerCase()).toBe('#22242abb');
+  expect(icon!.querySelector('path')!.getAttribute('fill')!.toLowerCase()).toBe('#78716c');
 });
 
 test('a data store format naming an iconify class resolves through the app pipeline', async () => {
@@ -431,11 +420,11 @@ test('a schema attribute declaring meta.icon badges a non-event shape top-right 
   try {
     const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
     // `Task_1` is a 100-wide user task whose `name` is set — the badge sits in the
-    // top-right corner (100 - 16 - 4), leftward of nothing else.
+    // top-right corner (100 - 14 - 6), leftward of nothing else.
     const badge = graphics(canvas, 'Task_1').querySelector('svg.sf-icon[data-icon-key="iconify mdi--test-badge"]');
     expect(badge).toBeTruthy();
     expect(badge!.getAttribute('x')).toBe('80');
-    expect(badge!.getAttribute('y')).toBe('4');
+    expect(badge!.getAttribute('y')).toBe('6');
   } finally {
     setCatalog(real);
   }

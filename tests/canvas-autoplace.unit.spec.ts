@@ -197,6 +197,7 @@ test.describe('auto-place (click-append)', () => {
     expect(flow.sourceRef.id).toBe('Task_1');
 
     // ...and DI for both halves, which is what makes the append survive a round-trip.
+    canvas.syncDi();
     const di = planeElements(definitions);
     expect(di.some((pe: any) => pe.$type === 'bpmndi:BPMNShape' && pe.bpmnElement?.id === appended!.id)).toBe(true);
     expect(di.some((pe: any) => pe.$type === 'bpmndi:BPMNEdge' && pe.bpmnElement?.id === flow.id)).toBe(true);

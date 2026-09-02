@@ -1,164 +1,146 @@
 /**
- * Import — `bpmn:Definitions` (with DI already present) → {@link Scene}
- * (design §1 option (c), §3 `model/import.ts`).
+ * `bpmn:Definitions` (with DI) → {@link Scene}.
  *
- * The document is a `bpmn-moddle` tree; all geometry lives in its DI subtree
- * `definitions.diagrams[]` (each a `bpmndi:BPMNDiagram`). This module walks every
- * diagram's `plane.planeElement[]`, joins each `bpmndi:BPMNShape`/`BPMNEdge` to the
- * business object it points at (`bpmnElement`), reads `dc:Bounds` → `x/y/width/height`
- * and `di:waypoint` → `waypoints`, resolves each edge's `source`/`target`, and
- * builds the parent/containment tree plus the nested planes that back expanded
- * subprocesses and choreographies.
- *
- * The DI is assumed present: the app runs `ensureDiagramLayout` (bpmn-auto-layout)
- * before the canvas ever sees the document (design §0), so the importer never
- * invents layout. Scene geometry fields mirror the backing DI moddle objects so a
- * later edit can write straight through them (`model/writeback.ts`).
+ * Every plane's shapes and edges join one tree. A nested plane's contents are
+ * parented under the container that owns the plane and keep the coordinates the
+ * document gave them; expanding the container is what moves them into its frame
+ * (`model/mutator.ts`).
  */
 
+import { readColorsOf } from '@canvas/model/color.ts';
+import { mintLabel, syncLabel } from '@canvas/model/labels.ts';
+import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
 import type {
   ModdleObject,
-  Plane,
   Point,
+  RootElement,
   Scene,
   SceneEdge,
   SceneElement,
-  SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
-import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
+import { labelHeightFor, nodeLabelBox } from '@canvas/render/labels.ts';
+
+export interface ImportOptions {
+  onWarning?: (message: string) => void;
+}
+
+const SHAPE_TYPE = 'bpmndi:BPMNShape';
+const EDGE_TYPE = 'bpmndi:BPMNEdge';
+const PARTICIPANT_TYPE = 'bpmn:Participant';
+const LANE_TYPE = 'bpmn:Lane';
+const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';
+const DATA_OUTPUT_ASSOCIATION = 'bpmn:DataOutputAssociation';
+
+interface PlaneSource {
+  root: ModdleObject | undefined;
+  shapes: ModdleObject[];
+  edges: ModdleObject[];
+}
+
+type Drawable = SceneNode | SceneEdge;
 
 function num(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-/** The `bpmndi:BPMNPlane` local name test — a plane element is a shape, edge, or (nested) plane. */
-const SHAPE_TYPE = 'bpmndi:BPMNShape';
-const EDGE_TYPE = 'bpmndi:BPMNEdge';
-
-const PARTICIPANT_TYPE = 'bpmn:Participant';
-const LANE_TYPE = 'bpmn:Lane';
-
-/** Data-association types, whose activity end is implicit (see {@link resolveEndpoints}). */
-const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';
-const DATA_OUTPUT_ASSOCIATION = 'bpmn:DataOutputAssociation';
-
-export interface ImportOptions {
-  /** Sink for recoverable problems (dangling `bpmnElement`, missing bounds). Defaults to `console.warn`. */
-  onWarning?: (message: string) => void;
+function idOf(target: ModdleObject | undefined): string | undefined {
+  const id = prop(target, 'id');
+  return typeof id === 'string' && id ? id : undefined;
 }
 
-interface PlaneSource {
-  plane: ModdleObject;
-  di: ModdleObject; // the BPMNDiagram
-  root: ModdleObject | undefined; // plane.bpmnElement (root BO)
-  shapes: ModdleObject[];
-  edges: ModdleObject[];
-}
-
-/**
- * Build the scene graph from a `bpmn:Definitions` moddle tree that already carries
- * DI. Returns a {@link Scene} with every `BPMNShape` as a {@link SceneNode} (bounds
- * copied from `dc:Bounds`), every `BPMNEdge` as a {@link SceneEdge} (waypoints
- * copied from `di:waypoint`), edge `source`/`target` resolved, and the plane /
- * containment tree assembled.
- */
 export function importDefinitions(definitions: ModdleObject, options: ImportOptions = {}): Scene {
   const warn = options.onWarning ?? ((message: string) => console.warn(`[canvas import] ${message}`));
+  const elementsById = new Map<string, SceneElement>();
+  const byBusinessObject = new Map<ModdleObject, Drawable>();
+  const planes = collectPlanes(definitions);
 
-  const elementsById = new Map<string, SceneElement | SceneLabel>();
-  const byBusinessObject = new Map<ModdleObject, SceneElement | SceneLabel>();
+  const index = (element: Drawable): void => {
+    if (element.id) {
+      if (elementsById.has(element.id)) warn(`duplicate element id '${element.id}' — later one wins`);
+      elementsById.set(element.id, element);
+    }
+    byBusinessObject.set(element.businessObject, element);
+  };
 
-  const planeSources = collectPlanes(definitions);
-  const planes: Plane[] = [];
-
-  // Pass 1 — every shape across every plane becomes a node, so a subprocess drawn
-  // in the parent plane exists before its sub-plane's children resolve their parent.
-  const nodeOfPlane = new Map<PlaneSource, SceneNode[]>();
-  const edgeOfPlane = new Map<PlaneSource, SceneEdge[]>();
-  for (const source of planeSources) {
+  // Shapes first, across every plane, so a nested plane's contents can find their container.
+  const shapesOf = new Map<PlaneSource, SceneNode[]>();
+  const edgesOf = new Map<PlaneSource, SceneEdge[]>();
+  for (const plane of planes) {
     const nodes: SceneNode[] = [];
-    for (const shape of source.shapes) {
+    for (const shape of plane.shapes) {
       const node = buildNode(shape, warn);
-      if (!node) continue;
-      index(node, elementsById, byBusinessObject, warn);
-      nodes.push(node);
+      if (node) {
+        index(node);
+        nodes.push(node);
+      }
     }
-    nodeOfPlane.set(source, nodes);
+    shapesOf.set(plane, nodes);
   }
-
-  // Pass 2 — edges (their endpoints are business objects that pass 1 already indexed).
-  for (const source of planeSources) {
+  for (const plane of planes) {
     const edges: SceneEdge[] = [];
-    for (const shape of source.edges) {
-      const edge = buildEdge(shape, warn);
-      if (!edge) continue;
-      index(edge, elementsById, byBusinessObject, warn);
-      edges.push(edge);
+    for (const di of plane.edges) {
+      const edge = buildEdge(di, warn);
+      if (edge) {
+        index(edge);
+        edges.push(edge);
+      }
     }
-    edgeOfPlane.set(source, edges);
+    edgesOf.set(plane, edges);
   }
+  for (const edges of edgesOf.values()) for (const edge of edges) resolveEndpoints(edge, byBusinessObject);
 
-  // Pass 3 — resolve edge endpoints and assemble the containment / plane tree.
-  for (const source of planeSources) {
-    for (const edge of edgeOfPlane.get(source) ?? []) resolveEndpoints(edge, byBusinessObject);
-  }
-
-  // Containment that the moddle `$parent` chain cannot express (pools, lanes).
   const refContainment = collectRefContainment(byBusinessObject);
-
-  for (const source of planeSources) {
-    const rootNode = source.root ? asNode(byBusinessObject.get(source.root)) : undefined;
-    const planeChildren: SceneElement[] = [];
-    const elements: SceneElement[] = [
-      ...(nodeOfPlane.get(source) ?? []),
-      ...(edgeOfPlane.get(source) ?? []),
-    ];
-    const parents = new Map<SceneElement, SceneNode | undefined>();
+  const children: SceneElement[] = [];
+  for (const plane of planes) {
+    const owner = plane.root ? asNode(byBusinessObject.get(plane.root)) : undefined;
+    const elements: Drawable[] = [...(shapesOf.get(plane) ?? []), ...(edgesOf.get(plane) ?? [])];
+    const parents = new Map<Drawable, SceneNode | undefined>();
     for (const element of elements) {
-      parents.set(element, findParentNode(element, byBusinessObject, rootNode, refContainment));
+      parents.set(element, findParentNode(element, byBusinessObject, owner, refContainment));
     }
     resolveLaneMembership(elements, parents);
     for (const element of elements) {
       const parent = parents.get(element);
       element.parent = parent;
       if (parent) parent.children.push(element);
-      if (!parent || parent === rootNode) planeChildren.push(element);
+      else children.push(element);
     }
-    planes.push({
-      id: planeId(source),
-      businessObject: source.root ?? source.plane,
-      di: source.plane,
-      children: planeChildren,
-    });
   }
 
-  const rootPlane = planes[0] ?? emptyPlane(definitions);
-  if (planes.length === 0) planes.push(rootPlane);
-
-  return {
-    planes,
-    rootPlane,
+  const root = planes[0]?.root ?? asList(prop(definitions, 'rootElements'))[0] ?? definitions;
+  const rootElement: RootElement = {
+    id: idOf(root) ?? 'root',
+    type: root.$type,
+    isRoot: true,
+    businessObject: root,
+    children,
+    parent: undefined,
+  };
+  const scene: Scene = {
+    definitions,
+    root,
+    rootElement,
+    children,
     elementsById,
     byBusinessObject,
     revision: 0,
   };
+
+  for (const element of byBusinessObject.values()) attachLabel(scene, element);
+  return scene;
 }
 
-/** Every `bpmndi:BPMNDiagram`/plane pair, in document order (the first is the root). */
 function collectPlanes(definitions: ModdleObject): PlaneSource[] {
-  const diagrams = asList(prop(definitions, 'diagrams'));
   const sources: PlaneSource[] = [];
-  for (const diagram of diagrams) {
+  for (const diagram of asList(prop(definitions, 'diagrams'))) {
     const plane = asModdle(prop(diagram, 'plane'));
     if (!plane) continue;
-    const planeElements = asList(prop(plane, 'planeElement'));
+    const elements = asList(prop(plane, 'planeElement'));
     sources.push({
-      plane,
-      di: diagram,
       root: asModdle(prop(plane, 'bpmnElement')),
-      shapes: planeElements.filter((el) => el.$type === SHAPE_TYPE),
-      edges: planeElements.filter((el) => el.$type === EDGE_TYPE),
+      shapes: elements.filter((el) => el.$type === SHAPE_TYPE),
+      edges: elements.filter((el) => el.$type === EDGE_TYPE),
     });
   }
   return sources;
@@ -171,94 +153,75 @@ function buildNode(shape: ModdleObject, warn: (m: string) => void): SceneNode | 
     return undefined;
   }
   const bounds = asModdle(prop(shape, 'bounds'));
-  const x = num(prop(bounds, 'x')) ?? 0;
-  const y = num(prop(bounds, 'y')) ?? 0;
-  const width = num(prop(bounds, 'width')) ?? 0;
-  const height = num(prop(bounds, 'height')) ?? 0;
   if (!bounds) warn(`BPMNShape for ${idOf(businessObject) ?? '<no id>'} has no dc:Bounds — placed at 0,0`);
-
   const node: SceneNode = {
     id: idOf(businessObject) ?? idOf(shape) ?? '',
     kind: 'node',
     type: businessObject.$type,
     businessObject,
-    di: shape,
-    x,
-    y,
-    width,
-    height,
+    x: num(prop(bounds, 'x')) ?? 0,
+    y: num(prop(bounds, 'y')) ?? 0,
+    width: num(prop(bounds, 'width')) ?? 0,
+    height: num(prop(bounds, 'height')) ?? 0,
     children: [],
     incoming: [],
     outgoing: [],
+    ...readColorsOf(shape),
   };
   const isExpanded = prop(shape, 'isExpanded');
   if (typeof isExpanded === 'boolean') node.isExpanded = isExpanded;
   const isMarkerVisible = prop(shape, 'isMarkerVisible');
   if (typeof isMarkerVisible === 'boolean') node.isMarkerVisible = isMarkerVisible;
-
-  attachLabel(node, shape, businessObject);
+  (node as { di?: ModdleObject }).di = shape;
   return node;
 }
 
-function buildEdge(shape: ModdleObject, warn: (m: string) => void): SceneEdge | undefined {
-  const businessObject = asModdle(prop(shape, 'bpmnElement'));
+function buildEdge(di: ModdleObject, warn: (m: string) => void): SceneEdge | undefined {
+  const businessObject = asModdle(prop(di, 'bpmnElement'));
   if (!businessObject) {
-    warn(`BPMNEdge ${idOf(shape) ?? '<no id>'} has no bpmnElement — skipped`);
+    warn(`BPMNEdge ${idOf(di) ?? '<no id>'} has no bpmnElement — skipped`);
     return undefined;
   }
-  const waypoints: Point[] = asList(prop(shape, 'waypoint')).map((wp) => ({
+  const waypoints: Point[] = asList(prop(di, 'waypoint')).map((wp) => ({
     x: num(prop(wp, 'x')) ?? 0,
     y: num(prop(wp, 'y')) ?? 0,
   }));
-
   const edge: SceneEdge = {
-    id: idOf(businessObject) ?? idOf(shape) ?? '',
+    id: idOf(businessObject) ?? idOf(di) ?? '',
     kind: 'edge',
     type: businessObject.$type,
     businessObject,
-    di: shape,
     waypoints,
   };
-  attachLabel(edge, shape, businessObject);
+  const { stroke } = readColorsOf(di);
+  if (stroke) edge.stroke = stroke;
+  (edge as { di?: ModdleObject }).di = di;
   return edge;
 }
 
-/** Attach an external/positioned label when the DI carries a `bpmndi:BPMNLabel` (owner text = BO `name`). */
-function attachLabel(owner: SceneElement, di: ModdleObject, businessObject: ModdleObject): void {
-  const labelDi = asModdle(prop(di, 'label'));
-  if (!labelDi) return;
-  const bounds = asModdle(prop(labelDi, 'bounds'));
-  const label: SceneLabel = {
-    id: `${owner.id}_label`,
-    kind: 'label',
-    businessObject,
-    di: labelDi,
-    owner,
-  };
+/** A `bpmndi:BPMNLabel` with bounds pins the caption where the document put it. */
+function attachLabel(scene: Scene, owner: Drawable): void {
+  const di = (owner as { di?: ModdleObject }).di;
+  delete (owner as { di?: ModdleObject }).di;
+  const bounds = asModdle(prop(asModdle(prop(di, 'label')), 'bounds'));
   const x = num(prop(bounds, 'x'));
   const y = num(prop(bounds, 'y'));
-  const width = num(prop(bounds, 'width'));
-  const height = num(prop(bounds, 'height'));
-  if (x !== undefined) label.x = x;
-  if (y !== undefined) label.y = y;
-  if (width !== undefined) label.width = width;
-  if (height !== undefined) label.height = height;
-  owner.label = label;
+  const name = prop(owner.businessObject, 'name');
+  if (x !== undefined && y !== undefined && typeof name === 'string' && name) {
+    const width = num(prop(bounds, 'width'))
+      ?? (owner.kind === 'node' ? nodeLabelBox(owner, name).width : 90);
+    const height = num(prop(bounds, 'height')) ?? labelHeightFor(name, width);
+    const label = mintLabel(owner, { x, y, width, height }, true);
+    scene.elementsById.set(label.id, label);
+  }
+  syncLabel(scene, owner);
 }
 
 /**
- * Resolve `source`/`target` from the edge business object's `sourceRef`/`targetRef`.
- *
- * A **data association** resolves only one of its two ends that way: it is drawn
- * between a data shape and an activity, but only the data shape is a ref — the
- * activity end is *implicit*, because the association hangs off the activity
- * (`activity.dataInputAssociations`) and its other ref points at an io slot
- * (`bpmn:DataInput`/`bpmn:DataOutput`/`bpmn:Property`) that is never drawn. So the
- * unresolved end falls back to the moddle `$parent`, giving the edge the same two
- * real endpoints a freshly created one gets (`model/dataAssociation.ts`) — which is
- * what routing, docking and the deletion closure read.
+ * A data association resolves only its data end by reference; the activity end is
+ * its moddle `$parent`.
  */
-function resolveEndpoints(edge: SceneEdge, byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>): void {
+function resolveEndpoints(edge: SceneEdge, byBusinessObject: Map<ModdleObject, Drawable>): void {
   let source = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'sourceRef'))!));
   let target = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'targetRef'))!));
   if (!source || !target) {
@@ -279,26 +242,12 @@ function resolveEndpoints(edge: SceneEdge, byBusinessObject: Map<ModdleObject, S
 }
 
 /**
- * Containment links the moddle `$parent` chain does NOT carry, keyed by the CONTAINED
- * business object:
- *
- * - a `bpmn:Participant` (pool) owns its flow nodes through `processRef` — the nodes'
- *   `$parent` is the `bpmn:Process`, which is a sibling of the collaboration, so a
- *   `$parent`-only walk never reaches the pool. Mapping `processRef → participant`
- *   splices the pool into the walk exactly where the process sits.
- * - a `bpmn:Lane` owns its members through `flowNodeRef` — a *reference* list, not a
- *   containment one, so the members' `$parent` is again the process. The deepest
- *   (most nested) lane claiming a node wins.
- *
- * Without this, `Participant.children` / `Lane.children` are empty and dragging a pool
- * leaves its contents behind (and commits that broken geometry to the DI).
+ * Containment the `$parent` chain does not carry: a pool owns its process's nodes
+ * through `processRef`, a lane its members through `flowNodeRef` (deepest lane wins).
  */
-function collectRefContainment(
-  byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>,
-): Map<ModdleObject, ModdleObject> {
+function collectRefContainment(byBusinessObject: Map<ModdleObject, Drawable>): Map<ModdleObject, ModdleObject> {
   const containment = new Map<ModdleObject, ModdleObject>();
   const claimDepth = new Map<ModdleObject, number>();
-
   for (const [bo, element] of byBusinessObject) {
     if (element.kind !== 'node') continue;
     if (bo.$type === PARTICIPANT_TYPE) {
@@ -319,66 +268,46 @@ function collectRefContainment(
   return containment;
 }
 
-/** How many `bpmn:Lane` ancestors `lane` has (a nested lane sits under a childLaneSet). */
 function laneNesting(lane: ModdleObject): number {
   let depth = 0;
-  let cursor = parentOf(lane);
   const guard = new Set<ModdleObject>();
-  while (cursor && !guard.has(cursor)) {
+  for (let cursor = parentOf(lane); cursor && !guard.has(cursor); cursor = parentOf(cursor)) {
     guard.add(cursor);
     if (cursor.$type === LANE_TYPE) depth += 1;
-    cursor = parentOf(cursor);
   }
   return depth;
 }
 
-/** The next MODDLE container up from `bo` — a reference link if one exists, else `$parent`. */
-function moddleContainerOf(
-  bo: ModdleObject,
-  containment: Map<ModdleObject, ModdleObject>,
-): ModdleObject | undefined {
-  return containment.get(bo) ?? parentOf(bo);
-}
-
-/**
- * The containing node for an element: the nearest business-object ancestor that is
- * itself drawn (a subprocess, participant, lane), else the plane's own root node
- * (for a sub-plane, its subprocess), else `undefined` (top of the root plane).
- */
+/** The nearest drawn ancestor of an element's business object, else the plane's owner. */
 function findParentNode(
-  element: SceneElement,
-  byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>,
-  rootNode: SceneNode | undefined,
+  element: Drawable,
+  byBusinessObject: Map<ModdleObject, Drawable>,
+  owner: SceneNode | undefined,
   containment: Map<ModdleObject, ModdleObject>,
 ): SceneNode | undefined {
-  let bo: ModdleObject | undefined = moddleContainerOf(element.businessObject, containment);
+  const up = (bo: ModdleObject): ModdleObject | undefined => containment.get(bo) ?? parentOf(bo);
   const guard = new Set<ModdleObject>();
-  while (bo && !guard.has(bo)) {
+  for (let bo = up(element.businessObject); bo && !guard.has(bo); bo = up(bo)) {
     guard.add(bo);
     const node = asNode(byBusinessObject.get(bo));
     if (node && node !== element) return node;
-    bo = moddleContainerOf(bo, containment);
   }
-  return rootNode && rootNode !== element ? rootNode : undefined;
+  return owner && owner !== element ? owner : undefined;
 }
 
-/**
- * Geometric fallback for lane membership: a node that landed directly on a pool while
- * that pool is divided into lanes belongs to the lane it is drawn inside. Exporters
- * routinely omit `flowNodeRef` (it is optional), and without this such a node would not
- * follow its lane when the lane is dragged. Only nodes whose reference/`$parent`
- * containment stopped at the participant are re-homed, so an explicit `flowNodeRef`
- * always wins; the smallest containing lane of that pool takes the node.
- */
-function resolveLaneMembership(
-  elements: readonly SceneElement[],
-  parents: Map<SceneElement, SceneNode | undefined>,
-): void {
-  const lanes = elements.filter(
-    (element): element is SceneNode => element.kind === 'node' && element.type === LANE_TYPE,
-  );
+/** A node drawn inside a lane of its pool belongs to that lane even without a `flowNodeRef`. */
+function resolveLaneMembership(elements: readonly Drawable[], parents: Map<Drawable, SceneNode | undefined>): void {
+  const lanes = elements.filter((el): el is SceneNode => el.kind === 'node' && el.type === LANE_TYPE);
   if (lanes.length === 0) return;
-
+  const poolOf = (lane: SceneNode): SceneNode | undefined => {
+    let cursor = parents.get(lane);
+    const guard = new Set<SceneNode>();
+    while (cursor && cursor.type === LANE_TYPE && !guard.has(cursor)) {
+      guard.add(cursor);
+      cursor = parents.get(cursor);
+    }
+    return cursor;
+  };
   for (const element of elements) {
     if (element.kind !== 'node' || element.type === LANE_TYPE) continue;
     const pool = parents.get(element);
@@ -388,9 +317,8 @@ function resolveLaneMembership(
     let best: SceneNode | undefined;
     let bestArea = Infinity;
     for (const lane of lanes) {
-      if (poolOfLane(lane, parents) !== pool) continue;
-      if (cx < lane.x || cx > lane.x + lane.width) continue;
-      if (cy < lane.y || cy > lane.y + lane.height) continue;
+      if (poolOf(lane) !== pool) continue;
+      if (cx < lane.x || cx > lane.x + lane.width || cy < lane.y || cy > lane.y + lane.height) continue;
       const area = lane.width * lane.height;
       if (area < bestArea) {
         best = lane;
@@ -401,49 +329,6 @@ function resolveLaneMembership(
   }
 }
 
-/** Walk `lane`'s (possibly nested) lane ancestry up to the pool that owns it. */
-function poolOfLane(
-  lane: SceneNode,
-  parents: Map<SceneElement, SceneNode | undefined>,
-): SceneNode | undefined {
-  let cursor: SceneNode | undefined = parents.get(lane);
-  const guard = new Set<SceneNode>();
-  while (cursor && cursor.type === LANE_TYPE && !guard.has(cursor)) {
-    guard.add(cursor);
-    cursor = parents.get(cursor);
-  }
-  return cursor;
-}
-
-function index(
-  element: SceneElement,
-  elementsById: Map<string, SceneElement | SceneLabel>,
-  byBusinessObject: Map<ModdleObject, SceneElement | SceneLabel>,
-  warn: (m: string) => void,
-): void {
-  if (element.id) {
-    if (elementsById.has(element.id)) warn(`duplicate element id '${element.id}' — later one wins`);
-    elementsById.set(element.id, element);
-  }
-  byBusinessObject.set(element.businessObject, element);
-  if (element.label) {
-    if (element.label.id) elementsById.set(element.label.id, element.label);
-  }
-}
-
-function asNode(value: SceneElement | SceneLabel | undefined): SceneNode | undefined {
+function asNode(value: SceneElement | undefined): SceneNode | undefined {
   return value && value.kind === 'node' ? value : undefined;
-}
-
-function idOf(target: ModdleObject | undefined): string | undefined {
-  const id = prop(target, 'id');
-  return typeof id === 'string' && id ? id : undefined;
-}
-
-function planeId(source: PlaneSource): string {
-  return idOf(source.plane) ?? idOf(source.di) ?? `${idOf(source.root) ?? 'plane'}_plane`;
-}
-
-function emptyPlane(definitions: ModdleObject): Plane {
-  return { id: 'plane', businessObject: definitions, di: definitions, children: [] };
 }

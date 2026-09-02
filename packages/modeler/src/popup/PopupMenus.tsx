@@ -139,7 +139,7 @@ export function PopupMenus() {
             .filter((entry) => (
               !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension)
               && familyOf(entry.bpmnType) === currentFamily
-              && modeler.rules.allowed('shape.replace', { element: source, targetType: entry.bpmnType })
+              && modeler.canvas.getRules().canReplace(source, entry.bpmnType)
             ))
             .map((entry): PopupMenuItem => ({
               id: entry.id,

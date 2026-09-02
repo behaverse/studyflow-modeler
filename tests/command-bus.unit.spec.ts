@@ -18,7 +18,7 @@ const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8');
 test('a handler goes through the port facade, so a partial port stands in for the editor', () => {
   const painted: unknown[] = [];
   const modeler = {
-    mutate: {
+    canvas: {
       setColor: (elements: unknown, color: unknown) => painted.push({ elements, color }),
     },
   } as unknown as Editor;
@@ -27,7 +27,7 @@ test('a handler goes through the port facade, so a partial port stands in for th
 
   runSetColor(modeler, { type: 'SetColor', elements, color });
 
-  expect(painted, 'the handler reached the editor through `mutate` alone').toEqual([{ elements, color }]);
+  expect(painted, 'the handler reached the editor through `canvas` alone').toEqual([{ elements, color }]);
 });
 
 test('the colour picker really does dispatch `SetColor` with the editor', () => {

@@ -78,6 +78,7 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'default-flow': ICONS.slash,
   swap: ICONS.swapVertical,
   subprocess: ICONS.expand,
+  open: ICONS.folderOpen,
 };
 
 /** Heading each pad entry that opens a popup gives the menu it opens. */
@@ -87,38 +88,21 @@ const MENU_TITLES: Record<string, string> = {
   [COLOR_MENU]: 'Set color',
 };
 
-/** Whether `element` is a shape the full pad applies to (not a connection, not a caption). */
 function isShapeElement(element: EditorElement): boolean {
-  if (!element) return false;
-  if (element.labelTarget) return false;
-  if (element.kind) return element.kind === 'node';
-  return !element.waypoints;
+  return element?.kind === 'node';
 }
 
-/**
- * Whether `element` is a CONNECTION — a flow or an association, which gets the
- * 3-entry pad of ux-spec §4 (annotate, delete, colour). A caption is excluded here
- * as it is from {@link isShapeElement}: it is neither, and gets two entries.
- */
 function isConnectionElement(element: EditorElement): boolean {
-  if (!element || element.labelTarget) return false;
-  if (element.kind) return element.kind === 'edge';
-  return !!element.waypoints;
+  return element?.kind === 'edge';
 }
 
-/**
- * Whether `element` is an external LABEL — a caption, drawn beside the element it
- * names. It gets a pad of its own, but a two-entry one: `edge-videos/labels/frame_08`
- * shows a trash and a brush beside a selected caption and nothing else, because
- * every other entry needs a shape to hang off (parity spec addendum 3 §4).
- */
+/** A caption gets a two-entry pad of its own: trash (clears the name) and brush. */
 function isLabelElement(element: EditorElement): boolean {
-  return !!element?.labelTarget || element?.type === 'label';
+  return element?.kind === 'label';
 }
 
-/** The element a caption names — itself, for anything that is not one. */
 function ownerOf(element: EditorElement): EditorElement {
-  return element?.labelTarget ?? element;
+  return element?.kind === 'label' ? element.owner : element;
 }
 
 /** The union bbox of `elements` in screen coordinates, skipping off-plane ones. */
@@ -291,21 +275,17 @@ export function ContextPad() {
     );
     const isDefault = canToggleDefault
       && (flow?.source?.businessObject as { default?: unknown } | undefined)?.default === flow?.businessObject;
-    const askAppend = (targetType?: string): boolean => (
-      !!single && modeler.rules.allowed('shape.append', {
-        element: single,
-        source: single,
-        ...(targetType ? { targetType } : {}),
-      })
-    );
+    const rules = modeler.canvas.getRules();
+    const askAppend = (targetType?: string): boolean => !!single && rules.canAppendType(single, targetType);
     return contextPadEntries({
       count: elements.length,
       isShape: !!single && isShapeElement(single),
       isConnection: !!single && isConnectionElement(single),
+      isLabel: !!single && isLabelElement(single),
       canAppend: askAppend(),
-      canConnect: !!single && !!modeler.rules.allowed('connection.start', { source: single }),
+      canConnect: !!single && rules.canStartConnection(single),
       canAnnotate: askAppend('bpmn:TextAnnotation'),
-      canReplace: !!single && modeler.rules.allowed('shape.replace', { element: single }),
+      canReplace: !!single && rules.canReplace(single),
       canToggleDefault,
       isDefault,
       isChoreographyTask: !!single && is(single, 'bpmn:ChoreographyTask'),
@@ -341,7 +321,7 @@ export function ContextPad() {
     // silhouette and the rules verdict, which is everything the preview needs.
     const shape = modeler.canvas.createShape({ type: append.bpmnType });
     const source = modeler.canvas.resolveElement(element);
-    if (source) modeler.canvas.previewAppend(source, shape);
+    if (source && source.kind !== 'label') modeler.canvas.previewAppend(source, shape);
   }, [modeler, element]);
 
   const run = useCallback((entry: ContextPadEntry) => {
@@ -394,6 +374,9 @@ export function ContextPad() {
         return;
       case 'expand.toggle':
         if (element) void executeCommand(modeler, { type: 'ToggleExpanded', element });
+        return;
+      case 'drilldown':
+        if (element) void executeCommand(modeler, { type: 'DrillDown', element });
         return;
       default:
         return;

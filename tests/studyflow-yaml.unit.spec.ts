@@ -72,10 +72,12 @@ test.describe('studyflow YAML format', () => {
     expect(doc.diagram).toBeUndefined();
     expect(doc.elements).toBeUndefined();
 
-    expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
+    // A namespace the writer declares on its own is not written; the XML still carries it.
+    expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
+    expect(xml).toContain('xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"');
 
     const process = doc.Demo5_OllamaBot;
-    expect(process.type).toBe('bpmn:Process');
+    expect(process.type).toBe('Process');
     expect(process.flowElements.Start.id).toBeUndefined();
 
     expect(Array.isArray(process.extensionElements)).toBe(true);
@@ -86,10 +88,15 @@ test.describe('studyflow YAML format', () => {
     expect(ext.configurations.Blocks.Demo5_Warmup.Parameters.NValue).toBe(1);
     expect(ext.botConfigurations.LLM.Provider).toBe('ollama');
 
+    // Geometry is one line per DI node: `x y width height`, and `x,y x,y` for a route.
     const start = process.flowElements.Start;
-    expect(start.bounds).toMatchObject({ width: 36, height: 36 });
-    expect(start.label.bounds).toBeDefined();
-    expect(Array.isArray(process.flowElements.Flow_Start_Warmup.waypoint)).toBe(true);
+    expect(start.bounds).toMatch(/^-?[\d.]+ -?[\d.]+ 36 36$/);
+    expect(start.label).toMatch(/^(-?[\d.]+ ){3}-?[\d.]+$/);
+    expect(process.flowElements.Flow_Start_Warmup.waypoint).toMatch(/^-?[\d.]+,-?[\d.]+( -?[\d.]+,-?[\d.]+)+$/);
+    // Implied by the flows, so not written; and a flow under `flowElements` needs no type.
+    expect(start.outgoing).toBeUndefined();
+    expect(process.flowElements.Warmup_1Back.incoming).toBeUndefined();
+    expect(process.flowElements.Flow_Start_Warmup.type).toBeUndefined();
   });
 
   test('hand-written keyed YAML loads; missing incoming/outgoing are derived', async () => {
@@ -194,12 +201,71 @@ diagram:
     const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle2));
     expect(doc.id).toBe('legacy_demo');
-    expect(doc.definitions['xmlns:studyflow']).toBe('http://behaverse.org/schemas/studyflow/v1');
+    expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
     const process = doc.P;
     expect(Array.isArray(process.extensionElements)).toBe(true);
     expect(process.flowElements.T1.extensionElements[0].configurations.Timelines).toBeDefined();
-    expect(process.flowElements.Start.bounds.x).toBe(160);
+    expect(process.flowElements.Start.bounds).toBe('160 180 36 36');
+  });
+
+  test('the short spellings: bare types, implied flow types, one-line geometry, arrows, one key per colour', async () => {
+    const doc = `
+id: short_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+      bounds: 0 0 36 36
+    T1:
+      type: Task
+      name: Read
+      bounds: 100 0 100 80
+      fill: "#dbe8f5"
+      stroke: "#4a6f9c"
+    End:
+      type: EndEvent
+      bounds: 300 0 36 36
+      label: 290 40 56 14
+    F1: Start -> T1
+    F2:
+      name: done
+      sourceRef: T1
+      targetRef: End
+      waypoint: 200,40 300,40
+  artifacts:
+    Note_1:
+      text: hello
+    Assoc_1: Note_1 -> T1
+`;
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const xml = await studyflowToXml(doc, moddle);
+    expect(xml).toMatch(/<bpmn2?:task id="T1" name="Read">/);
+    expect(xml).toMatch(/<bpmn2?:sequenceFlow id="F1" sourceRef="Start" targetRef="T1" \/>/);
+    expect(xml).toMatch(/<bpmn2?:sequenceFlow id="F2" name="done" sourceRef="T1" targetRef="End" \/>/);
+    expect(xml).toMatch(/<bpmn2?:textAnnotation id="Note_1">/);
+    expect(xml).toMatch(/<bpmn2?:association id="Assoc_1" sourceRef="Note_1" targetRef="T1" \/>/);
+    expect(xml).toMatch(/:outgoing>F1</);
+    expect(xml).toMatch(/<dc:Bounds x="100" y="0" width="100" height="80" \/>/);
+    expect(xml).toMatch(/<di:waypoint x="200" y="40" \/>/);
+    expect(xml).toMatch(/<bpmndi:BPMNLabel>\s*<dc:Bounds x="290" y="40" width="56" height="14" \/>/);
+    // One colour key writes both DI vocabularies.
+    expect(xml).toContain('color:background-color="#dbe8f5"');
+    expect(xml).toContain('bioc:fill="#dbe8f5"');
+    expect(xml).toContain('color:border-color="#4a6f9c"');
+    expect(xml).toContain('bioc:stroke="#4a6f9c"');
+
+    const back: any = yaml.load(await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any));
+    expect(back.P.type).toBe('Process');
+    expect(back.P.flowElements.T1).toEqual({ type: 'Task', name: 'Read', bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c' });
+    expect(back.P.flowElements.End.label).toBe('290 40 56 14');
+    expect(back.P.flowElements.F1).toBe('Start -> T1');
+    expect(back.P.flowElements.F2).toEqual({ name: 'done', sourceRef: 'T1', targetRef: 'End', waypoint: '200,40 300,40' });
+    expect(back.P.artifacts.Note_1).toEqual({ text: 'hello' });
+    expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
   });
 
   test('a config body carrying XML-unsafe markup round-trips XML <-> YAML', async () => {

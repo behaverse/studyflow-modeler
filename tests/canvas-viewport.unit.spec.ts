@@ -114,82 +114,46 @@ test('the idle cursor over the canvas is grab, and grabbing while panning', asyn
   expect(CANVAS_CSS).toContain('cursor: grab;');
   expect(CANVAS_CSS).toContain('.sf-canvas.sf-panning');
   expect(CANVAS_CSS).toContain('cursor: grabbing;');
-  expect(CANVAS_CSS).toContain('.sf-canvas.sf-lasso-tool');
   expect(CANVAS_CSS).toContain('cursor: crosshair;');
 });
 
-// --- the lasso tool ----------------------------------------------------------
+// --- the marquee ---------------------------------------------------------------
 
-test('lasso: only the palette tool arms it, and it disarms after one gesture', async () => {
+test('Shift+drag on empty canvas draws a marquee and selects what it encloses', async () => {
   const canvas = await load();
   const svg = canvas.getSvg();
   const before = box(canvas);
   const from = { x: before.x + 10, y: before.y + 10 };
   const to = { x: 350, y: 200 };
 
-  expect(canvas.isLassoArmed()).toBe(false);
-  canvas.activateLasso();
-  expect(canvas.isLassoArmed()).toBe(true);
-  expect(svg.classList.contains('sf-lasso-tool')).toBe(true);
-
-  pointerDown(canvas, from);
-  pointerMove(canvas, to);
-  expect(svg.querySelector('.sf-lasso-overlay')).not.toBeNull();
-  // A lasso does not pan.
+  pointerDown(canvas, from, { shiftKey: true });
+  pointerMove(canvas, to, { shiftKey: true });
+  expect(svg.querySelector('.sf-marquee')).not.toBeNull();
+  // A marquee does not pan.
   expect({ x: box(canvas).x, y: box(canvas).y }).toEqual({ x: before.x, y: before.y });
-
-  pointerUp(canvas, to);
+  pointerUp(canvas, to, { shiftKey: true });
   expect(canvas.getSelection().get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
-  // One shot: the next empty-canvas drag pans again.
-  expect(canvas.isLassoArmed()).toBe(false);
-  expect(svg.classList.contains('sf-lasso-tool')).toBe(false);
+  expect(svg.querySelector('.sf-marquee')).toBeNull();
 
+  // Without Shift the same drag pans.
   pointerDown(canvas, from);
   pointerMove(canvas, to);
-  expect(svg.querySelector('.sf-lasso-overlay')).toBeNull();
+  expect(svg.querySelector('.sf-marquee')).toBeNull();
   expect(box(canvas).x).not.toBe(before.x);
   pointerUp(canvas, to);
 });
 
-test('lasso: an armed tool ignores what is under the pointer', async () => {
-  const canvas = await load();
-  const svg = canvas.getSvg();
-  const task = node(canvas, 'Task_1');
-  const onTask = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
-
-  canvas.activateLasso();
-  pointerDown(canvas, onTask);
-  // Pressing on a shape with the lasso armed neither selects nor moves it.
-  expect(canvas.getSelection().get()).toEqual([]);
-  pointerMove(canvas, { x: onTask.x + 100, y: onTask.y + 100 });
-  expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
-  expect(svg.querySelector('.sf-lasso-overlay')).not.toBeNull();
-  pointerUp(canvas, { x: onTask.x + 100, y: onTask.y + 100 });
-});
-
-test('Escape disarms the lasso tool', async () => {
-  const canvas = await load();
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-  canvas.activateLasso();
-  pointerDown(canvas, { x: box(canvas).x + 10, y: box(canvas).y + 10 });
-  pointerMove(canvas, { x: 350, y: 200 });
-  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  expect(canvas.isLassoArmed()).toBe(false);
-  expect(svg.querySelector('.sf-lasso-overlay')).toBeNull();
-});
-
 // --- the wheel ---------------------------------------------------------------
 
-test('wheel: a plain notch pans vertically by diagram-js\'s 0.75 x delta', async () => {
+test('wheel: a plain notch pans vertically by its delta', async () => {
   const canvas = await load();
   const before = box(canvas);
 
   fireWheel(canvas, { deltaY: -240 });
 
   const after = box(canvas);
-  // -0.75 x -240 = 180 screen px of content movement, downward: the viewBox rises.
-  expect(after.y).toBeCloseTo(before.y - 180, 6);
+  // 240 screen px of content movement, downward: the viewBox rises.
+  expect(after.y).toBeCloseTo(before.y - 240, 6);
   expect(after.x).toBeCloseTo(before.x, 6);
   expect(after.width).toBeCloseTo(before.width, 6);
 });
@@ -199,39 +163,27 @@ test('wheel: deltaX pans horizontally, and Shift maps a vertical wheel onto x', 
   const start = box(canvas);
 
   fireWheel(canvas, { deltaX: -100, deltaY: 0 });
-  expect(box(canvas).x).toBeCloseTo(start.x - 75, 6);
+  expect(box(canvas).x).toBeCloseTo(start.x - 100, 6);
   expect(box(canvas).y).toBeCloseTo(start.y, 6);
 
   const mid = box(canvas);
   fireWheel(canvas, { deltaY: -100, shiftKey: true });
-  expect(box(canvas).x).toBeCloseTo(mid.x - 75, 6);
+  expect(box(canvas).x).toBeCloseTo(mid.x - 100, 6);
   expect(box(canvas).y).toBeCloseTo(mid.y, 6);
 });
 
-test('Ctrl+wheel zooms one half-step about the cursor (1 -> 1.16158640)', async () => {
+test('Ctrl+wheel zooms about the cursor, exponentially in the delta', async () => {
   const canvas = await load();
   const before = box(canvas);
-  // jsdom reports a zero-size container, so the viewport's scale reads 1 and the
-  // step is applied to the viewBox width — the same ratio, measurable.
   fireWheel(canvas, { deltaY: -240, ctrlKey: true });
 
   const after = box(canvas);
-  expect(before.width / after.width).toBeCloseTo(1.16158640, 6);
-  expect(before.height / after.height).toBeCloseTo(1.16158640, 6);
+  const factor = Math.exp(240 * 0.002);
+  expect(before.width / after.width).toBeCloseTo(factor, 6);
+  expect(before.height / after.height).toBeCloseTo(factor, 6);
 
   // …and the other way.
   const zoomedIn = box(canvas);
   fireWheel(canvas, { deltaY: 240, ctrlKey: true });
-  expect(box(canvas).width / zoomedIn.width).toBeCloseTo(1.16158640, 6);
-});
-
-test('wheel: a delta too small to matter neither pans nor zooms twice', async () => {
-  const canvas = await load();
-  const before = box(canvas);
-  // |delta| = 0.75 * 0.02 * 1 = 0.015, under diagram-js's 0.1 threshold: nothing yet.
-  fireWheel(canvas, { deltaY: -1, ctrlKey: true });
-  expect(box(canvas).width).toBeCloseTo(before.width, 6);
-  // …but the accumulation is kept, so a run of small notches eventually steps.
-  for (let i = 0; i < 10; i += 1) fireWheel(canvas, { deltaY: -1, ctrlKey: true });
-  expect(box(canvas).width).toBeLessThan(before.width);
+  expect(box(canvas).width / zoomedIn.width).toBeCloseTo(factor, 6);
 });

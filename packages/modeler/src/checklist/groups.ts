@@ -33,8 +33,8 @@ function buildChecklistGroup(el: any): ElementGroup | null {
 export function collectChecklistGroups(modeler: Editor): ElementGroup[] {
   if (!modeler) return [];
   const groups: ElementGroup[] = [];
-  modeler.elements.forEach((el: any) => {
-    if (el.type === 'label') return;
+  modeler.canvas.all().forEach((el: any) => {
+    if (el.kind === 'label') return;
     const group = buildChecklistGroup(el);
     if (group) groups.push(group);
   });

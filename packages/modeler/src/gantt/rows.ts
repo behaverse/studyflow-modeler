@@ -141,8 +141,8 @@ export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
   const rows: Row[] = [];
   const anchor = Date.now();
-  modeler.elements.forEach((el: any) => {
-    if (el.type === 'label') return;
+  modeler.canvas.all().forEach((el: any) => {
+    if (el.kind === 'label') return;
     const row = buildGanttRow(el, anchor);
     if (row) rows.push(row);
   });

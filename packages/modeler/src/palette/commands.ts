@@ -65,24 +65,12 @@ type PopupPosition = {
   };
 };
 
-export type PaletteActivateLassoCommand = {
-  type: 'PaletteActivateLasso';
-  event: any;
-};
-
 export type PaletteOpenPopupCommand = {
   type: 'PaletteOpenPopup';
   popupType: string;
   position: PopupPosition;
   title: string;
 };
-
-export function runPaletteActivateLasso(modeler: Editor, _command: PaletteActivateLassoCommand): void {
-  // ARMS the tool; the NEXT drag draws the marquee. The button's own event is
-  // deliberately not passed on — dragging empty canvas pans (parity spec §10), so
-  // there is no gesture to continue from here, only a mode to enter.
-  modeler.canvas.activateLasso();
-}
 
 export function runPaletteOpenPopup(_modeler: Editor, command: PaletteOpenPopupCommand): void {
   openPopupMenu(command.popupType, command.position, {

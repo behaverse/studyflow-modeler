@@ -12,7 +12,19 @@ import {
 import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
 import type { Point } from '@canvas/model/scene.ts';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
-import type { Canvas, EditorElements, Editor } from '@modeler/editor/port';
+import type { Canvas, Editor } from '@modeler/editor/port';
+
+/** The element lookups the replay reads off the canvas. */
+type Registry = { get: (id: string) => any; filter: (fn: (el: any) => boolean) => any[]; root: () => any; findRoot: (el: any) => any };
+
+function registryOf(canvas: Canvas): Registry {
+  return {
+    get: (id) => canvas.get(id),
+    filter: (fn) => canvas.all().filter(fn),
+    root: () => canvas.getRoot(),
+    findRoot: (el) => canvas.rootOf(el),
+  };
+}
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -34,7 +46,7 @@ const DETAIL_ICONS: Record<string, string> = {
 };
 
 /** An element the editor knows for this record: its own scope, or the flow its `what` mentions. */
-function elementsOf(record: ProvenanceRecord, elements: EditorElements): any[] {
+function elementsOf(record: ProvenanceRecord, elements: Registry): any[] {
   const found: any[] = [];
   if (!record.isDocument && elements.get(record.scopeId)) found.push(elements.get(record.scopeId));
   // `what` is a flow id on gateway decisions, a timestamp elsewhere; only the former resolves.
@@ -59,7 +71,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   const planeShift = useRef<number | null>(null);
 
   useEffect(() => {
-    const { canvas, elements } = editor;
+    const { canvas } = editor;
+    const elements = registryOf(canvas);
     canvas.getContainer()?.classList.add('replay-active');
     return () => {
       canvas.getContainer()?.classList.remove('replay-active');
@@ -77,7 +90,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   }, [editor]);
 
   useEffect(() => {
-    const { canvas, elements: registry } = editor;
+    const { canvas } = editor;
+    const registry = registryOf(canvas);
     const viewport = canvas.getViewport();
 
     const touched = new Set<string>();

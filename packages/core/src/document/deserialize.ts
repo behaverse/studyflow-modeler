@@ -9,18 +9,23 @@ import {
 } from '@core/document/format';
 import {
   CHECKLIST_MARKER,
+  DI_NODE_TYPES,
   elementListProperty,
   expandChecklistEntry,
+  expandDiNode,
   expandDocumentationEntry,
   expandExpressionBody,
   expandInlineBody,
+  expandInlineFlow,
   expandInlineValue,
   extractInlineDi,
+  impliedTypeName,
   isDocumentationProperty,
   isDocumentationType,
   isExpressionType,
   isYamlValueProperty,
   keyedMapToList,
+  longTypeName,
   qualifiesAsInlineBody,
   qualifiesAsInlineValue,
   yamlBodyProperty,
@@ -56,8 +61,10 @@ class ModdleBuilder {
 
   build(node: Record<string, any>, declaredType: string | undefined): any {
     const { type, ...props } = node;
-    const typeName = (type as string | undefined) ?? declaredType;
-    if (!typeName) throw new Error(`Element is missing a 'type': ${JSON.stringify(node).slice(0, 120)}`);
+    const spelled = (type as string | undefined) ?? impliedTypeName(props, declaredType) ?? declaredType;
+    if (!spelled) throw new Error(`Element is missing a 'type': ${JSON.stringify(node).slice(0, 120)}`);
+    const typeName = longTypeName(spelled);
+    if (DI_NODE_TYPES.has(typeName)) expandDiNode(props);
 
     const el = this.createElement(typeName);
     const descriptor = this.moddle.getElementDescriptor(el);
@@ -76,12 +83,13 @@ class ModdleBuilder {
 
       if (!p) {
         el.$attrs[name] = raw;
-        this.onWarning?.(`unknown key '${name}' on ${typeName} kept as a raw attribute (typo, or its schema is not loaded?)`);
+        // A namespaced key is a foreign attribute by design; only a bare one is likely a typo.
+        if (!name.includes(':')) this.onWarning?.(`unknown key '${name}' on ${typeName} kept as a raw attribute (typo, or its schema is not loaded?)`);
         continue;
       }
 
       if (p.isReference) {
-        const ids = (p.isMany ? (raw as unknown[]) : [raw]).map(String);
+        const ids = (p.isMany && Array.isArray(raw) ? raw : [raw]).map(String);
         this.pending.push({ element: el, property: p.name, ids, isMany: !!p.isMany, context: typeName });
         continue;
       }
@@ -90,7 +98,7 @@ class ModdleBuilder {
         const list = Array.isArray(raw) ? (raw as unknown[])
           : typeof raw === 'string' && isDocumentationProperty(p) ? [raw]
           : keyedMapToList(raw);
-        const items = list.map((item) => this.buildValue(item, p.type));
+        const items = list.map((item) => this.buildValue(expandInlineFlow(item), p.type));
         for (const item of items) if (isModdleElement(item)) item.$parent = el;
         el.set(p.name, items);
         continue;
@@ -245,6 +253,10 @@ export function studyflowToDefinitions(
   const rootElements: unknown[] = [];
   for (const [key, body] of Object.entries(doc)) {
     if (RESERVED_DOC_KEYS.has(key)) continue;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      onWarning(`top-level key '${key}' is not an element and was ignored`);
+      continue;
+    }
     rootElements.push(...keyedMapToList({ [key]: body }));
   }
   if (Array.isArray(doc.elements)) rootElements.push(...doc.elements);
