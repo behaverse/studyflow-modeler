@@ -1,5 +1,5 @@
 /**
- * The per-shape context pad (parity spec addendum 4 + 5, ux-spec §4).
+ * The per-shape context pad.
  *
  * The floating box beside the selection: append-anything, the colour picker, the
  * wrench, the trash, connect, and studyflow's own `choreography.swap-initiator`.

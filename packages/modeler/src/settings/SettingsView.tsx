@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@core/notation/loader';
 import { schemaDiagnostics } from '@core/notation';
-import { setRecordEvents, shouldRecordEvents } from '@core/settings';
+import { setRecordEvents, shouldRecordEvents } from '@runner/settings';
 import { ICONS } from '@modeler/icons';
 import { URLS } from '@modeler/constants';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';

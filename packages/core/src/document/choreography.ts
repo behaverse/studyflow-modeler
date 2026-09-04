@@ -199,7 +199,7 @@ export function choreographyToProcessRoot(definitions: any): boolean {
 
   moveOnto(process, choreography, ['flowElements']);
 
-  // A Participant is not a RootElement: survivors need a headless Collaboration to stay resolvable, and with no DI plane bpmn-js draws no pool.
+  // A Participant is not a RootElement: survivors need a headless Collaboration to stay resolvable, and with no DI plane no pool is drawn.
   const newRoots = rootElements.map((re: any) => (re === choreography ? process : re));
   const participants = choreography.get('participants') ?? [];
   if (participants.length > 0) {

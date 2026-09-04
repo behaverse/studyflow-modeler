@@ -544,10 +544,12 @@ class NoRepo:
 
 def discover_runners(runner_flags: list[str]) -> dict[str, str]:
     """Partial runners in reach, each named <name> and claiming its own elements: a `studyflow-<name>.py`
-    beside this script, a `studyflow-<name>` on PATH, then `STUDYFLOW_<NAME>_PY` overrides."""
+    beside this script or in a `STUDYFLOW_RUNNERS` directory, a `studyflow-<name>` on PATH, then
+    `STUDYFLOW_<NAME>_PY` overrides."""
     flags = "".join(f" {flag}" for flag in runner_flags)
     found: dict[str, str] = {}
-    for script in sorted(Path(__file__).resolve().parent.glob("studyflow-*.py")):
+    script_dirs = [Path(__file__).resolve().parent, *(Path(d) for d in os.environ.get("STUDYFLOW_RUNNERS", "").split(os.pathsep) if d)]
+    for script in sorted(script for directory in script_dirs for script in directory.glob("studyflow-*.py")):
         name = script.stem.removeprefix("studyflow-").lower()
         if name not in ("run", "run-local", "prov"):
             found[name] = f"uv run --script {shlex.quote(str(script))}{flags}"
@@ -572,9 +574,86 @@ def discover_runners(runner_flags: list[str]) -> dict[str, str]:
 
 
 
+def text_of(node: ET.Element | None) -> str | None:
+    text = (node.text or "").strip() if node is not None else ""
+    return text or None
+
+
+def extension_digest(ext: ET.Element) -> dict[str, Any]:
+    """An extension element under local names: its attributes, then its child elements' text (a list when a name repeats)."""
+    fields: dict[str, Any] = {key.split("}")[-1]: value for key, value in ext.attrib.items()}
+    for child in ext:
+        name, text = local(child), (child.text or "").strip()
+        if name in fields:
+            fields[name] = [*fields[name], text] if isinstance(fields[name], list) else [fields[name], text]
+        else:
+            fields[name] = text
+    namespace = ext.tag[1:].split("}")[0] if ext.tag.startswith("{") else ""
+    return {"namespace": namespace, "type": local(ext), "attributes": fields}
+
+
+def element_digest(element: ET.Element) -> dict[str, Any]:
+    """One element as a partial runner sees it: what the XML says, under local names, nothing inferred."""
+    inputs: list[dict[str, Any]] = []
+    outputs: list[dict[str, Any]] = []
+    io_slots: dict[str, str] = {}
+    extensions: list[dict[str, Any]] = []
+    for child in element:
+        tag = local(child)
+        if tag == "extensionElements":
+            extensions.extend(extension_digest(ext) for ext in child)
+        elif tag == "ioSpecification":
+            io_slots.update({d.get("id"): d.get("name") or "" for d in child if local(d) == "dataInput" and d.get("id")})
+        elif tag in ("dataInputAssociation", "dataOutputAssociation"):
+            parts = {local(c): c for c in child}
+            narrow = parts.get("transformation")
+            binding = {
+                "target": text_of(parts.get("targetRef")),
+                "transformation": text_of(narrow),
+                "language": narrow.get("language") if narrow is not None else None,
+            }
+            if tag == "dataOutputAssociation":
+                outputs.append(binding)
+            else:
+                inputs.extend({"source": text_of(c), **binding} for c in child if local(c) == "sourceRef" and text_of(c))
+    return {
+        "id": element.get("id"),
+        "type": local(element),
+        "name": element.get("name"),
+        "attributes": {k.split("}")[-1]: v for k, v in element.attrib.items() if k.split("}")[-1] not in ("id", "name")},
+        "extensions": extensions,
+        "additionalArguments": text_of(studyflow_child(element, "additionalArguments")),
+        "ioSlots": io_slots,
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+
+def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
+    """The plan as one JSON document for partial runners: the study, every element by id (pool participants
+    included), and the directories a boundary input may be staged from. A runner reads this, never the diagram."""
+    elements = {element_id: element_digest(element) for element_id, element in studyflow.elements.items()}
+    process = studyflow.process
+    title = process.get("name")
+    for collaboration in studyflow.definitions:
+        if local(collaboration) != "collaboration":
+            continue
+        for participant in collaboration:
+            if local(participant) != "participant" or not participant.get("id"):
+                continue
+            elements[participant.get("id")] = element_digest(participant)
+            if not title and participant.get("processRef") == process.get("id"):
+                title = participant.get("name")
+    return {
+        "study": {"id": process.get("id"), "name": title or process.get("id"), "seed": studyflow_attr(process, "seed")},
+        "sources": [str(path) for path in sources],
+        "elements": elements,
+    }
+
+
 class PartialRunner:
-    """A partial runner as a subprocess per element: `COMMAND <diagram> --element <id> --cache <dir>`.
-    It runs the elements it claims (`COMMAND <diagram> --claims` answers with their ids), whatever
+    """A partial runner as a subprocess per element: `COMMAND <plan.json> --element <id> --cache <dir>`.
+    It runs the elements it claims (`COMMAND <plan.json> --claims` answers with their ids), whatever
     they are; a runner is element-specific, not schema-specific. One file per hand-off,
     `<id>.state.json` in the cache dir: the state (the run's values) goes in, and the updated
     state comes back with `result`, `durationMs`, and on failure `error` merged in. Only one
@@ -635,8 +714,13 @@ class Runner:
         self.studyflow = studyflow
         self.debug = debug
         # Partial runners claim elements, not schemas: each is asked once which ids it will run.
+        # Partial runners never open the diagram: they read `.cache/plan.json`, the plan as one JSON digest.
+        handoff_plan = repo_dir / ".cache" / "plan.json"
+        if plan_path is not None and runners:
+            handoff_plan.parent.mkdir(parents=True, exist_ok=True)
+            handoff_plan.write_text(json.dumps(plan_digest(studyflow, input_sources or [Path.cwd()]), indent=1))
         self.runners = {
-            name: PartialRunner(name, command, plan_path, repo_dir, debug=debug)
+            name: PartialRunner(name, command, handoff_plan, repo_dir, debug=debug)
             for name, command in (runners or {}).items()
         } if plan_path is not None else {}
         self.claimed: dict[str, PartialRunner] = {}

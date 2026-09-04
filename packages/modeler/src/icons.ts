@@ -42,7 +42,6 @@ export const ICONS = {
   folderOpen: 'iconify bi--folder2-open',
   fileNew: 'iconify bi--file-earmark-plus',
   save: 'iconify bi--floppy',
-  saveAs: 'iconify bi--floppy2',
   download: 'iconify bi--download',
 
   person: 'iconify bi--person',

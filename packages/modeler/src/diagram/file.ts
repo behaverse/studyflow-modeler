@@ -1,16 +1,6 @@
 import { COMPOUND_EXTENSIONS } from '@modeler/export/formats';
-import type { Editor } from '@modeler/editor/port';
 
-export function getDiagramName(modeler: Editor): string | undefined {
-  let root: any;
-  try {
-    root = modeler?.canvas.getRoot();
-  } catch {
-    root = undefined;
-  }
-  const name = root?.businessObject?.name;
-  return typeof name === 'string' && name.length > 0 ? name : undefined;
-}
+export { getDiagramName } from '@modeler/export/common';
 
 export function extractXmlFromSvg(svgText: string): string {
   const parser = new DOMParser();

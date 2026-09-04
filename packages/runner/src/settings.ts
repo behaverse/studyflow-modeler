@@ -1,4 +1,4 @@
-import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@core/storage';
+import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@runner/storage';
 
 export type LLMProvider = 'claude' | 'ollama';
 

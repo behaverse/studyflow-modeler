@@ -1,11 +1,7 @@
 /**
- * What the create/append menus offer — one list for both (P6b §3A).
- *
- * bpmn-js assembled this from two plugin providers: its own for the plain BPMN
- * half, the app's for the schema half. Nothing contributes now, so this module
- * assembles both ends itself: the app's curated BPMN groups (`palette/groups.ts`,
- * the same entries the palette flyouts show) followed by every appendable schema
- * type, grouped by the schema that declares it.
+ * What the create/append menus offer — one list for both: the app's curated BPMN
+ * groups (`palette/groups.ts`, the same entries the palette flyouts show) followed
+ * by every appendable schema type, grouped by the schema that declares it.
  *
  * {@link isAppendable} lives here so the create and append menus cannot drift.
  */

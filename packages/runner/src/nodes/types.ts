@@ -41,5 +41,4 @@ export interface NodeDefinition<J extends Job = Job> {
   validateStudyflow?: (studyflow: Studyflow, manifest?: Manifest) => ValidationIssue[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyNodeDefinition = NodeDefinition<any>;

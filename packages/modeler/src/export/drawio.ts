@@ -1,3 +1,4 @@
+import type { ExportFormat } from '@modeler/export/formats';
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
@@ -316,3 +317,8 @@ export function exportToDrawio(modeler: Editor): string {
     + '  </diagram>\n'
     + '</mxfile>\n';
 }
+
+export const format: ExportFormat = {
+  id: 'drawio', group: 'Interchange', label: 'draw.io', extension: '.drawio', mimeType: 'application/xml;charset=utf-8',
+  encode: ({ modeler }) => exportToDrawio(modeler),
+};

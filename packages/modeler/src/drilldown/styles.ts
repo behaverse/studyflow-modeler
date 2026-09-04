@@ -15,9 +15,6 @@
  * found. Hover then does what `sub/frame_04` shows: the blue goes dark and a light
  * gray chip appears behind it.
  *
- * bpmn-js's own breadcrumb CSS went with `assets/css/app.css` in P6b, so this is
- * built from the app's own surface tokens rather than restored from diagram-js.
- *
  * z-order: it sits with the rest of the floating canvas chrome, below the palette
  * flyouts (300) and the popover (320) and just under the context pad (215) — nothing
  * ever overlaps it, and a menu that does must win.

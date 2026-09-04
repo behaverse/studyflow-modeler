@@ -1,6 +1,6 @@
 {
   "name": "@behaverse/studyflow-core",
-  "version": "26.0615",
+  "version": "26.9.5",
   "description": "Headless studyflow document model: YAML ↔ BPMN serialization, element access, notation schemas.",
   "private": true,
   "type": "module",

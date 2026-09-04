@@ -4,6 +4,9 @@ import { toLocalName } from '@core/naming';
 import { YAML_DUMP_OPTIONS, hasOnlyProperties, valueTypeOf } from '@core/document/format';
 import { getProperty, isModdleElement } from '@core/element/moddle';
 
+/* The short forms, in the order a reader meets them; each one is reversible, and the long form is always accepted.
+   Specified for authors in docs/reference.qmd, "The file"; pinned by tests/studyflow-yaml.unit.spec.ts. */
+
 /* 1. yaml-body */
 
 type Mapping = Record<string, unknown>;

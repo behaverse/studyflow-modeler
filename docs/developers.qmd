@@ -98,7 +98,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 
 Before it runs, a studyflow is a plan. As it runs, the record of what actually happened accumulates in the same file (this follows W3C PROV, which separates the prospective plan from the retrospective record). So "did the study deviate from the plan?" is a question you answer by diffing one file against an earlier version of itself, and there is no separate log to keep alongside it.
 
-The retrospective part lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.prov`, the run records, oldest first, and `_meta.reached.<element_id>`, incremented every time a token reaches an element and never reset. Per-element records stay on the elements. Everything else in the tree is a `bpmn:Property` value under `state.<scope_id>`, written only by data output associations. Keys starting with `_` cannot be declared. See [design/state](design/state.md).
+The retrospective part lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.prov`, the run records, oldest first, and `_meta.reached.<element_id>`, incremented every time a token reaches an element and never reset. Per-element records stay on the elements. Everything else in the tree is a `bpmn:Property` value under `state.<scope_id>`, written only by data output associations. Keys starting with `_` cannot be declared.
 
 | Attribute | Holds | | Action | Records |
 |:--|:--|:-:|:--|:--|
@@ -127,7 +127,7 @@ Declaring a type buys a limited amount:
 
 To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. A set's namespace carries its format version.
 
-For a `local` run, executing new elements needs no changes to the runner itself. A *partial runner* is any executable named `studyflow-<name>` that claims a subset of the diagram's elements and executes them one hand-off at a time: state in as a JSON file, updated state out. The full contract, and `studyflow-python` and `studyflow-reachy` as working examples, are in the [CLI README](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli).
+For a `local` run, executing new elements needs no changes to the runner itself. A *partial runner* is any executable named `studyflow-<name>` that claims a subset of the diagram's elements and executes them one hand-off at a time: a JSON digest of the plan and the state in, updated state out, and the diagram itself never opened. The full contract, and `studyflow-python` and `studyflow-reachy` as working examples, are in the [CLI README](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli).
 
 ## Contributing
 

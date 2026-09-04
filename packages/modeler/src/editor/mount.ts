@@ -16,9 +16,8 @@ import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import { lookupIcon, onIconResolved, primeIconCache } from '@modeler/draw/iconCache';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
-import Templates, { TEMPLATE_FLOW_ELEMENTS } from '@modeler/templates/Templates';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import { materializeTemplateFlow } from '@modeler/templates/factory';
+import { TEMPLATE_FLOW_ELEMENTS, createTemplateElement, materializeTemplateFlow } from '@modeler/templates/factory';
 import type { Editor, EditorModel, EditorSimulation, EditorTemplates, ModelElement } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
@@ -151,8 +150,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
       return { ...attrs, id: businessObject.id, businessObject, width: attrs.width ?? size.width, height: attrs.height ?? size.height };
     },
   };
-  const templatesService = new Templates(elementFactory, moddle, { fire: () => undefined });
-  templatesService.set(getCatalog().allTemplates());
 
   let pendingTemplate: { businessObject: any; flowElements: any[] } | undefined;
   const modelingShim = {
@@ -175,16 +172,16 @@ export function mountEditor(options: MountEditorOptions): Editor {
     if (!placed) return;
     pendingTemplate = undefined;
     placed[TEMPLATE_FLOW_ELEMENTS] = pending.flowElements;
-    materializeTemplateFlow({ modeling: modelingShim, templatesService, shape: placed, hintKey: '__studyflowCreatingTemplateFlow' });
+    materializeTemplateFlow({ modeling: modelingShim, elementFactory, moddle, shape: placed, hintKey: '__studyflowCreatingTemplateFlow' });
     canvas.getSelection().select(placed);
   };
   bus.on('ElementChanged', materializePending);
   bus.on('ElementsChanged', materializePending);
 
   const templates: EditorTemplates = {
-    getAll: () => templatesService.getAll(),
+    getAll: () => getCatalog().allTemplates(),
     createElement: (template: any) => {
-      const shape = templatesService.createElement(template);
+      const shape = createTemplateElement(template, elementFactory, moddle);
       const flowElements = shape[TEMPLATE_FLOW_ELEMENTS];
       pendingTemplate = flowElements?.length ? { businessObject: shape.businessObject, flowElements } : undefined;
       delete shape[TEMPLATE_FLOW_ELEMENTS];

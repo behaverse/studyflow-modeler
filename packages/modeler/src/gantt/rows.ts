@@ -21,7 +21,7 @@ export type Row = TimingAttrs & {
 const ATTR_NAMES: (keyof TimingAttrs)[] = ['onset', 'duration', 'progress'];
 
 function findSwimlane(el: any): string {
-  // bpmn-js does not reparent flow nodes under their lane: membership is `businessObject.lanes`, `el.parent` the pool.
+  // Flow nodes are not reparented under their lane: membership is `businessObject.lanes`, `el.parent` the pool.
   const bo = el?.businessObject;
   const lanes = bo?.get?.('lanes') ?? bo?.lanes;
   if (Array.isArray(lanes) && lanes.length > 0) {

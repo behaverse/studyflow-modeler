@@ -6,28 +6,27 @@
 """Run the Reachy Mini elements of a studyflow.
 
 Usage:
-    ./studyflow-reachy.py <diagram>.studyflow.png [--sim] [--auto] [--max-steps N]
-    ./studyflow-reachy.py <diagram>.studyflow.png --participant [--sim] [--port N]
+    studyflow run <diagram> --runtime local [--sim] [--auto]     # studyflow-run-local walks, this runner performs
+    ./studyflow-reachy.py --participant [--sim] [--port N]
 
-With `--participant` the roles flip: the robot sits in front of the screen as the
-participant. It serves the browser runner's response bridge (`ws://localhost:8765`),
-and each time a Behaverse task awaits a response (`ResponseSource: external` in the
-task's bot configurations) it looks at the screen, takes a camera frame (falling
-back to the screenshot the task attaches when it has no camera), asks the diagram's
-model what it sees and how to respond, and the browser injects the answer.
-
-Walks the diagram's flow and performs each `reachy:*` element. By default it is a
-terminal dry run: the robot's speech is printed, and its senses and the
+A partial runner: studyflow-run-local walks the diagram and hands this script one
+`reachy:*` element at a time (`<plan.json> --element <id> --cache <dir>`), with the
+run's values in `<id>.state.json`; the updated state goes back into the same file
+(`result`, `durationMs`, and on failure `error` merged in). It never opens the
+diagram itself: `plan.json` is the digest studyflow-run-local writes. By default it
+is a terminal dry run: the robot's speech is printed, and its senses and the
 participant's lines come from stdin (`--auto` answers them with canned values
 instead, for CI). With `--sim`, or when the diagram's Robot pool says
 `variant: simulation`, it drives a MuJoCo-simulated Reachy Mini through the
-`reachy_mini` Python SDK, starting a headless sim daemon if none is listening;
-gestures, look-ats, and speech taps move the simulated robot for real.
-Elements from other schemas are logged and passed over. In hand-off mode
-(`--element <id> --cache <dir>`, driven by studyflow-run-local) it executes that
-one element, reading the state from the cache's `<id>.state.json` and writing
-the updated state back into the same file (`result`, `durationMs`, and on
-failure `error` merged in); the person stays on stderr and the tty.
+`reachy_mini` Python SDK, starting a headless sim daemon if none is listening.
+
+With `--participant` the roles flip and no plan is needed: the robot sits in front
+of the screen as the participant. It serves the browser runner's response bridge
+(`ws://localhost:8765`), and each time a Behaverse task awaits a response
+(`ResponseSource: external` in the task's bot configurations) it looks at the
+screen, takes a camera frame (falling back to the screenshot the task attaches when
+it has no camera), asks the model what it sees and how to respond, and the browser
+injects the answer.
 """
 
 from __future__ import annotations
@@ -38,22 +37,14 @@ import os
 import random
 import signal
 import re
-import struct
 import sys
 import time
-import zlib
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
 REACHY = "https://w3id.org/studyflow/reachy"
-
-END_TAGS = {"endEvent"}
-GATEWAY_TAGS = {"exclusiveGateway", "inclusiveGateway", "complexGateway", "eventBasedGateway"}
-CONTAINER_TAGS = {"subProcess", "adHocSubProcess", "transaction"}
-PASSTHROUGH_TAGS = {"startEvent", "intermediateCatchEvent", "intermediateThrowEvent"}
 
 # The schema's defaults; moddle omits an attribute whose value equals its default.
 DEFAULTS: dict[str, dict[str, Any]] = {
@@ -76,128 +67,32 @@ AUTO_SAMPLES = {"face_count": "1", "sound_angle": "1.57", "speech_detected": "1"
 AUTO_LINES = ["It went well — the second block was hard!", "goodbye"]
 
 
-def local(element: ET.Element) -> str:
-    return element.tag.split("}")[-1]
+def reachy_extension(element: dict[str, Any]) -> dict[str, Any] | None:
+    return next((ext for ext in element.get("extensions") or [] if ext.get("namespace") == REACHY), None)
 
 
-def studyflow_from_png(path: Path) -> str:
-    """Mirrors `studyflow-prov.py's studyflow_from_png`: the diagram travels in a PNG text chunk."""
-    data = path.read_bytes()
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        raise ValueError(f"{path} is not a PNG")
-    offset = 8
-    while offset + 8 <= len(data):
-        (length,) = struct.unpack(">I", data[offset:offset + 4])
-        kind = data[offset + 4:offset + 8].decode("ascii", "replace")
-        body = data[offset + 8:offset + 8 + length]
-        if kind in ("iTXt", "tEXt", "zTXt"):
-            keyword, _, rest = body.partition(b"\x00")
-            if keyword == b"studyflow":
-                if kind == "iTXt":
-                    compressed = rest[0]
-                    rest = rest[2:].split(b"\x00", 2)[2]
-                    return zlib.decompress(rest).decode() if compressed else rest.decode()
-                return rest.decode()
-        offset += 12 + length
-    raise ValueError(f"{path} carries no studyflow payload")
+def settings_of(ext: dict[str, Any]) -> dict[str, Any]:
+    """The schema's defaults, overlaid by what the diagram says."""
+    return {**DEFAULTS.get(ext["type"], {}), **(ext.get("attributes") or {})}
 
 
-def reachy_extension(element: ET.Element) -> ET.Element | None:
-    for ext in element:
-        if local(ext) != "extensionElements":
-            continue
-        for child in ext:
-            if child.tag.startswith(f"{{{REACHY}}}"):
-                return child
-    return None
+class Plan:
+    """The digest studyflow-run-local hands over (`plan.json`): the study, and every element by id, pool participants included."""
 
-
-def settings_of(ext: ET.Element) -> dict[str, Any]:
-    """Defaults, overlaid by the extension's attributes and child-element bodies."""
-    merged: dict[str, Any] = dict(DEFAULTS.get(local(ext), {}))
-    merged.update(ext.attrib)
-    for child in ext:
-        name, text = local(child), (child.text or "").strip()
-        if name in merged and isinstance(merged[name], list):
-            merged[name].append(text)
-        elif name in merged and not isinstance(merged[name], str):
-            merged[name] = [merged[name], text]
-        else:
-            merged[name] = text
-    return merged
-
-
-class Studyflow:
-    def __init__(self, xml: str) -> None:
-        self.definitions = ET.fromstring(xml)
-        self.process = self._find_process()
-        self.elements: dict[str, ET.Element] = {}
-        self.outgoing: dict[str, list[ET.Element]] = {}
-        self.incoming: dict[str, int] = {}
-
-        def index(container: ET.Element) -> None:
-            for element in container:
-                if element.get("id"):
-                    self.elements[element.get("id")] = element
-                if local(element) == "sequenceFlow":
-                    self.outgoing.setdefault(element.get("sourceRef"), []).append(element)
-                    self.incoming[element.get("targetRef")] = self.incoming.get(element.get("targetRef"), 0) + 1
-                if local(element) in CONTAINER_TAGS:
-                    index(element)
-
-        index(self.process)
+    def __init__(self, digest: dict[str, Any]) -> None:
+        self.study: dict[str, Any] = digest.get("study") or {}
+        self.elements: dict[str, dict[str, Any]] = digest.get("elements") or {}
         self.names = {
-            eid: el.get("name") for eid, el in self.elements.items()
-            if el.get("name") and re.fullmatch(r"[A-Za-z_]\w*", el.get("name"))
+            eid: el["name"] for eid, el in self.elements.items()
+            if el.get("name") and re.fullmatch(r"[A-Za-z_]\w*", el["name"])
         }
 
-    def _find_process(self) -> ET.Element:
-        processes = [el for el in self.definitions if local(el) == "process"]
-        # A pool diagram: prefer the process the Robot participant references.
-        for collab in self.definitions:
-            if local(collab) != "collaboration":
-                continue
-            for participant in collab:
-                if local(participant) == "participant" and reachy_extension(participant) is not None:
-                    ref = participant.get("processRef")
-                    for process in processes:
-                        if process.get("id") == ref:
-                            return process
-        for process in processes:
-            if any(local(c) == "sequenceFlow" for c in process):
-                return process
-        raise ValueError("no process with a sequence flow to walk")
-
-    def start_of(self, container: ET.Element) -> ET.Element:
-        for element in container:
-            if local(element) == "startEvent":
-                return element
-        # A fragment (e.g. a wake-word sub-process) may open with an event instead.
-        for element in container:
-            if element.get("id") and local(element) != "sequenceFlow" and not self.incoming.get(element.get("id")):
-                return element
-        raise ValueError(f"{container.get('id')}: no start event and no unentered node")
-
     def robot_config(self) -> dict[str, Any]:
-        for collab in self.definitions:
-            if local(collab) != "collaboration":
-                continue
-            for participant in collab:
-                ext = reachy_extension(participant) if local(participant) == "participant" else None
-                if ext is not None and local(ext) == "robot":
-                    return settings_of(ext)
+        for element in self.elements.values():
+            ext = reachy_extension(element)
+            if ext is not None and ext["type"] == "robot":
+                return settings_of(ext)
         return dict(DEFAULTS["robot"])
-
-    def title(self) -> str:
-        if self.process.get("name"):
-            return self.process.get("name")
-        for collab in self.definitions:
-            if local(collab) != "collaboration":
-                continue
-            for participant in collab:
-                if participant.get("processRef") == self.process.get("id") and participant.get("name"):
-                    return participant.get("name")
-        return self.process.get("id") or "studyflow"
 
 
 # --- robots: the terminal robot only narrates; the sim robot also moves ---
@@ -384,20 +279,13 @@ class SimRobot:
             self._daemon = None
 
 
-def output_targets(element: ET.Element) -> list[str]:
-    targets = []
-    for association in element:
-        if local(association) != "dataOutputAssociation":
-            continue
-        target = next((c for c in association if local(c) == "targetRef"), None)
-        if target is not None and (target.text or "").strip():
-            targets.append(target.text.strip())
-    return targets
+def output_targets(element: dict[str, Any]) -> list[str]:
+    return [binding["target"] for binding in element.get("outputs") or [] if binding.get("target")]
 
 
 @dataclass
 class Run:
-    studyflow: Studyflow
+    studyflow: Plan
     auto: bool
     robot: Any = field(default_factory=TerminalRobot)
     values: dict[str, Any] = field(default_factory=dict)
@@ -428,7 +316,7 @@ class Run:
                 space[name] = value
         return space
 
-    def store(self, element: ET.Element, value: Any) -> None:
+    def store(self, element: dict[str, Any], value: Any) -> None:
         self.values[element.get("id")] = value
         for target in output_targets(element):
             self.values[target] = value
@@ -437,43 +325,43 @@ class Run:
 
 # --- dry-run handlers: one per reachy element, keyed by the extension's local name ---
 
-def run_say(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_say(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     run.say_line(run.fill(str(spec["text"])) or "(nothing to say)")
     return None
 
 
-def run_gesture(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_gesture(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     print(f"    Reachy plays the '{spec['move']}' move")
     run.robot.gesture(str(spec["move"]), str(spec["dataset"]))
     return None
 
 
-def run_goto(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_goto(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     print(f"    Reachy moves to pose (roll {spec['roll']}, pitch {spec['pitch']}, yaw {spec['yaw']}, "
           f"body {spec['bodyYaw']}) over {spec['motionDuration']}s ({spec['interpolation']})")
     run.robot.goto(spec)
     return None
 
 
-def run_play_sound(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_play_sound(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     print(f"    Reachy plays the sound '{spec['file']}'")
     run.robot.play_sound(str(spec["file"]))
     return None
 
 
-def run_look_at(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_look_at(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     print(f"    Reachy turns toward: {spec['target']}")
     run.robot.look_at(str(spec["target"]))
     return None
 
 
-def run_listen(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_listen(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     run.robot.listening()
     canned = run.auto_lines.pop(0) if run.auto and run.auto_lines else "Thanks, that was fun!"
     return run.ask(f"participant says (within {spec['timeout']}s)", canned)
 
 
-def run_converse(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_converse(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     stop = str(spec["stopPhrase"]).lower()
     if spec["persona"]:
         print(f"    persona: {str(spec['persona']).splitlines()[0]}…")
@@ -490,21 +378,21 @@ def run_converse(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
     return turns
 
 
-def run_teleoperation(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def run_teleoperation(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     if spec["instructions"]:
         print(f"    operator instructions: {spec['instructions']}")
     run.ask("operator ready — press Enter", "ok")
     return None
 
 
-def wait_sense(run: Run, element: ET.Element, spec: dict[str, Any]) -> Any:
+def wait_sense(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     what = f"the wake word ('{spec['wakeWord']}')" if spec["trigger"] == "wake_word" else spec["trigger"]
     run.ask(f"waiting for {what} — press Enter to sense it", "sensed")
     run.robot.perk()
     return {"trigger": spec["trigger"]}
 
 
-def sample_perception(run: Run, element: ET.Element, spec: dict[str, Any]) -> dict[str, Any]:
+def sample_perception(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
     channel = str(spec["channel"])
     raw = run.ask(f"perception sample: {channel} =", AUTO_SAMPLES.get(channel, "0"))
     try:
@@ -515,7 +403,7 @@ def sample_perception(run: Run, element: ET.Element, spec: dict[str, Any]) -> di
 
 
 # Every reachy element this runner claims, keyed by the extension's local name.
-HANDLERS: dict[str, Callable[[Run, ET.Element, dict[str, Any]], Any]] = {
+HANDLERS: dict[str, Callable[[Run, dict[str, Any], dict[str, Any]], Any]] = {
     "say": run_say,
     "gesture": run_gesture,
     "goto": run_goto,
@@ -688,78 +576,9 @@ def participant_loop(robot: Any, port: int) -> int:
 
 # --- the walk: studyflow-run-local's control flow, minus records, repos, and reuse ---
 
-def evaluate(run: Run, expression: str, extra: dict[str, Any]) -> Any:
-    space = run.namespace() | extra
-    try:
-        return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - dry run, authored plan
-    except NameError as error:
-        print(f"    condition '{expression}' names a value this dry run never made ({error}) — treated as False")
-        return False
-
-
-def choose_flow(run: Run, element: ET.Element, bindings: dict[str, Any]) -> ET.Element:
-    flows = run.studyflow.outgoing.get(element.get("id"), [])
-    for flow in flows:
-        condition = next((c for c in flow if local(c) == "conditionExpression"), None)
-        if condition is None or not (condition.text or "").strip():
-            continue
-        if evaluate(run, condition.text.strip(), bindings):
-            print(f"    {condition.text.strip()} → {flow.get('id')}")
-            return flow
-    default = next((f for f in flows if f.get("id") == element.get("default")), None)
-    if default is None:
-        raise RuntimeError(f"{element.get('id')}: no condition held and no default flow")
-    print(f"    default → {default.get('id')}")
-    return default
-
-
-def next_element(run: Run, element: ET.Element) -> ET.Element | None:
-    flows = run.studyflow.outgoing.get(element.get("id"), [])
-    if not flows:
-        return None
-    if local(element) not in GATEWAY_TAGS:
-        return run.studyflow.elements.get(flows[0].get("targetRef"))
-    ext = reachy_extension(element)
-    bindings = sample_perception(run, element, settings_of(ext)) if ext is not None and local(ext) == "perceptionGateway" else {}
-    return run.studyflow.elements.get(choose_flow(run, element, bindings).get("targetRef"))
-
-
-def walk(run: Run, element: ET.Element | None, max_steps: int) -> None:
-    steps = 0
-    while element is not None:
-        steps += 1
-        if steps > max_steps:
-            raise RuntimeError("step budget exhausted — is the flow cycling without an exit?")
-        element_id = element.get("id")
-        run.trace.append(element_id)
-        tag = local(element)
-        label = run.studyflow.elements[element_id].get("name") or element_id
-        ext = reachy_extension(element)
-
-        if tag in END_TAGS:
-            print(f"● {label}")
-            return
-        if tag in GATEWAY_TAGS:
-            print(f"◇ {label}")
-        elif tag in CONTAINER_TAGS:
-            print(f"⊞ {label}")
-            walk(run, run.studyflow.start_of(element), max_steps)
-        elif tag in PASSTHROUGH_TAGS:
-            if ext is not None and local(ext) == "senseEvent":
-                perform(run, element, ext)
-            else:
-                print(f"○ {label}")
-        elif ext is not None and local(ext) in HANDLERS:
-            perform(run, element, ext)
-        else:
-            print(f"· {label}  (not a Reachy element — passed over)")
-
-        element = next_element(run, element)
-
-
-def perform(run: Run, element: ET.Element, ext: ET.Element) -> dict[str, Any]:
+def perform(run: Run, element: dict[str, Any], ext: dict[str, Any]) -> dict[str, Any]:
     """One reachy element, as the keys a hand-off merges into the state: its result and timing."""
-    kind, spec = local(ext), settings_of(ext)
+    kind, spec = ext["type"], settings_of(ext)
     if kind not in HANDLERS:
         raise KeyError(f"no handler for reachy:{kind}")
     glyph = {"perceptionGateway": "◇", "senseEvent": "◐"}.get(kind, "□")
@@ -775,10 +594,9 @@ def perform(run: Run, element: ET.Element, ext: ET.Element) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("diagram", type=Path, help="a .studyflow.png (or .bpmn/.xml) to walk")
+    parser.add_argument("plan", type=Path, nargs="?", help="the plan digest studyflow-run-local hands over (plan.json); --participant needs none")
     parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
     parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
-    parser.add_argument("--max-steps", type=int, default=200)
     parser.add_argument(
         "--participant", action="store_true",
         help="sit in the participant's seat: answer the browser task's trials from what the robot sees",
@@ -798,14 +616,15 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    xml = studyflow_from_png(args.diagram) if args.diagram.suffix.lower() == ".png" else args.diagram.read_text()
-    studyflow = Studyflow(xml)
+    if args.plan is None and not args.participant:
+        parser.error("a plan.json is needed: `studyflow run <diagram> --runtime local` walks the diagram and hands elements here")
+    studyflow = Plan(json.loads(args.plan.read_text()) if args.plan else {})
 
     if args.claims:
         # This runner claims every element carrying a reachy extension it has a handler for.
         print(json.dumps([
             element_id for element_id, element in studyflow.elements.items()
-            if (ext := reachy_extension(element)) is not None and local(ext) in HANDLERS
+            if (ext := reachy_extension(element)) is not None and ext["type"] in HANDLERS
         ]))
         return 0
 
@@ -869,20 +688,7 @@ def main() -> int:
         handoff.write_text(json.dumps({**state, **result}, default=str))
         return 1 if "error" in result else 0
 
-    print(f"{studyflow.title()}  —  Reachy {robot.label}  ({config['variant']} @ {getattr(robot, 'host', config['host'])}, volume {config['volume']})")
-    try:
-        walk(run, studyflow.start_of(studyflow.process), args.max_steps)
-    except (RuntimeError, ValueError) as error:
-        print(f"stuck: {error}", file=sys.stderr)
-        return 1
-    finally:
-        robot.close()
-    captured = {k: v for k, v in run.values.items() if isinstance(v, (str, list))}
-    if captured:
-        print("captured:")
-        for key, value in captured.items():
-            print(f"  {studyflow.names.get(key) or key}: {value if isinstance(value, str) else f'{len(value)} turns'}")
-    return 0
+    parser.error("this runner performs one element at a time: pass --element, --claims, or --participant")
 
 
 if __name__ == "__main__":

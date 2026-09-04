@@ -1,6 +1,6 @@
 /**
  * Icon glyph cache: the app's async icon pipeline behind a **synchronous** lookup,
- * so the canvas can draw real SVG glyphs while it paints (parity addendum 6 §1).
+ * so the canvas can draw real SVG glyphs while it paints.
  *
  * The canvas renderer is synchronous — `IconResolver` has to answer during a draw —
  * but a glyph body comes from the network (`export/iconSource.ts` fetches it from the

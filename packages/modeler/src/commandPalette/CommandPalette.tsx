@@ -239,6 +239,29 @@ export function CommandPalette({ ref }: Props) {
     }
   };
 
+  const renderItem = (c: PaletteCommand) => {
+    const st = c.tile ? cp.tile : cp.row;
+    const flatIndex = filtered.indexOf(c);
+    const active = flatIndex === activeIndex;
+    const isParent = !!c.children;
+    const hint = c.shortcut?.toUpperCase() ?? (isParent ? undefined : c.hint);
+    return (
+      <button
+        key={c.id}
+        type="button"
+        data-cmd-index={flatIndex}
+        className={`${st.item} ${active ? cp.itemActive : ''}`}
+        onMouseEnter={() => setActiveIndex(flatIndex)}
+        onClick={() => runCommand(c)}
+      >
+        <i className={`${c.icon} ${st.icon}`}></i>
+        <span className={st.label}>{c.label}</span>
+        {hint && <span className={`${cp.itemHint} ${st.hint}`}>{hint}</span>}
+        {isParent && <i className={cp.itemChevron} aria-hidden="true"></i>}
+      </button>
+    );
+  };
+
   return (
     <>
       {/* Only the open dialog is mounted: mounting all seven runs every dialog's hooks on boot. */}
@@ -293,34 +316,17 @@ export function CommandPalette({ ref }: Props) {
               {filtered.length === 0 ? (
                 <div className={cp.empty}>No matching commands.</div>
               ) : (
-                grouped.map(([group, items]) => (
-                  <div key={group}>
-                    <div className={cp.groupLabel}>{group}</div>
-                    {items.map((c) => {
-                      const flatIndex = filtered.indexOf(c);
-                      const active = flatIndex === activeIndex;
-                      const isParent = !!c.children;
-                      const hint = c.shortcut?.toUpperCase() ?? (isParent ? undefined : c.hint);
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          data-cmd-index={flatIndex}
-                          className={`${cp.item} ${active ? cp.itemActive : ''}`}
-                          onMouseEnter={() => setActiveIndex(flatIndex)}
-                          onClick={() => runCommand(c)}
-                        >
-                          <i className={`${c.icon} ${cp.itemIcon}`}></i>
-                          <span className={cp.itemLabel}>{c.label}</span>
-                          {hint && <span className={cp.itemHint}>{hint}</span>}
-                          {isParent && (
-                            <i className={cp.itemChevron} aria-hidden="true"></i>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))
+                grouped.map(([group, items]) => {
+                  const tiles = items.filter((c) => c.tile);
+                  const rows = items.filter((c) => !c.tile);
+                  return (
+                    <div key={group}>
+                      {tiles.length === 0 && <div className={cp.groupLabel}>{group}</div>}
+                      {tiles.length > 0 && <div className={cp.tile.wrap}>{tiles.map(renderItem)}</div>}
+                      {rows.map(renderItem)}
+                    </div>
+                  );
+                })
               )}
             </div>
           </DialogPanel>

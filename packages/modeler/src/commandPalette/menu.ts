@@ -23,6 +23,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     {
       id: 'new',
       group: 'File',
+      tile: true,
       label: 'New...',
       icon: ICONS.fileNew,
       shortcut: '1',
@@ -32,11 +33,50 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     {
       id: 'open',
       group: 'File',
+      tile: true,
       label: 'Open File...',
       icon: ICONS.folderOpen,
       shortcut: '2',
       // Takes any diagram format, and a jsPsych timeline, which it converts on the way in.
       action: () => openDialog('open'),
+    },
+    // Format and destination live here; this is where an unlinked diagram gets its file.
+    {
+      id: 'save-as',
+      group: 'File',
+      tile: false,
+      label: 'Save As...',
+      icon: ICONS.save,
+      hint: `${MOD_LABEL}⇧S`,
+      keywords: 'export download publish png svg yaml bpmn copy',
+      action: () => openDialog('save'),
+    },
+    // Not a file command, but it shares the tile row up top, and the row is one group.
+    {
+      id: 'settings',
+      group: 'File',
+      tile: true,
+      label: 'Settings',
+      icon: ICONS.gear,
+      shortcut: '3',
+      keywords: 'app preferences',
+      action: openSettings,
+    },
+    {
+      id: 'github',
+      group: 'File',
+      label: 'GitHub',
+      tile: true,
+      icon: ICONS.github,
+      action: () => { window.open(URLS.githubRepo, '_blank', 'noopener'); },
+    },
+    {
+      id: 'docs',
+      group: 'File',
+      label: 'Docs',
+      tile: true,
+      icon: ICONS.book,
+      action: () => { window.open(URLS.docs, '_blank', 'noopener'); },
     },
     // Nothing to overwrite until a file is linked, so until then "Save As..." is the only save.
     ...(linkedFileName ? [{
@@ -49,23 +89,12 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       // Same gesture as the title-bar chip: writes straight back into the linked file, no dialog.
       action: () => { void saveLinkedFile(modeler); },
     }] : []),
-    // Format and destination live here; this is where an unlinked diagram gets its file.
-    {
-      id: 'save-as',
-      group: 'File',
-      label: 'Save As...',
-      icon: ICONS.saveAs,
-      hint: `${MOD_LABEL}⇧S`,
-      keywords: 'export download publish png svg yaml bpmn copy',
-      action: () => openDialog('save'),
-    },
 
     {
       id: 'run',
       group: 'Run',
       label: 'Run',
       icon: ICONS.playFill,
-      shortcut: '4',
       // `openRunnerTab()` first: the runner tab has to be claimed inside this gesture.
       action: () => executeCommand(modeler, { type: 'OpenRunner', target: openRunnerTab() }),
     },
@@ -111,32 +140,9 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     {
       id: 'replay-provenance',
       group: 'View',
-      label: 'Replay',
+      label: 'Replay Provenance',
       icon: ICONS.playFill,
       action: openReplay,
-    },
-
-    {
-      id: 'settings',
-      group: 'App',
-      label: 'Settings...',
-      icon: ICONS.gear,
-      shortcut: '5',
-      action: openSettings,
-    },
-    {
-      id: 'docs',
-      group: 'App',
-      label: 'Docs',
-      icon: ICONS.book,
-      action: () => { window.open(URLS.docs, '_blank', 'noopener'); },
-    },
-    {
-      id: 'github',
-      group: 'App',
-      label: 'GitHub',
-      icon: ICONS.github,
-      action: () => { window.open(URLS.githubRepo, '_blank', 'noopener'); },
     },
   ];
 }

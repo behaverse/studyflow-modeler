@@ -1,3 +1,4 @@
+import type { ExportFormat } from '@modeler/export/formats';
 import { hasRole, type ExportedElement, type ExportModel } from '@modeler/export/model';
 
 type GenericRecord = Record<string, unknown>;
@@ -94,3 +95,8 @@ export function exportToArtemis(model: ExportModel): string {
 
   return JSON.stringify(report, null, 2);
 }
+
+export const format: ExportFormat = {
+  id: 'artemis', group: 'Interchange', label: 'ARTEM-IS', extension: '.artemis.json', mimeType: 'application/json;charset=utf-8',
+  encode: ({ exportModel }) => exportToArtemis(exportModel()),
+};

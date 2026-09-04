@@ -39,10 +39,9 @@ export function App() {
           )}
           {modeler && isReplaying && <ReplayPanel onClose={() => setIsReplaying(false)} />}
           {/* App-rendered popup menus (`bpmn-create` / `bpmn-append` / `color-picker`)
-              and the per-shape context pad that opens two of them (parity spec
-              addendum 4). The pad is the app's only selection affordance — it
-              replaced P6b's two-button `SelectionToolbar` — and stands down during a
-              replay, where the document is read-only. */}
+              and the per-shape context pad that opens two of them. The pad is the app's
+              only selection affordance and stands down during a replay, where the
+              document is read-only. */}
           {modeler && <PopupMenus />}
           {modeler && !isReplaying && <ContextPad />}
           {/* The sub-process drill-down trail. Like the pad it stands down during a

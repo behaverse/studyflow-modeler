@@ -1,3 +1,4 @@
+import type { ExportFormat } from '@modeler/export/formats';
 import * as yaml from 'js-yaml';
 import { getCatalog, type AttributeSpec } from '@core/notation';
 import type { ExportedElement, ExportModel } from '@modeler/export/model';
@@ -93,3 +94,8 @@ function buildClass(element: ExportedElement): Record<string, unknown> {
   if (Object.keys(attributes).length > 0) cls.attributes = attributes;
   return cls;
 }
+
+export const format: ExportFormat = {
+  id: 'linkml', group: 'Interchange', label: 'LinkML schema', extension: '.linkml.yaml', mimeType: 'text/yaml;charset=utf-8',
+  encode: ({ exportModel }) => exportToLinkML(exportModel()),
+};

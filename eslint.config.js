@@ -3,8 +3,9 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 
-// Two enforced boundaries: core/ is framework-free, and modeler/ and runner/
-// never import each other (shared code goes to core/).
+// Two enforced boundaries: core/ is framework-free and browser-free, and modeler/ and runner/
+// never import each other (shared model code goes to core/), except that the modeler reads the
+// runner's settings and storage: the two apps share one origin and one localStorage.
 export default [
   { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results'] },
   {
@@ -36,8 +37,8 @@ export default [
     rules: {
       // `tsc --noUnusedLocals` already reports these program-wide.
       '@typescript-eslint/no-unused-vars': 'off',
-      // The moddle/bpmn-js boundary is genuinely untyped in places.
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // The moddle boundary is untyped; a thousand warnings nobody reads is worse than none.
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 
@@ -59,7 +60,7 @@ export default [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@runner/*'], message: 'modeler/ may not import from runner/. Move shared code into packages/core/.' },
+          { group: ['@runner/*', '!@runner/settings', '!@runner/storage'], message: 'modeler/ may not import from runner/, except its settings and storage. Move shared model code into packages/core/.' },
         ],
       }],
     },

@@ -65,9 +65,7 @@ async function openStudyflow(page: any, origin: string, name: string, xml: strin
     mimeType: 'application/xml',
     buffer: Buffer.from(xml),
   });
-  // The import is done once the canvas holds the studyflow's own elements.
-  // (`.sf-shape` is the native canvas's per-element `<g>`; it was `.djs-element`
-  // while bpmn-js rendered, and this wait is not covered by any test lane.)
+  // The import is done once the canvas holds the studyflow's own elements (`.sf-shape` is the per-element `<g>`).
   await page.locator('.sf-shape').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(500); // let icon <foreignObject>s settle before the export
 }

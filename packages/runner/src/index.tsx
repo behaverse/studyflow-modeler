@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { migrateLegacyKeys } from '@core/storage';
+import { migrateLegacyKeys } from '@runner/storage';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '#assets/css/app.css';
 import { Runner } from '@runner/Runner';

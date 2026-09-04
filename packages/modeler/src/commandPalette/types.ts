@@ -8,6 +8,8 @@ export type PaletteCommand = {
   keywords?: string;
   /** Fires only while the search box is empty; see `CommandPalette`'s key handler. */
   shortcut?: string;
+  /** Drawn as a tile in a row above its group's list rows, which then carries no group label. */
+  tile?: boolean;
   action?: () => void | Promise<unknown>;
   children?: PaletteCommand[];
 };

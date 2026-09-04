@@ -3,8 +3,8 @@
  *
  * `openPopupMenu(providerId, …)` names a menu and hands over anchor geometry; app
  * chrome (`popup/PopupMenus.tsx`) renders it. The ids (`bpmn-create`,
- * `bpmn-append`, `bpmn-replace`, `color-picker`) are bpmn-js's provider names, kept
- * because they are what the app's own chrome and its e2e specs already say.
+ * `bpmn-append`, `bpmn-replace`, `color-picker`) are what the app's chrome and its
+ * e2e specs say.
  *
  * Registration is a plain map, so the React layer owns the rendering without the
  * openers knowing anything about React — the palette, the context pad and the

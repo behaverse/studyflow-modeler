@@ -14,7 +14,7 @@ const repoDir = resolve(cliDir, '../..');
 const outDir = resolve(cliDir, 'dist/release');
 
 const { version } = JSON.parse(readFileSync(resolve(cliDir, 'package.json'), 'utf8'));
-const repo = process.env.STUDYFLOW_REPO ?? 'morteza/studyflow-modeler';
+const repo = process.env.STUDYFLOW_REPO ?? 'behaverse/studyflow-modeler';
 const tag = `v${version}`;
 
 /** Bun's cross-compilation targets, and what we call them in an asset name. */
@@ -60,8 +60,8 @@ for (const { slug, bunTarget, macho } of platforms) {
   // copy extra scripts
   copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-run-local.py'), resolve(stage, 'studyflow-run-local.py'));
   copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-prov.py'), resolve(stage, 'studyflow-prov.py'));
-  copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-python.py'), resolve(stage, 'studyflow-python.py'));
-  copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-reachy.py'), resolve(stage, 'studyflow-reachy.py'));
+  copyFileSync(resolve(repoDir, 'runners/studyflow-python.py'), resolve(stage, 'studyflow-python.py'));
+  copyFileSync(resolve(repoDir, 'runners/studyflow-reachy.py'), resolve(stage, 'studyflow-reachy.py'));
   copyFileSync(resolve(repoDir, 'LICENSE'), resolve(stage, 'LICENSE'));
 
   const asset = `studyflow-${version}-${slug}.tar.gz`;

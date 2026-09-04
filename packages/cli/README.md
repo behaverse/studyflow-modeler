@@ -7,7 +7,7 @@
 Using Homebrew (macOS or Linux):
 
 ```bash
-brew tap morteza/studyflow https://github.com/morteza/studyflow-modeler
+brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
 brew install studyflow
 ```
 
@@ -41,11 +41,11 @@ studyflow run assets/schemas/examples/Robotics/reachy_session.studyflow.png --au
 # Reachy Mini as the participant: the robot serves the browser task's response
 # bridge (ResponseSource: external) and answers each trial from its camera, or
 # the screenshot the task attaches. Then run the study in the browser.
-./src/studyflow-reachy.py assets/schemas/examples/Robotics/reachy_participant.studyflow.png --participant --sim
+../../runners/studyflow-reachy.py --participant --sim
 ```
 
 ## Extending CLI
 
 *Partial runners* extend the CLI to execute specific elements in a diagram. A partial runner is a script that claims certain elements and executes them.
 
-Name an executable `studyflow-<name>` and `studyflow` discovers it as a partial runner. It first asks your runner `<diagram> --claims`; print the element ids you will run as one JSON array on stdout. It then invokes the runner once per claimed element with `<diagram> --element <id> --cache <dir>`. The cache directory holds one file per call, named `<element_id>.state.json`. The file starts as `{state}`, and the runner updates it with the result, so it becomes the same state plus `result` (what the element produced), `durationMs`, and on failure `error` with a non-zero exit. The run log captures stdout; stdin and stderr stay on the terminal. [`studyflow-reachy.py`](src/studyflow-reachy.py) is a working example. It also works standalone on `reachy:` namespace elements.
+Name an executable `studyflow-<name>` and `studyflow` discovers it as a partial runner. It first asks your runner `<plan.json> --claims`; print the element ids you will run as one JSON array on stdout. It then invokes the runner once per claimed element with `<plan.json> --element <id> --cache <dir>`. A runner never opens the diagram: `plan.json` is a digest of the plan, written once per run, with `study` (`id`, `name`, `seed`), `sources` (directories a boundary input may be staged from), and `elements` by id, each with its BPMN `type`, `name`, `attributes` (local names, as written), `extensions` (namespace, type, attributes, child text), `additionalArguments`, `ioSlots`, `inputs` and `outputs` (data associations with their `transformation`). Pool participants are in `elements` too. Nothing is inferred: an attribute the diagram omits is absent, and its default is the runner's to know. The cache directory holds one file per call, named `<element_id>.state.json`. The file starts as `{state}`, and the runner updates it with the result, so it becomes the same state plus `result` (what the element produced), `durationMs`, and on failure `error` with a non-zero exit. The run log captures stdout; stdin and stderr stay on the terminal. [`studyflow-reachy.py`](../../runners/studyflow-reachy.py) is a working example. It also works standalone on `reachy:` namespace elements. The partial runners live in [`runners/`](../../runners/) at the repo root; only the reference runner (`studyflow-run-local.py`, with `studyflow-prov.py`) belongs to this package.

@@ -1,7 +1,7 @@
 /**
  * The context pad's look.
  *
- * Bigger and more legible than the diagram-js reference: 28px entries with 18px
+ * 28px entries with 18px
  * glyphs on a small chrome chip — the same material, hairline and shadow the
  * palette wears, so the two read as one family of floating controls instead of
  * bare glyphs lost over the diagram. Entries wrap three to a row; the delete

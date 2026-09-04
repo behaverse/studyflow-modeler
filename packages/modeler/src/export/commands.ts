@@ -1,12 +1,8 @@
 import { exportDiagramName } from '@modeler/export/common';
 import download from 'downloadjs';
 import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
-import { exportToArtemis } from '@modeler/export/artemis';
-import { exportToDrawio } from '@modeler/export/drawio';
-import { carriesDiagram, exportFilename, getExportFormat, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
-import { exportToLinkML } from '@modeler/export/linkml';
-import { buildExportModel, type ExportModel } from '@modeler/export/model';
-import { exportToNidm } from '@modeler/export/nidm';
+import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
+import { buildExportModel } from '@modeler/export/model';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
 import { embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
@@ -27,7 +23,7 @@ async function toExportableXml(modeler: Editor): Promise<string> {
  * The diagram as a self-contained SVG, plus its XML.
  *
  * No icon substitution pass: the renderer draws resolved glyphs as real `<svg>`
- * bodies (`draw/iconCache.ts`, parity addendum 6 §2), so what the canvas serializes
+ * bodies (`draw/iconCache.ts`), so what the canvas serializes
  * is already what the export carries.
  */
 async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }> {
@@ -40,23 +36,13 @@ async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }>
   return { svg: cleaned, xml };
 }
 
-const ENCODERS: Record<ExportFormatId, (ctx: {
-  modeler: Editor;
-  renderSvg: () => Promise<{ svg: string; xml: string }>;
-  /** The semantic view of the diagram, built on demand; only the interchange formats read it. */
-  exportModel: () => ExportModel;
-}) => Promise<BlobPart> | BlobPart> = {
+const ENCODERS: Record<DiagramFormatId, (ctx: EncodeContext) => Promise<BlobPart> | BlobPart> = {
   studyflow: async ({ modeler }) =>
     xmlToStudyflow(await toExportableXml(modeler), modeler.model.moddle()),
 
   // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
   bpmn: async ({ modeler }) =>
     toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle()),
-
-  drawio: ({ modeler }) => exportToDrawio(modeler),
-  linkml: ({ exportModel }) => exportToLinkML(exportModel()),
-  nidm: ({ exportModel }) => exportToNidm(exportModel()),
-  artemis: ({ exportModel }) => exportToArtemis(exportModel()),
 
   // The picture always carries its source: an image that cannot be reopened is a dead end, and
   // anyone wanting a draw.io file exports that format directly.
@@ -93,11 +79,9 @@ export function encodeDiagram(
   modeler: Editor,
   format: ExportFormat,
 ): Promise<BlobPart> | BlobPart {
-  return ENCODERS[format.id]({
-    modeler,
-    renderSvg: () => renderSvg(modeler),
-    exportModel: () => buildExportModel(modeler),
-  });
+  const encode = format.encode ?? ENCODERS[format.id as DiagramFormatId];
+  if (!encode) throw new Error(`No encoder for export format: ${format.id}`);
+  return encode({ modeler, renderSvg: () => renderSvg(modeler), exportModel: () => buildExportModel(modeler) });
 }
 
 export async function runExportDiagram(modeler: Editor, command: ExportDiagramCommand): Promise<void> {

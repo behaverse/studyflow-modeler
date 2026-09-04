@@ -1,12 +1,22 @@
-export type ExportFormatId =
-  | 'studyflow'
-  | 'bpmn'
-  | 'svg'
-  | 'png'
-  | 'drawio'
-  | 'linkml'
-  | 'nidm'
-  | 'artemis';
+import type { Editor } from '@modeler/editor/port';
+import type { ExportModel } from '@modeler/export/model';
+import { format as artemis } from '@modeler/export/artemis';
+import { format as drawio } from '@modeler/export/drawio';
+import { format as linkml } from '@modeler/export/linkml';
+import { format as nidm } from '@modeler/export/nidm';
+
+/** The formats that carry the diagram itself, encoded by `export/commands.ts`. */
+export type DiagramFormatId = 'studyflow' | 'bpmn' | 'svg' | 'png';
+
+/** A projection names its own id. */
+export type ExportFormatId = DiagramFormatId | (string & {});
+
+export type EncodeContext = {
+  modeler: Editor;
+  renderSvg: () => Promise<{ svg: string; xml: string }>;
+  /** The semantic view of the diagram, built on demand; only projections read it. */
+  exportModel: () => ExportModel;
+};
 
 export type ExportFormatGroup = 'Diagram' | 'Image' | 'Interchange';
 
@@ -20,7 +30,12 @@ export type ExportFormat = {
   embeddable?: boolean;
   importable?: boolean;
   alsoReads?: string[];
+  /** A projection writes itself: a document derived for another tool, one file per format. */
+  encode?: (ctx: EncodeContext) => BlobPart | Promise<BlobPart>;
 };
+
+/** One file per projection, listed here and nowhere else; the file carries its descriptor and its encoder. */
+const PROJECTIONS: ExportFormat[] = [drawio, linkml, nidm, artemis];
 
 const EXPORT_FORMATS: ExportFormat[] = [
   {
@@ -62,34 +77,7 @@ const EXPORT_FORMATS: ExportFormat[] = [
     importable: true,
     alsoReads: ['.png'],
   },
-  {
-    id: 'drawio',
-    group: 'Interchange',
-    label: 'draw.io',
-    extension: '.drawio',
-    mimeType: 'application/xml;charset=utf-8',
-  },
-  {
-    id: 'linkml',
-    group: 'Interchange',
-    label: 'LinkML schema',
-    extension: '.linkml.yaml',
-    mimeType: 'text/yaml;charset=utf-8',
-  },
-  {
-    id: 'nidm',
-    group: 'Interchange',
-    label: 'NIDM-Results',
-    extension: '.nidm.ttl',
-    mimeType: 'text/turtle;charset=utf-8',
-  },
-  {
-    id: 'artemis',
-    group: 'Interchange',
-    label: 'ARTEM-IS',
-    extension: '.artemis.json',
-    mimeType: 'application/json;charset=utf-8',
-  },
+  ...PROJECTIONS,
 ];
 
 export const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS

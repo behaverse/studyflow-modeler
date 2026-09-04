@@ -1,7 +1,10 @@
 import { StudyflowElement, getDefaults } from '@core/element';
 import { toPrefix } from '@core/naming';
-import { TEMPLATE_FLOW_ELEMENTS } from '@modeler/templates/Templates';
-import type { TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@core/notation';
+import { bpmnSelfAndAncestors } from '@core/notation';
+import type { Template, TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@core/notation';
+
+/** Stash key on a container shape for the nested flow elements to materialize once the root lands. */
+export const TEMPLATE_FLOW_ELEMENTS = '__studyflowTemplateFlowElements';
 
 const isFlowNode = (e: TemplateFlowElement): e is TemplateFlowNode => e.kind === 'node';
 const isFlowConnection = (e: TemplateFlowElement): e is TemplateFlowConnection =>
@@ -92,15 +95,8 @@ export function createTemplateConnection(
 
 type MaterializeTemplateFlowParams = {
   modeling: any;
-  templatesService: {
-    createFlowNodeShape: (definition: TemplateFlowNode, parent: any) => any;
-    createFlowConnection: (
-      definition: TemplateFlowConnection,
-      source: any,
-      target: any,
-      parent: any,
-    ) => any;
-  };
+  elementFactory: any;
+  moddle: any;
   shape: any;
   hintKey: string;
 };
@@ -128,7 +124,7 @@ function fitParticipant(modeling: any, shape: any, nodeShapes: Box[]): { x: numb
 }
 
 export function materializeTemplateFlow(command: MaterializeTemplateFlowParams): void {
-  const { modeling, templatesService, shape, hintKey } = command;
+  const { modeling, elementFactory, moddle, shape, hintKey } = command;
 
   const flowElements: TemplateFlowElement[] = shape[TEMPLATE_FLOW_ELEMENTS] ?? [];
   if (flowElements.length === 0) return;
@@ -136,7 +132,7 @@ export function materializeTemplateFlow(command: MaterializeTemplateFlowParams):
   const nodesById = new Map<string, any>();
   const nodeShapes = flowElements
     .filter(isFlowNode)
-    .map((node) => ({ node, nodeShape: templatesService.createFlowNodeShape(node, shape) }));
+    .map((node) => ({ node, nodeShape: createTemplateShape({ elementFactory, moddle, ...node, parent: shape }) }));
 
   const delta = fitParticipant(modeling, shape, nodeShapes.map((entry) => entry.nodeShape));
 
@@ -157,7 +153,7 @@ export function materializeTemplateFlow(command: MaterializeTemplateFlowParams):
       console.warn(`[templates] Skipping connection '${conn.id ?? conn.bpmnType}' - source or target not found.`);
       continue;
     }
-    const created = templatesService.createFlowConnection(conn, source, target, shape);
+    const created = createTemplateConnection({ elementFactory, definition: conn, source, target, parent: shape });
     modeling.createConnection(source, target, created, shape, { [hintKey]: true });
   }
 
@@ -251,5 +247,21 @@ export function createTemplateShape(
     if (extPrefix) ext?.set?.(`${extPrefix}:icon`, overrideIconClass);
   }
 
+  return shape;
+}
+
+/** A detached shape for `template`; a nested flow is stashed under {@link TEMPLATE_FLOW_ELEMENTS} for the host to materialize. */
+export function createTemplateElement(template: Template, elementFactory: any, moddle: any): any {
+  const shape = createTemplateShape({
+    elementFactory,
+    moddle,
+    bpmnType: template.bpmnType,
+    extensionType: template.extensionType,
+    templateAttributes: template.templateAttributes,
+    overrideIconClass: template.overrideIconClass,
+  });
+  const holdsFlow = template.bpmnType === 'bpmn:Participant'
+    || bpmnSelfAndAncestors(template.bpmnType).includes('bpmn:SubProcess');
+  if (template.flowElements?.length && holdsFlow) shape[TEMPLATE_FLOW_ELEMENTS] = template.flowElements;
   return shape;
 }

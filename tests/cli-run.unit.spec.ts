@@ -53,7 +53,7 @@ test.describe('declaredRuntime', () => {
   });
 });
 
-/** The Python runner keeps `state` (docs/design/state.md): `_meta.prov` run records, `_meta.reached` visit counts. */
+/** The Python runner keeps `state` (docs/developers.qmd, "What a run leaves behind"): `_meta.prov` run records, `_meta.reached` visit counts. */
 
 const CLI_SRC = path.resolve(__dirname, '../packages/cli/src');
 
@@ -123,5 +123,74 @@ S:
     const second = archivedState(archived);
     expect(second._meta.prov).toHaveLength(2);
     expect(second._meta.reached.Done).toBe(2);
+  });
+});
+
+/** What a partial runner is handed: `plan.json`, the plan as one JSON digest, never the diagram. */
+
+function hasPython(): boolean {
+  try {
+    execFileSync('python3', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test.describe('partial runner hand-off', () => {
+  test.skip(!hasPython(), 'python3 is not on PATH');
+
+  test('hands partial runners a JSON digest of the plan', async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/cognitive/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="C"><bpmn:participant id="Pool" name="Lab" processRef="P"><bpmn:extensionElements><cognitive:actor kind="robot"/></bpmn:extensionElements></bpmn:participant></bpmn:collaboration>
+  <bpmn:process id="P" studyflow:seed="7">
+    <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="T" name="fit" implementation="python://m.f">
+      <bpmn:extensionElements><cognitive:cognitiveTask instrument="x"><cognitive:note>a</cognitive:note><cognitive:note>b</cognitive:note></cognitive:cognitiveTask></bpmn:extensionElements>
+      <bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing>
+      <bpmn:ioSpecification><bpmn:dataInput id="In1" name="table"/></bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="DIA"><bpmn:sourceRef>Dat</bpmn:sourceRef><bpmn:targetRef>In1</bpmn:targetRef><bpmn:transformation language="python">x = y</bpmn:transformation></bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="DOA"><bpmn:targetRef>Out</bpmn:targetRef></bpmn:dataOutputAssociation>
+      <studyflow:additionalArguments>k: 1</studyflow:additionalArguments>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="Dat" name="digits" studyflow:uri="digits.csv"/>
+    <bpmn:dataObjectReference id="Out" name="model"/>
+    <bpmn:endEvent id="Done"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start" targetRef="T"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="T" targetRef="Done"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-handoff-'));
+    fs.copyFileSync(path.join(CLI_SRC, 'studyflow-run-local.py'), path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    // A runner that claims T and completes it, keeping a copy of what it was handed.
+    fs.writeFileSync(path.join(dir, 'fake.py'), [
+      'import json, shutil, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "assert plan.endswith('plan.json'), plan",
+      "shutil.copyfile(plan, plan + '.seen')",
+      "if mode == '--claims': print(json.dumps({'elements': ['T'], 'live': False}))",
+      'else:',
+      "    handoff = sys.argv[5] + '/' + sys.argv[3] + '.state.json'",
+      '    state = json.load(open(handoff))',
+      "    json.dump({**state, 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    execFileSync('python3', [path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet', '--debug',
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe' });
+
+    const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
+    expect(digest.study).toEqual({ id: 'P', name: 'Lab', seed: '7' });
+    expect(digest.sources.length).toBeGreaterThan(0);
+    const task = digest.elements.T;
+    expect(task.type).toBe('task');
+    expect(task.attributes.implementation).toBe('python://m.f');
+    expect(task.extensions).toEqual([{ namespace: 'http://behaverse.org/schemas/cognitive/v1', type: 'cognitiveTask', attributes: { instrument: 'x', note: ['a', 'b'] } }]);
+    expect(task.additionalArguments).toBe('k: 1');
+    expect(task.ioSlots).toEqual({ In1: 'table' });
+    expect(task.inputs).toEqual([{ source: 'Dat', target: 'In1', transformation: 'x = y', language: 'python' }]);
+    expect(task.outputs).toEqual([{ target: 'Out', transformation: null, language: null }]);
+    expect(digest.elements.Dat.attributes.uri).toBe('digits.csv');
+    expect(digest.elements.Pool.extensions[0]).toEqual({ namespace: 'http://behaverse.org/schemas/cognitive/v1', type: 'actor', attributes: { kind: 'robot' } });
   });
 });

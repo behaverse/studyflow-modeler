@@ -35,6 +35,13 @@ function runnerScriptCandidates(): string[] {
   return candidates;
 }
 
+/** The repo's partial runners (`runners/studyflow-*.py`), when this is the bundle in a checkout rather than an installed binary. */
+function repoRunnersDir(): string | undefined {
+  if (!import.meta.url.startsWith('file:')) return undefined;
+  const dir = fileURLToPath(new URL('../../../runners', import.meta.url));
+  return existsSync(dir) ? dir : undefined;
+}
+
 /** The runner, in the CLI README's order: `STUDYFLOW_RUN_PY`, an installed `studyflow-run-local`
  * companion, then the script beside this CLI (needs `uv`). It finds studyflow-prov and the schema runners itself. */
 function runnerCommand(): { command: string; args: string[] } {
@@ -71,7 +78,9 @@ async function runLocal(
 
   const { command, args } = runnerCommand();
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, [...args, target, ...passthrough], { stdio: 'inherit' });
+    const runnersDir = repoRunnersDir();
+    const env = runnersDir ? { ...process.env, STUDYFLOW_RUNNERS: runnersDir } : process.env;
+    const child = spawn(command, [...args, target, ...passthrough], { stdio: 'inherit', env });
     child.on('error', reject);
     child.on('exit', (code) => resolvePromise(code ?? 1));
   });

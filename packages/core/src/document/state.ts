@@ -2,7 +2,7 @@ import { getProperty, setProperty, type Moddle, type ModdleElement } from '@core
 import { STUDY_EXTENSION_TYPE, primaryRoots, studyExtensionOf } from '@core/document/format';
 
 /**
- * The retrospective `state` tree (docs/design/state.md): keyed by element id, stored as a JSON string on
+ * The retrospective `state` tree (docs/developers.qmd, "What a run leaves behind"): keyed by element id, stored as a JSON string on
  * the `studyflow:Study` extension, lifted to the top-level `state:` mapping of a `.studyflow` file.
  */
 

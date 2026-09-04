@@ -8,7 +8,7 @@ import {
   storageEstimate,
   stringCodec,
   type WriteResult,
-} from '@core/storage';
+} from '@runner/storage';
 import { notify } from '@modeler/app/noticeStore';
 import { unlinkFile } from '@modeler/diagram/fileHandle';
 
@@ -173,4 +173,4 @@ export function saveInspectorWidth(width: number): void {
 }
 
 
-export { readDiagramHandoff, clearDiagramHandoff, takeDiagramHandoff, createDiagramHandoff } from '@core/storage';
+export { readDiagramHandoff, clearDiagramHandoff, takeDiagramHandoff, createDiagramHandoff } from '@runner/storage';

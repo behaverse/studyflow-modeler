@@ -2,7 +2,7 @@
  * A resolved icon glyph: the body of an `<svg>` plus the viewBox it is drawn in.
  * Fetched by `export/iconSource.ts` and cached by `draw/iconCache.ts`, which hands
  * it to the canvas renderer — so glyphs are drawn INTO the scene and an exported SVG
- * needs no icon substitution pass at all (parity addendum 6 §2).
+ * needs no icon substitution pass at all.
  */
 export type IconSvg = { content: string; viewBox: string };
 
@@ -84,7 +84,7 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement> {
 /**
  * Rasterize the diagram SVG to a PNG data URL, natively: the browser already knows
  * how to draw an SVG image, so the document goes through a blob URL into an `<img>`
- * and onto a 2d canvas. This replaced Canvg (parity addendum 6 §3) — which existed to
+ * and onto a 2d canvas. This replaced Canvg, which existed to
  * paint icons the browser could not, back when they were `foreignObject`s; the
  * renderer now draws real glyphs, so plain `drawImage` covers the whole document.
  */

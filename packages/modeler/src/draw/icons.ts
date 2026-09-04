@@ -17,9 +17,8 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   [BPMN.EventBasedGateway]:   ICONS.pentagon,
   [BPMN.DataObjectReference]: ICONS.document,
 
-  // Event-definition symbols, drawn centred on the event circle. bpmn-js drew
-  // these itself; since its removal the canvas asks the resolver per definition
-  // $type (`render/renderer.ts drawEventIcons`).
+  // Event-definition symbols, drawn centred on the event circle; the canvas asks
+  // the resolver per definition $type (`render/renderer.ts drawEventIcons`).
   'bpmn:MessageEventDefinition':     ICONS.envelope,
   'bpmn:TimerEventDefinition':       'iconify mdi--clock-outline',
   'bpmn:ErrorEventDefinition':       'iconify mdi--lightning-bolt-outline',

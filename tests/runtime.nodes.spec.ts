@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@core/storage';
+import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@runner/storage';
 import { gotoModeler } from './utils';
 
 /** Stage a studyflow XML as a hand-off (mimicking the modeler's "Run" button), then open the runtime. */

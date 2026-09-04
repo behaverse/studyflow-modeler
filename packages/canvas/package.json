@@ -1,6 +1,6 @@
 {
   "name": "@behaverse/studyflow-canvas",
-  "version": "26.0615",
+  "version": "26.9.5",
   "description": "Editable SVG canvas for studyflow diagrams (vanilla TS + SVG, no bpmn-js).",
   "private": true,
   "type": "module",

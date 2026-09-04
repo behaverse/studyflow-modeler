@@ -56,7 +56,7 @@ export const NON_EXTENSION_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xs
 
 export const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
 
-/** The `bpmn:Property` in bpmn-js */
+/** The `targetRef` a data association carries until a real `bpmn:Property` is bound. */
 const TARGET_REF_PLACEHOLDER = '__targetRef_placeholder';
 
 export function isDeclaredProperty(property: { $type?: string; name?: unknown }): boolean {
