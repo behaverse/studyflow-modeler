@@ -312,3 +312,108 @@ test.describe('conditions over declared state', () => {
     })()).rejects.toThrow(/no start event/);
   });
 });
+
+test.describe('reach counts and initial values', () => {
+  /** Study declares `total` (initial 0); the battery declares `failed`; the gateway loops while it has been reached under 3 times. */
+  const REACH = `${HEAD}Study:
+  type: bpmn:Process
+  properties:
+    P_Total:
+      name: total
+      value: "0"
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      outgoing: [F_A]
+    Battery:
+      type: bpmn:SubProcess
+      incoming: [F_A]
+      outgoing: [F_B]
+      properties:
+        P_Failed:
+          name: failed
+          value: "0"
+      flowElements:
+        T_Start:
+          type: bpmn:StartEvent
+          outgoing: [F_T]
+        Trial:
+          type: bpmn:Task
+          incoming: [F_T]
+          outgoing: [F_T2]
+        T_End:
+          type: bpmn:EndEvent
+          incoming: [F_T2]
+        F_T:
+          type: bpmn:SequenceFlow
+          sourceRef: T_Start
+          targetRef: Trial
+        F_T2:
+          type: bpmn:SequenceFlow
+          sourceRef: Trial
+          targetRef: T_End
+    Gate:
+      type: bpmn:ExclusiveGateway
+      incoming: [F_B]
+      outgoing: [F_Loop, F_Out]
+      default: F_Out
+    Excluded:
+      type: bpmn:EndEvent
+      name: Excluded (n={reached})
+      incoming: [F_Out]
+    F_A:
+      type: bpmn:SequenceFlow
+      sourceRef: Start
+      targetRef: Battery
+    F_B:
+      type: bpmn:SequenceFlow
+      sourceRef: Battery
+      targetRef: Gate
+    F_Loop:
+      type: bpmn:SequenceFlow
+      sourceRef: Gate
+      targetRef: Battery
+      conditionExpression: state._meta.reached.Gate < 3
+    F_Out:
+      type: bpmn:SequenceFlow
+      sourceRef: Gate
+      targetRef: Excluded
+`;
+
+  test('the runner counts every visit into state._meta.reached; initial values seed the scopes', async () => {
+    const studyflow = await load(REACH);
+    expect(studyflow.scopes.get('Study')?.properties[0].value).toBe(0);
+
+    const session = new Session(studyflow, { catalog });
+    expect(session.getVariables().total).toBe(0);
+
+    const visited: string[] = [];
+    for await (const job of session.traverse()) visited.push(job.node.id);
+
+    // The gateway is counted before it decides: reached 1 and 2 loop back, 3 takes the default.
+    expect(visited.filter((id) => id === 'Trial')).toHaveLength(3);
+    expect(visited[visited.length - 1]).toBe('Excluded');
+    expect(session.getState()).toEqual({
+      Study: { total: 0 },
+      Battery: { failed: 0 },
+      _meta: { reached: { Start: 1, Battery: 3, T_Start: 3, Trial: 3, T_End: 3, Gate: 3, Excluded: 1 } },
+    });
+    expect(session.getUndeclaredVariables()).toEqual([]);
+  });
+
+  test('a deposited state tree seeds the scopes and keeps accumulating its counters and prov', async () => {
+    const studyflow = await load(`${REACH}state:\n  _meta: { prov: [{ action: executed }], reached: { Gate: 2 } }\n  Study: { total: 10 }\n`);
+    expect(studyflow.state._meta.reached).toEqual({ Gate: 2 });
+
+    const session = new Session(studyflow, { catalog });
+    expect(session.getVariables().total).toBe(10);
+    const visited: string[] = [];
+    for await (const job of session.traverse()) visited.push(job.node.id);
+
+    // Gate was reached twice before this run, so its first visit here is the third: no loop.
+    expect(visited.filter((id) => id === 'Trial')).toHaveLength(1);
+    expect(session.getState().Study).toEqual({ total: 10 });
+    expect(session.getState()._meta.prov).toEqual([{ action: 'executed' }]);
+    expect(session.getState()._meta.reached.Gate).toBe(3);
+  });
+});

@@ -1,5 +1,6 @@
 import { isModdleElement } from '@core/element/moddle';
-import { RESERVED_DOC_KEYS, inferPlaneRoot, type YamlDoc } from '@core/document/format';
+import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferPlaneRoot, type YamlDoc } from '@core/document/format';
+import { readState } from '@core/document/state';
 import {
   CHECKLIST_MARKER,
   DI_NODE_TYPES,
@@ -40,6 +41,8 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
     const value = el[p.name];
     if (value === undefined || value === null) continue;
     if (p.default !== undefined && value === p.default) continue;
+    // The run state is the document's top-level `state:` mapping, not a JSON string on the Study node.
+    if (p.name === 'state' && el.$type === STUDY_EXTENSION_TYPE) continue;
     // A cross-namespace property (a schema redefine of `bpmn:loopCondition`) reads by its local name like every other key.
     const key = p.ns?.localName ?? p.name;
 
@@ -135,5 +138,7 @@ export function definitionsToYamlDoc(definitions: any): YamlDoc {
   if (unkeyable.length > 0) doc.elements = unkeyable;
 
   if (diagram.length > 0) doc.diagram = diagram;
+  const state = readState(definitions);
+  if (Object.keys(state).length > 0) doc.state = state;
   return doc;
 }

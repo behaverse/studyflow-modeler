@@ -23,7 +23,7 @@ export type ProvenanceRecord = {
   scopeLabel: string;
   isDocument: boolean;
   icon?: string;
-  /** The live `prov:Activity` moddle element this record projects. */
+  /** The element's live `prov:Activity` moddle element, or the plain `_meta.prov` record for document rows. */
   entry: any;
   invalidated?: boolean;
   /** An `invalidated` marker whose named record no longer stands: inert history, never voids or branches again. */

@@ -98,6 +98,8 @@ Gateways decide which branch a run takes, and each kind decides differently:
 
 Before it runs, a studyflow is a plan. As it runs, the record of what actually happened accumulates in the same file (this follows W3C PROV, which separates the prospective plan from the retrospective record). So "did the study deviate from the plan?" is a question you answer by diffing one file against an earlier version of itself, and there is no separate log to keep alongside it.
 
+The retrospective part lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.prov`, the run records, oldest first, and `_meta.reached.<element_id>`, incremented every time a token reaches an element and never reset. Per-element records stay on the elements. Everything else in the tree is a `bpmn:Property` value under `state.<scope_id>`, written only by data output associations. Keys starting with `_` cannot be declared. See [design/state](design/state.md).
+
 | Attribute | Holds | | Action | Records |
 |:--|:--|:-:|:--|:--|
 | `action` | what happened, in one word | | `created`, `modified` | the file was authored, or edited and exported again |

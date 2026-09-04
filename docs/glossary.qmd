@@ -48,7 +48,7 @@ run
 : One walk through the diagram, from a start event to an end event.
 
 state
-: The values declared (as `bpmn:Property`) on the diagram, at one moment of a run. Where a value is declared decides its scope. The *state history* is the sequence of states across a run.
+: The values declared (as `bpmn:Property`) on the diagram, at one moment of a run. Where a value is declared decides its scope. The *state history* is the sequence of states across a run. In the file, `state` is a tree keyed by element id; the runner's own entries live under `state._meta` (`_meta.prov`, the run records; `_meta.reached.<element_id>`, how often a token reached each element), and the property values a data edge wrote under `state.<scope_id>`. A label may cite a value as `{count}`, `{reached}`, or `{state._meta.reached.Excluded_Pre}`; the canvas draws the resolved text, the file keeps the placeholder.
 
 partial runner
 : Any runner that claims only a subset of a diagram's elements and executes them. A collection of partial runners can run a studyflow together, each one executing the elements it claims.
@@ -62,7 +62,7 @@ seed
 ## Provenance
 
 provenance history
-: The list of execution entries on the study: what ran, when, by whom, with which seed. A stored record lets a re-run *reuse* it and skip its execution. *Invalidating* the record voids it, and the voiding cascades downstream in the provenance history. The provenance history is stored in the same file as the studyflow diagram.
+: The list of execution entries on the study: what ran, when, by whom, with which seed. A stored record lets a re-run *reuse* it and skip its execution. *Invalidating* the record voids it, and the voiding cascades downstream in the provenance history. The provenance history is stored in the same file as the studyflow diagram, as `state._meta.prov`.
 
 provenance record
 : What actually happened. The retrospective side of the diagram. A deviation in an execution is a diff of the file against an earlier version of itself.

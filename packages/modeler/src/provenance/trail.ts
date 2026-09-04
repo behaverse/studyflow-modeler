@@ -1,4 +1,4 @@
-import { primaryRoots } from '@core/document';
+import { META_KEY, primaryRoots, readState, writeState } from '@core/document';
 import type { Editor } from '@modeler/editor/port';
 
 export type TrailStamp = {
@@ -8,26 +8,45 @@ export type TrailStamp = {
   with?: string;
   what?: string;
   run?: string;
-  seed?: string;
+  seed?: string | number;
   note?: string;
 };
+
+/** One run record in `state._meta.prov`: the fields of `prov:Activity`, as a plain object. */
+export type TrailRecord = TrailStamp;
+
+const RECORD_FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'note'] as const;
 
 export function primaryRoot(definitions: any): any | undefined {
   return primaryRoots(definitions)[0];
 }
 
-function trailRoot(definitions: any): any | undefined {
-  const candidates = primaryRoots(definitions);
-  return candidates.find((root) => {
-    const values: any[] = root?.extensionElements?.values ?? [];
-    return values.some((value) => value?.$type === 'prov:Activity');
-  }) ?? candidates[0];
+/** The pre-`state` document trail: `prov:Activity` values on a root's `extensionElements`. */
+function legacyTrailRoot(definitions: any): any | undefined {
+  return primaryRoots(definitions).find((root) => legacyEntries(root).length > 0);
 }
 
-export function readTrail(definitions: any): any[] {
-  const root = trailRoot(definitions);
+function legacyEntries(root: any): any[] {
   const values: any[] = root?.extensionElements?.values ?? [];
   return values.filter((value) => value?.$type === 'prov:Activity');
+}
+
+function toRecord(source: any): TrailRecord {
+  const record: Record<string, any> = {};
+  for (const field of RECORD_FIELDS) {
+    let value = typeof source?.get === 'function' ? source.get(field) : source?.[field];
+    if (value == null || value === '') continue;
+    if (field === 'seed' && typeof value === 'string' && /^-?\d+$/.test(value)) value = Number(value);
+    record[field] = value;
+  }
+  return record as TrailRecord;
+}
+
+/** The study's run records, oldest first: `state._meta.prov`, else a legacy root trail (read-only). */
+export function readTrail(definitions: any): TrailRecord[] {
+  const prov = readState(definitions)[META_KEY]?.prov;
+  if (Array.isArray(prov)) return prov;
+  return legacyEntries(legacyTrailRoot(definitions)).map(toRecord);
 }
 
 /** ISO 8601 at second precision, in this machine's timezone. */
@@ -43,29 +62,29 @@ export function trailTimestamp(date: Date = new Date()): string {
   );
 }
 
+/** Appends to `state._meta.prov`, first moving any legacy root entries there. Returns the record. */
 export function appendTrailEntry(
   definitions: any,
   moddle: any,
   stamp: TrailStamp,
-): any | undefined {
-  // `trailRoot`, not `primaryRoot`: appending elsewhere than `readTrail` reads would split the trail across roots.
-  const root = trailRoot(definitions);
-  if (!root) return undefined;
+): TrailRecord | undefined {
+  if (!primaryRoot(definitions)) return undefined;
 
-  const entry = moddle.create('prov:Activity', pruneEmpty(stamp));
-  if (!root.extensionElements) {
-    root.extensionElements = moddle.create('bpmn:ExtensionElements', { values: [] });
-    root.extensionElements.$parent = root;
+  const tree = readState(definitions);
+  const meta = tree[META_KEY] && typeof tree[META_KEY] === 'object' ? tree[META_KEY] : (tree[META_KEY] = {});
+  const prov: TrailRecord[] = Array.isArray(meta.prov) ? meta.prov : (meta.prov = []);
+
+  const legacyRoot = legacyTrailRoot(definitions);
+  if (legacyRoot) {
+    prov.push(...legacyEntries(legacyRoot).map(toRecord));
+    legacyRoot.extensionElements.values = legacyRoot.extensionElements.values
+      .filter((value: any) => value?.$type !== 'prov:Activity');
   }
-  root.extensionElements.values.push(entry);
-  entry.$parent = root.extensionElements;
-  return entry;
-}
 
-function pruneEmpty(stamp: TrailStamp): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(stamp).filter(([, value]) => typeof value === 'string' && value.length > 0),
-  );
+  const record = toRecord(stamp);
+  prov.push(record);
+  writeState(definitions, moddle, tree);
+  return record;
 }
 
 const lastStampedAt = new WeakMap<object, number>();
@@ -80,7 +99,7 @@ export function resetTrailStamping(modeler: Editor): void {
 export function stampTrailForExport(
   modeler: Editor,
   identity: { who?: string; tool: string },
-): any | undefined {
+): TrailRecord | undefined {
   const definitions = modeler.getDefinitions();
   if (!definitions) return undefined;
 

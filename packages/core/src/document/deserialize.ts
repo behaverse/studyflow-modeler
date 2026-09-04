@@ -31,6 +31,7 @@ import {
   yamlBodyProperty,
   type DiType,
 } from '@core/document/shorthand';
+import { writeState, type StateTree } from '@core/document/state';
 
 type PendingRef = {
   element: any;
@@ -279,5 +280,8 @@ export function studyflowToDefinitions(
   if (diagrams.length > 0) definitions.set('diagrams', diagrams);
   builder.resolveReferences();
   builder.linkSequenceFlows();
+  if (doc.state && typeof doc.state === 'object' && !Array.isArray(doc.state)) {
+    writeState(definitions, moddle, doc.state as StateTree);
+  }
   return definitions;
 }

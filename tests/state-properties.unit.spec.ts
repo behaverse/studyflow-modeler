@@ -5,6 +5,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToXml, xmlToStudyflow } from '@core/document';
+import { runUpdateStateProperties } from '@modeler/inspector/commands';
+import type { Editor } from '@modeler/editor/port';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 import { exampleStudyflow } from './utils';
@@ -80,5 +82,28 @@ test.describe('state as bpmn:Property', () => {
 
     expect(trial.dataInputAssociations[0].sourceRef[0]).toBe(process.properties[0]);
     expect(trial.dataOutputAssociations[0].targetRef).toBe(battery.properties[0]);
+  });
+});
+
+test.describe('property names', () => {
+  test('a rename to a `_`-prefixed name is refused; the previous name stays', () => {
+    const m = moddle();
+    const property = m.create('bpmn:Property', { id: 'P1', name: 'count' });
+    const process = m.create('bpmn:Process', { id: 'S', properties: [property] });
+    property.$parent = process;
+    const element = { id: 'S', businessObject: process };
+    const modeler = {
+      canvas: {
+        updateModdleProperties(_el: any, target: any, props: Record<string, any>) {
+          for (const [k, v] of Object.entries(props)) target.set(k, v);
+        },
+      },
+    } as unknown as Editor;
+
+    runUpdateStateProperties(modeler, { type: 'UpdateStateProperties', element, action: 'rename', propertyId: 'P1', name: '_prov' });
+    expect(property.name).toBe('count');
+
+    runUpdateStateProperties(modeler, { type: 'UpdateStateProperties', element, action: 'rename', propertyId: 'P1', name: 'total' });
+    expect(property.name).toBe('total');
   });
 });

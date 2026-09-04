@@ -1,7 +1,7 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
-import { choreographyToProcessRoot, looksLikeXml, studyflowToDefinitions } from '@core/document';
-import { getAttribute, getExtensionType } from '@core/element';
+import { choreographyToProcessRoot, looksLikeXml, readState, studyflowToDefinitions, type StateTree } from '@core/document';
+import { getAttribute, getExtensionType, getRawAttribute } from '@core/element';
 import { BPMN, isDeclaredProperty } from '@core/constants';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
 import type { PropertyDecl, Scope } from '@runner/scope';
@@ -33,6 +33,8 @@ export type ParsedStudy = {
   scopes: Map<string, Scope>;
   rootScopeId: string;
   parameters: BoundParameters;
+  /** The file's `state` tree as deposited; a session copies it and mirrors its own writes into the copy. */
+  state: StateTree;
 };
 
 /** The studyflow a run traverses: its flow nodes, sequence flows, and scopes. */
@@ -44,6 +46,7 @@ export class Studyflow {
   scopes: Map<string, Scope>;
   rootScopeId: string;
   parameters: BoundParameters;
+  state: StateTree;
   /** Identifies the exact source the run was delivered from; reported to Unity and the data-server. */
   studyflowHash?: string;
 
@@ -63,6 +66,7 @@ export class Studyflow {
     this.scopes = data.scopes;
     this.rootScopeId = data.rootScopeId;
     this.parameters = data.parameters;
+    this.state = data.state;
     this.studyflowHash = studyflowHash;
   }
 
@@ -100,8 +104,19 @@ function readProperties(container: any): PropertyDecl[] {
       name: typeof p.name === 'string' && p.name.length > 0 ? p.name : p.id,
       itemType: p.itemSubjectRef?.structureRef,
       dataState: p.dataState?.name,
+      value: parseLiteral(p.value ?? getRawAttribute(p, 'value')),
     }))
     .filter((decl: PropertyDecl) => Boolean(decl.name));
+}
+
+/** `studyflow:value` is JSON when it parses (`0`, `true`, `"x"`), otherwise the text itself. */
+function parseLiteral(text: unknown): unknown {
+  if (typeof text !== 'string') return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 export async function parseStudyflow(
@@ -209,6 +224,7 @@ export async function parseStudyflow(
     scopes,
     rootScopeId,
     parameters: bound,
+    state: readState(definitions),
   };
 }
 

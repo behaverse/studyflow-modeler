@@ -40,10 +40,10 @@ test.describe('App popup menus', () => {
     await expect(search).toBeVisible();
     await search.fill('service');
 
-    const entry = page.getByTestId('popup-menu-entry-create-bpmn:ServiceTask');
+    const entry = page.getByTestId('popup-menu-entry-create-Service');
     await expect(entry).toBeVisible();
     // Searching narrows: non-matching entries are gone, not merely dimmed.
-    await expect(page.getByTestId('popup-menu-entry-create-bpmn:UserTask')).toHaveCount(0);
+    await expect(page.getByTestId('popup-menu-entry-create-User')).toHaveCount(0);
 
     await entry.click();
     // Picking arms a create gesture, exactly as a palette tile does; the next click places it.
@@ -66,7 +66,7 @@ test.describe('App popup menus', () => {
     await expect(popup(page)).toBeVisible();
 
     await page.getByTestId('popup-menu-search').fill('end');
-    await page.getByTestId('popup-menu-entry-create-studyflow:EndEvent').click();
+    await page.getByTestId('popup-menu-entry-create-End').click();
     await expect(popup(page)).toHaveCount(0);
 
     // Click-append places the shape itself — there is no second click on the canvas.

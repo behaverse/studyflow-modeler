@@ -68,7 +68,10 @@ test.describe('Studyflow modeler file flows', () => {
     expect(content).toContain('\ndefinitions:');
     expect(content).not.toContain('\ndiagram:');
     expect(content).toContain('bounds:');
-    expect(content).toContain('prov:Activity');
+    // The export stamp lands in the run state's `_meta.prov` list, lifted to the top-level `state:` key.
+    expect(content).toContain('\nstate:');
+    expect(content).toContain('_meta:');
+    expect(content).toContain('prov:');
     expect(content).toContain('action: created');
   });
 

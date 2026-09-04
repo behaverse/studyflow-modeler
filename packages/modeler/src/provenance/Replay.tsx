@@ -10,6 +10,8 @@ import {
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
 import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
+import { isHidden } from '@canvas/model/tree.ts';
+import { tokenAnchor } from '@modeler/simulation/flowWalk';
 import type { Point } from '@canvas/model/scene.ts';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
@@ -155,8 +157,9 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     }
     token.style.display = '';
     token.style.opacity = '';
-    const to = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-    const rootId = registry.findRoot(target)?.id;
+    const to = tokenAnchor(target);
+    const newRoot = registry.findRoot(target);
+    const rootId = newRoot?.id;
     const from = tokenPos.current;
 
     // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
@@ -169,9 +172,11 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     };
 
     // A glide only makes sense within one plane: the first step lands directly, and a plane
-    // change dives, the old context zooming away while the new one settles in.
-    if (!from || from.rootId !== rootId) {
+    // change (or a target the current drill-down hides) dives, the old context zooming away
+    // while the new one settles in.
+    if (!from || from.rootId !== rootId || isHidden(target, canvas.getScope())) {
       const place = () => {
+        canvas.goToScope(newRoot);
         setPos(to, target.id, rootId);
         try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
         viewport.setViewbox(camera(to));
@@ -185,11 +190,10 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       // plane belongs to (on the new one); the camera flies through it, so the move is visible.
       const shapeOf = (root: any) => (root?.businessObject?.id ? registry.get(root.businessObject.id) : undefined);
       const oldRoot = registry.root();
-      const newRoot = registry.findRoot(target);
       const doorIn = shapeOf(newRoot);
       const doorOut = shapeOf(oldRoot);
-      const inward = !!doorIn && registry.findRoot(doorIn) === oldRoot;
-      const outward = !inward && !!doorOut && registry.findRoot(doorOut) === newRoot;
+      const inward = !!doorIn?.width && registry.findRoot(doorIn) === oldRoot;
+      const outward = !inward && !!doorOut?.width && registry.findRoot(doorOut) === newRoot;
       const doorway = (shape: any) => {
         const vb = canvas.getViewbox();
         const scale = Math.min(3, vb.outer.width / (shape.width * 1.5), vb.outer.height / (shape.height * 1.5));
@@ -242,8 +246,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         svg.style.opacity = '0';
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
+          canvas.goToScope(newRoot);
           setPos(to, target.id, rootId);
-          try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
           const dest = camera(to);
           viewport.setViewbox(doorway(doorOut));
           svg.style.transition = 'none';

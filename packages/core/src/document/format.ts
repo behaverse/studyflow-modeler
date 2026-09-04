@@ -4,7 +4,9 @@ import { getProperty, type ModdleElement } from '@core/element/moddle';
 
 export type YamlDoc = Record<string, unknown>;
 
-export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'diagram']);
+export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'diagram', 'state']);
+
+export const STUDY_EXTENSION_TYPE = 'studyflow:Study';
 
 export const YAML_DUMP_OPTIONS: yaml.DumpOptions = { noRefs: true, lineWidth: 120, quotingType: '"' };
 
@@ -35,9 +37,15 @@ export function primaryRoots(definitions: ModdleElement | null | undefined): Mod
  */
 export function declaredRuntime(definitions: ModdleElement | null | undefined): string {
   const root: any = primaryRoots(definitions)[0];
-  const study = root?.extensionElements?.values?.find((ext: any) => ext?.$type === 'studyflow:Study');
+  const study = studyExtensionOf(definitions);
   const value = getProperty(study, 'runtime') ?? root?.runtime ?? root?.$attrs?.runtime ?? root?.$attrs?.['studyflow:runtime'];
   return typeof value === 'string' && value ? value : 'cloud';
+}
+
+/** The `studyflow:Study` extension of the primary root: where `runtime`, `state`, and the study's own fields live. */
+export function studyExtensionOf(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
+  const root: any = primaryRoots(definitions)[0];
+  return root?.extensionElements?.values?.find((ext: any) => ext?.$type === STUDY_EXTENSION_TYPE);
 }
 
 export function inferPlaneRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {

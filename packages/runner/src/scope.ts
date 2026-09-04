@@ -3,6 +3,8 @@ export type PropertyDecl = {
   name: string;
   itemType?: string;
   dataState?: string;
+  /** `studyflow:value`, parsed as JSON when it parses, else the literal text. */
+  value?: unknown;
 };
 
 /** A `bpmn:Process` or `bpmn:SubProcess` and the properties it declares. */
@@ -17,9 +19,8 @@ export class ScopeChain {
   private frames: Array<{ scope: Scope; values: Map<string, unknown> }> = [];
   private undeclaredNames = new Set<string>();
 
-  constructor(root: Scope, initial: Record<string, unknown> = {}) {
+  constructor(root: Scope) {
     this.push(root);
-    for (const [name, value] of Object.entries(initial)) this.write(name, value);
   }
 
   push(scope: Scope): void {
@@ -58,16 +59,18 @@ export class ScopeChain {
     return undefined;
   }
 
-  write(name: string, value: unknown): void {
+  /** Writes to the innermost frame declaring `name` (the root when none does) and returns that scope's id. */
+  write(name: string, value: unknown): string {
     for (let i = this.frames.length - 1; i >= 0; i -= 1) {
       const frame = this.frames[i];
       if (frame.scope.properties.some((p) => p.name === name)) {
         frame.values.set(name, value);
-        return;
+        return frame.scope.id;
       }
     }
     this.undeclaredNames.add(name);
     this.frames[0].values.set(name, value);
+    return this.frames[0].scope.id;
   }
 
   undeclared(): string[] {

@@ -49,7 +49,7 @@ test.describe('Moving a shape', () => {
     await addTask(page, { x: 420, y: 180 });
     await page.getByTestId('context-pad-append').click();
     await page.getByTestId('popup-menu-search').fill('end');
-    await page.getByTestId('popup-menu-entry-create-studyflow:EndEvent').click();
+    await page.getByTestId('popup-menu-entry-create-End').click();
     await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(1);
 
     // Two bystanders, placed to give the drag something to align WITH: one supplies

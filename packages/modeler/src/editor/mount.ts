@@ -9,6 +9,7 @@ import { Canvas, IdGenerator, defaultSizeFor, isRootElement } from '@canvas/inde
 import type { IconDef, SceneElement } from '@canvas/index.ts';
 import { idPrefixFor, needsId } from '@canvas/model/ids.ts';
 import { SVG_ICON_PATHS } from '@canvas/render/icons.ts';
+import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement, getRawAttribute } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
@@ -51,10 +52,12 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
 }
 
 export function mountEditor(options: MountEditorOptions): Editor {
-  const canvas = new Canvas({
+  const canvas: Canvas = new Canvas({
     container: options.container,
     onWarning: (warning: unknown) => console.warn('Canvas import warning:', warning),
     iconResolver: resolveIcon,
+    // `{count}` in a label draws its run-state value; the model, the file and the inspector keep the raw text.
+    labelText: (bo, name) => resolvePlaceholders(name, canvas.getDefinitions() as any, bo?.id ?? ''),
   });
   const moddle = new BpmnModdle(options.extensionSchemas) as any;
 

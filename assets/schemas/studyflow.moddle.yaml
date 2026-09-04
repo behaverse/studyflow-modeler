@@ -289,6 +289,25 @@ types:
         default: true
         meta:
           pinned: true
+      - name: state
+        # A JSON string (not YAML) so a runner without a YAML library can read it; the
+        # `.studyflow` file lifts it to the top-level `state:` mapping. `pinned` keeps it
+        # out of the inspector: it is written by runners and never drawn.
+        description: Retrospective run state, a JSON tree keyed by element id (see docs/design/state.md).
+        isAttr: false
+        type: String
+        meta:
+          pinned: true
+  - name: PropertyValue
+    description: The initial value of a declared property; names starting with `_` are reserved for the runner.
+    extends:
+      - bpmn:Property
+    isAbstract: true
+    properties:
+      - name: value
+        description: Initial value, as a literal; read when the declaring scope starts.
+        isAttr: true
+        type: String
   - name: Classification
     description: What kind of study a diagram is, declared by the diagram itself.
     extends:

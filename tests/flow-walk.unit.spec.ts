@@ -92,3 +92,28 @@ test.describe('nextHops', () => {
     expect((hop as any).flows).toEqual([f1]);
   });
 });
+
+import { containerOf, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
+
+test.describe('containers', () => {
+  const node = (type: string, parent?: any, extra: any = {}) => ({ ...el(type), kind: 'node', parent, x: 0, y: 0, width: 100, height: 80, ...extra });
+
+  test('start events are found through pools and lanes, but not inside sub-processes', () => {
+    const pool = node('bpmn:Participant');
+    const lane = node('bpmn:Lane', pool);
+    const sub = node('bpmn:SubProcess', lane, { id: 'sub' });
+    const top = node('bpmn:StartEvent', lane, { id: 'top' });
+    const inner = node('bpmn:StartEvent', sub, { id: 'inner' });
+    const all = [pool, lane, sub, top, inner];
+    expect(containerOf(top)).toBeUndefined();
+    expect(containerOf(inner)).toBe(sub);
+    expect(startEventsIn(all, undefined)).toEqual([top]);
+    expect(startEventsIn(all, sub)).toEqual([inner]);
+  });
+
+  test('a token rests on the centre of a node, or in the name strip of an expanded container', () => {
+    expect(tokenAnchor(node('bpmn:Task'))).toEqual({ x: 50, y: 40 });
+    expect(tokenAnchor(node('bpmn:SubProcess', undefined, { isExpanded: false }))).toEqual({ x: 50, y: 40 });
+    expect(tokenAnchor(node('bpmn:SubProcess', undefined, { width: 350, height: 200 }))).toEqual({ x: 175, y: 20 });
+  });
+});

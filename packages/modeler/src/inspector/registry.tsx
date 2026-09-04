@@ -6,7 +6,10 @@ import { t } from '@modeler/i18n';
 import { ArrayInput, ChecklistInput, EnumInput, ExpressionInput } from '@modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
-import { useAttributeState } from '@modeler/inspector/state';
+import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
+import { definitionsOf } from '@modeler/inspector/stateProperties';
+import { resolvePlaceholders } from '@core/document';
+import { toBusinessObject } from '@core/element';
 import { field as s } from '@modeler/inspector/styles';
 
 const TYPING_DEBOUNCE_MS = 400;
@@ -18,6 +21,12 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
     { debounceMs: TYPING_DEBOUNCE_MS },
   );
   const name = attrDef.ns.name;
+  const element = useInspectedElement();
+  // `{count}` shows its run-state value under the input; the input itself keeps the placeholder.
+  // `raw || ''` passes numbers through (an Integer attribute like `seed`), so guard the type.
+  const resolved = typeof value === 'string' && value.includes('{')
+    ? resolvePlaceholders(value, definitionsOf(element), toBusinessObject(element)?.id ?? '')
+    : value;
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     commit(e.target.value);
@@ -36,6 +45,9 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
         <Textarea name={name} onChange={handleChange} onBlur={flush} value={value} rows={4} className={s.textArea} />
       ) : (
         <Input name={name} type="text" onChange={handleChange} onBlur={flush} value={value} className={s.textInput} />
+      )}
+      {resolved !== value && (
+        <div className="px-1 text-[0.6875rem] text-stone-500 truncate" title={resolved}>→ {resolved}</div>
       )}
     </>
   );

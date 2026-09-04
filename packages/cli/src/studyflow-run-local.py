@@ -269,11 +269,26 @@ def output_targets(element: ET.Element) -> list[str]:
     return targets
 
 
+def literal(text: str | None) -> Any:
+    """A `value` or `seed` attribute: JSON when it parses, else the text as written."""
+    try:
+        return json.loads(text)
+    except (TypeError, ValueError):
+        return text
+
+
 def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
+    """`stamp` is this run's record, appended to `state._meta.prov` in the plan text (the copy runs from it)."""
     xml = studyflow_from_png(path) if path.suffix.lower() == ".png" else path.read_text()
     if stamp and PROV is not None:
-        probe = Studyflow(ET.fromstring(xml))
-        xml = PROV.insert_element_entry(xml, probe.process.get("id") or "", **stamp)
+        process_id = Studyflow(ET.fromstring(xml)).process.get("id") or ""
+        record = {name: stamp[name] for name in PROV.TIMELINE_FIELDS if stamp.get(name)}
+        seed = literal(record.get("seed"))
+        if isinstance(seed, (int, float)) and not isinstance(seed, bool):
+            record["seed"] = seed
+        tree = PROV.read_state(xml)
+        tree.setdefault("_meta", {}).setdefault("prov", []).append(record)
+        xml = PROV.write_state(xml, tree, process_id)
     return Studyflow(ET.fromstring(xml), plan=xml)
 
 
@@ -285,15 +300,31 @@ class Studyflow:
 
         self.elements: dict[str, ET.Element] = {}
         self.outgoing: dict[str, list[ET.Element]] = {}
+        # Lexical scopes: each element's container (up to the process), and the `bpmn:property`
+        # declarations per scope, name -> initial `studyflow:value` text (None when undeclared).
+        self.parents: dict[str, str] = {}
+        self.properties: dict[str, dict[str, str | None]] = {}
+
+        def declare(scope: ET.Element) -> None:
+            declared = {
+                (child.get("name") or child.get("id")): studyflow_attr(child, "value")
+                for child in scope if local(child) == "property" and (child.get("name") or child.get("id"))
+            }
+            if declared:
+                self.properties[scope.get("id")] = declared
 
         def index(container: ET.Element) -> None:
+            declare(container)
             for element in container:
                 if element.get("id"):
                     self.elements[element.get("id")] = element
+                    self.parents[element.get("id")] = container.get("id")
                 if local(element) == "sequenceFlow":
                     self.outgoing.setdefault(element.get("sourceRef"), []).append(element)
                 if local(element) in CONTAINER_TAGS:
                     index(element)
+                else:
+                    declare(element)
 
         index(self.process)
 
@@ -393,10 +424,28 @@ class Studyflow:
 
 
 class State:
-    """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`."""
+    """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`.
+    `tree` is the document's `state` (see docs/design/state.md), reachable as `state.<element id>.<name>`;
+    the runner counts every visit in `state._meta.reached.<element id>`, study-lifetime."""
 
-    def __init__(self) -> None:
+    def __init__(self, tree: dict | None = None) -> None:
         self.trace: list[str] = []
+        self.tree: dict = tree if tree is not None else {}
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(_Node(self.__dict__["tree"]), name)
+
+
+class _Node:
+    def __init__(self, entries: dict) -> None:
+        self._entries = entries
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            value = self._entries[name]
+        except KeyError:
+            raise AttributeError(name) from None
+        return _Node(value) if isinstance(value, dict) else value
 
 
 def plain(value: Any) -> Any:
@@ -614,7 +663,7 @@ class Runner:
         self.repo = repo
         self.branched = branched
         self.values: dict[str, Any] = {}
-        self.state = State()
+        self.state = State(PROV.read_state(studyflow.plan) if PROV is not None else {})
         self.depth = 0
         self._deferred: list[tuple[str, str, int, str]] | None = None
         self.prior_records = {} if fresh or PROV is None else PROV.element_records(studyflow)
@@ -692,16 +741,46 @@ class Runner:
         expression: str,
         extra: dict[str, Any] | None = None,
         language: str | None = None,
+        scope: str | None = None,
     ) -> Any:
-        """`language` is BPMN's per-expression attribute; unset means Python here, anything else is refused."""
+        """`language` is BPMN's per-expression attribute; unset means Python here, anything else is refused.
+        `scope` is the evaluating element: the properties declared on it and its containers are bound by name."""
         if language and language.lower() not in ("py", "python"):
             raise ValueError(
                 f"a {language} expression — this runner evaluates Python "
                 "(the browser runner evaluates JavaScript)",
             )
         space = self.namespace()
+        if scope:
+            space.update(self.scope_values(scope))
         space.update(extra or {})
         return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - see module docstring
+
+    def scope_chain(self, element_id: str) -> list[str]:
+        """The element, then its containers outward to the process."""
+        chain = [element_id]
+        while chain[-1] in self.studyflow.parents:
+            chain.append(self.studyflow.parents[chain[-1]])
+        return chain
+
+    def scope_values(self, element_id: str) -> dict[str, Any]:
+        space: dict[str, Any] = {}
+        for scope in reversed(self.scope_chain(element_id)):
+            held = self.state.tree.get(scope) or {}
+            space.update({name: held[name] for name in self.studyflow.properties.get(scope, ()) if name in held})
+        return space
+
+    def start_scope(self, element_id: str, reset: bool) -> None:
+        """Initialise the scope's properties from `value`; `reset` re-initialises ones the tree already holds."""
+        for name, value in self.studyflow.properties.get(element_id, {}).items():
+            if value is None:
+                continue
+            if name.startswith("_"):
+                self.event("state.reserved", f"    {element_id}.{name}: names starting with _ are reserved", level=logging.WARNING)
+                continue
+            held = self.state.tree.setdefault(element_id, {})
+            if reset or name not in held:
+                held[name] = literal(value)
 
     def stage_input(self, element_id: str, uri: str, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -995,7 +1074,7 @@ class Runner:
                         continue
                     expression = condition.text.strip()
                     language = condition.get("language")
-                    verdict = self.evaluate(expression, bindings, language=language)
+                    verdict = self.evaluate(expression, bindings, language=language, scope=element_id)
                     entry.setdefault("conditionExpressions", []).append({
                         "sequenceFlow": flow.get("id"),
                         "conditionExpression": expression,
@@ -1087,6 +1166,11 @@ class Runner:
             f"  rootSeed {self.record.seed}  repo {self.repo_dir}",
             level=logging.DEBUG,
         )
+        # Study-scoped properties persist across runs, so only ones the tree lacks take their `value`;
+        # a plain element's properties live with the study (`Excluded (n={count})` counts across runs).
+        for scope in self.studyflow.properties:
+            if local(self.studyflow.elements.get(scope, process)) not in CONTAINER_TAGS:
+                self.start_scope(scope, reset=False)
         self.walk(self.studyflow.start_event(), max_steps=max_steps)
 
     def walk(self, element, depth: int = 0, max_steps: int = 1000) -> None:
@@ -1101,6 +1185,8 @@ class Runner:
                 self.depth = depth
                 element_id = element.get("id")
                 self.state.trace.append(element_id)
+                reached = self.state.tree.setdefault("_meta", {}).setdefault("reached", {})
+                reached[element_id] = reached.get(element_id, 0) + 1
                 tag = local(element)
                 name = self.studyflow.name_of(element_id)
 
@@ -1115,6 +1201,7 @@ class Runner:
                 elif tag in CONTAINER_TAGS:
                     entry = self.record.begin(element_id, name, bpmn_type(element))
                     self.event("activity.started", f"⊞ {element_id}")
+                    self.start_scope(element_id, reset=True)
                     try:
                         self.walk(self.studyflow.start_event(element), depth + 1, max_steps)
                     except BaseException as error:
@@ -1190,6 +1277,7 @@ class Runner:
         stamped = self.studyflow.plan
         run = self.repo_dir.name
         if PROV is not None:
+            stamped = PROV.write_state(stamped, self.state.tree, self.studyflow.process.get("id") or "")
             for element_id, action, extra in entries:
                 stamped = PROV.insert_element_entry(
                     stamped, element_id, replace_action=replaced(action, element_id),

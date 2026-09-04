@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import getpass
 import hashlib
+import html
 import json
 import logging
 import os
@@ -22,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
-from xml.sax.saxutils import quoteattr
+from xml.sax.saxutils import escape, quoteattr
 
 
 # studyflow-run-local overrides these two with its own logging when it loads this module.
@@ -44,24 +45,38 @@ PROV_TIMELINE = "https://w3id.org/studyflow/prov"
 TIMELINE_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
 
 
-def insert_element_entry(xml: str, element_id: str, replace_action: str | None = None, **fields: str) -> str:
-    """Text, not tree: ElementTree rewrites every namespace prefix, so a stamped copy would diff everywhere."""
+def bind_prefix(xml: str, uri: str, preferred: str) -> tuple[str, str]:
+    """The prefix bound to `uri`, declaring `preferred` (or a fallback) on `definitions` when none is."""
+    bound = re.search(rf'xmlns:([\w.-]+)\s*=\s*"{re.escape(uri)}"', xml)
+    if bound:
+        return xml, bound.group(1)
     definitions = re.search(r"<(?:[\w.-]+:)?definitions\b[^>]*>", xml)
     if definitions is None:
+        return xml, ""
+    prefix = preferred if not re.search(rf'xmlns:{preferred}\s*=\s*"', xml) else f"sf{preferred}"
+    opening = definitions.group(0)
+    declared = opening[:-1].rstrip("/") + f' xmlns:{prefix}="{uri}">'
+    return xml[:definitions.start()] + declared + xml[definitions.end():], prefix
+
+
+def insert_element_entry(xml: str, element_id: str, replace_action: str | None = None, **fields: str) -> str:
+    """Text, not tree: ElementTree rewrites every namespace prefix, so a stamped copy would diff everywhere."""
+    xml, prefix = bind_prefix(xml, PROV_TIMELINE, "prov")
+    if not prefix:
         return xml
-
-    bound = re.search(rf'xmlns:([\w.-]+)\s*=\s*"{re.escape(PROV_TIMELINE)}"', xml)
-    if bound:
-        prefix = bound.group(1)
-    else:
-        prefix = "prov" if not re.search(r'xmlns:prov\s*=\s*"', xml) else "sfprov"
-        opening = definitions.group(0)
-        declared = opening[:-1].rstrip("/") + f' xmlns:{prefix}="{PROV_TIMELINE}">'
-        xml = xml[:definitions.start()] + declared + xml[definitions.end():]
-
     ordered = [(name, fields[name]) for name in TIMELINE_FIELDS if fields.get(name)]
     entry = f"<{prefix}:activity " + " ".join(f"{k}={quoteattr(v)}" for k, v in ordered) + " />"
+    # Only the same-action entry is replaced; `invalidated` markers are history and are never deleted.
+    # The fresh `executed` gets a new `when`, so a marker referencing the old one (`what`) goes inert.
+    stale = (
+        rf"\n[ \t]*<{re.escape(prefix)}:activity\b[^>]*\baction={re.escape(quoteattr(replace_action))}[^>]*/>"
+        if replace_action else None
+    )
+    return insert_extension(xml, element_id, entry, stale)
 
+
+def insert_extension(xml: str, element_id: str, entry: str, stale: str | None = None) -> str:
+    """Append `entry` to the element's `extensionElements` (created when missing), dropping `stale` matches first."""
     element = re.search(rf'<((?:[\w.-]+:)?)[\w.-]+\b[^>]*\bid="{re.escape(element_id)}"[^>]*>', xml)
     if element is None or element.group(0).endswith("/>"):
         return xml
@@ -87,13 +102,8 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
         close_tag = f"</{existing.group(1)}extensionElements>"
         close_at = xml.index(close_tag, block_open_end)
         block = xml[block_open_end:close_at]
-        # Only the same-action entry is replaced; `invalidated` markers are history and are never deleted.
-        # The fresh `executed` gets a new `when`, so a marker referencing the old one (`what`) goes inert.
-        if replace_action:
-            block = re.sub(
-                rf"\n[ \t]*<{re.escape(prefix)}:activity\b[^>]*\baction={re.escape(quoteattr(replace_action))}[^>]*/>",
-                "", block,
-            )
+        if stale:
+            block = re.sub(stale, "", block)
         block = block.rstrip() + "\n" + indent + "    " + entry + "\n" + indent + "  "
         return xml[:block_open_end] + block + xml[close_at:]
 
@@ -104,6 +114,52 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
         f"\n{indent}  </{wrapper_prefix}extensionElements>"
     )
     return xml[:cursor] + block + xml[cursor:]
+
+
+STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
+
+
+def read_state(xml: str) -> dict:
+    """The `state` tree: the JSON body of `<studyflow:state>` inside `<studyflow:study>`, `{}` when absent."""
+    bound = re.search(rf'xmlns:([\w.-]+)\s*=\s*"{re.escape(STUDYFLOW)}"', xml)
+    if bound is None:
+        return {}
+    prefix = re.escape(bound.group(1))
+    study = re.search(rf"<{prefix}:study\b[^>]*(?<!/)>(.*?)</{prefix}:study>", xml, re.DOTALL)
+    body = study and re.search(rf"<{prefix}:state\b[^>]*(?<!/)>(.*?)</{prefix}:state>", study.group(1), re.DOTALL)
+    if not body:
+        return {}
+    try:
+        tree = json.loads(html.unescape(body.group(1)))
+    except ValueError:
+        return {}
+    return tree if isinstance(tree, dict) else {}
+
+
+def write_state(xml: str, state: dict, process_id: str) -> str:
+    """Put `state` into `<studyflow:state>`, creating the `studyflow:study` extension on the process when missing."""
+    xml, prefix = bind_prefix(xml, STUDYFLOW, "studyflow")
+    if not prefix:
+        return xml
+    body = escape(json.dumps(state, default=str)) if state else ""
+    p = re.escape(prefix)
+    study = re.search(rf"<{p}:study\b[^>]*>", xml)
+    if study is None:
+        if not state:
+            return xml
+        return insert_extension(xml, process_id, f"<{prefix}:study><{prefix}:state>{body}</{prefix}:state></{prefix}:study>")
+    if study.group(0).endswith("/>"):
+        if not state:
+            return xml
+        opened = study.group(0)[:-2].rstrip() + ">"
+        return xml[:study.start()] + f"{opened}<{prefix}:state>{body}</{prefix}:state></{prefix}:study>" + xml[study.end():]
+    close_at = xml.index(f"</{prefix}:study>", study.end())
+    block = xml[study.end():close_at]
+    element = f"<{prefix}:state>{body}</{prefix}:state>" if state else ""
+    block, replaced = re.subn(rf"<{p}:state\b[^>]*/>|<{p}:state\b[^>]*>.*?</{p}:state>", lambda _: element, block, count=1, flags=re.DOTALL)
+    if not replaced:
+        block += element
+    return xml[:study.end()] + block + xml[close_at:]
 
 
 def timeline_entries(element: ET.Element) -> tuple[list[dict], list[tuple[str | None, str | None]]]:

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
+import { resolvePlaceholders } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
 import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
@@ -305,4 +306,56 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
   expect(marker.parentElement!.getAttribute('refX')).toBe('1.5');
   expect(marker.getAttribute('fill')).toBe('var(--sf-canvas-fill-color)');
   expect(marker.getAttribute('stroke')).toBe('context-stroke');
+});
+
+/**
+ * `{count}` in a name draws its run-state value (docs/design/state.md): the host
+ * passes `labelText`, the renderer routes both the internal caption and the external
+ * label element through it, and the model keeps the raw name.
+ */
+const STATE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
+    id="Defs_State" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_State" isExecutable="false">
+    <bpmn:extensionElements>
+      <studyflow:study><studyflow:state>{"Excluded_Pre":{"count":3},"_meta":{"reached":{"Task_1":2}}}</studyflow:state></studyflow:study>
+    </bpmn:extensionElements>
+    <bpmn:task id="Task_1" name="Screen (n={count}, reached {reached})" />
+    <bpmn:endEvent id="Excluded_Pre" name="Excluded (n={count})" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_State">
+    <bpmndi:BPMNPlane id="Plane_State" bpmnElement="Process_State">
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="100" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Excluded_Pre_di" bpmnElement="Excluded_Pre">
+        <dc:Bounds x="300" y="120" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="280" y="160" width="80" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('a `labelText` option resolves placeholders in drawn labels; the model keeps the raw name', async () => {
+  installDocument();
+  const { rootElement: definitions } = await freshModdle().fromXML(STATE_XML);
+  const canvas = new Canvas({ labelText: (bo, name) => resolvePlaceholders(name, definitions, bo?.id ?? '') });
+  canvas.importDefinitions(definitions);
+
+  // The external label of the end event: resolved from its own state entry.
+  const labelId = canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;
+  expect(textsOf(canvas, labelId).join(' ')).toBe('Excluded (n=3)');
+  // The task has no `count` in scope: its placeholder stays as written; `{reached}` resolves from `_meta.reached`.
+  expect(textsOf(canvas, 'Task_1').join(' ')).toBe('Screen (n={count}, reached 2)');
+  // Serialization is untouched.
+  expect(definitions.rootElements[0].flowElements[1].name).toBe('Excluded (n={count})');
+
+  // Without the option, nothing is resolved.
+  const plain = await loadCanvas(STATE_XML);
+  const plainLabel = plain.canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;
+  expect(textsOf(plain.canvas, plainLabel).join(' ')).toBe('Excluded (n={count})');
 });

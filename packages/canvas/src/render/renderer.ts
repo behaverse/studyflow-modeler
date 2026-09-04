@@ -126,6 +126,8 @@ function darken(color: string, amount = 0.12): string {
 
 export interface RendererOptions {
   iconResolver?: IconResolver;
+  /** Maps a raw `name` to the text drawn (placeholder resolution); the model keeps the raw name. */
+  labelText?: (businessObject: ModdleObject | undefined, name: string) => string;
 }
 
 export class Renderer {
@@ -133,9 +135,16 @@ export class Renderer {
   /** The drill-down scope, which decides what is drawn hidden. */
   scope?: SceneNode;
   private readonly iconResolver?: IconResolver;
+  private readonly labelText?: RendererOptions['labelText'];
 
   constructor(options: RendererOptions = {}) {
     this.iconResolver = options.iconResolver;
+    this.labelText = options.labelText;
+  }
+
+  private nameOf(businessObject: ModdleObject | undefined): string {
+    const name = nameOf(businessObject);
+    return this.labelText ? this.labelText(businessObject, name) : name;
   }
 
   renderScene(scene: Scene, layer: SVGElement): void {
@@ -183,7 +192,7 @@ export class Renderer {
     });
     const style: ShapeStyle = { stroke: node.stroke ?? INK.stroke, fill: node.fill ?? INK.fill };
     const iconColor = node.stroke ?? INK.muted;
-    const name = nameOf(node.businessObject);
+    const name = this.nameOf(node.businessObject);
 
     switch (categoryOf(node.type)) {
       case 'event': {
@@ -263,7 +272,7 @@ export class Renderer {
   }
 
   drawLabelElement(label: SceneLabel): SVGGElement {
-    const g = drawLabel(label, nameOf(label.businessObject), label.owner.stroke ?? INK.muted);
+    const g = drawLabel(label, this.nameOf(label.businessObject), label.owner.stroke ?? INK.muted);
     if (isHidden(label, this.scope)) g.setAttribute('display', 'none');
     return g;
   }

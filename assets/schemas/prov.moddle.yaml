@@ -4,6 +4,8 @@ name: Provenance
 prefix: prov
 description: >-
   The provenance timeline: who acted on this studyflow, with what tool, and when.
+  The document-level timeline lives in `state._meta.prov` as plain records with these
+  fields; `prov:Activity` elements remain the per-element records.
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
 core: true   # always loaded
@@ -15,10 +17,13 @@ version: 26.0902
 enumerations: []
 
 types:
-  # Entries run oldest first. The modeler appends one on save, import, and
-  # run; an engine appends `executed` entries with the run id and seed.
+  # Entries run oldest first. The document-level timeline (created, modified,
+  # imported, and one `executed` per run) is the `state._meta.prov` list of the
+  # `state` tree, each item a plain record with the fields below.
+  # `prov:Activity` elements are the per-element records a runner stamps on
+  # flow elements (`executed`, `invalidated`, `reused`).
   - name: Activity
-    description: 'One timeline entry: who did what to this studyflow, and when.'
+    description: 'One per-element record: what a run did to this element, and when.'
     superClass:
       - Element
     properties:

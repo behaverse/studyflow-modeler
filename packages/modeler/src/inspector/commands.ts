@@ -1,3 +1,4 @@
+import { isReservedStateKey } from '@core/document';
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
 import { ensureChoreographyParticipants } from '@modeler/shape/choreographyParticipants';
 import { definitionsOf, getStateProperties, nextPropertyId } from '@modeler/inspector/stateProperties';
@@ -202,6 +203,8 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
   }
 
   if (command.action === 'rename') {
+    // `_`-prefixed keys are the runner's (`_meta`); the rename is refused and the previous name stays.
+    if (isReservedStateKey(command.name)) return;
     modeler.canvas.updateModdleProperties(element, target.moddleElement, { name: command.name });
     return;
   }

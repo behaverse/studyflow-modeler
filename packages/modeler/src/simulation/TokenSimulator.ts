@@ -3,14 +3,15 @@
 import { is } from '@modeler/editor/port';
 import type { Canvas, EditorElement, EventBus } from '@modeler/editor/port';
 import { isRootElement } from '@canvas/index.ts';
+import { isExpanded, isHidden } from '@canvas/model/tree.ts';
 import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as svgRemove } from '@canvas/render/svg.ts';
-import { nextHops } from '@modeler/simulation/flowWalk';
+import { containerOf, nextHops, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
 import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
 import type { Point } from '@canvas/model/scene.ts';
 
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
-  canvas: Pick<Canvas, 'getHostLayer' | 'all' | 'getRoot'>;
+  canvas: Pick<Canvas, 'getHostLayer' | 'all' | 'getRoot' | 'getScope'>;
 }
 
 const TOKEN_RADIUS = 8;
@@ -43,6 +44,9 @@ interface Token {
   totalDist: number;
   travelled: number;
   targetElement: any | null;
+  /** The node or flow the token is on: decides whether it is on screen in the current drill-down scope. */
+  at: any | null;
+  hidden: boolean;
   paused: boolean;
   pauseRemaining: number;
   done: boolean;
@@ -52,9 +56,9 @@ interface Token {
   cy: number;
 }
 
-function makeToken(svg: any, color: string, cx: number, cy: number): Token {
+function makeToken(svg: any, color: string, cx: number, cy: number, at: any): Token {
   return {
-    svg, color, cx, cy,
+    svg, color, cx, cy, at, hidden: false,
     pathPoints: [], segLengths: [], totalDist: 0, travelled: 0,
     targetElement: null, paused: false, pauseRemaining: 0, done: false, bouncing: false, bounceElementId: null,
   };
@@ -74,11 +78,13 @@ export default class TokenSimulator {
   constructor(host: SimulationHost) {
     this._host = host;
     this._host.events.on('RootSet', this._handleRootSet);
+    this._host.events.on('ImportDone', this._handleImport);
   }
 
   dispose(): void {
     this.stop();
     this._host.events.off('RootSet', this._handleRootSet);
+    this._host.events.off('ImportDone', this._handleImport);
   }
 
   isActive(): boolean {
@@ -99,7 +105,7 @@ export default class TokenSimulator {
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
     this._spawnIntervalId = window.setInterval(() => {
       if (!this._active) return;
-      const activeCount = this._tokens.filter((token) => !token.done).length;
+      const activeCount = this._tokens.filter((token) => !token.done && !token.hidden).length;
       if (activeCount >= TOKEN_COLORS.length) return;
       for (const startEvent of this._startEvents) this._spawnToken(startEvent);
     }, SPAWN_INTERVAL_MS);
@@ -124,12 +130,22 @@ export default class TokenSimulator {
     this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: false });
   }
 
-  private _handleRootSet = () => {
+  /** A new document: every token refers to elements that are gone, so start over. */
+  private _handleImport = () => {
     if (!this._active) return;
     this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
-    this._startEvents = this._getVisibleStartEvents();
     this._clearTokens();
-    for (const startEvent of this._startEvents) this._spawnToken(startEvent);
+    this._handleRootSet();
+  };
+
+  /** A drill-down: tokens keep walking (the coordinate space is shared) and only their visibility changes. */
+  private _handleRootSet = () => {
+    if (!this._active) return;
+    this._startEvents = this._getVisibleStartEvents();
+    for (const token of this._tokens) this._syncVisibility(token);
+    for (const startEvent of this._startEvents) {
+      if (!this._tokens.some((token) => !token.done && token.at === startEvent)) this._spawnToken(startEvent);
+    }
   };
 
   /** Start events at the top of what is on screen: the root, or the drilled-into container. */
@@ -140,10 +156,14 @@ export default class TokenSimulator {
     } catch {
       return [];
     }
-    return this._host.canvas.all().filter(
-      (el: EditorElement) => el.kind === 'node' && is(el, 'bpmn:StartEvent')
-        && (isRootElement(root) ? !el.parent : el.parent === root),
-    );
+    return startEventsIn(this._host.canvas.all(), isRootElement(root) ? undefined : root);
+  }
+
+  private _syncVisibility(token: Token) {
+    const hidden = !!token.at && isHidden(token.at, this._host.canvas.getScope());
+    if (hidden === token.hidden) return;
+    token.hidden = hidden;
+    token.svg.style.display = hidden ? 'none' : '';
   }
 
   private _clearTokens() {
@@ -159,6 +179,7 @@ export default class TokenSimulator {
     const dt = Math.min((timestamp - this._lastTimestamp) / 1000, 0.1);
     this._lastTimestamp = timestamp;
     for (const token of this._tokens) {
+      this._syncVisibility(token);
       if (token.bouncing) continue;
       if (token.paused) {
         token.pauseRemaining -= dt * 1000;
@@ -186,10 +207,10 @@ export default class TokenSimulator {
 
   private _spawnToken(element: any) {
     const color = TOKEN_COLORS[this._colorIndex++ % TOKEN_COLORS.length];
-    const cx = element.x + element.width / 2;
-    const cy = element.y + element.height / 2;
-    const token = makeToken(createTokenSvg(this._layer, color), color, cx, cy);
-    this._setTokenPos(token, cx, cy);
+    const { x, y } = tokenAnchor(element);
+    const token = makeToken(createTokenSvg(this._layer, color), color, x, y, element);
+    this._setTokenPos(token, x, y);
+    this._syncVisibility(token);
     this._tokens.push(token);
     this._advanceFromElement(token, element);
   }
@@ -197,7 +218,10 @@ export default class TokenSimulator {
   private _advanceFromElement(token: Token, element: any) {
     const hop = nextHops(element);
     if (hop.kind === 'end') {
-      this._popToken(token);
+      // An end inside a sub-process leaves through the container's own outgoing flows.
+      const container = containerOf(element);
+      if (container) this._advanceFromElement(token, container);
+      else this._popToken(token);
       return;
     }
     if (hop.kind === 'deadend') {
@@ -206,8 +230,8 @@ export default class TokenSimulator {
       if (bouncingHere.length >= MAX_BOUNCING_PER_ELEMENT) this._fadeOutToken(bouncingHere[0]);
       const spacing = TOKEN_RADIUS * 2.5;
       const offsetX = (bouncingHere.length - (MAX_BOUNCING_PER_ELEMENT - 1) / 2) * spacing;
-      token.cx = element.x + element.width / 2 + offsetX;
-      this._setTokenPos(token, token.cx, token.cy);
+      const anchor = tokenAnchor(element);
+      this._setTokenPos(token, anchor.x + offsetX, anchor.y);
       this._startBounce(token, elId);
       return;
     }
@@ -229,8 +253,21 @@ export default class TokenSimulator {
     const points: Point[] = [
       { x: token.cx, y: token.cy },
       ...waypoints.map((wp: any) => ({ x: wp.x, y: wp.y })),
-      { x: target.x + target.width / 2, y: target.y + target.height / 2 },
+      tokenAnchor(target),
     ];
+    this._sendTokenAlongPath(token, points, target, flow);
+  }
+
+  /** Straight in from the container's edge to each of its start events, one token per start. */
+  private _enterContainer(token: Token, starts: any[]) {
+    starts.forEach((start, i) => {
+      const walker = i === 0 ? token : this._cloneToken(token);
+      const anchor = tokenAnchor(start);
+      this._sendTokenAlongPath(walker, [{ x: walker.cx, y: walker.cy }, anchor], start, start);
+    });
+  }
+
+  private _sendTokenAlongPath(token: Token, points: Point[], target: any, at: any) {
     const cleaned: Point[] = [points[0]];
     for (let i = 1; i < points.length; i++) {
       const prev = cleaned[cleaned.length - 1];
@@ -243,6 +280,8 @@ export default class TokenSimulator {
     token.totalDist = totalDist;
     token.travelled = 0;
     token.targetElement = target;
+    token.at = at;
+    this._syncVisibility(token);
   }
 
   private _onTokenArrived(token: Token) {
@@ -256,8 +295,16 @@ export default class TokenSimulator {
       this._fadeOutToken(token);
       return;
     }
-    token.cx = target.x + target.width / 2;
-    token.cy = target.y + target.height / 2;
+    const anchor = tokenAnchor(target);
+    token.cx = anchor.x;
+    token.cy = anchor.y;
+    token.at = target;
+    // An expanded sub-process is walked through its own start events; a collapsed one is a plain pause.
+    const starts = target.kind === 'node' && isExpanded(target) ? startEventsIn(this._host.canvas.all(), target) : [];
+    if (starts.length > 0) {
+      this._enterContainer(token, starts);
+      return;
+    }
     if (is(target, 'bpmn:Activity') || is(target, 'bpmn:SubProcess')) {
       token.paused = true;
       token.pauseRemaining = ACTIVITY_PAUSE_MS;
@@ -275,7 +322,9 @@ export default class TokenSimulator {
     svg.style.strokeWidth = '2';
     svg.style.opacity = '0.9';
     svg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))';
-    const clone = makeToken(svg, source.color, source.cx, source.cy);
+    const clone = makeToken(svg, source.color, source.cx, source.cy, source.at);
+    clone.hidden = source.hidden;
+    svg.style.display = source.hidden ? 'none' : '';
     this._tokens.push(clone);
     return clone;
   }

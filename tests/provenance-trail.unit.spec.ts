@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { inferPlaneRoot, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { inferPlaneRoot, readState, studyflowToXml, writeState, xmlToStudyflow } from '@core/document';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import {
   appendTrailEntry,
@@ -16,7 +16,7 @@ import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 import type { Editor } from '@modeler/editor/port';
 
-/** `<prov:activity>` elements on the primary root, stamped once per *fact* so re-rendering stays byte-stable. */
+/** Run records in `state._meta.prov`, stamped once per *fact* so re-rendering stays byte-stable. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
@@ -32,8 +32,12 @@ async function definitionsOf(xml: string): Promise<any> {
 
 /** Shipped examples may already carry a trail (rendering stamps them); build premises from one with none. */
 function stripTrail(definitions: any): any {
-  const ext = primaryRoot(definitions).extensionElements;
+  const root = primaryRoot(definitions);
+  const ext = root.extensionElements;
   if (ext) ext.values = ext.values.filter((value: any) => value.$type !== 'prov:Activity');
+  const tree = readState(definitions);
+  delete tree._meta?.prov;
+  writeState(definitions, moddle, tree);
   return definitions;
 }
 
@@ -49,8 +53,9 @@ test.describe('provenance trail', () => {
     });
 
     const { xml } = await moddle.toXML(definitions, { format: true });
-    expect(xml).toContain('<prov:activity');
-    expect(xml).toContain('xmlns:prov="https://w3id.org/studyflow/prov"');
+    expect(xml).toContain('<studyflow:state>');
+    expect(primaryRoot(definitions).extensionElements.values.some((v: any) => v.$type === 'prov:Activity')).toBe(false);
+    expect(readState(definitions)._meta.prov).toHaveLength(1);
 
     const trail = readTrail(await definitionsOf(xml));
     expect(trail).toHaveLength(1);
@@ -70,6 +75,7 @@ test.describe('provenance trail', () => {
     const { xml } = await moddle.toXML(definitions, { format: true });
 
     const yaml = await xmlToStudyflow(xml, moddle);
+    expect(yaml).toMatch(/^state:\n/m);
     const reloaded = readTrail(await definitionsOf(await studyflowToXml(yaml, moddle)));
 
     expect(reloaded).toHaveLength(1);
@@ -121,7 +127,7 @@ test.describe('provenance trail', () => {
       who: undefined,
       with: 'studyflow-modeler/26.0731',
     });
-    expect(entry.who).toBeUndefined();
+    expect(entry?.who).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(1);
   });
 });
@@ -148,18 +154,20 @@ test.describe('primary root agrees with the codec', () => {
     expect(inferPlaneRoot(definitions)).toBe(process);
   });
 
-  test('a trail already on a non-primary root is still found, and appended to', () => {
+  test('a legacy trail on a non-primary root is still read, and migrated into `_meta.prov` on append', () => {
     const definitions = poolDefinitions();
     const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
-    // Simulate a file written under the old Process-first rule.
-    const existing = moddle.create('prov:Activity', { action: 'created', when: '2026-01-01T00:00:00+00:00' });
+    // Simulate a file written under the old Process-first, `<prov:activity>`-on-the-root rule.
+    const existing = moddle.create('prov:Activity', { action: 'created', when: '2026-01-01T00:00:00+00:00', seed: 3 });
     process.extensionElements = moddle.create('bpmn:ExtensionElements', { values: [existing] });
 
-    expect(readTrail(definitions)).toHaveLength(1);
+    expect(readTrail(definitions)).toEqual([{ action: 'created', when: '2026-01-01T00:00:00+00:00', seed: 3 }]);
 
-    appendTrailEntry(definitions, moddle, { action: 'modified', when: '2026-01-02T00:00:00+00:00' });
+    appendTrailEntry(definitions, moddle, { action: 'modified', when: '2026-01-02T00:00:00+00:00', seed: '42' });
 
-    expect(readTrail(definitions)).toHaveLength(2);
-    expect(process.extensionElements.values).toHaveLength(2);
+    expect(readTrail(definitions).map((r) => [r.action, r.seed])).toEqual([['created', 3], ['modified', 42]]);
+    // Moved, not copied: the legacy entries leave the root; `_meta.prov` now holds the whole trail.
+    expect(process.extensionElements.values).toHaveLength(0);
+    expect(readState(definitions)._meta.prov).toHaveLength(2);
   });
 });

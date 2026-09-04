@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
+import { readState, writeState } from '@core/document';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { ICONS } from '@modeler/icons';
@@ -36,7 +37,11 @@ function stripTrail(definitions: any): any {
     }
     for (const child of el?.flowElements ?? []) strip(child);
   };
-  strip(primaryRoot(definitions));
+  const root = primaryRoot(definitions);
+  strip(root);
+  const tree = readState(definitions);
+  delete tree._meta?.prov;
+  writeState(definitions, moddle, tree);
   return definitions;
 }
 
@@ -123,6 +128,8 @@ test.describe('provenance view model', () => {
       ['run', 'run-001'],
       ['seed', '42'],
     ]);
+    // Document rows project plain `_meta.prov` records, not moddle elements.
+    expect(records[2].entry).toEqual({ action: 'executed', when: '2026-07-31T10:00:00Z', run: 'run-001', seed: 42 });
   });
 
   test('icons only for gateways, events, and containers — the rest stay bare', () => {

@@ -51,7 +51,7 @@ export const BPMN = {
   RootElement: 'bpmn:RootElement',
 } as const;
 
-/** Namespaces that are not element extensions, so `isExtensionPrefix` rejects them (unrelated to a schema's `core` flag); `prov` is here because provenance wrappers are a trail the Provenance view reads, not element fields. */
+/** Namespaces that are not element extensions, so `isExtensionPrefix` rejects them (unrelated to a schema's `core` flag); `prov` is here because a per-element `prov:Activity` is a runner's stamp on the element, not its wrapper. */
 export const NON_EXTENSION_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xsi', 'xml', 'prov']);
 
 export const BPMN_NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';

@@ -8,7 +8,7 @@ description: "Every element you can put in a studyflow, the attributes each one 
 | Set | Declares | Loaded |
 |:--|:--|:--|
 | `studyflow` | the study itself, its data elements, scheduling and classification attributes | always |
-| `prov` | `Activity`, one entry of the record of what ran | always |
+| `prov` | `Activity`, one record of what ran; the document-level list lives in `state._meta.prov` | always |
 | `cognitive` | what a participant meets, and the research gateways | always |
 | `agentic` | agents, model calls, tools | on request |
 | `eeg` | biosignal sessions and recordings | on request |
@@ -50,6 +50,8 @@ Done:
 ## Run state
 
 You declare a value as a `bpmn:Property` on a container element, and where you declare it decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. Activities set these values, and gateways and other activities read them. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
+
+A property may carry an initial `value`; after that only a data edge targeting it changes it. After a run the file holds the values under `state`, keyed by element id. The runner keeps its own entries under `state._meta`: `_meta.prov`, the run records, and `_meta.reached.<element_id>`, how many times a token reached each element, never reset. Names starting with `_` cannot be declared. Any string attribute may cite a value as `{count}` or `{reached}` (resolved from the element outward) or `{state._meta.reached.Excluded_Pre}`, and conditions may test `state._meta.reached.Gate < 4`; the canvas and exported figures show the resolved text, the file and the inspector keep the placeholder.
 
 ## Well-formed diagrams
 

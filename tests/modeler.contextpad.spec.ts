@@ -259,7 +259,7 @@ test.describe('The context pad', () => {
     // The wrench opens a searchable menu, exactly as `append` does (ux-spec §11 —
     // "reached via the append/replace pad entries").
     await expect(page.getByTestId('popup-menu')).toBeVisible();
-    await page.getByTestId('popup-menu-entry-create-bpmn:UserTask').click();
+    await page.getByTestId('popup-menu-entry-create-User').click();
 
     // The task is gone and a user task stands where it stood…
     await expect(task).toHaveCount(0);

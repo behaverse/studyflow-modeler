@@ -2,10 +2,11 @@ import type { FlowNode } from '@runner/flow';
 import { getCatalog, type TypeCatalog } from '@core/notation';
 import { findByFlowNode } from '@runner/nodes/registry';
 import { mulberry32, evaluateCondition } from '@runner/branching';
-import { ScopeChain } from '@runner/scope';
+import { ScopeChain, type Scope } from '@runner/scope';
 import type { Job } from '@runner/jobs';
 import type { Studyflow } from '@runner/studyflow';
 import { BPMN } from '@core/constants';
+import { META_KEY, type StateTree } from '@core/document';
 
 const ROUTING_TYPES: ReadonlySet<string> = new Set<string>([
   BPMN.ExclusiveGateway,
@@ -35,6 +36,8 @@ export class Session {
   private catalog: TypeCatalog;
   private onDiagnostic?: (message: string) => void;
   private trace: string[] = [];
+  /** The run's copy of the file's `state` tree: scope writes mirror to `state.<declaring id>.<name>`, visits count into `state._meta.reached.<id>`. */
+  private state: StateTree;
 
   constructor(studyflow: Studyflow, context: SessionContext = {}) {
     this.studyflow = studyflow;
@@ -46,11 +49,19 @@ export class Session {
 
     const root = studyflow.scopes.get(studyflow.rootScopeId);
     if (!root) throw new Error(`This studyflow has no study to run (no scope '${studyflow.rootScopeId}').`);
-    this.scopes = new ScopeChain(root, context.variables ?? {});
+    this.state = structuredClone(studyflow.state);
+    this.scopes = new ScopeChain(root);
+    this.load(root);
+    for (const [name, value] of Object.entries(context.variables ?? {})) this.write(name, value);
   }
 
   setVariable(name: string, value: unknown): void {
-    this.scopes.write(name, value);
+    this.write(name, value);
+  }
+
+  /** The `state` tree as the run has left it (never written back to the file by this runner). */
+  getState(): StateTree {
+    return this.state;
   }
 
   getVariables(): Record<string, unknown> {
@@ -76,11 +87,15 @@ export class Session {
       }
 
       this.trace.push(node.id);
+      const reached = ((this.state[META_KEY] ??= {}).reached ??= {});
+      reached[node.id] = (reached[node.id] ?? 0) + 1;
 
       if (node.type === 'bpmn:SubProcess') {
         const scope = this.studyflow.scopes.get(node.id);
         if (scope?.startId) {
           this.scopes.push(scope);
+          delete this.state[scope.id]; // a sub-process instance starts from its declared values
+          this.load(scope);
           returns.push(node.id);
           currentId = scope.startId;
           continue;
@@ -103,6 +118,20 @@ export class Session {
 
       currentId = this.advance(node);
     }
+  }
+
+  /** Seeds a just-pushed frame: the tree's values win over declared initial `value`s, which are mirrored in. */
+  private load(scope: Scope): void {
+    const entry = this.state[scope.id] ?? {};
+    for (const decl of scope.properties) {
+      if (decl.name in entry) this.scopes.write(decl.name, entry[decl.name]);
+      else if (decl.value !== undefined) this.write(decl.name, decl.value);
+    }
+  }
+
+  private write(name: string, value: unknown): void {
+    const scopeId = this.scopes.write(name, value);
+    (this.state[scopeId] ??= {})[name] = value;
   }
 
   private toJob(node: FlowNode): Job | null {
@@ -195,7 +224,7 @@ export class Session {
     const trace = Object.assign(entries, {
       count: (value: unknown): number => entries.filter((entry) => entry === value).length,
     });
-    return { ...this.scopes.bindings(), state: { trace } };
+    return { ...this.scopes.bindings(), state: { ...this.state, trace } };
   }
 
   private evalCondition(expression: string, flowId: string, language?: string): boolean {

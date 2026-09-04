@@ -99,7 +99,7 @@ test.describe('Studyflow modeler palette flows', () => {
     // `Writeback.promoteRootToCollaboration` (P6b §3A).
     await gotoModeler(page);
 
-    await addSchemaPaletteElement(page, 'EEG', 'EEG session', { x: 420, y: 300 });
+    await addSchemaPaletteElement(page, 'EEG & Biosignals', 'EEG session', { x: 420, y: 300 });
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
@@ -113,7 +113,7 @@ test.describe('Studyflow modeler palette flows', () => {
   test('applies default schema values for eeg EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 
-    await addSchemaPaletteElement(page, 'EEG', 'EEGPrep', { x: 260, y: 200 });
+    await addSchemaPaletteElement(page, 'EEG & Biosignals', 'EEGPrep', { x: 260, y: 200 });
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
