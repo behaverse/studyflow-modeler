@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@behaverse/studyflow-core": "^26.0615",
+    "@behaverse/studyflow-core": "*",
     "bpmn-moddle": "10.1.0"
   },
   "devDependencies": {
