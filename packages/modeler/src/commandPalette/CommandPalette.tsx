@@ -15,7 +15,7 @@ import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
-import { MOD_LABEL } from '@modeler/constants';
+import { MOD_LABEL, URLS } from '@modeler/constants';
 import { DIAGRAM_OPEN_ACCEPT, getLinkedFileName, linkOpenedFile, subscribeLink } from '@modeler/diagram/fileHandle';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
@@ -294,6 +294,17 @@ export function CommandPalette({ ref }: Props) {
                 className={cp.searchInput}
                 aria-label="Search commands"
               />
+              {/* A link, not a command: it never gets searched, selected, or numbered. */}
+              <a
+                href={URLS.githubRepo}
+                target="_blank"
+                rel="noreferrer"
+                title="GitHub"
+                aria-label="Open GitHub repository"
+                className={cp.githubLink}
+              >
+                <i className={ICONS.github}></i>
+              </a>
             </div>
             {submenuParent && (
               <div className={cp.breadcrumbRow}>

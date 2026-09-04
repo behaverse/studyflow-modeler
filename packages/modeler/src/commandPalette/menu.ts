@@ -63,14 +63,6 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       action: openSettings,
     },
     {
-      id: 'github',
-      group: 'File',
-      label: 'GitHub',
-      tile: true,
-      icon: ICONS.github,
-      action: () => { window.open(URLS.githubRepo, '_blank', 'noopener'); },
-    },
-    {
       id: 'docs',
       group: 'File',
       label: 'Docs',

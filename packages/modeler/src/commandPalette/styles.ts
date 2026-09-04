@@ -11,6 +11,7 @@ export const commandPalette = {
   searchRow: 'flex items-center gap-3 px-4 h-12 border-b border-black/[0.06]',
   searchIcon: `${ICONS.search} text-stone-500 text-sm shrink-0`,
   searchInput: `flex-1 bg-transparent text-sm ${text.primary} placeholder-stone-400 focus:outline-none`,
+  githubLink: 'text-stone-400 hover:text-stone-900 text-base shrink-0 transition-colors focus:outline-none focus-visible:text-stone-900',
 
   breadcrumbRow: 'px-3 py-1.5 text-[0.6875rem] text-stone-500 flex items-center gap-2 border-b border-black/[0.04]',
   breadcrumbBack: 'hover:text-stone-900 inline-flex items-center gap-1',
