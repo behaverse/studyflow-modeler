@@ -79,6 +79,7 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 |:--|:--|
 | `authors`, `version` | who wrote it, and which revision this is |
 | `runtime` | where it is meant to run: `browser`, `cloud`, `local`, or `hpc` |
+| `dependencies` | the software its steps call, one package per entry in the ecosystem's own spelling (`pandas>=2.0`); a local run installs them into every runner's environment |
 | `tags` | short classification labels |
 | `seed` | the root seed; set it and every gateway draw replays |
 | `documentation`, `checklist` | prose and reporting items, available on **every** element, the study included |

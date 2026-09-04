@@ -145,6 +145,7 @@ test.describe('partial runner hand-off', () => {
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/cognitive/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:collaboration id="C"><bpmn:participant id="Pool" name="Lab" processRef="P"><bpmn:extensionElements><cognitive:actor kind="robot"/></bpmn:extensionElements></bpmn:participant></bpmn:collaboration>
   <bpmn:process id="P" studyflow:seed="7">
+    <bpmn:extensionElements><studyflow:study runtime="local"><studyflow:dependencies>pandas>=2.0</studyflow:dependencies><studyflow:dependencies>joblib</studyflow:dependencies></studyflow:study></bpmn:extensionElements>
     <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
     <bpmn:task id="T" name="fit" implementation="python://m.f">
       <bpmn:extensionElements><cognitive:cognitiveTask instrument="x"><cognitive:note>a</cognitive:note><cognitive:note>b</cognitive:note></cognitive:cognitiveTask></bpmn:extensionElements>
@@ -180,7 +181,7 @@ test.describe('partial runner hand-off', () => {
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe' });
 
     const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
-    expect(digest.study).toEqual({ id: 'P', name: 'Lab', seed: '7' });
+    expect(digest.study).toEqual({ id: 'P', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
     expect(digest.sources.length).toBeGreaterThan(0);
     const task = digest.elements.T;
     expect(task.type).toBe('task');

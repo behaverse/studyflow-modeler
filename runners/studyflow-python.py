@@ -1,15 +1,10 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
-# dependencies = [
-#   "pyyaml>=6.0",
-#   "pandas>=2.0",
-#   "scikit-learn>=1.4",
-#   "joblib>=1.3",
-#   "matplotlib>=3.8",
-#   # `format="parquet"` also needs pandas' parquet engine: `--with pyarrow`.
-# ]
+# dependencies = ["pyyaml>=6.0"]
 # ///
+# What the implementations need (pandas, scikit-learn, joblib, matplotlib, pyarrow for parquet) is the
+# study's business: its `dependencies` entries, which studyflow-run-local installs here with `uv run --with`.
 """Run the `python://` elements of a studyflow.
 
 The partial runner for plain computation: it claims every element whose

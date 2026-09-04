@@ -542,17 +542,19 @@ class NoRepo:
         return ""
 
 
-def discover_runners(runner_flags: list[str]) -> dict[str, str]:
+def discover_runners(runner_flags: list[str], dependencies: list[str] = ()) -> dict[str, str]:
     """Partial runners in reach, each named <name> and claiming its own elements: a `studyflow-<name>.py`
     beside this script or in a `STUDYFLOW_RUNNERS` directory, a `studyflow-<name>` on PATH, then
-    `STUDYFLOW_<NAME>_PY` overrides."""
+    `STUDYFLOW_<NAME>_PY` overrides. The study's `dependencies` join every script's environment
+    (`uv run --with`); an executable on PATH brings its own."""
     flags = "".join(f" {flag}" for flag in runner_flags)
+    withs = "".join(f" --with {shlex.quote(dependency)}" for dependency in dependencies)
     found: dict[str, str] = {}
     script_dirs = [Path(__file__).resolve().parent, *(Path(d) for d in os.environ.get("STUDYFLOW_RUNNERS", "").split(os.pathsep) if d)]
     for script in sorted(script for directory in script_dirs for script in directory.glob("studyflow-*.py")):
         name = script.stem.removeprefix("studyflow-").lower()
         if name not in ("run", "run-local", "prov"):
-            found[name] = f"uv run --script {shlex.quote(str(script))}{flags}"
+            found[name] = f"uv run{withs} --script {shlex.quote(str(script))}{flags}"
     for directory in os.environ.get("PATH", "").split(os.pathsep):
         try:
             entries = os.listdir(directory or ".")
@@ -569,7 +571,7 @@ def discover_runners(runner_flags: list[str]) -> dict[str, str]:
         if matched:
             name = matched.group(1).lower().replace("_", "-")
             if name not in ("run", "run-local", "prov"):
-                found[name] = f"uv run --script {shlex.quote(value)}{flags}"
+                found[name] = f"uv run{withs} --script {shlex.quote(value)}{flags}"
     return found
 
 
@@ -629,6 +631,17 @@ def element_digest(element: ET.Element) -> dict[str, Any]:
     }
 
 
+def study_dependencies(studyflow: Studyflow) -> list[str]:
+    """`studyflow:dependencies` entries on the study, one package spec each, in the order written."""
+    for holder in studyflow.process:
+        if local(holder) != "extensionElements":
+            continue
+        for ext in holder:
+            if ext.tag == f"{{{STUDYFLOW}}}study":
+                return [text for child in ext if local(child) == "dependencies" and (text := (child.text or "").strip())]
+    return []
+
+
 def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
     """The plan as one JSON document for partial runners: the study, every element by id (pool participants
     included), and the directories a boundary input may be staged from. A runner reads this, never the diagram."""
@@ -645,7 +658,10 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
             if not title and participant.get("processRef") == process.get("id"):
                 title = participant.get("name")
     return {
-        "study": {"id": process.get("id"), "name": title or process.get("id"), "seed": studyflow_attr(process, "seed")},
+        "study": {
+            "id": process.get("id"), "name": title or process.get("id"), "seed": studyflow_attr(process, "seed"),
+            "dependencies": study_dependencies(studyflow),
+        },
         "sources": [str(path) for path in sources],
         "elements": elements,
     }
@@ -1443,14 +1459,6 @@ def main() -> int:
     parser.add_argument("--auto", action="store_true", help="partial runners answer their prompts with canned values")
     args = parser.parse_args()
 
-    runner_flags = [flag for flag, wanted in (("--sim", args.sim), ("--auto", args.auto)) if wanted]
-    runners = discover_runners(runner_flags)
-    for spec in args.runner:
-        name, separator, command = spec.partition("=")
-        if not separator or not name or not command:
-            parser.error(f"--runner wants NAME=COMMAND, got {spec!r}")
-        runners[name] = command
-
     started = datetime.now(timezone.utc).astimezone()
     stamp = run_stamp(started)
     repo_dir = resolve_repo_dir(args.repo, args.studyflow, started)
@@ -1482,6 +1490,15 @@ def main() -> int:
         random.seed(int(seed))
     except (TypeError, ValueError):
         pass  # no seed, or a non-numeric one, seeds nothing
+
+    # The runners, once the study is read: its `dependencies` go into every script runner's environment.
+    runner_flags = [flag for flag, wanted in (("--sim", args.sim), ("--auto", args.auto)) if wanted]
+    runners = discover_runners(runner_flags, study_dependencies(probe))
+    for spec in args.runner:
+        name, separator, command = spec.partition("=")
+        if not separator or not name or not command:
+            parser.error(f"--runner wants NAME=COMMAND, got {spec!r}")
+        runners[name] = command
 
     # The input file is never touched; the stamp lands on the archived copy.
     studyflow = read_studyflow(args.studyflow, stamp={
