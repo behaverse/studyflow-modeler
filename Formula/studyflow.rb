@@ -10,22 +10,22 @@ class Studyflow < Formula
   on_macos do
     on_arm do
       url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-darwin-arm64.tar.gz"
-      sha256 "fdc6eb5f382f708d1edff00644e3536e92f80e1222df4c4586e287b9db41d58d"
+      sha256 "c2a607b3ebf74c56f44b301f9a405c343f1e633d5c974b811c5fa69a50a8f48d"
     end
     on_intel do
       url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-darwin-x64.tar.gz"
-      sha256 "8bcc330ad753c2282a48a15e07f4e0b31f61c08dfc3d43dd264013cc3b3aa9d2"
+      sha256 "d797b1f22f477b9d8d84a79b4f8d70c43a9327801810ab4c2b27a8278db61c0a"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-linux-arm64.tar.gz"
-      sha256 "f9d682689d2de4e4dab3775c17df1f7d4fb591db6ac172784e83eb482a35acce"
+      sha256 "14c9827dd71d1638be4a2742fe25c4bdbadae94c9766f252f34239bd433163db"
     end
     on_intel do
       url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-linux-x64.tar.gz"
-      sha256 "7ecbc320dbcf586d4ee2e97c193eca69e3a213d97711922e0c071613e81c8b23"
+      sha256 "dc8e12dabc16f1ba511a4df35a63fa3befab8a646b8e4ee8bf5b6936710ffb8d"
     end
   end
 

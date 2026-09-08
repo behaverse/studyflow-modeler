@@ -10,6 +10,7 @@ The canonical format is `.studyflow.yaml`; a diagram can also be embedded in a P
 - **CLI**: `studyflow` converts, validates, inspects, and executes diagrams locally:
 
   ```bash
+  brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted (by URL for a custom remote)
   brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
   brew install studyflow
   studyflow run 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'

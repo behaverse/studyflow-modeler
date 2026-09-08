@@ -7,6 +7,7 @@
 Using Homebrew (macOS or Linux):
 
 ```bash
+brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted (by URL for a custom remote)
 brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
 brew install studyflow
 ```
@@ -57,6 +58,18 @@ packages/cli/runners/studyflow-reachy.py --participant --frames runs/frames --vl
 # response bridge above.
 UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run --runtime local assets/schemas/examples/Robotics/reachy_participant.studyflow.png
 ```
+
+## Releasing
+
+A release is built and published from a macOS checkout with `bun` and `gh` on PATH; nothing in CI writes to this repository. Bump `version` in `packages/cli/package.json`, then:
+
+```bash
+npm run package:cli   # cross-compiles every platform into packages/cli/dist/release/ and writes Formula/studyflow.rb to match
+git commit -am "studyflow v<version>" && git tag v<version> && git push origin main v<version>
+gh release create v<version> packages/cli/dist/release/*.tar.gz packages/cli/dist/release/*.sha256 --generate-notes
+```
+
+The formula and the tarballs come from the same build, so the checksums in the tagged commit are the ones Homebrew verifies against the release assets.
 
 ## Extending CLI
 
