@@ -151,17 +151,20 @@ class SimRobot:
         import time
         import urllib.request
 
+        last_error: list[BaseException] = []
+
         def up() -> bool:
             try:
-                urllib.request.urlopen(f"http://{host}:8000/", timeout=2)
+                urllib.request.urlopen(f"http://{host}:8000/", timeout=5)
                 return True
-            except OSError:
+            except OSError as error:
+                last_error[:] = [error]
                 return False
 
         if up():
             return
         if host not in ("localhost", "127.0.0.1"):
-            raise ConnectionError(f"no Reachy daemon answers on {host}:8000")
+            raise ConnectionError(f"no Reachy daemon answers on {host}:8000 ({last_error[0]!r})")
         print("    starting a headless sim daemon…")
         daemon = shutil.which("reachy-mini-daemon") or str(Path(sys.executable).with_name("reachy-mini-daemon"))
         # Held on self from the moment it exists, so a hard stop can always fold it.
@@ -501,7 +504,9 @@ def answer_trial(robot: Any, trial: dict[str, Any], history: list[str]) -> tuple
     """Perceive, decide, and pick a response option: (response, agent id)."""
     options = [str(o) for o in trial.get("ResponseOptions", [])]
     robot.perk()
-    image = frame_data_url(robot) or trial.get("Screenshot")
+    frame = frame_data_url(robot)
+    image = frame or trial.get("Screenshot")
+    print(f"    sees: {'camera' if frame else 'screenshot' if image else 'nothing'}")
     llm = trial.get("LLM") if isinstance(trial.get("LLM"), dict) else {}
     provider = str(llm.get("Provider") or "claude")
     model = str(llm.get("Model") or ("claude-haiku-4-5" if provider == "claude" else "llama3.2-vision"))
