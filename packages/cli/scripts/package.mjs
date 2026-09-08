@@ -89,7 +89,9 @@ class Studyflow < Formula
   homepage "https://github.com/${repo}"
 ${local
     ? `  version "${version}" # a file:// url gives the scanner nothing to read the version from`
-    : `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`}
+    : /^\d+(\.\d+)+$/.test(version)
+      ? `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`
+      : `  version "${version}" # a pre-release suffix defeats the url scan, which then reads "64" out of "arm64"`}
   license "MIT"
   # \`studyflow run --runtime local\` drives the runners in libexec with uv.
   depends_on "uv"

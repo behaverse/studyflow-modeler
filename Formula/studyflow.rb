@@ -2,7 +2,7 @@
 class Studyflow < Formula
   desc "Command-line tool for studyflow diagrams"
   homepage "https://github.com/behaverse/studyflow-modeler"
-  # No `version`: Homebrew scans 26.9.8-dev3 out of the release url, and audit calls a second copy redundant.
+  version "26.9.8-dev3" # a pre-release suffix defeats the url scan, which then reads "64" out of "arm64"
   license "MIT"
   # `studyflow run --runtime local` drives the runners in libexec with uv.
   depends_on "uv"
