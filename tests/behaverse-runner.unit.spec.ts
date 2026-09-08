@@ -6,10 +6,10 @@ import zlib from 'node:zlib';
 
 import { expect, test } from '@playwright/test';
 
-/** `runners/studyflow-behaverse.py`: the Behaverse (Unity WebGL) partial runner, without Unity — the stage page's
+/** `packages/cli/runners/studyflow-behaverse.py`: the Behaverse (Unity WebGL) partial runner, without Unity — the stage page's
  * protocol is exercised by hand, as the page itself would. */
 
-const RUNNER = path.resolve(__dirname, '../runners/studyflow-behaverse.py');
+const RUNNER = path.resolve(__dirname, '../packages/cli/runners/studyflow-behaverse.py');
 const COGNITIVE = 'http://behaverse.org/schemas/studyflow/cognitive';
 
 const PLAN = {

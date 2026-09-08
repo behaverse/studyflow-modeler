@@ -17,16 +17,16 @@ export type RunOptions = {
 
 const RUNTIMES = ['browser', 'cloud', 'local', 'hpc'];
 
-/** Every `studyflow-run-local.py` this build could be sitting next to, best first. */
+/** Where `studyflow-run-local.py` (with studyflow-prov and the partial runners beside it) can be, best first:
+ * the repo's `packages/cli/runners/` when this is the bundle in a checkout, Homebrew's `libexec/` next to
+ * `bin/studyflow`, then flat beside the binary (the release tarball as unpacked). */
 function runnerScriptCandidates(): string[] {
   const candidates: string[] = [];
 
-  // The repo checkout, when this is the bundle rather than a compiled binary.
   if (import.meta.url.startsWith('file:')) {
-    candidates.push(fileURLToPath(new URL('../src/studyflow-run-local.py', import.meta.url)));
+    candidates.push(fileURLToPath(new URL('../runners/studyflow-run-local.py', import.meta.url)));
   }
 
-  // The copy an installer put beside the binary (Homebrew: `bin/studyflow`, scripts in `libexec/`).
   try {
     const binDir = path.dirname(realpathSync(process.execPath));
     candidates.push(path.join(binDir, '..', 'libexec', 'studyflow-run-local.py'), path.join(binDir, 'studyflow-run-local.py'));
@@ -35,15 +35,8 @@ function runnerScriptCandidates(): string[] {
   return candidates;
 }
 
-/** The repo's partial runners (`runners/studyflow-*.py`), when this is the bundle in a checkout rather than an installed binary. */
-function repoRunnersDir(): string | undefined {
-  if (!import.meta.url.startsWith('file:')) return undefined;
-  const dir = fileURLToPath(new URL('../../../runners', import.meta.url));
-  return existsSync(dir) ? dir : undefined;
-}
-
 /** The runner, in the CLI README's order: `STUDYFLOW_RUN_PY`, an installed `studyflow-run-local`
- * companion, then the script beside this CLI (needs `uv`). It finds studyflow-prov and the schema runners itself. */
+ * companion, then the script shipped with this CLI (needs `uv`). It finds studyflow-prov and the partial runners beside itself. */
 function runnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };
@@ -58,7 +51,7 @@ function runnerCommand(): { command: string; args: string[] } {
   }
 
   throw new Error(
-    'No runner found. Install uv so the studyflow-run-local.py shipped with this CLI can run, '
+    'No runner found. Install uv (`brew install uv`, or https://docs.astral.sh/uv/) so the studyflow-run-local.py shipped with this CLI can run, '
     + 'or point STUDYFLOW_RUN_PY at a studyflow-run-local.py.',
   );
 }
@@ -78,9 +71,7 @@ async function runLocal(
 
   const { command, args } = runnerCommand();
   return new Promise((resolvePromise, reject) => {
-    const runnersDir = repoRunnersDir();
-    const env = runnersDir ? { ...process.env, STUDYFLOW_RUNNERS: runnersDir } : process.env;
-    const child = spawn(command, [...args, target, ...passthrough], { stdio: 'inherit', env });
+    const child = spawn(command, [...args, target, ...passthrough], { stdio: 'inherit' });
     child.on('error', reject);
     child.on('exit', (code) => resolvePromise(code ?? 1));
   });

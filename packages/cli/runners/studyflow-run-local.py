@@ -17,7 +17,7 @@ elements; `python://` ones belong to `studyflow-python.py`).
 `studyflow-prov.py` beside it adds the run repository, the records, and the
 prov timeline; without it a run executes bare.
 
-A run writes a run directory, `runs/<id>/` (YYMMDD plus a codename, e.g. `runs/260821heron/`), or the one the diagram handed
+A run writes a run directory, `--repo DIR` or else `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, e.g. `260821heron/`), or the one the diagram handed
 to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
 stamped `executed` (the copy carries its own run record), and `studyflow.log`;
 the detailed step records live in the run repository's commit bodies. Expressions run in the evaluating engine's own
@@ -456,9 +456,11 @@ def plain(value: Any) -> Any:
 
 
 def shown(path: Path) -> Path:
-    """Paths are printed as the reader typed them: relative to where the run was started."""
-    here = Path.cwd()
-    return path.relative_to(here) if path.is_relative_to(here) else path
+    """Paths are printed as the reader typed them: relative to where the run was started, `~` for home."""
+    here, home = Path.cwd(), Path.home()
+    if path.is_relative_to(here):
+        return path.relative_to(here)
+    return Path("~") / path.relative_to(home) if path.is_relative_to(home) else path
 
 
 def write_plan_copy(source: Path, target: Path, xml: str) -> None:
@@ -1429,7 +1431,7 @@ def resolve_repo_dir(explicit: Path | None, plan: Path, started: datetime) -> Pa
     if (plan.parent / "studyflow.log").exists():
         return plan.parent.resolve()
     stamp = run_stamp(started)
-    runs = Path.cwd() / "runs"
+    runs = Path.home() / ".studyflow" / "runs"
     candidate = runs / stamp
     attempt = 2
     while candidate.exists():
@@ -1449,7 +1451,7 @@ def main() -> int:
     parser.add_argument(
         "--repo", type=Path, default=None, metavar="DIR",
         help="the run repository to write into, its name being the run id (default: the diagram's own "
-             "directory when the diagram already lives in one, else a fresh runs/<YYMMDD+codename>)",
+             "directory when the diagram already lives in one, else a fresh ~/.studyflow/runs/<YYMMDD+codename>)",
     )
     parser.add_argument(
         "--from", dest="from_ref", default=None, metavar="REF",

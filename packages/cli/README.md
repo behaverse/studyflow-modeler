@@ -31,9 +31,9 @@ studyflow <command> --help
 
 ```bash
 studyflow run 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'
-studyflow run runs/*/sklearn_pipeline.studyflow.png                # re-run
-studyflow run runs/*/sklearn_pipeline.studyflow.png --from <ref>   # branch
-studyflow run runs/*/sklearn_pipeline.studyflow.png --fresh        # re-run all
+studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png                # re-run (--repo DIR picks the run directory)
+studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --from <ref>   # branch
+studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --fresh        # re-run all
 
 # Reachy Mini example, auto-answered
 studyflow run assets/schemas/examples/Robotics/reachy_session.studyflow.png --auto
@@ -48,7 +48,7 @@ studyflow run assets/schemas/examples/Robotics/reachy_session.studyflow.png --au
 # look's result is the gaze: a data edge into a declared property (`screenGaze` on the
 # process) keeps it in the study state, and a later look can take `target: "{screenGaze}"`. To seat it by hand instead, e.g. for the browser runner
 # or another vision model (default ollama:gemma4:12b-it-qat):
-../../runners/studyflow-reachy.py --participant --frames runs/frames --vlm ollama:gemma4:26b
+packages/cli/runners/studyflow-reachy.py --participant --frames runs/frames --vlm ollama:gemma4:26b
 
 # Behaverse (Unity WebGL) tasks from the CLI: each task opens full screen in a
 # Chromium window of its own (app mode, throwaway profile; the default browser

@@ -1,4 +1,4 @@
-"""One check for the participant bridge's parsing; run it with `python3 runners/test_studyflow_reachy.py`."""
+"""One check for the participant bridge's parsing; run it with `python3 packages/cli/runners/test_studyflow_reachy.py`."""
 
 import importlib.util
 import sys

@@ -4,7 +4,7 @@
 # REST API, served at `http://<host>:8000/api`; the endpoint each element uses
 # is noted in a comment beside it. Actuation steps are service tasks, so
 # `studyflow:Implementation` lets a runner bind each to a Python entry point
-# over the `reachy_mini` SDK. `packages/cli/src/studyflow-reachy.py` is the
+# over the `reachy_mini` SDK. `packages/cli/runners/studyflow-reachy.py` is the
 # reference runner; it reads every attribute declared here by name.
 
 name: Reachy Mini

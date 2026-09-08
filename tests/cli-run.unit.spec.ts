@@ -55,7 +55,7 @@ test.describe('declaredRuntime', () => {
 
 /** The Python runner keeps `state` (docs/developers.qmd, "What a run leaves behind"): `_meta.prov` run records, `_meta.reached` visit counts. */
 
-const CLI_SRC = path.resolve(__dirname, '../packages/cli/src');
+const RUNNERS = path.resolve(__dirname, '../packages/cli/runners');
 
 function hasUv(): boolean {
   try {
@@ -101,7 +101,7 @@ S:
     // The runner and its prov module alone: the partial runners beside them (reachy, python) would be asked
     // for their claims and need their own dependencies.
     for (const name of ['studyflow-run-local.py', 'studyflow-prov.py']) {
-      fs.copyFileSync(path.join(CLI_SRC, name), path.join(dir, name));
+      fs.copyFileSync(path.join(RUNNERS, name), path.join(dir, name));
     }
     const plan = path.join(dir, 'reach.bpmn');
     fs.writeFileSync(plan, xml);
@@ -163,7 +163,7 @@ test.describe('partial runner hand-off', () => {
   </bpmn:process>
 </bpmn:definitions>`;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-handoff-'));
-    fs.copyFileSync(path.join(CLI_SRC, 'studyflow-run-local.py'), path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(path.join(RUNNERS, 'studyflow-run-local.py'), path.join(dir, 'studyflow-run-local.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     // A runner that claims T and completes it, keeping a copy of what it was handed.
     fs.writeFileSync(path.join(dir, 'fake.py'), [
