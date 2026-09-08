@@ -1,7 +1,6 @@
 {
   "name": "@behaverse/studyflow-modeler",
-  "version": "26.9.5",
-  "description": "The Behaverse Studyflow modeler — BPMN-based visual editor for scientific workflows.",
+  "description": "The Behaverse Studyflow modeler \u2014 BPMN-based visual editor for scientific workflows.",
   "private": true,
   "type": "module",
   "license": "MIT",

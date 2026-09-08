@@ -8,7 +8,7 @@ import { claudeProxyPlugin } from './src/nodes/behaverse/llm/claude-proxy/index.
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
+const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string }  // one version for the repo
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

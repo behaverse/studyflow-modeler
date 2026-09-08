@@ -1,7 +1,7 @@
 /**
  * `npm run release:cli` — the CLI release, end to end, from this machine; nothing in CI writes to the repository.
  *
- * Bump `version` in packages/cli/package.json, then run it: it builds every platform (writing Formula/studyflow.rb
+ * Bump `version` in the root package.json (the repo's one version), then run it: it builds every platform (writing Formula/studyflow.rb
  * from the same build, so the checksums match), commits those two files, tags, pushes, and creates the GitHub
  * release with the tarballs. Needs a clean tree otherwise, `bun`, and `gh` logged in.
  */
@@ -12,10 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoDir = resolve(cliDir, '../..');
-const { version } = JSON.parse(readFileSync(resolve(cliDir, 'package.json'), 'utf8'));
+const { version } = JSON.parse(readFileSync(resolve(repoDir, 'package.json'), 'utf8'));
 const tag = `v${version}`;
 const releaseDir = resolve(cliDir, 'dist/release');
-const RELEASE_FILES = ['packages/cli/package.json', 'Formula/studyflow.rb'];
+const RELEASE_FILES = ['package.json', 'Formula/studyflow.rb'];
 
 const raw = (command, args) => execFileSync(command, args, { cwd: repoDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
 const out = (command, args) => raw(command, args).trim();
@@ -24,7 +24,7 @@ const fail = (message) => { console.error(message); process.exit(1); };
 
 if (out('git', ['branch', '--show-current']) !== 'main') fail('Release from main.');
 if (out('git', ['tag', '-l', tag]) || out('git', ['ls-remote', '--tags', 'origin', tag])) {
-  fail(`${tag} exists already — bump version in packages/cli/package.json first.`);
+  fail(`${tag} exists already — bump version in the root package.json first.`);
 }
 // The binaries are built from the working tree, so anything uncommitted would ship untagged.
 const dirty = raw('git', ['status', '--porcelain']).split('\n').filter(Boolean)  // untrimmed: `XY path`, X may be a space

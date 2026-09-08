@@ -13,7 +13,10 @@ const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoDir = resolve(cliDir, '../..');
 const outDir = resolve(cliDir, 'dist/release');
 
-const { version } = JSON.parse(readFileSync(resolve(cliDir, 'package.json'), 'utf8'));
+const { version } = JSON.parse(readFileSync(resolve(repoDir, 'package.json'), 'utf8'));  // the repo's one version
+// YY.M.N, N counting releases within the month. Purely numeric: Homebrew scans it from the release url and orders it
+// right; a suffix like -dev2 makes it read "64" out of "arm64" and rank that above every real version.
+if (!/^\d{2}\.\d{1,2}\.\d+$/.test(version)) throw new Error(`Version "${version}" is not YY.M.N (e.g. 26.9.9) — fix the root package.json.`);
 const repo = process.env.STUDYFLOW_REPO ?? 'behaverse/studyflow-modeler';
 const tag = `v${version}`;
 
@@ -89,9 +92,7 @@ class Studyflow < Formula
   homepage "https://github.com/${repo}"
 ${local
     ? `  version "${version}" # a file:// url gives the scanner nothing to read the version from`
-    : /^\d+(\.\d+)+$/.test(version)
-      ? `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`
-      : `  version "${version}" # a pre-release suffix defeats the url scan, which then reads "64" out of "arm64"`}
+    : `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`}
   license "MIT"
   # \`studyflow run --runtime local\` drives the runners in libexec with uv.
   depends_on "uv"

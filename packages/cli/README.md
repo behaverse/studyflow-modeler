@@ -61,7 +61,7 @@ UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run --runtime local assets/schema
 
 ## Releasing
 
-Bump `version` in `packages/cli/package.json` and run, from a clean macOS checkout with `bun` and `gh` on PATH:
+Versions are `YY.M.N`: year, month, and a counter that climbs within the month (`26.9.9`, `26.9.10`, then `26.10.1`). No suffixes: Homebrew misreads them and ranks them above real releases. The one `version` is the root `package.json`'s; every package and the CLI binary carry it. Bump it and run, from a clean macOS checkout with `bun` and `gh` on PATH:
 
 ```bash
 npm run release:cli

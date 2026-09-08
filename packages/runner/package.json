@@ -1,7 +1,6 @@
 {
   "name": "@behaverse/studyflow-runner",
-  "version": "26.9.5",
-  "description": "The Behaverse Studyflow browser runner — executes the participant-facing half of a studyflow.",
+  "description": "The Behaverse Studyflow browser runner \u2014 executes the participant-facing half of a studyflow.",
   "private": true,
   "type": "module",
   "license": "MIT",

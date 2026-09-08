@@ -1,6 +1,5 @@
 {
   "name": "@behaverse/studyflow-cli",
-  "version": "26.9.8-dev3",
   "description": "CLI tool for studyflow diagrams.",
   "private": true,
   "type": "module",

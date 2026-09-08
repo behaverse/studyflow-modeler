@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
+const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string }  // one version for the repo
 
 // In dev the runner is a second Vite server, but the diagram hand-off rides on same-origin
 // localStorage, so the runner's paths are proxied through this origin, exactly as the merged

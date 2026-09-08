@@ -5,7 +5,7 @@ import { defineConfig } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
+const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string }  // one version for the repo
 
 // One self-contained Node executable: core is compiled in from source, the schema YAMLs are
 // inlined at build time (core's `import.meta.glob(?raw)`), and the binary resolves nothing from the repo at runtime.
