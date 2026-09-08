@@ -62,10 +62,11 @@ for (const { slug, bunTarget, macho } of platforms) {
   copyFileSync(resolve(repoDir, 'packages/cli/src/studyflow-prov.py'), resolve(stage, 'studyflow-prov.py'));
   copyFileSync(resolve(repoDir, 'runners/studyflow-python.py'), resolve(stage, 'studyflow-python.py'));
   copyFileSync(resolve(repoDir, 'runners/studyflow-reachy.py'), resolve(stage, 'studyflow-reachy.py'));
+  copyFileSync(resolve(repoDir, 'runners/studyflow-behaverse.py'), resolve(stage, 'studyflow-behaverse.py'));
   copyFileSync(resolve(repoDir, 'LICENSE'), resolve(stage, 'LICENSE'));
 
   const asset = `studyflow-${version}-${slug}.tar.gz`;
-  sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'studyflow-run-local.py', 'studyflow-prov.py', 'studyflow-python.py', 'studyflow-reachy.py', 'LICENSE']);
+  sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'studyflow-run-local.py', 'studyflow-prov.py', 'studyflow-python.py', 'studyflow-reachy.py', 'studyflow-behaverse.py', 'LICENSE']);
   rmSync(stage, { recursive: true, force: true });
 
   const sha256 = createHash('sha256').update(readFileSync(resolve(outDir, asset))).digest('hex');
@@ -118,6 +119,7 @@ ${blockFor('linux-x64', '      ')}
     libexec.install "studyflow-prov.py"
     libexec.install "studyflow-python.py"
     libexec.install "studyflow-reachy.py"
+    libexec.install "studyflow-behaverse.py"
   end
 
   def caveats
@@ -126,7 +128,7 @@ ${blockFor('linux-x64', '      ')}
 
       \`studyflow run --runtime local\` executes a study through the runners in
       this keg — studyflow-run-local walks and executes, studyflow-prov records,
-      partial runners like studyflow-python and studyflow-reachy execute the elements they claim — all
+      partial runners like studyflow-python, studyflow-reachy and studyflow-behaverse execute the elements they claim — all
       driven by uv:
         brew install uv
     EOS

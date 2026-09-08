@@ -42,6 +42,11 @@ studyflow run assets/schemas/examples/Robotics/reachy_session.studyflow.png --au
 # bridge (ResponseSource: external) and answers each trial from its camera, or
 # the screenshot the task attaches. Then run the study in the browser.
 ../../runners/studyflow-reachy.py --participant --sim
+
+# Behaverse (Unity WebGL) tasks from the CLI: each task opens in the default
+# browser, served from the build at UNITY_BUILD_PATH; trials of a bot with
+# `ResponseSource: external` go to the response bridge above.
+UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run assets/schemas/examples/Robotics/reachy_participant.studyflow.png --runtime local
 ```
 
 ## Extending CLI
