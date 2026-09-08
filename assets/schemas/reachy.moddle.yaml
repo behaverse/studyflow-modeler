@@ -89,6 +89,9 @@ enumerations:
         value: sound
       - name: Home pose
         value: home
+      - name: Task screen
+        value: screen
+        description: The robot turns until its camera finds a screen and settles on it (a seated participant does the looking).
 
   - name: TriggerEnum
     description: What the robot senses to fire the event.
@@ -155,6 +158,14 @@ types:
         type: String
         meta:
           order: 2
+          optional: true
+      - name: vision
+        description: The vision model the robot sees with, as `provider:model` (`ollama:gemma4:12b-it-qat`, `claude:claude-haiku-4-5`); it finds the screen and answers a task's trials.
+        isAttr: true
+        type: String
+        default: ollama:gemma4:12b-it-qat
+        meta:
+          order: 6
           optional: true
       - name: language
         description: Language the robot speaks and listens in, as a BCP-47 tag (`en-US`).
@@ -344,7 +355,7 @@ types:
       icon: iconify mdi--eye-outline
     properties:
       - name: target
-        description: What to orient toward; tracking holds until another step moves the head.
+        description: What to orient toward; tracking holds until another step moves the head. A `{{ name }}` placeholder takes a gaze the study state holds, such as the result of an earlier `screen` look.
         isAttr: true
         type: LookTargetEnum
         default: face

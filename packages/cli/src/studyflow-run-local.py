@@ -646,6 +646,8 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
     """The plan as one JSON document for partial runners: the study, every element by id (pool participants
     included), and the directories a boundary input may be staged from. A runner reads this, never the diagram."""
     elements = {element_id: element_digest(element) for element_id, element in studyflow.elements.items()}
+    for element_id, digest in elements.items():
+        digest["parent"] = studyflow.parents.get(element_id)  # the container, for lexical `{name}` lookups outward
     process = studyflow.process
     title = process.get("name")
     for collaboration in studyflow.definitions:
@@ -698,7 +700,9 @@ class PartialRunner:
         handoff = cache / f"{element_id}.state.json"
         handoff.write_text(json.dumps(values, default=str))
         argv = [*shlex.split(self.command), str(self.plan), "--element", element_id, "--cache", str(cache)]
-        done = subprocess.run(argv, stdout=subprocess.PIPE, text=True)  # noqa: S603 - an authored runner command
+        # The walk's own pid, so whatever a runner leaves running for the study can follow the walk.
+        env = {**os.environ, "STUDYFLOW_RUN_PID": str(os.getpid())}
+        done = subprocess.run(argv, stdout=subprocess.PIPE, text=True, env=env)  # noqa: S603 - an authored runner command
         for line in (done.stdout or "").splitlines():
             if line.strip():
                 log_event("runner.stdout", f"    {line}", level=logging.DEBUG)
@@ -917,6 +921,8 @@ class Runner:
             except (TypeError, ValueError):
                 continue
             shadow[element_id] = plain(value)
+        # The state tree itself, under the one key no element may take: `state.<scope>.<property>` and `state._meta`.
+        shadow["state"] = json.loads(json.dumps(self.state.tree, default=str))
         return shadow
 
     def stale_inputs(self, element: ET.Element) -> bool:
@@ -1123,7 +1129,12 @@ class Runner:
         reported = runner.element(element_id, sent)
         entry["_runnerMs"] = reported.get("durationMs")
         for key, value in reported.items():
-            if key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
+            if key == "state" and isinstance(value, dict):
+                # Properties the runner wrote (a data edge into a `bpmn:Property`): scope by scope, `_meta` stays ours.
+                for scope, held in value.items():
+                    if scope != "_meta" and isinstance(held, dict) and held != (sent.get("state") or {}).get(scope):
+                        self.state.tree.setdefault(scope, {}).update(held)
+            elif key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
                 self.store(key, value)
         targets = output_targets(element)
         if targets:
@@ -1291,7 +1302,12 @@ class Runner:
                 name = self.studyflow.name_of(element_id)
 
                 if tag in END_TAGS:
-                    self.record.end(self.record.begin(element_id, name, bpmn_type(element)))
+                    entry = self.record.begin(element_id, name, bpmn_type(element))
+                    # A runner may claim the end too: its chance to fold what it started for the study.
+                    runner = self.runner_for(element)
+                    if runner is not None:
+                        self.execute_via_runner(element, entry, runner)
+                    self.record.end(entry)
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"● {element_id}")
                     self.debug_state(element_id)
