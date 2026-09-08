@@ -150,9 +150,7 @@ if (local) {
   // The formula and the assets come from this one build, so they agree; commit the formula before tagging.
   mkdirSync(resolve(repoDir, 'Formula'), { recursive: true });
   writeFileSync(resolve(repoDir, 'Formula/studyflow.rb'), formula);
-  console.log(`\nFormula/studyflow.rb updated for ${tag}. Publish:`);
-  console.log(`  git commit -am "studyflow ${tag}" && git tag ${tag} && git push origin main ${tag}`);
-  console.log(`  gh release create ${tag} packages/cli/dist/release/*.tar.gz packages/cli/dist/release/*.sha256 --generate-notes`);
+  console.log(`\nFormula/studyflow.rb updated for ${tag} (npm run release:cli commits, tags, pushes, and publishes it).`);
 } else {
   console.log(`\nPartial build (${platforms.map((p) => p.slug).join(', ')}); Formula/studyflow.rb is untouched.`);
 }

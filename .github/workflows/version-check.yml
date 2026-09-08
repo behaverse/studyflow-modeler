@@ -1,0 +1,25 @@
+name: Version check
+
+# Read-only. A bumped CLI version must have its tag: releases are cut from a checkout with `npm run release:cli`.
+on:
+  push:
+    branches: [main]
+    paths: ['packages/cli/package.json']
+
+permissions:
+  contents: read
+
+jobs:
+  tagged:
+    name: The CLI version has its tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          set -euo pipefail
+          version=$(node -p "require('./packages/cli/package.json').version")
+          if [ -z "$(git ls-remote --tags origin "v$version")" ]; then
+            echo "packages/cli/package.json says $version but there is no tag v$version. From a checkout: npm run release:cli" >&2
+            exit 1
+          fi
+          echo "v$version is tagged."

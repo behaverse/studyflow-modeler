@@ -61,15 +61,13 @@ UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run --runtime local assets/schema
 
 ## Releasing
 
-A release is built and published from a macOS checkout with `bun` and `gh` on PATH; nothing in CI writes to this repository. Bump `version` in `packages/cli/package.json`, then:
+Bump `version` in `packages/cli/package.json` and run, from a clean macOS checkout with `bun` and `gh` on PATH:
 
 ```bash
-npm run package:cli   # cross-compiles every platform into packages/cli/dist/release/ and writes Formula/studyflow.rb to match
-git commit -am "studyflow v<version>" && git tag v<version> && git push origin main v<version>
-gh release create v<version> packages/cli/dist/release/*.tar.gz packages/cli/dist/release/*.sha256 --generate-notes
+npm run release:cli
 ```
 
-The formula and the tarballs come from the same build, so the checksums in the tagged commit are the ones Homebrew verifies against the release assets.
+It cross-compiles every platform, writes `Formula/studyflow.rb` from that same build so the checksums match, commits the two files, tags `v<version>`, pushes, and creates the GitHub release with the tarballs. Nothing in CI writes to this repository; the `Version check` workflow only fails a push to `main` whose CLI version has no tag yet.
 
 ## Extending CLI
 

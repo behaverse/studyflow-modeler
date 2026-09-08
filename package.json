@@ -19,6 +19,7 @@
     "preview": "npm run preview -w @behaverse/studyflow-modeler",
     "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in assets/schemas/examples/*/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
     "package:cli": "npm run package -w @behaverse/studyflow-cli",
+    "release:cli": "node packages/cli/scripts/release.mjs",
     "test": "playwright test",
     "test:unit": "playwright test --config playwright.unit.config.ts",
     "test:e2e": "playwright test --project=e2e",
