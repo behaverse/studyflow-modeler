@@ -55,7 +55,7 @@ studyflow run assets/schemas/examples/Robotics/reachy_session.studyflow.png --au
 # without one), closed when the task completes, served from the build at
 # UNITY_BUILD_PATH; trials of a bot with `ResponseSource: external` go to the
 # response bridge above.
-UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run assets/schemas/examples/Robotics/reachy_participant.studyflow.png --runtime local
+UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run --runtime local assets/schemas/examples/Robotics/reachy_participant.studyflow.png
 ```
 
 ## Extending CLI

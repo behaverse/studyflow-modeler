@@ -6,7 +6,7 @@
 """Run the Reachy Mini elements of a studyflow.
 
 Usage:
-    studyflow run <diagram> --runtime local [--sim] [--auto]     # studyflow-run-local walks, this runner performs
+    studyflow run --runtime local <diagram> [--sim] [--auto]     # studyflow-run-local walks, this runner performs
     ./studyflow-reachy.py --participant [--sim] [--port N] [--vlm ollama:gemma4:12b-it-qat] [--frames DIR]
 
 A study whose task expects an external participant (`ResponseSource: external`) needs no second command: the
@@ -602,16 +602,45 @@ def has_camera(robot: Any) -> bool:
     return getattr(robot, "media_backend", "no_media") != "no_media"
 
 
-def camera_frame(robot: Any) -> Any:
-    """The camera's latest BGR frame, or None."""
-    try:
-        frame = robot.mini.media.get_frame() if has_camera(robot) else None
-    except Exception as error:
-        print(f"    (camera frame failed: {error})")
+LATEST_FRAME: tuple[float, Any] = (0.0, None)  # when (monotonic) the stream reader last saw a frame, and the frame
+
+
+def read_stream(robot: Any) -> None:
+    """The one reader of the camera stream. The SDK's sink keeps a single frame and every pull empties it, so
+    two readers starve each other: everyone takes the newest frame from LATEST_FRAME instead. Reading without
+    pause also keeps the WebRTC feed alive, which stops delivering after a minute or so unread."""
+    global LATEST_FRAME
+    quiet_since = 0.0
+    while getattr(robot, "mini", None) is not None:
+        try:
+            frame = robot.mini.media.get_frame()
+        except Exception:
+            frame = None
+        now = time.monotonic()
+        if frame is not None:
+            LATEST_FRAME = (now, frame)
+            quiet_since = 0.0
+        elif not quiet_since:
+            quiet_since = now
+        elif now - quiet_since > 5.0:
+            print("    (the camera stream has gone quiet)")
+            quiet_since = float("inf")  # said once per silence
+        time.sleep(0.05)
+
+
+def camera_frame(robot: Any, wait: float = 4.0) -> Any:
+    """The camera's newest BGR frame, under a second old, waiting up to `wait` seconds for one; None without."""
+    if not has_camera(robot):
         return None
-    if frame is None and has_camera(robot):
-        print("    (camera gave no frame)")
-    return frame
+    deadline = time.monotonic() + wait  # ponytail: covers the stream's warm-up after connecting; shorten if trials feel slow
+    while True:
+        seen, frame = LATEST_FRAME
+        if frame is not None and time.monotonic() - seen < 1.0:
+            return frame
+        if time.monotonic() >= deadline:
+            print("    (camera gave no frame)")
+            return None
+        time.sleep(0.05)
 
 
 def jpeg_data_url(frame: Any) -> str:
@@ -694,13 +723,8 @@ def find_screen(robot: Any, vlm: tuple[str, str], frames: Path | None = None) ->
 
     def glance(name: str) -> tuple[float, float] | None:
         """Where the screen sits in the current frame, as fractions; None when no screen is in view."""
-        time.sleep(1.0)  # let the head settle and the stream catch up, or the frame smears
+        time.sleep(1.0)  # let the head settle, or the frame smears
         frame = camera_frame(robot)
-        for _ in range(6):  # the feed skips a beat now and then, right after a move or a fresh connection
-            if frame is not None:
-                break
-            time.sleep(0.5)
-            frame = camera_frame(robot)
         if frame is None:
             raise RuntimeError("no camera frame")
         image = jpeg_data_url(frame)
@@ -1003,6 +1027,10 @@ def participant_loop(
     import websockets
 
     sys.stdout.reconfigure(line_buffering=True)  # trial lines stream even when piped
+    if has_camera(robot):
+        import threading
+
+        threading.Thread(target=read_stream, args=(robot,), daemon=True).start()
     history: list[str] = []
     seat = asyncio.Lock()  # one trial at a time: the robot has one camera and the model one queue
     over: asyncio.Future[None] | None = None
@@ -1095,19 +1123,6 @@ def participant_loop(
                             return
 
                 asyncio.ensure_future(follow_the_walk())
-            if has_camera(robot):
-                import threading
-
-                def keep_stream_alive() -> None:
-                    # The WebRTC feed stops delivering after a minute or so unread; keep reading it between trials.
-                    while True:
-                        try:
-                            robot.mini.media.get_frame()
-                        except Exception:
-                            pass
-                        time.sleep(0.5)
-
-                threading.Thread(target=keep_stream_alive, daemon=True).start()
             await over
 
     asyncio.run(serve())
@@ -1164,7 +1179,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.plan is None and not args.participant:
-        parser.error("a plan.json is needed: `studyflow run <diagram> --runtime local` walks the diagram and hands elements here")
+        parser.error("a plan.json is needed: `studyflow run --runtime local <diagram>` walks the diagram and hands elements here")
     studyflow = Plan(json.loads(args.plan.read_text()) if args.plan else {})
 
     if args.claims:

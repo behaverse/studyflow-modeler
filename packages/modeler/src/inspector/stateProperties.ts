@@ -45,12 +45,22 @@ function supportsStateProperties(element: any): boolean {
   return is(element, 'bpmn:Process') || is(element, 'bpmn:Activity') || is(element, 'bpmn:Event');
 }
 
+/** The moddle object whose `properties` an element declares: a pool stands for the process it references. */
+export function scopeOf(elementOrBo: any): ModdleElement {
+  const businessObject = toBusinessObject(elementOrBo);
+  const process = businessObject?.$type === 'bpmn:Participant'
+    ? (businessObject.get?.('processRef') ?? businessObject.processRef)
+    : undefined;
+  return process ?? businessObject;
+}
+
 export function isScopeContainer(element: any): boolean {
-  return is(element, 'bpmn:Process') || is(element, 'bpmn:SubProcess');
+  const scope = scopeOf(element);
+  return is(scope, 'bpmn:Process') || is(scope, 'bpmn:SubProcess');
 }
 
 function declaredProperties(element: any): any[] {
-  const businessObject = toBusinessObject(element);
+  const businessObject = scopeOf(element);
   const properties = businessObject?.get?.('properties') ?? businessObject?.properties ?? [];
   return (Array.isArray(properties) ? properties : []).filter((p: any) => isDeclaredProperty(p));
 }
@@ -77,7 +87,7 @@ export function getPropertiesInScope(element: any): ScopedProperty[] {
   const out: ScopedProperty[] = [];
   const seenNames = new Set<string>();
 
-  let node: ModdleElement | undefined = toBusinessObject(element);
+  let node: ModdleElement | undefined = scopeOf(element);
   let own = true;
   while (node) {
     if (supportsStateProperties(node)) {

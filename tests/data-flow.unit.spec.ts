@@ -5,7 +5,7 @@ import { buildCatalog, setCatalog } from '@core/notation';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { inlineIoSpecification } from '@core/document';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
-import { getPropertiesInScope, getStateProperties } from '@modeler/inspector/stateProperties';
+import { getPropertiesInScope, getStateProperties, isScopeContainer } from '@modeler/inspector/stateProperties';
 import { loadSchemaModels } from './schemas';
 import { exampleNames as examples, exampleXml } from './utils';
 
@@ -172,6 +172,17 @@ test.describe('what the inspector reports for a step', () => {
         outerScope: undefined,
       }),
     ]);
+  });
+
+  test('reads a pool\'s properties from the process it references', async () => {
+    // In a collaboration the canvas offers the Collaboration and its pools, never the process itself.
+    const { definitions } = await read('reachy_participant.studyflow.png');
+    const collaboration = definitions.rootElements.find((root: any) => root.$type === 'bpmn:Collaboration');
+    const pool = collaboration.participants.find((p: any) => p.id === 'Pool_Reachy');
+
+    expect(isScopeContainer(pool)).toBe(true);
+    expect(getStateProperties(pool).map((p) => p.name)).toEqual(['screenGaze']);
+    expect(getPropertiesInScope(pool).map((p) => [p.name, p.ownerId, p.own])).toEqual([['screenGaze', 'Reachy_Participant', true]]);
   });
 
   test('hides the property bpmn-js invents to hold a data association\'s target', async () => {

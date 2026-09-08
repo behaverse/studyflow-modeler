@@ -1,7 +1,7 @@
 import { isReservedStateKey } from '@core/document';
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
 import { ensureChoreographyParticipants } from '@modeler/shape/choreographyParticipants';
-import { definitionsOf, getStateProperties, nextPropertyId } from '@modeler/inspector/stateProperties';
+import { definitionsOf, getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 
 export type UpdateAttributeCommand = {
@@ -176,7 +176,7 @@ function ensureItemDefinition(editor: Editor, element: any, businessObject: any,
 
 export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePropertiesCommand): void {
   const { element } = command;
-  const businessObject = toBusinessObject(element);
+  const businessObject = scopeOf(element);
   if (!businessObject) return;
 
   const current = getStateProperties(element);

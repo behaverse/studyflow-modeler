@@ -46,4 +46,25 @@ assert run.value_of("screen") == "screen" and run.value_of("{nothing}") == "{not
 run.scope = "Exit"
 assert run.fill("n={reached}") == "n=3" and run.fill("{state._meta.reached.Exit}") == "3"
 assert run.fill("{Look}").startswith("{'yaw'")  # an element's own result, by id, as a last resort
+
+# The camera stream has one reader; a frame the reader saw is what everyone else gets, however slow the feed.
+import threading
+import time
+from types import SimpleNamespace
+
+class SlowSink:
+    """A sink that yields one frame every fifth pull, like a paced WebRTC feed emptied by each pull."""
+    pulls = 0
+    def get_frame(self):
+        self.pulls += 1
+        return "frame" if self.pulls % 5 == 0 else None
+
+camera = SimpleNamespace(mini=SimpleNamespace(media=SlowSink()), media_backend="webrtc")
+threading.Thread(target=reachy.read_stream, args=(camera,), daemon=True).start()
+for _ in range(3):
+    assert reachy.camera_frame(camera) == "frame"
+camera.mini = None  # a closed robot ends the reader
+assert reachy.camera_frame(SimpleNamespace(media_backend="no_media")) is None
+reachy.LATEST_FRAME = (0.0, None)
+assert reachy.camera_frame(SimpleNamespace(mini=None, media_backend="webrtc"), wait=0.2) is None
 print("ok")
