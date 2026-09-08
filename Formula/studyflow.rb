@@ -2,30 +2,30 @@
 class Studyflow < Formula
   desc "Command-line tool for studyflow diagrams"
   homepage "https://github.com/behaverse/studyflow-modeler"
-  # No `version`: Homebrew scans 26.9.5 out of the release url, and audit calls a second copy redundant.
+  # No `version`: Homebrew scans 26.9.8 out of the release url, and audit calls a second copy redundant.
   license "MIT"
   # `studyflow run --runtime local` drives the runners in libexec with uv.
   depends_on "uv"
 
   on_macos do
     on_arm do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-darwin-arm64.tar.gz"
-      sha256 "c2a607b3ebf74c56f44b301f9a405c343f1e633d5c974b811c5fa69a50a8f48d"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.8/studyflow-26.9.8-darwin-arm64.tar.gz"
+      sha256 "3f5b98e22c1e9b8891289312b79e423bab3b5b011517f3875359036e7ca418e8"
     end
     on_intel do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-darwin-x64.tar.gz"
-      sha256 "d797b1f22f477b9d8d84a79b4f8d70c43a9327801810ab4c2b27a8278db61c0a"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.8/studyflow-26.9.8-darwin-x64.tar.gz"
+      sha256 "a80526d6c6c22c67912c58aedcd7df0ed20ca57233c628a90a836ec34af26a06"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-linux-arm64.tar.gz"
-      sha256 "14c9827dd71d1638be4a2742fe25c4bdbadae94c9766f252f34239bd433163db"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.8/studyflow-26.9.8-linux-arm64.tar.gz"
+      sha256 "2ed4c98db5dfeeefebfd531bd0acf589ad68fdbf50b8e968871be622f6d6e917"
     end
     on_intel do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.5/studyflow-26.9.5-linux-x64.tar.gz"
-      sha256 "dc8e12dabc16f1ba511a4df35a63fa3befab8a646b8e4ee8bf5b6936710ffb8d"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.8/studyflow-26.9.8-linux-x64.tar.gz"
+      sha256 "789a9178206f85049c925695cacb0bd48aa770cd2727fabfc5570e10248ec3ed"
     end
   end
 
