@@ -967,11 +967,16 @@ def seat_participant(args: argparse.Namespace, config: dict[str, Any]) -> bool:
     if config["variant"] == "simulation":
         argv.append("--sim")
     log = (run_dir / "participant.log").open("ab")
-    subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)  # noqa: S603
+    bridge = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)  # noqa: S603
     print("    seating the robot as the participant (its log: participant.log in the run)")
-    for _ in range(90):
+    for tick in range(90):
         if seated_participant(args.port):
             return True
+        if bridge.poll() is not None:
+            print(f"    (the participant bridge exited with code {bridge.returncode} — see participant.log in the run)")
+            return False
+        if tick and tick % 15 == 0:
+            print(f"    still seating the robot ({tick * 2}s: connecting, camera, vision model, finding the screen)")
         time.sleep(2)
     print("    (the participant bridge did not come up)")
     return False
@@ -1110,10 +1115,9 @@ def participant_loop(
         async with websockets.serve(handle, "localhost", port):
             print(f"Reachy participant ({robot.label}) — bridge on ws://localhost:{port}, Ctrl-C to leave the seat")
             print("Run the study in the browser; the task's bot needs `ResponseSource: external`.")
-            async with seat:  # the walk's first request waits for the robot to be settled
-                if not await asyncio.to_thread(find_screen, robot, vlm, frames):
-                    robot.look_at("face")  # no camera, or nothing found: assume the screen is straight ahead
             if watch_pid:
+                # From the start, and a hard stop: an interrupted walk must not leave this bridge searching for
+                # the screen, driving the robot, and holding the port for the next run.
                 async def follow_the_walk() -> None:
                     while True:
                         await asyncio.sleep(3)
@@ -1121,11 +1125,12 @@ def participant_loop(
                             os.kill(watch_pid, 0)
                         except OSError:
                             print("● the walk is gone — leaving the seat")
-                            if not over.done():
-                                over.set_result(None)
-                            return
+                            os.kill(os.getpid(), signal.SIGTERM)  # handle_stop folds the robot and exits
 
                 asyncio.ensure_future(follow_the_walk())
+            async with seat:  # the walk's first request waits for the robot to be settled
+                if not await asyncio.to_thread(find_screen, robot, vlm, frames):
+                    robot.look_at("face")  # no camera, or nothing found: assume the screen is straight ahead
             await over
 
     asyncio.run(serve())

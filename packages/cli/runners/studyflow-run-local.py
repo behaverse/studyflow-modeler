@@ -702,19 +702,22 @@ class PartialRunner:
         handoff = cache / f"{element_id}.state.json"
         handoff.write_text(json.dumps(values, default=str))
         argv = [*shlex.split(self.command), str(self.plan), "--element", element_id, "--cache", str(cache)]
-        # The walk's own pid, so whatever a runner leaves running for the study can follow the walk.
-        env = {**os.environ, "STUDYFLOW_RUN_PID": str(os.getpid())}
-        done = subprocess.run(argv, stdout=subprocess.PIPE, text=True, env=env)  # noqa: S603 - an authored runner command
-        for line in (done.stdout or "").splitlines():
+        # The walk's own pid, so whatever a runner leaves running for the study can follow the walk;
+        # unbuffered, so a Python runner's progress shows while it works, not when it is done.
+        env = {**os.environ, "STUDYFLOW_RUN_PID": str(os.getpid()), "PYTHONUNBUFFERED": "1"}
+        process = subprocess.Popen(argv, stdout=subprocess.PIPE, text=True, env=env)  # noqa: S603 - an authored runner command
+        assert process.stdout is not None
+        for line in process.stdout:  # an element can take minutes (a robot seating itself): relay as it comes
             if line.strip():
-                log_event("runner.stdout", f"    {line}", level=logging.DEBUG)
+                log_event("runner.stdout", f"    {line.rstrip()}")
+        returncode = process.wait()
         state = json.loads(handoff.read_text()) if handoff.exists() else {}
         # Only the read state file goes; the cache dir survives the run (spilled values live there)
         # and finish() sweeps it at the end.
         if not self.debug:
             handoff.unlink(missing_ok=True)
-        if done.returncode != 0 or state.get("error"):
-            raise RuntimeError(f"{self.name}: {state.get('error') or f'exited with code {done.returncode}'}")
+        if returncode != 0 or state.get("error"):
+            raise RuntimeError(f"{self.name}: {state.get('error') or f'exited with code {returncode}'}")
         return state
 
 
