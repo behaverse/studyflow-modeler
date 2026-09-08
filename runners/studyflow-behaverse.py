@@ -31,7 +31,9 @@ import json
 import mimetypes
 import os
 import shutil
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
@@ -132,6 +134,7 @@ STAGE_HTML = """<!doctype html>
   iframe { border: 0; width: 100%; height: 100%; display: block; }
   #status { position: fixed; inset: 0; display: grid; place-items: center; background: #231F20;
             color: #ddd; font: 16px system-ui, sans-serif; }
+  #status[hidden] { display: none; }
 </style>
 <div id="status">Loading the task…</div>
 <iframe id="unity" src="__MOUNT__/index.html?skipDebugMenu=1" allow="autoplay; fullscreen"></iframe>
@@ -154,11 +157,28 @@ let started = false;
 function start() {
   if (started || !runtime()) return;
   started = true;
-  status.textContent = 'Starting the task…';
+  status.textContent = 'Starting the task… (click the page for full screen)';
   setTimeout(() => { status.hidden = true; }, 1000);
   send('RunCognitiveTask', JSON.stringify(PAYLOAD));
 }
 window.addEventListener('studyflow:Ready', start);
+
+// The build's canvas is a fixed 960x600 in the top-left; scale it to fill the window (same origin, so we may).
+function fit() {
+  const doc = frame.contentDocument;
+  const canvas = doc && doc.querySelector('#unity-canvas');
+  if (!canvas) return;
+  const scale = Math.min(innerWidth / 960, innerHeight / 600);
+  Object.assign(canvas.style, { position: 'fixed', left: '0', top: '0', right: '0', bottom: '0', margin: 'auto',
+    width: Math.floor(960 * scale) + 'px', height: Math.floor(600 * scale) + 'px' });
+  doc.body.style.overflow = 'hidden';
+}
+frame.addEventListener('load', () => { fit(); setInterval(fit, 1000); });
+addEventListener('resize', fit);
+// Full screen needs a gesture: one click or key anywhere on the page.
+for (const type of ['click', 'keydown']) addEventListener(type, () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+}, { once: false });
 const poll = setInterval(() => {
   if (window.studyflowReady || (frame.contentWindow && frame.contentWindow.studyflowReady)) { clearInterval(poll); start(); }
 }, 100);
@@ -319,6 +339,34 @@ class StageHandler(BaseHTTPRequestHandler):
         self.reply(204)
 
 
+CHROMIUM_APPS = (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "google-chrome", "chromium", "chromium-browser",
+)
+
+
+def open_stage(url: str) -> subprocess.Popen | None:
+    """Open the stage in a browser of its own: a Chromium in app mode with a throwaway profile, full screen,
+    that this runner can close when the task is done. Without one, the default browser opens a tab."""
+    binary = next((app for app in CHROMIUM_APPS if Path(app).is_file() or shutil.which(app)), None)
+    if binary is None:
+        webbrowser.open(url)
+        return None
+    profile = tempfile.mkdtemp(prefix="studyflow-stage-")
+    return subprocess.Popen(  # noqa: S603 - a browser we picked, opening a page we serve
+        [binary, f"--app={url}", f"--user-data-dir={profile}", "--start-fullscreen", "--no-first-run",
+         "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def profile_of(browser: subprocess.Popen) -> str:
+    return next(arg.split("=", 1)[1] for arg in browser.args if str(arg).startswith("--user-data-dir="))
+
+
 def build_dir(explicit: Path | None) -> Path:
     if explicit is not None:
         return explicit
@@ -348,14 +396,21 @@ def perform(element: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
     if config["source"] != "internal":
         note = " (no model proxy here: the bridge answers, else random)" if config["source"] == "llm" else ""
         print(f"    trials go to the response bridge at {config['bridge']}{note}", flush=True)
-    if not args.no_browser:
-        webbrowser.open(url)
+    browser = None if args.no_browser else open_stage(url)
     clock = time.perf_counter()
     try:
         if not stage.done.wait(args.timeout or None):
             raise TimeoutError(f"no completion from the task within {args.timeout}s")
     finally:
         stage.shutdown()
+        if browser is not None:
+            time.sleep(1.0)  # the completion notice stays up for a moment before the window goes
+            browser.terminate()
+            try:
+                browser.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                browser.kill()
+            shutil.rmtree(profile_of(browser), ignore_errors=True)
     completion = stage.completion
     if not completion.get("IsCompleted"):
         raise RuntimeError(f"the task stopped before the end: {completion or 'no detail'}")
