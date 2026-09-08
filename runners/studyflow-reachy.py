@@ -390,11 +390,11 @@ class SimRobot:
     def close(self) -> None:
         if self.mini is not None:
             self._act([({}, [0.0, 0.0], 0.5, None)])
+            mini, self.mini = self.mini, None  # the stream reader stops before the camera goes
             try:
-                self.mini.__exit__(None, None, None)  # the SDK's only public teardown path
+                mini.__exit__(None, None, None)  # the SDK's only public teardown path
             except Exception:
                 pass
-            self.mini = None
         # Only the daemon this run spawned; one that was already serving stays.
         if self._daemon is not None:
             self._daemon.terminate()
@@ -607,10 +607,10 @@ LATEST_FRAME: tuple[float, Any] = (0.0, None)  # when (monotonic) the stream rea
 
 def read_stream(robot: Any) -> None:
     """The one reader of the camera stream. The SDK's sink keeps a single frame and every pull empties it, so
-    two readers starve each other: everyone takes the newest frame from LATEST_FRAME instead. Reading without
+    a second reader takes frames the first one wanted: everyone reads LATEST_FRAME instead. Reading without
     pause also keeps the WebRTC feed alive, which stops delivering after a minute or so unread."""
     global LATEST_FRAME
-    quiet_since = 0.0
+    quiet_since, said_quiet = 0.0, False
     while getattr(robot, "mini", None) is not None:
         try:
             frame = robot.mini.media.get_frame()
@@ -618,13 +618,15 @@ def read_stream(robot: Any) -> None:
             frame = None
         now = time.monotonic()
         if frame is not None:
+            if quiet_since and now - quiet_since > 5.0:
+                print(f"    (the camera stream is back after {now - quiet_since:.0f} s)")
             LATEST_FRAME = (now, frame)
             quiet_since = 0.0
         elif not quiet_since:
             quiet_since = now
-        elif now - quiet_since > 5.0:
+        elif now - quiet_since > 5.0 and not said_quiet:
             print("    (the camera stream has gone quiet)")
-            quiet_since = float("inf")  # said once per silence
+        said_quiet = bool(quiet_since) and now - quiet_since > 5.0
         time.sleep(0.05)
 
 
@@ -654,8 +656,8 @@ def jpeg_data_url(frame: Any) -> str:
 
 
 def frame_data_url(robot: Any) -> str | None:
-    """What the robot's camera sees, as a data-URL JPEG; None without a camera."""
-    frame = camera_frame(robot)
+    """What the robot's camera sees, as a data-URL JPEG; None without a camera or a prompt frame."""
+    frame = camera_frame(robot, wait=1.5)  # ponytail: a trial has ~8 s and the model needs ~5; the screenshot stands in past this
     return jpeg_data_url(frame) if frame is not None else None
 
 
@@ -835,9 +837,10 @@ def answer_trial(
     """Perceive, decide, and pick a response option: (response, agent id)."""
     options = [str(o) for o in trial.get("ResponseOptions", [])]
     robot.perk()
-    # A robot with a camera plays from what it sees; the task's screenshot only stands in when it has none.
+    # A robot with a camera plays from what it sees; the task's screenshot stands in when it has no camera, or
+    # the feed is in one of its stalls (over wifi it pauses for 5-20 s at a time; the reader logs each one).
     frame = frame_data_url(robot)
-    image = frame if has_camera(robot) else trial.get("Screenshot")
+    image = frame or trial.get("Screenshot")
     print(f"    sees: {'camera' if frame else 'screenshot' if image else 'nothing'}")
     if image:
         save_image(frames, f"trial-{trial.get('TrialIndex', '?')}", image)
