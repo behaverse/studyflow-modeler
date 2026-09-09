@@ -2,37 +2,37 @@
 class Studyflow < Formula
   desc "Command-line tool for studyflow diagrams"
   homepage "https://github.com/behaverse/studyflow-modeler"
-  # No `version`: Homebrew scans 26.9.9 out of the release url, and audit calls a second copy redundant.
+  # No `version`: Homebrew scans 26.9.10 out of the release url, and audit calls a second copy redundant.
   license "MIT"
-  # `studyflow run --runtime local` drives the runners in libexec with uv.
+  # `studyflow run --runtime local` drives the skills in libexec with uv.
   depends_on "uv"
 
   on_macos do
     on_arm do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.9/studyflow-26.9.9-darwin-arm64.tar.gz"
-      sha256 "62c6712557d6b846af6b9a16077d227cde8fda3ead6b33c47387b027b35dc443"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.10/studyflow-26.9.10-darwin-arm64.tar.gz"
+      sha256 "303facf9491f4175379611ce70a39fd561f1695de93367e931452cf36e2d6b0f"
     end
     on_intel do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.9/studyflow-26.9.9-darwin-x64.tar.gz"
-      sha256 "08b1891c2939f656b97437b199571f4b653a4de5f3098c14cae8b00a739bc029"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.10/studyflow-26.9.10-darwin-x64.tar.gz"
+      sha256 "39ca9e90886fef09feb63b838c5f7bec00174803267ee318913c04d18ffa546e"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.9/studyflow-26.9.9-linux-arm64.tar.gz"
-      sha256 "4417c5a25a17ab4f58579aad2aa9dbaca26bf0f7149bedb985fc86d8fb730171"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.10/studyflow-26.9.10-linux-arm64.tar.gz"
+      sha256 "9045e0f4002e57d33a77845b36db0bc69b4954d37a815f8e770196f2b3ee76ec"
     end
     on_intel do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.9/studyflow-26.9.9-linux-x64.tar.gz"
-      sha256 "f85d5c5a6fd4a6c9c2f8f0f327fd9bbeb0f1d4f089854327805febbb58cd2fe4"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.9.10/studyflow-26.9.10-linux-x64.tar.gz"
+      sha256 "81e89d6a696aa30787eac340bb83577258d7b7be5097e8a32d39371ed64a9383"
     end
   end
 
   def install
     bin.install "studyflow"
-    # The runners, found from bin/studyflow as ../libexec.
-    libexec.install Dir["studyflow-*.py"]
+    # The skills (the local runtime among them), found from bin/studyflow as ../libexec/skills.
+    libexec.install "skills"
   end
 
   test do
