@@ -18,6 +18,7 @@ export default defineConfig({
     alias: [
       { find: '@canvas', replacement: here('./src') },
       { find: '@core', replacement: here('../core/src') },
+      { find: '@skills', replacement: here('../../skills') },
       { find: '#assets', replacement: here('../../assets') },
     ],
   },

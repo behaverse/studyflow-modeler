@@ -1,0 +1,889 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+# Authoring conventions (every schema in this directory follows them):
+# - A `description` is one sentence the inspector shows as a tooltip; keep it
+#   under ~100 characters. Rationale, engine notes, and endpoint details go in
+#   supplementary documentation, never in the description.
+# - Attribute names are camelCase nouns; a unit lives in the name only when
+#   the same quantity could sensibly carry another, else in
+#   the meta (`samplingRate.meta.unit = 'Hz'`).
+# - An enum that admits values outside its list is `editable: true`.
+# - Icons come from the iconify (Bootstrap Icons, Fluent UI, `mdi` or
+#   `tabler`) sets unless an icon exists only elsewhere. Verify a glyph
+#   exists before using it; an unknown name falls back to the BPMN ancestor's icon.
+# - Reuse core types by inheritance rather than restating fields:
+#   a biosignal recording is a `studyflow:Timeseries`, a battery task
+#   a `cognitive:CognitiveTask`.
+
+
+name: Core
+prefix: studyflow
+description: >-
+  The building blocks every studyflow uses: the study, its events, flows,
+  activities, data elements, and what an engine needs to run them.
+uri: http://behaverse.org/schemas/studyflow/v1
+icon: iconify tabler--hexagon-letter-s
+order: 1
+xml:
+  tagAlias: lowerCase
+version: 26.0902
+
+# Inspector tabs, in the order they appear; an attribute joins one by naming it in `meta.categories`.
+# A `synthetic` tab is drawn by its own section rather than from attributes.
+categories:
+  - name: General
+    order: 10
+    description: Identity, and the fields particular to this element's type.
+  - name: Documentation
+    order: 20
+    description: Notes, checklist, tags, and registration records.
+  - name: Gantt
+    order: 30
+    description: Where the element sits on the schedule.
+  - name: Data
+    order: 40
+    description: 'How a value is laid out: format, schema, and location.'
+  - name: Execution
+    order: 50
+    synthetic: true
+    description: 'What runs and how: software, arguments, data in and out, state.'
+
+enumerations:
+  - name: DatasetFormatEnum
+    description: Data standard the dataset is organized by.
+    literalValues:
+      - name: BDM (Behaverse Data Model)
+        value: bdm
+        icon: iconify bi--hexagon
+      - name: BIDS (Brain Imaging Data Structure)
+        value: bids
+        icon: bids-dataset-icon
+      - name: Psych-DS
+        value: psych-ds
+        icon: iconify uil--flask
+      - name: NWB (Neurodata Without Borders)
+        value: nwb
+  - name: BDMDataLevelEnum
+    description: Level of the BDM hierarchy the data sits at.
+    literalValues:
+      - name: Events
+        value: events
+        description: Every recorded occurrence, as it happened.
+      - name: Trials
+        value: trials
+        description: One row per trial, derived from events.
+      - name: Models
+        value: models
+        description: Fitted parameters and scores, derived from trials.
+  - name: BIDSDataTypeEnum
+    description: BIDS data type (the modality folder).
+    literalValues:
+      - name: anat (anatomical MRI)
+        value: anat
+      - name: beh (behavioral)
+        value: beh
+      - name: dwi (diffusion MRI)
+        value: dwi
+      - name: eeg (electroencephalography)
+        value: eeg
+      - name: func (functional MRI)
+        value: func
+      - name: ieeg (intracranial EEG)
+        value: ieeg
+      - name: meg (magnetoencephalography)
+        value: meg
+      - name: micr (microscopy)
+        value: micr
+      - name: motion (motion capture)
+        value: motion
+      - name: mrs (magnetic resonance spectroscopy)
+        value: mrs
+      - name: nirs (near-infrared spectroscopy)
+        value: nirs
+      - name: perf (arterial spin labeling)
+        value: perf
+      - name: pet (positron emission tomography)
+        value: pet
+  - name: TableFormatEnum
+    description: On-disk format of a table.
+    literalValues:
+      - name: CSV
+        value: csv
+      - name: TSV
+        value: tsv
+      - name: Parquet
+        value: parquet
+      - name: Arrow
+        value: arrow
+      - name: JSON Lines
+        value: jsonl
+      - name: Excel (xlsx)
+        value: xlsx
+  - name: TimeseriesFormatEnum
+    description: On-disk format of a time-series recording.
+    literalValues:
+      - name: EDF (European Data Format)
+        value: edf
+      - name: BDF (Biosemi Data Format)
+        value: bdf
+      - name: BrainVision (vhdr/vmrk/eeg)
+        value: brainvision
+      - name: FIF (MNE/Elekta)
+        value: fif
+      - name: SET (EEGLAB)
+        value: set
+      - name: XDF (Lab Streaming Layer)
+        value: xdf
+      - name: NWB (Neurodata Without Borders)
+        value: nwb
+      - name: Parquet
+        value: parquet
+      - name: Zarr
+        value: zarr
+  - name: SchemaFormatEnum
+    description: Language the schema is written in.
+    literalValues:
+      - name: CSVW (CSV on the Web)
+        value: csvw
+      - name: LinkML
+        value: linkml
+      - name: JSON Schema
+        value: jsonschema
+      - name: Frictionless Table Schema
+        value: frictionless
+  - name: TimeUnitEnum
+    description: Unit that event times are expressed in.
+    literalValues:
+      - name: Seconds
+        value: seconds
+      - name: Milliseconds
+        value: milliseconds
+      - name: Samples
+        value: samples
+  - name: CompletionCodeTypeEnum
+    description: How the completion code is produced when the study ends.
+    literalValues:
+      - name: None
+        value: none
+        description: No completion code is issued.
+      - name: Static
+        value: static
+        description: One fixed code, typed in by the researcher.
+      - name: Dynamic
+        value: dynamic
+        description: A code the platform supplies at run time (Prolific, MTurk).
+  - name: RuntimeEnum
+    description: Environment the study runs in.
+    literalValues:
+      - name: Browser
+        value: browser
+        description: In the participant's browser, one session at a time.
+      - name: Cloud
+        value: cloud
+        description: On a hosted engine.
+      - name: Local
+        value: local
+        description: On the researcher's machine.
+      - name: HPC
+        value: hpc
+        description: On a cluster, through a job scheduler.
+  - name: ItemTypeEnum
+    description: Common value types offered for a state item; any other type name is accepted.
+    literalValues:
+      - name: string
+        value: string
+      - name: integer
+        value: integer
+      - name: number
+        value: number
+      - name: boolean
+        value: boolean
+
+types:
+  - name: MarkdownString
+    description: Text with markdown formatting.
+    superClass:
+      - String
+    meta:
+      # Attributes of this type get the markdown editor unless they name their own.
+      editor: markdown
+  - name: YAMLString
+    description: Text holding a YAML document.
+    superClass:
+      - String
+    meta:
+      editor: code
+
+  - name: BaseElement
+    description: What every element of a studyflow carries.
+    extends:
+      - bpmn:BaseElement
+    isAbstract: true
+    properties:
+      - name: bpmn:documentation
+        description: Notes about this element, in markdown.
+        redefines: bpmn:BaseElement#documentation
+        isMany: true
+        type: bpmn:Documentation
+        meta:
+          editor: markdown
+          categories:
+            - Documentation
+  - name: ChecklistDocumentation
+    # A documentation entry whose body is markdown task items (`- [ ]` / `- [x]`).
+    description: Marks a documentation entry as the element's checklist.
+    extends:
+      - bpmn:Documentation
+    isAbstract: true
+    properties:
+      - name: checklist
+        description: True reads this entry as a checklist reviewers tick off.
+        isAttr: true
+        type: Boolean
+
+  - name: Study
+    description: The study a diagram describes, and how it is run.
+    superClass:
+      - bpmn:Process
+    properties:
+      - name: runtime
+        description: Environment the study runs in.
+        isAttr: true
+        type: RuntimeEnum
+        default: cloud
+        meta:
+          categories:
+            - Execution
+      - name: dependencies
+        # One entry per package, in the ecosystem's own spelling (`pandas>=2.0`, PEP 508 for Python). The
+        # reference runner installs them into every partial runner's environment (`uv run --with`).
+        description: Software the study needs, one package per entry (`pandas>=2.0`).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          categories:
+            - Execution
+      - name: authors
+        description: Who designed the study, one per entry.
+        isAttr: false
+        isMany: true
+        type: String
+      - name: version
+        description: Version label of the study (`1.2`, a git tag).
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+      - name: registration
+        description: Pre-registration or trial-registry id (OSF, NCT number).
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+          categories:
+            - Documentation
+      - name: ethicsApproval
+        description: Ethics or IRB approval reference.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+          categories:
+            - Documentation
+      - name: isExecutable
+        redefines: bpmn:Process#isExecutable
+        isAttr: true
+        type: Boolean
+        default: true
+        meta:
+          pinned: true
+      - name: state
+        # A JSON string (not YAML) so a runner without a YAML library can read it; the
+        # `.studyflow` file lifts it to the top-level `state:` mapping. `pinned` keeps it
+        # out of the inspector: it is written by runners and never drawn.
+        description: Retrospective run state, a JSON tree keyed by element id (see docs/design/state.md).
+        isAttr: false
+        type: String
+        meta:
+          pinned: true
+  - name: PropertyValue
+    description: The initial value of a declared property; names starting with `_` are reserved for the runner.
+    extends:
+      - bpmn:Property
+    isAbstract: true
+    properties:
+      - name: value
+        description: Initial value, as a literal; read when the declaring scope starts.
+        isAttr: true
+        type: String
+  - name: Classification
+    description: What kind of study a diagram is, declared by the diagram itself.
+    extends:
+      - bpmn:Process
+      - bpmn:Collaboration
+      - bpmn:Choreography
+    isAbstract: true
+    properties:
+      - name: tags
+        description: Short labels for the kind of study (`pilot`, `fMRI`, `longitudinal`).
+        isMany: true
+        type: String
+        meta:
+          categories:
+            - Documentation
+
+  - name: StartEvent
+    extends:
+      - bpmn:StartEvent
+    isAbstract: true
+    meta:
+      icon: iconify bpmn--start-event
+    properties:
+      - name: consentFormUri
+        description: Consent form shown before entry; untick to skip consent.
+        isAttr: true
+        type: String
+        meta:
+          # Overlay icon drawn on the event when this attribute is set.
+          icon: iconify mdi--shield-check-outline
+          optional: true
+  - name: SequenceFlow
+    extends:
+      - bpmn:SequenceFlow
+    isAbstract: true
+    properties:
+      - name: bpmn:conditionExpression
+        description: Take this flow when the expression holds (`accuracy >= 0.9`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:SequenceFlow#conditionExpression
+        meta:
+          expression: true
+  - name: EndEvent
+    extends:
+      - bpmn:EndEvent
+    isAbstract: true
+    meta:
+      icon: iconify bpmn--end-event
+    properties:
+      - name: redirectTo
+        description: URL the participant lands on; `{COMPLETION_CODE}` is filled in.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
+          # Overlay icon drawn on the event when this attribute is set.
+          icon: iconify mdi--exit-to-app
+      - name: completionCodeType
+        description: How the completion code is produced.
+        isAttr: true
+        type: CompletionCodeTypeEnum
+        default: none
+        meta:
+          condition:
+            body:
+              redirectTo: $set
+      - name: completionCode
+        description: The fixed completion code.
+        isAttr: true
+        type: String
+        meta:
+          condition:
+            body:
+              redirectTo: $set
+              completionCodeType: static
+
+  - name: Scheduling
+    description: Where an activity or event sits on the study schedule.
+    extends:
+      - bpmn:Activity
+      - bpmn:Event
+    isAbstract: true
+    properties:
+      - name: onset
+        description: 'When it starts: a date, an offset (`T0+30min`), or a label.'
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+      - name: duration
+        description: How long it lasts (`30min`, `PT1H`).
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+      - name: progress
+        description: 'How far along it is: a percentage or a label (`done`).'
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Gantt
+  - name: ChoreographyTask
+    description: One interaction between two participants.
+    extends:
+      - bpmn:ChoreographyTask
+    isAbstract: true
+    meta:
+      icon: iconify mdi--account-switch-outline
+
+  # ===========================================================================
+  # Data elements. Each is a BPMN data reference with a layout: what kind of
+  # data it is and how it is laid out. Where the bytes live is `uri`, mixed
+  # onto every data element by the Artifact trait further down.
+  # ===========================================================================
+  - name: Schema
+    description: 'How a table or array is structured: columns, types, dimensions.'
+    superClass:
+      - bpmn:DataObjectReference
+    meta:
+      icon: iconify mdi--table-column
+      # An attribute that references a Schema (`Dataset#schema`) edits it as text.
+      editor: code
+    properties:
+      - name: format
+        description: Language the schema is written in.
+        isAttr: true
+        type: SchemaFormatEnum
+        default: csvw
+        meta:
+          editable: true
+          categories:
+            - Data
+      - name: body
+        description: The schema itself, or a path or URL to it.
+        isAttr: true
+        type: YAMLString
+        meta:
+          categories:
+            - Data
+          editor: csvw-table
+  - name: Dataset
+    description: A structured collection of data organized by a data standard.
+    superClass:
+      - bpmn:DataStoreReference
+    isAbstract: false
+    properties:
+      - name: format
+        description: Data standard the dataset follows.
+        isAttr: true
+        type: DatasetFormatEnum
+        meta:
+          order: 1
+          categories:
+            - Data
+      - name: bdmDataLevel
+        description: Level of the BDM hierarchy.
+        isAttr: true
+        type: BDMDataLevelEnum
+        default: events
+        meta:
+          order: 2
+          categories:
+            - Data
+          condition:
+            body:
+              format: bdm
+      - name: bidsDataType
+        description: BIDS data type.
+        isAttr: true
+        type: BIDSDataTypeEnum
+        default: beh
+        meta:
+          order: 2
+          categories:
+            - Data
+          condition:
+            body:
+              format: bids
+      - name: schema
+        description: Schema describing the dataset's structure.
+        isAttr: true
+        type: Schema
+        meta:
+          order: 3
+          categories:
+            - Data
+      - name: identifier
+        description: Persistent identifier (DOI, OpenNeuro accession).
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          optional: true
+          categories:
+            - Data
+      - name: catalog
+        description: Registry the dataset is published in.
+        isAttr: true
+        type: DataCatalog
+        meta:
+          order: 5
+          categories:
+            - Data
+      - name: storage
+        description: Data store the dataset physically lives in.
+        isAttr: true
+        type: bpmn:DataStoreReference
+        meta:
+          order: 6
+          categories:
+            - Data
+  - name: DataCatalog
+    description: A registry datasets are published in (OpenNeuro, Behaverse).
+    superClass:
+      - bpmn:BaseElement
+    isAbstract: false
+    properties:
+      - name: url
+        description: Base URL of the catalog.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Data
+  - name: Table
+    description: 'Tabular data: rows and columns.'
+    superClass:
+      - bpmn:DataObjectReference
+    isAbstract: false
+    meta:
+      icon: iconify mdi--table
+    properties:
+      - name: format
+        description: On-disk format of the table.
+        isAttr: true
+        type: TableFormatEnum
+        default: csv
+        meta:
+          categories:
+            - Data
+      - name: schema
+        description: Schema describing the table's columns.
+        isAttr: true
+        type: Schema
+        meta:
+          categories:
+            - Data
+  - name: Timeseries
+    description: A signal sampled over time (EEG, eye tracking, accelerometer).
+    superClass:
+      - bpmn:DataObjectReference
+    isAbstract: false
+    meta:
+      icon: iconify mdi--chart-line
+    properties:
+      - name: samplingRate
+        description: Samples per second.
+        isAttr: true
+        type: Real
+        meta:
+          order: 1
+          unit: Hz
+          categories:
+            - Data
+      - name: channelCount
+        description: Number of channels.
+        isAttr: true
+        type: Integer
+        meta:
+          order: 2
+          categories:
+            - Data
+      - name: units
+        description: Physical unit of the values (`uV`, `deg`, `g`).
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Data
+      - name: recordingDuration
+        description: Length of the recording.
+        isAttr: true
+        type: Real
+        meta:
+          order: 4
+          unit: s
+          categories:
+            - Data
+      - name: format
+        description: On-disk format of the recording.
+        isAttr: true
+        type: TimeseriesFormatEnum
+        meta:
+          order: 5
+          categories:
+            - Data
+  - name: EventMarker
+    # An events table (BIDS `events.tsv`): one row per time-stamped occurrence.
+    description: 'Time-stamped occurrences in a recording: stimuli, responses, triggers.'
+    superClass:
+      - bpmn:DataObjectReference
+    isAbstract: false
+    meta:
+      icon: iconify mdi--flash-outline
+    properties:
+      - name: eventTypes
+        description: Kinds of event the table holds, one per entry (`stimulus`, `response`).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Data
+      - name: timeUnit
+        description: Unit the onsets are expressed in.
+        isAttr: true
+        type: TimeUnitEnum
+        default: seconds
+        meta:
+          order: 2
+          categories:
+            - Data
+      - name: format
+        description: On-disk format of the events table.
+        isAttr: true
+        type: TableFormatEnum
+        default: tsv
+        meta:
+          order: 3
+          categories:
+            - Data
+      - name: schema
+        description: Schema describing the table's columns.
+        isAttr: true
+        type: Schema
+        meta:
+          order: 4
+          categories:
+            - Data
+
+  # ===========================================================================
+  # The executable layer: what an engine reads to run a diagram.
+  # ===========================================================================
+  - name: Implementation
+    description: Lets a task name the software it runs.
+    extends:
+      - bpmn:ServiceTask
+      - bpmn:UserTask
+      - bpmn:SendTask
+      - bpmn:ReceiveTask
+      - bpmn:BusinessRuleTask
+    isAbstract: true
+    properties:
+      - name: bpmn:implementation
+        description: Software to run, as `<scheme>://<ref>[@<version>]` (`python://`, `docker://`).
+        isAttr: true
+        type: String
+        # One ref is enough: moddle resolves it per extended type.
+        redefines: bpmn:ServiceTask#implementation
+        meta:
+          order: 1
+          categories:
+            - Execution
+
+  - name: Script
+    description: Lets a script task carry its code in the diagram.
+    extends:
+      - bpmn:ScriptTask
+    isAbstract: true
+    properties:
+      - name: bpmn:script
+        description: The code this task runs, in the language picked in the editor.
+        type: String
+        redefines: bpmn:ScriptTask#script
+        meta:
+          order: 1
+          categories:
+            - Execution
+          editor: code
+          languageAttr: bpmn:scriptFormat
+
+  - name: Arguments
+    description: Lets an activity carry literal arguments for the software it calls.
+    extends:
+      - bpmn:Activity
+    isAbstract: true
+    properties:
+      - name: additionalArguments
+        description: Arguments for the software, as a YAML mapping; `args` lists positional ones.
+        isAttr: false
+        type: YAMLString
+        meta:
+          order: 3
+          categories:
+            - Execution
+          condition:
+            body:
+              implementation: $set
+
+  - name: Seed
+    # Pinned in the plan, read by the engine, echoed on the archived copy.
+    description: Adds the run's root seed to the process.
+    extends:
+      - bpmn:Process
+    isAbstract: true
+    properties:
+      - name: seed
+        description: Root seed every step derives its own from; unset, the engine draws one.
+        isAttr: true
+        type: Integer
+        meta:
+          optional: true
+          categories:
+            - Execution
+
+  # ===========================================================================
+  # Bindings. Inputs and outputs are never listed on a task: they are the data
+  # associations drawn on the canvas. BPMN's own `transformation` element on
+  # the association refines that detection; its body is `slot = selection`,
+  # each half optional. Nothing to declare here.
+  # ===========================================================================
+
+  # ===========================================================================
+  # Triggers, sensors, and delays are native BPMN: a timer start event is a
+  # schedule, a message start event an external event, a conditional catch
+  # event a sensor, a timer catch event a delay, a plain start event a manual
+  # run. The traits below only make their expressions authorable as flat
+  # strings, stored in BPMN's own expression-element form (`xsi:type`
+  # tFormalExpression).
+  # ===========================================================================
+  - name: Timer
+    description: Schedules and delays, authored as flat strings on timer events.
+    extends:
+      - bpmn:TimerEventDefinition
+    isAbstract: true
+    properties:
+      - name: bpmn:timeCycle
+        description: 'Fire repeatedly: cron (`0 6 * * 1`) or ISO 8601 interval (`R/PT24H`).'
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:TimerEventDefinition#timeCycle
+        meta:
+          categories:
+            - Execution
+          expression: true
+      - name: bpmn:timeDuration
+        description: Wait this long, as an ISO 8601 duration (`PT1H`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:TimerEventDefinition#timeDuration
+        meta:
+          categories:
+            - Execution
+          expression: true
+      - name: bpmn:timeDate
+        description: Fire once, at a fixed time (`2026-09-01T06:00Z`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:TimerEventDefinition#timeDate
+        meta:
+          categories:
+            - Execution
+          expression: true
+
+  - name: Condition
+    # A conditional catch event is the workflow sensor: the token waits until
+    # the condition over the run's variables holds, then passes.
+    description: The sensor condition, authored as a flat string on a conditional event.
+    extends:
+      - bpmn:ConditionalEventDefinition
+    isAbstract: true
+    properties:
+      - name: bpmn:condition
+        description: Fire when this holds over the run's variables (`raw.rowCount > 0`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:ConditionalEventDefinition#condition
+        meta:
+          categories:
+            - Execution
+          expression: true
+
+  # Cycles come in two interchangeable BPMN forms. The compact form is the
+  # standard-loop marker (`loopCondition`, `loopMaximum`, `testBefore`): one
+  # activity retried in place, the canvas ↻. The drawn form is a gateway whose
+  # conditioned back-edge returns upstream, bounded with the engine's run
+  # state (`state.trace.count('<gateway-id>')`). The traits below keep the
+  # marker's condition and the ad-hoc sub-process's exit test authorable as
+  # flat strings.
+  - name: CompletionCondition
+    description: The exit test of an ad-hoc sub-process, authored as a flat string.
+    extends:
+      - bpmn:AdHocSubProcess
+    isAbstract: true
+    properties:
+      - name: bpmn:completionCondition
+        description: Done when this holds, checked after each turn (`answer is not None`).
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:AdHocSubProcess#completionCondition
+        meta:
+          expression: true
+
+  - name: LoopCondition
+    description: The standard-loop marker's condition, authored as a flat string.
+    extends:
+      - bpmn:StandardLoopCharacteristics
+    isAbstract: true
+    properties:
+      - name: bpmn:loopCondition
+        description: Keep looping while this holds (`score < 0.9`); `loopMaximum` still caps it.
+        type: bpmn:Expression
+        xml:
+          serialize: xsi:type
+        redefines: bpmn:StandardLoopCharacteristics#loopCondition
+        meta:
+          categories:
+            - Execution
+          expression: true
+
+  # ===========================================================================
+  # Artifacts. One field on every BPMN data element: where the bytes live.
+  # How they are laid out is the element's own `format`; the engine reads it
+  # wherever the schema put it and falls back to the `uri`'s file extension.
+  # Unset `uri` means the value only flows in memory between steps.
+  # ===========================================================================
+  - name: Artifact
+    description: Storage location, mixed onto every data element.
+    extends:
+      - bpmn:ItemAwareElement
+    isAbstract: true
+    properties:
+      - name: uri
+        description: Where the bytes live (`results/model.joblib`, `s3://...`, a URL); unset stays in memory.
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+
+  # ===========================================================================
+  # A named configuration group the engine passes to steps like any other
+  # associated data, so a study varies by editing data, not the flow.
+  # ===========================================================================
+  - name: Parameters
+    description: A named group of configuration values, passed to the steps that read it.
+    superClass:
+      - bpmn:DataObjectReference
+    meta:
+      icon: iconify mdi--tune-variant
+    properties:
+      - name: values
+        description: The configuration, as a YAML mapping.
+        isAttr: false
+        type: YAMLString
+        meta:
+          order: 1
+          categories:
+            - Data

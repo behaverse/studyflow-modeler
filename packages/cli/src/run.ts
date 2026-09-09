@@ -17,26 +17,26 @@ export type RunOptions = {
 
 const RUNTIMES = ['browser', 'cloud', 'local', 'hpc'];
 
-/** Where `studyflow-run-local.py` (with studyflow-prov and the partial runners beside it) can be, best first:
- * the repo's `packages/cli/runners/` when this is the bundle in a checkout, Homebrew's `libexec/` next to
- * `bin/studyflow`, then flat beside the binary (the release tarball as unpacked). */
+/** Where the local runtime, `skills/local/run.py` (which finds the other skills beside it), can be, best first:
+ * the repo's `skills/` when this is the bundle in a checkout, Homebrew's `libexec/` next to `bin/studyflow`,
+ * then beside the binary (the release tarball as unpacked). */
 function runnerScriptCandidates(): string[] {
   const candidates: string[] = [];
 
   if (import.meta.url.startsWith('file:')) {
-    candidates.push(fileURLToPath(new URL('../runners/studyflow-run-local.py', import.meta.url)));
+    candidates.push(fileURLToPath(new URL('../../../skills/local/run.py', import.meta.url)));
   }
 
   try {
     const binDir = path.dirname(realpathSync(process.execPath));
-    candidates.push(path.join(binDir, '..', 'libexec', 'studyflow-run-local.py'), path.join(binDir, 'studyflow-run-local.py'));
+    candidates.push(path.join(binDir, '..', 'libexec', 'skills', 'local', 'run.py'), path.join(binDir, 'skills', 'local', 'run.py'));
   } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
 
   return candidates;
 }
 
 /** The runner, in the CLI README's order: `STUDYFLOW_RUN_PY`, an installed `studyflow-run-local`
- * companion, then the script shipped with this CLI (needs `uv`). It finds studyflow-prov and the partial runners beside itself. */
+ * companion, then the local runtime shipped with this CLI (needs `uv`). */
 function runnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };
@@ -51,8 +51,8 @@ function runnerCommand(): { command: string; args: string[] } {
   }
 
   throw new Error(
-    'No runner found. Install uv (`brew install uv`, or https://docs.astral.sh/uv/) so the studyflow-run-local.py shipped with this CLI can run, '
-    + 'or point STUDYFLOW_RUN_PY at a studyflow-run-local.py.',
+    'No runner found. Install uv (`brew install uv`, or https://docs.astral.sh/uv/) so the local runtime shipped with this CLI (skills/local/run.py) can run, '
+    + 'or point STUDYFLOW_RUN_PY at one.',
   );
 }
 

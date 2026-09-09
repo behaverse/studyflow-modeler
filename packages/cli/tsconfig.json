@@ -5,6 +5,7 @@
     "paths": {
       "@cli/*": ["./src/*"],
       "@core/*": ["../core/src/*"],
+      "@skills/*": ["../../skills/*"],
       "#assets/*": ["../../assets/*"]
     }
   },

@@ -1,32 +1,50 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { fromModdleYaml, type SchemaModel } from '@core/notation/schemaFile';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
+import { isCoreSkill, parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
 /** The Node counterpart of `packages/core/src/notation/loader.ts`, which reads the same files through Vite's bundle. */
 
-export const SCHEMA_DIR = path.join(process.cwd(), 'assets/schemas');
+export const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
-const SUFFIX = '.moddle.yaml';
+/** Every `skills/<name>/SKILL.md`, parsed. */
+export const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
+  .filter((name) => existsSync(path.join(SKILLS_DIR, name, 'SKILL.md')))
+  .map((name) => parseSkillManifest(readFileSync(path.join(SKILLS_DIR, name, 'SKILL.md'), 'utf8'), name))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+function readModel(skill: SkillManifest): SchemaModel {
+  const model = fromModdleYaml(readFileSync(path.join(SKILLS_DIR, skill.name, skill.schema!), 'utf8'), `${skill.name}/${skill.schema}`);
+  model.core = isCoreSkill(skill.name);
+  return model;
+}
+
+const withSchema = SKILLS.filter((skill) => skill.schema);
+
+/** Schema prefix → the file its skill declares. */
+const pathOfPrefix = new Map(withSchema.map((skill) => [readModel(skill).prefix, path.join(SKILLS_DIR, skill.name, skill.schema!)]));
+
+export function schemaPath(prefix: string): string {
+  const found = pathOfPrefix.get(prefix);
+  if (!found) throw new Error(`no skill declares a schema with prefix ${prefix}`);
+  return found;
+}
+
+export function schemaSource(prefix: string): string {
+  return readFileSync(schemaPath(prefix), 'utf8');
+}
+
+export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(withSchema.map(readModel));
+
+export const SCHEMAS: SchemaInfo[] = buildManifest(SCHEMA_MODELS);
 
 export function schemaPrefixes(): string[] {
   return SCHEMA_MODELS.map((model) => model.prefix);
 }
 
-export function schemaSource(prefix: string): string {
-  return readFileSync(path.join(SCHEMA_DIR, `${prefix}${SUFFIX}`), 'utf8');
-}
-
-export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(
-  readdirSync(SCHEMA_DIR)
-    .filter((file) => file.endsWith(SUFFIX))
-    .map((file) => fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, file), 'utf8'))),
-);
-
-export const SCHEMAS: SchemaInfo[] = buildManifest(SCHEMA_MODELS);
-
 /** A fresh parse of every schema; moddle mutates the models it is handed. */
 export function loadSchemaModels(): SchemaModel[] {
-  return sortSchemas(schemaPrefixes().map((prefix) => fromModdleYaml(schemaSource(prefix))));
+  return sortSchemas(withSchema.map(readModel));
 }

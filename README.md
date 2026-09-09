@@ -13,12 +13,12 @@ The canonical format is `.studyflow.yaml`; a diagram can also be embedded in a P
   brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted (by URL for a custom remote)
   brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
   brew install studyflow
-  studyflow run 'assets/schemas/examples/AI & ML/sklearn_pipeline.studyflow.png'
+  studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
   ```
 
 ## Examples
 
-Example diagrams live in [assets/schemas/examples/](assets/schemas/examples/), one folder per gallery category, and in the modeler's Examples gallery.
+Example diagrams ship with the skill they exercise, in [skills/](skills/) (`skills/<name>/examples/`), and in the modeler's Examples gallery, one shelf per skill.
 
 ## Develop
 
@@ -29,7 +29,7 @@ npm run test       # unit + e2e (Playwright)
 npm run build
 ```
 
-The workspace: [packages/core](packages/core/) is the shared model, [packages/modeler](packages/modeler/) the editor, [packages/runner](packages/runner/) the browser runner, and [packages/cli](packages/cli/) the CLI with the local runners.
+The workspace: [packages/core](packages/core/) is the shared model, [packages/modeler](packages/modeler/) the editor, [skills/browser](sackages/runner/) the browser runner, and [packages/cli](packages/cli/) the CLI with the local runners.
 
 ## Contributing
 

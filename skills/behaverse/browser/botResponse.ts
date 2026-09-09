@@ -1,0 +1,69 @@
+import type { BehaverseTaskPayload } from '@skills/behaverse/browser/types';
+import { readResponseSource, readPrompt, resolveLLMConfig } from '@skills/behaverse/browser/botConfig';
+import { askBridge, bridgeTimeoutMs, readBridgeUrl, type BridgeTrial } from '@skills/behaverse/browser/bridge';
+import { selectResponse } from '@skills/behaverse/browser/llm/bot';
+import type { TrialHistoryEntry } from '@skills/behaverse/browser/llm/types';
+import type { AwaitingResponseDetail } from '@skills/behaverse/browser/unityTopics';
+import type { LogFn } from '@runner/nodes/types';
+
+export type BotDecision = { response: string; agentId: string };
+
+export async function decideResponse(
+  payload: BehaverseTaskPayload,
+  detail: AwaitingResponseDetail,
+  history: TrialHistoryEntry[],
+  log?: LogFn,
+): Promise<BotDecision> {
+  if (readResponseSource(payload.bot) === 'llm') {
+    const llmConfig = resolveLLMConfig(payload.bot);
+    log?.('task', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex}: querying...`);
+    const result = await selectResponse({
+      taskId: payload.scene,
+      taskConfig: payload.parameters,
+      prompt: readPrompt(payload.bot),
+      stimulus: detail.Stimulus,
+      responseOptions: detail.ResponseOptions,
+      trialIndex: detail.TrialIndex,
+      history,
+      ...(typeof detail.Screenshot === 'string' && detail.Screenshot.length > 0
+        ? { screenshot: detail.Screenshot }
+        : {}),
+    }, llmConfig);
+    if (result.source === 'llm') {
+      log?.('info', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex} -> "${result.response}"`);
+    } else if (result.error) {
+      log?.('error', `[${llmConfig.provider}:${llmConfig.model}] trial ${detail.TrialIndex} -> fall back to random "${result.response}": ${result.error}`);
+      console.warn(`[behaverse:llm] trial ${detail.TrialIndex} fell back to random: ${result.error}`);
+    }
+    // Tag LLM-answered trials `<provider>:<model>` so telemetry can distinguish them from random fallback.
+    const agentId = result.source === 'llm' ? `${llmConfig.provider}:${llmConfig.model}` : 'bot';
+    return { response: result.response, agentId };
+  }
+
+  if (readResponseSource(payload.bot) === 'external') {
+    const url = readBridgeUrl(payload.bot);
+    const trial: BridgeTrial = {
+      type: 'trial',
+      RequestId: detail.RequestId,
+      TrialIndex: detail.TrialIndex,
+      ResponseOptions: detail.ResponseOptions,
+      MaxResponseTime: detail.MaxResponseTime,
+      Scene: payload.scene,
+      Prompt: readPrompt(payload.bot) || undefined,
+      LLM: (payload.bot as Record<string, unknown> | undefined)?.LLM,
+      ...(typeof detail.Screenshot === 'string' && detail.Screenshot.length > 0
+        ? { Screenshot: detail.Screenshot }
+        : {}),
+    };
+    log?.('task', `[bridge] trial ${detail.TrialIndex}: asking ${url}...`);
+    const reply = await askBridge(url, trial, bridgeTimeoutMs(detail.MaxResponseTime));
+    if (reply && detail.ResponseOptions.includes(reply.response)) {
+      log?.('info', `[bridge] trial ${detail.TrialIndex} -> "${reply.response}" (${reply.agentId})`);
+      return { response: reply.response, agentId: reply.agentId };
+    }
+    log?.('error', `[bridge] trial ${detail.TrialIndex}: no answer from ${url} — falling back to random`);
+  }
+
+  const response = detail.ResponseOptions[Math.floor(Math.random() * detail.ResponseOptions.length)];
+  return { response, agentId: 'bot' };
+}

@@ -5,11 +5,11 @@ The visual editor for studyflows: a native SVG canvas ([`@behaverse/studyflow-ca
 ## Contract
 
 - It owns **authoring** and nothing else. What a studyflow *means* lives in [`@behaverse/studyflow-core`](../core/); what a studyflow *does* lives in the runners.
-- It never imports from [`packages/runner`](../runner/). ESLint refuses it. Shared code goes to core.
+- It never imports from the browser runtime ([`skills/browser`](../../skills/browser/)). ESLint refuses it. Shared code goes to core.
 - It hands a studyflow to the browser runner through `localStorage` under `studyflow-modeler:handoff:<id>` (an 8-character uuid slice, swept after an hour) and opens `/run/?diagram=<id>`. There is no code path between the two apps.
 - **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, the canvas package's own SVG inside. `src/editor/mount.ts` mounts that canvas and `src/editor/editor.ts` assembles the `Editor` facade over it — the right first pair of files to read for canvas behavior. `src/editor/port.ts` is the app's door onto the facade, and the only way app code reaches the editor.
 - **Views dispatch commands by name** and never call a handler directly: a command's `type` *is* its handler's name, so `{ type: 'SetColor' }` runs `runSetColor`, exported from a feature's `commands.ts`. Both sides of the pixel split dispatch onto the same bus, `src/commandBus.ts`.
-- **Adding an element type is a schema edit, not a code edit.** Dropping a `*.moddle.yaml` into `assets/schemas/` gives you a palette entry, inspector fields and tabs, connection rules, templates, and round-tripping, with no code here.
+- **Adding an element type is a schema edit, not a code edit.** Dropping a `<name>/<name>.moddle.yaml` into `skills/` gives you a palette entry, inspector fields and tabs, connection rules, templates, and round-tripping, with no code here.
 - It updates the provenance timeline on export: `created` on a fresh diagram, `modified` afterwards, once per edit batch. It never writes `executed`. The only other entry it writes is the `invalidated`.
 
 ## Where things are
@@ -46,9 +46,9 @@ PNG and SVG export fetch icon glyphs from `api.iconify.design` at export time, a
 
 ## The examples gallery
 
-`src/examples/` globs `assets/schemas/examples/*/*.png` and reads each card out of the diagram itself: the root's `name` is the title (falling back to its id, then the filename) and the first sentence of its `bpmn:documentation` is the blurb, both editable in the inspector's Documentation tab. The shelf is the folder the file sits in, so the diagram carries no category of its own; a schema's own `examples:` sit on a shelf named after the schema. The filter chips are whatever shelves are present.
+`src/examples/` globs every skill's `examples/` folder and reads each card out of the diagram itself: the root's `name` is the title (falling back to its id, then the filename) and the first sentence of its `bpmn:documentation` is the blurb, both editable in the inspector's Documentation tab. The shelf is the folder the file sits in, so the diagram carries no category of its own; a schema's own `examples:` sit on a shelf named after the schema. The filter chips are whatever shelves are present.
 
-To add one, drop a `.studyflow.yaml` into `assets/schemas/examples/<Category>/` (a new folder starts a new shelf) and run `npm run examples:render`; the PNG replaces it as the shipped file, and you can then delete the YAML.
+To add one, drop a `.studyflow.yaml` into the `examples/` folder of the skill it exercises (`skills/<name>/examples/`; the skill is its shelf) and run `npm run examples:render`; the PNG replaces it as the shipped file, and you can then delete the YAML.
 
 ```bash
 npm run examples:render              # all of them, from the repo root
@@ -62,4 +62,4 @@ Re-run it after editing an example (open the PNG, edit, export PNG over it) or a
 - [Specification](../../docs/specification.qmd#projections): what the checklist, Timeline, and provenance views are, and why they cannot contradict the file.
 - [Reference](../../docs/reference.qmd#the-file): every format this app reads and writes.
 - [Architecture](../../README.md#architecture-in-short): the packages, the two boundaries, the pixel split, the command bus.
-- [assets/schemas/README.md](../../assets/schemas/README.md): the schema vocabulary this app reads.
+- [skills/README.md](../../skills/README.md): the schema vocabulary this app reads.

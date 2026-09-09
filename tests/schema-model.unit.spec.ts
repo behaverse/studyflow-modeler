@@ -6,11 +6,10 @@ import * as yaml from 'js-yaml';
 
 import { buildCatalog } from '@core/notation';
 import { fromModdleYaml, isValueType, toModdlePackages } from '@core/notation/schemaFile';
-import { SCHEMAS } from './schemas';
+import { SCHEMAS, schemaSource } from './schemas';
 
 /** The moddle package format is an *output* of the schema model, not the source format. */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'assets/schemas');
 
 /** Legacy oracle: the pre-SchemaModel transform, adjusted for the divergences `toModdlePackages` documents. */
 function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, prefix: string): any {
@@ -34,7 +33,7 @@ function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, pre
 
 test.describe('schema model: moddle package generation', () => {
   const texts = new Map(
-    SCHEMAS.map(({ prefix }) => [prefix, readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')]),
+    SCHEMAS.map(({ prefix }) => [prefix, schemaSource(prefix)]),
   );
   const models = [...texts.values()].map((text) => fromModdleYaml(text));
   const valueTypes = new Set<string>();

@@ -10,8 +10,8 @@ import { firstSentence } from '@core/naming';
 import { exampleCategories, exampleNames, exampleXml } from './utils';
 
 /**
- * Examples ship as one PNG each: the picture of a diagram with the diagram inside it. The folder
- * it sits in — `assets/schemas/examples/<Category>/` — is the shelf its card lands on, so the file
+ * Examples ship as one PNG each: the picture of a diagram with the diagram inside it. The skill
+ * it ships with — `skills/<name>/examples/` — is the shelf its card lands on, so the file
  * itself carries no category.
  */
 
@@ -40,7 +40,7 @@ test.describe('shipped examples', () => {
     }
   });
 
-  test('the folder is the category, so no example repeats it inside the file', () => {
+  test('the skill is the shelf, so no example repeats it inside the file', () => {
     for (const filename of exampleNames) {
       expect(exampleCategories.get(filename), `${filename} sits directly in the examples root`)
         .toBeTruthy();
@@ -58,7 +58,7 @@ test.describe('shipped examples', () => {
 });
 
 test.describe('gallery shelves', () => {
-  test('are the folder names, alphabetical, with Other last', () => {
+  test('are the skill names, alphabetical, with Other last', () => {
     expect(galleryCategories(['Demos', 'AI & ML', 'Demos']))
       .toEqual(['AI & ML', 'Demos']);
     expect(galleryCategories(['Robotics', undefined, 'AI & ML']))

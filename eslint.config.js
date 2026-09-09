@@ -3,7 +3,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 
-// Two enforced boundaries: core/ is framework-free and browser-free, and modeler/ and runner/
+// Two enforced boundaries: core/ is framework-free and browser-free, and the modeler and the browser runtime
 // never import each other (shared model code goes to core/), except that the modeler reads the
 // runner's settings and storage: the two apps share one origin and one localStorage.
 export default [
@@ -43,7 +43,7 @@ export default [
   },
 
   {
-    files: ['packages/modeler/src/**/*.{ts,tsx}', 'packages/runner/src/**/*.{ts,tsx}'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}', 'skills/browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs['recommended-latest'].rules,
@@ -66,7 +66,8 @@ export default [
     },
   },
   {
-    files: ['packages/runner/src/**/*.{ts,tsx}'],
+    // The browser runtime is the `browser` skill; another skill's `browser/` folder is one of its node modules.
+    files: ['skills/browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [

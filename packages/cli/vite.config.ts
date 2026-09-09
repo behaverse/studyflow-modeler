@@ -17,6 +17,7 @@ export default defineConfig({
     alias: [
       { find: '@core', replacement: resolve(__dirname, '../core/src') },
       { find: '@cli', replacement: resolve(__dirname, 'src') },
+      { find: '@skills', replacement: resolve(__dirname, '../../skills') },
       { find: '#assets', replacement: resolve(__dirname, '../../assets') },
     ],
   },

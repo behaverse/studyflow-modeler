@@ -4,20 +4,21 @@
   "version": "26.9.9",
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "skills/browser"
   ],
   "engines": {
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler & npm run dev -w @behaverse/studyflow-runner & wait",
-    "dev:lan": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler -- --host & npm run dev -w @behaverse/studyflow-runner & wait",
-    "build": "npm run build -w @behaverse/studyflow-modeler && npm run build -w @behaverse/studyflow-runner",
+    "dev": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler & npm run dev -w @behaverse/studyflow-browser-skill & wait",
+    "dev:lan": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler -- --host & npm run dev -w @behaverse/studyflow-browser-skill & wait",
+    "build": "npm run build -w @behaverse/studyflow-modeler && npm run build -w @behaverse/studyflow-browser-skill",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "lint:schemas": "playwright test --config playwright.unit.config.ts schemas.unit catalog.unit schema-model.unit schema-primitives.unit",
     "preview": "npm run preview -w @behaverse/studyflow-modeler",
-    "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in assets/schemas/examples/*/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
+    "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in skills/*/examples/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
     "package:cli": "npm run package -w @behaverse/studyflow-cli",
     "release:cli": "node packages/cli/scripts/release.mjs",
     "test": "playwright test",
@@ -31,7 +32,7 @@
   "devDependencies": {
     "@behaverse/studyflow-core": "*",
     "@behaverse/studyflow-modeler": "*",
-    "@behaverse/studyflow-runner": "*",
+    "@behaverse/studyflow-browser-skill": "*",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/js-yaml": "^4.0.9",

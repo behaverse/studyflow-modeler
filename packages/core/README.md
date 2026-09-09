@@ -15,7 +15,7 @@ The headless studyflow document model: what a studyflow *is*, with no React, no 
 
 | Folder | What it holds |
 | --- | --- |
-| `src/notation/` | what a studyflow can contain: the `*.moddle.yaml` schemas in [`assets/schemas/`](../../assets/schemas/) parsed (`schemaFile`, `loader`, `manifest`) and compiled into the queryable type index (`compile` → `query`, `types`, `bpmn`, `palette`, `templates`) |
+| `src/notation/` | what a studyflow can contain: the `*.moddle.yaml` schemas in [`skills/`](../../skills/schemas/) parsed (`schemaFile`, `loader`, `manifest`) and compiled into the queryable type index (`compile` → `query`, `types`, `bpmn`, `palette`, `templates`) |
 | `src/document/` | reading and writing studyflow files: YAML ⇄ BPMN XML (`serialize`, `deserialize`, `format`, `shorthand`, `checklist`, `png`) plus the two round-trip transforms (`choreography`, `io-specification`) |
 | `src/element/` | attribute access on one element (`handle`, `attributes`, `moddle`) |
 | `src/*.ts` | `constants` `naming` `implementation` `settings` `storage`, including the envelope for the modeler's hand-off to the browser runner |
@@ -36,4 +36,4 @@ npm run typecheck -w @behaverse/studyflow-core
 - [Reference](../../docs/reference.qmd): the formats this package reads and writes.
 - [Specification](../../docs/specification.qmd): what the document model is a model of.
 - [Architecture](../../README.md#architecture-in-short): the two boundaries, and why framework-freedom earns a second lint rule.
-- [assets/schemas/README.md](../../assets/schemas/README.md): the schema vocabulary the catalog compiles.
+- [skills/README.md](../../skills/README.md): the schema vocabulary the catalog compiles.

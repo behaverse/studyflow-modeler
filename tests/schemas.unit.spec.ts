@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
@@ -8,18 +5,17 @@ import * as yaml from 'js-yaml';
 import { studyflowToDefinitions } from '@core/document';
 import { bpmnSelfAndAncestors, buildCatalog, setCatalog } from '@core/notation';
 import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
-import { SCHEMAS, loadSchemaModels } from './schemas';
+import { SCHEMAS, loadSchemaModels, schemaSource } from './schemas';
 
 /** Schema design rules, checked without a browser. */
 
-const SCHEMA_DIR = path.join(process.cwd(), 'assets/schemas');
 
 type RawSchema = any;
 
 const rawSchemas = new Map<string, RawSchema>(
   SCHEMAS.map(({ prefix }) => [
     prefix,
-    yaml.load(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')) as RawSchema,
+    yaml.load(schemaSource(prefix)) as RawSchema,
   ]),
 );
 
@@ -76,7 +72,7 @@ test.describe('schema lint', () => {
         expect(schema.uri).toMatch(/^https?:\/\//);
         // Check the raw literal: YAML parses 26.0610 as a float and drops the zero.
         const rawVersion = /^version:\s*['"]?([^'"\n]+)/m.exec(
-          readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8'),
+          schemaSource(prefix),
         )?.[1];
         expect(rawVersion, 'version is YY.MMDD').toMatch(/^\d{2}\.\d{4}$/);
         expect(schema.xml?.tagAlias, 'tagAlias').toBe('lowerCase');
@@ -225,7 +221,7 @@ test.describe('schema lint', () => {
 
 test.describe('moddle registration', () => {
   const models = SCHEMAS.map(({ prefix }) =>
-    fromModdleYaml(readFileSync(path.join(SCHEMA_DIR, `${prefix}.moddle.yaml`), 'utf8')),
+    fromModdleYaml(schemaSource(prefix)),
   );
   const packages = Object.fromEntries(
     models.map((model) => [model.prefix, toModdlePackages(model, models)]),

@@ -5,8 +5,8 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,8 +35,11 @@ const only = local ? [hostSlug] : process.argv.slice(2).filter((arg) => !arg.sta
 const platforms = only.length ? PLATFORMS.filter((p) => only.includes(p.slug)) : PLATFORMS;
 if (!platforms.length) throw new Error(`No platform matched: ${only.join(', ')}. Known: ${PLATFORMS.map((p) => p.slug).join(', ')}.`);
 
-// The runners for `studyflow run --runtime local`: the reference runner, its prov module, and the partial runners.
-const RUNNERS = readdirSync(resolve(cliDir, 'runners')).filter((name) => /^studyflow-.*\.py$/.test(name));
+// `studyflow run --runtime local` runs the skills: the local runtime, the prov module, and every skill's
+// `runners.local`, each read from its SKILL.md. The browser runtime and browser modules, examples, and tests stay out.
+const skillsDir = resolve(repoDir, 'skills');
+const SKIPPED = new Set(['browser', 'examples', 'tests', 'node_modules', '__pycache__']);
+const shipped = (src) => !relative(skillsDir, src).split(sep).some((part) => SKIPPED.has(part) || part.startsWith('.'));
 
 const sh = (command, args, cwd = repoDir) => execFileSync(command, args, { cwd, stdio: 'inherit' });
 
@@ -63,11 +66,11 @@ for (const { slug, bunTarget, macho } of platforms) {
     sh('codesign', ['--force', '--sign', '-', resolve(stage, 'studyflow')]);
   }
 
-  for (const script of RUNNERS) copyFileSync(resolve(cliDir, 'runners', script), resolve(stage, script));
+  cpSync(skillsDir, resolve(stage, 'skills'), { recursive: true, filter: (src) => src === skillsDir || shipped(src) });
   copyFileSync(resolve(repoDir, 'LICENSE'), resolve(stage, 'LICENSE'));
 
   const asset = `studyflow-${version}-${slug}.tar.gz`;
-  sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', ...RUNNERS, 'LICENSE']);
+  sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'skills', 'LICENSE']);
   rmSync(stage, { recursive: true, force: true });
 
   const sha256 = createHash('sha256').update(readFileSync(resolve(outDir, asset))).digest('hex');
@@ -94,7 +97,7 @@ ${local
     ? `  version "${version}" # a file:// url gives the scanner nothing to read the version from`
     : `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`}
   license "MIT"
-  # \`studyflow run --runtime local\` drives the runners in libexec with uv.
+  # \`studyflow run --runtime local\` drives the skills in libexec with uv.
   depends_on "uv"
 
   on_macos do
@@ -117,8 +120,8 @@ ${blockFor('linux-x64', '      ')}
 
   def install
     bin.install "studyflow"
-    # The runners, found from bin/studyflow as ../libexec.
-    libexec.install Dir["studyflow-*.py"]
+    # The skills (the local runtime among them), found from bin/studyflow as ../libexec/skills.
+    libexec.install "skills"
   end
 
   test do

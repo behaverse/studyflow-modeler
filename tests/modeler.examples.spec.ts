@@ -33,7 +33,7 @@ test.describe('New Diagram gallery', () => {
     await runPaletteCommand(page, 'New...');
 
     const card = page.getByTestId('example-spirit2025');
-    await expect(card).toContainText('Experimental Design');        // its folder
+    await expect(card).toContainText('studyflow');                   // its skill
     await expect(card).toContainText('SPIRIT 2025 trial protocol'); // collaboration
     await expect(card).toContainText('A SPIRIT 2025 trial protocol in lanes'); // process
   });
@@ -45,7 +45,7 @@ test.describe('New Diagram gallery', () => {
     await expect(page.getByTestId('example-consort2025')).toBeVisible();
     await expect(page.getByTestId('example-bot_claude')).toBeVisible();
 
-    await page.getByTestId('example-filter-AI & ML').click();
+    await page.getByTestId('example-filter-behaverse').click();
     await expect(page.getByTestId('example-bot_claude')).toBeVisible();
     await expect(page.getByTestId('example-consort2025')).toHaveCount(0);
 
@@ -60,8 +60,8 @@ test.describe('New Diagram gallery', () => {
     // The card sits with the examples, where "start from nothing" is one of the options.
     await expect(page.getByTestId('new-diagram-blank-card')).toBeVisible();
 
-    await page.getByTestId('example-filter-AI & ML').click();
-    // A shelf holds what it says it holds; the blank card is not an AI & ML example.
+    await page.getByTestId('example-filter-behaverse').click();
+    // A shelf holds what it says it holds; the blank card is not a Behaverse example.
     await expect(page.getByTestId('new-diagram-blank-card')).toHaveCount(0);
     // The header button never goes away, whatever shelf is open.
     await expect(page.getByTestId('new-diagram-blank')).toBeVisible();

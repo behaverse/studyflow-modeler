@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Sora:wght@100..800&display=swap');
 
 /* Scan from the repo root: icon classes also live outside the app packages,
- * e.g. `icon: iconify ...` entries in assets/schemas/*.moddle.yaml. */
+ * e.g. `icon: iconify ...` entries in skills/<name>/<name>.moddle.yaml. */
 @import "tailwindcss" source("../../");
 
 @plugin "@iconify/tailwind4" {

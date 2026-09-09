@@ -5,7 +5,9 @@
     "paths": {
       "@canvas/*": ["./src/*"],
       "@core/*": ["../core/src/*"],
-      "#assets/*": ["../../assets/*"]
+      "@skills/*": ["../../skills/*"],
+      "#assets/*": ["../../assets/*"],
+      "@tests/*": ["../../tests/*"]
     }
   },
   "include": ["src/**/*.ts", "../core/src/declarations.d.ts"]

@@ -6,20 +6,20 @@ import { expect, type Download, type Locator, type Page } from '@playwright/test
 import { xmlToStudyflow } from '@core/document';
 import { extractXmlFromPng } from '@core/document/png';
 
-const EXAMPLES_DIR = path.join(process.cwd(), 'assets/schemas/examples');
+const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
-/** Every shipped example PNG by filename; the folder it sits in is its gallery category. */
+/** Every shipped example PNG by filename; the skill it ships with is its gallery shelf. */
 const examplePaths = new Map(
-  globSync('*/*.png', { cwd: EXAMPLES_DIR })
-    .map((rel) => [path.basename(rel), path.join(EXAMPLES_DIR, rel)] as const),
+  globSync('*/examples/*.png', { cwd: SKILLS_DIR })
+    .map((rel) => [path.basename(rel), path.join(SKILLS_DIR, rel)] as const),
 );
 
 /** Example filenames, sorted — the corpus every example-wide suite iterates. */
 export const exampleNames: string[] = [...examplePaths.keys()].sort();
 
-/** Filename → the folder it sits in, which is its gallery category. */
+/** Filename → the skill it ships with, which is its gallery shelf. */
 export const exampleCategories = new Map(
-  [...examplePaths].map(([name, file]) => [name, path.basename(path.dirname(file))]),
+  [...examplePaths].map(([name, file]) => [name, path.basename(path.dirname(path.dirname(file)))]),
 );
 
 export function exampleFile(filename: string): Buffer {

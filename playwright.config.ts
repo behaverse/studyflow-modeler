@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests',
+  // Project-wide specs in tests/, each package's under packages/<name>/tests/, each skill's under skills/<name>/tests/.
+  testDir: '.',
+  testIgnore: ['**/node_modules/**', '**/dist/**', 'playwright-report/**', 'test-results/**'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -23,7 +25,7 @@ export default defineConfig({
     // Browser specs against the one editor the app ships.
     {
       name: 'e2e',
-      testIgnore: ['**/*.unit.spec.ts', '**/*.webkit.spec.ts'],
+      testIgnore: ['**/node_modules/**', '**/dist/**', '**/*.unit.spec.ts', '**/*.webkit.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
       },
@@ -51,7 +53,7 @@ export default defineConfig({
       timeout: 120 * 1000,
     },
     {
-      command: 'npm run dev -w @behaverse/studyflow-runner -- --host 127.0.0.1 --port 4174',
+      command: 'npm run dev -w @behaverse/studyflow-browser-skill -- --host 127.0.0.1 --port 4174',
       url: 'http://127.0.0.1:4174/run/',
       reuseExistingServer: !process.env.CI,
       stdout: 'ignore',

@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 import { firstSentence } from '@core/naming';
-import { SCHEMA_MODELS } from '@core/notation/loader';
+import { SCHEMA_MODELS, skillOfSchema } from '@core/notation/loader';
 import { compareExamples } from '@modeler/examples/catalog';
 import { basename, readExampleMetadata } from '@modeler/examples/metadata';
 import { filenameStem } from '@modeler/diagram/file';
@@ -8,10 +8,11 @@ import { getSettings } from '@modeler/settings/store';
 
 /**
  * Each example is a PNG carrying its own studyflow (see `export/pngEmbedding`), so the picture on
- * the card is the file that opens. The folder it sits in names its gallery category.
+ * the card is the file that opens. It ships with a skill, in its `examples/` folder, and that
+ * skill is its gallery shelf.
  */
 const exampleFiles = import.meta.glob(
-  '#assets/schemas/examples/*/*.png',
+  '@skills/*/examples/*.png',
   { query: '?url', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -41,7 +42,7 @@ function schemaExampleEntries(): ExampleEntry[] {
         iconClass: example.icon ?? model.icon,
         title,
         summary: firstSentence(example.description ?? ''),
-        category: model.name,
+        category: skillOfSchema(model.prefix)?.name ?? model.name,
       };
     }));
 }
@@ -54,7 +55,7 @@ export function buildInitialEntries(): ExampleEntry[] {
       url,
       title: filenameStem(basename(path)),
       summary: '',
-      category: path.split('/').at(-2) ?? '',
+      category: path.split('/').at(-3) ?? '',
     }))
     .sort((a, b) => a.filename.localeCompare(b.filename))
     .concat(schemaExampleEntries());

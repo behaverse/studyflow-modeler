@@ -48,3 +48,4 @@ runs/
 *.bun-build
 
 *.tsbuildinfo
+__pycache__/

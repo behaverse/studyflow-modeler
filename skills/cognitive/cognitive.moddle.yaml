@@ -1,0 +1,511 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+name: Cognitive
+prefix: cognitive
+description: >-
+  Cognitive and behavioral research: tasks, questionnaires, instructions,
+  rest periods, screening and allocation gateways, and participant pools.
+uri: http://behaverse.org/schemas/studyflow/cognitive
+icon: iconify tabler--hexagon-letter-c
+order: 3
+xml:
+  tagAlias: lowerCase
+version: 26.0909
+
+# Tabs this schema adds to the ones `studyflow` declares (see the note there).
+categories:
+  - name: Behaverse
+    order: 15
+    description: How a Behaverse task is delivered, and who answers it.
+
+enumerations:
+  - name: AllocationAlgorithmEnum
+    description: How participants are allocated to arms.
+    literalValues:
+      - name: Simple randomization
+        value: simple
+        description: Each participant is drawn independently.
+      - name: Block randomization
+        value: block
+        description: Permuted blocks keep arm sizes balanced over time.
+      - name: Minimization
+        value: minimization
+        description: Each allocation minimizes covariate imbalance so far.
+      - name: Alternation
+        value: alternation
+        description: Arms taken in turn; predictable, so rarely acceptable.
+  - name: ExperimentSoftwareEnum
+    description: Software that delivers a task.
+    literalValues:
+      - name: PsychoPy
+        value: psychopy
+      - name: jsPsych
+        value: jspsych
+      - name: lab.js
+        value: labjs
+      - name: OpenSesame
+        value: opensesame
+      - name: PsyToolkit
+        value: psytoolkit
+      - name: Gorilla
+        value: gorilla
+      - name: Inquisit
+        value: inquisit
+      - name: E-Prime
+        value: eprime
+      - name: Psychtoolbox
+        value: psychtoolbox
+      - name: Presentation
+        value: presentation
+      - name: Unity
+        value: unity
+      - name: Behaverse
+        value: behaverse
+  - name: QuestionnaireInstrumentEnum
+    description: Standardized questionnaires in common use.
+    literalValues:
+      - name: PHQ-9 (depression)
+        value: phq-9
+      - name: GAD-7 (anxiety)
+        value: gad-7
+      - name: BDI-II (depression)
+        value: bdi-ii
+      - name: STAI (state-trait anxiety)
+        value: stai
+      - name: PSS (perceived stress)
+        value: pss
+      - name: DASS-21 (depression, anxiety, stress)
+        value: dass-21
+      - name: PANAS (affect)
+        value: panas
+      - name: WHO-5 (well-being)
+        value: who-5
+      - name: BFI (Big Five personality)
+        value: bfi
+      - name: PSQI (sleep quality)
+        value: psqi
+      - name: ASRS (adult ADHD)
+        value: asrs
+      - name: NASA-TLX (workload)
+        value: nasa-tlx
+      - name: SF-36 (health-related quality of life)
+        value: sf-36
+  - name: ActorTypeEnum
+    description: What a participant pool stands for.
+    literalValues:
+      - name: Human
+        value: human
+      - name: Large language model
+        value: llm
+      - name: Software agent
+        value: agent
+        description: A non-LLM agent, such as an RL policy or a rule-based bot.
+      - name: Instrument
+        value: instrument
+        description: A device that takes part, such as an amplifier sending triggers.
+  - name: BehaverseSceneEnum
+    description: Behaverse assessment delivered by a Behaverse task.
+    literalValues:
+      - name: Belval Card Sorting (BCS)
+        value: BCS
+      - name: Belval Matrices (BM)
+        value: BM
+      - name: Button Spatial Attention Cueing (BSAC)
+        value: BSAC
+      - name: Digit Span (DS)
+        value: DS
+      - name: Monkey Ladder (ML)
+        value: ML
+      - name: Multiple Object Tracking (MOT)
+        value: MOT
+      - name: N-Back (NB)
+        value: NB
+      - name: Ordered Click (OC)
+        value: OC
+      - name: Odd One Out (OOO)
+        value: OOO
+      - name: Polygon Comparison (PC)
+        value: PC
+      - name: Regular Expression (RE)
+        value: RE
+      - name: Reflexive Spatial Attention Cueing (RSAC)
+        value: RSAC
+      - name: Sustained Attention to Response Task (SART)
+        value: SART
+      - name: Symbolic Matrix Comparison (SMC)
+        value: SMC
+      - name: Self-Ordered Search (SOS)
+        value: SOS
+      - name: Stimulus-Response Mapping (SRM)
+        value: SRM
+      - name: Serial Reaction Time (SRT)
+        value: SRT
+      - name: Spatial Span (SS)
+        value: SS
+      - name: Target Hit (TH)
+        value: TH
+      - name: Test of Variable Attention (TOVA)
+        value: TOVA
+      - name: Useful Field of View (UFOV)
+        value: UFOV
+      - name: Which One (WO)
+        value: WO
+  - name: AgentTypeEnum
+    description: Whether a human or a bot plays the task.
+    literalValues:
+      - name: Human
+        value: human
+      - name: Bot
+        value: bot
+  - name: RestEyesEnum
+    description: Eye condition during a rest period.
+    literalValues:
+      - name: Eyes open
+        value: open
+      - name: Eyes closed
+        value: closed
+      - name: Alternating
+        value: alternating
+
+types:
+  - name: Configurations
+    description: Settings the delivering software reads, as YAML.
+    properties:
+      - name: value
+        isBody: true
+        type: studyflow:YAMLString
+  - name: BotConfigurations
+    # Its own subclass so it serializes as `<cognitive:botConfigurations>`, not a second `configurations`.
+    description: How a bot plays a Behaverse task, as YAML.
+    superClass:
+      - Configurations
+
+  - name: CognitiveTask
+    description: A cognitive test a participant performs (working memory, attention, ...).
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify mdi--puzzle-outline
+    properties:
+      - name: instrument
+        description: Software that delivers the task and reads its configurations.
+        isAttr: true
+        type: ExperimentSoftwareEnum
+        meta:
+          order: 1
+          editable: true
+      - name: construct
+        description: What the task measures (`working memory`, `inhibition`).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          optional: true
+          categories:
+            - Documentation
+      - name: implementation
+        description: Where the task's code lives, as `<scheme>://<ref>[@<version>]`.
+        isAttr: true
+        type: String
+        meta:
+          categories:
+            - Execution
+      - name: configurations
+        description: Settings the software reads, as YAML (trials, timing, blocks).
+        type: Configurations
+        meta:
+          categories:
+            - Execution
+
+  - name: Rest
+    description: A break, or a resting-state period (eyes open or closed).
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify mdi--coffee-outline
+    properties:
+      # Not `duration`: the Scheduling trait already puts a Gantt `duration` on every activity.
+      - name: restDuration
+        description: How long the rest lasts.
+        isAttr: true
+        type: Real
+        default: 60
+        meta:
+          order: 1
+          unit: s
+      - name: eyes
+        description: Eyes open, closed, or alternating.
+        isAttr: true
+        type: RestEyesEnum
+        default: open
+        meta:
+          order: 2
+
+  - name: Questionnaire
+    description: A self-report form the participant fills in.
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify mdi--clipboard-text-outline
+    properties:
+      - name: instrument
+        description: A standard questionnaire, or a name of your own.
+        isAttr: true
+        type: QuestionnaireInstrumentEnum
+        meta:
+          editable: true
+
+  - name: Instruction
+    description: 'Text the participant reads: instructions, a briefing, a debrief.'
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify mdi--information-outline
+    properties:
+      - name: content
+        description: What the participant reads, in markdown.
+        isAttr: true
+        type: studyflow:MarkdownString
+
+  - name: BehaverseTask
+    description: A task from the Behaverse assessment battery.
+    superClass:
+      - CognitiveTask
+    meta:
+      icon: iconify bi--hexagon
+    properties:
+      - name: instrument
+        default: behaverse
+        type: String
+        isAttr: true
+        redefines: CognitiveTask#instrument
+        meta:
+          order: 0
+          pinned: true
+      - name: implementation
+        description: Unused here; the scene says what runs.
+        isAttr: true
+        type: String
+        redefines: CognitiveTask#implementation
+        meta:
+          pinned: true
+      - name: behaverseScene
+        description: Which Behaverse assessment runs (`NB`, `UFOV`, `DS`).
+        isAttr: true
+        type: BehaverseSceneEnum
+        meta:
+          order: 1
+          categories:
+            - Execution
+      - name: configurations
+        description: 'The task''s `GameConfig` as YAML: a shipped timeline, or one defined inline.'
+        type: Configurations
+        redefines: CognitiveTask#configurations
+        meta:
+          order: 2
+          categories:
+            - Execution
+      - name: agentType
+        description: Whether a human or a bot plays the task.
+        isAttr: true
+        type: AgentTypeEnum
+        default: human
+        meta:
+          order: 4
+          categories:
+            - Execution
+      - name: botConfigurations
+        description: 'How the bot plays, as YAML (`Speed: 100`).'
+        type: BotConfigurations
+        meta:
+          order: 5
+          categories:
+            - Execution
+          condition:
+            body:
+              agentType: bot
+
+  # The browser runner performs only simple randomization with equal odds; it
+  # warns about anything else (packages/runner/src/allocation.ts).
+  - name: RandomGateway
+    description: Allocates each participant to one outgoing branch at random.
+    superClass:
+      - bpmn:ExclusiveGateway
+    meta:
+      icon: iconify mdi--dice-5-outline
+      # The runner reads this and picks a branch at random instead of evaluating conditions.
+      branching: random
+    properties:
+      - name: algorithm
+        description: How participants are allocated to arms.
+        isAttr: true
+        type: AllocationAlgorithmEnum
+        default: simple
+        meta:
+          order: 1
+      - name: allocationRatio
+        description: Arm sizes relative to each other, in branch order (`1:1`, `2:1`).
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          optional: true
+      - name: blockSize
+        description: Participants per permuted block.
+        isAttr: true
+        type: Integer
+        default: 4
+        meta:
+          order: 3
+          condition:
+            body:
+              algorithm: block
+      - name: stratifyBy
+        description: Variable to randomize within, so arms stay balanced on it (`age_band`).
+        isAttr: true
+        type: String
+        meta:
+          order: 4
+          optional: true
+      - name: strata
+        description: 'The strata, one per entry (`age_band: 18-29`).'
+        isAttr: false
+        type: studyflow:MarkdownString
+        isMany: true
+        meta:
+          order: 5
+          condition:
+            body:
+              stratifyBy: $set
+
+  - name: EligibilityGateway
+    description: Lets eligible participants through; everyone else is screened out.
+    superClass:
+      - bpmn:ExclusiveGateway
+    meta:
+      icon: iconify mdi--filter-check-outline
+    properties:
+      - name: inclusionCriteria
+        description: What a participant must meet, one per entry (`Age 18 to 65`).
+        isAttr: false
+        type: studyflow:MarkdownString
+        isMany: true
+      - name: exclusionCriteria
+        description: What rules a participant out, one per entry.
+        isAttr: false
+        type: studyflow:MarkdownString
+        isMany: true
+
+  - name: Actor
+    description: 'A pool of participants: who or what takes part in the study.'
+    superClass:
+      - bpmn:Participant
+    meta:
+      icon: iconify mdi--account-group-outline
+    properties:
+      - name: actorType
+        description: Kind of actor this pool represents.
+        isAttr: true
+        type: ActorTypeEnum
+        default: human
+      - name: identifier
+        description: Which model, agent, or device (`claude-opus-4-8`, an LSL stream).
+        isAttr: true
+        type: String
+        meta:
+          condition:
+            body:
+              actorType:
+                - llm
+                - agent
+                - instrument
+      - name: promptTemplate
+        description: Prompt sent to the model each turn, with `{{stimulus}}` placeholders.
+        isAttr: true
+        type: studyflow:MarkdownString
+        meta:
+          condition:
+            body:
+              actorType: llm
+
+templates:
+  # Stratified allocation is a RandomGateway with `stratifyBy` set, not its own type.
+  - description: Stratified block randomization, balanced within each stratum.
+    object:
+      bpmn:name: Stratified allocation
+      type: RandomGateway
+      bpmn:documentation: |
+        Randomizes within each stratum of `stratifyBy`, in permuted blocks,
+        so arms stay balanced on the covariate. List the strata one per entry.
+      icon: iconify mdi--layers-outline
+      keywords:
+        - stratified
+        - allocation
+        - randomization
+        - covariate
+        - balance
+      algorithm: block
+      stratifyBy: age_band
+      strata:
+        - "age_band: 18-29"
+        - "age_band: 30-44"
+        - "age_band: 45-65"
+  # A video game is a CognitiveTask whose instrument is a game engine, not its own type.
+  - description: A video game used as a paradigm or measurement instrument.
+    object:
+      bpmn:name: Video game
+      type: CognitiveTask
+      bpmn:documentation: |
+        Set the game engine in `instrument` and its levels, difficulty, and
+        scoring in `configurations`.
+      icon: iconify mdi--controller-classic-outline
+      keywords:
+        - game
+        - videogame
+        - paradigm
+        - instrument
+      instrument: unity
+      configurations: |
+        levels:
+        difficulty:
+        scoring:
+  # Behaverse assessment-task presets.
+  - description: N-Back running a timeline that ships with the Behaverse build.
+    object:
+      type: BehaverseTask
+      bpmn:name: N-Back (XCIT_NB_01)
+      behaverseScene: NB
+      configurations: |
+        Timelines:
+          XCIT_NB_01:
+  - description: N-Back with an inline timeline; author only the blocks that differ from the defaults.
+    object:
+      type: BehaverseTask
+      bpmn:name: N-Back (inline)
+      behaverseScene: NB
+      configurations: |
+        Blocks:
+          LabLink_InlineBlock:
+            Name: LabLink_InlineBlock
+            Inherits: Default
+            Parameters:
+              NValue: 1
+              Feature: Letters
+              Streams:
+                - Feature:
+                    Reference: Feature
+                  StimulusValue:
+                    Generate: OncePerBlock
+                    Sequence:
+                      Type: Ordered
+                      Values: [3, 1, 2, 1, 3, 2, 3, 2]
+              StreamSize: 8
+              FeatureValuesCount: 3
+              MaxResponseTime: 3
+              StimulusDisplayDuration: 0.5
+              InterStimulusInterval: 2.2
+        Timelines:
+          LabLink_Inline:
+            Name: LabLink_Inline
+            blocks:
+              - name: LabLink_InlineBlock
