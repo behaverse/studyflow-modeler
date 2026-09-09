@@ -15,12 +15,13 @@ const modules = import.meta.glob(['@skills/*/**/*.tsx', '!@skills/browser/**']);
 
 export const skillModulesLoaded: Promise<void> = (async () => {
   for (const [path, source] of Object.entries(manifests)) {
-    const folder = path.split('/').at(-2) ?? path;
-    const entry = parseSkillManifest(source, folder).runtimes?.browser;
+    // This runtime's own root is a skill folder, so its manifest is `/SKILL.md`: no folder to check against.
+    const skill = parseSkillManifest(source, path.split('/').at(-2) || undefined);
+    const entry = skill.runtimes?.browser;
     if (typeof entry !== 'string') continue;
-    const key = Object.keys(modules).find((candidate) => candidate.endsWith(`/${folder}/${entry}`));
+    const key = Object.keys(modules).find((candidate) => candidate.endsWith(`/${skill.name}/${entry}`));
     if (!key) {
-      console.error(`[studyflow skill] ${folder}/SKILL.md names runtimes.browser ${entry}, but there is no such module`);
+      console.error(`[studyflow skill] ${skill.name}/SKILL.md names runtimes.browser ${entry}, but there is no such module`);
       continue;
     }
     await modules[key]();

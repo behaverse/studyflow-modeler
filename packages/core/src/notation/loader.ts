@@ -24,12 +24,13 @@ export const SCHEMA_LOAD_FAILURES: SchemaLoadFailure[] = [];
 function readSkills(): SkillManifest[] {
   const skills: SkillManifest[] = [];
   for (const [path, source] of Object.entries(manifestSources)) {
-    const folder = path.split('/').at(-2) ?? path;
+    // `/SKILL.md` when the bundling app's own root is a skill folder (the browser runtime): no folder to check against.
+    const folder = path.split('/').at(-2) || undefined;
     try {
       skills.push(parseSkillManifest(source, folder));
     } catch (err) {
-      SCHEMA_LOAD_FAILURES.push({ sourceName: `${folder}/SKILL.md`, message: err instanceof Error ? err.message : String(err) });
-      console.error(`[studyflow skill] ${folder}/SKILL.md failed to parse and was not loaded:`, err);
+      SCHEMA_LOAD_FAILURES.push({ sourceName: `${folder ?? path}/SKILL.md`, message: err instanceof Error ? err.message : String(err) });
+      console.error(`[studyflow skill] ${folder ?? path}/SKILL.md failed to parse and was not loaded:`, err);
     }
   }
   return skills.sort((a, b) => a.name.localeCompare(b.name));

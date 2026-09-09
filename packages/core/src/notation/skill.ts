@@ -29,15 +29,17 @@ const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 /** The specification's `name`: 1-64 lowercase alphanumerics and single hyphens, not at either end. */
 const NAME = /^(?!-)(?!.*--)[a-z0-9-]{1,64}(?<!-)$/;
 
-export function parseSkillManifest(markdown: string, folder: string): SkillManifest {
+/** `folder` is the skill's directory when the caller knows it; the specification wants `name` to match it. A
+ * runtime whose own root is a skill folder (the browser runtime) sees its manifest as `/SKILL.md` and passes none. */
+export function parseSkillManifest(markdown: string, folder?: string): SkillManifest {
   const match = markdown.match(FRONT_MATTER);
-  if (!match) throw new Error(`SKILL.md in ${folder}/ has no YAML front matter`);
+  if (!match) throw new Error(`SKILL.md in ${folder ?? '?'}/ has no YAML front matter`);
   const data = (yaml.load(match[1]) ?? {}) as Record<string, unknown>;
   const name = String(data.name ?? '');
-  if (!NAME.test(name)) throw new Error(`SKILL.md in ${folder}/: name "${name}" is not lowercase alphanumerics and hyphens`);
-  if (name !== folder) throw new Error(`SKILL.md in ${folder}/ names itself "${name}"; the folder is the name.`);
+  if (!NAME.test(name)) throw new Error(`SKILL.md in ${folder ?? name}/: name "${name}" is not lowercase alphanumerics and hyphens`);
+  if (folder !== undefined && name !== folder) throw new Error(`SKILL.md in ${folder}/ names itself "${name}"; the folder is the name.`);
   const description = String(data.description ?? '').trim();
-  if (!description || description.length > 1024) throw new Error(`SKILL.md in ${folder}/: description is empty or over 1024 characters`);
+  if (!description || description.length > 1024) throw new Error(`SKILL.md in ${name}/: description is empty or over 1024 characters`);
 
   const meta = (data.metadata ?? {}) as Record<string, unknown>;
   const byRuntime = (key: string): Record<string, string> | undefined => {
